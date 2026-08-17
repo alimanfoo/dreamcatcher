@@ -5,7 +5,7 @@
 I want to label an issue on one of my repos, assign it to me, and have an agent
 carry it to a pull request while I watch. I run one dreamcatcher process per
 repo, from that repo's checkout, and it keeps going in the foreground. At any
-point I can see what every session is doing, and I can attach to a live round
+point I can see what every session is doing, and I can watch a live round
 and read the agent's own words as it works — its narration, plus enough of the
 tool activity to see what it's touching. I choose which harness handles which
 label: some issues go to Claude Code, some to Codex. My colleagues can do the
@@ -16,18 +16,19 @@ says whose agent does it.
 
 ## What's wrong or missing today?
 
-dream:catcher is a bash script wrapped in tmux. It won't run on Windows, so my
-colleagues can't have it. Launching it is a permission dance because an agent
+dream:catcher from the dream plugin is a bash script wrapped in tmux. It won't
+run on Windows, so my colleagues can't have it. Launching it is a permission dance because an agent
 session has to escape its own sandbox to reach tmux. And I'm no bash expert, so
 I find the scripts hard to review — I'm maintaining code I can't comfortably
 read.
 
 Watching is the sorest point. The first catcher ran an interactive claude
 session and I could literally watch it work. The current one runs claude with
-stream-json, and attaching shows raw JSON: I get some sense that something is
-happening, but not what. That inadequacy is part of what triggered this whole
-project. Codex is fine because it streams its plain turn output — that's my
-floor.
+stream-json, and for a long while attaching showed raw JSON: some sense that
+something was happening, but not what. That inadequacy is part of what
+triggered this whole project. A recent fix renders the stream readably, but
+there is a limit to what can be achieved in bash. Codex is fine because it
+streams its plain turn output — that's my floor.
 
 There's no view of past sessions at all. I've been bitten by that: the same
 issue got dispatched three times because I'd forgotten to remove the label, and
@@ -44,7 +45,9 @@ request (comments, review bodies, inline comments) into a resumed round, each
 post exactly once, without the agent's own posts ever echoing back to it, and
 without other accounts' posts relaying at all — remembering the agent and I
 share one GitHub account; and give a merged or closed pull request one final
-wrap-up round.
+wrap-up round. The relay needs no fancy recovery machinery: if the tool dies
+at the wrong moment and drops a batch, or a resumed round doesn't fully act on
+what I posted, I can see that on the pull request and say it again.
 
 Both harnesses in the first slice. Many of my colleagues strongly prefer Codex,
 and I'd like the choice myself.
@@ -106,18 +109,10 @@ it's doing something.
   It changes what "runs on Windows" has to prove, and proving it will need a
   few minutes on one of their real machines, since CI can't hold a signed-in
   harness session.
-- How the dispatcher's injected marking lives alongside dream's own visible
-  footer — and dream:watcher survives for hand-run sessions, so more than one
-  filter is in play. Every filter has to recognise the marks agents actually
-  leave, or an agent's post gets relayed back to it.
 - Retiring dream:catcher takes changes on the dream side too, not just a
   deletion: smith and less learn their issue from the branch name today and
   name dream:catcher in their prose, so they'll need to take the issue from
   the dispatch prompt instead. Those become issues on the dream repo.
-- "Each post exactly once" has a crack in the machinery I'm porting from: if
-  the catcher dies at the wrong moment between reading my posts and the round
-  acting on them, that batch is lost. The design has to decide what the relay
-  actually promises across a crash.
 - On a shared repo, nothing stops two machines dispatching the same issue in
   the window before its pull request exists, and nothing enforces a single
   assignee. Noted for the shared-repo door, not solved in this phase.
