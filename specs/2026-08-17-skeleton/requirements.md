@@ -105,10 +105,11 @@ it's doing something.
   noted so it isn't lost).
 - Robustness — retry with backoff, stall detection, pause — is deliberately
   deferred, and so are the HTTP API and any richer UI.
-- Whether my Windows colleagues run the harness CLIs natively or inside WSL.
-  It changes what "runs on Windows" has to prove, and proving it will need a
-  few minutes on one of their real machines, since CI can't hold a signed-in
-  harness session.
+- My Windows colleagues run the CLIs natively, not inside WSL, so native
+  Windows is the target: CI proves the plumbing with a fake harness, and WSL
+  comes free as Linux. One thing stays open: CI can't hold a signed-in harness
+  session, so a real round on a real colleague's machine is a verification
+  step to plan for before they adopt it.
 - Retiring dream:catcher takes changes on the dream side too, not just a
   deletion: smith and less learn their issue from the branch name today and
   name dream:catcher in their prose, so they'll need to take the issue from
