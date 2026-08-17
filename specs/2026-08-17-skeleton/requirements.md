@@ -5,9 +5,10 @@
 I want to label an issue on one of my repos, assign it to me, and have an agent
 carry it to a pull request while I watch. I run one dreamcatcher process per
 repo, from that repo's checkout, and it keeps going in the foreground. At any
-point I can see what every session is doing, and I can watch a live round
-and read the agent's own words as it works — its narration, plus enough of the
-tool activity to see what it's touching. I choose which harness handles which
+point I can see what every session is doing, and I can watch a live round to
+see that the agent is working, not stuck, and what it's working on — which
+tools it's using, which files it's editing, and the odd sentence it says as it
+goes. I choose which harness handles which
 label: some issues go to Claude Code, some to Codex. My colleagues can do the
 same on their machines, including the ones on Windows, with their own GitHub
 accounts and their own agent subscriptions, on their own repos or on shared
@@ -52,9 +53,10 @@ what I posted, I can see that on the pull request and say it again.
 Both harnesses in the first slice. Many of my colleagues strongly prefer Codex,
 and I'd like the choice myself.
 
-Watching a live round has to show me the agent's words and what it's touching.
-Codex's plain stream is the floor; the readability of an interactive session is
-the target.
+Watching a live round has to show me that it's alive and what it's touching.
+Minimal narration from the agent is ideal, not a shortfall: GitHub is the main
+channel, and most of the time nobody is watching, so session output is spent
+tokens. Codex's plain stream is the floor.
 
 The status view has to show repeat attempts as attempts at one issue, not
 unrelated rows, so the triple-dispatch surprise can't happen to me silently
