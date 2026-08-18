@@ -29,8 +29,6 @@ Every phase is reviewed by a human, so every phase serves its reviewer:
 - Every phase PR's description opens with a short reviewer's guide: what to
   read first, where the risk lives, and what is generated or mechanical and
   safe to skip.
-- The largest phases name their natural split point; if a diff outgrows one
-  sitting, split the issue there rather than pushing through.
 
 ## Phase 1: scaffold
 
@@ -103,7 +101,7 @@ In scope:
   is schema'd everywhere rather than hand-rolled.
 - Runtime dependencies arrive here: pydantic, and psutil for pid semantics
   (the lock's staleness check, and later the orphan sweep) — with rich
-  following in phase 8. This is the plan's deliberate amendment to
+  following in phase 11. This is the plan's deliberate amendment to
   design.md's standard-library aim: three mature, universally wheeled
   dependencies.
 - `--harness` resolution: the flag wins, else the config default; a mapping's
@@ -156,12 +154,13 @@ platforms, and the marked integration tests pass locally against the real
 `gh`.
 
 Deliberately out: any interpretation of what the wrappers return —
-eligibility rules and dispatch decisions live in phase 6.
+eligibility rules and dispatch decisions live in phase 8.
 
-## Phase 4: adapters and the feed
+## Phase 4: the Claude adapter and the feed
 
-The harness boundary and the rendering pipeline, as pure functions over
-recorded streams. Dreamcatcher spawns no processes yet.
+The harness boundary, the event vocabulary, and the rendering pipeline, as
+pure functions over recorded streams — proven against the first harness.
+Dreamcatcher spawns no processes yet.
 
 In scope:
 
@@ -176,36 +175,53 @@ In scope:
   tool calls as one line via the most-telling-input fallback chain, failed
   tool results surfaced, result events closing the round, subagent lines
   indented, and any unparseable line passed through unchanged.
-- The Codex parser: `--json` JSONL, `item.completed` items — `agent_message`
-  text, command and patch items as tool lines — lifted from audacious's
-  codex.py and moved from post-hoc to line-at-a-time.
 - The renderer: timestamped feed lines, round-boundary lines carrying the
   round's cause.
 - The fake harness binary for the test rig: replays a recorded stream file
-  with configurable delays and exit code. Phases 5 through 7 test process
-  handling with it, no signed-in CLI needed.
+  with configurable delays and exit code. Later phases test process handling
+  with it, no signed-in CLI needed.
 - Recorded fixtures: capture real `claude --print --output-format
-  stream-json` and `codex exec --json` streams once, commit them, and
-  golden-file test both parsers against them.
+  stream-json` streams once, commit them, and golden-file test the parser
+  and renderer against them.
+- Verification: does `claude` exit non-zero on a usage-limit failure? If the
+  implementing session cannot verify it headless, it becomes a named
+  checklist item on this phase's PR for the user to confirm.
+
+Done when: golden-file tests for the Claude parser and the renderer are
+green on all three platforms, the fixtures are committed, and the
+verification result (or its checklist item) is recorded on the PR.
+
+Deliberately out: the Codex adapter; dreamcatcher spawning any process;
+worktrees; prompts composed for real sessions.
+
+## Phase 5: the Codex adapter
+
+The second harness, proving the adapter boundary holds: nothing outside the
+adapter changes.
+
+In scope:
+
+- The Codex parser: `--json` JSONL, `item.completed` items — `agent_message`
+  text, command and patch items as tool lines — lifted from audacious's
+  codex.py and moved from post-hoc to line-at-a-time.
+- The Codex command builders: first round and resume with the ported
+  never-stall flags (design.md, The harness adapters), `--json` added.
+- Recorded fixtures: capture real `codex exec --json` streams once, commit
+  them, and golden-file test the parser against them.
 - The design's open-list verifications: does `codex exec resume` accept
   `--json`; do its tool items carry enough shape for the feed's action
-  lines; do both CLIs exit non-zero on a usage-limit failure. Whatever the
-  implementing session cannot verify headless (a signed-in run, a real
-  limit) becomes a named checklist item on this phase's PR for the user to
-  confirm.
+  lines; does `codex` exit non-zero on a usage-limit failure. Whatever the
+  implementing session cannot verify headless becomes a named checklist item
+  on this phase's PR for the user to confirm.
 
-Done when: golden-file tests for both parsers are green on all three
-platforms, the fixtures are committed, and the verification results (or
-their checklist items) are recorded on the PR.
+Done when: golden-file tests for the Codex parser are green on all three
+platforms, the fixtures are committed, the verification results (or their
+checklist items) are recorded on the PR — and no file outside the adapter
+and its tests changed.
 
-Deliberately out: dreamcatcher spawning any process; worktrees; prompts
-composed for real sessions.
+Deliberately out: everything phase 4 left out.
 
-This is the plan's second-largest phase. If it proves too big for one
-session or one review, the natural split is the Claude adapter and the
-renderer first, the Codex adapter second.
-
-## Phase 5: rounds
+## Phase 6: rounds
 
 The process layer. A round here is "argv plus directory in, records and feed
 out" — nothing decides when a round runs yet.
@@ -237,31 +253,48 @@ nothing.
 Deliberately out: worktrees, sessions, prompt composition, and any decision
 about when a round runs.
 
-## Phase 6: the dispatch tick
+## Phase 7: sessions
 
-The skeleton first touches a real issue: label in, worktree cut, first round
-run, pull request out.
+Session creation and prompt composition: everything a dispatch produces,
+without yet deciding when to dispatch.
 
 In scope:
 
 - Session creation: the session key, the branch, the nested worktree under
   `.dreamcatcher/worktrees/` with the path invariant checked at dispatch,
   and `session.json` frozen at dispatch (design.md, Sessions, worktrees,
-  branches).
+  branches). A failed creation backs out worktree and branch together,
+  leaving nothing behind.
 - First-round prompt composition: the mapping's per-harness template
-  rendered with `{issue}`, the marker postscript appended.
+  rendered with `{issue}`, the marker postscript appended (design.md, The
+  relay, for the marker).
+
+Done when: tests cut a real worktree and branch in a temporary git
+repository, the records land and validate, a failed creation leaves no
+trace, and prompt rendering has golden tests per harness.
+
+Deliberately out: eligibility, the tick, and any GitHub read — creation here
+is invoked directly by tests.
+
+## Phase 8: the dispatch tick
+
+The skeleton first touches a real issue: label in, worktree cut, first round
+run, pull request out.
+
+In scope:
+
 - Eligibility, built on phase 3's "unknown" contract so every read failure
   biases to inaction: exactly one mapped label (two mapped labels is the
   noisy skip), the assignee filter, no active session worktree, no open or
   merged PR from an earlier dreamcatcher branch, no open blocking issues.
 - The real tick, replacing phase 2's stub: cap first (a capped tick spends
-  no GitHub calls), reconcile, dispatch the oldest eligible issue, one
-  launch per tick, and `last-tick.json` recording what was done and what was
-  not, with reasons.
+  no GitHub calls), reconcile, dispatch the oldest eligible issue via phase
+  7's session creation, one launch per tick, and `last-tick.json` recording
+  what was done and what was not, with reasons.
 - The failure cooldown: after any failed round, hold all launches for a
   fixed fifteen minutes, recorded in `last-tick.json` with the evidence.
 - The startup orphan sweep: kill any live pid from a round record with no
-  end. The carry-on resume of those sessions is phase 7's; until then they
+  end. The carry-on resume of those sessions is phase 10's; until then they
   appear in `last-tick.json` as waiting.
 
 Done when: an end-to-end CI test drives a full dispatch against the fakes —
@@ -273,13 +306,10 @@ actual pull request.
 
 Deliberately out: the relay, resumes of any kind, final rounds, and scry.
 
-This is the plan's largest phase. If it proves too big for one session, the
-natural split is session creation and prompt composition first, then the
-tick and eligibility.
+## Phase 9: the peek
 
-## Phase 7: relay and resume
-
-The collaboration half. The lifecycle closes here.
+The relay's read half: what did the user newly say? Pure queries and
+filters; nothing moves state yet.
 
 In scope:
 
@@ -288,6 +318,26 @@ In scope:
   with its fallback, `side`, `diff_hunk`), and the two filter rules — the
   authenticated account plus the exact `<!-- dreamcatcher -->` marker match,
   and the says-something rule that drops GitHub's empty review wrappers.
+- The watermark as a value the peek reads but never writes: posts newer than
+  a given ISO-8601 timestamp, string-compared, absent meaning the beginning
+  of time.
+
+Done when: CI tests against recorded REST fixtures cover the filter's known
+traps by name — the empty wrapper around an agent's own inline reply does
+not pass; a marker-bearing post does not pass; a post from another account
+does not pass; a range suggestion arrives with its `start_line` and hunk;
+review verdicts pass with empty bodies.
+
+Deliberately out: writing the watermark, inboxes, resumes, and any wiring
+into the tick.
+
+## Phase 10: resumes
+
+The lifecycle closes: relayed posts, interruptions, and the final round all
+wake the session.
+
+In scope:
+
 - The watermark advancing only at round launch, never at read. Each round's
   `inbox.json` written to its round directory and kept.
 - The three resume kinds joining the tick's priority order: carry-on for
@@ -296,22 +346,16 @@ In scope:
   prompt — ported from the old catcher's resume prompt where one exists, the
   new carry-on text where not — plus the marker postscript.
 
-Done when: CI tests against the fakes cover the relay's known traps by
-name — the empty wrapper around an agent's own inline reply does not relay;
-a marker-bearing post does not echo; a range suggestion arrives with its
-`start_line` and hunk; a batch peeked but never launched is re-peeked intact
-next tick; a killed final round's retry is itself the final round — and the
-full-lifecycle milestone sits as a checklist item on this phase's PR for the
-user: post a review comment on a real dispatched PR, watch the resumed round
-act on it, merge, and watch the final round run.
+Done when: CI tests against the fakes prove the sequencing — a batch peeked
+but never launched is re-peeked intact next tick; a killed final round's
+retry is itself the final round — and the full-lifecycle milestone sits as a
+checklist item on this phase's PR for the user: post a review comment on a
+real dispatched PR, watch the resumed round act on it, merge, and watch the
+final round run.
 
 Deliberately out: scry — though everything it will read now exists on disk.
 
-If this phase proves too big for one session or one review, the natural
-split is the peek, filters, and projection first (pure functions, the
-densest correctness reading), the three resume kinds second.
-
-## Phase 8: scry
+## Phase 11: scry
 
 The watch tower. Reads only the disk; never calls GitHub.
 
@@ -339,13 +383,12 @@ In scope:
 Done when: CI renders every board state from fabricated state directories as
 golden tests, with the clock and the console width pinned so ages and
 wrapping are deterministic; a dead-daemon directory still renders fully,
-staleness marked;
-and the checklist item on this phase's PR is the one the project was for:
-scry a live session and watch your agent working.
+staleness marked; and the checklist item on this phase's PR is the one the
+project was for: scry a live session and watch your agent working.
 
 Deliberately out: any GitHub call from scry; any richer UI.
 
-## Phase 9: contract and release
+## Phase 12: contract and release
 
 The written contract, the newcomer documentation, and the proof that the
 tool can take over from the one it replaces.
