@@ -52,9 +52,9 @@ effort = "xhigh"
 A mapping may also pin `harness = "codex"` at its own level, committed, when
 the repo agrees a label belongs to one harness; otherwise the run's harness
 applies. That keeps the requirements' "some issues go to Claude Code, some to
-Codex" available while the common case stays one flag. A bare natural-language
-prompt with no skill syntax can sit at the mapping's top level as a shared
-default when it needs no per-harness form.
+Codex" available while the common case stays one flag. The prompt always
+lives in the harness block — one way, even when the two prompts happen to
+read the same.
 
 `{issue}` is the only substitution the dispatcher owns. The label is a
 dispatch mapping's identity everywhere: in config, on the board, in the
@@ -86,7 +86,7 @@ never touches the repo's own files. Contents:
 - `rounds/<n>/` holds `round.json` (started and ended timestamps, exit
   status, the round's cause, and the child pid while relevant), `feed.txt`
   (rendered, timestamped), `raw.jsonl` (the harness's own stdout stream),
-  `stderr.log`, and `inbox.json` (the batch that caused the round, kept
+  and `inbox.json` (the batch that caused the round, kept
   forever).
 
 The round records are the story of record: a `round.json` with no end
@@ -188,9 +188,10 @@ A round is a child process of the daemon, built by the harness adapter and
 run in the session's worktree. The daemon holds the pipes and pumps them on
 reader threads: each stdout line goes to `raw.jsonl` verbatim and through the
 adapter's parser to become events, which the renderer appends to `feed.txt`
-as timestamped lines; stderr goes to `stderr.log`, and when a round exits
-nonzero its closing feed line quotes the last few stderr lines, so failures
-surface in the view you're already watching. Liveness inside the daemon is
+as timestamped lines; stderr lines flow into the same feed as pass-through
+lines, interleaved where they happened — the port's behaviour, one sink, and
+failures surface in the view you're already watching. `raw.jsonl` stays pure
+stdout for parser debugging. Liveness inside the daemon is
 the process handle; liveness for `scry` is `daemon.pid` plus the round
 records (rounds cannot outlive the daemon).
 
@@ -297,13 +298,12 @@ that round's directory and kept.
 
 The marker: every prompt the daemon composes ends with a postscript
 instructing the session to end every GitHub post — PR bodies, comments,
-replies on diff lines, issues — with the exact line
-`<!-- dreamcatcher session=<session-key> round=<n> -->`. HTML comments don't
-render on GitHub. The filter matches on the `<!-- dreamcatcher` prefix alone,
-never the whole marker, because the round number varies; the session and
-round metadata rides along free for later attribution. Dream's visible footer
-coexists harmlessly; each system owns its own mark. Commits are not marked;
-the relay only filters posts.
+replies on diff lines, issues — with the exact line `<!-- dreamcatcher -->`.
+HTML comments don't render on GitHub. The marker is a fixed literal, the same
+in every prompt, and the filter matches it exactly — no payload, no
+prefix-matching rule, nothing to vary. Dream's visible footer coexists
+harmlessly; each system owns its own mark. Commits are not marked; the relay
+only filters posts.
 
 ### The board
 
