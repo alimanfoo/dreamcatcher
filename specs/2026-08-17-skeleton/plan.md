@@ -134,3 +134,46 @@ platforms, and the marked integration tests pass locally against the real
 
 Deliberately out: any interpretation of what the wrappers return —
 eligibility rules and dispatch decisions live in phase 6.
+
+## Phase 4: adapters and the feed
+
+The harness boundary and the rendering pipeline, as pure functions over
+recorded streams. Dreamcatcher spawns no processes yet.
+
+In scope:
+
+- The adapter interface: one small frozen object per harness that builds the
+  first-round argv, builds the resume argv, validates the binary is on PATH,
+  and parses one stream line into events. The never-stall flag sets from
+  design.md (The harness adapters) are the adapters' data.
+- The event vocabulary between parser and renderer, settled here — this is
+  the "first slice" the design's open list points at.
+- The Claude parser: render-claude.sh's policy as Python — session id from
+  the init event, assistant text whole, thinking rendered and on by default,
+  tool calls as one line via the most-telling-input fallback chain, failed
+  tool results surfaced, result events closing the round, subagent lines
+  indented, and any unparseable line passed through unchanged.
+- The Codex parser: `--json` JSONL, `item.completed` items — `agent_message`
+  text, command and patch items as tool lines — lifted from audacious's
+  codex.py and moved from post-hoc to line-at-a-time.
+- The renderer: timestamped feed lines, round-boundary lines carrying the
+  round's cause.
+- The fake harness binary for the test rig: replays a recorded stream file
+  with configurable delays and exit code. Phases 5 through 7 test process
+  handling with it, no signed-in CLI needed.
+- Recorded fixtures: capture real `claude --print --output-format
+  stream-json` and `codex exec --json` streams once, commit them, and
+  golden-file test both parsers against them.
+- The design's open-list verifications: does `codex exec resume` accept
+  `--json`; do its tool items carry enough shape for the feed's action
+  lines; do both CLIs exit non-zero on a usage-limit failure. Whatever the
+  implementing session cannot verify headless (a signed-in run, a real
+  limit) becomes a named checklist item on this phase's PR for the user to
+  confirm.
+
+Done when: golden-file tests for both parsers are green on all three
+platforms, the fixtures are committed, and the verification results (or
+their checklist items) are recorded on the PR.
+
+Deliberately out: dreamcatcher spawning any process; worktrees; prompts
+composed for real sessions.
