@@ -70,3 +70,37 @@ Done when: CI is green on all three platforms, pre-commit passes clean, and
 
 Deliberately out: config parsing, the state directory, anything that touches
 git or GitHub, and any real verb behaviour.
+
+## Phase 2: config and the state directory
+
+`run` becomes startable: it reads the config, takes the lock, creates the
+state directory, and idles. No GitHub, no worktrees, no processes.
+
+In scope:
+
+- Parse and validate `dreamcatcher.toml` from the repo root: `interval`,
+  `max_agents`, `assignee`, the default `harness`, and the `[[dispatch]]`
+  mappings, each with a label and per-harness settings blocks carrying
+  `prompt`, `model`, and `effort`, plus the optional per-mapping `harness`
+  pin (see design.md, Configuration). Every validation failure names the
+  field and what's wrong with it in plain words.
+- `--harness` resolution: the flag wins, else the config default; a mapping's
+  pin overrides both for that label.
+- The main-checkout test: `run` refuses to start anywhere but a main
+  checkout — a linked worktree's `.git` is a file, not a directory.
+- `.dreamcatcher/` bootstrap: create it on first run with a `.gitignore`
+  containing `*`, so the directory ignores itself and `git status` stays
+  clean from the first tick.
+- The `daemon.pid` lock: take it on start, refuse a second `run` on the same
+  repo while the pid is alive, and treat a dead pid as stale and reclaim it.
+- A stub tick loop: sleep on the interval, write a minimal `last-tick.json`
+  each tick, exit cleanly on Ctrl-C releasing the lock.
+
+Done when: in a repo with a valid config, `dreamcatcher run` starts, locks,
+creates the state directory, and idles through empty ticks; a second `run`
+refuses with a message naming the live pid; a config-error test suite shows
+every mistake producing a named, readable error; and killing the daemon then
+restarting reclaims the stale lock.
+
+Deliberately out: anything touching GitHub, worktrees, or child processes;
+the real tick body.
