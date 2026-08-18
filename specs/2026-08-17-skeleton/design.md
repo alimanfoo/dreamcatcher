@@ -134,10 +134,20 @@ Each tick, in order, launching at most one round per tick:
 1. Reconcile: enumerate session worktrees, read GitHub state per session,
    peek each open session's new posts (a read-only relay query — see below).
 2. If live rounds fill the cap, defer.
-3. Resume the most-open work first: interrupted rounds (a fixed "your
-   previous round was interrupted, carry on" resume, no inbox), then sessions
-   whose PR is merged or closed and whose final round has not completed (the
-   final round), then sessions with new user posts (an inbox resume).
+3. Resume the most-open work first: interrupted and errored rounds (a fixed
+   "carry on" resume, no inbox — interrupted means no end recorded, errored
+   means the latest round exited non-zero, which is what a usage-limit
+   failure looks like), then sessions whose PR is merged or closed and whose
+   final round has not completed (the final round), then sessions with new
+   user posts (an inbox resume).
+
+An errored round retries on a later tick with no backoff machinery: the tick
+interval is the pace, a still-limited harness fails fast once per tick, and
+when the account is limited every session is limited anyway, so nothing is
+starved. Backoff stays deferred robustness. The true wedge is narrower than
+the port's: a round that exited *zero* without opening a PR — the skill ran
+to completion and yielded without one (the ask-the-user case) — which no
+retry can advance and the board surfaces as stuck.
 4. Otherwise dispatch the oldest eligible labelled issue.
 5. Write `last-tick.json`.
 
@@ -283,11 +293,12 @@ the relay only filters posts.
 
 - needs you: PR open, no live round, nothing waiting — with idle age.
 - agent working: live round — with the last feed event and its age.
-- waiting: posts peeked but the round deferred at the cap, or interrupted and
-  awaiting its carry-on resume.
-- stuck: a session in a state the daemon cannot advance — the wedge (a round
-  ended, no PR exists) surfaced instead of silently skipped, with a pointer
-  to the feed.
+- waiting: posts peeked but the round deferred at the cap, or an interrupted
+  or errored round awaiting its carry-on retry — with the last exit status,
+  so a run of usage-limit failures reads as what it is.
+- stuck: a session in a state the daemon cannot advance — a round exited
+  cleanly without opening a PR — surfaced instead of silently skipped, with
+  a pointer to the feed.
 - queued: eligible issues in dispatch order, each with its reason not yet —
   behind N others, blocked by GH<x>, skipped for double labels.
 - done: merged or closed with the final round completed, most recent first.
@@ -391,6 +402,10 @@ candidate trim once the adapters are verified, not before.
 
 ## What's still open
 
+- Verify both harnesses exit non-zero on a usage-limit failure — the errored
+  retry keys on exit status, so a limit that exits zero would misread as the
+  wedge. Check what the stream's closing event says in that case too; a
+  "limited" cause on the board is a cheap later refinement.
 - Verify Codex `--json` early in the build: that `codex exec resume` accepts
   it at all, and that tool-call items surface with enough shape for the
   feed's action lines (audacious proves `agent_message`; the rest needs a
