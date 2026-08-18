@@ -5,8 +5,8 @@
 A Python package, `dreamcatcher`, with two verbs. `run` (the default: bare
 `uvx dreamcatcher` means `run`) is a foreground daemon started from a
 repository's main checkout. It polls GitHub for open issues that carry a
-configured label and are assigned to the user, dispatches each into a sibling
-worktree, runs agent rounds as its own child processes, relays what the user
+configured label and are assigned to the user, dispatches each into its own
+worktree under `.dreamcatcher/`, runs agent rounds as its own child processes, relays what the user
 posts on the pull request into resumed rounds, and gives a merged or closed
 pull request one final round. `scry` is the watch tower: bare `scry` shows the
 board (one line per session and per queued issue, sorted by whose turn it is),
@@ -77,6 +77,8 @@ never touches the repo's own files. Contents:
   but not yet relayed). The board's queue and waiting sections render this
   file; its staleness (mtime plus `daemon.pid`) tells `scry` whether the
   daemon is alive.
+- `worktrees/<session-key>/` — the session worktrees themselves (next
+  section).
 - `sessions/<session-key>/` — one directory per attempt, named by the session
   key (below): `session.json` (issue, label, branch, worktree path, harness,
   model, effort, rendered first prompt — frozen at dispatch), `watermark` (the
@@ -104,24 +106,31 @@ round records, the lock. Never a saved copy of external state.
 
 A dispatched issue gets a session key `GH<n>-<timestamp>`, a branch
 `dreamcatcher-GH<n>-<timestamp>`, and a worktree at
-`<container>/dreamcatcher-GH<n>-<timestamp>` where `<container>` is the main
-checkout's parent directory — the same sibling layout as today. The branch
-name is dispatcher-internal namespace: the anchored pattern is the ownership
-test and carries the issue number for reconciliation, but the issue reference
-the *skill* acts on travels in the prompt. (The branch still contains a
-`GH<n>` token, so today's smith and less boot by branch-scan unchanged until
-the dream-side prompt argument lands.)
+`.dreamcatcher/worktrees/<session-key>/` inside the main checkout. Git is
+happy to put a worktree in an ignored directory of its own working tree —
+Claude Code's worktree feature nests the same way — and this is the only
+layout: everything dreamcatcher ever makes lives inside `.dreamcatcher/`,
+whatever the user's directory habits. Ownership is by path — a session
+worktree is one under `worktrees/` — which is stronger than the old
+basename-pattern test. The branch name stays dispatcher-internal namespace:
+the anchored pattern carries the issue number for the PR half of the
+eligibility check, but the issue reference the *skill* acts on travels in the
+prompt. (The branch still contains a `GH<n>` token, so today's smith and less
+boot by branch-scan unchanged until the dream-side prompt argument lands.)
 
-The new prefix means dreamcatcher never mistakes old `dream-catcher-*`
-worktrees for its own — and, the same coin's other face, never *sees* them:
-an issue with an in-flight old-catcher PR reads as unhandled here and would
+The new branch prefix means dreamcatcher never mistakes old `dream-catcher-*`
+work for its own — and, the same coin's other face, never *sees* it: an issue
+with an in-flight old-catcher PR reads as unhandled here and would
 re-dispatch. The crossover rule is therefore: retire the old catcher with
 nothing in flight, or expect doubled attempts on whatever was.
 
-Two invariants are checked at dispatch, not assumed: the worktree's basename
-equals the branch name, and the worktree path is strictly under the
-container. `run` refuses to start anywhere but a main checkout (a linked
-worktree's `.git` is a file, the same test as today).
+Two costs of nesting, accepted: tools that ignore gitignore (`find`, some
+indexers) see repo copies inside the checkout — git, ripgrep, and the
+harnesses' own search skip them — and the extra path depth nudges toward
+Windows path-length limits on deep repos. One invariant is checked at
+dispatch, not assumed: the worktree path is strictly under
+`.dreamcatcher/worktrees/`. `run` refuses to start anywhere but a main
+checkout (a linked worktree's `.git` is a file, the same test as today).
 
 ### The tick
 
@@ -349,6 +358,9 @@ code. Gone: `--once` and the cron-restart pattern; the foreground loop is the
 run story. Gone: branch names as the message channel — the prompt carries the
 issue; the branch pattern remains only as dispatcher-internal reconciliation
 namespace. Gone: the clobbered single `inbox.json`; each round keeps its own.
+Gone: the sibling-worktree layout and its assumption that the checkout lives
+in a dedicated container directory — worktrees nest under
+`.dreamcatcher/worktrees/`, and there is only one way.
 Changed: the final-round guard from "final started" to "final completed".
 Changed: the watermark advances at round launch, not at read — a strictly
 smaller loss window than the port. Changed: the inline-comment projection
@@ -373,6 +385,12 @@ An append-only ledger file: cut in review. It recorded nothing the session
 and round files don't already hold, and two stores of one story means one of
 them drifts. A later phase wanting a cross-session timeline emits events
 alongside the same writes, additively.
+
+Sibling worktrees (the port's layout): cut, with no config option to bring
+them back — one way, always. Nesting under `.dreamcatcher/` assumes nothing
+about the user's directory habits, strengthens ownership from name-pattern to
+path, and makes cleanup one deletion. The costs (gitignore-blind tools see
+nested repo copies; Windows path depth) are named in the worktree section.
 
 A supervisor that holds the truth in memory: cut. The reconcile-first crash
 story is the most proven part of the old catcher, and the requirements demand
