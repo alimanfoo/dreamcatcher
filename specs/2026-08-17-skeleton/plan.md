@@ -242,3 +242,33 @@ the user: label an issue on a real repository and watch `run` carry it to an
 actual pull request.
 
 Deliberately out: the relay, resumes of any kind, final rounds, and scry.
+
+## Phase 7: relay and resume
+
+The collaboration half. The lifecycle closes here.
+
+In scope:
+
+- The read-only peek (design.md, The relay): the three paginated REST
+  sources via `gh api`, the projection widened per dream#891 (`start_line`
+  with its fallback, `side`, `diff_hunk`), and the two filter rules — the
+  authenticated account plus the exact `<!-- dreamcatcher -->` marker match,
+  and the says-something rule that drops GitHub's empty review wrappers.
+- The watermark advancing only at round launch, never at read. Each round's
+  `inbox.json` written to its round directory and kept.
+- The three resume kinds joining the tick's priority order: carry-on for
+  interrupted and errored rounds, the final round on merged or closed with
+  the final-completed guard, and inbox resumes on new posts. Each with its
+  prompt — ported from the old catcher's resume prompt where one exists, the
+  new carry-on text where not — plus the marker postscript.
+
+Done when: CI tests against the fakes cover the relay's known traps by
+name — the empty wrapper around an agent's own inline reply does not relay;
+a marker-bearing post does not echo; a range suggestion arrives with its
+`start_line` and hunk; a batch peeked but never launched is re-peeked intact
+next tick; a killed final round's retry is itself the final round — and the
+full-lifecycle milestone sits as a checklist item on this phase's PR for the
+user: post a review comment on a real dispatched PR, watch the resumed round
+act on it, merge, and watch the final round run.
+
+Deliberately out: scry — though everything it will read now exists on disk.
