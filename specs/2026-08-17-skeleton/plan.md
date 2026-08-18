@@ -46,8 +46,8 @@ In scope:
   than drift. complexipy as a second complexity gate. Type checking with
   `ty` — hallucinated signatures are the classic agent failure, and a type
   gate catches them mechanically. Markdown lint and format:
-  markdownlint-cli2 and prettier at 80 columns, as in the dream repo, plus
-  link validation (remark-validate-links) so renamed headings can't silently
+  markdownlint-cli2, prettier reflowing prose to 80 columns, and link
+  validation (remark-validate-links) so renamed headings can't silently
   break the spec documents' cross-references.
 - Pre-commit: hooks running ruff (lint and format), complexipy, `ty`, the
   markdown checks, an invisible-character check (zero-width and bidi marks,
@@ -200,9 +200,11 @@ In scope:
   cases: a round killed mid-stream leaves a `round.json` with no end;
   teardown really kills the child tree; a nonzero exit is captured.
 
-Done when: those tests are green on all three platforms, and a feed produced
-by a live fake round is byte-identical to the same stream parsed purely in
-phase 4's tests — the pipeline adds nothing and loses nothing.
+Done when: those tests are green on all three platforms, and — with the
+clock injected and pinned, the convention every timing test in this project
+uses — a feed produced by a live fake round is byte-identical to the same
+stream parsed purely in phase 4's tests: the pipeline adds nothing and loses
+nothing.
 
 Deliberately out: worktrees, sessions, prompt composition, and any decision
 about when a round runs.
@@ -242,6 +244,10 @@ the user: label an issue on a real repository and watch `run` carry it to an
 actual pull request.
 
 Deliberately out: the relay, resumes of any kind, final rounds, and scry.
+
+This is the plan's largest phase. If it proves too big for one session, the
+natural split is session creation and prompt composition first, then the
+tick and eligibility.
 
 ## Phase 7: relay and resume
 
@@ -299,8 +305,39 @@ In scope:
   library, plus rich for scry's presentation.)
 
 Done when: CI renders every board state from fabricated state directories as
-golden tests; a dead-daemon directory still renders fully, staleness marked;
+golden tests, with the clock and the console width pinned so ages and
+wrapping are deterministic; a dead-daemon directory still renders fully,
+staleness marked;
 and the checklist item on this phase's PR is the one the project was for:
 scry a live session and watch your agent working.
 
 Deliberately out: any GitHub call from scry; any richer UI.
+
+## Phase 9: contract and release
+
+The written contract, the newcomer documentation, and the proof that the
+tool can take over from the one it replaces.
+
+In scope:
+
+- `CONTRACT.md` at the repo root: the dispatchable-skill contract as
+  designed (design.md, The contract page) — adopt the branch you wake up on
+  and open your PR from it before changing anything; act on the issue
+  reference in your prompt; handle the three resume prompts; yield by ending
+  your turn; marking is injected for you.
+- The README rewritten for a newcomer: install via `uvx`, the config
+  example, the two verbs, and two operational truths placed prominently —
+  removing the label is how you say stop (an issue whose PR closes unmerged
+  will dispatch again while the label remains), and the crossover rule
+  (retire dream:catcher on a repo with nothing in flight, or expect doubled
+  attempts on whatever was).
+- A packaging check: `uvx` installing and running from a fresh environment.
+
+Done when: the documents are in and the release checklist sits on this
+phase's PR for the user — the real-Windows verification pass on a
+colleague's machine, and the retirement rehearsal: run dreamcatcher on a
+real repository where dream:catcher used to run. That rehearsal is the
+success criterion the requirements brief names.
+
+Deliberately out: everything the design defers — the richer ledger and UI,
+multi-repo, the personal config layer, backoff, and stall detection.
