@@ -272,3 +272,35 @@ user: post a review comment on a real dispatched PR, watch the resumed round
 act on it, merge, and watch the final round run.
 
 Deliberately out: scry — though everything it will read now exists on disk.
+
+## Phase 8: scry
+
+The watch tower. Reads only the disk; never calls GitHub.
+
+In scope:
+
+- The board (design.md, The board): sessions and queued issues sorted by
+  whose turn it is — needs you, agent working (with the last feed event and
+  its age), waiting, stuck, queued with reasons, done. Repeat attempts group
+  under their issue. Liveness and staleness come from `daemon.pid` and
+  `last-tick.json`'s age, and the board says "at cap — not checked" when
+  that is the truth.
+- The session view: `scry GH123` shows the newest attempt's vitals (issue,
+  PR, branch, harness and model, the literal first prompt), the round list
+  with causes and durations, older attempts beneath, and — when no round is
+  live — the hand-resume command built from `session.json`.
+- The feed views: `--follow` stitches sorted round directories and tails the
+  live end; `--round N` shows one round, static.
+- Presentation uses rich, scoped to scry alone: tables, emphasis, feed
+  colouring, VT enabling on legacy Windows consoles, and automatic markup
+  stripping when output is not a tty. Storage stays plain: `feed.txt` and
+  everything the daemon writes remains uncoloured text; rich colours only at
+  display time. (This amends design.md's dependency line: the standard
+  library, plus rich for scry's presentation.)
+
+Done when: CI renders every board state from fabricated state directories as
+golden tests; a dead-daemon directory still renders fully, staleness marked;
+and the checklist item on this phase's PR is the one the project was for:
+scry a live session and watch your agent working.
+
+Deliberately out: any GitHub call from scry; any richer UI.
