@@ -274,8 +274,10 @@ watching a live one are the same view in different tenses.
 
 `watch.sh` ports as a function with one deliberate change in sequencing. The
 query is a read-only peek: fetch the PR state and everything newer than the
-watermark from the three sources (conversation comments, review bodies,
-inline comments via the REST endpoint), filter, and return — writing nothing.
+watermark from the three sources — conversation comments, reviews, and
+inline comments, each its own paginated REST list via `gh api`, the shape
+upstream normalised to in dream#900, so the relay never reconciles two JSON
+dialects — filter, and return, writing nothing.
 The watermark advances only when a round actually launches with that batch as
 its inbox. The port's advance-on-read sequencing lost any batch whose round
 never ran; advance-on-launch means a crash before launch re-reads the same
