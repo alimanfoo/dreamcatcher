@@ -150,28 +150,22 @@ Each tick, in order, launching at most one round per tick:
    final round has not completed (the final round), then sessions with new
    user posts (an inbox resume).
 
-An errored round retries on a later tick with no per-session backoff
-machinery: the tick interval is the pace. Resume-before-dispatch plus
-one-launch-per-tick contains the blast radius by construction — under a
-persistent failure it is the same session retrying, never a pile of fresh
-worktrees, because the errored retry always outranks a new dispatch. The
-true wedge is narrower than the port's: a round that exited *zero* without
-opening a PR — the skill ran to completion and yielded without one (the
-ask-the-user case) — which no retry can advance and the board surfaces as
-stuck.
+Failure handling is one rule: after any round fails, the daemon holds all
+launches — retries and dispatches alike — for a fixed cooldown of fifteen
+minutes. No cause detection, no per-session backoff, no escalation schedule:
+a usage limit that persists for hours costs four fast-fails an hour and no
+tokens; a transient blip costs at most fifteen idle minutes. The hold is
+global because the expensive failure (account usage limits) is global, and
+resume-before-dispatch plus one-launch-per-tick already contains the blast
+radius by construction — a persistent failure is the same session retrying,
+never a pile of fresh worktrees, because the errored retry always outranks
+a new dispatch. The hold lands in `last-tick.json` with the evidence, not a
+diagnosis: "last round failed (exit 1) — next attempt at HH:MM".
 
-Usage limits get one dedicated mechanism, because they persist for hours and
-are account-wide: the limit gate. When a round's failure carries the
-usage-limit signature (in the closing stream event or stderr — each
-harness's signature is verified in the build, see the open list), the daemon
-stops launching anything — retries and dispatches alike — until a hold
-expires: the reset time parsed from the harness's message when it gives one,
-otherwise fifteen minutes, doubling to an hourly cap while limit failures
-repeat. The hold is global because the limit is; per-session backoff would
-be machinery for a condition that never varies per session. The hold lands
-in `last-tick.json`, so the board reads "usage limited — next attempt at
-HH:MM" rather than showing a mysteriously quiet daemon. Failures without
-the limit signature keep the plain tick-pace retry.
+The true wedge is narrower than the port's: a round that exited *zero*
+without opening a PR — the skill ran to completion and yielded without one
+(the ask-the-user case) — which no retry can advance and the board surfaces
+as stuck.
 4. Otherwise dispatch the oldest eligible labelled issue.
 5. Write `last-tick.json`.
 
@@ -435,11 +429,11 @@ candidate trim once the adapters are verified, not before.
 
 ## What's still open
 
-- Verify both harnesses' usage-limit behaviour against a real limited round:
-  the exit status (the errored retry keys on non-zero; a limit that exits
-  zero would misread as the wedge), the failure's signature in the closing
-  stream event or stderr (the limit gate keys on it), and whether the message
-  carries a parseable reset time.
+- Verify both harnesses exit non-zero on a usage-limit failure — the errored
+  retry keys on exit status, so a limit that exits zero would misread as the
+  wedge. (Reading the limit's reset time out of the failure message is a
+  possible later refinement of the cooldown; the fixed hold doesn't need
+  it.)
 - Verify Codex `--json` early in the build: that `codex exec resume` accepts
   it at all, and that tool-call items surface with enough shape for the
   feed's action lines (audacious proves `agent_message`; the rest needs a
