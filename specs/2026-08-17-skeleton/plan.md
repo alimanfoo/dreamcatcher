@@ -177,3 +177,32 @@ their checklist items) are recorded on the PR.
 
 Deliberately out: dreamcatcher spawning any process; worktrees; prompts
 composed for real sessions.
+
+## Phase 5: rounds
+
+The process layer. A round here is "argv plus directory in, records and feed
+out" — nothing decides when a round runs yet.
+
+In scope:
+
+- Spawn a round as a child process from an adapter's argv in a given
+  directory. Pump stdout on a reader thread: each line to `raw.jsonl`
+  verbatim, through the adapter's parser, rendered onto `feed.txt`. stderr
+  interleaves into the feed as pass-through lines (design.md, Rounds and
+  processes).
+- `round.json` at the boundaries: started and pid at spawn, ended and exit
+  status at exit. A record with no end is the interrupted signature later
+  phases key on.
+- The teardown module, the one place platform process semantics live:
+  process group on POSIX, Job Object on Windows, children dying with the
+  daemon, Ctrl-C propagating.
+- Tests against the fake harness on all three platforms, including the ugly
+  cases: a round killed mid-stream leaves a `round.json` with no end;
+  teardown really kills the child tree; a nonzero exit is captured.
+
+Done when: those tests are green on all three platforms, and a feed produced
+by a live fake round is byte-identical to the same stream parsed purely in
+phase 4's tests — the pipeline adds nothing and loses nothing.
+
+Deliberately out: worktrees, sessions, prompt composition, and any decision
+about when a round runs.
