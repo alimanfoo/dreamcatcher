@@ -19,8 +19,6 @@ corrected by review, not by drift.
 
 ## Conventions
 
-- Write prose and code comments in plain English: common words, one idea
-  per sentence, write as if speaking.
 - Run the checks the repo defines before every commit. From the scaffold
   phase onward that means pre-commit (lint, format, types, markdown) and
   pytest with branch coverage gated at 100%.
