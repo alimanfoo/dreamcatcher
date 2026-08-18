@@ -104,3 +104,33 @@ restarting reclaims the stale lock.
 
 Deliberately out: anything touching GitHub, worktrees, or child processes;
 the real tick body.
+
+## Phase 3: the git/gh layer
+
+Thin typed wrappers over the external commands, and the fake-executables
+test rig that makes every later phase testable in CI.
+
+In scope:
+
+- Wrappers: `gh` issue listing by label and assignee, PR lookup by branch
+  head, the blocked-by query, `gh api user` (the authenticated login), repo
+  identity, and git worktree add and remove, fetch. Every call forces UTF-8.
+  Every failure surfaces the command and its stderr, never a guess.
+- The error contract carries the fail-toward-inaction doctrine (see
+  design.md, The tick): a read failure returns "unknown", and the caller
+  decides what unknown means for its check. The wrappers never invent an
+  answer.
+- The fake-executables rig: stand-in `gh` and `git` the tests put first on
+  PATH, scriptable per test to return canned responses or fail on cue. Solve
+  the Windows shim question here, once — executables on Windows need an
+  extension (a `.cmd` shim or similar), and every later phase inherits the
+  answer.
+- A small integration test suite, marked and skipped in CI, that exercises
+  the real `gh` read-only against this repository for local confidence.
+
+Done when: the wrappers round-trip against the fake rig in CI on all three
+platforms, and the marked integration tests pass locally against the real
+`gh`.
+
+Deliberately out: any interpretation of what the wrappers return —
+eligibility rules and dispatch decisions live in phase 6.
