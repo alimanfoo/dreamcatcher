@@ -206,3 +206,39 @@ phase 4's tests — the pipeline adds nothing and loses nothing.
 
 Deliberately out: worktrees, sessions, prompt composition, and any decision
 about when a round runs.
+
+## Phase 6: the dispatch tick
+
+The skeleton first touches a real issue: label in, worktree cut, first round
+run, pull request out.
+
+In scope:
+
+- Session creation: the session key, the branch, the nested worktree under
+  `.dreamcatcher/worktrees/` with the path invariant checked at dispatch,
+  and `session.json` frozen at dispatch (design.md, Sessions, worktrees,
+  branches).
+- First-round prompt composition: the mapping's per-harness template
+  rendered with `{issue}`, the marker postscript appended.
+- Eligibility, built on phase 3's "unknown" contract so every read failure
+  biases to inaction: exactly one mapped label (two mapped labels is the
+  noisy skip), the assignee filter, no active session worktree, no open or
+  merged PR from an earlier dreamcatcher branch, no open blocking issues.
+- The real tick, replacing phase 2's stub: cap first (a capped tick spends
+  no GitHub calls), reconcile, dispatch the oldest eligible issue, one
+  launch per tick, and `last-tick.json` recording what was done and what was
+  not, with reasons.
+- The failure cooldown: after any failed round, hold all launches for a
+  fixed fifteen minutes, recorded in `last-tick.json` with the evidence.
+- The startup orphan sweep: kill any live pid from a round record with no
+  end. The carry-on resume of those sessions is phase 7's; until then they
+  appear in `last-tick.json` as waiting.
+
+Done when: an end-to-end CI test drives a full dispatch against the fakes —
+the scripted `gh` offers a labelled issue, the tick cuts a real worktree,
+the fake harness runs, the records land, and a second tick judges the issue
+handled — and the milestone sits as a checklist item on this phase's PR for
+the user: label an issue on a real repository and watch `run` carry it to an
+actual pull request.
+
+Deliberately out: the relay, resumes of any kind, final rounds, and scry.
