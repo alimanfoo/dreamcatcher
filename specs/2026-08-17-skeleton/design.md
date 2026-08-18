@@ -140,15 +140,17 @@ record with no end as interrupted.
 
 Each tick, in order, launching at most one round per tick:
 
-1. Reconcile: enumerate session worktrees, read GitHub state per session,
+1. If live rounds fill the cap, defer — the daemon knows its own children,
+   so a capped tick spends no GitHub calls at all. The board shows "at cap"
+   honestly rather than pretending it checked.
+2. Reconcile: enumerate session worktrees, read GitHub state per session,
    peek each open session's new posts (a read-only relay query — see below).
-2. If live rounds fill the cap, defer.
 3. Resume the most-open work first: interrupted and errored rounds (a fixed
    "carry on" resume, no inbox — interrupted means no end recorded, errored
-   means the latest round exited non-zero, which is what a usage-limit
-   failure looks like), then sessions whose PR is merged or closed and whose
-   final round has not completed (the final round), then sessions with new
-   user posts (an inbox resume).
+   means the latest round exited non-zero, which a usage-limit failure is
+   expected to produce; verifying that is on the open list), then sessions
+   whose PR is merged or closed and whose final round has not completed (the
+   final round), then sessions with new user posts (an inbox resume).
 
 Failure handling is one rule: after any round fails, the daemon holds all
 launches — retries and dispatches alike — for a fixed cooldown of fifteen
@@ -163,9 +165,11 @@ a new dispatch. The hold lands in `last-tick.json` with the evidence, not a
 diagnosis: "last round failed (exit 1) — next attempt at HH:MM".
 
 The true wedge is narrower than the port's: a round that exited *zero*
-without opening a PR — the skill ran to completion and yielded without one
-(the ask-the-user case) — which no retry can advance and the board surfaces
-as stuck.
+without opening a PR — the skill ran to completion and chose to yield
+without one. Today's smith does exactly this when it finds no issue
+reference: it asks the user a question and ends its turn cleanly, which
+headless means nobody answers and no PR ever appears. No retry can advance
+that, so the board surfaces it as stuck.
 4. Otherwise dispatch the oldest eligible labelled issue.
 5. Write `last-tick.json`.
 
@@ -220,9 +224,9 @@ create/comment/edit/ready/close`, `gh issue create/comment`, `git commit`,
 `git push`. The parser is `render-claude.sh`'s jq program as Python: init
 events carry the harness session id, assistant text passes whole, tool calls
 become one line via the most-telling-input fallback chain, failed tool
-results surface, `result` events close the round, thinking and successes are
-dropped (thinking display is a later option — the blocks are in the stream
-and the parser sees them).
+results surface, `result` events close the round, thinking renders in the
+feed (on by default — it is often the best view of what the agent is
+weighing), and successful tool results and housekeeping are dropped.
 
 Codex: first round `codex exec --json -C <worktree> --approve-for-me
 --model <model> -c model_reasoning_effort=... -c
@@ -311,9 +315,11 @@ only filters posts.
 
 - needs you: PR open, no live round, nothing waiting — with idle age.
 - agent working: live round — with the last feed event and its age.
-- waiting: posts peeked but the round deferred at the cap, or an interrupted
-  or errored round awaiting its carry-on retry — with the last exit status,
-  so a run of usage-limit failures reads as what it is.
+- waiting: posts peeked but another launch took this tick's slot, or an
+  interrupted or errored round awaiting its carry-on retry — with the last
+  exit status, so a run of usage-limit failures reads as what it is. (While
+  the daemon sits at the cap it doesn't peek, and the board says "at cap"
+  rather than guessing.)
 - stuck: a session in a state the daemon cannot advance — a round exited
   cleanly without opening a PR — surfaced instead of silently skipped, with
   a pointer to the feed.
@@ -334,10 +340,12 @@ the worktree, or the matching `codex exec resume`), built from
 
 `CONTRACT.md` at the repo root, a deliverable of this phase: what a skill
 must do to be dispatchable. Adopt the branch you wake up on and open your PR
-from it. Act on the issue reference in your prompt. Handle the resume prompts
-(the inbox shape, the carry-on, the final round's merged-or-closed state).
-Yield by ending your turn; the PR is the only channel. Marking is injected by
-the dispatcher; the skill needs no knowledge of it.
+from it — before you change anything, so the user can watch commits arrive
+and you have a channel to ask questions from the start. Act on the issue
+reference in your prompt. Handle the resume prompts (the inbox shape, the
+carry-on, the final round's merged-or-closed state). Yield by ending your
+turn; the PR is the only channel. Marking is injected by the dispatcher; the
+skill needs no knowledge of it.
 
 ### Cross-platform notes
 
@@ -358,24 +366,35 @@ this phase; a TUI or richer rendering can add dependencies later.
 
 ## What changes, and what goes away
 
-Gone: tmux, and with it the launch ceremony, the sandbox-escape permission
-dance, the session-name liveness convention, and the dots-to-plus-signs scar.
-Gone: `jq` as a prerequisite. Gone: the plugin-snapshot machinery and the
-stable-path renderer publish — they existed only because the catcher lived
-inside a plugin that upgrades under it; a pinned package cannot lose its own
-code. Gone: `--once` and the cron-restart pattern; the foreground loop is the
-run story. Gone: branch names as the message channel — the prompt carries the
-issue; the branch pattern remains only as dispatcher-internal reconciliation
-namespace. Gone: the clobbered single `inbox.json`; each round keeps its own.
-Gone: the sibling-worktree layout and its assumption that the checkout lives
-in a dedicated container directory — worktrees nest under
-`.dreamcatcher/worktrees/`, and there is only one way.
-Changed: the final-round guard from "final started" to "final completed".
-Changed: the watermark advances at round launch, not at read — a strictly
-smaller loss window than the port. Changed: the inline-comment projection
-carries the range and the hunk. New, with no counterpart today: the round
-records, the board, the session view, the per-round feeds, the interrupted
-state and its automatic carry-on resume, the contract page.
+Gone:
+
+- tmux, and with it the launch ceremony, the sandbox-escape permission
+  dance, the session-name liveness convention, and the dots-to-plus-signs
+  scar.
+- `jq` as a prerequisite.
+- The plugin-snapshot machinery and the stable-path renderer publish — they
+  existed only because the catcher lived inside a plugin that upgrades under
+  it; a pinned package cannot lose its own code.
+- `--once` and the cron-restart pattern; the foreground loop is the run
+  story.
+- Branch names as the message channel — the prompt carries the issue; the
+  branch pattern remains only as dispatcher-internal reconciliation
+  namespace.
+- The clobbered single `inbox.json`; each round keeps its own.
+- The sibling-worktree layout and its assumption that the checkout lives in
+  a dedicated container directory — worktrees nest under
+  `.dreamcatcher/worktrees/`, and there is only one way.
+
+Changed:
+
+- The final-round guard, from "final started" to "final completed".
+- The watermark advances at round launch, not at read — a strictly smaller
+  loss window than the port.
+- The inline-comment projection carries the range and the hunk.
+
+New, with no counterpart today: the round records, the board, the session
+view, the per-round feeds, the interrupted state and its automatic carry-on
+resume, the contract page.
 
 On the dream side, later and tracked there: smith and less take the issue
 from the prompt (branch scanning stays as their interactive fallback), their
@@ -440,10 +459,6 @@ candidate trim once the adapters are verified, not before.
   live round).
 - The exact event vocabulary between parser and renderer — settle it in the
   build's first slice, it's internal.
-- Whether the feed shows thinking (the parser sees the blocks; display is a
-  choice, default off).
-- The `{issue}` substitution is the whole template vocabulary this phase;
-  `{title}` or similar waits for a real need.
 - Multi-repo (one place to watch all repos) stays a later phase; nothing here
   forecloses it — another repo is another state directory.
 - The personal config layer, if personal models turn out to matter.
