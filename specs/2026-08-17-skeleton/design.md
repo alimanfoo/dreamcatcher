@@ -150,13 +150,28 @@ Each tick, in order, launching at most one round per tick:
    final round has not completed (the final round), then sessions with new
    user posts (an inbox resume).
 
-An errored round retries on a later tick with no backoff machinery: the tick
-interval is the pace, a still-limited harness fails fast once per tick, and
-when the account is limited every session is limited anyway, so nothing is
-starved. Backoff stays deferred robustness. The true wedge is narrower than
-the port's: a round that exited *zero* without opening a PR — the skill ran
-to completion and yielded without one (the ask-the-user case) — which no
-retry can advance and the board surfaces as stuck.
+An errored round retries on a later tick with no per-session backoff
+machinery: the tick interval is the pace. Resume-before-dispatch plus
+one-launch-per-tick contains the blast radius by construction — under a
+persistent failure it is the same session retrying, never a pile of fresh
+worktrees, because the errored retry always outranks a new dispatch. The
+true wedge is narrower than the port's: a round that exited *zero* without
+opening a PR — the skill ran to completion and yielded without one (the
+ask-the-user case) — which no retry can advance and the board surfaces as
+stuck.
+
+Usage limits get one dedicated mechanism, because they persist for hours and
+are account-wide: the limit gate. When a round's failure carries the
+usage-limit signature (in the closing stream event or stderr — each
+harness's signature is verified in the build, see the open list), the daemon
+stops launching anything — retries and dispatches alike — until a hold
+expires: the reset time parsed from the harness's message when it gives one,
+otherwise fifteen minutes, doubling to an hourly cap while limit failures
+repeat. The hold is global because the limit is; per-session backoff would
+be machinery for a condition that never varies per session. The hold lands
+in `last-tick.json`, so the board reads "usage limited — next attempt at
+HH:MM" rather than showing a mysteriously quiet daemon. Failures without
+the limit signature keep the plain tick-pace retry.
 4. Otherwise dispatch the oldest eligible labelled issue.
 5. Write `last-tick.json`.
 
@@ -420,10 +435,11 @@ candidate trim once the adapters are verified, not before.
 
 ## What's still open
 
-- Verify both harnesses exit non-zero on a usage-limit failure — the errored
-  retry keys on exit status, so a limit that exits zero would misread as the
-  wedge. Check what the stream's closing event says in that case too; a
-  "limited" cause on the board is a cheap later refinement.
+- Verify both harnesses' usage-limit behaviour against a real limited round:
+  the exit status (the errored retry keys on non-zero; a limit that exits
+  zero would misread as the wedge), the failure's signature in the closing
+  stream event or stderr (the limit gate keys on it), and whether the message
+  carries a parseable reset time.
 - Verify Codex `--json` early in the build: that `codex exec resume` accepts
   it at all, and that tool-call items surface with enough shape for the
   feed's action lines (audacious proves `agent_message`; the rest needs a
