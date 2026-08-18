@@ -82,8 +82,18 @@ In scope:
   `max_agents`, `assignee`, the default `harness`, and the `[[dispatch]]`
   mappings, each with a label and per-harness settings blocks carrying
   `prompt`, `model`, and `effort`, plus the optional per-mapping `harness`
-  pin (see design.md, Configuration). Every validation failure names the
-  field and what's wrong with it in plain words.
+  pin (see design.md, Configuration). Validation is pydantic v2 models with
+  `extra="forbid"`, so a typo'd key is a named error rather than a silently
+  ignored setting, and a small shim renders validation errors in plain
+  words ("dispatch entry 1, claude block: model is required"). The same
+  model convention then covers every JSON document the tool owns in later
+  phases (`round.json`, `session.json`, `last-tick.json`), so serialization
+  is schema'd everywhere rather than hand-rolled.
+- Runtime dependencies arrive here: pydantic, and psutil for pid semantics
+  (the lock's staleness check, and later the orphan sweep) — with rich
+  following in phase 8. This is the plan's deliberate amendment to
+  design.md's standard-library aim: three mature, universally wheeled
+  dependencies.
 - `--harness` resolution: the flag wins, else the config default; a mapping's
   pin overrides both for that label.
 - The main-checkout test: `run` refuses to start anywhere but a main
@@ -92,7 +102,8 @@ In scope:
   containing `*`, so the directory ignores itself and `git status` stays
   clean from the first tick.
 - The `daemon.pid` lock: take it on start, refuse a second `run` on the same
-  repo while the pid is alive, and treat a dead pid as stale and reclaim it.
+  repo while the pid is alive (psutil answers alive-ness), and treat a dead
+  pid as stale and reclaim it.
 - A stub tick loop: sleep on the interval, write a minimal `last-tick.json`
   each tick, exit cleanly on Ctrl-C releasing the lock.
 
@@ -191,8 +202,9 @@ In scope:
   interleaves into the feed as pass-through lines (design.md, Rounds and
   processes).
 - `round.json` at the boundaries: started and pid at spawn, ended and exit
-  status at exit. A record with no end is the interrupted signature later
-  phases key on.
+  status at exit, written and read through a pydantic model per the phase 2
+  convention, so a corrupt record fails with a named error. A record with no
+  end is the interrupted signature later phases key on.
 - The teardown module, the one place platform process semantics live:
   process group on POSIX, Job Object on Windows, children dying with the
   daemon, Ctrl-C propagating.
@@ -301,8 +313,8 @@ In scope:
   colouring, VT enabling on legacy Windows consoles, and automatic markup
   stripping when output is not a tty. Storage stays plain: `feed.txt` and
   everything the daemon writes remains uncoloured text; rich colours only at
-  display time. (This amends design.md's dependency line: the standard
-  library, plus rich for scry's presentation.)
+  display time. (rich is the third and last of the plan's runtime
+  dependencies — see phase 2.)
 
 Done when: CI renders every board state from fabricated state directories as
 golden tests, with the clock and the console width pinned so ages and
