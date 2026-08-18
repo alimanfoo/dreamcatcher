@@ -18,6 +18,20 @@ section of this plan. Each child issue is marked blocked by its predecessor,
 so a dispatcher working oldest-first through unblocked issues executes the
 phases in order, one at a time.
 
+Every phase is reviewed by a human, so every phase serves its reviewer:
+
+- Generated and recorded files (`uv.lock`, the `.uncoded/` index, stream
+  fixtures) land in their own commits, named as such, so the reviewer reads
+  the hand-written diff and skips the rest with confidence.
+- Where a phase has golden outputs (the rendered feed, the board), the
+  goldens are the review surface: read them as their user would and judge
+  the result, rather than deriving it from the code.
+- Every phase PR's description opens with a short reviewer's guide: what to
+  read first, where the risk lives, and what is generated or mechanical and
+  safe to skip.
+- The largest phases name their natural split point; if a diff outgrows one
+  sitting, split the issue there rather than pushing through.
+
 ## Phase 1: scaffold
 
 Everything later phases inherit and nothing more: the package, the tooling,
@@ -187,6 +201,10 @@ their checklist items) are recorded on the PR.
 Deliberately out: dreamcatcher spawning any process; worktrees; prompts
 composed for real sessions.
 
+This is the plan's second-largest phase. If it proves too big for one
+session or one review, the natural split is the Claude adapter and the
+renderer first, the Codex adapter second.
+
 ## Phase 5: rounds
 
 The process layer. A round here is "argv plus directory in, records and feed
@@ -288,6 +306,10 @@ user: post a review comment on a real dispatched PR, watch the resumed round
 act on it, merge, and watch the final round run.
 
 Deliberately out: scry — though everything it will read now exists on disk.
+
+If this phase proves too big for one session or one review, the natural
+split is the peek, filters, and projection first (pure functions, the
+densest correctness reading), the three resume kinds second.
 
 ## Phase 8: scry
 
