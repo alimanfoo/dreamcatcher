@@ -29,7 +29,10 @@ In scope:
   `dreamcatcher`, `src/dreamcatcher/` layout, Python 3.11+, no runtime
   dependencies. A `dreamcatcher` console script whose CLI has `run` and
   `scry` as stub verbs (each prints that it is not yet implemented), bare
-  invocation meaning `run`, and `--version`.
+  invocation meaning `run`, and `--version`. uv is the workflow tool: a
+  committed `uv.lock`, and CI resolving the environment with `uv run` via
+  `astral-sh/setup-uv`, so agent sessions, developer machines, and CI all
+  resolve identically.
 - Tests: pytest with pytest-cov, branch coverage measured over `src`, gated
   at 100% (`fail_under = 100`). Platform-specific branches use explicit
   `pragma: no cover` marks so the gate holds on every OS. At least one real
@@ -40,11 +43,16 @@ In scope:
   with `max-complexity = 8`, the `PLR09xx` size limits), pydocstyle pep257,
   flake8-annotations, bandit, pathlib enforcement, and
   `PLW1514`/`EncodingWarning`-as-error so unspecified encodings fail rather
-  than drift. complexipy as a second complexity gate. Markdown lint and
-  format: markdownlint-cli2 and prettier at 80 columns, as in the dream
-  repo.
-- Pre-commit: hooks running ruff (lint and format), complexipy, the markdown
-  checks, end-of-file and trailing-whitespace fixes, and `uncoded sync`.
+  than drift. complexipy as a second complexity gate. Type checking with
+  `ty` — hallucinated signatures are the classic agent failure, and a type
+  gate catches them mechanically. Markdown lint and format:
+  markdownlint-cli2 and prettier at 80 columns, as in the dream repo, plus
+  link validation (remark-validate-links) so renamed headings can't silently
+  break the spec documents' cross-references.
+- Pre-commit: hooks running ruff (lint and format), complexipy, `ty`, the
+  markdown checks, an invisible-character check (zero-width and bidi marks,
+  which agents occasionally emit and reviewers cannot see), end-of-file and
+  trailing-whitespace fixes, and `uncoded sync`.
 - uncoded: `[tool.uncoded]` with `source-roots = ["src", "tests"]` and
   `doc-roots` covering `README.md`, `AGENTS.md`, and `specs/`. Commit the
   generated `.uncoded/` index and skills. `AGENTS.md` gains the standard
