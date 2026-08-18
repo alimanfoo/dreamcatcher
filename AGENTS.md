@@ -11,17 +11,19 @@ successor to the dream plugin's dream:catcher skill.
 
 ## Read the spec first
 
-The project is spec-first. Before working, read the four documents in
-`specs/2026-08-17-skeleton/`, in this order:
+The project is spec-first. Each phase of development has a dated folder
+under `specs/` holding four documents. Before working, find the spec your
+task belongs to — the task usually names it; otherwise the newest folder is
+the current one — and read its documents in this order:
 
 1. `requirements.md` — what must be true, in the owner's voice.
-2. `state.md` — how the machinery this tool replaces works.
+2. `state.md` — how the relevant machinery works today.
 3. `design.md` — what we're building and how it works. This is the
    authority on every mechanism.
 4. `plan.md` — the implementation phases, one PR each. If your task names a
    phase, that phase's section is your work order.
 
-When the code you're writing has to diverge from `design.md`, say so plainly
+When the code you're writing has to diverge from the design, say so plainly
 in your PR rather than diverging silently. The spec is corrected by review,
 not by drift.
 
