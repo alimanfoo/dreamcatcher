@@ -9,7 +9,7 @@ autonomous coding session for each, and carries each issue to a pull request
 for the user to review and merge. It is the standalone, cross-platform
 successor to the dream plugin's dream:catcher skill.
 
-## Read the spec first
+## Specs
 
 The project is spec-first. Each phase of development has a dated folder
 under `specs/`. Before working, find the spec your task belongs to — the
