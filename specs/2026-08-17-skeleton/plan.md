@@ -54,12 +54,11 @@ In scope:
   which agents occasionally emit and reviewers cannot see), end-of-file and
   trailing-whitespace fixes, and `uncoded sync`.
 - uncoded: `[tool.uncoded]` with `source-roots = ["src", "tests"]` and
-  `doc-roots` covering `README.md`, `AGENTS.md`, and `specs/`. Commit the
-  generated `.uncoded/` index and skills. `AGENTS.md` gains the standard
-  "Before you start" lines loading the uncoded navigation skills, plus the
-  project's one-paragraph orientation: what dreamcatcher is, where the spec
-  documents live, and that pre-commit and the tests must pass before every
-  commit.
+  `doc-roots` covering `README.md`, `CONTRIBUTING.md`, and `specs/`. Commit
+  the generated `.uncoded/` index and skills. `CONTRIBUTING.md` (which
+  already grounds fresh sessions and is imported by `AGENTS.md` and
+  `CLAUDE.md`) gains the standard "Before you start" lines loading the
+  uncoded navigation skills.
 - CI: one workflow running the test suite on Linux, macOS, and Windows, and
   the pre-commit checks once on Linux. UTF-8 is not assumed anywhere:
   `filterwarnings = ["error::EncodingWarning"]` from day one.
