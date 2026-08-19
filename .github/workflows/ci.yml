@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  # The floor the package promises, on every platform it promises it on.
+  # Python 3.11 is the floor the package promises, on all three platforms.
   test:
     runs-on: ${{ matrix.os }}
     strategy:

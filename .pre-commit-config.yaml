@@ -50,8 +50,8 @@ repos:
           - remark-cli@12.0.1
           - remark-validate-links@13.1.0
         files: \.md$
-      # Runs before uncoded so the generated skill files are built from
-      # already-formatted sources.
+      # Runs before uncoded, so uncoded builds its skill files from prose
+      # prettier has already formatted.
       - id: prettier
         name: format markdown with prettier
         entry: prettier --write

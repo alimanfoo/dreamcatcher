@@ -51,7 +51,8 @@ On Windows PowerShell:
 $env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest
 ```
 
-Run one test file without the coverage gate:
+Run one test file. `--no-cov` turns off the coverage gate, which only the whole
+suite can satisfy.
 
 ```sh
 uv run pytest tests/test_cli.py --no-cov

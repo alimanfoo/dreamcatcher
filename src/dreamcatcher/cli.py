@@ -26,7 +26,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Run the verb the arguments name, and return the exit status."""
+    """Run the verb that the arguments name, and return the exit status."""
     args = build_parser().parse_args(argv)
     print(f"dreamcatcher {args.verb} is not implemented yet.", file=sys.stderr)
     return 1

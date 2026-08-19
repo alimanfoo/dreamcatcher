@@ -1,4 +1,4 @@
-"""Report characters in a file that a reviewer cannot see.
+"""Report the invisible characters in a file.
 
 Unicode's format category holds the zero-width marks, the bidirectional
 overrides, the word joiner and the byte-order mark. Agents emit them by

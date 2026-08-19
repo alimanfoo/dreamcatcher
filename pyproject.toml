@@ -24,8 +24,8 @@ dev = [
     "pytest-cov>=6.0",
     "ruff==0.16.3",
     "ty>=0.0.73",
-    # uncoded needs Python 3.12; the package itself supports 3.11, so the
-    # index is synced on a development or lint environment, never on 3.11.
+    # uncoded needs Python 3.12, and dreamcatcher supports 3.11. On 3.11 uv
+    # leaves uncoded out, so run the checks on 3.12 or newer.
     "uncoded>=2.1.1; python_version >= '3.12'",
 ]
 
