@@ -33,10 +33,9 @@ uv sync
 uv run pre-commit install
 ```
 
-`.python-version` pins development to Python 3.13, and `uv sync` installs the
-`dev` dependency group without being asked. The package itself supports 3.11 and
-CI proves that floor, but uncoded needs 3.12, so the commit hooks cannot run on
-3.11.
+`.python-version` names the interpreter, and CI reads the same file, so every
+machine runs the same Python. `uv sync` installs the `dev` dependency group
+without being asked.
 
 ## Commands
 

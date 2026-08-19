@@ -8,7 +8,7 @@ dynamic = ["version"]
 description = "Carry labelled issues to pull requests with autonomous agent sessions"
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 authors = [{ name = "Alistair Miles" }]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
@@ -26,9 +26,7 @@ dev = [
     "pytest-cov>=6.0",
     "ruff==0.16.3",
     "ty==0.0.73",
-    # uncoded needs Python 3.12, and dreamcatcher supports 3.11. On 3.11 uv
-    # leaves uncoded out, so run the checks on 3.12 or newer.
-    "uncoded==2.1.1; python_version >= '3.12'",
+    "uncoded==2.1.1",
 ]
 
 [project.scripts]

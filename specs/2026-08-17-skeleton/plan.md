@@ -37,7 +37,7 @@ the conventions. No dreamcatcher behaviour at all.
 In scope:
 
 - The package: `pyproject.toml` (hatchling with hatch-vcs versioning), name
-  `dreamcatcher`, `src/dreamcatcher/` layout, Python 3.11+, no runtime
+  `dreamcatcher`, `src/dreamcatcher/` layout, Python 3.12+, no runtime
   dependencies. A `dreamcatcher` console script whose CLI has `run` and `scry`
   as stub verbs (each prints that it is not yet implemented), bare invocation
   meaning `run`, and `--version`. uv is the workflow tool: a committed

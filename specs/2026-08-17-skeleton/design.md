@@ -349,7 +349,7 @@ daemon itself recorded, and the window is small.
 
 ### Dependencies
 
-Python 3.11+ (`tomllib` in the standard library). The runtime shells out to
+Python 3.12+ (`tomllib` in the standard library). The runtime shells out to
 `git`, `gh`, and the harness CLIs, which the user already has and has signed in.
 No `jq`, no `tmux`. The package itself aims for the standard library in this
 phase; a TUI or richer rendering can add dependencies later.

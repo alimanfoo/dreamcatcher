@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  # Python 3.11 is the floor the package promises, on all three platforms.
+  # Both jobs take their interpreter from .python-version.
   test:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -19,16 +19,13 @@ jobs:
         with:
           fetch-depth: 0
       - uses: astral-sh/setup-uv@v10.0.1
-        with:
-          python-version: "3.11"
       - run: uv sync --locked
       # Arms the EncodingWarning gate. Without it the interpreter never emits
-      # the warning and tests/test_encoding_gate.py fails.
+      # the warning, and pytest refuses to run.
       - run: uv run pytest
         env:
           PYTHONWARNDEFAULTENCODING: "1"
 
-  # uncoded needs Python 3.12, so the checks run on a later one.
   checks:
     runs-on: ubuntu-latest
     steps:
@@ -36,7 +33,5 @@ jobs:
         with:
           fetch-depth: 0
       - uses: astral-sh/setup-uv@v10.0.1
-        with:
-          python-version: "3.13"
       - run: uv sync --locked
       - run: uv run pre-commit run --all-files
