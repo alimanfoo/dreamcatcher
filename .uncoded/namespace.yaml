@@ -11,6 +11,8 @@ src/:
   dreamcatcher/:
     cli.py:
       build_parser:
+      run:
+      scry:
       main:
     config.py:
       CONFIG_NAME:
@@ -37,22 +39,39 @@ src/:
         dispatch:
         _each_label_maps_once:
       read_config:
+    daemon.py:
+      NotAMainCheckoutError:
+      Daemon:
+        config:
+        harness:
+        state:
+        clock:
+        wait:
+        for_checkout:
+        run:
+        tick:
+      now:
     documents.py:
       Document:
         model_config:
       DocumentError:
       read_toml:
+      write_json:
       _report:
       _phrase:
       _split:
       _place:
       _fault:
+    errors.py:
+      DreamcatcherError:
     lock.py:
       AlreadyRunningError:
       hold:
       _holder:
     state.py:
       STATE_DIRECTORY:
+      LastTick:
+        at:
       StateDirectory:
         root:
         path:
@@ -62,19 +81,25 @@ src/:
 tests/:
   conftest.py:
     ARMING:
+    CONFIG_HEAD:
+    SMITH_CLAUDE:
+    SMITH_CODEX:
+    CONFIG:
     pytest_configure:
     git:
     repo:
+    watched:
   test_cli.py:
+    started:
     test_version_prints_the_installed_version:
-    test_a_verb_is_not_implemented_yet:
+    test_scry_is_not_implemented_yet:
     test_a_bare_invocation_asks_for_a_verb:
+    test_run_starts_a_daemon_on_the_current_directory:
+    test_the_harness_flag_says_what_to_run_rounds_with:
+    test_a_harness_that_does_not_exist_is_refused:
+    test_a_failure_the_user_must_read_is_a_message_not_a_traceback:
   test_config.py:
-    HEAD:
-    SMITH_CLAUDE:
-    SMITH_CODEX:
     PIN:
-    VALID:
     WITHOUT_CODEX:
     write:
     read:
@@ -86,6 +111,24 @@ tests/:
     test_a_pinned_label_dispatches_with_its_pin:
     test_a_config_mistake_reads_as_plain_words:
     test_a_repo_with_no_config_says_which_file_is_missing:
+  test_daemon.py:
+    PINNED:
+    Waiting:
+      __init__:
+      __call__:
+    idling:
+    test_the_daemon_reads_the_clock_in_utc:
+    test_the_daemon_ticks_on_the_interval_until_the_user_interrupts:
+    test_each_tick_records_when_it_ran:
+    test_the_daemon_says_what_it_is_watching:
+    test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock:
+    test_a_second_daemon_refuses_while_the_first_holds_the_repo:
+    test_the_configured_harness_runs_the_rounds:
+    test_a_chosen_harness_beats_the_configured_one:
+    test_a_checkout_with_no_config_names_the_file_it_needs:
+    test_a_directory_that_is_not_a_repository_is_refused:
+    test_a_linked_worktree_is_refused:
+    test_the_state_directory_sits_in_the_checkout:
   test_documents.py:
     Sample:
       name:

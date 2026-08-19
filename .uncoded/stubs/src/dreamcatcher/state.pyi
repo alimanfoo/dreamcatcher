@@ -2,9 +2,14 @@
 # src/dreamcatcher/state.py
 
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
+from dreamcatcher.documents import Document
 
 STATE_DIRECTORY = '.dreamcatcher'
+
+class LastTick(Document):
+    at: datetime
 
 class StateDirectory:
     root: Path

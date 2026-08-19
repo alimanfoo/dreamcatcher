@@ -5,9 +5,19 @@ import argparse
 import sys
 from collections.abc import Sequence
 from importlib.metadata import version
+from pathlib import Path
 import dreamcatcher
+from dreamcatcher.config import Harness
+from dreamcatcher.daemon import Daemon
+from dreamcatcher.errors import DreamcatcherError
 
 def build_parser() -> argparse.ArgumentParser:
+    ...
+
+def run(args: argparse.Namespace) -> int:
+    ...
+
+def scry(args: argparse.Namespace) -> int:
     ...
 
 def main(argv: Sequence[str] | None) -> int:

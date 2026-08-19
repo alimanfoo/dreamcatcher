@@ -6,6 +6,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 import psutil
+from dreamcatcher.errors import DreamcatcherError
 
 def hold(path: Path) -> Iterator[None]:
     ...
@@ -13,5 +14,5 @@ def hold(path: Path) -> Iterator[None]:
 def _holder(path: Path) -> int | None:
     ...
 
-class AlreadyRunningError(Exception):
+class AlreadyRunningError(DreamcatcherError):
     ...

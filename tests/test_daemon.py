@@ -1,0 +1,113 @@
+import os
+from dataclasses import replace
+from datetime import UTC, datetime
+
+import pytest
+
+from dreamcatcher.config import CONFIG_NAME, Harness
+from dreamcatcher.daemon import Daemon, NotAMainCheckoutError, now
+from dreamcatcher.documents import DocumentError
+from dreamcatcher.lock import AlreadyRunningError
+from dreamcatcher.state import LastTick, StateDirectory
+
+PINNED = datetime(2026, 8, 19, 18, 41, 58, tzinfo=UTC)
+
+
+class Waiting:
+    """A wait that lets the daemon tick, then interrupts it like a user would."""
+
+    def __init__(self, ticks: int) -> None:
+        self.ticks = ticks
+        self.waited: list[float] = []
+
+    def __call__(self, seconds: float) -> None:
+        self.waited.append(seconds)
+        if len(self.waited) == self.ticks:
+            raise KeyboardInterrupt
+
+
+def idling(root, ticks: int = 2) -> tuple[Daemon, Waiting]:
+    waiting = Waiting(ticks)
+    daemon = Daemon.for_checkout(root, None)
+    return replace(daemon, clock=lambda: PINNED, wait=waiting), waiting
+
+
+def test_the_daemon_reads_the_clock_in_utc():
+    assert now().tzinfo is UTC
+
+
+def test_the_daemon_ticks_on_the_interval_until_the_user_interrupts(watched):
+    daemon, waiting = idling(watched)
+
+    daemon.run()
+
+    assert waiting.waited == [300, 300]
+
+
+def test_each_tick_records_when_it_ran(watched):
+    daemon, _ = idling(watched)
+
+    daemon.run()
+
+    recorded = daemon.state.last_tick.read_text(encoding="utf-8")
+    assert LastTick.model_validate_json(recorded).at == PINNED
+
+
+def test_the_daemon_says_what_it_is_watching(watched, capsys):
+    daemon, _ = idling(watched)
+
+    daemon.run()
+
+    said = capsys.readouterr().out
+    assert str(watched) in said
+    assert "claude" in said
+    assert "300 seconds" in said
+
+
+def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(watched):
+    daemon, _ = idling(watched)
+
+    daemon.run()
+
+    assert (daemon.state.path / ".gitignore").exists()
+    assert not daemon.state.lock.exists()
+
+
+def test_a_second_daemon_refuses_while_the_first_holds_the_repo(watched):
+    daemon, _ = idling(watched)
+    daemon.state.bootstrap()
+    daemon.state.lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
+
+    with pytest.raises(AlreadyRunningError, match=f"pid {os.getpid()}"):
+        daemon.run()
+
+
+def test_the_configured_harness_runs_the_rounds(watched):
+    assert Daemon.for_checkout(watched, None).harness is Harness.CLAUDE
+
+
+def test_a_chosen_harness_beats_the_configured_one(watched):
+    assert Daemon.for_checkout(watched, Harness.CODEX).harness is Harness.CODEX
+
+
+def test_a_checkout_with_no_config_names_the_file_it_needs(repo):
+    with pytest.raises(DocumentError, match=CONFIG_NAME):
+        Daemon.for_checkout(repo, None)
+
+
+def test_a_directory_that_is_not_a_repository_is_refused(tmp_path):
+    with pytest.raises(NotAMainCheckoutError, match="main checkout"):
+        Daemon.for_checkout(tmp_path, None)
+
+
+def test_a_linked_worktree_is_refused(tmp_path):
+    (tmp_path / ".git").write_text("gitdir: elsewhere\n", encoding="utf-8")
+
+    with pytest.raises(NotAMainCheckoutError, match="main checkout"):
+        Daemon.for_checkout(tmp_path, None)
+
+
+def test_the_state_directory_sits_in_the_checkout(watched):
+    daemon = Daemon.for_checkout(watched, None)
+
+    assert daemon.state == StateDirectory(watched)

@@ -6,6 +6,8 @@ from pathlib import Path
 from pydantic import BaseModel, ConfigDict, ValidationError
 from pydantic_core import ErrorDetails
 
+from dreamcatcher.errors import DreamcatcherError
+
 
 class Document(BaseModel):
     """A document dreamcatcher reads or writes.
@@ -17,7 +19,7 @@ class Document(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
 
-class DocumentError(Exception):
+class DocumentError(DreamcatcherError):
     """A document is missing, unreadable, or does not say what it must."""
 
 
@@ -37,6 +39,11 @@ def read_toml[DocumentT: Document](model: type[DocumentT], path: Path) -> Docume
         return model.model_validate(data)
     except ValidationError as error:
         raise DocumentError(_report(path, error)) from error
+
+
+def write_json(document: Document, path: Path) -> None:
+    """Write the document to path as JSON, in UTF-8."""
+    path.write_text(document.model_dump_json(indent=2) + "\n", encoding="utf-8")
 
 
 def _report(path: Path, error: ValidationError) -> str:

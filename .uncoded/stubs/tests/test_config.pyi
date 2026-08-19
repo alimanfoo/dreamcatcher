@@ -3,15 +3,12 @@
 
 from pathlib import Path
 import pytest
+from conftest import CONFIG, CONFIG_HEAD, SMITH_CLAUDE, SMITH_CODEX
 from dreamcatcher.config import CONFIG_NAME, Harness, read_config
 from dreamcatcher.documents import DocumentError
 
-HEAD = 'interval = 300\nharness = "claude"\n\n'
-SMITH_CLAUDE = ...
-SMITH_CODEX = ...
 PIN = 'label = "dream:smith"\n'
-VALID = HEAD + SMITH_CLAUDE + SMITH_CODEX
-WITHOUT_CODEX = HEAD + SMITH_CLAUDE
+WITHOUT_CODEX = CONFIG_HEAD + SMITH_CLAUDE
 
 def write(root: Path, text: str) -> Path:
     ...

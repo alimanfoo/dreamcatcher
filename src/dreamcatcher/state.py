@@ -1,9 +1,22 @@
-"""Where dreamcatcher keeps its own files, inside the repo's main checkout."""
+"""Where dreamcatcher keeps its own files, and what those files hold."""
 
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
+from dreamcatcher.documents import Document
+
 STATE_DIRECTORY = ".dreamcatcher"
+
+
+class LastTick(Document):
+    """What the daemon's most recent tick observed and decided.
+
+    The tick's own time is in here rather than read from the file, so copying a
+    state directory cannot make a stale tick look fresh.
+    """
+
+    at: datetime
 
 
 @dataclass(frozen=True)

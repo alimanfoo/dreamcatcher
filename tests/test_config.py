@@ -1,33 +1,14 @@
 from pathlib import Path
 
 import pytest
+from conftest import CONFIG, CONFIG_HEAD, SMITH_CLAUDE, SMITH_CODEX
 
 from dreamcatcher.config import CONFIG_NAME, Harness, read_config
 from dreamcatcher.documents import DocumentError
 
-HEAD = """interval = 300
-harness = "claude"
-
-"""
-
-SMITH_CLAUDE = """[[dispatch]]
-label = "dream:smith"
-[dispatch.claude]
-prompt = "/dream:smith GH{issue}"
-model = "opus[1m]"
-effort = "xhigh"
-"""
-
-SMITH_CODEX = """[dispatch.codex]
-prompt = "$dream:smith GH{issue}"
-model = "gpt-5.6-sol"
-effort = "xhigh"
-"""
-
 PIN = 'label = "dream:smith"\n'
 
-VALID = HEAD + SMITH_CLAUDE + SMITH_CODEX
-WITHOUT_CODEX = HEAD + SMITH_CLAUDE
+WITHOUT_CODEX = CONFIG_HEAD + SMITH_CLAUDE
 
 
 def write(root: Path, text: str) -> Path:
@@ -51,7 +32,7 @@ def fault(root: Path, text: str) -> str:
 
 
 def test_a_valid_config_reads_back(tmp_path):
-    config = read(tmp_path, VALID)
+    config = read(tmp_path, CONFIG)
 
     assert config.interval == 300
     assert config.harness is Harness.CLAUDE
@@ -61,14 +42,14 @@ def test_a_valid_config_reads_back(tmp_path):
 
 
 def test_the_settings_the_design_gives_defaults_for_have_them(tmp_path):
-    config = read(tmp_path, VALID)
+    config = read(tmp_path, CONFIG)
 
     assert config.max_agents == 1
     assert config.assignee == "@me"
 
 
 def test_a_setting_the_config_names_beats_its_default(tmp_path):
-    named = 'max_agents = 3\nassignee = "alimanfoo"\n' + VALID
+    named = 'max_agents = 3\nassignee = "alimanfoo"\n' + CONFIG
 
     config = read(tmp_path, named)
 
@@ -77,7 +58,7 @@ def test_a_setting_the_config_names_beats_its_default(tmp_path):
 
 
 def test_an_unpinned_label_dispatches_with_the_run_harness(tmp_path):
-    mapping = read(tmp_path, VALID).dispatch[0]
+    mapping = read(tmp_path, CONFIG).dispatch[0]
 
     assert mapping.settings_for(Harness.CLAUDE).model == "opus[1m]"
     assert mapping.settings_for(Harness.CODEX).model == "gpt-5.6-sol"
@@ -97,27 +78,27 @@ def test_a_pinned_label_dispatches_with_its_pin(tmp_path):
     [
         (
             "a missing setting",
-            VALID.replace('model = "opus[1m]"\n', ""),
+            CONFIG.replace('model = "opus[1m]"\n', ""),
             "dispatch entry 1, claude block: model is required",
         ),
         (
             "a mistyped setting",
-            "intervl = 5\n" + VALID,
+            "intervl = 5\n" + CONFIG,
             "there is no setting called intervl",
         ),
         (
             "a harness that does not exist",
-            VALID.replace('harness = "claude"', 'harness = "cloud"'),
+            CONFIG.replace('harness = "claude"', 'harness = "cloud"'),
             "harness: input should be 'claude' or 'codex'",
         ),
         (
             "no interval",
-            VALID.replace("interval = 300\n", ""),
+            CONFIG.replace("interval = 300\n", ""),
             "interval is required",
         ),
         (
             "an interval of zero",
-            VALID.replace("interval = 300", "interval = 0"),
+            CONFIG.replace("interval = 300", "interval = 0"),
             "interval: input should be greater than 0",
         ),
         (
@@ -137,7 +118,7 @@ def test_a_pinned_label_dispatches_with_its_pin(tmp_path):
         ),
         (
             "one label mapped twice",
-            VALID + SMITH_CLAUDE + SMITH_CODEX,
+            CONFIG + SMITH_CLAUDE + SMITH_CODEX,
             "more than one dispatch entry uses the label dream:smith",
         ),
     ],

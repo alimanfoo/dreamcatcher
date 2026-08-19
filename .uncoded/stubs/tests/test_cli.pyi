@@ -4,12 +4,29 @@
 from importlib.metadata import version
 import pytest
 from dreamcatcher.cli import main
+from dreamcatcher.config import Harness
+from dreamcatcher.daemon import Daemon
+
+def started(monkeypatch):
+    ...
 
 def test_version_prints_the_installed_version(capsys):
     ...
 
-def test_a_verb_is_not_implemented_yet(verb, capsys):
+def test_scry_is_not_implemented_yet(capsys):
     ...
 
 def test_a_bare_invocation_asks_for_a_verb(capsys):
+    ...
+
+def test_run_starts_a_daemon_on_the_current_directory(monkeypatch, watched, started):
+    ...
+
+def test_the_harness_flag_says_what_to_run_rounds_with(monkeypatch, watched, started):
+    ...
+
+def test_a_harness_that_does_not_exist_is_refused(capsys):
+    ...
+
+def test_a_failure_the_user_must_read_is_a_message_not_a_traceback(monkeypatch, tmp_path, capsys):
     ...

@@ -1,4 +1,4 @@
-"""What the whole suite shares: the encoding gate, and a git repository."""
+"""What the whole suite shares: the encoding gate, a repo, and a valid config."""
 
 import os
 import subprocess
@@ -6,7 +6,30 @@ from pathlib import Path
 
 import pytest
 
+from dreamcatcher.config import CONFIG_NAME
+
 ARMING = "PYTHONWARNDEFAULTENCODING"
+
+CONFIG_HEAD = """interval = 300
+harness = "claude"
+
+"""
+
+SMITH_CLAUDE = """[[dispatch]]
+label = "dream:smith"
+[dispatch.claude]
+prompt = "/dream:smith GH{issue}"
+model = "opus[1m]"
+effort = "xhigh"
+"""
+
+SMITH_CODEX = """[dispatch.codex]
+prompt = "$dream:smith GH{issue}"
+model = "gpt-5.6-sol"
+effort = "xhigh"
+"""
+
+CONFIG = CONFIG_HEAD + SMITH_CLAUDE + SMITH_CODEX
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -35,3 +58,10 @@ def repo(tmp_path):
     """Return a main checkout of a fresh, empty git repository."""
     git("init", cwd=tmp_path)
     return tmp_path
+
+
+@pytest.fixture
+def watched(repo):
+    """Return a main checkout carrying a valid dreamcatcher.toml."""
+    (repo / CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
+    return repo

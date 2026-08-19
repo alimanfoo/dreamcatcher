@@ -75,6 +75,9 @@ uv run pre-commit run --all-files
   repair is already in your working tree.
 - Never edit `.uncoded/` or the `uncoded-*` skills by hand. `uncoded sync`
   writes them from the source and the docs, and overwrites them on every commit.
+- Every file the tool reads or writes has a pydantic model, read and written
+  through `documents.py`, so a mistake in a file becomes a named error in plain
+  words rather than a setting that is silently ignored.
 - Keep changes lean. Add nothing a requirement or the design doesn't call for;
   prefer deleting over adding. One way to do each thing, always.
 - Every path is cross-platform: Windows, macOS, and Linux are all first-class.
