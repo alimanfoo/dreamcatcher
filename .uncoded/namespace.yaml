@@ -11,8 +11,6 @@ src/:
   dreamcatcher/:
     cli.py:
       build_parser:
-      run:
-      scry:
       main:
     config.py:
       CONFIG_NAME:
@@ -38,12 +36,7 @@ src/:
     daemon.py:
       NotAMainCheckoutError:
       Daemon:
-        config:
-        harness:
-        state:
-        clock:
-        wait:
-        for_checkout:
+        __init__:
         run:
         tick:
       now:

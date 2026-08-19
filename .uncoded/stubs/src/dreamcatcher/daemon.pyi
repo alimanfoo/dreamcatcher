@@ -3,12 +3,10 @@
 
 from collections.abc import Callable
 from contextlib import suppress
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from time import sleep
-from typing import Self
-from dreamcatcher.config import Config, Harness, read_config
+from dreamcatcher.config import Harness, read_config
 from dreamcatcher.documents import write_json
 from dreamcatcher.errors import DreamcatcherError
 from dreamcatcher.lock import hold
@@ -21,13 +19,7 @@ class NotAMainCheckoutError(DreamcatcherError):
     ...
 
 class Daemon:
-    config: Config
-    harness: Harness
-    state: StateDirectory
-    clock: Callable[[], datetime] = now
-    wait: Callable[[float], None] = sleep
-
-    def for_checkout(cls, root: Path, harness: Harness) -> Self:
+    def __init__(self, root: Path, harness: Harness, clock: Callable[[], datetime], wait: Callable[[float], None]) -> None:
         ...
 
     def run(self) -> None:

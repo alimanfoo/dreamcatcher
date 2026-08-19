@@ -1,5 +1,4 @@
 import os
-from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -40,8 +39,7 @@ class Ticking:
 def idling(root, ticks: int = 2) -> tuple[Daemon, Waiting, Ticking]:
     waiting = Waiting(ticks)
     ticking = Ticking()
-    daemon = Daemon.for_checkout(root, Harness.CLAUDE)
-    return replace(daemon, clock=ticking, wait=waiting), waiting, ticking
+    return Daemon(root, Harness.CLAUDE, clock=ticking, wait=waiting), waiting, ticking
 
 
 def test_the_daemon_reads_the_clock_in_utc():
@@ -85,27 +83,27 @@ def test_a_second_daemon_refuses_while_the_first_holds_the_repo(watched):
 
 
 def test_the_daemon_runs_the_harness_it_was_given(watched):
-    assert Daemon.for_checkout(watched, Harness.CODEX).harness is Harness.CODEX
+    assert Daemon(watched, Harness.CODEX).harness is Harness.CODEX
 
 
 def test_a_checkout_with_no_config_names_the_file_it_needs(repo):
     with pytest.raises(DocumentError, match=CONFIG_NAME):
-        Daemon.for_checkout(repo, Harness.CLAUDE)
+        Daemon(repo, Harness.CLAUDE)
 
 
 def test_a_directory_that_is_not_a_repository_is_refused(tmp_path):
     with pytest.raises(NotAMainCheckoutError, match="main checkout"):
-        Daemon.for_checkout(tmp_path, Harness.CLAUDE)
+        Daemon(tmp_path, Harness.CLAUDE)
 
 
 def test_a_linked_worktree_is_refused(tmp_path):
     (tmp_path / ".git").write_text("gitdir: elsewhere\n", encoding="utf-8")
 
     with pytest.raises(NotAMainCheckoutError, match="main checkout"):
-        Daemon.for_checkout(tmp_path, Harness.CLAUDE)
+        Daemon(tmp_path, Harness.CLAUDE)
 
 
 def test_the_state_directory_sits_in_the_checkout(watched):
-    daemon = Daemon.for_checkout(watched, Harness.CLAUDE)
+    daemon = Daemon(watched, Harness.CLAUDE)
 
     assert daemon.state == StateDirectory(watched)

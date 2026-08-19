@@ -2,13 +2,11 @@
 
 from collections.abc import Callable
 from contextlib import suppress
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from time import sleep
-from typing import Self
 
-from dreamcatcher.config import Config, Harness, read_config
+from dreamcatcher.config import Harness, read_config
 from dreamcatcher.documents import write_json
 from dreamcatcher.errors import DreamcatcherError
 from dreamcatcher.lock import hold
@@ -24,33 +22,31 @@ def now() -> datetime:
     return datetime.now(UTC)
 
 
-@dataclass(frozen=True)
 class Daemon:
     """The foreground process watching one repo.
 
-    The clock and the wait are the daemon's, so a test can pin the time and end
-    the loop.
+    The clock and the wait are the daemon's own, so a test can pin the time and
+    end the loop.
     """
 
-    config: Config
-    harness: Harness
-    state: StateDirectory
-    clock: Callable[[], datetime] = now
-    wait: Callable[[float], None] = sleep
-
-    @classmethod
-    def for_checkout(cls, root: Path, harness: Harness) -> Self:
-        """Return the daemon for the repo checked out at root."""
+    def __init__(
+        self,
+        root: Path,
+        harness: Harness,
+        clock: Callable[[], datetime] = now,
+        wait: Callable[[float], None] = sleep,
+    ) -> None:
+        """Set the daemon up for the repo checked out at root."""
         if not (root / ".git").is_dir():
             raise NotAMainCheckoutError(
                 f"Start dreamcatcher from a repository's main checkout. "
                 f"{root} is not one."
             )
-        return cls(
-            config=read_config(root),
-            harness=harness,
-            state=StateDirectory(root),
-        )
+        self.harness = harness
+        self.config = read_config(root)
+        self.state = StateDirectory(root)
+        self.clock = clock
+        self.wait = wait
 
     def run(self) -> None:
         """Hold the repo and tick until the user interrupts."""

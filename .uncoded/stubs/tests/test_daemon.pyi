@@ -2,7 +2,6 @@
 # tests/test_daemon.py
 
 import os
-from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 import pytest
 from dreamcatcher.config import CONFIG_NAME, Harness
