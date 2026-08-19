@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # The floor the package promises, on every platform it promises it on.
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v10
+        with:
+          python-version: "3.11"
+      - run: uv sync --extra dev
+      # Arms the EncodingWarning gate. Without it the interpreter never emits
+      # the warning and tests/test_encoding_gate.py fails.
+      - run: uv run pytest
+        env:
+          PYTHONWARNDEFAULTENCODING: "1"
+
+  # uncoded needs Python 3.12, so the checks run on a later one.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v10
+        with:
+          python-version: "3.13"
+      - run: uv sync --extra dev
+      - run: uv run pre-commit run --all-files
