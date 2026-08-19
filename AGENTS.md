@@ -75,9 +75,11 @@ uv run pre-commit run --all-files
   repair is already in your working tree.
 - Never edit `.uncoded/` or the `uncoded-*` skills by hand. `uncoded sync`
   writes them from the source and the docs, and overwrites them on every commit.
-- Give every JSON document the tool owns a pydantic model. Read and write it
-  through `documents.py`. A mistake in a document then reads as a named error in
-  plain words, not as a setting the tool quietly ignores.
+- Give every document the tool reads or writes a pydantic model, and read and
+  write it through `documents.py`. That covers `dreamcatcher.toml` and the
+  records under `.dreamcatcher/`, but not a one-value file like `daemon.pid`. A
+  mistake in a document then reads as a named error in plain words, not as a
+  setting the tool quietly ignores.
 - Keep changes lean. Add nothing a requirement or the design doesn't call for;
   prefer deleting over adding. One way to do each thing, always.
 - Every path is cross-platform: Windows, macOS, and Linux are all first-class.

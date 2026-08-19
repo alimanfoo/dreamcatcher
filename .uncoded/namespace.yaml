@@ -52,6 +52,7 @@ src/:
         tick:
       now:
     documents.py:
+      _FAULTS:
       Document:
         model_config:
       DocumentError:
@@ -116,10 +117,13 @@ tests/:
     Waiting:
       __init__:
       __call__:
+    Ticking:
+      __init__:
+      __call__:
     idling:
     test_the_daemon_reads_the_clock_in_utc:
     test_the_daemon_ticks_on_the_interval_until_the_user_interrupts:
-    test_each_tick_records_when_it_ran:
+    test_every_tick_records_when_it_ran:
     test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock:
     test_a_second_daemon_refuses_while_the_first_holds_the_repo:
     test_the_configured_harness_runs_the_rounds:
@@ -137,6 +141,7 @@ tests/:
     test_a_missing_document_names_the_path:
     test_an_unreadable_document_says_so:
     test_a_document_that_is_not_toml_says_so:
+    test_a_document_that_is_not_utf_8_says_so:
     test_a_document_that_breaks_its_model_lists_every_fault:
   test_encoding_gate.py:
     test_a_read_with_no_encoding_fails_the_suite:
@@ -145,7 +150,7 @@ tests/:
     test_holding_the_lock_records_the_daemon_and_releasing_removes_it:
     test_a_live_daemon_keeps_the_lock:
     test_a_lock_naming_a_pid_that_is_gone_is_reclaimed:
-    test_a_lock_nobody_can_read_is_reclaimed:
+    test_a_lock_nobody_can_read_as_a_live_pid_is_reclaimed:
     test_the_lock_is_released_when_the_daemon_fails:
   test_state.py:
     test_bootstrap_creates_a_directory_that_ignores_itself:

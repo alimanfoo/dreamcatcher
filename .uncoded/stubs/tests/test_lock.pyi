@@ -19,7 +19,7 @@ def test_a_live_daemon_keeps_the_lock(tmp_path):
 def test_a_lock_naming_a_pid_that_is_gone_is_reclaimed(tmp_path):
     ...
 
-def test_a_lock_nobody_can_read_is_reclaimed(tmp_path):
+def test_a_lock_nobody_can_read_as_a_live_pid_is_reclaimed(tmp_path, kind, held):
     ...
 
 def test_the_lock_is_released_when_the_daemon_fails(tmp_path):

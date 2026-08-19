@@ -38,9 +38,18 @@ def test_a_lock_naming_a_pid_that_is_gone_is_reclaimed(tmp_path):
         assert lock.read_text(encoding="utf-8").strip() == str(os.getpid())
 
 
-def test_a_lock_nobody_can_read_is_reclaimed(tmp_path):
+@pytest.mark.parametrize(
+    ("kind", "held"),
+    [
+        ("words", "who knows"),
+        ("nothing", ""),
+        ("a pid no process could have", "999999999999"),
+        ("a pid that is no daemon's", "0"),
+    ],
+)
+def test_a_lock_nobody_can_read_as_a_live_pid_is_reclaimed(tmp_path, kind, held):
     lock = tmp_path / "daemon.pid"
-    lock.write_text("who knows\n", encoding="utf-8")
+    lock.write_text(f"{held}\n", encoding="utf-8")
 
     with hold(lock):
         assert lock.read_text(encoding="utf-8").strip() == str(os.getpid())

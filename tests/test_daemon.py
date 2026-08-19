@@ -1,6 +1,6 @@
 import os
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -26,10 +26,22 @@ class Waiting:
             raise KeyboardInterrupt
 
 
-def idling(root, ticks: int = 2) -> tuple[Daemon, Waiting]:
+class Ticking:
+    """A clock that moves on a tick's worth of time with every reading."""
+
+    def __init__(self) -> None:
+        self.readings: list[datetime] = []
+
+    def __call__(self) -> datetime:
+        self.readings.append(PINNED + timedelta(seconds=300 * len(self.readings)))
+        return self.readings[-1]
+
+
+def idling(root, ticks: int = 2) -> tuple[Daemon, Waiting, Ticking]:
     waiting = Waiting(ticks)
+    ticking = Ticking()
     daemon = Daemon.for_checkout(root, None)
-    return replace(daemon, clock=lambda: PINNED, wait=waiting), waiting
+    return replace(daemon, clock=ticking, wait=waiting), waiting, ticking
 
 
 def test_the_daemon_reads_the_clock_in_utc():
@@ -37,24 +49,25 @@ def test_the_daemon_reads_the_clock_in_utc():
 
 
 def test_the_daemon_ticks_on_the_interval_until_the_user_interrupts(watched):
-    daemon, waiting = idling(watched)
+    daemon, waiting, _ = idling(watched)
 
     daemon.run()
 
     assert waiting.waited == [300, 300]
 
 
-def test_each_tick_records_when_it_ran(watched):
-    daemon, _ = idling(watched)
+def test_every_tick_records_when_it_ran(watched):
+    daemon, _, ticking = idling(watched)
 
     daemon.run()
 
     recorded = daemon.state.last_tick.read_text(encoding="utf-8")
-    assert LastTick.model_validate_json(recorded).at == PINNED
+    assert len(ticking.readings) == 2
+    assert LastTick.model_validate_json(recorded).at == ticking.readings[-1]
 
 
 def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(watched):
-    daemon, _ = idling(watched)
+    daemon, _, _ = idling(watched)
 
     daemon.run()
 
@@ -63,7 +76,7 @@ def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(watched
 
 
 def test_a_second_daemon_refuses_while_the_first_holds_the_repo(watched):
-    daemon, _ = idling(watched)
+    daemon, _, _ = idling(watched)
     daemon.state.bootstrap()
     daemon.state.lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
 

@@ -20,7 +20,7 @@ def hold(path: Path) -> Iterator[None]:
 
     Raise AlreadyRunningError when a live daemon holds it.
 
-    Reclaim a stale lock: one naming a pid that is gone, or one nobody can read.
+    Reclaim a stale lock, one no live daemon holds.
     """
     running = _holder(path)
     if running is not None:
@@ -33,9 +33,15 @@ def hold(path: Path) -> Iterator[None]:
 
 
 def _holder(path: Path) -> int | None:
-    """Return the pid of the daemon holding the lock, if one still is."""
+    """Return the pid of the daemon holding the lock, if one still is.
+
+    A lock nobody can read as a live pid is stale. That covers a file that is
+    not there, one holding something other than a pid, and one holding a number
+    no process could have.
+    """
     try:
         pid = int(path.read_text(encoding="utf-8").strip())
-    except (OSError, ValueError):
+        alive = pid > 0 and psutil.pid_exists(pid)
+    except (OSError, ValueError, OverflowError):
         return None
-    return pid if psutil.pid_exists(pid) else None
+    return pid if alive else None

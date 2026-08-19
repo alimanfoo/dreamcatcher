@@ -20,6 +20,9 @@ def test_an_unreadable_document_says_so(tmp_path):
 def test_a_document_that_is_not_toml_says_so(tmp_path):
     ...
 
+def test_a_document_that_is_not_utf_8_says_so(tmp_path):
+    ...
+
 def test_a_document_that_breaks_its_model_lists_every_fault(tmp_path):
     ...
 

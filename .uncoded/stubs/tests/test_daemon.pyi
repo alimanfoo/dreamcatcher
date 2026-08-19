@@ -3,7 +3,7 @@
 
 import os
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 import pytest
 from dreamcatcher.config import CONFIG_NAME, Harness
 from dreamcatcher.daemon import Daemon, NotAMainCheckoutError, now
@@ -13,7 +13,7 @@ from dreamcatcher.state import LastTick, StateDirectory
 
 PINNED = datetime(2026, 8, 19, 18, 41, 58, tzinfo=UTC)
 
-def idling(root, ticks: int) -> tuple[Daemon, Waiting]:
+def idling(root, ticks: int) -> tuple[Daemon, Waiting, Ticking]:
     ...
 
 def test_the_daemon_reads_the_clock_in_utc():
@@ -22,7 +22,7 @@ def test_the_daemon_reads_the_clock_in_utc():
 def test_the_daemon_ticks_on_the_interval_until_the_user_interrupts(watched):
     ...
 
-def test_each_tick_records_when_it_ran(watched):
+def test_every_tick_records_when_it_ran(watched):
     ...
 
 def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(watched):
@@ -54,4 +54,11 @@ class Waiting:
         ...
 
     def __call__(self, seconds: float) -> None:
+        ...
+
+class Ticking:
+    def __init__(self) -> None:
+        ...
+
+    def __call__(self) -> datetime:
         ...

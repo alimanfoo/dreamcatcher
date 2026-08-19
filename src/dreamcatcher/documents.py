@@ -29,6 +29,8 @@ def read_toml[DocumentT: Document](model: type[DocumentT], path: Path) -> Docume
         text = path.read_text(encoding="utf-8")
     except FileNotFoundError as error:
         raise DocumentError(f"{path} does not exist.") from error
+    except UnicodeDecodeError as error:
+        raise DocumentError(f"{path} is not UTF-8 text.") from error
     except OSError as error:
         raise DocumentError(f"dreamcatcher cannot read {path}: {error}.") from error
     try:
@@ -47,7 +49,7 @@ def write_json(document: Document, path: Path) -> None:
 
 
 def _report(path: Path, error: ValidationError) -> str:
-    """Return the validation failures as one message anybody can read."""
+    """Return the validation failures as one message, a line for each."""
     lines = [f"{path} is not valid:"]
     lines += [f"  {_phrase(detail)}" for detail in error.errors()]
     return "\n".join(lines)
@@ -85,13 +87,21 @@ def _place(location: tuple[int | str, ...]) -> str:
     return ", ".join(words)
 
 
+# Pydantic's own wording for these names a Python class or counts items, which
+# says nothing to whoever wrote the file. Anything else passes through.
+_FAULTS = {
+    "missing": "{setting} is required",
+    "extra_forbidden": "dreamcatcher has no setting called {setting}",
+    "model_type": "{setting} must be a block of settings",
+}
+
+
 def _fault(detail: ErrorDetails, setting: str | None) -> str:
     """Return what is wrong, in plain words."""
+    phrasing = _FAULTS.get(detail["type"])
+    if phrasing is not None:
+        return phrasing.format(setting=setting)
     message = detail["msg"].removeprefix("Value error, ")
-    if detail["type"] == "missing":
-        return f"{setting} is required"
-    if detail["type"] == "extra_forbidden":
-        return f"dreamcatcher has no setting called {setting}"
     if setting is None:
         return message
     return f"{setting}: {message[:1].lower()}{message[1:]}"

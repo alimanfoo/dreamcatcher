@@ -41,6 +41,14 @@ def test_a_document_that_is_not_toml_says_so(tmp_path):
         read_toml(Sample, document)
 
 
+def test_a_document_that_is_not_utf_8_says_so(tmp_path):
+    document = tmp_path / "sample.toml"
+    document.write_bytes('name = "Ren\u00e9"\n'.encode("utf-16"))
+
+    with pytest.raises(DocumentError, match="not UTF-8"):
+        read_toml(Sample, document)
+
+
 def test_a_document_that_breaks_its_model_lists_every_fault(tmp_path):
     document = write(tmp_path, 'count = "many"\nextra = true\n')
 

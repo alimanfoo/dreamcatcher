@@ -33,7 +33,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def run(args: argparse.Namespace) -> int:
     """Run the daemon on the repo the current directory is a checkout of."""
-    chosen = Harness(args.harness) if args.harness else None
+    chosen = Harness(args.harness) if args.harness is not None else None
     Daemon.for_checkout(Path.cwd(), chosen).run()
     return 0
 

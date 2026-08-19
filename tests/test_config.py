@@ -121,6 +121,11 @@ def test_a_pinned_label_dispatches_with_its_pin(tmp_path):
             CONFIG + SMITH_CLAUDE + SMITH_CODEX,
             "more than one dispatch entry uses the label dream:smith",
         ),
+        (
+            "a settings block that is not a block",
+            CONFIG_HEAD + '[[dispatch]]\nlabel = "dream:smith"\nclaude = "opus"\n',
+            "dispatch entry 1: claude must be a block of settings",
+        ),
     ],
 )
 def test_a_config_mistake_reads_as_plain_words(tmp_path, mistake, text, message):

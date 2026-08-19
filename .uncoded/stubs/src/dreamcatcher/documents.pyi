@@ -7,6 +7,8 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 from pydantic_core import ErrorDetails
 from dreamcatcher.errors import DreamcatcherError
 
+_FAULTS = ...
+
 def read_toml(model: type[DocumentT], path: Path) -> DocumentT:
     ...
 
