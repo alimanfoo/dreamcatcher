@@ -89,26 +89,25 @@ directory, and idles. No GitHub, no worktrees, no processes.
 In scope:
 
 - Parse and validate `dreamcatcher.toml` from the repo root: `interval`,
-  `max_agents`, `assignee`, the default `harness`, and the `[[dispatch]]`
-  mappings, each with a label and per-harness settings blocks carrying `prompt`,
-  `model`, and `effort`, plus the optional per-mapping `harness` pin (see
+  `max_agents`, `assignee`, and the `[[dispatch]]` mappings, each with a label
+  and a settings block per harness carrying `prompt`, `model`, and `effort` (see
   design.md, Configuration). Validation is pydantic v2 models with
   `extra="forbid"`, so a typo'd key is a named error rather than a silently
-  ignored setting, and a small shim renders validation errors in plain words
-  ("dispatch entry 1, claude block: model is required"). The same model
-  convention then covers every JSON document the tool owns in later phases
-  (`round.json`, `session.json`, `last-tick.json`), so serialization is schema'd
-  everywhere rather than hand-rolled.
+  ignored setting. Failures report as pydantic's own message under the path it
+  names, which the reader can follow into the file ("dispatch.0.claude.model:
+  Field required"); a phrasing of our own would be machinery this phase does not
+  need. The same model convention then covers every JSON document the tool owns
+  in later phases (`round.json`, `session.json`, `last-tick.json`), so
+  serialization is schema'd everywhere rather than hand-rolled.
 - Runtime dependencies arrive here: pydantic, and psutil for pid semantics (the
   lock's staleness check, and later the orphan sweep) — with rich following in
-  phase 11. This is the plan's deliberate amendment to design.md's
-  standard-library aim: three mature, universally wheeled dependencies.
-- `--harness` resolution: the flag wins, else the config default; a mapping's
-  pin overrides both for that label. The flag belongs to the `run` subparser
-  alone, which is where it is used. Don't also declare it on the top-level
-  parser: argparse then accepts `dreamcatcher --harness codex run` and silently
-  drops the value, because the subparser's own default overwrites what the
-  top-level parser captured.
+  phase 11. design.md's Dependencies section names all three.
+- `--harness`, required, on the `run` subparser alone, which is where it is
+  used. The config holds no harness to resolve it against: which harnesses can
+  run a label is already in the blocks that label carries. Don't also declare
+  the flag on the top-level parser: argparse then accepts
+  `dreamcatcher --harness codex run` and silently drops the value, because the
+  subparser's own default overwrites what the top-level parser captured.
 - The main-checkout test: `run` refuses to start anywhere but a main checkout —
   a linked worktree's `.git` is a file, not a directory.
 - `.dreamcatcher/` bootstrap: create it on first run with a `.gitignore`
@@ -143,6 +142,14 @@ In scope:
 - The error contract carries the fail-toward-inaction doctrine (see design.md,
   The tick): a read failure returns "unknown", and the caller decides what
   unknown means for its check. The wrappers never invent an answer.
+- Two decisions phase 2 left for the phase that shells out. Ruff's bandit rules
+  for subprocess (`suspicious-subprocess-import`,
+  `subprocess-without-shell-equals-true`, `start-process-with-partial-path`) are
+  waived for `tests/**` only, so the first wrapper in `src` fails the check:
+  decide the waiver here, where the code that earns it lives, and say why in
+  `pyproject.toml`. And every failure a wrapper raises derives from
+  `DreamcatcherError`, so the command line reports it as a message and never as
+  a traceback.
 - The fake-executables rig: stand-in `gh` and `git` the tests put first on PATH,
   scriptable per test to return canned responses or fail on cue. Solve the
   Windows shim question here, once — executables on Windows need an extension (a
@@ -267,8 +274,11 @@ In scope:
   `session.json` frozen at dispatch (design.md, Sessions, worktrees, branches).
   A failed creation backs out worktree and branch together, leaving nothing
   behind.
-- First-round prompt composition: the mapping's per-harness template rendered
-  with `{issue}`, the marker postscript appended (design.md, The relay, for the
+- The harness a dispatch runs on: the mapping's only block when it carries one,
+  else the harness the run was started with (design.md, Configuration). Phase 2
+  parses the blocks and leaves the choice to the phase that dispatches.
+- First-round prompt composition: the chosen harness's template rendered with
+  `{issue}`, the marker postscript appended (design.md, The relay, for the
   marker).
 
 Done when: tests cut a real worktree and branch in a temporary git repository,
@@ -399,11 +409,13 @@ In scope:
   PR from it before changing anything; act on the issue reference in your
   prompt; handle the three resume prompts; yield by ending your turn; marking is
   injected for you.
-- The README rewritten for a newcomer: install via `uvx`, the config example,
-  the two verbs, and two operational truths placed prominently — removing the
-  label is how you say stop (an issue whose PR closes unmerged will dispatch
+- The README's last gap: two operational truths placed prominently — removing
+  the label is how you say stop (an issue whose PR closes unmerged will dispatch
   again while the label remains), and the crossover rule (retire dream:catcher
   on a repo with nothing in flight, or expect doubled attempts on whatever was).
+  Phase 2 wrote the rest for a newcomer, under review: install via `uvx`, a
+  Configuration section carrying every setting and its default, and the two
+  verbs.
 - A packaging check: `uvx` installing and running from a fresh environment.
 
 Done when: the documents are in and the release checklist sits on this phase's

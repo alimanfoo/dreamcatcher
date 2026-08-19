@@ -2,9 +2,25 @@
 # tests/conftest.py
 
 import os
+import subprocess
+from pathlib import Path
 import pytest
+from dreamcatcher.config import CONFIG_NAME
 
 ARMING = 'PYTHONWARNDEFAULTENCODING'
+CONFIG_HEAD = 'interval = 300\n\n'
+SMITH_CLAUDE = ...
+SMITH_CODEX = ...
+CONFIG = CONFIG_HEAD + SMITH_CLAUDE + SMITH_CODEX
 
 def pytest_configure(config: pytest.Config) -> None:
+    ...
+
+def git(*arguments: str, cwd: Path) -> str:
+    ...
+
+def repo(tmp_path):
+    ...
+
+def watched(repo):
     ...

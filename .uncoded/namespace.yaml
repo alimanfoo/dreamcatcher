@@ -12,16 +12,132 @@ src/:
     cli.py:
       build_parser:
       main:
+    config.py:
+      CONFIG_NAME:
+      Harness:
+        CLAUDE:
+        CODEX:
+      HarnessSettings:
+        prompt:
+        model:
+        effort:
+      DispatchMapping:
+        label:
+        claude:
+        codex:
+        _carries_a_block:
+      Config:
+        interval:
+        max_agents:
+        assignee:
+        dispatch:
+        _each_label_maps_once:
+      read_config:
+    daemon.py:
+      NotAMainCheckoutError:
+      Daemon:
+        __init__:
+        run:
+        tick:
+      now:
+    documents.py:
+      Document:
+        model_config:
+      DocumentError:
+      read_toml:
+      write_json:
+      _report:
+    errors.py:
+      DreamcatcherError:
+    lock.py:
+      AlreadyRunningError:
+      hold:
+      _holder:
+    state.py:
+      STATE_DIRECTORY:
+      LastTick:
+        at:
+      StateDirectory:
+        root:
+        path:
+        lock:
+        last_tick:
+        bootstrap:
 tests/:
   conftest.py:
     ARMING:
+    CONFIG_HEAD:
+    SMITH_CLAUDE:
+    SMITH_CODEX:
+    CONFIG:
     pytest_configure:
+    git:
+    repo:
+    watched:
   test_cli.py:
+    started:
     test_version_prints_the_installed_version:
-    test_a_verb_is_not_implemented_yet:
+    test_scry_is_not_implemented_yet:
     test_a_bare_invocation_asks_for_a_verb:
+    test_run_starts_a_daemon_on_the_current_directory:
+    test_the_harness_flag_says_what_to_run_rounds_with:
+    test_a_run_with_no_harness_asks_for_one:
+    test_a_harness_that_does_not_exist_is_refused:
+    test_a_failure_the_user_must_read_is_a_message_not_a_traceback:
+  test_config.py:
+    WITHOUT_CODEX:
+    CLAUDE_SETTINGS:
+    CODEX_SETTINGS:
+    write_config:
+    test_a_valid_config_reads_back:
+    test_the_settings_the_design_gives_defaults_for_have_them:
+    test_a_setting_the_config_names_beats_its_default:
+    test_a_label_one_harness_can_run_carries_that_block_alone:
+    test_a_config_mistake_names_the_setting_and_the_fault:
+    test_a_repo_with_no_config_says_which_file_is_missing:
+  test_daemon.py:
+    PINNED:
+    Waiting:
+      __init__:
+      __call__:
+    Ticking:
+      __init__:
+      __call__:
+    idling:
+    test_the_daemon_reads_the_clock_in_utc:
+    test_the_daemon_ticks_on_the_interval_until_the_user_interrupts:
+    test_every_tick_records_when_it_ran:
+    test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock:
+    test_a_second_daemon_refuses_while_the_first_holds_the_repo:
+    test_the_daemon_runs_the_harness_it_was_given:
+    test_a_checkout_with_no_config_names_the_file_it_needs:
+    test_a_directory_that_is_not_a_repository_is_refused:
+    test_a_linked_worktree_is_refused:
+    test_the_state_directory_sits_in_the_checkout:
+  test_documents.py:
+    Sample:
+      name:
+      count:
+    write:
+    test_a_valid_document_reads_back:
+    test_a_missing_document_names_the_path:
+    test_an_unreadable_document_says_so:
+    test_a_document_that_is_not_toml_says_so:
+    test_a_document_that_is_not_utf_8_says_so:
+    test_a_document_that_breaks_its_model_lists_every_fault:
   test_encoding_gate.py:
     test_a_read_with_no_encoding_fails_the_suite:
+  test_lock.py:
+    dead_pid:
+    test_holding_the_lock_records_the_daemon_and_releasing_removes_it:
+    test_a_live_daemon_keeps_the_lock:
+    test_a_lock_naming_a_pid_that_is_gone_is_reclaimed:
+    test_a_lock_nobody_can_read_as_a_live_pid_is_reclaimed:
+    test_the_lock_is_released_when_the_daemon_fails:
+  test_state.py:
+    test_bootstrap_creates_a_directory_that_ignores_itself:
+    test_bootstrap_heals_a_deleted_gitignore:
+    test_the_daemon_files_sit_in_the_state_directory:
 tools/:
   forbid_invisible_characters.py:
     INVISIBLE_CATEGORY:

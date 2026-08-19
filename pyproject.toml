@@ -15,10 +15,16 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
 ]
+dependencies = [
+    # pydantic validates the config and every JSON document the tool owns.
+    # psutil answers whether a recorded pid is still alive.
+    "pydantic>=2.0",
+    "psutil>=6.0",
+]
 
 [dependency-groups]
 # uv installs this group on a bare `uv sync`, so the tools cannot go missing.
-# Every tool whose output is enforced or committed is pinned exactly.
+# Pin every tool whose output is enforced or committed.
 dev = [
     "complexipy==7.0.1",
     "pre-commit>=4.0",
@@ -110,7 +116,16 @@ max-complexity = 8
 convention = "pep257"
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["D", "ANN", "assert"]
+# The test helpers run git and a throwaway interpreter, each found on PATH by
+# name. A shell invocation is a different rule, and stays selected everywhere.
+"tests/**" = [
+    "D",
+    "ANN",
+    "assert",
+    "suspicious-subprocess-import",
+    "subprocess-without-shell-equals-true",
+    "start-process-with-partial-path",
+]
 
 [tool.complexipy]
 max-complexity-allowed = 15

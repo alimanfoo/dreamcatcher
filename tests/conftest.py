@@ -1,10 +1,34 @@
-"""Refuse to run the suite unless the EncodingWarning gate is armed."""
+"""What the whole suite shares: the encoding gate, a repo, and a valid config."""
 
 import os
+import subprocess
+from pathlib import Path
 
 import pytest
 
+from dreamcatcher.config import CONFIG_NAME
+
 ARMING = "PYTHONWARNDEFAULTENCODING"
+
+CONFIG_HEAD = """interval = 300
+
+"""
+
+SMITH_CLAUDE = """[[dispatch]]
+label = "dream:smith"
+[dispatch.claude]
+prompt = "/dream:smith GH{issue}"
+model = "opus[1m]"
+effort = "xhigh"
+"""
+
+SMITH_CODEX = """[dispatch.codex]
+prompt = "$dream:smith GH{issue}"
+model = "gpt-5.6-sol"
+effort = "xhigh"
+"""
+
+CONFIG = CONFIG_HEAD + SMITH_CLAUDE + SMITH_CODEX
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -14,3 +38,29 @@ def pytest_configure(config: pytest.Config) -> None:
             f"Set {ARMING}=1 when you run pytest. Without it the interpreter "
             "never emits EncodingWarning, so the UTF-8 gate is inert."
         )
+
+
+def git(*arguments: str, cwd: Path) -> str:
+    """Run git in cwd and return its output, forcing UTF-8 both ways."""
+    finished = subprocess.run(
+        ["git", *arguments],
+        cwd=cwd,
+        capture_output=True,
+        check=True,
+        encoding="utf-8",
+    )
+    return finished.stdout
+
+
+@pytest.fixture
+def repo(tmp_path):
+    """Return a main checkout of a fresh, empty git repository."""
+    git("init", cwd=tmp_path)
+    return tmp_path
+
+
+@pytest.fixture
+def watched(repo):
+    """Return a main checkout carrying a valid dreamcatcher.toml."""
+    (repo / CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
+    return repo

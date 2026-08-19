@@ -16,26 +16,26 @@ tails the session's live feed. Both verbs run on the same machine; `scry` never
 talks to the daemon, it reads what the daemon leaves on disk.
 
 One process watches one repository. Configuration is a committed
-`dreamcatcher.toml` at the repo root; the only personal choice is the harness,
-selected with `--harness` (default named in the config). Supported harnesses
-this phase: Claude Code and Codex, behind one adapter boundary.
+`dreamcatcher.toml` at the repo root. The harness is the personal choice, so it
+lives nowhere in that file: `run` takes it as `--harness`, and takes it always.
+Supported harnesses this phase: Claude Code and Codex, behind one adapter
+boundary.
 
 ## How it works
 
 ### Configuration
 
 `dreamcatcher.toml`, committed, carries what the repo agrees on: the polling
-interval, the concurrent-round cap (default 1), the assignee filter (default
-`@me`), the default harness, and a list of dispatch mappings. Each mapping is
-identified by its label and carries one settings block per harness — the prompt
+interval (default 120 seconds), the concurrent-round cap (default 1), the
+assignee filter (default `@me`), and a list of dispatch mappings. Each mapping
+is identified by its label and carries a settings block per harness — the prompt
 template included, because the two harnesses invoke skills differently
 (`/dream:smith` under Claude Code, `$dream:smith` under Codex, as the ported
 `first_round_prompt` testifies):
 
 ```toml
-interval = 300
+interval = 120
 max_agents = 1
-harness = "claude"
 
 [[dispatch]]
 label = "dream:smith"
@@ -49,17 +49,19 @@ model = "gpt-5.6-sol"
 effort = "xhigh"
 ```
 
-A mapping may also pin `harness = "codex"` at its own level, committed, when the
-repo agrees a label belongs to one harness; otherwise the run's harness applies.
-That keeps the requirements' "some issues go to Claude Code, some to Codex"
-available while the common case stays one flag. The prompt always lives in the
+The blocks a mapping carries are the harnesses that can run its label, and every
+mapping carries at least one. A label with both blocks runs on the harness the
+run named. A label with one block always runs on that harness, whatever the run
+named, which is how the requirements' "some issues go to Claude Code, some to
+Codex" reaches one process. There is no separate pin: what the repo agrees about
+a label is already in which blocks it wrote. The prompt always lives in the
 harness block — one way, even when the two prompts happen to read the same.
 
 `{issue}` is the only substitution the dispatcher owns. The label is a dispatch
 mapping's identity everywhere: in config, on the board, in the noisy-skip rule.
 An issue carrying two mapped labels is skipped with a visible complaint (in
 `last-tick.json`, so the board shows it). There is no personal config file in
-this phase; `--harness` is the personal layer.
+this phase; `--harness` is the whole personal layer.
 
 ### The state directory
 
@@ -70,12 +72,13 @@ never touches the repo's own files. Contents:
 - `daemon.pid` — the running daemon's pid. Doubles as the single-instance lock:
   a second `run` on the same repo refuses to start while the pid is alive.
   `scry` checks it to mark liveness and staleness.
-- `last-tick.json` — overwritten each tick: what the daemon observed and
-  decided, including what it did not do and why (queued behind others, blocked
-  by an open issue, skipped for double labels, deferred at the cap, posts seen
-  but not yet relayed). The board's queue and waiting sections render this file;
-  its staleness (mtime plus `daemon.pid`) tells `scry` whether the daemon is
-  alive.
+- `last-tick.json` — overwritten each tick: when the tick ran, and what the
+  daemon observed and decided, including what it did not do and why (queued
+  behind others, blocked by an open issue, skipped for double labels, deferred
+  at the cap, posts seen but not yet relayed). The board's queue and waiting
+  sections render this file. The time it records, with `daemon.pid`, tells
+  `scry` whether the daemon is alive: the tick writes its own time rather than
+  leaning on the file's mtime, which copying a state directory would freshen.
 - `worktrees/<session-key>/` — the session worktrees themselves (next section).
 - `sessions/<session-key>/` — one directory per attempt, named by the session
   key (below): `session.json` (issue, label, branch, worktree path, harness,
@@ -351,8 +354,10 @@ daemon itself recorded, and the window is small.
 
 Python 3.12+ (`tomllib` in the standard library). The runtime shells out to
 `git`, `gh`, and the harness CLIs, which the user already has and has signed in.
-No `jq`, no `tmux`. The package itself aims for the standard library in this
-phase; a TUI or richer rendering can add dependencies later.
+No `jq`, no `tmux`. Beyond that, three runtime dependencies, each mature and
+wheeled everywhere: pydantic validates every document the tool owns, psutil
+answers whether a pid is alive, and rich renders `scry`'s views. Nothing else in
+this phase; a richer UI can add its own later.
 
 ## What changes, and what goes away
 
@@ -411,9 +416,12 @@ story is the most proven part of the old catcher, and the requirements demand
 it. The daemon holds pipes and handles, never the authoritative state.
 
 The two-layer personal config: cut for this phase. Per-harness settings blocks
-in the committed config plus a `--harness` flag collapse the personal choice to
-one scalar. Putting the personal file back is additive if someone eventually
-needs a personal model rather than a personal harness.
+in the committed config, plus a required `--harness` flag, collapse the personal
+choice to one word on the command line. A default harness in the committed file
+was cut with it, in review: the flag overrode it anyway, and a file the repo
+shares is the wrong home for the one choice that belongs to whoever runs the
+daemon. Putting the personal file back is additive if someone eventually needs a
+personal model rather than a personal harness.
 
 Codex `approval_policy="never"` (audacious's stance): superseded. It predates
 the auto-approval features; the catcher's auto-reviewer stance is field-proven
