@@ -22,7 +22,9 @@ def build_parser() -> argparse.ArgumentParser:
     running = verbs.add_parser("run", help="run the dreamcatcher daemon")
     running.add_argument(
         "--harness",
-        choices=list(Harness),
+        # The names, not the members. Some Python versions render a rejected
+        # choice with repr(), which turns a member into <Harness.CLAUDE: ...>.
+        choices=[harness.value for harness in Harness],
         help="the harness to run rounds with, in place of the configured one",
     )
     running.set_defaults(act=run)

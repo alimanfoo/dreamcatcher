@@ -56,7 +56,9 @@ def test_a_harness_that_does_not_exist_is_refused(capsys):
         main(["run", "--harness", "cloud"])
 
     assert exit_info.value.code == 2
-    assert "choose from claude, codex" in capsys.readouterr().err
+    complaint = capsys.readouterr().err
+    assert "cloud" in complaint
+    assert all(harness in complaint for harness in Harness)
 
 
 def test_a_failure_the_user_must_read_is_a_message_not_a_traceback(
