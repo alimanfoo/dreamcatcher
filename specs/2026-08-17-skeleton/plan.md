@@ -89,26 +89,26 @@ directory, and idles. No GitHub, no worktrees, no processes.
 In scope:
 
 - Parse and validate `dreamcatcher.toml` from the repo root: `interval`,
-  `max_agents`, `assignee`, the default `harness`, and the `[[dispatch]]`
-  mappings, each with a label and per-harness settings blocks carrying `prompt`,
-  `model`, and `effort`, plus the optional per-mapping `harness` pin (see
+  `max_agents`, `assignee`, and the `[[dispatch]]` mappings, each with a label
+  and a settings block per harness carrying `prompt`, `model`, and `effort` (see
   design.md, Configuration). Validation is pydantic v2 models with
   `extra="forbid"`, so a typo'd key is a named error rather than a silently
-  ignored setting, and a small shim renders validation errors in plain words
-  ("dispatch entry 1, claude block: model is required"). The same model
-  convention then covers every JSON document the tool owns in later phases
-  (`round.json`, `session.json`, `last-tick.json`), so serialization is schema'd
-  everywhere rather than hand-rolled.
+  ignored setting. Failures report as pydantic's own message under the path it
+  names, which the reader can follow into the file ("dispatch.0.claude.model:
+  Field required"); a phrasing of our own would be machinery this phase does not
+  need. The same model convention then covers every JSON document the tool owns
+  in later phases (`round.json`, `session.json`, `last-tick.json`), so
+  serialization is schema'd everywhere rather than hand-rolled.
 - Runtime dependencies arrive here: pydantic, and psutil for pid semantics (the
   lock's staleness check, and later the orphan sweep) — with rich following in
   phase 11. This is the plan's deliberate amendment to design.md's
   standard-library aim: three mature, universally wheeled dependencies.
-- `--harness` resolution: the flag wins, else the config default; a mapping's
-  pin overrides both for that label. The flag belongs to the `run` subparser
-  alone, which is where it is used. Don't also declare it on the top-level
-  parser: argparse then accepts `dreamcatcher --harness codex run` and silently
-  drops the value, because the subparser's own default overwrites what the
-  top-level parser captured.
+- `--harness`, required, on the `run` subparser alone, which is where it is
+  used. The config holds no harness to resolve it against: which harnesses can
+  run a label is already in the blocks that label carries. Don't also declare
+  the flag on the top-level parser: argparse then accepts
+  `dreamcatcher --harness codex run` and silently drops the value, because the
+  subparser's own default overwrites what the top-level parser captured.
 - The main-checkout test: `run` refuses to start anywhere but a main checkout —
   a linked worktree's `.git` is a file, not a directory.
 - `.dreamcatcher/` bootstrap: create it on first run with a `.gitignore`

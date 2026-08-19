@@ -11,7 +11,6 @@ from dreamcatcher.config import CONFIG_NAME
 ARMING = "PYTHONWARNDEFAULTENCODING"
 
 CONFIG_HEAD = """interval = 300
-harness = "claude"
 
 """
 

@@ -39,20 +39,16 @@ class Daemon:
     wait: Callable[[float], None] = sleep
 
     @classmethod
-    def for_checkout(cls, root: Path, harness: Harness | None) -> Self:
-        """Return the daemon for the repo checked out at root.
-
-        A harness of None means the one the repo's config names.
-        """
+    def for_checkout(cls, root: Path, harness: Harness) -> Self:
+        """Return the daemon for the repo checked out at root."""
         if not (root / ".git").is_dir():
             raise NotAMainCheckoutError(
                 f"Start dreamcatcher from a repository's main checkout. "
                 f"{root} is not one."
             )
-        config = read_config(root)
         return cls(
-            config=config,
-            harness=harness or config.harness,
+            config=read_config(root),
+            harness=harness,
             state=StateDirectory(root),
         )
 

@@ -27,39 +27,20 @@ class HarnessSettings(Document):
 
 
 class DispatchMapping(Document):
-    """A label, and how to dispatch an issue that carries it.
+    """A label, and the settings each harness needs to run it.
 
-    The label is the mapping's identity.
-
-    The harness pin, when it is there, says this label always goes to that
-    harness, whatever the run was started with.
+    The label is the mapping's identity, so no two mappings carry the same one.
     """
 
     label: str
-    harness: Harness | None = None
     claude: HarnessSettings | None = None
     codex: HarnessSettings | None = None
 
-    @property
-    def settings(self) -> dict[Harness, HarnessSettings]:
-        """The settings block this mapping carries per harness."""
-        blocks = {Harness.CLAUDE: self.claude, Harness.CODEX: self.codex}
-        return {
-            harness: block for harness, block in blocks.items() if block is not None
-        }
-
-    def settings_for(self, run_harness: Harness) -> HarnessSettings:
-        """Return the settings a dispatch of this label uses."""
-        return self.settings[self.harness or run_harness]
-
     @model_validator(mode="after")
-    def _carries_every_block_it_can_dispatch_with(self) -> Self:
-        """Require a settings block for every harness this mapping can use."""
-        reachable = [self.harness] if self.harness else list(Harness)
-        missing = [harness for harness in reachable if harness not in self.settings]
-        if missing:
-            named = ", ".join(missing)
-            raise ValueError(f"label {self.label} has no {named} block")
+    def _carries_a_block(self) -> Self:
+        """Refuse a label with no harness able to run it."""
+        if self.claude is None and self.codex is None:
+            raise ValueError(f"label {self.label} has no claude or codex block")
         return self
 
 
@@ -67,7 +48,6 @@ class Config(Document):
     """What the repo agrees on about dispatching its labelled issues."""
 
     interval: PositiveInt = 120
-    harness: Harness
     max_agents: PositiveInt = 1
     assignee: str = "@me"
     dispatch: list[DispatchMapping] = Field(min_length=1)

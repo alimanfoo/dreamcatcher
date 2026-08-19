@@ -8,7 +8,7 @@ import pytest
 from dreamcatcher.config import CONFIG_NAME
 
 ARMING = 'PYTHONWARNDEFAULTENCODING'
-CONFIG_HEAD = 'interval = 300\nharness = "claude"\n\n'
+CONFIG_HEAD = 'interval = 300\n\n'
 SMITH_CLAUDE = ...
 SMITH_CODEX = ...
 CONFIG = CONFIG_HEAD + SMITH_CLAUDE + SMITH_CODEX

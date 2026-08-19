@@ -4,19 +4,14 @@
 from pathlib import Path
 import pytest
 from conftest import CONFIG, CONFIG_HEAD, SMITH_CLAUDE, SMITH_CODEX
-from dreamcatcher.config import CONFIG_NAME, Harness, read_config
+from dreamcatcher.config import CONFIG_NAME, HarnessSettings, read_config
 from dreamcatcher.documents import DocumentError
 
-PIN = 'label = "dream:smith"\n'
 WITHOUT_CODEX = CONFIG_HEAD + SMITH_CLAUDE
+CLAUDE_SETTINGS = ...
+CODEX_SETTINGS = ...
 
-def write(root: Path, text: str) -> Path:
-    ...
-
-def read(root: Path, text: str):
-    ...
-
-def fault(root: Path, text: str) -> str:
+def write_config(root: Path, text: str) -> None:
     ...
 
 def test_a_valid_config_reads_back(tmp_path):
@@ -28,13 +23,10 @@ def test_the_settings_the_design_gives_defaults_for_have_them(tmp_path):
 def test_a_setting_the_config_names_beats_its_default(tmp_path):
     ...
 
-def test_an_unpinned_label_dispatches_with_the_run_harness(tmp_path):
+def test_a_label_one_harness_can_run_carries_that_block_alone(tmp_path):
     ...
 
-def test_a_pinned_label_dispatches_with_its_pin(tmp_path):
-    ...
-
-def test_a_config_mistake_reads_as_plain_words(tmp_path, mistake, text, message):
+def test_a_config_mistake_names_the_setting_and_the_fault(tmp_path, mistake, text, fault):
     ...
 
 def test_a_repo_with_no_config_says_which_file_is_missing(tmp_path):

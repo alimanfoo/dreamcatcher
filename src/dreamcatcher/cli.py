@@ -22,10 +22,11 @@ def build_parser() -> argparse.ArgumentParser:
     running = verbs.add_parser("run", help="run the dreamcatcher daemon")
     running.add_argument(
         "--harness",
+        required=True,
         # The names, not the members. Some Python versions render a rejected
         # choice with repr(), which turns a member into <Harness.CLAUDE: ...>.
         choices=[harness.value for harness in Harness],
-        help="the harness to run rounds with, in place of the configured one",
+        help="the harness to run this repo's rounds with",
     )
     running.set_defaults(act=run)
     scrying = verbs.add_parser("scry", help="see what the agent sessions are doing")
@@ -35,8 +36,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def run(args: argparse.Namespace) -> int:
     """Run the daemon on the repo the current directory is a checkout of."""
-    chosen = Harness(args.harness) if args.harness is not None else None
-    Daemon.for_checkout(Path.cwd(), chosen).run()
+    Daemon.for_checkout(Path.cwd(), Harness(args.harness)).run()
     return 0
 
 

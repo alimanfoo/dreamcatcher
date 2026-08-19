@@ -27,7 +27,7 @@ class Daemon:
     clock: Callable[[], datetime] = now
     wait: Callable[[float], None] = sleep
 
-    def for_checkout(cls, root: Path, harness: Harness | None) -> Self:
+    def for_checkout(cls, root: Path, harness: Harness) -> Self:
         ...
 
     def run(self) -> None:

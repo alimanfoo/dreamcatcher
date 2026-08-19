@@ -31,10 +31,7 @@ def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(watched
 def test_a_second_daemon_refuses_while_the_first_holds_the_repo(watched):
     ...
 
-def test_the_configured_harness_runs_the_rounds(watched):
-    ...
-
-def test_a_chosen_harness_beats_the_configured_one(watched):
+def test_the_daemon_runs_the_harness_it_was_given(watched):
     ...
 
 def test_a_checkout_with_no_config_names_the_file_it_needs(repo):

@@ -23,20 +23,14 @@ class HarnessSettings(Document):
 
 class DispatchMapping(Document):
     label: str
-    harness: Harness | None = None
     claude: HarnessSettings | None = None
     codex: HarnessSettings | None = None
-    settings: dict[Harness, HarnessSettings]
 
-    def settings_for(self, run_harness: Harness) -> HarnessSettings:
-        ...
-
-    def _carries_every_block_it_can_dispatch_with(self) -> Self:
+    def _carries_a_block(self) -> Self:
         ...
 
 class Config(Document):
     interval: PositiveInt = 120
-    harness: Harness
     max_agents: PositiveInt = 1
     assignee: str = '@me'
     dispatch: list[DispatchMapping] = Field(min_length=1)

@@ -25,6 +25,9 @@ def test_run_starts_a_daemon_on_the_current_directory(monkeypatch, watched, star
 def test_the_harness_flag_says_what_to_run_rounds_with(monkeypatch, watched, started):
     ...
 
+def test_a_run_with_no_harness_asks_for_one(capsys):
+    ...
+
 def test_a_harness_that_does_not_exist_is_refused(capsys):
     ...
 

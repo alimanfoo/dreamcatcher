@@ -39,7 +39,7 @@ def test_a_bare_invocation_asks_for_a_verb(capsys):
 def test_run_starts_a_daemon_on_the_current_directory(monkeypatch, watched, started):
     monkeypatch.chdir(watched)
 
-    assert main(["run"]) == 0
+    assert main(["run", "--harness", "claude"]) == 0
     assert started[0].state.root == watched
     assert started[0].harness is Harness.CLAUDE
 
@@ -49,6 +49,14 @@ def test_the_harness_flag_says_what_to_run_rounds_with(monkeypatch, watched, sta
 
     assert main(["run", "--harness", "codex"]) == 0
     assert started[0].harness is Harness.CODEX
+
+
+def test_a_run_with_no_harness_asks_for_one(capsys):
+    with pytest.raises(SystemExit) as exit_info:
+        main(["run"])
+
+    assert exit_info.value.code == 2
+    assert "--harness" in capsys.readouterr().err
 
 
 def test_a_harness_that_does_not_exist_is_refused(capsys):
@@ -66,5 +74,5 @@ def test_a_failure_the_user_must_read_is_a_message_not_a_traceback(
 ):
     monkeypatch.chdir(tmp_path)
 
-    assert main(["run"]) == 1
+    assert main(["run", "--harness", "claude"]) == 1
     assert "main checkout" in capsys.readouterr().err
