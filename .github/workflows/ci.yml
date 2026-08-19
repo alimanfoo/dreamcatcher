@@ -9,6 +9,7 @@ on:
 jobs:
   # Both jobs take their interpreter from .python-version.
   test:
+    needs: checks
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false

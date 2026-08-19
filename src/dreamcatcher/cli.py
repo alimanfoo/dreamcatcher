@@ -17,8 +17,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--version", action="version", version=version("dreamcatcher"))
     verbs = parser.add_subparsers(title="verbs", dest="verb")
-    verbs.add_parser(DEFAULT_VERB, help="watch the repository and run agent rounds")
-    verbs.add_parser("scry", help="show what the sessions are doing")
+    verbs.add_parser(DEFAULT_VERB, help="run the dreamcatcher daemon")
+    verbs.add_parser("scry", help="see what the agent sessions are doing")
     parser.set_defaults(verb=DEFAULT_VERB)
     return parser
 

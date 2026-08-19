@@ -13,8 +13,7 @@ This guide grounds a fresh agent session before it works on this repo.
 
 dreamcatcher watches a repository for labelled issues, dispatches an autonomous
 coding session for each, and carries each issue to a pull request for the user
-to review and merge. It is the standalone, cross-platform successor to the dream
-plugin's dream:catcher skill.
+to review and merge.
 
 ## Specs
 
