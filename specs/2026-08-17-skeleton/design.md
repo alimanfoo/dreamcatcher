@@ -72,12 +72,13 @@ never touches the repo's own files. Contents:
 - `daemon.pid` — the running daemon's pid. Doubles as the single-instance lock:
   a second `run` on the same repo refuses to start while the pid is alive.
   `scry` checks it to mark liveness and staleness.
-- `last-tick.json` — overwritten each tick: what the daemon observed and
-  decided, including what it did not do and why (queued behind others, blocked
-  by an open issue, skipped for double labels, deferred at the cap, posts seen
-  but not yet relayed). The board's queue and waiting sections render this file;
-  its staleness (mtime plus `daemon.pid`) tells `scry` whether the daemon is
-  alive.
+- `last-tick.json` — overwritten each tick: when the tick ran, and what the
+  daemon observed and decided, including what it did not do and why (queued
+  behind others, blocked by an open issue, skipped for double labels, deferred
+  at the cap, posts seen but not yet relayed). The board's queue and waiting
+  sections render this file. The time it records, with `daemon.pid`, tells
+  `scry` whether the daemon is alive: the tick writes its own time rather than
+  leaning on the file's mtime, which copying a state directory would freshen.
 - `worktrees/<session-key>/` — the session worktrees themselves (next section).
 - `sessions/<session-key>/` — one directory per attempt, named by the session
   key (below): `session.json` (issue, label, branch, worktree path, harness,
@@ -353,8 +354,10 @@ daemon itself recorded, and the window is small.
 
 Python 3.12+ (`tomllib` in the standard library). The runtime shells out to
 `git`, `gh`, and the harness CLIs, which the user already has and has signed in.
-No `jq`, no `tmux`. The package itself aims for the standard library in this
-phase; a TUI or richer rendering can add dependencies later.
+No `jq`, no `tmux`. Beyond that, three runtime dependencies, each mature and
+wheeled everywhere: pydantic validates every document the tool owns, psutil
+answers whether a pid is alive, and rich renders `scry`'s views. Nothing else in
+this phase; a richer UI can add its own later.
 
 ## What changes, and what goes away
 
