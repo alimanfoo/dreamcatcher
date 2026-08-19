@@ -107,6 +107,12 @@ select = [
 ]
 ignore = [
     "any-type", # too broad to enforce
+    # The tool runs git, gh, and the harness CLIs, and finds each on PATH by
+    # name. Bandit reads that as suspicious; here it is the design. A shell
+    # invocation is a different rule, and stays selected.
+    "suspicious-subprocess-import",
+    "subprocess-without-shell-equals-true",
+    "start-process-with-partial-path",
 ]
 
 [tool.ruff.lint.mccabe]
