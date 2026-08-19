@@ -57,8 +57,8 @@ def test_a_document_that_breaks_its_model_lists_every_fault(tmp_path):
 
     assert str(error.value) == (
         f"{document} is not valid:\n"
-        "  name is required\n"
-        "  count: input should be a valid integer, "
+        "  name: Field required\n"
+        "  count: Input should be a valid integer, "
         "unable to parse string as an integer\n"
-        "  dreamcatcher has no setting called extra"
+        "  extra: Extra inputs are not permitted"
     )

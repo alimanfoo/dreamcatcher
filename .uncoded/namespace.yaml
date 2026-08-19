@@ -48,17 +48,12 @@ src/:
         tick:
       now:
     documents.py:
-      _FAULTS:
       Document:
         model_config:
       DocumentError:
       read_toml:
       write_json:
       _report:
-      _phrase:
-      _split:
-      _place:
-      _fault:
     errors.py:
       DreamcatcherError:
     lock.py:

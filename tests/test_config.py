@@ -66,37 +66,38 @@ def test_a_label_one_harness_can_run_carries_that_block_alone(tmp_path):
         (
             "a missing setting",
             CONFIG.replace('model = "opus[1m]"\n', ""),
-            "dispatch entry 1, claude block: model is required",
+            "dispatch.0.claude.model: Field required",
         ),
         (
             "a mistyped setting",
             "intervl = 5\n" + CONFIG,
-            "dreamcatcher has no setting called intervl",
+            "intervl: Extra inputs are not permitted",
         ),
         (
             "an interval of zero",
             CONFIG.replace("interval = 300", "interval = 0"),
-            "interval: input should be greater than 0",
+            "interval: Input should be greater than 0",
         ),
         (
             "no dispatch mappings",
             "interval = 300\ndispatch = []\n",
-            "dispatch: list should have at least 1 item after validation, not 0",
+            "dispatch: List should have at least 1 item after validation, not 0",
         ),
         (
             "a label no harness can run",
             CONFIG_HEAD + '[[dispatch]]\nlabel = "dream:smith"\n',
-            "dispatch entry 1: label dream:smith has no claude or codex block",
+            "dispatch.0: Value error, label dream:smith has no claude or codex block",
         ),
         (
             "a settings block that is not a block",
             CONFIG_HEAD + '[[dispatch]]\nlabel = "dream:smith"\nclaude = "opus"\n',
-            "dispatch entry 1: claude must be a block of settings",
+            "dispatch.0.claude: Input should be a valid dictionary or instance of "
+            "HarnessSettings",
         ),
         (
             "one label mapped twice",
             CONFIG + SMITH_CLAUDE + SMITH_CODEX,
-            "more than one dispatch entry uses the label dream:smith",
+            "Value error, more than one dispatch entry uses the label dream:smith",
         ),
     ],
 )
