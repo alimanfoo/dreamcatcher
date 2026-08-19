@@ -53,17 +53,6 @@ def test_each_tick_records_when_it_ran(watched):
     assert LastTick.model_validate_json(recorded).at == PINNED
 
 
-def test_the_daemon_says_what_it_is_watching(watched, capsys):
-    daemon, _ = idling(watched)
-
-    daemon.run()
-
-    said = capsys.readouterr().out
-    assert str(watched) in said
-    assert "claude" in said
-    assert "300 seconds" in said
-
-
 def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(watched):
     daemon, _ = idling(watched)
 

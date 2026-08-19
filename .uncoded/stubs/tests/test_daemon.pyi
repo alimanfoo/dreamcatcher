@@ -25,9 +25,6 @@ def test_the_daemon_ticks_on_the_interval_until_the_user_interrupts(watched):
 def test_each_tick_records_when_it_ran(watched):
     ...
 
-def test_the_daemon_says_what_it_is_watching(watched, capsys):
-    ...
-
 def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(watched):
     ...
 

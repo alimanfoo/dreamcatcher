@@ -60,14 +60,10 @@ class Daemon:
         """Hold the repo and tick until the user interrupts."""
         self.state.bootstrap()
         with hold(self.state.lock), suppress(KeyboardInterrupt):
-            print(
-                f"dreamcatcher is watching {self.state.root} with {self.harness}, "
-                f"ticking every {self.config.interval} seconds."
-            )
             while True:
                 self.tick()
                 self.wait(self.config.interval)
 
     def tick(self) -> None:
-        """Do one tick's work, and record what it decided."""
+        """Record that a tick happened."""
         write_json(LastTick(at=self.clock()), self.state.last_tick)

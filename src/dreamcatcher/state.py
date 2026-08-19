@@ -10,7 +10,7 @@ STATE_DIRECTORY = ".dreamcatcher"
 
 
 class LastTick(Document):
-    """What the daemon's most recent tick observed and decided.
+    """When the daemon's most recent tick ran.
 
     The tick's own time is in here rather than read from the file, so copying a
     state directory cannot make a stale tick look fresh.

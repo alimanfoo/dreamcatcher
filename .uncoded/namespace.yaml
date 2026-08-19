@@ -120,7 +120,6 @@ tests/:
     test_the_daemon_reads_the_clock_in_utc:
     test_the_daemon_ticks_on_the_interval_until_the_user_interrupts:
     test_each_tick_records_when_it_ran:
-    test_the_daemon_says_what_it_is_watching:
     test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock:
     test_a_second_daemon_refuses_while_the_first_holds_the_repo:
     test_the_configured_harness_runs_the_rounds:
