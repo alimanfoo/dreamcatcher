@@ -5,5 +5,7 @@ config:
 ignores:
   # CLAUDE.md is a one-line import of AGENTS.md, not a document.
   - "CLAUDE.md"
-  # uncoded owns everything it generates.
+  # uncoded owns everything it generates, so nothing else may rewrite it.
   - ".uncoded/**"
+  - ".claude/skills/**"
+  - ".agents/skills/**"
