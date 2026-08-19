@@ -51,3 +51,62 @@ branch = true
 [tool.coverage.report]
 show_missing = true
 fail_under = 100
+
+[tool.ruff]
+src = ["src"]
+line-length = 88
+extend-exclude = [".uncoded"]
+
+[tool.ruff.lint]
+preview = true
+select = [
+    "D",    # pydocstyle (pep257)
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "I",    # isort
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "W",    # pycodestyle warnings
+    "C4",   # flake8-comprehensions
+    "PIE",  # flake8-pie
+    "FLY",  # flynt
+    "PERF", # perflint
+    "RUF",  # ruff-specific rules
+    "PLE",  # pylint errors
+    "TC",   # flake8-type-checking
+    "TID",  # flake8-tidy-imports
+    "PTH",  # flake8-use-pathlib
+    "RET",  # flake8-return
+    "ANN",  # flake8-annotations
+    "S",    # flake8-bandit
+    "PT",   # flake8-pytest-style
+    "N",    # pep8-naming
+    "complex-structure",
+    "unspecified-encoding",
+    "redefined-loop-name",
+    "import-outside-top-level",
+    "collapsible-else-if",
+    "useless-return",
+    "repeated-equality-comparison",
+    "too-many-return-statements",
+    "too-many-branches",
+    "too-many-arguments",
+    "too-many-statements",
+    "too-many-nested-blocks",
+]
+ignore = [
+    "any-type", # too broad to enforce
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 8
+
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D", "ANN", "assert"]
+
+[tool.complexipy]
+max-complexity-allowed = 15
