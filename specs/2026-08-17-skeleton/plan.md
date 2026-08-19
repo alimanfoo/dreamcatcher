@@ -21,7 +21,10 @@ Every phase is reviewed by a human, so every phase serves its reviewer:
 
 - Generated and recorded files (`uv.lock`, the `.uncoded/` index, stream
   fixtures) land in their own commits, named as such, so the reviewer reads the
-  hand-written diff and skips the rest with confidence.
+  hand-written diff and skips the rest with confidence. This holds for a bulk
+  generation. An index delta cannot be separated, because pre-commit stashes
+  unstaged changes, so `uncoded sync` regenerates them and fails the commit
+  until they are staged with the change that caused them.
 - Where a phase has golden outputs (the rendered feed, the board), the goldens
   are the review surface: read them as their user would and judge the result,
   rather than deriving it from the code.
@@ -62,7 +65,7 @@ In scope:
   markdown checks, an invisible-character check (zero-width and bidi marks,
   which agents occasionally emit and reviewers cannot see), end-of-file and
   trailing-whitespace fixes, and `uncoded sync`.
-- uncoded: `[tool.uncoded]` with `source-roots = ["src", "tests"]` and
+- uncoded: `[tool.uncoded]` with `source-roots = ["src", "tests", "tools"]` and
   `doc-roots` covering `README.md`, `AGENTS.md`, and `specs/`. Commit the
   generated `.uncoded/` index and skills. `AGENTS.md` (which already grounds
   fresh sessions, with `CLAUDE.md` importing it) gains the standard "Before you
