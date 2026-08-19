@@ -5,6 +5,14 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
 
+  - repo: local
+    hooks:
+      - id: forbid-invisible-characters
+        name: forbid invisible characters
+        entry: uv run python tools/forbid_invisible_characters.py
+        language: system
+        types: [text]
+
   - repo: https://github.com/DavidAnson/markdownlint-cli2
     rev: v0.22.1
     hooks:
@@ -26,12 +34,12 @@ repos:
         pass_filenames: false
       - id: ty
         name: ty
-        entry: uv run ty check src tests
+        entry: uv run ty check src tests tools
         language: system
         pass_filenames: false
       - id: complexipy
         name: complexipy
-        entry: uv run complexipy src tests
+        entry: uv run complexipy src tests tools
         language: system
         pass_filenames: false
       - id: remark-validate-links
