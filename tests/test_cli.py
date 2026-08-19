@@ -13,10 +13,15 @@ def test_version_prints_the_installed_version(capsys):
     assert capsys.readouterr().out.strip() == version("dreamcatcher")
 
 
-@pytest.mark.parametrize(
-    ("argv", "verb"),
-    [([], "run"), (["run"], "run"), (["scry"], "scry")],
-)
-def test_a_verb_is_not_implemented_yet(argv, verb, capsys):
-    assert main(argv) == 1
+@pytest.mark.parametrize("verb", ["run", "scry"])
+def test_a_verb_is_not_implemented_yet(verb, capsys):
+    assert main([verb]) == 1
     assert verb in capsys.readouterr().err
+
+
+def test_a_bare_invocation_asks_for_a_verb(capsys):
+    with pytest.raises(SystemExit) as exit_info:
+        main([])
+
+    assert exit_info.value.code == 2
+    assert "verb" in capsys.readouterr().err

@@ -8,5 +8,8 @@ from dreamcatcher.cli import main
 def test_version_prints_the_installed_version(capsys):
     ...
 
-def test_a_verb_is_not_implemented_yet(argv, verb, capsys):
+def test_a_verb_is_not_implemented_yet(verb, capsys):
+    ...
+
+def test_a_bare_invocation_asks_for_a_verb(capsys):
     ...

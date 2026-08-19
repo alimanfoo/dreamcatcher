@@ -2,18 +2,18 @@
 
 ## What we're building
 
-A Python package, `dreamcatcher`, with two verbs. `run` (the default: bare
-`uvx dreamcatcher` means `run`) is a foreground daemon started from a
-repository's main checkout. It polls GitHub for open issues that carry a
-configured label and are assigned to the user, dispatches each into its own
-worktree under `.dreamcatcher/`, runs agent rounds as its own child processes,
-relays what the user posts on the pull request into resumed rounds, and gives a
-merged or closed pull request one final round. `scry` is the watch tower: bare
-`scry` shows the board (one line per session and per queued issue, sorted by
-whose turn it is), `scry GH123` shows one session (vitals, then the round list
-with each round's cause), and `scry GH123 --follow` tails the session's live
-feed. Both verbs run on the same machine; `scry` never talks to the daemon, it
-reads what the daemon leaves on disk.
+A Python package, `dreamcatcher`, with two verbs, both of which must be named:
+there is no default verb, so a bare `dreamcatcher` asks for one. `run` is a
+foreground daemon started from a repository's main checkout. It polls GitHub for
+open issues that carry a configured label and are assigned to the user,
+dispatches each into its own worktree under `.dreamcatcher/`, runs agent rounds
+as its own child processes, relays what the user posts on the pull request into
+resumed rounds, and gives a merged or closed pull request one final round.
+`scry` is the watch tower: bare `scry` shows the board (one line per session and
+per queued issue, sorted by whose turn it is), `scry GH123` shows one session
+(vitals, then the round list with each round's cause), and `scry GH123 --follow`
+tails the session's live feed. Both verbs run on the same machine; `scry` never
+talks to the daemon, it reads what the daemon leaves on disk.
 
 One process watches one repository. Configuration is a committed
 `dreamcatcher.toml` at the repo root; the only personal choice is the harness,

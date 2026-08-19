@@ -7,8 +7,6 @@ from importlib.metadata import version
 
 import dreamcatcher
 
-DEFAULT_VERB = "run"
-
 
 def build_parser() -> argparse.ArgumentParser:
     """Return the parser for the dreamcatcher command line."""
@@ -16,10 +14,9 @@ def build_parser() -> argparse.ArgumentParser:
         prog="dreamcatcher", description=dreamcatcher.__doc__
     )
     parser.add_argument("--version", action="version", version=version("dreamcatcher"))
-    verbs = parser.add_subparsers(title="verbs", dest="verb")
-    verbs.add_parser(DEFAULT_VERB, help="run the dreamcatcher daemon")
+    verbs = parser.add_subparsers(title="verbs", dest="verb", required=True)
+    verbs.add_parser("run", help="run the dreamcatcher daemon")
     verbs.add_parser("scry", help="see what the agent sessions are doing")
-    parser.set_defaults(verb=DEFAULT_VERB)
     return parser
 
 

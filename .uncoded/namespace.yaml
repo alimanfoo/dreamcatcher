@@ -10,7 +10,6 @@
 src/:
   dreamcatcher/:
     cli.py:
-      DEFAULT_VERB:
       build_parser:
       main:
 tests/:
@@ -20,6 +19,7 @@ tests/:
   test_cli.py:
     test_version_prints_the_installed_version:
     test_a_verb_is_not_implemented_yet:
+    test_a_bare_invocation_asks_for_a_verb:
   test_encoding_gate.py:
     test_a_read_with_no_encoding_fails_the_suite:
 tools/:

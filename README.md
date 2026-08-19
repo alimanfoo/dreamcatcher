@@ -25,8 +25,6 @@ going in the foreground, dispatching a session per labelled issue.
 dreamcatcher run
 ```
 
-A bare `dreamcatcher` means `dreamcatcher run`.
-
 `scry` is the watch tower. It shows what the agent sessions are doing, reading
 what the daemon leaves on disk.
 

@@ -42,9 +42,9 @@ In scope:
 - The package: `pyproject.toml` (hatchling with hatch-vcs versioning), name
   `dreamcatcher`, `src/dreamcatcher/` layout, Python 3.12+, no runtime
   dependencies. A `dreamcatcher` console script whose CLI has `run` and `scry`
-  as stub verbs (each prints that it is not yet implemented), bare invocation
-  meaning `run`, and `--version`. uv is the workflow tool: a committed
-  `uv.lock`, and CI resolving the environment with `uv run` via
+  as stub verbs (each prints that it is not yet implemented), a required verb so
+  a bare `dreamcatcher` asks for one, and `--version`. uv is the workflow tool:
+  a committed `uv.lock`, and CI resolving the environment with `uv run` via
   `astral-sh/setup-uv`, so agent sessions, developer machines, and CI all
   resolve identically.
 - Tests: pytest with pytest-cov, branch coverage measured over `src`, gated at
@@ -104,7 +104,11 @@ In scope:
   phase 11. This is the plan's deliberate amendment to design.md's
   standard-library aim: three mature, universally wheeled dependencies.
 - `--harness` resolution: the flag wins, else the config default; a mapping's
-  pin overrides both for that label.
+  pin overrides both for that label. The flag belongs to the `run` subparser
+  alone, which is where it is used. Don't also declare it on the top-level
+  parser: argparse then accepts `dreamcatcher --harness codex run` and silently
+  drops the value, because the subparser's own default overwrites what the
+  top-level parser captured.
 - The main-checkout test: `run` refuses to start anywhere but a main checkout —
   a linked worktree's `.git` is a file, not a directory.
 - `.dreamcatcher/` bootstrap: create it on first run with a `.gitignore`
@@ -178,7 +182,11 @@ In scope:
   no signed-in CLI needed.
 - Recorded fixtures: capture real `claude --print --output-format stream-json`
   streams once, commit them, and golden-file test the parser and renderer
-  against them.
+  against them. Exempt the fixtures' path from the end-of-file and
+  trailing-whitespace fixers and from the invisible-character check. A fixture
+  is a verbatim recording, so a hook that repairs it makes the golden test
+  assert something the harness never emitted, and real agent output carries the
+  zero-width characters that check exists to reject.
 - Verification: does `claude` exit non-zero on a usage-limit failure? If the
   implementing session cannot verify it headless, it becomes a named checklist
   item on this phase's PR for the user to confirm.
