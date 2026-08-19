@@ -25,15 +25,15 @@ this phase: Claude Code and Codex, behind one adapter boundary.
 ### Configuration
 
 `dreamcatcher.toml`, committed, carries what the repo agrees on: the polling
-interval, the concurrent-round cap (default 1), the assignee filter (default
-`@me`), the default harness, and a list of dispatch mappings. Each mapping is
-identified by its label and carries one settings block per harness — the prompt
-template included, because the two harnesses invoke skills differently
-(`/dream:smith` under Claude Code, `$dream:smith` under Codex, as the ported
-`first_round_prompt` testifies):
+interval (default 120 seconds), the concurrent-round cap (default 1), the
+assignee filter (default `@me`), the default harness, and a list of dispatch
+mappings. Each mapping is identified by its label and carries one settings block
+per harness — the prompt template included, because the two harnesses invoke
+skills differently (`/dream:smith` under Claude Code, `$dream:smith` under
+Codex, as the ported `first_round_prompt` testifies):
 
 ```toml
-interval = 300
+interval = 120
 max_agents = 1
 harness = "claude"
 

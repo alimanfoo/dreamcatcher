@@ -66,7 +66,7 @@ class DispatchMapping(Document):
 class Config(Document):
     """What the repo agrees on about dispatching its labelled issues."""
 
-    interval: PositiveInt
+    interval: PositiveInt = 120
     harness: Harness
     max_agents: PositiveInt = 1
     assignee: str = "@me"

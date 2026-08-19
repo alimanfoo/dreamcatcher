@@ -42,8 +42,9 @@ def test_a_valid_config_reads_back(tmp_path):
 
 
 def test_the_settings_the_design_gives_defaults_for_have_them(tmp_path):
-    config = read(tmp_path, CONFIG)
+    config = read(tmp_path, CONFIG.replace("interval = 300\n", ""))
 
+    assert config.interval == 120
     assert config.max_agents == 1
     assert config.assignee == "@me"
 
@@ -90,11 +91,6 @@ def test_a_pinned_label_dispatches_with_its_pin(tmp_path):
             "a harness that does not exist",
             CONFIG.replace('harness = "claude"', 'harness = "cloud"'),
             "harness: input should be 'claude' or 'codex'",
-        ),
-        (
-            "no interval",
-            CONFIG.replace("interval = 300\n", ""),
-            "interval is required",
         ),
         (
             "an interval of zero",

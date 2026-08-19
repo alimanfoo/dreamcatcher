@@ -35,7 +35,7 @@ class DispatchMapping(Document):
         ...
 
 class Config(Document):
-    interval: PositiveInt
+    interval: PositiveInt = 120
     harness: Harness
     max_agents: PositiveInt = 1
     assignee: str = '@me'
