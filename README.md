@@ -16,18 +16,15 @@ need nothing else.
 uvx --from git+https://github.com/alimanfoo/dreamcatcher dreamcatcher --version
 ```
 
-## Commands
+## Configuration
 
-`run` is the daemon. It keeps going in the foreground, dispatching a session per
-labelled issue.
-
-It needs a `dreamcatcher.toml` at the repo root. It says in plain words what is
-wrong with the one it finds. Here is one to start from:
+dreamcatcher reads `dreamcatcher.toml` from the root of the repository it
+watches. Commit it, so everyone watching that repo dispatches the same way.
 
 ```toml
 interval = 120
 max_agents = 1
-harness = "claude"
+assignee = "@me"
 
 [[dispatch]]
 label = "dream:smith"
@@ -41,24 +38,42 @@ model = "gpt-5.6-sol"
 effort = "xhigh"
 ```
 
-`interval` is the seconds between ticks, and defaults to 120. `max_agents` is
-how many rounds may run at once, and defaults to 1. Each `[[dispatch]]` entry
-maps one label to what runs for it, with a block per harness. The configuration
-section of [the design](specs/2026-08-17-skeleton/design.md) covers the rest.
+Every setting outside a `[[dispatch]]` entry has a default, so you can leave it
+out:
 
-Start it from a repository's main checkout.
+- `interval` is the seconds between one look at GitHub and the next. It defaults
+  to 120.
+- `max_agents` is how many agent sessions may run at once. It defaults to 1, so
+  one issue reaches a pull request before the next one starts.
+- `assignee` is whose issues to pick up, as a GitHub login. It defaults to
+  `@me`, the account `gh` is signed in as.
+
+A `[[dispatch]]` entry says what to run for one label. Give it the label, then a
+block for each harness that can run it. Every entry needs its label and at least
+one block.
+
+- `prompt` is what the harness is asked to do. `{issue}` becomes the issue's
+  number, so `/dream:smith GH{issue}` reaches the session as
+  `/dream:smith GH123`.
+- `model` and `effort` are passed to the harness as it starts.
+
+Write both blocks for a label either harness can run. Write one block for a
+label that belongs to one harness, and issues carrying it always go there.
+
+## Commands
+
+`run` is the daemon. Start it from the repository's main checkout, and name the
+harness to run rounds with. It keeps going in the foreground, dispatching a
+session per labelled issue.
 
 ```sh
-dreamcatcher run
+dreamcatcher run --harness claude
 ```
 
 One daemon watches one repo. A second `run` on the same repo refuses while the
 first is alive.
 
-Pass `--harness codex` to choose the harness for this run, rather than the one
-the config names.
-
-Use `scry` to peer into the crystal ball. It shows what the agent sessions are
+Use `scry` to peer into the crystal ball and see what the agent sessions are
 doing.
 
 ```sh
