@@ -1,0 +1,11 @@
+gitignore: true
+config:
+  # Line length (MD013) is off; prettier owns prose wrapping.
+  MD013: false
+ignores:
+  # CLAUDE.md is a one-line import of AGENTS.md, not a document.
+  - "CLAUDE.md"
+  # uncoded owns everything it generates, so nothing else may rewrite it.
+  - ".uncoded/**"
+  - ".claude/skills/**"
+  - ".agents/skills/**"

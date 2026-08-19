@@ -1,0 +1,60 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.22.1
+    hooks:
+      - id: markdownlint-cli2
+
+  - repo: local
+    hooks:
+      - id: forbid-invisible-characters
+        name: forbid invisible characters
+        entry: uv run python tools/forbid_invisible_characters.py
+        language: system
+        types: [text]
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check --fix --exit-non-zero-on-fix --show-fixes
+        language: system
+        pass_filenames: false
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format
+        language: system
+        pass_filenames: false
+      - id: ty
+        name: ty
+        entry: uv run ty check src tests tools
+        language: system
+        pass_filenames: false
+      - id: complexipy
+        name: complexipy
+        entry: uv run complexipy src tests tools
+        language: system
+        pass_filenames: false
+      - id: remark-validate-links
+        name: validate markdown links
+        entry: remark --frail --quiet --no-stdout --use validate-links
+        language: node
+        additional_dependencies:
+          - remark-cli@12.0.1
+          - remark-validate-links@13.1.0
+        files: \.md$
+      # Runs before uncoded, so uncoded builds its skill files from prose
+      # prettier has already formatted.
+      - id: prettier
+        name: format markdown with prettier
+        entry: prettier --write
+        language: node
+        additional_dependencies: ["prettier@3.8.1"]
+        files: \.md$
+      - id: uncoded
+        name: uncoded
+        entry: uv run uncoded sync
+        language: system
+        pass_filenames: false
