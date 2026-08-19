@@ -21,7 +21,7 @@ jobs:
       - uses: astral-sh/setup-uv@v10.0.1
         with:
           python-version: "3.11"
-      - run: uv sync --extra dev
+      - run: uv sync --locked
       # Arms the EncodingWarning gate. Without it the interpreter never emits
       # the warning and tests/test_encoding_gate.py fails.
       - run: uv run pytest
@@ -38,5 +38,5 @@ jobs:
       - uses: astral-sh/setup-uv@v10.0.1
         with:
           python-version: "3.13"
-      - run: uv sync --extra dev
+      - run: uv sync --locked
       - run: uv run pre-commit run --all-files

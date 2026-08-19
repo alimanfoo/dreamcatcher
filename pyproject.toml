@@ -16,17 +16,19 @@ classifiers = [
     "Programming Language :: Python :: 3",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
+# uv installs this group on a bare `uv sync`, so the tools cannot go missing.
+# Every tool whose output is enforced or committed is pinned exactly.
 dev = [
     "complexipy==7.0.1",
     "pre-commit>=4.0",
     "pytest>=8.0",
     "pytest-cov>=6.0",
     "ruff==0.16.3",
-    "ty>=0.0.73",
+    "ty==0.0.73",
     # uncoded needs Python 3.12, and dreamcatcher supports 3.11. On 3.11 uv
     # leaves uncoded out, so run the checks on 3.12 or newer.
-    "uncoded>=2.1.1; python_version >= '3.12'",
+    "uncoded==2.1.1; python_version >= '3.12'",
 ]
 
 [project.scripts]

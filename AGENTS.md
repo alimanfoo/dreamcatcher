@@ -29,17 +29,20 @@ review, not by drift.
 Install the tools and the commit hooks:
 
 ```sh
-uv sync --extra dev
+uv sync
 uv run pre-commit install
 ```
 
-Develop on Python 3.12 or newer. The package itself supports 3.11 and CI proves
-that floor. uncoded needs 3.12, so the commit hooks cannot run on 3.11.
+`.python-version` pins development to Python 3.13, and `uv sync` installs the
+`dev` dependency group without being asked. The package itself supports 3.11 and
+CI proves that floor, but uncoded needs 3.12, so the commit hooks cannot run on
+3.11.
 
 ## Commands
 
 Run the tests. `PYTHONWARNDEFAULTENCODING=1` makes the interpreter emit
-EncodingWarning, which the suite turns into a failure.
+EncodingWarning, which the suite turns into a failure. pytest refuses to run
+without it.
 
 ```sh
 PYTHONWARNDEFAULTENCODING=1 uv run pytest
@@ -69,6 +72,11 @@ uv run pre-commit run --all-files
 - Run the tests and the checks before every commit. The commit hook runs the
   checks, never the tests.
 - Never commit with `--no-verify`. CI runs the same checks and fails the build.
+- Re-stage and commit again when a hook rewrites a file. The formatters and
+  `uncoded sync` repair what they find, then report the commit as failed, so the
+  repair is already in your working tree.
+- Never edit `.uncoded/` or the `uncoded-*` skills by hand. `uncoded sync`
+  writes them from the source and the docs, and overwrites them on every commit.
 - Keep changes lean. Add nothing a requirement or the design doesn't call for;
   prefer deleting over adding. One way to do each thing, always.
 - Every path is cross-platform: Windows, macOS, and Linux are all first-class.
