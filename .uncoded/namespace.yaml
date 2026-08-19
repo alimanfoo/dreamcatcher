@@ -19,3 +19,8 @@ tests/:
     test_a_verb_is_not_implemented_yet:
   test_encoding_gate.py:
     test_the_encoding_gate_is_armed:
+tools/:
+  forbid_invisible_characters.py:
+    INVISIBLE_CATEGORY:
+    invisible_characters:
+    main:

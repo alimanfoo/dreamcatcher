@@ -29,7 +29,7 @@ jobs:
           PYTHONWARNDEFAULTENCODING: "1"
 
   # uncoded needs Python 3.12, so the checks run on a later one.
-  lint:
+  checks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1

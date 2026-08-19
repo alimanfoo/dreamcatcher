@@ -5,6 +5,7 @@ import argparse
 import sys
 from collections.abc import Sequence
 from importlib.metadata import version
+import dreamcatcher
 
 DEFAULT_VERB = 'run'
 

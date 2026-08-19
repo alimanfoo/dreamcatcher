@@ -73,8 +73,9 @@ uv run pre-commit run --all-files
   prefer deleting over adding. One way to do each thing, always.
 - Every path is cross-platform: Windows, macOS, and Linux are all first-class.
   Force UTF-8 on every subprocess and file operation. Ruff's
-  `unspecified-encoding` rule catches a missing `encoding=` at commit time, and
-  the test suite fails on any EncodingWarning a test reaches at runtime.
+  `unspecified-encoding` rule catches a file opened without `encoding=`. Ruff
+  cannot see subprocess calls, so the test suite catches those: it fails on any
+  EncodingWarning a test reaches.
 - Cover both arms of every branch. The suite gates branch coverage over `src` at
   100%. When an arm looks unreachable it is dead code, so remove it rather than
   reach for a pragma. Mark a genuinely platform-specific branch with

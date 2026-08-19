@@ -40,7 +40,7 @@ Repository = "https://github.com/alimanfoo/dreamcatcher"
 source = "vcs"
 
 [tool.uncoded]
-source-roots = ["src", "tests"]
+source-roots = ["src", "tests", "tools"]
 doc-roots = ["README.md", "AGENTS.md", "specs"]
 
 [tool.pytest.ini_options]
