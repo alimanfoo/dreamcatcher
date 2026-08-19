@@ -47,6 +47,10 @@ src/:
       _split:
       _place:
       _fault:
+    lock.py:
+      AlreadyRunningError:
+      hold:
+      _holder:
     state.py:
       STATE_DIRECTORY:
       StateDirectory:
@@ -94,6 +98,13 @@ tests/:
     test_a_document_that_breaks_its_model_lists_every_fault:
   test_encoding_gate.py:
     test_a_read_with_no_encoding_fails_the_suite:
+  test_lock.py:
+    dead_pid:
+    test_holding_the_lock_records_the_daemon_and_releasing_removes_it:
+    test_a_live_daemon_keeps_the_lock:
+    test_a_lock_naming_a_pid_that_is_gone_is_reclaimed:
+    test_a_lock_nobody_can_read_is_reclaimed:
+    test_the_lock_is_released_when_the_daemon_fails:
   test_state.py:
     test_bootstrap_creates_a_directory_that_ignores_itself:
     test_bootstrap_heals_a_deleted_gitignore:
