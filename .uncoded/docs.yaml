@@ -11,8 +11,11 @@ README.md:
   dreamcatcher:
 AGENTS.md:
   dreamcatcher agent guide:
+    Before you start:
     What this is:
     Specs:
+    Dev setup:
+    Commands:
     Conventions:
 specs/:
   2026-08-17-skeleton/:
