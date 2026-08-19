@@ -84,7 +84,7 @@ def test_a_pinned_label_dispatches_with_its_pin(tmp_path):
         (
             "a mistyped setting",
             "intervl = 5\n" + CONFIG,
-            "there is no setting called intervl",
+            "dreamcatcher has no setting called intervl",
         ),
         (
             "a harness that does not exist",

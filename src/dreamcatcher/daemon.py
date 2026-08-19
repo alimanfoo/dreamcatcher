@@ -16,7 +16,7 @@ from dreamcatcher.state import LastTick, StateDirectory
 
 
 class NotAMainCheckoutError(DreamcatcherError):
-    """The daemon was started somewhere other than a repo's main checkout."""
+    """The user started the daemon outside a repo's main checkout."""
 
 
 def now() -> datetime:

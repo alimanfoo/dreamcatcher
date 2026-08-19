@@ -43,8 +43,8 @@ class StateDirectory:
     def bootstrap(self) -> None:
         """Create the directory, ignoring itself, so git never sees its files.
 
-        The .gitignore is written every time. That heals a deleted one, and
-        writing it needs no check of whether it is already there.
+        Bootstrap writes the .gitignore every time. That heals a deleted one.
+        It also saves checking whether the file is already there.
         """
         self.path.mkdir(parents=True, exist_ok=True)
         (self.path / ".gitignore").write_text("*\n", encoding="utf-8")

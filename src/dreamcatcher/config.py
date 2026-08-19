@@ -29,8 +29,10 @@ class HarnessSettings(Document):
 class DispatchMapping(Document):
     """A label, and how to dispatch an issue that carries it.
 
-    The label is the mapping's identity. The harness pin, when it is there, says
-    this label always goes to that harness, whatever the run was started with.
+    The label is the mapping's identity.
+
+    The harness pin, when it is there, says this label always goes to that
+    harness, whatever the run was started with.
     """
 
     label: str
@@ -52,7 +54,7 @@ class DispatchMapping(Document):
 
     @model_validator(mode="after")
     def _carries_every_block_it_can_dispatch_with(self) -> Self:
-        """Refuse a mapping a run could reach with no settings to dispatch on."""
+        """Require a settings block for every harness this mapping can use."""
         reachable = [self.harness] if self.harness else list(Harness)
         missing = [harness for harness in reachable if harness not in self.settings]
         if missing:

@@ -12,8 +12,8 @@ from dreamcatcher.errors import DreamcatcherError
 class Document(BaseModel):
     """A document dreamcatcher reads or writes.
 
-    Every document forbids keys it does not declare, so a typo is a named error
-    rather than a setting that is silently ignored.
+    Every document forbids keys it does not declare. A typo is then a named
+    error, not a setting the tool quietly ignores.
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -30,7 +30,7 @@ def read_toml[DocumentT: Document](model: type[DocumentT], path: Path) -> Docume
     except FileNotFoundError as error:
         raise DocumentError(f"{path} does not exist.") from error
     except OSError as error:
-        raise DocumentError(f"{path} cannot be read: {error}.") from error
+        raise DocumentError(f"dreamcatcher cannot read {path}: {error}.") from error
     try:
         data = tomllib.loads(text)
     except tomllib.TOMLDecodeError as error:
@@ -91,7 +91,7 @@ def _fault(detail: ErrorDetails, setting: str | None) -> str:
     if detail["type"] == "missing":
         return f"{setting} is required"
     if detail["type"] == "extra_forbidden":
-        return f"there is no setting called {setting}"
+        return f"dreamcatcher has no setting called {setting}"
     if setting is None:
         return message
     return f"{setting}: {message[:1].lower()}{message[1:]}"

@@ -24,7 +24,7 @@ dependencies = [
 
 [dependency-groups]
 # uv installs this group on a bare `uv sync`, so the tools cannot go missing.
-# Every tool whose output is enforced or committed is pinned exactly.
+# Pin every tool whose output is enforced or committed.
 dev = [
     "complexipy==7.0.1",
     "pre-commit>=4.0",

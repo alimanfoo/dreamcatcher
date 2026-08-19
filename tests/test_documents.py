@@ -30,7 +30,7 @@ def test_a_missing_document_names_the_path(tmp_path):
 
 
 def test_an_unreadable_document_says_so(tmp_path):
-    with pytest.raises(DocumentError, match="cannot be read"):
+    with pytest.raises(DocumentError, match="cannot read"):
         read_toml(Sample, tmp_path)
 
 
@@ -52,5 +52,5 @@ def test_a_document_that_breaks_its_model_lists_every_fault(tmp_path):
         "  name is required\n"
         "  count: input should be a valid integer, "
         "unable to parse string as an integer\n"
-        "  there is no setting called extra"
+        "  dreamcatcher has no setting called extra"
     )

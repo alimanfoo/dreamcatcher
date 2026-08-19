@@ -18,8 +18,9 @@ class AlreadyRunningError(DreamcatcherError):
 def hold(path: Path) -> Iterator[None]:
     """Hold the lock at path, and release it however the caller ends.
 
-    Raise AlreadyRunningError when a live daemon holds it. A lock naming a pid that
-    is gone is stale, and so is one nobody can read, so both are reclaimed.
+    Raise AlreadyRunningError when a live daemon holds it.
+
+    Reclaim a stale lock: one naming a pid that is gone, or one nobody can read.
     """
     running = _holder(path)
     if running is not None:
