@@ -25,8 +25,8 @@ going in the foreground, dispatching a session per labelled issue.
 dreamcatcher run
 ```
 
-`scry` is the watch tower. It shows what the agent sessions are doing, reading
-what the daemon leaves on disk.
+Use `scry` to peer into the crystal ball. It shows what the agent sessions are
+doing.
 
 ```sh
 dreamcatcher scry
