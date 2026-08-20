@@ -4,7 +4,7 @@ import pytest
 from conftest import git
 
 from dreamcatcher.commands import CommandError
-from dreamcatcher.git import add_worktree, discard_worktree, fetch
+from dreamcatcher.git import add_worktree, delete_branch, fetch, remove_worktree
 
 BRANCH = "dreamcatcher-GH8-20260820-000456"
 
@@ -56,16 +56,37 @@ def test_a_worktree_git_refuses_says_what_git_said(cloned):
     assert BRANCH in str(error.value)
 
 
-def test_discarding_a_worktree_takes_its_branch_with_it(cloned):
+def test_a_removed_worktree_leaves_the_disk_and_the_list(cloned):
     path = session_worktree(cloned)
     add_worktree(cloned, path, BRANCH)
 
-    discard_worktree(cloned, path, BRANCH)
+    remove_worktree(cloned, path)
 
     assert not path.exists()
-    assert git("branch", "--list", BRANCH, cwd=cloned) == ""
     assert path not in worktrees(cloned)
 
 
-def test_discarding_what_was_never_made_leaves_no_complaint(cloned):
-    discard_worktree(cloned, session_worktree(cloned), BRANCH)
+def test_removing_a_worktree_that_was_never_made_says_what_git_said(cloned):
+    with pytest.raises(CommandError) as error:
+        remove_worktree(cloned, session_worktree(cloned))
+
+    assert "git worktree remove" in str(error.value)
+
+
+def test_a_deleted_branch_leaves_the_branch_list(cloned):
+    path = session_worktree(cloned)
+    add_worktree(cloned, path, BRANCH)
+    remove_worktree(cloned, path)
+
+    delete_branch(cloned, BRANCH)
+
+    assert git("branch", "--list", BRANCH, cwd=cloned) == ""
+
+
+def test_a_branch_a_worktree_holds_is_not_deleted_quietly(cloned):
+    add_worktree(cloned, session_worktree(cloned), BRANCH)
+
+    with pytest.raises(CommandError) as error:
+        delete_branch(cloned, BRANCH)
+
+    assert "git branch --delete" in str(error.value)

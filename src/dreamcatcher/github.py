@@ -9,9 +9,10 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 
 from dreamcatcher.commands import CommandError, run
 
-# gh lists thirty of anything unless you tell it otherwise. Thirty issues is a
-# number a busy repository passes. Asking for five hundred keeps the tool from
-# dropping work it can see.
+# gh lists thirty of anything unless you tell it otherwise, and thirty issues is
+# a number a busy repository passes. Asking for five hundred keeps the tool from
+# dropping work it can see. Only the issue listing needs it: a branch has one
+# pull request, near enough, and thirty is beyond any real count of blockers.
 LISTING_LIMIT = "500"
 
 
@@ -156,7 +157,11 @@ def pull_requests(repository: str, branch: str) -> list[PullRequest] | Unknown:
 
 
 def blockers(repository: str, issue: int) -> list[Blocker] | Unknown:
-    """Return the issues blocking this one, each with its own state."""
+    """Return the issues blocking this one, each with its own state.
+
+    This reads the one page GitHub answers with, so an issue with more than
+    thirty blockers would keep the rest out of view.
+    """
     return _read(
         BLOCKERS, "api", f"repos/{repository}/issues/{issue}/dependencies/blocked_by"
     )

@@ -1,3 +1,5 @@
+import sys
+
 import pytest
 
 from dreamcatcher.commands import CommandError, run
@@ -45,3 +47,9 @@ def test_a_failure_that_said_nothing_still_names_the_command(fake):
         run("probe")
 
     assert str(error.value) == "probe failed with status 1."
+
+
+def test_a_command_that_prints_bytes_that_are_not_utf_8_still_reads():
+    printing = "import sys; sys.stdout.buffer.write(b'caf\\xe9')"
+
+    assert run(sys.executable, "-c", printing) == "caf\ufffd"

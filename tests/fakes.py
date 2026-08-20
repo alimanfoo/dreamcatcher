@@ -32,20 +32,19 @@ class Call:
 class Fake:
     """A stand-in for one program.
 
-    The test that installs it says what it answers. An answer holds for every
-    call whose arguments hold `when`, so a test that leaves `when` out answers
-    every call the stand-in takes. The first answer that fits wins.
+    The test that installs it says what it answers, and it answers that to every
+    call it takes.
     """
 
     base: Path
 
-    def replies(self, output: str, when: str = "") -> None:
+    def replies(self, output: str) -> None:
         """Answer output on stdout, and a status of nought."""
-        self._answer(when, output, "", 0)
+        self._answer(output, "", 0)
 
-    def fails(self, said: str, when: str = "", status: int = 1) -> None:
+    def fails(self, said: str, status: int = 1) -> None:
         """Fail with said on stderr, and a failing status."""
-        self._answer(when, "", said, status)
+        self._answer("", said, status)
 
     @property
     def calls(self) -> list[Call]:
@@ -55,10 +54,10 @@ class Fake:
             for taken in _lines(_taken(self.base))
         ]
 
-    def _answer(self, when: str, output: str, said: str, status: int) -> None:
-        _append(
-            _scripted(self.base),
-            {"when": when, "output": output, "said": said, "status": status},
+    def _answer(self, output: str, said: str, status: int) -> None:
+        _scripted(self.base).write_text(
+            json.dumps({"output": output, "said": said, "status": status}),
+            encoding="utf-8",
         )
 
 
@@ -73,14 +72,14 @@ def install(directory: Path, program: str) -> Fake:
 def replay(base: Path, arguments: list[str]) -> int:
     """Answer one call to the stand-in at base, as its test scripted it."""
     _append(_taken(base), {"arguments": arguments, "directory": str(Path.cwd())})
-    asked = " ".join(arguments)
-    for answer in _lines(_scripted(base)):
-        if answer["when"] in asked:
-            sys.stdout.write(answer["output"])
-            sys.stderr.write(answer["said"])
-            return int(answer["status"])
-    sys.stderr.write(f"{base.name} was not scripted for: {asked}\n")
-    return UNSCRIPTED
+    scripted = _scripted(base)
+    if not scripted.exists():
+        sys.stderr.write(f"{base.name} was not scripted, and it was asked.\n")
+        return UNSCRIPTED
+    answer = json.loads(scripted.read_text(encoding="utf-8"))
+    sys.stdout.write(answer["output"])
+    sys.stderr.write(answer["said"])
+    return int(answer["status"])
 
 
 def _launcher(base: Path) -> None:
@@ -102,7 +101,7 @@ def _launcher(base: Path) -> None:
 
 def _scripted(base: Path) -> Path:
     """The file holding what the stand-in was scripted to answer."""
-    return base.with_name(f"{base.name}.scripted.jsonl")
+    return base.with_name(f"{base.name}.scripted.json")
 
 
 def _taken(base: Path) -> Path:

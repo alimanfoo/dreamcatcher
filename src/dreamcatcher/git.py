@@ -1,9 +1,14 @@
-"""Run the git commands that make and unmake a session's worktree."""
+"""Run the git commands that make and unmake a session's worktree.
 
-from contextlib import suppress
+Every one of these raises CommandError when git refuses, carrying git's own
+words, so no caller has to guess what went wrong. What to do about a creation
+that failed part way is the caller's, since only the caller knows how far it
+got.
+"""
+
 from pathlib import Path
 
-from dreamcatcher.commands import CommandError, run
+from dreamcatcher.commands import run
 
 
 def fetch(root: Path) -> None:
@@ -16,14 +21,15 @@ def add_worktree(root: Path, path: Path, branch: str) -> None:
     run("git", "worktree", "add", "-b", branch, str(path), "origin/main", cwd=root)
 
 
-def discard_worktree(root: Path, path: Path, branch: str) -> None:
-    """Try to remove the worktree at path, and to delete its branch.
+def remove_worktree(root: Path, path: Path) -> None:
+    """Remove the worktree at path, whatever is left in it."""
+    run("git", "worktree", "remove", "--force", str(path), cwd=root)
 
-    This backs out a creation that failed part way, so either half may never
-    have been made. The caller is already reporting the failure that led here,
-    so neither removal raises, and neither says what it could not do.
+
+def delete_branch(root: Path, branch: str) -> None:
+    """Delete the branch, merged or not.
+
+    git keeps a branch a worktree has checked out, so remove that worktree
+    first.
     """
-    with suppress(CommandError):
-        run("git", "worktree", "remove", "--force", str(path), cwd=root)
-    with suppress(CommandError):
-        run("git", "branch", "--delete", "--force", branch, cwd=root)
+    run("git", "branch", "--delete", "--force", branch, cwd=root)

@@ -39,11 +39,11 @@ class Fake:
     base: Path
     calls: list[Call]
 
-    def replies(self, output: str, when: str) -> None:
+    def replies(self, output: str) -> None:
         ...
 
-    def fails(self, said: str, when: str, status: int) -> None:
+    def fails(self, said: str, status: int) -> None:
         ...
 
-    def _answer(self, when: str, output: str, said: str, status: int) -> None:
+    def _answer(self, output: str, said: str, status: int) -> None:
         ...
