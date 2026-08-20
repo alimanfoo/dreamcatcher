@@ -1,0 +1,185 @@
+"""Ask gh what GitHub knows about the repository dreamcatcher watches."""
+
+from dataclasses import dataclass
+from datetime import datetime
+from enum import StrEnum
+from pathlib import Path
+
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
+
+from dreamcatcher.commands import CommandError, run
+
+# gh lists thirty of anything unless it is told otherwise, and thirty issues is
+# a number a busy repository passes. Asking for five hundred keeps the tool from
+# dropping work it can see.
+LISTING_LIMIT = "500"
+
+
+@dataclass(frozen=True)
+class Unknown:
+    """What a read answers when it could not tell.
+
+    Every read biases the daemon toward doing nothing. A caller that gets this
+    decides what not knowing means for its own check, and no read ever guesses
+    on its behalf. The reason travels with it, so a tick can record why it could
+    not tell.
+    """
+
+    reason: str
+
+
+class Projection(BaseModel):
+    """The fields dreamcatcher reads out of a document GitHub owns.
+
+    GitHub owns the document, so a key we do not declare passes without
+    complaint. That is the opposite of a Document, which forbids one.
+    """
+
+    model_config = ConfigDict(frozen=True, populate_by_name=True)
+
+
+class PullRequestState(StrEnum):
+    """Where a pull request has got to. gh names these in capitals."""
+
+    OPEN = "OPEN"
+    CLOSED = "CLOSED"
+    MERGED = "MERGED"
+
+
+class BlockerState(StrEnum):
+    """Whether a blocking issue is still open. The REST API uses lower case."""
+
+    OPEN = "open"
+    CLOSED = "closed"
+
+
+class Repository(Projection):
+    """The repository a checkout belongs to, as GitHub names it."""
+
+    name_with_owner: str = Field(alias="nameWithOwner")
+
+
+class Account(Projection):
+    """The account gh is signed in as."""
+
+    login: str
+
+
+class Issue(Projection):
+    """An open issue gh listed, and when it was filed."""
+
+    number: int
+    created_at: datetime = Field(alias="createdAt")
+
+
+class PullRequest(Projection):
+    """A pull request gh listed, and where it has got to."""
+
+    number: int
+    state: PullRequestState
+
+
+class Blocker(Projection):
+    """An issue that blocks another, and whether it is still open."""
+
+    number: int
+    state: BlockerState
+
+
+REPOSITORY = TypeAdapter(Repository)
+ACCOUNT = TypeAdapter(Account)
+ISSUES = TypeAdapter(list[Issue])
+PULL_REQUESTS = TypeAdapter(list[PullRequest])
+BLOCKERS = TypeAdapter(list[Blocker])
+
+
+def identify(root: Path) -> str | Unknown:
+    """Return the repository the checkout at root belongs to, as owner/name.
+
+    gh reads the repository from the checkout's own remote, so this asks from
+    inside the checkout.
+    """
+    answered = _read(REPOSITORY, "repo", "view", "--json", "nameWithOwner", cwd=root)
+    if isinstance(answered, Unknown):
+        return answered
+    return answered.name_with_owner
+
+
+def login() -> str | Unknown:
+    """Return the login of the account gh is signed in as."""
+    answered = _read(ACCOUNT, "api", "user")
+    if isinstance(answered, Unknown):
+        return answered
+    return answered.login
+
+
+def issues(repository: str, *, label: str, assignee: str) -> list[Issue] | Unknown:
+    """Return the repository's open issues carrying label and assigned to assignee."""
+    return _read(
+        ISSUES,
+        "issue",
+        "list",
+        "--repo",
+        repository,
+        "--assignee",
+        assignee,
+        "--label",
+        label,
+        "--state",
+        "open",
+        "--limit",
+        LISTING_LIMIT,
+        "--json",
+        "number,createdAt",
+    )
+
+
+def pull_request(repository: str, branch: str) -> PullRequest | Unknown | None:
+    """Return the pull request branch is the head of, in whatever state it is in.
+
+    None means the branch has no pull request at all. A branch belongs to one
+    attempt, so the newest pull request from it is that attempt's own.
+    """
+    answered = _read(
+        PULL_REQUESTS,
+        "pr",
+        "list",
+        "--repo",
+        repository,
+        "--head",
+        branch,
+        "--state",
+        "all",
+        "--json",
+        "number,state",
+    )
+    if isinstance(answered, Unknown):
+        return answered
+    if not answered:
+        return None
+    return max(answered, key=lambda found: found.number)
+
+
+def blockers(repository: str, issue: int) -> list[Blocker] | Unknown:
+    """Return the issues blocking this one, each with its own state."""
+    return _read(
+        BLOCKERS, "api", f"repos/{repository}/issues/{issue}/dependencies/blocked_by"
+    )
+
+
+def _read[ReadT](
+    shape: TypeAdapter[ReadT], *arguments: str, cwd: Path | None = None
+) -> ReadT | Unknown:
+    """Return what gh answered, read into shape, or Unknown when the read failed.
+
+    A read fails in two ways: gh itself fails, or it answers something the shape
+    cannot hold. Both answer Unknown, so neither reaches a caller as data.
+    """
+    try:
+        answered = run("gh", *arguments, cwd=cwd)
+    except CommandError as error:
+        return Unknown(str(error))
+    try:
+        return shape.validate_json(answered)
+    except ValidationError as error:
+        return Unknown(f"gh answered what dreamcatcher cannot read: {error}")

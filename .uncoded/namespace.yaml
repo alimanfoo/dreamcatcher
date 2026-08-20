@@ -52,6 +52,43 @@ src/:
       _report:
     errors.py:
       DreamcatcherError:
+    github.py:
+      LISTING_LIMIT:
+      REPOSITORY:
+      ACCOUNT:
+      ISSUES:
+      PULL_REQUESTS:
+      BLOCKERS:
+      Unknown:
+        reason:
+      Projection:
+        model_config:
+      PullRequestState:
+        OPEN:
+        CLOSED:
+        MERGED:
+      BlockerState:
+        OPEN:
+        CLOSED:
+      Repository:
+        name_with_owner:
+      Account:
+        login:
+      Issue:
+        number:
+        created_at:
+      PullRequest:
+        number:
+        state:
+      Blocker:
+        number:
+        state:
+      identify:
+      login:
+      issues:
+      pull_request:
+      blockers:
+      _read:
     lock.py:
       AlreadyRunningError:
       hold:
@@ -155,6 +192,17 @@ tests/:
     test_a_document_that_breaks_its_model_lists_every_fault:
   test_encoding_gate.py:
     test_a_read_with_no_encoding_fails_the_suite:
+  test_github.py:
+    REPOSITORY:
+    BRANCH:
+    test_the_repository_comes_from_the_checkouts_own_remote:
+    test_the_signed_in_account_is_the_one_gh_names:
+    test_a_listing_carries_each_issue_and_when_it_was_filed:
+    test_the_pull_request_of_a_branch_is_its_newest_one:
+    test_a_branch_with_no_pull_request_has_none:
+    test_the_blockers_of_an_issue_come_back_with_their_states:
+    test_a_read_that_fails_answers_unknown_with_what_gh_said:
+    test_a_read_gh_answers_strangely_is_unknown_too:
   test_lock.py:
     dead_pid:
     test_holding_the_lock_records_the_daemon_and_releasing_removes_it:
