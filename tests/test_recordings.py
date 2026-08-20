@@ -16,6 +16,13 @@ exhausted rate limit returns, since a real limit is not something a session can
 arrange. Claude's own retry and failure handling is what it records: ten retries
 over about three minutes, then a round that exits non-zero.
 
+Codex's, under `tests/fixtures/codex/`: `round.jsonl` is a round that listed the
+directory, read a file that was not there, wrote a file, and searched the web.
+`resumed-round.jsonl` is the round after it, resumed with `--last`, which
+deleted the file the first round wrote. Both carry the same thread id, so the
+resume found the session by the directory it ran in. `failed-round.jsonl` is a
+round asked for a model that does not exist.
+
 The golden beside each recording is the review surface: read it as the user of
 `scry` would, and judge the feed by it.
 """
@@ -27,6 +34,7 @@ from clocks import Ticking
 
 from dreamcatcher.adapters import Adapter
 from dreamcatcher.claude import CLAUDE
+from dreamcatcher.codex import CODEX
 from dreamcatcher.feed import Renderer
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -42,6 +50,7 @@ RECORDINGS = (
         "claude",
         ("round", "failed-round", "background-command", "rate-limited"),
     ),
+    (CODEX, "codex", ("round", "resumed-round", "failed-round")),
 )
 
 

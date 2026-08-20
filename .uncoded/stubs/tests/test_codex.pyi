@@ -36,13 +36,13 @@ def test_a_command_that_failed_reports_what_it_said():
 def test_a_command_the_reviewer_declined_reads_as_declined():
     ...
 
-def test_a_patch_names_every_file_it_touched_and_what_it_did():
+def test_a_patch_reports_each_file_it_touched_as_what_it_did_to_it():
     ...
 
 def test_a_web_search_reports_what_it_looked_for():
     ...
 
-def test_an_error_the_round_survived_still_surfaces():
+def test_an_error_the_round_survived_reads_as_an_error_not_a_failure():
     ...
 
 def test_a_round_that_ended_well_says_what_it_spent():

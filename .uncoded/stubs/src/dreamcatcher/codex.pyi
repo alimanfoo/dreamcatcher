@@ -25,9 +25,6 @@ def _item(item: dict) -> list[Event]:
 def _command(item: dict) -> list[Event]:
     ...
 
-def _changed(changes: list[dict]) -> str:
-    ...
-
 def _spend(usage: dict) -> Note:
     ...
 

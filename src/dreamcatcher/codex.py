@@ -116,11 +116,15 @@ def _events(streamed: dict) -> list[Event]:
 
 
 def _item(item: dict) -> list[Event]:
-    """Return what one completed item carries, labelled as Codex names it.
+    """Return what one completed item carries, labelled in Codex's own words.
 
-    An item this does not name carries no story. A todo list is the one such
-    item a round really streams, and it arrives complete as the round ends, so
-    it says nothing about what the round is doing.
+    Every action line's label is Codex's word for what the agent did, and its
+    detail is the one thing the agent did it to. That keeps a path at the front
+    of the detail, where the feed can strip the round's own directory off it.
+
+    An item this does not name carries no story. A todo list is the one such item
+    a round really streams, and it arrives complete as the round ends, so it says
+    nothing about what the round is doing.
     """
     kind = item["type"]
     if kind == "agent_message":
@@ -128,11 +132,11 @@ def _item(item: dict) -> list[Event]:
     if kind == "command_execution":
         return _command(item)
     if kind == "file_change":
-        return [Note(kind, _changed(item["changes"]))]
+        return [Note(change["kind"], change["path"]) for change in item["changes"]]
     if kind == "web_search":
         return [Note(kind, item["query"])]
     if kind == "error":
-        return [Note("failed", item["message"])]
+        return [Note(kind, item["message"])]
     return []
 
 
@@ -148,15 +152,6 @@ def _command(item: dict) -> list[Event]:
     if status == "completed":
         return [ran]
     return [ran, Note(status, item["aggregated_output"])]
-
-
-def _changed(changes: list[dict]) -> str:
-    """Return what one patch did to each file it touched.
-
-    Codex reports every file of one patch together, so the line names each of
-    them. What it did to a file is part of the story: a deletion is not an edit.
-    """
-    return ", ".join(f"{change['kind']} {change['path']}" for change in changes)
 
 
 def _spend(usage: dict) -> Note:

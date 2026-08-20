@@ -114,7 +114,7 @@ def test_a_command_the_reviewer_declined_reads_as_declined():
     ]
 
 
-def test_a_patch_names_every_file_it_touched_and_what_it_did():
+def test_a_patch_reports_each_file_it_touched_as_what_it_did_to_it():
     line = completed(
         type="file_change",
         changes=[
@@ -125,7 +125,8 @@ def test_a_patch_names_every_file_it_touched_and_what_it_did():
     )
 
     assert CODEX.read(line) == [
-        Note("file_change", "add /repo/gamma.txt, delete /repo/alpha.txt")
+        Note("add", "/repo/gamma.txt"),
+        Note("delete", "/repo/alpha.txt"),
     ]
 
 
@@ -139,10 +140,10 @@ def test_a_web_search_reports_what_it_looked_for():
     assert CODEX.read(line) == [Note("web_search", "latest ripgrep release")]
 
 
-def test_an_error_the_round_survived_still_surfaces():
+def test_an_error_the_round_survived_reads_as_an_error_not_a_failure():
     line = completed(type="error", message="Model metadata not found.")
 
-    assert CODEX.read(line) == [Note("failed", "Model metadata not found.")]
+    assert CODEX.read(line) == [Note("error", "Model metadata not found.")]
 
 
 def test_a_round_that_ended_well_says_what_it_spent():

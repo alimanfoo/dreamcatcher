@@ -6,6 +6,7 @@ import pytest
 from clocks import Ticking
 from dreamcatcher.adapters import Adapter
 from dreamcatcher.claude import CLAUDE
+from dreamcatcher.codex import CODEX
 from dreamcatcher.feed import Renderer
 
 FIXTURES = Path(__file__).parent / 'fixtures'
