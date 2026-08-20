@@ -2,9 +2,11 @@
 # tests/conftest.py
 
 import os
-import subprocess
+from functools import partial
 from pathlib import Path
+import fakes
 import pytest
+from dreamcatcher.commands import run
 from dreamcatcher.config import CONFIG_NAME
 
 ARMING = 'PYTHONWARNDEFAULTENCODING'
@@ -19,8 +21,20 @@ def pytest_configure(config: pytest.Config) -> None:
 def git(*arguments: str, cwd: Path) -> str:
     ...
 
+def commit(path: Path, message: str) -> None:
+    ...
+
 def repo(tmp_path):
     ...
 
+def upstream(tmp_path):
+    ...
+
+def cloned(upstream, tmp_path):
+    ...
+
 def watched(repo):
+    ...
+
+def fake(tmp_path, monkeypatch):
     ...

@@ -51,7 +51,10 @@ doc-roots = ["README.md", "AGENTS.md", "specs"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov"
+# The integration tests call the real gh. No CI runner has gh signed in, so the
+# default run leaves them out. Ask for them by name to run them.
+addopts = "--cov -m 'not integration'"
+markers = ["integration: calls the real gh against this repository, read-only"]
 filterwarnings = ["error::EncodingWarning"]
 
 [tool.coverage.run]
@@ -116,15 +119,24 @@ max-complexity = 8
 convention = "pep257"
 
 [tool.ruff.lint.per-file-ignores]
-# The test helpers run git and a throwaway interpreter, each found on PATH by
-# name. A shell invocation is a different rule, and stays selected everywhere.
+# dreamcatcher shells out: it drives git, gh, and the harness CLIs the user has
+# already signed in. commands.py is the one module that runs them, so it is the
+# one place these are waived. Any other module that imports subprocess fails the
+# check. commands.py never runs a shell, and it looks the program up on the PATH
+# itself. The rules guarding those two stay selected everywhere.
+"src/dreamcatcher/commands.py" = [
+    "suspicious-subprocess-import",
+    "subprocess-without-shell-equals-true",
+]
+# One test spawns a throwaway interpreter, to leave behind a pid no process
+# holds. It names the interpreter by its full path, and runs no shell, so the
+# rules guarding those two stay selected here as well.
 "tests/**" = [
     "D",
     "ANN",
     "assert",
     "suspicious-subprocess-import",
     "subprocess-without-shell-equals-true",
-    "start-process-with-partial-path",
 ]
 
 [tool.complexipy]

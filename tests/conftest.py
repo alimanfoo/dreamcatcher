@@ -1,11 +1,13 @@
-"""What the whole suite shares: the encoding gate, a repo, and a valid config."""
+"""What the whole suite shares: the encoding gate, a repo, a config, stand-ins."""
 
 import os
-import subprocess
+from functools import partial
 from pathlib import Path
 
+import fakes
 import pytest
 
+from dreamcatcher.commands import run
 from dreamcatcher.config import CONFIG_NAME
 
 ARMING = "PYTHONWARNDEFAULTENCODING"
@@ -41,15 +43,25 @@ def pytest_configure(config: pytest.Config) -> None:
 
 
 def git(*arguments: str, cwd: Path) -> str:
-    """Run git in cwd and return its output, forcing UTF-8 both ways."""
-    finished = subprocess.run(
-        ["git", *arguments],
-        cwd=cwd,
-        capture_output=True,
-        check=True,
-        encoding="utf-8",
+    """Run git in cwd and return its output, through the tool's own runner."""
+    return run("git", *arguments, cwd=cwd)
+
+
+def commit(path: Path, message: str) -> None:
+    """Commit everything in the checkout at path, under a throwaway identity."""
+    git("add", "--all", cwd=path)
+    git(
+        "-c",
+        "user.name=A Test",
+        "-c",
+        "user.email=test@example.com",
+        "-c",
+        "commit.gpgsign=false",
+        "commit",
+        "--message",
+        message,
+        cwd=path,
     )
-    return finished.stdout
 
 
 @pytest.fixture
@@ -60,7 +72,37 @@ def repo(tmp_path):
 
 
 @pytest.fixture
+def upstream(tmp_path):
+    """Return a bare repository holding main, standing in for GitHub."""
+    bare = tmp_path / "upstream.git"
+    git("init", "--bare", "--initial-branch=main", str(bare), cwd=tmp_path)
+    seed = tmp_path / "seed"
+    git("init", "--initial-branch=main", str(seed), cwd=tmp_path)
+    (seed / "README.md").write_text("what the seed holds\n", encoding="utf-8")
+    commit(seed, "seed the upstream")
+    git("remote", "add", "origin", str(bare), cwd=seed)
+    git("push", "origin", "main", cwd=seed)
+    return bare
+
+
+@pytest.fixture
+def cloned(upstream, tmp_path):
+    """Return a main checkout of upstream, with an origin/main to cut from."""
+    checkout = tmp_path / "checkout"
+    git("clone", str(upstream), str(checkout), cwd=tmp_path)
+    return checkout
+
+
+@pytest.fixture
 def watched(repo):
     """Return a main checkout carrying a valid dreamcatcher.toml."""
     (repo / CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
     return repo
+
+
+@pytest.fixture
+def fake(tmp_path, monkeypatch):
+    """Return a factory that puts a stand-in for a program first on the PATH."""
+    directory = tmp_path / "fakes"
+    monkeypatch.setenv("PATH", f"{directory}{os.pathsep}{os.environ['PATH']}")
+    return partial(fakes.install, directory)

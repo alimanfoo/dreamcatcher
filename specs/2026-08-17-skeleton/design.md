@@ -112,11 +112,11 @@ Code's worktree feature nests the same way — and this is the only layout:
 everything dreamcatcher ever makes lives inside `.dreamcatcher/`, whatever the
 user's directory habits. Ownership is by path — a session worktree is one under
 `worktrees/` — which is stronger than the old basename-pattern test. The branch
-name stays dispatcher-internal namespace: the anchored pattern carries the issue
-number for the PR half of the eligibility check, but the issue reference the
-_skill_ acts on travels in the prompt. (The branch still contains a `GH<n>`
-token, so today's smith and less boot by branch-scan unchanged until the
-dream-side prompt argument lands.)
+name stays dispatcher-internal namespace, and carries no job in the eligibility
+check: GitHub's own link from an issue to its open pull requests answers that,
+and the issue reference the _skill_ acts on travels in the prompt. (The branch
+still contains a `GH<n>` token, so today's smith and less boot by branch-scan
+unchanged until the dream-side prompt argument lands.)
 
 The new branch prefix means dreamcatcher never mistakes old `dream-catcher-*`
 work for its own — and, the same coin's other face, never _sees_ it: an issue
@@ -172,12 +172,25 @@ and no PR ever appears. No retry can advance that, so the board surfaces it as
 stuck. 4. Otherwise dispatch the oldest eligible labelled issue. 5. Write
 `last-tick.json`.
 
-Eligibility keeps the ported rules and the ported doctrine. An issue is eligible
-when it carries exactly one mapped label, is assigned to the configured
-assignee, has no active session worktree, has no open or merged PR from an
-earlier dreamcatcher branch, and has no open blocking issues. Every read failure
-biases toward inaction: a failed handled-check answers "handled", a failed
+Eligibility keeps the ported doctrine, and one ported rule is replaced. An issue
+is eligible when it carries exactly one mapped label, is assigned to the
+configured assignee, has no active session worktree, has no open pull request
+GitHub links to it, and has no open blocking issues. Every read failure biases
+toward inaction: a failed handled-check answers "handled", a failed
 blocker-check answers "blocked", a failed listing skips the tick.
+
+The two claims on an issue answer different questions, which is why both are
+asked. A session worktree says this daemon is working on it, and covers the
+window before any pull request exists. GitHub's link says somebody has a pull
+request open on it, and covers every attempt whose worktree is not here — a
+second checkout of the same repository, or one rebuilt since. The port answered
+that second question by listing five hundred pull requests and matching head
+branch names against its own naming pattern; the link needs one read, has no
+limit to fall out of, and rests on no naming convention. GitHub lists only open
+pull requests there, so a declined attempt drops out and its issue is free
+again, and a merged one closes the issue out of the listing altogether. It also
+counts a pull request you opened yourself, which is the intended reading: an
+issue somebody is already working on is not up for grabs.
 
 The final-round guard improves on the port: the final round's completed record
 is the marker, so "final completed" rather than "final started". A final round
@@ -335,20 +348,25 @@ matching `codex exec resume`), built from `session.json`.
 do to be dispatchable. Adopt the branch you wake up on and open your PR from it
 — before you change anything, so the user can watch commits arrive and you have
 a channel to ask questions from the start. Act on the issue reference in your
-prompt. Handle the resume prompts (the inbox shape, the carry-on, the final
-round's merged-or-closed state). Yield by ending your turn; the PR is the only
-channel. Marking is injected by the dispatcher; the skill needs no knowledge of
-it.
+prompt, and make the PR say it closes that issue, since GitHub's link from the
+issue to that PR is how the dispatcher knows the issue is claimed. Handle the
+resume prompts (the inbox shape, the carry-on, the final round's
+merged-or-closed state). Yield by ending your turn; the PR is the only channel.
+Marking is injected by the dispatcher; the skill needs no knowledge of it.
 
 ### Cross-platform notes
 
 Windows native is the target; CI runs the test suite on Windows, macOS, and
 Linux from the first commit, with a fake harness binary standing in for
-signed-in CLIs. All subprocess and file IO forces UTF-8 explicitly. Process
-teardown is process-group on POSIX and Job Objects on Windows, isolated in one
-module. Paths flow through `pathlib` end to end. The known pid-reuse wrinkle in
-the orphan sweep is accepted: the sweep runs once at startup against pids the
-daemon itself recorded, and the window is small.
+signed-in CLIs. All subprocess and file IO forces UTF-8 explicitly, and reads a
+byte that is not UTF-8 as the replacement character rather than failing, since a
+localised git can put one in a message. Programs are looked up on the PATH
+before they run, which is what reaches a `.cmd` on Windows, the form the harness
+CLIs take when npm installs them. Process teardown is process-group on POSIX and
+Job Objects on Windows, isolated in one module. Paths flow through `pathlib` end
+to end. The known pid-reuse wrinkle in the orphan sweep is accepted: the sweep
+runs once at startup against pids the daemon itself recorded, and the window is
+small.
 
 ### Dependencies
 

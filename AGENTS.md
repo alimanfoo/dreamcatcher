@@ -59,6 +59,14 @@ suite can satisfy.
 uv run pytest tests/test_cli.py --no-cov
 ```
 
+Run the integration tests. They ask the real `gh` about this repository, so you
+need `gh` signed in. The default run leaves them out, which is how CI skips
+them.
+
+```sh
+uv run pytest -m integration --no-cov
+```
+
 Run every check CI runs:
 
 ```sh
@@ -80,6 +88,13 @@ uv run pre-commit run --all-files
   records under `.dreamcatcher/`, but not a one-value file like `daemon.pid`. A
   mistake in a document then reads as a named error in plain words, not as a
   setting the tool quietly ignores.
+- Read what GitHub answers through a `Projection` in `github.py`. It keeps the
+  fields we declare and lets every other key pass, because GitHub owns that
+  document and adds to it as it pleases. A `Document` forbids a key it doesn't
+  declare, which is right only for a document the tool owns itself.
+- Shell out from `commands.py` alone. `pyproject.toml` waives ruff's subprocess
+  rules for that one module, so any other module that imports `subprocess` fails
+  the check.
 - Keep changes lean. Add nothing a requirement or the design doesn't call for;
   prefer deleting over adding. One way to do each thing, always.
 - Every path is cross-platform: Windows, macOS, and Linux are all first-class.

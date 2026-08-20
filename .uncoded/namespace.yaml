@@ -12,6 +12,9 @@ src/:
     cli.py:
       build_parser:
       main:
+    commands.py:
+      CommandError:
+      run:
     config.py:
       CONFIG_NAME:
       Harness:
@@ -49,6 +52,54 @@ src/:
       _report:
     errors.py:
       DreamcatcherError:
+    git.py:
+      fetch:
+      add_worktree:
+      remove_worktree:
+      delete_branch:
+    github.py:
+      LISTING_LIMIT:
+      REPOSITORY:
+      ACCOUNT:
+      ISSUES:
+      PULL_REQUESTS:
+      BLOCKERS:
+      LINKED:
+      Unknown:
+        reason:
+      Projection:
+        model_config:
+      PullRequestState:
+        OPEN:
+        CLOSED:
+        MERGED:
+      BlockerState:
+        OPEN:
+        CLOSED:
+      Repository:
+        name_with_owner:
+      Account:
+        login:
+      Issue:
+        number:
+        created_at:
+      PullRequest:
+        number:
+        state:
+      Blocker:
+        number:
+        state:
+      LinkedPullRequest:
+        number:
+      Linked:
+        pull_requests:
+      identify:
+      login:
+      issues:
+      pull_requests:
+      linked_pull_requests:
+      blockers:
+      _read:
     lock.py:
       AlreadyRunningError:
       hold:
@@ -72,8 +123,30 @@ tests/:
     CONFIG:
     pytest_configure:
     git:
+    commit:
     repo:
+    upstream:
+    cloned:
     watched:
+    fake:
+  fakes.py:
+    UNSCRIPTED:
+    Call:
+      arguments:
+      directory:
+    Fake:
+      base:
+      calls:
+      replies:
+      fails:
+      _answer:
+    install:
+    replay:
+    _launcher:
+    _scripted:
+    _taken:
+    _append:
+    _lines:
   test_cli.py:
     started:
     test_version_prints_the_installed_version:
@@ -84,6 +157,13 @@ tests/:
     test_a_run_with_no_harness_asks_for_one:
     test_a_harness_that_does_not_exist_is_refused:
     test_a_failure_the_user_must_read_is_a_message_not_a_traceback:
+  test_commands.py:
+    test_a_command_hands_back_what_it_printed:
+    test_a_command_runs_where_it_is_told:
+    test_a_program_that_is_not_on_the_path_says_so:
+    test_a_failure_carries_the_command_and_what_it_said:
+    test_a_failure_that_said_nothing_still_names_the_command:
+    test_a_command_that_prints_bytes_that_are_not_utf_8_still_reads:
   test_config.py:
     WITHOUT_CODEX:
     CLAUDE_SETTINGS:
@@ -127,6 +207,45 @@ tests/:
     test_a_document_that_breaks_its_model_lists_every_fault:
   test_encoding_gate.py:
     test_a_read_with_no_encoding_fails_the_suite:
+  test_git.py:
+    BRANCH:
+    session_worktree:
+    worktrees:
+    test_a_fetch_brings_origins_main_back:
+    test_a_worktree_lands_where_it_is_asked_for_on_its_own_branch:
+    test_a_worktree_git_refuses_says_what_git_said:
+    test_a_removed_worktree_leaves_the_disk_and_the_list:
+    test_removing_a_worktree_that_was_never_made_says_what_git_said:
+    test_a_deleted_branch_leaves_the_branch_list:
+    test_a_branch_a_worktree_holds_is_not_deleted_quietly:
+  test_github.py:
+    REPOSITORY:
+    BRANCH:
+    test_the_repository_comes_from_the_checkouts_own_remote:
+    test_the_signed_in_account_is_the_one_gh_names:
+    test_a_listing_carries_each_issue_and_when_it_was_filed:
+    test_the_pull_requests_of_a_branch_come_back_with_their_states:
+    test_a_branch_with_no_pull_request_comes_back_empty:
+    test_the_pull_requests_linked_to_an_issue_come_back:
+    test_an_issue_nobody_has_claimed_has_no_linked_pull_request:
+    test_the_blockers_of_an_issue_come_back_with_their_states:
+    test_a_read_that_fails_answers_unknown_with_what_gh_said:
+    test_a_read_gh_answers_strangely_is_unknown_too:
+  test_github_integration.py:
+    pytestmark:
+    REPOSITORY:
+    CHECKOUT:
+    MERGED:
+    MERGED_BRANCH:
+    BLOCKED:
+    BLOCKING:
+    test_this_checkout_is_this_repository:
+    test_gh_is_signed_in_as_somebody:
+    test_gh_takes_the_whole_issue_listing_command:
+    test_a_merged_pull_request_comes_back_merged:
+    test_a_branch_that_never_existed_comes_back_empty:
+    test_gh_takes_the_linked_pull_requests_command:
+    test_a_blocked_issue_names_what_blocks_it:
   test_lock.py:
     dead_pid:
     test_holding_the_lock_records_the_daemon_and_releasing_removes_it:
