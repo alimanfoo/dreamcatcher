@@ -202,6 +202,7 @@ tests/:
   test_git.py:
     BRANCH:
     session_worktree:
+    worktrees:
     test_a_fetch_brings_origins_main_back:
     test_a_worktree_lands_where_it_is_asked_for_on_its_own_branch:
     test_a_worktree_git_refuses_says_what_git_said:
