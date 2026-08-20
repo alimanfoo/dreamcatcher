@@ -1,22 +1,11 @@
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import timedelta, timezone
 from pathlib import PurePosixPath
+
+from clocks import PINNED, Ticking
 
 from dreamcatcher.feed import WIDTH, Note, Prose, Renderer
 
-PINNED = datetime(2026, 8, 19, 18, 41, 58, tzinfo=UTC)
-
 ROUND = PurePosixPath("/checkout/worktree")
-
-
-class Ticking:
-    """A clock that moves on a second with every reading."""
-
-    def __init__(self) -> None:
-        self.readings = 0
-
-    def __call__(self) -> datetime:
-        self.readings += 1
-        return PINNED + timedelta(seconds=self.readings - 1)
 
 
 def feed() -> Renderer:

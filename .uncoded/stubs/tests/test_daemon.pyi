@@ -2,15 +2,13 @@
 # tests/test_daemon.py
 
 import os
-from datetime import UTC, datetime, timedelta
 import pytest
+from clocks import Ticking
 from dreamcatcher.config import CONFIG_NAME, Harness
 from dreamcatcher.daemon import Daemon, NotAMainCheckoutError
 from dreamcatcher.documents import DocumentError
 from dreamcatcher.lock import AlreadyRunningError
 from dreamcatcher.state import LastTick, StateDirectory
-
-PINNED = datetime(2026, 8, 19, 18, 41, 58, tzinfo=UTC)
 
 def idling(root, ticks: int) -> tuple[Daemon, Waiting, Ticking]:
     ...
@@ -47,11 +45,4 @@ class Waiting:
         ...
 
     def __call__(self, seconds: float) -> None:
-        ...
-
-class Ticking:
-    def __init__(self) -> None:
-        ...
-
-    def __call__(self) -> datetime:
         ...

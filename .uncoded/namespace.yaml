@@ -165,6 +165,12 @@ src/:
         last_tick:
         bootstrap:
 tests/:
+  clocks.py:
+    PINNED:
+    Ticking:
+      step:
+      readings:
+      __call__:
   conftest.py:
     ARMING:
     CONFIG_HEAD:
@@ -256,11 +262,7 @@ tests/:
     test_a_config_mistake_names_the_setting_and_the_fault:
     test_a_repo_with_no_config_says_which_file_is_missing:
   test_daemon.py:
-    PINNED:
     Waiting:
-      __init__:
-      __call__:
-    Ticking:
       __init__:
       __call__:
     idling:
@@ -287,11 +289,7 @@ tests/:
   test_encoding_gate.py:
     test_a_read_with_no_encoding_fails_the_suite:
   test_feed.py:
-    PINNED:
     ROUND:
-    Ticking:
-      __init__:
-      __call__:
     feed:
     test_a_note_becomes_one_timestamped_line:
     test_a_note_with_nothing_to_add_is_its_label_alone:
