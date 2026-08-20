@@ -63,6 +63,9 @@ def test_a_finished_subagent_reports_what_it_did():
 def test_a_background_command_finishing_is_not_a_report():
     ...
 
+def test_a_round_being_retried_says_what_it_is_waiting_on():
+    ...
+
 def test_a_round_that_ended_well_closes_with_its_outcome():
     ...
 

@@ -226,6 +226,7 @@ tests/:
     test_a_subagents_tool_call_is_marked_as_one:
     test_a_finished_subagent_reports_what_it_did:
     test_a_background_command_finishing_is_not_a_report:
+    test_a_round_being_retried_says_what_it_is_waiting_on:
     test_a_round_that_ended_well_closes_with_its_outcome:
     test_a_round_that_failed_closes_with_what_went_wrong:
     test_an_event_with_no_story_in_it_writes_nothing:

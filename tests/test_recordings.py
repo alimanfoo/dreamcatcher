@@ -8,6 +8,12 @@ asked for a model that does not exist. `background-command.jsonl` is a round
 that ran one command in the background: its notification carries no token usage,
 which is what keeps it out of the feed as a subagent's report.
 
+`rate-limited.jsonl` is the one recording not made against Claude's own API. The
+CLI ran against a local endpoint answering every request with the 429 an
+exhausted rate limit returns, since a real limit is not something a session can
+arrange. Claude's own retry and failure handling is what it records: ten retries
+over about three minutes, then a round that exits non-zero.
+
 The golden beside each recording is the review surface: read it as the user of
 `scry` would, and judge the feed by it.
 """

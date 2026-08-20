@@ -186,6 +186,20 @@ def test_a_background_command_finishing_is_not_a_report():
     assert CLAUDE.read(line) == []
 
 
+def test_a_round_being_retried_says_what_it_is_waiting_on():
+    line = streamed(
+        type="system",
+        subtype="api_retry",
+        attempt=3,
+        max_retries=10,
+        retry_delay_ms=2310,
+        error_status=429,
+        error="rate_limit",
+    )
+
+    assert CLAUDE.read(line) == [Note("retry", "rate_limit (429), attempt 3 of 10")]
+
+
 def test_a_round_that_ended_well_closes_with_its_outcome():
     assert CLAUDE.read(streamed(type="result", subtype="success", is_error=False)) == [
         Note("result", "success")

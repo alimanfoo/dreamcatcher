@@ -113,6 +113,16 @@ def _system(streamed: dict) -> list[Event]:
             Note("report", streamed["status"], subagent=True),
             Prose(streamed["summary"], subagent=True),
         ]
+    # A retried round says nothing else while it waits, and ten retries of a
+    # rate limit take about three minutes, so the feed says what it waits on.
+    if subtype == "api_retry":
+        return [
+            Note(
+                "retry",
+                f"{streamed['error']} ({streamed['error_status']}), "
+                f"attempt {streamed['attempt']} of {streamed['max_retries']}",
+            )
+        ]
     return []
 
 
