@@ -10,7 +10,7 @@ from dreamcatcher.feed import Renderer
 
 FIXTURES = Path(__file__).parent / 'fixtures'
 RECORDED_IN = PurePosixPath('/private/tmp/dreamcatcher-recording')
-RECORDINGS = ((CLAUDE, 'claude', ('round', 'failed-round', 'background-command')),)
+RECORDINGS = ...
 
 def rendered(adapter: Adapter, recording: Path) -> str:
     ...

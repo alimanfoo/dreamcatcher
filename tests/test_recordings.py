@@ -36,7 +36,13 @@ RECORDED_IN = PurePosixPath("/private/tmp/dreamcatcher-recording")
 # What each adapter recorded: the directory under FIXTURES holding its streams,
 # and the name of every recording in it. The golden feed sits beside the
 # recording, under the same name.
-RECORDINGS = ((CLAUDE, "claude", ("round", "failed-round", "background-command")),)
+RECORDINGS = (
+    (
+        CLAUDE,
+        "claude",
+        ("round", "failed-round", "background-command", "rate-limited"),
+    ),
+)
 
 
 def rendered(adapter: Adapter, recording: Path) -> str:
