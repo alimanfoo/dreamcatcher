@@ -3,28 +3,31 @@
 An agent session recorded every stream here in the same throwaway repository,
 running the command that adapter's `first_round` builds.
 
-Claude's, under `tests/fixtures/claude/`: `round.jsonl` is a round that listed a
-directory, read a file that was not there, and sent a subagent to count the
-files. `failed-round.jsonl` is a round asked for a model that does not exist.
-`background-command.jsonl` is a round that ran one command in the background:
-its notification carries no token usage, which is what keeps it out of the feed
-as a subagent's report.
+Claude's recordings sit under `tests/fixtures/claude/`.
 
-`rate-limited.jsonl` is the one recording not made against Claude's own API. The
-CLI ran against a local endpoint answering every request with the 429 an
-exhausted rate limit returns, since a real limit is not something a session can
-arrange. Claude's own retry and failure handling is what it records: ten retries
-over about three minutes, then a round that exits non-zero.
+- `round.jsonl` is a round that listed a directory, read a file that was not
+  there, and sent a subagent to count the files.
+- `failed-round.jsonl` is a round asked for a model that does not exist.
+- `background-command.jsonl` is a round that ran one command in the background.
+  Its notification carries no token usage, which is what keeps it out of the
+  feed as a subagent's report.
+- `rate-limited.jsonl` is the one Claude recording not made against Claude's own
+  API. The CLI ran against a local endpoint answering every request with the 429
+  an exhausted rate limit returns, since a real limit is not something a session
+  can arrange. It records how Claude retries and then gives up: ten retries over
+  about three minutes, then a round that exits non-zero.
 
-Codex's, under `tests/fixtures/codex/`: `round.jsonl` is a round that listed the
-directory, read a file that was not there, wrote a file, and searched the web.
-`resumed-round.jsonl` is the round after it, resumed with `--last`, which
-deleted the file the first round wrote. Both carry the same thread id, so the
-resume found the session by the directory it ran in. `failed-round.jsonl` is a
-round asked for a model that does not exist. `codex/rate-limited.jsonl` was
-recorded the same way Claude's was, against a local endpoint answering every
-request with a 429. Codex spends no retries on it: the round fails on the first
-answer and exits non-zero.
+Codex's recordings sit under `tests/fixtures/codex/`.
+
+- `round.jsonl` is a round that listed the directory, read a file that was not
+  there, wrote a file, and searched the web.
+- `resumed-round.jsonl` is the round after it, resumed with `--last`. It deleted
+  the file the first round wrote. Both rounds carry the same thread id, so the
+  resume found the session by the directory it ran in.
+- `failed-round.jsonl` is a round asked for a model that does not exist.
+- `rate-limited.jsonl` came the way Claude's did. The CLI ran against a local
+  endpoint answering every request with a 429. Codex spends no retries on it:
+  the round fails on the first answer and exits non-zero.
 
 The golden beside each recording is the review surface: read it as the user of
 `scry` would, and judge the feed by it.

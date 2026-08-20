@@ -238,9 +238,9 @@ In scope:
     one thing it did it to. A path then sits at the front of the detail, where
     the feed strips the round's own directory off it.
   - A command says what it ran, and adds its status unless it completed.
-  - A patch says of each file it touched what it did to that file.
-  - An item Codex has only started or changed says nothing its completion will
-    not say better.
+  - A patch says what it did to each file it touched.
+  - Only a completed item reaches the feed. Codex also streams an item as it
+    starts and as it changes, and the completion says the same thing better.
   - `turn.completed` closes the round with what it spent, in tokens alone. Codex
     prices nothing for us.
   - `turn.failed` closes a round that failed. Codex says a failure twice, once
@@ -255,8 +255,8 @@ In scope:
   round runs in is the one place the worktree is named.
 - Recorded fixtures: capture real `codex exec --json` streams once, commit them,
   and golden-file test the parser against them.
-- The design's open-list verifications, all three answered against codex-cli
-  0.148.0, so no later phase need ask again. `codex exec resume` takes `--json`,
+- The design's open-list verifications, answered against codex-cli 0.148.0, so a
+  later phase does not have to ask again. `codex exec resume` takes `--json`,
   and a recorded resume proves it. Its command, patch and search items each
   carry the field an action line needs. A usage-limit failure exits non-zero,
   and Codex spends no retries on it: the round fails on the first answer.
@@ -266,10 +266,10 @@ platforms, the fixtures are committed, the verification results (or their
 checklist items) are recorded on the PR — and no file outside the adapter and
 its tests changed.
 
-Deliberately out: everything phase 4 left out, and the two item types
-`codex exec --json` never streamed for a session to record — an MCP tool call
-and a reasoning block. Codex counts reasoning tokens and streams no reasoning
-item, so the feed reports the count and nothing else.
+Deliberately out: everything phase 4 left out, and the item types
+`codex exec --json` never streamed for a session to record: an MCP tool call and
+a reasoning block. Codex counts reasoning tokens and streams no reasoning item,
+so the feed reports the count and nothing else.
 
 ## Phase 6: rounds
 
@@ -282,14 +282,13 @@ In scope:
   Pump stdout on a reader thread: each line to `raw.jsonl` verbatim, through the
   adapter's parser, rendered onto `feed.txt`. stderr interleaves into the feed
   as pass-through lines (design.md, Rounds and processes).
-- Two things phase 5 leaves this one, both about the child a round spawns.
-  - The directory is the session's worktree, always. Phase 5's Codex first round
-    names no directory of its own, and its resume finds the session by the
-    directory it ran in, so a round run anywhere else resumes the wrong session
-    or none.
-  - The child gets no stdin. Codex reads stdin for more of its prompt and waits
-    for the end of it, so a pipe the daemon holds open stalls the round for
-    ever, even when the prompt is already an argument.
+- Run every round in the session's worktree, which phase 5 leaves this phase to
+  do. Phase 5's Codex first round names no directory of its own, and its resume
+  finds the session by the directory it ran in, so a round run anywhere else
+  resumes the wrong session or none.
+- Give the child no stdin. Codex reads stdin for more of its prompt and waits
+  for the end of it, so a pipe the daemon holds open stalls the round for ever,
+  even when the prompt is already an argument.
 - `round.json` at the boundaries: started and pid at spawn, ended and exit
   status at exit, written and read through a pydantic model per the phase 2
   convention, so a corrupt record fails with a named error. A record with no end

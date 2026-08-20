@@ -13,8 +13,8 @@ NETWORK_ACCESS = "sandbox_workspace_write.network_access=true"
 # What an unattended round may do without being asked. The first round says it
 # with `--approve-for-me`, which routes every approval to Codex's own reviewer
 # and brings the workspace-write sandbox with it. A resume keeps none of that, so
-# it spells the same stance out again. These are the port's settings, and they
-# are Codex's whole answer to never stalling for a human.
+# it says the same stance again as settings. These are the port's settings, and
+# they are Codex's whole answer to never stalling for a human.
 RESUME_PERMISSIONS = (
     'sandbox_mode="workspace-write"',
     NETWORK_ACCESS,
@@ -48,8 +48,8 @@ class Codex(Adapter):
         """Return the command that resumes the session in this directory.
 
         Codex forgets the model and the effort when it resumes, so a resume
-        replays both. Which session `--last` picks comes from the directory the
-        round runs in, which Codex filters its own session store by.
+        replays both. Codex filters its own session store by the directory a
+        round runs in. That directory is what makes `--last` pick this session.
         """
         return [
             self.program,
@@ -97,9 +97,9 @@ def _overrides(*settings: str) -> list[str]:
 def _events(streamed: dict) -> list[Event]:
     """Return what one stream event carries, or nothing when it carries no story.
 
-    An event this does not name carries no story. A turn starting says nothing
-    the round's own boundary line does not, and an item starting or changing
-    says nothing its completion will not say better.
+    An event this does not name carries no story. The feed's own line for the
+    round already says a turn has started. An item Codex has started or changed
+    reaches the feed when it completes, which is when it says the most.
     """
     kind = streamed["type"]
     if kind == "thread.started":
@@ -108,7 +108,7 @@ def _events(streamed: dict) -> list[Event]:
         return _item(streamed["item"])
     if kind == "turn.completed":
         return [_spend(streamed["usage"])]
-    # A failed turn is announced twice, first on its own and then as the turn's
+    # Codex says a failure twice, first on its own and then as the turn's
     # ending. The ending is the one the feed keeps, so the failure reads once.
     if kind == "turn.failed":
         return [Note("failed", streamed["error"]["message"])]
@@ -116,14 +116,14 @@ def _events(streamed: dict) -> list[Event]:
 
 
 def _item(item: dict) -> list[Event]:
-    """Return what one completed item carries, labelled in Codex's own words.
+    """Return what one completed item carries, in Codex's own words.
 
     Every action line's label is Codex's word for what the agent did, and its
     detail is the one thing the agent did it to. That keeps a path at the front
     of the detail, where the feed can strip the round's own directory off it.
 
     An item this does not name carries no story. A todo list is the one such item
-    a round really streams, and it arrives complete as the round ends, so it says
+    a round really streams. It arrives complete as the round ends, so it says
     nothing about what the round is doing.
     """
     kind = item["type"]
@@ -141,11 +141,12 @@ def _item(item: dict) -> list[Event]:
 
 
 def _command(item: dict) -> list[Event]:
-    """Return the command the agent ran, and how it went unless it completed.
+    """Return the command the agent ran, and how that went.
 
-    The status is the label, so a command the reviewer declined reads as
-    declined and one that failed reads as failed, without the feed deciding
-    which of those Codex meant.
+    A command that completed needs no second line. One that did not gets its
+    status as the label. A command the reviewer declined then reads as declined,
+    and one that failed reads as failed, without the feed deciding which Codex
+    meant.
     """
     ran = Note(item["type"], item["command"])
     status = item["status"]
@@ -158,9 +159,9 @@ def _spend(usage: dict) -> Note:
     """Return what the round spent, in the tokens Codex counts.
 
     Codex prices nothing for us, so the feed reports tokens alone. Each count is
-    the one the event names, because a cached input token is priced differently
-    from a fresh one, and reasoning is the part of the output nothing else in the
-    feed shows.
+    the one the event names. Codex charges a different rate for a cached input
+    token than for a fresh one, so adding the counts together would say less.
+    Reasoning gets its own count because nothing else in the feed shows it.
     """
     return Note(
         "usage",
