@@ -20,9 +20,8 @@ def discard_worktree(root: Path, path: Path, branch: str) -> None:
     """Remove the worktree at path and delete its branch, leaving nothing behind.
 
     This backs out a creation that failed part way, so either half may never
-    have been made. A half that is already gone is the outcome this wants, and
-    the caller is reporting the failure that led here, so neither removal
-    raises.
+    have been made. A half that is already gone is the outcome this wants. The
+    caller is reporting the failure that led here, so neither removal raises.
     """
     with suppress(CommandError):
         run("git", "worktree", "remove", "--force", str(path), cwd=root)

@@ -9,8 +9,8 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 
 from dreamcatcher.commands import CommandError, run
 
-# gh lists thirty of anything unless it is told otherwise, and thirty issues is
-# a number a busy repository passes. Asking for five hundred keeps the tool from
+# gh lists thirty of anything unless you tell it otherwise. Thirty issues is a
+# number a busy repository passes. Asking for five hundred keeps the tool from
 # dropping work it can see.
 LISTING_LIMIT = "500"
 
@@ -137,8 +137,10 @@ def issues(repository: str, *, label: str, assignee: str) -> list[Issue] | Unkno
 def pull_request(repository: str, branch: str) -> PullRequest | Unknown | None:
     """Return the pull request branch is the head of, in whatever state it is in.
 
-    None means the branch has no pull request at all. A branch belongs to one
-    attempt, so the newest pull request from it is that attempt's own.
+    None means the branch has no pull request at all.
+
+    A branch belongs to one attempt, so the newest pull request from it is that
+    attempt's own.
     """
     answered = _read(
         PULL_REQUESTS,

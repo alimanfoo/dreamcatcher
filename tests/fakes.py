@@ -1,9 +1,9 @@
 """Stand-in executables the tests put first on the PATH, in place of a real tool.
 
-A stand-in is a launcher written into a directory the test puts first on the
-PATH. The launcher hands the call to `replay` below, which answers it as the
-test scripted it and records what it was passed. Both halves live in this one
-file, so the files they pass between them have one shape in one place.
+A stand-in is a launcher the test writes into a directory it puts first on the
+PATH. The launcher hands each call to the replayer in this file, which answers
+it as the test scripted it and records what it was passed. Both halves live in
+this one file, so the files they pass between them have one shape in one place.
 
 Windows will not run a launcher with no extension, so the launcher is a .cmd
 there. `dreamcatcher.commands` finds every program on the PATH before it runs
@@ -30,11 +30,11 @@ class Call:
 
 @dataclass(frozen=True)
 class Fake:
-    """A stand-in for one program, which the test that installed it scripts.
+    """A stand-in for one program.
 
-    An answer holds for every call whose arguments hold `when`, so a test that
-    leaves `when` out answers whatever the stand-in is asked. The first answer
-    that fits wins.
+    The test that installs it says what it answers. An answer holds for every
+    call whose arguments hold `when`, so a test that leaves `when` out answers
+    every call the stand-in takes. The first answer that fits wins.
     """
 
     base: Path

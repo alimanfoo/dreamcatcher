@@ -51,8 +51,8 @@ doc-roots = ["README.md", "AGENTS.md", "specs"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# The integration tests call the real gh, which no CI runner is signed in to, so
-# the default run leaves them out. Ask for them by name to run them.
+# The integration tests call the real gh. No CI runner has gh signed in, so the
+# default run leaves them out. Ask for them by name to run them.
 addopts = "--cov -m 'not integration'"
 markers = ["integration: calls the real gh against this repository, read-only"]
 filterwarnings = ["error::EncodingWarning"]
@@ -119,11 +119,11 @@ max-complexity = 8
 convention = "pep257"
 
 [tool.ruff.lint.per-file-ignores]
-# Shelling out is what dreamcatcher does: it drives git, gh, and the harness
-# CLIs the user has already signed in. commands.py is the one module that runs
-# them, so it is the one place these are waived, and any other module that
-# imports subprocess fails the check. It never runs a shell, and it finds the
-# program on the PATH itself, so the two rules guarding those stay selected.
+# dreamcatcher shells out: it drives git, gh, and the harness CLIs the user has
+# already signed in. commands.py is the one module that runs them, so it is the
+# one place these are waived. Any other module that imports subprocess fails the
+# check. commands.py never runs a shell, and it looks the program up on the PATH
+# itself. The rules guarding those two stay selected everywhere.
 "src/dreamcatcher/commands.py" = [
     "suspicious-subprocess-import",
     "subprocess-without-shell-equals-true",

@@ -18,9 +18,9 @@ def run(program: str, *arguments: str, cwd: Path | None = None) -> str:
     with a failing status. The message carries the command and everything the
     program said on stderr, so nobody has to guess what went wrong.
 
-    The program is found on the PATH before it runs, which is also what lets a
-    test stand in for it. Windows only ever adds .exe to a bare name, so a
-    stand-in with any other extension would go unfound.
+    This looks the program up on the PATH before it runs it, which is also what
+    lets a test stand in for it. Windows only ever adds .exe to a bare name, so
+    a stand-in with any other extension would go unfound.
     """
     executable = which(program)
     if executable is None:
