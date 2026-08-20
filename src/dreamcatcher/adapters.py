@@ -1,8 +1,8 @@
 """The boundary a harness sits behind.
 
-Everything else in the tool names a harness only to pick its adapter. What the
-CLI is called, which flags keep it from stalling, and what its stream means all
-stop here.
+Everything else in the tool names a harness only to pick its adapter. The
+adapter knows what the CLI is called, which flags keep it from stalling, and
+what its stream means. Nothing else does.
 """
 
 from abc import ABC, abstractmethod
@@ -17,8 +17,8 @@ from dreamcatcher.feed import Event
 class Launch:
     """What one round starts with.
 
-    The session's name, and the model and effort it was dispatched with, hold
-    for every round of that session. The prompt is this round's own.
+    The dispatch fixes the session's name, its model, and its effort. Every
+    round of that session runs with them. The prompt is this round's own.
     """
 
     session: str

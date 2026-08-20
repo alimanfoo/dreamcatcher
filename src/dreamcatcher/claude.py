@@ -23,7 +23,7 @@ WRITES = (
 )
 
 # The inputs that say most about a tool call, most telling first. The whole
-# input closes the chain, so a tool none of these names still says something.
+# input comes last, so a tool none of these names still says something.
 TELLING = ("command", "file_path", "pattern", "url", "skill", "description", "prompt")
 
 

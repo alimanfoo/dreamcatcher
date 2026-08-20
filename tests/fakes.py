@@ -105,7 +105,7 @@ def replay(base: Path, arguments: list[str]) -> int:
     answer = json.loads(scripted.read_text(encoding="utf-8"))
     for line in answer["lines"]:
         # UTF-8 whatever the console's own code page is, since the caller reads
-        # it as UTF-8, and flushed so a reader sees each line as it lands.
+        # it as UTF-8. Flushed too, so a reader sees each line as it lands.
         sys.stdout.buffer.write(line.encode("utf-8"))
         sys.stdout.buffer.flush()
         sleep(answer["delay"])

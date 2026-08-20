@@ -19,9 +19,9 @@ class CommandError(DreamcatcherError):
 
 def locate(program: str) -> str:
     """Return the path to program on the PATH, or raise CommandError."""
-    # Looking the program up, rather than leaving the name to subprocess, is
-    # what lets a test stand in for it: the lookup takes every extension PATHEXT
-    # names, while Windows itself only ever adds .exe to a bare name.
+    # Windows adds only .exe to a bare name, while a lookup takes every
+    # extension PATHEXT names. So looking the program up here, rather than
+    # leaving the name to subprocess, is what lets a test stand in for it.
     executable = which(program)
     if executable is None:
         raise CommandError(f"{program} is not on the PATH.")

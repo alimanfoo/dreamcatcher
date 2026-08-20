@@ -1,7 +1,7 @@
 """Read each recorded Claude stream through the adapter and the feed.
 
-The recordings under `tests/fixtures/claude/` were captured by running the
-command `Claude.first_round` builds, in `/private/tmp/dreamcatcher-recording`.
+An agent session recorded the streams under `tests/fixtures/claude/`, running
+the command `Claude.first_round` builds in `/private/tmp/dreamcatcher-recording`.
 `round.jsonl` is a round that listed a directory, read a file that was not
 there, and sent a subagent to count the files. `failed-round.jsonl` is a round
 asked for a model that does not exist.
