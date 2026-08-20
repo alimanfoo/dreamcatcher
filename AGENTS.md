@@ -80,6 +80,9 @@ uv run pre-commit run --all-files
   records under `.dreamcatcher/`, but not a one-value file like `daemon.pid`. A
   mistake in a document then reads as a named error in plain words, not as a
   setting the tool quietly ignores.
+- Shell out from `commands.py` alone. `pyproject.toml` waives ruff's subprocess
+  rules for that one module, so any other module that imports `subprocess` fails
+  the check.
 - Keep changes lean. Add nothing a requirement or the design doesn't call for;
   prefer deleting over adding. One way to do each thing, always.
 - Every path is cross-platform: Windows, macOS, and Linux are all first-class.

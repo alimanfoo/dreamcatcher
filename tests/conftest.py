@@ -1,9 +1,11 @@
-"""What the whole suite shares: the encoding gate, a repo, and a valid config."""
+"""What the whole suite shares: the encoding gate, a repo, a config, stand-ins."""
 
 import os
 import subprocess
+from functools import partial
 from pathlib import Path
 
+import fakes
 import pytest
 
 from dreamcatcher.config import CONFIG_NAME
@@ -64,3 +66,11 @@ def watched(repo):
     """Return a main checkout carrying a valid dreamcatcher.toml."""
     (repo / CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
     return repo
+
+
+@pytest.fixture
+def fake(tmp_path, monkeypatch):
+    """Return a factory that puts a stand-in for a program first on the PATH."""
+    directory = tmp_path / "fakes"
+    monkeypatch.setenv("PATH", f"{directory}{os.pathsep}{os.environ['PATH']}")
+    return partial(fakes.install, directory)

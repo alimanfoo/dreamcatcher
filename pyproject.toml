@@ -116,6 +116,15 @@ max-complexity = 8
 convention = "pep257"
 
 [tool.ruff.lint.per-file-ignores]
+# Shelling out is what dreamcatcher does: it drives git, gh, and the harness
+# CLIs the user has already signed in. commands.py is the one module that runs
+# them, so it is the one place these are waived, and any other module that
+# imports subprocess fails the check. It never runs a shell, and it finds the
+# program on the PATH itself, so the two rules guarding those stay selected.
+"src/dreamcatcher/commands.py" = [
+    "suspicious-subprocess-import",
+    "subprocess-without-shell-equals-true",
+]
 # The test helpers run git and a throwaway interpreter, each found on PATH by
 # name. A shell invocation is a different rule, and stays selected everywhere.
 "tests/**" = [

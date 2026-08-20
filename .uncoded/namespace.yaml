@@ -12,6 +12,9 @@ src/:
     cli.py:
       build_parser:
       main:
+    commands.py:
+      CommandError:
+      run:
     config.py:
       CONFIG_NAME:
       Harness:
@@ -74,6 +77,25 @@ tests/:
     git:
     repo:
     watched:
+    fake:
+  fakes.py:
+    UNSCRIPTED:
+    Call:
+      arguments:
+      directory:
+    Fake:
+      base:
+      calls:
+      replies:
+      fails:
+      _answer:
+    install:
+    replay:
+    _launcher:
+    _scripted:
+    _taken:
+    _append:
+    _lines:
   test_cli.py:
     started:
     test_version_prints_the_installed_version:
@@ -84,6 +106,12 @@ tests/:
     test_a_run_with_no_harness_asks_for_one:
     test_a_harness_that_does_not_exist_is_refused:
     test_a_failure_the_user_must_read_is_a_message_not_a_traceback:
+  test_commands.py:
+    test_a_command_hands_back_what_it_printed:
+    test_a_command_runs_where_it_is_told:
+    test_a_program_that_is_not_on_the_path_says_so:
+    test_a_failure_carries_the_command_and_what_it_said:
+    test_a_failure_that_said_nothing_still_names_the_command:
   test_config.py:
     WITHOUT_CODEX:
     CLAUDE_SETTINGS:

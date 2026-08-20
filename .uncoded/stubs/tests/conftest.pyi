@@ -3,7 +3,9 @@
 
 import os
 import subprocess
+from functools import partial
 from pathlib import Path
+import fakes
 import pytest
 from dreamcatcher.config import CONFIG_NAME
 
@@ -23,4 +25,7 @@ def repo(tmp_path):
     ...
 
 def watched(repo):
+    ...
+
+def fake(tmp_path, monkeypatch):
     ...
