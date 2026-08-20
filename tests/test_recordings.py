@@ -21,7 +21,10 @@ directory, read a file that was not there, wrote a file, and searched the web.
 `resumed-round.jsonl` is the round after it, resumed with `--last`, which
 deleted the file the first round wrote. Both carry the same thread id, so the
 resume found the session by the directory it ran in. `failed-round.jsonl` is a
-round asked for a model that does not exist.
+round asked for a model that does not exist. `codex/rate-limited.jsonl` was
+recorded the same way Claude's was, against a local endpoint answering every
+request with a 429. Codex spends no retries on it: the round fails on the first
+answer and exits non-zero.
 
 The golden beside each recording is the review surface: read it as the user of
 `scry` would, and judge the feed by it.
@@ -50,7 +53,7 @@ RECORDINGS = (
         "claude",
         ("round", "failed-round", "background-command", "rate-limited"),
     ),
-    (CODEX, "codex", ("round", "resumed-round", "failed-round")),
+    (CODEX, "codex", ("round", "resumed-round", "failed-round", "rate-limited")),
 )
 
 
