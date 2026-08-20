@@ -2,10 +2,11 @@
 
 from collections.abc import Callable
 from contextlib import suppress
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 from time import sleep
 
+from dreamcatcher.clock import now
 from dreamcatcher.config import Harness, read_config
 from dreamcatcher.documents import write_json
 from dreamcatcher.errors import DreamcatcherError
@@ -15,11 +16,6 @@ from dreamcatcher.state import LastTick, StateDirectory
 
 class NotAMainCheckoutError(DreamcatcherError):
     """The user started the daemon outside a repo's main checkout."""
-
-
-def now() -> datetime:
-    """Return the time now, in UTC."""
-    return datetime.now(UTC)
 
 
 class Daemon:

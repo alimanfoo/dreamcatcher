@@ -1,8 +1,9 @@
 import sys
+from pathlib import Path
 
 import pytest
 
-from dreamcatcher.commands import CommandError, run
+from dreamcatcher.commands import CommandError, locate, run
 
 
 def test_a_command_hands_back_what_it_printed(fake):
@@ -22,9 +23,15 @@ def test_a_command_runs_where_it_is_told(fake, tmp_path):
     assert probe.calls[0].directory == tmp_path.resolve()
 
 
+def test_a_program_on_the_path_is_found(fake):
+    fake("probe")
+
+    assert Path(locate("probe")).stem == "probe"
+
+
 def test_a_program_that_is_not_on_the_path_says_so():
     with pytest.raises(CommandError, match="not on the PATH"):
-        run("dreamcatcher-no-such-program")
+        locate("dreamcatcher-no-such-program")
 
 
 def test_a_failure_carries_the_command_and_what_it_said(fake):

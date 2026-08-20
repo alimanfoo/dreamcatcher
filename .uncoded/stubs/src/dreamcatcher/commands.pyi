@@ -6,6 +6,9 @@ from pathlib import Path
 from shutil import which
 from dreamcatcher.errors import DreamcatcherError
 
+def locate(program: str) -> str:
+    ...
+
 def run(program: str, *arguments: str, cwd: Path | None) -> str:
     ...
 

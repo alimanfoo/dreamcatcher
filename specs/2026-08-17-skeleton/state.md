@@ -212,21 +212,25 @@ command line.
 command is wrapped in this script (Codex streams plain text and tees in bare —
 the two harnesses' logs don't share a format). It runs the command itself rather
 than filtering a pipe, so it can exit with the harness's own status via
-`PIPESTATUS`, and pushes each line through one unbuffered jq program. The
-editorial policy: the model's text comes through whole; each tool call becomes
-one bracketed line, `[Bash] git push`, picking the most telling input by a
-fallback chain (command, file path, pattern, url, skill, description, prompt,
+`PIPESTATUS`, and pushes each line through one unbuffered jq program.
+
+The editorial policy: the model's text comes through whole; each tool call
+becomes one bracketed line, `[Bash] git push`, picking the most telling input by
+a fallback chain (command, file path, pattern, url, skill, description, prompt,
 then the raw input), with the worktree prefix stripped and the line clipped at
 200 characters; failed tool results appear as `[failed]`; thinking, successful
-tool results, and housekeeping are dropped as carrying no story. Thinking is
-dropped by choice, not absence — unhandled block types fall through an
-`else empty` — so showing it is one added branch, though the field name needs
-checking against a real stream line. Subagent lines indent two spaces, keyed off
-`parent_tool_use_id`. Any line the renderer can't parse passes through
-unchanged: a broken render costs one line, never the log. The opening
-`[session]` line names the session id, and Claude Code keeps the full transcript
-under `~/.claude/projects`, so nothing is truly lost. The PR that landed it
-(dream#883) reported one session's rounds at 88 KB rendered against 3.7 MB raw.
+tool results, and housekeeping are dropped as carrying no story. Subagent lines
+indent two spaces, keyed off `parent_tool_use_id`.
+
+Unhandled block types fall through an `else empty`, so thinking is dropped by
+choice, not absence. The field is `thinking`, and the stream carries the block
+with the thinking withheld, so there was never anything to show.
+
+Any line the renderer can't parse passes through unchanged: a broken render
+costs one line, never the log. The opening `[session]` line names the session
+id, and Claude Code keeps the full transcript under `~/.claude/projects`, so
+nothing is truly lost. The PR that landed it (dream#883) reported one session's
+rounds at 88 KB rendered against 3.7 MB raw.
 
 What the feed is for, per the requirements interview: activity visibility, not
 narration. Minimal turn output from the agent is desired — GitHub is the main

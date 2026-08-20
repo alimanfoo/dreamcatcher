@@ -9,11 +9,44 @@
 
 src/:
   dreamcatcher/:
+    adapters.py:
+      Launch:
+        session:
+        model:
+        effort:
+        prompt:
+      Adapter:
+        program:
+        first_round:
+        resume:
+        read:
+    claude.py:
+      ALLOWED_TOOLS:
+      TELLING_INPUTS:
+      CLAUDE:
+      Claude:
+        program:
+        first_round:
+        resume:
+        read:
+        _base:
+      _events:
+      _system:
+      _blocks:
+      _spoken:
+      _failure:
+      _closing:
+      _spend:
+      _telling_input:
+      _text:
     cli.py:
       build_parser:
       main:
+    clock.py:
+      now:
     commands.py:
       CommandError:
+      locate:
       run:
     config.py:
       CONFIG_NAME:
@@ -42,7 +75,6 @@ src/:
         __init__:
         run:
         tick:
-      now:
     documents.py:
       Document:
         model_config:
@@ -52,6 +84,26 @@ src/:
       _report:
     errors.py:
       DreamcatcherError:
+    feed.py:
+      WIDTH:
+      INDENT:
+      Event:
+      Note:
+        label:
+        detail:
+        subagent:
+      Prose:
+        text:
+        subagent:
+      Renderer:
+        directory:
+        clock:
+        boundary:
+        render:
+        _noted:
+        _shorten:
+        _inside:
+        _written:
     git.py:
       fetch:
       add_worktree:
@@ -115,6 +167,12 @@ src/:
         last_tick:
         bootstrap:
 tests/:
+  clocks.py:
+    PINNED:
+    Ticking:
+      step:
+      readings:
+      __call__:
   conftest.py:
     ARMING:
     CONFIG_HEAD:
@@ -139,6 +197,7 @@ tests/:
       calls:
       replies:
       fails:
+      streams:
       _answer:
     install:
     replay:
@@ -147,6 +206,36 @@ tests/:
     _taken:
     _append:
     _lines:
+  test_claude.py:
+    LAUNCH:
+    BASE:
+    SPENT:
+    SPEND:
+    streamed:
+    assistant:
+    test_a_first_round_names_the_model_and_the_effort_it_was_dispatched_with:
+    test_a_resume_continues_the_session_and_replays_no_settings:
+    test_the_first_event_names_the_model_and_the_session:
+    test_what_the_agent_says_comes_through_whole:
+    test_a_thinking_block_says_only_that_the_agent_thought:
+    test_a_tool_call_reports_the_input_that_says_most_about_it:
+    test_a_tool_the_chain_does_not_name_reports_its_whole_input:
+    test_a_tool_result_that_failed_surfaces:
+    test_a_failure_that_came_back_as_blocks_reads_as_the_json_it_was:
+    test_a_tool_result_that_worked_carries_no_story:
+    test_a_subagents_own_words_are_left_to_its_report:
+    test_a_subagent_that_thinks_is_marked_as_one:
+    test_a_subagents_tool_call_is_marked_as_one:
+    test_a_finished_subagent_reports_what_it_did:
+    test_a_background_command_finishing_is_not_a_report:
+    test_a_round_being_retried_says_what_it_is_waiting_on:
+    test_a_round_that_ended_well_says_what_it_spent_and_how_it_ended:
+    test_a_round_that_failed_closes_with_what_went_wrong:
+    test_an_event_with_no_story_in_it_writes_nothing:
+    test_a_line_that_is_not_json_comes_through_unchanged:
+    test_a_line_of_json_that_is_not_an_event_comes_through_unchanged:
+    test_an_event_shaped_in_a_way_the_parser_cannot_read_comes_through_unchanged:
+    test_a_tool_input_that_is_not_a_mapping_comes_through_unchanged:
   test_cli.py:
     started:
     test_version_prints_the_installed_version:
@@ -157,9 +246,12 @@ tests/:
     test_a_run_with_no_harness_asks_for_one:
     test_a_harness_that_does_not_exist_is_refused:
     test_a_failure_the_user_must_read_is_a_message_not_a_traceback:
+  test_clock.py:
+    test_the_clock_reads_in_utc:
   test_commands.py:
     test_a_command_hands_back_what_it_printed:
     test_a_command_runs_where_it_is_told:
+    test_a_program_on_the_path_is_found:
     test_a_program_that_is_not_on_the_path_says_so:
     test_a_failure_carries_the_command_and_what_it_said:
     test_a_failure_that_said_nothing_still_names_the_command:
@@ -176,15 +268,10 @@ tests/:
     test_a_config_mistake_names_the_setting_and_the_fault:
     test_a_repo_with_no_config_says_which_file_is_missing:
   test_daemon.py:
-    PINNED:
     Waiting:
       __init__:
       __call__:
-    Ticking:
-      __init__:
-      __call__:
     idling:
-    test_the_daemon_reads_the_clock_in_utc:
     test_the_daemon_ticks_on_the_interval_until_the_user_interrupts:
     test_every_tick_records_when_it_ran:
     test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock:
@@ -207,6 +294,30 @@ tests/:
     test_a_document_that_breaks_its_model_lists_every_fault:
   test_encoding_gate.py:
     test_a_read_with_no_encoding_fails_the_suite:
+  test_fakes.py:
+    STREAM:
+    recording:
+    test_a_stand_in_harness_replays_the_recording_it_was_given:
+    test_a_stand_in_harness_streams_at_the_pace_it_was_given:
+    test_a_stand_in_harness_can_end_as_a_failed_round_does:
+    test_a_stand_in_nobody_scripted_says_so:
+  test_feed.py:
+    ROUND:
+    feed:
+    test_a_note_becomes_one_timestamped_line:
+    test_a_note_with_nothing_to_add_is_its_label_alone:
+    test_a_detail_loses_the_rounds_own_directory:
+    test_a_path_outside_the_round_keeps_its_own_root:
+    test_a_sibling_of_the_round_that_starts_the_same_way_keeps_its_whole_path:
+    test_a_round_on_windows_loses_a_directory_written_the_windows_way:
+    test_a_detail_spread_over_lines_becomes_one:
+    test_a_detail_longer_than_the_feed_is_clipped:
+    test_prose_becomes_a_line_for_each_line_it_holds:
+    test_prose_with_nothing_in_it_writes_nothing:
+    test_a_subagents_lines_are_indented_under_the_timestamp:
+    test_a_round_opens_with_its_number_and_its_cause:
+    test_a_clock_that_is_not_in_utc_still_stamps_utc:
+    test_the_clock_a_renderer_reads_by_default_is_the_time_now_in_utc:
   test_git.py:
     BRANCH:
     session_worktree:
@@ -253,6 +364,11 @@ tests/:
     test_a_lock_naming_a_pid_that_is_gone_is_reclaimed:
     test_a_lock_nobody_can_read_as_a_live_pid_is_reclaimed:
     test_the_lock_is_released_when_the_daemon_fails:
+  test_recordings.py:
+    FIXTURES:
+    RECORDED_IN:
+    rendered:
+    test_a_recorded_stream_renders_as_its_golden_feed:
   test_state.py:
     test_bootstrap_creates_a_directory_that_ignores_itself:
     test_bootstrap_heals_a_deleted_gitignore:

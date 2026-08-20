@@ -7,6 +7,7 @@ import stat
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from time import sleep
 
 UNSCRIPTED = 97
 
@@ -45,5 +46,8 @@ class Fake:
     def fails(self, stderr: str, status: int) -> None:
         ...
 
-    def _answer(self, stdout: str, stderr: str, status: int) -> None:
+    def streams(self, recording: Path, delay: float, status: int) -> None:
+        ...
+
+    def _answer(self, lines: list[str], stderr: str, status: int, delay: float) -> None:
         ...

@@ -155,9 +155,10 @@ Each tick, in order, launching at most one round per tick:
 Failure handling is one rule: after any round fails, the daemon holds all
 launches — retries and dispatches alike — for a fixed cooldown of fifteen
 minutes. No cause detection, no per-session backoff, no escalation schedule: a
-usage limit that persists for hours costs four fast-fails an hour and no tokens;
-a transient blip costs at most fifteen idle minutes. The hold is global because
-the expensive failure (account usage limits) is global, and
+usage limit that persists for hours costs about three failed rounds an hour and
+no tokens, since a harness spends a few minutes on its own retries before it
+gives up; a transient blip costs at most fifteen idle minutes. The hold is
+global because the expensive failure (account usage limits) is global, and
 resume-before-dispatch plus one-launch-per-tick already contains the blast
 radius by construction — a persistent failure is the same session retrying,
 never a pile of fresh worktrees, because the errored retry always outranks a new
@@ -221,8 +222,9 @@ off, losing at most the work since the last event.
 
 One adapter per harness, the only code that knows a harness exists — the
 `round_command` boundary grown into a class, in the shape audacious proved: a
-small frozen object that builds the argv for a first round and a resume,
-validates the binary is on PATH, and parses one stream line into events.
+small frozen object that builds the argv for a first round and a resume, names
+its CLI so a startup check can look it up, and parses one stream line into
+events.
 
 Claude Code: first round
 `claude --print --output-format stream-json --verbose --permission-mode auto --allowedTools <the recurring writes> --name <session-key> --model <model> --effort <effort> <prompt>`;
@@ -233,9 +235,13 @@ after the session key). The allowed writes list is the ported one:
 `git commit`, `git push`. The parser is `render-claude.sh`'s jq program as
 Python: init events carry the harness session id, assistant text passes whole,
 tool calls become one line via the most-telling-input fallback chain, failed
-tool results surface, `result` events close the round, thinking renders in the
-feed (on by default — it is often the best view of what the agent is weighing),
-and successful tool results and housekeeping are dropped.
+tool results surface, a retried request says what it is waiting on, and
+successful tool results and the rest of the housekeeping are dropped. A `result`
+event closes the round with what it spent, in money and in tokens, and then with
+how it ended. Its subtype reads `success` even on a round that failed, so the
+ending reports the event's own error flag instead. A thinking block is marked in
+the feed and nothing more: Claude streams the block with the thinking itself
+withheld, so the feed can say the agent thought and cannot say what it thought.
 
 Codex: first round
 `codex exec --json -C <worktree> --approve-for-me --model <model> -c model_reasoning_effort=... -c sandbox_workspace_write.network_access=true <prompt>`;
@@ -460,15 +466,16 @@ candidate trim once the adapters are verified, not before.
 
 ## What's still open
 
-- Verify both harnesses exit non-zero on a usage-limit failure — the errored
-  retry keys on exit status, so a limit that exits zero would misread as the
-  wedge. (Reading the limit's reset time out of the failure message is a
-  possible later refinement of the cooldown; the fixed hold doesn't need it.)
+- Verify Codex exits non-zero on a usage-limit failure — the errored retry keys
+  on exit status, so a limit that exits zero would misread as the wedge. Claude
+  is answered, and `tests/fixtures/claude/rate-limited.jsonl` records it: a
+  round the API rejects with 429 retries ten times over about three minutes,
+  then exits non-zero. Codex is still the case to confirm. (Reading the limit's
+  reset time out of the stream's own `rate_limit_event` is a possible later
+  refinement of the cooldown; the fixed hold doesn't need it.)
 - Verify Codex `--json` early in the build: that `codex exec resume` accepts it
   at all, and that tool-call items surface with enough shape for the feed's
   action lines (audacious proves `agent_message`; the rest needs a live round).
-- The exact event vocabulary between parser and renderer — settle it in the
-  build's first slice, it's internal.
 - Multi-repo (one place to watch all repos) stays a later phase; nothing here
   forecloses it — another repo is another state directory.
 - The personal config layer, if personal models turn out to matter.

@@ -16,6 +16,7 @@ import stat
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from time import sleep
 
 UNSCRIPTED = 97
 
@@ -33,18 +34,30 @@ class Fake:
     """A stand-in for one program.
 
     The test that installs it says what it answers, and it answers that to every
-    call it takes.
+    call it takes. Every answer is a run of lines, so one stand-in serves a tool
+    that prints once and a harness that streams as it works.
     """
 
     base: Path
 
     def replies(self, stdout: str) -> None:
         """Answer this on stdout, with a status of nought."""
-        self._answer(stdout, "", 0)
+        self._answer([stdout])
 
     def fails(self, stderr: str, status: int = 1) -> None:
         """Fail with this on stderr, and a failing status."""
-        self._answer("", stderr, status)
+        self._answer([], stderr=stderr, status=status)
+
+    def streams(self, recording: Path, delay: float = 0, status: int = 0) -> None:
+        """Answer with the recording's lines, one at a time, as a harness does.
+
+        The delay is what leaves a round running long enough to be interrupted.
+        """
+        self._answer(
+            recording.read_text(encoding="utf-8").splitlines(keepends=True),
+            status=status,
+            delay=delay,
+        )
 
     @property
     def calls(self) -> list[Call]:
@@ -54,9 +67,22 @@ class Fake:
             for taken in _lines(_taken(self.base))
         ]
 
-    def _answer(self, stdout: str, stderr: str, status: int) -> None:
+    def _answer(
+        self,
+        lines: list[str],
+        stderr: str = "",
+        status: int = 0,
+        delay: float = 0,
+    ) -> None:
         _scripted(self.base).write_text(
-            json.dumps({"stdout": stdout, "stderr": stderr, "status": status}),
+            json.dumps(
+                {
+                    "lines": lines,
+                    "stderr": stderr,
+                    "status": status,
+                    "delay": delay,
+                }
+            ),
             encoding="utf-8",
         )
 
@@ -77,8 +103,13 @@ def replay(base: Path, arguments: list[str]) -> int:
         sys.stderr.write(f"{base.name} was not scripted, and it was asked.\n")
         return UNSCRIPTED
     answer = json.loads(scripted.read_text(encoding="utf-8"))
-    sys.stdout.write(answer["stdout"])
-    sys.stderr.write(answer["stderr"])
+    for line in answer["lines"]:
+        # UTF-8 whatever the console's own code page is, since the caller reads
+        # it as UTF-8. Flushed too, so a reader sees each line as it lands.
+        sys.stdout.buffer.write(line.encode("utf-8"))
+        sys.stdout.buffer.flush()
+        sleep(answer["delay"])
+    sys.stderr.buffer.write(answer["stderr"].encode("utf-8"))
     return int(answer["status"])
 
 
