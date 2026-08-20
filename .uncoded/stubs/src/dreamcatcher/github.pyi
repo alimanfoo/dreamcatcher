@@ -24,7 +24,7 @@ def login() -> str | Unknown:
 def issues(repository: str, *, label: str, assignee: str) -> list[Issue] | Unknown:
     ...
 
-def pull_request(repository: str, branch: str) -> PullRequest | Unknown | None:
+def pull_requests(repository: str, branch: str) -> list[PullRequest] | Unknown:
     ...
 
 def blockers(repository: str, issue: int) -> list[Blocker] | Unknown:

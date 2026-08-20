@@ -15,7 +15,7 @@ from dreamcatcher.github import (
     identify,
     issues,
     login,
-    pull_request,
+    pull_requests,
 )
 
 REPOSITORY = "alimanfoo/dreamcatcher"
@@ -66,15 +66,16 @@ def test_a_listing_carries_each_issue_and_when_it_was_filed(fake):
     ]
 
 
-def test_the_pull_request_of_a_branch_is_its_newest_one(fake):
+def test_the_pull_requests_of_a_branch_come_back_with_their_states(fake):
     gh = fake("gh")
     gh.replies(
         json.dumps([{"number": 28, "state": "OPEN"}, {"number": 25, "state": "MERGED"}])
     )
 
-    assert pull_request(REPOSITORY, BRANCH) == PullRequest(
-        number=28, state=PullRequestState.OPEN
-    )
+    assert pull_requests(REPOSITORY, BRANCH) == [
+        PullRequest(number=28, state=PullRequestState.OPEN),
+        PullRequest(number=25, state=PullRequestState.MERGED),
+    ]
     assert gh.calls[0].arguments == [
         "pr",
         "list",
@@ -89,11 +90,11 @@ def test_the_pull_request_of_a_branch_is_its_newest_one(fake):
     ]
 
 
-def test_a_branch_with_no_pull_request_has_none(fake):
+def test_a_branch_with_no_pull_request_comes_back_empty(fake):
     gh = fake("gh")
     gh.replies("[]")
 
-    assert pull_request(REPOSITORY, BRANCH) is None
+    assert pull_requests(REPOSITORY, BRANCH) == []
 
 
 def test_the_blockers_of_an_issue_come_back_with_their_states(fake):
@@ -121,7 +122,7 @@ def test_the_blockers_of_an_issue_come_back_with_their_states(fake):
             lambda: issues(REPOSITORY, label="dream:smith", assignee="@me"),
             id="a listing",
         ),
-        pytest.param(lambda: pull_request(REPOSITORY, BRANCH), id="a pull request"),
+        pytest.param(lambda: pull_requests(REPOSITORY, BRANCH), id="the pull requests"),
         pytest.param(lambda: blockers(REPOSITORY, 9), id="the blockers"),
     ],
 )

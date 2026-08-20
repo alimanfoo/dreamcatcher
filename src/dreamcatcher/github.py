@@ -134,15 +134,13 @@ def issues(repository: str, *, label: str, assignee: str) -> list[Issue] | Unkno
     )
 
 
-def pull_request(repository: str, branch: str) -> PullRequest | Unknown | None:
-    """Return the pull request branch is the head of, in whatever state it is in.
+def pull_requests(repository: str, branch: str) -> list[PullRequest] | Unknown:
+    """Return the pull requests branch is the head of, whatever state each is in.
 
-    None means the branch has no pull request at all.
-
-    A branch belongs to one attempt, so the newest pull request from it is that
-    attempt's own.
+    A branch usually has one, and an empty list means it has none. Which of
+    several counts is the caller's rule, not this read's.
     """
-    answered = _read(
+    return _read(
         PULL_REQUESTS,
         "pr",
         "list",
@@ -155,11 +153,6 @@ def pull_request(repository: str, branch: str) -> PullRequest | Unknown | None:
         "--json",
         "number,state",
     )
-    if isinstance(answered, Unknown):
-        return answered
-    if not answered:
-        return None
-    return max(answered, key=lambda found: found.number)
 
 
 def blockers(repository: str, issue: int) -> list[Blocker] | Unknown:

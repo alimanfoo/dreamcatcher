@@ -11,7 +11,7 @@ from dreamcatcher.github import (
     identify,
     issues,
     login,
-    pull_request,
+    pull_requests,
 )
 
 pytestmark = pytest.mark.integration
@@ -35,20 +35,19 @@ def test_gh_is_signed_in_as_somebody():
     assert login()
 
 
-def test_the_dispatch_label_lists_the_issues_it_carries():
+def test_gh_takes_the_whole_issue_listing_command():
     assert isinstance(issues(REPOSITORY, label="dream:smith", assignee="@me"), list)
 
 
 def test_a_merged_pull_request_comes_back_merged():
-    found = pull_request(REPOSITORY, MERGED_BRANCH)
+    found = pull_requests(REPOSITORY, MERGED_BRANCH)
 
-    assert isinstance(found, PullRequest)
-    assert found.number == MERGED
-    assert found.state is PullRequestState.MERGED
+    assert isinstance(found, list)
+    assert PullRequest(number=MERGED, state=PullRequestState.MERGED) in found
 
 
-def test_a_branch_that_never_existed_has_no_pull_request():
-    assert pull_request(REPOSITORY, "dreamcatcher-GH0-19700101-000000") is None
+def test_a_branch_that_never_existed_comes_back_empty():
+    assert pull_requests(REPOSITORY, "dreamcatcher-GH0-19700101-000000") == []
 
 
 def test_a_blocked_issue_names_what_blocks_it():

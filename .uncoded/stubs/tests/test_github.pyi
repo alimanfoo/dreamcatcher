@@ -5,7 +5,7 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 import pytest
-from dreamcatcher.github import Blocker, BlockerState, Issue, PullRequest, PullRequestState, Unknown, blockers, identify, issues, login, pull_request
+from dreamcatcher.github import Blocker, BlockerState, Issue, PullRequest, PullRequestState, Unknown, blockers, identify, issues, login, pull_requests
 
 REPOSITORY = 'alimanfoo/dreamcatcher'
 BRANCH = 'dreamcatcher-GH8-20260820-000456'
@@ -19,10 +19,10 @@ def test_the_signed_in_account_is_the_one_gh_names(fake):
 def test_a_listing_carries_each_issue_and_when_it_was_filed(fake):
     ...
 
-def test_the_pull_request_of_a_branch_is_its_newest_one(fake):
+def test_the_pull_requests_of_a_branch_come_back_with_their_states(fake):
     ...
 
-def test_a_branch_with_no_pull_request_has_none(fake):
+def test_a_branch_with_no_pull_request_comes_back_empty(fake):
     ...
 
 def test_the_blockers_of_an_issue_come_back_with_their_states(fake):
