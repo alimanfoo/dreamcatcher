@@ -1,10 +1,7 @@
 import json
 
-import pytest
-
 from dreamcatcher.adapters import Launch
 from dreamcatcher.claude import CLAUDE, WRITES
-from dreamcatcher.commands import CommandError
 from dreamcatcher.feed import Note, Prose
 
 LAUNCH = Launch(
@@ -62,19 +59,6 @@ def test_the_writes_a_round_may_make_are_the_ones_it_needs_unattended():
         "Bash(gh pr ready:*) Bash(gh pr close:*) Bash(gh issue create:*) "
         "Bash(gh issue comment:*) Bash(git commit:*) Bash(git push:*)"
     )
-
-
-def test_the_harness_on_the_path_is_installed(fake):
-    fake("claude")
-
-    CLAUDE.installed()
-
-
-def test_a_harness_that_is_not_on_the_path_says_so(monkeypatch, tmp_path):
-    monkeypatch.setenv("PATH", str(tmp_path))
-
-    with pytest.raises(CommandError, match="claude is not on the PATH"):
-        CLAUDE.installed()
 
 
 def test_the_first_event_names_the_model_and_the_session():
@@ -171,7 +155,7 @@ def test_a_background_command_finishing_is_not_a_report():
         type="system",
         subtype="task_notification",
         status="completed",
-        summary="Two files.",
+        summary='Background command "sleep 3; echo finished" completed (exit code 0)',
     )
 
     assert CLAUDE.read(line) == []
@@ -209,5 +193,11 @@ def test_a_line_of_json_that_is_not_an_event_comes_through_unchanged():
 
 def test_an_event_shaped_in_a_way_the_parser_cannot_read_comes_through_unchanged():
     line = streamed(type="assistant", message={"content": [{"type": "text"}]})
+
+    assert CLAUDE.read(line) == [Prose(line)]
+
+
+def test_a_tool_input_that_is_not_a_mapping_comes_through_unchanged():
+    line = assistant({"type": "tool_use", "name": "Odd", "input": ["not", "a", "map"]})
 
     assert CLAUDE.read(line) == [Prose(line)]

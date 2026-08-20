@@ -9,7 +9,6 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import ClassVar
 
-from dreamcatcher.commands import locate
 from dreamcatcher.feed import Event
 
 
@@ -28,13 +27,13 @@ class Launch:
 
 
 class Adapter(ABC):
-    """One harness, as everything outside its own module sees it."""
+    """One harness, as everything outside its own module sees it.
+
+    The program is the name of the harness's CLI. Asking the adapter for it is
+    how anything else reaches the CLI without knowing which harness it is.
+    """
 
     program: ClassVar[str]
-
-    def installed(self) -> None:
-        """Raise CommandError when the harness's CLI is not on the PATH."""
-        locate(self.program)
 
     @abstractmethod
     def first_round(self, launch: Launch) -> list[str]:

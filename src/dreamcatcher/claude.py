@@ -61,7 +61,7 @@ class Claude(Adapter):
         try:
             streamed = json.loads(line)
             return _events(streamed) if isinstance(streamed, dict) else [Prose(line)]
-        except (json.JSONDecodeError, KeyError, TypeError):
+        except Exception:
             return [Prose(line)]
 
     def _base(self, launch: Launch) -> list[str]:
@@ -89,7 +89,7 @@ def _events(streamed: dict) -> list[Event]:
     subagent = streamed.get("parent_tool_use_id") is not None
     kind = streamed["type"]
     if kind == "system":
-        return _housekeeping(streamed)
+        return _system(streamed)
     if kind == "assistant":
         return _blocks(streamed, _spoken, subagent)
     if kind == "user":
@@ -99,8 +99,8 @@ def _events(streamed: dict) -> list[Event]:
     return []
 
 
-def _housekeeping(streamed: dict) -> list[Event]:
-    """Return what a housekeeping event carries, which is usually nothing."""
+def _system(streamed: dict) -> list[Event]:
+    """Return what a system event carries: the session, a report, or nothing."""
     subtype = streamed["subtype"]
     if subtype == "init":
         return [

@@ -14,7 +14,7 @@ CLAUDE = Claude()
 def _events(streamed: dict) -> list[Event]:
     ...
 
-def _housekeeping(streamed: dict) -> list[Event]:
+def _system(streamed: dict) -> list[Event]:
     ...
 
 def _blocks(streamed: dict, read: Callable[[dict, bool], list[Event]], subagent: bool) -> list[Event]:

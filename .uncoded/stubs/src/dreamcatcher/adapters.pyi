@@ -4,7 +4,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import ClassVar
-from dreamcatcher.commands import locate
 from dreamcatcher.feed import Event
 
 class Launch:
@@ -15,9 +14,6 @@ class Launch:
 
 class Adapter(ABC):
     program: ClassVar[str]
-
-    def installed(self) -> None:
-        ...
 
     def first_round(self, launch: Launch) -> list[str]:
         ...

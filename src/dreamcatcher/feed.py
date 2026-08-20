@@ -25,11 +25,7 @@ INDENT = "  "
 class Note:
     """One line saying what happened: a tool call, a failure, a mark.
 
-    The label is the harness's own word for it, so `[Edit]` and `[Bash]` name
-    the tool that ran.
-
     A note with no detail says that something happened and nothing more.
-    Claude's stream carries no more than that about thinking.
     """
 
     label: str

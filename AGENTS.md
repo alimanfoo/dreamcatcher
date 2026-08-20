@@ -85,8 +85,8 @@ uv run pre-commit run --all-files
   writes them from the source and the docs, and overwrites them on every commit.
 - Never repair a file under `tests/fixtures/`. Each one is a verbatim recording
   of what a harness streamed, so tidying it makes a golden test assert something
-  the harness never sent. `.pre-commit-config.yaml` keeps the hooks that rewrite
-  or reject bytes off that path, and `.gitattributes` keeps its line endings.
+  the harness never sent. `.pre-commit-config.yaml` excludes that path from
+  every hook, and `.gitattributes` keeps its line endings.
 - Give every document the tool reads or writes a pydantic model, and read and
   write it through `documents.py`. That covers `dreamcatcher.toml` and the
   records under `.dreamcatcher/`, but not a one-value file like `daemon.pid`. A
