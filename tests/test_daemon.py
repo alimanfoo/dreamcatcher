@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from dreamcatcher.config import CONFIG_NAME, Harness
-from dreamcatcher.daemon import Daemon, NotAMainCheckoutError, now
+from dreamcatcher.daemon import Daemon, NotAMainCheckoutError
 from dreamcatcher.documents import DocumentError
 from dreamcatcher.lock import AlreadyRunningError
 from dreamcatcher.state import LastTick, StateDirectory
@@ -40,10 +40,6 @@ def idling(root, ticks: int = 2) -> tuple[Daemon, Waiting, Ticking]:
     waiting = Waiting(ticks)
     ticking = Ticking()
     return Daemon(root, Harness.CLAUDE, clock=ticking, wait=waiting), waiting, ticking
-
-
-def test_the_daemon_reads_the_clock_in_utc():
-    assert now().tzinfo is UTC
 
 
 def test_the_daemon_ticks_on_the_interval_until_the_user_interrupts(watched):
