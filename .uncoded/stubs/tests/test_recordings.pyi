@@ -4,14 +4,16 @@
 from pathlib import Path, PurePosixPath
 import pytest
 from clocks import Ticking
+from dreamcatcher.adapters import Adapter
 from dreamcatcher.claude import CLAUDE
 from dreamcatcher.feed import Renderer
 
-FIXTURES = Path(__file__).parent / 'fixtures' / 'claude'
+FIXTURES = Path(__file__).parent / 'fixtures'
 RECORDED_IN = PurePosixPath('/private/tmp/dreamcatcher-recording')
+RECORDINGS = ((CLAUDE, 'claude', ('round', 'failed-round', 'background-command')),)
 
-def rendered(recording: Path) -> str:
+def rendered(adapter: Adapter, recording: Path) -> str:
     ...
 
-def test_a_recorded_stream_renders_as_its_golden_feed(recording):
+def test_a_recorded_stream_renders_as_its_golden_feed(adapter, recording):
     ...

@@ -367,6 +367,7 @@ tests/:
   test_recordings.py:
     FIXTURES:
     RECORDED_IN:
+    RECORDINGS:
     rendered:
     test_a_recorded_stream_renders_as_its_golden_feed:
   test_state.py:
