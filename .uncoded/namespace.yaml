@@ -348,6 +348,11 @@ tests/:
     test_a_lock_naming_a_pid_that_is_gone_is_reclaimed:
     test_a_lock_nobody_can_read_as_a_live_pid_is_reclaimed:
     test_the_lock_is_released_when_the_daemon_fails:
+  test_recordings.py:
+    FIXTURES:
+    RECORDED_IN:
+    rendered:
+    test_a_recorded_stream_renders_as_its_golden_feed:
   test_state.py:
     test_bootstrap_creates_a_directory_that_ignores_itself:
     test_bootstrap_heals_a_deleted_gitignore:
