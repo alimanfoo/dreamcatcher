@@ -54,6 +54,25 @@ src/:
       _report:
     errors.py:
       DreamcatcherError:
+    feed.py:
+      WIDTH:
+      INDENT:
+      Event:
+      Note:
+        label:
+        detail:
+        subagent:
+      Prose:
+        text:
+        subagent:
+      Renderer:
+        directory:
+        clock:
+        boundary:
+        render:
+        _noted:
+        _shorten:
+        _written:
     git.py:
       fetch:
       add_worktree:
@@ -211,6 +230,24 @@ tests/:
     test_a_document_that_breaks_its_model_lists_every_fault:
   test_encoding_gate.py:
     test_a_read_with_no_encoding_fails_the_suite:
+  test_feed.py:
+    PINNED:
+    ROUND:
+    Ticking:
+      __init__:
+      __call__:
+    feed:
+    test_a_note_becomes_one_timestamped_line:
+    test_a_note_with_nothing_to_add_is_its_label_alone:
+    test_a_detail_loses_the_rounds_own_directory:
+    test_a_path_outside_the_round_keeps_its_own_root:
+    test_a_detail_spread_over_lines_becomes_one:
+    test_a_detail_longer_than_the_feed_is_clipped:
+    test_prose_becomes_a_line_for_each_line_it_holds:
+    test_prose_with_nothing_in_it_writes_nothing:
+    test_a_subagents_lines_are_indented_under_the_timestamp:
+    test_a_round_opens_with_its_number_and_its_cause:
+    test_a_clock_that_is_not_in_utc_still_stamps_utc:
   test_git.py:
     BRANCH:
     session_worktree:
