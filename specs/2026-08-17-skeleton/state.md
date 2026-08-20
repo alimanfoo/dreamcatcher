@@ -220,13 +220,14 @@ then the raw input), with the worktree prefix stripped and the line clipped at
 200 characters; failed tool results appear as `[failed]`; thinking, successful
 tool results, and housekeeping are dropped as carrying no story. Thinking is
 dropped by choice, not absence — unhandled block types fall through an
-`else empty` — so showing it is one added branch, though the field name needs
-checking against a real stream line. Subagent lines indent two spaces, keyed off
-`parent_tool_use_id`. Any line the renderer can't parse passes through
-unchanged: a broken render costs one line, never the log. The opening
-`[session]` line names the session id, and Claude Code keeps the full transcript
-under `~/.claude/projects`, so nothing is truly lost. The PR that landed it
-(dream#883) reported one session's rounds at 88 KB rendered against 3.7 MB raw.
+`else empty`. The field is `thinking`, and the stream carries the block with the
+thinking withheld, so there was never anything to show. Subagent lines indent
+two spaces, keyed off `parent_tool_use_id`. Any line the renderer can't parse
+passes through unchanged: a broken render costs one line, never the log. The
+opening `[session]` line names the session id, and Claude Code keeps the full
+transcript under `~/.claude/projects`, so nothing is truly lost. The PR that
+landed it (dream#883) reported one session's rounds at 88 KB rendered against
+3.7 MB raw.
 
 What the feed is for, per the requirements interview: activity visibility, not
 narration. Minimal turn output from the agent is desired — GitHub is the main

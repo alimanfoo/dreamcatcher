@@ -190,10 +190,11 @@ In scope:
 - The event vocabulary between parser and renderer, settled here — this is the
   "first slice" the design's open list points at.
 - The Claude parser: render-claude.sh's policy as Python — session id from the
-  init event, assistant text whole, thinking rendered and on by default, tool
-  calls as one line via the most-telling-input fallback chain, failed tool
-  results surfaced, result events closing the round, subagent lines indented,
-  and any unparseable line passed through unchanged.
+  init event, assistant text whole, a thinking block marked because Claude
+  withholds the thinking itself, tool calls as one line via the
+  most-telling-input fallback chain, failed tool results surfaced, result events
+  closing the round, subagent lines indented, and any unparseable line passed
+  through unchanged.
 - The renderer: timestamped feed lines, round-boundary lines carrying the
   round's cause.
 - The fake harness binary for the test rig: replays a recorded stream file with

@@ -233,9 +233,11 @@ after the session key). The allowed writes list is the ported one:
 `git commit`, `git push`. The parser is `render-claude.sh`'s jq program as
 Python: init events carry the harness session id, assistant text passes whole,
 tool calls become one line via the most-telling-input fallback chain, failed
-tool results surface, `result` events close the round, thinking renders in the
-feed (on by default — it is often the best view of what the agent is weighing),
-and successful tool results and housekeeping are dropped.
+tool results surface, and successful tool results and housekeeping are dropped.
+A `result` event closes the round, reporting the event's own error flag, because
+its subtype reads `success` on a round that failed. A thinking block is marked
+in the feed and nothing more: Claude streams the block with the thinking itself
+withheld, so the feed can say the agent thought and cannot say what it thought.
 
 Codex: first round
 `codex exec --json -C <worktree> --approve-for-me --model <model> -c model_reasoning_effort=... -c sandbox_workspace_write.network_access=true <prompt>`;
@@ -462,13 +464,13 @@ candidate trim once the adapters are verified, not before.
 
 - Verify both harnesses exit non-zero on a usage-limit failure — the errored
   retry keys on exit status, so a limit that exits zero would misread as the
-  wedge. (Reading the limit's reset time out of the failure message is a
-  possible later refinement of the cooldown; the fixed hold doesn't need it.)
+  wedge. A Claude round whose API call fails exits non-zero, and its stream
+  carries a `rate_limit_event` with a status of its own, so the limit itself is
+  what is left to confirm. (Reading the limit's reset time out of that event is
+  a possible later refinement of the cooldown; the fixed hold doesn't need it.)
 - Verify Codex `--json` early in the build: that `codex exec resume` accepts it
   at all, and that tool-call items surface with enough shape for the feed's
   action lines (audacious proves `agent_message`; the rest needs a live round).
-- The exact event vocabulary between parser and renderer — settle it in the
-  build's first slice, it's internal.
 - Multi-repo (one place to watch all repos) stays a later phase; nothing here
   forecloses it — another repo is another state directory.
 - The personal config layer, if personal models turn out to matter.
