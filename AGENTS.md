@@ -59,6 +59,14 @@ suite can satisfy.
 uv run pytest tests/test_cli.py --no-cov
 ```
 
+Run the integration tests. They ask the real `gh` about this repository, so you
+need `gh` signed in. The default run leaves them out, which is how CI skips
+them.
+
+```sh
+uv run pytest -m integration --no-cov
+```
+
 Run every check CI runs:
 
 ```sh

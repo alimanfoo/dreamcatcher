@@ -51,7 +51,10 @@ doc-roots = ["README.md", "AGENTS.md", "specs"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov"
+# The integration tests call the real gh, which no CI runner is signed in to, so
+# the default run leaves them out. Ask for them by name to run them.
+addopts = "--cov -m 'not integration'"
+markers = ["integration: calls the real gh against this repository, read-only"]
 filterwarnings = ["error::EncodingWarning"]
 
 [tool.coverage.run]
