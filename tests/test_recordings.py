@@ -47,17 +47,11 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 RECORDED_IN = PurePosixPath("/private/tmp/dreamcatcher-recording")
 
-# What each adapter recorded: the directory under FIXTURES holding its streams,
-# and the name of every recording in it. The golden feed sits beside the
-# recording, under the same name.
-RECORDINGS = (
-    (
-        CLAUDE,
-        "claude",
-        ("round", "failed-round", "background-command", "rate-limited"),
-    ),
-    (CODEX, "codex", ("round", "resumed-round", "failed-round", "rate-limited")),
-)
+# The directory under FIXTURES holding each adapter's recordings. Every stream in
+# it is that adapter's, and the golden feed sits beside it under the same name.
+# So the directory says which recordings there are, and this needs no list of its
+# own that a new recording could be left out of.
+RECORDINGS = ((CLAUDE, "claude"), (CODEX, "codex"))
 
 
 def rendered(adapter: Adapter, recording: Path) -> str:
@@ -73,12 +67,12 @@ def rendered(adapter: Adapter, recording: Path) -> str:
 @pytest.mark.parametrize(
     ("adapter", "recording"),
     [
-        pytest.param(adapter, FIXTURES / directory / name, id=f"{directory}/{name}")
-        for adapter, directory, names in RECORDINGS
-        for name in names
+        pytest.param(adapter, recording, id=f"{directory}/{recording.stem}")
+        for adapter, directory in RECORDINGS
+        for recording in sorted((FIXTURES / directory).glob("*.jsonl"))
     ],
 )
 def test_a_recorded_stream_renders_as_its_golden_feed(adapter, recording):
-    feed = rendered(adapter, recording.with_suffix(".jsonl"))
+    feed = rendered(adapter, recording)
 
     assert feed == recording.with_suffix(".feed.txt").read_text(encoding="utf-8")

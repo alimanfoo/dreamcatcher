@@ -1,5 +1,6 @@
 """What the whole suite shares: the encoding gate, a repo, a config, stand-ins."""
 
+import json
 import os
 from functools import partial
 from pathlib import Path
@@ -40,6 +41,11 @@ def pytest_configure(config: pytest.Config) -> None:
             f"Set {ARMING}=1 when you run pytest. Without it the interpreter "
             "never emits EncodingWarning, so the UTF-8 gate is inert."
         )
+
+
+def streamed(**fields: object) -> str:
+    """Return the line a harness streams one event as."""
+    return json.dumps(fields)
 
 
 def git(*arguments: str, cwd: Path) -> str:

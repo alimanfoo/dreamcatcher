@@ -2,7 +2,12 @@
 
 Everything else in the tool names a harness only to pick its adapter. The
 adapter knows what the CLI is called, which flags keep it from stalling, and
-what its stream means. Nothing else does.
+what each event of its stream means. Nothing else does.
+
+One thing about a stream is the boundary's own: it carries a JSON event per
+line. Both harnesses stream that way when asked to, and a harness that cannot
+is one dreamcatcher has no feed for. So the rule for a line that will not read
+lives here, and the adapter is left the events.
 """
 
 import json

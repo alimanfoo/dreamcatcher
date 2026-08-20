@@ -1,4 +1,4 @@
-import json
+from conftest import streamed
 
 from dreamcatcher.adapters import Launch
 from dreamcatcher.claude import ALLOWED_TOOLS, CLAUDE
@@ -24,10 +24,6 @@ BASE = [
     "--name",
     "GH9-20260819-184158",
 ]
-
-
-def streamed(**fields) -> str:
-    return json.dumps(fields)
 
 
 def assistant(*blocks, parent: str | None = None) -> str:

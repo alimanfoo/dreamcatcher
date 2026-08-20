@@ -1,4 +1,4 @@
-import json
+from conftest import streamed
 
 from dreamcatcher.adapters import Launch
 from dreamcatcher.codex import CODEX
@@ -17,10 +17,6 @@ SETTINGS = [
     "-c",
     'model_reasoning_effort="xhigh"',
 ]
-
-
-def streamed(**fields) -> str:
-    return json.dumps(fields)
 
 
 def completed(**item) -> str:

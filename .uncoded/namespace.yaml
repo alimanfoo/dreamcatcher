@@ -194,6 +194,7 @@ tests/:
     SMITH_CODEX:
     CONFIG:
     pytest_configure:
+    streamed:
     git:
     commit:
     repo:
@@ -225,7 +226,6 @@ tests/:
     BASE:
     SPENT:
     SPEND:
-    streamed:
     assistant:
     test_a_first_round_names_the_model_and_the_effort_it_was_dispatched_with:
     test_a_resume_continues_the_session_and_replays_no_settings:
@@ -265,7 +265,6 @@ tests/:
   test_codex.py:
     LAUNCH:
     SETTINGS:
-    streamed:
     completed:
     test_a_first_round_runs_where_it_is_launched_under_codexs_own_reviewer:
     test_a_resume_replays_the_settings_and_the_permissions_codex_forgets:

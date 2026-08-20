@@ -224,8 +224,8 @@ worktrees; prompts composed for real sessions.
 
 ## Phase 5: the Codex adapter
 
-The second harness, proving the adapter boundary holds: nothing outside the
-adapter changes.
+The second harness, proving the adapter boundary holds: what changes outside the
+adapter is only what the second harness shows the boundary should own.
 
 In scope:
 
@@ -264,8 +264,13 @@ In scope:
 
 Done when: golden-file tests for the Codex parser are green on all three
 platforms, the fixtures are committed, the verification results (or their
-checklist items) are recorded on the PR — and no file outside the adapter and
-its tests changed.
+checklist items) are recorded on the PR — and every file changed outside the
+adapter and its tests is named on the PR with what the second harness showed.
+
+One such file. Both adapters read a line the same way: parse it as JSON, hand a
+mapping to the harness's own reader, and pass anything else to the feed as it
+came. The second harness is what showed that rule belongs to the boundary, so
+`Adapter.read` now holds it and each adapter reads the events alone.
 
 Deliberately out: everything phase 4 left out, and the item types
 `codex exec --json` never streamed for a session to record: an MCP tool call and
@@ -290,6 +295,16 @@ In scope:
 - Give the child no stdin. Codex reads stdin for more of its prompt and waits
   for the end of it, so a pipe the daemon holds open stalls the round for ever,
   even when the prompt is already an argument.
+- Answer the Windows `.cmd` question `commands.py` leaves to the phase that runs
+  a harness. npm installs both harness CLIs as a `.cmd`, which Windows runs
+  through cmd.exe, and cmd.exe reads the arguments a second time under its own
+  rules. A prompt template is a repo's to write, so it can hold a character
+  cmd.exe acts on. Test a prompt holding one on Windows, and carry the answer
+  here.
+- Keep the pump alive through a line that will not render. An adapter promises
+  only that reading a line raises nothing; rendering it is a second step, and a
+  feed event holding something other than text fails there. One line must cost
+  one line, so the pump is where that holds for parsing and rendering together.
 - `round.json` at the boundaries: started and pid at spawn, ended and exit
   status at exit, written and read through a pydantic model per the phase 2
   convention, so a corrupt record fails with a named error. A record with no end

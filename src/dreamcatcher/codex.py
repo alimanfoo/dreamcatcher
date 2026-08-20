@@ -103,8 +103,9 @@ def _overrides(*settings: str) -> list[str]:
 def _item(item: dict) -> list[Event]:
     """Return what one completed item carries, in Codex's own words.
 
-    Every action line's label is Codex's word for what the agent did, and its
-    detail is the one thing the agent did it to.
+    An item the agent acted on becomes an action line: Codex's word for what the
+    agent did, and the one thing it did it to. An error item is Codex speaking
+    for itself rather than the agent acting, so it reads as what it is.
 
     An item this does not name carries no story. A todo list is the one such item
     a round really streams. It arrives complete as the round ends, so it says
