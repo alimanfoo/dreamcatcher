@@ -135,10 +135,14 @@ rig that makes every later phase testable in CI.
 
 In scope:
 
-- Wrappers: `gh` issue listing by label and assignee, PR lookup by branch head,
-  the blocked-by query, `gh api user` (the authenticated login), repo identity,
-  and git worktree add and remove, fetch. Every call forces UTF-8. Every failure
-  surfaces the command and its stderr, never a guess.
+- Wrappers: `gh` issue listing by label and assignee, the pull requests of a
+  branch head, the blocked-by query (the one page GitHub answers with, as the
+  port reads it), `gh api user` (the authenticated login), repo identity, and
+  git fetch, worktree add, worktree remove, branch delete. Each read hands back
+  what gh answered, so a branch with two pull requests comes back with both.
+  Each git command is one command, so no wrapper hides half of a failure. Every
+  call forces UTF-8. Every failure surfaces the command and its stderr, never a
+  guess.
 - The error contract carries the fail-toward-inaction doctrine (see design.md,
   The tick): a read failure returns "unknown", and the caller decides what
   unknown means for its check. The wrappers never invent an answer.
@@ -153,12 +157,20 @@ In scope:
 - The fake-executables rig: stand-in `gh` and `git` the tests put first on PATH,
   scriptable per test to return canned responses or fail on cue. Solve the
   Windows shim question here, once — executables on Windows need an extension (a
-  `.cmd` shim or similar), and every later phase inherits the answer.
+  `.cmd` shim or similar), and every later phase inherits the answer. The answer
+  is that the runner looks the program up on the PATH itself, which takes every
+  extension PATHEXT names, so a `.cmd` stand-in is reachable where Windows would
+  only have added `.exe`. It carries a second half for the phase that passes
+  prompt text: Windows runs a `.cmd` through cmd.exe, which reads the arguments
+  again.
 - A small integration test suite, marked and skipped in CI, that exercises the
   real `gh` read-only against this repository for local confidence.
 
-Done when: the wrappers round-trip against the fake rig in CI on all three
-platforms, and the marked integration tests pass locally against the real `gh`.
+Done when: the `gh` wrappers round-trip against the fake rig in CI on all three
+platforms, the git wrappers do the same against real git in a real checkout with
+a real origin, and the marked integration tests pass locally against the real
+`gh`. Real git is on every CI runner, so it proves the git commands work rather
+than proving the arguments were passed.
 
 Deliberately out: any interpretation of what the wrappers return — eligibility
 rules and dispatch decisions live in phase 8.
@@ -273,7 +285,10 @@ In scope:
   `.dreamcatcher/worktrees/` with the path invariant checked at dispatch, and
   `session.json` frozen at dispatch (design.md, Sessions, worktrees, branches).
   A failed creation backs out worktree and branch together, leaving nothing
-  behind.
+  behind. Phase 3's git wrappers each raise, so the back-out composes them, and
+  it decides what to record when git refuses — a worktree it has locked does not
+  go, and pretending it went is how a session gets stuck with nothing pointing
+  at why.
 - The harness a dispatch runs on: the mapping's only block when it carries one,
   else the harness the run was started with (design.md, Configuration). Phase 2
   parses the blocks and leaves the choice to the phase that dispatches.
