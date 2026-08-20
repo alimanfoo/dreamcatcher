@@ -1,13 +1,13 @@
 """What the whole suite shares: the encoding gate, a repo, a config, stand-ins."""
 
 import os
-import subprocess
 from functools import partial
 from pathlib import Path
 
 import fakes
 import pytest
 
+from dreamcatcher.commands import run
 from dreamcatcher.config import CONFIG_NAME
 
 ARMING = "PYTHONWARNDEFAULTENCODING"
@@ -43,15 +43,8 @@ def pytest_configure(config: pytest.Config) -> None:
 
 
 def git(*arguments: str, cwd: Path) -> str:
-    """Run git in cwd and return its output, forcing UTF-8 both ways."""
-    finished = subprocess.run(
-        ["git", *arguments],
-        cwd=cwd,
-        capture_output=True,
-        check=True,
-        encoding="utf-8",
-    )
-    return finished.stdout
+    """Run git in cwd and return its output, through the tool's own runner."""
+    return run("git", *arguments, cwd=cwd)
 
 
 def commit(path: Path, message: str) -> None:

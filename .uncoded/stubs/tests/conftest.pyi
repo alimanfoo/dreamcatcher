@@ -2,11 +2,11 @@
 # tests/conftest.py
 
 import os
-import subprocess
 from functools import partial
 from pathlib import Path
 import fakes
 import pytest
+from dreamcatcher.commands import run
 from dreamcatcher.config import CONFIG_NAME
 
 ARMING = 'PYTHONWARNDEFAULTENCODING'

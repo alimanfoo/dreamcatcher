@@ -128,15 +128,15 @@ convention = "pep257"
     "suspicious-subprocess-import",
     "subprocess-without-shell-equals-true",
 ]
-# The test helpers run git and a throwaway interpreter, each found on PATH by
-# name. A shell invocation is a different rule, and stays selected everywhere.
+# One test spawns a throwaway interpreter, to leave behind a pid no process
+# holds. It names the interpreter by its full path, and runs no shell, so the
+# rules guarding those two stay selected here as well.
 "tests/**" = [
     "D",
     "ANN",
     "assert",
     "suspicious-subprocess-import",
     "subprocess-without-shell-equals-true",
-    "start-process-with-partial-path",
 ]
 
 [tool.complexipy]
