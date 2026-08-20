@@ -10,4 +10,5 @@
 2026-08-19T18:42:07Z  [retry] rate_limit (429), attempt 9 of 10
 2026-08-19T18:42:08Z  [retry] rate_limit (429), attempt 10 of 10
 2026-08-19T18:42:09Z  API Error: Request rejected (429) · Number of requests has exceeded your rate limit. Please try again later.
-2026-08-19T18:42:10Z  [failed] API Error: Request rejected (429) · Number of requests has exceeded your rate limit. Please try again later.
+2026-08-19T18:42:10Z  [usage] $0.0000, 0 output, 0 input, 0 cache read, 0 cache write
+2026-08-19T18:42:11Z  [failed] API Error: Request rejected (429) · Number of requests has exceeded your rate limit. Please try again later.

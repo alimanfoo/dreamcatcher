@@ -1,3 +1,4 @@
 2026-08-19T18:41:58Z  [session] model no-such-model, id cedaa708-1931-411f-ae56-7ed6bc23cc1e
 2026-08-19T18:41:59Z  There's an issue with the selected model (no-such-model). It may not exist or you may not have access to it. Run --model to pick a different model.
-2026-08-19T18:42:00Z  [failed] There's an issue with the selected model (no-such-model). It may not exist or you may not have access to it. Run --model to pick a different model.
+2026-08-19T18:42:00Z  [usage] $0.0000, 0 output, 0 input, 0 cache read, 0 cache write
+2026-08-19T18:42:01Z  [failed] There's an issue with the selected model (no-such-model). It may not exist or you may not have access to it. Run --model to pick a different model.

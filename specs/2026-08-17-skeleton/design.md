@@ -237,9 +237,10 @@ Python: init events carry the harness session id, assistant text passes whole,
 tool calls become one line via the most-telling-input fallback chain, failed
 tool results surface, a retried request says what it is waiting on, and
 successful tool results and the rest of the housekeeping are dropped. A `result`
-event's subtype reads `success` even on a round that failed. So the line closing
-the round reports the event's own error flag instead. A thinking block is marked
-in the feed and nothing more: Claude streams the block with the thinking itself
+event closes the round with what it spent, in money and in tokens, and then with
+how it ended. Its subtype reads `success` even on a round that failed, so the
+ending reports the event's own error flag instead. A thinking block is marked in
+the feed and nothing more: Claude streams the block with the thinking itself
 withheld, so the feed can say the agent thought and cannot say what it thought.
 
 Codex: first round

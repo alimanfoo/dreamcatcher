@@ -21,8 +21,8 @@ src/:
         resume:
         read:
     claude.py:
-      WRITES:
-      TELLING:
+      ALLOWED_TOOLS:
+      TELLING_INPUTS:
       CLAUDE:
       Claude:
         program:
@@ -36,7 +36,8 @@ src/:
       _spoken:
       _failure:
       _closing:
-      _telling:
+      _spend:
+      _telling_input:
       _text:
     cli.py:
       build_parser:
@@ -208,11 +209,12 @@ tests/:
   test_claude.py:
     LAUNCH:
     BASE:
+    SPENT:
+    SPEND:
     streamed:
     assistant:
     test_a_first_round_names_the_model_and_the_effort_it_was_dispatched_with:
     test_a_resume_continues_the_session_and_replays_no_settings:
-    test_the_writes_a_round_may_make_are_the_ones_it_needs_unattended:
     test_the_first_event_names_the_model_and_the_session:
     test_what_the_agent_says_comes_through_whole:
     test_a_thinking_block_says_only_that_the_agent_thought:
@@ -227,7 +229,7 @@ tests/:
     test_a_finished_subagent_reports_what_it_did:
     test_a_background_command_finishing_is_not_a_report:
     test_a_round_being_retried_says_what_it_is_waiting_on:
-    test_a_round_that_ended_well_closes_with_its_outcome:
+    test_a_round_that_ended_well_says_what_it_spent_and_how_it_ended:
     test_a_round_that_failed_closes_with_what_went_wrong:
     test_an_event_with_no_story_in_it_writes_nothing:
     test_a_line_that_is_not_json_comes_through_unchanged:

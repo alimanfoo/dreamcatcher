@@ -4,4 +4,5 @@
 2026-08-19T18:42:01Z  [ScheduleWakeup] {"delaySeconds": 60, "noop": true, "reason": "Waiting on the 3-second background sleep command to complete"}
 2026-08-19T18:42:02Z  [failed] `prompt` is required when `stop` is not true.
 2026-08-19T18:42:03Z  The command finished and printed "finished".
-2026-08-19T18:42:04Z  [result] success
+2026-08-19T18:42:04Z  [usage] $0.0826, 226 output, 6 input, 90437 cache read, 8676 cache write
+2026-08-19T18:42:05Z  [result] success

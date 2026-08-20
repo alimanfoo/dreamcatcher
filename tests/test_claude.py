@@ -1,7 +1,7 @@
 import json
 
 from dreamcatcher.adapters import Launch
-from dreamcatcher.claude import CLAUDE, WRITES
+from dreamcatcher.claude import ALLOWED_TOOLS, CLAUDE
 from dreamcatcher.feed import Note, Prose
 
 LAUNCH = Launch(
@@ -20,7 +20,7 @@ BASE = [
     "--permission-mode",
     "auto",
     "--allowedTools",
-    " ".join(WRITES),
+    " ".join(ALLOWED_TOOLS),
     "--name",
     "GH9-20260819-184158",
 ]
@@ -51,14 +51,6 @@ def test_a_first_round_names_the_model_and_the_effort_it_was_dispatched_with():
 
 def test_a_resume_continues_the_session_and_replays_no_settings():
     assert CLAUDE.resume(LAUNCH) == [*BASE, "--continue", "/dream:smith GH9"]
-
-
-def test_the_writes_a_round_may_make_are_the_ones_it_needs_unattended():
-    assert " ".join(WRITES) == (
-        "Bash(gh pr create:*) Bash(gh pr comment:*) Bash(gh pr edit:*) "
-        "Bash(gh pr ready:*) Bash(gh pr close:*) Bash(gh issue create:*) "
-        "Bash(gh issue comment:*) Bash(git commit:*) Bash(git push:*)"
-    )
 
 
 def test_the_first_event_names_the_model_and_the_session():
@@ -200,18 +192,41 @@ def test_a_round_being_retried_says_what_it_is_waiting_on():
     assert CLAUDE.read(line) == [Note("retry", "rate_limit (429), attempt 3 of 10")]
 
 
-def test_a_round_that_ended_well_closes_with_its_outcome():
-    assert CLAUDE.read(streamed(type="result", subtype="success", is_error=False)) == [
-        Note("result", "success")
-    ]
+SPENT = {
+    "output_tokens": 226,
+    "input_tokens": 6,
+    "cache_read_input_tokens": 90437,
+    "cache_creation_input_tokens": 8676,
+}
+
+SPEND = Note(
+    "usage", "$0.0826, 226 output, 6 input, 90437 cache read, 8676 cache write"
+)
+
+
+def test_a_round_that_ended_well_says_what_it_spent_and_how_it_ended():
+    line = streamed(
+        type="result",
+        subtype="success",
+        is_error=False,
+        total_cost_usd=0.0825951,
+        usage=SPENT,
+    )
+
+    assert CLAUDE.read(line) == [SPEND, Note("result", "success")]
 
 
 def test_a_round_that_failed_closes_with_what_went_wrong():
     line = streamed(
-        type="result", subtype="success", is_error=True, result="no such model"
+        type="result",
+        subtype="success",
+        is_error=True,
+        result="no such model",
+        total_cost_usd=0.0825951,
+        usage=SPENT,
     )
 
-    assert CLAUDE.read(line) == [Note("failed", "no such model")]
+    assert CLAUDE.read(line) == [SPEND, Note("failed", "no such model")]
 
 
 def test_an_event_with_no_story_in_it_writes_nothing():

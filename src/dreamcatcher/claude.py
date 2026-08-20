@@ -7,10 +7,10 @@ from typing import ClassVar
 from dreamcatcher.adapters import Adapter, Launch
 from dreamcatcher.feed import Event, Note, Prose
 
-# What an unattended round may write, and nothing else. The round runs under
-# `--permission-mode auto`, so this list is Claude's whole answer to never
-# stalling for a human. It is the port's list.
-WRITES = (
+# What an unattended round may do without being asked, and nothing else. The
+# round runs under `--permission-mode auto`, so this list is Claude's whole
+# answer to never stalling for a human. It is the port's list.
+ALLOWED_TOOLS = (
     "Bash(gh pr create:*)",
     "Bash(gh pr comment:*)",
     "Bash(gh pr edit:*)",
@@ -22,9 +22,17 @@ WRITES = (
     "Bash(git push:*)",
 )
 
-# The inputs that say most about a tool call, most telling first. The whole
-# input comes last, so a tool none of these names still says something.
-TELLING = ("command", "file_path", "pattern", "url", "skill", "description", "prompt")
+# The inputs of a tool call that say most about it, most telling first. The
+# whole input comes last, so a tool none of these names still says something.
+TELLING_INPUTS = (
+    "command",
+    "file_path",
+    "pattern",
+    "url",
+    "skill",
+    "description",
+    "prompt",
+)
 
 
 class Claude(Adapter):
@@ -54,9 +62,10 @@ class Claude(Adapter):
     def read(self, line: str) -> list[Event]:
         """Return the feed events one line of the stream carries.
 
-        A line this cannot read reaches the feed unchanged. So a warning the CLI
-        prints, or an event shaped in a way this does not expect, costs one line
-        and never the round's story.
+        Not every line is an event. The CLI prints a warning now and then, and
+        an event can arrive in a shape this does not expect. Either way the line
+        goes to the feed as it is. So a line this cannot read costs one line of
+        the feed, and never the round's story.
         """
         try:
             streamed = json.loads(line)
@@ -75,7 +84,7 @@ class Claude(Adapter):
             "--permission-mode",
             "auto",
             "--allowedTools",
-            " ".join(WRITES),
+            " ".join(ALLOWED_TOOLS),
             "--name",
             launch.session,
         ]
@@ -149,7 +158,7 @@ def _spoken(block: dict, subagent: bool) -> list[Event]:
         # the agent thought and cannot say what it thought.
         return [Note("thinking", subagent=subagent)]
     if kind == "tool_use":
-        return [Note(block["name"], _telling(block["input"]), subagent=subagent)]
+        return [Note(block["name"], _telling_input(block["input"]), subagent=subagent)]
     return []
 
 
@@ -161,19 +170,37 @@ def _failure(block: dict, subagent: bool) -> list[Event]:
 
 
 def _closing(streamed: dict) -> list[Event]:
-    """Return the line that closes the round.
+    """Return the lines that close the round: what it spent, then how it ended.
 
     The subtype reads "success" even on a round that failed, so the event's own
     error flag is what the feed reports.
     """
+    spent = _spend(streamed["total_cost_usd"], streamed["usage"])
     if streamed.get("is_error"):
-        return [Note("failed", _text(streamed["result"]))]
-    return [Note("result", streamed["subtype"])]
+        return [spent, Note("failed", _text(streamed["result"]))]
+    return [spent, Note("result", streamed["subtype"])]
 
 
-def _telling(given: dict) -> str:
-    """Return the one input that says what a tool call is about."""
-    for name in TELLING:
+def _spend(cost: float, usage: dict) -> Note:
+    """Return what the round cost, in money and in tokens.
+
+    The tokens are the ones the event counts, each named as it names them. A
+    cache read and a cache write are priced differently from a fresh input
+    token, so adding them together would say less, not more.
+    """
+    return Note(
+        "usage",
+        f"${cost:.4f}, "
+        f"{usage['output_tokens']} output, "
+        f"{usage['input_tokens']} input, "
+        f"{usage['cache_read_input_tokens']} cache read, "
+        f"{usage['cache_creation_input_tokens']} cache write",
+    )
+
+
+def _telling_input(given: dict) -> str:
+    """Return the one input that says most about what a tool call is doing."""
+    for name in TELLING_INPUTS:
         if given.get(name):
             return _text(given[name])
     return _text(given)

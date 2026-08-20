@@ -12,4 +12,5 @@
 2026-08-19T18:42:08Z    1. alpha.txt
 2026-08-19T18:42:08Z    2. beta.txt
 2026-08-19T18:42:09Z  The directory contains two files (alpha.txt and beta.txt), nope.txt doesn't exist as expected, and the subagent independently confirmed the same file count.
-2026-08-19T18:42:10Z  [result] success
+2026-08-19T18:42:10Z  [usage] $0.1772, 455 output, 8 input, 123529 cache read, 8606 cache write
+2026-08-19T18:42:11Z  [result] success

@@ -3,11 +3,13 @@
 
 import json
 from dreamcatcher.adapters import Launch
-from dreamcatcher.claude import CLAUDE, WRITES
+from dreamcatcher.claude import ALLOWED_TOOLS, CLAUDE
 from dreamcatcher.feed import Note, Prose
 
 LAUNCH = ...
 BASE = ...
+SPENT = ...
+SPEND = ...
 
 def streamed(**fields) -> str:
     ...
@@ -19,9 +21,6 @@ def test_a_first_round_names_the_model_and_the_effort_it_was_dispatched_with():
     ...
 
 def test_a_resume_continues_the_session_and_replays_no_settings():
-    ...
-
-def test_the_writes_a_round_may_make_are_the_ones_it_needs_unattended():
     ...
 
 def test_the_first_event_names_the_model_and_the_session():
@@ -66,7 +65,7 @@ def test_a_background_command_finishing_is_not_a_report():
 def test_a_round_being_retried_says_what_it_is_waiting_on():
     ...
 
-def test_a_round_that_ended_well_closes_with_its_outcome():
+def test_a_round_that_ended_well_says_what_it_spent_and_how_it_ended():
     ...
 
 def test_a_round_that_failed_closes_with_what_went_wrong():

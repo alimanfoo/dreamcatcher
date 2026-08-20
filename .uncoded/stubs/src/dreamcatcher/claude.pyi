@@ -7,8 +7,8 @@ from typing import ClassVar
 from dreamcatcher.adapters import Adapter, Launch
 from dreamcatcher.feed import Event, Note, Prose
 
-WRITES = ...
-TELLING = ('command', 'file_path', 'pattern', 'url', 'skill', 'description', 'prompt')
+ALLOWED_TOOLS = ...
+TELLING_INPUTS = ('command', 'file_path', 'pattern', 'url', 'skill', 'description', 'prompt')
 CLAUDE = Claude()
 
 def _events(streamed: dict) -> list[Event]:
@@ -29,7 +29,10 @@ def _failure(block: dict, subagent: bool) -> list[Event]:
 def _closing(streamed: dict) -> list[Event]:
     ...
 
-def _telling(given: dict) -> str:
+def _spend(cost: float, usage: dict) -> Note:
+    ...
+
+def _telling_input(given: dict) -> str:
     ...
 
 def _text(value: object) -> str:
