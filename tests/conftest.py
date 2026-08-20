@@ -54,11 +54,50 @@ def git(*arguments: str, cwd: Path) -> str:
     return finished.stdout
 
 
+def commit(path: Path, message: str) -> None:
+    """Commit everything in the checkout at path, under a throwaway identity."""
+    git("add", "--all", cwd=path)
+    git(
+        "-c",
+        "user.name=A Test",
+        "-c",
+        "user.email=test@example.com",
+        "-c",
+        "commit.gpgsign=false",
+        "commit",
+        "--message",
+        message,
+        cwd=path,
+    )
+
+
 @pytest.fixture
 def repo(tmp_path):
     """Return a main checkout of a fresh, empty git repository."""
     git("init", cwd=tmp_path)
     return tmp_path
+
+
+@pytest.fixture
+def upstream(tmp_path):
+    """Return a bare repository holding main, standing in for GitHub."""
+    bare = tmp_path / "upstream.git"
+    git("init", "--bare", "--initial-branch=main", str(bare), cwd=tmp_path)
+    seed = tmp_path / "seed"
+    git("init", "--initial-branch=main", str(seed), cwd=tmp_path)
+    (seed / "README.md").write_text("what the seed holds\n", encoding="utf-8")
+    commit(seed, "seed the upstream")
+    git("remote", "add", "origin", str(bare), cwd=seed)
+    git("push", "origin", "main", cwd=seed)
+    return bare
+
+
+@pytest.fixture
+def cloned(upstream, tmp_path):
+    """Return a main checkout of upstream, with an origin/main to cut from."""
+    checkout = tmp_path / "checkout"
+    git("clone", str(upstream), str(checkout), cwd=tmp_path)
+    return checkout
 
 
 @pytest.fixture

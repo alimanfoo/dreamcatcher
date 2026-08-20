@@ -21,7 +21,16 @@ def pytest_configure(config: pytest.Config) -> None:
 def git(*arguments: str, cwd: Path) -> str:
     ...
 
+def commit(path: Path, message: str) -> None:
+    ...
+
 def repo(tmp_path):
+    ...
+
+def upstream(tmp_path):
+    ...
+
+def cloned(upstream, tmp_path):
     ...
 
 def watched(repo):

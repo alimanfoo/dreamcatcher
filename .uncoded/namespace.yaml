@@ -52,6 +52,10 @@ src/:
       _report:
     errors.py:
       DreamcatcherError:
+    git.py:
+      fetch:
+      add_worktree:
+      discard_worktree:
     github.py:
       LISTING_LIMIT:
       REPOSITORY:
@@ -112,7 +116,10 @@ tests/:
     CONFIG:
     pytest_configure:
     git:
+    commit:
     repo:
+    upstream:
+    cloned:
     watched:
     fake:
   fakes.py:
@@ -192,6 +199,14 @@ tests/:
     test_a_document_that_breaks_its_model_lists_every_fault:
   test_encoding_gate.py:
     test_a_read_with_no_encoding_fails_the_suite:
+  test_git.py:
+    BRANCH:
+    session_worktree:
+    test_a_fetch_brings_origins_main_back:
+    test_a_worktree_lands_where_it_is_asked_for_on_its_own_branch:
+    test_a_worktree_git_refuses_says_what_git_said:
+    test_discarding_a_worktree_takes_its_branch_with_it:
+    test_discarding_what_was_never_made_leaves_no_complaint:
   test_github.py:
     REPOSITORY:
     BRANCH:
