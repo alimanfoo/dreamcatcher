@@ -17,11 +17,11 @@ def add_worktree(root: Path, path: Path, branch: str) -> None:
 
 
 def discard_worktree(root: Path, path: Path, branch: str) -> None:
-    """Remove the worktree at path and delete its branch, leaving nothing behind.
+    """Try to remove the worktree at path, and to delete its branch.
 
     This backs out a creation that failed part way, so either half may never
-    have been made. A half that is already gone is the outcome this wants. The
-    caller is reporting the failure that led here, so neither removal raises.
+    have been made. The caller is already reporting the failure that led here,
+    so neither removal raises, and neither says what it could not do.
     """
     with suppress(CommandError):
         run("git", "worktree", "remove", "--force", str(path), cwd=root)
