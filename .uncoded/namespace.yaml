@@ -195,6 +195,7 @@ tests/:
       calls:
       replies:
       fails:
+      streams:
       _answer:
     install:
     replay:
@@ -288,6 +289,13 @@ tests/:
     test_a_document_that_breaks_its_model_lists_every_fault:
   test_encoding_gate.py:
     test_a_read_with_no_encoding_fails_the_suite:
+  test_fakes.py:
+    STREAM:
+    recording:
+    test_a_stand_in_harness_replays_the_recording_it_was_given:
+    test_a_stand_in_harness_streams_at_the_pace_it_was_given:
+    test_a_stand_in_harness_can_end_as_a_failed_round_does:
+    test_a_stand_in_nobody_scripted_says_so:
   test_feed.py:
     ROUND:
     feed:
