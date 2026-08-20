@@ -3,7 +3,7 @@
 
 from pathlib import Path
 import pytest
-from dreamcatcher.github import PullRequest, PullRequestState, blockers, identify, issues, login, pull_requests
+from dreamcatcher.github import PullRequest, PullRequestState, blockers, identify, issues, linked_pull_requests, login, pull_requests
 
 pytestmark = pytest.mark.integration
 REPOSITORY = 'alimanfoo/dreamcatcher'
@@ -26,6 +26,9 @@ def test_a_merged_pull_request_comes_back_merged():
     ...
 
 def test_a_branch_that_never_existed_comes_back_empty():
+    ...
+
+def test_gh_takes_the_linked_pull_requests_command():
     ...
 
 def test_a_blocked_issue_names_what_blocks_it():

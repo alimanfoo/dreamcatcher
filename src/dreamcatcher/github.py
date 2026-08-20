@@ -87,11 +87,31 @@ class Blocker(Projection):
     state: BlockerState
 
 
+class LinkedPullRequest(Projection):
+    """A pull request GitHub links to an issue."""
+
+    number: int
+
+
+class Linked(Projection):
+    """What GitHub links to one issue.
+
+    GitHub lists only the open pull requests here, and counts both the ones that
+    said they close the issue and the ones somebody linked by hand. A declined
+    attempt drops out, which is what leaves its issue free to go again.
+    """
+
+    pull_requests: list[LinkedPullRequest] = Field(
+        alias="closedByPullRequestsReferences"
+    )
+
+
 REPOSITORY = TypeAdapter(Repository)
 ACCOUNT = TypeAdapter(Account)
 ISSUES = TypeAdapter(list[Issue])
 PULL_REQUESTS = TypeAdapter(list[PullRequest])
 BLOCKERS = TypeAdapter(list[Blocker])
+LINKED = TypeAdapter(Linked)
 
 
 def identify(root: Path) -> str | Unknown:
@@ -154,6 +174,30 @@ def pull_requests(repository: str, branch: str) -> list[PullRequest] | Unknown:
         "--json",
         "number,state",
     )
+
+
+def linked_pull_requests(
+    repository: str, issue: int
+) -> list[LinkedPullRequest] | Unknown:
+    """Return the open pull requests GitHub links to this issue.
+
+    This is how the tool knows an issue is claimed when no worktree here says
+    so, which is the state a second checkout of the same repository is always
+    in.
+    """
+    answered = _read(
+        LINKED,
+        "issue",
+        "view",
+        str(issue),
+        "--repo",
+        repository,
+        "--json",
+        "closedByPullRequestsReferences",
+    )
+    if isinstance(answered, Unknown):
+        return answered
+    return answered.pull_requests
 
 
 def blockers(repository: str, issue: int) -> list[Blocker] | Unknown:

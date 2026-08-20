@@ -8,12 +8,14 @@ from dreamcatcher.github import (
     Blocker,
     BlockerState,
     Issue,
+    LinkedPullRequest,
     PullRequest,
     PullRequestState,
     Unknown,
     blockers,
     identify,
     issues,
+    linked_pull_requests,
     login,
     pull_requests,
 )
@@ -97,6 +99,29 @@ def test_a_branch_with_no_pull_request_comes_back_empty(fake):
     assert pull_requests(REPOSITORY, BRANCH) == []
 
 
+def test_the_pull_requests_linked_to_an_issue_come_back(fake):
+    gh = fake("gh")
+    gh.replies(json.dumps({"closedByPullRequestsReferences": [{"number": 28}]}))
+
+    assert linked_pull_requests(REPOSITORY, 8) == [LinkedPullRequest(number=28)]
+    assert gh.calls[0].arguments == [
+        "issue",
+        "view",
+        "8",
+        "--repo",
+        REPOSITORY,
+        "--json",
+        "closedByPullRequestsReferences",
+    ]
+
+
+def test_an_issue_nobody_has_claimed_has_no_linked_pull_request(fake):
+    gh = fake("gh")
+    gh.replies(json.dumps({"closedByPullRequestsReferences": []}))
+
+    assert linked_pull_requests(REPOSITORY, 8) == []
+
+
 def test_the_blockers_of_an_issue_come_back_with_their_states(fake):
     gh = fake("gh")
     gh.replies(
@@ -123,6 +148,9 @@ def test_the_blockers_of_an_issue_come_back_with_their_states(fake):
             id="a listing",
         ),
         pytest.param(lambda: pull_requests(REPOSITORY, BRANCH), id="the pull requests"),
+        pytest.param(
+            lambda: linked_pull_requests(REPOSITORY, 9), id="the linked pull requests"
+        ),
         pytest.param(lambda: blockers(REPOSITORY, 9), id="the blockers"),
     ],
 )

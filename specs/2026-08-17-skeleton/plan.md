@@ -135,14 +135,14 @@ rig that makes every later phase testable in CI.
 
 In scope:
 
-- Wrappers: `gh` issue listing by label and assignee, the pull requests of a
-  branch head, the blocked-by query (the one page GitHub answers with, as the
-  port reads it), `gh api user` (the authenticated login), repo identity, and
-  git fetch, worktree add, worktree remove, branch delete. Each read hands back
-  what gh answered, so a branch with two pull requests comes back with both.
-  Each git command is one command, so no wrapper hides half of a failure. Every
-  call forces UTF-8. Every failure surfaces the command and its stderr, never a
-  guess.
+- Wrappers: `gh` issue listing by label and assignee, the open pull requests
+  GitHub links to an issue, the pull requests of a branch head, the blocked-by
+  query (the one page GitHub answers with, as the port reads it), `gh api user`
+  (the authenticated login), repo identity, and git fetch, worktree add,
+  worktree remove, branch delete. Each read hands back what gh answered, so a
+  branch with two pull requests comes back with both. Each git command is one
+  command, so no wrapper hides half of a failure. Every call forces UTF-8. Every
+  failure surfaces the command and its stderr, never a guess.
 - The error contract carries the fail-toward-inaction doctrine (see design.md,
   The tick): a read failure returns "unknown", and the caller decides what
   unknown means for its check. The wrappers never invent an answer.
@@ -310,8 +310,8 @@ In scope:
 
 - Eligibility, built on phase 3's "unknown" contract so every read failure
   biases to inaction: exactly one mapped label (two mapped labels is the noisy
-  skip), the assignee filter, no active session worktree, no open or merged PR
-  from an earlier dreamcatcher branch, no open blocking issues.
+  skip), the assignee filter, no active session worktree, no open pull request
+  GitHub links to the issue, no open blocking issues.
 - The real tick, replacing phase 2's stub: cap first (a capped tick spends no
   GitHub calls), reconcile, dispatch the oldest eligible issue via phase 7's
   session creation, one launch per tick, and `last-tick.json` recording what was
@@ -419,9 +419,10 @@ In scope:
 
 - `CONTRACT.md` at the repo root: the dispatchable-skill contract as designed
   (design.md, The contract page) — adopt the branch you wake up on and open your
-  PR from it before changing anything; act on the issue reference in your
-  prompt; handle the three resume prompts; yield by ending your turn; marking is
-  injected for you.
+  PR from it before changing anything; act on the issue reference in your prompt
+  and have the PR close that issue, which is what tells the dispatcher the issue
+  is claimed; handle the three resume prompts; yield by ending your turn;
+  marking is injected for you.
 - The README's last gap: two operational truths placed prominently — removing
   the label is how you say stop (an issue whose PR closes unmerged will dispatch
   again while the label remains), and the crossover rule (retire dream:catcher

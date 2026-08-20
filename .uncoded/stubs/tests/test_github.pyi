@@ -5,7 +5,7 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 import pytest
-from dreamcatcher.github import Blocker, BlockerState, Issue, PullRequest, PullRequestState, Unknown, blockers, identify, issues, login, pull_requests
+from dreamcatcher.github import Blocker, BlockerState, Issue, LinkedPullRequest, PullRequest, PullRequestState, Unknown, blockers, identify, issues, linked_pull_requests, login, pull_requests
 
 REPOSITORY = 'alimanfoo/dreamcatcher'
 BRANCH = 'dreamcatcher-GH8-20260820-000456'
@@ -23,6 +23,12 @@ def test_the_pull_requests_of_a_branch_come_back_with_their_states(fake):
     ...
 
 def test_a_branch_with_no_pull_request_comes_back_empty(fake):
+    ...
+
+def test_the_pull_requests_linked_to_an_issue_come_back(fake):
+    ...
+
+def test_an_issue_nobody_has_claimed_has_no_linked_pull_request(fake):
     ...
 
 def test_the_blockers_of_an_issue_come_back_with_their_states(fake):

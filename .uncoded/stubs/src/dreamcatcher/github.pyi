@@ -14,6 +14,7 @@ ACCOUNT = TypeAdapter(Account)
 ISSUES = TypeAdapter(list[Issue])
 PULL_REQUESTS = TypeAdapter(list[PullRequest])
 BLOCKERS = TypeAdapter(list[Blocker])
+LINKED = TypeAdapter(Linked)
 
 def identify(root: Path) -> str | Unknown:
     ...
@@ -25,6 +26,9 @@ def issues(repository: str, *, label: str, assignee: str) -> list[Issue] | Unkno
     ...
 
 def pull_requests(repository: str, branch: str) -> list[PullRequest] | Unknown:
+    ...
+
+def linked_pull_requests(repository: str, issue: int) -> list[LinkedPullRequest] | Unknown:
     ...
 
 def blockers(repository: str, issue: int) -> list[Blocker] | Unknown:
@@ -65,3 +69,9 @@ class PullRequest(Projection):
 class Blocker(Projection):
     number: int
     state: BlockerState
+
+class LinkedPullRequest(Projection):
+    number: int
+
+class Linked(Projection):
+    pull_requests: list[LinkedPullRequest] = Field(alias='closedByPullRequestsReferences')

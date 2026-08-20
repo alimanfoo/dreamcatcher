@@ -10,6 +10,7 @@ from dreamcatcher.github import (
     blockers,
     identify,
     issues,
+    linked_pull_requests,
     login,
     pull_requests,
 )
@@ -48,6 +49,10 @@ def test_a_merged_pull_request_comes_back_merged():
 
 def test_a_branch_that_never_existed_comes_back_empty():
     assert pull_requests(REPOSITORY, "dreamcatcher-GH0-19700101-000000") == []
+
+
+def test_gh_takes_the_linked_pull_requests_command():
+    assert isinstance(linked_pull_requests(REPOSITORY, BLOCKED), list)
 
 
 def test_a_blocked_issue_names_what_blocks_it():
