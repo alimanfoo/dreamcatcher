@@ -189,12 +189,16 @@ In scope:
   from design.md (The harness adapters) are the adapters' data.
 - The event vocabulary between parser and renderer, settled here. It was the
   last thing design.md left open about the feed.
-- The Claude parser: render-claude.sh's policy as Python — session id from the
-  init event, assistant text whole, a thinking block marked because Claude
-  withholds the thinking itself, tool calls as one line via the
-  most-telling-input fallback chain, failed tool results surfaced, result events
-  closing the round, subagent lines indented, and any unparseable line passed
-  through unchanged.
+- The Claude parser: render-claude.sh's policy as Python.
+  - The session id comes from the init event.
+  - Assistant text passes whole.
+  - A thinking block is marked. Claude withholds the thinking itself.
+  - A tool call becomes one line, through the most-telling-input fallback chain.
+  - A failed tool result surfaces.
+  - A retried request says what it is waiting on.
+  - The result event closes the round with what it spent, then how it ended.
+  - A subagent's lines indent.
+  - A line the parser cannot read passes through unchanged.
 - The renderer: timestamped feed lines, round-boundary lines carrying the
   round's cause.
 - The fake harness binary for the test rig: replays a recorded stream file with
@@ -202,11 +206,11 @@ In scope:
   no signed-in CLI needed.
 - Recorded fixtures: capture real `claude --print --output-format stream-json`
   streams once, commit them, and golden-file test the parser and renderer
-  against them. Exempt the fixtures' path from the end-of-file and
-  trailing-whitespace fixers and from the invisible-character check. A fixture
-  is a verbatim recording, so a hook that repairs it makes the golden test
-  assert something the harness never emitted, and real agent output carries the
-  zero-width characters that check exists to reject.
+  against them. Keep every hook off the fixtures' path, and mark the path as not
+  text so no checkout rewrites its line endings. A fixture is a verbatim
+  recording, so a hook that repairs it makes the golden test assert something
+  the harness never emitted. Real agent output also carries the zero-width
+  characters the invisible-character check exists to reject.
 - Verification: does `claude` exit non-zero on a usage-limit failure? If the
   implementing session cannot verify it headless, it becomes a named checklist
   item on this phase's PR for the user to confirm.
@@ -230,6 +234,13 @@ In scope:
   and moved from post-hoc to line-at-a-time.
 - The Codex command builders: first round and resume with the ported never-stall
   flags (design.md, The harness adapters), `--json` added.
+- One question to settle before those builders. `Launch`, which phase 4 built
+  for the argv builders, carries the session, the model, the effort and the
+  prompt. It carries no worktree, and design.md's Codex first round names
+  `-C <worktree>`. So this phase picks one of two answers. Give `Launch` the
+  worktree, which edits `adapters.py` and so spends the criterion this phase is
+  measured by. Or drop `-C`, because phase 6 runs every round in the worktree,
+  and Codex's `--last` reads that same working directory.
 - Recorded fixtures: capture real `codex exec --json` streams once, commit them,
   and golden-file test the parser against them.
 - The design's open-list verifications: does `codex exec resume` accept
@@ -289,8 +300,10 @@ In scope:
   behind. Phase 3's git wrappers each raise, so the back-out composes them and
   handles their failure itself.
 - The harness a dispatch runs on: the mapping's only block when it carries one,
-  else the harness the run was started with (design.md, Configuration). Phase 2
-  parses the blocks and leaves the choice to the phase that dispatches.
+  else the harness the user gave `run` (design.md, Configuration). Phase 2
+  parses the blocks and leaves the choice to the phase that dispatches. A
+  harness first becomes an adapter here, so this phase writes the lookup from
+  one to the other, with both adapters in hand.
 - First-round prompt composition: the chosen harness's template rendered with
   `{issue}`, the marker postscript appended (design.md, The relay, for the
   marker).
@@ -322,6 +335,12 @@ In scope:
 - The startup orphan sweep: kill any live pid from a round record with no end.
   The carry-on resume of those sessions is phase 10's; until then they appear in
   `last-tick.json` as waiting.
+- The startup check that the harness's CLI is installed: `run` refuses at once
+  when the harness it was given is not on the PATH, rather than dispatching a
+  round that cannot start. Phase 4 left this to the phase with a caller for it:
+  the adapter names its CLI, and phase 3's `commands.locate` is the lookup.
+  Without the check a missing CLI reads as a round that fails every fifteen
+  minutes, since the cooldown cannot tell a misconfiguration from a blip.
 
 Done when: an end-to-end CI test drives a full dispatch against the fakes — the
 scripted `gh` offers a labelled issue, the tick cuts a real worktree, the fake
