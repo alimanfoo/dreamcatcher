@@ -32,6 +32,9 @@ def _closing(streamed: dict) -> list[Event]:
 def _telling(given: dict) -> str:
     ...
 
+def _text(value: object) -> str:
+    ...
+
 class Claude(Adapter):
     program: ClassVar[str] = 'claude'
 

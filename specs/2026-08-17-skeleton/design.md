@@ -221,8 +221,9 @@ off, losing at most the work since the last event.
 
 One adapter per harness, the only code that knows a harness exists — the
 `round_command` boundary grown into a class, in the shape audacious proved: a
-small frozen object that builds the argv for a first round and a resume,
-validates the binary is on PATH, and parses one stream line into events.
+small frozen object that builds the argv for a first round and a resume, names
+its CLI so a startup check can look it up, and parses one stream line into
+events.
 
 Claude Code: first round
 `claude --print --output-format stream-json --verbose --permission-mode auto --allowedTools <the recurring writes> --name <session-key> --model <model> --effort <effort> <prompt>`;
@@ -465,10 +466,11 @@ candidate trim once the adapters are verified, not before.
 
 - Verify both harnesses exit non-zero on a usage-limit failure — the errored
   retry keys on exit status, so a limit that exits zero would misread as the
-  wedge. A Claude round whose API call fails exits non-zero, and its stream
-  carries a `rate_limit_event` with a status of its own, so the limit itself is
-  what is left to confirm. (Reading the limit's reset time out of that event is
-  a possible later refinement of the cooldown; the fixed hold doesn't need it.)
+  wedge. A Claude round refused a model that does not exist exits non-zero, and
+  every Claude stream carries a `rate_limit_event` with a status of its own, so
+  the limit is still the case to confirm. (Reading the limit's reset time out of
+  that event is a possible later refinement of the cooldown; the fixed hold
+  doesn't need it.)
 - Verify Codex `--json` early in the build: that `codex exec resume` accepts it
   at all, and that tool-call items surface with enough shape for the feed's
   action lines (audacious proves `agent_message`; the rest needs a live round).

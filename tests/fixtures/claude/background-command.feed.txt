@@ -1,0 +1,7 @@
+2026-08-19T18:41:58Z  [session] model claude-sonnet-5, id 1f32cb87-1bd0-42a7-8e98-2901549dad09
+2026-08-19T18:41:59Z  [Bash] sleep 3; echo finished
+2026-08-19T18:42:00Z  Waiting for the background command to finish.
+2026-08-19T18:42:01Z  [ScheduleWakeup] {"delaySeconds": 60, "noop": true, "reason": "Waiting on the 3-second background sleep command to complete"}
+2026-08-19T18:42:02Z  [failed] `prompt` is required when `stop` is not true.
+2026-08-19T18:42:03Z  The command finished and printed "finished".
+2026-08-19T18:42:04Z  [result] success

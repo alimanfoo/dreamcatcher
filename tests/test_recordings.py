@@ -4,7 +4,9 @@ An agent session recorded the streams under `tests/fixtures/claude/`, running
 the command `Claude.first_round` builds in `/private/tmp/dreamcatcher-recording`.
 `round.jsonl` is a round that listed a directory, read a file that was not
 there, and sent a subagent to count the files. `failed-round.jsonl` is a round
-asked for a model that does not exist.
+asked for a model that does not exist. `background-command.jsonl` is a round
+that ran one command in the background: its notification carries no token usage,
+which is what keeps it out of the feed as a subagent's report.
 
 The golden beside each recording is the review surface: read it as the user of
 `scry` would, and judge the feed by it.
@@ -33,7 +35,7 @@ def rendered(recording: Path) -> str:
     )
 
 
-@pytest.mark.parametrize("recording", ["round", "failed-round"])
+@pytest.mark.parametrize("recording", ["round", "failed-round", "background-command"])
 def test_a_recorded_stream_renders_as_its_golden_feed(recording):
     feed = rendered(FIXTURES / f"{recording}.jsonl")
 

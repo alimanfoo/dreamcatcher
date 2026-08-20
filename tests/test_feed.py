@@ -1,5 +1,5 @@
-from datetime import timedelta, timezone
-from pathlib import PurePosixPath
+from datetime import UTC, datetime, timedelta, timezone
+from pathlib import PurePosixPath, PureWindowsPath
 
 from clocks import PINNED, Ticking
 
@@ -31,6 +31,20 @@ def test_a_detail_loses_the_rounds_own_directory():
 def test_a_path_outside_the_round_keeps_its_own_root():
     assert feed().render(Note("Read", "/etc/hosts")) == (
         "2026-08-19T18:41:58Z  [Read] /etc/hosts\n"
+    )
+
+
+def test_a_sibling_of_the_round_that_starts_the_same_way_keeps_its_whole_path():
+    assert feed().render(Note("Read", "/checkout/worktree-old/src/theme.css")) == (
+        "2026-08-19T18:41:58Z  [Read] /checkout/worktree-old/src/theme.css\n"
+    )
+
+
+def test_a_round_on_windows_loses_a_directory_written_the_windows_way():
+    windows = Renderer(PureWindowsPath("C:/checkout/worktree"), clock=Ticking())
+
+    assert windows.render(Note("Edit", "C:\\checkout\\worktree\\src\\theme.css")) == (
+        "2026-08-19T18:41:58Z  [Edit] src\\theme.css\n"
     )
 
 
@@ -79,3 +93,10 @@ def test_a_clock_that_is_not_in_utc_still_stamps_utc():
     assert Renderer(ROUND, clock=lambda: elsewhere).render(Note("result", "ok")) == (
         "2026-08-19T18:41:58Z  [result] ok\n"
     )
+
+
+def test_the_clock_a_renderer_reads_by_default_is_the_time_now_in_utc():
+    stamp = Renderer(ROUND).render(Note("result", "success")).split("  ")[0]
+    stamped = datetime.strptime(stamp, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
+
+    assert abs(stamped - datetime.now(UTC)) < timedelta(seconds=30)

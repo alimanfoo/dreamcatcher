@@ -80,13 +80,23 @@ class Renderer:
 
     def _shorten(self, detail: str) -> str:
         """Return the detail as one clipped line, without the round's directory."""
-        inside = detail.removeprefix(str(self.directory))
-        one_line = " ".join(
-            (inside.lstrip("/\\") if inside != detail else detail).split()
-        )
+        one_line = " ".join(self._inside(detail).split())
         if len(one_line) > WIDTH:
             return f"{one_line[:WIDTH]} ..."
         return one_line
+
+    def _inside(self, detail: str) -> str:
+        """Return the detail with the round's own directory off its front.
+
+        The separator has to be there, so a sibling directory whose name starts
+        the same way keeps its whole path. Either separator counts: a path
+        arrives written the way the harness that reported it writes them.
+        """
+        for separator in ("/", "\\"):
+            start = f"{self.directory}{separator}"
+            if detail.startswith(start):
+                return detail[len(start) :]
+        return detail
 
     def _written(self, contents: list[str], subagent: bool) -> str:
         """Return the contents as timestamped lines, indented for a subagent."""

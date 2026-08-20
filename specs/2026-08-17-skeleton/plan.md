@@ -184,11 +184,11 @@ spawns no processes yet.
 In scope:
 
 - The adapter interface: one small frozen object per harness that builds the
-  first-round argv, builds the resume argv, validates the binary is on PATH, and
-  parses one stream line into events. The never-stall flag sets from design.md
-  (The harness adapters) are the adapters' data.
-- The event vocabulary between parser and renderer, settled here — this is the
-  "first slice" the design's open list points at.
+  first-round argv, builds the resume argv, names its CLI so a startup check can
+  look it up, and parses one stream line into events. The never-stall flag sets
+  from design.md (The harness adapters) are the adapters' data.
+- The event vocabulary between parser and renderer, settled here. It was the
+  last thing design.md left open about the feed.
 - The Claude parser: render-claude.sh's policy as Python — session id from the
   init event, assistant text whole, a thinking block marked because Claude
   withholds the thinking itself, tool calls as one line via the

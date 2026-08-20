@@ -42,10 +42,16 @@ def test_a_tool_the_chain_does_not_name_reports_its_whole_input():
 def test_a_tool_result_that_failed_surfaces():
     ...
 
+def test_a_failure_that_came_back_as_blocks_reads_as_the_json_it_was():
+    ...
+
 def test_a_tool_result_that_worked_carries_no_story():
     ...
 
 def test_a_subagents_own_words_are_left_to_its_report():
+    ...
+
+def test_a_subagent_that_thinks_is_marked_as_one():
     ...
 
 def test_a_subagents_tool_call_is_marked_as_one():

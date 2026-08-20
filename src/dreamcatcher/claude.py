@@ -146,7 +146,7 @@ def _spoken(block: dict, subagent: bool) -> list[Event]:
 def _failure(block: dict, subagent: bool) -> list[Event]:
     """Return the failure one block of a user message carries, if it failed."""
     if block["type"] == "tool_result" and block.get("is_error"):
-        return [Note("failed", str(block["content"]), subagent=subagent)]
+        return [Note("failed", _text(block["content"]), subagent=subagent)]
     return []
 
 
@@ -157,7 +157,7 @@ def _closing(streamed: dict) -> list[Event]:
     error flag is what the feed reports.
     """
     if streamed.get("is_error"):
-        return [Note("failed", str(streamed["result"]))]
+        return [Note("failed", _text(streamed["result"]))]
     return [Note("result", streamed["subtype"])]
 
 
@@ -165,5 +165,14 @@ def _telling(given: dict) -> str:
     """Return the one input that says what a tool call is about."""
     for name in TELLING:
         if given.get(name):
-            return str(given[name])
-    return json.dumps(given)
+            return _text(given[name])
+    return _text(given)
+
+
+def _text(value: object) -> str:
+    """Return a value out of the stream as feed text, as JSON unless it is text.
+
+    A tool result's content, and a failed round's message, each arrive sometimes
+    as a string and sometimes as a list of blocks.
+    """
+    return value if isinstance(value, str) else json.dumps(value)

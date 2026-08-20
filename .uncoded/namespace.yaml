@@ -37,6 +37,7 @@ src/:
       _failure:
       _closing:
       _telling:
+      _text:
     cli.py:
       build_parser:
       main:
@@ -100,6 +101,7 @@ src/:
         render:
         _noted:
         _shorten:
+        _inside:
         _written:
     git.py:
       fetch:
@@ -217,8 +219,10 @@ tests/:
     test_a_tool_call_reports_the_input_that_says_most_about_it:
     test_a_tool_the_chain_does_not_name_reports_its_whole_input:
     test_a_tool_result_that_failed_surfaces:
+    test_a_failure_that_came_back_as_blocks_reads_as_the_json_it_was:
     test_a_tool_result_that_worked_carries_no_story:
     test_a_subagents_own_words_are_left_to_its_report:
+    test_a_subagent_that_thinks_is_marked_as_one:
     test_a_subagents_tool_call_is_marked_as_one:
     test_a_finished_subagent_reports_what_it_did:
     test_a_background_command_finishing_is_not_a_report:
@@ -301,6 +305,8 @@ tests/:
     test_a_note_with_nothing_to_add_is_its_label_alone:
     test_a_detail_loses_the_rounds_own_directory:
     test_a_path_outside_the_round_keeps_its_own_root:
+    test_a_sibling_of_the_round_that_starts_the_same_way_keeps_its_whole_path:
+    test_a_round_on_windows_loses_a_directory_written_the_windows_way:
     test_a_detail_spread_over_lines_becomes_one:
     test_a_detail_longer_than_the_feed_is_clipped:
     test_prose_becomes_a_line_for_each_line_it_holds:
@@ -308,6 +314,7 @@ tests/:
     test_a_subagents_lines_are_indented_under_the_timestamp:
     test_a_round_opens_with_its_number_and_its_cause:
     test_a_clock_that_is_not_in_utc_still_stamps_utc:
+    test_the_clock_a_renderer_reads_by_default_is_the_time_now_in_utc:
   test_git.py:
     BRANCH:
     session_worktree:
