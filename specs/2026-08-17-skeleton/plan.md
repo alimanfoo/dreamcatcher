@@ -285,10 +285,8 @@ In scope:
   `.dreamcatcher/worktrees/` with the path invariant checked at dispatch, and
   `session.json` frozen at dispatch (design.md, Sessions, worktrees, branches).
   A failed creation backs out worktree and branch together, leaving nothing
-  behind. Phase 3's git wrappers each raise, so the back-out composes them, and
-  it decides what to record when git refuses — a worktree it has locked does not
-  go, and pretending it went is how a session gets stuck with nothing pointing
-  at why.
+  behind. Phase 3's git wrappers each raise, so the back-out composes them and
+  handles their failure itself.
 - The harness a dispatch runs on: the mapping's only block when it carries one,
   else the harness the run was started with (design.md, Configuration). Phase 2
   parses the blocks and leaves the choice to the phase that dispatches.

@@ -347,14 +347,11 @@ Linux from the first commit, with a fake harness binary standing in for
 signed-in CLIs. All subprocess and file IO forces UTF-8 explicitly, and reads a
 byte that is not UTF-8 as the replacement character rather than failing, since a
 localised git can put one in a message. Programs are looked up on the PATH
-before they run, which is what reaches a `.cmd` on Windows: the harness CLIs
-arrive that way when npm installs them. Windows runs a `.cmd` through cmd.exe,
-which reads the arguments again, so an argument holding one of cmd's own
-characters is not safe there — which the harness prompts, alone among what this
-tool passes, could carry. Process teardown is process-group on POSIX and Job
-Objects on Windows, isolated in one module. Paths flow through `pathlib` end to
-end. The known pid-reuse wrinkle in the orphan sweep is accepted: the sweep runs
-once at startup against pids the daemon itself recorded, and the window is
+before they run, which is what reaches a `.cmd` on Windows, the form the harness
+CLIs take when npm installs them. Process teardown is process-group on POSIX and
+Job Objects on Windows, isolated in one module. Paths flow through `pathlib` end
+to end. The known pid-reuse wrinkle in the orphan sweep is accepted: the sweep
+runs once at startup against pids the daemon itself recorded, and the window is
 small.
 
 ### Dependencies
