@@ -119,8 +119,7 @@ def _item(item: dict) -> list[Event]:
     """Return what one completed item carries, in Codex's own words.
 
     Every action line's label is Codex's word for what the agent did, and its
-    detail is the one thing the agent did it to. That keeps a path at the front
-    of the detail, where the feed can strip the round's own directory off it.
+    detail is the one thing the agent did it to.
 
     An item this does not name carries no story. A todo list is the one such item
     a round really streams. It arrives complete as the round ends, so it says
@@ -132,6 +131,9 @@ def _item(item: dict) -> list[Event]:
     if kind == "command_execution":
         return _command(item)
     if kind == "file_change":
+        # Codex reports every file of one patch together, so this is a line each.
+        # What the patch did to a file is the label, which leaves the path as the
+        # whole detail. The feed can then strip the round's own directory off it.
         return [Note(change["kind"], change["path"]) for change in item["changes"]]
     if kind == "web_search":
         return [Note(kind, item["query"])]

@@ -235,10 +235,11 @@ In scope:
     same thread id.
   - An `agent_message` item passes whole.
   - Every action line carries Codex's own word for what the agent did, and the
-    one thing it did it to. A path then sits at the front of the detail, where
-    the feed strips the round's own directory off it.
+    one thing it did it to.
   - A command says what it ran, and adds its status unless it completed.
-  - A patch says what it did to each file it touched.
+  - A patch says what it did to each file it touched, a line each. What it did
+    is the label, which leaves the path as the whole detail, where the feed
+    strips the round's own directory off it.
   - Only a completed item reaches the feed. Codex also streams an item as it
     starts and as it changes, and the completion says the same thing better.
   - `turn.completed` closes the round with what it spent, in tokens alone. Codex

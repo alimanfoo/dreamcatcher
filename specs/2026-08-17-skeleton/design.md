@@ -244,7 +244,7 @@ the feed and nothing more: Claude streams the block with the thinking itself
 withheld, so the feed can say the agent thought and cannot say what it thought.
 
 Codex: first round
-`codex exec --json -C <worktree> --approve-for-me --model <model> -c model_reasoning_effort=... -c sandbox_workspace_write.network_access=true <prompt>`;
+`codex exec --json --approve-for-me --model <model> -c model_reasoning_effort=... -c sandbox_workspace_write.network_access=true <prompt>`;
 resume `codex exec resume --last --json` plus the replayed settings and the
 ported resume permissions (`sandbox_mode="workspace-write"`, network access,
 `approval_policy="on-request"`, `approvals_reviewer="auto_review"`). `--last` is
