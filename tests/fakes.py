@@ -38,13 +38,13 @@ class Fake:
 
     base: Path
 
-    def replies(self, output: str) -> None:
-        """Answer output on stdout, and a status of nought."""
-        self._answer(output, "", 0)
+    def replies(self, stdout: str) -> None:
+        """Answer this on stdout, with a status of nought."""
+        self._answer(stdout, "", 0)
 
-    def fails(self, said: str, status: int = 1) -> None:
-        """Fail with said on stderr, and a failing status."""
-        self._answer("", said, status)
+    def fails(self, stderr: str, status: int = 1) -> None:
+        """Fail with this on stderr, and a failing status."""
+        self._answer("", stderr, status)
 
     @property
     def calls(self) -> list[Call]:
@@ -54,9 +54,9 @@ class Fake:
             for taken in _lines(_taken(self.base))
         ]
 
-    def _answer(self, output: str, said: str, status: int) -> None:
+    def _answer(self, stdout: str, stderr: str, status: int) -> None:
         _scripted(self.base).write_text(
-            json.dumps({"output": output, "said": said, "status": status}),
+            json.dumps({"stdout": stdout, "stderr": stderr, "status": status}),
             encoding="utf-8",
         )
 
@@ -77,8 +77,8 @@ def replay(base: Path, arguments: list[str]) -> int:
         sys.stderr.write(f"{base.name} was not scripted, and it was asked.\n")
         return UNSCRIPTED
     answer = json.loads(scripted.read_text(encoding="utf-8"))
-    sys.stdout.write(answer["output"])
-    sys.stderr.write(answer["said"])
+    sys.stdout.write(answer["stdout"])
+    sys.stderr.write(answer["stderr"])
     return int(answer["status"])
 
 
