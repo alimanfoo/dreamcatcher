@@ -17,16 +17,21 @@ class CommandError(DreamcatcherError):
     """A command dreamcatcher ran is not there, or it failed."""
 
 
-def run(program: str, *arguments: str, cwd: Path | None = None) -> str:
-    """Return what the command wrote to stdout, reading it as UTF-8."""
+def locate(program: str) -> str:
+    """Return the path to program on the PATH, or raise CommandError."""
     # Looking the program up, rather than leaving the name to subprocess, is
     # what lets a test stand in for it: the lookup takes every extension PATHEXT
     # names, while Windows itself only ever adds .exe to a bare name.
     executable = which(program)
     if executable is None:
         raise CommandError(f"{program} is not on the PATH.")
+    return executable
+
+
+def run(program: str, *arguments: str, cwd: Path | None = None) -> str:
+    """Return what the command wrote to stdout, reading it as UTF-8."""
     finished = subprocess.run(
-        [executable, *arguments],
+        [locate(program), *arguments],
         capture_output=True,
         check=False,
         cwd=cwd,
