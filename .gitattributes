@@ -4,3 +4,7 @@
 .claude/skills/** linguist-generated=true
 .agents/skills/** linguist-generated=true
 uv.lock linguist-generated=true
+
+# A recorded stream is read back byte for byte by a golden test, so no checkout
+# rewrites its line endings.
+tests/fixtures/** -text
