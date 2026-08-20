@@ -229,32 +229,47 @@ adapter changes.
 
 In scope:
 
-- The Codex parser: `--json` JSONL, `item.completed` items — `agent_message`
-  text, command and patch items as tool lines — lifted from audacious's codex.py
-  and moved from post-hoc to line-at-a-time.
+- The Codex parser: `--json` JSONL, lifted from audacious's codex.py and moved
+  from post-hoc to line-at-a-time.
+  - `thread.started` names the session. Every round of one session carries the
+    same thread id.
+  - An `agent_message` item passes whole.
+  - Every action line carries Codex's own word for what the agent did, and the
+    one thing it did it to. A path then sits at the front of the detail, where
+    the feed strips the round's own directory off it.
+  - A command says what it ran, and adds its status unless it completed.
+  - A patch says of each file it touched what it did to that file.
+  - An item Codex has only started or changed says nothing its completion will
+    not say better.
+  - `turn.completed` closes the round with what it spent, in tokens alone. Codex
+    prices nothing for us.
+  - `turn.failed` closes a round that failed. Codex says a failure twice, once
+    on its own and again as the turn's ending, so only the ending reaches the
+    feed.
+  - A line the parser cannot read passes through unchanged.
 - The Codex command builders: first round and resume with the ported never-stall
   flags (design.md, The harness adapters), `--json` added.
-- One question to settle before those builders. `Launch`, which phase 4 built
-  for the argv builders, carries the session, the model, the effort and the
-  prompt. It carries no worktree, and design.md's Codex first round names
-  `-C <worktree>`. So this phase picks one of two answers. Give `Launch` the
-  worktree, which edits `adapters.py` and so spends the criterion this phase is
-  measured by. Or drop `-C`, because phase 6 runs every round in the worktree,
-  and Codex's `--last` reads that same working directory.
+- `-C <worktree>` is dropped, so `Launch` keeps the session, the model, the
+  effort and the prompt it already had. Phase 6 runs every round in the
+  worktree, and Codex scopes `--last` by that same directory, so the directory a
+  round runs in is the one place the worktree is named.
 - Recorded fixtures: capture real `codex exec --json` streams once, commit them,
   and golden-file test the parser against them.
-- The design's open-list verifications: does `codex exec resume` accept
-  `--json`; do its tool items carry enough shape for the feed's action lines;
-  does `codex` exit non-zero on a usage-limit failure. Whatever the implementing
-  session cannot verify headless becomes a named checklist item on this phase's
-  PR for the user to confirm.
+- The design's open-list verifications, all three answered against codex-cli
+  0.148.0, so no later phase need ask again. `codex exec resume` takes `--json`,
+  and a recorded resume proves it. Its command, patch and search items each
+  carry the field an action line needs. A usage-limit failure exits non-zero,
+  and Codex spends no retries on it: the round fails on the first answer.
 
 Done when: golden-file tests for the Codex parser are green on all three
 platforms, the fixtures are committed, the verification results (or their
 checklist items) are recorded on the PR — and no file outside the adapter and
 its tests changed.
 
-Deliberately out: everything phase 4 left out.
+Deliberately out: everything phase 4 left out, and the two item types
+`codex exec --json` never streamed for a session to record — an MCP tool call
+and a reasoning block. Codex counts reasoning tokens and streams no reasoning
+item, so the feed reports the count and nothing else.
 
 ## Phase 6: rounds
 
@@ -267,6 +282,14 @@ In scope:
   Pump stdout on a reader thread: each line to `raw.jsonl` verbatim, through the
   adapter's parser, rendered onto `feed.txt`. stderr interleaves into the feed
   as pass-through lines (design.md, Rounds and processes).
+- Two things phase 5 leaves this one, both about the child a round spawns.
+  - The directory is the session's worktree, always. Phase 5's Codex first round
+    names no directory of its own, and its resume finds the session by the
+    directory it ran in, so a round run anywhere else resumes the wrong session
+    or none.
+  - The child gets no stdin. Codex reads stdin for more of its prompt and waits
+    for the end of it, so a pipe the daemon holds open stalls the round for
+    ever, even when the prompt is already an argument.
 - `round.json` at the boundaries: started and pid at spawn, ended and exit
   status at exit, written and read through a pydantic model per the phase 2
   convention, so a corrupt record fails with a named error. A record with no end
