@@ -59,19 +59,19 @@ class Claude(Adapter):
         """
         return [*self._base(launch), "--continue", launch.prompt]
 
-    def read(self, line: str) -> list[Event]:
-        """Return the feed events one line of the stream carries.
-
-        Not every line is an event. The CLI prints a warning now and then, and
-        an event can arrive in a shape this does not expect. Either way the line
-        goes to the feed as it is. So a line this cannot read costs one line of
-        the feed, and never the round's story.
-        """
-        try:
-            streamed = json.loads(line)
-            return _events(streamed) if isinstance(streamed, dict) else [Prose(line)]
-        except Exception:
-            return [Prose(line)]
+    def _events(self, streamed: dict) -> list[Event]:
+        """Return what one stream event carries, or nothing when it has no story."""
+        subagent = streamed.get("parent_tool_use_id") is not None
+        kind = streamed["type"]
+        if kind == "system":
+            return _system(streamed)
+        if kind == "assistant":
+            return _blocks(streamed, _spoken, subagent)
+        if kind == "user":
+            return _blocks(streamed, _failure, subagent)
+        if kind == "result":
+            return _closing(streamed)
+        return []
 
     def _base(self, launch: Launch) -> list[str]:
         """Return the part of the command every round shares."""
@@ -91,21 +91,6 @@ class Claude(Adapter):
 
 
 CLAUDE = Claude()
-
-
-def _events(streamed: dict) -> list[Event]:
-    """Return what one stream event carries, or nothing when it carries no story."""
-    subagent = streamed.get("parent_tool_use_id") is not None
-    kind = streamed["type"]
-    if kind == "system":
-        return _system(streamed)
-    if kind == "assistant":
-        return _blocks(streamed, _spoken, subagent)
-    if kind == "user":
-        return _blocks(streamed, _failure, subagent)
-    if kind == "result":
-        return _closing(streamed)
-    return []
 
 
 def _system(streamed: dict) -> list[Event]:

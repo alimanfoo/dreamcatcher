@@ -20,6 +20,7 @@ src/:
         first_round:
         resume:
         read:
+        _events:
     claude.py:
       ALLOWED_TOOLS:
       TELLING_INPUTS:
@@ -28,9 +29,8 @@ src/:
         program:
         first_round:
         resume:
-        read:
+        _events:
         _base:
-      _events:
       _system:
       _blocks:
       _spoken:
@@ -52,10 +52,9 @@ src/:
         program:
         first_round:
         resume:
-        read:
+        _events:
       _settings:
       _overrides:
-      _events:
       _item:
       _command:
       _spend:

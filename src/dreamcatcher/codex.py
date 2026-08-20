@@ -1,6 +1,5 @@
 """Run Codex, and read what it streams back."""
 
-import json
 from typing import ClassVar
 
 from dreamcatcher.adapters import Adapter, Launch
@@ -62,19 +61,26 @@ class Codex(Adapter):
             launch.prompt,
         ]
 
-    def read(self, line: str) -> list[Event]:
-        """Return the feed events one line of the stream carries.
+    def _events(self, streamed: dict) -> list[Event]:
+        """Return what one stream event carries, or nothing when it has no story.
 
-        Not every line is an event. The CLI prints a warning now and then, and
-        an event can arrive in a shape this does not expect. Either way the line
-        goes to the feed as it is. So a line this cannot read costs one line of
-        the feed, and never the round's story.
+        An event this does not name carries no story. The feed's own line for the
+        round already says a turn has started. An item Codex has started or
+        changed reaches the feed when it completes, which is when it says the
+        most.
         """
-        try:
-            streamed = json.loads(line)
-            return _events(streamed) if isinstance(streamed, dict) else [Prose(line)]
-        except Exception:
-            return [Prose(line)]
+        kind = streamed["type"]
+        if kind == "thread.started":
+            return [Note("session", f"id {streamed['thread_id']}")]
+        if kind == "item.completed":
+            return _item(streamed["item"])
+        if kind == "turn.completed":
+            return [_spend(streamed["usage"])]
+        # Codex says a failure twice, first on its own and then as the turn's
+        # ending. The ending is the one the feed keeps, so the failure reads once.
+        if kind == "turn.failed":
+            return [Note("failed", streamed["error"]["message"])]
+        return []
 
 
 CODEX = Codex()
@@ -92,27 +98,6 @@ def _settings(launch: Launch) -> list[str]:
 def _overrides(*settings: str) -> list[str]:
     """Return the settings as the pairs Codex takes an override as."""
     return [part for setting in settings for part in ("-c", setting)]
-
-
-def _events(streamed: dict) -> list[Event]:
-    """Return what one stream event carries, or nothing when it carries no story.
-
-    An event this does not name carries no story. The feed's own line for the
-    round already says a turn has started. An item Codex has started or changed
-    reaches the feed when it completes, which is when it says the most.
-    """
-    kind = streamed["type"]
-    if kind == "thread.started":
-        return [Note("session", f"id {streamed['thread_id']}")]
-    if kind == "item.completed":
-        return _item(streamed["item"])
-    if kind == "turn.completed":
-        return [_spend(streamed["usage"])]
-    # Codex says a failure twice, first on its own and then as the turn's
-    # ending. The ending is the one the feed keeps, so the failure reads once.
-    if kind == "turn.failed":
-        return [Note("failed", streamed["error"]["message"])]
-    return []
 
 
 def _item(item: dict) -> list[Event]:

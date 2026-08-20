@@ -5,11 +5,12 @@ adapter knows what the CLI is called, which flags keep it from stalling, and
 what its stream means. Nothing else does.
 """
 
+import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import ClassVar
 
-from dreamcatcher.feed import Event
+from dreamcatcher.feed import Event, Prose
 
 
 @dataclass(frozen=True)
@@ -43,6 +44,23 @@ class Adapter(ABC):
     def resume(self, launch: Launch) -> list[str]:
         """Return the command that resumes the session with launch's prompt."""
 
-    @abstractmethod
     def read(self, line: str) -> list[Event]:
-        """Return the feed events one line of the harness's stream carries."""
+        """Return the feed events one line of the harness's stream carries.
+
+        Every harness streams a JSON event per line, and not every line is one.
+        A CLI prints a warning now and then, and an event can arrive in a shape
+        the adapter does not expect. Either way the line goes to the feed as it
+        is. So a line an adapter cannot read costs one line of the feed, and
+        never the round's story.
+        """
+        try:
+            streamed = json.loads(line)
+            return (
+                self._events(streamed) if isinstance(streamed, dict) else [Prose(line)]
+            )
+        except Exception:
+            return [Prose(line)]
+
+    @abstractmethod
+    def _events(self, streamed: dict) -> list[Event]:
+        """Return the feed events one event of the harness's stream carries."""
