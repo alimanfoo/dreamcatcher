@@ -1,0 +1,13 @@
+{"type":"thread.started","thread_id":"01a02160-8f4f-7582-8f87-69c057098d26"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"I’ll follow that sequence exactly, including the intentional failed read."}}
+{"type":"item.started","item":{"id":"item_1","type":"command_execution","command":"/bin/zsh -lc ls","aggregated_output":"","exit_code":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_1","type":"command_execution","command":"/bin/zsh -lc ls","aggregated_output":"alpha.txt\nbeta.txt\n","exit_code":0,"status":"completed"}}
+{"type":"item.started","item":{"id":"item_2","type":"command_execution","command":"/bin/zsh -lc 'cat nope.txt'","aggregated_output":"","exit_code":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_2","type":"command_execution","command":"/bin/zsh -lc 'cat nope.txt'","aggregated_output":"cat: nope.txt: No such file or directory\n","exit_code":1,"status":"failed"}}
+{"type":"item.started","item":{"id":"item_3","type":"file_change","changes":[{"path":"/private/tmp/dreamcatcher-recording/gamma.txt","kind":"add"}],"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_3","type":"file_change","changes":[{"path":"/private/tmp/dreamcatcher-recording/gamma.txt","kind":"add"}],"status":"completed"}}
+{"type":"item.started","item":{"id":"item_4","type":"web_search","id":"exec-fdea5488-0d57-4761-a18b-4eb0c3b0cd5e","query":"","action":{"type":"other"}}}
+{"type":"item.completed","item":{"id":"item_4","type":"web_search","id":"exec-fdea5488-0d57-4761-a18b-4eb0c3b0cd5e","query":"ripgrep latest release GitHub BurntSushi ripgrep","action":{"type":"search","query":"ripgrep latest release GitHub BurntSushi ripgrep"}}}
+{"type":"item.completed","item":{"id":"item_5","type":"agent_message","text":"I found that the latest ripgrep release is [version 15.2.0](https://github.com/BurntSushi/ripgrep/releases)."}}
+{"type":"turn.completed","usage":{"input_tokens":102942,"cached_input_tokens":87808,"cache_write_input_tokens":0,"output_tokens":271,"reasoning_output_tokens":8}}

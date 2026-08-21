@@ -59,19 +59,19 @@ class Claude(Adapter):
         """
         return [*self._base(launch), "--continue", launch.prompt]
 
-    def read(self, line: str) -> list[Event]:
-        """Return the feed events one line of the stream carries.
-
-        Not every line is an event. The CLI prints a warning now and then, and
-        an event can arrive in a shape this does not expect. Either way the line
-        goes to the feed as it is. So a line this cannot read costs one line of
-        the feed, and never the round's story.
-        """
-        try:
-            streamed = json.loads(line)
-            return _events(streamed) if isinstance(streamed, dict) else [Prose(line)]
-        except Exception:
-            return [Prose(line)]
+    def _events(self, streamed: dict) -> list[Event]:
+        """Return the feed events one Claude event turns into."""
+        subagent = streamed.get("parent_tool_use_id") is not None
+        kind = streamed["type"]
+        if kind == "system":
+            return _system(streamed)
+        if kind == "assistant":
+            return _blocks(streamed, _spoken, subagent)
+        if kind == "user":
+            return _blocks(streamed, _failure, subagent)
+        if kind == "result":
+            return _closing(streamed)
+        return []
 
     def _base(self, launch: Launch) -> list[str]:
         """Return the part of the command every round shares."""
@@ -91,21 +91,6 @@ class Claude(Adapter):
 
 
 CLAUDE = Claude()
-
-
-def _events(streamed: dict) -> list[Event]:
-    """Return what one stream event carries, or nothing when it carries no story."""
-    subagent = streamed.get("parent_tool_use_id") is not None
-    kind = streamed["type"]
-    if kind == "system":
-        return _system(streamed)
-    if kind == "assistant":
-        return _blocks(streamed, _spoken, subagent)
-    if kind == "user":
-        return _blocks(streamed, _failure, subagent)
-    if kind == "result":
-        return _closing(streamed)
-    return []
 
 
 def _system(streamed: dict) -> list[Event]:
@@ -170,31 +155,32 @@ def _failure(block: dict, subagent: bool) -> list[Event]:
 
 
 def _closing(streamed: dict) -> list[Event]:
-    """Return the lines that close the round: what it spent, then how it ended.
+    """Return the lines that close the round: what it used, then how it ended.
 
     The subtype reads "success" even on a round that failed, so the event's own
     error flag is what the feed reports.
     """
-    spent = _spend(streamed["total_cost_usd"], streamed["usage"])
+    used = _usage(streamed["total_cost_usd"], streamed["usage"])
     if streamed.get("is_error"):
-        return [spent, Note("failed", _text(streamed["result"]))]
-    return [spent, Note("result", streamed["subtype"])]
+        return [used, Note("failed", _text(streamed["result"]))]
+    return [used, Note("result", streamed["subtype"])]
 
 
-def _spend(cost: float, usage: dict) -> Note:
-    """Return what the round cost, in money and in tokens.
+def _usage(cost: float, counts: dict) -> Note:
+    """Return what the round used, in money and in tokens.
 
-    The tokens are the ones the event counts, each named as it names them. A
-    cache read and a cache write are priced differently from a fresh input
-    token, so adding them together would say less, not more.
+    Each count keeps the name the event gave it, and this does not add them up.
+    A cache read and a cache write each cost a different amount from a fresh
+    input token, so one total would tell the reader less than the separate
+    counts do.
     """
     return Note(
         "usage",
         f"${cost:.4f}, "
-        f"{usage['output_tokens']} output, "
-        f"{usage['input_tokens']} input, "
-        f"{usage['cache_read_input_tokens']} cache read, "
-        f"{usage['cache_creation_input_tokens']} cache write",
+        f"{counts['output_tokens']} output, "
+        f"{counts['input_tokens']} input, "
+        f"{counts['cache_read_input_tokens']} cache read, "
+        f"{counts['cache_creation_input_tokens']} cache write",
     )
 
 

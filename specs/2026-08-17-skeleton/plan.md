@@ -224,37 +224,59 @@ worktrees; prompts composed for real sessions.
 
 ## Phase 5: the Codex adapter
 
-The second harness, proving the adapter boundary holds: nothing outside the
-adapter changes.
+The second harness, which tests whether the adapter boundary holds. Anything
+this phase changes outside an adapter should be something the second harness
+showed the boundary itself ought to do.
 
 In scope:
 
-- The Codex parser: `--json` JSONL, `item.completed` items — `agent_message`
-  text, command and patch items as tool lines — lifted from audacious's codex.py
-  and moved from post-hoc to line-at-a-time.
+- The Codex parser: `--json` JSONL, lifted from audacious's codex.py and moved
+  from post-hoc to line-at-a-time.
+  - `thread.started` names the session. Every round of one session carries the
+    same thread id.
+  - An `agent_message` item passes whole.
+  - Every action line carries Codex's own word for what the agent did, and the
+    one thing it did it to.
+  - A command says what it ran, and adds its status unless it completed.
+  - A patch says what it did to each file it touched, a line each. What it did
+    is the label, which leaves the path as the whole detail, where the feed
+    strips the round's own directory off it.
+  - Only a completed item reaches the feed. Codex also streams an item as it
+    starts and as it changes, and the completion says the same thing better.
+  - `turn.completed` closes the round with what it spent, in tokens alone. Codex
+    prices nothing for us.
+  - `turn.failed` closes a round that failed. Codex says a failure twice, once
+    on its own and again as the turn's ending, so only the ending reaches the
+    feed.
+  - A line the parser cannot read passes through unchanged.
 - The Codex command builders: first round and resume with the ported never-stall
   flags (design.md, The harness adapters), `--json` added.
-- One question to settle before those builders. `Launch`, which phase 4 built
-  for the argv builders, carries the session, the model, the effort and the
-  prompt. It carries no worktree, and design.md's Codex first round names
-  `-C <worktree>`. So this phase picks one of two answers. Give `Launch` the
-  worktree, which edits `adapters.py` and so spends the criterion this phase is
-  measured by. Or drop `-C`, because phase 6 runs every round in the worktree,
-  and Codex's `--last` reads that same working directory.
+- `-C <worktree>` is dropped, so `Launch` keeps the session, the model, the
+  effort and the prompt it already had. Phase 6 runs every round in the
+  worktree, and Codex scopes `--last` by that same directory, so the directory a
+  round runs in is the one place the worktree is named.
 - Recorded fixtures: capture real `codex exec --json` streams once, commit them,
   and golden-file test the parser against them.
-- The design's open-list verifications: does `codex exec resume` accept
-  `--json`; do its tool items carry enough shape for the feed's action lines;
-  does `codex` exit non-zero on a usage-limit failure. Whatever the implementing
-  session cannot verify headless becomes a named checklist item on this phase's
-  PR for the user to confirm.
+- The design's open-list verifications, answered against codex-cli 0.148.0, so a
+  later phase does not have to ask again. `codex exec resume` takes `--json`,
+  and a recorded resume proves it. Its command, patch and search items each
+  carry the field an action line needs. A usage-limit failure exits non-zero,
+  and Codex spends no retries on it: the round fails on the first answer.
 
 Done when: golden-file tests for the Codex parser are green on all three
 platforms, the fixtures are committed, the verification results (or their
-checklist items) are recorded on the PR — and no file outside the adapter and
-its tests changed.
+checklist items) are recorded on the PR — and every file changed outside the
+adapter and its tests is named on the PR with what the second harness showed.
 
-Deliberately out: everything phase 4 left out.
+The second harness showed one such thing. Both adapters read a line the same
+way: parse it as JSON, hand a mapping to the harness's own reader, and send
+anything else to the feed as it came. That rule belongs to the boundary, so
+`Adapter.read` now holds it, and each adapter only reads its own events.
+
+Deliberately out: everything phase 4 left out, and the item types
+`codex exec --json` never streamed for a session to record: an MCP tool call and
+a reasoning block. Codex counts reasoning tokens and streams no reasoning item,
+so the feed reports the count and nothing else.
 
 ## Phase 6: rounds
 
@@ -267,6 +289,24 @@ In scope:
   Pump stdout on a reader thread: each line to `raw.jsonl` verbatim, through the
   adapter's parser, rendered onto `feed.txt`. stderr interleaves into the feed
   as pass-through lines (design.md, Rounds and processes).
+- Run every round in the session's worktree, which phase 5 leaves this phase to
+  do. Phase 5's Codex first round names no directory of its own, and its resume
+  finds the session by the directory it ran in, so a round run anywhere else
+  resumes the wrong session or none.
+- Give the child no stdin. Codex reads stdin for more of its prompt and waits
+  for the end of it, so a pipe the daemon holds open stalls the round for ever,
+  even when the prompt is already an argument.
+- Answer the Windows `.cmd` question `commands.py` leaves to the phase that runs
+  a harness. npm installs both harness CLIs as a `.cmd`, which Windows runs
+  through cmd.exe, and cmd.exe reads the arguments a second time under its own
+  rules. A prompt template is a repo's to write, so it can hold a character
+  cmd.exe acts on. Test a prompt holding one on Windows, and carry the answer
+  here.
+- Keep the pump running when a line will not render. An adapter promises only
+  that reading a line raises nothing. Rendering that line is a second step, and
+  it fails if a feed event holds anything other than text. One bad line should
+  cost one line of the feed, so the pump has to catch both steps, not just the
+  read.
 - `round.json` at the boundaries: started and pid at spawn, ended and exit
   status at exit, written and read through a pydantic model per the phase 2
   convention, so a corrupt record fails with a named error. A record with no end

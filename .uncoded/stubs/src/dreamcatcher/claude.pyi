@@ -11,9 +11,6 @@ ALLOWED_TOOLS = ...
 TELLING_INPUTS = ('command', 'file_path', 'pattern', 'url', 'skill', 'description', 'prompt')
 CLAUDE = Claude()
 
-def _events(streamed: dict) -> list[Event]:
-    ...
-
 def _system(streamed: dict) -> list[Event]:
     ...
 
@@ -29,7 +26,7 @@ def _failure(block: dict, subagent: bool) -> list[Event]:
 def _closing(streamed: dict) -> list[Event]:
     ...
 
-def _spend(cost: float, usage: dict) -> Note:
+def _usage(cost: float, counts: dict) -> Note:
     ...
 
 def _telling_input(given: dict) -> str:
@@ -47,7 +44,7 @@ class Claude(Adapter):
     def resume(self, launch: Launch) -> list[str]:
         ...
 
-    def read(self, line: str) -> list[Event]:
+    def _events(self, streamed: dict) -> list[Event]:
         ...
 
     def _base(self, launch: Launch) -> list[str]:
