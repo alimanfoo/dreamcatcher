@@ -250,9 +250,18 @@ ported resume permissions (`sandbox_mode="workspace-write"`, network access,
 `approval_policy="on-request"`, `approvals_reviewer="auto_review"`). `--last` is
 scoped by Codex's own working-directory filter — an inherited contract with
 Codex's session store, stated here so nobody rediscovers it. The parser reads
-`--json` JSONL (`item.completed` items: `agent_message` text, command and patch
-items as tool lines), lifted from audacious's `codex.py` and moved from post-hoc
-to line-at-a-time.
+`--json` JSONL, lifted from audacious's `codex.py` and moved from post-hoc to
+line-at-a-time. audacious took the `agent_message` text alone. The feed also
+wants the round's landmarks and what the agent did, so the parser reads
+`thread.started` for the session id, `item.completed` for the agent's words or
+one action line, `turn.completed` for what the round used, and `turn.failed` for
+why it stopped. Codex sends each item three times, as it starts, changes and
+finishes, and only the last is complete, so the parser drops the other two.
+Codex gives no prices, so its spend line counts tokens alone where Claude's also
+carries money. A failed turn arrives twice, once on its own and again as the
+turn's ending, and only the ending reaches the feed. Codex spends no retries on
+a usage limit: the round fails on the first answer and exits non-zero, where
+Claude retries ten times first.
 
 These flag sets are each harness's never-stall answer, written down: Claude
 answers with a pre-approved allowlist under auto mode, Codex with its automatic
@@ -274,6 +283,14 @@ with subagent activity indented, and round boundaries marked with their cause
 ("round 3: resumed on 2 posts — a review, an inline comment"). Timestamps make
 silence legible: the follow view shows the age of the last event, which is the
 "working or stuck" answer and the seed of later stall detection.
+
+The bracketed words divide in two. `[session]`, `[usage]`, `[failed]`,
+`[thinking]`, `[retry]`, `[report]` and `[result]` are the feed's own, and mean
+the same thing whichever harness ran. An action's label is the harness's own
+word for what it did, so Claude's tool name gives `[Bash] pytest` and Codex's
+item type gives `[command_execution] /bin/zsh -lc ls`. Translating one into the
+other would mean inventing Claude's names for Codex's things, and would cost the
+reader the word that appears in `raw.jsonl` beside it.
 
 `scry GH123 --follow` shows the whole session: every round's feed concatenated
 in order, boundaries between them, following at the tail while a round is live.
@@ -466,16 +483,10 @@ candidate trim once the adapters are verified, not before.
 
 ## What's still open
 
-- Verify Codex exits non-zero on a usage-limit failure — the errored retry keys
-  on exit status, so a limit that exits zero would misread as the wedge. Claude
-  is answered, and `tests/fixtures/claude/rate-limited.jsonl` records it: a
-  round the API rejects with 429 retries ten times over about three minutes,
-  then exits non-zero. Codex is still the case to confirm. (Reading the limit's
-  reset time out of the stream's own `rate_limit_event` is a possible later
-  refinement of the cooldown; the fixed hold doesn't need it.)
-- Verify Codex `--json` early in the build: that `codex exec resume` accepts it
-  at all, and that tool-call items surface with enough shape for the feed's
-  action lines (audacious proves `agent_message`; the rest needs a live round).
+- Reading a usage limit's reset time out of Claude's own `rate_limit_event` is a
+  possible later refinement of the cooldown. The fixed hold doesn't need it.
+  Both harnesses are now known to exit non-zero on a limit, which is what the
+  errored retry keys on, and `tests/fixtures/*/rate-limited.jsonl` records each.
 - Multi-repo (one place to watch all repos) stays a later phase; nothing here
   forecloses it — another repo is another state directory.
 - The personal config layer, if personal models turn out to matter.
