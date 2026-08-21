@@ -60,7 +60,7 @@ class Claude(Adapter):
         return [*self._base(launch), "--continue", launch.prompt]
 
     def _events(self, streamed: dict) -> list[Event]:
-        """Return what one stream event carries, or nothing when it has none."""
+        """Return the feed events one Claude event turns into."""
         subagent = streamed.get("parent_tool_use_id") is not None
         kind = streamed["type"]
         if kind == "system":
@@ -169,9 +169,10 @@ def _closing(streamed: dict) -> list[Event]:
 def _usage(cost: float, counts: dict) -> Note:
     """Return what the round used, in money and in tokens.
 
-    The tokens are the ones the event counts, each named as it names them. A
-    cache read and a cache write are priced differently from a fresh input
-    token, so adding them together would say less, not more.
+    Each count keeps the name the event gave it, and this does not add them up.
+    A cache read and a cache write each cost a different amount from a fresh
+    input token, so one total would tell the reader less than the separate
+    counts do.
     """
     return Note(
         "usage",

@@ -224,8 +224,9 @@ worktrees; prompts composed for real sessions.
 
 ## Phase 5: the Codex adapter
 
-The second harness, proving the adapter boundary holds: what changes outside the
-adapter is only what the second harness shows the boundary should own.
+The second harness, which tests whether the adapter boundary holds. Anything
+this phase changes outside an adapter should be something the second harness
+showed the boundary itself ought to do.
 
 In scope:
 
@@ -267,10 +268,10 @@ platforms, the fixtures are committed, the verification results (or their
 checklist items) are recorded on the PR — and every file changed outside the
 adapter and its tests is named on the PR with what the second harness showed.
 
-One such file. Both adapters read a line the same way: parse it as JSON, hand a
-mapping to the harness's own reader, and pass anything else to the feed as it
-came. The second harness is what showed that rule belongs to the boundary, so
-`Adapter.read` now holds it and each adapter reads the events alone.
+The second harness showed one such thing. Both adapters read a line the same
+way: parse it as JSON, hand a mapping to the harness's own reader, and send
+anything else to the feed as it came. That rule belongs to the boundary, so
+`Adapter.read` now holds it, and each adapter only reads its own events.
 
 Deliberately out: everything phase 4 left out, and the item types
 `codex exec --json` never streamed for a session to record: an MCP tool call and
@@ -301,10 +302,11 @@ In scope:
   rules. A prompt template is a repo's to write, so it can hold a character
   cmd.exe acts on. Test a prompt holding one on Windows, and carry the answer
   here.
-- Keep the pump alive through a line that will not render. An adapter promises
-  only that reading a line raises nothing; rendering it is a second step, and a
-  feed event holding something other than text fails there. One line must cost
-  one line, so the pump is where that holds for parsing and rendering together.
+- Keep the pump running when a line will not render. An adapter promises only
+  that reading a line raises nothing. Rendering that line is a second step, and
+  it fails if a feed event holds anything other than text. One bad line should
+  cost one line of the feed, so the pump has to catch both steps, not just the
+  read.
 - `round.json` at the boundaries: started and pid at spawn, ended and exit
   status at exit, written and read through a pydantic model per the phase 2
   convention, so a corrupt record fails with a named error. A record with no end

@@ -9,11 +9,11 @@ from dreamcatcher.feed import Event, Note, Prose
 # GitHub.
 NETWORK_ACCESS = "sandbox_workspace_write.network_access=true"
 
-# What an unattended round may do without being asked. The first round says it
-# with `--approve-for-me`, which routes every approval to Codex's own reviewer
-# and brings the workspace-write sandbox with it. A resume keeps none of that, so
-# it says the same stance again as settings. These are the port's settings, and
-# they are Codex's whole answer to never stalling for a human.
+# What an unattended round may do without being asked. The first round gets this
+# from `--approve-for-me`, which sends every approval to Codex's own reviewer and
+# turns on the workspace-write sandbox. A resume does not keep any of that, so it
+# has to set the same permissions again itself. This is the port's list, and it is
+# how Codex avoids ever stopping to wait for a person.
 RESUME_PERMISSIONS = (
     'sandbox_mode="workspace-write"',
     NETWORK_ACCESS,
@@ -30,8 +30,8 @@ class Codex(Adapter):
     def first_round(self, launch: Launch) -> list[str]:
         """Return the command that runs a session's first round.
 
-        The round runs in the session's worktree, so the command names no
-        directory of its own.
+        The command does not say which directory to work in, so whoever runs
+        it has to run it in the session's worktree.
         """
         return [
             self.program,
@@ -46,9 +46,10 @@ class Codex(Adapter):
     def resume(self, launch: Launch) -> list[str]:
         """Return the command that resumes the session in this directory.
 
-        Codex forgets the model and the effort when it resumes, so a resume
-        replays both. Codex filters its own session store by the directory a
-        round runs in. That directory is what makes `--last` pick this session.
+        Codex forgets the model and the effort when it resumes, so this sets
+        both again. `--last` means the newest session, and Codex only counts
+        the sessions it ran in the current directory. So running this in the
+        session's worktree is what picks the right session.
         """
         return [
             self.program,
@@ -62,12 +63,12 @@ class Codex(Adapter):
         ]
 
     def _events(self, streamed: dict) -> list[Event]:
-        """Return what one stream event carries, or nothing when it has none.
+        """Return the feed events one Codex event turns into.
 
-        The feed has no line for an event this does not name. The feed opens the
-        round with a line of its own, so it needs nothing from the event that
-        says a turn started. An item Codex has started or changed reaches the
-        feed when it completes, which is when it says the most.
+        An event this does not handle gets no feed line. The feed writes its own
+        opening line for a round, so it does not need the event that says a turn
+        started. Codex reports each item three times, as it starts, as it
+        changes and as it finishes, and only the last of those is complete.
         """
         kind = streamed["type"]
         if kind == "thread.started":
@@ -76,8 +77,9 @@ class Codex(Adapter):
             return _item(streamed["item"])
         if kind == "turn.completed":
             return [_usage(streamed["usage"])]
-        # Codex says a failure twice, first on its own and then as the turn's
-        # ending. The ending is the one the feed keeps, so the failure reads once.
+        # When a turn fails, Codex sends the error twice: once on its own, then
+        # again as the reason the turn failed. Keeping only this second one means
+        # the reader sees the failure once.
         if kind == "turn.failed":
             return [Note("failed", streamed["error"]["message"])]
         return []
@@ -87,7 +89,7 @@ CODEX = Codex()
 
 
 def _settings(launch: Launch) -> list[str]:
-    """Return the model and the effort, which every round of a session names."""
+    """Return the model and effort flags. Every round of a session uses both."""
     return [
         "--model",
         launch.model,
@@ -96,21 +98,21 @@ def _settings(launch: Launch) -> list[str]:
 
 
 def _overrides(*settings: str) -> list[str]:
-    """Return the settings as the pairs Codex takes an override as."""
+    """Return each setting as the `-c setting` pair Codex expects."""
     return [part for setting in settings for part in ("-c", setting)]
 
 
 def _item(item: dict) -> list[Event]:
-    """Return what one completed item carries, in Codex's own words.
+    """Return the feed events one finished item turns into.
 
-    An item the agent acted on becomes an action line. The line carries Codex's
-    word for what the agent did, and the one thing the agent did it to. An error
-    item is Codex speaking for itself rather than the agent acting, so it reads
-    as what it is.
+    When the agent does something, the item becomes one action line. Codex's own
+    name for the item is the label, and the detail is the thing the agent acted
+    on. An error item is different. That is Codex reporting a problem of its own
+    rather than the agent doing anything, so its label says so.
 
-    The feed has no line for an item this does not name. A todo list is the one
-    such item a round really streams. It arrives complete as the round ends, so
-    it says nothing about what the round is doing.
+    An item this does not handle gets no feed line. The only one a round really
+    sends is a todo list, and it arrives finished just as the round ends, so it
+    says nothing about what the round is doing.
     """
     kind = item["type"]
     if kind == "agent_message":
@@ -118,9 +120,10 @@ def _item(item: dict) -> list[Event]:
     if kind == "command_execution":
         return _command(item)
     if kind == "file_change":
-        # Codex reports every file of one patch together, so this is a line each.
-        # What the patch did to a file is the label, which leaves the path as the
-        # whole detail. The feed can then strip the round's own directory off it.
+        # Codex reports all the files of one patch in a single item, so give each
+        # file its own line. Putting what happened to the file in the label
+        # leaves the path as the whole detail, and the feed can then cut the
+        # round's own directory off the front of it.
         return [Note(change["kind"], change["path"]) for change in item["changes"]]
     if kind == "web_search":
         return [Note(kind, item["query"])]
@@ -130,12 +133,12 @@ def _item(item: dict) -> list[Event]:
 
 
 def _command(item: dict) -> list[Event]:
-    """Return the command the agent ran, and how that went.
+    """Return the command the agent ran, and how it went.
 
-    A command that completed needs no second line. One that did not gets its
-    status as the label. A command the reviewer declined then reads as declined,
-    and one that failed reads as failed, without the feed deciding which Codex
-    meant.
+    A command that finished cleanly says all it needs to in one line. Anything
+    else gets a second line, labelled with the status Codex gave it. So a failed
+    command says `failed` and a declined one says `declined`, and this does not
+    have to know which statuses Codex has.
     """
     ran = Note(item["type"], item["command"])
     status = item["status"]
@@ -145,12 +148,14 @@ def _command(item: dict) -> list[Event]:
 
 
 def _usage(counts: dict) -> Note:
-    """Return what the round used, in the tokens Codex counts.
+    """Return what the round used, counted in tokens.
 
-    Codex prices nothing for us, so the feed reports tokens alone. Each count is
-    the one the event names. Codex charges a different rate for a cached input
-    token than for a fresh one, so adding the counts together would say less.
-    Reasoning gets its own count because nothing else in the feed shows it.
+    Codex tells us no prices, so this reports tokens and no money. Each count
+    keeps the name Codex gave it, and this does not add them up: a cached input
+    token costs a different amount from a fresh one, so one total would tell the
+    reader less than the separate counts do. Reasoning gets its own count
+    because Codex sends no reasoning items, so the count is the only sign in the
+    feed that the model thought at all.
     """
     return Note(
         "usage",

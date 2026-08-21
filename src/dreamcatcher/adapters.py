@@ -5,8 +5,8 @@ adapter knows what the CLI is called, which flags keep it from stalling, and
 what each event of its stream means. Nothing else does.
 
 This module knows one thing about a stream: it carries a JSON event per line.
-Both harnesses stream that way. So this module reads a line, and deals with one
-that will not parse. The adapter is left what each event means.
+Both harnesses stream that way, so this module parses each line, and handles a
+line that will not parse. Each adapter says what its own events mean.
 """
 
 import json
@@ -52,9 +52,9 @@ class Adapter(ABC):
         """Return the feed events one line of the harness's stream carries.
 
         Not every line is an event. A CLI prints a warning now and then, and an
-        event can arrive in a shape the adapter does not expect. Either way the
-        line reaches the feed as it came. So the reader sees the raw line
-        instead of a tidy one, and this drops nothing.
+        event can arrive in a shape the adapter does not expect. In both cases
+        the line goes to the feed exactly as it arrived. The reader then sees a
+        raw line where a tidy one would normally be, and loses nothing.
         """
         try:
             streamed = json.loads(line)
@@ -66,4 +66,4 @@ class Adapter(ABC):
 
     @abstractmethod
     def _events(self, streamed: dict) -> list[Event]:
-        """Return the feed events one event of the harness's stream carries."""
+        """Return the feed events one event of this harness's stream turns into."""
