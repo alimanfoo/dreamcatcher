@@ -21,7 +21,7 @@ def _item(item: dict) -> list[Event]:
 def _command(item: dict) -> list[Event]:
     ...
 
-def _spend(usage: dict) -> Note:
+def _usage(counts: dict) -> Note:
     ...
 
 class Codex(Adapter):

@@ -60,7 +60,7 @@ class Claude(Adapter):
         return [*self._base(launch), "--continue", launch.prompt]
 
     def _events(self, streamed: dict) -> list[Event]:
-        """Return what one stream event carries, or nothing when it has no story."""
+        """Return what one stream event carries, or nothing when it has none."""
         subagent = streamed.get("parent_tool_use_id") is not None
         kind = streamed["type"]
         if kind == "system":
@@ -155,19 +155,19 @@ def _failure(block: dict, subagent: bool) -> list[Event]:
 
 
 def _closing(streamed: dict) -> list[Event]:
-    """Return the lines that close the round: what it spent, then how it ended.
+    """Return the lines that close the round: what it used, then how it ended.
 
     The subtype reads "success" even on a round that failed, so the event's own
     error flag is what the feed reports.
     """
-    spent = _spend(streamed["total_cost_usd"], streamed["usage"])
+    used = _usage(streamed["total_cost_usd"], streamed["usage"])
     if streamed.get("is_error"):
-        return [spent, Note("failed", _text(streamed["result"]))]
-    return [spent, Note("result", streamed["subtype"])]
+        return [used, Note("failed", _text(streamed["result"]))]
+    return [used, Note("result", streamed["subtype"])]
 
 
-def _spend(cost: float, usage: dict) -> Note:
-    """Return what the round cost, in money and in tokens.
+def _usage(cost: float, counts: dict) -> Note:
+    """Return what the round used, in money and in tokens.
 
     The tokens are the ones the event counts, each named as it names them. A
     cache read and a cache write are priced differently from a fresh input
@@ -176,10 +176,10 @@ def _spend(cost: float, usage: dict) -> Note:
     return Note(
         "usage",
         f"${cost:.4f}, "
-        f"{usage['output_tokens']} output, "
-        f"{usage['input_tokens']} input, "
-        f"{usage['cache_read_input_tokens']} cache read, "
-        f"{usage['cache_creation_input_tokens']} cache write",
+        f"{counts['output_tokens']} output, "
+        f"{counts['input_tokens']} input, "
+        f"{counts['cache_read_input_tokens']} cache read, "
+        f"{counts['cache_creation_input_tokens']} cache write",
     )
 
 

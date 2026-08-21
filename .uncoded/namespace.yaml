@@ -36,7 +36,7 @@ src/:
       _spoken:
       _failure:
       _closing:
-      _spend:
+      _usage:
       _telling_input:
       _text:
     cli.py:
@@ -57,7 +57,7 @@ src/:
       _overrides:
       _item:
       _command:
-      _spend:
+      _usage:
     commands.py:
       CommandError:
       locate:
@@ -236,7 +236,7 @@ tests/:
     test_a_tool_the_chain_does_not_name_reports_its_whole_input:
     test_a_tool_result_that_failed_surfaces:
     test_a_failure_that_came_back_as_blocks_reads_as_the_json_it_was:
-    test_a_tool_result_that_worked_carries_no_story:
+    test_a_tool_result_that_worked_writes_nothing:
     test_a_subagents_own_words_are_left_to_its_report:
     test_a_subagent_that_thinks_is_marked_as_one:
     test_a_subagents_tool_call_is_marked_as_one:
@@ -245,7 +245,7 @@ tests/:
     test_a_round_being_retried_says_what_it_is_waiting_on:
     test_a_round_that_ended_well_says_what_it_spent_and_how_it_ended:
     test_a_round_that_failed_closes_with_what_went_wrong:
-    test_an_event_with_no_story_in_it_writes_nothing:
+    test_an_event_the_feed_has_no_line_for_writes_nothing:
     test_a_line_that_is_not_json_comes_through_unchanged:
     test_a_line_of_json_that_is_not_an_event_comes_through_unchanged:
     test_an_event_shaped_in_a_way_the_parser_cannot_read_comes_through_unchanged:
@@ -278,7 +278,7 @@ tests/:
     test_an_error_the_round_survived_reads_as_an_error_not_a_failure:
     test_a_round_that_ended_well_says_what_it_spent:
     test_a_round_that_failed_closes_with_what_went_wrong:
-    test_an_event_with_no_story_in_it_writes_nothing:
+    test_an_event_the_feed_has_no_line_for_writes_nothing:
     test_a_line_that_is_not_json_comes_through_unchanged:
     test_a_line_of_json_that_is_not_an_event_comes_through_unchanged:
     test_an_event_shaped_in_a_way_the_parser_cannot_read_comes_through_unchanged:

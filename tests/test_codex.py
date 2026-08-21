@@ -168,7 +168,7 @@ def test_a_round_that_failed_closes_with_what_went_wrong():
     assert CODEX.read(line) == [Note("failed", "no such model")]
 
 
-def test_an_event_with_no_story_in_it_writes_nothing():
+def test_an_event_the_feed_has_no_line_for_writes_nothing():
     assert CODEX.read(streamed(type="turn.started")) == []
     assert CODEX.read(streamed(type="error", message="said again as the ending")) == []
     assert CODEX.read(streamed(type="item.started", item={"type": "web_search"})) == []

@@ -4,10 +4,9 @@ Everything else in the tool names a harness only to pick its adapter. The
 adapter knows what the CLI is called, which flags keep it from stalling, and
 what each event of its stream means. Nothing else does.
 
-One thing about a stream is the boundary's own: it carries a JSON event per
-line. Both harnesses stream that way when asked to, and a harness that cannot
-is one dreamcatcher has no feed for. So the rule for a line that will not read
-lives here, and the adapter is left the events.
+This module knows one thing about a stream: it carries a JSON event per line.
+Both harnesses stream that way. So this module reads a line, and deals with one
+that will not parse. The adapter is left what each event means.
 """
 
 import json
@@ -52,11 +51,10 @@ class Adapter(ABC):
     def read(self, line: str) -> list[Event]:
         """Return the feed events one line of the harness's stream carries.
 
-        Every harness streams a JSON event per line, and not every line is one.
-        A CLI prints a warning now and then, and an event can arrive in a shape
-        the adapter does not expect. Either way the line goes to the feed as it
-        is. So a line an adapter cannot read costs one line of the feed, and
-        never the round's story.
+        Not every line is an event. A CLI prints a warning now and then, and an
+        event can arrive in a shape the adapter does not expect. Either way the
+        line reaches the feed as it came. So the reader sees the raw line
+        instead of a tidy one, and this drops nothing.
         """
         try:
             streamed = json.loads(line)

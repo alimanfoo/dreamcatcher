@@ -41,7 +41,7 @@ def test_a_tool_result_that_failed_surfaces():
 def test_a_failure_that_came_back_as_blocks_reads_as_the_json_it_was():
     ...
 
-def test_a_tool_result_that_worked_carries_no_story():
+def test_a_tool_result_that_worked_writes_nothing():
     ...
 
 def test_a_subagents_own_words_are_left_to_its_report():
@@ -68,7 +68,7 @@ def test_a_round_that_ended_well_says_what_it_spent_and_how_it_ended():
 def test_a_round_that_failed_closes_with_what_went_wrong():
     ...
 
-def test_an_event_with_no_story_in_it_writes_nothing():
+def test_an_event_the_feed_has_no_line_for_writes_nothing():
     ...
 
 def test_a_line_that_is_not_json_comes_through_unchanged():

@@ -62,12 +62,12 @@ class Codex(Adapter):
         ]
 
     def _events(self, streamed: dict) -> list[Event]:
-        """Return what one stream event carries, or nothing when it has no story.
+        """Return what one stream event carries, or nothing when it has none.
 
-        An event this does not name carries no story. The feed's own line for the
-        round already says a turn has started. An item Codex has started or
-        changed reaches the feed when it completes, which is when it says the
-        most.
+        The feed has no line for an event this does not name. The feed opens the
+        round with a line of its own, so it needs nothing from the event that
+        says a turn started. An item Codex has started or changed reaches the
+        feed when it completes, which is when it says the most.
         """
         kind = streamed["type"]
         if kind == "thread.started":
@@ -75,7 +75,7 @@ class Codex(Adapter):
         if kind == "item.completed":
             return _item(streamed["item"])
         if kind == "turn.completed":
-            return [_spend(streamed["usage"])]
+            return [_usage(streamed["usage"])]
         # Codex says a failure twice, first on its own and then as the turn's
         # ending. The ending is the one the feed keeps, so the failure reads once.
         if kind == "turn.failed":
@@ -103,13 +103,14 @@ def _overrides(*settings: str) -> list[str]:
 def _item(item: dict) -> list[Event]:
     """Return what one completed item carries, in Codex's own words.
 
-    An item the agent acted on becomes an action line: Codex's word for what the
-    agent did, and the one thing it did it to. An error item is Codex speaking
-    for itself rather than the agent acting, so it reads as what it is.
+    An item the agent acted on becomes an action line. The line carries Codex's
+    word for what the agent did, and the one thing the agent did it to. An error
+    item is Codex speaking for itself rather than the agent acting, so it reads
+    as what it is.
 
-    An item this does not name carries no story. A todo list is the one such item
-    a round really streams. It arrives complete as the round ends, so it says
-    nothing about what the round is doing.
+    The feed has no line for an item this does not name. A todo list is the one
+    such item a round really streams. It arrives complete as the round ends, so
+    it says nothing about what the round is doing.
     """
     kind = item["type"]
     if kind == "agent_message":
@@ -143,8 +144,8 @@ def _command(item: dict) -> list[Event]:
     return [ran, Note(status, item["aggregated_output"])]
 
 
-def _spend(usage: dict) -> Note:
-    """Return what the round spent, in the tokens Codex counts.
+def _usage(counts: dict) -> Note:
+    """Return what the round used, in the tokens Codex counts.
 
     Codex prices nothing for us, so the feed reports tokens alone. Each count is
     the one the event names. Codex charges a different rate for a cached input
@@ -153,9 +154,9 @@ def _spend(usage: dict) -> Note:
     """
     return Note(
         "usage",
-        f"{usage['output_tokens']} output, "
-        f"{usage['reasoning_output_tokens']} reasoning, "
-        f"{usage['input_tokens']} input, "
-        f"{usage['cached_input_tokens']} cache read, "
-        f"{usage['cache_write_input_tokens']} cache write",
+        f"{counts['output_tokens']} output, "
+        f"{counts['reasoning_output_tokens']} reasoning, "
+        f"{counts['input_tokens']} input, "
+        f"{counts['cached_input_tokens']} cache read, "
+        f"{counts['cache_write_input_tokens']} cache write",
     )

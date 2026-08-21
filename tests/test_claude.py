@@ -119,7 +119,7 @@ def test_a_failure_that_came_back_as_blocks_reads_as_the_json_it_was():
     ]
 
 
-def test_a_tool_result_that_worked_carries_no_story():
+def test_a_tool_result_that_worked_writes_nothing():
     line = streamed(
         type="user", message={"content": [{"type": "tool_result", "content": "ok"}]}
     )
@@ -225,7 +225,7 @@ def test_a_round_that_failed_closes_with_what_went_wrong():
     assert CLAUDE.read(line) == [SPEND, Note("failed", "no such model")]
 
 
-def test_an_event_with_no_story_in_it_writes_nothing():
+def test_an_event_the_feed_has_no_line_for_writes_nothing():
     assert CLAUDE.read(streamed(type="rate_limit_event", rate_limit_info={})) == []
     assert CLAUDE.read(streamed(type="system", subtype="hook_started")) == []
     assert CLAUDE.read(assistant({"type": "image", "source": {}})) == []

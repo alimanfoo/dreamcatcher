@@ -26,7 +26,7 @@ def _failure(block: dict, subagent: bool) -> list[Event]:
 def _closing(streamed: dict) -> list[Event]:
     ...
 
-def _spend(cost: float, usage: dict) -> Note:
+def _usage(cost: float, counts: dict) -> Note:
     ...
 
 def _telling_input(given: dict) -> str:

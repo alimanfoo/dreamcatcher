@@ -48,7 +48,7 @@ def test_a_round_that_ended_well_says_what_it_spent():
 def test_a_round_that_failed_closes_with_what_went_wrong():
     ...
 
-def test_an_event_with_no_story_in_it_writes_nothing():
+def test_an_event_the_feed_has_no_line_for_writes_nothing():
     ...
 
 def test_a_line_that_is_not_json_comes_through_unchanged():
