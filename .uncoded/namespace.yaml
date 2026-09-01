@@ -394,12 +394,15 @@ tests/:
     test_gh_takes_the_linked_pull_requests_command:
     test_a_blocked_issue_names_what_blocks_it:
   test_lock.py:
+    refuse:
     dead_pid:
     test_holding_the_lock_records_the_daemon_and_releasing_removes_it:
     test_a_live_daemon_keeps_the_lock:
     test_a_lock_naming_a_pid_that_is_gone_is_reclaimed:
     test_a_lock_nobody_can_read_as_a_live_pid_is_reclaimed:
     test_the_lock_is_released_when_the_daemon_fails:
+    test_a_lock_the_daemon_cannot_write_says_so:
+    test_a_release_that_cannot_happen_leaves_the_failure_that_ended_the_run:
   test_recordings.py:
     FIXTURES:
     RECORDED_IN:

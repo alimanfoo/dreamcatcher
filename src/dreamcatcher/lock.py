@@ -2,7 +2,7 @@
 
 import os
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from pathlib import Path
 
 import psutil
@@ -26,7 +26,11 @@ def hold(path: Path) -> Iterator[None]:
     try:
         yield
     finally:
-        path.unlink(missing_ok=True)
+        # A release that cannot happen costs nothing, because the next run
+        # reclaims a lock naming a dead pid. Letting the failure out would
+        # replace whatever ended the run, and the user would read the wrong one.
+        with suppress(OSError):
+            path.unlink()
 
 
 def _holder(path: Path) -> int | None:

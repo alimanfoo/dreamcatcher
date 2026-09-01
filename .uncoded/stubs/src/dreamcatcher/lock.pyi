@@ -3,7 +3,7 @@
 
 import os
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from pathlib import Path
 import psutil
 from dreamcatcher.documents import write_text
