@@ -11,7 +11,7 @@ from dreamcatcher.errors import DreamcatcherError
 class Document(BaseModel):
     """A document dreamcatcher reads or writes.
 
-    Every document forbids keys it does not declare. A typo is then a named
+    Every document refuses a key it does not expect. A typo is then a named
     error, not a setting the tool quietly ignores.
     """
 

@@ -4,7 +4,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Self
 
-from pydantic import Field, PositiveInt, model_validator
+from pydantic import ConfigDict, Field, PositiveInt, model_validator
 
 from dreamcatcher.documents import Document, read_toml
 
@@ -30,17 +30,29 @@ class DispatchMapping(Document):
     """A label, and the settings each harness needs to run it.
 
     The label is the mapping's identity, so no two mappings carry the same one.
+
+    A harness block sits beside the label rather than under a key of its own, as
+    `[dispatch.claude]` does, so pydantic meets it as an extra key. Naming the
+    type of those keys keeps the harnesses in one home, Harness, and keeps the
+    guarantee every document makes: a key that names no harness is a named
+    error, not a setting the tool quietly ignores.
     """
 
+    model_config = ConfigDict(extra="allow")
+    __pydantic_extra__: dict[Harness, HarnessSettings]
+
     label: str
-    claude: HarnessSettings | None = None
-    codex: HarnessSettings | None = None
+
+    @property
+    def settings(self) -> dict[Harness, HarnessSettings]:
+        """The settings block of each harness that can run the label."""
+        return self.__pydantic_extra__
 
     @model_validator(mode="after")
     def _carries_a_block(self) -> Self:
         """Refuse a label with no harness able to run it."""
-        if self.claude is None and self.codex is None:
-            raise ValueError(f"label {self.label} has no claude or codex block")
+        if not self.settings:
+            raise ValueError(f"label {self.label} has no harness block")
         return self
 
 

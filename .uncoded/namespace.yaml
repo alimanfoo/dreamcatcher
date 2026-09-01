@@ -72,9 +72,10 @@ src/:
         model:
         effort:
       DispatchMapping:
+        model_config:
+        __pydantic_extra__:
         label:
-        claude:
-        codex:
+        settings:
         _carries_a_block:
       Config:
         interval:

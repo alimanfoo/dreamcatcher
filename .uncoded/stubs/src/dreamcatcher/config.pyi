@@ -4,7 +4,7 @@
 from enum import StrEnum
 from pathlib import Path
 from typing import Self
-from pydantic import Field, PositiveInt, model_validator
+from pydantic import ConfigDict, Field, PositiveInt, model_validator
 from dreamcatcher.documents import Document, read_toml
 
 CONFIG_NAME = 'dreamcatcher.toml'
@@ -22,9 +22,10 @@ class HarnessSettings(Document):
     effort: str
 
 class DispatchMapping(Document):
+    model_config = ConfigDict(extra='allow')
+    __pydantic_extra__: dict[Harness, HarnessSettings]
     label: str
-    claude: HarnessSettings | None = None
-    codex: HarnessSettings | None = None
+    settings: dict[Harness, HarnessSettings]
 
     def _carries_a_block(self) -> Self:
         ...
