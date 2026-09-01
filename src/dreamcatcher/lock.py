@@ -7,6 +7,7 @@ from pathlib import Path
 
 import psutil
 
+from dreamcatcher.documents import write_text
 from dreamcatcher.errors import ReportableError
 
 
@@ -21,7 +22,7 @@ def hold(path: Path) -> Iterator[None]:
     running = _holder(path)
     if running is not None:
         raise ReportableError(f"dreamcatcher is already running as pid {running}.")
-    path.write_text(f"{os.getpid()}\n", encoding="utf-8")
+    write_text(f"{os.getpid()}\n", path)
     try:
         yield
     finally:

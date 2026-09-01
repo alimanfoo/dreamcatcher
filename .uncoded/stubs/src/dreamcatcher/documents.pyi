@@ -9,6 +9,9 @@ from dreamcatcher.errors import ReportableError
 def read_toml(model: type[DocumentT], path: Path) -> DocumentT:
     ...
 
+def write_text(text: str, path: Path) -> None:
+    ...
+
 def write_json(document: Document, path: Path) -> None:
     ...
 

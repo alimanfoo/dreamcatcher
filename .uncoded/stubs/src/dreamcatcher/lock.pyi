@@ -6,6 +6,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 import psutil
+from dreamcatcher.documents import write_text
 from dreamcatcher.errors import ReportableError
 
 def hold(path: Path) -> Iterator[None]:

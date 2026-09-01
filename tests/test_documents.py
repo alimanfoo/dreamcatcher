@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from dreamcatcher.documents import Document, read_toml
+from dreamcatcher.documents import Document, read_toml, write_text
 from dreamcatcher.errors import ReportableError
 
 
@@ -63,3 +63,16 @@ def test_a_document_that_breaks_its_model_lists_every_fault(tmp_path):
         "unable to parse string as an integer\n"
         "  extra: Extra inputs are not permitted"
     )
+
+
+def test_a_write_lands_where_it_is_asked_for(tmp_path):
+    written = tmp_path / "records" / "sample.txt"
+
+    write_text("what it holds\n", written)
+
+    assert written.read_text(encoding="utf-8") == "what it holds\n"
+
+
+def test_a_write_that_fails_names_the_path(tmp_path):
+    with pytest.raises(ReportableError, match="cannot write"):
+        write_text("what it holds\n", tmp_path)
