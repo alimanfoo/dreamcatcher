@@ -1,4 +1,4 @@
-"""Read and write the files dreamcatcher owns."""
+"""Read and write the files that dreamcatcher owns."""
 
 import tomllib
 from pathlib import Path
@@ -41,11 +41,12 @@ def read_toml[DocumentT: Document](model: type[DocumentT], path: Path) -> Docume
 def write_text(text: str, path: Path) -> None:
     """Write text to path as UTF-8, making the directory that holds it.
 
-    Raise ReportableError when the write fails, because a failed write is the
-    world outside the tool talking, and the user can act on what it says.
+    Raise ReportableError when the write fails. A full disk or a read-only
+    directory is not a bug in the tool, and the user can act on either, so it
+    reads as a message.
 
     Making the directory here is what lets a caller write a file without
-    thinking about where it goes.
+    creating the directory first.
     """
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
