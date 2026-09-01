@@ -13,9 +13,6 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.lock import hold
 from dreamcatcher.state import LastTick, StateDirectory
 
-class NotAMainCheckoutError(ReportableError):
-    ...
-
 class Daemon:
     def __init__(self, root: Path, harness: Harness, clock: Callable[[], datetime], wait: Callable[[float], None]) -> None:
         ...

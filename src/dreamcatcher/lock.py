@@ -10,21 +10,17 @@ import psutil
 from dreamcatcher.errors import ReportableError
 
 
-class AlreadyRunningError(ReportableError):
-    """A daemon is running on this repo already."""
-
-
 @contextmanager
 def hold(path: Path) -> Iterator[None]:
     """Hold the lock at path, and release it however the caller ends.
 
-    Raise AlreadyRunningError when a live daemon holds it.
+    Raise ReportableError when a live daemon holds it.
 
     Reclaim a stale lock, one no live daemon holds.
     """
     running = _holder(path)
     if running is not None:
-        raise AlreadyRunningError(f"dreamcatcher is already running as pid {running}.")
+        raise ReportableError(f"dreamcatcher is already running as pid {running}.")
     path.write_text(f"{os.getpid()}\n", encoding="utf-8")
     try:
         yield

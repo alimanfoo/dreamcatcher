@@ -5,7 +5,8 @@ import os
 import subprocess
 import sys
 import pytest
-from dreamcatcher.lock import AlreadyRunningError, hold
+from dreamcatcher.errors import ReportableError
+from dreamcatcher.lock import hold
 
 def dead_pid() -> int:
     ...

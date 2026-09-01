@@ -3,7 +3,8 @@
 
 from pathlib import Path
 import pytest
-from dreamcatcher.documents import Document, DocumentError, read_toml
+from dreamcatcher.documents import Document, read_toml
+from dreamcatcher.errors import ReportableError
 
 def write(path: Path, text: str) -> Path:
     ...

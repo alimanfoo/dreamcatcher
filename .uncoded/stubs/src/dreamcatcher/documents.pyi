@@ -17,6 +17,3 @@ def _report(path: Path, error: ValidationError) -> str:
 
 class Document(BaseModel):
     model_config = ConfigDict(extra='forbid', frozen=True)
-
-class DocumentError(ReportableError):
-    ...

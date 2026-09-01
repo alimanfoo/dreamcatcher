@@ -5,9 +5,8 @@ import os
 import pytest
 from clocks import Ticking
 from dreamcatcher.config import CONFIG_NAME, Harness
-from dreamcatcher.daemon import Daemon, NotAMainCheckoutError
-from dreamcatcher.documents import DocumentError
-from dreamcatcher.lock import AlreadyRunningError
+from dreamcatcher.daemon import Daemon
+from dreamcatcher.errors import ReportableError
 from dreamcatcher.state import LastTick, StateDirectory
 
 def idling(root, ticks: int) -> tuple[Daemon, Waiting, Ticking]:

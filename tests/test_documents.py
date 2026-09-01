@@ -2,7 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from dreamcatcher.documents import Document, DocumentError, read_toml
+from dreamcatcher.documents import Document, read_toml
+from dreamcatcher.errors import ReportableError
 
 
 class Sample(Document):
@@ -23,21 +24,21 @@ def test_a_valid_document_reads_back(tmp_path):
 
 
 def test_a_missing_document_names_the_path(tmp_path):
-    with pytest.raises(DocumentError) as error:
+    with pytest.raises(ReportableError) as error:
         read_toml(Sample, tmp_path / "sample.toml")
 
     assert str(error.value) == f"{tmp_path / 'sample.toml'} does not exist."
 
 
 def test_an_unreadable_document_says_so(tmp_path):
-    with pytest.raises(DocumentError, match="cannot read"):
+    with pytest.raises(ReportableError, match="cannot read"):
         read_toml(Sample, tmp_path)
 
 
 def test_a_document_that_is_not_toml_says_so(tmp_path):
     document = write(tmp_path, "name = \n")
 
-    with pytest.raises(DocumentError, match="is not valid TOML"):
+    with pytest.raises(ReportableError, match="is not valid TOML"):
         read_toml(Sample, document)
 
 
@@ -45,14 +46,14 @@ def test_a_document_that_is_not_utf_8_says_so(tmp_path):
     document = tmp_path / "sample.toml"
     document.write_bytes('name = "Ren\u00e9"\n'.encode("utf-16"))
 
-    with pytest.raises(DocumentError, match="not UTF-8"):
+    with pytest.raises(ReportableError, match="not UTF-8"):
         read_toml(Sample, document)
 
 
 def test_a_document_that_breaks_its_model_lists_every_fault(tmp_path):
     document = write(tmp_path, 'count = "many"\nextra = true\n')
 
-    with pytest.raises(DocumentError) as error:
+    with pytest.raises(ReportableError) as error:
         read_toml(Sample, document)
 
     assert str(error.value) == (

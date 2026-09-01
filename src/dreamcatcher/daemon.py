@@ -14,10 +14,6 @@ from dreamcatcher.lock import hold
 from dreamcatcher.state import LastTick, StateDirectory
 
 
-class NotAMainCheckoutError(ReportableError):
-    """The user started the daemon outside a repo's main checkout."""
-
-
 class Daemon:
     """The foreground process watching one repo.
 
@@ -34,7 +30,7 @@ class Daemon:
     ) -> None:
         """Set the daemon up for the repo checked out at root."""
         if not (root / ".git").is_dir():
-            raise NotAMainCheckoutError(
+            raise ReportableError(
                 f"Start dreamcatcher from a repository's main checkout. "
                 f"{root} is not one."
             )

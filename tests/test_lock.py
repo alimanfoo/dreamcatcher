@@ -4,7 +4,8 @@ import sys
 
 import pytest
 
-from dreamcatcher.lock import AlreadyRunningError, hold
+from dreamcatcher.errors import ReportableError
+from dreamcatcher.lock import hold
 
 
 def dead_pid() -> int:
@@ -26,7 +27,7 @@ def test_a_live_daemon_keeps_the_lock(tmp_path):
     lock = tmp_path / "daemon.pid"
     lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
 
-    with pytest.raises(AlreadyRunningError, match=f"pid {os.getpid()}"), hold(lock):
+    with pytest.raises(ReportableError, match=f"pid {os.getpid()}"), hold(lock):
         pass
 
 

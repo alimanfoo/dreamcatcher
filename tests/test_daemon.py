@@ -4,9 +4,8 @@ import pytest
 from clocks import Ticking
 
 from dreamcatcher.config import CONFIG_NAME, Harness
-from dreamcatcher.daemon import Daemon, NotAMainCheckoutError
-from dreamcatcher.documents import DocumentError
-from dreamcatcher.lock import AlreadyRunningError
+from dreamcatcher.daemon import Daemon
+from dreamcatcher.errors import ReportableError
 from dreamcatcher.state import LastTick, StateDirectory
 
 
@@ -61,7 +60,7 @@ def test_a_second_daemon_refuses_while_the_first_holds_the_repo(watched):
     daemon.state.bootstrap()
     daemon.state.lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
 
-    with pytest.raises(AlreadyRunningError, match=f"pid {os.getpid()}"):
+    with pytest.raises(ReportableError, match=f"pid {os.getpid()}"):
         daemon.run()
 
 
@@ -70,19 +69,19 @@ def test_the_daemon_runs_the_harness_it_was_given(watched):
 
 
 def test_a_checkout_with_no_config_names_the_file_it_needs(repo):
-    with pytest.raises(DocumentError, match=CONFIG_NAME):
+    with pytest.raises(ReportableError, match=CONFIG_NAME):
         Daemon(repo, Harness.CLAUDE)
 
 
 def test_a_directory_that_is_not_a_repository_is_refused(tmp_path):
-    with pytest.raises(NotAMainCheckoutError, match="main checkout"):
+    with pytest.raises(ReportableError, match="main checkout"):
         Daemon(tmp_path, Harness.CLAUDE)
 
 
 def test_a_linked_worktree_is_refused(tmp_path):
     (tmp_path / ".git").write_text("gitdir: elsewhere\n", encoding="utf-8")
 
-    with pytest.raises(NotAMainCheckoutError, match="main checkout"):
+    with pytest.raises(ReportableError, match="main checkout"):
         Daemon(tmp_path, Harness.CLAUDE)
 
 

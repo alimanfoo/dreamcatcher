@@ -13,6 +13,3 @@ def hold(path: Path) -> Iterator[None]:
 
 def _holder(path: Path) -> int | None:
     ...
-
-class AlreadyRunningError(ReportableError):
-    ...

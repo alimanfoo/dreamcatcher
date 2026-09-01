@@ -4,7 +4,7 @@ import pytest
 from conftest import CONFIG, CONFIG_HEAD, SMITH_CLAUDE, SMITH_CODEX
 
 from dreamcatcher.config import CONFIG_NAME, HarnessSettings, read_config
-from dreamcatcher.documents import DocumentError
+from dreamcatcher.errors import ReportableError
 
 WITHOUT_CODEX = CONFIG_HEAD + SMITH_CLAUDE
 
@@ -106,12 +106,12 @@ def test_a_config_mistake_names_the_setting_and_the_fault(
 ):
     write_config(tmp_path, text)
 
-    with pytest.raises(DocumentError) as error:
+    with pytest.raises(ReportableError) as error:
         read_config(tmp_path)
 
     assert str(error.value) == f"{tmp_path / CONFIG_NAME} is not valid:\n  {fault}"
 
 
 def test_a_repo_with_no_config_says_which_file_is_missing(tmp_path):
-    with pytest.raises(DocumentError, match=CONFIG_NAME):
+    with pytest.raises(ReportableError, match=CONFIG_NAME):
         read_config(tmp_path)

@@ -18,28 +18,24 @@ class Document(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
 
-class DocumentError(ReportableError):
-    """A document is missing, unreadable, or does not match its model."""
-
-
 def read_toml[DocumentT: Document](model: type[DocumentT], path: Path) -> DocumentT:
-    """Return the document the TOML file holds, or raise DocumentError."""
+    """Return the document the TOML file holds, or raise ReportableError."""
     try:
         text = path.read_text(encoding="utf-8")
     except FileNotFoundError as error:
-        raise DocumentError(f"{path} does not exist.") from error
+        raise ReportableError(f"{path} does not exist.") from error
     except UnicodeDecodeError as error:
-        raise DocumentError(f"{path} is not UTF-8 text.") from error
+        raise ReportableError(f"{path} is not UTF-8 text.") from error
     except OSError as error:
-        raise DocumentError(f"cannot read {path}: {error}.") from error
+        raise ReportableError(f"cannot read {path}: {error}.") from error
     try:
         data = tomllib.loads(text)
     except tomllib.TOMLDecodeError as error:
-        raise DocumentError(f"{path} is not valid TOML: {error}.") from error
+        raise ReportableError(f"{path} is not valid TOML: {error}.") from error
     try:
         return model.model_validate(data)
     except ValidationError as error:
-        raise DocumentError(_report(path, error)) from error
+        raise ReportableError(_report(path, error)) from error
 
 
 def write_json(document: Document, path: Path) -> None:
