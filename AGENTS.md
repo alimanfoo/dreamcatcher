@@ -94,8 +94,8 @@ uv run pre-commit run --all-files
   setting the tool quietly ignores.
 - Read what GitHub answers through a `Projection` in `github.py`. It keeps the
   fields we declare and lets every other key pass, because GitHub owns that
-  document and adds to it as it pleases. A `Document` forbids a key it doesn't
-  declare, which is right only for a document the tool owns itself.
+  document and adds to it as it pleases. A `Document` refuses a key that it
+  doesn't expect, which is right only for a document the tool owns itself.
 - Shell out from `commands.py` alone. `pyproject.toml` waives ruff's subprocess
   rules for that one module, so any other module that imports `subprocess` fails
   the check.
