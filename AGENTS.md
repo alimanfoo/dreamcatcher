@@ -97,9 +97,10 @@ uv run pre-commit run --all-files
   `CommandError` to answer "unknown".
 - Give every document the tool reads or writes a pydantic model, and read and
   write it through `documents.py`. That covers `dreamcatcher.toml` and the
-  records under `.dreamcatcher/`, but not a one-value file like `daemon.pid`. A
-  mistake in a document then reads as a named error in plain words, not as a
-  setting the tool quietly ignores.
+  records under `.dreamcatcher/`. A mistake in a document then reads as a named
+  error in plain words, not as a setting the tool quietly ignores. A one-value
+  file like `daemon.pid` needs no model, though `lock.py` still writes it
+  through `documents.write_text`.
 - Read what GitHub answers through a `Projection` in `github.py`. It keeps the
   fields we declare and lets every other key pass, because GitHub owns that
   document and adds to it as it pleases. A `Document` forbids a key it doesn't

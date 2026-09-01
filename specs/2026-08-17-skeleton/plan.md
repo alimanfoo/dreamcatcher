@@ -152,8 +152,8 @@ In scope:
   waived for `tests/**` only, so the first wrapper in `src` fails the check:
   decide the waiver here, where the code that earns it lives, and say why in
   `pyproject.toml`. And every failure a wrapper raises derives from
-  `DreamcatcherError`, so the command line reports it as a message and never as
-  a traceback.
+  `ReportableError`, so the command line reports it as a message and never as a
+  traceback.
 - The fake-executables rig: stand-in `gh` and `git` the tests put first on PATH,
   scriptable per test to return canned responses or fail on cue. Solve the
   Windows shim question here, once — executables on Windows need an extension (a
