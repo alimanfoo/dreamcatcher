@@ -4,7 +4,7 @@
 import tomllib
 from pathlib import Path
 from pydantic import BaseModel, ConfigDict, ValidationError
-from dreamcatcher.errors import DreamcatcherError
+from dreamcatcher.errors import ReportableError
 
 def read_toml(model: type[DocumentT], path: Path) -> DocumentT:
     ...
@@ -18,5 +18,5 @@ def _report(path: Path, error: ValidationError) -> str:
 class Document(BaseModel):
     model_config = ConfigDict(extra='forbid', frozen=True)
 
-class DocumentError(DreamcatcherError):
+class DocumentError(ReportableError):
     ...

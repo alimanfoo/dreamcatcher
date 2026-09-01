@@ -9,12 +9,12 @@ from time import sleep
 from dreamcatcher.clock import now
 from dreamcatcher.config import Harness, read_config
 from dreamcatcher.documents import write_json
-from dreamcatcher.errors import DreamcatcherError
+from dreamcatcher.errors import ReportableError
 from dreamcatcher.lock import hold
 from dreamcatcher.state import LastTick, StateDirectory
 
 
-class NotAMainCheckoutError(DreamcatcherError):
+class NotAMainCheckoutError(ReportableError):
     """The user started the daemon outside a repo's main checkout."""
 
 

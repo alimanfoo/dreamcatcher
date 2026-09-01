@@ -10,10 +10,10 @@ import subprocess
 from pathlib import Path
 from shutil import which
 
-from dreamcatcher.errors import DreamcatcherError
+from dreamcatcher.errors import ReportableError
 
 
-class CommandError(DreamcatcherError):
+class CommandError(ReportableError):
     """A command dreamcatcher ran is not there, or it failed."""
 
 

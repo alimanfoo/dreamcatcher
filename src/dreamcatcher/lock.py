@@ -7,10 +7,10 @@ from pathlib import Path
 
 import psutil
 
-from dreamcatcher.errors import DreamcatcherError
+from dreamcatcher.errors import ReportableError
 
 
-class AlreadyRunningError(DreamcatcherError):
+class AlreadyRunningError(ReportableError):
     """A daemon is running on this repo already."""
 
 

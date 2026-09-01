@@ -5,7 +5,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
-from dreamcatcher.errors import DreamcatcherError
+from dreamcatcher.errors import ReportableError
 
 
 class Document(BaseModel):
@@ -18,7 +18,7 @@ class Document(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
 
-class DocumentError(DreamcatcherError):
+class DocumentError(ReportableError):
     """A document is missing, unreadable, or does not match its model."""
 
 

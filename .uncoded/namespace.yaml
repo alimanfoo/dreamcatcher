@@ -97,7 +97,7 @@ src/:
       write_json:
       _report:
     errors.py:
-      DreamcatcherError:
+      ReportableError:
     feed.py:
       WIDTH:
       INDENT:

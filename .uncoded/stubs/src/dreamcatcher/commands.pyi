@@ -4,7 +4,7 @@
 import subprocess
 from pathlib import Path
 from shutil import which
-from dreamcatcher.errors import DreamcatcherError
+from dreamcatcher.errors import ReportableError
 
 def locate(program: str) -> str:
     ...
@@ -12,5 +12,5 @@ def locate(program: str) -> str:
 def run(program: str, *arguments: str, cwd: Path | None) -> str:
     ...
 
-class CommandError(DreamcatcherError):
+class CommandError(ReportableError):
     ...
