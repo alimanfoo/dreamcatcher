@@ -27,15 +27,15 @@ class HarnessSettings(Document):
 
 
 class DispatchMapping(Document):
-    """A label, and the settings each harness needs to run it.
+    """A label, and the settings that each harness needs to run it.
 
     The label is the mapping's identity, so no two mappings carry the same one.
 
-    A harness block sits beside the label rather than under a key of its own, as
-    `[dispatch.claude]` does, so pydantic meets it as an extra key. Naming the
-    type of those keys keeps the harnesses in one home, Harness, and keeps the
-    guarantee every document makes: a key that names no harness is a named
-    error, not a setting the tool quietly ignores.
+    A harness block sits beside the label rather than under a key of its own,
+    as `[dispatch.claude]` does, so pydantic meets it as an extra key. Those
+    extra keys carry a declared type, Harness, so the set of harnesses stays in
+    one home. A key that names no harness is then a named error, so the mapping
+    keeps the guarantee that every document makes.
     """
 
     model_config = ConfigDict(extra="allow")

@@ -9,10 +9,10 @@ from dreamcatcher.errors import DreamcatcherError
 
 
 class Document(BaseModel):
-    """A document dreamcatcher reads or writes.
+    """A document that dreamcatcher reads or writes.
 
-    Every document refuses a key it does not expect. A typo is then a named
-    error, not a setting the tool quietly ignores.
+    Every document refuses a key that it does not expect. A typo is then a
+    named error, not a setting that the tool quietly ignores.
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
