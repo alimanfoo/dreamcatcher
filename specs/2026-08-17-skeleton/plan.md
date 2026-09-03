@@ -7,8 +7,10 @@ tool replaces, `design.md` says what we're building and how it works.
 
 Each phase section stands alone: what's in scope, the demo that proves it done,
 and what it deliberately leaves for a later phase. The implementing session
-reads all four documents for context, then works from its phase section here.
-Where a section names a mechanism without detail, the detail is in `design.md`.
+reads all four documents for context, then works from its phase section here. A
+section names each mechanism the phase builds and points at the `design.md`
+section that says what that mechanism does. Don't restate it here, or a later
+phase that changes the mechanism has two places to correct.
 
 How the phases run: an umbrella issue tracks the skeleton, with one child issue
 per phase. Each child issue's body is two lines — read the four documents in
@@ -188,24 +190,14 @@ spawns no processes yet.
 
 In scope:
 
-- The adapter interface: one small frozen object per harness that builds the
-  first-round argv, builds the resume argv, names its CLI so a startup check can
-  look it up, and parses one stream line into events. The never-stall flag sets
-  from design.md (The harness adapters) are the adapters' data.
+- The adapter interface (design.md, The harness adapters). The never-stall flag
+  sets are the adapters' own data.
 - The event vocabulary between parser and renderer, settled here. It was the
   last thing design.md left open about the feed.
-- The Claude parser: render-claude.sh's policy as Python.
-  - The session id comes from the init event.
-  - Assistant text passes whole.
-  - A thinking block is marked. Claude withholds the thinking itself.
-  - A tool call becomes one line, through the most-telling-input fallback chain.
-  - A failed tool result surfaces.
-  - A retried request says what it is waiting on.
-  - The result event closes the round with what it spent, then how it ended.
-  - A subagent's lines indent.
-  - A line the parser cannot read passes through unchanged.
-- The renderer: timestamped feed lines, round-boundary lines carrying the
-  round's cause.
+- The Claude parser: render-claude.sh's policy as Python (design.md, The harness
+  adapters).
+- The renderer, which turns the parser's events into the feed's lines
+  (design.md, The feed).
 - The fake harness binary for the test rig: replays a recorded stream file with
   configurable delays and exit code. Later phases test process handling with it,
   no signed-in CLI needed.
@@ -235,25 +227,7 @@ showed the boundary itself ought to do.
 
 In scope:
 
-- The Codex parser: `--json` JSONL, lifted from audacious's codex.py and moved
-  from post-hoc to line-at-a-time.
-  - `thread.started` names the session. Every round of one session carries the
-    same thread id.
-  - An `agent_message` item passes whole.
-  - Every action line carries Codex's own word for what the agent did, and the
-    one thing it did it to.
-  - A command says what it ran, and adds its status unless it completed.
-  - A patch says what it did to each file it touched, a line each. What it did
-    is the label, which leaves the path as the whole detail, where the feed
-    strips the round's own directory off it.
-  - Only a completed item reaches the feed. Codex also streams an item as it
-    starts and as it changes, and the completion says the same thing better.
-  - `turn.completed` closes the round with what it spent, in tokens alone. Codex
-    prices nothing for us.
-  - `turn.failed` closes a round that failed. Codex says a failure twice, once
-    on its own and again as the turn's ending, so only the ending reaches the
-    feed.
-  - A line the parser cannot read passes through unchanged.
+- The Codex parser (design.md, The harness adapters).
 - The Codex command builders: first round and resume with the ported never-stall
   flags (design.md, The harness adapters), `--json` added.
 - `-C <worktree>` is dropped, so `Launch` keeps the session, the model, the
@@ -290,10 +264,9 @@ out" — nothing decides when a round runs yet.
 
 In scope:
 
-- Spawn a round as a child process from an adapter's argv in a given directory.
-  Pump stdout on a reader thread: each line to `raw.jsonl` verbatim, through the
-  adapter's parser, rendered onto `feed.txt`. stderr interleaves into the feed
-  as pass-through lines (design.md, Rounds and processes).
+- Spawn a round as a child process from an adapter's argv in a given directory,
+  and pump what it writes onto the round's records and the feed (design.md,
+  Rounds and processes).
 - Run every round in the session's worktree, which phase 5 leaves this phase to
   do. Phase 5's Codex first round names no directory of its own, and its resume
   finds the session by the directory it ran in, so a round run anywhere else
@@ -312,13 +285,12 @@ In scope:
   it fails if a feed event holds anything other than text. One bad line should
   cost one line of the feed, so the pump has to catch both steps, not just the
   read.
-- `round.json` at the boundaries: started and pid at spawn, ended and exit
-  status at exit, written and read through a pydantic model per the phase 2
-  convention, so a corrupt record fails with a named error. A record with no end
-  is the interrupted signature later phases key on.
-- The teardown module, the one place platform process semantics live: process
-  group on POSIX, Job Object on Windows, children dying with the daemon, Ctrl-C
-  propagating.
+- `round.json` written at spawn and again at exit, through a pydantic model per
+  the phase 2 convention, so a corrupt record fails with a named error
+  (design.md, The state directory). A record with no end is the interrupted
+  signature later phases key on.
+- The teardown module, the one place platform process semantics live (design.md,
+  Rounds and processes).
 - Tests against the fake harness on all three platforms, including the ugly
   cases: a round killed mid-stream leaves a `round.json` with no end; teardown
   really kills the child tree; a nonzero exit is captured.
@@ -344,11 +316,10 @@ In scope:
   A failed creation backs out worktree and branch together, leaving nothing
   behind. Phase 3's git wrappers each raise, so the back-out composes them and
   handles their failure itself.
-- The harness a dispatch runs on: the mapping's only block when it carries one,
-  else the harness the user gave `run` (design.md, Configuration). Phase 2
-  parses the blocks and leaves the choice to the phase that dispatches. A
-  harness first becomes an adapter here, so this phase writes the lookup from
-  one to the other, with both adapters in hand.
+- The harness a dispatch runs on (design.md, Configuration). Phase 2 parses the
+  blocks and leaves the choice to the phase that dispatches. A harness first
+  becomes an adapter here, so this phase writes the lookup from one to the
+  other, with both adapters in hand.
 - First-round prompt composition: the chosen harness's template rendered with
   `{issue}`, the marker postscript appended (design.md, The relay, for the
   marker).
@@ -367,19 +338,13 @@ run, pull request out.
 
 In scope:
 
-- Eligibility, built on phase 3's "unknown" contract so every read failure
-  biases to inaction: exactly one mapped label (two mapped labels is the noisy
-  skip), the assignee filter, no active session worktree, no open pull request
-  GitHub links to the issue, no open blocking issues.
-- The real tick, replacing phase 2's stub: cap first (a capped tick spends no
-  GitHub calls), reconcile, dispatch the oldest eligible issue via phase 7's
-  session creation, one launch per tick, and `last-tick.json` recording what was
-  done and what was not, with reasons.
-- The failure cooldown: after any failed round, hold all launches for a fixed
-  fifteen minutes, recorded in `last-tick.json` with the evidence.
-- The startup orphan sweep: kill any live pid from a round record with no end.
-  The carry-on resume of those sessions is phase 10's; until then they appear in
-  `last-tick.json` as waiting.
+- Eligibility (design.md, The tick), built on phase 3's "unknown" contract so
+  every read failure biases to inaction.
+- The real tick (design.md, The tick), replacing phase 2's stub and dispatching
+  through phase 7's session creation.
+- The failure cooldown (design.md, The tick).
+- The startup orphan sweep (design.md, The tick). The carry-on resume of those
+  sessions is phase 10's; until then they appear in `last-tick.json` as waiting.
 - The startup check that the harness's CLI is installed: `run` refuses at once
   when the harness it was given is not on the PATH, rather than dispatching a
   round that cannot start. Phase 4 left this to the phase with a caller for it:
@@ -402,14 +367,10 @@ nothing moves state yet.
 
 In scope:
 
-- The read-only peek (design.md, The relay): the three paginated REST sources
-  via `gh api`, the projection widened per dream#891 (`start_line` with its
-  fallback, `side`, `diff_hunk`), and the two filter rules — the authenticated
-  account plus the exact `<!-- dreamcatcher -->` marker match, and the
-  says-something rule that drops GitHub's empty review wrappers.
-- The watermark as a value the peek reads but never writes: posts newer than a
-  given ISO-8601 timestamp, string-compared, absent meaning the beginning of
-  time.
+- The read-only peek, its projection and its two filter rules (design.md, The
+  relay).
+- The watermark as a value the peek reads but never writes (design.md, The
+  relay).
 
 Done when: CI tests against recorded REST fixtures cover the filter's known
 traps by name — the empty wrapper around an agent's own inline reply does not
@@ -427,13 +388,11 @@ the session.
 
 In scope:
 
-- The watermark advancing only at round launch, never at read. Each round's
-  `inbox.json` written to its round directory and kept.
-- The three resume kinds joining the tick's priority order: carry-on for
-  interrupted and errored rounds, the final round on merged or closed with the
-  final-completed guard, and inbox resumes on new posts. Each with its prompt —
-  ported from the old catcher's resume prompt where one exists, the new carry-on
-  text where not — plus the marker postscript.
+- The watermark advancing at round launch, and each round's own `inbox.json`
+  (design.md, The relay).
+- The three resume kinds joining the tick's priority order (design.md, The
+  tick), each with its own prompt text (design.md, The harness adapters) plus
+  the marker postscript.
 
 Done when: CI tests against the fakes prove the sequencing — a batch peeked but
 never launched is re-peeked intact next tick; a killed final round's retry is
@@ -449,17 +408,9 @@ The watch tower. Reads only the disk; never calls GitHub.
 
 In scope:
 
-- The board (design.md, The board): sessions and queued issues sorted by whose
-  turn it is — needs you, agent working (with the last feed event and its age),
-  waiting, stuck, queued with reasons, done. Repeat attempts group under their
-  issue. Liveness and staleness come from `daemon.pid` and `last-tick.json`'s
-  age, and the board says "at cap — not checked" when that is the truth.
-- The session view: `scry GH123` shows the newest attempt's vitals (issue, PR,
-  branch, harness and model, the literal first prompt), the round list with
-  causes and durations, older attempts beneath, and — when no round is live —
-  the hand-resume command built from `session.json`.
-- The feed views: `--follow` stitches sorted round directories and tails the
-  live end; `--round N` shows one round, static.
+- The board (design.md, The board).
+- The session view, `scry GH123` (design.md, The board).
+- The feed views, `--follow` and `--round N` (design.md, The feed).
 - Presentation uses rich, scoped to scry alone: tables, emphasis, feed
   colouring, VT enabling on legacy Windows consoles, and automatic markup
   stripping when output is not a tty. Storage stays plain: `feed.txt` and
@@ -483,18 +434,13 @@ can take over from the one it replaces.
 In scope:
 
 - `CONTRACT.md` at the repo root: the dispatchable-skill contract as designed
-  (design.md, The contract page) — adopt the branch you wake up on and open your
-  PR from it before changing anything; act on the issue reference in your prompt
-  and have the PR close that issue, which is what tells the dispatcher the issue
-  is claimed; handle the three resume prompts; yield by ending your turn;
-  marking is injected for you.
+  (design.md, The contract page).
 - The README's last gap: two operational truths placed prominently — removing
   the label is how you say stop (an issue whose PR closes unmerged will dispatch
-  again while the label remains), and the crossover rule (retire dream:catcher
-  on a repo with nothing in flight, or expect doubled attempts on whatever was).
-  Phase 2 wrote the rest for a newcomer, under review: install via `uvx`, a
-  Configuration section carrying every setting and its default, and the two
-  verbs.
+  again while the label remains), and the crossover rule (design.md, Sessions,
+  worktrees, branches). Phase 2 wrote the rest for a newcomer, under review:
+  install via `uvx`, a Configuration section carrying every setting and its
+  default, and the two verbs.
 - A packaging check: `uvx` installing and running from a fresh environment.
 
 Done when: the documents are in and the release checklist sits on this phase's
