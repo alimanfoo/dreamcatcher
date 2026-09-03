@@ -30,9 +30,9 @@ def test_a_program_on_the_path_is_found(fake):
     assert Path(locate("probe")).stem == "probe"
 
 
-# Only Windows searches the current directory for a program, and only Windows
-# shows what taking it back out of the search is worth. So this reads it here,
-# where every platform runs it.
+# Only Windows searches the current directory for a program, so only Windows
+# shows what taking that directory out of the search is worth. This test sits
+# here even so, where every platform runs it.
 def test_a_program_in_the_current_directory_alone_is_not_found(tmp_path, monkeypatch):
     install(tmp_path, "probe")
     monkeypatch.chdir(tmp_path)
