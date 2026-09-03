@@ -3,7 +3,7 @@
 
 from pathlib import Path
 import pytest
-from dreamcatcher.documents import Document, read_toml, write_text
+from dreamcatcher.documents import Document, append_text, read_toml, write_text
 from dreamcatcher.errors import ReportableError
 
 def write(path: Path, text: str) -> Path:
@@ -31,6 +31,12 @@ def test_a_write_lands_where_it_is_asked_for(tmp_path):
     ...
 
 def test_a_write_that_fails_says_so(tmp_path):
+    ...
+
+def test_an_append_adds_to_the_end_of_what_is_there(tmp_path):
+    ...
+
+def test_an_append_that_fails_says_so(tmp_path):
     ...
 
 class Sample(Document):

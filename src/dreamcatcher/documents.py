@@ -39,25 +39,43 @@ def read_toml[DocumentT: Document](model: type[DocumentT], path: Path) -> Docume
 
 
 def write_text(text: str, path: Path) -> None:
-    """Write text to path as UTF-8, making the directory that holds it.
+    """Write text to path as UTF-8, over whatever was there before.
 
     Raise ReportableError when the write fails. A full disk or a read-only
     directory is not a bug in the tool, and the user can act on either, so it
     reads as a message.
+    """
+    _write(text, path, "w")
+
+
+def append_text(text: str, path: Path) -> None:
+    """Add text to the end of the file at path, as UTF-8.
+
+    Raise ReportableError when the write fails, for the reason write_text does.
+
+    A round's feed and its raw stream each grow by a line at a time while the
+    round runs, so the round adds to them rather than rewriting them.
+    """
+    _write(text, path, "a")
+
+
+def write_json(document: Document, path: Path) -> None:
+    """Write the document to path as JSON."""
+    write_text(document.model_dump_json(indent=2) + "\n", path)
+
+
+def _write(text: str, path: Path, mode: str) -> None:
+    """Write text to path as UTF-8, making the directory that holds it.
 
     Making the directory here is what lets a caller write a file without
     creating the directory first.
     """
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text, encoding="utf-8")
+        with path.open(mode, encoding="utf-8") as opened:
+            opened.write(text)
     except OSError as error:
         raise ReportableError(f"cannot write {path}: {error}.") from error
-
-
-def write_json(document: Document, path: Path) -> None:
-    """Write the document to path as JSON."""
-    write_text(document.model_dump_json(indent=2) + "\n", path)
 
 
 def _report(path: Path, error: ValidationError) -> str:

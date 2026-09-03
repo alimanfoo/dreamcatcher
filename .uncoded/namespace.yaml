@@ -93,7 +93,9 @@ src/:
         model_config:
       read_toml:
       write_text:
+      append_text:
       write_json:
+      _write:
       _report:
     errors.py:
       ReportableError:
@@ -335,6 +337,8 @@ tests/:
     test_a_document_that_breaks_its_model_lists_every_fault:
     test_a_write_lands_where_it_is_asked_for:
     test_a_write_that_fails_says_so:
+    test_an_append_adds_to_the_end_of_what_is_there:
+    test_an_append_that_fails_says_so:
   test_encoding_gate.py:
     test_a_read_with_no_encoding_fails_the_suite:
   test_fakes.py:
