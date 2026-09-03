@@ -210,8 +210,10 @@ parser to become events, which the renderer appends to `feed.txt` as timestamped
 lines; stderr lines flow into the same feed as pass-through lines, interleaved
 where they happened — the port's behaviour, one sink, and failures surface in
 the view you're already watching. `raw.jsonl` stays pure stdout for parser
-debugging. Liveness inside the daemon is the process handle; liveness for `scry`
-is `daemon.pid` plus the round records (rounds cannot outlive the daemon).
+debugging. Inside the daemon a round is alive until its record says how it
+ended, which is a little longer than the child process lives, so a round the
+daemon reads as finished has its whole story on disk. For `scry` liveness is
+`daemon.pid` plus the round records (rounds cannot outlive the daemon).
 
 Children die with the daemon, by design. Each round leads a process group of its
 own on POSIX and sits in a Job Object of its own on Windows, so one call ends
@@ -280,8 +282,10 @@ The resume and final-round prompt texts port verbatim from `catch.sh`'s
 interrupted, carry on"), low-risk because the resumed transcript carries the
 context.
 
-Any line either parser cannot render passes through to the feed unchanged — a
-broken render costs one line, never the log.
+Any line either parser cannot read passes through to the feed unchanged, and so
+does any line the feed cannot then render — a broken line costs one line, never
+the log. The two are separate steps and fail separately: reading turns a line
+into events, and rendering turns an event into text.
 
 ### The feed
 
@@ -391,14 +395,16 @@ Windows native is the target; CI runs the test suite on Windows, macOS, and
 Linux from the first commit, with a fake harness binary standing in for
 signed-in CLIs. All subprocess and file IO forces UTF-8 explicitly, and reads a
 byte that is not UTF-8 as the replacement character rather than failing, since a
-localised git can put one in a message. Programs are looked up on the PATH
-before they run, which is what reaches a `.cmd` on Windows, the form the harness
-CLIs take when npm installs them. Windows runs a `.cmd` through cmd.exe, which
-reads the command line a second time under its own rules, after Python has
-quoted it for the program's own reader. So a batch file's line is built for both
-readers: every part of it quoted, and a quote inside a part doubled. A prompt
-then reaches the harness as it was written, whatever it holds. It also follows
-that the process the daemon starts is often not the one doing the work, since a
+localised git can put one in a message. A write keeps the line endings it was
+given rather than the platform's, so a round's copy of what a harness streamed
+holds what the harness sent. Programs are looked up on the PATH before they run,
+which is what reaches a `.cmd` on Windows, the form the harness CLIs take when
+npm installs them. Windows runs a `.cmd` through cmd.exe, which reads the
+command line a second time under its own rules, after Python has quoted it for
+the program's own reader. So a batch file's line is built for both readers:
+every part of it quoted, and a quote inside a part doubled. A prompt then
+reaches the harness as it was written, whatever it holds. It also follows that
+the process the daemon starts is often not the one doing the work, since a
 `.cmd` is a shim and Windows has shims for other things too. Process teardown is
 therefore a whole tree, not a child: a process group on POSIX and a Job Object
 on Windows, isolated in one module. Paths flow through `pathlib` end to end. The

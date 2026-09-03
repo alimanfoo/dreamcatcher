@@ -317,12 +317,13 @@ In scope:
 - The teardown module, the one place platform process semantics live. A round
   leads a process group of its own on POSIX and sits in a Job Object of its own
   on Windows, so one call ends the round and everything that the round started.
-  The job is set to empty itself when the daemon's last handle on it closes, so
-  a round on Windows dies with the daemon however the daemon ends. On POSIX the
-  daemon ends its own rounds as it goes down, Ctrl-C included, and the startup
-  sweep catches what a `kill -9` left behind. Teardown ends the tree rather than
-  the child, which is what makes it right on Windows, where the process that the
-  daemon starts is often a shim for the one doing the work.
+  pywin32 reaches the job, and is the one runtime dependency that Windows alone
+  installs. The job is set to empty itself when the daemon's last handle on it
+  closes, so a round on Windows dies with the daemon however the daemon ends. On
+  POSIX the daemon ends its own rounds as it goes down, Ctrl-C included, and the
+  startup sweep catches what a `kill -9` left behind. Teardown ends the tree
+  rather than the child, which is what makes it right on Windows, where the
+  process that the daemon starts is often a shim for the one doing the work.
 - Tests against the fake harness on all three platforms, including the ugly
   cases: a round killed mid-stream leaves a `round.json` with no end; teardown
   really kills the child tree; a nonzero exit is captured.
@@ -385,6 +386,11 @@ In scope:
   done and what was not, with reasons.
 - The failure cooldown: after any failed round, hold all launches for a fixed
   fifteen minutes, recorded in `last-tick.json` with the evidence.
+- The daemon holding its own rounds: a live round is what the cap counts, and
+  the daemon ends every round it holds as it goes down, Ctrl-C included. Phase 6
+  built the teardown that ends one round and everything the round started, and
+  left the daemon with no rounds to end. A round outliving the run that started
+  it is what the sweep below then has to clean up.
 - The startup orphan sweep: kill any live pid from a round record with no end.
   The carry-on resume of those sessions is phase 10's; until then they appear in
   `last-tick.json` as waiting.
