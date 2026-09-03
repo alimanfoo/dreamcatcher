@@ -2,13 +2,20 @@
 
 from enum import StrEnum
 from pathlib import Path
-from typing import Self
+from typing import Annotated, Self
 
-from pydantic import ConfigDict, Field, PositiveInt, model_validator
+from pydantic import AfterValidator, ConfigDict, Field, PositiveInt, model_validator
 
+from dreamcatcher.commands import refuse_unquotable
 from dreamcatcher.documents import Document, read_toml
 
 CONFIG_NAME = "dreamcatcher.toml"
+
+# A setting whose text the tool puts on a harness's own command line. Windows
+# runs a harness installed by npm as a batch file, so the text meets cmd.exe on
+# the way. Refusing it here, where the config is read, is what lets the message
+# name the setting that holds it.
+CommandLineText = Annotated[str, AfterValidator(refuse_unquotable)]
 
 
 class Harness(StrEnum):
@@ -21,9 +28,9 @@ class Harness(StrEnum):
 class HarnessSettings(Document):
     """How one harness runs a round for one label."""
 
-    prompt: str
-    model: str
-    effort: str
+    prompt: CommandLineText
+    model: CommandLineText
+    effort: CommandLineText
 
 
 class DispatchMapping(Document):

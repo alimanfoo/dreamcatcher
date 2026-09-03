@@ -118,6 +118,21 @@ def test_a_config_mistake_names_the_setting_and_the_fault(
     assert str(error.value) == f"{tmp_path / CONFIG_NAME} is not valid:\n  {fault}"
 
 
+@pytest.mark.parametrize("setting", ["prompt", "model", "effort"])
+def test_a_setting_a_harness_cannot_be_given_names_itself(tmp_path, setting):
+    write_config(tmp_path, CONFIG.replace(f'{setting} = "', f'{setting} = "%TIME% ', 1))
+
+    with pytest.raises(ReportableError) as error:
+        read_config(tmp_path)
+
+    assert str(error.value) == (
+        f"{tmp_path / CONFIG_NAME} is not valid:\n"
+        f"  dispatch.0.claude.{setting}: Value error, cannot hold a percent "
+        "sign, because on Windows cmd.exe acts on it rather than passing it to "
+        "the harness"
+    )
+
+
 def test_a_repo_with_no_config_says_which_file_is_missing(tmp_path):
     with pytest.raises(ReportableError, match=CONFIG_NAME):
         read_config(tmp_path)

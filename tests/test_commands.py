@@ -4,7 +4,14 @@ from pathlib import Path
 import pytest
 from fakes import Line, Stream
 
-from dreamcatcher.commands import CommandError, _quote, locate, run, spawn
+from dreamcatcher.commands import (
+    CommandError,
+    _quote,
+    locate,
+    refuse_unquotable,
+    run,
+    spawn,
+)
 
 
 def test_a_command_hands_back_what_it_printed(fake):
@@ -100,7 +107,7 @@ def test_a_spawned_command_finds_its_stdin_already_at_an_end(tmp_path):
 
 
 # The quoting is Windows's answer, and only Windows shows what it is worth. So
-# these read it here, where every platform runs them.
+# these read it, and the refusal beside it, here where every platform runs them.
 def test_a_quoted_part_hides_what_a_second_reader_would_act_on():
     assert _quote("effort=high&low") == '"effort=high&low"'
 
@@ -115,3 +122,17 @@ def test_a_part_ending_in_a_backslash_does_not_escape_its_closing_quote():
 
 def test_a_backslash_before_a_quote_is_doubled_so_the_quote_still_counts():
     assert _quote('C:\\repo\\"done"') == '"C:\\repo\\\\""done"""'
+
+
+def test_text_holding_a_percent_sign_is_refused():
+    with pytest.raises(ValueError, match="cannot hold a percent sign"):
+        refuse_unquotable("finish by %TIME%")
+
+
+def test_text_holding_a_newline_is_refused():
+    with pytest.raises(ValueError, match="cannot hold a newline"):
+        refuse_unquotable("do this\nthen that")
+
+
+def test_text_the_quoting_carries_comes_back_as_it_was():
+    assert refuse_unquotable('say "done" & wait') == 'say "done" & wait'

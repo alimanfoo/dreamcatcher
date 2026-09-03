@@ -3,11 +3,13 @@
 
 from enum import StrEnum
 from pathlib import Path
-from typing import Self
-from pydantic import ConfigDict, Field, PositiveInt, model_validator
+from typing import Annotated, Self
+from pydantic import AfterValidator, ConfigDict, Field, PositiveInt, model_validator
+from dreamcatcher.commands import refuse_unquotable
 from dreamcatcher.documents import Document, read_toml
 
 CONFIG_NAME = 'dreamcatcher.toml'
+CommandLineText = Annotated[str, AfterValidator(refuse_unquotable)]
 
 def read_config(root: Path) -> Config:
     ...
@@ -17,9 +19,9 @@ class Harness(StrEnum):
     CODEX = 'codex'
 
 class HarnessSettings(Document):
-    prompt: str
-    model: str
-    effort: str
+    prompt: CommandLineText
+    model: CommandLineText
+    effort: CommandLineText
 
 class DispatchMapping(Document):
     model_config = ConfigDict(extra='allow')

@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 import pytest
 from fakes import Line, Stream
-from dreamcatcher.commands import CommandError, _quote, locate, run, spawn
+from dreamcatcher.commands import CommandError, _quote, locate, refuse_unquotable, run, spawn
 
 def test_a_command_hands_back_what_it_printed(fake):
     ...
@@ -47,4 +47,13 @@ def test_a_part_ending_in_a_backslash_does_not_escape_its_closing_quote():
     ...
 
 def test_a_backslash_before_a_quote_is_doubled_so_the_quote_still_counts():
+    ...
+
+def test_text_holding_a_percent_sign_is_refused():
+    ...
+
+def test_text_holding_a_newline_is_refused():
+    ...
+
+def test_text_the_quoting_carries_comes_back_as_it_was():
     ...

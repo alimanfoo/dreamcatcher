@@ -1,4 +1,8 @@
-"""Run the external commands dreamcatcher shells out to."""
+"""Run the external commands dreamcatcher shells out to.
+
+This module also owns what the tool knows about cmd.exe, the second reader a
+command line meets on Windows, since a command line has to survive it.
+"""
 
 import subprocess
 from dataclasses import dataclass
@@ -13,6 +17,18 @@ from dreamcatcher.errors import ReportableError
 # with one of these endings through cmd.exe, so its command line meets a second
 # reader. git and gh are real executables, so neither ever meets that.
 BATCH_ENDINGS = (".cmd", ".bat")
+
+# What cmd.exe acts on wherever it sits, and what to call each one in a message.
+# cmd.exe expands %NAME% on the line it parses, inside double quotes as well as
+# outside, and nothing on a command line escapes a percent sign. It reads a
+# newline as the end of a statement, the way pressing Enter would. So quoting
+# carries neither, and the tool refuses text holding one rather than let the text
+# become something else.
+#
+# Any percent sign counts, not only a %NAME% pair, because npm's shim pastes
+# every argument it was given into a command line of its own, where cmd.exe reads
+# it a third time.
+UNQUOTABLE = {"%": "a percent sign", "\n": "a newline"}
 
 
 class CommandError(ReportableError):
@@ -51,6 +67,27 @@ class Child:
         """
         if self.process.returncode is None:
             teardown.kill(self.pid)
+
+
+def refuse_unquotable(text: str) -> str:
+    """Return text, or raise ValueError when quoting cannot carry it.
+
+    Whoever reads text in from outside calls this, so the message can name where
+    the text came from. A setting of the repo's own config is such a text, and
+    pydantic turns the ValueError into an error against the setting that holds
+    it.
+
+    The refusal stands on every platform, since a dreamcatcher.toml is committed
+    and shared. A config that reads on Linux and fails on Windows would be worse
+    than one that fails the same way everywhere.
+    """
+    for character, name in UNQUOTABLE.items():
+        if character in text:
+            raise ValueError(
+                f"cannot hold {name}, because on Windows cmd.exe acts on it "
+                "rather than passing it to the harness"
+            )
+    return text
 
 
 def locate(program: str) -> str:
