@@ -27,7 +27,7 @@ def state(checkout):
 
 @pytest.fixture
 def mapping(checkout):
-    """The dispatch mapping of the one label the config maps."""
+    """The dispatch mapping of the one label that the config maps."""
     return read_config(checkout).dispatch[0]
 
 

@@ -1,4 +1,4 @@
-"""The prompts the daemon composes, with the golden beside each one.
+"""The prompts that the daemon composes, with the golden beside each one.
 
 The golden is the review surface: read it as the session will read it, and
 judge the prompt by it.

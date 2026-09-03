@@ -44,9 +44,10 @@ class StateDirectory:
     def worktrees(self) -> Path:
         """The directory holding a worktree for each session, named by its key.
 
-        Every worktree dreamcatcher makes lives under here, whatever the
+        Every worktree that dreamcatcher makes lives under here, whatever the
         checkout's own directory habits are. So a worktree under here is one of
-        dreamcatcher's, which is what makes it the ownership test.
+        dreamcatcher's, and that is how the daemon tells its own work from
+        everyone else's.
         """
         return self.path / "worktrees"
 

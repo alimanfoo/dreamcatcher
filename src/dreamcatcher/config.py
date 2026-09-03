@@ -49,13 +49,13 @@ class DispatchMapping(Document):
         return self.__pydantic_extra__
 
     def choose_harness(self, named: Harness) -> Harness:
-        """Return the harness that runs this label, given the one the run named.
+        """Return the harness that runs this label, given what the run named.
 
         A label carrying a block for the named harness runs on that one. A
         label with no block for it carries a block for one other harness alone,
         and runs on that one whatever the run named. So which harnesses can run
-        a label is already in the blocks the label carries, and the config needs
-        no pin of its own.
+        a label is already in the blocks that the label carries, and the config
+        needs no pin of its own.
         """
         settings = self.harness_settings
         return named if named in settings else next(iter(settings))

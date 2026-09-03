@@ -4,8 +4,8 @@ Everything outside an adapter names a harness by the word that the config uses.
 This is the one place that turns that word into the adapter which runs it, so
 nothing else has to know how many harnesses there are or what they are called.
 
-The lookup sits here rather than in `adapters.py`, because each adapter imports
-the boundary that `adapters.py` holds.
+The lookup sits here rather than in `adapters.py`, because every adapter
+imports `adapters.py` itself.
 """
 
 from dreamcatcher.adapters import Adapter

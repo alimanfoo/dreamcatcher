@@ -1,9 +1,9 @@
 """Cut a session for an issue, and record what its dispatch fixed.
 
-A session is one attempt at one issue. It gets a key of its own, the issue's
-number and the time the attempt started, and that key names its branch, its
-worktree, and the directory holding its own files. So three worktrees for one
-issue read as three attempts at one thing, each with its own pull request.
+A session is one attempt at one issue. It gets a key of its own: the issue's
+number, and the time the attempt started. That key names its branch, its
+worktree, and the directory that holds its own files. So three worktrees for
+one issue read as three attempts at one thing, each with its own pull request.
 
 Nothing here decides which issue to dispatch, or when. A caller that has decided
 asks for the session.
@@ -23,7 +23,7 @@ from dreamcatcher.state import StateDirectory
 
 # What a session's branch is called, before its key. The prefix keeps
 # dreamcatcher's own branches apart from everyone else's, and from the branches
-# the catcher it replaces left behind.
+# that the catcher it replaces left behind.
 BRANCH_PREFIX = "dreamcatcher-"
 
 # The file in a session's directory holding what its dispatch fixed.
@@ -57,13 +57,15 @@ def create(
 ) -> Session:
     """Cut a session for the issue, and return what its dispatch fixed.
 
-    The session runs on the harness that the label and the harness the run
-    named settle between them, with that harness's own model, effort and prompt
-    template.
+    The session runs on the harness that this label and the run settle between
+    them, with that harness's own model, effort and prompt template.
 
-    The branch is cut from origin's main as it is now, so the fetch comes
-    first. Should the record then fail to land, the worktree and the branch go
-    with it, and the failure that started the back-out is the one reported.
+    This fetches origin's main first, so the branch starts from main as it is
+    now.
+
+    Should writing the record then fail, the worktree and the branch go away
+    again, so a failed creation leaves nothing behind. The caller hears the
+    failure that stopped the creation, not any failure that removing them hits.
     """
     harness = mapping.choose_harness(named)
     settings = mapping.harness_settings[harness]
@@ -94,7 +96,8 @@ def _back_out(root: Path, worktree: Path, branch: str) -> None:
 
     The worktree goes first, because git keeps a branch that a worktree has
     checked out. Either command can fail in its turn, and neither failure
-    travels: the one worth reporting is the failure that started the back-out.
+    travels. The failure that stopped the creation is the one worth reporting,
+    and the caller already holds it.
     """
     with suppress(CommandError):
         remove_worktree(root, worktree)
