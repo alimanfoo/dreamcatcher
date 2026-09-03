@@ -202,6 +202,12 @@ tests/:
     fake:
   fakes.py:
     UNSCRIPTED:
+    Stream:
+      OUT:
+      ERR:
+    Line:
+      text:
+      stream:
     Call:
       arguments:
       directory:
@@ -212,6 +218,7 @@ tests/:
       fails:
       streams:
       _answer:
+    recorded:
     install:
     replay:
     _launcher:
@@ -335,6 +342,7 @@ tests/:
     recording:
     test_a_stand_in_harness_replays_the_recording_it_was_given:
     test_a_stand_in_harness_streams_at_the_pace_it_was_given:
+    test_a_stand_in_harness_writes_each_line_to_the_stream_it_names:
     test_a_stand_in_harness_can_end_as_a_failed_round_does:
     test_a_stand_in_nobody_scripted_says_so:
   test_feed.py:

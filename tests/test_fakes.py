@@ -1,6 +1,7 @@
 from time import perf_counter
 
 import pytest
+from fakes import Line, Stream, recorded
 
 from dreamcatcher.commands import CommandError, run
 
@@ -13,7 +14,7 @@ STREAM = '{"type":"assistant","text":"café"}\n{"type":"result"}\n'
 def recording(tmp_path):
     path = tmp_path / "stream.jsonl"
     path.write_text(STREAM, encoding="utf-8")
-    return path
+    return recorded(path)
 
 
 def test_a_stand_in_harness_replays_the_recording_it_was_given(fake, recording):
@@ -30,7 +31,15 @@ def test_a_stand_in_harness_streams_at_the_pace_it_was_given(fake, recording):
     started = perf_counter()
     run("harness")
 
-    assert perf_counter() - started >= len(STREAM.splitlines()) * 0.05
+    assert perf_counter() - started >= len(recording) * 0.05
+
+
+def test_a_stand_in_harness_writes_each_line_to_the_stream_it_names(fake):
+    fake("harness").streams(
+        [Line("first\n"), Line("an aside\n", Stream.ERR), Line("second\n")]
+    )
+
+    assert run("harness") == "first\nsecond\n"
 
 
 def test_a_stand_in_harness_can_end_as_a_failed_round_does(fake, recording):
