@@ -2,14 +2,22 @@
 # src/dreamcatcher/commands.py
 
 import subprocess
-from pathlib import Path
+from pathlib import Path, PurePath
 from shutil import which
 from dreamcatcher.errors import ReportableError
+
+BATCH_ENDINGS = ('.cmd', '.bat')
 
 def locate(program: str) -> str:
     ...
 
 def run(program: str, *arguments: str, cwd: Path | None) -> str:
+    ...
+
+def _built(program: str, arguments: tuple[str, ...]) -> list[str] | str:
+    ...
+
+def _quoted(part: str) -> str:
     ...
 
 class CommandError(ReportableError):

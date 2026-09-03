@@ -1,16 +1,15 @@
-"""Run the external commands dreamcatcher shells out to.
-
-Windows runs a .cmd or .bat through cmd.exe, which reads the arguments again,
-and Python quotes them for a C program rather than for cmd. git and gh are real
-executables, so nothing here meets that. A harness CLI that npm installed is a
-.cmd, so the phase that runs one has to answer for it.
-"""
+"""Run the external commands dreamcatcher shells out to."""
 
 import subprocess
-from pathlib import Path
+from pathlib import Path, PurePath
 from shutil import which
 
 from dreamcatcher.errors import ReportableError
+
+# What npm calls the harness CLIs it installs on Windows. Windows runs a file
+# with one of these endings through cmd.exe, so its command line meets a second
+# reader. git and gh are real executables, so neither ever meets that.
+BATCH_ENDINGS = (".cmd", ".bat")
 
 
 class CommandError(ReportableError):
@@ -31,7 +30,7 @@ def locate(program: str) -> str:
 def run(program: str, *arguments: str, cwd: Path | None = None) -> str:
     """Return what the command wrote to stdout, reading it as UTF-8."""
     finished = subprocess.run(
-        [locate(program), *arguments],
+        _built(program, arguments),
         capture_output=True,
         check=False,
         cwd=cwd,
@@ -48,3 +47,29 @@ def run(program: str, *arguments: str, cwd: Path | None = None) -> str:
             f"{command} failed with status {finished.returncode}{ending}"
         )
     return finished.stdout
+
+
+def _built(program: str, arguments: tuple[str, ...]) -> list[str] | str:
+    """Return the command as subprocess has to be given it.
+
+    A list, which subprocess quotes for the program's own reader. A batch file
+    is the exception. Windows hands one to cmd.exe, which reads the line again
+    under its own rules, and subprocess quotes for the second reader alone. So
+    a batch file gets a line this builds for both readers.
+    """
+    executable = locate(program)
+    if PurePath(executable).suffix.lower() in BATCH_ENDINGS:  # pragma: no cover
+        return " ".join(_quoted(part) for part in (executable, *arguments))
+    return [executable, *arguments]
+
+
+def _quoted(part: str) -> str:  # pragma: no cover
+    """Return the part quoted so cmd.exe and then the program read it whole.
+
+    The quotes are always there, so a character cmd.exe acts on — an ampersand,
+    a pipe, a bracket — sits inside them, where cmd.exe passes it through
+    instead. A quote in the part itself is doubled, which is how the program's
+    own reader takes it back as the one quote it was.
+    """
+    doubled = part.replace('"', '""')
+    return f'"{doubled}"'

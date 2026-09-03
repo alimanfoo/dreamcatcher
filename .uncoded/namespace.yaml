@@ -59,9 +59,12 @@ src/:
       _command:
       _usage:
     commands.py:
+      BATCH_ENDINGS:
       CommandError:
       locate:
       run:
+      _built:
+      _quoted:
     config.py:
       CONFIG_NAME:
       Harness:
@@ -299,6 +302,7 @@ tests/:
     test_a_failure_carries_the_command_and_what_it_said:
     test_a_failure_that_said_nothing_still_names_the_command:
     test_a_command_that_prints_bytes_that_are_not_utf_8_still_reads:
+    test_an_argument_a_second_reader_would_act_on_still_arrives_whole:
   test_config.py:
     WITHOUT_CODEX:
     CLAUDE_SETTINGS:

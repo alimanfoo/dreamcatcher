@@ -60,3 +60,17 @@ def test_a_command_that_prints_bytes_that_are_not_utf_8_still_reads():
     printing = "import sys; sys.stdout.buffer.write(b'caf\\xe9')"
 
     assert run(sys.executable, "-c", printing) == "caf\ufffd"
+
+
+def test_an_argument_a_second_reader_would_act_on_still_arrives_whole(fake):
+    probe = fake("probe")
+    probe.replies("")
+
+    run("probe", "--prompt", 'say "done" & wait', "-c", "effort=high&low")
+
+    assert probe.calls[0].arguments == [
+        "--prompt",
+        'say "done" & wait',
+        "-c",
+        "effort=high&low",
+    ]

@@ -26,3 +26,6 @@ def test_a_failure_that_said_nothing_still_names_the_command(fake):
 
 def test_a_command_that_prints_bytes_that_are_not_utf_8_still_reads():
     ...
+
+def test_an_argument_a_second_reader_would_act_on_still_arrives_whole(fake):
+    ...
