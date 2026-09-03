@@ -77,7 +77,7 @@ src/:
       _quote:
     config.py:
       CONFIG_NAME:
-      CommandLineText:
+      QuotableText:
       Harness:
         CLAUDE:
         CODEX:

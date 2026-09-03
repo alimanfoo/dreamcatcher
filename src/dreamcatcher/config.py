@@ -11,11 +11,11 @@ from dreamcatcher.documents import Document, read_toml
 
 CONFIG_NAME = "dreamcatcher.toml"
 
-# A setting that the tool puts on a harness's own command line. Windows runs a
-# harness that npm installed as a batch file, so the setting's text meets cmd.exe
-# on the way. Refusing the text as the config is read is what lets the message
-# name the setting that holds it.
-CommandLineText = Annotated[str, AfterValidator(refuse_unquotable)]
+# Text that quoting can carry to a harness's own command line. Windows runs a
+# harness that npm installed as a batch file, so the text meets cmd.exe on the
+# way. Refusing it as the config is read is what lets the message name the
+# setting that holds it.
+QuotableText = Annotated[str, AfterValidator(refuse_unquotable)]
 
 
 class Harness(StrEnum):
@@ -28,9 +28,9 @@ class Harness(StrEnum):
 class HarnessSettings(Document):
     """How one harness runs a round for one label."""
 
-    prompt: CommandLineText
-    model: CommandLineText
-    effort: CommandLineText
+    prompt: QuotableText
+    model: QuotableText
+    effort: QuotableText
 
 
 class DispatchMapping(Document):

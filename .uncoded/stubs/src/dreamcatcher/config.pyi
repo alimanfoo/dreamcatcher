@@ -9,7 +9,7 @@ from dreamcatcher.commands import refuse_unquotable
 from dreamcatcher.documents import Document, read_toml
 
 CONFIG_NAME = 'dreamcatcher.toml'
-CommandLineText = Annotated[str, AfterValidator(refuse_unquotable)]
+QuotableText = Annotated[str, AfterValidator(refuse_unquotable)]
 
 def read_config(root: Path) -> Config:
     ...
@@ -19,9 +19,9 @@ class Harness(StrEnum):
     CODEX = 'codex'
 
 class HarnessSettings(Document):
-    prompt: CommandLineText
-    model: CommandLineText
-    effort: CommandLineText
+    prompt: QuotableText
+    model: QuotableText
+    effort: QuotableText
 
 class DispatchMapping(Document):
     model_config = ConfigDict(extra='allow')

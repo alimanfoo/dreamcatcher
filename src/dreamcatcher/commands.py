@@ -73,14 +73,7 @@ def refuse_unquotable(text: str) -> str:
     """Return text, or raise ValueError when quoting cannot carry it.
 
     Whoever reads text in from outside calls this, so the message can name where
-    the text came from. A setting of the repo's own config is such a text, and
-    pydantic turns the ValueError into an error against the setting that holds
-    it.
-
-    The repo's owner commits the dreamcatcher.toml, so everyone watching that
-    repo reads the same one, and a config that reads on Linux and fails on
-    Windows would be worse than one that fails the same way everywhere. So the
-    refusal stands on every platform.
+    the text came from. A ValueError is what pydantic turns into that message.
     """
     for character, name in UNQUOTABLE.items():
         if character in text:
