@@ -7,8 +7,9 @@ tool replaces, `design.md` says what we're building and how it works.
 
 Each phase section stands alone: what's in scope, the demo that proves it done,
 and what it deliberately leaves for a later phase. The implementing session
-reads all four documents for context, then works from its phase section here. A
-section names each mechanism the phase builds and points at the `design.md`
+reads all four documents for context, then works from its phase section here.
+
+A section names each mechanism the phase builds and points at the `design.md`
 section that says what that mechanism does. Don't restate it here, or a later
 phase that changes the mechanism has two places to correct.
 
@@ -285,12 +286,12 @@ In scope:
   it fails if a feed event holds anything other than text. One bad line should
   cost one line of the feed, so the pump has to catch both steps, not just the
   read.
-- `round.json` written at spawn and again at exit, through a pydantic model per
-  the phase 2 convention, so a corrupt record fails with a named error
-  (design.md, The state directory). A record with no end is the interrupted
-  signature later phases key on.
-- The teardown module, the one place platform process semantics live (design.md,
-  Rounds and processes).
+- The round record: the daemon writes `round.json` at spawn and again at exit,
+  through a pydantic model per the phase 2 convention, so a corrupt record fails
+  with a named error (design.md, The state directory). A record with no end is
+  the interrupted signature later phases key on.
+- The teardown module, the one place where platform process semantics live
+  (design.md, Rounds and processes).
 - Tests against the fake harness on all three platforms, including the ugly
   cases: a round killed mid-stream leaves a `round.json` with no end; teardown
   really kills the child tree; a nonzero exit is captured.
@@ -316,8 +317,8 @@ In scope:
   A failed creation backs out worktree and branch together, leaving nothing
   behind. Phase 3's git wrappers each raise, so the back-out composes them and
   handles their failure itself.
-- The harness a dispatch runs on (design.md, Configuration). Phase 2 parses the
-  blocks and leaves the choice to the phase that dispatches. A harness first
+- The harness that a dispatch runs on (design.md, Configuration). Phase 2 parses
+  the blocks and leaves the choice to the phase that dispatches. A harness first
   becomes an adapter here, so this phase writes the lookup from one to the
   other, with both adapters in hand.
 - First-round prompt composition: the chosen harness's template rendered with
@@ -369,7 +370,7 @@ In scope:
 
 - The read-only peek, its projection and its two filter rules (design.md, The
   relay).
-- The watermark as a value the peek reads but never writes (design.md, The
+- The watermark as a value that the peek reads but never writes (design.md, The
   relay).
 
 Done when: CI tests against recorded REST fixtures cover the filter's known
@@ -435,12 +436,12 @@ In scope:
 
 - `CONTRACT.md` at the repo root: the dispatchable-skill contract as designed
   (design.md, The contract page).
-- The README's last gap: two operational truths placed prominently — removing
-  the label is how you say stop (an issue whose PR closes unmerged will dispatch
-  again while the label remains), and the crossover rule (design.md, Sessions,
-  worktrees, branches). Phase 2 wrote the rest for a newcomer, under review:
-  install via `uvx`, a Configuration section carrying every setting and its
-  default, and the two verbs.
+- The README's last gap: the operational truths it has to place prominently —
+  removing the label is how you say stop (an issue whose PR closes unmerged will
+  dispatch again while the label remains), and the crossover rule (design.md,
+  Sessions, worktrees, branches). Phase 2 wrote the rest for a newcomer, under
+  review: install via `uvx`, a Configuration section carrying every setting and
+  its default, and the two verbs.
 - A packaging check: `uvx` installing and running from a fresh environment.
 
 Done when: the documents are in and the release checklist sits on this phase's
