@@ -91,13 +91,11 @@ directory, and idles. No GitHub, no worktrees, no processes.
 
 In scope:
 
-- Parse and validate `dreamcatcher.toml` from the repo root: `interval`,
-  `max_agents`, `assignee`, and the `[[dispatch]]` mappings, each with a label
-  and a settings block per harness carrying `prompt`, `model`, and `effort` (see
-  design.md, Configuration). Validation is pydantic v2 models, and every model
-  refuses a key that it does not expect, so a typo'd key is a named error rather
-  than a silently ignored setting. Most models reach that with `extra="forbid"`.
-  A dispatch mapping cannot, because its harness blocks sit beside its label and
+- Parse and validate `dreamcatcher.toml` from the repo root (design.md,
+  Configuration). Validation is pydantic v2 models, and every model refuses a
+  key that it does not expect, so a typo'd key is a named error rather than a
+  silently ignored setting. Most models reach that with `extra="forbid"`. A
+  dispatch mapping cannot, because its harness blocks sit beside its label and
   so arrive as extra keys. It types those keys as the `Harness` enum instead,
   which keeps the set of harnesses in one home and still reports
   `[dispatch.gemini]` as a fault. Failures report as pydantic's own message
@@ -116,14 +114,10 @@ In scope:
   the flag on the top-level parser: argparse then accepts
   `dreamcatcher --harness codex run` and silently drops the value, because the
   subparser's own default overwrites what the top-level parser captured.
-- The main-checkout test: `run` refuses to start anywhere but a main checkout —
-  a linked worktree's `.git` is a file, not a directory.
-- `.dreamcatcher/` bootstrap: create it on first run with a `.gitignore`
-  containing `*`, so the directory ignores itself and `git status` stays clean
-  from the first tick.
-- The `daemon.pid` lock: take it on start, refuse a second `run` on the same
-  repo while the pid is alive (psutil answers alive-ness), and treat a dead pid
-  as stale and reclaim it.
+- The main-checkout test (design.md, Sessions, worktrees, branches).
+- The `.dreamcatcher/` bootstrap on first run (design.md, The state directory).
+- The `daemon.pid` lock (design.md, The state directory), taken on start. A dead
+  pid is stale, so the next run reclaims it; psutil answers alive-ness.
 - A stub tick loop: sleep on the interval, write a minimal `last-tick.json` each
   tick, exit cleanly on Ctrl-C releasing the lock.
 
@@ -240,8 +234,7 @@ In scope:
 - The design's open-list verifications, answered against codex-cli 0.148.0, so a
   later phase does not have to ask again. `codex exec resume` takes `--json`,
   and a recorded resume proves it. Its command, patch and search items each
-  carry the field an action line needs. A usage-limit failure exits non-zero,
-  and Codex spends no retries on it: the round fails on the first answer.
+  carry the field an action line needs.
 
 Done when: golden-file tests for the Codex parser are green on all three
 platforms, the fixtures are committed, the verification results (or their
@@ -288,8 +281,7 @@ In scope:
   read.
 - The round record: the daemon writes `round.json` at spawn and again at exit,
   through a pydantic model per the phase 2 convention, so a corrupt record fails
-  with a named error (design.md, The state directory). A record with no end is
-  the interrupted signature later phases key on.
+  with a named error (design.md, The state directory).
 - The teardown module, the one place where platform process semantics live
   (design.md, Rounds and processes).
 - Tests against the fake harness on all three platforms, including the ugly

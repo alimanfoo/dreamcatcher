@@ -258,17 +258,17 @@ wants the round's landmarks and what the agent did, so the parser reads
 `thread.started` for the session id, `item.completed` for the agent's words or
 one action line, `turn.completed` for what the round used, and `turn.failed` for
 why it stopped. Every round of one session carries the same session id. A
-command line carries the command Codex ran. When the command did not complete, a
-second line follows it, labelled with the status Codex gave it. Codex reports
-every file of one patch in a single item, so the parser gives each file its own
-action line. Each line names what happened to the file, and the file's path is
-all the rest of the line. Codex sends each item three times, as it starts,
-changes and finishes, and only the last is complete, so the parser drops the
-other two. Codex gives no prices, so its spend line counts tokens alone where
-Claude's also carries money. A failed turn arrives twice, once on its own and
-again as the turn's ending, and only the ending reaches the feed. Codex spends
-no retries on a usage limit: the round fails on the first answer and exits
-non-zero, where Claude retries ten times first.
+command's action line carries the command Codex ran. When the command did not
+complete, a second line follows it, labelled with the status Codex gave it.
+Codex reports every file of one patch in a single item, so the parser gives each
+file its own action line. Each line names what happened to the file, and the
+file's path is all the rest of the line. Codex sends each item three times, as
+it starts, changes and finishes, and only the last is complete, so the parser
+drops the other two. Codex gives no prices, so its spend line counts tokens
+alone where Claude's also carries money. A failed turn arrives twice, once on
+its own and again as the turn's ending, and only the ending reaches the feed.
+Codex spends no retries on a usage limit: the round fails on the first answer
+and exits non-zero, where Claude retries ten times first.
 
 These flag sets are each harness's never-stall answer, written down: Claude
 answers with a pre-approved allowlist under auto mode, Codex with its automatic
@@ -302,8 +302,8 @@ reader the word that appears in `raw.jsonl` beside it.
 The feed puts an action's detail on one line, whatever shape the harness
 reported it in: it collapses the whitespace, cuts the round's own directory off
 the front, and clips what is left at the feed's width. So `[Edit] src/theme.css`
-names a path inside the worktree, where the harness reported the whole absolute
-path.
+reads as a path inside that directory, though the harness reported the whole
+absolute path.
 
 `scry GH123 --follow` shows the whole session: every round's feed concatenated
 in order, boundaries between them, following at the tail while a round is live.
