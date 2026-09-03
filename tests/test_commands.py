@@ -106,8 +106,9 @@ def test_a_spawned_command_finds_its_stdin_already_at_an_end(tmp_path):
     assert child.wait() == 0
 
 
-# The quoting is Windows's answer, and only Windows shows what it is worth. So
-# these read it, and the refusal beside it, here where every platform runs them.
+# The quoting and the refusal beside it are Windows's answer, and only Windows
+# shows what either is worth. The tests that follow read both anyway, so they run
+# on every platform.
 def test_a_quoted_part_hides_what_a_second_reader_would_act_on():
     assert _quote("effort=high&low") == '"effort=high&low"'
 

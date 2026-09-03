@@ -1,7 +1,7 @@
 """Run the external commands dreamcatcher shells out to.
 
-This module also owns what the tool knows about cmd.exe, the second reader a
-command line meets on Windows, since a command line has to survive it.
+This module also owns what the tool knows about cmd.exe, the second reader that
+a command line meets on Windows, since a command line has to survive it.
 """
 
 import subprocess
@@ -19,8 +19,8 @@ from dreamcatcher.errors import ReportableError
 BATCH_ENDINGS = (".cmd", ".bat")
 
 # What cmd.exe acts on wherever it sits, and what to call each one in a message.
-# cmd.exe expands %NAME% on the line it parses, inside double quotes as well as
-# outside, and nothing on a command line escapes a percent sign. It reads a
+# cmd.exe expands %NAME% on the line that it parses, inside double quotes as well
+# as outside, and nothing on a command line escapes a percent sign. It reads a
 # newline as the end of a statement, the way pressing Enter would. So quoting
 # carries neither, and the tool refuses text holding one rather than let the text
 # become something else.
@@ -77,9 +77,10 @@ def refuse_unquotable(text: str) -> str:
     pydantic turns the ValueError into an error against the setting that holds
     it.
 
-    The refusal stands on every platform, since a dreamcatcher.toml is committed
-    and shared. A config that reads on Linux and fails on Windows would be worse
-    than one that fails the same way everywhere.
+    The repo's owner commits the dreamcatcher.toml, so everyone watching that
+    repo reads the same one, and a config that reads on Linux and fails on
+    Windows would be worse than one that fails the same way everywhere. So the
+    refusal stands on every platform.
     """
     for character, name in UNQUOTABLE.items():
         if character in text:

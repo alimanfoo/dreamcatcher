@@ -415,21 +415,22 @@ which is what reaches a `.cmd` on Windows, the form the harness CLIs take when
 npm installs them. Windows runs a `.cmd` through cmd.exe, which reads the
 command line a second time under its own rules, after Python has quoted it for
 the program's own reader. So a batch file's line is built for both readers:
-every part of it quoted, and a quote inside a part doubled. Quoting carries
-every character but two. cmd.exe expands `%NAME%` inside double quotes as well
-as outside, and it reads a newline as the end of a statement, so neither reaches
-a batch file as it was written. The config therefore refuses a setting whose
-text holds one, where it reads the setting, so the message names the setting the
-repo's owner has to fix. It refuses on every platform, since a
-`dreamcatcher.toml` is committed and shared, and a config that reads on Linux
-and fails on Windows would be worse than one that fails the same way everywhere.
-It also follows that the process the daemon starts is often not the one doing
-the work, since a `.cmd` is a shim and Windows has shims for other things too.
-Process teardown is therefore a whole tree, not a child: a process group on
-POSIX and a Job Object on Windows, isolated in one module. Paths flow through
-`pathlib` end to end. The known pid-reuse wrinkle in the orphan sweep is
-accepted: the sweep runs once at startup against pids the daemon itself
-recorded, and the window is small.
+every part of it quoted, and a quote inside a part doubled. A percent sign and a
+newline get past the quoting, though. cmd.exe expands `%NAME%` inside double
+quotes as well as outside, and it reads a newline as the end of a statement, so
+neither reaches a batch file as it was written. The tool therefore refuses a
+setting holding either as it reads the config, which is what lets the message
+name the setting that the repo's owner has to fix. The repo's owner commits the
+`dreamcatcher.toml`, so everyone watching that repo reads the same one, and a
+config that reads on Linux and fails on Windows would be worse than one that
+fails the same way everywhere. So the refusal stands on every platform. It also
+follows that the process the daemon starts is often not the one doing the work,
+since a `.cmd` is a shim and Windows has shims for other things too. Process
+teardown is therefore a whole tree, not a child: a process group on POSIX and a
+Job Object on Windows, isolated in one module. Paths flow through `pathlib` end
+to end. The known pid-reuse wrinkle in the orphan sweep is accepted: the sweep
+runs once at startup against pids the daemon itself recorded, and the window is
+small.
 
 ### Dependencies
 

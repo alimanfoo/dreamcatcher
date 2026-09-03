@@ -11,9 +11,9 @@ from dreamcatcher.documents import Document, read_toml
 
 CONFIG_NAME = "dreamcatcher.toml"
 
-# A setting whose text the tool puts on a harness's own command line. Windows
-# runs a harness installed by npm as a batch file, so the text meets cmd.exe on
-# the way. Refusing it here, where the config is read, is what lets the message
+# A setting that the tool puts on a harness's own command line. Windows runs a
+# harness that npm installed as a batch file, so the setting's text meets cmd.exe
+# on the way. Refusing the text as the config is read is what lets the message
 # name the setting that holds it.
 CommandLineText = Annotated[str, AfterValidator(refuse_unquotable)]
 
