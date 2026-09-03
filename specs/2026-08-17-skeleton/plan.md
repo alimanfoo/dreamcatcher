@@ -91,14 +91,19 @@ In scope:
 - Parse and validate `dreamcatcher.toml` from the repo root: `interval`,
   `max_agents`, `assignee`, and the `[[dispatch]]` mappings, each with a label
   and a settings block per harness carrying `prompt`, `model`, and `effort` (see
-  design.md, Configuration). Validation is pydantic v2 models with
-  `extra="forbid"`, so a typo'd key is a named error rather than a silently
-  ignored setting. Failures report as pydantic's own message under the path it
-  names, which the reader can follow into the file ("dispatch.0.claude.model:
-  Field required"); a phrasing of our own would be machinery this phase does not
-  need. The same model convention then covers every JSON document the tool owns
-  in later phases (`round.json`, `session.json`, `last-tick.json`), so
-  serialization is schema'd everywhere rather than hand-rolled.
+  design.md, Configuration). Validation is pydantic v2 models, and every model
+  refuses a key that it does not expect, so a typo'd key is a named error rather
+  than a silently ignored setting. Most models reach that with `extra="forbid"`.
+  A dispatch mapping cannot, because its harness blocks sit beside its label and
+  so arrive as extra keys. It types those keys as the `Harness` enum instead,
+  which keeps the set of harnesses in one home and still reports
+  `[dispatch.gemini]` as a fault. Failures report as pydantic's own message
+  under the path it names, which the reader can follow into the file
+  ("dispatch.0.claude.model: Field required"); a phrasing of our own would be
+  machinery this phase does not need. The same model convention then covers
+  every JSON document the tool owns in later phases (`round.json`,
+  `session.json`, `last-tick.json`), so serialization is schema'd everywhere
+  rather than hand-rolled.
 - Runtime dependencies arrive here: pydantic, and psutil for pid semantics (the
   lock's staleness check, and later the orphan sweep) — with rich following in
   phase 11. design.md's Dependencies section names all three.

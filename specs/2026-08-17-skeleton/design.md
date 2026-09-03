@@ -50,12 +50,14 @@ effort = "xhigh"
 ```
 
 The blocks a mapping carries are the harnesses that can run its label, and every
-mapping carries at least one. A label with both blocks runs on the harness the
-run named. A label with one block always runs on that harness, whatever the run
-named, which is how the requirements' "some issues go to Claude Code, some to
-Codex" reaches one process. There is no separate pin: what the repo agrees about
-a label is already in which blocks it wrote. The prompt always lives in the
-harness block — one way, even when the two prompts happen to read the same.
+mapping carries at least one. A block's key has to name a harness, so a mapping
+that carries `[dispatch.gemini]` is a fault the tool reports. A label with both
+blocks runs on the harness the run named. A label with one block always runs on
+that harness, whatever the run named, which is how the requirements' "some
+issues go to Claude Code, some to Codex" reaches one process. There is no
+separate pin: what the repo agrees about a label is already in which blocks it
+wrote. The prompt always lives in the harness block — one way, even when the two
+prompts happen to read the same.
 
 `{issue}` is the only substitution the dispatcher owns. The label is a dispatch
 mapping's identity everywhere: in config, on the board, in the noisy-skip rule.

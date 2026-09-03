@@ -33,7 +33,8 @@ class Projection(BaseModel):
     """The fields dreamcatcher reads out of a document GitHub owns.
 
     GitHub owns the document, so a key we do not declare passes without
-    complaint. That is the opposite of a Document, which forbids one.
+    complaint. That is the opposite of a Document, which refuses a key that it
+    does not expect.
     """
 
     model_config = ConfigDict(frozen=True, populate_by_name=True)
