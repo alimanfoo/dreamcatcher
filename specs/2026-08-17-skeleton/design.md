@@ -300,8 +300,8 @@ other would mean inventing Claude's names for Codex's things, and would cost the
 reader the word that appears in `raw.jsonl` beside it.
 
 The feed puts an action's detail on one line, whatever shape the harness
-reported it in: it collapses the whitespace, cuts the round's own directory off
-the front, and clips what is left at the feed's width. So `[Edit] src/theme.css`
+reported it in: it cuts the round's own directory off the front, collapses the
+whitespace, and clips what is left at 200 characters. So `[Edit] src/theme.css`
 reads as a path inside that directory, though the harness reported the whole
 absolute path.
 

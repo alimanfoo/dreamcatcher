@@ -97,9 +97,8 @@ In scope:
   silently ignored setting. Most models reach that with `extra="forbid"`. A
   dispatch mapping cannot, because its harness blocks sit beside its label and
   so arrive as extra keys. It types those keys as the `Harness` enum instead,
-  which keeps the set of harnesses in one home and still reports
-  `[dispatch.gemini]` as a fault. Failures report as pydantic's own message
-  under the path it names, which the reader can follow into the file
+  which keeps the set of harnesses in one home. Failures report as pydantic's
+  own message under the path it names, which the reader can follow into the file
   ("dispatch.0.claude.model: Field required"); a phrasing of our own would be
   machinery this phase does not need. The same model convention then covers
   every JSON document the tool owns in later phases (`round.json`,
@@ -117,7 +116,7 @@ In scope:
 - The main-checkout test (design.md, Sessions, worktrees, branches).
 - The `.dreamcatcher/` bootstrap on first run (design.md, The state directory).
 - The `daemon.pid` lock (design.md, The state directory), taken on start. A dead
-  pid is stale, so the next run reclaims it; psutil answers alive-ness.
+  pid is stale, so the next run reclaims it.
 - A stub tick loop: sleep on the interval, write a minimal `last-tick.json` each
   tick, exit cleanly on Ctrl-C releasing the lock.
 
@@ -331,8 +330,7 @@ run, pull request out.
 
 In scope:
 
-- Eligibility (design.md, The tick), built on phase 3's "unknown" contract so
-  every read failure biases to inaction.
+- Eligibility (design.md, The tick), built on phase 3's "unknown" contract.
 - The real tick (design.md, The tick), replacing phase 2's stub and dispatching
   through phase 7's session creation.
 - The failure cooldown (design.md, The tick).
