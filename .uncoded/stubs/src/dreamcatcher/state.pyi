@@ -4,7 +4,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from dreamcatcher.documents import Document
+from dreamcatcher.documents import Document, write_text
 
 STATE_DIRECTORY = '.dreamcatcher'
 

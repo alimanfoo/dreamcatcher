@@ -9,13 +9,9 @@ from time import sleep
 from dreamcatcher.clock import now
 from dreamcatcher.config import Harness, read_config
 from dreamcatcher.documents import write_json
-from dreamcatcher.errors import DreamcatcherError
+from dreamcatcher.errors import ReportableError
 from dreamcatcher.lock import hold
 from dreamcatcher.state import LastTick, StateDirectory
-
-
-class NotAMainCheckoutError(DreamcatcherError):
-    """The user started the daemon outside a repo's main checkout."""
 
 
 class Daemon:
@@ -34,7 +30,7 @@ class Daemon:
     ) -> None:
         """Set the daemon up for the repo checked out at root."""
         if not (root / ".git").is_dir():
-            raise NotAMainCheckoutError(
+            raise ReportableError(
                 f"Start dreamcatcher from a repository's main checkout. "
                 f"{root} is not one."
             )

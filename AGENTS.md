@@ -87,11 +87,20 @@ uv run pre-commit run --all-files
   of what a harness streamed, so tidying it makes a golden test assert something
   the harness never sent. `.pre-commit-config.yaml` excludes that path from
   every hook, and `.gitattributes` keeps its line endings.
+- For a failure that the user needs to read, raise a `ReportableError`.
+  `cli.main` catches that one class and prints the message, and anything else
+  reaches the user as a traceback, which means a bug in the tool. A failed write
+  is never a bug, so write every file through `documents.write_text` or
+  `documents.write_json`, both of which raise a `ReportableError` when the write
+  fails. An error class earns its place only when some code catches it by name
+  and does something other than report it, as `github._read` catches
+  `CommandError` to answer "unknown".
 - Give every document the tool reads or writes a pydantic model, and read and
   write it through `documents.py`. That covers `dreamcatcher.toml` and the
-  records under `.dreamcatcher/`, but not a one-value file like `daemon.pid`. A
-  mistake in a document then reads as a named error in plain words, not as a
-  setting the tool quietly ignores.
+  records under `.dreamcatcher/`. A mistake in a document then reads as a named
+  error in plain words, not as a setting the tool quietly ignores. A one-value
+  file like `daemon.pid` needs no model, though `lock.py` still writes it
+  through `documents.write_text`.
 - Read what GitHub answers through a `Projection` in `github.py`. It keeps the
   fields we declare and lets every other key pass, because GitHub owns that
   document and adds to it as it pleases. A `Document` forbids a key it doesn't

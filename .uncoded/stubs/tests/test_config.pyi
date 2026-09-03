@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from conftest import CONFIG, CONFIG_HEAD, SMITH_CLAUDE, SMITH_CODEX
 from dreamcatcher.config import CONFIG_NAME, HarnessSettings, read_config
-from dreamcatcher.documents import DocumentError
+from dreamcatcher.errors import ReportableError
 
 WITHOUT_CODEX = CONFIG_HEAD + SMITH_CLAUDE
 CLAUDE_SETTINGS = ...

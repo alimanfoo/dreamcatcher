@@ -9,7 +9,7 @@ from pathlib import Path
 import dreamcatcher
 from dreamcatcher.config import Harness
 from dreamcatcher.daemon import Daemon
-from dreamcatcher.errors import DreamcatcherError
+from dreamcatcher.errors import ReportableError
 
 def build_parser() -> argparse.ArgumentParser:
     ...

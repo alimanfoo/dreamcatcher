@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from dreamcatcher.documents import Document
+from dreamcatcher.documents import Document, write_text
 
 STATE_DIRECTORY = ".dreamcatcher"
 
@@ -43,8 +43,7 @@ class StateDirectory:
     def bootstrap(self) -> None:
         """Create the directory, ignoring itself, so git never sees its files.
 
-        Bootstrap writes the .gitignore every time. That heals a deleted one.
-        It also saves checking whether the file is already there.
+        Writing the .gitignore is what makes the directory, and bootstrap writes
+        it every time, so a deleted one heals.
         """
-        self.path.mkdir(parents=True, exist_ok=True)
-        (self.path / ".gitignore").write_text("*\n", encoding="utf-8")
+        write_text("*\n", self.path / ".gitignore")

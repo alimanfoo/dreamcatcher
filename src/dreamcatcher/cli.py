@@ -9,7 +9,7 @@ from pathlib import Path
 import dreamcatcher
 from dreamcatcher.config import Harness
 from dreamcatcher.daemon import Daemon
-from dreamcatcher.errors import DreamcatcherError
+from dreamcatcher.errors import ReportableError
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -40,7 +40,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             print("dreamcatcher scry is not implemented yet.", file=sys.stderr)
             return 1
         Daemon(Path.cwd(), Harness(args.harness)).run()
-    except DreamcatcherError as error:
+    except ReportableError as error:
         print(error, file=sys.stderr)
         return 1
     return 0

@@ -3,7 +3,8 @@
 
 from pathlib import Path
 import pytest
-from dreamcatcher.documents import Document, DocumentError, read_toml
+from dreamcatcher.documents import Document, read_toml, write_text
+from dreamcatcher.errors import ReportableError
 
 def write(path: Path, text: str) -> Path:
     ...
@@ -24,6 +25,12 @@ def test_a_document_that_is_not_utf_8_says_so(tmp_path):
     ...
 
 def test_a_document_that_breaks_its_model_lists_every_fault(tmp_path):
+    ...
+
+def test_a_write_lands_where_it_is_asked_for(tmp_path):
+    ...
+
+def test_a_write_that_fails_says_so(tmp_path):
     ...
 
 class Sample(Document):
