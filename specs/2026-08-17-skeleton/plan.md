@@ -338,12 +338,18 @@ In scope:
   6 built the teardown and left the daemon with no rounds to end.
 - The startup orphan sweep (design.md, The tick). The carry-on resume of those
   sessions is phase 10's; until then they appear in `last-tick.json` as waiting.
-- The startup check that the harness's CLI is installed: `run` refuses at once
-  when the harness it was given is not on the PATH, rather than dispatching a
-  round that cannot start. Phase 4 left this to the phase with a caller for it:
-  the adapter names its CLI, and phase 3's `commands.locate` is the lookup.
-  Without the check a missing CLI reads as a round that fails every fifteen
-  minutes, since the cooldown cannot tell a misconfiguration from a blip.
+- The startup check that every harness a run might dispatch to has its CLI
+  installed: `run` refuses at once when any of them is not on the PATH, rather
+  than dispatching a round that cannot start. The set is not just the harness
+  `--harness` named: phase 7's `DispatchMapping.choose_harness` runs a label on
+  whichever harness its own blocks settle on, so a single-block label can send a
+  round to a harness the run never named. The check gathers the harnesses named
+  by the blocks of every dispatch mapping, plus the one `--harness` gave, and
+  `harnesses.ADAPTERS` turns each into the adapter that names its CLI. Phase 4
+  left this to the phase with a caller for it: phase 3's `commands.locate` is
+  the lookup. Without the check a missing CLI reads as a round that fails every
+  fifteen minutes, since the cooldown cannot tell a misconfiguration from a
+  blip.
 
 Done when: an end-to-end CI test drives a full dispatch against the fakes — the
 scripted `gh` offers a labelled issue, the tick cuts a real worktree, the fake
