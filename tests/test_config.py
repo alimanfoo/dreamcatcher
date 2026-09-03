@@ -128,8 +128,8 @@ def test_a_setting_a_harness_cannot_be_given_names_itself(tmp_path, setting):
     assert str(error.value) == (
         f"{tmp_path / CONFIG_NAME} is not valid:\n"
         f"  dispatch.0.claude.{setting}: Value error, cannot hold a percent "
-        "sign, because on Windows cmd.exe acts on it rather than passing it to "
-        "the harness"
+        "sign, because on Windows cmd.exe acts on the text rather than passing "
+        "it to the harness"
     )
 
 

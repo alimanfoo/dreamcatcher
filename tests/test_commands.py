@@ -125,14 +125,26 @@ def test_a_backslash_before_a_quote_is_doubled_so_the_quote_still_counts():
     assert _quote('C:\\repo\\"done"') == '"C:\\repo\\\\""done"""'
 
 
+# One percent sign is enough, with nothing to close it, because npm's shim reads
+# every argument again on a command line of its own.
 def test_text_holding_a_percent_sign_is_refused():
     with pytest.raises(ValueError, match="cannot hold a percent sign"):
-        refuse_unquotable("finish by %TIME%")
+        refuse_unquotable("finish 50% of it")
 
 
 def test_text_holding_a_newline_is_refused():
     with pytest.raises(ValueError, match="cannot hold a newline"):
         refuse_unquotable("do this\nthen that")
+
+
+def test_text_holding_a_carriage_return_is_refused():
+    with pytest.raises(ValueError, match="cannot hold a carriage return"):
+        refuse_unquotable("do this\rthen that")
+
+
+def test_text_holding_more_than_one_of_them_names_every_one():
+    with pytest.raises(ValueError, match="cannot hold a percent sign or a newline"):
+        refuse_unquotable("finish 50% of it\nthen stop")
 
 
 def test_text_the_quoting_carries_comes_back_as_it_was():

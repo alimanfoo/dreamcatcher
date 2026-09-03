@@ -10,7 +10,7 @@ from dreamcatcher import teardown
 from dreamcatcher.errors import ReportableError
 
 BATCH_ENDINGS = ('.cmd', '.bat')
-UNQUOTABLE = {'%': 'a percent sign', '\n': 'a newline'}
+UNQUOTABLE = {'%': 'a percent sign', '\n': 'a newline', '\r': 'a carriage return'}
 
 def refuse_unquotable(text: str) -> str:
     ...

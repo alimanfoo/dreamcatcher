@@ -349,6 +349,8 @@ tests/:
     test_a_backslash_before_a_quote_is_doubled_so_the_quote_still_counts:
     test_text_holding_a_percent_sign_is_refused:
     test_text_holding_a_newline_is_refused:
+    test_text_holding_a_carriage_return_is_refused:
+    test_text_holding_more_than_one_of_them_names_every_one:
     test_text_the_quoting_carries_comes_back_as_it_was:
   test_config.py:
     WITHOUT_CODEX:

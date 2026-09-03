@@ -416,7 +416,7 @@ npm installs them. Windows runs a `.cmd` through cmd.exe, which reads the
 command line a second time under its own rules, after Python has quoted it for
 the program's own reader. So a batch file's line is built for both readers:
 every part of it quoted, and a quote inside a part doubled. A percent sign and a
-newline get past the quoting, though. cmd.exe expands `%NAME%` inside double
+line ending get past the quoting, though. cmd.exe expands `%NAME%` inside double
 quotes as well as outside, and it reads a newline as the end of a statement, so
 neither reaches a batch file as it was written. The tool therefore refuses a
 setting holding either as it reads the config, which is what lets the message

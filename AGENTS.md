@@ -109,10 +109,12 @@ uv run pre-commit run --all-files
   rules for that one module, so any other module that imports `subprocess` fails
   the check.
 - Pass any text the tool puts on a harness's own command line through
-  `commands.refuse_unquotable` first, as `config.QuotableText` does for the
-  settings a dispatch holds. On Windows cmd.exe acts on a percent sign or a
-  newline in that text rather than passing it to the harness, and quoting
-  carries neither.
+  `commands.refuse_unquotable` first. On Windows cmd.exe acts on a percent sign
+  or a line ending in that text rather than passing it to the harness, and
+  quoting carries neither. `config.QuotableText` does this for the settings a
+  dispatch holds, where pydantic turns the `ValueError` into a named error.
+  Anywhere else, catch the `ValueError` and raise a `ReportableError`, or the
+  user reads a traceback.
 - Name a method or a function for what it does, with a verb: `render`, `stop`,
   `strip_worktree`. A name like `rendered` or `holder` reads as a value, so a
   reader takes it for a property and not for something that runs.

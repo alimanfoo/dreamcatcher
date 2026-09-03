@@ -28,7 +28,15 @@ BATCH_ENDINGS = (".cmd", ".bat")
 # Any percent sign counts, not only a %NAME% pair, because npm's shim pastes
 # every argument it was given into a command line of its own, where cmd.exe reads
 # it a third time.
-UNQUOTABLE = {"%": "a percent sign", "\n": "a newline"}
+#
+# A carriage return on its own is refused as the newline is. Reading a file turns
+# every line ending into a newline, so this meets one only where a document wrote
+# it as an escape, and one line of a prompt is what the author wrote either way.
+UNQUOTABLE = {
+    "%": "a percent sign",
+    "\n": "a newline",
+    "\r": "a carriage return",
+}
 
 
 class CommandError(ReportableError):
@@ -70,17 +78,20 @@ class Child:
 
 
 def refuse_unquotable(text: str) -> str:
-    """Return text, or raise ValueError when quoting cannot carry it.
+    """Return text, or raise ValueError naming every character it cannot carry.
 
     Whoever reads text in from outside calls this, so the message can name where
     the text came from. A ValueError is what pydantic turns into that message.
+
+    The message names every character it found, rather than the first, so the
+    repo's owner fixes a setting once instead of once for each.
     """
-    for character, name in UNQUOTABLE.items():
-        if character in text:
-            raise ValueError(
-                f"cannot hold {name}, because on Windows cmd.exe acts on it "
-                "rather than passing it to the harness"
-            )
+    found = [name for character, name in UNQUOTABLE.items() if character in text]
+    if found:
+        raise ValueError(
+            f"cannot hold {' or '.join(found)}, because on Windows cmd.exe acts "
+            "on the text rather than passing it to the harness"
+        )
     return text
 
 
