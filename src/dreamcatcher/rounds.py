@@ -29,9 +29,10 @@ from dreamcatcher.feed import Prose, Renderer
 class RoundRecord(Document):
     """What a round says about itself, written at each end of the round.
 
-    A record with no ending is the signature of a round that was interrupted.
-    The daemon that was watching it exited before the round could say how it
-    ended, so a later tick reads the round as one to carry on.
+    A record with no ending means the round was interrupted. Either the daemon
+    exited while the round was still going, or the daemon stopped the round
+    itself. Both leave work half done, so a later tick resumes the round rather
+    than starting a new one.
     """
 
     started: datetime
@@ -110,8 +111,8 @@ class Round:
     def stop(self) -> None:
         """End the round now, and everything it started, leaving it unfinished.
 
-        A round somebody stopped did not finish, so nothing writes an ending to
-        its record. That is what a later tick reads as a round to carry on.
+        A stopped round did not finish, so nothing writes an ending to its
+        record. A later tick then sees an interrupted round and resumes it.
         """
         self.interrupted = True
         self.child.kill()
@@ -121,9 +122,10 @@ class Round:
         """Read one of the round's streams, and end the round if that fails.
 
         A round that cannot write its own files has nothing to show for itself.
-        Worse, a reader that stopped reading would leave the harness blocked on
-        a full pipe for ever, and the round would never end. So the round ends
-        here, and its record keeps no ending, which reads as one to carry on.
+        It would also hang: a reader that stops reading fills the pipe, the
+        harness blocks on its next write, and nothing ever ends the round. So
+        the round is ended here, and its record keeps no ending, which marks it
+        as interrupted.
         """
         try:
             read()
@@ -161,10 +163,10 @@ class Round:
     def _render(self, line: str) -> str:
         """Return the feed lines that one line of the harness's stream becomes.
 
-        An adapter promises that reading a line raises nothing. Rendering what
-        it read is a second step, and that one fails when an event holds
-        anything other than text. So a line that the feed cannot write costs
-        the reader that one line, and arrives as the harness sent it.
+        Reading a line through an adapter never raises. Rendering what the
+        adapter read is a second step, and that step does fail when an event
+        holds something other than text. A line the feed cannot render is
+        written out as the harness sent it, so one bad line costs one line.
         """
         try:
             return "".join(
@@ -178,10 +180,11 @@ class Round:
         return self.renderer.render(Prose(line))
 
     def _append(self, line: str, render: Callable[[str], str]) -> None:
-        """Add what one line says to the feed, one of the two streams at a time.
+        """Add what one line says to the feed, letting one stream write at a time.
 
-        The line is rendered under the same lock that the write takes, so the
-        stamp a line carries and the order it lands in agree.
+        Rendering happens under the same lock as the write. A line is stamped
+        as it is rendered, so holding the lock across both keeps the stamps in
+        the same order as the lines.
         """
         with self._writing:
             written = render(line)

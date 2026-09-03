@@ -54,10 +54,10 @@ class Call:
 class Fake:
     """A stand-in for one program.
 
-    The test that installs a stand-in says what the stand-in answers, and the
-    stand-in answers that to every call it takes. Every answer is a run of
-    lines, so one stand-in serves a tool that prints once and a harness that
-    streams as it works.
+    A test scripts the answer once, and the stand-in gives that answer to every
+    call. An answer is a list of lines, which covers both kinds of program the
+    tests need: a tool that prints its result and exits, and a harness that
+    streams a line at a time while it works.
     """
 
     base: Path
