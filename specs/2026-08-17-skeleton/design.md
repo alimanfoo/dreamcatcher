@@ -257,13 +257,18 @@ line-at-a-time. audacious took the `agent_message` text alone. The feed also
 wants the round's landmarks and what the agent did, so the parser reads
 `thread.started` for the session id, `item.completed` for the agent's words or
 one action line, `turn.completed` for what the round used, and `turn.failed` for
-why it stopped. Codex sends each item three times, as it starts, changes and
-finishes, and only the last is complete, so the parser drops the other two.
-Codex gives no prices, so its spend line counts tokens alone where Claude's also
-carries money. A failed turn arrives twice, once on its own and again as the
-turn's ending, and only the ending reaches the feed. Codex spends no retries on
-a usage limit: the round fails on the first answer and exits non-zero, where
-Claude retries ten times first.
+why it stopped. Every round of one session carries the same thread id. A command
+line carries the command Codex ran, and adds a second line labelled with Codex's
+own status unless the command completed. Codex reports every file of one patch
+in a single item, so a patch becomes a line per file, with what happened to the
+file as the label, which leaves the path as the whole detail. Codex sends each
+item three times, as it starts, changes and finishes, and only the last is
+complete, so the parser drops the other two. Codex gives no prices, so its spend
+line counts tokens alone where Claude's also carries money. A failed turn
+arrives twice, once on its own and again as the turn's ending, and only the
+ending reaches the feed. Codex spends no retries on a usage limit: the round
+fails on the first answer and exits non-zero, where Claude retries ten times
+first.
 
 These flag sets are each harness's never-stall answer, written down: Claude
 answers with a pre-approved allowlist under auto mode, Codex with its automatic
@@ -293,6 +298,12 @@ word for what it did, so Claude's tool name gives `[Bash] pytest` and Codex's
 item type gives `[command_execution] /bin/zsh -lc ls`. Translating one into the
 other would mean inventing Claude's names for Codex's things, and would cost the
 reader the word that appears in `raw.jsonl` beside it.
+
+The feed puts an action's detail on one line, whatever shape the harness
+reported it in: it collapses the whitespace, cuts the round's own directory off
+the front, and clips what is left at the feed's width. So `[Edit] src/theme.css`
+names a path inside the worktree, where the harness reported the whole absolute
+path.
 
 `scry GH123 --follow` shows the whole session: every round's feed concatenated
 in order, boundaries between them, following at the tail while a round is live.
