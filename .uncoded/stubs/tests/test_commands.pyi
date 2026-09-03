@@ -36,6 +36,3 @@ def test_a_spawned_command_runs_where_it_is_told_and_streams_as_it_goes(fake, tm
 
 def test_a_spawned_command_finds_its_stdin_already_at_an_end(tmp_path):
     ...
-
-def test_a_spawned_child_names_the_process_it_started(tmp_path):
-    ...

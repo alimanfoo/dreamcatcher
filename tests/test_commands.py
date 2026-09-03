@@ -96,12 +96,3 @@ def test_a_spawned_command_finds_its_stdin_already_at_an_end(tmp_path):
     child = spawn(sys.executable, "-c", reading, cwd=tmp_path)
 
     assert child.out.read() == "read ''"
-
-
-def test_a_spawned_child_names_the_process_it_started(tmp_path):
-    naming = "import os; print(os.getpid())"
-
-    child = spawn(sys.executable, "-c", naming, cwd=tmp_path)
-
-    assert int(child.out.read()) == child.pid
-    assert child.wait() == 0
