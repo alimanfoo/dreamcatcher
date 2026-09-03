@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 
 import pytest
-from fakes import Line, Stream
+from fakes import Line, Stream, install
 
 from dreamcatcher.commands import CommandError, _quote, locate, run, spawn
 
@@ -28,6 +28,17 @@ def test_a_program_on_the_path_is_found(fake):
     fake("probe")
 
     assert Path(locate("probe")).stem == "probe"
+
+
+# Only Windows searches the current directory for a program, and only Windows
+# shows what taking it back out of the search is worth. So this reads it here,
+# where every platform runs it.
+def test_a_program_in_the_current_directory_alone_is_not_found(tmp_path, monkeypatch):
+    install(tmp_path, "probe")
+    monkeypatch.chdir(tmp_path)
+
+    with pytest.raises(CommandError, match="not on the PATH"):
+        locate("probe")
 
 
 def test_a_program_that_is_not_on_the_path_says_so():

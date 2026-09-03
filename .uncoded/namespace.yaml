@@ -333,6 +333,7 @@ tests/:
     test_a_command_hands_back_what_it_printed:
     test_a_command_runs_where_it_is_told:
     test_a_program_on_the_path_is_found:
+    test_a_program_in_the_current_directory_alone_is_not_found:
     test_a_program_that_is_not_on_the_path_says_so:
     test_a_failure_carries_the_command_and_what_it_said:
     test_a_failure_that_said_nothing_still_names_the_command:

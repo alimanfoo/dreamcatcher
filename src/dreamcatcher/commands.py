@@ -1,5 +1,6 @@
 """Run the external commands dreamcatcher shells out to."""
 
+import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path, PurePath
@@ -8,6 +9,15 @@ from typing import IO, cast
 
 from dreamcatcher import teardown
 from dreamcatcher.errors import ReportableError
+
+# Take the current directory out of every program lookup. Windows searches it
+# ahead of the PATH, and the daemon's current directory is the watched checkout,
+# so a file named git.exe or gh.cmd at that checkout's root would otherwise run
+# in place of the real tool. Windows checks whether the name is set and never
+# reads its value. A child inherits it, so a lookup the harness makes reads the
+# PATH alone too. macOS and Linux read the PATH alone already, and ignore the
+# name.
+os.environ["NoDefaultCurrentDirectoryInExePath"] = "1"
 
 # What npm calls the harness CLIs that it installs on Windows. Windows runs a file
 # with one of these endings through cmd.exe, so its command line meets a second
