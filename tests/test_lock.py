@@ -1,10 +1,16 @@
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
-from dreamcatcher.lock import AlreadyRunningError, hold
+from dreamcatcher.errors import ReportableError
+from dreamcatcher.lock import hold
+
+
+def refuse(*_: object) -> None:
+    raise PermissionError("the lock cannot be removed")
 
 
 def dead_pid() -> int:
@@ -26,7 +32,7 @@ def test_a_live_daemon_keeps_the_lock(tmp_path):
     lock = tmp_path / "daemon.pid"
     lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
 
-    with pytest.raises(AlreadyRunningError, match=f"pid {os.getpid()}"), hold(lock):
+    with pytest.raises(ReportableError, match=f"pid {os.getpid()}"), hold(lock):
         pass
 
 
@@ -62,3 +68,18 @@ def test_the_lock_is_released_when_the_daemon_fails(tmp_path):
         raise RuntimeError("the daemon fell over")
 
     assert not lock.exists()
+
+
+def test_a_lock_the_daemon_cannot_write_says_so(tmp_path):
+    with pytest.raises(ReportableError, match="cannot write"), hold(tmp_path):
+        pass
+
+
+def test_a_release_that_cannot_happen_leaves_the_failure_that_ended_the_run(
+    tmp_path, monkeypatch
+):
+    lock = tmp_path / "daemon.pid"
+    monkeypatch.setattr(Path, "unlink", refuse)
+
+    with pytest.raises(ReportableError, match="the tick"), hold(lock):
+        raise ReportableError("the tick could not write what it decided")

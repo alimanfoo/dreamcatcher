@@ -4,8 +4,13 @@
 import os
 import subprocess
 import sys
+from pathlib import Path
 import pytest
-from dreamcatcher.lock import AlreadyRunningError, hold
+from dreamcatcher.errors import ReportableError
+from dreamcatcher.lock import hold
+
+def refuse(*_: object) -> None:
+    ...
 
 def dead_pid() -> int:
     ...
@@ -23,4 +28,10 @@ def test_a_lock_nobody_can_read_as_a_live_pid_is_reclaimed(tmp_path, kind, held)
     ...
 
 def test_the_lock_is_released_when_the_daemon_fails(tmp_path):
+    ...
+
+def test_a_lock_the_daemon_cannot_write_says_so(tmp_path):
+    ...
+
+def test_a_release_that_cannot_happen_leaves_the_failure_that_ended_the_run(tmp_path, monkeypatch):
     ...

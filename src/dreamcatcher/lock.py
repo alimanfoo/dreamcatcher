@@ -2,34 +2,35 @@
 
 import os
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from pathlib import Path
 
 import psutil
 
-from dreamcatcher.errors import DreamcatcherError
-
-
-class AlreadyRunningError(DreamcatcherError):
-    """A daemon is running on this repo already."""
+from dreamcatcher.documents import write_text
+from dreamcatcher.errors import ReportableError
 
 
 @contextmanager
 def hold(path: Path) -> Iterator[None]:
     """Hold the lock at path, and release it however the caller ends.
 
-    Raise AlreadyRunningError when a live daemon holds it.
+    Raise ReportableError when a live daemon holds it.
 
     Reclaim a stale lock, one no live daemon holds.
     """
     running = _holder(path)
     if running is not None:
-        raise AlreadyRunningError(f"dreamcatcher is already running as pid {running}.")
-    path.write_text(f"{os.getpid()}\n", encoding="utf-8")
+        raise ReportableError(f"dreamcatcher is already running as pid {running}.")
+    write_text(f"{os.getpid()}\n", path)
     try:
         yield
     finally:
-        path.unlink(missing_ok=True)
+        # A release that cannot happen costs nothing, because the next run
+        # reclaims a lock naming a dead pid. Letting the failure out would
+        # replace whatever ended the run, and the user would read the wrong one.
+        with suppress(OSError):
+            path.unlink()
 
 
 def _holder(path: Path) -> int | None:
