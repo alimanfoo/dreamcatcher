@@ -61,14 +61,14 @@ class Claude(Adapter):
 
     def _events(self, streamed: dict) -> list[Event]:
         """Return the feed events one Claude event turns into."""
-        subagent = streamed.get("parent_tool_use_id") is not None
+        is_subagent = streamed.get("parent_tool_use_id") is not None
         kind = streamed["type"]
         if kind == "system":
             return _system(streamed)
         if kind == "assistant":
-            return _blocks(streamed, _spoken, subagent)
+            return _blocks(streamed, _spoken, is_subagent)
         if kind == "user":
-            return _blocks(streamed, _failure, subagent)
+            return _blocks(streamed, _failure, is_subagent)
         if kind == "result":
             return _closing(streamed)
         return []
@@ -104,8 +104,8 @@ def _system(streamed: dict) -> list[Event]:
     # command does not, so the usage is what tells the two events apart.
     if subtype == "task_notification" and streamed.get("usage") is not None:
         return [
-            Note("report", streamed["status"], subagent=True),
-            Prose(streamed["summary"], subagent=True),
+            Note("report", streamed["status"], is_subagent=True),
+            Prose(streamed["summary"], is_subagent=True),
         ]
     # A retried round says nothing else while it waits, and ten retries of a
     # rate limit take about three minutes, so the feed says what it waits on.
@@ -121,36 +121,38 @@ def _system(streamed: dict) -> list[Event]:
 
 
 def _blocks(
-    streamed: dict, read: Callable[[dict, bool], list[Event]], subagent: bool
+    streamed: dict, read: Callable[[dict, bool], list[Event]], is_subagent: bool
 ) -> list[Event]:
     """Return what every block of one message carries."""
     return [
         event
         for block in streamed["message"]["content"]
-        for event in read(block, subagent)
+        for event in read(block, is_subagent)
     ]
 
 
-def _spoken(block: dict, subagent: bool) -> list[Event]:
+def _spoken(block: dict, is_subagent: bool) -> list[Event]:
     """Return what one block of an assistant message carries."""
     kind = block["type"]
     if kind == "text":
         # A subagent's own words reach the feed as its report, so the feed does
         # not carry them twice.
-        return [] if subagent else [Prose(block["text"])]
+        return [] if is_subagent else [Prose(block["text"])]
     if kind == "thinking":
         # Claude streams the block without the thinking in it, so the feed says
         # the agent thought and cannot say what it thought.
-        return [Note("thinking", subagent=subagent)]
+        return [Note("thinking", is_subagent=is_subagent)]
     if kind == "tool_use":
-        return [Note(block["name"], _telling_input(block["input"]), subagent=subagent)]
+        return [
+            Note(block["name"], _telling_input(block["input"]), is_subagent=is_subagent)
+        ]
     return []
 
 
-def _failure(block: dict, subagent: bool) -> list[Event]:
+def _failure(block: dict, is_subagent: bool) -> list[Event]:
     """Return the failure one block of a user message carries, if it failed."""
     if block["type"] == "tool_result" and block.get("is_error"):
-        return [Note("failed", _text(block["content"]), subagent=subagent)]
+        return [Note("failed", _text(block["content"]), is_subagent=is_subagent)]
     return []
 
 

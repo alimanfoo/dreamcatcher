@@ -62,7 +62,7 @@ class Round:
         self.clock = clock
         self.renderer = Renderer(worktree, clock=clock)
         self.started = clock()
-        self.interrupted = False
+        self.is_interrupted = False
         self._writing = Lock()
         self.child = spawn(*command, cwd=worktree)
         try:
@@ -100,7 +100,7 @@ class Round:
         return self.directory / "raw.jsonl"
 
     @property
-    def alive(self) -> bool:
+    def is_alive(self) -> bool:
         """Whether the round is still running, or still recording its ending."""
         return self._closing.is_alive()
 
@@ -114,7 +114,7 @@ class Round:
         A stopped round did not finish, so nothing writes an ending to its
         record. A later tick then sees an interrupted round and resumes it.
         """
-        self.interrupted = True
+        self.is_interrupted = True
         self.child.kill()
         self.wait()
 
@@ -130,7 +130,7 @@ class Round:
         try:
             read()
         except ReportableError:
-            self.interrupted = True
+            self.is_interrupted = True
             self.child.kill()
 
     def _read_stdout(self) -> None:
@@ -149,7 +149,7 @@ class Round:
         status = self.child.wait()
         for pump in self._pumps:
             pump.join()
-        if not self.interrupted:
+        if not self.is_interrupted:
             write_json(
                 RoundRecord(
                     started=self.started,

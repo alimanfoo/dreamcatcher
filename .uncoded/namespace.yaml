@@ -117,10 +117,10 @@ src/:
       Note:
         label:
         detail:
-        subagent:
+        is_subagent:
       Prose:
         text:
-        subagent:
+        is_subagent:
       Renderer:
         worktree:
         clock:
@@ -191,7 +191,7 @@ src/:
         record:
         feed:
         raw:
-        alive:
+        is_alive:
         __init__:
         wait:
         stop:

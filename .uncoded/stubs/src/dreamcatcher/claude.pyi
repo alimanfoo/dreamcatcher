@@ -14,13 +14,13 @@ CLAUDE = Claude()
 def _system(streamed: dict) -> list[Event]:
     ...
 
-def _blocks(streamed: dict, read: Callable[[dict, bool], list[Event]], subagent: bool) -> list[Event]:
+def _blocks(streamed: dict, read: Callable[[dict, bool], list[Event]], is_subagent: bool) -> list[Event]:
     ...
 
-def _spoken(block: dict, subagent: bool) -> list[Event]:
+def _spoken(block: dict, is_subagent: bool) -> list[Event]:
     ...
 
-def _failure(block: dict, subagent: bool) -> list[Event]:
+def _failure(block: dict, is_subagent: bool) -> list[Event]:
     ...
 
 def _closing(streamed: dict) -> list[Event]:

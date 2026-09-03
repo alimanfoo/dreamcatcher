@@ -22,7 +22,7 @@ class Round:
     record: Path
     feed: Path
     raw: Path
-    alive: bool
+    is_alive: bool
 
     def __init__(self, adapter: Adapter, command: list[str], worktree: Path, directory: Path, clock: Callable[[], datetime]) -> None:
         ...

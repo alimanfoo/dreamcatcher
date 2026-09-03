@@ -413,9 +413,8 @@ No `jq`, no `tmux`. Beyond that, three runtime dependencies on every platform,
 each mature and wheeled everywhere: pydantic validates every document the tool
 owns, psutil answers whether a pid is alive, and rich renders `scry`'s views.
 Windows adds a fourth, pywin32, which is how teardown reaches the Job Object
-that holds a round there. Written against the Win32 API directly, that one call
-takes a hundred lines of `ctypes` that no test on the other two platforms can
-reach. Nothing else in this phase; a richer UI can add its own later.
+that holds a round there. Nothing else in this phase; a richer UI can add its
+own later.
 
 ## What changes, and what goes away
 

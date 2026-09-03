@@ -73,10 +73,10 @@ def test_prose_with_nothing_in_it_writes_nothing():
 def test_a_subagents_lines_are_indented_under_the_timestamp():
     rendered = feed()
 
-    assert rendered.render(Note("Bash", "ls", subagent=True)) == (
+    assert rendered.render(Note("Bash", "ls", is_subagent=True)) == (
         "2026-08-19T18:41:58Z    [Bash] ls\n"
     )
-    assert rendered.render(Prose("two files", subagent=True)) == (
+    assert rendered.render(Prose("two files", is_subagent=True)) == (
         "2026-08-19T18:41:59Z    two files\n"
     )
 

@@ -136,7 +136,7 @@ def test_a_subagents_own_words_are_left_to_its_report():
 def test_a_subagent_that_thinks_is_marked_as_one():
     line = assistant({"type": "thinking", "thinking": ""}, parent="toolu_1")
 
-    assert CLAUDE.read(line) == [Note("thinking", subagent=True)]
+    assert CLAUDE.read(line) == [Note("thinking", is_subagent=True)]
 
 
 def test_a_subagents_tool_call_is_marked_as_one():
@@ -145,7 +145,7 @@ def test_a_subagents_tool_call_is_marked_as_one():
         parent="toolu_1",
     )
 
-    assert CLAUDE.read(line) == [Note("Bash", "ls", subagent=True)]
+    assert CLAUDE.read(line) == [Note("Bash", "ls", is_subagent=True)]
 
 
 def test_a_finished_subagent_reports_what_it_did():
@@ -158,8 +158,8 @@ def test_a_finished_subagent_reports_what_it_did():
     )
 
     assert CLAUDE.read(line) == [
-        Note("report", "completed", subagent=True),
-        Prose("Two files.", subagent=True),
+        Note("report", "completed", is_subagent=True),
+        Prose("Two files.", is_subagent=True),
     ]
 
 

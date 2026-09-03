@@ -14,11 +14,11 @@ type Event = Note | Prose
 class Note:
     label: str
     detail: str = ''
-    subagent: bool = False
+    is_subagent: bool = False
 
 class Prose:
     text: str
-    subagent: bool = False
+    is_subagent: bool = False
 
 class Renderer:
     worktree: PurePath
@@ -39,5 +39,5 @@ class Renderer:
     def _strip_worktree(self, detail: str) -> str:
         ...
 
-    def _stamp(self, contents: list[str], subagent: bool) -> str:
+    def _stamp(self, contents: list[str], is_subagent: bool) -> str:
         ...

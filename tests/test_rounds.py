@@ -135,7 +135,7 @@ def test_a_round_says_when_it_started_and_what_process_it_is(fake, worktree, dir
 
     running = Round(CLAUDE, ["harness"], worktree, directory, clock=pinned)
 
-    assert running.alive
+    assert running.is_alive
     assert written(running.record) == RoundRecord(started=PINNED, pid=running.child.pid)
 
     running.stop()
@@ -147,7 +147,7 @@ def test_a_round_that_finished_says_how_it_ended(fake, worktree, directory):
     running = Round(CLAUDE, ["harness"], worktree, directory, clock=pinned)
     running.wait()
 
-    assert not running.alive
+    assert not running.is_alive
     assert written(running.record) == RoundRecord(
         started=PINNED, pid=running.child.pid, ended=PINNED, status=2
     )
@@ -159,7 +159,7 @@ def test_a_round_somebody_stopped_says_no_ending(fake, worktree, directory):
     running = Round(CLAUDE, ["harness"], worktree, directory, clock=pinned)
     running.stop()
 
-    assert not running.alive
+    assert not running.is_alive
     assert written(running.record).ended is None
     assert written(running.record).status is None
 
@@ -174,7 +174,7 @@ def test_a_round_that_cannot_write_its_feed_stops_rather_than_stalls(
     running = Round(CLAUDE, ["harness"], worktree, directory, clock=pinned)
     running.wait()
 
-    assert not running.alive
+    assert not running.is_alive
     assert written(running.record).ended is None
 
 
