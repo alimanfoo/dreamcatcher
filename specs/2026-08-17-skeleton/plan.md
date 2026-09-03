@@ -296,24 +296,33 @@ In scope:
 - Give the child no stdin. Codex reads stdin for more of its prompt and waits
   for the end of it, so a pipe the daemon holds open stalls the round for ever,
   even when the prompt is already an argument.
-- Answer the Windows `.cmd` question `commands.py` leaves to the phase that runs
-  a harness. npm installs both harness CLIs as a `.cmd`, which Windows runs
-  through cmd.exe, and cmd.exe reads the arguments a second time under its own
-  rules. A prompt template is a repo's to write, so it can hold a character
-  cmd.exe acts on. Test a prompt holding one on Windows, and carry the answer
-  here.
+- The Windows `.cmd` question `commands.py` left to the phase that runs a
+  harness, answered. npm installs both harness CLIs as a `.cmd`, which Windows
+  runs through cmd.exe, and cmd.exe reads the arguments a second time under its
+  own rules. So a batch file's command line is built for both readers: every
+  part quoted, and a quote inside a part doubled. An argument holding a
+  character cmd.exe acts on then reaches the program whole, which a test asserts
+  on all three platforms.
 - Keep the pump running when a line will not render. An adapter promises only
   that reading a line raises nothing. Rendering that line is a second step, and
   it fails if a feed event holds anything other than text. One bad line should
   cost one line of the feed, so the pump has to catch both steps, not just the
   read.
 - `round.json` at the boundaries: started and pid at spawn, ended and exit
-  status at exit, written and read through a pydantic model per the phase 2
-  convention, so a corrupt record fails with a named error. A record with no end
-  is the interrupted signature later phases key on.
-- The teardown module, the one place platform process semantics live: process
-  group on POSIX, Job Object on Windows, children dying with the daemon, Ctrl-C
-  propagating.
+  status at exit, written through a pydantic model per the phase 2 convention,
+  so a corrupt record fails with a named error. A record with no end is the
+  interrupted signature later phases key on, and a round the daemon killed
+  records no end either, since it did not finish. The round's cause waits for
+  the phase that decides one.
+- The teardown module, the one place platform process semantics live. A round
+  leads a process group of its own on POSIX and sits in a Job Object of its own
+  on Windows, so one call ends the round and everything the round started. The
+  job is set to empty itself when the daemon's last handle on it closes, so a
+  round on Windows dies with the daemon however the daemon ends. On POSIX the
+  daemon ends its own rounds as it goes down, Ctrl-C included, and the startup
+  sweep catches what a `kill -9` left behind. Holding the tree rather than the
+  child is what makes this right on Windows, where the process the daemon starts
+  is often a shim for the one doing the work.
 - Tests against the fake harness on all three platforms, including the ugly
   cases: a round killed mid-stream leaves a `round.json` with no end; teardown
   really kills the child tree; a nonzero exit is captured.
@@ -322,6 +331,10 @@ Done when: those tests are green on all three platforms, and — with the clock
 injected and pinned, the convention every timing test in this project uses — a
 feed produced by a live fake round is byte-identical to the same stream parsed
 purely in phase 4's tests: the pipeline adds nothing and loses nothing.
+
+The stand-in harness gained what this phase needed of it: a scripted line says
+which of the two streams it belongs to, so a test can put a stderr line between
+two lines of stdout.
 
 Deliberately out: worktrees, sessions, prompt composition, and any decision
 about when a round runs.
