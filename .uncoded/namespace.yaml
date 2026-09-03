@@ -181,6 +181,25 @@ src/:
     lock.py:
       hold:
       _holder:
+    rounds.py:
+      Record:
+        started:
+        pid:
+        ended:
+        status:
+      Round:
+        record:
+        feed:
+        raw:
+        alive:
+        __init__:
+        wait:
+        stop:
+        _read_stdout:
+        _read_stderr:
+        _close:
+        _rendered:
+        _append:
     state.py:
       STATE_DIRECTORY:
       LastTick:
@@ -241,6 +260,9 @@ tests/:
     _taken:
     _append:
     _lines:
+  recordings.py:
+    FIXTURES:
+    rendered:
   test_claude.py:
     LAUNCH:
     BASE:
@@ -432,11 +454,29 @@ tests/:
     test_a_lock_the_daemon_cannot_write_says_so:
     test_a_release_that_cannot_happen_leaves_the_failure_that_ended_the_run:
   test_recordings.py:
-    FIXTURES:
     RECORDED_IN:
     RECORDINGS:
-    rendered:
     test_a_recorded_stream_renders_as_its_golden_feed:
+  test_rounds.py:
+    RECORDING:
+    STAMP:
+    Unrenderable:
+      program:
+      first_round:
+      resume:
+      _events:
+    pinned:
+    worktree:
+    directory:
+    written:
+    test_a_round_runs_the_command_it_was_given_in_the_worktree:
+    test_the_feed_a_round_writes_is_the_feed_its_stream_renders_as:
+    test_a_round_keeps_the_harnesss_own_stream_as_it_arrived:
+    test_what_the_harness_says_on_stderr_lands_where_it_happened:
+    test_a_line_the_feed_cannot_write_costs_that_line_alone:
+    test_a_round_says_when_it_started_and_what_process_it_is:
+    test_a_round_that_finished_says_how_it_ended:
+    test_a_round_somebody_stopped_says_no_ending:
   test_state.py:
     test_bootstrap_creates_a_directory_that_ignores_itself:
     test_bootstrap_heals_a_deleted_gitignore:
