@@ -19,9 +19,10 @@ to review and merge.
 
 The project is spec-first. Each phase of development has a dated folder under
 `specs/`. Before working, find the spec your task belongs to — the task usually
-names it. When the code you're writing has to diverge from the spec, say so
-plainly in your PR rather than diverging silently. The spec is corrected by
-review, not by drift.
+names it. When the code you're writing has to diverge from the spec, correct the
+spec in the same PR, so it keeps saying what the code really does. Say in the PR
+what you changed and why, so the reviewer reads the divergence rather than
+finding it. The spec is corrected by review, not by drift.
 
 ## Dev setup
 
@@ -113,8 +114,21 @@ uv run pre-commit run --all-files
   reader takes it for a property and not for something that runs.
 - Name a boolean for the question it answers: `is_alive`, `is_subagent`, not
   `alive` or `subagent`. `if round.is_alive:` then reads as English.
+- Name a class or a function that a module exports so that it still says what it
+  is when another module imports it bare: `create_session`, not `create`;
+  `compose_first_round_prompt`, not `first_round`. The module name qualifies it
+  where it is defined and nowhere else, so a name that leans on the module reads
+  as nothing at the call site. A method needs no such help, because its receiver
+  says what it belongs to.
 - Keep changes lean. Add nothing a requirement or the design doesn't call for;
   prefer deleting over adding. One way to do each thing, always.
+- Ask of every issue you file whether an issue that is already open has to wait
+  for it. When one does, mark that issue as blocked by the new one, so a
+  dispatcher working through unblocked issues takes them in the right order.
+  GitHub's issue dependencies carry that. Read what already blocks an issue with
+  `gh api repos/{owner}/{repo}/issues/<N>/dependencies/blocked_by`, and add to
+  it by posting the blocking issue's `id`, which is its own API id and not its
+  number.
 - Every path is cross-platform: Windows, macOS, and Linux are all first-class.
   Force UTF-8 on every subprocess and file operation. Ruff's
   `unspecified-encoding` rule catches a file opened without `encoding=`. Ruff

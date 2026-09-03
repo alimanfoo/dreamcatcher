@@ -4,7 +4,7 @@
 import pytest
 from conftest import CONFIG
 from dreamcatcher.config import CONFIG_NAME, Harness, read_config
-from dreamcatcher.prompts import POSTSCRIPT, first_round
+from dreamcatcher.prompts import POSTSCRIPT, compose_first_round_prompt
 
 OPENINGS = {Harness.CLAUDE: '/dream:smith GH12', Harness.CODEX: '$dream:smith GH12'}
 

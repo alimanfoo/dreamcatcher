@@ -1,4 +1,4 @@
-"""Create a session for an issue, and record what its dispatch fixed.
+"""Create a session for an issue, and record what it was dispatched with.
 
 A session is one attempt at one issue. It gets a key of its own: the issue's
 number, and the time the attempt started. That key names its branch, its
@@ -26,15 +26,18 @@ from dreamcatcher.state import StateDirectory
 # that the catcher it replaces left behind.
 BRANCH_PREFIX = "dreamcatcher-"
 
-# The file in a session's directory holding what its dispatch fixed.
+# The file in a session's directory saying what the session was dispatched
+# with.
 RECORD = "session.json"
 
 
 class Session(Document):
-    """What one session's dispatch fixed, which nothing changes afterwards.
+    """The issue a session works on, and the settings it runs its rounds with.
 
-    Every round of the session reads these rather than the config, so editing
-    the config while a session is in flight cannot reach it.
+    The dispatch settles all of these, and no later round changes any of
+    them. Every round reads them from here rather than from the config, so
+    editing the config while a session is in flight cannot reach that
+    session.
     """
 
     issue: int
@@ -56,14 +59,14 @@ class Session(Document):
         return self.worktree.name
 
 
-def create(
+def create_session(
     state: StateDirectory,
     mapping: DispatchMapping,
     named: Harness,
     issue: int,
     at: datetime,
 ) -> Session:
-    """Create a session for the issue, and return what its dispatch fixed.
+    """Create a session for the issue, and return what it was dispatched with.
 
     The session runs on the harness that this label and the run settle between
     them, with that harness's own model, effort and prompt template.
@@ -88,7 +91,7 @@ def create(
         harness=harness,
         model=settings.model,
         effort=settings.effort,
-        prompt=prompts.first_round(settings.prompt, issue),
+        prompt=prompts.compose_first_round_prompt(settings.prompt, issue),
     )
     fetch(state.root)
     try:

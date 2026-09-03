@@ -7,7 +7,7 @@ from conftest import CONFIG, commit, git
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import CONFIG_NAME, Harness, read_config
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.sessions import Session, create
+from dreamcatcher.sessions import Session, create_session
 from dreamcatcher.state import StateDirectory
 
 KEY = 'GH12-20260819-184158'
@@ -31,7 +31,7 @@ def test_a_session_cuts_a_worktree_of_its_own_under_the_state_directory(state, m
 def test_a_session_cuts_a_branch_of_its_own_from_origins_main_as_it_is_now(state, mapping):
     ...
 
-def test_a_session_records_what_its_dispatch_fixed(state, mapping):
+def test_a_session_records_what_it_was_dispatched_with(state, mapping):
     ...
 
 def test_a_session_runs_on_the_harness_the_run_named(state, mapping):

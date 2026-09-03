@@ -303,11 +303,10 @@ yet deciding when to dispatch.
 In scope:
 
 - Session creation: the session key, the branch, the nested worktree under
-  `.dreamcatcher/worktrees/` with the path invariant checked at dispatch, and
-  `session.json` frozen at dispatch (design.md, Sessions, worktrees, branches).
-  A failed creation backs out worktree and branch together, leaving nothing
-  behind. Phase 3's git wrappers each raise, so the back-out composes them and
-  handles their failure itself.
+  `.dreamcatcher/worktrees/`, and `session.json` frozen at dispatch (design.md,
+  Sessions, worktrees, branches). A failed creation backs out worktree and
+  branch together, leaving neither behind. Phase 3's git wrappers each raise, so
+  the back-out composes them and handles their failure itself.
 - The harness that a dispatch runs on (design.md, Configuration). Phase 2 parses
   the blocks and leaves the choice to the phase that dispatches. A harness first
   becomes an adapter here, so this phase writes the lookup from one to the
@@ -317,8 +316,8 @@ In scope:
   marker).
 
 Done when: tests cut a real worktree and branch in a temporary git repository,
-the records land and validate, a failed creation leaves no trace, and prompt
-rendering has golden tests per harness.
+the records land and validate, a failed creation leaves no worktree and no
+branch, and the prompt each harness's template composes to is pinned in full.
 
 Deliberately out: eligibility, the tick, and any GitHub read — creation here is
 invoked directly by tests.

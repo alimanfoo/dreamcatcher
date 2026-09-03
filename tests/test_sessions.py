@@ -5,7 +5,7 @@ from conftest import CONFIG, commit, git
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import CONFIG_NAME, Harness, read_config
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.sessions import Session, create
+from dreamcatcher.sessions import Session, create_session
 from dreamcatcher.state import StateDirectory
 
 KEY = "GH12-20260819-184158"
@@ -33,13 +33,13 @@ def mapping(checkout):
 
 
 def written(state):
-    """Return what the session recorded about its own dispatch."""
+    """Return the record that the session wrote about itself."""
     record = state.sessions / KEY / "session.json"
     return Session.model_validate_json(record.read_text(encoding="utf-8"))
 
 
 def test_a_session_cuts_a_worktree_of_its_own_under_the_state_directory(state, mapping):
-    session = create(state, mapping, Harness.CLAUDE, 12, PINNED)
+    session = create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
 
     assert session.key == KEY
     assert session.worktree == state.worktrees / KEY
@@ -57,15 +57,15 @@ def test_a_session_cuts_a_branch_of_its_own_from_origins_main_as_it_is_now(
     git("push", "origin", "main", cwd=state.root)
     git("update-ref", "refs/remotes/origin/main", known, cwd=state.root)
 
-    session = create(state, mapping, Harness.CLAUDE, 12, PINNED)
+    session = create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
 
     assert session.branch == BRANCH
     assert BRANCH in git("branch", "--list", BRANCH, cwd=state.root)
     assert (session.worktree / "later.txt").exists()
 
 
-def test_a_session_records_what_its_dispatch_fixed(state, mapping):
-    session = create(state, mapping, Harness.CLAUDE, 12, PINNED)
+def test_a_session_records_what_it_was_dispatched_with(state, mapping):
+    session = create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
 
     assert written(state) == session
     assert session.issue == 12
@@ -77,7 +77,7 @@ def test_a_session_records_what_its_dispatch_fixed(state, mapping):
 
 
 def test_a_session_runs_on_the_harness_the_run_named(state, mapping):
-    session = create(state, mapping, Harness.CODEX, 12, PINNED)
+    session = create_session(state, mapping, Harness.CODEX, 12, PINNED)
 
     assert session.harness == Harness.CODEX
     assert session.model == "gpt-5.6-sol"
@@ -93,7 +93,7 @@ def test_a_session_git_cannot_cut_leaves_no_branch_behind(state, mapping):
     (occupied / "in the way.txt").write_text("not ours\n", encoding="utf-8")
 
     with pytest.raises(CommandError):
-        create(state, mapping, Harness.CLAUDE, 12, PINNED)
+        create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
 
     assert git("branch", "--list", BRANCH, cwd=state.root) == ""
 
@@ -103,7 +103,7 @@ def test_a_session_that_cannot_record_leaves_no_worktree_and_no_branch(state, ma
     (state.sessions / KEY).write_text("something else is here\n", encoding="utf-8")
 
     with pytest.raises(ReportableError, match="cannot write"):
-        create(state, mapping, Harness.CLAUDE, 12, PINNED)
+        create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
 
     assert not (state.worktrees / KEY).exists()
     assert git("branch", "--list", BRANCH, cwd=state.root) == ""

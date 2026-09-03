@@ -5,5 +5,5 @@ MARKER = '<!-- dreamcatcher -->'
 ISSUE_PLACEHOLDER = '{issue}'
 POSTSCRIPT = ...
 
-def first_round(template: str, issue: int) -> str:
+def compose_first_round_prompt(template: str, issue: int) -> str:
     ...

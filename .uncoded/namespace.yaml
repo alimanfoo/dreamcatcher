@@ -189,7 +189,7 @@ src/:
       MARKER:
       ISSUE_PLACEHOLDER:
       POSTSCRIPT:
-      first_round:
+      compose_first_round_prompt:
     rounds.py:
       RoundRecord:
         started:
@@ -224,7 +224,7 @@ src/:
         effort:
         prompt:
         key:
-      create:
+      create_session:
       _back_out:
     state.py:
       STATE_DIRECTORY:
@@ -529,7 +529,7 @@ tests/:
     written:
     test_a_session_cuts_a_worktree_of_its_own_under_the_state_directory:
     test_a_session_cuts_a_branch_of_its_own_from_origins_main_as_it_is_now:
-    test_a_session_records_what_its_dispatch_fixed:
+    test_a_session_records_what_it_was_dispatched_with:
     test_a_session_runs_on_the_harness_the_run_named:
     test_a_session_git_cannot_cut_leaves_no_branch_behind:
     test_a_session_that_cannot_record_leaves_no_worktree_and_no_branch:

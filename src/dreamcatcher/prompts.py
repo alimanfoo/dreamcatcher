@@ -26,7 +26,7 @@ reading the post sees the line. Every post counts: a pull request's
 description, a comment, a reply on a line of the diff, and an issue you file."""
 
 
-def first_round(template: str, issue: int) -> str:
+def compose_first_round_prompt(template: str, issue: int) -> str:
     """Return the prompt that opens a session on the issue.
 
     The template is the label's own, from the config, and the issue's number
