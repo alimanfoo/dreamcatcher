@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from conftest import CONFIG, CONFIG_HEAD, SMITH_CLAUDE, SMITH_CODEX
 
-from dreamcatcher.config import CONFIG_NAME, HarnessSettings, read_config
+from dreamcatcher.config import CONFIG_NAME, Harness, HarnessSettings, read_config
 from dreamcatcher.errors import ReportableError
 
 WITHOUT_CODEX = CONFIG_HEAD + SMITH_CLAUDE
@@ -28,8 +28,10 @@ def test_a_valid_config_reads_back(tmp_path):
 
     assert config.interval == 300
     assert [mapping.label for mapping in config.dispatch] == ["dream:smith"]
-    assert config.dispatch[0].claude == CLAUDE_SETTINGS
-    assert config.dispatch[0].codex == CODEX_SETTINGS
+    assert config.dispatch[0].harness_settings == {
+        Harness.CLAUDE: CLAUDE_SETTINGS,
+        Harness.CODEX: CODEX_SETTINGS,
+    }
 
 
 def test_the_settings_the_design_gives_defaults_for_have_them(tmp_path):
@@ -56,8 +58,7 @@ def test_a_label_one_harness_can_run_carries_that_block_alone(tmp_path):
 
     mapping = read_config(tmp_path).dispatch[0]
 
-    assert mapping.claude == CLAUDE_SETTINGS
-    assert mapping.codex is None
+    assert mapping.harness_settings == {Harness.CLAUDE: CLAUDE_SETTINGS}
 
 
 @pytest.mark.parametrize(
@@ -86,7 +87,12 @@ def test_a_label_one_harness_can_run_carries_that_block_alone(tmp_path):
         (
             "a label no harness can run",
             CONFIG_HEAD + '[[dispatch]]\nlabel = "dream:smith"\n',
-            "dispatch.0: Value error, label dream:smith has no claude or codex block",
+            "dispatch.0: Value error, label dream:smith has no harness block",
+        ),
+        (
+            "a block for a harness that does not exist",
+            CONFIG.replace("[dispatch.codex]", "[dispatch.gemini]"),
+            "dispatch.0.gemini: Input should be 'claude' or 'codex'",
         ),
         (
             "a settings block that is not a block",
