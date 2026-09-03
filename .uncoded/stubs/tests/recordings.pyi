@@ -2,8 +2,11 @@
 # tests/recordings.py
 
 from collections.abc import Iterable
+from pathlib import Path
 from dreamcatcher.adapters import Adapter
 from dreamcatcher.feed import Renderer
+
+FIXTURES = Path(__file__).parent / 'fixtures'
 
 def rendered(adapter: Adapter, lines: Iterable[str], renderer: Renderer) -> str:
     ...

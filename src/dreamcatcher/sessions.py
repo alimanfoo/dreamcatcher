@@ -1,4 +1,4 @@
-"""Cut a session for an issue, and record what its dispatch fixed.
+"""Create a session for an issue, and record what its dispatch fixed.
 
 A session is one attempt at one issue. It gets a key of its own: the issue's
 number, and the time the attempt started. That key names its branch, its
@@ -55,7 +55,7 @@ def create(
     issue: int,
     at: datetime,
 ) -> Session:
-    """Cut a session for the issue, and return what its dispatch fixed.
+    """Create a session for the issue, and return what its dispatch fixed.
 
     The session runs on the harness that this label and the run settle between
     them, with that harness's own model, effort and prompt template.
@@ -64,7 +64,7 @@ def create(
     now.
 
     Should writing the record then fail, the worktree and the branch go away
-    again, so a failed creation leaves nothing behind. The caller hears the
+    again, so a failed creation leaves neither behind. The caller hears the
     failure that stopped the creation, not any failure that removing them hits.
     """
     harness = mapping.choose_harness(named)

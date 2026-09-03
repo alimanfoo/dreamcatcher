@@ -11,7 +11,6 @@ from dreamcatcher.commands import run
 from dreamcatcher.config import CONFIG_NAME
 
 ARMING = 'PYTHONWARNDEFAULTENCODING'
-FIXTURES = Path(__file__).parent / 'fixtures'
 CONFIG_HEAD = 'interval = 300\n\n'
 SMITH_CLAUDE = ...
 SMITH_CODEX = ...

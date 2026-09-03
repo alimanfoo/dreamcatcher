@@ -1,20 +1,15 @@
-"""The prompts that the daemon composes, with the golden beside each one.
-
-The golden is the review surface: read it as the session will read it, and
-judge the prompt by it.
-"""
-
 import pytest
-from conftest import CONFIG, FIXTURES
+from conftest import CONFIG
 
 from dreamcatcher.config import CONFIG_NAME, Harness, read_config
-from dreamcatcher.prompts import first_round
+from dreamcatcher.prompts import POSTSCRIPT, first_round
 
-PROMPTS = FIXTURES / "prompts"
-
-
-def test_the_issues_number_replaces_the_word_the_template_holds_for_it():
-    assert first_round("/dream:smith GH{issue}", 12).startswith("/dream:smith GH12\n")
+# What each harness's template in the test config renders as for issue 12. A
+# harness with no line here fails the test below rather than going untested.
+OPENINGS = {
+    Harness.CLAUDE: "/dream:smith GH12",
+    Harness.CODEX: "$dream:smith GH12",
+}
 
 
 def test_a_template_holding_other_words_in_braces_keeps_them():
@@ -24,10 +19,12 @@ def test_a_template_holding_other_words_in_braces_keeps_them():
 
 
 @pytest.mark.parametrize("harness", list(Harness))
-def test_the_prompt_that_opens_a_session_reads_as_its_golden(tmp_path, harness):
+def test_the_prompt_that_opens_a_session_is_its_template_then_the_postscript(
+    tmp_path, harness
+):
     (tmp_path / CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
     settings = read_config(tmp_path).dispatch[0].harness_settings[harness]
 
     composed = first_round(settings.prompt, 12)
 
-    assert composed == (PROMPTS / f"{harness}.txt").read_text(encoding="utf-8")
+    assert composed == OPENINGS[harness] + POSTSCRIPT

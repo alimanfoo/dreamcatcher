@@ -2,17 +2,14 @@
 # tests/test_prompts.py
 
 import pytest
-from conftest import CONFIG, FIXTURES
+from conftest import CONFIG
 from dreamcatcher.config import CONFIG_NAME, Harness, read_config
-from dreamcatcher.prompts import first_round
+from dreamcatcher.prompts import POSTSCRIPT, first_round
 
-PROMPTS = FIXTURES / 'prompts'
-
-def test_the_issues_number_replaces_the_word_the_template_holds_for_it():
-    ...
+OPENINGS = {Harness.CLAUDE: '/dream:smith GH12', Harness.CODEX: '$dream:smith GH12'}
 
 def test_a_template_holding_other_words_in_braces_keeps_them():
     ...
 
-def test_the_prompt_that_opens_a_session_reads_as_its_golden(tmp_path, harness):
+def test_the_prompt_that_opens_a_session_is_its_template_then_the_postscript(tmp_path, harness):
     ...

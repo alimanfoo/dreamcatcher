@@ -13,10 +13,6 @@ from dreamcatcher.config import CONFIG_NAME
 
 ARMING = "PYTHONWARNDEFAULTENCODING"
 
-# Where the tests keep what they read back verbatim, recordings and goldens
-# alike. No hook rewrites anything under it, and no checkout re-encodes it.
-FIXTURES = Path(__file__).parent / "fixtures"
-
 CONFIG_HEAD = """interval = 300
 
 """
