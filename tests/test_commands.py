@@ -2,8 +2,9 @@ import sys
 from pathlib import Path
 
 import pytest
+from fakes import Line, Stream
 
-from dreamcatcher.commands import CommandError, locate, run
+from dreamcatcher.commands import CommandError, locate, run, spawn
 
 
 def test_a_command_hands_back_what_it_printed(fake):
@@ -74,3 +75,33 @@ def test_an_argument_a_second_reader_would_act_on_still_arrives_whole(fake):
         "-c",
         "effort=high&low",
     ]
+
+
+def test_a_spawned_command_runs_where_it_is_told_and_streams_as_it_goes(fake, tmp_path):
+    probe = fake("probe")
+    probe.streams([Line("what it said\n"), Line("an aside\n", Stream.ERR)])
+
+    child = spawn("probe", "--loudly", cwd=tmp_path)
+
+    assert child.out.read() == "what it said\n"
+    assert child.err.read() == "an aside\n"
+    assert child.wait() == 0
+    assert probe.calls[0].arguments == ["--loudly"]
+    assert probe.calls[0].directory == tmp_path.resolve()
+
+
+def test_a_spawned_command_finds_its_stdin_already_at_an_end(tmp_path):
+    reading = "import sys; sys.stdout.write(f'read {sys.stdin.read()!r}')"
+
+    child = spawn(sys.executable, "-c", reading, cwd=tmp_path)
+
+    assert child.out.read() == "read ''"
+
+
+def test_a_spawned_child_names_the_process_it_started(tmp_path):
+    naming = "import os; print(os.getpid())"
+
+    child = spawn(sys.executable, "-c", naming, cwd=tmp_path)
+
+    assert int(child.out.read()) == child.pid
+    assert child.wait() == 0

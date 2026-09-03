@@ -61,8 +61,15 @@ src/:
     commands.py:
       BATCH_ENDINGS:
       CommandError:
+      Child:
+        out:
+        err:
+        process:
+        pid:
+        wait:
       locate:
       run:
+      spawn:
       _built:
       _quoted:
     config.py:
@@ -303,6 +310,9 @@ tests/:
     test_a_failure_that_said_nothing_still_names_the_command:
     test_a_command_that_prints_bytes_that_are_not_utf_8_still_reads:
     test_an_argument_a_second_reader_would_act_on_still_arrives_whole:
+    test_a_spawned_command_runs_where_it_is_told_and_streams_as_it_goes:
+    test_a_spawned_command_finds_its_stdin_already_at_an_end:
+    test_a_spawned_child_names_the_process_it_started:
   test_config.py:
     WITHOUT_CODEX:
     CLAUDE_SETTINGS:

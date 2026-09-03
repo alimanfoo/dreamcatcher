@@ -1,8 +1,10 @@
 """Run the external commands dreamcatcher shells out to."""
 
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path, PurePath
 from shutil import which
+from typing import IO, cast
 
 from dreamcatcher.errors import ReportableError
 
@@ -14,6 +16,29 @@ BATCH_ENDINGS = (".cmd", ".bat")
 
 class CommandError(ReportableError):
     """A command dreamcatcher ran is not there, or it failed."""
+
+
+@dataclass(frozen=True)
+class Child:
+    """A program running as a child process, with both its streams on pipes.
+
+    subprocess hands back a child whose streams are there or not, according to
+    what it was asked for. This one always has both, so whoever reads them
+    never has to ask whether they are there.
+    """
+
+    out: IO[str]
+    err: IO[str]
+    process: subprocess.Popen[str]
+
+    @property
+    def pid(self) -> int:
+        """The process id the operating system gave the child."""
+        return self.process.pid
+
+    def wait(self) -> int:
+        """Wait for the child to end, and return the status it ended with."""
+        return self.process.wait()
 
 
 def locate(program: str) -> str:
@@ -47,6 +72,35 @@ def run(program: str, *arguments: str, cwd: Path | None = None) -> str:
             f"{command} failed with status {finished.returncode}{ending}"
         )
     return finished.stdout
+
+
+def spawn(program: str, *arguments: str, cwd: Path) -> Child:
+    """Start the program in cwd and hand it back while it runs.
+
+    The daemon watches a round while it runs rather than waiting for it to
+    finish, so this returns the running child, with each of its two streams on
+    a pipe of its own and its output read as UTF-8.
+
+    The child gets no stdin. Codex reads stdin for more of its prompt and waits
+    for the end of it, so a pipe the daemon held open would stall the round for
+    ever, even with the whole prompt already in an argument.
+    """
+    started = subprocess.Popen(
+        _built(program, arguments),
+        cwd=cwd,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        encoding="utf-8",
+        # A stray byte that is not UTF-8, in a path or a message, comes through
+        # as the replacement character rather than as a traceback.
+        errors="replace",
+    )
+    # Both pipes were asked for above, so both are there. subprocess types them
+    # for every caller, including the ones that asked for neither.
+    return Child(
+        cast("IO[str]", started.stdout), cast("IO[str]", started.stderr), started
+    )
 
 
 def _built(program: str, arguments: tuple[str, ...]) -> list[str] | str:
