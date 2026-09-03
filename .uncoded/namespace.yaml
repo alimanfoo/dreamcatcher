@@ -215,7 +215,6 @@ src/:
       BRANCH_PREFIX:
       RECORD:
       Session:
-        key:
         issue:
         label:
         branch:
@@ -224,6 +223,7 @@ src/:
         model:
         effort:
         prompt:
+        key:
       create:
       _back_out:
     state.py:
@@ -531,6 +531,7 @@ tests/:
     test_a_session_cuts_a_branch_of_its_own_from_origins_main_as_it_is_now:
     test_a_session_records_what_its_dispatch_fixed:
     test_a_session_runs_on_the_harness_the_run_named:
+    test_a_session_git_cannot_cut_leaves_no_branch_behind:
     test_a_session_that_cannot_record_leaves_no_worktree_and_no_branch:
   test_state.py:
     test_bootstrap_creates_a_directory_that_ignores_itself:

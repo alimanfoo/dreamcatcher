@@ -3,7 +3,8 @@
 
 import pytest
 from clocks import PINNED
-from conftest import CONFIG, git
+from conftest import CONFIG, commit, git
+from dreamcatcher.commands import CommandError
 from dreamcatcher.config import CONFIG_NAME, Harness, read_config
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.sessions import Session, create
@@ -34,6 +35,9 @@ def test_a_session_records_what_its_dispatch_fixed(state, mapping):
     ...
 
 def test_a_session_runs_on_the_harness_the_run_named(state, mapping):
+    ...
+
+def test_a_session_git_cannot_cut_leaves_no_branch_behind(state, mapping):
     ...
 
 def test_a_session_that_cannot_record_leaves_no_worktree_and_no_branch(state, mapping):

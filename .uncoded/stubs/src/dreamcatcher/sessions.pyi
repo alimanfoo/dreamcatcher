@@ -22,7 +22,6 @@ def _back_out(root: Path, worktree: Path, branch: str) -> None:
     ...
 
 class Session(Document):
-    key: str
     issue: int
     label: str
     branch: str
@@ -31,3 +30,4 @@ class Session(Document):
     model: str
     effort: str
     prompt: str
+    key: str

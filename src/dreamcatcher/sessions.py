@@ -37,7 +37,6 @@ class Session(Document):
     the config while a session is in flight cannot reach it.
     """
 
-    key: str
     issue: int
     label: str
     branch: str
@@ -46,6 +45,15 @@ class Session(Document):
     model: str
     effort: str
     prompt: str
+
+    @property
+    def key(self) -> str:
+        """The key that the branch, the worktree and the files all carry.
+
+        The worktree is the one place it is written down, since it is the
+        directory the key names.
+        """
+        return self.worktree.name
 
 
 def create(
@@ -63,15 +71,16 @@ def create(
     This fetches origin's main first, so the branch starts from main as it is
     now.
 
-    Should writing the record then fail, the worktree and the branch go away
-    again, so a failed creation leaves neither behind. The caller hears the
-    failure that stopped the creation, not any failure that removing them hits.
+    Should anything from the worktree onwards fail, the worktree and the
+    branch go away again, so a failed creation leaves neither behind. git
+    makes the branch before it reaches the worktree, so an add that failed
+    has one to take away. The caller hears the failure that stopped the
+    creation, not any failure that removing them hits.
     """
     harness = mapping.choose_harness(named)
     settings = mapping.harness_settings[harness]
     key = f"GH{issue}-{at:%Y%m%d-%H%M%S}"
     session = Session(
-        key=key,
         issue=issue,
         label=mapping.label,
         branch=f"{BRANCH_PREFIX}{key}",
@@ -82,8 +91,8 @@ def create(
         prompt=prompts.first_round(settings.prompt, issue),
     )
     fetch(state.root)
-    add_worktree(state.root, session.worktree, session.branch)
     try:
+        add_worktree(state.root, session.worktree, session.branch)
         write_json(session, state.sessions / key / RECORD)
     except ReportableError:
         _back_out(state.root, session.worktree, session.branch)

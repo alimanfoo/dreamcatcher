@@ -1,7 +1,8 @@
 import pytest
 from clocks import PINNED
-from conftest import CONFIG, git
+from conftest import CONFIG, commit, git
 
+from dreamcatcher.commands import CommandError
 from dreamcatcher.config import CONFIG_NAME, Harness, read_config
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.sessions import Session, create
@@ -48,12 +49,19 @@ def test_a_session_cuts_a_worktree_of_its_own_under_the_state_directory(state, m
 def test_a_session_cuts_a_branch_of_its_own_from_origins_main_as_it_is_now(
     state, mapping
 ):
-    git("update-ref", "-d", "refs/remotes/origin/main", cwd=state.root)
+    # Move origin's main on, then leave the checkout believing what it knew
+    # before. Only a fetch of its own brings the creation the newer main.
+    known = git("rev-parse", "origin/main", cwd=state.root).strip()
+    (state.root / "later.txt").write_text("main moved on\n", encoding="utf-8")
+    commit(state.root, "move main on")
+    git("push", "origin", "main", cwd=state.root)
+    git("update-ref", "refs/remotes/origin/main", known, cwd=state.root)
 
     session = create(state, mapping, Harness.CLAUDE, 12, PINNED)
 
     assert session.branch == BRANCH
     assert BRANCH in git("branch", "--list", BRANCH, cwd=state.root)
+    assert (session.worktree / "later.txt").exists()
 
 
 def test_a_session_records_what_its_dispatch_fixed(state, mapping):
@@ -74,6 +82,20 @@ def test_a_session_runs_on_the_harness_the_run_named(state, mapping):
     assert session.harness == Harness.CODEX
     assert session.model == "gpt-5.6-sol"
     assert session.prompt.startswith("$dream:smith GH12\n")
+
+
+def test_a_session_git_cannot_cut_leaves_no_branch_behind(state, mapping):
+    # git makes the branch, then finds something already in the worktree's
+    # place and stops. The worktree it never made cannot be removed, so the
+    # back-out takes what git did leave.
+    occupied = state.worktrees / KEY
+    occupied.mkdir(parents=True)
+    (occupied / "in the way.txt").write_text("not ours\n", encoding="utf-8")
+
+    with pytest.raises(CommandError):
+        create(state, mapping, Harness.CLAUDE, 12, PINNED)
+
+    assert git("branch", "--list", BRANCH, cwd=state.root) == ""
 
 
 def test_a_session_that_cannot_record_leaves_no_worktree_and_no_branch(state, mapping):
