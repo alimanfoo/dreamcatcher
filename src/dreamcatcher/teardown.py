@@ -1,13 +1,12 @@
 """Hold a child process, so the daemon can end it and everything it started.
 
-Every platform difference in how dreamcatcher runs a child process lives here.
-On POSIX a child leads a process group of its own, and the daemon signals that
-group, so one signal reaches everything that the round started, and nothing
-else. On
-Windows a child goes into a Job Object of its own, which Windows empties when
-the daemon terminates the job, and again when the daemon exits and its last
-handle on the job closes. So a round on Windows dies with the daemon that
-started it.
+How a child process is ended differs by platform, and that difference lives here
+alone. On POSIX a child leads a process group of its own, and the daemon signals
+that group, so one signal reaches everything that the round started, and nothing
+else. On Windows a child goes into a Job Object of its own, which Windows empties
+when the daemon terminates the job, and again when the daemon exits and its last
+handle on the job closes. So a round on Windows dies with the daemon that started
+it.
 
 A child and everything it starts make a tree, and teardown holds the tree
 rather than the one child. That is what makes this right however the harness was

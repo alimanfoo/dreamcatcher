@@ -123,7 +123,7 @@ def _item(item: dict) -> list[Event]:
         # Codex reports all the files of one patch in a single item, so give each
         # file its own line. Putting what happened to the file in the label
         # leaves the path as the whole detail, and the feed can then cut the
-        # round's own directory off the front of it.
+        # worktree's path off the front of it.
         return [Note(change["kind"], change["path"]) for change in item["changes"]]
     if kind == "web_search":
         return [Note(kind, item["query"])]
