@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from fakes import Line, Stream
 
-from dreamcatcher.commands import CommandError, _quoted, locate, run, spawn
+from dreamcatcher.commands import CommandError, _quote, locate, run, spawn
 
 
 def test_a_command_hands_back_what_it_printed(fake):
@@ -102,16 +102,16 @@ def test_a_spawned_command_finds_its_stdin_already_at_an_end(tmp_path):
 # The quoting is Windows's answer, and only Windows shows what it is worth. So
 # these read it here, where every platform runs them.
 def test_a_quoted_part_hides_what_a_second_reader_would_act_on():
-    assert _quoted("effort=high&low") == '"effort=high&low"'
+    assert _quote("effort=high&low") == '"effort=high&low"'
 
 
 def test_a_quote_in_a_part_is_doubled():
-    assert _quoted('say "done"') == '"say ""done"""'
+    assert _quote('say "done"') == '"say ""done"""'
 
 
 def test_a_part_ending_in_a_backslash_does_not_escape_its_closing_quote():
-    assert _quoted("C:\\repo\\") == '"C:\\repo\\\\"'
+    assert _quote("C:\\repo\\") == '"C:\\repo\\\\"'
 
 
 def test_a_backslash_before_a_quote_is_doubled_so_the_quote_still_counts():
-    assert _quoted('C:\\repo\\"done"') == '"C:\\repo\\\\""done"""'
+    assert _quote('C:\\repo\\"done"') == '"C:\\repo\\\\""done"""'

@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 import pytest
 from fakes import Line, Stream
-from dreamcatcher.commands import CommandError, _quoted, locate, run, spawn
+from dreamcatcher.commands import CommandError, _quote, locate, run, spawn
 
 def test_a_command_hands_back_what_it_printed(fake):
     ...

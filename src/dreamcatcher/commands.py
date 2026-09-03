@@ -67,7 +67,7 @@ def locate(program: str) -> str:
 def run(program: str, *arguments: str, cwd: Path | None = None) -> str:
     """Return what the command wrote to stdout, reading it as UTF-8."""
     finished = subprocess.run(
-        _built(program, arguments),
+        _build(program, arguments),
         capture_output=True,
         check=False,
         cwd=cwd,
@@ -98,7 +98,7 @@ def spawn(program: str, *arguments: str, cwd: Path) -> Child:
     for ever, even with the whole prompt already in an argument.
     """
     started = subprocess.Popen(
-        _built(program, arguments),
+        _build(program, arguments),
         cwd=cwd,
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
@@ -117,7 +117,7 @@ def spawn(program: str, *arguments: str, cwd: Path) -> Child:
     )
 
 
-def _built(program: str, arguments: tuple[str, ...]) -> list[str] | str:
+def _build(program: str, arguments: tuple[str, ...]) -> list[str] | str:
     """Return the command as subprocess has to be given it.
 
     A list, which subprocess quotes for the program's own reader. A batch file
@@ -127,11 +127,11 @@ def _built(program: str, arguments: tuple[str, ...]) -> list[str] | str:
     """
     executable = locate(program)
     if PurePath(executable).suffix.lower() in BATCH_ENDINGS:  # pragma: no cover
-        return " ".join(_quoted(part) for part in (executable, *arguments))
+        return " ".join(_quote(part) for part in (executable, *arguments))
     return [executable, *arguments]
 
 
-def _quoted(part: str) -> str:
+def _quote(part: str) -> str:
     """Return the part quoted so cmd.exe and then the program read it whole.
 
     The quotes are always there, so a character that cmd.exe acts on — an

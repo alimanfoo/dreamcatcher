@@ -20,10 +20,10 @@ def run(program: str, *arguments: str, cwd: Path | None) -> str:
 def spawn(program: str, *arguments: str, cwd: Path) -> Child:
     ...
 
-def _built(program: str, arguments: tuple[str, ...]) -> list[str] | str:
+def _build(program: str, arguments: tuple[str, ...]) -> list[str] | str:
     ...
 
-def _quoted(part: str) -> str:
+def _quote(part: str) -> str:
     ...
 
 class CommandError(ReportableError):

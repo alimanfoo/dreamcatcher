@@ -45,10 +45,10 @@ class Round:
     def _close(self) -> None:
         ...
 
-    def _rendered(self, line: str) -> str:
+    def _render(self, line: str) -> str:
         ...
 
-    def _passed(self, line: str) -> str:
+    def _pass_through(self, line: str) -> str:
         ...
 
     def _append(self, line: str, render: Callable[[str], str]) -> None:

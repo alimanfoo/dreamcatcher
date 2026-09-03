@@ -108,6 +108,9 @@ uv run pre-commit run --all-files
 - Shell out from `commands.py` alone. `pyproject.toml` waives ruff's subprocess
   rules for that one module, so any other module that imports `subprocess` fails
   the check.
+- Name a method or a function for what it does, with a verb: `render`, `stop`,
+  `strip_worktree`. A name like `rendered` or `holder` reads as a value, so a
+  reader takes it for a property and not for something that runs.
 - Keep changes lean. Add nothing a requirement or the design doesn't call for;
   prefer deleting over adding. One way to do each thing, always.
 - Every path is cross-platform: Windows, macOS, and Linux are all first-class.

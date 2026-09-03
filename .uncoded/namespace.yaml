@@ -71,8 +71,8 @@ src/:
       locate:
       run:
       spawn:
-      _built:
-      _quoted:
+      _build:
+      _quote:
     config.py:
       CONFIG_NAME:
       Harness:
@@ -126,10 +126,10 @@ src/:
         clock:
         boundary:
         render:
-        _noted:
+        _render_note:
         _shorten:
-        _inside:
-        _written:
+        _strip_worktree:
+        _stamp:
     git.py:
       fetch:
       add_worktree:
@@ -199,8 +199,8 @@ src/:
         _read_stdout:
         _read_stderr:
         _close:
-        _rendered:
-        _passed:
+        _render:
+        _pass_through:
         _append:
     state.py:
       STATE_DIRECTORY:

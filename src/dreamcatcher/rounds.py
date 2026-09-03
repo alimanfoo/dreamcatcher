@@ -135,12 +135,12 @@ class Round:
         """Keep each line that the harness streams, and write what it says."""
         for line in self.child.out:
             append_text(line, self.raw)
-            self._append(line, self._rendered)
+            self._append(line, self._render)
 
     def _read_stderr(self) -> None:
         """Write what the harness says on stderr, among the lines around it."""
         for line in self.child.err:
-            self._append(line, self._passed)
+            self._append(line, self._pass_through)
 
     def _close(self) -> None:
         """Wait for the round to end, then record how it ended."""
@@ -158,7 +158,7 @@ class Round:
                 self.record,
             )
 
-    def _rendered(self, line: str) -> str:
+    def _render(self, line: str) -> str:
         """Return the feed lines that one line of the harness's stream becomes.
 
         An adapter promises that reading a line raises nothing. Rendering what
@@ -173,7 +173,7 @@ class Round:
         except Exception:
             return self.renderer.render(Prose(line))
 
-    def _passed(self, line: str) -> str:
+    def _pass_through(self, line: str) -> str:
         """Return the feed line one line of the harness's stderr becomes."""
         return self.renderer.render(Prose(line))
 
