@@ -12,7 +12,7 @@ from dreamcatcher.documents import Document, append_text, write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Prose, Renderer
 
-class Record(Document):
+class RoundRecord(Document):
     started: datetime
     pid: int
     ended: datetime | None = None

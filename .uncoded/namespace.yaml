@@ -182,7 +182,7 @@ src/:
       hold:
       _holder:
     rounds.py:
-      Record:
+      RoundRecord:
         started:
         pid:
         ended:

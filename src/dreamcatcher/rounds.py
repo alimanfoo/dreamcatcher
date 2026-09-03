@@ -26,7 +26,7 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Prose, Renderer
 
 
-class Record(Document):
+class RoundRecord(Document):
     """What a round says about itself, written at each end of the round.
 
     A record with no ending is the signature of a round that was interrupted.
@@ -65,7 +65,9 @@ class Round:
         self._writing = Lock()
         self.child = spawn(*command, cwd=worktree)
         try:
-            write_json(Record(started=self.started, pid=self.child.pid), self.record)
+            write_json(
+                RoundRecord(started=self.started, pid=self.child.pid), self.record
+            )
         except ReportableError:
             # A round nothing recorded is a round nothing will watch or find
             # again, so it does not run on.
@@ -147,7 +149,7 @@ class Round:
             pump.join()
         if not self.interrupted:
             write_json(
-                Record(
+                RoundRecord(
                     started=self.started,
                     pid=self.child.pid,
                     ended=self.clock(),

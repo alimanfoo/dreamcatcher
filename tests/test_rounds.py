@@ -9,7 +9,7 @@ from dreamcatcher.adapters import Adapter, Launch
 from dreamcatcher.claude import CLAUDE
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Event, Note, Renderer
-from dreamcatcher.rounds import Record, Round
+from dreamcatcher.rounds import Round, RoundRecord
 
 # A round that listed a directory, read a file that was not there, and sent a
 # subagent to count the files. Its golden feed is asserted in test_recordings.
@@ -56,7 +56,7 @@ def directory(tmp_path):
 
 def written(path):
     """Return what the round recorded about itself."""
-    return Record.model_validate_json(path.read_text(encoding="utf-8"))
+    return RoundRecord.model_validate_json(path.read_text(encoding="utf-8"))
 
 
 def test_a_round_runs_the_command_it_was_given_in_the_worktree(
@@ -136,7 +136,7 @@ def test_a_round_says_when_it_started_and_what_process_it_is(fake, worktree, dir
     running = Round(CLAUDE, ["harness"], worktree, directory, clock=pinned)
 
     assert running.alive
-    assert written(running.record) == Record(started=PINNED, pid=running.child.pid)
+    assert written(running.record) == RoundRecord(started=PINNED, pid=running.child.pid)
 
     running.stop()
 
@@ -148,7 +148,7 @@ def test_a_round_that_finished_says_how_it_ended(fake, worktree, directory):
     running.wait()
 
     assert not running.alive
-    assert written(running.record) == Record(
+    assert written(running.record) == RoundRecord(
         started=PINNED, pid=running.child.pid, ended=PINNED, status=2
     )
 
