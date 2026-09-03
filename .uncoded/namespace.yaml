@@ -180,6 +180,8 @@ src/:
       linked_pull_requests:
       blockers:
       _read:
+    harnesses.py:
+      ADAPTERS:
     lock.py:
       hold:
       _holder:
@@ -456,6 +458,8 @@ tests/:
     test_a_branch_that_never_existed_comes_back_empty:
     test_gh_takes_the_linked_pull_requests_command:
     test_a_blocked_issue_names_what_blocks_it:
+  test_harnesses.py:
+    test_every_harness_the_config_names_is_run_by_its_own_adapter:
   test_lock.py:
     refuse:
     dead_pid:
