@@ -211,6 +211,21 @@ src/:
         _render:
         _pass_through:
         _append:
+    sessions.py:
+      BRANCH_PREFIX:
+      RECORD:
+      Session:
+        key:
+        issue:
+        label:
+        branch:
+        worktree:
+        harness:
+        model:
+        effort:
+        prompt:
+      create:
+      _back_out:
     state.py:
       STATE_DIRECTORY:
       LastTick:
@@ -506,6 +521,18 @@ tests/:
     test_a_round_somebody_stopped_says_no_ending:
     test_a_round_that_cannot_write_its_feed_stops_rather_than_stalls:
     test_a_round_that_cannot_record_its_start_does_not_run_on:
+  test_sessions.py:
+    KEY:
+    BRANCH:
+    checkout:
+    state:
+    mapping:
+    written:
+    test_a_session_cuts_a_worktree_of_its_own_under_the_state_directory:
+    test_a_session_cuts_a_branch_of_its_own_from_origins_main_as_it_is_now:
+    test_a_session_records_what_its_dispatch_fixed:
+    test_a_session_runs_on_the_harness_the_run_named:
+    test_a_session_that_cannot_record_leaves_no_worktree_and_no_branch:
   test_state.py:
     test_bootstrap_creates_a_directory_that_ignores_itself:
     test_bootstrap_heals_a_deleted_gitignore:
