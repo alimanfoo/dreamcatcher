@@ -57,7 +57,7 @@ class Renderer:
     from one that has hung.
     """
 
-    directory: PurePath
+    worktree: PurePath
     clock: Callable[[], datetime] = now
 
     def boundary(self, number: int, cause: str) -> str:
@@ -79,21 +79,21 @@ class Renderer:
         return f"[{note.label}] {detail}" if detail else f"[{note.label}]"
 
     def _shorten(self, detail: str) -> str:
-        """Return the detail as one clipped line, without the round's directory."""
+        """Return the detail as one clipped line, without the worktree's path."""
         one_line = " ".join(self._inside(detail).split())
         if len(one_line) > WIDTH:
             return f"{one_line[:WIDTH]} ..."
         return one_line
 
     def _inside(self, detail: str) -> str:
-        """Return the detail with the round's own directory off its front.
+        """Return the detail with the path of the round's worktree off its front.
 
         The separator has to be there, so a sibling directory whose name starts
         the same way keeps its whole path. Either separator counts: a path
         arrives written the way the harness that reported it writes them.
         """
         for separator in ("/", "\\"):
-            start = f"{self.directory}{separator}"
+            start = f"{self.worktree}{separator}"
             if detail.startswith(start):
                 return detail[len(start) :]
         return detail

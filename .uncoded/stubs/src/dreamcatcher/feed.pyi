@@ -21,7 +21,7 @@ class Prose:
     subagent: bool = False
 
 class Renderer:
-    directory: PurePath
+    worktree: PurePath
     clock: Callable[[], datetime] = now
 
     def boundary(self, number: int, cause: str) -> str:

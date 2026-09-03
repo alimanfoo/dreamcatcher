@@ -5,11 +5,11 @@ from clocks import PINNED, Ticking
 
 from dreamcatcher.feed import WIDTH, Note, Prose, Renderer
 
-ROUND = PurePosixPath("/checkout/worktree")
+WORKTREE = PurePosixPath("/checkout/worktree")
 
 
 def feed() -> Renderer:
-    return Renderer(ROUND, clock=Ticking())
+    return Renderer(WORKTREE, clock=Ticking())
 
 
 def test_a_note_becomes_one_timestamped_line():
@@ -22,25 +22,25 @@ def test_a_note_with_nothing_to_add_is_its_label_alone():
     assert feed().render(Note("thinking")) == "2026-08-19T18:41:58Z  [thinking]\n"
 
 
-def test_a_detail_loses_the_rounds_own_directory():
+def test_a_detail_loses_the_worktrees_own_path():
     assert feed().render(Note("Edit", "/checkout/worktree/src/theme.css")) == (
         "2026-08-19T18:41:58Z  [Edit] src/theme.css\n"
     )
 
 
-def test_a_path_outside_the_round_keeps_its_own_root():
+def test_a_path_outside_the_worktree_keeps_its_own_root():
     assert feed().render(Note("Read", "/etc/hosts")) == (
         "2026-08-19T18:41:58Z  [Read] /etc/hosts\n"
     )
 
 
-def test_a_sibling_of_the_round_that_starts_the_same_way_keeps_its_whole_path():
+def test_a_sibling_of_the_worktree_that_starts_the_same_way_keeps_its_path():
     assert feed().render(Note("Read", "/checkout/worktree-old/src/theme.css")) == (
         "2026-08-19T18:41:58Z  [Read] /checkout/worktree-old/src/theme.css\n"
     )
 
 
-def test_a_round_on_windows_loses_a_directory_written_the_windows_way():
+def test_a_detail_written_the_windows_way_loses_the_worktree_too():
     windows = Renderer(PureWindowsPath("C:/checkout/worktree"), clock=Ticking())
 
     assert windows.render(Note("Edit", "C:\\checkout\\worktree\\src\\theme.css")) == (
@@ -90,13 +90,13 @@ def test_a_round_opens_with_its_number_and_its_cause():
 def test_a_clock_that_is_not_in_utc_still_stamps_utc():
     elsewhere = PINNED.astimezone(timezone(timedelta(hours=5)))
 
-    assert Renderer(ROUND, clock=lambda: elsewhere).render(Note("result", "ok")) == (
+    assert Renderer(WORKTREE, clock=lambda: elsewhere).render(Note("result", "ok")) == (
         "2026-08-19T18:41:58Z  [result] ok\n"
     )
 
 
 def test_the_clock_a_renderer_reads_by_default_is_the_time_now_in_utc():
-    stamp = Renderer(ROUND).render(Note("result", "success")).split("  ")[0]
+    stamp = Renderer(WORKTREE).render(Note("result", "success")).split("  ")[0]
     stamped = datetime.strptime(stamp, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
 
     assert abs(stamped - datetime.now(UTC)) < timedelta(seconds=30)

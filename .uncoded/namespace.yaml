@@ -109,7 +109,7 @@ src/:
         text:
         subagent:
       Renderer:
-        directory:
+        worktree:
         clock:
         boundary:
         render:
@@ -338,14 +338,14 @@ tests/:
     test_a_stand_in_harness_can_end_as_a_failed_round_does:
     test_a_stand_in_nobody_scripted_says_so:
   test_feed.py:
-    ROUND:
+    WORKTREE:
     feed:
     test_a_note_becomes_one_timestamped_line:
     test_a_note_with_nothing_to_add_is_its_label_alone:
-    test_a_detail_loses_the_rounds_own_directory:
-    test_a_path_outside_the_round_keeps_its_own_root:
-    test_a_sibling_of_the_round_that_starts_the_same_way_keeps_its_whole_path:
-    test_a_round_on_windows_loses_a_directory_written_the_windows_way:
+    test_a_detail_loses_the_worktrees_own_path:
+    test_a_path_outside_the_worktree_keeps_its_own_root:
+    test_a_sibling_of_the_worktree_that_starts_the_same_way_keeps_its_path:
+    test_a_detail_written_the_windows_way_loses_the_worktree_too:
     test_a_detail_spread_over_lines_becomes_one:
     test_a_detail_longer_than_the_feed_is_clipped:
     test_prose_becomes_a_line_for_each_line_it_holds:
