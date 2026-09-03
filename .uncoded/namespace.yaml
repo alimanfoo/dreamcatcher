@@ -224,6 +224,7 @@ tests/:
       __call__:
   conftest.py:
     ARMING:
+    FIXTURES:
     CONFIG_HEAD:
     SMITH_CLAUDE:
     SMITH_CODEX:
@@ -264,7 +265,6 @@ tests/:
     _append:
     _lines:
   recordings.py:
-    FIXTURES:
     rendered:
   test_claude.py:
     LAUNCH:

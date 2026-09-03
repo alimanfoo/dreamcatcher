@@ -2,8 +2,9 @@ from typing import cast
 
 import pytest
 from clocks import PINNED
+from conftest import FIXTURES
 from fakes import Line, Stream, recorded
-from recordings import FIXTURES, rendered
+from recordings import rendered
 
 from dreamcatcher.adapters import Adapter, Launch
 from dreamcatcher.claude import CLAUDE
