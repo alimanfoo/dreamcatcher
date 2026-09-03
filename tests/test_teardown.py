@@ -16,7 +16,7 @@ STARTS_A_CHILD = (
 
 
 def gone(pid: int) -> bool:
-    """Whether the process at pid has ended, waiting a while for it to."""
+    """Wait a while for the process at pid to end, and say whether it did."""
     with suppress(psutil.NoSuchProcess):
         psutil.Process(pid).wait(timeout=30)
     return not psutil.pid_exists(pid)

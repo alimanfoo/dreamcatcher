@@ -296,13 +296,13 @@ In scope:
 - Give the child no stdin. Codex reads stdin for more of its prompt and waits
   for the end of it, so a pipe the daemon holds open stalls the round for ever,
   even when the prompt is already an argument.
-- The Windows `.cmd` question `commands.py` left to the phase that runs a
-  harness, answered. npm installs both harness CLIs as a `.cmd`, which Windows
+- The answer to the Windows `.cmd` question that `commands.py` left to the phase
+  that runs a harness. npm installs both harness CLIs as a `.cmd`, which Windows
   runs through cmd.exe, and cmd.exe reads the arguments a second time under its
   own rules. So a batch file's command line is built for both readers: every
   part quoted, and a quote inside a part doubled. An argument holding a
-  character cmd.exe acts on then reaches the program whole, which a test asserts
-  on all three platforms.
+  character that cmd.exe acts on then reaches the program whole, which a test
+  asserts on all three platforms.
 - Keep the pump running when a line will not render. An adapter promises only
   that reading a line raises nothing. Rendering that line is a second step, and
   it fails if a feed event holds anything other than text. One bad line should
@@ -316,13 +316,13 @@ In scope:
   the phase that decides one.
 - The teardown module, the one place platform process semantics live. A round
   leads a process group of its own on POSIX and sits in a Job Object of its own
-  on Windows, so one call ends the round and everything the round started. The
-  job is set to empty itself when the daemon's last handle on it closes, so a
-  round on Windows dies with the daemon however the daemon ends. On POSIX the
+  on Windows, so one call ends the round and everything that the round started.
+  The job is set to empty itself when the daemon's last handle on it closes, so
+  a round on Windows dies with the daemon however the daemon ends. On POSIX the
   daemon ends its own rounds as it goes down, Ctrl-C included, and the startup
-  sweep catches what a `kill -9` left behind. Holding the tree rather than the
-  child is what makes this right on Windows, where the process the daemon starts
-  is often a shim for the one doing the work.
+  sweep catches what a `kill -9` left behind. Teardown ends the tree rather than
+  the child, which is what makes it right on Windows, where the process that the
+  daemon starts is often a shim for the one doing the work.
 - Tests against the fake harness on all three platforms, including the ugly
   cases: a round killed mid-stream leaves a `round.json` with no end; teardown
   really kills the child tree; a nonzero exit is captured.

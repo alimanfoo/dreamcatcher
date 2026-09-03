@@ -85,9 +85,12 @@ never touches the repo's own files. Contents:
   model, effort, rendered first prompt — frozen at dispatch), `watermark` (the
   relay high-water mark), and `rounds/<n>/` per round.
 - `rounds/<n>/` holds `round.json` (started and ended timestamps, exit status,
-  the round's cause, and the child pid while relevant), `feed.txt` (rendered,
-  timestamped), `raw.jsonl` (the harness's own stdout stream), and `inbox.json`
-  (the batch that caused the round, kept forever).
+  the child's pid, and the round's cause), `feed.txt` (rendered, timestamped),
+  `raw.jsonl` (the harness's own stdout stream), and `inbox.json` (the batch
+  that caused the round, kept forever). A round records its start as it spawns
+  and its ending as it ends, and a round that the daemon killed records no
+  ending at all, so one the daemon stopped reads as interrupted, which is what
+  it is.
 
 The round records are the story of record: a `round.json` with no end recorded
 is the interrupted detector, a final round's completed record is the final-round
@@ -210,10 +213,15 @@ the view you're already watching. `raw.jsonl` stays pure stdout for parser
 debugging. Liveness inside the daemon is the process handle; liveness for `scry`
 is `daemon.pid` plus the round records (rounds cannot outlive the daemon).
 
-Children die with the daemon, by design. Ctrl-C reaches the process group on
-POSIX; on Windows the daemon puts children in a Job Object configured to kill
-them when the daemon's handle closes. A `kill -9` orphan self-limits — its next
-write to the dead pipe fails — and the startup sweep catches stragglers.
+Children die with the daemon, by design. Each round leads a process group of its
+own on POSIX and sits in a Job Object of its own on Windows, so one call ends
+the round and everything that the round started, and the daemon makes that call
+for every round it holds as it goes down. Windows adds a guarantee that the
+daemon cannot lose: the job is set to empty itself when the daemon's last handle
+on it closes, which happens however the daemon ends. A `kill -9` orphan on POSIX
+self-limits — its next write to the dead pipe fails — and the startup sweep
+catches stragglers.
+
 Recovery is resume-from-transcript: both harnesses persist their session context
 incrementally, so an interrupted round's carry-on resume picks up where it left
 off, losing at most the work since the last event.

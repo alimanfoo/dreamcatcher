@@ -9,7 +9,7 @@ from typing import IO, cast
 from dreamcatcher import teardown
 from dreamcatcher.errors import ReportableError
 
-# What npm calls the harness CLIs it installs on Windows. Windows runs a file
+# What npm calls the harness CLIs that it installs on Windows. Windows runs a file
 # with one of these endings through cmd.exe, so its command line meets a second
 # reader. git and gh are real executables, so neither ever meets that.
 BATCH_ENDINGS = (".cmd", ".bat")
@@ -23,9 +23,9 @@ class CommandError(ReportableError):
 class Child:
     """A program running as a child process, with both its streams on pipes.
 
-    subprocess hands back a child whose streams are there or not, according to
-    what it was asked for. This one always has both, so whoever reads them
-    never has to ask whether they are there.
+    subprocess gives a child only the streams that the caller asked it for, so
+    reading one means asking first whether it is there. This child always has
+    both, so whoever reads them never has to ask.
     """
 
     out: IO[str]
@@ -38,16 +38,16 @@ class Child:
         return self.process.pid
 
     def wait(self) -> int:
-        """Wait for the child to end, and return the status it ended with."""
+        """Wait for the child to end, and return the status that it ended with."""
         status = self.process.wait()
         teardown.release(self.pid)
         return status
 
     def kill(self) -> None:
-        """End the child, and everything the child started, outright.
+        """End the child, and everything that the child started, outright.
 
         A child already waited for has gone, and the operating system is free
-        to give its pid to somebody else, so this lets it lie.
+        to give its pid to somebody else, so this leaves it alone.
         """
         if self.process.returncode is None:
             teardown.kill(self.pid)
@@ -94,8 +94,8 @@ def spawn(program: str, *arguments: str, cwd: Path) -> Child:
     a pipe of its own and its output read as UTF-8.
 
     The child gets no stdin. Codex reads stdin for more of its prompt and waits
-    for the end of it, so a pipe the daemon held open would stall the round for
-    ever, even with the whole prompt already in an argument.
+    for the end of it, so a pipe that the daemon held open would stall the round
+    for ever, even with the whole prompt already in an argument.
     """
     started = subprocess.Popen(
         _built(program, arguments),
@@ -110,7 +110,7 @@ def spawn(program: str, *arguments: str, cwd: Path) -> Child:
         start_new_session=teardown.OWN_SESSION,
     )
     teardown.contain(started.pid)
-    # Both pipes were asked for above, so both are there. subprocess types them
+    # This asked for both pipes above, so both are there. subprocess types them
     # for every caller, including the ones that asked for neither.
     return Child(
         cast("IO[str]", started.stdout), cast("IO[str]", started.stderr), started
@@ -123,7 +123,7 @@ def _built(program: str, arguments: tuple[str, ...]) -> list[str] | str:
     A list, which subprocess quotes for the program's own reader. A batch file
     is the exception. Windows hands one to cmd.exe, which reads the line again
     under its own rules, and subprocess quotes for the second reader alone. So
-    a batch file gets a line this builds for both readers.
+    a batch file gets a line that this builds for both readers.
     """
     executable = locate(program)
     if PurePath(executable).suffix.lower() in BATCH_ENDINGS:  # pragma: no cover
@@ -134,9 +134,9 @@ def _built(program: str, arguments: tuple[str, ...]) -> list[str] | str:
 def _quoted(part: str) -> str:  # pragma: no cover
     """Return the part quoted so cmd.exe and then the program read it whole.
 
-    The quotes are always there, so a character cmd.exe acts on — an ampersand,
-    a pipe, a bracket — sits inside them, where cmd.exe passes it through
-    instead. A quote in the part itself is doubled, which is how the program's
+    The quotes are always there, so a character that cmd.exe acts on — an
+    ampersand, a pipe, a bracket — sits inside them, where cmd.exe passes it
+    through instead. A quote in the part itself is doubled, which is how the program's
     own reader takes it back as the one quote it was.
     """
     doubled = part.replace('"', '""')

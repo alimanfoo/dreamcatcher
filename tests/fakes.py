@@ -54,15 +54,16 @@ class Call:
 class Fake:
     """A stand-in for one program.
 
-    The test that installs it says what it answers, and it answers that to every
-    call it takes. Every answer is a run of lines, so one stand-in serves a tool
-    that prints once and a harness that streams as it works.
+    The test that installs a stand-in says what the stand-in answers, and the
+    stand-in answers that to every call it takes. Every answer is a run of
+    lines, so one stand-in serves a tool that prints once and a harness that
+    streams as it works.
     """
 
     base: Path
 
     def replies(self, stdout: str) -> None:
-        """Answer this on stdout, with a status of nought."""
+        """Answer this on stdout, with a status of zero."""
         self._answer([Line(stdout)])
 
     def fails(self, stderr: str, status: int = 1) -> None:

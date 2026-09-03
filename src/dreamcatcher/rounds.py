@@ -1,12 +1,13 @@
 """Run one round of a session, and leave behind what it did.
 
 A round is a harness command running as a child of the daemon, in the session's
-worktree. It writes three files into a directory of its own. `raw.jsonl` keeps
-the harness's own stdout as it arrived, so a parser can be worked on against
-what the harness really sent. `feed.txt` is that same stream read through the
-harness's adapter and rendered as lines a person can read, with whatever the
-harness said on stderr among them, where it happened. `round.json` says when the
-round started, what process it ran as, and how it ended.
+worktree. It writes into a directory of its own as it goes.
+
+`raw.jsonl` keeps the harness's own stdout as it arrived, so that whoever works
+on a parser can read what the harness really sent. `feed.txt` is that same stream
+read through the harness's adapter and rendered as lines a person can read, with
+whatever the harness said on stderr among them, where it happened. `round.json`
+says when the round started, what process it ran as, and how it ended.
 
 The daemon watches a round rather than waiting for it, so a round reads its own
 streams on threads of its own, and records its own ending on another.
@@ -28,8 +29,8 @@ class Record(Document):
     """What a round says about itself, written at each end of the round.
 
     A record with no ending is the signature of a round that was interrupted.
-    The daemon watching it went before the round could say how it ended, so a
-    later tick reads the round as one to carry on.
+    The daemon that was watching it exited before the round could say how it
+    ended, so a later tick reads the round as one to carry on.
     """
 
     started: datetime
@@ -107,7 +108,7 @@ class Round:
         self.wait()
 
     def _read_stdout(self) -> None:
-        """Keep each line the harness streams, and write what it says."""
+        """Keep each line that the harness streams, and write what it says."""
         for line in self.child.out:
             append_text(line, self.raw)
             self._append(self._rendered(line))
@@ -134,12 +135,12 @@ class Round:
             )
 
     def _rendered(self, line: str) -> str:
-        """Return the feed lines one line of the harness's stream becomes.
+        """Return the feed lines that one line of the harness's stream becomes.
 
         An adapter promises that reading a line raises nothing. Rendering what
         it read is a second step, and that one fails when an event holds
-        anything other than text. So a line the feed cannot write costs the
-        reader that one line, and arrives as the harness sent it.
+        anything other than text. So a line that the feed cannot write costs
+        the reader that one line, and arrives as the harness sent it.
         """
         try:
             return "".join(

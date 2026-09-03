@@ -2,16 +2,18 @@
 
 Every platform difference in how dreamcatcher runs a child process lives here.
 On POSIX a child leads a process group of its own, and the daemon signals that
-group, so one signal reaches everything the round started and nothing else. On
+group, so one signal reaches everything that the round started, and nothing
+else. On
 Windows a child goes into a Job Object of its own, which Windows empties when
 the daemon terminates the job, and again when the daemon exits and its last
 handle on the job closes. So a round on Windows dies with the daemon that
 started it.
 
-Holding the whole tree, rather than the one child, is what makes this right
-however the harness was installed. A .cmd runs through cmd.exe, and even a real
-executable can be a launcher that starts the program the daemon meant to run,
-so the child the daemon knows about is often not the one doing the work.
+A child and everything it starts make a tree, and teardown holds the tree
+rather than the one child. That is what makes this right however the harness was
+installed. A .cmd runs through cmd.exe, and even a real executable can be a
+launcher that starts the program that the daemon meant to run, so the child that
+the daemon knows about is often not the one doing the work.
 """
 
 import sys
@@ -29,8 +31,8 @@ if sys.platform == "win32":  # pragma: no cover
     # ends a round when the daemon exits, however the daemon exits.
     KILL_ON_CLOSE = 0x2000
 
-    # What SetInformationJobObject calls the class of limits KILL_ON_CLOSE is
-    # one of.
+    # The class of limits that KILL_ON_CLOSE belongs to, which
+    # SetInformationJobObject asks for by number.
     EXTENDED_LIMIT_INFORMATION = 9
 
     # What a job needs of a process to hold it: enough to put it in the job,
@@ -101,7 +103,7 @@ if sys.platform == "win32":  # pragma: no cover
     _kernel.TerminateJobObject.argtypes = (wintypes.HANDLE, wintypes.UINT)
     _kernel.CloseHandle.argtypes = (wintypes.HANDLE,)
 
-    # Nothing puts a child in a group Windows can signal, so the job standing
+    # Nothing puts a child in a group that Windows can signal, so the job standing
     # for each running child is held here until the child has been let go of.
     _jobs: dict[int, int] = {}
 

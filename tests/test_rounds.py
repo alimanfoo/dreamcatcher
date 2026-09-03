@@ -34,8 +34,8 @@ class Unrenderable(Adapter):
         return [self.program]
 
     def _events(self, streamed: dict) -> list[Event]:
-        # A path or a command that came back as something other than text is
-        # what a real harness can send, and what the renderer cannot write.
+        # A real harness can send a path or a command as something other than
+        # text, and the renderer cannot write an event that holds one.
         return [Note("read", cast("str", streamed))]
 
 
