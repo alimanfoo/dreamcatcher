@@ -40,6 +40,22 @@ class StateDirectory:
         """The file the daemon overwrites with what each tick decided."""
         return self.path / "last-tick.json"
 
+    @property
+    def worktrees(self) -> Path:
+        """The directory holding a worktree for each session, named by its key.
+
+        Every worktree that dreamcatcher makes lives under here, whatever the
+        checkout's own directory habits are. So a worktree under here is one of
+        dreamcatcher's, and that is how the daemon tells its own work from
+        everyone else's.
+        """
+        return self.path / "worktrees"
+
+    @property
+    def sessions(self) -> Path:
+        """The directory holding each session's own files, named by its key."""
+        return self.path / "sessions"
+
     def bootstrap(self) -> None:
         """Create the directory, ignoring itself, so git never sees its files.
 

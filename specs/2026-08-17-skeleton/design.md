@@ -132,10 +132,17 @@ or expect doubled attempts on whatever was.
 Two costs of nesting, accepted: tools that ignore gitignore (`find`, some
 indexers) see repo copies inside the checkout — git, ripgrep, and the harnesses'
 own search skip them — and the extra path depth nudges toward Windows
-path-length limits on deep repos. One invariant is checked at dispatch, not
-assumed: the worktree path is strictly under `.dreamcatcher/worktrees/`. `run`
-refuses to start anywhere but a main checkout (a linked worktree's `.git` is a
-file, the same test as today).
+path-length limits on deep repos. The dispatch builds a worktree path from the
+state directory and the session key and takes none from a caller, so the path is
+under `.dreamcatcher/worktrees/` by construction and no check has to say so.
+`run` refuses to start anywhere but a main checkout (a linked worktree's `.git`
+is a file, the same test as today).
+
+The dispatch fetches origin's main before it cuts the branch, so a session
+starts from main as it is now rather than from whatever the checkout last heard
+about. A creation that fails from the worktree onwards takes the worktree and
+the branch away again. git names the branch before it reaches the worktree, so a
+failed `worktree add` has one to take away.
 
 ### The tick
 
