@@ -28,7 +28,7 @@ def test_a_valid_config_reads_back(tmp_path):
 
     assert config.interval == 300
     assert [mapping.label for mapping in config.dispatch] == ["dream:smith"]
-    assert config.dispatch[0].settings == {
+    assert config.dispatch[0].harness_settings == {
         Harness.CLAUDE: CLAUDE_SETTINGS,
         Harness.CODEX: CODEX_SETTINGS,
     }
@@ -58,7 +58,7 @@ def test_a_label_one_harness_can_run_carries_that_block_alone(tmp_path):
 
     mapping = read_config(tmp_path).dispatch[0]
 
-    assert mapping.settings == {Harness.CLAUDE: CLAUDE_SETTINGS}
+    assert mapping.harness_settings == {Harness.CLAUDE: CLAUDE_SETTINGS}
 
 
 @pytest.mark.parametrize(

@@ -25,7 +25,7 @@ class DispatchMapping(Document):
     model_config = ConfigDict(extra='allow')
     __pydantic_extra__: dict[Harness, HarnessSettings]
     label: str
-    settings: dict[Harness, HarnessSettings]
+    harness_settings: dict[Harness, HarnessSettings]
 
     def _carries_a_block(self) -> Self:
         ...

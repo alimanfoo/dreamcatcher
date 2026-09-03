@@ -75,7 +75,7 @@ src/:
         model_config:
         __pydantic_extra__:
         label:
-        settings:
+        harness_settings:
         _carries_a_block:
       Config:
         interval:

@@ -44,14 +44,14 @@ class DispatchMapping(Document):
     label: str
 
     @property
-    def settings(self) -> dict[Harness, HarnessSettings]:
+    def harness_settings(self) -> dict[Harness, HarnessSettings]:
         """The settings block of each harness that can run the label."""
         return self.__pydantic_extra__
 
     @model_validator(mode="after")
     def _carries_a_block(self) -> Self:
         """Refuse a label with no harness able to run it."""
-        if not self.settings:
+        if not self.harness_settings:
             raise ValueError(f"label {self.label} has no harness block")
         return self
 
