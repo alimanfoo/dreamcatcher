@@ -125,14 +125,10 @@ convention = "pep257"
 # already signed in. commands.py is the one module that runs them, so it is the
 # one place these are waived. Any other module that imports subprocess fails the
 # check. commands.py never runs a shell, and it looks the program up on the PATH
-# itself. The rules guarding those two stay selected everywhere. commands.py
-# also sets one environment variable, and Windows owns its name, which Microsoft
-# spells in mixed case. In capitals that name reads as a run of letters that
-# nobody can look up, so this waives the capitalisation rule as well.
+# itself. The rules guarding those two stay selected everywhere.
 "src/dreamcatcher/commands.py" = [
     "suspicious-subprocess-import",
     "subprocess-without-shell-equals-true",
-    "uncapitalized-environment-variables",
 ]
 # One test spawns a throwaway interpreter, to leave behind a pid no process
 # holds. It names the interpreter by its full path, and runs no shell, so the

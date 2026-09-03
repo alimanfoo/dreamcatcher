@@ -416,19 +416,22 @@ npm installs them. The current directory is no part of that lookup. Windows
 searches it ahead of the PATH, and the daemon's current directory is the watched
 checkout for its whole life, so a file named `git.exe` at that checkout's root
 would otherwise run in place of the real tool. The daemon takes the current
-directory back out of the search, for itself and for every child, by setting
-`NoDefaultCurrentDirectoryInExePath` in its own process. Windows runs a `.cmd`
-through cmd.exe, which reads the command line a second time under its own rules,
-after Python has quoted it for the program's own reader. So a batch file's line
-is built for both readers: every part of it quoted, and a quote inside a part
-doubled. A prompt then reaches the harness as it was written, whatever it holds.
-It also follows that the process the daemon starts is often not the one doing
-the work, since a `.cmd` is a shim and Windows has shims for other things too.
-Process teardown is therefore a whole tree, not a child: a process group on
-POSIX and a Job Object on Windows, isolated in one module. Paths flow through
-`pathlib` end to end. The known pid-reuse wrinkle in the orphan sweep is
-accepted: the sweep runs once at startup against pids the daemon itself
-recorded, and the window is small.
+directory back out of the search by setting `NoDefaultCurrentDirectoryInExePath`
+in its own process. Every child inherits the name, and Windows itself, cmd.exe
+and Python each read it, so a lookup the harness makes reads the PATH alone too.
+That carries a cost the design accepts: a command in a watched repository that
+runs a program from the current directory by its bare name stops finding it.
+Windows runs a `.cmd` through cmd.exe, which reads the command line a second
+time under its own rules, after Python has quoted it for the program's own
+reader. So a batch file's line is built for both readers: every part of it
+quoted, and a quote inside a part doubled. A prompt then reaches the harness as
+it was written, whatever it holds. It also follows that the process the daemon
+starts is often not the one doing the work, since a `.cmd` is a shim and Windows
+has shims for other things too. Process teardown is therefore a whole tree, not
+a child: a process group on POSIX and a Job Object on Windows, isolated in one
+module. Paths flow through `pathlib` end to end. The known pid-reuse wrinkle in
+the orphan sweep is accepted: the sweep runs once at startup against pids the
+daemon itself recorded, and the window is small.
 
 ### Dependencies
 
