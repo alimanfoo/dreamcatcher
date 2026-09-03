@@ -90,3 +90,11 @@ def test_an_append_adds_to_the_end_of_what_is_there(tmp_path):
 def test_an_append_that_fails_says_so(tmp_path):
     with pytest.raises(ReportableError, match="cannot write"):
         append_text("one line\n", tmp_path)
+
+
+def test_a_write_keeps_the_line_endings_it_was_given(tmp_path):
+    written = tmp_path / "raw.jsonl"
+
+    write_text("one line\nanother\n", written)
+
+    assert written.read_bytes() == b"one line\nanother\n"

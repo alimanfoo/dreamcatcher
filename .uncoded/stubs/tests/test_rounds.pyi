@@ -8,6 +8,7 @@ from fakes import Line, Stream, recorded
 from recordings import FIXTURES, rendered
 from dreamcatcher.adapters import Adapter, Launch
 from dreamcatcher.claude import CLAUDE
+from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Event, Note, Renderer
 from dreamcatcher.rounds import Record, Round
 
@@ -48,6 +49,12 @@ def test_a_round_that_finished_says_how_it_ended(fake, worktree, directory):
     ...
 
 def test_a_round_somebody_stopped_says_no_ending(fake, worktree, directory):
+    ...
+
+def test_a_round_that_cannot_write_its_feed_stops_rather_than_stalls(fake, worktree, directory):
+    ...
+
+def test_a_round_that_cannot_record_its_start_does_not_run_on(fake, worktree, tmp_path):
     ...
 
 class Unrenderable(Adapter):

@@ -69,10 +69,14 @@ def _write(text: str, path: Path, mode: str) -> None:
 
     Making the directory here is what lets a caller write a file without
     creating the directory first.
+
+    The line endings are the caller's. Left to itself Python turns every line
+    ending into the one the platform prefers, which would put a carriage return
+    into a round's copy of what a harness streamed.
     """
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open(mode, encoding="utf-8") as opened:
+        with path.open(mode, encoding="utf-8", newline="") as opened:
             opened.write(text)
     except OSError as error:
         raise ReportableError(f"cannot write {path}: {error}.") from error

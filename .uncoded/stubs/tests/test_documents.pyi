@@ -39,6 +39,9 @@ def test_an_append_adds_to_the_end_of_what_is_there(tmp_path):
 def test_an_append_that_fails_says_so(tmp_path):
     ...
 
+def test_a_write_keeps_the_line_endings_it_was_given(tmp_path):
+    ...
+
 class Sample(Document):
     name: str
     count: int = 1

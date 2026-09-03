@@ -7,6 +7,7 @@ from recordings import FIXTURES, rendered
 
 from dreamcatcher.adapters import Adapter, Launch
 from dreamcatcher.claude import CLAUDE
+from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Event, Note, Renderer
 from dreamcatcher.rounds import Record, Round
 
@@ -101,7 +102,9 @@ def test_what_the_harness_says_on_stderr_lands_where_it_happened(
 ):
     fake("harness").streams(
         [Line("first\n"), Line("an aside\n", Stream.ERR), Line("second\n")],
-        delay=0.1,
+        # The two streams reach the round on threads of their own, so the space
+        # between the lines is what puts them in a known order.
+        delay=0.25,
     )
 
     running = Round(CLAUDE, ["harness"], worktree, directory, clock=pinned)
@@ -159,3 +162,26 @@ def test_a_round_somebody_stopped_says_no_ending(fake, worktree, directory):
     assert not running.alive
     assert written(running.record).ended is None
     assert written(running.record).status is None
+
+
+def test_a_round_that_cannot_write_its_feed_stops_rather_than_stalls(
+    fake, worktree, directory
+):
+    fake("harness").streams([Line("first\n"), Line("second\n")], delay=0.25)
+    directory.mkdir(parents=True)
+    (directory / "feed.txt").mkdir()
+
+    running = Round(CLAUDE, ["harness"], worktree, directory, clock=pinned)
+    running.wait()
+
+    assert not running.alive
+    assert written(running.record).ended is None
+
+
+def test_a_round_that_cannot_record_its_start_does_not_run_on(fake, worktree, tmp_path):
+    fake("harness").streams([Line("working\n")], delay=5)
+    occupied = tmp_path / "occupied"
+    occupied.write_text("something else is here\n", encoding="utf-8")
+
+    with pytest.raises(ReportableError, match="cannot write"):
+        Round(CLAUDE, ["harness"], worktree, occupied / "1", clock=pinned)

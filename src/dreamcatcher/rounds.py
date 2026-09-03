@@ -22,6 +22,7 @@ from dreamcatcher.adapters import Adapter
 from dreamcatcher.clock import now
 from dreamcatcher.commands import spawn
 from dreamcatcher.documents import Document, append_text, write_json
+from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Prose, Renderer
 
 
@@ -61,12 +62,19 @@ class Round:
         self.renderer = Renderer(worktree, clock=clock)
         self.started = clock()
         self.interrupted = False
-        self.child = spawn(*command, cwd=worktree)
-        write_json(Record(started=self.started, pid=self.child.pid), self.record)
         self._writing = Lock()
+        self.child = spawn(*command, cwd=worktree)
+        try:
+            write_json(Record(started=self.started, pid=self.child.pid), self.record)
+        except ReportableError:
+            # A round nothing recorded is a round nothing will watch or find
+            # again, so it does not run on.
+            self.child.kill()
+            self.child.wait()
+            raise
         self._pumps = [
-            Thread(target=self._read_stdout, daemon=True),
-            Thread(target=self._read_stderr, daemon=True),
+            Thread(target=self._pump, args=(self._read_stdout,), daemon=True),
+            Thread(target=self._pump, args=(self._read_stderr,), daemon=True),
         ]
         for pump in self._pumps:
             pump.start()
@@ -107,16 +115,30 @@ class Round:
         self.child.kill()
         self.wait()
 
+    def _pump(self, read: Callable[[], None]) -> None:
+        """Read one of the round's streams, and end the round if that fails.
+
+        A round that cannot write its own files has nothing to show for itself.
+        Worse, a reader that stopped reading would leave the harness blocked on
+        a full pipe for ever, and the round would never end. So the round ends
+        here, and its record keeps no ending, which reads as one to carry on.
+        """
+        try:
+            read()
+        except ReportableError:
+            self.interrupted = True
+            self.child.kill()
+
     def _read_stdout(self) -> None:
         """Keep each line that the harness streams, and write what it says."""
         for line in self.child.out:
             append_text(line, self.raw)
-            self._append(self._rendered(line))
+            self._append(line, self._rendered)
 
     def _read_stderr(self) -> None:
         """Write what the harness says on stderr, among the lines around it."""
         for line in self.child.err:
-            self._append(self.renderer.render(Prose(line)))
+            self._append(line, self._passed)
 
     def _close(self) -> None:
         """Wait for the round to end, then record how it ended."""
@@ -149,8 +171,17 @@ class Round:
         except Exception:
             return self.renderer.render(Prose(line))
 
-    def _append(self, lines: str) -> None:
-        """Add lines to the feed, one stream of the round's at a time."""
-        if lines:
-            with self._writing:
-                append_text(lines, self.feed)
+    def _passed(self, line: str) -> str:
+        """Return the feed line one line of the harness's stderr becomes."""
+        return self.renderer.render(Prose(line))
+
+    def _append(self, line: str, render: Callable[[str], str]) -> None:
+        """Add what one line says to the feed, one of the two streams at a time.
+
+        The line is rendered under the same lock that the write takes, so the
+        stamp a line carries and the order it lands in agree.
+        """
+        with self._writing:
+            written = render(line)
+            if written:
+                append_text(written, self.feed)

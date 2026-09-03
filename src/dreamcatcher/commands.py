@@ -131,13 +131,31 @@ def _built(program: str, arguments: tuple[str, ...]) -> list[str] | str:
     return [executable, *arguments]
 
 
-def _quoted(part: str) -> str:  # pragma: no cover
+def _quoted(part: str) -> str:
     """Return the part quoted so cmd.exe and then the program read it whole.
 
     The quotes are always there, so a character that cmd.exe acts on — an
     ampersand, a pipe, a bracket — sits inside them, where cmd.exe passes it
-    through instead. A quote in the part itself is doubled, which is how the program's
-    own reader takes it back as the one quote it was.
+    through instead. A quote in the part itself is doubled, which is how the
+    program's own reader takes it back as the one quote it was.
+
+    A backslash means something to that reader only where a quote follows it,
+    and there two of them stand for one. So a run of them before a quote is
+    doubled, and the quote that closes the part counts as a quote. Left alone, a
+    part ending in a backslash would escape its own closing quote, and every
+    part after it would land inside the quotes of the part before.
     """
-    doubled = part.replace('"', '""')
-    return f'"{doubled}"'
+    quoted = ['"']
+    backslashes = 0
+    for character in part:
+        if character == "\\":
+            backslashes += 1
+        elif character == '"':
+            quoted.append("\\" * backslashes)
+            backslashes = 0
+        else:
+            backslashes = 0
+        quoted.append('""' if character == '"' else character)
+    quoted.append("\\" * backslashes)
+    quoted.append('"')
+    return "".join(quoted)

@@ -9,6 +9,7 @@ from dreamcatcher.adapters import Adapter
 from dreamcatcher.clock import now
 from dreamcatcher.commands import spawn
 from dreamcatcher.documents import Document, append_text, write_json
+from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Prose, Renderer
 
 class Record(Document):
@@ -32,6 +33,9 @@ class Round:
     def stop(self) -> None:
         ...
 
+    def _pump(self, read: Callable[[], None]) -> None:
+        ...
+
     def _read_stdout(self) -> None:
         ...
 
@@ -44,5 +48,8 @@ class Round:
     def _rendered(self, line: str) -> str:
         ...
 
-    def _append(self, lines: str) -> None:
+    def _passed(self, line: str) -> str:
+        ...
+
+    def _append(self, line: str, render: Callable[[str], str]) -> None:
         ...
