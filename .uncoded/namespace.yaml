@@ -212,6 +212,8 @@ src/:
         path:
         lock:
         last_tick:
+        worktrees:
+        sessions:
         bootstrap:
     teardown.py:
       OWN_SESSION:

@@ -16,6 +16,8 @@ class StateDirectory:
     path: Path
     lock: Path
     last_tick: Path
+    worktrees: Path
+    sessions: Path
 
     def bootstrap(self) -> None:
         ...
