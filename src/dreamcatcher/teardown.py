@@ -7,6 +7,11 @@ Windows a child goes into a Job Object of its own, which Windows empties when
 the daemon terminates the job, and again when the daemon exits and its last
 handle on the job closes. So a round on Windows dies with the daemon that
 started it.
+
+Holding the whole tree, rather than the one child, is what makes this right
+however the harness was installed. A .cmd runs through cmd.exe, and even a real
+executable can be a launcher that starts the program the daemon meant to run,
+so the child the daemon knows about is often not the one doing the work.
 """
 
 import sys
