@@ -6,6 +6,7 @@ from pathlib import Path, PurePath
 from shutil import which
 from typing import IO, cast
 
+from dreamcatcher import teardown
 from dreamcatcher.errors import ReportableError
 
 # What npm calls the harness CLIs it installs on Windows. Windows runs a file
@@ -38,7 +39,18 @@ class Child:
 
     def wait(self) -> int:
         """Wait for the child to end, and return the status it ended with."""
-        return self.process.wait()
+        status = self.process.wait()
+        teardown.release(self.pid)
+        return status
+
+    def kill(self) -> None:
+        """End the child, and everything the child started, outright.
+
+        A child already waited for has gone, and the operating system is free
+        to give its pid to somebody else, so this lets it lie.
+        """
+        if self.process.returncode is None:
+            teardown.kill(self.pid)
 
 
 def locate(program: str) -> str:
@@ -95,7 +107,9 @@ def spawn(program: str, *arguments: str, cwd: Path) -> Child:
         # A stray byte that is not UTF-8, in a path or a message, comes through
         # as the replacement character rather than as a traceback.
         errors="replace",
+        start_new_session=teardown.OWN_SESSION,
     )
+    teardown.contain(started.pid)
     # Both pipes were asked for above, so both are there. subprocess types them
     # for every caller, including the ones that asked for neither.
     return Child(

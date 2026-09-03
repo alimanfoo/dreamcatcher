@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePath
 from shutil import which
 from typing import IO, cast
+from dreamcatcher import teardown
 from dreamcatcher.errors import ReportableError
 
 BATCH_ENDINGS = ('.cmd', '.bat')
@@ -35,4 +36,7 @@ class Child:
     pid: int
 
     def wait(self) -> int:
+        ...
+
+    def kill(self) -> None:
         ...

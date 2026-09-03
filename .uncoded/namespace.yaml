@@ -67,6 +67,7 @@ src/:
         process:
         pid:
         wait:
+        kill:
       locate:
       run:
       spawn:
@@ -190,6 +191,8 @@ src/:
         lock:
         last_tick:
         bootstrap:
+    teardown.py:
+      OWN_SESSION:
 tests/:
   clocks.py:
     PINNED:
@@ -440,6 +443,11 @@ tests/:
     test_bootstrap_heals_a_deleted_gitignore:
     test_bootstrap_says_so_when_a_file_sits_where_the_directory_goes:
     test_the_daemon_files_sit_in_the_state_directory:
+  test_teardown.py:
+    STARTS_A_CHILD:
+    gone:
+    test_a_kill_reaches_what_the_child_started:
+    test_a_kill_after_the_child_ended_leaves_its_pid_alone:
 tools/:
   forbid_invisible_characters.py:
     INVISIBLE_CATEGORY:
