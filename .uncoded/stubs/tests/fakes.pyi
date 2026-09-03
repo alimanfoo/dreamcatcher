@@ -5,11 +5,15 @@ import json
 import os
 import stat
 import sys
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from enum import StrEnum
 from pathlib import Path
 from time import sleep
 
 UNSCRIPTED = 97
+
+def recorded(path: Path) -> list[Line]:
+    ...
 
 def install(directory: Path, program: str) -> Fake:
     ...
@@ -32,6 +36,14 @@ def _append(path: Path, line: dict) -> None:
 def _lines(path: Path) -> list[dict]:
     ...
 
+class Stream(StrEnum):
+    OUT = 'stdout'
+    ERR = 'stderr'
+
+class Line:
+    text: str
+    stream: Stream = Stream.OUT
+
 class Call:
     arguments: list[str]
     directory: Path
@@ -46,8 +58,8 @@ class Fake:
     def fails(self, stderr: str, status: int) -> None:
         ...
 
-    def streams(self, recording: Path, delay: float, status: int) -> None:
+    def streams(self, lines: list[Line], delay: float, status: int) -> None:
         ...
 
-    def _answer(self, lines: list[str], stderr: str, status: int, delay: float) -> None:
+    def _answer(self, lines: list[Line], status: int, delay: float) -> None:
         ...

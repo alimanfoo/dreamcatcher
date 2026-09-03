@@ -4,7 +4,8 @@
 import sys
 from pathlib import Path
 import pytest
-from dreamcatcher.commands import CommandError, locate, run
+from fakes import Line, Stream
+from dreamcatcher.commands import CommandError, _quote, locate, run, spawn
 
 def test_a_command_hands_back_what_it_printed(fake):
     ...
@@ -25,4 +26,25 @@ def test_a_failure_that_said_nothing_still_names_the_command(fake):
     ...
 
 def test_a_command_that_prints_bytes_that_are_not_utf_8_still_reads():
+    ...
+
+def test_an_argument_a_second_reader_would_act_on_still_arrives_whole(fake):
+    ...
+
+def test_a_spawned_command_runs_where_it_is_told_and_streams_as_it_goes(fake, tmp_path):
+    ...
+
+def test_a_spawned_command_finds_its_stdin_already_at_an_end(tmp_path):
+    ...
+
+def test_a_quoted_part_hides_what_a_second_reader_would_act_on():
+    ...
+
+def test_a_quote_in_a_part_is_doubled():
+    ...
+
+def test_a_part_ending_in_a_backslash_does_not_escape_its_closing_quote():
+    ...
+
+def test_a_backslash_before_a_quote_is_doubled_so_the_quote_still_counts():
     ...

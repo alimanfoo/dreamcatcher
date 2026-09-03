@@ -6,7 +6,7 @@ from pathlib import PurePosixPath, PureWindowsPath
 from clocks import PINNED, Ticking
 from dreamcatcher.feed import WIDTH, Note, Prose, Renderer
 
-ROUND = PurePosixPath('/checkout/worktree')
+WORKTREE = PurePosixPath('/checkout/worktree')
 
 def feed() -> Renderer:
     ...
@@ -17,16 +17,16 @@ def test_a_note_becomes_one_timestamped_line():
 def test_a_note_with_nothing_to_add_is_its_label_alone():
     ...
 
-def test_a_detail_loses_the_rounds_own_directory():
+def test_a_detail_loses_the_worktrees_own_path():
     ...
 
-def test_a_path_outside_the_round_keeps_its_own_root():
+def test_a_path_outside_the_worktree_keeps_its_own_root():
     ...
 
-def test_a_sibling_of_the_round_that_starts_the_same_way_keeps_its_whole_path():
+def test_a_sibling_of_the_worktree_that_starts_the_same_way_keeps_its_path():
     ...
 
-def test_a_round_on_windows_loses_a_directory_written_the_windows_way():
+def test_a_detail_written_the_windows_way_loses_the_worktree_too():
     ...
 
 def test_a_detail_spread_over_lines_becomes_one():

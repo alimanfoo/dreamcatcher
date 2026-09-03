@@ -267,17 +267,12 @@ In scope:
 - Give the child no stdin. Codex reads stdin for more of its prompt and waits
   for the end of it, so a pipe the daemon holds open stalls the round for ever,
   even when the prompt is already an argument.
-- Answer the Windows `.cmd` question `commands.py` leaves to the phase that runs
-  a harness. npm installs both harness CLIs as a `.cmd`, which Windows runs
-  through cmd.exe, and cmd.exe reads the arguments a second time under its own
-  rules. A prompt template is a repo's to write, so it can hold a character
-  cmd.exe acts on. Test a prompt holding one on Windows, and carry the answer
-  here.
-- Keep the pump running when a line will not render. An adapter promises only
-  that reading a line raises nothing. Rendering that line is a second step, and
-  it fails if a feed event holds anything other than text. One bad line should
-  cost one line of the feed, so the pump has to catch both steps, not just the
-  read.
+- The answer to the Windows `.cmd` question that `commands.py` left to the phase
+  that runs a harness (design.md, Cross-platform notes). A test asserts it on
+  all three platforms.
+- Keep the pump running when a line will not render (design.md, The harness
+  adapters). Reading a line and rendering what was read are two steps, so the
+  pump has to catch both, not just the read.
 - The round record: the daemon writes `round.json` at spawn and again at exit,
   through a pydantic model per the phase 2 convention, so a corrupt record fails
   with a named error (design.md, The state directory).
@@ -292,8 +287,13 @@ injected and pinned, the convention every timing test in this project uses — a
 feed produced by a live fake round is byte-identical to the same stream parsed
 purely in phase 4's tests: the pipeline adds nothing and loses nothing.
 
+The stand-in harness gained what this phase needed of it: a scripted line says
+which of the two streams it belongs to, so a test can put a stderr line between
+two lines of stdout.
+
 Deliberately out: worktrees, sessions, prompt composition, and any decision
-about when a round runs.
+about when a round runs. A round's cause waits for the phase that decides one,
+so `round.json` carries no cause yet.
 
 ## Phase 7: sessions
 
@@ -334,6 +334,9 @@ In scope:
 - The real tick (design.md, The tick), replacing phase 2's stub and dispatching
   through phase 7's session creation.
 - The failure cooldown (design.md, The tick).
+- The daemon holding its own rounds, which is what the cap counts and what it
+  ends as it goes down, Ctrl-C included (design.md, Rounds and processes). Phase
+  6 built the teardown and left the daemon with no rounds to end.
 - The startup orphan sweep (design.md, The tick). The carry-on resume of those
   sessions is phase 10's; until then they appear in `last-tick.json` as waiting.
 - The startup check that the harness's CLI is installed: `run` refuses at once

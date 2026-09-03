@@ -90,11 +90,11 @@ uv run pre-commit run --all-files
 - For a failure that the user needs to read, raise a `ReportableError`.
   `cli.main` catches that one class and prints the message, and anything else
   reaches the user as a traceback, which means a bug in the tool. A failed write
-  is never a bug, so write every file through `documents.write_text` or
-  `documents.write_json`, both of which raise a `ReportableError` when the write
-  fails. An error class earns its place only when some code catches it by name
-  and does something other than report it, as `github._read` catches
-  `CommandError` to answer "unknown".
+  is never a bug, so write every file through `documents.py`, whose
+  `write_text`, `append_text` and `write_json` each raise a `ReportableError`
+  when the write fails. An error class earns its place only when some code
+  catches it by name and does something other than report it, as `github._read`
+  catches `CommandError` to answer "unknown".
 - Give every document the tool reads or writes a pydantic model, and read and
   write it through `documents.py`. That covers `dreamcatcher.toml` and the
   records under `.dreamcatcher/`. A mistake in a document then reads as a named
@@ -108,6 +108,11 @@ uv run pre-commit run --all-files
 - Shell out from `commands.py` alone. `pyproject.toml` waives ruff's subprocess
   rules for that one module, so any other module that imports `subprocess` fails
   the check.
+- Name a method or a function for what it does, with a verb: `render`, `stop`,
+  `strip_worktree`. A name like `rendered` or `holder` reads as a value, so a
+  reader takes it for a property and not for something that runs.
+- Name a boolean for the question it answers: `is_alive`, `is_subagent`, not
+  `alive` or `subagent`. `if round.is_alive:` then reads as English.
 - Keep changes lean. Add nothing a requirement or the design doesn't call for;
   prefer deleting over adding. One way to do each thing, always.
 - Every path is cross-platform: Windows, macOS, and Linux are all first-class.

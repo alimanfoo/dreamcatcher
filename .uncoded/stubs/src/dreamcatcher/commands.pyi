@@ -2,9 +2,14 @@
 # src/dreamcatcher/commands.py
 
 import subprocess
-from pathlib import Path
+from dataclasses import dataclass
+from pathlib import Path, PurePath
 from shutil import which
+from typing import IO, cast
+from dreamcatcher import teardown
 from dreamcatcher.errors import ReportableError
+
+BATCH_ENDINGS = ('.cmd', '.bat')
 
 def locate(program: str) -> str:
     ...
@@ -12,5 +17,26 @@ def locate(program: str) -> str:
 def run(program: str, *arguments: str, cwd: Path | None) -> str:
     ...
 
+def spawn(program: str, *arguments: str, cwd: Path) -> Child:
+    ...
+
+def _build(program: str, arguments: tuple[str, ...]) -> list[str] | str:
+    ...
+
+def _quote(part: str) -> str:
+    ...
+
 class CommandError(ReportableError):
     ...
+
+class Child:
+    out: IO[str]
+    err: IO[str]
+    process: subprocess.Popen[str]
+    pid: int
+
+    def wait(self) -> int:
+        ...
+
+    def kill(self) -> None:
+        ...

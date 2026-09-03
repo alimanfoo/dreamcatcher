@@ -14,11 +14,32 @@ import json
 import os
 import stat
 import sys
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from enum import StrEnum
 from pathlib import Path
 from time import sleep
 
 UNSCRIPTED = 97
+
+
+class Stream(StrEnum):
+    """One of the two streams a stand-in can write a line to."""
+
+    OUT = "stdout"
+    ERR = "stderr"
+
+
+@dataclass(frozen=True)
+class Line:
+    """One line a stand-in writes, and the stream it writes it to.
+
+    A real harness writes most of what it has to say to stdout, and a warning
+    or a complaint to stderr as it goes. So a scripted line says which stream
+    it belongs to, and the two arrive in the order the script gives them.
+    """
+
+    text: str
+    stream: Stream = Stream.OUT
 
 
 @dataclass(frozen=True)
@@ -33,31 +54,28 @@ class Call:
 class Fake:
     """A stand-in for one program.
 
-    The test that installs it says what it answers, and it answers that to every
-    call it takes. Every answer is a run of lines, so one stand-in serves a tool
-    that prints once and a harness that streams as it works.
+    A test scripts the answer once, and the stand-in gives that answer to every
+    call. An answer is a list of lines, which covers both kinds of program the
+    tests need: a tool that prints its result and exits, and a harness that
+    streams a line at a time while it works.
     """
 
     base: Path
 
     def replies(self, stdout: str) -> None:
-        """Answer this on stdout, with a status of nought."""
-        self._answer([stdout])
+        """Answer this on stdout, with a status of zero."""
+        self._answer([Line(stdout)])
 
     def fails(self, stderr: str, status: int = 1) -> None:
         """Fail with this on stderr, and a failing status."""
-        self._answer([], stderr=stderr, status=status)
+        self._answer([Line(stderr, Stream.ERR)], status=status)
 
-    def streams(self, recording: Path, delay: float = 0, status: int = 0) -> None:
-        """Answer with the recording's lines, one at a time, as a harness does.
+    def streams(self, lines: list[Line], delay: float = 0, status: int = 0) -> None:
+        """Answer with these lines, one at a time, as a harness does.
 
         The delay is what leaves a round running long enough to be interrupted.
         """
-        self._answer(
-            recording.read_text(encoding="utf-8").splitlines(keepends=True),
-            status=status,
-            delay=delay,
-        )
+        self._answer(lines, status=status, delay=delay)
 
     @property
     def calls(self) -> list[Call]:
@@ -67,24 +85,25 @@ class Fake:
             for taken in _lines(_taken(self.base))
         ]
 
-    def _answer(
-        self,
-        lines: list[str],
-        stderr: str = "",
-        status: int = 0,
-        delay: float = 0,
-    ) -> None:
+    def _answer(self, lines: list[Line], status: int = 0, delay: float = 0) -> None:
         _scripted(self.base).write_text(
             json.dumps(
                 {
-                    "lines": lines,
-                    "stderr": stderr,
+                    "lines": [asdict(line) for line in lines],
                     "status": status,
                     "delay": delay,
                 }
             ),
             encoding="utf-8",
         )
+
+
+def recorded(path: Path) -> list[Line]:
+    """Return the recording at path as the lines a harness streams to stdout."""
+    return [
+        Line(text)
+        for text in path.read_text(encoding="utf-8").splitlines(keepends=True)
+    ]
 
 
 def install(directory: Path, program: str) -> Fake:
@@ -104,12 +123,12 @@ def replay(base: Path, arguments: list[str]) -> int:
         return UNSCRIPTED
     answer = json.loads(scripted.read_text(encoding="utf-8"))
     for line in answer["lines"]:
+        written = sys.stdout if line["stream"] == Stream.OUT else sys.stderr
         # UTF-8 whatever the console's own code page is, since the caller reads
         # it as UTF-8. Flushed too, so a reader sees each line as it lands.
-        sys.stdout.buffer.write(line.encode("utf-8"))
-        sys.stdout.buffer.flush()
+        written.buffer.write(line["text"].encode("utf-8"))
+        written.buffer.flush()
         sleep(answer["delay"])
-    sys.stderr.buffer.write(answer["stderr"].encode("utf-8"))
     return int(answer["status"])
 
 

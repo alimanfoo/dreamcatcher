@@ -14,14 +14,14 @@ type Event = Note | Prose
 class Note:
     label: str
     detail: str = ''
-    subagent: bool = False
+    is_subagent: bool = False
 
 class Prose:
     text: str
-    subagent: bool = False
+    is_subagent: bool = False
 
 class Renderer:
-    directory: PurePath
+    worktree: PurePath
     clock: Callable[[], datetime] = now
 
     def boundary(self, number: int, cause: str) -> str:
@@ -30,14 +30,14 @@ class Renderer:
     def render(self, event: Event) -> str:
         ...
 
-    def _noted(self, note: Note) -> str:
+    def _render_note(self, note: Note) -> str:
         ...
 
     def _shorten(self, detail: str) -> str:
         ...
 
-    def _inside(self, detail: str) -> str:
+    def _strip_worktree(self, detail: str) -> str:
         ...
 
-    def _written(self, contents: list[str], subagent: bool) -> str:
+    def _stamp(self, contents: list[str], is_subagent: bool) -> str:
         ...

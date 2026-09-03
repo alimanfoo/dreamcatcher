@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from dreamcatcher.documents import Document, read_toml, write_text
+from dreamcatcher.documents import Document, append_text, read_toml, write_text
 from dreamcatcher.errors import ReportableError
 
 
@@ -76,3 +76,25 @@ def test_a_write_lands_where_it_is_asked_for(tmp_path):
 def test_a_write_that_fails_says_so(tmp_path):
     with pytest.raises(ReportableError, match="cannot write"):
         write_text("what it holds\n", tmp_path)
+
+
+def test_an_append_adds_to_the_end_of_what_is_there(tmp_path):
+    written = tmp_path / "records" / "feed.txt"
+
+    append_text("one line\n", written)
+    append_text("another\n", written)
+
+    assert written.read_text(encoding="utf-8") == "one line\nanother\n"
+
+
+def test_an_append_that_fails_says_so(tmp_path):
+    with pytest.raises(ReportableError, match="cannot write"):
+        append_text("one line\n", tmp_path)
+
+
+def test_a_write_keeps_the_line_endings_it_was_given(tmp_path):
+    written = tmp_path / "raw.jsonl"
+
+    write_text("one line\nanother\n", written)
+
+    assert written.read_bytes() == b"one line\nanother\n"

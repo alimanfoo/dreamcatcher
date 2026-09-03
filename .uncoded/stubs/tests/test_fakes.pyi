@@ -3,6 +3,7 @@
 
 from time import perf_counter
 import pytest
+from fakes import Line, Stream, recorded
 from dreamcatcher.commands import CommandError, run
 
 STREAM = '{"type":"assistant","text":"café"}\n{"type":"result"}\n'
@@ -14,6 +15,9 @@ def test_a_stand_in_harness_replays_the_recording_it_was_given(fake, recording):
     ...
 
 def test_a_stand_in_harness_streams_at_the_pace_it_was_given(fake, recording):
+    ...
+
+def test_a_stand_in_harness_writes_each_line_to_the_stream_it_names(fake):
     ...
 
 def test_a_stand_in_harness_can_end_as_a_failed_round_does(fake, recording):

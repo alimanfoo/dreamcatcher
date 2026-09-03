@@ -59,9 +59,20 @@ src/:
       _command:
       _usage:
     commands.py:
+      BATCH_ENDINGS:
       CommandError:
+      Child:
+        out:
+        err:
+        process:
+        pid:
+        wait:
+        kill:
       locate:
       run:
+      spawn:
+      _build:
+      _quote:
     config.py:
       CONFIG_NAME:
       Harness:
@@ -94,7 +105,9 @@ src/:
         model_config:
       read_toml:
       write_text:
+      append_text:
       write_json:
+      _write:
       _report:
     errors.py:
       ReportableError:
@@ -105,19 +118,19 @@ src/:
       Note:
         label:
         detail:
-        subagent:
+        is_subagent:
       Prose:
         text:
-        subagent:
+        is_subagent:
       Renderer:
-        directory:
+        worktree:
         clock:
         boundary:
         render:
-        _noted:
+        _render_note:
         _shorten:
-        _inside:
-        _written:
+        _strip_worktree:
+        _stamp:
     git.py:
       fetch:
       add_worktree:
@@ -169,6 +182,27 @@ src/:
     lock.py:
       hold:
       _holder:
+    rounds.py:
+      RoundRecord:
+        started:
+        pid:
+        ended:
+        status:
+      Round:
+        record:
+        feed:
+        raw:
+        is_alive:
+        __init__:
+        wait:
+        stop:
+        _pump:
+        _read_stdout:
+        _read_stderr:
+        _close:
+        _render:
+        _pass_through:
+        _append:
     state.py:
       STATE_DIRECTORY:
       LastTick:
@@ -179,6 +213,8 @@ src/:
         lock:
         last_tick:
         bootstrap:
+    teardown.py:
+      OWN_SESSION:
 tests/:
   clocks.py:
     PINNED:
@@ -203,6 +239,12 @@ tests/:
     fake:
   fakes.py:
     UNSCRIPTED:
+    Stream:
+      OUT:
+      ERR:
+    Line:
+      text:
+      stream:
     Call:
       arguments:
       directory:
@@ -213,6 +255,7 @@ tests/:
       fails:
       streams:
       _answer:
+    recorded:
     install:
     replay:
     _launcher:
@@ -220,6 +263,9 @@ tests/:
     _taken:
     _append:
     _lines:
+  recordings.py:
+    FIXTURES:
+    rendered:
   test_claude.py:
     LAUNCH:
     BASE:
@@ -291,6 +337,13 @@ tests/:
     test_a_failure_carries_the_command_and_what_it_said:
     test_a_failure_that_said_nothing_still_names_the_command:
     test_a_command_that_prints_bytes_that_are_not_utf_8_still_reads:
+    test_an_argument_a_second_reader_would_act_on_still_arrives_whole:
+    test_a_spawned_command_runs_where_it_is_told_and_streams_as_it_goes:
+    test_a_spawned_command_finds_its_stdin_already_at_an_end:
+    test_a_quoted_part_hides_what_a_second_reader_would_act_on:
+    test_a_quote_in_a_part_is_doubled:
+    test_a_part_ending_in_a_backslash_does_not_escape_its_closing_quote:
+    test_a_backslash_before_a_quote_is_doubled_so_the_quote_still_counts:
   test_config.py:
     WITHOUT_CODEX:
     CLAUDE_SETTINGS:
@@ -329,6 +382,9 @@ tests/:
     test_a_document_that_breaks_its_model_lists_every_fault:
     test_a_write_lands_where_it_is_asked_for:
     test_a_write_that_fails_says_so:
+    test_an_append_adds_to_the_end_of_what_is_there:
+    test_an_append_that_fails_says_so:
+    test_a_write_keeps_the_line_endings_it_was_given:
   test_encoding_gate.py:
     test_a_read_with_no_encoding_fails_the_suite:
   test_fakes.py:
@@ -336,17 +392,18 @@ tests/:
     recording:
     test_a_stand_in_harness_replays_the_recording_it_was_given:
     test_a_stand_in_harness_streams_at_the_pace_it_was_given:
+    test_a_stand_in_harness_writes_each_line_to_the_stream_it_names:
     test_a_stand_in_harness_can_end_as_a_failed_round_does:
     test_a_stand_in_nobody_scripted_says_so:
   test_feed.py:
-    ROUND:
+    WORKTREE:
     feed:
     test_a_note_becomes_one_timestamped_line:
     test_a_note_with_nothing_to_add_is_its_label_alone:
-    test_a_detail_loses_the_rounds_own_directory:
-    test_a_path_outside_the_round_keeps_its_own_root:
-    test_a_sibling_of_the_round_that_starts_the_same_way_keeps_its_whole_path:
-    test_a_round_on_windows_loses_a_directory_written_the_windows_way:
+    test_a_detail_loses_the_worktrees_own_path:
+    test_a_path_outside_the_worktree_keeps_its_own_root:
+    test_a_sibling_of_the_worktree_that_starts_the_same_way_keeps_its_path:
+    test_a_detail_written_the_windows_way_loses_the_worktree_too:
     test_a_detail_spread_over_lines_becomes_one:
     test_a_detail_longer_than_the_feed_is_clipped:
     test_prose_becomes_a_line_for_each_line_it_holds:
@@ -405,16 +462,41 @@ tests/:
     test_a_lock_the_daemon_cannot_write_says_so:
     test_a_release_that_cannot_happen_leaves_the_failure_that_ended_the_run:
   test_recordings.py:
-    FIXTURES:
     RECORDED_IN:
     RECORDINGS:
-    rendered:
     test_a_recorded_stream_renders_as_its_golden_feed:
+  test_rounds.py:
+    RECORDING:
+    STAMP:
+    Unrenderable:
+      program:
+      first_round:
+      resume:
+      _events:
+    pinned:
+    worktree:
+    directory:
+    written:
+    test_a_round_runs_the_command_it_was_given_in_the_worktree:
+    test_the_feed_a_round_writes_is_the_feed_its_stream_renders_as:
+    test_a_round_keeps_the_harnesss_own_stream_as_it_arrived:
+    test_what_the_harness_says_on_stderr_lands_where_it_happened:
+    test_a_line_the_feed_cannot_write_costs_that_line_alone:
+    test_a_round_says_when_it_started_and_what_process_it_is:
+    test_a_round_that_finished_says_how_it_ended:
+    test_a_round_somebody_stopped_says_no_ending:
+    test_a_round_that_cannot_write_its_feed_stops_rather_than_stalls:
+    test_a_round_that_cannot_record_its_start_does_not_run_on:
   test_state.py:
     test_bootstrap_creates_a_directory_that_ignores_itself:
     test_bootstrap_heals_a_deleted_gitignore:
     test_bootstrap_says_so_when_a_file_sits_where_the_directory_goes:
     test_the_daemon_files_sit_in_the_state_directory:
+  test_teardown.py:
+    STARTS_A_CHILD:
+    gone:
+    test_a_kill_reaches_what_the_child_started:
+    test_a_kill_after_the_child_ended_leaves_its_pid_alone:
 tools/:
   forbid_invisible_characters.py:
     INVISIBLE_CATEGORY:

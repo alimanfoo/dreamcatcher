@@ -30,7 +30,7 @@ class Note:
 
     label: str
     detail: str = ""
-    subagent: bool = False
+    is_subagent: bool = False
 
 
 @dataclass(frozen=True)
@@ -42,7 +42,7 @@ class Prose:
     """
 
     text: str
-    subagent: bool = False
+    is_subagent: bool = False
 
 
 type Event = Note | Prose
@@ -57,49 +57,49 @@ class Renderer:
     from one that has hung.
     """
 
-    directory: PurePath
+    worktree: PurePath
     clock: Callable[[], datetime] = now
 
     def boundary(self, number: int, cause: str) -> str:
         """Return the line that opens a round, saying what caused it."""
-        return self._written([f"round {number}: {cause}"], subagent=False)
+        return self._stamp([f"round {number}: {cause}"], is_subagent=False)
 
     def render(self, event: Event) -> str:
         """Return the feed lines the event becomes, or nothing when it has none."""
         if isinstance(event, Note):
-            return self._written([self._noted(event)], event.subagent)
-        return self._written(
+            return self._stamp([self._render_note(event)], event.is_subagent)
+        return self._stamp(
             [line for line in event.text.splitlines() if line.strip()],
-            event.subagent,
+            event.is_subagent,
         )
 
-    def _noted(self, note: Note) -> str:
+    def _render_note(self, note: Note) -> str:
         """Return the one line a note becomes."""
         detail = self._shorten(note.detail)
         return f"[{note.label}] {detail}" if detail else f"[{note.label}]"
 
     def _shorten(self, detail: str) -> str:
-        """Return the detail as one clipped line, without the round's directory."""
-        one_line = " ".join(self._inside(detail).split())
+        """Return the detail as one clipped line, without the worktree's path."""
+        one_line = " ".join(self._strip_worktree(detail).split())
         if len(one_line) > WIDTH:
             return f"{one_line[:WIDTH]} ..."
         return one_line
 
-    def _inside(self, detail: str) -> str:
-        """Return the detail with the round's own directory off its front.
+    def _strip_worktree(self, detail: str) -> str:
+        """Return the detail with the path of the round's worktree off its front.
 
         The separator has to be there, so a sibling directory whose name starts
         the same way keeps its whole path. Either separator counts: a path
         arrives written the way the harness that reported it writes them.
         """
         for separator in ("/", "\\"):
-            start = f"{self.directory}{separator}"
+            start = f"{self.worktree}{separator}"
             if detail.startswith(start):
                 return detail[len(start) :]
         return detail
 
-    def _written(self, contents: list[str], subagent: bool) -> str:
+    def _stamp(self, contents: list[str], is_subagent: bool) -> str:
         """Return the contents as timestamped lines, indented for a subagent."""
-        indent = INDENT if subagent else ""
+        indent = INDENT if is_subagent else ""
         stamp = f"{self.clock().astimezone(UTC):%Y-%m-%dT%H:%M:%SZ}"
         return "".join(f"{stamp}  {indent}{content}\n" for content in contents)

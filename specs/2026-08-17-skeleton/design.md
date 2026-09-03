@@ -87,9 +87,12 @@ never touches the repo's own files. Contents:
   model, effort, rendered first prompt — frozen at dispatch), `watermark` (the
   relay high-water mark), and `rounds/<n>/` per round.
 - `rounds/<n>/` holds `round.json` (started and ended timestamps, exit status,
-  the round's cause, and the child pid while relevant), `feed.txt` (rendered,
-  timestamped), `raw.jsonl` (the harness's own stdout stream), and `inbox.json`
-  (the batch that caused the round, kept forever).
+  the child's pid, and the round's cause), `feed.txt` (rendered, timestamped),
+  `raw.jsonl` (the harness's own stdout stream), and `inbox.json` (the batch
+  that caused the round, kept forever). A round records its start as it spawns
+  and its ending as it ends, and a round that the daemon killed records no
+  ending at all, so one the daemon stopped reads as interrupted, which is what
+  it is.
 
 The round records are the story of record: a `round.json` with no end recorded
 is the interrupted detector, a final round's completed record is the final-round
@@ -209,13 +212,20 @@ parser to become events, which the renderer appends to `feed.txt` as timestamped
 lines; stderr lines flow into the same feed as pass-through lines, interleaved
 where they happened — the port's behaviour, one sink, and failures surface in
 the view you're already watching. `raw.jsonl` stays pure stdout for parser
-debugging. Liveness inside the daemon is the process handle; liveness for `scry`
-is `daemon.pid` plus the round records (rounds cannot outlive the daemon).
+debugging. Inside the daemon a round is alive until its record says how it
+ended, which is a little longer than the child process lives, so a round the
+daemon reads as finished has its whole story on disk. For `scry` liveness is
+`daemon.pid` plus the round records (rounds cannot outlive the daemon).
 
-Children die with the daemon, by design. Ctrl-C reaches the process group on
-POSIX; on Windows the daemon puts children in a Job Object configured to kill
-them when the daemon's handle closes. A `kill -9` orphan self-limits — its next
-write to the dead pipe fails — and the startup sweep catches stragglers.
+Children die with the daemon, by design. Each round leads a process group of its
+own on POSIX and sits in a Job Object of its own on Windows, so one call ends
+the round and everything that the round started, and the daemon makes that call
+for every round it holds as it goes down. Windows adds a guarantee that the
+daemon cannot lose: the job is set to empty itself when the daemon's last handle
+on it closes, which happens however the daemon ends. A `kill -9` orphan on POSIX
+self-limits — its next write to the dead pipe fails — and the startup sweep
+catches stragglers.
+
 Recovery is resume-from-transcript: both harnesses persist their session context
 incrementally, so an interrupted round's carry-on resume picks up where it left
 off, losing at most the work since the last event.
@@ -279,8 +289,10 @@ The resume and final-round prompt texts port verbatim from `catch.sh`'s
 interrupted, carry on"), low-risk because the resumed transcript carries the
 context.
 
-Any line either parser cannot render passes through to the feed unchanged — a
-broken render costs one line, never the log.
+Any line either parser cannot read passes through to the feed unchanged, and so
+does any line the feed cannot then render — a broken line costs one line, never
+the log. The two are separate steps and fail separately: reading turns a line
+into events, and rendering turns an event into text.
 
 ### The feed
 
@@ -300,10 +312,10 @@ other would mean inventing Claude's names for Codex's things, and would cost the
 reader the word that appears in `raw.jsonl` beside it.
 
 The feed puts an action's detail on one line, whatever shape the harness
-reported it in: it cuts the round's own directory off the front, collapses the
-whitespace, and clips what is left at 200 characters. So `[Edit] src/theme.css`
-reads as a path inside that directory, though the harness reported the whole
-absolute path.
+reported it in: it cuts the session's worktree off the front of a path,
+collapses the whitespace, and clips what is left at 200 characters. So
+`[Edit] src/theme.css` reads as a path inside the worktree, though the harness
+reported the whole absolute path.
 
 `scry GH123 --follow` shows the whole session: every round's feed concatenated
 in order, boundaries between them, following at the tail while a round is live.
@@ -396,22 +408,32 @@ Windows native is the target; CI runs the test suite on Windows, macOS, and
 Linux from the first commit, with a fake harness binary standing in for
 signed-in CLIs. All subprocess and file IO forces UTF-8 explicitly, and reads a
 byte that is not UTF-8 as the replacement character rather than failing, since a
-localised git can put one in a message. Programs are looked up on the PATH
-before they run, which is what reaches a `.cmd` on Windows, the form the harness
-CLIs take when npm installs them. Process teardown is process-group on POSIX and
-Job Objects on Windows, isolated in one module. Paths flow through `pathlib` end
-to end. The known pid-reuse wrinkle in the orphan sweep is accepted: the sweep
-runs once at startup against pids the daemon itself recorded, and the window is
-small.
+localised git can put one in a message. A write keeps the line endings it was
+given rather than the platform's, so a round's copy of what a harness streamed
+holds what the harness sent. Programs are looked up on the PATH before they run,
+which is what reaches a `.cmd` on Windows, the form the harness CLIs take when
+npm installs them. Windows runs a `.cmd` through cmd.exe, which reads the
+command line a second time under its own rules, after Python has quoted it for
+the program's own reader. So a batch file's line is built for both readers:
+every part of it quoted, and a quote inside a part doubled. A prompt then
+reaches the harness as it was written, whatever it holds. It also follows that
+the process the daemon starts is often not the one doing the work, since a
+`.cmd` is a shim and Windows has shims for other things too. Process teardown is
+therefore a whole tree, not a child: a process group on POSIX and a Job Object
+on Windows, isolated in one module. Paths flow through `pathlib` end to end. The
+known pid-reuse wrinkle in the orphan sweep is accepted: the sweep runs once at
+startup against pids the daemon itself recorded, and the window is small.
 
 ### Dependencies
 
 Python 3.12+ (`tomllib` in the standard library). The runtime shells out to
 `git`, `gh`, and the harness CLIs, which the user already has and has signed in.
-No `jq`, no `tmux`. Beyond that, three runtime dependencies, each mature and
-wheeled everywhere: pydantic validates every document the tool owns, psutil
-answers whether a pid is alive, and rich renders `scry`'s views. Nothing else in
-this phase; a richer UI can add its own later.
+No `jq`, no `tmux`. Beyond that, three runtime dependencies on every platform,
+each mature and wheeled everywhere: pydantic validates every document the tool
+owns, psutil answers whether a pid is alive, and rich renders `scry`'s views.
+Windows adds a fourth, pywin32, which is how teardown reaches the Job Object
+that holds a round there. Nothing else in this phase; a richer UI can add its
+own later.
 
 ## What changes, and what goes away
 

@@ -33,17 +33,15 @@ The golden beside each recording is the review surface: read it as the user of
 `scry` would, and judge the feed by it.
 """
 
-from pathlib import Path, PurePosixPath
+from pathlib import PurePosixPath
 
 import pytest
 from clocks import Ticking
+from recordings import FIXTURES, rendered
 
-from dreamcatcher.adapters import Adapter
 from dreamcatcher.claude import CLAUDE
 from dreamcatcher.codex import CODEX
 from dreamcatcher.feed import Renderer
-
-FIXTURES = Path(__file__).parent / "fixtures"
 
 RECORDED_IN = PurePosixPath("/private/tmp/dreamcatcher-recording")
 
@@ -52,16 +50,6 @@ RECORDED_IN = PurePosixPath("/private/tmp/dreamcatcher-recording")
 # So the directory says which recordings there are, and this needs no list of its
 # own that a new recording could be left out of.
 RECORDINGS = ((CLAUDE, "claude"), (CODEX, "codex"))
-
-
-def rendered(adapter: Adapter, recording: Path) -> str:
-    """Return the feed the whole recording renders as."""
-    renderer = Renderer(RECORDED_IN, clock=Ticking())
-    return "".join(
-        renderer.render(event)
-        for line in recording.read_text(encoding="utf-8").splitlines()
-        for event in adapter.read(line)
-    )
 
 
 @pytest.mark.parametrize(
@@ -73,6 +61,10 @@ def rendered(adapter: Adapter, recording: Path) -> str:
     ],
 )
 def test_a_recorded_stream_renders_as_its_golden_feed(adapter, recording):
-    feed = rendered(adapter, recording)
+    feed = rendered(
+        adapter,
+        recording.read_text(encoding="utf-8").splitlines(),
+        Renderer(RECORDED_IN, clock=Ticking()),
+    )
 
     assert feed == recording.with_suffix(".feed.txt").read_text(encoding="utf-8")
