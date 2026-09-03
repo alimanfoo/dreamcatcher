@@ -1,0 +1,10 @@
+/dream:smith GH12
+
+End every post you make on GitHub with this line, on a line of its own:
+
+<!-- dreamcatcher -->
+
+That means a pull request's description, a comment, a reply on a line of the
+diff, and an issue you file. The line tells dreamcatcher that the post is
+yours, so it never relays your own words back to you. GitHub renders nothing
+for an HTML comment, so nobody reading the post sees the line.
