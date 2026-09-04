@@ -8,6 +8,11 @@ from dreamcatcher.documents import Document, write_text
 
 STATE_DIRECTORY = '.dreamcatcher'
 
+class Candidate(Document):
+    issue: int
+    reason: str | None = None
+    is_eligible: bool
+
 class LastTick(Document):
     at: datetime
 

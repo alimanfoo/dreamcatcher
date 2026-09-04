@@ -74,6 +74,14 @@ def test_a_stand_in_prefers_the_rule_scripted_for_the_particular_call(fake):
     assert run("gh", "repo", "view") == "anything\n"
 
 
+def test_a_call_scripted_twice_answers_with_the_later_of_the_two(fake):
+    gh = fake("gh")
+    gh.replies("what it knew first\n", to="repo view")
+    gh.replies("what it knows now\n", to="repo view")
+
+    assert run("gh", "repo", "view") == "what it knows now\n"
+
+
 def test_a_call_no_rule_answers_says_the_stand_in_was_not_scripted(fake):
     fake("gh").replies("the listing\n", to="issue list")
 

@@ -61,7 +61,8 @@ class Fake:
     Every scripting method takes the call it answers, as the words that call's
     arguments open with. A method given none of those words answers every call,
     which is all a test needs of a harness. A test scripts one answer per call
-    where one program answers several, as `gh` does.
+    where one program answers several, as `gh` does, and scripting the same
+    call twice leaves the later answer standing.
     """
 
     base: Path
@@ -166,10 +167,13 @@ def _scripted_for(base: Path, arguments: list[str]) -> dict | None:
     A rule answers a call whose arguments open with the rule's own words, and
     the longest such rule wins. So a test can script a general answer and a
     particular one without minding which it scripts first.
+
+    Between two rules of the same length, the one scripted last wins, so a test
+    can script over an answer a fixture already gave.
     """
     answering = [
         rule
-        for rule in _lines(_scripted(base))
+        for rule in reversed(_lines(_scripted(base)))
         if arguments[: len(rule["when"])] == rule["when"]
     ]
     if not answering:

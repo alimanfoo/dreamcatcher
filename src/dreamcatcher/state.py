@@ -9,6 +9,23 @@ from dreamcatcher.documents import Document, write_text
 STATE_DIRECTORY = ".dreamcatcher"
 
 
+class Candidate(Document):
+    """One labelled issue a tick weighed, and what stood in its way.
+
+    A candidate with no reason is one that nothing stood in the way of. Every
+    candidate the tick writes down carries a reason, because the issue it
+    dispatched is named on its own.
+    """
+
+    issue: int
+    reason: str | None = None
+
+    @property
+    def is_eligible(self) -> bool:
+        """Whether nothing stands in the way of dispatching this issue."""
+        return self.reason is None
+
+
 class LastTick(Document):
     """When the daemon's most recent tick ran.
 
