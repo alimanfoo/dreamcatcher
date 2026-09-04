@@ -132,10 +132,17 @@ or expect doubled attempts on whatever was.
 Two costs of nesting, accepted: tools that ignore gitignore (`find`, some
 indexers) see repo copies inside the checkout — git, ripgrep, and the harnesses'
 own search skip them — and the extra path depth nudges toward Windows
-path-length limits on deep repos. One invariant is checked at dispatch, not
-assumed: the worktree path is strictly under `.dreamcatcher/worktrees/`. `run`
-refuses to start anywhere but a main checkout (a linked worktree's `.git` is a
-file, the same test as today).
+path-length limits on deep repos. The dispatch builds a worktree path from the
+state directory and the session key and takes none from a caller, so the path is
+under `.dreamcatcher/worktrees/` by construction and no check has to say so.
+`run` refuses to start anywhere but a main checkout (a linked worktree's `.git`
+is a file, the same test as today).
+
+The dispatch fetches origin's main before it cuts the branch, so a session
+starts from main as it is now rather than from whatever the checkout last heard
+about. A creation that fails from the worktree onwards takes the worktree and
+the branch away again. git names the branch before it reaches the worktree, so a
+failed `worktree add` has one to take away.
 
 ### The tick
 
@@ -213,18 +220,24 @@ lines; stderr lines flow into the same feed as pass-through lines, interleaved
 where they happened — the port's behaviour, one sink, and failures surface in
 the view you're already watching. `raw.jsonl` stays pure stdout for parser
 debugging. Inside the daemon a round is alive until its record says how it
-ended, which is a little longer than the child process lives, so a round the
-daemon reads as finished has its whole story on disk. For `scry` liveness is
-`daemon.pid` plus the round records (rounds cannot outlive the daemon).
+ended, which the round writes as soon as its child process has gone. The feed
+can still be catching up when the record lands: a pipe reaches its end only when
+every process holding it has closed it, and a process the harness left behind
+can hold one for as long as it likes, so a record that waited for the readers
+could wait for ever. For `scry` liveness is `daemon.pid` plus the round records
+(rounds cannot outlive the daemon).
 
 Children die with the daemon, by design. Each round leads a process group of its
 own on POSIX and sits in a Job Object of its own on Windows, so one call ends
-the round and everything that the round started, and the daemon makes that call
-for every round it holds as it goes down. Windows adds a guarantee that the
-daemon cannot lose: the job is set to empty itself when the daemon's last handle
-on it closes, which happens however the daemon ends. A `kill -9` orphan on POSIX
-self-limits — its next write to the dead pipe fails — and the startup sweep
-catches stragglers.
+the round and everything that the round started. The round makes that call for
+itself as soon as its child process has gone, and the daemon makes it for every
+round it still holds as it goes down. Windows adds a guarantee that the daemon
+cannot lose: the job is set to empty itself when the daemon's last handle on it
+closes, which happens however the daemon ends. POSIX has a gap that Windows has
+not: a process that starts a session of its own has left the round's group by
+then, so the signal never reaches it and it outlives the round. A `kill -9`
+orphan on POSIX self-limits — its next write to the dead pipe fails — and the
+startup sweep catches stragglers.
 
 Recovery is resume-from-transcript: both harnesses persist their session context
 incrementally, so an interrupted round's carry-on resume picks up where it left
@@ -428,9 +441,10 @@ follows that the process the daemon starts is often not the one doing the work,
 since a `.cmd` is a shim and Windows has shims for other things too. Process
 teardown is therefore a whole tree, not a child: a process group on POSIX and a
 Job Object on Windows, isolated in one module. Paths flow through `pathlib` end
-to end. The known pid-reuse wrinkle in the orphan sweep is accepted: the sweep
-runs once at startup against pids the daemon itself recorded, and the window is
-small.
+to end. The known pid-reuse wrinkles are accepted, because each window is small:
+the orphan sweep runs once at startup against pids the daemon itself recorded,
+and a round ends its own tree in the moment after it has waited for its child
+and let go of its pid.
 
 ### Dependencies
 

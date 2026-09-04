@@ -61,6 +61,23 @@ def test_a_label_one_harness_can_run_carries_that_block_alone(tmp_path):
     assert mapping.harness_settings == {Harness.CLAUDE: CLAUDE_SETTINGS}
 
 
+def test_a_label_either_harness_can_run_runs_on_the_one_the_run_named(tmp_path):
+    write_config(tmp_path, CONFIG)
+
+    mapping = read_config(tmp_path).dispatch[0]
+
+    assert mapping.choose_harness(Harness.CLAUDE) == Harness.CLAUDE
+    assert mapping.choose_harness(Harness.CODEX) == Harness.CODEX
+
+
+def test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named(tmp_path):
+    write_config(tmp_path, WITHOUT_CODEX)
+
+    mapping = read_config(tmp_path).dispatch[0]
+
+    assert mapping.choose_harness(Harness.CODEX) == Harness.CLAUDE
+
+
 @pytest.mark.parametrize(
     ("mistake", "text", "fault"),
     [

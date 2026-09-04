@@ -90,6 +90,7 @@ src/:
         __pydantic_extra__:
         label:
         harness_settings:
+        choose_harness:
         _carries_a_block:
       Config:
         interval:
@@ -182,9 +183,16 @@ src/:
       linked_pull_requests:
       blockers:
       _read:
+    harnesses.py:
+      ADAPTERS:
     lock.py:
       hold:
       _holder:
+    prompts.py:
+      MARKER:
+      ISSUE_PLACEHOLDER:
+      POSTSCRIPT:
+      compose_first_round_prompt:
     rounds.py:
       RoundRecord:
         started:
@@ -206,6 +214,21 @@ src/:
         _render:
         _pass_through:
         _append:
+    sessions.py:
+      BRANCH_PREFIX:
+      RECORD:
+      Session:
+        issue:
+        label:
+        branch:
+        worktree:
+        harness:
+        model:
+        effort:
+        prompt:
+        key:
+      create_session:
+      _back_out:
     state.py:
       STATE_DIRECTORY:
       LastTick:
@@ -215,6 +238,8 @@ src/:
         path:
         lock:
         last_tick:
+        worktrees:
+        sessions:
         bootstrap:
     teardown.py:
       OWN_SESSION:
@@ -361,6 +386,8 @@ tests/:
     test_the_settings_the_design_gives_defaults_for_have_them:
     test_a_setting_the_config_names_beats_its_default:
     test_a_label_one_harness_can_run_carries_that_block_alone:
+    test_a_label_either_harness_can_run_runs_on_the_one_the_run_named:
+    test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named:
     test_a_config_mistake_names_the_setting_and_the_fault:
     test_a_setting_a_harness_cannot_be_given_names_itself:
     test_a_repo_with_no_config_says_which_file_is_missing:
@@ -460,6 +487,8 @@ tests/:
     test_a_branch_that_never_existed_comes_back_empty:
     test_gh_takes_the_linked_pull_requests_command:
     test_a_blocked_issue_names_what_blocks_it:
+  test_harnesses.py:
+    test_every_harness_the_config_names_is_run_by_its_own_adapter:
   test_lock.py:
     refuse:
     dead_pid:
@@ -470,6 +499,10 @@ tests/:
     test_the_lock_is_released_when_the_daemon_fails:
     test_a_lock_the_daemon_cannot_write_says_so:
     test_a_release_that_cannot_happen_leaves_the_failure_that_ended_the_run:
+  test_prompts.py:
+    OPENINGS:
+    test_a_template_holding_other_words_in_braces_keeps_them:
+    test_the_prompt_that_opens_a_session_is_its_template_then_the_postscript:
   test_recordings.py:
     RECORDED_IN:
     RECORDINGS:
@@ -477,6 +510,8 @@ tests/:
   test_rounds.py:
     RECORDING:
     STAMP:
+    LEAVES_A_STRAGGLER:
+    AND_WAITS:
     Unrenderable:
       program:
       first_round:
@@ -485,7 +520,9 @@ tests/:
     pinned:
     worktree:
     directory:
+    straggler:
     written:
+    within:
     test_a_round_runs_the_command_it_was_given_in_the_worktree:
     test_the_feed_a_round_writes_is_the_feed_its_stream_renders_as:
     test_a_round_keeps_the_harnesss_own_stream_as_it_arrived:
@@ -496,6 +533,21 @@ tests/:
     test_a_round_somebody_stopped_says_no_ending:
     test_a_round_that_cannot_write_its_feed_stops_rather_than_stalls:
     test_a_round_that_cannot_record_its_start_does_not_run_on:
+    test_a_round_a_straggler_outlives_still_records_an_ending:
+    test_a_round_a_straggler_outlives_still_stops:
+  test_sessions.py:
+    KEY:
+    BRANCH:
+    checkout:
+    state:
+    mapping:
+    written:
+    test_a_session_cuts_a_worktree_of_its_own_under_the_state_directory:
+    test_a_session_cuts_a_branch_of_its_own_from_origins_main_as_it_is_now:
+    test_a_session_records_what_it_was_dispatched_with:
+    test_a_session_runs_on_the_harness_the_run_named:
+    test_a_session_git_cannot_cut_leaves_no_branch_behind:
+    test_a_session_that_cannot_record_leaves_no_worktree_and_no_branch:
   test_state.py:
     test_bootstrap_creates_a_directory_that_ignores_itself:
     test_bootstrap_heals_a_deleted_gitignore:
@@ -503,8 +555,10 @@ tests/:
     test_the_daemon_files_sit_in_the_state_directory:
   test_teardown.py:
     STARTS_A_CHILD:
+    AND_WAITS:
     gone:
     test_a_kill_reaches_what_the_child_started:
+    test_a_child_that_ends_by_itself_takes_what_it_started_with_it:
     test_a_kill_after_the_child_ended_leaves_its_pid_alone:
 tools/:
   forbid_invisible_characters.py:

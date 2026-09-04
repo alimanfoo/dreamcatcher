@@ -4,7 +4,7 @@
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from threading import Lock, Thread
+from threading import Event, Lock, Thread
 from dreamcatcher.adapters import Adapter
 from dreamcatcher.clock import now
 from dreamcatcher.commands import spawn

@@ -55,6 +55,18 @@ class DispatchMapping(Document):
         """The settings block of each harness that can run the label."""
         return self.__pydantic_extra__
 
+    def choose_harness(self, named: Harness) -> Harness:
+        """Return the harness that runs this label, given what the run named.
+
+        A label carrying a block for the named harness runs on that one. There
+        are two harnesses, so a label with no block for the named one carries a
+        block for the other alone, and runs on that one whatever the run named.
+        So which harnesses can run a label is already in the blocks that the
+        label carries, and the config needs no pin of its own.
+        """
+        settings = self.harness_settings
+        return named if named in settings else next(iter(settings))
+
     @model_validator(mode="after")
     def _carries_a_block(self) -> Self:
         """Refuse a label with no harness able to run it."""
