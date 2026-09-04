@@ -21,19 +21,25 @@ class Document(BaseModel):
 def read_toml[DocumentT: Document](model: type[DocumentT], path: Path) -> DocumentT:
     """Return the document the TOML file holds, or raise ReportableError."""
     try:
-        text = path.read_text(encoding="utf-8")
-    except FileNotFoundError as error:
-        raise ReportableError(f"{path} does not exist.") from error
-    except UnicodeDecodeError as error:
-        raise ReportableError(f"{path} is not UTF-8 text.") from error
-    except OSError as error:
-        raise ReportableError(f"cannot read {path}: {error}.") from error
-    try:
-        data = tomllib.loads(text)
+        data = tomllib.loads(_read_text(path))
     except tomllib.TOMLDecodeError as error:
         raise ReportableError(f"{path} is not valid TOML: {error}.") from error
     try:
         return model.model_validate(data)
+    except ValidationError as error:
+        raise ReportableError(_report(path, error)) from error
+
+
+def read_json[DocumentT: Document](model: type[DocumentT], path: Path) -> DocumentT:
+    """Return the document the JSON file holds, or raise ReportableError.
+
+    Every document the tool writes for itself is JSON, so this is how the tool
+    reads its own records back. pydantic reads the JSON and checks the model in
+    one step, so a file that is not JSON at all reports as the first fault the
+    document has.
+    """
+    try:
+        return model.model_validate_json(_read_text(path))
     except ValidationError as error:
         raise ReportableError(_report(path, error)) from error
 
@@ -62,6 +68,23 @@ def append_text(text: str, path: Path) -> None:
 def write_json(document: Document, path: Path) -> None:
     """Write the document to path as JSON."""
     write_text(document.model_dump_json(indent=2) + "\n", path)
+
+
+def _read_text(path: Path) -> str:
+    """Return the text the file at path holds, read as UTF-8.
+
+    Raise ReportableError when the read fails. A document that is not there, or
+    that nothing can read, is something the user can act on, so it reads as a
+    message rather than a traceback.
+    """
+    try:
+        return path.read_text(encoding="utf-8")
+    except FileNotFoundError as error:
+        raise ReportableError(f"{path} does not exist.") from error
+    except UnicodeDecodeError as error:
+        raise ReportableError(f"{path} is not UTF-8 text.") from error
+    except OSError as error:
+        raise ReportableError(f"cannot read {path}: {error}.") from error
 
 
 def _write(text: str, path: Path, mode: str) -> None:

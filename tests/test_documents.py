@@ -2,8 +2,19 @@ from pathlib import Path
 
 import pytest
 
-from dreamcatcher.documents import Document, append_text, read_toml, write_text
+from dreamcatcher.documents import (
+    Document,
+    append_text,
+    read_json,
+    read_toml,
+    write_text,
+)
 from dreamcatcher.errors import ReportableError
+
+READERS = [
+    pytest.param(read_toml, id="toml"),
+    pytest.param(read_json, id="json"),
+]
 
 
 class Sample(Document):
@@ -23,16 +34,33 @@ def test_a_valid_document_reads_back(tmp_path):
     assert read_toml(Sample, document) == Sample(name="probe", count=3)
 
 
-def test_a_missing_document_names_the_path(tmp_path):
+def test_a_valid_json_document_reads_back(tmp_path):
+    document = write(tmp_path, '{"name": "probe", "count": 3}')
+
+    assert read_json(Sample, document) == Sample(name="probe", count=3)
+
+
+@pytest.mark.parametrize("read", READERS)
+def test_a_missing_document_names_the_path(tmp_path, read):
     with pytest.raises(ReportableError) as error:
-        read_toml(Sample, tmp_path / "sample.toml")
+        read(Sample, tmp_path / "sample.toml")
 
     assert str(error.value) == f"{tmp_path / 'sample.toml'} does not exist."
 
 
-def test_an_unreadable_document_says_so(tmp_path):
+@pytest.mark.parametrize("read", READERS)
+def test_an_unreadable_document_says_so(tmp_path, read):
     with pytest.raises(ReportableError, match="cannot read"):
-        read_toml(Sample, tmp_path)
+        read(Sample, tmp_path)
+
+
+@pytest.mark.parametrize("read", READERS)
+def test_a_document_that_is_not_utf_8_says_so(tmp_path, read):
+    document = tmp_path / "sample.toml"
+    document.write_bytes('name = "Ren\u00e9"\n'.encode("utf-16"))
+
+    with pytest.raises(ReportableError, match="not UTF-8"):
+        read(Sample, document)
 
 
 def test_a_document_that_is_not_toml_says_so(tmp_path):
@@ -42,12 +70,11 @@ def test_a_document_that_is_not_toml_says_so(tmp_path):
         read_toml(Sample, document)
 
 
-def test_a_document_that_is_not_utf_8_says_so(tmp_path):
-    document = tmp_path / "sample.toml"
-    document.write_bytes('name = "Ren\u00e9"\n'.encode("utf-16"))
+def test_a_document_that_is_not_json_says_so(tmp_path):
+    document = write(tmp_path, "not json at all\n")
 
-    with pytest.raises(ReportableError, match="not UTF-8"):
-        read_toml(Sample, document)
+    with pytest.raises(ReportableError, match="Invalid JSON"):
+        read_json(Sample, document)
 
 
 def test_a_document_that_breaks_its_model_lists_every_fault(tmp_path):
@@ -62,6 +89,21 @@ def test_a_document_that_breaks_its_model_lists_every_fault(tmp_path):
         "  count: Input should be a valid integer, "
         "unable to parse string as an integer\n"
         "  extra: Extra inputs are not permitted"
+    )
+
+
+def test_a_json_document_that_breaks_its_model_lists_every_fault(tmp_path):
+    document = write(tmp_path, '{"count": "many", "extra": true}')
+
+    with pytest.raises(ReportableError) as error:
+        read_json(Sample, document)
+
+    assert str(error.value) == (
+        f"{document} is not valid:\n"
+        "  extra: Extra inputs are not permitted\n"
+        "  name: Field required\n"
+        "  count: Input should be a valid integer, "
+        "unable to parse string as an integer"
     )
 
 

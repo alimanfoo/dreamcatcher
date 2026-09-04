@@ -105,9 +105,11 @@ src/:
       Document:
         model_config:
       read_toml:
+      read_json:
       write_text:
       append_text:
       write_json:
+      _read_text:
       _write:
       _report:
     errors.py:
@@ -397,16 +399,20 @@ tests/:
     test_a_linked_worktree_is_refused:
     test_the_state_directory_sits_in_the_checkout:
   test_documents.py:
+    READERS:
     Sample:
       name:
       count:
     write:
     test_a_valid_document_reads_back:
+    test_a_valid_json_document_reads_back:
     test_a_missing_document_names_the_path:
     test_an_unreadable_document_says_so:
-    test_a_document_that_is_not_toml_says_so:
     test_a_document_that_is_not_utf_8_says_so:
+    test_a_document_that_is_not_toml_says_so:
+    test_a_document_that_is_not_json_says_so:
     test_a_document_that_breaks_its_model_lists_every_fault:
+    test_a_json_document_that_breaks_its_model_lists_every_fault:
     test_a_write_lands_where_it_is_asked_for:
     test_a_write_that_fails_says_so:
     test_an_append_adds_to_the_end_of_what_is_there:
