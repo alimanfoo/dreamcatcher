@@ -15,7 +15,7 @@ from dreamcatcher.adapters import Adapter, Launch
 from dreamcatcher.claude import CLAUDE
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Event, Note, Renderer
-from dreamcatcher.rounds import Round, RoundRecord
+from dreamcatcher.rounds import Round, RoundRecord, Workspace
 
 RECORDING = FIXTURES / 'claude' / 'round.jsonl'
 STAMP = '2026-08-19T18:41:58Z'

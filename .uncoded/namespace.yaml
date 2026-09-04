@@ -198,6 +198,9 @@ src/:
         pid:
         ended:
         status:
+      Workspace:
+        worktree:
+        directory:
       Round:
         record:
         feed:

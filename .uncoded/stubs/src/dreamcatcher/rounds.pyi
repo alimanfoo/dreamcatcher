@@ -2,6 +2,7 @@
 # src/dreamcatcher/rounds.py
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from threading import Event, Lock, Thread
@@ -18,13 +19,17 @@ class RoundRecord(Document):
     ended: datetime | None = None
     status: int | None = None
 
+class Workspace:
+    worktree: Path
+    directory: Path
+
 class Round:
     record: Path
     feed: Path
     raw: Path
     is_alive: bool
 
-    def __init__(self, adapter: Adapter, command: list[str], worktree: Path, directory: Path, clock: Callable[[], datetime]) -> None:
+    def __init__(self, adapter: Adapter, command: list[str], workspace: Workspace, clock: Callable[[], datetime]) -> None:
         ...
 
     def wait(self) -> None:

@@ -14,6 +14,7 @@ streams on threads of its own, and records its own ending on another.
 """
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from threading import Event, Lock, Thread
@@ -41,6 +42,20 @@ class RoundRecord(Document):
     status: int | None = None
 
 
+@dataclass(frozen=True)
+class Workspace:
+    """Where one round runs, and where it writes what it did.
+
+    Both paths come from the session the round belongs to: the round runs in
+    that session's worktree, and writes into a directory of its own under the
+    session's own files. They travel together because no round ever has one
+    without the other.
+    """
+
+    worktree: Path
+    directory: Path
+
+
 class Round:
     """One round of a session, running as a child of the daemon.
 
@@ -52,20 +67,19 @@ class Round:
         self,
         adapter: Adapter,
         command: list[str],
-        worktree: Path,
-        directory: Path,
+        workspace: Workspace,
         clock: Callable[[], datetime] = now,
     ) -> None:
-        """Start the command as a round in worktree, recording into directory."""
+        """Start the command as a round in the workspace it was given."""
         self.adapter = adapter
-        self.directory = directory
+        self.workspace = workspace
         self.clock = clock
-        self.renderer = Renderer(worktree, clock=clock)
+        self.renderer = Renderer(workspace.worktree, clock=clock)
         self.started = clock()
         self.is_interrupted = False
         self._ended = Event()
         self._writing = Lock()
-        self.child = spawn(*command, cwd=worktree)
+        self.child = spawn(*command, cwd=workspace.worktree)
         try:
             write_json(
                 RoundRecord(started=self.started, pid=self.child.pid), self.record
@@ -88,17 +102,17 @@ class Round:
     @property
     def record(self) -> Path:
         """The file saying when the round started, and how it ended."""
-        return self.directory / "round.json"
+        return self.workspace.directory / "round.json"
 
     @property
     def feed(self) -> Path:
         """The file holding the round as a reader reads it."""
-        return self.directory / "feed.txt"
+        return self.workspace.directory / "feed.txt"
 
     @property
     def raw(self) -> Path:
         """The file holding the harness's own stdout, as it arrived."""
-        return self.directory / "raw.jsonl"
+        return self.workspace.directory / "raw.jsonl"
 
     @property
     def is_alive(self) -> bool:
