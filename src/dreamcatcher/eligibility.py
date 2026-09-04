@@ -1,15 +1,17 @@
 """Judge which of the repository's labelled issues a tick can dispatch.
 
-Every read here biases the daemon toward doing nothing. A listing that failed
-answers unknown, so the tick dispatches nothing at all. A claim the tool cannot
-check reads as claimed, and a blocker it cannot check reads as blocking. So a
-GitHub error can cost the tool a tick, and it can never dispatch an issue twice
-or dispatch one out of turn.
+Every read of GitHub here is biased toward doing nothing. If the tool cannot read
+the issue listing, it answers Unknown, and the tick dispatches nothing at all. If
+it cannot check whether anything claims an issue, it treats the issue as claimed.
+If it cannot check what blocks an issue, it treats the issue as blocked. An error
+from GitHub can therefore cost the daemon a tick, but the daemon can never
+dispatch an issue twice, and never dispatch one out of turn.
 
-Two questions ask who has a claim on an issue, because they answer different
-things. A session of this run says this daemon is working on it, which covers
-the time before any pull request exists. GitHub's own link says somebody has a
-pull request open on it, which covers every attempt whose worktree is not here.
+Two of the checks ask who has a claim on an issue, and they answer different
+questions. A session of the current run says that this daemon is already working
+on the issue, which covers the time before any pull request exists. GitHub's own
+link from an issue to its pull requests says that somebody has a pull request
+open on it, which covers every attempt whose worktree is somewhere else.
 """
 
 from collections import defaultdict
@@ -31,13 +33,16 @@ def judge_issues(
 ) -> list[Candidate] | Unknown:
     """Return every labelled issue assigned to the user, oldest first.
 
-    Each answer says what stood in the way of dispatching that issue, and a
-    candidate with nothing in its way is one the caller can dispatch. The
-    claimed issues are the ones a session of this run is already working on,
-    which the caller knows and GitHub does not.
+    Each issue comes back as a candidate that says what stood in the way of
+    dispatching it. A candidate with nothing in its way is one the caller can
+    dispatch.
 
-    A listing the tool could not read answers unknown for the whole tick, since
-    an issue it cannot see is one it might dispatch a second time.
+    The caller passes in `claimed`, the issues that a session of this run is
+    already working on. The caller knows about those and GitHub does not.
+
+    If the tool could not read the listing, it answers Unknown for the whole
+    tick. An issue that it cannot see is one that it might dispatch a second
+    time.
     """
     listed = _list_issues(repository, config)
     if isinstance(listed, Unknown):
@@ -58,8 +63,8 @@ def _list_issues(
 ) -> list[tuple[Issue, list[str]]] | Unknown:
     """Return each listed issue with the mapped labels it carries, oldest first.
 
-    The issue's number breaks a tie, so two issues filed in the same second
-    come back in the same order every tick.
+    Two issues can be filed in the same second, so the issue's number breaks the
+    tie. They then come back in the same order on every tick.
     """
     labels: defaultdict[int, list[str]] = defaultdict(list)
     found: dict[int, Issue] = {}
@@ -85,8 +90,8 @@ def _find_obstacle(
 ) -> str | None:
     """Return what stands in the way of dispatching the issue, or nothing.
 
-    The label check comes first, because it costs no GitHub call and because an
-    issue that names two skills has not said which one to run.
+    An issue that names two skills has not said which one to run, so the label
+    check comes first. It also costs no call to GitHub.
     """
     if len(labels) > 1:
         return f"carries more than one mapped label: {', '.join(sorted(labels))}"
@@ -98,9 +103,9 @@ def _find_obstacle(
 def _check_pull_requests(repository: str, issue: int) -> str | None:
     """Return what says somebody has a pull request open on the issue.
 
-    GitHub lists only open pull requests here, so an attempt that was declined
-    drops out and leaves its issue free to go again. Removing the label is how
-    the user says stop.
+    GitHub lists only open pull requests here. An attempt that was declined
+    therefore drops out of the listing, and its issue is free to go again. To
+    stop that, the user removes the label.
     """
     linked = list_linked_pull_requests(repository, issue)
     if isinstance(linked, Unknown):
@@ -112,7 +117,7 @@ def _check_pull_requests(repository: str, issue: int) -> str | None:
 
 
 def _check_blockers(repository: str, issue: int) -> str | None:
-    """Return what still blocks the issue, or nothing when nothing open does."""
+    """Return what still blocks the issue, or nothing when no blocker is open."""
     blocking = list_blockers(repository, issue)
     if isinstance(blocking, Unknown):
         return f"cannot tell what blocks it: {blocking.reason}"
