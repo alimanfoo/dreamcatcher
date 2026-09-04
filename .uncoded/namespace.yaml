@@ -196,6 +196,7 @@ src/:
       RoundRecord:
         started:
         pid:
+        cause:
         ended:
         status:
       Workspace:
@@ -514,6 +515,7 @@ tests/:
   test_rounds.py:
     RECORDING:
     STAMP:
+    CAUSE:
     LEAVES_A_STRAGGLER:
     AND_WAITS:
     Unrenderable:
@@ -532,7 +534,7 @@ tests/:
     test_a_round_keeps_the_harnesss_own_stream_as_it_arrived:
     test_what_the_harness_says_on_stderr_lands_where_it_happened:
     test_a_line_the_feed_cannot_write_costs_that_line_alone:
-    test_a_round_says_when_it_started_and_what_process_it_is:
+    test_a_round_says_when_it_started_what_caused_it_and_what_process_it_is:
     test_a_round_that_finished_says_how_it_ended:
     test_a_round_somebody_stopped_says_no_ending:
     test_a_round_that_cannot_write_its_feed_stops_rather_than_stalls:

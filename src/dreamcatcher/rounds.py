@@ -7,7 +7,8 @@ worktree. It writes into a directory of its own as it goes.
 on a parser can read what the harness really sent. `feed.txt` is that same stream
 read through the harness's adapter and rendered as lines a person can read, with
 whatever the harness said on stderr among them, where it happened. `round.json`
-says when the round started, what process it ran as, and how it ended.
+says when the round started, what process it ran as, what caused it, and how it
+ended.
 
 The daemon watches a round rather than waiting for it, so a round reads its own
 streams on threads of its own, and records its own ending on another.
@@ -30,6 +31,11 @@ from dreamcatcher.feed import Prose, Renderer
 class RoundRecord(Document):
     """What a round says about itself, written at each end of the round.
 
+    The cause is what woke the round, in the words the daemon decided it in:
+    the dispatch that opened the session, or whatever a later tick found for it
+    to do. A reader of the session's rounds then reads the story of why each
+    one ran.
+
     A record with no ending means the round was interrupted. Either the daemon
     exited while the round was still going, or the daemon stopped the round
     itself. Both leave work half done, so a later tick resumes the round rather
@@ -38,6 +44,7 @@ class RoundRecord(Document):
 
     started: datetime
     pid: int
+    cause: str
     ended: datetime | None = None
     status: int | None = None
 
@@ -68,11 +75,13 @@ class Round:
         adapter: Adapter,
         command: list[str],
         workspace: Workspace,
+        cause: str,
         clock: Callable[[], datetime] = now,
     ) -> None:
         """Start the command as a round in the workspace it was given."""
         self.adapter = adapter
         self.workspace = workspace
+        self.cause = cause
         self.clock = clock
         self.renderer = Renderer(workspace.worktree, clock=clock)
         self.started = clock()
@@ -82,7 +91,8 @@ class Round:
         self.child = spawn(*command, cwd=workspace.worktree)
         try:
             write_json(
-                RoundRecord(started=self.started, pid=self.child.pid), self.record
+                RoundRecord(started=self.started, pid=self.child.pid, cause=cause),
+                self.record,
             )
         except ReportableError:
             # A round nothing recorded is a round nothing will watch or find
@@ -191,6 +201,7 @@ class Round:
                     RoundRecord(
                         started=self.started,
                         pid=self.child.pid,
+                        cause=self.cause,
                         ended=self.clock(),
                         status=status,
                     ),

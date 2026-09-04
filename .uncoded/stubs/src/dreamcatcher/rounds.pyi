@@ -16,6 +16,7 @@ from dreamcatcher.feed import Prose, Renderer
 class RoundRecord(Document):
     started: datetime
     pid: int
+    cause: str
     ended: datetime | None = None
     status: int | None = None
 
@@ -29,7 +30,7 @@ class Round:
     raw: Path
     is_alive: bool
 
-    def __init__(self, adapter: Adapter, command: list[str], workspace: Workspace, clock: Callable[[], datetime]) -> None:
+    def __init__(self, adapter: Adapter, command: list[str], workspace: Workspace, cause: str, clock: Callable[[], datetime]) -> None:
         ...
 
     def wait(self) -> None:
