@@ -15,13 +15,13 @@ from dreamcatcher.state import StateDirectory
 BRANCH_PREFIX = 'dreamcatcher-'
 RECORD = 'session.json'
 
-def create_session(state: StateDirectory, mapping: DispatchMapping, named: Harness, issue: int, at: datetime) -> Session:
+def create_session(state: StateDirectory, mapping: DispatchMapping, named: Harness, issue: int, at: datetime) -> SessionRecord:
     ...
 
 def _back_out(root: Path, worktree: Path, branch: str) -> None:
     ...
 
-class Session(Document):
+class SessionRecord(Document):
     issue: int
     label: str
     branch: str

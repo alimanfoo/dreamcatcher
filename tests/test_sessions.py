@@ -5,7 +5,7 @@ from conftest import CONFIG, commit, git
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import CONFIG_NAME, Harness, read_config
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.sessions import Session, create_session
+from dreamcatcher.sessions import SessionRecord, create_session
 from dreamcatcher.state import StateDirectory
 
 KEY = "GH12-20260819-184158"
@@ -35,7 +35,7 @@ def mapping(checkout):
 def written(state):
     """Return the record that the session wrote about itself."""
     record = state.sessions / KEY / "session.json"
-    return Session.model_validate_json(record.read_text(encoding="utf-8"))
+    return SessionRecord.model_validate_json(record.read_text(encoding="utf-8"))
 
 
 def test_a_session_cuts_a_worktree_of_its_own_under_the_state_directory(state, mapping):

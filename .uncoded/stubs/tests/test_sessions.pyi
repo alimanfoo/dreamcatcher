@@ -7,7 +7,7 @@ from conftest import CONFIG, commit, git
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import CONFIG_NAME, Harness, read_config
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.sessions import Session, create_session
+from dreamcatcher.sessions import SessionRecord, create_session
 from dreamcatcher.state import StateDirectory
 
 KEY = 'GH12-20260819-184158'

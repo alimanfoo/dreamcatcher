@@ -31,7 +31,7 @@ BRANCH_PREFIX = "dreamcatcher-"
 RECORD = "session.json"
 
 
-class Session(Document):
+class SessionRecord(Document):
     """The issue a session works on, and the settings it runs its rounds with.
 
     The dispatch settles all of these, and no later round changes any of
@@ -65,7 +65,7 @@ def create_session(
     named: Harness,
     issue: int,
     at: datetime,
-) -> Session:
+) -> SessionRecord:
     """Create a session for the issue, and return what it was dispatched with.
 
     The session runs on the harness that this label and the run settle between
@@ -83,7 +83,7 @@ def create_session(
     harness = mapping.choose_harness(named)
     settings = mapping.harness_settings[harness]
     key = f"GH{issue}-{at:%Y%m%d-%H%M%S}"
-    session = Session(
+    session = SessionRecord(
         issue=issue,
         label=mapping.label,
         branch=f"{BRANCH_PREFIX}{key}",

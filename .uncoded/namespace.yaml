@@ -220,7 +220,7 @@ src/:
     sessions.py:
       BRANCH_PREFIX:
       RECORD:
-      Session:
+      SessionRecord:
         issue:
         label:
         branch:
