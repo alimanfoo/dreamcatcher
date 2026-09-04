@@ -469,25 +469,47 @@ Marking is injected by the dispatcher; the skill needs no knowledge of it.
 
 Windows native is the target; CI runs the test suite on Windows, macOS, and
 Linux from the first commit, with a fake harness binary standing in for
-signed-in CLIs. All subprocess and file IO forces UTF-8 explicitly, and reads a
-byte that is not UTF-8 as the replacement character rather than failing, since a
-localised git can put one in a message. A write keeps the line endings it was
-given rather than the platform's, so a round's copy of what a harness streamed
-holds what the harness sent. Programs are looked up on the PATH before they run,
-which is what reaches a `.cmd` on Windows, the form the harness CLIs take when
-npm installs them. Windows runs a `.cmd` through cmd.exe, which reads the
-command line a second time under its own rules, after Python has quoted it for
-the program's own reader. So a batch file's line is built for both readers:
-every part of it quoted, and a quote inside a part doubled. A prompt then
-reaches the harness as it was written, whatever it holds. It also follows that
-the process the daemon starts is often not the one doing the work, since a
-`.cmd` is a shim and Windows has shims for other things too. Process teardown is
-therefore a whole tree, not a child: a process group on POSIX and a Job Object
-on Windows, isolated in one module. Paths flow through `pathlib` end to end. The
-known pid-reuse wrinkles are accepted, because each window is small: the orphan
-sweep runs once at startup against pids the daemon itself recorded, and a round
-ends its own tree in the moment after it has waited for its child and let go of
-its pid.
+signed-in CLIs.
+
+All subprocess and file IO forces UTF-8 explicitly, and reads a byte that is not
+UTF-8 as the replacement character rather than failing, since a localised git
+can put one in a message.
+
+A write keeps the line endings it was given rather than the platform's, so a
+round's copy of what a harness streamed holds what the harness sent.
+
+Programs are looked up on the PATH before they run, which is what reaches a
+`.cmd` on Windows, the form the harness CLIs take when npm installs them.
+
+The current directory is no part of that lookup. Windows searches it ahead of
+the PATH, and the daemon's current directory is the watched checkout for its
+whole life, so a file named `git.exe` at that checkout's root would otherwise
+run in place of the real tool. The daemon takes the current directory back out
+of the search by setting `NoDefaultCurrentDirectoryInExePath` in its own
+process.
+
+Every child inherits the name. Windows itself, cmd.exe and Python each read it,
+so a lookup the harness makes reads the PATH alone too. That carries a cost the
+design accepts: a command in a watched repository that runs a program from the
+current directory by its bare name stops finding it.
+
+Windows runs a `.cmd` through cmd.exe, which reads the command line a second
+time under its own rules, after Python has quoted it for the program's own
+reader. So a batch file's line is built for both readers: every part of it
+quoted, and a quote inside a part doubled. A prompt then reaches the harness as
+it was written, whatever it holds.
+
+It also follows that the process the daemon starts is often not the one doing
+the work, since a `.cmd` is a shim and Windows has shims for other things too.
+Process teardown is therefore a whole tree, not a child: a process group on
+POSIX and a Job Object on Windows, isolated in one module.
+
+Paths flow through `pathlib` end to end.
+
+The known pid-reuse wrinkles are accepted, because each window is small: the
+orphan sweep runs once at startup against pids the daemon itself recorded, and a
+round ends its own tree in the moment after it has waited for its child and let
+go of its pid.
 
 ### Dependencies
 
