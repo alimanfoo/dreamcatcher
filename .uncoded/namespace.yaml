@@ -94,12 +94,14 @@ src/:
         max_agents:
         assignee:
         dispatch:
+        mapped_harnesses:
         _each_label_maps_once:
       read_config:
     daemon.py:
       Daemon:
         __init__:
         run:
+        _locate_harnesses:
         tick:
     documents.py:
       Document:
@@ -287,6 +289,7 @@ tests/:
     upstream:
     cloned:
     watched:
+    stand_ins:
     fake:
   fakes.py:
     UNSCRIPTED:
@@ -413,6 +416,8 @@ tests/:
     Waiting:
       __init__:
       __call__:
+    harnesses:
+    alone:
     idling:
     test_the_daemon_ticks_on_the_interval_until_the_user_interrupts:
     test_every_tick_records_when_it_ran:
@@ -423,6 +428,8 @@ tests/:
     test_a_directory_that_is_not_a_repository_is_refused:
     test_a_linked_worktree_is_refused:
     test_the_state_directory_sits_in_the_checkout:
+    test_a_run_refuses_when_a_harness_it_could_dispatch_to_is_not_installed:
+    test_a_run_refuses_when_the_harness_it_was_named_is_not_installed:
   test_documents.py:
     READERS:
     Sample:

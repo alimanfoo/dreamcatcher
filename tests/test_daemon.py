@@ -2,11 +2,35 @@ import os
 
 import pytest
 from clocks import Ticking
+from conftest import CONFIG_HEAD, SMITH_CLAUDE
 
 from dreamcatcher.config import CONFIG_NAME, Harness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.state import LastTick, StateDirectory
+
+
+@pytest.fixture
+def harnesses(fake):
+    """Both harness CLIs on the PATH, so a run gets past its startup check."""
+    return {program: fake(program) for program in ("claude", "codex")}
+
+
+@pytest.fixture
+def alone(fake, stand_ins, monkeypatch):
+    """Return a factory installing these stand-ins and nothing else at all.
+
+    A harness the developer installed for their own use sits on the PATH of
+    the machine the suite runs on, and would answer a startup check that a
+    test means to fail. So the PATH holds the stand-ins alone.
+    """
+
+    def install(*programs: str) -> None:
+        for program in programs:
+            fake(program)
+        monkeypatch.setenv("PATH", str(stand_ins))
+
+    return install
 
 
 class Waiting:
@@ -28,7 +52,7 @@ def idling(root, ticks: int = 2) -> tuple[Daemon, Waiting, Ticking]:
     return Daemon(root, Harness.CLAUDE, clock=ticking, wait=waiting), waiting, ticking
 
 
-def test_the_daemon_ticks_on_the_interval_until_the_user_interrupts(watched):
+def test_the_daemon_ticks_on_the_interval_until_the_user_interrupts(watched, harnesses):
     daemon, waiting, _ = idling(watched)
 
     daemon.run()
@@ -36,7 +60,7 @@ def test_the_daemon_ticks_on_the_interval_until_the_user_interrupts(watched):
     assert waiting.waited == [300, 300]
 
 
-def test_every_tick_records_when_it_ran(watched):
+def test_every_tick_records_when_it_ran(watched, harnesses):
     daemon, _, ticking = idling(watched)
 
     daemon.run()
@@ -46,7 +70,9 @@ def test_every_tick_records_when_it_ran(watched):
     assert LastTick.model_validate_json(recorded).at == ticking.readings[-1]
 
 
-def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(watched):
+def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(
+    watched, harnesses
+):
     daemon, _, _ = idling(watched)
 
     daemon.run()
@@ -55,7 +81,7 @@ def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(watched
     assert not daemon.state.lock.exists()
 
 
-def test_a_second_daemon_refuses_while_the_first_holds_the_repo(watched):
+def test_a_second_daemon_refuses_while_the_first_holds_the_repo(watched, harnesses):
     daemon, _, _ = idling(watched)
     daemon.state.bootstrap()
     daemon.state.lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
@@ -89,3 +115,21 @@ def test_the_state_directory_sits_in_the_checkout(watched):
     daemon = Daemon(watched, Harness.CLAUDE)
 
     assert daemon.state == StateDirectory(watched)
+
+
+def test_a_run_refuses_when_a_harness_it_could_dispatch_to_is_not_installed(
+    watched, alone
+):
+    alone("claude")
+    daemon, _, _ = idling(watched)
+
+    with pytest.raises(ReportableError, match="codex is not on the PATH"):
+        daemon.run()
+
+
+def test_a_run_refuses_when_the_harness_it_was_named_is_not_installed(repo, alone):
+    (repo / CONFIG_NAME).write_text(CONFIG_HEAD + SMITH_CLAUDE, encoding="utf-8")
+    alone("claude")
+
+    with pytest.raises(ReportableError, match="codex is not on the PATH"):
+        Daemon(repo, Harness.CODEX, wait=Waiting(1)).run()

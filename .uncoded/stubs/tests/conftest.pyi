@@ -40,5 +40,8 @@ def cloned(upstream, tmp_path):
 def watched(repo):
     ...
 
-def fake(tmp_path, monkeypatch):
+def stand_ins(tmp_path):
+    ...
+
+def fake(stand_ins, monkeypatch):
     ...

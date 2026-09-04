@@ -4,24 +4,31 @@
 import os
 import pytest
 from clocks import Ticking
+from conftest import CONFIG_HEAD, SMITH_CLAUDE
 from dreamcatcher.config import CONFIG_NAME, Harness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.state import LastTick, StateDirectory
 
+def harnesses(fake):
+    ...
+
+def alone(fake, stand_ins, monkeypatch):
+    ...
+
 def idling(root, ticks: int) -> tuple[Daemon, Waiting, Ticking]:
     ...
 
-def test_the_daemon_ticks_on_the_interval_until_the_user_interrupts(watched):
+def test_the_daemon_ticks_on_the_interval_until_the_user_interrupts(watched, harnesses):
     ...
 
-def test_every_tick_records_when_it_ran(watched):
+def test_every_tick_records_when_it_ran(watched, harnesses):
     ...
 
-def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(watched):
+def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(watched, harnesses):
     ...
 
-def test_a_second_daemon_refuses_while_the_first_holds_the_repo(watched):
+def test_a_second_daemon_refuses_while_the_first_holds_the_repo(watched, harnesses):
     ...
 
 def test_the_daemon_runs_the_harness_it_was_given(watched):
@@ -37,6 +44,12 @@ def test_a_linked_worktree_is_refused(tmp_path):
     ...
 
 def test_the_state_directory_sits_in_the_checkout(watched):
+    ...
+
+def test_a_run_refuses_when_a_harness_it_could_dispatch_to_is_not_installed(watched, alone):
+    ...
+
+def test_a_run_refuses_when_the_harness_it_was_named_is_not_installed(repo, alone):
     ...
 
 class Waiting:

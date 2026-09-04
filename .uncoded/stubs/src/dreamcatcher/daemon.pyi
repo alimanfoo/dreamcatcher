@@ -7,9 +7,11 @@ from datetime import datetime
 from pathlib import Path
 from time import sleep
 from dreamcatcher.clock import now
+from dreamcatcher.commands import locate
 from dreamcatcher.config import Harness, read_config
 from dreamcatcher.documents import write_json
 from dreamcatcher.errors import ReportableError
+from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.lock import hold
 from dreamcatcher.state import LastTick, StateDirectory
 
@@ -18,6 +20,9 @@ class Daemon:
         ...
 
     def run(self) -> None:
+        ...
+
+    def _locate_harnesses(self) -> None:
         ...
 
     def tick(self) -> None:

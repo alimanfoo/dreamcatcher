@@ -107,8 +107,13 @@ def watched(repo):
 
 
 @pytest.fixture
-def fake(tmp_path, monkeypatch):
+def stand_ins(tmp_path):
+    """The directory holding the stand-in programs that a test installs."""
+    return tmp_path / "fakes"
+
+
+@pytest.fixture
+def fake(stand_ins, monkeypatch):
     """Return a factory that puts a stand-in for a program first on the PATH."""
-    directory = tmp_path / "fakes"
-    monkeypatch.setenv("PATH", f"{directory}{os.pathsep}{os.environ['PATH']}")
-    return partial(fakes.install, directory)
+    monkeypatch.setenv("PATH", f"{stand_ins}{os.pathsep}{os.environ['PATH']}")
+    return partial(fakes.install, stand_ins)
