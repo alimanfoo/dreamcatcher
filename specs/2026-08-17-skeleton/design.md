@@ -220,9 +220,12 @@ lines; stderr lines flow into the same feed as pass-through lines, interleaved
 where they happened — the port's behaviour, one sink, and failures surface in
 the view you're already watching. `raw.jsonl` stays pure stdout for parser
 debugging. Inside the daemon a round is alive until its record says how it
-ended, which is a little longer than the child process lives, so a round the
-daemon reads as finished has its whole story on disk. For `scry` liveness is
-`daemon.pid` plus the round records (rounds cannot outlive the daemon).
+ended, which the round writes as soon as its child has gone. The feed can still
+be catching up when it lands: a pipe reaches its end only when every process
+holding it has closed it, and a process the harness left behind can hold one for
+as long as it likes, so a record that waited for the readers could wait for
+ever. For `scry` liveness is `daemon.pid` plus the round records (rounds cannot
+outlive the daemon).
 
 Children die with the daemon, by design. Each round leads a process group of its
 own on POSIX and sits in a Job Object of its own on Windows, so one call ends

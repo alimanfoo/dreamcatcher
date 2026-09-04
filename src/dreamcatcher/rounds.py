@@ -16,7 +16,7 @@ streams on threads of its own, and records its own ending on another.
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from threading import Lock, Thread
+from threading import Event, Lock, Thread
 
 from dreamcatcher.adapters import Adapter
 from dreamcatcher.clock import now
@@ -63,6 +63,7 @@ class Round:
         self.renderer = Renderer(worktree, clock=clock)
         self.started = clock()
         self.is_interrupted = False
+        self._ended = Event()
         self._writing = Lock()
         self.child = spawn(*command, cwd=worktree)
         try:
@@ -102,10 +103,10 @@ class Round:
     @property
     def is_alive(self) -> bool:
         """Whether the round is still running, or still recording its ending."""
-        return self._closing.is_alive()
+        return not self._ended.is_set()
 
     def wait(self) -> None:
-        """Wait for the round to end and for its record to say how."""
+        """Wait for the round to end and for everything it wrote to land."""
         self._closing.join()
 
     def stop(self) -> None:
@@ -113,10 +114,13 @@ class Round:
 
         A stopped round did not finish, so nothing writes an ending to its
         record. A later tick then sees an interrupted round and resumes it.
+
+        This waits for the record and not for the feed, so that a stream
+        somebody else is still holding cannot hold up the daemon.
         """
         self.is_interrupted = True
         self.child.kill()
-        self.wait()
+        self._ended.wait()
 
     def _pump(self, read: Callable[[], None]) -> None:
         """Read one of the round's streams, and end the round if that fails.
@@ -145,20 +149,32 @@ class Round:
             self._append(line, self._pass_through)
 
     def _close(self) -> None:
-        """Wait for the round to end, then record how it ended."""
+        """Record how the round ended as soon as its child has gone.
+
+        The pumps are left to catch up afterwards. A pipe reaches its end only
+        when every process holding it has closed it, and a process the harness
+        left behind can hold one for as long as it likes, so a record that
+        waited for the pumps could wait for ever. Nothing in the record comes
+        from them, so it is written first, and the feed catches up.
+        """
         status = self.child.wait()
+        try:
+            if not self.is_interrupted:
+                write_json(
+                    RoundRecord(
+                        started=self.started,
+                        pid=self.child.pid,
+                        ended=self.clock(),
+                        status=status,
+                    ),
+                    self.record,
+                )
+        finally:
+            # However the record went, the round has ended, so whoever is
+            # waiting on it waits no longer.
+            self._ended.set()
         for pump in self._pumps:
             pump.join()
-        if not self.is_interrupted:
-            write_json(
-                RoundRecord(
-                    started=self.started,
-                    pid=self.child.pid,
-                    ended=self.clock(),
-                    status=status,
-                ),
-                self.record,
-            )
 
     def _render(self, line: str) -> str:
         """Return the feed lines that one line of the harness's stream becomes.
