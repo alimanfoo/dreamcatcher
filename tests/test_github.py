@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-from conftest import POST_LISTS, POSTED_BY, PULL_REQUEST, pages, recorded_posts
+from conftest import POST_LISTS, POSTED_BY, PULL_REQUEST, pages
 
 from dreamcatcher.github import (
     Blocker,
@@ -159,28 +159,6 @@ def test_the_blockers_of_an_issue_come_back_with_their_states(fake):
         "api",
         f"repos/{REPOSITORY}/issues/9/dependencies/blocked_by",
     ]
-
-
-@pytest.fixture
-def quiet(fake):
-    """A gh answering each of a pull request's three post lists with no posts.
-
-    A test scripts over the one list it is about, so it carries only the posts
-    that it is about.
-    """
-    stand_in = fake("gh")
-    for path in POST_LISTS.values():
-        stand_in.replies(pages(), to=f"api {path}")
-    return stand_in
-
-
-@pytest.fixture
-def recorded(fake):
-    """A gh answering each post list with what a real pull request answered."""
-    stand_in = fake("gh")
-    for source, path in POST_LISTS.items():
-        stand_in.replies(recorded_posts(source), to=f"api {path}")
-    return stand_in
 
 
 def posted() -> list[Post]:

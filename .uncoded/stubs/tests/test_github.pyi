@@ -5,7 +5,7 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 import pytest
-from conftest import POST_LISTS, POSTED_BY, PULL_REQUEST, pages, recorded_posts
+from conftest import POST_LISTS, POSTED_BY, PULL_REQUEST, pages
 from dreamcatcher.github import Blocker, BlockerState, InlineComment, Issue, LinkedPullRequest, Post, PostKind, PullRequest, PullRequestState, Review, Unknown, Verdict, blockers, identify, issues, linked_pull_requests, login, posts, pull_requests
 
 REPOSITORY = 'alimanfoo/dreamcatcher'
@@ -36,12 +36,6 @@ def test_an_issue_nobody_has_claimed_has_no_linked_pull_request(fake):
     ...
 
 def test_the_blockers_of_an_issue_come_back_with_their_states(fake):
-    ...
-
-def quiet(fake):
-    ...
-
-def recorded(fake):
     ...
 
 def posted() -> list[Post]:

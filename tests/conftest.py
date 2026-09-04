@@ -178,6 +178,28 @@ def fake(stand_ins, monkeypatch):
 
 
 @pytest.fixture
+def quiet(fake):
+    """A gh answering each of a pull request's three post lists with no posts.
+
+    A test scripts over the one list it is about, so it carries only the posts
+    that it is about.
+    """
+    stand_in = fake("gh")
+    for path in POST_LISTS.values():
+        stand_in.replies(pages(), to=f"api {path}")
+    return stand_in
+
+
+@pytest.fixture
+def recorded(fake):
+    """A gh answering each post list with what a real pull request answered."""
+    stand_in = fake("gh")
+    for source, path in POST_LISTS.items():
+        stand_in.replies(recorded_posts(source), to=f"api {path}")
+    return stand_in
+
+
+@pytest.fixture
 def harnesses(fake):
     """Both harness CLIs on the PATH, so a run gets past its startup check."""
     return {program: fake(program) for program in ("claude", "codex")}
