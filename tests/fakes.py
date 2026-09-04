@@ -54,28 +54,34 @@ class Call:
 class Fake:
     """A stand-in for one program.
 
-    A test scripts the answer once, and the stand-in gives that answer to every
-    call. An answer is a list of lines, which covers both kinds of program the
-    tests need: a tool that prints its result and exits, and a harness that
-    streams a line at a time while it works.
+    An answer is a list of lines, which covers both kinds of program the tests
+    need: a tool that prints its result and exits, and a harness that streams a
+    line at a time while it works.
+
+    Every scripting method takes the call it answers, as the words that call's
+    arguments open with. A method given none of those words answers every call,
+    which is all a test needs of a harness. A test scripts one answer per call
+    where one program answers several, as `gh` does.
     """
 
     base: Path
 
-    def replies(self, stdout: str) -> None:
+    def replies(self, stdout: str, *, to: str = "") -> None:
         """Answer this on stdout, with a status of zero."""
-        self._answer([Line(stdout)])
+        self._answer([Line(stdout)], to=to)
 
-    def fails(self, stderr: str, status: int = 1) -> None:
+    def fails(self, stderr: str, status: int = 1, *, to: str = "") -> None:
         """Fail with this on stderr, and a failing status."""
-        self._answer([Line(stderr, Stream.ERR)], status=status)
+        self._answer([Line(stderr, Stream.ERR)], status=status, to=to)
 
-    def streams(self, lines: list[Line], delay: float = 0, status: int = 0) -> None:
+    def streams(
+        self, lines: list[Line], delay: float = 0, status: int = 0, *, to: str = ""
+    ) -> None:
         """Answer with these lines, one at a time, as a harness does.
 
         The delay is what leaves a round running long enough to be interrupted.
         """
-        self._answer(lines, status=status, delay=delay)
+        self._answer(lines, status=status, delay=delay, to=to)
 
     @property
     def calls(self) -> list[Call]:
@@ -85,16 +91,17 @@ class Fake:
             for taken in _lines(_taken(self.base))
         ]
 
-    def _answer(self, lines: list[Line], status: int = 0, delay: float = 0) -> None:
-        _scripted(self.base).write_text(
-            json.dumps(
-                {
-                    "lines": [asdict(line) for line in lines],
-                    "status": status,
-                    "delay": delay,
-                }
-            ),
-            encoding="utf-8",
+    def _answer(
+        self, lines: list[Line], status: int = 0, delay: float = 0, to: str = ""
+    ) -> None:
+        _append(
+            _scripted(self.base),
+            {
+                "when": to.split(),
+                "lines": [asdict(line) for line in lines],
+                "status": status,
+                "delay": delay,
+            },
         )
 
 
@@ -117,11 +124,10 @@ def install(directory: Path, program: str) -> Fake:
 def replay(base: Path, arguments: list[str]) -> int:
     """Answer one call to the stand-in at base, as its test scripted it."""
     _append(_taken(base), {"arguments": arguments, "directory": str(Path.cwd())})
-    scripted = _scripted(base)
-    if not scripted.exists():
+    answer = _scripted_for(base, arguments)
+    if answer is None:
         sys.stderr.write(f"{base.name} was not scripted, and it was asked.\n")
         return UNSCRIPTED
-    answer = json.loads(scripted.read_text(encoding="utf-8"))
     for line in answer["lines"]:
         written = sys.stdout if line["stream"] == Stream.OUT else sys.stderr
         # UTF-8 whatever the console's own code page is, since the caller reads
@@ -150,8 +156,25 @@ def _launcher(base: Path) -> None:
 
 
 def _scripted(base: Path) -> Path:
-    """The file holding what the stand-in was scripted to answer."""
-    return base.with_name(f"{base.name}.scripted.json")
+    """The file holding what the stand-in was scripted to answer, a rule a line."""
+    return base.with_name(f"{base.name}.scripted.jsonl")
+
+
+def _scripted_for(base: Path, arguments: list[str]) -> dict | None:
+    """Return the rule answering this call, or none when no rule answers it.
+
+    A rule answers a call whose arguments open with the rule's own words, and
+    the longest such rule wins. So a test can script a general answer and a
+    particular one without minding which it scripts first.
+    """
+    answering = [
+        rule
+        for rule in _lines(_scripted(base))
+        if arguments[: len(rule["when"])] == rule["when"]
+    ]
+    if not answering:
+        return None
+    return max(answering, key=lambda rule: len(rule["when"]))
 
 
 def _taken(base: Path) -> Path:

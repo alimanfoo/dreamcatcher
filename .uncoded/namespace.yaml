@@ -287,6 +287,7 @@ tests/:
     replay:
     _launcher:
     _scripted:
+    _scripted_for:
     _taken:
     _append:
     _lines:
@@ -428,6 +429,9 @@ tests/:
     test_a_stand_in_harness_writes_each_line_to_the_stream_it_names:
     test_a_stand_in_harness_can_end_as_a_failed_round_does:
     test_a_stand_in_nobody_scripted_says_so:
+    test_a_stand_in_answers_each_call_with_the_rule_that_call_opens:
+    test_a_stand_in_prefers_the_rule_scripted_for_the_particular_call:
+    test_a_call_no_rule_answers_says_the_stand_in_was_not_scripted:
   test_feed.py:
     WORKTREE:
     feed:
