@@ -501,6 +501,8 @@ tests/:
   test_rounds.py:
     RECORDING:
     STAMP:
+    LEAVES_A_STRAGGLER:
+    AND_WAITS:
     Unrenderable:
       program:
       first_round:
@@ -509,7 +511,9 @@ tests/:
     pinned:
     worktree:
     directory:
+    straggler:
     written:
+    within:
     test_a_round_runs_the_command_it_was_given_in_the_worktree:
     test_the_feed_a_round_writes_is_the_feed_its_stream_renders_as:
     test_a_round_keeps_the_harnesss_own_stream_as_it_arrived:
@@ -520,6 +524,8 @@ tests/:
     test_a_round_somebody_stopped_says_no_ending:
     test_a_round_that_cannot_write_its_feed_stops_rather_than_stalls:
     test_a_round_that_cannot_record_its_start_does_not_run_on:
+    test_a_round_a_straggler_outlives_still_records_an_ending:
+    test_a_round_a_straggler_outlives_still_stops:
   test_sessions.py:
     KEY:
     BRANCH:
@@ -540,8 +546,10 @@ tests/:
     test_the_daemon_files_sit_in_the_state_directory:
   test_teardown.py:
     STARTS_A_CHILD:
+    AND_WAITS:
     gone:
     test_a_kill_reaches_what_the_child_started:
+    test_a_child_that_ends_by_itself_takes_what_it_started_with_it:
     test_a_kill_after_the_child_ended_leaves_its_pid_alone:
 tools/:
   forbid_invisible_characters.py:

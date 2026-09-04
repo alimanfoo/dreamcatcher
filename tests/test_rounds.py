@@ -1,5 +1,10 @@
+import sys
+from contextlib import suppress
+from threading import Thread
+from time import monotonic, sleep
 from typing import cast
 
+import psutil
 import pytest
 from clocks import PINNED
 from fakes import Line, Stream, recorded
@@ -16,6 +21,25 @@ from dreamcatcher.rounds import Round, RoundRecord
 RECORDING = FIXTURES / "claude" / "round.jsonl"
 
 STAMP = "2026-08-19T18:41:58Z"
+
+# A harness that leaves a process behind holding the round's own streams, and
+# says in the file it is passed which process that is. The streams are handed
+# down by name, because Windows passes a child no handle it was not given. The
+# process it leaves starts a session of its own, so on POSIX it is out of the
+# round's group and ending the group cannot reach it, which is the one shape of
+# straggler that gets away. Windows keeps it in the round's job, where ending
+# the job does reach it.
+LEAVES_A_STRAGGLER = (
+    "import pathlib, subprocess, sys\n"
+    "waiting = [sys.executable, '-c', 'import time; time.sleep(60)']\n"
+    "left = subprocess.Popen(\n"
+    "    waiting, stdout=sys.stdout, stderr=sys.stderr, start_new_session=True\n"
+    ")\n"
+    "pathlib.Path(sys.argv[1]).write_text(str(left.pid), encoding='utf-8')\n"
+)
+
+# What keeps such a harness running, so a test can stop it mid-round.
+AND_WAITS = "left.wait()\n"
 
 
 def pinned():
@@ -54,9 +78,30 @@ def directory(tmp_path):
     return tmp_path / "rounds" / "1"
 
 
+@pytest.fixture
+def straggler(tmp_path):
+    """The file that a harness writes into, naming what it left behind.
+
+    Whatever the file names is killed once the test has run, so nothing a round
+    left behind outlives it, and nothing goes on holding a pipe.
+    """
+    path = tmp_path / "straggler.pid"
+    yield path
+    with suppress(FileNotFoundError, psutil.NoSuchProcess):
+        psutil.Process(int(path.read_text(encoding="utf-8"))).kill()
+
+
 def written(path):
     """Return what the round recorded about itself."""
     return RoundRecord.model_validate_json(path.read_text(encoding="utf-8"))
+
+
+def within(seconds, holds):
+    """Wait up to seconds for holds to answer true, and say whether it did."""
+    deadline = monotonic() + seconds
+    while not holds() and monotonic() < deadline:
+        sleep(0.05)
+    return holds()
 
 
 def test_a_round_runs_the_command_it_was_given_in_the_worktree(
@@ -185,3 +230,41 @@ def test_a_round_that_cannot_record_its_start_does_not_run_on(fake, worktree, tm
 
     with pytest.raises(ReportableError, match="cannot write"):
         Round(CLAUDE, ["harness"], worktree, occupied / "1", clock=pinned)
+
+
+def test_a_round_a_straggler_outlives_still_records_an_ending(
+    worktree, directory, straggler
+):
+    running = Round(
+        CLAUDE,
+        [sys.executable, "-c", LEAVES_A_STRAGGLER, str(straggler)],
+        worktree,
+        directory,
+        clock=pinned,
+    )
+
+    assert within(30, lambda: not running.is_alive)
+    assert written(running.record) == RoundRecord(
+        started=PINNED, pid=running.child.pid, ended=PINNED, status=0
+    )
+
+
+def test_a_round_a_straggler_outlives_still_stops(worktree, directory, straggler):
+    running = Round(
+        CLAUDE,
+        [sys.executable, "-c", LEAVES_A_STRAGGLER + AND_WAITS, str(straggler)],
+        worktree,
+        directory,
+        clock=pinned,
+    )
+    assert within(30, straggler.exists)
+
+    # On its own thread, because a stop that waited on the straggler would
+    # hang the suite rather than fail this test.
+    stopping = Thread(target=running.stop, daemon=True)
+    stopping.start()
+    stopping.join(30)
+
+    assert not stopping.is_alive()
+    assert not running.is_alive
+    assert written(running.record).ended is None
