@@ -229,12 +229,15 @@ outlive the daemon).
 
 Children die with the daemon, by design. Each round leads a process group of its
 own on POSIX and sits in a Job Object of its own on Windows, so one call ends
-the round and everything that the round started, and the daemon makes that call
-for every round it holds as it goes down. Windows adds a guarantee that the
-daemon cannot lose: the job is set to empty itself when the daemon's last handle
-on it closes, which happens however the daemon ends. A `kill -9` orphan on POSIX
-self-limits — its next write to the dead pipe fails — and the startup sweep
-catches stragglers.
+the round and everything that the round started. The round makes that call for
+itself as soon as its child has gone, and the daemon makes it for every round it
+still holds as it goes down. Windows adds a guarantee that the daemon cannot
+lose: the job is set to empty itself when the daemon's last handle on it closes,
+which happens however the daemon ends. POSIX has a gap that Windows has not: a
+process that starts a session of its own has left the round's group by then, so
+the signal never reaches it and it outlives the round. A `kill -9` orphan on
+POSIX self-limits — its next write to the dead pipe fails — and the startup
+sweep catches stragglers.
 
 Recovery is resume-from-transcript: both harnesses persist their session context
 incrementally, so an interrupted round's carry-on resume picks up where it left
@@ -431,8 +434,9 @@ the process the daemon starts is often not the one doing the work, since a
 `.cmd` is a shim and Windows has shims for other things too. Process teardown is
 therefore a whole tree, not a child: a process group on POSIX and a Job Object
 on Windows, isolated in one module. Paths flow through `pathlib` end to end. The
-known pid-reuse wrinkle in the orphan sweep is accepted: the sweep runs once at
-startup against pids the daemon itself recorded, and the window is small.
+known pid-reuse wrinkles are accepted, because each window is small: the orphan
+sweep runs once at startup against pids the daemon itself recorded, and a round
+ends its own tree in the moment after it reaps its child.
 
 ### Dependencies
 

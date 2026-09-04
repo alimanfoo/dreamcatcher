@@ -13,6 +13,9 @@ rather than the one child. That is what makes this right however the harness was
 installed. A .cmd runs through cmd.exe, and even a real executable can be a
 launcher that starts the program that the daemon meant to run, so the child that
 the daemon knows about is often not the one doing the work.
+
+The tree is ended when the child ends by itself, as well as when the daemon
+kills it, so one call serves both.
 """
 
 import sys
@@ -32,8 +35,9 @@ if sys.platform == "win32":  # pragma: no cover
     KILLED = 1
 
     # Nothing puts a child in a group that Windows can signal, so a job stands
-    # for each running child. The job is held here until the child is let go of,
-    # because closing the last handle on it is what kills what is left inside.
+    # for each running child. The job is held here until the child's tree is
+    # ended, because closing the last handle on it is what kills what is left
+    # inside.
     _jobs: dict[int, object] = {}
 
     def contain(pid: int) -> None:
@@ -55,17 +59,11 @@ if sys.platform == "win32":  # pragma: no cover
         child.Close()
         _jobs[pid] = job
 
-    def kill(pid: int) -> None:
+    def end(pid: int) -> None:
         """End the child at pid and everything it started."""
         job = _jobs.pop(pid, None)
         if job is not None:
             win32job.TerminateJobObject(job, KILLED)
-            job.Close()
-
-    def release(pid: int) -> None:
-        """Let go of the child at pid, now that it has ended."""
-        job = _jobs.pop(pid, None)
-        if job is not None:
             job.Close()
 
 else:  # pragma: no cover
@@ -76,13 +74,21 @@ else:  # pragma: no cover
     def contain(pid: int) -> None:
         """Nothing to do: the child already leads a process group of its own."""
 
-    def kill(pid: int) -> None:
-        """End the child at pid and everything it started."""
-        # The child leads the group, so its pid is the group's id. A group that
-        # has already gone is a round that has already ended, which is what the
-        # caller wanted.
+    def end(pid: int) -> None:
+        """End the child at pid and everything it started.
+
+        A group with nothing left in it is a round that has already ended,
+        which is what the caller wanted, so that reads as done rather than as
+        a failure.
+        """
+        # The child leads the group, so its pid is the group's id. A caller
+        # that has reaped the child has let go of that pid, and in principle
+        # the operating system could have given it to somebody else by now.
+        # Only in principle: a pid stays taken while any process still has it
+        # as a group id, so the group has to be empty first, and then the new
+        # owner has to lead a group of its own, all before the next
+        # instruction. Closing the window would mean waiting for a child
+        # without reaping it, and there is no call for that on every platform,
+        # since os.waitid is not on macOS.
         with suppress(ProcessLookupError):
             os.killpg(pid, signal.SIGKILL)
-
-    def release(pid: int) -> None:
-        """Nothing to do: a process group needs no handle to hold it."""

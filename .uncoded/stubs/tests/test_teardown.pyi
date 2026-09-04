@@ -7,11 +7,15 @@ import psutil
 from dreamcatcher.commands import spawn
 
 STARTS_A_CHILD = ...
+AND_WAITS = 'time.sleep(60)\n'
 
 def gone(pid: int) -> bool:
     ...
 
 def test_a_kill_reaches_what_the_child_started(tmp_path):
+    ...
+
+def test_a_child_that_ends_by_itself_takes_what_it_started_with_it(tmp_path):
     ...
 
 def test_a_kill_after_the_child_ended_leaves_its_pid_alone(tmp_path):

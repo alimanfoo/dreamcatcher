@@ -38,9 +38,13 @@ class Child:
         return self.process.pid
 
     def wait(self) -> int:
-        """Wait for the child to end, and return the status that it ended with."""
+        """Wait for the child to end, and return the status that it ended with.
+
+        Whatever the child started can outlive it, so the child's whole tree is
+        ended here too, once the child itself has gone.
+        """
         status = self.process.wait()
-        teardown.release(self.pid)
+        teardown.end(self.pid)
         return status
 
     def kill(self) -> None:
@@ -50,7 +54,7 @@ class Child:
         to give its pid to somebody else, so this leaves it alone.
         """
         if self.process.returncode is None:
-            teardown.kill(self.pid)
+            teardown.end(self.pid)
 
 
 def locate(program: str) -> str:
