@@ -5,16 +5,22 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
+from typing import Any, Literal
+from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field, TypeAdapter, ValidationError, model_validator
 from dreamcatcher.commands import CommandError, run
 
 LISTING_LIMIT = '500'
+PAGE_SIZE = '100'
+SPEAKING_VERDICTS = frozenset({Verdict.APPROVED, Verdict.CHANGES_REQUESTED})
 REPOSITORY = TypeAdapter(Repository)
 ACCOUNT = TypeAdapter(Account)
 ISSUES = TypeAdapter(list[Issue])
 PULL_REQUESTS = TypeAdapter(list[PullRequest])
 BLOCKERS = TypeAdapter(list[Blocker])
 LINKED = TypeAdapter(Linked)
+CONVERSATION = TypeAdapter(list[list[Comment]])
+REVIEWS = TypeAdapter(list[list[Review]])
+INLINE_COMMENTS = TypeAdapter(list[list[InlineComment]])
 
 def identify(root: Path) -> str | Unknown:
     ...
@@ -34,6 +40,21 @@ def linked_pull_requests(repository: str, issue: int) -> list[LinkedPullRequest]
 def blockers(repository: str, issue: int) -> list[Blocker] | Unknown:
     ...
 
+def posts(repository: str, pull_request: int) -> list[Post] | Unknown:
+    ...
+
+def _read_conversation(repository: str, pull_request: int) -> list[Post] | Unknown:
+    ...
+
+def _read_reviews(repository: str, pull_request: int) -> list[Post] | Unknown:
+    ...
+
+def _read_inline_comments(repository: str, pull_request: int) -> list[Post] | Unknown:
+    ...
+
+def _read_pages(shape: TypeAdapter[list[list[PostT]]], path: str) -> list[Post] | Unknown:
+    ...
+
 def _read(shape: TypeAdapter[ReadT], *arguments: str, cwd: Path | None) -> ReadT | Unknown:
     ...
 
@@ -51,6 +72,18 @@ class PullRequestState(StrEnum):
 class BlockerState(StrEnum):
     OPEN = 'open'
     CLOSED = 'closed'
+
+class PostKind(StrEnum):
+    COMMENT = 'comment'
+    REVIEW = 'review'
+    INLINE_COMMENT = 'inline_comment'
+
+class Verdict(StrEnum):
+    APPROVED = 'APPROVED'
+    CHANGES_REQUESTED = 'CHANGES_REQUESTED'
+    COMMENTED = 'COMMENTED'
+    DISMISSED = 'DISMISSED'
+    PENDING = 'PENDING'
 
 class Repository(Projection):
     name_with_owner: str = Field(alias='nameWithOwner')
@@ -75,3 +108,30 @@ class LinkedPullRequest(Projection):
 
 class Linked(Projection):
     pull_requests: list[LinkedPullRequest] = Field(alias='closedByPullRequestsReferences')
+
+class Post(Projection):
+    kind: PostKind
+    id: int
+    author: str = Field(default='', validation_alias=AliasPath('user', 'login'))
+    written_at: str = Field(default='', validation_alias=AliasChoices('created_at', 'submitted_at'))
+    body: str = ''
+    is_speaking: bool
+
+class Comment(Post):
+    kind: Literal[PostKind.COMMENT] = PostKind.COMMENT
+
+class Review(Post):
+    kind: Literal[PostKind.REVIEW] = PostKind.REVIEW
+    verdict: Verdict = Field(alias='state')
+    is_speaking: bool
+
+class InlineComment(Post):
+    kind: Literal[PostKind.INLINE_COMMENT] = PostKind.INLINE_COMMENT
+    path: str
+    side: str
+    line: int | None = None
+    start_line: int | None = None
+    diff_hunk: str
+
+    def _fall_back_to_the_original_lines(cls, document: Any) -> Any:
+        ...
