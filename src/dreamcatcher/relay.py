@@ -1,10 +1,13 @@
 """Carry what the user posts on a pull request into the session working on it.
 
-The peek here is the read half, and it writes nothing at all. It reads the
-pull request's posts, keeps the ones the user newly said something in, and
-hands them back. The watermark it reads by moves only when a round launches
-with a batch as its inbox, so a daemon that dies before that launch reads the
-same posts again on its next tick, rather than losing them.
+The peek reads the pull request's posts, keeps the ones the user newly said
+something in, and hands them back. It writes nothing.
+
+A session keeps a watermark, which is the newest post it has been told about
+already, and the peek reads by that. Moving the watermark on is the write, and
+it happens when a round launches with a batch of posts as its inbox. So a
+daemon that dies before that launch reads the same posts again on its next
+tick, rather than losing them.
 
 The user and the session post through one GitHub account, because that is the
 account the harness CLI is signed in as. So the account alone cannot tell the
@@ -43,8 +46,8 @@ def _is_new_from_user(post: Post, account: str, watermark: str) -> bool:
     """Whether the peek returns this post.
 
     The post has to be newer than the watermark, or the session has already
-    been told about it. Every time GitHub sends is an ISO-8601 string ending in
-    a Z, so one compares against another as text.
+    been told about it. GitHub sends each time as an ISO-8601 string ending in
+    a Z, and one such string compares against another as text.
 
     Then the two rules. The post is the user's when the account that wrote it
     is the user's own and its body carries no marker, which is what leaves the

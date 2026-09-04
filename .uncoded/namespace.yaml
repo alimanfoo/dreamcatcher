@@ -638,6 +638,7 @@ tests/:
     test_the_posts_of_a_pull_request_come_from_all_three_of_its_lists:
     test_each_of_the_three_lists_is_read_whole:
     test_the_pages_of_one_list_come_back_as_one_list:
+    test_a_post_that_is_not_a_document_at_all_is_unknown:
     test_every_post_a_real_pull_request_carries_reads_back:
     test_a_recorded_comment_reads_back_as_the_user_wrote_it:
     test_a_recorded_review_reads_back_when_it_was_submitted_and_its_verdict:

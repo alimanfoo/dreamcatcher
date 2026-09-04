@@ -383,12 +383,14 @@ around an agent's own inline reply does not pass; a marker-bearing post does not
 pass; a post from another account does not pass; a range suggestion arrives with
 its `start_line` and hunk; review verdicts pass with empty bodies. A recording
 of what gh answered for the three post lists of one real pull request on this
-repository reads the projection against GitHub's own document, and carries two
-of those traps itself: the empty reviews GitHub wrapped the inline comments in,
-and the comments whose code has moved since. Each remaining trap is a page the
-test composes, because no recording of this repository could hold a post from
-another account, an approval of your own pull request, which GitHub refuses, or
-a post carrying a marker no session here has written yet.
+repository reads the projection against GitHub's own document. It carries the
+first of those traps itself, the empty reviews GitHub wrapped the inline
+comments in, and it carries the `original_line` fallback as well, since the code
+four of its comments were written against has moved since. Every other trap is a
+page the test composes. No recording of this repository could hold a post from
+another account, a post carrying a marker no session here has written yet, an
+approval of your own pull request, which GitHub refuses, or a suggestion over a
+range, which nobody has left here.
 
 The peek's own shape settled two things. The tick already reads each session's
 pull request state, and that read is where the peek's pull request number comes

@@ -53,6 +53,9 @@ def test_each_of_the_three_lists_is_read_whole(quiet):
 def test_the_pages_of_one_list_come_back_as_one_list(quiet):
     ...
 
+def test_a_post_that_is_not_a_document_at_all_is_unknown(quiet):
+    ...
+
 def test_every_post_a_real_pull_request_carries_reads_back(recorded):
     ...
 

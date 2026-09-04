@@ -4,6 +4,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
+from itertools import chain
 from pathlib import Path
 from typing import Any
 from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field, TypeAdapter, ValidationError, model_validator

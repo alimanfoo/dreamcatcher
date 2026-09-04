@@ -201,6 +201,15 @@ def test_the_pages_of_one_list_come_back_as_one_list(quiet):
     assert [post.id for post in posted()] == [1, 9]
 
 
+def test_a_post_that_is_not_a_document_at_all_is_unknown(quiet):
+    quiet.replies(json.dumps([[None]]), to=f"api {POST_LISTS['inline-comments']}")
+
+    answered = posts(REPOSITORY, PULL_REQUEST)
+
+    assert isinstance(answered, Unknown)
+    assert "cannot read" in answered.reason
+
+
 def test_every_post_a_real_pull_request_carries_reads_back(recorded):
     found = posted()
 

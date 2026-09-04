@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
+from itertools import chain
 from pathlib import Path
 from typing import Any
 
@@ -141,9 +142,10 @@ class Linked(Projection):
 class Post(Projection):
     """Something somebody wrote on a pull request, whichever way they wrote it.
 
-    The three sources are one document each, and this is what they have in
-    common. Only the time differs in name: a review records when it was
-    submitted, and a comment of either kind when it was created.
+    A comment on the conversation, a review, and a comment on a line of the
+    diff are one document each, and this is what the three have in common.
+    Only the time differs in name: a review records when it was submitted, and
+    a comment of either kind when it was created.
 
     The time is the ISO-8601 string GitHub sent, kept as a string. Every such
     string ends in a Z, so one sorts against another as text, and the relay
@@ -197,9 +199,11 @@ class Review(Post):
 class InlineComment(Post):
     """A comment somebody left on a line of the pull request's diff.
 
-    The lines are where the comment was written, and the hunk is the diff it
-    was written against, so a suggestion over a range reaches the session with
-    the text that it replaces. A comment on a whole file names no line at all.
+    The lines are where the comment was written, and the hunk is the piece of
+    the diff those lines sit in. So a comment on a range of lines reaches the
+    session with the lines themselves, and not with their numbers alone, which
+    is what a comment proposing a replacement for them needs. A comment on a
+    whole file names no line at all.
     """
 
     path: str
@@ -217,7 +221,12 @@ class InlineComment(Post):
         against, or take it away. GitHub then answers no line and keeps the
         original, which is the line the comment was written against and the one
         the session has to be told about.
+
+        Anything that is not a document at all passes straight through, so
+        pydantic is what says why it cannot be read.
         """
+        if not isinstance(document, dict):
+            return document
         return document | {
             "line": document.get("line") or document.get("original_line"),
             "start_line": document.get("start_line")
@@ -378,10 +387,7 @@ def _read_pages[PostT: Post](
     )
     if isinstance(answered, Unknown):
         return answered
-    found: list[Post] = []
-    for page in answered:
-        found.extend(page)
-    return found
+    return list(chain.from_iterable(answered))
 
 
 def _read[ReadT](
