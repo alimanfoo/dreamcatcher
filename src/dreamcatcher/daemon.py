@@ -29,7 +29,7 @@ from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.lock import hold
 from dreamcatcher.rounds import Round
 from dreamcatcher.sessions import Session, create_session, read_sessions
-from dreamcatcher.state import Candidate, LastTick, StateDirectory
+from dreamcatcher.state import Candidate, LastTick, StateDirectory, Waiting
 
 # What a round that a tick dispatched says woke it.
 DISPATCHED = "dispatched"
@@ -131,17 +131,20 @@ class Daemon:
         if len(self.rounds) >= self.config.max_agents:
             return LastTick(at=at, held=f"at cap: {len(self.rounds)} rounds running")
         sessions = read_sessions(self.state)
-        cooling = _cooling(sessions, at)
+        waiting = _list_waiting(sessions, self.rounds)
+        cooling = _check_cooldown(sessions, at)
         if cooling is not None:
-            return LastTick(at=at, held=cooling)
+            return LastTick(at=at, held=cooling, waiting=waiting)
         judged = judge_issues(
             repository, self.config, {session.record.issue for session in sessions}
         )
         if isinstance(judged, Unknown):
-            return LastTick(at=at, held=judged.reason)
-        return self._dispatch(at, judged)
+            return LastTick(at=at, held=judged.reason, waiting=waiting)
+        return self._dispatch(at, judged, waiting)
 
-    def _dispatch(self, at: datetime, judged: list[Candidate]) -> LastTick:
+    def _dispatch(
+        self, at: datetime, judged: list[Candidate], waiting: list[Waiting]
+    ) -> LastTick:
         """Dispatch the oldest issue that nothing stands in the way of.
 
         A tick launches one round, so every other eligible issue waits for a
@@ -150,9 +153,9 @@ class Daemon:
         """
         eligible = [candidate for candidate in judged if candidate.is_eligible]
         if not eligible:
-            return LastTick(at=at, candidates=judged)
+            return LastTick(at=at, candidates=judged, waiting=waiting)
         key = self._launch(eligible[0], at)
-        return LastTick(at=at, dispatched=key, candidates=judged)
+        return LastTick(at=at, dispatched=key, candidates=judged, waiting=waiting)
 
     def _launch(self, candidate: Candidate, at: datetime) -> str:
         """Cut a session for the candidate, run its first round, and hold it."""
@@ -229,7 +232,7 @@ class Daemon:
                     teardown.end(record.pid)
 
 
-def _cooling(sessions: list[Session], at: datetime) -> str | None:
+def _check_cooldown(sessions: list[Session], at: datetime) -> str | None:
     """Return why every launch is held, when a round failed lately enough.
 
     The words are the evidence the record left and not a diagnosis of it. A
@@ -249,3 +252,32 @@ def _cooling(sessions: list[Session], at: datetime) -> str | None:
     if at >= until:
         return None
     return f"last round failed (exit {latest.status}) — next attempt at {until:%H:%M}"
+
+
+def _list_waiting(sessions: list[Session], running: dict[str, Round]) -> list[Waiting]:
+    """Return every session whose most recent round nothing has carried on.
+
+    A session the daemon is running a round for is working, not waiting.
+    Carrying a waiting session on is a later phase's, so a tick here says only
+    what each one is waiting on.
+    """
+    waiting = []
+    for session in sessions:
+        reason = None if session.key in running else _check_last_round(session)
+        if reason is not None:
+            waiting.append(
+                Waiting(session=session.key, issue=session.record.issue, reason=reason)
+            )
+    return waiting
+
+
+def _check_last_round(session: Session) -> str | None:
+    """Return what the session's most recent round leaves it waiting on."""
+    if not session.rounds:
+        return None
+    ending = session.rounds[-1].ending
+    if ending is None:
+        return "the last round was interrupted"
+    if ending.is_failed:
+        return f"the last round failed (exit {ending.status})"
+    return None

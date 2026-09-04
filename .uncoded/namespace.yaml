@@ -112,7 +112,9 @@ src/:
         _stop_rounds:
         _locate_harnesses:
         _sweep_orphans:
-      _cooling:
+      _check_cooldown:
+      _list_waiting:
+      _check_last_round:
     documents.py:
       Document:
         model_config:
@@ -270,11 +272,16 @@ src/:
         label:
         reason:
         is_eligible:
+      Waiting:
+        session:
+        issue:
+        reason:
       LastTick:
         at:
         held:
         dispatched:
         candidates:
+        waiting:
       StateDirectory:
         root:
         path:
@@ -443,7 +450,7 @@ tests/:
     FILED:
     LATER:
     DISPATCHED_KEY:
-    Waiting:
+    Interrupting:
       __init__:
       __call__:
     left_running:
@@ -483,6 +490,11 @@ tests/:
     test_a_round_that_failed_lately_holds_every_launch:
     test_a_round_that_failed_long_enough_ago_holds_nothing:
     test_a_round_that_ended_well_holds_nothing:
+    test_a_session_whose_last_round_was_interrupted_reads_as_waiting:
+    test_a_session_whose_last_round_failed_reads_as_waiting_with_its_status:
+    test_a_session_the_daemon_is_running_a_round_for_is_not_waiting:
+    test_a_session_whose_last_round_ended_well_is_not_waiting:
+    test_a_session_that_has_run_no_round_at_all_is_not_waiting:
   test_documents.py:
     READERS:
     Sample:

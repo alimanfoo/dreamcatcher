@@ -31,23 +31,41 @@ class Candidate(Document):
         return self.reason is None
 
 
+class Waiting(Document):
+    """A session with a round that nothing has carried on yet.
+
+    The reason is what its most recent round left it waiting on, in the words
+    the record kept: a round that was interrupted, or one that failed and the
+    status it failed with. So a run of usage-limit failures reads as what it
+    is.
+    """
+
+    session: str
+    issue: int
+    reason: str
+
+
 class LastTick(Document):
     """What the daemon's most recent tick observed and decided.
 
     The tick's own time is in here rather than read from the file, so copying a
     state directory cannot make a stale tick look fresh.
 
-    A tick that held every launch says why in one line, and looked no further.
-    Otherwise the candidates are every labelled issue the tick weighed, in the
-    order they would go. A candidate with nothing in its way that the tick did
-    not dispatch is one waiting for a later tick, and its place in the list is
-    its turn.
+    A tick that held every launch says why in one line. A tick held at the cap
+    looked no further than its own rounds, and says so rather than pretending
+    that it looked, so it records nothing else at all.
+
+    The candidates are every labelled issue the tick weighed, in the order they
+    would go. A candidate with nothing in its way that the tick did not
+    dispatch is one waiting for a later tick, and its place in the list is its
+    turn.
     """
 
     at: datetime
     held: str | None = None
     dispatched: str | None = None
     candidates: list[Candidate] = Field(default_factory=list)
+    waiting: list[Waiting] = Field(default_factory=list)
 
 
 @dataclass(frozen=True)

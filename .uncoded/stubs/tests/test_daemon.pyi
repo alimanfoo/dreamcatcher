@@ -15,7 +15,7 @@ from dreamcatcher.config import CONFIG_NAME, Harness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.rounds import Ending, RoundRecord
-from dreamcatcher.state import Candidate, LastTick, StateDirectory
+from dreamcatcher.state import Candidate, LastTick, StateDirectory, Waiting
 
 KEY = 'GH13-20260819-184158'
 CAUSE = 'dispatched'
@@ -31,7 +31,7 @@ def left_running(watched):
 def alone(fake, stand_ins, monkeypatch):
     ...
 
-def idling(root, ticks: int) -> tuple[Daemon, Waiting, Ticking]:
+def idling(root, ticks: int) -> tuple[Daemon, Interrupting, Ticking]:
     ...
 
 def settling(root, ticks: int) -> Daemon:
@@ -136,7 +136,22 @@ def test_a_round_that_failed_long_enough_ago_holds_nothing(dispatching):
 def test_a_round_that_ended_well_holds_nothing(dispatching):
     ...
 
-class Waiting:
+def test_a_session_whose_last_round_was_interrupted_reads_as_waiting(dispatching):
+    ...
+
+def test_a_session_whose_last_round_failed_reads_as_waiting_with_its_status(dispatching):
+    ...
+
+def test_a_session_the_daemon_is_running_a_round_for_is_not_waiting(dispatching, harnesses):
+    ...
+
+def test_a_session_whose_last_round_ended_well_is_not_waiting(dispatching):
+    ...
+
+def test_a_session_that_has_run_no_round_at_all_is_not_waiting(dispatching):
+    ...
+
+class Interrupting:
     def __init__(self, ticks: int, settle) -> None:
         ...
 

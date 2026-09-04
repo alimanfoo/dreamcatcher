@@ -14,7 +14,7 @@ from dreamcatcher.config import CONFIG_NAME, Harness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.rounds import Ending, RoundRecord
-from dreamcatcher.state import Candidate, LastTick, StateDirectory
+from dreamcatcher.state import Candidate, LastTick, StateDirectory, Waiting
 
 KEY = "GH13-20260819-184158"
 
@@ -59,7 +59,7 @@ def alone(fake, stand_ins, monkeypatch):
     return install
 
 
-class Waiting:
+class Interrupting:
     """A wait that lets the daemon tick, then interrupts it like a user would.
 
     The settle runs before each wait is counted, so a test that needs the round
@@ -78,8 +78,8 @@ class Waiting:
             raise KeyboardInterrupt
 
 
-def idling(root, ticks: int = 2) -> tuple[Daemon, Waiting, Ticking]:
-    waiting = Waiting(ticks)
+def idling(root, ticks: int = 2) -> tuple[Daemon, Interrupting, Ticking]:
+    waiting = Interrupting(ticks)
     ticking = Ticking(step=300)
     return Daemon(root, Harness.CLAUDE, clock=ticking, wait=waiting), waiting, ticking
 
@@ -97,7 +97,7 @@ def settling(root, ticks: int = 1) -> Daemon:
         for running in list(daemon.rounds.values()):
             running.wait()
 
-    daemon.wait = Waiting(ticks, settle)
+    daemon.wait = Interrupting(ticks, settle)
     return daemon
 
 
@@ -183,7 +183,7 @@ def test_a_run_refuses_when_the_harness_it_was_named_is_not_installed(repo, alon
     alone("claude")
 
     with pytest.raises(ReportableError, match="codex is not on the PATH"):
-        Daemon(repo, Harness.CODEX, wait=Waiting(1)).run()
+        Daemon(repo, Harness.CODEX, wait=Interrupting(1)).run()
 
 
 def test_a_round_the_daemon_before_this_one_left_running_is_ended(
@@ -400,7 +400,7 @@ def test_a_run_that_cannot_be_told_which_repository_this_is_refuses(
     gh.fails("gh: no such remote", to="repo view")
 
     with pytest.raises(ReportableError, match="cannot tell which repository"):
-        Daemon(cloned, Harness.CLAUDE, wait=Waiting(1)).run()
+        Daemon(cloned, Harness.CLAUDE, wait=Interrupting(1)).run()
 
 
 def test_the_daemon_ends_the_rounds_it_holds_as_it_goes_down(dispatching, harnesses):
@@ -468,3 +468,82 @@ def test_a_round_that_ended_well_holds_nothing(dispatching):
     daemon.run()
 
     assert recorded(daemon).dispatched == DISPATCHED_KEY
+
+
+def test_a_session_whose_last_round_was_interrupted_reads_as_waiting(dispatching):
+    directory = write_session(StateDirectory(dispatching), KEY, 13)
+    write_round(directory, 1, RoundRecord(started=PINNED, pid=dead_pid(), cause=CAUSE))
+    daemon, _, _ = idling(dispatching, ticks=1)
+
+    daemon.run()
+
+    assert recorded(daemon).waiting == [
+        Waiting(session=KEY, issue=13, reason="the last round was interrupted")
+    ]
+
+
+def test_a_session_whose_last_round_failed_reads_as_waiting_with_its_status(
+    dispatching,
+):
+    directory = write_session(StateDirectory(dispatching), KEY, 13)
+    write_round(
+        directory,
+        1,
+        RoundRecord(
+            started=PINNED,
+            pid=1,
+            cause=CAUSE,
+            ending=Ending(at=PINNED.replace(hour=18, minute=0), status=2),
+        ),
+    )
+    daemon, _, _ = idling(dispatching, ticks=1)
+
+    daemon.run()
+
+    assert recorded(daemon).waiting == [
+        Waiting(session=KEY, issue=13, reason="the last round failed (exit 2)")
+    ]
+
+
+def test_a_session_the_daemon_is_running_a_round_for_is_not_waiting(
+    dispatching, harnesses
+):
+    configure(dispatching, "max_agents = 2\n\n")
+    harnesses["claude"].streams([Line("still working\n")], delay=30)
+    daemon, _, _ = idling(dispatching, ticks=2)
+
+    daemon.run()
+
+    # The round the daemon held recorded no ending, so the session would have
+    # read as interrupted had the daemon not been running it.
+    written = daemon.state.sessions / DISPATCHED_KEY / "rounds" / "1" / "round.json"
+    assert (
+        RoundRecord.model_validate_json(written.read_text(encoding="utf-8")).ending
+        is None
+    )
+    assert recorded(daemon).waiting == []
+
+
+def test_a_session_whose_last_round_ended_well_is_not_waiting(dispatching):
+    directory = write_session(StateDirectory(dispatching), KEY, 13)
+    write_round(
+        directory,
+        1,
+        RoundRecord(
+            started=PINNED, pid=1, cause=CAUSE, ending=Ending(at=PINNED, status=0)
+        ),
+    )
+    daemon, _, _ = idling(dispatching, ticks=1)
+
+    daemon.run()
+
+    assert recorded(daemon).waiting == []
+
+
+def test_a_session_that_has_run_no_round_at_all_is_not_waiting(dispatching):
+    write_session(StateDirectory(dispatching), KEY, 13)
+    daemon, _, _ = idling(dispatching, ticks=1)
+
+    daemon.run()
+
+    assert recorded(daemon).waiting == []
