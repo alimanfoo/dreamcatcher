@@ -120,10 +120,10 @@ src/:
         model_config:
       read_toml:
       read_json:
+      read_text:
       write_text:
       append_text:
       write_json:
-      _read_text:
       _write:
       _report:
     eligibility.py:
