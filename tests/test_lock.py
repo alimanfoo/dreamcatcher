@@ -14,6 +14,7 @@ def refuse(*_: object) -> None:
 
 
 def dead_pid() -> int:
+    """A pid that no process holds, from ending one that did."""
     child = subprocess.Popen([sys.executable, "-c", ""])
     child.wait()
     return child.pid

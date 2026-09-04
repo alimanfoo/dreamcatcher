@@ -4,19 +4,68 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from pydantic import Field
+
 from dreamcatcher.documents import Document, write_text
 
 STATE_DIRECTORY = ".dreamcatcher"
 
 
+class Candidate(Document):
+    """One labelled issue a tick weighed, and what stood in its way.
+
+    A candidate is an issue under one label, because the label settles the
+    harness that runs it and the prompt it starts with. An issue carrying two
+    mapped labels is a candidate under each of them, and neither can go.
+
+    A candidate with no reason is one that nothing stood in the way of.
+    """
+
+    issue: int
+    label: str
+    reason: str | None = None
+
+    @property
+    def is_eligible(self) -> bool:
+        """Whether nothing stands in the way of dispatching this issue."""
+        return self.reason is None
+
+
+class Waiting(Document):
+    """A session with a round that nothing has carried on yet.
+
+    The reason is what its most recent round left it waiting on, in the words
+    the record kept: a round that was interrupted, or one that failed and the
+    status it failed with. So a run of usage-limit failures reads as what it
+    is.
+    """
+
+    session: str
+    issue: int
+    reason: str
+
+
 class LastTick(Document):
-    """When the daemon's most recent tick ran.
+    """What the daemon's most recent tick observed and decided.
 
     The tick's own time is in here rather than read from the file, so copying a
     state directory cannot make a stale tick look fresh.
+
+    A tick that launched nothing at all says in one line what the hold on it
+    was. A tick held at the cap looked no further than its own rounds, and says
+    so rather than pretending that it looked, so it records nothing else.
+
+    The candidates are every labelled issue the tick weighed, in the order they
+    would go. A candidate with nothing in its way that the tick did not
+    dispatch is one waiting for a later tick, and its place in the list is its
+    turn.
     """
 
     at: datetime
+    hold: str | None = None
+    dispatched: str | None = None
+    candidates: list[Candidate] = Field(default_factory=list)
+    waiting: list[Waiting] = Field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -39,6 +88,22 @@ class StateDirectory:
     def last_tick(self) -> Path:
         """The file the daemon overwrites with what each tick decided."""
         return self.path / "last-tick.json"
+
+    @property
+    def worktrees(self) -> Path:
+        """The directory holding a worktree for each session, named by its key.
+
+        Every worktree that dreamcatcher makes lives under here, whatever the
+        checkout's own directory habits are. So a worktree under here is one of
+        dreamcatcher's, and that is how the daemon tells its own work from
+        everyone else's.
+        """
+        return self.path / "worktrees"
+
+    @property
+    def sessions(self) -> Path:
+        """The directory holding each session's own files, named by its key."""
+        return self.path / "sessions"
 
     def bootstrap(self) -> None:
         """Create the directory, ignoring itself, so git never sees its files.

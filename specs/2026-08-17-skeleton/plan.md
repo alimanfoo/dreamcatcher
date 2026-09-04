@@ -303,11 +303,10 @@ yet deciding when to dispatch.
 In scope:
 
 - Session creation: the session key, the branch, the nested worktree under
-  `.dreamcatcher/worktrees/` with the path invariant checked at dispatch, and
-  `session.json` frozen at dispatch (design.md, Sessions, worktrees, branches).
-  A failed creation backs out worktree and branch together, leaving nothing
-  behind. Phase 3's git wrappers each raise, so the back-out composes them and
-  handles their failure itself.
+  `.dreamcatcher/worktrees/`, and `session.json` frozen at dispatch (design.md,
+  Sessions, worktrees, branches). A failed creation backs out worktree and
+  branch together, leaving neither behind. Phase 3's git wrappers each raise, so
+  the back-out composes them and handles their failure itself.
 - The harness that a dispatch runs on (design.md, Configuration). Phase 2 parses
   the blocks and leaves the choice to the phase that dispatches. A harness first
   becomes an adapter here, so this phase writes the lookup from one to the
@@ -317,8 +316,8 @@ In scope:
   marker).
 
 Done when: tests cut a real worktree and branch in a temporary git repository,
-the records land and validate, a failed creation leaves no trace, and prompt
-rendering has golden tests per harness.
+the records land and validate, a failed creation leaves no worktree and no
+branch, and the prompt each harness's template composes to is pinned in full.
 
 Deliberately out: eligibility, the tick, and any GitHub read — creation here is
 invoked directly by tests.
@@ -333,18 +332,31 @@ In scope:
 - Eligibility (design.md, The tick), built on phase 3's "unknown" contract.
 - The real tick (design.md, The tick), replacing phase 2's stub and dispatching
   through phase 7's session creation.
+- The round's cause, which phase 6 left to the phase that decides one
+  (design.md, The state directory). A dispatch is the first cause there is, so
+  `round.json` carries one from here on.
+- The repository the tick asks GitHub about, read once as the run starts
+  (design.md, The tick). It cannot change under a running daemon, and a run that
+  cannot name it dispatches nothing, so `run` refuses rather than failing every
+  tick.
 - The failure cooldown (design.md, The tick).
 - The daemon holding its own rounds, which is what the cap counts and what it
   ends as it goes down, Ctrl-C included (design.md, Rounds and processes). Phase
   6 built the teardown and left the daemon with no rounds to end.
 - The startup orphan sweep (design.md, The tick). The carry-on resume of those
   sessions is phase 10's; until then they appear in `last-tick.json` as waiting.
-- The startup check that the harness's CLI is installed: `run` refuses at once
-  when the harness it was given is not on the PATH, rather than dispatching a
-  round that cannot start. Phase 4 left this to the phase with a caller for it:
-  the adapter names its CLI, and phase 3's `commands.locate` is the lookup.
-  Without the check a missing CLI reads as a round that fails every fifteen
-  minutes, since the cooldown cannot tell a misconfiguration from a blip.
+- The startup check that every harness a run might dispatch to has its CLI
+  installed: `run` refuses at once when any of them is not on the PATH, rather
+  than dispatching a round that cannot start. The set is not just the harness
+  `--harness` named: phase 7's `DispatchMapping.choose_harness` runs a label on
+  whichever harness its own blocks settle on, so a single-block label can send a
+  round to a harness the run never named. The check gathers the harnesses named
+  by the blocks of every dispatch mapping, plus the one `--harness` gave, and
+  `harnesses.ADAPTERS` turns each into the adapter that names its CLI. Phase 4
+  left this to the phase with a caller for it: phase 3's `commands.locate` is
+  the lookup. Without the check a missing CLI reads as a round that fails every
+  fifteen minutes, since the cooldown cannot tell a misconfiguration from a
+  blip.
 
 Done when: an end-to-end CI test drives a full dispatch against the fakes — the
 scripted `gh` offers a labelled issue, the tick cuts a real worktree, the fake

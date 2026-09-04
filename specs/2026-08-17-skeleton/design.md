@@ -77,7 +77,10 @@ never touches the repo's own files. Contents:
 - `last-tick.json` — overwritten each tick: when the tick ran, and what the
   daemon observed and decided, including what it did not do and why (queued
   behind others, blocked by an open issue, skipped for double labels, deferred
-  at the cap, posts seen but not yet relayed). The board's queue and waiting
+  at the cap, posts seen but not yet relayed). An eligible issue that the tick
+  did not dispatch carries no reason of its own: the candidates are written in
+  the order they would go, and that order is where its turn is recorded, so the
+  board reads "behind N others" off the position. The board's queue and waiting
   sections render this file. The time it records, with `daemon.pid`, tells
   `scry` whether the daemon is alive: the tick writes its own time rather than
   leaning on the file's mtime, which copying a state directory would freshen.
@@ -93,6 +96,13 @@ never touches the repo's own files. Contents:
   and its ending as it ends, and a round that the daemon killed records no
   ending at all, so one the daemon stopped reads as interrupted, which is what
   it is.
+
+Every whole document the tool writes lands in one step: the text goes to a file
+beside the target and then takes the target's place. A round records how it
+ended on a thread of its own while a tick is reading every round's record, so a
+reader really does arrive mid-write, and this is what keeps it from reading half
+a document. A feed and a raw stream grow by a line at a time instead, and
+whoever reads one reads the lines that have landed.
 
 The round records are the story of record: a `round.json` with no end recorded
 is the interrupted detector, a final round's completed record is the final-round
@@ -116,8 +126,13 @@ to put a worktree in an ignored directory of its own working tree — Claude
 Code's worktree feature nests the same way — and this is the only layout:
 everything dreamcatcher ever makes lives inside `.dreamcatcher/`, whatever the
 user's directory habits. Ownership is by path — a session worktree is one under
-`worktrees/` — which is stronger than the old basename-pattern test. The branch
-name stays dispatcher-internal namespace, and carries no job in the eligibility
+`worktrees/` — which is stronger than the old basename-pattern test. A worktree
+with no `session.json` beside it is not a session: the dispatch cuts the
+worktree and then writes the record, so a daemon that died between the two
+leaves one behind, and it stands for a session that ran nothing and opened no
+pull request. Reading it as no session leaves its issue free to go again. A
+record that is there and will not read is a named error instead. The branch name
+stays dispatcher-internal namespace, and carries no job in the eligibility
 check: GitHub's own link from an issue to its open pull requests answers that,
 and the issue reference the _skill_ acts on travels in the prompt. (The branch
 still contains a `GH<n>` token, so today's smith and less boot by branch-scan
@@ -132,16 +147,27 @@ or expect doubled attempts on whatever was.
 Two costs of nesting, accepted: tools that ignore gitignore (`find`, some
 indexers) see repo copies inside the checkout — git, ripgrep, and the harnesses'
 own search skip them — and the extra path depth nudges toward Windows
-path-length limits on deep repos. One invariant is checked at dispatch, not
-assumed: the worktree path is strictly under `.dreamcatcher/worktrees/`. `run`
-refuses to start anywhere but a main checkout (a linked worktree's `.git` is a
-file, the same test as today).
+path-length limits on deep repos. The dispatch builds a worktree path from the
+state directory and the session key and takes none from a caller, so the path is
+under `.dreamcatcher/worktrees/` by construction and no check has to say so.
+`run` refuses to start anywhere but a main checkout (a linked worktree's `.git`
+is a file, the same test as today).
+
+The dispatch fetches origin's main before it cuts the branch, so a session
+starts from main as it is now rather than from whatever the checkout last heard
+about. A creation that fails from the worktree onwards takes the worktree and
+the branch away again. git names the branch before it reaches the worktree, so a
+failed `worktree add` has one to take away.
 
 ### The tick
 
-At startup, once: acquire the lock, sweep orphans — any round record with no end
-recorded whose pid is still alive gets killed — and treat every round record
-with no end as interrupted.
+At startup, once: check that every harness CLI a mapping can settle a label on
+is installed, read the repository GitHub knows the checkout as, acquire the
+lock, sweep orphans — the pid of any round record with no end recorded is ended,
+and ending one that has already gone does nothing — and treat every round record
+with no end as interrupted. `run` refuses when a CLI is missing or when `gh`
+cannot name the repository, because neither can change under a running daemon
+and a run without them dispatches nothing.
 
 Each tick, in order, launching at most one round per tick:
 
@@ -168,7 +194,9 @@ resume-before-dispatch plus one-launch-per-tick already contains the blast
 radius by construction — a persistent failure is the same session retrying,
 never a pile of fresh worktrees, because the errored retry always outranks a new
 dispatch. The hold lands in `last-tick.json` with the evidence, not a diagnosis:
-"last round failed (exit 1) — next attempt at HH:MM".
+"the last round failed (exit 1) — next attempt at HH:MM UTC". The board shows
+the same words, without the next attempt, against the session waiting on that
+round.
 
 The true wedge is narrower than the port's: a round that exited _zero_ without
 opening a PR — the skill ran to completion and chose to yield without one.
@@ -183,7 +211,11 @@ is eligible when it carries exactly one mapped label, is assigned to the
 configured assignee, has no active session worktree, has no open pull request
 GitHub links to it, and has no open blocking issues. Every read failure biases
 toward inaction: a failed handled-check answers "handled", a failed
-blocker-check answers "blocked", a failed listing skips the tick.
+blocker-check answers "blocked", a failed listing skips the tick. A tick's own
+work can fail too — a fetch that could not reach origin, a record the disk would
+not take — and that failure lands in `last-tick.json` as the reason the tick
+launched nothing, so the daemon ticks again rather than ending and leaving the
+sessions it holds to nobody.
 
 The two claims on an issue answer different questions, which is why both are
 asked. A session worktree says this daemon is working on it, and covers the
@@ -213,18 +245,24 @@ lines; stderr lines flow into the same feed as pass-through lines, interleaved
 where they happened — the port's behaviour, one sink, and failures surface in
 the view you're already watching. `raw.jsonl` stays pure stdout for parser
 debugging. Inside the daemon a round is alive until its record says how it
-ended, which is a little longer than the child process lives, so a round the
-daemon reads as finished has its whole story on disk. For `scry` liveness is
-`daemon.pid` plus the round records (rounds cannot outlive the daemon).
+ended, which the round writes as soon as its child process has gone. The feed
+can still be catching up when the record lands: a pipe reaches its end only when
+every process holding it has closed it, and a process the harness left behind
+can hold one for as long as it likes, so a record that waited for the readers
+could wait for ever. For `scry` liveness is `daemon.pid` plus the round records
+(rounds cannot outlive the daemon).
 
 Children die with the daemon, by design. Each round leads a process group of its
 own on POSIX and sits in a Job Object of its own on Windows, so one call ends
-the round and everything that the round started, and the daemon makes that call
-for every round it holds as it goes down. Windows adds a guarantee that the
-daemon cannot lose: the job is set to empty itself when the daemon's last handle
-on it closes, which happens however the daemon ends. A `kill -9` orphan on POSIX
-self-limits — its next write to the dead pipe fails — and the startup sweep
-catches stragglers.
+the round and everything that the round started. The round makes that call for
+itself as soon as its child process has gone, and the daemon makes it for every
+round it still holds as it goes down. Windows adds a guarantee that the daemon
+cannot lose: the job is set to empty itself when the daemon's last handle on it
+closes, which happens however the daemon ends. POSIX has a gap that Windows has
+not: a process that starts a session of its own has left the round's group by
+then, so the signal never reaches it and it outlives the round. A `kill -9`
+orphan on POSIX self-limits — its next write to the dead pipe fails — and the
+startup sweep catches stragglers.
 
 Recovery is resume-from-transcript: both harnesses persist their session context
 incrementally, so an interrupted round's carry-on resume picks up where it left
@@ -406,32 +444,47 @@ Marking is injected by the dispatcher; the skill needs no knowledge of it.
 
 Windows native is the target; CI runs the test suite on Windows, macOS, and
 Linux from the first commit, with a fake harness binary standing in for
-signed-in CLIs. All subprocess and file IO forces UTF-8 explicitly, and reads a
-byte that is not UTF-8 as the replacement character rather than failing, since a
-localised git can put one in a message. A write keeps the line endings it was
-given rather than the platform's, so a round's copy of what a harness streamed
-holds what the harness sent. Programs are looked up on the PATH before they run,
-which is what reaches a `.cmd` on Windows, the form the harness CLIs take when
-npm installs them. The current directory is no part of that lookup. Windows
-searches it ahead of the PATH, and the daemon's current directory is the watched
-checkout for its whole life, so a file named `git.exe` at that checkout's root
-would otherwise run in place of the real tool. The daemon takes the current
-directory back out of the search by setting `NoDefaultCurrentDirectoryInExePath`
-in its own process. Every child inherits the name, and Windows itself, cmd.exe
-and Python each read it, so a lookup the harness makes reads the PATH alone too.
-That carries a cost the design accepts: a command in a watched repository that
-runs a program from the current directory by its bare name stops finding it.
+signed-in CLIs.
+
+All subprocess and file IO forces UTF-8 explicitly, and reads a byte that is not
+UTF-8 as the replacement character rather than failing, since a localised git
+can put one in a message.
+
+A write keeps the line endings it was given rather than the platform's, so a
+round's copy of what a harness streamed holds what the harness sent.
+
+Programs are looked up on the PATH before they run, which is what reaches a
+`.cmd` on Windows, the form the harness CLIs take when npm installs them.
+
+The current directory is no part of that lookup. Windows searches it ahead of
+the PATH, and the daemon's current directory is the watched checkout for its
+whole life, so a file named `git.exe` at that checkout's root would otherwise
+run in place of the real tool. The daemon takes the current directory back out
+of the search by setting `NoDefaultCurrentDirectoryInExePath` in its own
+process.
+
+Every child inherits the name. Windows itself, cmd.exe and Python each read it,
+so a lookup the harness makes reads the PATH alone too. That carries a cost the
+design accepts: a command in a watched repository that runs a program from the
+current directory by its bare name stops finding it.
+
 Windows runs a `.cmd` through cmd.exe, which reads the command line a second
 time under its own rules, after Python has quoted it for the program's own
 reader. So a batch file's line is built for both readers: every part of it
 quoted, and a quote inside a part doubled. A prompt then reaches the harness as
-it was written, whatever it holds. It also follows that the process the daemon
-starts is often not the one doing the work, since a `.cmd` is a shim and Windows
-has shims for other things too. Process teardown is therefore a whole tree, not
-a child: a process group on POSIX and a Job Object on Windows, isolated in one
-module. Paths flow through `pathlib` end to end. The known pid-reuse wrinkle in
-the orphan sweep is accepted: the sweep runs once at startup against pids the
-daemon itself recorded, and the window is small.
+it was written, whatever it holds.
+
+It also follows that the process the daemon starts is often not the one doing
+the work, since a `.cmd` is a shim and Windows has shims for other things too.
+Process teardown is therefore a whole tree, not a child: a process group on
+POSIX and a Job Object on Windows, isolated in one module.
+
+Paths flow through `pathlib` end to end.
+
+The known pid-reuse wrinkles are accepted, because each window is small: the
+orphan sweep runs once at startup against pids the daemon itself recorded, and a
+round ends its own tree in the moment after it has waited for its child and let
+go of its pid.
 
 ### Dependencies
 

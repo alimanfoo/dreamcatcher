@@ -87,28 +87,51 @@ src/:
         __pydantic_extra__:
         label:
         harness_settings:
+        choose_harness:
         _carries_a_block:
       Config:
         interval:
         max_agents:
         assignee:
         dispatch:
+        label_mappings:
+        mapped_harnesses:
         _each_label_maps_once:
       read_config:
     daemon.py:
+      DISPATCHED:
+      COOLDOWN:
       Daemon:
         __init__:
         run:
         tick:
+        _identify_repository:
+        _decide_and_launch:
+        _dispatch_oldest_issue:
+        _launch_session:
+        _locate_harnesses:
+        _sweep_orphans:
+      _check_cooldown:
+      _list_waiting:
+      _check_rounds:
     documents.py:
+      WRITING:
       Document:
         model_config:
       read_toml:
+      read_json:
       write_text:
       append_text:
       write_json:
+      _read_text:
       _write:
       _report:
+    eligibility.py:
+      judge_issues:
+      _list_issues:
+      _find_obstacle:
+      _check_pull_requests:
+      _check_blockers:
     errors.py:
       ReportableError:
     feed.py:
@@ -179,15 +202,30 @@ src/:
       linked_pull_requests:
       blockers:
       _read:
+    harnesses.py:
+      ADAPTERS:
     lock.py:
       hold:
       _holder:
+    prompts.py:
+      MARKER:
+      ISSUE_PLACEHOLDER:
+      POSTSCRIPT:
+      compose_first_round_prompt:
     rounds.py:
+      RECORD:
+      Ending:
+        at:
+        status:
+        is_failed:
       RoundRecord:
         started:
         pid:
-        ended:
-        status:
+        cause:
+        ending:
+      Workspace:
+        worktree:
+        directory:
       Round:
         record:
         feed:
@@ -203,15 +241,54 @@ src/:
         _render:
         _pass_through:
         _append:
+      read_round_records:
+    sessions.py:
+      BRANCH_PREFIX:
+      RECORD:
+      ROUNDS:
+      SessionRecord:
+        issue:
+        label:
+        branch:
+        worktree:
+        harness:
+        model:
+        effort:
+        prompt:
+      Session:
+        directory:
+        record:
+        rounds:
+        key:
+        next_workspace:
+      read_sessions:
+      create_session:
+      _read_session:
+      discard_session:
     state.py:
       STATE_DIRECTORY:
+      Candidate:
+        issue:
+        label:
+        reason:
+        is_eligible:
+      Waiting:
+        session:
+        issue:
+        reason:
       LastTick:
         at:
+        hold:
+        dispatched:
+        candidates:
+        waiting:
       StateDirectory:
         root:
         path:
         lock:
         last_tick:
+        worktrees:
+        sessions:
         bootstrap:
     teardown.py:
       OWN_SESSION:
@@ -225,18 +302,26 @@ tests/:
   conftest.py:
     ARMING:
     CONFIG_HEAD:
+    REPOSITORY:
+    LABEL:
+    FILED:
+    LATER:
     SMITH_CLAUDE:
     SMITH_CODEX:
     CONFIG:
     pytest_configure:
     streamed:
+    listing:
     git:
+    gone:
     commit:
     repo:
     upstream:
     cloned:
     watched:
+    stand_ins:
     fake:
+    harnesses:
   fakes.py:
     UNSCRIPTED:
     Stream:
@@ -260,12 +345,16 @@ tests/:
     replay:
     _launcher:
     _scripted:
+    _scripted_for:
     _taken:
     _append:
     _lines:
   recordings.py:
     FIXTURES:
     rendered:
+  records.py:
+    write_session:
+    write_round:
   test_claude.py:
     LAUNCH:
     BASE:
@@ -354,13 +443,22 @@ tests/:
     test_the_settings_the_design_gives_defaults_for_have_them:
     test_a_setting_the_config_names_beats_its_default:
     test_a_label_one_harness_can_run_carries_that_block_alone:
+    test_a_label_either_harness_can_run_runs_on_the_one_the_run_named:
+    test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named:
     test_a_config_mistake_names_the_setting_and_the_fault:
     test_a_repo_with_no_config_says_which_file_is_missing:
   test_daemon.py:
-    Waiting:
+    KEY:
+    CAUSE:
+    STILL_RUNNING:
+    DISPATCHED_KEY:
+    Interrupting:
       __init__:
       __call__:
+    left_running:
+    alone:
     idling:
+    settling:
     test_the_daemon_ticks_on_the_interval_until_the_user_interrupts:
     test_every_tick_records_when_it_ran:
     test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock:
@@ -370,22 +468,72 @@ tests/:
     test_a_directory_that_is_not_a_repository_is_refused:
     test_a_linked_worktree_is_refused:
     test_the_state_directory_sits_in_the_checkout:
+    test_a_run_refuses_when_a_harness_it_could_dispatch_to_is_not_installed:
+    test_a_run_refuses_when_the_harness_it_was_named_is_not_installed:
+    test_a_round_the_daemon_before_this_one_left_running_is_ended:
+    test_a_round_that_recorded_an_ending_is_left_running_by_the_sweep:
+    configure:
+    held:
+    recorded:
+    gh:
+    offered:
+    dispatching:
+    test_a_tick_dispatches_the_oldest_issue_nothing_stands_in_the_way_of:
+    test_a_dispatched_round_records_what_caused_it_and_what_it_said:
+    test_a_tick_launches_one_round_and_leaves_the_rest_in_the_queue:
+    test_a_second_tick_judges_a_dispatched_issue_handled:
+    test_a_tick_at_the_cap_spends_no_github_call:
+    test_a_tick_with_nothing_eligible_dispatches_nothing:
+    test_a_tick_whose_listing_failed_records_what_it_could_not_read:
+    test_a_tick_that_could_not_dispatch_records_the_failure_and_ticks_again:
+    test_a_run_that_cannot_be_told_which_repository_this_is_refuses:
+    test_the_daemon_ends_the_rounds_it_holds_as_it_goes_down:
+    test_a_round_that_failed_lately_holds_every_launch:
+    test_a_round_that_failed_long_enough_ago_holds_nothing:
+    test_a_round_that_ended_well_holds_nothing:
+    test_a_session_whose_last_round_was_interrupted_reads_as_waiting:
+    test_a_session_whose_last_round_failed_reads_as_waiting_with_its_status:
+    test_a_session_the_daemon_is_running_a_round_for_is_not_waiting:
+    test_a_session_whose_last_round_ended_well_is_not_waiting:
+    test_a_session_that_has_run_no_round_at_all_waits_for_its_first:
+    test_a_dispatch_whose_round_will_not_start_leaves_no_session_behind:
+    test_a_run_that_cannot_read_a_session_refuses_to_start:
+    test_a_session_that_goes_bad_under_a_running_daemon_costs_one_tick:
   test_documents.py:
+    READERS:
     Sample:
       name:
       count:
     write:
     test_a_valid_document_reads_back:
+    test_a_valid_json_document_reads_back:
     test_a_missing_document_names_the_path:
     test_an_unreadable_document_says_so:
-    test_a_document_that_is_not_toml_says_so:
     test_a_document_that_is_not_utf_8_says_so:
+    test_a_document_that_is_not_toml_says_so:
+    test_a_document_that_is_not_json_says_so:
     test_a_document_that_breaks_its_model_lists_every_fault:
+    test_a_json_document_that_breaks_its_model_lists_every_fault:
     test_a_write_lands_where_it_is_asked_for:
+    test_a_write_leaves_nothing_of_itself_beside_what_it_wrote:
     test_a_write_that_fails_says_so:
     test_an_append_adds_to_the_end_of_what_is_there:
     test_an_append_that_fails_says_so:
     test_a_write_keeps_the_line_endings_it_was_given:
+  test_eligibility.py:
+    SETTINGS:
+    mapping:
+    gh:
+    weighed:
+    test_an_issue_nothing_stands_in_the_way_of_can_be_dispatched:
+    test_the_issues_come_back_oldest_first:
+    test_a_listing_the_tool_cannot_read_answers_unknown_for_the_whole_tick:
+    test_an_issue_carrying_more_than_one_mapped_label_is_skipped:
+    test_an_issue_a_session_of_this_run_is_working_on_is_left_alone:
+    test_an_issue_with_a_pull_request_open_on_it_is_left_alone:
+    test_a_pull_request_read_that_failed_reads_as_claimed:
+    test_an_issue_an_open_issue_blocks_names_what_blocks_it:
+    test_a_blocker_read_that_failed_reads_as_blocked:
   test_encoding_gate.py:
     test_a_read_with_no_encoding_fails_the_suite:
   test_fakes.py:
@@ -396,6 +544,10 @@ tests/:
     test_a_stand_in_harness_writes_each_line_to_the_stream_it_names:
     test_a_stand_in_harness_can_end_as_a_failed_round_does:
     test_a_stand_in_nobody_scripted_says_so:
+    test_a_stand_in_answers_each_call_with_the_rule_that_call_opens:
+    test_a_stand_in_prefers_the_rule_scripted_for_the_particular_call:
+    test_a_call_scripted_twice_answers_with_the_later_of_the_two:
+    test_a_call_no_rule_answers_says_the_stand_in_was_not_scripted:
   test_feed.py:
     WORKTREE:
     feed:
@@ -452,6 +604,8 @@ tests/:
     test_a_branch_that_never_existed_comes_back_empty:
     test_gh_takes_the_linked_pull_requests_command:
     test_a_blocked_issue_names_what_blocks_it:
+  test_harnesses.py:
+    test_every_harness_the_config_names_is_run_by_its_own_adapter:
   test_lock.py:
     refuse:
     dead_pid:
@@ -462,6 +616,10 @@ tests/:
     test_the_lock_is_released_when_the_daemon_fails:
     test_a_lock_the_daemon_cannot_write_says_so:
     test_a_release_that_cannot_happen_leaves_the_failure_that_ended_the_run:
+  test_prompts.py:
+    OPENINGS:
+    test_a_template_holding_other_words_in_braces_keeps_them:
+    test_the_prompt_that_opens_a_session_is_its_template_then_the_postscript:
   test_recordings.py:
     RECORDED_IN:
     RECORDINGS:
@@ -469,6 +627,9 @@ tests/:
   test_rounds.py:
     RECORDING:
     STAMP:
+    CAUSE:
+    LEAVES_A_STRAGGLER:
+    AND_WAITS:
     Unrenderable:
       program:
       first_round:
@@ -477,17 +638,42 @@ tests/:
     pinned:
     worktree:
     directory:
+    straggler:
     written:
+    within:
     test_a_round_runs_the_command_it_was_given_in_the_worktree:
     test_the_feed_a_round_writes_is_the_feed_its_stream_renders_as:
     test_a_round_keeps_the_harnesss_own_stream_as_it_arrived:
     test_what_the_harness_says_on_stderr_lands_where_it_happened:
     test_a_line_the_feed_cannot_write_costs_that_line_alone:
-    test_a_round_says_when_it_started_and_what_process_it_is:
+    test_a_round_says_when_it_started_what_caused_it_and_what_process_it_is:
     test_a_round_that_finished_says_how_it_ended:
     test_a_round_somebody_stopped_says_no_ending:
     test_a_round_that_cannot_write_its_feed_stops_rather_than_stalls:
     test_a_round_that_cannot_record_its_start_does_not_run_on:
+    test_a_round_a_straggler_outlives_still_records_an_ending:
+    test_a_round_a_straggler_outlives_still_stops:
+  test_sessions.py:
+    KEY:
+    BRANCH:
+    checkout:
+    state:
+    mapping:
+    written:
+    test_a_session_cuts_a_worktree_of_its_own_under_the_state_directory:
+    test_a_session_cuts_a_branch_of_its_own_from_origins_main_as_it_is_now:
+    test_a_session_records_what_it_was_dispatched_with:
+    test_a_session_runs_on_the_harness_the_run_named:
+    test_a_new_session_has_run_no_rounds_and_its_next_is_its_first:
+    test_a_session_git_cannot_cut_leaves_no_branch_behind:
+    test_a_session_that_cannot_record_leaves_no_worktree_and_no_branch:
+    test_a_state_directory_with_no_worktrees_holds_no_sessions:
+    test_a_session_reads_back_as_it_was_dispatched:
+    test_a_sessions_rounds_read_back_in_the_order_they_ran:
+    test_every_session_of_the_repo_reads_back_by_key:
+    test_a_file_left_among_the_worktrees_is_not_a_session:
+    test_a_worktree_with_no_record_beside_it_is_not_a_session:
+    test_a_session_record_that_will_not_read_names_the_file:
   test_state.py:
     test_bootstrap_creates_a_directory_that_ignores_itself:
     test_bootstrap_heals_a_deleted_gitignore:
@@ -495,8 +681,9 @@ tests/:
     test_the_daemon_files_sit_in_the_state_directory:
   test_teardown.py:
     STARTS_A_CHILD:
-    gone:
+    AND_WAITS:
     test_a_kill_reaches_what_the_child_started:
+    test_a_child_that_ends_by_itself_takes_what_it_started_with_it:
     test_a_kill_after_the_child_ended_leaves_its_pid_alone:
 tools/:
   forbid_invisible_characters.py:

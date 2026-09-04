@@ -2,10 +2,12 @@
 
 import json
 import os
+from contextlib import suppress
 from functools import partial
 from pathlib import Path
 
 import fakes
+import psutil
 import pytest
 
 from dreamcatcher.commands import run
@@ -16,6 +18,17 @@ ARMING = "PYTHONWARNDEFAULTENCODING"
 CONFIG_HEAD = """interval = 300
 
 """
+
+# The repository the tests say gh names this checkout as.
+REPOSITORY = "alimanfoo/dreamcatcher"
+
+# The label that the dispatch blocks below map, as the tests name it.
+LABEL = "dream:smith"
+
+# When the tests say an issue was filed, and a time after it.
+FILED = "2026-08-19T18:41:58Z"
+
+LATER = "2026-08-20T09:00:00Z"
 
 SMITH_CLAUDE = """[[dispatch]]
 label = "dream:smith"
@@ -48,9 +61,25 @@ def streamed(**fields: object) -> str:
     return json.dumps(fields)
 
 
+def listing(*issues: tuple[int, str]) -> str:
+    """Return what gh answers an issue listing with."""
+    return json.dumps(
+        [{"number": number, "createdAt": created} for number, created in issues]
+    )
+
+
 def git(*arguments: str, cwd: Path) -> str:
     """Run git in cwd and return its output, through the tool's own runner."""
     return run("git", *arguments, cwd=cwd)
+
+
+def gone(pid: int) -> bool:
+    """Wait a while for the process at pid to end, and say whether it did."""
+    # A process that outstays the wait is a process that is still there, which
+    # is the answer, not a failure.
+    with suppress(psutil.NoSuchProcess, psutil.TimeoutExpired):
+        psutil.Process(pid).wait(timeout=30)
+    return not psutil.pid_exists(pid)
 
 
 def commit(path: Path, message: str) -> None:
@@ -107,8 +136,19 @@ def watched(repo):
 
 
 @pytest.fixture
-def fake(tmp_path, monkeypatch):
+def stand_ins(tmp_path):
+    """The directory holding the stand-in programs that a test installs."""
+    return tmp_path / "fakes"
+
+
+@pytest.fixture
+def fake(stand_ins, monkeypatch):
     """Return a factory that puts a stand-in for a program first on the PATH."""
-    directory = tmp_path / "fakes"
-    monkeypatch.setenv("PATH", f"{directory}{os.pathsep}{os.environ['PATH']}")
-    return partial(fakes.install, directory)
+    monkeypatch.setenv("PATH", f"{stand_ins}{os.pathsep}{os.environ['PATH']}")
+    return partial(fakes.install, stand_ins)
+
+
+@pytest.fixture
+def harnesses(fake):
+    """Both harness CLIs on the PATH, so a run gets past its startup check."""
+    return {program: fake(program) for program in ("claude", "codex")}

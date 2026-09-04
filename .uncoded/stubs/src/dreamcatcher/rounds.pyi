@@ -2,21 +2,37 @@
 # src/dreamcatcher/rounds.py
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from threading import Lock, Thread
+from threading import Event, Lock, Thread
+from pydantic import PositiveInt
 from dreamcatcher.adapters import Adapter
 from dreamcatcher.clock import now
 from dreamcatcher.commands import spawn
-from dreamcatcher.documents import Document, append_text, write_json
+from dreamcatcher.documents import Document, append_text, read_json, write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Prose, Renderer
 
+RECORD = 'round.json'
+
+def read_round_records(directory: Path) -> list[RoundRecord]:
+    ...
+
+class Ending(Document):
+    at: datetime
+    status: int
+    is_failed: bool
+
 class RoundRecord(Document):
     started: datetime
-    pid: int
-    ended: datetime | None = None
-    status: int | None = None
+    pid: PositiveInt
+    cause: str
+    ending: Ending | None = None
+
+class Workspace:
+    worktree: Path
+    directory: Path
 
 class Round:
     record: Path
@@ -24,7 +40,7 @@ class Round:
     raw: Path
     is_alive: bool
 
-    def __init__(self, adapter: Adapter, command: list[str], worktree: Path, directory: Path, clock: Callable[[], datetime]) -> None:
+    def __init__(self, adapter: Adapter, command: list[str], workspace: Workspace, cause: str, clock: Callable[[], datetime]) -> None:
         ...
 
     def wait(self) -> None:

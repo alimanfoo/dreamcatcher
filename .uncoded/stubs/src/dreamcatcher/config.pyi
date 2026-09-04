@@ -27,6 +27,9 @@ class DispatchMapping(Document):
     label: str
     harness_settings: dict[Harness, HarnessSettings]
 
+    def choose_harness(self, named: Harness) -> Harness:
+        ...
+
     def _carries_a_block(self) -> Self:
         ...
 
@@ -35,6 +38,8 @@ class Config(Document):
     max_agents: PositiveInt = 1
     assignee: str = '@me'
     dispatch: list[DispatchMapping] = Field(min_length=1)
+    label_mappings: dict[str, DispatchMapping]
+    mapped_harnesses: set[Harness]
 
     def _each_label_maps_once(self) -> Self:
         ...
