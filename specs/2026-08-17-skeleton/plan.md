@@ -332,6 +332,13 @@ In scope:
 - Eligibility (design.md, The tick), built on phase 3's "unknown" contract.
 - The real tick (design.md, The tick), replacing phase 2's stub and dispatching
   through phase 7's session creation.
+- The round's cause, which phase 6 left to the phase that decides one
+  (design.md, The state directory). A dispatch is the first cause there is, so
+  `round.json` carries one from here on.
+- The repository the tick asks GitHub about, read once as the run starts
+  (design.md, The tick). It cannot change under a running daemon, and a run that
+  cannot name it dispatches nothing, so `run` refuses rather than failing every
+  tick.
 - The failure cooldown (design.md, The tick).
 - The daemon holding its own rounds, which is what the cap counts and what it
   ends as it goes down, Ctrl-C included (design.md, Rounds and processes). Phase
