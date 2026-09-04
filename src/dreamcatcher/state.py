@@ -14,9 +14,10 @@ STATE_DIRECTORY = ".dreamcatcher"
 class Candidate(Document):
     """One labelled issue a tick weighed, and what stood in its way.
 
-    A candidate is an issue under one label, because the label settles the
-    harness that runs it and the prompt it starts with. An issue carrying two
-    mapped labels is a candidate under each of them, and neither can go.
+    A candidate is an issue under a single label, because the label decides
+    which harness runs it and which prompt it starts with. An issue that carries
+    two mapped labels becomes a candidate under each of them, and neither of
+    those can be dispatched.
 
     A candidate with no reason is one that nothing stood in the way of.
     """
@@ -34,10 +35,11 @@ class Candidate(Document):
 class Waiting(Document):
     """A session with a round that nothing has carried on yet.
 
-    The reason is what its most recent round left it waiting on, in the words
-    the record kept: a round that was interrupted, or one that failed and the
-    status it failed with. So a run of usage-limit failures reads as what it
-    is.
+    The reason says what the session's most recent round left it waiting on, in
+    the words that the round's own record kept. A round can have been
+    interrupted, or it can have failed with a status, and the reason carries
+    that status. A run of usage-limit failures is therefore recognisable for
+    what it is.
     """
 
     session: str
@@ -48,17 +50,17 @@ class Waiting(Document):
 class LastTick(Document):
     """What the daemon's most recent tick observed and decided.
 
-    The tick's own time is in here rather than read from the file, so copying a
-    state directory cannot make a stale tick look fresh.
+    The record carries the tick's own time rather than taking it from the file,
+    so copying a state directory cannot make a stale tick look fresh.
 
-    A tick that launched nothing at all says in one line what the hold on it
-    was. A tick held at the cap looked no further than its own rounds, and says
-    so rather than pretending that it looked, so it records nothing else.
+    A tick that launched nothing at all says in one line what held it. A tick
+    that was held at the cap looked no further than its own rounds, so it
+    records nothing else, rather than suggesting that it had looked.
 
-    The candidates are every labelled issue the tick weighed, in the order they
-    would go. A candidate with nothing in its way that the tick did not
-    dispatch is one waiting for a later tick, and its place in the list is its
-    turn.
+    The candidates are every labelled issue that the tick weighed, in the order
+    they would be dispatched. A candidate with nothing in its way that the tick
+    did not dispatch is waiting for a later tick, and its place in the list is
+    its turn.
     """
 
     at: datetime
@@ -93,10 +95,10 @@ class StateDirectory:
     def worktrees(self) -> Path:
         """The directory holding a worktree for each session, named by its key.
 
-        Every worktree that dreamcatcher makes lives under here, whatever the
-        checkout's own directory habits are. So a worktree under here is one of
-        dreamcatcher's, and that is how the daemon tells its own work from
-        everyone else's.
+        Every worktree that dreamcatcher makes lives under here, wherever the
+        checkout would otherwise put its worktrees. A worktree under here is
+        therefore one of dreamcatcher's, and that is how the daemon tells its
+        own work from everyone else's.
         """
         return self.path / "worktrees"
 
@@ -108,7 +110,7 @@ class StateDirectory:
     def bootstrap(self) -> None:
         """Create the directory, ignoring itself, so git never sees its files.
 
-        Writing the .gitignore is what makes the directory, and bootstrap writes
-        it every time, so a deleted one heals.
+        Writing the .gitignore is what creates the directory. Bootstrap writes
+        it on every run, so a directory that was deleted comes back.
         """
         write_text("*\n", self.path / ".gitignore")
