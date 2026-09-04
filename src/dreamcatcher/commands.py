@@ -152,7 +152,7 @@ def spawn(program: str, *arguments: str, cwd: Path, stdin: Path | None = None) -
     """
     with ExitStack() as opening:
         reading = (
-            opening.enter_context(stdin.open("rb"))
+            opening.enter_context(_open_for_reading(stdin))
             if stdin is not None
             else subprocess.DEVNULL
         )
@@ -174,6 +174,19 @@ def spawn(program: str, *arguments: str, cwd: Path, stdin: Path | None = None) -
     return Child(
         cast("IO[str]", started.stdout), cast("IO[str]", started.stderr), started
     )
+
+
+def _open_for_reading(path: Path) -> IO[bytes]:
+    """Return the file at path, open for a child to read, or raise CommandError.
+
+    A file the tool cannot open is not a bug in the tool, and the user can act
+    on it, so it reads as a message. The bytes go to the child as they are,
+    which is what keeps a prompt's own line endings.
+    """
+    try:
+        return path.open("rb")
+    except OSError as error:
+        raise CommandError(f"cannot read {path}: {error}.") from error
 
 
 def _build(program: str, arguments: tuple[str, ...]) -> list[str] | str:

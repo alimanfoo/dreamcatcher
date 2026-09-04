@@ -108,6 +108,11 @@ def test_a_spawned_command_reads_the_file_it_was_given_as_its_stdin(tmp_path):
     assert child.wait() == 0
 
 
+def test_a_prompt_the_child_cannot_be_given_says_so(tmp_path):
+    with pytest.raises(CommandError, match="cannot read"):
+        spawn(sys.executable, "-c", "pass", cwd=tmp_path, stdin=tmp_path / "gone.txt")
+
+
 def test_a_spawned_command_finds_its_stdin_already_at_an_end(tmp_path):
     reading = "import sys; sys.stdout.write(f'read {sys.stdin.read()!r}')"
 

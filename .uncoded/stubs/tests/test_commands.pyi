@@ -37,6 +37,9 @@ def test_a_spawned_command_runs_where_it_is_told_and_streams_as_it_goes(fake, tm
 def test_a_spawned_command_reads_the_file_it_was_given_as_its_stdin(tmp_path):
     ...
 
+def test_a_prompt_the_child_cannot_be_given_says_so(tmp_path):
+    ...
+
 def test_a_spawned_command_finds_its_stdin_already_at_an_end(tmp_path):
     ...
 

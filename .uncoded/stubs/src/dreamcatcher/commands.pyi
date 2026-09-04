@@ -25,6 +25,9 @@ def run(program: str, *arguments: str, cwd: Path | None) -> str:
 def spawn(program: str, *arguments: str, cwd: Path, stdin: Path | None) -> Child:
     ...
 
+def _open_for_reading(path: Path) -> IO[bytes]:
+    ...
+
 def _build(program: str, arguments: tuple[str, ...]) -> list[str] | str:
     ...
 
