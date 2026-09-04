@@ -332,6 +332,13 @@ In scope:
 - Eligibility (design.md, The tick), built on phase 3's "unknown" contract.
 - The real tick (design.md, The tick), replacing phase 2's stub and dispatching
   through phase 7's session creation.
+- The round's cause, which phase 6 left to the phase that decides one
+  (design.md, The state directory). A dispatch is the first cause there is, so
+  `round.json` carries one from here on.
+- The repository the tick asks GitHub about, read once as the run starts
+  (design.md, The tick). It cannot change under a running daemon, and a run that
+  cannot name it dispatches nothing, so `run` refuses rather than failing every
+  tick.
 - The failure cooldown (design.md, The tick).
 - The daemon holding its own rounds, which is what the cap counts and what it
   ends as it goes down, Ctrl-C included (design.md, Rounds and processes). Phase
@@ -371,11 +378,27 @@ In scope:
 - The watermark as a value that the peek reads but never writes (design.md, The
   relay).
 
-Done when: CI tests against recorded REST fixtures cover the filter's known
-traps by name — the empty wrapper around an agent's own inline reply does not
-pass; a marker-bearing post does not pass; a post from another account does not
-pass; a range suggestion arrives with its `start_line` and hunk; review verdicts
-pass with empty bodies.
+Done when: CI tests cover the filter's known traps by name — the empty wrapper
+around an agent's own inline reply does not pass; a marker-bearing post does not
+pass; a post from another account does not pass; a range suggestion arrives with
+its `start_line` and hunk; review verdicts pass with empty bodies. A recording
+of what gh answered for the three post lists of one real pull request on this
+repository reads the projection against GitHub's own document. It carries the
+first of those traps itself, the empty reviews GitHub wrapped the inline
+comments in, and it carries the `original_line` fallback as well, since the code
+four of its comments were written against has moved since. Every other trap is a
+page the test composes. No recording of this repository could hold a post from
+another account, a post carrying a marker no session here has written yet, an
+approval of your own pull request, which GitHub refuses, or a suggestion over a
+range, which nobody has left here.
+
+The peek's own shape settled two things. The tick already reads each session's
+pull request state, and that read is where the peek's pull request number comes
+from, so the peek fetches no state of its own. design.md's relay section is
+corrected to say so. And a post's kind is the class it reads back as, so it
+carries no field of its own saying the same thing again. The field the port's
+projection had belongs to the phase that writes `inbox.json`, where a kind has
+to survive being written down.
 
 Deliberately out: writing the watermark, inboxes, resumes, and any wiring into
 the tick.

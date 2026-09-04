@@ -4,10 +4,13 @@
 import pytest
 from clocks import PINNED
 from conftest import CONFIG, commit, git
+from records import write_round
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import CONFIG_NAME, Harness, read_config
+from dreamcatcher.documents import write_text
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.sessions import Session, create_session
+from dreamcatcher.rounds import Ending, RoundRecord, Workspace
+from dreamcatcher.sessions import WATERMARK, SessionRecord, create_session, read_sessions
 from dreamcatcher.state import StateDirectory
 
 KEY = 'GH12-20260819-184158'
@@ -37,8 +40,38 @@ def test_a_session_records_what_it_was_dispatched_with(state, mapping):
 def test_a_session_runs_on_the_harness_the_run_named(state, mapping):
     ...
 
+def test_a_new_session_has_run_no_rounds_and_its_next_is_its_first(state, mapping):
+    ...
+
 def test_a_session_git_cannot_cut_leaves_no_branch_behind(state, mapping):
     ...
 
 def test_a_session_that_cannot_record_leaves_no_worktree_and_no_branch(state, mapping):
+    ...
+
+def test_a_state_directory_with_no_worktrees_holds_no_sessions(state):
+    ...
+
+def test_a_session_reads_back_as_it_was_dispatched(state, mapping):
+    ...
+
+def test_a_session_no_round_has_told_anything_yet_has_seen_no_post(state, mapping):
+    ...
+
+def test_a_session_reads_back_the_newest_post_it_has_been_told_about(state, mapping):
+    ...
+
+def test_a_sessions_rounds_read_back_in_the_order_they_ran(state, mapping):
+    ...
+
+def test_every_session_of_the_repo_reads_back_by_key(state, mapping):
+    ...
+
+def test_a_file_left_among_the_worktrees_is_not_a_session(state, mapping):
+    ...
+
+def test_a_worktree_with_no_record_beside_it_is_not_a_session(state, mapping):
+    ...
+
+def test_a_session_record_that_will_not_read_names_the_file(state, mapping):
     ...

@@ -3,8 +3,10 @@
 
 from pathlib import Path
 import pytest
-from dreamcatcher.documents import Document, append_text, read_toml, write_text
+from dreamcatcher.documents import Document, append_text, read_json, read_toml, write_text
 from dreamcatcher.errors import ReportableError
+
+READERS = [pytest.param(read_toml, id='toml'), pytest.param(read_json, id='json')]
 
 def write(path: Path, text: str) -> Path:
     ...
@@ -12,22 +14,34 @@ def write(path: Path, text: str) -> Path:
 def test_a_valid_document_reads_back(tmp_path):
     ...
 
-def test_a_missing_document_names_the_path(tmp_path):
+def test_a_valid_json_document_reads_back(tmp_path):
     ...
 
-def test_an_unreadable_document_says_so(tmp_path):
+def test_a_missing_document_names_the_path(tmp_path, read):
+    ...
+
+def test_an_unreadable_document_says_so(tmp_path, read):
+    ...
+
+def test_a_document_that_is_not_utf_8_says_so(tmp_path, read):
     ...
 
 def test_a_document_that_is_not_toml_says_so(tmp_path):
     ...
 
-def test_a_document_that_is_not_utf_8_says_so(tmp_path):
+def test_a_document_that_is_not_json_says_so(tmp_path):
     ...
 
 def test_a_document_that_breaks_its_model_lists_every_fault(tmp_path):
     ...
 
+def test_a_json_document_that_breaks_its_model_lists_every_fault(tmp_path):
+    ...
+
 def test_a_write_lands_where_it_is_asked_for(tmp_path):
+    ...
+
+def test_a_write_leaves_nothing_of_itself_beside_what_it_wrote(tmp_path):
     ...
 
 def test_a_write_that_fails_says_so(tmp_path):

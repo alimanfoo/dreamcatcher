@@ -79,7 +79,7 @@ def test_a_failure_the_user_must_read_is_a_message_not_a_traceback(
 
 
 def test_a_write_the_daemon_cannot_make_is_a_message_not_a_traceback(
-    monkeypatch, watched, capsys
+    monkeypatch, watched, capsys, harnesses
 ):
     monkeypatch.chdir(watched)
     (watched / ".dreamcatcher").write_text("not a directory\n", encoding="utf-8")

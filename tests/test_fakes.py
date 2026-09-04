@@ -54,3 +54,36 @@ def test_a_stand_in_nobody_scripted_says_so(fake):
 
     with pytest.raises(CommandError, match="was not scripted"):
         run("harness")
+
+
+def test_a_stand_in_answers_each_call_with_the_rule_that_call_opens(fake):
+    gh = fake("gh")
+    gh.replies("the repository\n", to="repo view")
+    gh.replies("the listing\n", to="issue list")
+
+    assert run("gh", "repo", "view", "--json", "nameWithOwner") == "the repository\n"
+    assert run("gh", "issue", "list", "--state", "open") == "the listing\n"
+
+
+def test_a_stand_in_prefers_the_rule_scripted_for_the_particular_call(fake):
+    gh = fake("gh")
+    gh.replies("anything\n")
+    gh.replies("the blockers\n", to="api")
+
+    assert run("gh", "api", "user") == "the blockers\n"
+    assert run("gh", "repo", "view") == "anything\n"
+
+
+def test_a_call_scripted_twice_answers_with_the_later_of_the_two(fake):
+    gh = fake("gh")
+    gh.replies("what it knew first\n", to="repo view")
+    gh.replies("what it knows now\n", to="repo view")
+
+    assert run("gh", "repo", "view") == "what it knows now\n"
+
+
+def test_a_call_no_rule_answers_says_the_stand_in_was_not_scripted(fake):
+    fake("gh").replies("the listing\n", to="issue list")
+
+    with pytest.raises(CommandError, match="was not scripted"):
+        run("gh", "repo", "view")

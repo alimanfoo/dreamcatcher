@@ -37,7 +37,8 @@ from pathlib import PurePosixPath
 
 import pytest
 from clocks import Ticking
-from recordings import FIXTURES, rendered
+from conftest import FIXTURES
+from recordings import rendered
 
 from dreamcatcher.claude import CLAUDE
 from dreamcatcher.codex import CODEX

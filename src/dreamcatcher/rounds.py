@@ -8,28 +8,62 @@ reads as its stdin. `raw.jsonl` keeps the harness's own stdout as it arrived, so
 that whoever works on a parser can read what the harness really sent. `feed.txt`
 is that same stream read through the harness's adapter and rendered as lines a
 person can read, with whatever the harness said on stderr among them, where it
-happened. `round.json` says when the round started, what process it ran as, and
-how it ended.
+happened. `round.json`
+says when the round started, what process it ran as, what caused it, and how it
+ended.
 
 The daemon watches a round rather than waiting for it, so a round reads its own
 streams on threads of its own, and records its own ending on another.
 """
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from threading import Event, Lock, Thread
 
+from pydantic import PositiveInt
+
 from dreamcatcher.adapters import Adapter, Invocation
 from dreamcatcher.clock import now
 from dreamcatcher.commands import spawn
-from dreamcatcher.documents import Document, append_text, write_json, write_text
+from dreamcatcher.documents import (
+    Document,
+    append_text,
+    read_json,
+    write_json,
+    write_text,
+)
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Prose, Renderer
+
+# The file in a round's own directory saying what the round did.
+RECORD = "round.json"
+
+
+class Ending(Document):
+    """How a round ended: when it ended, and the status it ended with.
+
+    The time and the status are one value because a round knows both at once
+    and neither without the other, so nothing has to ask whether they agree.
+    """
+
+    at: datetime
+    status: int
+
+    @property
+    def is_failed(self) -> bool:
+        """Whether the round ended with a status that says it failed."""
+        return self.status != 0
 
 
 class RoundRecord(Document):
     """What a round says about itself, written at each end of the round.
+
+    The cause is what woke the round, in the words the daemon decided it in:
+    the dispatch that opened the session, or whatever a later tick found for it
+    to do. A reader of the session's rounds then reads the story of why each
+    one ran.
 
     A record with no ending means the round was interrupted. Either the daemon
     exited while the round was still going, or the daemon stopped the round
@@ -38,9 +72,38 @@ class RoundRecord(Document):
     """
 
     started: datetime
-    pid: int
-    ended: datetime | None = None
-    status: int | None = None
+    pid: PositiveInt
+    cause: str
+    ending: Ending | None = None
+
+
+@dataclass(frozen=True)
+class Workspace:
+    """Where one round runs, and where it writes what it did.
+
+    Both paths come from the session the round belongs to: the round runs in
+    that session's worktree, and writes into a directory of its own under the
+    session's own files. They travel together because no round ever has one
+    without the other.
+    """
+
+    worktree: Path
+    directory: Path
+
+
+def read_round_records(directory: Path) -> list[RoundRecord]:
+    """Return the records of the rounds written under directory, oldest first.
+
+    Each round writes into a directory of its own under this one, so a session
+    passes the directory holding all of them.
+
+    The order comes from the records themselves, so nothing here has to read a
+    directory's name as a number. A directory with no record in it yet, and a
+    directory that holds no rounds at all, both come back with nothing rather
+    than as a failure.
+    """
+    records = [read_json(RoundRecord, found) for found in directory.glob(f"*/{RECORD}")]
+    return sorted(records, key=lambda record: record.started)
 
 
 class Round:
@@ -54,11 +117,11 @@ class Round:
         self,
         adapter: Adapter,
         invocation: Invocation,
-        worktree: Path,
-        directory: Path,
+        workspace: Workspace,
+        cause: str,
         clock: Callable[[], datetime] = now,
     ) -> None:
-        """Run the invocation as a round in worktree, recording into directory.
+        """Run the invocation as a round in the workspace it was given.
 
         The prompt goes to a file of the round's own, and the harness reads
         that file as its stdin. So a prompt reaches the harness as it was
@@ -68,18 +131,22 @@ class Round:
         round before it starts.
         """
         self.adapter = adapter
-        self.directory = directory
+        self.workspace = workspace
+        self.cause = cause
         self.clock = clock
-        self.renderer = Renderer(worktree, clock=clock)
+        self.renderer = Renderer(workspace.worktree, clock=clock)
         self.started = clock()
         self.is_interrupted = False
         self._ended = Event()
         self._writing = Lock()
         write_text(invocation.prompt, self.prompt)
-        self.child = spawn(*invocation.command, cwd=worktree, stdin=self.prompt)
+        self.child = spawn(
+            *invocation.command, cwd=workspace.worktree, stdin=self.prompt
+        )
         try:
             write_json(
-                RoundRecord(started=self.started, pid=self.child.pid), self.record
+                RoundRecord(started=self.started, pid=self.child.pid, cause=cause),
+                self.record,
             )
         except ReportableError:
             # A round nothing recorded is a round nothing will watch or find
@@ -99,22 +166,22 @@ class Round:
     @property
     def prompt(self) -> Path:
         """The file holding what the round asked the harness to do."""
-        return self.directory / "prompt.txt"
+        return self.workspace.directory / "prompt.txt"
 
     @property
     def record(self) -> Path:
         """The file saying when the round started, and how it ended."""
-        return self.directory / "round.json"
+        return self.workspace.directory / RECORD
 
     @property
     def feed(self) -> Path:
         """The file holding the round as a reader reads it."""
-        return self.directory / "feed.txt"
+        return self.workspace.directory / "feed.txt"
 
     @property
     def raw(self) -> Path:
         """The file holding the harness's own stdout, as it arrived."""
-        return self.directory / "raw.jsonl"
+        return self.workspace.directory / "raw.jsonl"
 
     @property
     def is_alive(self) -> bool:
@@ -193,8 +260,8 @@ class Round:
                     RoundRecord(
                         started=self.started,
                         pid=self.child.pid,
-                        ended=self.clock(),
-                        status=status,
+                        cause=self.cause,
+                        ending=Ending(at=self.clock(), status=status),
                     ),
                     self.record,
                 )

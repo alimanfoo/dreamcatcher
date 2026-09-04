@@ -27,6 +27,9 @@ def _launcher(base: Path) -> None:
 def _scripted(base: Path) -> Path:
     ...
 
+def _scripted_for(base: Path, arguments: list[str]) -> dict | None:
+    ...
+
 def _taken(base: Path) -> Path:
     ...
 
@@ -53,14 +56,14 @@ class Fake:
     base: Path
     calls: list[Call]
 
-    def replies(self, stdout: str) -> None:
+    def replies(self, stdout: str, *, to: str) -> None:
         ...
 
-    def fails(self, stderr: str, status: int) -> None:
+    def fails(self, stderr: str, status: int, *, to: str) -> None:
         ...
 
-    def streams(self, lines: list[Line], delay: float, status: int) -> None:
+    def streams(self, lines: list[Line], delay: float, status: int, *, to: str) -> None:
         ...
 
-    def _answer(self, lines: list[Line], status: int, delay: float) -> None:
+    def _answer(self, lines: list[Line], status: int, delay: float, to: str) -> None:
         ...

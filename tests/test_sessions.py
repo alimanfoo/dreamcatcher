@@ -1,11 +1,19 @@
 import pytest
 from clocks import PINNED
 from conftest import CONFIG, commit, git
+from records import write_round
 
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import CONFIG_NAME, Harness, read_config
+from dreamcatcher.documents import write_text
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.sessions import Session, create_session
+from dreamcatcher.rounds import Ending, RoundRecord, Workspace
+from dreamcatcher.sessions import (
+    WATERMARK,
+    SessionRecord,
+    create_session,
+    read_sessions,
+)
 from dreamcatcher.state import StateDirectory
 
 KEY = "GH12-20260819-184158"
@@ -35,15 +43,15 @@ def mapping(checkout):
 def written(state):
     """Return the record that the session wrote about itself."""
     record = state.sessions / KEY / "session.json"
-    return Session.model_validate_json(record.read_text(encoding="utf-8"))
+    return SessionRecord.model_validate_json(record.read_text(encoding="utf-8"))
 
 
 def test_a_session_cuts_a_worktree_of_its_own_under_the_state_directory(state, mapping):
     session = create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
 
     assert session.key == KEY
-    assert session.worktree == state.worktrees / KEY
-    assert (session.worktree / "README.md").exists()
+    assert session.record.worktree == state.worktrees / KEY
+    assert (session.record.worktree / "README.md").exists()
 
 
 def test_a_session_cuts_a_branch_of_its_own_from_origins_main_as_it_is_now(
@@ -59,29 +67,38 @@ def test_a_session_cuts_a_branch_of_its_own_from_origins_main_as_it_is_now(
 
     session = create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
 
-    assert session.branch == BRANCH
+    assert session.record.branch == BRANCH
     assert BRANCH in git("branch", "--list", BRANCH, cwd=state.root)
-    assert (session.worktree / "later.txt").exists()
+    assert (session.record.worktree / "later.txt").exists()
 
 
 def test_a_session_records_what_it_was_dispatched_with(state, mapping):
     session = create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
 
-    assert written(state) == session
-    assert session.issue == 12
-    assert session.label == "dream:smith"
-    assert session.harness == Harness.CLAUDE
-    assert session.model == "opus[1m]"
-    assert session.effort == "xhigh"
-    assert session.prompt.startswith("/dream:smith GH12\n")
+    assert written(state) == session.record
+    assert session.record.issue == 12
+    assert session.record.label == "dream:smith"
+    assert session.record.harness == Harness.CLAUDE
+    assert session.record.model == "opus[1m]"
+    assert session.record.effort == "xhigh"
+    assert session.record.prompt.startswith("/dream:smith GH12\n")
 
 
 def test_a_session_runs_on_the_harness_the_run_named(state, mapping):
     session = create_session(state, mapping, Harness.CODEX, 12, PINNED)
 
-    assert session.harness == Harness.CODEX
-    assert session.model == "gpt-5.6-sol"
-    assert session.prompt.startswith("$dream:smith GH12\n")
+    assert session.record.harness == Harness.CODEX
+    assert session.record.model == "gpt-5.6-sol"
+    assert session.record.prompt.startswith("$dream:smith GH12\n")
+
+
+def test_a_new_session_has_run_no_rounds_and_its_next_is_its_first(state, mapping):
+    session = create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
+
+    assert session.rounds == []
+    assert session.next_workspace == Workspace(
+        session.record.worktree, state.sessions / KEY / "rounds" / "1"
+    )
 
 
 def test_a_session_git_cannot_cut_leaves_no_branch_behind(state, mapping):
@@ -107,3 +124,80 @@ def test_a_session_that_cannot_record_leaves_no_worktree_and_no_branch(state, ma
 
     assert not (state.worktrees / KEY).exists()
     assert git("branch", "--list", BRANCH, cwd=state.root) == ""
+
+
+def test_a_state_directory_with_no_worktrees_holds_no_sessions(state):
+    assert read_sessions(state) == []
+
+
+def test_a_session_reads_back_as_it_was_dispatched(state, mapping):
+    created = create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
+
+    assert read_sessions(state) == [created]
+
+
+def test_a_session_no_round_has_told_anything_yet_has_seen_no_post(state, mapping):
+    create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
+
+    assert read_sessions(state)[0].watermark == ""
+
+
+def test_a_session_reads_back_the_newest_post_it_has_been_told_about(state, mapping):
+    create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
+    write_text("2026-09-03T22:31:51Z\n", state.sessions / KEY / WATERMARK)
+
+    assert read_sessions(state)[0].watermark == "2026-09-03T22:31:51Z"
+
+
+def test_a_sessions_rounds_read_back_in_the_order_they_ran(state, mapping):
+    create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
+    later = PINNED.replace(minute=50)
+    directory = state.sessions / KEY
+    write_round(directory, 2, RoundRecord(started=later, pid=1, cause="dispatched"))
+    write_round(
+        directory,
+        1,
+        RoundRecord(
+            started=PINNED,
+            pid=1,
+            cause="dispatched",
+            ending=Ending(at=later, status=0),
+        ),
+    )
+
+    read = read_sessions(state)[0]
+
+    assert [record.started for record in read.rounds] == [PINNED, later]
+    assert read.next_workspace.directory == state.sessions / KEY / "rounds" / "3"
+
+
+def test_every_session_of_the_repo_reads_back_by_key(state, mapping):
+    create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
+    create_session(state, mapping, Harness.CLAUDE, 3, PINNED)
+
+    assert [session.key for session in read_sessions(state)] == [
+        "GH12-20260819-184158",
+        "GH3-20260819-184158",
+    ]
+
+
+def test_a_file_left_among_the_worktrees_is_not_a_session(state, mapping):
+    created = create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
+    (state.worktrees / ".DS_Store").write_text("a file browser\n", encoding="utf-8")
+
+    assert read_sessions(state) == [created]
+
+
+def test_a_worktree_with_no_record_beside_it_is_not_a_session(state, mapping):
+    created = create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
+    (state.worktrees / "GH3-20260819-184158").mkdir()
+
+    assert read_sessions(state) == [created]
+
+
+def test_a_session_record_that_will_not_read_names_the_file(state, mapping):
+    create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
+    (state.sessions / KEY / "session.json").write_text("{}", encoding="utf-8")
+
+    with pytest.raises(ReportableError, match=r"session\.json is not valid"):
+        read_sessions(state)

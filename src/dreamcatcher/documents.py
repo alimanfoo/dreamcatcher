@@ -7,6 +7,9 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 
 from dreamcatcher.errors import ReportableError
 
+# What a whole write is written to before it takes its target's place.
+WRITING = ".writing"
+
 
 class Document(BaseModel):
     """A document that dreamcatcher reads or writes.
@@ -21,15 +24,7 @@ class Document(BaseModel):
 def read_toml[DocumentT: Document](model: type[DocumentT], path: Path) -> DocumentT:
     """Return the document the TOML file holds, or raise ReportableError."""
     try:
-        text = path.read_text(encoding="utf-8")
-    except FileNotFoundError as error:
-        raise ReportableError(f"{path} does not exist.") from error
-    except UnicodeDecodeError as error:
-        raise ReportableError(f"{path} is not UTF-8 text.") from error
-    except OSError as error:
-        raise ReportableError(f"cannot read {path}: {error}.") from error
-    try:
-        data = tomllib.loads(text)
+        data = tomllib.loads(read_text(path))
     except tomllib.TOMLDecodeError as error:
         raise ReportableError(f"{path} is not valid TOML: {error}.") from error
     try:
@@ -38,14 +33,59 @@ def read_toml[DocumentT: Document](model: type[DocumentT], path: Path) -> Docume
         raise ReportableError(_report(path, error)) from error
 
 
+def read_json[DocumentT: Document](model: type[DocumentT], path: Path) -> DocumentT:
+    """Return the document the JSON file holds, or raise ReportableError.
+
+    Every document the tool writes for itself is JSON, so this is how the tool
+    reads its own records back. pydantic reads the JSON and checks the model in
+    one step, so a file that is not JSON at all reports as the first fault the
+    document has.
+    """
+    try:
+        return model.model_validate_json(read_text(path))
+    except ValidationError as error:
+        raise ReportableError(_report(path, error)) from error
+
+
+def read_text(path: Path) -> str:
+    """Return the text the file at path holds, read as UTF-8.
+
+    `read_toml` and `read_json` both read through this, and so does a file that
+    holds one value and needs no model of its own.
+
+    Raise ReportableError when the read fails. A document that is not there, or
+    that nothing can read, is something the user can act on, so it reads as a
+    message rather than a traceback.
+    """
+    try:
+        return path.read_text(encoding="utf-8")
+    except FileNotFoundError as error:
+        raise ReportableError(f"{path} does not exist.") from error
+    except UnicodeDecodeError as error:
+        raise ReportableError(f"{path} is not UTF-8 text.") from error
+    except OSError as error:
+        raise ReportableError(f"cannot read {path}: {error}.") from error
+
+
 def write_text(text: str, path: Path) -> None:
     """Write text to path as UTF-8, over whatever was there before.
+
+    The write lands whole. The text goes to a file beside the target and then
+    takes the target's place in one step, so a reader of the target reads the
+    document that was there or the one that replaced it, and never half of
+    one. A reader really does arrive mid-write: a round records how it ended
+    on a thread of its own, while a tick is reading every round's record.
 
     Raise ReportableError when the write fails. A full disk or a read-only
     directory is not a bug in the tool, and the user can act on either, so it
     reads as a message.
     """
-    _write(text, path, "w")
+    beside = path.with_name(f"{path.name}{WRITING}")
+    _write(text, beside, "w")
+    try:
+        beside.replace(path)
+    except OSError as error:
+        raise ReportableError(f"cannot write {path}: {error}.") from error
 
 
 def append_text(text: str, path: Path) -> None:
@@ -54,7 +94,9 @@ def append_text(text: str, path: Path) -> None:
     Raise ReportableError when the write fails, for the reason write_text does.
 
     A round's feed and its raw stream each grow by a line at a time while the
-    round runs, so the round adds to them rather than rewriting them.
+    round runs, so the round adds to them rather than rewriting them. Whoever
+    reads one reads the lines that have landed, so an append needs no step of
+    its own to land whole.
     """
     _write(text, path, "a")
 

@@ -77,7 +77,10 @@ never touches the repo's own files. Contents:
 - `last-tick.json` — overwritten each tick: when the tick ran, and what the
   daemon observed and decided, including what it did not do and why (queued
   behind others, blocked by an open issue, skipped for double labels, deferred
-  at the cap, posts seen but not yet relayed). The board's queue and waiting
+  at the cap, posts seen but not yet relayed). An eligible issue that the tick
+  did not dispatch carries no reason of its own: the candidates are written in
+  the order they would go, and that order is where its turn is recorded, so the
+  board reads "behind N others" off the position. The board's queue and waiting
   sections render this file. The time it records, with `daemon.pid`, tells
   `scry` whether the daemon is alive: the tick writes its own time rather than
   leaning on the file's mtime, which copying a state directory would freshen.
@@ -94,6 +97,13 @@ never touches the repo's own files. Contents:
   its start as it spawns and its ending as it ends, and a round that the daemon
   killed records no ending at all, so one the daemon stopped reads as
   interrupted, which is what it is.
+
+Every whole document the tool writes lands in one step: the text goes to a file
+beside the target and then takes the target's place. A round records how it
+ended on a thread of its own while a tick is reading every round's record, so a
+reader really does arrive mid-write, and this is what keeps it from reading half
+a document. A feed and a raw stream grow by a line at a time instead, and
+whoever reads one reads the lines that have landed.
 
 The round records are the story of record: a `round.json` with no end recorded
 is the interrupted detector, a final round's completed record is the final-round
@@ -117,8 +127,13 @@ to put a worktree in an ignored directory of its own working tree — Claude
 Code's worktree feature nests the same way — and this is the only layout:
 everything dreamcatcher ever makes lives inside `.dreamcatcher/`, whatever the
 user's directory habits. Ownership is by path — a session worktree is one under
-`worktrees/` — which is stronger than the old basename-pattern test. The branch
-name stays dispatcher-internal namespace, and carries no job in the eligibility
+`worktrees/` — which is stronger than the old basename-pattern test. A worktree
+with no `session.json` beside it is not a session: the dispatch cuts the
+worktree and then writes the record, so a daemon that died between the two
+leaves one behind, and it stands for a session that ran nothing and opened no
+pull request. Reading it as no session leaves its issue free to go again. A
+record that is there and will not read is a named error instead. The branch name
+stays dispatcher-internal namespace, and carries no job in the eligibility
 check: GitHub's own link from an issue to its open pull requests answers that,
 and the issue reference the _skill_ acts on travels in the prompt. (The branch
 still contains a `GH<n>` token, so today's smith and less boot by branch-scan
@@ -147,9 +162,13 @@ failed `worktree add` has one to take away.
 
 ### The tick
 
-At startup, once: acquire the lock, sweep orphans — any round record with no end
-recorded whose pid is still alive gets killed — and treat every round record
-with no end as interrupted.
+At startup, once: check that every harness CLI a mapping can settle a label on
+is installed, read the repository GitHub knows the checkout as, acquire the
+lock, sweep orphans — the pid of any round record with no end recorded is ended,
+and ending one that has already gone does nothing — and treat every round record
+with no end as interrupted. `run` refuses when a CLI is missing or when `gh`
+cannot name the repository, because neither can change under a running daemon
+and a run without them dispatches nothing.
 
 Each tick, in order, launching at most one round per tick:
 
@@ -176,7 +195,9 @@ resume-before-dispatch plus one-launch-per-tick already contains the blast
 radius by construction — a persistent failure is the same session retrying,
 never a pile of fresh worktrees, because the errored retry always outranks a new
 dispatch. The hold lands in `last-tick.json` with the evidence, not a diagnosis:
-"last round failed (exit 1) — next attempt at HH:MM".
+"the last round failed (exit 1) — next attempt at HH:MM UTC". The board shows
+the same words, without the next attempt, against the session waiting on that
+round.
 
 The true wedge is narrower than the port's: a round that exited _zero_ without
 opening a PR — the skill ran to completion and chose to yield without one.
@@ -191,7 +212,11 @@ is eligible when it carries exactly one mapped label, is assigned to the
 configured assignee, has no active session worktree, has no open pull request
 GitHub links to it, and has no open blocking issues. Every read failure biases
 toward inaction: a failed handled-check answers "handled", a failed
-blocker-check answers "blocked", a failed listing skips the tick.
+blocker-check answers "blocked", a failed listing skips the tick. A tick's own
+work can fail too — a fetch that could not reach origin, a record the disk would
+not take — and that failure lands in `last-tick.json` as the reason the tick
+launched nothing, so the daemon ticks again rather than ending and leaving the
+sessions it holds to nobody.
 
 The two claims on an issue answer different questions, which is why both are
 asked. A session worktree says this daemon is working on it, and covers the
@@ -347,19 +372,41 @@ a live one are the same view in different tenses.
 
 ### The relay
 
-`watch.sh` ports as a function with one deliberate change in sequencing. The
-query is a read-only peek: fetch the PR state and everything newer than the
-watermark from the three sources — conversation comments, reviews, and inline
-comments, each its own paginated REST list via `gh api`, the shape upstream
-normalised to in dream#900, so the relay never reconciles two JSON dialects —
-filter, and return, writing nothing. The watermark advances only when a round
-actually launches with that batch as its inbox. The port's advance-on-read
-sequencing lost any batch whose round never ran; advance-on-launch means a crash
-before launch re-reads the same posts next tick, the "posts waiting" board state
-becomes real observed data (the peek's results land in `last-tick.json`), and
-two sessions with posts contending for one slot both keep their batches until
-each actually runs. The residual window — crash after launch, before the round
-acts — stays, and stays accepted: you can see the PR and say it again.
+`watch.sh` ports as a function, with one deliberate change in sequencing.
+
+The query is a read-only peek: read the three sources — conversation comments,
+reviews, and inline comments, each its own paginated REST list via `gh api`, the
+shape upstream normalised to in dream#900, so the relay never reconciles two
+JSON dialects — keep what is newer than the watermark, and return, writing
+nothing.
+
+Each list comes back whole, and the watermark filters what came back, rather
+than the fetch asking narrowly. GitHub takes a `since` on the two comment lists
+but not on the reviews, so asking narrowly would be a special case for two
+sources out of three, and one process watching one repository spends few enough
+calls to leave that for a later phase.
+
+The PR's own state is not the peek's to fetch. The tick reads it per session,
+and that read is where the peek's PR number comes from, so a state read of the
+peek's own would be one fact read twice by two reads that can disagree.
+
+The watermark advances only when a round actually launches with that batch as
+its inbox. The port's advance-on-read sequencing lost any batch whose round
+never ran. Advance-on-launch means a crash before launch re-reads the same posts
+next tick, the "posts waiting" board state becomes real observed data (the
+peek's results land in `last-tick.json`), and two sessions with posts contending
+for one slot both keep their batches until each actually runs.
+
+The residual window — crash after launch, before the round acts — stays, and
+stays accepted: you can see the PR and say it again.
+
+One narrower window stays open for the same reason. GitHub records a post to the
+second, and the watermark is the newest post of the batch that just launched, so
+a post written in that same second, and landing after the peek that made the
+batch, is never newer than the watermark and no later tick brings it back. That
+is the requirements brief's "I can see that on the pull request and say it
+again", and closing it would mean remembering every post id ever relayed, which
+is the recovery machinery the brief turns down.
 
 The filter keeps `watch.sh`'s two rules: a post is the user's when its author is
 the _authenticated_ account (`gh api user`, nothing configured) and its body
@@ -368,7 +415,10 @@ non-empty body, or an APPROVED or CHANGES_REQUESTED verdict — which drops
 GitHub's empty review wrappers, including the ones wrapping the agent's own
 inline replies. Timestamps are ISO-8601 strings compared as strings; an absent
 watermark means the beginning of time, so a session's first peek returns the
-PR's whole history.
+PR's whole history. A review nobody has submitted yet — a draft the user has
+started and left, which GitHub answers with no submitted time at all — reads as
+written at the beginning of time by the same comparison, so it never passes a
+watermark and needs no rule of its own.
 
 The projection widens per dream#891: inline comments carry `path`, `line` (with
 the `original_line` fallback), `start_line` (with `original_start_line`),
@@ -426,36 +476,55 @@ Marking is injected by the dispatcher; the skill needs no knowledge of it.
 
 Windows native is the target; CI runs the test suite on Windows, macOS, and
 Linux from the first commit, with a fake harness binary standing in for
-signed-in CLIs. All subprocess and file IO forces UTF-8 explicitly, and reads a
-byte that is not UTF-8 as the replacement character rather than failing, since a
-localised git can put one in a message. A write keeps the line endings it was
-given rather than the platform's, so a round's copy of what a harness streamed
-holds what the harness sent.
+signed-in CLIs.
+
+All subprocess and file IO forces UTF-8 explicitly, and reads a byte that is not
+UTF-8 as the replacement character rather than failing, since a localised git
+can put one in a message.
+
+A write keeps the line endings it was given rather than the platform's, so a
+round's copy of what a harness streamed holds what the harness sent.
 
 Programs are looked up on the PATH before they run, which is what reaches a
 `.cmd` on Windows, the form the harness CLIs take when npm installs them.
+
+The current directory is no part of that lookup. Windows searches it ahead of
+the PATH, and the daemon's current directory is the watched checkout for its
+whole life, so a file named `git.exe` at that checkout's root would otherwise
+run in place of the real tool. The daemon takes the current directory back out
+of the search by setting `NoDefaultCurrentDirectoryInExePath` in its own
+process.
+
+Every child inherits the name. Windows itself, cmd.exe and Python each read it,
+so a lookup the harness makes reads the PATH alone too. That carries a cost the
+design accepts: a command in a watched repository that runs a program from the
+current directory by its bare name stops finding it.
+
 Windows runs a `.cmd` through cmd.exe, which reads the command line a second
 time under its own rules, after Python has quoted it for the program's own
 reader. So a batch file's line is built for both readers: every part of it
-quoted, and a quote inside a part doubled. A percent sign and a line ending get
-past the quoting, though. cmd.exe expands `%NAME%` inside double quotes as well
-as outside, and it reads a newline as the end of a statement, so neither reaches
-a batch file as it was written. A prompt is the text most likely to hold one,
-and it goes to the harness as a file the harness reads rather than as an
-argument, so it never meets cmd.exe at all. What is left on a command line is
-short: a model, an effort, and flags the tool writes itself. So the tool refuses
-a model or an effort holding either character as it reads the config, which is
-what lets the message name the setting that the repo's owner has to fix. The
-repo's owner commits the `dreamcatcher.toml`, so everyone watching that repo
-reads the same one, and a config that reads on Linux and fails on Windows would
-be worse than one that fails the same way everywhere. So the refusal stands on
-every platform.
+quoted, and a quote inside a part doubled.
+
+A percent sign and a line ending get past the quoting, though. cmd.exe expands
+`%NAME%` inside double quotes as well as outside, and it reads a newline as the
+end of a statement, so neither reaches a batch file as it was written. A prompt
+is the text most likely to hold one, and it goes to the harness as a file the
+harness reads rather than as an argument, so it never meets cmd.exe at all.
+
+What is left on a command line is short: a model, an effort, and flags the tool
+writes itself. So the tool refuses a model or an effort holding either character
+as it reads the config, which is what lets the message name the setting that the
+repo's owner has to fix. The repo's owner commits the `dreamcatcher.toml`, so
+everyone watching that repo reads the same one, and a config that reads on Linux
+and fails on Windows would be worse than one that fails the same way everywhere.
+So the refusal stands on every platform.
 
 It also follows that the process the daemon starts is often not the one doing
 the work, since a `.cmd` is a shim and Windows has shims for other things too.
 Process teardown is therefore a whole tree, not a child: a process group on
-POSIX and a Job Object on Windows, isolated in one module. Paths flow through
-`pathlib` end to end.
+POSIX and a Job Object on Windows, isolated in one module.
+
+Paths flow through `pathlib` end to end.
 
 The known pid-reuse wrinkles are accepted, because each window is small: the
 orphan sweep runs once at startup against pids the daemon itself recorded, and a

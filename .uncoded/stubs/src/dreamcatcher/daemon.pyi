@@ -3,15 +3,35 @@
 
 from collections.abc import Callable
 from contextlib import suppress
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from time import sleep
+from dreamcatcher import teardown
+from dreamcatcher.adapters import Launch
 from dreamcatcher.clock import now
+from dreamcatcher.commands import locate
 from dreamcatcher.config import Harness, read_config
 from dreamcatcher.documents import write_json
+from dreamcatcher.eligibility import judge_issues
 from dreamcatcher.errors import ReportableError
+from dreamcatcher.github import Unknown, identify_repository
+from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.lock import hold
-from dreamcatcher.state import LastTick, StateDirectory
+from dreamcatcher.rounds import Round
+from dreamcatcher.sessions import Session, create_session, discard_session, read_sessions
+from dreamcatcher.state import Candidate, LastTick, StateDirectory, Waiting
+
+DISPATCHED = 'dispatched'
+COOLDOWN = timedelta(minutes=15)
+
+def _check_cooldown(sessions: list[Session], at: datetime) -> str | None:
+    ...
+
+def _list_waiting(sessions: list[Session], running: dict[str, Round]) -> list[Waiting]:
+    ...
+
+def _check_rounds(session: Session) -> str | None:
+    ...
 
 class Daemon:
     def __init__(self, root: Path, harness: Harness, clock: Callable[[], datetime], wait: Callable[[float], None]) -> None:
@@ -20,5 +40,23 @@ class Daemon:
     def run(self) -> None:
         ...
 
-    def tick(self) -> None:
+    def tick(self, repository: str) -> None:
+        ...
+
+    def _identify_repository(self) -> str:
+        ...
+
+    def _decide_and_launch(self, repository: str, at: datetime) -> LastTick:
+        ...
+
+    def _dispatch_oldest_issue(self, at: datetime, judged: list[Candidate], waiting: list[Waiting]) -> LastTick:
+        ...
+
+    def _launch_session(self, candidate: Candidate, at: datetime) -> str:
+        ...
+
+    def _locate_harnesses(self) -> None:
+        ...
+
+    def _sweep_orphans(self) -> None:
         ...

@@ -6,7 +6,15 @@ from pathlib import Path
 from pydantic import BaseModel, ConfigDict, ValidationError
 from dreamcatcher.errors import ReportableError
 
+WRITING = '.writing'
+
 def read_toml(model: type[DocumentT], path: Path) -> DocumentT:
+    ...
+
+def read_json(model: type[DocumentT], path: Path) -> DocumentT:
+    ...
+
+def read_text(path: Path) -> str:
     ...
 
 def write_text(text: str, path: Path) -> None:

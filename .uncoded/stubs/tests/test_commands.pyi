@@ -4,7 +4,7 @@
 import sys
 from pathlib import Path
 import pytest
-from fakes import Line, Stream
+from fakes import Line, Stream, install
 from dreamcatcher.commands import CommandError, _quote, locate, refuse_unquotable, run, spawn
 
 def test_a_command_hands_back_what_it_printed(fake):
@@ -14,6 +14,9 @@ def test_a_command_runs_where_it_is_told(fake, tmp_path):
     ...
 
 def test_a_program_on_the_path_is_found(fake):
+    ...
+
+def test_a_program_in_the_current_directory_alone_is_not_found(tmp_path, monkeypatch):
     ...
 
 def test_a_program_that_is_not_on_the_path_says_so():
