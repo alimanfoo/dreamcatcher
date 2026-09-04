@@ -51,9 +51,9 @@ class LastTick(Document):
     The tick's own time is in here rather than read from the file, so copying a
     state directory cannot make a stale tick look fresh.
 
-    A tick that held every launch says why in one line. A tick held at the cap
-    looked no further than its own rounds, and says so rather than pretending
-    that it looked, so it records nothing else at all.
+    A tick that launched nothing at all says in one line what the hold on it
+    was. A tick held at the cap looked no further than its own rounds, and says
+    so rather than pretending that it looked, so it records nothing else.
 
     The candidates are every labelled issue the tick weighed, in the order they
     would go. A candidate with nothing in its way that the tick did not
@@ -62,7 +62,7 @@ class LastTick(Document):
     """
 
     at: datetime
-    held: str | None = None
+    hold: str | None = None
     dispatched: str | None = None
     candidates: list[Candidate] = Field(default_factory=list)
     waiting: list[Waiting] = Field(default_factory=list)

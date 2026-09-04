@@ -109,7 +109,6 @@ src/:
         _decide:
         _dispatch:
         _launch:
-        _stop_rounds:
         _locate_harnesses:
         _sweep_orphans:
       _check_cooldown:
@@ -278,7 +277,7 @@ src/:
         reason:
       LastTick:
         at:
-        held:
+        hold:
         dispatched:
         candidates:
         waiting:

@@ -59,10 +59,10 @@ class SessionRecord(Document):
 class Session:
     """One attempt at one issue, as it stands.
 
-    The directory is where the session keeps its own files, and it is named by
-    the session's key, so the key is written down in one place alone. The
-    record says what the dispatch settled, and the rounds are what the session
-    has run so far, oldest first.
+    The directory is where the session keeps its own files, and its own name is
+    the session's key, which is how a reader of the disk finds one. The record
+    says what the dispatch settled, and the rounds are what the session has run
+    so far, oldest first.
     """
 
     directory: Path

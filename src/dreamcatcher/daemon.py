@@ -14,8 +14,6 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from time import sleep
 
-import psutil
-
 from dreamcatcher import teardown
 from dreamcatcher.adapters import Launch
 from dreamcatcher.clock import now
@@ -85,7 +83,12 @@ class Daemon:
                         self.tick(repository)
                         self.wait(self.config.interval)
             finally:
-                self._stop_rounds()
+                # Rounds die with the daemon by design, so this happens however
+                # the run ends: on the user's interrupt, and on a failure the
+                # daemon could not carry on from. A round that already ended
+                # keeps the ending it recorded for itself.
+                for running in self.rounds.values():
+                    running.stop()
 
     def tick(self, repository: str) -> None:
         """Look once, launch at most one round, and record what happened.
@@ -104,7 +107,7 @@ class Daemon:
         try:
             observed = self._decide(repository, at)
         except ReportableError as failure:
-            observed = LastTick(at=at, held=str(failure))
+            observed = LastTick(at=at, hold=str(failure))
         write_json(observed, self.state.last_tick)
 
     def _identify(self) -> str:
@@ -129,17 +132,17 @@ class Daemon:
         pretending that it looked.
         """
         if len(self.rounds) >= self.config.max_agents:
-            return LastTick(at=at, held=f"at cap: {len(self.rounds)} rounds running")
+            return LastTick(at=at, hold=f"at cap: {len(self.rounds)} rounds running")
         sessions = read_sessions(self.state)
         waiting = _list_waiting(sessions, self.rounds)
         cooling = _check_cooldown(sessions, at)
         if cooling is not None:
-            return LastTick(at=at, held=cooling, waiting=waiting)
+            return LastTick(at=at, hold=cooling, waiting=waiting)
         judged = judge_issues(
             repository, self.config, {session.record.issue for session in sessions}
         )
         if isinstance(judged, Unknown):
-            return LastTick(at=at, held=judged.reason, waiting=waiting)
+            return LastTick(at=at, hold=judged.reason, waiting=waiting)
         return self._dispatch(at, judged, waiting)
 
     def _dispatch(
@@ -182,17 +185,6 @@ class Daemon:
         )
         return session.key
 
-    def _stop_rounds(self) -> None:
-        """End every round the daemon still holds, and all they started.
-
-        Rounds die with the daemon by design, so this runs however the run
-        ends: on the user's interrupt, and on a failure the daemon could not
-        carry on from. A round that already ended keeps the ending it recorded
-        for itself.
-        """
-        for running in self.rounds.values():
-            running.stop()
-
     def _locate_harnesses(self) -> None:
         """Refuse the run when a harness it could dispatch to is not installed.
 
@@ -210,10 +202,11 @@ class Daemon:
 
         Rounds die with the daemon that started them, so a round still running
         here means the daemon that started it went down without ending it,
-        which a crash or a kill does. A round whose record says how it ended
-        is over, and so is a round with no ending whose pid no process holds.
-        Both of those are left alone, and a round with no ending reads as
-        interrupted, which a later tick carries on.
+        which a crash or a kill does. A round whose record says how it ended is
+        over and is left alone. Every other round is ended, and ending a round
+        that has already gone does nothing, so nothing here has to ask whether
+        one has. Its record keeps no ending either way, and a round with no
+        ending reads as interrupted, which a later tick carries on.
 
         The pid is the one the record kept, and the operating system was free
         to give it to somebody else once the daemon that recorded it died.
@@ -228,12 +221,12 @@ class Daemon:
         """
         for session in read_sessions(self.state):
             for record in session.rounds:
-                if record.ending is None and psutil.pid_exists(record.pid):
+                if record.ending is None:
                     teardown.end(record.pid)
 
 
 def _check_cooldown(sessions: list[Session], at: datetime) -> str | None:
-    """Return why every launch is held, when a round failed lately enough.
+    """Return the hold every launch is under, when a round failed lately enough.
 
     The words are the evidence the record left and not a diagnosis of it. A
     usage limit and a passing blip both read as a round that failed, and both
@@ -251,7 +244,9 @@ def _check_cooldown(sessions: list[Session], at: datetime) -> str | None:
     until = latest.at + COOLDOWN
     if at >= until:
         return None
-    return f"last round failed (exit {latest.status}) — next attempt at {until:%H:%M}"
+    return (
+        f"the last round failed (exit {latest.status}) — next attempt at {until:%H:%M}"
+    )
 
 
 def _list_waiting(sessions: list[Session], running: dict[str, Round]) -> list[Waiting]:

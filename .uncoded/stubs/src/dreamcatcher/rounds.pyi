@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from threading import Event, Lock, Thread
+from pydantic import PositiveInt
 from dreamcatcher.adapters import Adapter
 from dreamcatcher.clock import now
 from dreamcatcher.commands import spawn
@@ -25,7 +26,7 @@ class Ending(Document):
 
 class RoundRecord(Document):
     started: datetime
-    pid: int
+    pid: PositiveInt
     cause: str
     ending: Ending | None = None
 

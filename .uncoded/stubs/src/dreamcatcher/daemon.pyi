@@ -6,7 +6,6 @@ from contextlib import suppress
 from datetime import datetime, timedelta
 from pathlib import Path
 from time import sleep
-import psutil
 from dreamcatcher import teardown
 from dreamcatcher.adapters import Launch
 from dreamcatcher.clock import now
@@ -54,9 +53,6 @@ class Daemon:
         ...
 
     def _launch(self, candidate: Candidate, at: datetime) -> str:
-        ...
-
-    def _stop_rounds(self) -> None:
         ...
 
     def _locate_harnesses(self) -> None:

@@ -214,7 +214,6 @@ def test_a_round_that_recorded_an_ending_is_left_running_by_the_sweep(
             ending=Ending(at=PINNED, status=0),
         ),
     )
-    write_round(directory, 2, RoundRecord(started=PINNED, pid=dead_pid(), cause=CAUSE))
     daemon, _, _ = idling(watched)
 
     daemon.run()
@@ -236,9 +235,9 @@ def listing(*issues: tuple[int, str]) -> str:
 
 def held(daemon) -> str:
     """Why the daemon's most recent tick launched nothing at all."""
-    reason = recorded(daemon).held
-    assert reason is not None
-    return reason
+    hold = recorded(daemon).hold
+    assert hold is not None
+    return hold
 
 
 def recorded(daemon) -> LastTick:
@@ -343,7 +342,7 @@ def test_a_tick_at_the_cap_spends_no_github_call(dispatching, offered, harnesses
 
     daemon.run()
 
-    assert recorded(daemon).held == "at cap: 1 rounds running"
+    assert recorded(daemon).hold == "at cap: 1 rounds running"
     assert [call.arguments[:2] for call in offered.calls] == [
         ["repo", "view"],
         ["issue", "list"],
@@ -430,7 +429,7 @@ def test_a_round_that_failed_lately_holds_every_launch(dispatching):
 
     daemon.run()
 
-    assert held(daemon) == "last round failed (exit 1) — next attempt at 18:50"
+    assert held(daemon) == "the last round failed (exit 1) — next attempt at 18:50"
     assert recorded(daemon).dispatched is None
     assert not (daemon.state.worktrees / DISPATCHED_KEY).exists()
 

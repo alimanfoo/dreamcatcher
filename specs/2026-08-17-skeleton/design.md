@@ -156,11 +156,11 @@ failed `worktree add` has one to take away.
 
 At startup, once: check that every harness CLI a mapping can settle a label on
 is installed, read the repository GitHub knows the checkout as, acquire the
-lock, sweep orphans — any round record with no end recorded whose pid is still
-alive gets killed — and treat every round record with no end as interrupted.
-`run` refuses when a CLI is missing or when `gh` cannot name the repository,
-because neither can change under a running daemon and a run without them
-dispatches nothing.
+lock, sweep orphans — the pid of any round record with no end recorded is ended,
+and ending one that has already gone does nothing — and treat every round record
+with no end as interrupted. `run` refuses when a CLI is missing or when `gh`
+cannot name the repository, because neither can change under a running daemon
+and a run without them dispatches nothing.
 
 Each tick, in order, launching at most one round per tick:
 
@@ -187,7 +187,8 @@ resume-before-dispatch plus one-launch-per-tick already contains the blast
 radius by construction — a persistent failure is the same session retrying,
 never a pile of fresh worktrees, because the errored retry always outranks a new
 dispatch. The hold lands in `last-tick.json` with the evidence, not a diagnosis:
-"last round failed (exit 1) — next attempt at HH:MM".
+"the last round failed (exit 1) — next attempt at HH:MM", which is the same
+phrase the board shows against the session waiting on that round.
 
 The true wedge is narrower than the port's: a round that exited _zero_ without
 opening a PR — the skill ran to completion and chose to yield without one.
