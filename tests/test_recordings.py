@@ -1,7 +1,7 @@
 """Read each recorded stream through the adapter that made it, and the feed.
 
 An agent session recorded every stream here in the same throwaway repository,
-running the command that adapter's `first_round` builds.
+running the command that adapter's `build_first_round` builds.
 
 Claude's recordings sit under `tests/fixtures/claude/`.
 

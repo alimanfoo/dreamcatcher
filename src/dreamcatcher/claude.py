@@ -4,7 +4,7 @@ import json
 from collections.abc import Callable
 from typing import ClassVar
 
-from dreamcatcher.adapters import Adapter, Launch
+from dreamcatcher.adapters import Adapter, Invocation, Launch
 from dreamcatcher.feed import Event, Note, Prose
 
 # What an unattended round may do without being asked, and nothing else. The
@@ -40,24 +40,30 @@ class Claude(Adapter):
 
     program: ClassVar[str] = "claude"
 
-    def first_round(self, launch: Launch) -> list[str]:
-        """Return the command that runs a session's first round."""
-        return [
-            *self._base(launch),
-            "--model",
-            launch.model,
-            "--effort",
-            launch.effort,
-            launch.prompt,
-        ]
+    def build_first_round(self, launch: Launch) -> Invocation:
+        """Return how to run a session's first round.
 
-    def resume(self, launch: Launch) -> list[str]:
-        """Return the command that continues the session in this directory.
+        The command names no prompt, which is how Claude knows to read one
+        from stdin.
+        """
+        return Invocation(
+            [
+                *self._base(launch),
+                "--model",
+                launch.model,
+                "--effort",
+                launch.effort,
+            ],
+            launch.prompt,
+        )
+
+    def build_resumed_round(self, launch: Launch) -> Invocation:
+        """Return how to continue the session in this directory.
 
         Claude recovers the model and the effort itself, so a resume replays
         neither.
         """
-        return [*self._base(launch), "--continue", launch.prompt]
+        return Invocation([*self._base(launch), "--continue"], launch.prompt)
 
     def _events(self, streamed: dict) -> list[Event]:
         """Return the feed events one Claude event turns into."""

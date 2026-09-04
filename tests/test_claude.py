@@ -1,6 +1,6 @@
 from conftest import streamed
 
-from dreamcatcher.adapters import Launch
+from dreamcatcher.adapters import Invocation, Launch
 from dreamcatcher.claude import ALLOWED_TOOLS, CLAUDE
 from dreamcatcher.feed import Note, Prose
 
@@ -34,19 +34,17 @@ def assistant(*blocks, parent: str | None = None) -> str:
     )
 
 
+# Neither command names the prompt, which is what has Claude read it from stdin.
 def test_a_first_round_names_the_model_and_the_effort_it_was_dispatched_with():
-    assert CLAUDE.first_round(LAUNCH) == [
-        *BASE,
-        "--model",
-        "opus[1m]",
-        "--effort",
-        "xhigh",
-        "/dream:smith GH9",
-    ]
+    assert CLAUDE.build_first_round(LAUNCH) == Invocation(
+        [*BASE, "--model", "opus[1m]", "--effort", "xhigh"], "/dream:smith GH9"
+    )
 
 
 def test_a_resume_continues_the_session_and_replays_no_settings():
-    assert CLAUDE.resume(LAUNCH) == [*BASE, "--continue", "/dream:smith GH9"]
+    assert CLAUDE.build_resumed_round(LAUNCH) == Invocation(
+        [*BASE, "--continue"], "/dream:smith GH9"
+    )
 
 
 def test_the_first_event_names_the_model_and_the_session():

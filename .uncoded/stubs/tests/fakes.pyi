@@ -50,6 +50,7 @@ class Line:
 class Call:
     arguments: list[str]
     directory: Path
+    prompt: str
 
 class Fake:
     base: Path

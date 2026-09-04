@@ -2,10 +2,11 @@
 # src/dreamcatcher/codex.py
 
 from typing import ClassVar
-from dreamcatcher.adapters import Adapter, Launch
+from dreamcatcher.adapters import Adapter, Invocation, Launch
 from dreamcatcher.feed import Event, Note, Prose
 
 NETWORK_ACCESS = 'sandbox_workspace_write.network_access=true'
+STDIN = '-'
 RESUME_PERMISSIONS = ...
 CODEX = Codex()
 
@@ -27,10 +28,10 @@ def _usage(counts: dict) -> Note:
 class Codex(Adapter):
     program: ClassVar[str] = 'codex'
 
-    def first_round(self, launch: Launch) -> list[str]:
+    def build_first_round(self, launch: Launch) -> Invocation:
         ...
 
-    def resume(self, launch: Launch) -> list[str]:
+    def build_resumed_round(self, launch: Launch) -> Invocation:
         ...
 
     def _events(self, streamed: dict) -> list[Event]:

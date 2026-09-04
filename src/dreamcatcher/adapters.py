@@ -31,6 +31,21 @@ class Launch:
     prompt: str
 
 
+@dataclass(frozen=True)
+class Invocation:
+    """How one round runs: the command to start, and the prompt it reads.
+
+    A harness reads its prompt from stdin rather than from its command line,
+    so the two travel together and the adapter is what knows which is which.
+    That keeps a prompt off every command line, where cmd.exe would act on a
+    percent sign or a line ending in it, and it lets a prompt run to any
+    length.
+    """
+
+    command: list[str]
+    prompt: str
+
+
 class Adapter(ABC):
     """One harness, as everything outside its own module sees it.
 
@@ -41,15 +56,15 @@ class Adapter(ABC):
     program: ClassVar[str]
 
     @abstractmethod
-    def first_round(self, launch: Launch) -> list[str]:
-        """Return the command that runs a session's first round."""
+    def build_first_round(self, launch: Launch) -> Invocation:
+        """Return how to run a session's first round."""
 
     @abstractmethod
-    def resume(self, launch: Launch) -> list[str]:
-        """Return the command that resumes the session with launch's prompt."""
+    def build_resumed_round(self, launch: Launch) -> Invocation:
+        """Return how to resume the session with launch's prompt."""
 
     def read(self, line: str) -> list[Event]:
-        """Return the feed events one line of the harness's stream carries.
+        """Return the feed events from one line of the harness's stream.
 
         Not every line is an event. A CLI prints a warning now and then, and an
         event can arrive in a shape the adapter does not expect. In both cases

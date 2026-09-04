@@ -4,7 +4,7 @@
 import json
 from collections.abc import Callable
 from typing import ClassVar
-from dreamcatcher.adapters import Adapter, Launch
+from dreamcatcher.adapters import Adapter, Invocation, Launch
 from dreamcatcher.feed import Event, Note, Prose
 
 ALLOWED_TOOLS = ...
@@ -38,10 +38,10 @@ def _text(value: object) -> str:
 class Claude(Adapter):
     program: ClassVar[str] = 'claude'
 
-    def first_round(self, launch: Launch) -> list[str]:
+    def build_first_round(self, launch: Launch) -> Invocation:
         ...
 
-    def resume(self, launch: Launch) -> list[str]:
+    def build_resumed_round(self, launch: Launch) -> Invocation:
         ...
 
     def _events(self, streamed: dict) -> list[Event]:

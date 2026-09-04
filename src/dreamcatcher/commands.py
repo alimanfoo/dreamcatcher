@@ -1,7 +1,12 @@
-"""Run the external commands dreamcatcher shells out to."""
+"""Run the external commands dreamcatcher shells out to.
+
+This module also owns what the tool knows about cmd.exe, the second reader that
+a command line meets on Windows, since a command line has to survive it.
+"""
 
 import os
 import subprocess
+from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path, PurePath
 from shutil import which
@@ -26,6 +31,26 @@ os.environ["NODEFAULTCURRENTDIRECTORYINEXEPATH"] = "1"
 # with one of these endings through cmd.exe, so its command line meets a second
 # reader. git and gh are real executables, so neither ever meets that.
 BATCH_ENDINGS = (".cmd", ".bat")
+
+# What cmd.exe acts on wherever it sits, and what to call each one in a message.
+# cmd.exe expands %NAME% on the line that it parses, inside double quotes as well
+# as outside, and nothing on a command line escapes a percent sign. It reads a
+# newline as the end of a statement, the way pressing Enter would. So quoting
+# carries neither, and the tool refuses text holding one rather than let the text
+# become something else.
+#
+# Any percent sign counts, not only a %NAME% pair, because npm's shim pastes
+# every argument it was given into a command line of its own, where cmd.exe reads
+# it a third time.
+#
+# A carriage return on its own is refused as the newline is. Reading a file turns
+# every line ending into a newline, so this meets one only where a document wrote
+# it as an escape, and one line of a prompt is what the author wrote either way.
+UNQUOTABLE = {
+    "%": "a percent sign",
+    "\n": "a newline",
+    "\r": "a carriage return",
+}
 
 
 class CommandError(ReportableError):
@@ -72,6 +97,24 @@ class Child:
             teardown.end(self.pid)
 
 
+def refuse_unquotable(text: str) -> str:
+    """Return text, or raise ValueError naming every character it cannot carry.
+
+    Whoever reads text in from outside calls this, so the message can name where
+    the text came from. A ValueError is what pydantic turns into that message.
+
+    The message names every character it found, rather than the first, so the
+    repo's owner fixes a setting once instead of once for each.
+    """
+    found = [name for character, name in UNQUOTABLE.items() if character in text]
+    if found:
+        raise ValueError(
+            f"cannot hold {' or '.join(found)}, because on Windows cmd.exe acts "
+            "on the text rather than passing it to the harness"
+        )
+    return text
+
+
 def locate(program: str) -> str:
     """Return the path to program on the PATH, or raise CommandError."""
     # Windows adds only .exe to a bare name, while a lookup takes every
@@ -105,35 +148,58 @@ def run(program: str, *arguments: str, cwd: Path | None = None) -> str:
     return finished.stdout
 
 
-def spawn(program: str, *arguments: str, cwd: Path) -> Child:
+def spawn(program: str, *arguments: str, cwd: Path, stdin: Path | None = None) -> Child:
     """Start the program in cwd and hand it back while it runs.
 
     The daemon watches a round while it runs rather than waiting for it to
     finish, so this returns the running child, with each of its two streams on
     a pipe of its own and its output read as UTF-8.
 
-    The child gets no stdin. Codex reads stdin for more of its prompt and waits
-    for the end of it, so a pipe that the daemon held open would stall the round
-    for ever, even with the whole prompt already in an argument.
+    A harness reads its prompt from stdin, so the caller names the file holding
+    it and the child reads that file. A pipe would have the daemon writing the
+    prompt while the child read it, and a prompt longer than the pipe's own
+    buffer would stall them both. So a file, rather than a pipe.
+
+    A child named no file finds its stdin already at an end, so a harness
+    waiting for the rest of a prompt waits no longer than that.
     """
-    started = subprocess.Popen(
-        _build(program, arguments),
-        cwd=cwd,
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        encoding="utf-8",
-        # A stray byte that is not UTF-8, in a path or a message, comes through
-        # as the replacement character rather than as a traceback.
-        errors="replace",
-        start_new_session=teardown.OWN_SESSION,
-    )
+    with ExitStack() as opening:
+        reading = (
+            opening.enter_context(_open_for_reading(stdin))
+            if stdin is not None
+            else subprocess.DEVNULL
+        )
+        started = subprocess.Popen(
+            _build(program, arguments),
+            cwd=cwd,
+            stdin=reading,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            encoding="utf-8",
+            # A stray byte that is not UTF-8, in a path or a message, comes
+            # through as the replacement character rather than as a traceback.
+            errors="replace",
+            start_new_session=teardown.OWN_SESSION,
+        )
     teardown.contain(started.pid)
     # This asked for both pipes above, so both are there. subprocess types them
     # for every caller, including the ones that asked for neither.
     return Child(
         cast("IO[str]", started.stdout), cast("IO[str]", started.stderr), started
     )
+
+
+def _open_for_reading(path: Path) -> IO[bytes]:
+    """Return the file at path, open for a child to read, or raise CommandError.
+
+    A file the tool cannot open is not a bug in the tool, and the user can act
+    on it, so it reads as a message. The bytes go to the child as they are,
+    which is what keeps a prompt's own line endings.
+    """
+    try:
+        return path.open("rb")
+    except OSError as error:
+        raise CommandError(f"cannot read {path}: {error}.") from error
 
 
 def _build(program: str, arguments: tuple[str, ...]) -> list[str] | str:

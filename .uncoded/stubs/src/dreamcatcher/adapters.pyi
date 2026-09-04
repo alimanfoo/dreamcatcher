@@ -13,13 +13,17 @@ class Launch:
     effort: str
     prompt: str
 
+class Invocation:
+    command: list[str]
+    prompt: str
+
 class Adapter(ABC):
     program: ClassVar[str]
 
-    def first_round(self, launch: Launch) -> list[str]:
+    def build_first_round(self, launch: Launch) -> Invocation:
         ...
 
-    def resume(self, launch: Launch) -> list[str]:
+    def build_resumed_round(self, launch: Launch) -> Invocation:
         ...
 
     def read(self, line: str) -> list[Event]:

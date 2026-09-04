@@ -90,12 +90,13 @@ never touches the repo's own files. Contents:
   model, effort, rendered first prompt — frozen at dispatch), `watermark` (the
   relay high-water mark), and `rounds/<n>/` per round.
 - `rounds/<n>/` holds `round.json` (started and ended timestamps, exit status,
-  the child's pid, and the round's cause), `feed.txt` (rendered, timestamped),
-  `raw.jsonl` (the harness's own stdout stream), and `inbox.json` (the batch
-  that caused the round, kept forever). A round records its start as it spawns
-  and its ending as it ends, and a round that the daemon killed records no
-  ending at all, so one the daemon stopped reads as interrupted, which is what
-  it is.
+  the child's pid, and the round's cause), `prompt.txt` (what the round asked
+  the harness to do, which the harness reads as its stdin), `feed.txt`
+  (rendered, timestamped), `raw.jsonl` (the harness's own stdout stream), and
+  `inbox.json` (the batch that caused the round, kept forever). A round records
+  its start as it spawns and its ending as it ends, and a round that the daemon
+  killed records no ending at all, so one the daemon stopped reads as
+  interrupted, which is what it is.
 
 Every whole document the tool writes lands in one step: the text goes to a file
 beside the target and then takes the target's place. A round records how it
@@ -272,51 +273,74 @@ off, losing at most the work since the last event.
 
 One adapter per harness, the only code that knows a harness exists — the
 `round_command` boundary grown into a class, in the shape audacious proved: a
-small frozen object that builds the argv for a first round and a resume, names
-its CLI so a startup check can look it up, and parses one stream line into
-events.
+small frozen object that builds a first round and a resume, names its CLI so a
+startup check can look it up, and parses one stream line into events. What it
+builds is an argv and the prompt to go with it: a harness reads its prompt from
+stdin, and the round writes the prompt to `prompt.txt` for it to read, so no
+prompt ever reaches a command line. That is what lets a prompt run to any length
+and hold anything, a percent sign and a line ending included, which cmd.exe
+would otherwise act on.
 
 Claude Code: first round
-`claude --print --output-format stream-json --verbose --permission-mode auto --allowedTools <the recurring writes> --name <session-key> --model <model> --effort <effort> <prompt>`;
-resume the same base plus `--continue <prompt>` (Claude recovers model and
-effort itself; `--name` is kept from the ported command, naming the session
-after the session key). The allowed writes list is the ported one:
+`claude --print --output-format stream-json --verbose --permission-mode auto --allowedTools <the recurring writes> --name <session-key> --model <model> --effort <effort>`;
+resume the same base plus `--continue` (Claude recovers model and effort itself;
+`--name` is kept from the ported command, naming the session after the session
+key). Neither names a prompt, which is how Claude knows to read one from stdin.
+
+The allowed writes list is the ported one:
 `gh pr create/comment/edit/ready/close`, `gh issue create/comment`,
-`git commit`, `git push`. The parser is `render-claude.sh`'s jq program as
-Python: init events carry the harness session id, assistant text passes whole,
-tool calls become one line via the most-telling-input fallback chain, failed
-tool results surface, a retried request says what it is waiting on, and
-successful tool results and the rest of the housekeeping are dropped. A `result`
-event closes the round with what it spent, in money and in tokens, and then with
-how it ended. Its subtype reads `success` even on a round that failed, so the
-ending reports the event's own error flag instead. A thinking block is marked in
-the feed and nothing more: Claude streams the block with the thinking itself
-withheld, so the feed can say the agent thought and cannot say what it thought.
+`git commit`, `git push`.
+
+The parser is `render-claude.sh`'s jq program as Python: init events carry the
+harness session id, assistant text passes whole, tool calls become one line via
+the most-telling-input fallback chain, failed tool results surface, a retried
+request says what it is waiting on, and successful tool results and the rest of
+the housekeeping are dropped.
+
+A `result` event closes the round with what it spent, in money and in tokens,
+and then with how it ended. Its subtype reads `success` even on a round that
+failed, so the ending reports the event's own error flag instead.
+
+A thinking block is marked in the feed and nothing more: Claude streams the
+block with the thinking itself withheld, so the feed can say the agent thought
+and cannot say what it thought.
 
 Codex: first round
-`codex exec --json --approve-for-me --model <model> -c model_reasoning_effort=... -c sandbox_workspace_write.network_access=true <prompt>`;
+`codex exec --json --approve-for-me --model <model> -c model_reasoning_effort=... -c sandbox_workspace_write.network_access=true -`;
 resume `codex exec resume --last --json` plus the replayed settings and the
 ported resume permissions (`sandbox_mode="workspace-write"`, network access,
-`approval_policy="on-request"`, `approvals_reviewer="auto_review"`). `--last` is
-scoped by Codex's own working-directory filter — an inherited contract with
-Codex's session store, stated here so nobody rediscovers it. The parser reads
-`--json` JSONL, lifted from audacious's `codex.py` and moved from post-hoc to
-line-at-a-time. audacious took the `agent_message` text alone. The feed also
-wants the round's landmarks and what the agent did, so the parser reads
-`thread.started` for the session id, `item.completed` for the agent's words or
-one action line, `turn.completed` for what the round used, and `turn.failed` for
-why it stopped. Every round of one session carries the same session id. A
-command's action line carries the command Codex ran. When the command did not
+`approval_policy="on-request"`, `approvals_reviewer="auto_review"`), and the
+same `-`. Codex takes that word where a prompt would go, to read the prompt from
+stdin instead.
+
+`--last` is scoped by Codex's own working-directory filter — an inherited
+contract with Codex's session store, stated here so nobody rediscovers it.
+
+The parser reads `--json` JSONL, lifted from audacious's `codex.py` and moved
+from post-hoc to line-at-a-time. audacious took the `agent_message` text alone.
+The feed also wants the round's landmarks and what the agent did, so the parser
+reads `thread.started` for the session id, `item.completed` for the agent's
+words or one action line, `turn.completed` for what the round used, and
+`turn.failed` for why it stopped. Every round of one session carries the same
+session id.
+
+A command's action line carries the command Codex ran. When the command did not
 complete, a second line follows it, labelled with the status Codex gave it.
+
 Codex reports every file of one patch in a single item, so the parser gives each
 file its own action line. Each line names what happened to the file, and the
-file's path is all the rest of the line. Codex sends each item three times, as
-it starts, changes and finishes, and only the last is complete, so the parser
-drops the other two. Codex gives no prices, so its spend line counts tokens
-alone where Claude's also carries money. A failed turn arrives twice, once on
-its own and again as the turn's ending, and only the ending reaches the feed.
-Codex spends no retries on a usage limit: the round fails on the first answer
-and exits non-zero, where Claude retries ten times first.
+file's path is all the rest of the line.
+
+Codex sends each item three times, as it starts, changes and finishes, and only
+the last is complete, so the parser drops the other two.
+
+Codex gives no prices, so its spend line counts tokens alone where Claude's also
+carries money.
+
+A failed turn arrives twice, once on its own and again as the turn's ending, and
+only the ending reaches the feed. Codex spends no retries on a usage limit: the
+round fails on the first answer and exits non-zero, where Claude retries ten
+times first.
 
 These flag sets are each harness's never-stall answer, written down: Claude
 answers with a pre-approved allowlist under auto mode, Codex with its automatic
@@ -496,8 +520,21 @@ current directory by its bare name stops finding it.
 Windows runs a `.cmd` through cmd.exe, which reads the command line a second
 time under its own rules, after Python has quoted it for the program's own
 reader. So a batch file's line is built for both readers: every part of it
-quoted, and a quote inside a part doubled. A prompt then reaches the harness as
-it was written, whatever it holds.
+quoted, and a quote inside a part doubled.
+
+A percent sign and a line ending get past the quoting, though. cmd.exe expands
+`%NAME%` inside double quotes as well as outside, and it reads a newline as the
+end of a statement, so neither reaches a batch file as it was written. A prompt
+is the text most likely to hold one, and it goes to the harness as a file the
+harness reads rather than as an argument, so it never meets cmd.exe at all.
+
+What is left on a command line is short: a model, an effort, and flags the tool
+writes itself. So the tool refuses a model or an effort holding either character
+as it reads the config, which is what lets the message name the setting that the
+repo's owner has to fix. The repo's owner commits the `dreamcatcher.toml`, so
+everyone watching that repo reads the same one, and a config that reads on Linux
+and fails on Windows would be worse than one that fails the same way everywhere.
+So the refusal stands on every platform.
 
 It also follows that the process the daemon starts is often not the one doing
 the work, since a `.cmd` is a shim and Windows has shims for other things too.

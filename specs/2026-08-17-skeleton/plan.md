@@ -264,9 +264,9 @@ In scope:
   do. Phase 5's Codex first round names no directory of its own, and its resume
   finds the session by the directory it ran in, so a round run anywhere else
   resumes the wrong session or none.
-- Give the child no stdin. Codex reads stdin for more of its prompt and waits
-  for the end of it, so a pipe the daemon holds open stalls the round for ever,
-  even when the prompt is already an argument.
+- Give the child its prompt as a file to read on stdin, and give a child with no
+  prompt a stdin already at an end. Each harness reads its prompt from stdin,
+  and a harness handed a pipe the daemon holds open waits on it for ever.
 - The answer to the Windows `.cmd` question that `commands.py` left to the phase
   that runs a harness (design.md, Cross-platform notes). A test asserts it on
   all three platforms.

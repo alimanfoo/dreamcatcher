@@ -4,7 +4,14 @@ from pathlib import Path
 import pytest
 from fakes import Line, Stream, install
 
-from dreamcatcher.commands import CommandError, _quote, locate, run, spawn
+from dreamcatcher.commands import (
+    CommandError,
+    _quote,
+    locate,
+    refuse_unquotable,
+    run,
+    spawn,
+)
 
 
 def test_a_command_hands_back_what_it_printed(fake):
@@ -101,6 +108,22 @@ def test_a_spawned_command_runs_where_it_is_told_and_streams_as_it_goes(fake, tm
     assert probe.calls[0].directory == tmp_path.resolve()
 
 
+def test_a_spawned_command_reads_the_file_it_was_given_as_its_stdin(tmp_path):
+    reading = "import sys; sys.stdout.write(f'read {sys.stdin.read()!r}')"
+    holds = tmp_path / "prompt.txt"
+    holds.write_bytes(b"do this\nthen 50% more")
+
+    child = spawn(sys.executable, "-c", reading, cwd=tmp_path, stdin=holds)
+
+    assert child.out.read() == "read 'do this\\nthen 50% more'"
+    assert child.wait() == 0
+
+
+def test_a_prompt_the_child_cannot_be_given_says_so(tmp_path):
+    with pytest.raises(CommandError, match="cannot read"):
+        spawn(sys.executable, "-c", "pass", cwd=tmp_path, stdin=tmp_path / "gone.txt")
+
+
 def test_a_spawned_command_finds_its_stdin_already_at_an_end(tmp_path):
     reading = "import sys; sys.stdout.write(f'read {sys.stdin.read()!r}')"
 
@@ -110,8 +133,9 @@ def test_a_spawned_command_finds_its_stdin_already_at_an_end(tmp_path):
     assert child.wait() == 0
 
 
-# The quoting is Windows's answer, and only Windows shows what it is worth. So
-# these read it here, where every platform runs them.
+# The quoting and the refusal beside it are Windows's answer, and only Windows
+# shows what either is worth. The tests that follow read both anyway, so they run
+# on every platform.
 def test_a_quoted_part_hides_what_a_second_reader_would_act_on():
     assert _quote("effort=high&low") == '"effort=high&low"'
 
@@ -126,3 +150,29 @@ def test_a_part_ending_in_a_backslash_does_not_escape_its_closing_quote():
 
 def test_a_backslash_before_a_quote_is_doubled_so_the_quote_still_counts():
     assert _quote('C:\\repo\\"done"') == '"C:\\repo\\\\""done"""'
+
+
+# One percent sign is enough, with nothing to close it, because npm's shim reads
+# every argument again on a command line of its own.
+def test_text_holding_a_percent_sign_is_refused():
+    with pytest.raises(ValueError, match="cannot hold a percent sign"):
+        refuse_unquotable("finish 50% of it")
+
+
+def test_text_holding_a_newline_is_refused():
+    with pytest.raises(ValueError, match="cannot hold a newline"):
+        refuse_unquotable("do this\nthen that")
+
+
+def test_text_holding_a_carriage_return_is_refused():
+    with pytest.raises(ValueError, match="cannot hold a carriage return"):
+        refuse_unquotable("do this\rthen that")
+
+
+def test_text_holding_more_than_one_of_them_names_every_one():
+    with pytest.raises(ValueError, match="cannot hold a percent sign or a newline"):
+        refuse_unquotable("finish 50% of it\nthen stop")
+
+
+def test_text_the_quoting_carries_comes_back_as_it_was():
+    assert refuse_unquotable('say "done" & wait') == 'say "done" & wait'

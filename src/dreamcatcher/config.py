@@ -2,13 +2,24 @@
 
 from enum import StrEnum
 from pathlib import Path
-from typing import Self
+from typing import Annotated, Self
 
-from pydantic import ConfigDict, Field, PositiveInt, model_validator
+from pydantic import AfterValidator, ConfigDict, Field, PositiveInt, model_validator
 
+from dreamcatcher.commands import refuse_unquotable
 from dreamcatcher.documents import Document, read_toml
 
 CONFIG_NAME = "dreamcatcher.toml"
+
+# Text that quoting can carry to a harness's own command line. Windows runs a
+# harness that npm installed as a batch file, so the text meets cmd.exe on the
+# way. Refusing it as the config is read is what lets the message name the
+# setting that holds it.
+#
+# A prompt is not one of these. A round writes its prompt to a file for the
+# harness to read, so no command line ever carries it, and it can hold anything
+# and run to any length.
+QuotableText = Annotated[str, AfterValidator(refuse_unquotable)]
 
 
 class Harness(StrEnum):
@@ -22,8 +33,8 @@ class HarnessSettings(Document):
     """How one harness runs a round for one label."""
 
     prompt: str
-    model: str
-    effort: str
+    model: QuotableText
+    effort: QuotableText
 
 
 class DispatchMapping(Document):

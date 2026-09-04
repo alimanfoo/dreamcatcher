@@ -135,6 +135,34 @@ def test_a_config_mistake_names_the_setting_and_the_fault(
     assert str(error.value) == f"{tmp_path / CONFIG_NAME} is not valid:\n  {fault}"
 
 
+# A prompt is left out, because a round writes it to a file for the harness to
+# read rather than putting it on a command line.
+@pytest.mark.parametrize("setting", ["model", "effort"])
+def test_a_setting_a_harness_cannot_be_given_names_itself(tmp_path, setting):
+    write_config(tmp_path, CONFIG.replace(f'{setting} = "', f'{setting} = "%TIME% ', 1))
+
+    with pytest.raises(ReportableError) as error:
+        read_config(tmp_path)
+
+    assert str(error.value) == (
+        f"{tmp_path / CONFIG_NAME} is not valid:\n"
+        f"  dispatch.0.claude.{setting}: Value error, cannot hold a percent "
+        "sign, because on Windows cmd.exe acts on the text rather than passing "
+        "it to the harness"
+    )
+
+
+def test_a_prompt_may_hold_what_no_command_line_could_carry(tmp_path):
+    written = "/dream:smith GH{issue}\\nfinish 50% of it"
+    write_config(tmp_path, CONFIG.replace("/dream:smith GH{issue}", written, 1))
+
+    mapping = read_config(tmp_path).dispatch[0]
+
+    assert mapping.harness_settings[Harness.CLAUDE].prompt == (
+        "/dream:smith GH{issue}\nfinish 50% of it"
+    )
+
+
 def test_a_repo_with_no_config_says_which_file_is_missing(tmp_path):
     with pytest.raises(ReportableError, match=CONFIG_NAME):
         read_config(tmp_path)

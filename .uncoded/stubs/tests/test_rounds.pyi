@@ -12,15 +12,16 @@ from clocks import PINNED
 from conftest import FIXTURES
 from fakes import Line, Stream, recorded
 from recordings import rendered
-from dreamcatcher.adapters import Adapter, Launch
+from dreamcatcher.adapters import Adapter, Invocation, Launch
 from dreamcatcher.claude import CLAUDE
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Event, Note, Renderer
-from dreamcatcher.rounds import Ending, Round, RoundRecord, Workspace
+from dreamcatcher.rounds import RECORD, Ending, Round, RoundRecord, Workspace
 
 RECORDING = FIXTURES / 'claude' / 'round.jsonl'
 STAMP = '2026-08-19T18:41:58Z'
 CAUSE = 'dispatched'
+PROMPT = '/dream:smith GH9\nfinish 50% of it'
 LEAVES_A_STRAGGLER = ...
 AND_WAITS = 'left.wait()\n'
 
@@ -43,6 +44,9 @@ def within(seconds, holds):
     ...
 
 def test_a_round_runs_the_command_it_was_given_in_the_worktree(fake, worktree, directory):
+    ...
+
+def test_a_round_gives_the_harness_its_prompt_to_read(fake, worktree, directory):
     ...
 
 def test_the_feed_a_round_writes_is_the_feed_its_stream_renders_as(fake, worktree, directory):
@@ -69,7 +73,10 @@ def test_a_round_somebody_stopped_says_no_ending(fake, worktree, directory):
 def test_a_round_that_cannot_write_its_feed_stops_rather_than_stalls(fake, worktree, directory):
     ...
 
-def test_a_round_that_cannot_record_its_start_does_not_run_on(fake, worktree, tmp_path):
+def test_a_round_that_cannot_write_its_prompt_never_starts(fake, worktree, tmp_path):
+    ...
+
+def test_a_round_that_cannot_record_its_start_does_not_run_on(fake, worktree, directory):
     ...
 
 def test_a_round_a_straggler_outlives_still_records_an_ending(worktree, directory, straggler):
@@ -81,10 +88,10 @@ def test_a_round_a_straggler_outlives_still_stops(worktree, directory, straggler
 class Unrenderable(Adapter):
     program = 'harness'
 
-    def first_round(self, launch: Launch) -> list[str]:
+    def build_first_round(self, launch: Launch) -> Invocation:
         ...
 
-    def resume(self, launch: Launch) -> list[str]:
+    def build_resumed_round(self, launch: Launch) -> Invocation:
         ...
 
     def _events(self, streamed: dict) -> list[Event]:

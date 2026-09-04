@@ -2,8 +2,8 @@
 # tests/test_codex.py
 
 from conftest import streamed
-from dreamcatcher.adapters import Launch
-from dreamcatcher.codex import CODEX
+from dreamcatcher.adapters import Invocation, Launch
+from dreamcatcher.codex import CODEX, STDIN
 from dreamcatcher.feed import Note, Prose
 
 LAUNCH = ...

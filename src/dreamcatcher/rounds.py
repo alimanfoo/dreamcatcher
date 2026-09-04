@@ -3,10 +3,12 @@
 A round is a harness command running as a child of the daemon, in the session's
 worktree. It writes into a directory of its own as it goes.
 
-`raw.jsonl` keeps the harness's own stdout as it arrived, so that whoever works
-on a parser can read what the harness really sent. `feed.txt` is that same stream
-read through the harness's adapter and rendered as lines a person can read, with
-whatever the harness said on stderr among them, where it happened. `round.json`
+`prompt.txt` holds what the round asked the harness to do, which the harness
+reads as its stdin. `raw.jsonl` keeps the harness's own stdout as it arrived, so
+that whoever works on a parser can read what the harness really sent. `feed.txt`
+is that same stream read through the harness's adapter and rendered as lines a
+person can read, with whatever the harness said on stderr among them, where it
+happened. `round.json`
 says when the round started, what process it ran as, what caused it, and how it
 ended.
 
@@ -22,10 +24,16 @@ from threading import Event, Lock, Thread
 
 from pydantic import PositiveInt
 
-from dreamcatcher.adapters import Adapter
+from dreamcatcher.adapters import Adapter, Invocation
 from dreamcatcher.clock import now
 from dreamcatcher.commands import spawn
-from dreamcatcher.documents import Document, append_text, read_json, write_json
+from dreamcatcher.documents import (
+    Document,
+    append_text,
+    read_json,
+    write_json,
+    write_text,
+)
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Prose, Renderer
 
@@ -108,12 +116,20 @@ class Round:
     def __init__(
         self,
         adapter: Adapter,
-        command: list[str],
+        invocation: Invocation,
         workspace: Workspace,
         cause: str,
         clock: Callable[[], datetime] = now,
     ) -> None:
-        """Start the command as a round in the workspace it was given."""
+        """Run the invocation as a round in the workspace it was given.
+
+        The prompt goes to a file of the round's own, and the harness reads
+        that file as its stdin. So a prompt reaches the harness as it was
+        written however long it is and whatever it holds, and a reader can see
+        afterwards what the round was asked to do. A harness with nothing to
+        read would sit and wait, so a prompt the round cannot write stops the
+        round before it starts.
+        """
         self.adapter = adapter
         self.workspace = workspace
         self.cause = cause
@@ -123,7 +139,10 @@ class Round:
         self.is_interrupted = False
         self._ended = Event()
         self._writing = Lock()
-        self.child = spawn(*command, cwd=workspace.worktree)
+        write_text(invocation.prompt, self.prompt)
+        self.child = spawn(
+            *invocation.command, cwd=workspace.worktree, stdin=self.prompt
+        )
         try:
             write_json(
                 RoundRecord(started=self.started, pid=self.child.pid, cause=cause),
@@ -143,6 +162,11 @@ class Round:
             pump.start()
         self._closing = Thread(target=self._close, daemon=True)
         self._closing.start()
+
+    @property
+    def prompt(self) -> Path:
+        """The file holding what the round asked the harness to do."""
+        return self.workspace.directory / "prompt.txt"
 
     @property
     def record(self) -> Path:

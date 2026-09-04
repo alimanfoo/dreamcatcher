@@ -2,12 +2,17 @@
 
 from typing import ClassVar
 
-from dreamcatcher.adapters import Adapter, Launch
+from dreamcatcher.adapters import Adapter, Invocation, Launch
 from dreamcatcher.feed import Event, Note, Prose
 
 # Let the round reach the network from inside its sandbox, so it can talk to
 # GitHub.
 NETWORK_ACCESS = "sandbox_workspace_write.network_access=true"
+
+# What Codex takes where a prompt would go, to read the prompt from stdin
+# instead. Claude reads stdin as soon as its command names no prompt, so it
+# needs no word of its own for this.
+STDIN = "-"
 
 # What an unattended round may do without being asked. The first round gets this
 # from `--approve-for-me`, which sends every approval to Codex's own reviewer and
@@ -27,40 +32,48 @@ class Codex(Adapter):
 
     program: ClassVar[str] = "codex"
 
-    def first_round(self, launch: Launch) -> list[str]:
-        """Return the command that runs a session's first round.
+    def build_first_round(self, launch: Launch) -> Invocation:
+        """Return how to run a session's first round.
 
         The command does not say which directory to work in, so whoever runs
         it has to run it in the session's worktree.
         """
-        return [
-            self.program,
-            "exec",
-            "--json",
-            "--approve-for-me",
-            *_settings(launch),
-            *_overrides(NETWORK_ACCESS),
+        return Invocation(
+            [
+                self.program,
+                "exec",
+                "--json",
+                "--approve-for-me",
+                *_settings(launch),
+                *_overrides(NETWORK_ACCESS),
+                STDIN,
+            ],
             launch.prompt,
-        ]
+        )
 
-    def resume(self, launch: Launch) -> list[str]:
-        """Return the command that resumes the session in this directory.
+    def build_resumed_round(self, launch: Launch) -> Invocation:
+        """Return how to resume the session in this directory.
 
         Codex forgets the model and the effort when it resumes, so this sets
-        both again. `--last` means the newest session, and Codex only counts
-        the sessions it ran in the current directory. So running this in the
-        session's worktree is what picks the right session.
+        both again.
+
+        `--last` means the newest session, and Codex only counts the sessions
+        it ran in the current directory. So running this in the session's
+        worktree is what picks the right session.
         """
-        return [
-            self.program,
-            "exec",
-            "resume",
-            "--last",
-            "--json",
-            *_settings(launch),
-            *_overrides(*RESUME_PERMISSIONS),
+        return Invocation(
+            [
+                self.program,
+                "exec",
+                "resume",
+                "--last",
+                "--json",
+                *_settings(launch),
+                *_overrides(*RESUME_PERMISSIONS),
+                STDIN,
+            ],
             launch.prompt,
-        ]
+        )
 
     def _events(self, streamed: dict) -> list[Event]:
         """Return the feed events one Codex event turns into.
