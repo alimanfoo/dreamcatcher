@@ -3,9 +3,20 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
+from itertools import chain
 from pathlib import Path
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
+from pydantic import (
+    AliasChoices,
+    AliasPath,
+    BaseModel,
+    ConfigDict,
+    Field,
+    TypeAdapter,
+    ValidationError,
+    model_validator,
+)
 
 from dreamcatcher.commands import CommandError, run
 
@@ -14,6 +25,11 @@ from dreamcatcher.commands import CommandError, run
 # dropping work it can see. Only the issue listing needs it: a branch has one
 # pull request, near enough, and thirty is beyond any real count of blockers.
 LISTING_LIMIT = "500"
+
+# How many of a paginated list to ask GitHub for at a time. gh reads every page
+# whatever the size, so the largest page GitHub allows is the fewest calls for
+# the same answer.
+PAGE_SIZE = "100"
 
 
 @dataclass(frozen=True)
@@ -53,6 +69,22 @@ class BlockerState(StrEnum):
 
     OPEN = "open"
     CLOSED = "closed"
+
+
+class Verdict(StrEnum):
+    """What a review said. GitHub names these in capitals."""
+
+    APPROVED = "APPROVED"
+    CHANGES_REQUESTED = "CHANGES_REQUESTED"
+    COMMENTED = "COMMENTED"
+    DISMISSED = "DISMISSED"
+    PENDING = "PENDING"
+
+
+# The verdicts that say something on their own. A review carrying one of these
+# is worth reading even with an empty body, and every other verdict leaves the
+# body to do the talking.
+SPEAKING_VERDICTS = frozenset({Verdict.APPROVED, Verdict.CHANGES_REQUESTED})
 
 
 class Repository(Projection):
@@ -107,15 +139,123 @@ class Linked(Projection):
     )
 
 
+class Post(Projection):
+    """Something somebody wrote on a pull request, whichever way they wrote it.
+
+    A comment on the conversation, a review, and a comment on a line of the
+    diff are one document each, and this is what the three have in common.
+    Only the time differs in name: a review records when it was submitted, and
+    a comment of either kind when it was created.
+
+    The time is the ISO-8601 string GitHub sent, kept as a string. Every such
+    string ends in a Z, so one sorts against another as text, and the relay
+    compares a post against its watermark without any date arithmetic. A review
+    nobody has submitted yet records no time at all, which reads here as the
+    beginning of time, so it is never newer than a watermark.
+
+    A post whose author GitHub no longer knows, one from a deleted account, is
+    likewise authored by nobody, and so is nobody's to relay.
+
+    Each of the three kinds below is a class of its own, and no post is read as
+    this base alone.
+    """
+
+    id: int
+    author: str = Field(default="", validation_alias=AliasPath("user", "login"))
+    written_at: str = Field(
+        default="", validation_alias=AliasChoices("created_at", "submitted_at")
+    )
+    body: str = ""
+
+    @property
+    def is_speaking(self) -> bool:
+        """Whether the author said anything in this post."""
+        return bool(self.body)
+
+
+class Comment(Post):
+    """A comment on the pull request's own conversation."""
+
+
+class Review(Post):
+    """A review somebody submitted, and the verdict that it carried."""
+
+    verdict: Verdict = Field(alias="state")
+
+    @property
+    def is_speaking(self) -> bool:
+        """Whether the author said anything in this review.
+
+        GitHub wraps every inline comment in a review of its own, and that
+        wrapper has an empty body. So does the wrapper around a session's own
+        reply on a line of the diff. A wrapper says nothing, and the comments
+        it wrapped come through on their own, so an empty review with nothing
+        but a COMMENTED verdict is worth nothing to the session. An approval or
+        a request for changes is worth something on its own, body or no body.
+        """
+        return super().is_speaking or self.verdict in SPEAKING_VERDICTS
+
+
+class InlineComment(Post):
+    """A comment somebody left on a line of the pull request's diff.
+
+    The lines are where the comment was written, and the hunk is the piece of
+    the diff those lines sit in. So a comment on a range of lines reaches the
+    session with the lines themselves, and not with their numbers alone, which
+    is what a comment proposing a replacement for them needs. A comment on a
+    whole file names no line at all.
+    """
+
+    path: str
+    side: str
+    line: int | None = None
+    start_line: int | None = None
+    diff_hunk: str
+
+    @model_validator(mode="before")
+    @classmethod
+    def _fall_back_to_the_original_lines(cls, document: Any) -> Any:
+        """Read the lines the comment was written against, wherever they are.
+
+        A commit that lands after the comment can move the code it was written
+        against, or take it away. GitHub then answers no line and keeps the
+        original, which is the line the comment was written against and the one
+        the session has to be told about.
+
+        Anything that is not a document at all passes straight through, so
+        pydantic is what says why it cannot be read.
+        """
+        if not isinstance(document, dict):
+            return document
+        return document | {
+            "line": document.get("line") or document.get("original_line"),
+            "start_line": document.get("start_line")
+            or document.get("original_start_line"),
+        }
+
+
 REPOSITORY = TypeAdapter(Repository)
 ACCOUNT = TypeAdapter(Account)
 ISSUES = TypeAdapter(list[Issue])
 PULL_REQUESTS = TypeAdapter(list[PullRequest])
 BLOCKERS = TypeAdapter(list[Blocker])
 LINKED = TypeAdapter(Linked)
+CONVERSATION = TypeAdapter(list[list[Comment]])
+REVIEWS = TypeAdapter(list[list[Review]])
+INLINE_COMMENTS = TypeAdapter(list[list[InlineComment]])
+
+# The three lists a pull request's posts arrive in: what each holds, the kind of
+# thing GitHub keeps it under, and what it is called there. A pull request's own
+# conversation is the conversation of the issue that shares its number, which is
+# why that one is kept under the issues.
+POST_LISTS = (
+    (CONVERSATION, "issues", "comments"),
+    (REVIEWS, "pulls", "reviews"),
+    (INLINE_COMMENTS, "pulls", "comments"),
+)
 
 
-def identify(root: Path) -> str | Unknown:
+def identify_repository(root: Path) -> str | Unknown:
     """Return the repository the checkout at root belongs to, as owner/name.
 
     gh reads the repository from the checkout's own remote, so this asks from
@@ -127,7 +267,7 @@ def identify(root: Path) -> str | Unknown:
     return answered.name_with_owner
 
 
-def login() -> str | Unknown:
+def identify_account() -> str | Unknown:
     """Return the login of the account gh is signed in as."""
     answered = _read(ACCOUNT, "api", "user")
     if isinstance(answered, Unknown):
@@ -135,7 +275,7 @@ def login() -> str | Unknown:
     return answered.login
 
 
-def issues(repository: str, *, label: str, assignee: str) -> list[Issue] | Unknown:
+def list_issues(repository: str, *, label: str, assignee: str) -> list[Issue] | Unknown:
     """Return the repository's open issues carrying label and assigned to assignee."""
     return _read(
         ISSUES,
@@ -156,7 +296,7 @@ def issues(repository: str, *, label: str, assignee: str) -> list[Issue] | Unkno
     )
 
 
-def pull_requests(repository: str, branch: str) -> list[PullRequest] | Unknown:
+def list_pull_requests(repository: str, branch: str) -> list[PullRequest] | Unknown:
     """Return the pull requests branch is the head of, whatever state each is in.
 
     A branch usually has one, and an empty list means it has none. Which of
@@ -177,7 +317,7 @@ def pull_requests(repository: str, branch: str) -> list[PullRequest] | Unknown:
     )
 
 
-def linked_pull_requests(
+def list_linked_pull_requests(
     repository: str, issue: int
 ) -> list[LinkedPullRequest] | Unknown:
     """Return the open pull requests GitHub links to this issue.
@@ -201,7 +341,7 @@ def linked_pull_requests(
     return answered.pull_requests
 
 
-def blockers(repository: str, issue: int) -> list[Blocker] | Unknown:
+def list_blockers(repository: str, issue: int) -> list[Blocker] | Unknown:
     """Return the issues blocking this one, each with its own state.
 
     This reads the one page GitHub answers with, so an issue with more than
@@ -210,6 +350,44 @@ def blockers(repository: str, issue: int) -> list[Blocker] | Unknown:
     return _read(
         BLOCKERS, "api", f"repos/{repository}/issues/{issue}/dependencies/blocked_by"
     )
+
+
+def list_posts(repository: str, pull_request: int) -> list[Post] | Unknown:
+    """Return everything anybody posted on the pull request, from all three places.
+
+    The three come back as one list, because somebody reading a pull request
+    reads what was written on it and not three lists to reconcile. Nothing is
+    left out: whose post it is, and whether the session has heard it already,
+    is the relay's rule and none of this read's business.
+
+    A source the tool could not read answers unknown for the whole pull
+    request, since the source it cannot see is the one that might hold the post
+    the user is waiting for an answer to.
+    """
+    found: list[Post] = []
+    for shape, under, listed in POST_LISTS:
+        path = f"repos/{repository}/{under}/{pull_request}/{listed}"
+        answered = _read_pages(shape, path)
+        if isinstance(answered, Unknown):
+            return answered
+        found.extend(answered)
+    return found
+
+
+def _read_pages[PostT: Post](
+    shape: TypeAdapter[list[list[PostT]]], path: str
+) -> list[Post] | Unknown:
+    """Return every post the paginated list at path holds, or Unknown.
+
+    gh reads every page for us, and answers with one array for each page it
+    read, so the pages join back into one list here.
+    """
+    answered = _read(
+        shape, "api", f"{path}?per_page={PAGE_SIZE}", "--paginate", "--slurp"
+    )
+    if isinstance(answered, Unknown):
+        return answered
+    return list(chain.from_iterable(answered))
 
 
 def _read[ReadT](

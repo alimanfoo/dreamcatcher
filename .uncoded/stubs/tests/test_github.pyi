@@ -5,10 +5,14 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 import pytest
-from dreamcatcher.github import Blocker, BlockerState, Issue, LinkedPullRequest, PullRequest, PullRequestState, Unknown, blockers, identify, issues, linked_pull_requests, login, pull_requests
+from conftest import POST_LIST_PATHS, POSTED_BY, PULL_REQUEST, pages
+from dreamcatcher.github import Blocker, BlockerState, Comment, InlineComment, Issue, LinkedPullRequest, Post, PullRequest, PullRequestState, Review, Unknown, Verdict, identify_account, identify_repository, list_blockers, list_issues, list_linked_pull_requests, list_posts, list_pull_requests
 
 REPOSITORY = 'alimanfoo/dreamcatcher'
 BRANCH = 'dreamcatcher-GH8-20260820-000456'
+COMMENT = {'id': 1, 'user': {'login': POSTED_BY}, 'created_at': '2026-09-03T16:49:35Z'}
+REVIEW = {'id': 2, 'state': 'COMMENTED', 'submitted_at': '2026-09-03T22:27:20Z'}
+INLINE_COMMENT = ...
 
 def test_the_repository_comes_from_the_checkouts_own_remote(fake, tmp_path):
     ...
@@ -32,6 +36,42 @@ def test_an_issue_nobody_has_claimed_has_no_linked_pull_request(fake):
     ...
 
 def test_the_blockers_of_an_issue_come_back_with_their_states(fake):
+    ...
+
+def posted() -> list[Post]:
+    ...
+
+def test_a_pull_request_nobody_has_posted_on_comes_back_with_no_posts(gh_with_no_posts):
+    ...
+
+def test_the_posts_of_a_pull_request_come_from_all_three_of_its_lists(gh_with_no_posts):
+    ...
+
+def test_each_of_the_three_lists_is_read_whole(gh_with_no_posts):
+    ...
+
+def test_the_pages_of_one_list_come_back_as_one_list(gh_with_no_posts):
+    ...
+
+def test_a_post_that_is_not_a_document_at_all_is_unknown(gh_with_no_posts):
+    ...
+
+def test_every_post_a_real_pull_request_carries_reads_back(gh_with_recorded_posts):
+    ...
+
+def test_a_recorded_comment_reads_back_as_the_user_wrote_it(gh_with_recorded_posts):
+    ...
+
+def test_a_recorded_review_reads_back_when_it_was_submitted_and_its_verdict(gh_with_recorded_posts):
+    ...
+
+def test_the_reviews_github_wrapped_the_inline_comments_in_say_nothing(gh_with_recorded_posts):
+    ...
+
+def test_a_recorded_inline_comment_reads_the_line_it_was_written_against(gh_with_recorded_posts):
+    ...
+
+def test_a_recorded_inline_comment_carries_the_diff_it_was_written_against(gh_with_recorded_posts):
     ...
 
 def test_a_read_that_fails_answers_unknown_with_what_gh_said(fake, ask):

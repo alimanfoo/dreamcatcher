@@ -14,6 +14,9 @@ def read_toml(model: type[DocumentT], path: Path) -> DocumentT:
 def read_json(model: type[DocumentT], path: Path) -> DocumentT:
     ...
 
+def read_text(path: Path) -> str:
+    ...
+
 def write_text(text: str, path: Path) -> None:
     ...
 
@@ -21,9 +24,6 @@ def append_text(text: str, path: Path) -> None:
     ...
 
 def write_json(document: Document, path: Path) -> None:
-    ...
-
-def _read_text(path: Path) -> str:
     ...
 
 def _write(text: str, path: Path, mode: str) -> None:

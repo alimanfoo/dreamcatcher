@@ -365,19 +365,41 @@ a live one are the same view in different tenses.
 
 ### The relay
 
-`watch.sh` ports as a function with one deliberate change in sequencing. The
-query is a read-only peek: fetch the PR state and everything newer than the
-watermark from the three sources — conversation comments, reviews, and inline
-comments, each its own paginated REST list via `gh api`, the shape upstream
-normalised to in dream#900, so the relay never reconciles two JSON dialects —
-filter, and return, writing nothing. The watermark advances only when a round
-actually launches with that batch as its inbox. The port's advance-on-read
-sequencing lost any batch whose round never ran; advance-on-launch means a crash
-before launch re-reads the same posts next tick, the "posts waiting" board state
-becomes real observed data (the peek's results land in `last-tick.json`), and
-two sessions with posts contending for one slot both keep their batches until
-each actually runs. The residual window — crash after launch, before the round
-acts — stays, and stays accepted: you can see the PR and say it again.
+`watch.sh` ports as a function, with one deliberate change in sequencing.
+
+The query is a read-only peek: read the three sources — conversation comments,
+reviews, and inline comments, each its own paginated REST list via `gh api`, the
+shape upstream normalised to in dream#900, so the relay never reconciles two
+JSON dialects — keep what is newer than the watermark, and return, writing
+nothing.
+
+Each list comes back whole, and the watermark filters what came back, rather
+than the fetch asking narrowly. GitHub takes a `since` on the two comment lists
+but not on the reviews, so asking narrowly would be a special case for two
+sources out of three, and one process watching one repository spends few enough
+calls to leave that for a later phase.
+
+The PR's own state is not the peek's to fetch. The tick reads it per session,
+and that read is where the peek's PR number comes from, so a state read of the
+peek's own would be one fact read twice by two reads that can disagree.
+
+The watermark advances only when a round actually launches with that batch as
+its inbox. The port's advance-on-read sequencing lost any batch whose round
+never ran. Advance-on-launch means a crash before launch re-reads the same posts
+next tick, the "posts waiting" board state becomes real observed data (the
+peek's results land in `last-tick.json`), and two sessions with posts contending
+for one slot both keep their batches until each actually runs.
+
+The residual window — crash after launch, before the round acts — stays, and
+stays accepted: you can see the PR and say it again.
+
+One narrower window stays open for the same reason. GitHub records a post to the
+second, and the watermark is the newest post of the batch that just launched, so
+a post written in that same second, and landing after the peek that made the
+batch, is never newer than the watermark and no later tick brings it back. That
+is the requirements brief's "I can see that on the pull request and say it
+again", and closing it would mean remembering every post id ever relayed, which
+is the recovery machinery the brief turns down.
 
 The filter keeps `watch.sh`'s two rules: a post is the user's when its author is
 the _authenticated_ account (`gh api user`, nothing configured) and its body
@@ -386,7 +408,10 @@ non-empty body, or an APPROVED or CHANGES_REQUESTED verdict — which drops
 GitHub's empty review wrappers, including the ones wrapping the agent's own
 inline replies. Timestamps are ISO-8601 strings compared as strings; an absent
 watermark means the beginning of time, so a session's first peek returns the
-PR's whole history.
+PR's whole history. A review nobody has submitted yet — a draft the user has
+started and left, which GitHub answers with no submitted time at all — reads as
+written at the beginning of time by the same comparison, so it never passes a
+watermark and needs no rule of its own.
 
 The projection widens per dream#891: inline comments carry `path`, `line` (with
 the `original_line` fallback), `start_line` (with `original_start_line`),

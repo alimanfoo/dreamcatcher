@@ -19,8 +19,26 @@ CONFIG_HEAD = """interval = 300
 
 """
 
+# The directory holding everything the suite reads back from a recording: the
+# streams a harness wrote, and what gh answered about a pull request.
+FIXTURES = Path(__file__).parent / "fixtures"
+
 # The repository the tests say gh names this checkout as.
 REPOSITORY = "alimanfoo/dreamcatcher"
+
+# The pull request the tests ask gh about, and the account that wrote every
+# post on it that the recording of it holds.
+PULL_REQUEST = 52
+
+POSTED_BY = "alimanfoo"
+
+# Where gh keeps each of the three lists that a pull request's posts arrive in.
+# Each is named as the recording of it is named.
+POST_LIST_PATHS = {
+    "conversation": f"repos/{REPOSITORY}/issues/{PULL_REQUEST}/comments?per_page=100",
+    "reviews": f"repos/{REPOSITORY}/pulls/{PULL_REQUEST}/reviews?per_page=100",
+    "inline-comments": f"repos/{REPOSITORY}/pulls/{PULL_REQUEST}/comments?per_page=100",
+}
 
 # The label that the dispatch blocks below map, as the tests name it.
 LABEL = "dream:smith"
@@ -66,6 +84,17 @@ def listing(*issues: tuple[int, str]) -> str:
     return json.dumps(
         [{"number": number, "createdAt": created} for number, created in issues]
     )
+
+
+def pages(*posts: dict) -> str:
+    """Return what gh answers a paginated list with: one page holding these."""
+    return json.dumps([list(posts)])
+
+
+def recorded_posts(source: str) -> str:
+    """Return what gh answered for one post list of the recorded pull request."""
+    recording = FIXTURES / "github" / f"pull-request-{PULL_REQUEST}" / f"{source}.json"
+    return recording.read_text(encoding="utf-8")
 
 
 def git(*arguments: str, cwd: Path) -> str:
@@ -146,6 +175,28 @@ def fake(stand_ins, monkeypatch):
     """Return a factory that puts a stand-in for a program first on the PATH."""
     monkeypatch.setenv("PATH", f"{stand_ins}{os.pathsep}{os.environ['PATH']}")
     return partial(fakes.install, stand_ins)
+
+
+@pytest.fixture
+def gh_with_no_posts(fake):
+    """A gh answering each of a pull request's three post lists with no posts.
+
+    A test scripts over the one list it is about, so it carries only the posts
+    that it is about.
+    """
+    stand_in = fake("gh")
+    for path in POST_LIST_PATHS.values():
+        stand_in.replies(pages(), to=f"api {path}")
+    return stand_in
+
+
+@pytest.fixture
+def gh_with_recorded_posts(fake):
+    """A gh answering each post list with what a real pull request answered."""
+    stand_in = fake("gh")
+    for source, path in POST_LIST_PATHS.items():
+        stand_in.replies(recorded_posts(source), to=f"api {path}")
+    return stand_in
 
 
 @pytest.fixture

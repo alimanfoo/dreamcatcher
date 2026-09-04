@@ -120,10 +120,10 @@ src/:
         model_config:
       read_toml:
       read_json:
+      read_text:
       write_text:
       append_text:
       write_json:
-      _read_text:
       _write:
       _report:
     eligibility.py:
@@ -161,12 +161,18 @@ src/:
       delete_branch:
     github.py:
       LISTING_LIMIT:
+      PAGE_SIZE:
+      SPEAKING_VERDICTS:
       REPOSITORY:
       ACCOUNT:
       ISSUES:
       PULL_REQUESTS:
       BLOCKERS:
       LINKED:
+      CONVERSATION:
+      REVIEWS:
+      INLINE_COMMENTS:
+      POST_LISTS:
       Unknown:
         reason:
       Projection:
@@ -178,6 +184,12 @@ src/:
       BlockerState:
         OPEN:
         CLOSED:
+      Verdict:
+        APPROVED:
+        CHANGES_REQUESTED:
+        COMMENTED:
+        DISMISSED:
+        PENDING:
       Repository:
         name_with_owner:
       Account:
@@ -195,12 +207,31 @@ src/:
         number:
       Linked:
         pull_requests:
-      identify:
-      login:
-      issues:
-      pull_requests:
-      linked_pull_requests:
-      blockers:
+      Post:
+        id:
+        author:
+        written_at:
+        body:
+        is_speaking:
+      Comment:
+      Review:
+        verdict:
+        is_speaking:
+      InlineComment:
+        path:
+        side:
+        line:
+        start_line:
+        diff_hunk:
+        _fall_back_to_the_original_lines:
+      identify_repository:
+      identify_account:
+      list_issues:
+      list_pull_requests:
+      list_linked_pull_requests:
+      list_blockers:
+      list_posts:
+      _read_pages:
       _read:
     harnesses.py:
       ADAPTERS:
@@ -212,6 +243,9 @@ src/:
       ISSUE_PLACEHOLDER:
       POSTSCRIPT:
       compose_first_round_prompt:
+    relay.py:
+      peek_new_posts:
+      _is_new_from_user:
     rounds.py:
       RECORD:
       Ending:
@@ -246,6 +280,7 @@ src/:
       BRANCH_PREFIX:
       RECORD:
       ROUNDS:
+      WATERMARK:
       SessionRecord:
         issue:
         label:
@@ -259,11 +294,13 @@ src/:
         directory:
         record:
         rounds:
+        watermark:
         key:
         next_workspace:
       read_sessions:
       create_session:
       _read_session:
+      _read_watermark:
       discard_session:
     state.py:
       STATE_DIRECTORY:
@@ -302,7 +339,11 @@ tests/:
   conftest.py:
     ARMING:
     CONFIG_HEAD:
+    FIXTURES:
     REPOSITORY:
+    PULL_REQUEST:
+    POSTED_BY:
+    POST_LIST_PATHS:
     LABEL:
     FILED:
     LATER:
@@ -312,6 +353,8 @@ tests/:
     pytest_configure:
     streamed:
     listing:
+    pages:
+    recorded_posts:
     git:
     gone:
     commit:
@@ -321,6 +364,8 @@ tests/:
     watched:
     stand_ins:
     fake:
+    gh_with_no_posts:
+    gh_with_recorded_posts:
     harnesses:
   fakes.py:
     UNSCRIPTED:
@@ -350,7 +395,6 @@ tests/:
     _append:
     _lines:
   recordings.py:
-    FIXTURES:
     rendered:
   records.py:
     write_session:
@@ -578,6 +622,9 @@ tests/:
   test_github.py:
     REPOSITORY:
     BRANCH:
+    COMMENT:
+    REVIEW:
+    INLINE_COMMENT:
     test_the_repository_comes_from_the_checkouts_own_remote:
     test_the_signed_in_account_is_the_one_gh_names:
     test_a_listing_carries_each_issue_and_when_it_was_filed:
@@ -586,6 +633,18 @@ tests/:
     test_the_pull_requests_linked_to_an_issue_come_back:
     test_an_issue_nobody_has_claimed_has_no_linked_pull_request:
     test_the_blockers_of_an_issue_come_back_with_their_states:
+    posted:
+    test_a_pull_request_nobody_has_posted_on_comes_back_with_no_posts:
+    test_the_posts_of_a_pull_request_come_from_all_three_of_its_lists:
+    test_each_of_the_three_lists_is_read_whole:
+    test_the_pages_of_one_list_come_back_as_one_list:
+    test_a_post_that_is_not_a_document_at_all_is_unknown:
+    test_every_post_a_real_pull_request_carries_reads_back:
+    test_a_recorded_comment_reads_back_as_the_user_wrote_it:
+    test_a_recorded_review_reads_back_when_it_was_submitted_and_its_verdict:
+    test_the_reviews_github_wrapped_the_inline_comments_in_say_nothing:
+    test_a_recorded_inline_comment_reads_the_line_it_was_written_against:
+    test_a_recorded_inline_comment_carries_the_diff_it_was_written_against:
     test_a_read_that_fails_answers_unknown_with_what_gh_said:
     test_a_read_gh_answers_strangely_is_unknown_too:
   test_github_integration.py:
@@ -623,6 +682,27 @@ tests/:
     RECORDED_IN:
     RECORDINGS:
     test_a_recorded_stream_renders_as_its_golden_feed:
+  test_relay.py:
+    POSTED_AT:
+    BEFORE:
+    HUNK:
+    comment:
+    review:
+    inline_comment:
+    peeked:
+    test_a_pull_request_nobody_has_posted_on_has_nothing_to_relay:
+    test_a_session_that_has_seen_nothing_yet_is_told_the_whole_history:
+    test_a_post_the_session_has_been_told_about_already_does_not_come_back:
+    test_the_posts_come_back_oldest_first_whichever_list_each_came_from:
+    test_a_post_carrying_the_marker_is_the_sessions_own_and_does_not_come_back:
+    test_a_post_from_another_account_does_not_come_back:
+    test_a_post_whose_account_github_no_longer_knows_does_not_come_back:
+    test_the_empty_review_github_wrapped_an_inline_reply_in_does_not_come_back:
+    test_a_review_that_reached_a_verdict_comes_back_with_an_empty_body:
+    test_a_review_nobody_has_submitted_yet_does_not_come_back:
+    test_a_suggestion_over_a_range_comes_back_with_its_lines_and_its_diff:
+    test_a_read_that_failed_says_so_rather_than_reading_as_nothing_posted:
+    test_every_post_the_user_said_something_in_on_a_real_pull_request_comes_back:
   test_rounds.py:
     RECORDING:
     STAMP:
@@ -668,6 +748,8 @@ tests/:
     test_a_session_that_cannot_record_leaves_no_worktree_and_no_branch:
     test_a_state_directory_with_no_worktrees_holds_no_sessions:
     test_a_session_reads_back_as_it_was_dispatched:
+    test_a_session_no_round_has_told_anything_yet_has_seen_no_post:
+    test_a_session_reads_back_the_newest_post_it_has_been_told_about:
     test_a_sessions_rounds_read_back_in_the_order_they_ran:
     test_every_session_of_the_repo_reads_back_by_key:
     test_a_file_left_among_the_worktrees_is_not_a_session:

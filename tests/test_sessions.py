@@ -5,9 +5,15 @@ from records import write_round
 
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import CONFIG_NAME, Harness, read_config
+from dreamcatcher.documents import write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.rounds import Ending, RoundRecord, Workspace
-from dreamcatcher.sessions import SessionRecord, create_session, read_sessions
+from dreamcatcher.sessions import (
+    WATERMARK,
+    SessionRecord,
+    create_session,
+    read_sessions,
+)
 from dreamcatcher.state import StateDirectory
 
 KEY = "GH12-20260819-184158"
@@ -128,6 +134,19 @@ def test_a_session_reads_back_as_it_was_dispatched(state, mapping):
     created = create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
 
     assert read_sessions(state) == [created]
+
+
+def test_a_session_no_round_has_told_anything_yet_has_seen_no_post(state, mapping):
+    create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
+
+    assert read_sessions(state)[0].watermark == ""
+
+
+def test_a_session_reads_back_the_newest_post_it_has_been_told_about(state, mapping):
+    create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
+    write_text("2026-09-03T22:31:51Z\n", state.sessions / KEY / WATERMARK)
+
+    assert read_sessions(state)[0].watermark == "2026-09-03T22:31:51Z"
 
 
 def test_a_sessions_rounds_read_back_in_the_order_they_ran(state, mapping):

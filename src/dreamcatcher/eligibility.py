@@ -19,9 +19,9 @@ from dreamcatcher.github import (
     BlockerState,
     Issue,
     Unknown,
-    blockers,
-    issues,
-    linked_pull_requests,
+    list_blockers,
+    list_issues,
+    list_linked_pull_requests,
 )
 from dreamcatcher.state import Candidate
 
@@ -64,7 +64,9 @@ def _list_issues(
     labels: defaultdict[int, list[str]] = defaultdict(list)
     found: dict[int, Issue] = {}
     for mapping in config.dispatch:
-        answered = issues(repository, label=mapping.label, assignee=config.assignee)
+        answered = list_issues(
+            repository, label=mapping.label, assignee=config.assignee
+        )
         if isinstance(answered, Unknown):
             return answered
         for issue in answered:
@@ -100,7 +102,7 @@ def _check_pull_requests(repository: str, issue: int) -> str | None:
     drops out and leaves its issue free to go again. Removing the label is how
     the user says stop.
     """
-    linked = linked_pull_requests(repository, issue)
+    linked = list_linked_pull_requests(repository, issue)
     if isinstance(linked, Unknown):
         return f"cannot tell whether a pull request claims it: {linked.reason}"
     if linked:
@@ -111,7 +113,7 @@ def _check_pull_requests(repository: str, issue: int) -> str | None:
 
 def _check_blockers(repository: str, issue: int) -> str | None:
     """Return what still blocks the issue, or nothing when nothing open does."""
-    blocking = blockers(repository, issue)
+    blocking = list_blockers(repository, issue)
     if isinstance(blocking, Unknown):
         return f"cannot tell what blocks it: {blocking.reason}"
     open_blockers = [

@@ -17,7 +17,7 @@ from pathlib import Path
 from dreamcatcher import prompts
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import DispatchMapping, Harness
-from dreamcatcher.documents import Document, read_json, write_json
+from dreamcatcher.documents import Document, read_json, read_text, write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import add_worktree, delete_branch, fetch, remove_worktree
 from dreamcatcher.rounds import RoundRecord, Workspace, read_round_records
@@ -34,6 +34,10 @@ RECORD = "session.json"
 
 # The directory in a session's directory holding a directory per round.
 ROUNDS = "rounds"
+
+# The file in a session's directory holding the newest post the session has
+# been told about.
+WATERMARK = "watermark"
 
 
 class SessionRecord(Document):
@@ -63,11 +67,16 @@ class Session:
     the session's key, which is how a reader of the disk finds one. The record
     says what the dispatch settled, and the rounds are what the session has run
     so far, oldest first.
+
+    The watermark is the newest post the session has been told about. A session
+    that has been told about none has the beginning of time, so the first peek
+    at its pull request returns the whole history.
     """
 
     directory: Path
     record: SessionRecord
     rounds: list[RoundRecord] = field(default_factory=list)
+    watermark: str = ""
 
     @property
     def key(self) -> str:
@@ -170,7 +179,25 @@ def _read_session(directory: Path) -> Session:
         directory=directory,
         record=read_json(SessionRecord, directory / RECORD),
         rounds=read_round_records(directory / ROUNDS),
+        watermark=_read_watermark(directory),
     )
+
+
+def _read_watermark(directory: Path) -> str:
+    """Return the newest post this session has been told about.
+
+    A session is told about a batch of posts when a round launches with that
+    batch, and that launch is what writes this file. So a session no round has
+    yet carried the user's words to has no file here, and the beginning of time
+    is what it has seen.
+
+    Whatever wrote the file may have left a line ending after the timestamp, so
+    the surrounding space goes: an ISO-8601 time is the whole value.
+    """
+    path = directory / WATERMARK
+    if not path.exists():
+        return ""
+    return read_text(path).strip()
 
 
 def discard_session(state: StateDirectory, record: SessionRecord) -> None:

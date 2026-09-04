@@ -22,7 +22,7 @@ from dreamcatcher.config import Harness, read_config
 from dreamcatcher.documents import write_json
 from dreamcatcher.eligibility import judge_issues
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.github import Unknown, identify
+from dreamcatcher.github import Unknown, identify_repository
 from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.lock import hold
 from dreamcatcher.rounds import Round
@@ -135,7 +135,7 @@ class Daemon:
         holds the repo, and a run that cannot name it can do nothing at all, so
         the run refuses here rather than failing every tick.
         """
-        named = identify(self.state.root)
+        named = identify_repository(self.state.root)
         if isinstance(named, Unknown):
             raise ReportableError(
                 f"dreamcatcher cannot tell which repository this is: {named.reason}"

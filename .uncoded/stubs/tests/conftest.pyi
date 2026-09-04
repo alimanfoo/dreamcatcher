@@ -14,7 +14,11 @@ from dreamcatcher.config import CONFIG_NAME
 
 ARMING = 'PYTHONWARNDEFAULTENCODING'
 CONFIG_HEAD = 'interval = 300\n\n'
+FIXTURES = Path(__file__).parent / 'fixtures'
 REPOSITORY = 'alimanfoo/dreamcatcher'
+PULL_REQUEST = 52
+POSTED_BY = 'alimanfoo'
+POST_LIST_PATHS = ...
 LABEL = 'dream:smith'
 FILED = '2026-08-19T18:41:58Z'
 LATER = '2026-08-20T09:00:00Z'
@@ -29,6 +33,12 @@ def streamed(**fields: object) -> str:
     ...
 
 def listing(*issues: tuple[int, str]) -> str:
+    ...
+
+def pages(*posts: dict) -> str:
+    ...
+
+def recorded_posts(source: str) -> str:
     ...
 
 def git(*arguments: str, cwd: Path) -> str:
@@ -56,6 +66,12 @@ def stand_ins(tmp_path):
     ...
 
 def fake(stand_ins, monkeypatch):
+    ...
+
+def gh_with_no_posts(fake):
+    ...
+
+def gh_with_recorded_posts(fake):
     ...
 
 def harnesses(fake):
