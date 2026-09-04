@@ -57,12 +57,6 @@ one block.
   `/dream:smith GH123`.
 - `model` and `effort` are passed to the harness as it starts.
 
-None of the three may hold a percent sign or a line ending. Windows runs a
-harness that npm installed through cmd.exe, which would act on either character
-rather than pass it to the harness. dreamcatcher refuses to start when it finds
-one, and names the setting that holds it. Neither has an escape, so write each
-setting on one line, and spell out "per cent" where you would write the sign.
-
 Write both blocks for a label either harness can run. Write one block for a
 label that belongs to one harness, and issues carrying it always go there.
 
