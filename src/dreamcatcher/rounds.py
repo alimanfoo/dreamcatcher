@@ -23,9 +23,12 @@ from threading import Event, Lock, Thread
 from dreamcatcher.adapters import Adapter
 from dreamcatcher.clock import now
 from dreamcatcher.commands import spawn
-from dreamcatcher.documents import Document, append_text, write_json
+from dreamcatcher.documents import Document, append_text, read_json, write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Prose, Renderer
+
+# The file in a round's own directory saying what the round did.
+RECORD = "round.json"
 
 
 class RoundRecord(Document):
@@ -61,6 +64,21 @@ class Workspace:
 
     worktree: Path
     directory: Path
+
+
+def read_round_records(directory: Path) -> list[RoundRecord]:
+    """Return the records of the rounds written under directory, oldest first.
+
+    Each round writes into a directory of its own under this one, so a session
+    passes the directory holding all of them.
+
+    The order comes from the records themselves, so nothing here has to read a
+    directory's name as a number. A directory with no record in it yet, and a
+    directory that holds no rounds at all, both come back with nothing rather
+    than as a failure.
+    """
+    records = [read_json(RoundRecord, found) for found in directory.glob(f"*/{RECORD}")]
+    return sorted(records, key=lambda record: record.started)
 
 
 class Round:
@@ -112,7 +130,7 @@ class Round:
     @property
     def record(self) -> Path:
         """The file saying when the round started, and how it ended."""
-        return self.workspace.directory / "round.json"
+        return self.workspace.directory / RECORD
 
     @property
     def feed(self) -> Path:

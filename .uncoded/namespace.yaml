@@ -193,6 +193,7 @@ src/:
       POSTSCRIPT:
       compose_first_round_prompt:
     rounds.py:
+      RECORD:
       RoundRecord:
         started:
         pid:
@@ -217,9 +218,11 @@ src/:
         _render:
         _pass_through:
         _append:
+      read_round_records:
     sessions.py:
       BRANCH_PREFIX:
       RECORD:
+      ROUNDS:
       SessionRecord:
         issue:
         label:
@@ -229,8 +232,15 @@ src/:
         model:
         effort:
         prompt:
+      Session:
+        directory:
+        record:
+        rounds:
         key:
+        next_workspace:
+      read_sessions:
       create_session:
+      _read_session:
       _back_out:
     state.py:
       STATE_DIRECTORY:
@@ -548,12 +558,20 @@ tests/:
     state:
     mapping:
     written:
+    ran:
     test_a_session_cuts_a_worktree_of_its_own_under_the_state_directory:
     test_a_session_cuts_a_branch_of_its_own_from_origins_main_as_it_is_now:
     test_a_session_records_what_it_was_dispatched_with:
     test_a_session_runs_on_the_harness_the_run_named:
+    test_a_new_session_has_run_no_rounds_and_its_next_is_its_first:
     test_a_session_git_cannot_cut_leaves_no_branch_behind:
     test_a_session_that_cannot_record_leaves_no_worktree_and_no_branch:
+    test_a_state_directory_with_no_worktrees_holds_no_sessions:
+    test_a_session_reads_back_as_it_was_dispatched:
+    test_a_sessions_rounds_read_back_in_the_order_they_ran:
+    test_every_session_of_the_repo_reads_back_by_key:
+    test_a_file_left_among_the_worktrees_is_not_a_session:
+    test_a_session_record_that_will_not_read_names_the_file:
   test_state.py:
     test_bootstrap_creates_a_directory_that_ignores_itself:
     test_bootstrap_heals_a_deleted_gitignore:

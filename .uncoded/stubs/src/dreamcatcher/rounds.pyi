@@ -9,9 +9,14 @@ from threading import Event, Lock, Thread
 from dreamcatcher.adapters import Adapter
 from dreamcatcher.clock import now
 from dreamcatcher.commands import spawn
-from dreamcatcher.documents import Document, append_text, write_json
+from dreamcatcher.documents import Document, append_text, read_json, write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Prose, Renderer
+
+RECORD = 'round.json'
+
+def read_round_records(directory: Path) -> list[RoundRecord]:
+    ...
 
 class RoundRecord(Document):
     started: datetime

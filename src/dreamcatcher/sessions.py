@@ -1,4 +1,4 @@
-"""Create a session for an issue, and record what it was dispatched with.
+"""Create a session for an issue, and read back the ones a repo already has.
 
 A session is one attempt at one issue. It gets a key of its own: the issue's
 number, and the time the attempt started. That key names its branch, its
@@ -10,15 +10,17 @@ asks for the session.
 """
 
 from contextlib import suppress
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
 from dreamcatcher import prompts
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import DispatchMapping, Harness
-from dreamcatcher.documents import Document, write_json
+from dreamcatcher.documents import Document, read_json, write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import add_worktree, delete_branch, fetch, remove_worktree
+from dreamcatcher.rounds import RoundRecord, Workspace, read_round_records
 from dreamcatcher.state import StateDirectory
 
 # What a session's branch is called, before its key. The prefix keeps
@@ -29,6 +31,9 @@ BRANCH_PREFIX = "dreamcatcher-"
 # The file in a session's directory saying what the session was dispatched
 # with.
 RECORD = "session.json"
+
+# The directory in a session's directory holding a directory per round.
+ROUNDS = "rounds"
 
 
 class SessionRecord(Document):
@@ -49,14 +54,57 @@ class SessionRecord(Document):
     effort: str
     prompt: str
 
+
+@dataclass(frozen=True)
+class Session:
+    """One attempt at one issue, as it stands.
+
+    The directory is where the session keeps its own files, and it is named by
+    the session's key, so the key is written down in one place alone. The
+    record says what the dispatch settled, and the rounds are what the session
+    has run so far, oldest first.
+    """
+
+    directory: Path
+    record: SessionRecord
+    rounds: list[RoundRecord] = field(default_factory=list)
+
     @property
     def key(self) -> str:
-        """The key that the branch, the worktree and the files all carry.
+        """The key that the branch, the worktree and the files all carry."""
+        return self.directory.name
 
-        The worktree is the one place it is written down, since it is the
-        directory the key names.
+    @property
+    def next_workspace(self) -> Workspace:
+        """Where the session's next round runs, and where it writes.
+
+        Every round runs in the session's worktree, and writes into a
+        directory named by the number of the round it is.
         """
-        return self.worktree.name
+        return Workspace(
+            self.record.worktree, self.directory / ROUNDS / str(len(self.rounds) + 1)
+        )
+
+
+def read_sessions(state: StateDirectory) -> list[Session]:
+    """Return every session the state directory holds, by key.
+
+    A worktree under `worktrees/` is what says a session exists, since that is
+    the one place a session of this daemon's can be. The session's own files
+    sit under `sessions/`, in a directory the same key names.
+
+    A state directory with no worktrees in it yet holds no sessions, so this
+    answers with nothing rather than failing. Anything under `worktrees/` that
+    is not a directory is not a worktree, which is what keeps a file a file
+    browser left there from reading as a session.
+    """
+    if not state.worktrees.is_dir():
+        return []
+    return [
+        _read_session(state.sessions / worktree.name)
+        for worktree in sorted(state.worktrees.iterdir())
+        if worktree.is_dir()
+    ]
 
 
 def create_session(
@@ -65,8 +113,8 @@ def create_session(
     named: Harness,
     issue: int,
     at: datetime,
-) -> SessionRecord:
-    """Create a session for the issue, and return what it was dispatched with.
+) -> Session:
+    """Create a session for the issue, and return it with no rounds run yet.
 
     The session runs on the harness that this label and the run settle between
     them, with that harness's own model, effort and prompt template.
@@ -83,7 +131,7 @@ def create_session(
     harness = mapping.choose_harness(named)
     settings = mapping.harness_settings[harness]
     key = f"GH{issue}-{at:%Y%m%d-%H%M%S}"
-    session = SessionRecord(
+    record = SessionRecord(
         issue=issue,
         label=mapping.label,
         branch=f"{BRANCH_PREFIX}{key}",
@@ -93,14 +141,24 @@ def create_session(
         effort=settings.effort,
         prompt=prompts.compose_first_round_prompt(settings.prompt, issue),
     )
+    directory = state.sessions / key
     fetch(state.root)
     try:
-        add_worktree(state.root, session.worktree, session.branch)
-        write_json(session, state.sessions / key / RECORD)
+        add_worktree(state.root, record.worktree, record.branch)
+        write_json(record, directory / RECORD)
     except ReportableError:
-        _back_out(state.root, session.worktree, session.branch)
+        _back_out(state.root, record.worktree, record.branch)
         raise
-    return session
+    return Session(directory=directory, record=record)
+
+
+def _read_session(directory: Path) -> Session:
+    """Return the session whose own files sit in this directory."""
+    return Session(
+        directory=directory,
+        record=read_json(SessionRecord, directory / RECORD),
+        rounds=read_round_records(directory / ROUNDS),
+    )
 
 
 def _back_out(root: Path, worktree: Path, branch: str) -> None:
