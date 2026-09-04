@@ -378,11 +378,22 @@ In scope:
 - The watermark as a value that the peek reads but never writes (design.md, The
   relay).
 
-Done when: CI tests against recorded REST fixtures cover the filter's known
-traps by name — the empty wrapper around an agent's own inline reply does not
-pass; a marker-bearing post does not pass; a post from another account does not
-pass; a range suggestion arrives with its `start_line` and hunk; review verdicts
-pass with empty bodies.
+Done when: CI tests cover the filter's known traps by name — the empty wrapper
+around an agent's own inline reply does not pass; a marker-bearing post does not
+pass; a post from another account does not pass; a range suggestion arrives with
+its `start_line` and hunk; review verdicts pass with empty bodies. A recording
+of what gh answered for the three post lists of one real pull request on this
+repository reads the projection against GitHub's own document, and carries two
+of those traps itself: the empty reviews GitHub wrapped the inline comments in,
+and the comments whose code has moved since. Each remaining trap is a page the
+test composes, because no recording of this repository could hold a post from
+another account, an approval of your own pull request, which GitHub refuses, or
+a post carrying a marker no session here has written yet.
+
+The peek's own shape settled one thing. The tick already reads each session's
+pull request state, and that read is where the peek's pull request number comes
+from, so the peek fetches no state of its own. design.md's relay section is
+corrected to say so.
 
 Deliberately out: writing the watermark, inboxes, resumes, and any wiring into
 the tick.
