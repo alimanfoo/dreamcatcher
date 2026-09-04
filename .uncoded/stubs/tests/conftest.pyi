@@ -3,15 +3,21 @@
 
 import json
 import os
+from contextlib import suppress
 from functools import partial
 from pathlib import Path
 import fakes
+import psutil
 import pytest
 from dreamcatcher.commands import run
 from dreamcatcher.config import CONFIG_NAME
 
 ARMING = 'PYTHONWARNDEFAULTENCODING'
 CONFIG_HEAD = 'interval = 300\n\n'
+REPOSITORY = 'alimanfoo/dreamcatcher'
+LABEL = 'dream:smith'
+FILED = '2026-08-19T18:41:58Z'
+LATER = '2026-08-20T09:00:00Z'
 SMITH_CLAUDE = ...
 SMITH_CODEX = ...
 CONFIG = CONFIG_HEAD + SMITH_CLAUDE + SMITH_CODEX
@@ -22,7 +28,13 @@ def pytest_configure(config: pytest.Config) -> None:
 def streamed(**fields: object) -> str:
     ...
 
+def listing(*issues: tuple[int, str]) -> str:
+    ...
+
 def git(*arguments: str, cwd: Path) -> str:
+    ...
+
+def gone(pid: int) -> bool:
     ...
 
 def commit(path: Path, message: str) -> None:
@@ -40,5 +52,11 @@ def cloned(upstream, tmp_path):
 def watched(repo):
     ...
 
-def fake(tmp_path, monkeypatch):
+def stand_ins(tmp_path):
+    ...
+
+def fake(stand_ins, monkeypatch):
+    ...
+
+def harnesses(fake):
     ...

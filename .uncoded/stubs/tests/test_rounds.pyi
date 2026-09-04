@@ -15,10 +15,11 @@ from dreamcatcher.adapters import Adapter, Launch
 from dreamcatcher.claude import CLAUDE
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Event, Note, Renderer
-from dreamcatcher.rounds import Round, RoundRecord
+from dreamcatcher.rounds import Ending, Round, RoundRecord, Workspace
 
 RECORDING = FIXTURES / 'claude' / 'round.jsonl'
 STAMP = '2026-08-19T18:41:58Z'
+CAUSE = 'dispatched'
 LEAVES_A_STRAGGLER = ...
 AND_WAITS = 'left.wait()\n'
 
@@ -55,7 +56,7 @@ def test_what_the_harness_says_on_stderr_lands_where_it_happened(fake, worktree,
 def test_a_line_the_feed_cannot_write_costs_that_line_alone(fake, worktree, directory):
     ...
 
-def test_a_round_says_when_it_started_and_what_process_it_is(fake, worktree, directory):
+def test_a_round_says_when_it_started_what_caused_it_and_what_process_it_is(fake, worktree, directory):
     ...
 
 def test_a_round_that_finished_says_how_it_ended(fake, worktree, directory):

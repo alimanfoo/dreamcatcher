@@ -122,6 +122,11 @@ uv run pre-commit run --all-files
   says what it belongs to.
 - Keep changes lean. Add nothing a requirement or the design doesn't call for;
   prefer deleting over adding. One way to do each thing, always.
+- Give every issue you file its type label, `bug`, `enhancement` or
+  `maintenance`, and no other label. Leave it unassigned. Which skill picks an
+  issue up, and who works on it, are the user's to say, and a label or an
+  assignee you add takes that choice away: a dispatch label sends a session at
+  the issue before the user has read it.
 - Ask of every issue you file whether an issue that is already open has to wait
   for it. When one does, mark that issue as blocked by the new one, so a
   dispatcher working through unblocked issues takes them in the right order.

@@ -1,4 +1,4 @@
-"""Create a session for an issue, and record what it was dispatched with.
+"""Create a session for an issue, and read back the ones a repo already has.
 
 A session is one attempt at one issue. It gets a key of its own: the issue's
 number, and the time the attempt started. That key names its branch, its
@@ -10,15 +10,17 @@ asks for the session.
 """
 
 from contextlib import suppress
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
 from dreamcatcher import prompts
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import DispatchMapping, Harness
-from dreamcatcher.documents import Document, write_json
+from dreamcatcher.documents import Document, read_json, write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import add_worktree, delete_branch, fetch, remove_worktree
+from dreamcatcher.rounds import RoundRecord, Workspace, read_round_records
 from dreamcatcher.state import StateDirectory
 
 # What a session's branch is called, before its key. The prefix keeps
@@ -30,8 +32,11 @@ BRANCH_PREFIX = "dreamcatcher-"
 # with.
 RECORD = "session.json"
 
+# The directory in a session's directory holding a directory per round.
+ROUNDS = "rounds"
 
-class Session(Document):
+
+class SessionRecord(Document):
     """The issue a session works on, and the settings it runs its rounds with.
 
     The dispatch settles all of these, and no later round changes any of
@@ -49,14 +54,69 @@ class Session(Document):
     effort: str
     prompt: str
 
+
+@dataclass(frozen=True)
+class Session:
+    """One attempt at one issue, as it stands.
+
+    The directory is where the session keeps its own files, and its own name is
+    the session's key, which is how a reader of the disk finds one. The record
+    says what the dispatch settled, and the rounds are what the session has run
+    so far, oldest first.
+    """
+
+    directory: Path
+    record: SessionRecord
+    rounds: list[RoundRecord] = field(default_factory=list)
+
     @property
     def key(self) -> str:
-        """The key that the branch, the worktree and the files all carry.
+        """The key that the branch, the worktree and the files all carry."""
+        return self.directory.name
 
-        The worktree is the one place it is written down, since it is the
-        directory the key names.
+    @property
+    def next_workspace(self) -> Workspace:
+        """Where the session's next round runs, and where it writes.
+
+        Every round runs in the session's worktree, and writes into a
+        directory named by the number of the round it is.
         """
-        return self.worktree.name
+        return Workspace(
+            self.record.worktree, self.directory / ROUNDS / str(len(self.rounds) + 1)
+        )
+
+
+def read_sessions(state: StateDirectory) -> list[Session]:
+    """Return every session the state directory holds, by key.
+
+    A worktree under `worktrees/` is what says a session exists, since that is
+    the one place a session of this daemon's can be. The session's own files
+    sit under `sessions/`, in a directory the same key names.
+
+    A state directory with no worktrees in it yet holds no sessions, so this
+    answers with nothing rather than failing. Anything under `worktrees/` that
+    is not a directory is not a worktree, which is what keeps a file a file
+    browser left there from reading as a session.
+
+    A worktree whose record is not there is not a session either. A creation
+    cuts the worktree and then writes the record, so a daemon that died between
+    the two leaves one, and it stands for a session that ran nothing and opened
+    no pull request. Reading it as no session leaves its issue free to go
+    again, and leaves the worktree itself for whoever wants the disk back. A
+    record that is there and will not read is another matter, and says so.
+    """
+    if not state.worktrees.is_dir():
+        return []
+    directories = [
+        state.sessions / worktree.name
+        for worktree in sorted(state.worktrees.iterdir())
+        if worktree.is_dir()
+    ]
+    return [
+        _read_session(directory)
+        for directory in directories
+        if (directory / RECORD).exists()
+    ]
 
 
 def create_session(
@@ -66,7 +126,7 @@ def create_session(
     issue: int,
     at: datetime,
 ) -> Session:
-    """Create a session for the issue, and return what it was dispatched with.
+    """Create a session for the issue, and return it with no rounds run yet.
 
     The session runs on the harness that this label and the run settle between
     them, with that harness's own model, effort and prompt template.
@@ -83,7 +143,7 @@ def create_session(
     harness = mapping.choose_harness(named)
     settings = mapping.harness_settings[harness]
     key = f"GH{issue}-{at:%Y%m%d-%H%M%S}"
-    session = Session(
+    record = SessionRecord(
         issue=issue,
         label=mapping.label,
         branch=f"{BRANCH_PREFIX}{key}",
@@ -93,25 +153,44 @@ def create_session(
         effort=settings.effort,
         prompt=prompts.compose_first_round_prompt(settings.prompt, issue),
     )
+    directory = state.sessions / key
     fetch(state.root)
     try:
-        add_worktree(state.root, session.worktree, session.branch)
-        write_json(session, state.sessions / key / RECORD)
+        add_worktree(state.root, record.worktree, record.branch)
+        write_json(record, directory / RECORD)
     except ReportableError:
-        _back_out(state.root, session.worktree, session.branch)
+        discard_session(state, record)
         raise
-    return session
+    return Session(directory=directory, record=record)
 
 
-def _back_out(root: Path, worktree: Path, branch: str) -> None:
-    """Take away the worktree and the branch that a failed creation made.
+def _read_session(directory: Path) -> Session:
+    """Return the session whose own files sit in this directory."""
+    return Session(
+        directory=directory,
+        record=read_json(SessionRecord, directory / RECORD),
+        rounds=read_round_records(directory / ROUNDS),
+    )
+
+
+def discard_session(state: StateDirectory, record: SessionRecord) -> None:
+    """Take away the worktree and the branch that a session was given.
+
+    A creation that failed part way calls this, and so does a dispatch whose
+    round would not start. A session with no round claims its issue and can
+    never advance by itself, so the dispatch takes it away rather than leave
+    it, and its issue is free to go again.
 
     The worktree goes first, because git keeps a branch that a worktree has
     checked out. Either command can fail in its turn, and neither failure
-    travels. The failure that stopped the creation is the one worth reporting,
+    travels. The failure that stopped the dispatch is the one worth reporting,
     and the caller already holds it.
+
+    The record stays where it is. Nothing reads a session's record without a
+    worktree beside it, so a record left under `sessions/` costs a reader
+    nothing.
     """
     with suppress(CommandError):
-        remove_worktree(root, worktree)
+        remove_worktree(state.root, record.worktree)
     with suppress(CommandError):
-        delete_branch(root, branch)
+        delete_branch(state.root, record.branch)

@@ -76,6 +76,27 @@ class Config(Document):
     assignee: str = "@me"
     dispatch: list[DispatchMapping] = Field(min_length=1)
 
+    @property
+    def label_mappings(self) -> dict[str, DispatchMapping]:
+        """Each mapped label's own dispatch mapping.
+
+        The label is a mapping's identity, and no two mappings carry the same
+        one, so a label names one mapping here.
+        """
+        return {mapping.label: mapping for mapping in self.dispatch}
+
+    @property
+    def mapped_harnesses(self) -> set[Harness]:
+        """Every harness that a mapping here could settle one of its labels on.
+
+        A label carrying one harness block runs on that harness whatever a run
+        named, so this is wider than the harness the run gave, and a run has to
+        reach every one of them.
+        """
+        return {
+            harness for mapping in self.dispatch for harness in mapping.harness_settings
+        }
+
     @model_validator(mode="after")
     def _each_label_maps_once(self) -> Self:
         """Refuse two mappings for one label, since the label is the identity."""

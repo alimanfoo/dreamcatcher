@@ -1,7 +1,6 @@
 import sys
-from contextlib import suppress
 
-import psutil
+from conftest import gone
 
 from dreamcatcher.commands import spawn
 
@@ -15,15 +14,6 @@ STARTS_A_CHILD = (
 
 # What keeps such a child running, so a test can kill it rather than wait it out.
 AND_WAITS = "time.sleep(60)\n"
-
-
-def gone(pid: int) -> bool:
-    """Wait a while for the process at pid to end, and say whether it did."""
-    # A process that outstays the wait is a process that is still there, which
-    # is the answer, not a failure.
-    with suppress(psutil.NoSuchProcess, psutil.TimeoutExpired):
-        psutil.Process(pid).wait(timeout=30)
-    return not psutil.pid_exists(pid)
 
 
 def test_a_kill_reaches_what_the_child_started(tmp_path):

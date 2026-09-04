@@ -2,26 +2,35 @@
 # src/dreamcatcher/sessions.py
 
 from contextlib import suppress
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from dreamcatcher import prompts
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import DispatchMapping, Harness
-from dreamcatcher.documents import Document, write_json
+from dreamcatcher.documents import Document, read_json, write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import add_worktree, delete_branch, fetch, remove_worktree
+from dreamcatcher.rounds import RoundRecord, Workspace, read_round_records
 from dreamcatcher.state import StateDirectory
 
 BRANCH_PREFIX = 'dreamcatcher-'
 RECORD = 'session.json'
+ROUNDS = 'rounds'
+
+def read_sessions(state: StateDirectory) -> list[Session]:
+    ...
 
 def create_session(state: StateDirectory, mapping: DispatchMapping, named: Harness, issue: int, at: datetime) -> Session:
     ...
 
-def _back_out(root: Path, worktree: Path, branch: str) -> None:
+def _read_session(directory: Path) -> Session:
     ...
 
-class Session(Document):
+def discard_session(state: StateDirectory, record: SessionRecord) -> None:
+    ...
+
+class SessionRecord(Document):
     issue: int
     label: str
     branch: str
@@ -30,4 +39,10 @@ class Session(Document):
     model: str
     effort: str
     prompt: str
+
+class Session:
+    directory: Path
+    record: SessionRecord
+    rounds: list[RoundRecord] = field(default_factory=list)
     key: str
+    next_workspace: Workspace
