@@ -13,6 +13,8 @@ FILED = "2026-08-19T18:41:58Z"
 
 LATER = "2026-08-20T09:00:00Z"
 
+LABEL = "dream:smith"
+
 # A block for one harness, so a label the tests write maps to something.
 SETTINGS = {"prompt": "/dream:smith GH{issue}", "model": "opus[1m]", "effort": "xhigh"}
 
@@ -53,7 +55,7 @@ def weighed(config, claimed=frozenset()):
 def test_an_issue_nothing_stands_in_the_way_of_can_be_dispatched(gh):
     judged = weighed(mapping("dream:smith"))
 
-    assert judged == [Candidate(issue=8)]
+    assert judged == [Candidate(issue=8, label=LABEL)]
     assert judged[0].is_eligible
 
 
@@ -76,14 +78,20 @@ def test_an_issue_carrying_more_than_one_mapped_label_is_skipped(gh):
     assert weighed(mapping("dream:smith", "dream:less")) == [
         Candidate(
             issue=8,
+            label=LABEL,
             reason="carries more than one mapped label: dream:less, dream:smith",
-        )
+        ),
+        Candidate(
+            issue=8,
+            label="dream:less",
+            reason="carries more than one mapped label: dream:less, dream:smith",
+        ),
     ]
 
 
 def test_an_issue_a_session_of_this_run_is_working_on_is_left_alone(gh):
     assert weighed(mapping("dream:smith"), claimed={8}) == [
-        Candidate(issue=8, reason="a session of this run is working on it")
+        Candidate(issue=8, label=LABEL, reason="a session of this run is working on it")
     ]
 
 
@@ -94,7 +102,7 @@ def test_an_issue_with_a_pull_request_open_on_it_is_left_alone(gh):
     )
 
     assert weighed(mapping("dream:smith")) == [
-        Candidate(issue=8, reason="a pull request is open on it: #28")
+        Candidate(issue=8, label=LABEL, reason="a pull request is open on it: #28")
     ]
 
 
@@ -104,6 +112,7 @@ def test_a_pull_request_read_that_failed_reads_as_claimed(gh):
     assert weighed(mapping("dream:smith")) == [
         Candidate(
             issue=8,
+            label=LABEL,
             reason=(
                 "cannot tell whether a pull request claims it: "
                 "gh issue view 8 --repo alimanfoo/dreamcatcher --json "
@@ -121,7 +130,7 @@ def test_an_issue_an_open_issue_blocks_names_what_blocks_it(gh):
     )
 
     assert weighed(mapping("dream:smith")) == [
-        Candidate(issue=8, reason="blocked by GH9")
+        Candidate(issue=8, label=LABEL, reason="blocked by GH9")
     ]
 
 
@@ -131,6 +140,7 @@ def test_a_blocker_read_that_failed_reads_as_blocked(gh):
     assert weighed(mapping("dream:smith")) == [
         Candidate(
             issue=8,
+            label=LABEL,
             reason=(
                 "cannot tell what blocks it: gh api "
                 f"repos/{REPOSITORY}/issues/8/dependencies/blocked_by "

@@ -8,15 +8,21 @@ from pathlib import Path
 from time import sleep
 import psutil
 from dreamcatcher import teardown
+from dreamcatcher.adapters import Launch
 from dreamcatcher.clock import now
 from dreamcatcher.commands import locate
 from dreamcatcher.config import Harness, read_config
 from dreamcatcher.documents import write_json
+from dreamcatcher.eligibility import judge_issues
 from dreamcatcher.errors import ReportableError
+from dreamcatcher.github import Unknown, identify
 from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.lock import hold
-from dreamcatcher.sessions import read_sessions
-from dreamcatcher.state import LastTick, StateDirectory
+from dreamcatcher.rounds import Round
+from dreamcatcher.sessions import create_session, read_sessions
+from dreamcatcher.state import Candidate, LastTick, StateDirectory
+
+DISPATCHED = 'dispatched'
 
 class Daemon:
     def __init__(self, root: Path, harness: Harness, clock: Callable[[], datetime], wait: Callable[[float], None]) -> None:
@@ -25,11 +31,26 @@ class Daemon:
     def run(self) -> None:
         ...
 
+    def tick(self, repository: str) -> None:
+        ...
+
+    def _identify(self) -> str:
+        ...
+
+    def _decide(self, repository: str, at: datetime) -> LastTick:
+        ...
+
+    def _dispatch(self, at: datetime, judged: list[Candidate]) -> LastTick:
+        ...
+
+    def _launch(self, candidate: Candidate, at: datetime) -> str:
+        ...
+
+    def _stop_rounds(self) -> None:
+        ...
+
     def _locate_harnesses(self) -> None:
         ...
 
     def _sweep_orphans(self) -> None:
-        ...
-
-    def tick(self) -> None:
         ...

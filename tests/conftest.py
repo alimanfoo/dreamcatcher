@@ -137,3 +137,9 @@ def fake(stand_ins, monkeypatch):
     """Return a factory that puts a stand-in for a program first on the PATH."""
     monkeypatch.setenv("PATH", f"{stand_ins}{os.pathsep}{os.environ['PATH']}")
     return partial(fakes.install, stand_ins)
+
+
+@pytest.fixture
+def harnesses(fake):
+    """Both harness CLIs on the PATH, so a run gets past its startup check."""
+    return {program: fake(program) for program in ("claude", "codex")}

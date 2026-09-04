@@ -34,5 +34,5 @@ def test_a_harness_that_does_not_exist_is_refused(capsys):
 def test_a_failure_the_user_must_read_is_a_message_not_a_traceback(monkeypatch, tmp_path, capsys):
     ...
 
-def test_a_write_the_daemon_cannot_make_is_a_message_not_a_traceback(monkeypatch, watched, capsys):
+def test_a_write_the_daemon_cannot_make_is_a_message_not_a_traceback(monkeypatch, watched, capsys, harnesses):
     ...

@@ -9,7 +9,7 @@ from dreamcatcher.state import Candidate
 def judge_issues(repository: str, config: Config, claimed: set[int]) -> list[Candidate] | Unknown:
     ...
 
-def _list_issues(repository: str, config: Config) -> list[tuple[str, Issue]] | Unknown:
+def _list_issues(repository: str, config: Config) -> list[tuple[Issue, list[str]]] | Unknown:
     ...
 
 def _obstacle(repository: str, issue: int, labels: list[str], claimed: set[int]) -> str | None:

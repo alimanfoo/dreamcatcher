@@ -11,6 +11,7 @@ from dreamcatcher.state import Candidate
 REPOSITORY = 'alimanfoo/dreamcatcher'
 FILED = '2026-08-19T18:41:58Z'
 LATER = '2026-08-20T09:00:00Z'
+LABEL = 'dream:smith'
 SETTINGS = {'prompt': '/dream:smith GH{issue}', 'model': 'opus[1m]', 'effort': 'xhigh'}
 
 def mapping(*labels: str) -> Config:

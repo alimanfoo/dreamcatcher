@@ -97,13 +97,25 @@ def read_sessions(state: StateDirectory) -> list[Session]:
     answers with nothing rather than failing. Anything under `worktrees/` that
     is not a directory is not a worktree, which is what keeps a file a file
     browser left there from reading as a session.
+
+    A worktree whose record is not there is not a session either. A creation
+    cuts the worktree and then writes the record, so a daemon that died between
+    the two leaves one, and it stands for a session that ran nothing and opened
+    no pull request. Reading it as no session leaves its issue free to go
+    again, and leaves the worktree itself for whoever wants the disk back. A
+    record that is there and will not read is another matter, and says so.
     """
     if not state.worktrees.is_dir():
         return []
-    return [
-        _read_session(state.sessions / worktree.name)
+    directories = [
+        state.sessions / worktree.name
         for worktree in sorted(state.worktrees.iterdir())
         if worktree.is_dir()
+    ]
+    return [
+        _read_session(directory)
+        for directory in directories
+        if (directory / RECORD).exists()
     ]
 
 

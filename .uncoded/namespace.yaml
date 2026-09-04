@@ -94,16 +94,23 @@ src/:
         max_agents:
         assignee:
         dispatch:
+        mappings:
         mapped_harnesses:
         _each_label_maps_once:
       read_config:
     daemon.py:
+      DISPATCHED:
       Daemon:
         __init__:
         run:
+        tick:
+        _identify:
+        _decide:
+        _dispatch:
+        _launch:
+        _stop_rounds:
         _locate_harnesses:
         _sweep_orphans:
-        tick:
     documents.py:
       Document:
         model_config:
@@ -255,10 +262,14 @@ src/:
       STATE_DIRECTORY:
       Candidate:
         issue:
+        label:
         reason:
         is_eligible:
       LastTick:
         at:
+        held:
+        dispatched:
+        candidates:
       StateDirectory:
         root:
         path:
@@ -294,6 +305,7 @@ tests/:
     watched:
     stand_ins:
     fake:
+    harnesses:
   fakes.py:
     UNSCRIPTED:
     Stream:
@@ -421,13 +433,18 @@ tests/:
   test_daemon.py:
     KEY:
     CAUSE:
+    REPOSITORY:
+    LABEL:
+    FILED:
+    LATER:
+    DISPATCHED_KEY:
     Waiting:
       __init__:
       __call__:
     left_running:
-    harnesses:
     alone:
     idling:
+    settling:
     test_the_daemon_ticks_on_the_interval_until_the_user_interrupts:
     test_every_tick_records_when_it_ran:
     test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock:
@@ -441,6 +458,23 @@ tests/:
     test_a_run_refuses_when_the_harness_it_was_named_is_not_installed:
     test_a_round_the_daemon_before_this_one_left_running_is_ended:
     test_a_round_that_recorded_an_ending_is_left_running_by_the_sweep:
+    configure:
+    listing:
+    held:
+    recorded:
+    gh:
+    offered:
+    dispatching:
+    test_a_tick_dispatches_the_oldest_issue_nothing_stands_in_the_way_of:
+    test_a_dispatched_round_records_what_caused_it_and_what_it_said:
+    test_a_tick_launches_one_round_and_leaves_the_rest_in_the_queue:
+    test_a_second_tick_judges_a_dispatched_issue_handled:
+    test_a_tick_at_the_cap_spends_no_github_call:
+    test_a_tick_with_nothing_eligible_dispatches_nothing:
+    test_a_tick_whose_listing_failed_records_what_it_could_not_read:
+    test_a_tick_that_could_not_dispatch_records_the_failure_and_ticks_again:
+    test_a_run_that_cannot_be_told_which_repository_this_is_refuses:
+    test_the_daemon_ends_the_rounds_it_holds_as_it_goes_down:
   test_documents.py:
     READERS:
     Sample:
@@ -465,6 +499,7 @@ tests/:
     REPOSITORY:
     FILED:
     LATER:
+    LABEL:
     SETTINGS:
     mapping:
     listing:
@@ -616,6 +651,7 @@ tests/:
     test_a_sessions_rounds_read_back_in_the_order_they_ran:
     test_every_session_of_the_repo_reads_back_by_key:
     test_a_file_left_among_the_worktrees_is_not_a_session:
+    test_a_worktree_with_no_record_beside_it_is_not_a_session:
     test_a_session_record_that_will_not_read_names_the_file:
   test_state.py:
     test_bootstrap_creates_a_directory_that_ignores_itself:

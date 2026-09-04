@@ -164,6 +164,13 @@ def test_a_file_left_among_the_worktrees_is_not_a_session(state, mapping):
     assert read_sessions(state) == [created]
 
 
+def test_a_worktree_with_no_record_beside_it_is_not_a_session(state, mapping):
+    created = create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
+    (state.worktrees / "GH3-20260819-184158").mkdir()
+
+    assert read_sessions(state) == [created]
+
+
 def test_a_session_record_that_will_not_read_names_the_file(state, mapping):
     create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
     (state.sessions / KEY / "session.json").write_text("{}", encoding="utf-8")

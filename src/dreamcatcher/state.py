@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from pydantic import Field
+
 from dreamcatcher.documents import Document, write_text
 
 STATE_DIRECTORY = ".dreamcatcher"
@@ -12,12 +14,15 @@ STATE_DIRECTORY = ".dreamcatcher"
 class Candidate(Document):
     """One labelled issue a tick weighed, and what stood in its way.
 
-    A candidate with no reason is one that nothing stood in the way of. Every
-    candidate the tick writes down carries a reason, because the issue it
-    dispatched is named on its own.
+    A candidate is an issue under one label, because the label settles the
+    harness that runs it and the prompt it starts with. An issue carrying two
+    mapped labels is a candidate under each of them, and neither can go.
+
+    A candidate with no reason is one that nothing stood in the way of.
     """
 
     issue: int
+    label: str
     reason: str | None = None
 
     @property
@@ -27,13 +32,22 @@ class Candidate(Document):
 
 
 class LastTick(Document):
-    """When the daemon's most recent tick ran.
+    """What the daemon's most recent tick observed and decided.
 
     The tick's own time is in here rather than read from the file, so copying a
     state directory cannot make a stale tick look fresh.
+
+    A tick that held every launch says why in one line, and looked no further.
+    Otherwise the candidates are every labelled issue the tick weighed, in the
+    order they would go. A candidate with nothing in its way that the tick did
+    not dispatch is one waiting for a later tick, and its place in the list is
+    its turn.
     """
 
     at: datetime
+    held: str | None = None
+    dispatched: str | None = None
+    candidates: list[Candidate] = Field(default_factory=list)
 
 
 @dataclass(frozen=True)

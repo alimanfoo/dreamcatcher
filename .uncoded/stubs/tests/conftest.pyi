@@ -55,3 +55,6 @@ def stand_ins(tmp_path):
 
 def fake(stand_ins, monkeypatch):
     ...
+
+def harnesses(fake):
+    ...

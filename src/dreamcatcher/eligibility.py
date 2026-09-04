@@ -42,31 +42,40 @@ def judge_issues(
     listed = _list_issues(repository, config)
     if isinstance(listed, Unknown):
         return listed
-    labels: defaultdict[int, list[str]] = defaultdict(list)
-    for label, issue in listed:
-        labels[issue.number].append(label)
-    # An issue that two mapped labels list is listed twice, and is weighed
-    # once. The number breaks a tie, so two issues filed in the same second
-    # come back in the same order every tick.
-    weighed = {issue.number: issue for _, issue in listed}.values()
     return [
         Candidate(
             issue=issue.number,
-            reason=_obstacle(repository, issue.number, labels[issue.number], claimed),
+            label=label,
+            reason=_obstacle(repository, issue.number, labels, claimed),
         )
-        for issue in sorted(weighed, key=lambda issue: (issue.created_at, issue.number))
+        for issue, labels in listed
+        for label in labels
     ]
 
 
-def _list_issues(repository: str, config: Config) -> list[tuple[str, Issue]] | Unknown:
-    """Return each mapped label paired with every issue that label lists."""
-    listed: list[tuple[str, Issue]] = []
+def _list_issues(
+    repository: str, config: Config
+) -> list[tuple[Issue, list[str]]] | Unknown:
+    """Return each listed issue with the mapped labels it carries, oldest first.
+
+    The issue's number breaks a tie, so two issues filed in the same second
+    come back in the same order every tick.
+    """
+    labels: defaultdict[int, list[str]] = defaultdict(list)
+    found: dict[int, Issue] = {}
     for mapping in config.dispatch:
         answered = issues(repository, label=mapping.label, assignee=config.assignee)
         if isinstance(answered, Unknown):
             return answered
-        listed += [(mapping.label, issue) for issue in answered]
-    return listed
+        for issue in answered:
+            labels[issue.number].append(mapping.label)
+            found[issue.number] = issue
+    return [
+        (issue, labels[issue.number])
+        for issue in sorted(
+            found.values(), key=lambda issue: (issue.created_at, issue.number)
+        )
+    ]
 
 
 def _obstacle(

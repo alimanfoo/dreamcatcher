@@ -4,17 +4,22 @@
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from pydantic import Field
 from dreamcatcher.documents import Document, write_text
 
 STATE_DIRECTORY = '.dreamcatcher'
 
 class Candidate(Document):
     issue: int
+    label: str
     reason: str | None = None
     is_eligible: bool
 
 class LastTick(Document):
     at: datetime
+    held: str | None = None
+    dispatched: str | None = None
+    candidates: list[Candidate] = Field(default_factory=list)
 
 class StateDirectory:
     root: Path
