@@ -502,7 +502,7 @@ tests/:
     RECORDING:
     STAMP:
     LEAVES_A_STRAGGLER:
-    AND_KEEPS_GOING:
+    AND_WAITS:
     Unrenderable:
       program:
       first_round:

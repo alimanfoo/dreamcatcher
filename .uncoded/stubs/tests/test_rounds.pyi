@@ -20,7 +20,7 @@ from dreamcatcher.rounds import Round, RoundRecord
 RECORDING = FIXTURES / 'claude' / 'round.jsonl'
 STAMP = '2026-08-19T18:41:58Z'
 LEAVES_A_STRAGGLER = ...
-AND_KEEPS_GOING = 'import time; time.sleep(60)\n'
+AND_WAITS = 'left.wait()\n'
 
 def pinned():
     ...

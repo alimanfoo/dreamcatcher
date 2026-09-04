@@ -2,8 +2,10 @@
 
 How a child process is ended differs by platform, and that difference lives here
 alone. On POSIX a child leads a process group of its own, and the daemon signals
-that group, so one signal reaches everything that the round started, and nothing
-else. On Windows a child goes into a Job Object of its own, which Windows empties
+that group, so one signal reaches whatever the round left in that group, and
+nothing else. What a round started can still get away: a process that starts a
+session of its own has left the group, and no signal to the group reaches it.
+On Windows a child goes into a Job Object of its own, which Windows empties
 when the daemon terminates the job, and again when the daemon exits and its last
 handle on the job closes. So a round on Windows dies with the daemon that started
 it.

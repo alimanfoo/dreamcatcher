@@ -34,7 +34,7 @@ LEAVES_A_STRAGGLER = (
 )
 
 # What keeps such a harness running, so a test can stop it mid-round.
-AND_KEEPS_GOING = "import time; time.sleep(60)\n"
+AND_WAITS = "left.wait()\n"
 
 
 def pinned():
@@ -247,7 +247,7 @@ def test_a_round_a_straggler_outlives_still_records_an_ending(
 def test_a_round_a_straggler_outlives_still_stops(worktree, directory, straggler):
     running = Round(
         CLAUDE,
-        [sys.executable, "-c", LEAVES_A_STRAGGLER + AND_KEEPS_GOING, str(straggler)],
+        [sys.executable, "-c", LEAVES_A_STRAGGLER + AND_WAITS, str(straggler)],
         worktree,
         directory,
         clock=pinned,
