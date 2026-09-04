@@ -51,7 +51,9 @@ class Child:
         """End the child, and everything that the child started, outright.
 
         A child already waited for has gone, and the operating system is free
-        to give its pid to somebody else, so this leaves it alone.
+        to give its pid to somebody else, so this leaves it alone. `wait` does
+        signal at that point, because there the two statements sit next to
+        each other, while a kill can come long afterwards.
         """
         if self.process.returncode is None:
             teardown.end(self.pid)

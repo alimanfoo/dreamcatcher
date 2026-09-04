@@ -17,7 +17,9 @@ launcher that starts the program that the daemon meant to run, so the child that
 the daemon knows about is often not the one doing the work.
 
 The tree is ended when the child ends by itself, as well as when the daemon
-kills it, so one call serves both.
+kills it, so one call serves both. Without that, a POSIX round that finished
+normally would leave whatever it started running until the machine restarts,
+because nothing else ever ends it. Windows has no such leak.
 """
 
 import sys
@@ -84,13 +86,13 @@ else:  # pragma: no cover
         a failure.
         """
         # The child leads the group, so its pid is the group's id. A caller
-        # that has already waited for the child has let go of that pid, and in
-        # principle the operating system could have given it to somebody else
-        # by now. Only in principle: a pid stays taken while any process still
-        # has it as a group id, so the group has to empty first, and then the
-        # new owner has to lead a group of its own, all in the moment between
-        # the two calls. Holding on to the pid instead would mean waiting for
-        # a child without collecting its status, and there is no such call on
-        # every platform, since os.waitid is missing on macOS.
+        # that has collected the child's status has let go of that pid, so
+        # between that statement and this one the number could come to belong
+        # to a stranger. That window is two adjacent statements wide, and it
+        # is accepted. Closing it would mean waiting for the child without
+        # collecting its status, which is os.waitid with WNOWAIT, and macOS
+        # has that only from Python 3.13 while this project pins 3.12. The
+        # line would be a branch on the Python version inside this platform
+        # branch, and no one runner can cover both of its arms.
         with suppress(ProcessLookupError):
             os.killpg(pid, signal.SIGKILL)
