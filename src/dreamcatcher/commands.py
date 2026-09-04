@@ -5,6 +5,7 @@ a command line meets on Windows, since a command line has to survive it.
 """
 
 import subprocess
+from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path, PurePath
 from shutil import which
@@ -134,29 +135,39 @@ def run(program: str, *arguments: str, cwd: Path | None = None) -> str:
     return finished.stdout
 
 
-def spawn(program: str, *arguments: str, cwd: Path) -> Child:
+def spawn(program: str, *arguments: str, cwd: Path, stdin: Path | None = None) -> Child:
     """Start the program in cwd and hand it back while it runs.
 
     The daemon watches a round while it runs rather than waiting for it to
     finish, so this returns the running child, with each of its two streams on
     a pipe of its own and its output read as UTF-8.
 
-    The child gets no stdin. Codex reads stdin for more of its prompt and waits
-    for the end of it, so a pipe that the daemon held open would stall the round
-    for ever, even with the whole prompt already in an argument.
+    A harness reads its prompt from stdin, so the caller names the file holding
+    it and the child reads that file. A file rather than a pipe, because a pipe
+    would have the daemon writing the prompt while the child read it, and a
+    prompt longer than the pipe's own buffer would stall them both.
+
+    A child named no file finds its stdin already at an end, so a harness
+    waiting for the rest of a prompt waits no longer than that.
     """
-    started = subprocess.Popen(
-        _build(program, arguments),
-        cwd=cwd,
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        encoding="utf-8",
-        # A stray byte that is not UTF-8, in a path or a message, comes through
-        # as the replacement character rather than as a traceback.
-        errors="replace",
-        start_new_session=teardown.OWN_SESSION,
-    )
+    with ExitStack() as opening:
+        reading = (
+            opening.enter_context(stdin.open("rb"))
+            if stdin is not None
+            else subprocess.DEVNULL
+        )
+        started = subprocess.Popen(
+            _build(program, arguments),
+            cwd=cwd,
+            stdin=reading,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            encoding="utf-8",
+            # A stray byte that is not UTF-8, in a path or a message, comes
+            # through as the replacement character rather than as a traceback.
+            errors="replace",
+            start_new_session=teardown.OWN_SESSION,
+        )
     teardown.contain(started.pid)
     # This asked for both pipes above, so both are there. subprocess types them
     # for every caller, including the ones that asked for neither.

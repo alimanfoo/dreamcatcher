@@ -1,7 +1,7 @@
 from conftest import streamed
 
-from dreamcatcher.adapters import Launch
-from dreamcatcher.codex import CODEX
+from dreamcatcher.adapters import Invocation, Launch
+from dreamcatcher.codex import CODEX, STDIN
 from dreamcatcher.feed import Note, Prose
 
 LAUNCH = Launch(
@@ -23,37 +23,44 @@ def completed(**item) -> str:
     return streamed(type="item.completed", item=item)
 
 
+# Each command ends in the word that has Codex read its prompt from stdin.
 def test_a_first_round_runs_where_it_is_launched_under_codexs_own_reviewer():
-    assert CODEX.first_round(LAUNCH) == [
-        "codex",
-        "exec",
-        "--json",
-        "--approve-for-me",
-        *SETTINGS,
-        "-c",
-        "sandbox_workspace_write.network_access=true",
+    assert CODEX.first_round(LAUNCH) == Invocation(
+        [
+            "codex",
+            "exec",
+            "--json",
+            "--approve-for-me",
+            *SETTINGS,
+            "-c",
+            "sandbox_workspace_write.network_access=true",
+            STDIN,
+        ],
         "$dream:smith GH9",
-    ]
+    )
 
 
 def test_a_resume_replays_the_settings_and_the_permissions_codex_forgets():
-    assert CODEX.resume(LAUNCH) == [
-        "codex",
-        "exec",
-        "resume",
-        "--last",
-        "--json",
-        *SETTINGS,
-        "-c",
-        'sandbox_mode="workspace-write"',
-        "-c",
-        "sandbox_workspace_write.network_access=true",
-        "-c",
-        'approval_policy="on-request"',
-        "-c",
-        'approvals_reviewer="auto_review"',
+    assert CODEX.resume(LAUNCH) == Invocation(
+        [
+            "codex",
+            "exec",
+            "resume",
+            "--last",
+            "--json",
+            *SETTINGS,
+            "-c",
+            'sandbox_mode="workspace-write"',
+            "-c",
+            "sandbox_workspace_write.network_access=true",
+            "-c",
+            'approval_policy="on-request"',
+            "-c",
+            'approvals_reviewer="auto_review"',
+            STDIN,
+        ],
         "$dream:smith GH9",
-    ]
+    )
 
 
 def test_the_first_event_names_the_session():

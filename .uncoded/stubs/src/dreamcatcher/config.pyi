@@ -19,7 +19,7 @@ class Harness(StrEnum):
     CODEX = 'codex'
 
 class HarnessSettings(Document):
-    prompt: QuotableText
+    prompt: str
     model: QuotableText
     effort: QuotableText
 

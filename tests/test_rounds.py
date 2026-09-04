@@ -10,7 +10,7 @@ from clocks import PINNED
 from fakes import Line, Stream, recorded
 from recordings import FIXTURES, rendered
 
-from dreamcatcher.adapters import Adapter, Launch
+from dreamcatcher.adapters import Adapter, Invocation, Launch
 from dreamcatcher.claude import CLAUDE
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Event, Note, Renderer
@@ -21,6 +21,11 @@ from dreamcatcher.rounds import Round, RoundRecord
 RECORDING = FIXTURES / "claude" / "round.jsonl"
 
 STAMP = "2026-08-19T18:41:58Z"
+
+# What every round here asks the harness to do. It holds a percent sign and runs
+# over two lines, neither of which a command line could carry to a batch file,
+# because the prompt reaches the harness as a file it reads.
+PROMPT = "/dream:smith GH9\nfinish 50% of it"
 
 # A harness that leaves a process behind holding the round's own streams, and
 # says in the file it is passed which process that is. The streams are handed
@@ -52,11 +57,11 @@ class Unrenderable(Adapter):
 
     program = "harness"
 
-    def first_round(self, launch: Launch) -> list[str]:
-        return [self.program]
+    def first_round(self, launch: Launch) -> Invocation:
+        return Invocation([self.program], launch.prompt)
 
-    def resume(self, launch: Launch) -> list[str]:
-        return [self.program]
+    def resume(self, launch: Launch) -> Invocation:
+        return Invocation([self.program], launch.prompt)
 
     def _events(self, streamed: dict) -> list[Event]:
         # A real harness can send a path or a command as something other than
@@ -110,10 +115,43 @@ def test_a_round_runs_the_command_it_was_given_in_the_worktree(
     harness = fake("harness")
     harness.replies("")
 
-    Round(CLAUDE, ["harness", "--print"], worktree, directory, clock=pinned).wait()
+    Round(
+        CLAUDE, Invocation(["harness", "--print"], PROMPT), worktree, directory, pinned
+    ).wait()
 
     assert harness.calls[0].arguments == ["--print"]
     assert harness.calls[0].directory == worktree.resolve()
+
+
+def test_a_round_gives_the_harness_its_prompt_to_read(fake, worktree, directory):
+    harness = fake("harness")
+    harness.replies("")
+
+    running = Round(
+        CLAUDE, Invocation(["harness"], PROMPT), worktree, directory, clock=pinned
+    )
+    running.wait()
+
+    assert harness.calls[0].prompt == PROMPT
+    assert running.prompt.read_text(encoding="utf-8") == PROMPT
+
+
+def test_a_round_that_cannot_write_its_prompt_never_starts(fake, worktree, tmp_path):
+    harness = fake("harness")
+    harness.replies("")
+    occupied = tmp_path / "occupied"
+    occupied.write_text("something else is here\n", encoding="utf-8")
+
+    with pytest.raises(ReportableError, match=r"prompt\.txt"):
+        Round(
+            CLAUDE,
+            Invocation(["harness"], PROMPT),
+            worktree,
+            occupied / "1",
+            clock=pinned,
+        )
+
+    assert harness.calls == []
 
 
 def test_the_feed_a_round_writes_is_the_feed_its_stream_renders_as(
@@ -121,7 +159,9 @@ def test_the_feed_a_round_writes_is_the_feed_its_stream_renders_as(
 ):
     fake("harness").streams(recorded(RECORDING))
 
-    running = Round(CLAUDE, ["harness"], worktree, directory, clock=pinned)
+    running = Round(
+        CLAUDE, Invocation(["harness"], PROMPT), worktree, directory, clock=pinned
+    )
     running.wait()
 
     assert running.feed.read_text(encoding="utf-8") == rendered(
@@ -134,7 +174,9 @@ def test_the_feed_a_round_writes_is_the_feed_its_stream_renders_as(
 def test_a_round_keeps_the_harnesss_own_stream_as_it_arrived(fake, worktree, directory):
     fake("harness").streams(recorded(RECORDING))
 
-    running = Round(CLAUDE, ["harness"], worktree, directory, clock=pinned)
+    running = Round(
+        CLAUDE, Invocation(["harness"], PROMPT), worktree, directory, clock=pinned
+    )
     running.wait()
 
     assert running.raw.read_text(encoding="utf-8") == RECORDING.read_text(
@@ -152,7 +194,9 @@ def test_what_the_harness_says_on_stderr_lands_where_it_happened(
         delay=0.25,
     )
 
-    running = Round(CLAUDE, ["harness"], worktree, directory, clock=pinned)
+    running = Round(
+        CLAUDE, Invocation(["harness"], PROMPT), worktree, directory, clock=pinned
+    )
     running.wait()
 
     assert running.feed.read_text(encoding="utf-8").splitlines() == [
@@ -166,7 +210,9 @@ def test_what_the_harness_says_on_stderr_lands_where_it_happened(
 def test_a_line_the_feed_cannot_write_costs_that_line_alone(fake, worktree, directory):
     fake("harness").streams([Line('{"said": "hello"}\n'), Line("plain\n")])
 
-    running = Round(Unrenderable(), ["harness"], worktree, directory, clock=pinned)
+    running = Round(
+        Unrenderable(), Invocation(["harness"], PROMPT), worktree, directory, pinned
+    )
     running.wait()
 
     assert running.feed.read_text(encoding="utf-8").splitlines() == [
@@ -178,7 +224,9 @@ def test_a_line_the_feed_cannot_write_costs_that_line_alone(fake, worktree, dire
 def test_a_round_says_when_it_started_and_what_process_it_is(fake, worktree, directory):
     fake("harness").streams([Line("working\n"), Line("still working\n")], delay=5)
 
-    running = Round(CLAUDE, ["harness"], worktree, directory, clock=pinned)
+    running = Round(
+        CLAUDE, Invocation(["harness"], PROMPT), worktree, directory, clock=pinned
+    )
 
     assert running.is_alive
     assert written(running.record) == RoundRecord(started=PINNED, pid=running.child.pid)
@@ -189,7 +237,9 @@ def test_a_round_says_when_it_started_and_what_process_it_is(fake, worktree, dir
 def test_a_round_that_finished_says_how_it_ended(fake, worktree, directory):
     fake("harness").streams([Line("giving up\n")], status=2)
 
-    running = Round(CLAUDE, ["harness"], worktree, directory, clock=pinned)
+    running = Round(
+        CLAUDE, Invocation(["harness"], PROMPT), worktree, directory, clock=pinned
+    )
     running.wait()
 
     assert not running.is_alive
@@ -201,7 +251,9 @@ def test_a_round_that_finished_says_how_it_ended(fake, worktree, directory):
 def test_a_round_somebody_stopped_says_no_ending(fake, worktree, directory):
     fake("harness").streams([Line("working\n"), Line("still working\n")], delay=5)
 
-    running = Round(CLAUDE, ["harness"], worktree, directory, clock=pinned)
+    running = Round(
+        CLAUDE, Invocation(["harness"], PROMPT), worktree, directory, clock=pinned
+    )
     running.stop()
 
     assert not running.is_alive
@@ -216,20 +268,27 @@ def test_a_round_that_cannot_write_its_feed_stops_rather_than_stalls(
     directory.mkdir(parents=True)
     (directory / "feed.txt").mkdir()
 
-    running = Round(CLAUDE, ["harness"], worktree, directory, clock=pinned)
+    running = Round(
+        CLAUDE, Invocation(["harness"], PROMPT), worktree, directory, clock=pinned
+    )
     running.wait()
 
     assert not running.is_alive
     assert written(running.record).ended is None
 
 
-def test_a_round_that_cannot_record_its_start_does_not_run_on(fake, worktree, tmp_path):
+def test_a_round_that_cannot_record_its_start_does_not_run_on(
+    fake, worktree, directory
+):
     fake("harness").streams([Line("working\n")], delay=5)
-    occupied = tmp_path / "occupied"
-    occupied.write_text("something else is here\n", encoding="utf-8")
+    # A directory where the record goes, so the prompt lands and the record
+    # cannot, which is what leaves a child running with nothing to find it by.
+    (directory / "round.json").mkdir(parents=True)
 
-    with pytest.raises(ReportableError, match="cannot write"):
-        Round(CLAUDE, ["harness"], worktree, occupied / "1", clock=pinned)
+    with pytest.raises(ReportableError, match=r"round\.json"):
+        Round(
+            CLAUDE, Invocation(["harness"], PROMPT), worktree, directory, clock=pinned
+        )
 
 
 def test_a_round_a_straggler_outlives_still_records_an_ending(
@@ -237,7 +296,7 @@ def test_a_round_a_straggler_outlives_still_records_an_ending(
 ):
     running = Round(
         CLAUDE,
-        [sys.executable, "-c", LEAVES_A_STRAGGLER, str(straggler)],
+        Invocation([sys.executable, "-c", LEAVES_A_STRAGGLER, str(straggler)], PROMPT),
         worktree,
         directory,
         clock=pinned,
@@ -252,7 +311,10 @@ def test_a_round_a_straggler_outlives_still_records_an_ending(
 def test_a_round_a_straggler_outlives_still_stops(worktree, directory, straggler):
     running = Round(
         CLAUDE,
-        [sys.executable, "-c", LEAVES_A_STRAGGLER + AND_WAITS, str(straggler)],
+        Invocation(
+            [sys.executable, "-c", LEAVES_A_STRAGGLER + AND_WAITS, str(straggler)],
+            PROMPT,
+        ),
         worktree,
         directory,
         clock=pinned,

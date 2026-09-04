@@ -34,6 +34,9 @@ def test_an_argument_a_second_reader_would_act_on_still_arrives_whole(fake):
 def test_a_spawned_command_runs_where_it_is_told_and_streams_as_it_goes(fake, tmp_path):
     ...
 
+def test_a_spawned_command_reads_the_file_it_was_given_as_its_stdin(tmp_path):
+    ...
+
 def test_a_spawned_command_finds_its_stdin_already_at_an_end(tmp_path):
     ...
 

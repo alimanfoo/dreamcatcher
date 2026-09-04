@@ -44,10 +44,15 @@ class Line:
 
 @dataclass(frozen=True)
 class Call:
-    """One call a stand-in took: what it was passed, and where it ran."""
+    """One call a stand-in took: what it was passed, where it ran, what it read.
+
+    A harness reads its prompt from stdin, so what the stand-in read there is
+    part of the call, and a test can ask for the prompt it was given.
+    """
 
     arguments: list[str]
     directory: Path
+    prompt: str
 
 
 @dataclass(frozen=True)
@@ -81,7 +86,7 @@ class Fake:
     def calls(self) -> list[Call]:
         """Every call the stand-in took, oldest first."""
         return [
-            Call(taken["arguments"], Path(taken["directory"]))
+            Call(taken["arguments"], Path(taken["directory"]), taken["prompt"])
             for taken in _lines(_taken(self.base))
         ]
 
@@ -116,7 +121,16 @@ def install(directory: Path, program: str) -> Fake:
 
 def replay(base: Path, arguments: list[str]) -> int:
     """Answer one call to the stand-in at base, as its test scripted it."""
-    _append(_taken(base), {"arguments": arguments, "directory": str(Path.cwd())})
+    # UTF-8 whatever the console's own code page is, since whoever wrote the
+    # prompt wrote it as UTF-8.
+    _append(
+        _taken(base),
+        {
+            "arguments": arguments,
+            "directory": str(Path.cwd()),
+            "prompt": sys.stdin.buffer.read().decode("utf-8"),
+        },
+    )
     scripted = _scripted(base)
     if not scripted.exists():
         sys.stderr.write(f"{base.name} was not scripted, and it was asked.\n")

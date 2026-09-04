@@ -2,7 +2,7 @@
 # tests/test_claude.py
 
 from conftest import streamed
-from dreamcatcher.adapters import Launch
+from dreamcatcher.adapters import Invocation, Launch
 from dreamcatcher.claude import ALLOWED_TOOLS, CLAUDE
 from dreamcatcher.feed import Note, Prose
 

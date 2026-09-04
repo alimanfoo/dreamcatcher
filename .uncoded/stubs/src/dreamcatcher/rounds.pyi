@@ -5,10 +5,10 @@ from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 from threading import Event, Lock, Thread
-from dreamcatcher.adapters import Adapter
+from dreamcatcher.adapters import Adapter, Invocation
 from dreamcatcher.clock import now
 from dreamcatcher.commands import spawn
-from dreamcatcher.documents import Document, append_text, write_json
+from dreamcatcher.documents import Document, append_text, write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Prose, Renderer
 
@@ -19,12 +19,13 @@ class RoundRecord(Document):
     status: int | None = None
 
 class Round:
+    prompt: Path
     record: Path
     feed: Path
     raw: Path
     is_alive: bool
 
-    def __init__(self, adapter: Adapter, command: list[str], worktree: Path, directory: Path, clock: Callable[[], datetime]) -> None:
+    def __init__(self, adapter: Adapter, invocation: Invocation, worktree: Path, directory: Path, clock: Callable[[], datetime]) -> None:
         ...
 
     def wait(self) -> None:

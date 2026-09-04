@@ -3,11 +3,13 @@
 A round is a harness command running as a child of the daemon, in the session's
 worktree. It writes into a directory of its own as it goes.
 
-`raw.jsonl` keeps the harness's own stdout as it arrived, so that whoever works
-on a parser can read what the harness really sent. `feed.txt` is that same stream
-read through the harness's adapter and rendered as lines a person can read, with
-whatever the harness said on stderr among them, where it happened. `round.json`
-says when the round started, what process it ran as, and how it ended.
+`prompt.txt` holds what the round asked the harness to do, which the harness
+reads as its stdin. `raw.jsonl` keeps the harness's own stdout as it arrived, so
+that whoever works on a parser can read what the harness really sent. `feed.txt`
+is that same stream read through the harness's adapter and rendered as lines a
+person can read, with whatever the harness said on stderr among them, where it
+happened. `round.json` says when the round started, what process it ran as, and
+how it ended.
 
 The daemon watches a round rather than waiting for it, so a round reads its own
 streams on threads of its own, and records its own ending on another.
@@ -18,10 +20,10 @@ from datetime import datetime
 from pathlib import Path
 from threading import Event, Lock, Thread
 
-from dreamcatcher.adapters import Adapter
+from dreamcatcher.adapters import Adapter, Invocation
 from dreamcatcher.clock import now
 from dreamcatcher.commands import spawn
-from dreamcatcher.documents import Document, append_text, write_json
+from dreamcatcher.documents import Document, append_text, write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Prose, Renderer
 
@@ -51,12 +53,20 @@ class Round:
     def __init__(
         self,
         adapter: Adapter,
-        command: list[str],
+        invocation: Invocation,
         worktree: Path,
         directory: Path,
         clock: Callable[[], datetime] = now,
     ) -> None:
-        """Start the command as a round in worktree, recording into directory."""
+        """Run the invocation as a round in worktree, recording into directory.
+
+        The prompt goes to a file of the round's own, and the harness reads
+        that file as its stdin. So a prompt reaches the harness as it was
+        written however long it is and whatever it holds, and a reader can see
+        afterwards what the round was asked to do. A prompt the round cannot
+        write stops it before it starts, since a harness with nothing to read
+        would sit and wait.
+        """
         self.adapter = adapter
         self.directory = directory
         self.clock = clock
@@ -65,7 +75,8 @@ class Round:
         self.is_interrupted = False
         self._ended = Event()
         self._writing = Lock()
-        self.child = spawn(*command, cwd=worktree)
+        write_text(invocation.prompt, self.prompt)
+        self.child = spawn(*invocation.command, cwd=worktree, stdin=self.prompt)
         try:
             write_json(
                 RoundRecord(started=self.started, pid=self.child.pid), self.record
@@ -84,6 +95,11 @@ class Round:
             pump.start()
         self._closing = Thread(target=self._close, daemon=True)
         self._closing.start()
+
+    @property
+    def prompt(self) -> Path:
+        """The file holding what the round asked the harness to do."""
+        return self.directory / "prompt.txt"
 
     @property
     def record(self) -> Path:

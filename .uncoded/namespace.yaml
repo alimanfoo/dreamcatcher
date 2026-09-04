@@ -15,6 +15,9 @@ src/:
         model:
         effort:
         prompt:
+      Invocation:
+        command:
+        prompt:
       Adapter:
         program:
         first_round:
@@ -46,6 +49,7 @@ src/:
       now:
     codex.py:
       NETWORK_ACCESS:
+      STDIN:
       RESUME_PERMISSIONS:
       CODEX:
       Codex:
@@ -200,6 +204,7 @@ src/:
         ended:
         status:
       Round:
+        prompt:
         record:
         feed:
         raw:
@@ -276,6 +281,7 @@ tests/:
     Call:
       arguments:
       directory:
+      prompt:
     Fake:
       base:
       calls:
@@ -367,6 +373,7 @@ tests/:
     test_a_command_that_prints_bytes_that_are_not_utf_8_still_reads:
     test_an_argument_a_second_reader_would_act_on_still_arrives_whole:
     test_a_spawned_command_runs_where_it_is_told_and_streams_as_it_goes:
+    test_a_spawned_command_reads_the_file_it_was_given_as_its_stdin:
     test_a_spawned_command_finds_its_stdin_already_at_an_end:
     test_a_quoted_part_hides_what_a_second_reader_would_act_on:
     test_a_quote_in_a_part_is_doubled:
@@ -390,6 +397,7 @@ tests/:
     test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named:
     test_a_config_mistake_names_the_setting_and_the_fault:
     test_a_setting_a_harness_cannot_be_given_names_itself:
+    test_a_prompt_may_hold_what_no_command_line_could_carry:
     test_a_repo_with_no_config_says_which_file_is_missing:
   test_daemon.py:
     Waiting:
@@ -510,6 +518,7 @@ tests/:
   test_rounds.py:
     RECORDING:
     STAMP:
+    PROMPT:
     LEAVES_A_STRAGGLER:
     AND_WAITS:
     Unrenderable:
@@ -524,6 +533,8 @@ tests/:
     written:
     within:
     test_a_round_runs_the_command_it_was_given_in_the_worktree:
+    test_a_round_gives_the_harness_its_prompt_to_read:
+    test_a_round_that_cannot_write_its_prompt_never_starts:
     test_the_feed_a_round_writes_is_the_feed_its_stream_renders_as:
     test_a_round_keeps_the_harnesss_own_stream_as_it_arrived:
     test_what_the_harness_says_on_stderr_lands_where_it_happened:

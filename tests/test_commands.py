@@ -97,6 +97,17 @@ def test_a_spawned_command_runs_where_it_is_told_and_streams_as_it_goes(fake, tm
     assert probe.calls[0].directory == tmp_path.resolve()
 
 
+def test_a_spawned_command_reads_the_file_it_was_given_as_its_stdin(tmp_path):
+    reading = "import sys; sys.stdout.write(f'read {sys.stdin.read()!r}')"
+    holds = tmp_path / "prompt.txt"
+    holds.write_bytes(b"do this\nthen 50% more")
+
+    child = spawn(sys.executable, "-c", reading, cwd=tmp_path, stdin=holds)
+
+    assert child.out.read() == "read 'do this\\nthen 50% more'"
+    assert child.wait() == 0
+
+
 def test_a_spawned_command_finds_its_stdin_already_at_an_end(tmp_path):
     reading = "import sys; sys.stdout.write(f'read {sys.stdin.read()!r}')"
 

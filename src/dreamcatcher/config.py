@@ -15,6 +15,10 @@ CONFIG_NAME = "dreamcatcher.toml"
 # harness that npm installed as a batch file, so the text meets cmd.exe on the
 # way. Refusing it as the config is read is what lets the message name the
 # setting that holds it.
+#
+# A prompt is not one of these. A round writes its prompt to a file for the
+# harness to read, so no command line ever carries it, and it can hold anything
+# and run to any length.
 QuotableText = Annotated[str, AfterValidator(refuse_unquotable)]
 
 
@@ -28,7 +32,7 @@ class Harness(StrEnum):
 class HarnessSettings(Document):
     """How one harness runs a round for one label."""
 
-    prompt: QuotableText
+    prompt: str
     model: QuotableText
     effort: QuotableText
 
