@@ -55,9 +55,11 @@ class Codex(Adapter):
         """Return how to resume the session in this directory.
 
         Codex forgets the model and the effort when it resumes, so this sets
-        both again. `--last` means the newest session, and Codex only counts
-        the sessions it ran in the current directory. So running this in the
-        session's worktree is what picks the right session.
+        both again.
+
+        `--last` means the newest session, and Codex only counts the sessions
+        it ran in the current directory. So running this in the session's
+        worktree is what picks the right session.
         """
         return Invocation(
             [

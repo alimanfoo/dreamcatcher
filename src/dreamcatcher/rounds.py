@@ -63,9 +63,9 @@ class Round:
         The prompt goes to a file of the round's own, and the harness reads
         that file as its stdin. So a prompt reaches the harness as it was
         written however long it is and whatever it holds, and a reader can see
-        afterwards what the round was asked to do. A prompt the round cannot
-        write stops it before it starts, since a harness with nothing to read
-        would sit and wait.
+        afterwards what the round was asked to do. A harness with nothing to
+        read would sit and wait, so a prompt the round cannot write stops the
+        round before it starts.
         """
         self.adapter = adapter
         self.directory = directory

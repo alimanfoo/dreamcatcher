@@ -430,31 +430,37 @@ signed-in CLIs. All subprocess and file IO forces UTF-8 explicitly, and reads a
 byte that is not UTF-8 as the replacement character rather than failing, since a
 localised git can put one in a message. A write keeps the line endings it was
 given rather than the platform's, so a round's copy of what a harness streamed
-holds what the harness sent. Programs are looked up on the PATH before they run,
-which is what reaches a `.cmd` on Windows, the form the harness CLIs take when
-npm installs them. Windows runs a `.cmd` through cmd.exe, which reads the
-command line a second time under its own rules, after Python has quoted it for
-the program's own reader. So a batch file's line is built for both readers:
-every part of it quoted, and a quote inside a part doubled. A percent sign and a
-line ending get past the quoting, though. cmd.exe expands `%NAME%` inside double
-quotes as well as outside, and it reads a newline as the end of a statement, so
-neither reaches a batch file as it was written. A prompt is the text most likely
-to hold one, and it goes to the harness as a file the harness reads rather than
-as an argument, so it never meets cmd.exe at all. What is left on a command line
-is short: a model, an effort, and flags the tool writes itself. So the tool
-refuses a model or an effort holding either character as it reads the config,
-which is what lets the message name the setting that the repo's owner has to
-fix. The repo's owner commits the `dreamcatcher.toml`, so everyone watching that
-repo reads the same one, and a config that reads on Linux and fails on Windows
-would be worse than one that fails the same way everywhere. So the refusal
-stands on every platform. It also follows that the process the daemon starts is
-often not the one doing the work, since a `.cmd` is a shim and Windows has shims
-for other things too. Process teardown is therefore a whole tree, not a child: a
-process group on POSIX and a Job Object on Windows, isolated in one module.
-Paths flow through `pathlib` end to end. The known pid-reuse wrinkles are
-accepted, because each window is small: the orphan sweep runs once at startup
-against pids the daemon itself recorded, and a round ends its own tree in the
-moment after it has waited for its child and let go of its pid.
+holds what the harness sent.
+
+Programs are looked up on the PATH before they run, which is what reaches a
+`.cmd` on Windows, the form the harness CLIs take when npm installs them.
+Windows runs a `.cmd` through cmd.exe, which reads the command line a second
+time under its own rules, after Python has quoted it for the program's own
+reader. So a batch file's line is built for both readers: every part of it
+quoted, and a quote inside a part doubled. A percent sign and a line ending get
+past the quoting, though. cmd.exe expands `%NAME%` inside double quotes as well
+as outside, and it reads a newline as the end of a statement, so neither reaches
+a batch file as it was written. A prompt is the text most likely to hold one,
+and it goes to the harness as a file the harness reads rather than as an
+argument, so it never meets cmd.exe at all. What is left on a command line is
+short: a model, an effort, and flags the tool writes itself. So the tool refuses
+a model or an effort holding either character as it reads the config, which is
+what lets the message name the setting that the repo's owner has to fix. The
+repo's owner commits the `dreamcatcher.toml`, so everyone watching that repo
+reads the same one, and a config that reads on Linux and fails on Windows would
+be worse than one that fails the same way everywhere. So the refusal stands on
+every platform.
+
+It also follows that the process the daemon starts is often not the one doing
+the work, since a `.cmd` is a shim and Windows has shims for other things too.
+Process teardown is therefore a whole tree, not a child: a process group on
+POSIX and a Job Object on Windows, isolated in one module. Paths flow through
+`pathlib` end to end.
+
+The known pid-reuse wrinkles are accepted, because each window is small: the
+orphan sweep runs once at startup against pids the daemon itself recorded, and a
+round ends its own tree in the moment after it has waited for its child and let
+go of its pid.
 
 ### Dependencies
 

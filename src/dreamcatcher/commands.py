@@ -143,9 +143,9 @@ def spawn(program: str, *arguments: str, cwd: Path, stdin: Path | None = None) -
     a pipe of its own and its output read as UTF-8.
 
     A harness reads its prompt from stdin, so the caller names the file holding
-    it and the child reads that file. A file rather than a pipe, because a pipe
-    would have the daemon writing the prompt while the child read it, and a
-    prompt longer than the pipe's own buffer would stall them both.
+    it and the child reads that file. A pipe would have the daemon writing the
+    prompt while the child read it, and a prompt longer than the pipe's own
+    buffer would stall them both. So a file, rather than a pipe.
 
     A child named no file finds its stdin already at an end, so a harness
     waiting for the rest of a prompt waits no longer than that.
