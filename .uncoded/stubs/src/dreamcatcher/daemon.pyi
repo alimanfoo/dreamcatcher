@@ -6,6 +6,8 @@ from contextlib import suppress
 from datetime import datetime
 from pathlib import Path
 from time import sleep
+import psutil
+from dreamcatcher import teardown
 from dreamcatcher.clock import now
 from dreamcatcher.commands import locate
 from dreamcatcher.config import Harness, read_config
@@ -13,6 +15,7 @@ from dreamcatcher.documents import write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.lock import hold
+from dreamcatcher.sessions import read_sessions
 from dreamcatcher.state import LastTick, StateDirectory
 
 class Daemon:
@@ -23,6 +26,9 @@ class Daemon:
         ...
 
     def _locate_harnesses(self) -> None:
+        ...
+
+    def _sweep_orphans(self) -> None:
         ...
 
     def tick(self) -> None:

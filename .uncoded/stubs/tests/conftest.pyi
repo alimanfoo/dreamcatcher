@@ -3,9 +3,13 @@
 
 import json
 import os
+import subprocess
+import sys
+from contextlib import suppress
 from functools import partial
 from pathlib import Path
 import fakes
+import psutil
 import pytest
 from dreamcatcher.commands import run
 from dreamcatcher.config import CONFIG_NAME
@@ -23,6 +27,12 @@ def streamed(**fields: object) -> str:
     ...
 
 def git(*arguments: str, cwd: Path) -> str:
+    ...
+
+def dead_pid() -> int:
+    ...
+
+def gone(pid: int) -> bool:
     ...
 
 def commit(path: Path, message: str) -> None:

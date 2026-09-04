@@ -1,10 +1,10 @@
 import pytest
 from clocks import PINNED
 from conftest import CONFIG, commit, git
+from records import write_round
 
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import CONFIG_NAME, Harness, read_config
-from dreamcatcher.documents import write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.rounds import RoundRecord, Workspace
 from dreamcatcher.sessions import SessionRecord, create_session, read_sessions
@@ -38,14 +38,6 @@ def written(state):
     """Return the record that the session wrote about itself."""
     record = state.sessions / KEY / "session.json"
     return SessionRecord.model_validate_json(record.read_text(encoding="utf-8"))
-
-
-def ran(state, key, number, started, **fields):
-    """Record a round of that session, as the round itself would have."""
-    write_json(
-        RoundRecord(started=started, pid=1, cause="dispatched", **fields),
-        state.sessions / key / "rounds" / str(number) / "round.json",
-    )
 
 
 def test_a_session_cuts_a_worktree_of_its_own_under_the_state_directory(state, mapping):
@@ -141,8 +133,13 @@ def test_a_session_reads_back_as_it_was_dispatched(state, mapping):
 def test_a_sessions_rounds_read_back_in_the_order_they_ran(state, mapping):
     create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
     later = PINNED.replace(minute=50)
-    ran(state, KEY, 2, later)
-    ran(state, KEY, 1, PINNED, ended=later, status=0)
+    directory = state.sessions / KEY
+    write_round(directory, 2, RoundRecord(started=later, pid=1, cause="dispatched"))
+    write_round(
+        directory,
+        1,
+        RoundRecord(started=PINNED, pid=1, cause="dispatched", ended=later, status=0),
+    )
 
     read = read_sessions(state)[0]
 

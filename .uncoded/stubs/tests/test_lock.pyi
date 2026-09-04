@@ -2,17 +2,13 @@
 # tests/test_lock.py
 
 import os
-import subprocess
-import sys
 from pathlib import Path
 import pytest
+from conftest import dead_pid
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.lock import hold
 
 def refuse(*_: object) -> None:
-    ...
-
-def dead_pid() -> int:
     ...
 
 def test_holding_the_lock_records_the_daemon_and_releasing_removes_it(tmp_path):

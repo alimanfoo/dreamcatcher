@@ -4,9 +4,9 @@
 import pytest
 from clocks import PINNED
 from conftest import CONFIG, commit, git
+from records import write_round
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import CONFIG_NAME, Harness, read_config
-from dreamcatcher.documents import write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.rounds import RoundRecord, Workspace
 from dreamcatcher.sessions import SessionRecord, create_session, read_sessions
@@ -25,9 +25,6 @@ def mapping(checkout):
     ...
 
 def written(state):
-    ...
-
-def ran(state, key, number, started, **fields):
     ...
 
 def test_a_session_cuts_a_worktree_of_its_own_under_the_state_directory(state, mapping):

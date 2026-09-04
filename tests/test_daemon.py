@@ -1,13 +1,31 @@
 import os
+import sys
 
+import psutil
 import pytest
-from clocks import Ticking
-from conftest import CONFIG_HEAD, SMITH_CLAUDE
+from clocks import PINNED, Ticking
+from conftest import CONFIG_HEAD, SMITH_CLAUDE, dead_pid, gone
+from records import write_round, write_session
 
+from dreamcatcher.commands import spawn
 from dreamcatcher.config import CONFIG_NAME, Harness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.errors import ReportableError
+from dreamcatcher.rounds import RoundRecord
 from dreamcatcher.state import LastTick, StateDirectory
+
+KEY = "GH13-20260819-184158"
+
+# What every round the tests here write down says woke it.
+CAUSE = "dispatched"
+
+
+@pytest.fixture
+def left_running(watched):
+    """A process standing in for a round that outlived the daemon that ran it."""
+    child = spawn(sys.executable, "-c", "import time; time.sleep(60)", cwd=watched)
+    yield child
+    child.kill()
 
 
 @pytest.fixture
@@ -133,3 +151,40 @@ def test_a_run_refuses_when_the_harness_it_was_named_is_not_installed(repo, alon
 
     with pytest.raises(ReportableError, match="codex is not on the PATH"):
         Daemon(repo, Harness.CODEX, wait=Waiting(1)).run()
+
+
+def test_a_round_the_daemon_before_this_one_left_running_is_ended(
+    watched, harnesses, left_running
+):
+    directory = write_session(StateDirectory(watched), KEY, 13)
+    write_round(
+        directory, 1, RoundRecord(started=PINNED, pid=left_running.pid, cause=CAUSE)
+    )
+    daemon, _, _ = idling(watched)
+
+    daemon.run()
+
+    assert gone(left_running.pid)
+
+
+def test_a_round_that_recorded_an_ending_is_left_running_by_the_sweep(
+    watched, harnesses, left_running
+):
+    directory = write_session(StateDirectory(watched), KEY, 13)
+    write_round(
+        directory,
+        1,
+        RoundRecord(
+            started=PINNED,
+            pid=left_running.pid,
+            cause=CAUSE,
+            ended=PINNED,
+            status=0,
+        ),
+    )
+    write_round(directory, 2, RoundRecord(started=PINNED, pid=dead_pid(), cause=CAUSE))
+    daemon, _, _ = idling(watched)
+
+    daemon.run()
+
+    assert psutil.pid_exists(left_running.pid)

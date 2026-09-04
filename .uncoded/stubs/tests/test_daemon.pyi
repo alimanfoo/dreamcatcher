@@ -2,13 +2,24 @@
 # tests/test_daemon.py
 
 import os
+import sys
+import psutil
 import pytest
-from clocks import Ticking
-from conftest import CONFIG_HEAD, SMITH_CLAUDE
+from clocks import PINNED, Ticking
+from conftest import CONFIG_HEAD, SMITH_CLAUDE, dead_pid, gone
+from records import write_round, write_session
+from dreamcatcher.commands import spawn
 from dreamcatcher.config import CONFIG_NAME, Harness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.errors import ReportableError
+from dreamcatcher.rounds import RoundRecord
 from dreamcatcher.state import LastTick, StateDirectory
+
+KEY = 'GH13-20260819-184158'
+CAUSE = 'dispatched'
+
+def left_running(watched):
+    ...
 
 def harnesses(fake):
     ...
@@ -50,6 +61,12 @@ def test_a_run_refuses_when_a_harness_it_could_dispatch_to_is_not_installed(watc
     ...
 
 def test_a_run_refuses_when_the_harness_it_was_named_is_not_installed(repo, alone):
+    ...
+
+def test_a_round_the_daemon_before_this_one_left_running_is_ended(watched, harnesses, left_running):
+    ...
+
+def test_a_round_that_recorded_an_ending_is_left_running_by_the_sweep(watched, harnesses, left_running):
     ...
 
 class Waiting:

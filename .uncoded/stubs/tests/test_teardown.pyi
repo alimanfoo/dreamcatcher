@@ -2,15 +2,11 @@
 # tests/test_teardown.py
 
 import sys
-from contextlib import suppress
-import psutil
+from conftest import gone
 from dreamcatcher.commands import spawn
 
 STARTS_A_CHILD = ...
 AND_WAITS = 'time.sleep(60)\n'
-
-def gone(pid: int) -> bool:
-    ...
 
 def test_a_kill_reaches_what_the_child_started(tmp_path):
     ...

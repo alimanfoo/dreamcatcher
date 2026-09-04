@@ -2,10 +2,14 @@
 
 import json
 import os
+import subprocess
+import sys
+from contextlib import suppress
 from functools import partial
 from pathlib import Path
 
 import fakes
+import psutil
 import pytest
 
 from dreamcatcher.commands import run
@@ -51,6 +55,22 @@ def streamed(**fields: object) -> str:
 def git(*arguments: str, cwd: Path) -> str:
     """Run git in cwd and return its output, through the tool's own runner."""
     return run("git", *arguments, cwd=cwd)
+
+
+def dead_pid() -> int:
+    """Return a pid that no process holds, by ending one that did."""
+    child = subprocess.Popen([sys.executable, "-c", ""])
+    child.wait()
+    return child.pid
+
+
+def gone(pid: int) -> bool:
+    """Wait a while for the process at pid to end, and say whether it did."""
+    # A process that outstays the wait is a process that is still there, which
+    # is the answer, not a failure.
+    with suppress(psutil.NoSuchProcess, psutil.TimeoutExpired):
+        psutil.Process(pid).wait(timeout=30)
+    return not psutil.pid_exists(pid)
 
 
 def commit(path: Path, message: str) -> None:

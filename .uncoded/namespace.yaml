@@ -102,6 +102,7 @@ src/:
         __init__:
         run:
         _locate_harnesses:
+        _sweep_orphans:
         tick:
     documents.py:
       Document:
@@ -284,6 +285,8 @@ tests/:
     pytest_configure:
     streamed:
     git:
+    dead_pid:
+    gone:
     commit:
     repo:
     upstream:
@@ -321,6 +324,9 @@ tests/:
   recordings.py:
     FIXTURES:
     rendered:
+  records.py:
+    write_session:
+    write_round:
   test_claude.py:
     LAUNCH:
     BASE:
@@ -413,9 +419,12 @@ tests/:
     test_a_config_mistake_names_the_setting_and_the_fault:
     test_a_repo_with_no_config_says_which_file_is_missing:
   test_daemon.py:
+    KEY:
+    CAUSE:
     Waiting:
       __init__:
       __call__:
+    left_running:
     harnesses:
     alone:
     idling:
@@ -430,6 +439,8 @@ tests/:
     test_the_state_directory_sits_in_the_checkout:
     test_a_run_refuses_when_a_harness_it_could_dispatch_to_is_not_installed:
     test_a_run_refuses_when_the_harness_it_was_named_is_not_installed:
+    test_a_round_the_daemon_before_this_one_left_running_is_ended:
+    test_a_round_that_recorded_an_ending_is_left_running_by_the_sweep:
   test_documents.py:
     READERS:
     Sample:
@@ -542,7 +553,6 @@ tests/:
     test_every_harness_the_config_names_is_run_by_its_own_adapter:
   test_lock.py:
     refuse:
-    dead_pid:
     test_holding_the_lock_records_the_daemon_and_releasing_removes_it:
     test_a_live_daemon_keeps_the_lock:
     test_a_lock_naming_a_pid_that_is_gone_is_reclaimed:
@@ -594,7 +604,6 @@ tests/:
     state:
     mapping:
     written:
-    ran:
     test_a_session_cuts_a_worktree_of_its_own_under_the_state_directory:
     test_a_session_cuts_a_branch_of_its_own_from_origins_main_as_it_is_now:
     test_a_session_records_what_it_was_dispatched_with:
@@ -616,7 +625,6 @@ tests/:
   test_teardown.py:
     STARTS_A_CHILD:
     AND_WAITS:
-    gone:
     test_a_kill_reaches_what_the_child_started:
     test_a_child_that_ends_by_itself_takes_what_it_started_with_it:
     test_a_kill_after_the_child_ended_leaves_its_pid_alone:
