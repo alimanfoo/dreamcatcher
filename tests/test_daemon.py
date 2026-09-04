@@ -13,7 +13,7 @@ from dreamcatcher.commands import spawn
 from dreamcatcher.config import CONFIG_NAME, Harness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.rounds import RoundRecord
+from dreamcatcher.rounds import Ending, RoundRecord
 from dreamcatcher.state import Candidate, LastTick, StateDirectory
 
 KEY = "GH13-20260819-184158"
@@ -211,8 +211,7 @@ def test_a_round_that_recorded_an_ending_is_left_running_by_the_sweep(
             started=PINNED,
             pid=left_running.pid,
             cause=CAUSE,
-            ended=PINNED,
-            status=0,
+            ending=Ending(at=PINNED, status=0),
         ),
     )
     write_round(directory, 2, RoundRecord(started=PINNED, pid=dead_pid(), cause=CAUSE))
@@ -413,3 +412,59 @@ def test_the_daemon_ends_the_rounds_it_holds_as_it_goes_down(dispatching, harnes
     running = daemon.rounds[DISPATCHED_KEY]
     assert not running.is_alive
     assert gone(running.child.pid)
+
+
+def test_a_round_that_failed_lately_holds_every_launch(dispatching):
+    directory = write_session(StateDirectory(dispatching), KEY, 13)
+    write_round(
+        directory,
+        1,
+        RoundRecord(
+            started=PINNED,
+            pid=1,
+            cause=CAUSE,
+            ending=Ending(at=PINNED.replace(minute=35), status=1),
+        ),
+    )
+    daemon, _, _ = idling(dispatching, ticks=1)
+
+    daemon.run()
+
+    assert held(daemon) == "last round failed (exit 1) — next attempt at 18:50"
+    assert recorded(daemon).dispatched is None
+    assert not (daemon.state.worktrees / DISPATCHED_KEY).exists()
+
+
+def test_a_round_that_failed_long_enough_ago_holds_nothing(dispatching):
+    directory = write_session(StateDirectory(dispatching), KEY, 13)
+    write_round(
+        directory,
+        1,
+        RoundRecord(
+            started=PINNED,
+            pid=1,
+            cause=CAUSE,
+            ending=Ending(at=PINNED.replace(hour=18, minute=0), status=1),
+        ),
+    )
+    daemon, _, _ = idling(dispatching, ticks=1)
+
+    daemon.run()
+
+    assert recorded(daemon).dispatched == DISPATCHED_KEY
+
+
+def test_a_round_that_ended_well_holds_nothing(dispatching):
+    directory = write_session(StateDirectory(dispatching), KEY, 13)
+    write_round(
+        directory,
+        1,
+        RoundRecord(
+            started=PINNED, pid=1, cause=CAUSE, ending=Ending(at=PINNED, status=0)
+        ),
+    )
+    daemon, _, _ = idling(dispatching, ticks=1)
+
+    daemon.run()
+
+    assert recorded(daemon).dispatched == DISPATCHED_KEY

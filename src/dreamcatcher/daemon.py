@@ -10,7 +10,7 @@ readable as what it did.
 
 from collections.abc import Callable
 from contextlib import suppress
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from time import sleep
 
@@ -28,11 +28,18 @@ from dreamcatcher.github import Unknown, identify
 from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.lock import hold
 from dreamcatcher.rounds import Round
-from dreamcatcher.sessions import create_session, read_sessions
+from dreamcatcher.sessions import Session, create_session, read_sessions
 from dreamcatcher.state import Candidate, LastTick, StateDirectory
 
 # What a round that a tick dispatched says woke it.
 DISPATCHED = "dispatched"
+
+# How long the daemon holds every launch once a round has failed, dispatches
+# and retries alike. There is no cause detection behind this and no schedule:
+# the failure worth spending nothing on is a usage limit, which belongs to the
+# account and so hits every session at once, and a passing blip costs at most
+# this long of an idle daemon.
+COOLDOWN = timedelta(minutes=15)
 
 
 class Daemon:
@@ -124,6 +131,9 @@ class Daemon:
         if len(self.rounds) >= self.config.max_agents:
             return LastTick(at=at, held=f"at cap: {len(self.rounds)} rounds running")
         sessions = read_sessions(self.state)
+        cooling = _cooling(sessions, at)
+        if cooling is not None:
+            return LastTick(at=at, held=cooling)
         judged = judge_issues(
             repository, self.config, {session.record.issue for session in sessions}
         )
@@ -215,5 +225,27 @@ class Daemon:
         """
         for session in read_sessions(self.state):
             for record in session.rounds:
-                if record.ended is None and psutil.pid_exists(record.pid):
+                if record.ending is None and psutil.pid_exists(record.pid):
                     teardown.end(record.pid)
+
+
+def _cooling(sessions: list[Session], at: datetime) -> str | None:
+    """Return why every launch is held, when a round failed lately enough.
+
+    The words are the evidence the record left and not a diagnosis of it. A
+    usage limit and a passing blip both read as a round that failed, and both
+    cost the same wait, so nothing here has to tell them apart.
+    """
+    failed = [
+        record.ending
+        for session in sessions
+        for record in session.rounds
+        if record.ending is not None and record.ending.is_failed
+    ]
+    if not failed:
+        return None
+    latest = max(failed, key=lambda ending: ending.at)
+    until = latest.at + COOLDOWN
+    if at >= until:
+        return None
+    return f"last round failed (exit {latest.status}) — next attempt at {until:%H:%M}"

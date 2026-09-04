@@ -31,6 +31,22 @@ from dreamcatcher.feed import Prose, Renderer
 RECORD = "round.json"
 
 
+class Ending(Document):
+    """How a round ended: when it ended, and the status it ended with.
+
+    The time and the status are one value because a round knows both at once
+    and neither without the other, so nothing has to ask whether they agree.
+    """
+
+    at: datetime
+    status: int
+
+    @property
+    def is_failed(self) -> bool:
+        """Whether the round ended with a status that says it failed."""
+        return self.status != 0
+
+
 class RoundRecord(Document):
     """What a round says about itself, written at each end of the round.
 
@@ -48,8 +64,7 @@ class RoundRecord(Document):
     started: datetime
     pid: int
     cause: str
-    ended: datetime | None = None
-    status: int | None = None
+    ending: Ending | None = None
 
 
 @dataclass(frozen=True)
@@ -220,8 +235,7 @@ class Round:
                         started=self.started,
                         pid=self.child.pid,
                         cause=self.cause,
-                        ended=self.clock(),
-                        status=status,
+                        ending=Ending(at=self.clock(), status=status),
                     ),
                     self.record,
                 )

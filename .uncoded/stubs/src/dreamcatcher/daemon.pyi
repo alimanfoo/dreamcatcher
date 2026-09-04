@@ -3,7 +3,7 @@
 
 from collections.abc import Callable
 from contextlib import suppress
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from time import sleep
 import psutil
@@ -19,10 +19,14 @@ from dreamcatcher.github import Unknown, identify
 from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.lock import hold
 from dreamcatcher.rounds import Round
-from dreamcatcher.sessions import create_session, read_sessions
+from dreamcatcher.sessions import Session, create_session, read_sessions
 from dreamcatcher.state import Candidate, LastTick, StateDirectory
 
 DISPATCHED = 'dispatched'
+COOLDOWN = timedelta(minutes=15)
+
+def _cooling(sessions: list[Session], at: datetime) -> str | None:
+    ...
 
 class Daemon:
     def __init__(self, root: Path, harness: Harness, clock: Callable[[], datetime], wait: Callable[[float], None]) -> None:

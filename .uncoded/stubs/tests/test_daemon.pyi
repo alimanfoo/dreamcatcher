@@ -14,7 +14,7 @@ from dreamcatcher.commands import spawn
 from dreamcatcher.config import CONFIG_NAME, Harness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.rounds import RoundRecord
+from dreamcatcher.rounds import Ending, RoundRecord
 from dreamcatcher.state import Candidate, LastTick, StateDirectory
 
 KEY = 'GH13-20260819-184158'
@@ -125,6 +125,15 @@ def test_a_run_that_cannot_be_told_which_repository_this_is_refuses(cloned, gh, 
     ...
 
 def test_the_daemon_ends_the_rounds_it_holds_as_it_goes_down(dispatching, harnesses):
+    ...
+
+def test_a_round_that_failed_lately_holds_every_launch(dispatching):
+    ...
+
+def test_a_round_that_failed_long_enough_ago_holds_nothing(dispatching):
+    ...
+
+def test_a_round_that_ended_well_holds_nothing(dispatching):
     ...
 
 class Waiting:

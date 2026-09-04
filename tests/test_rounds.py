@@ -14,7 +14,7 @@ from dreamcatcher.adapters import Adapter, Launch
 from dreamcatcher.claude import CLAUDE
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Event, Note, Renderer
-from dreamcatcher.rounds import Round, RoundRecord, Workspace
+from dreamcatcher.rounds import Ending, Round, RoundRecord, Workspace
 
 # A round that listed a directory, read a file that was not there, and sent a
 # subagent to count the files. Its golden feed is asserted in test_recordings.
@@ -219,7 +219,10 @@ def test_a_round_that_finished_says_how_it_ended(fake, worktree, directory):
 
     assert not running.is_alive
     assert written(running.record) == RoundRecord(
-        started=PINNED, pid=running.child.pid, cause=CAUSE, ended=PINNED, status=2
+        started=PINNED,
+        pid=running.child.pid,
+        cause=CAUSE,
+        ending=Ending(at=PINNED, status=2),
     )
 
 
@@ -232,8 +235,7 @@ def test_a_round_somebody_stopped_says_no_ending(fake, worktree, directory):
     running.stop()
 
     assert not running.is_alive
-    assert written(running.record).ended is None
-    assert written(running.record).status is None
+    assert written(running.record).ending is None
 
 
 def test_a_round_that_cannot_write_its_feed_stops_rather_than_stalls(
@@ -249,7 +251,7 @@ def test_a_round_that_cannot_write_its_feed_stops_rather_than_stalls(
     running.wait()
 
     assert not running.is_alive
-    assert written(running.record).ended is None
+    assert written(running.record).ending is None
 
 
 def test_a_round_that_cannot_record_its_start_does_not_run_on(fake, worktree, tmp_path):
@@ -280,7 +282,10 @@ def test_a_round_a_straggler_outlives_still_records_an_ending(
 
     assert within(30, lambda: not running.is_alive)
     assert written(running.record) == RoundRecord(
-        started=PINNED, pid=running.child.pid, cause=CAUSE, ended=PINNED, status=0
+        started=PINNED,
+        pid=running.child.pid,
+        cause=CAUSE,
+        ending=Ending(at=PINNED, status=0),
     )
 
 
@@ -302,4 +307,4 @@ def test_a_round_a_straggler_outlives_still_stops(worktree, directory, straggler
 
     assert not stopping.is_alive()
     assert not running.is_alive
-    assert written(running.record).ended is None
+    assert written(running.record).ending is None

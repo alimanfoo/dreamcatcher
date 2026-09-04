@@ -8,7 +8,7 @@ from records import write_round
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import CONFIG_NAME, Harness, read_config
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.rounds import RoundRecord, Workspace
+from dreamcatcher.rounds import Ending, RoundRecord, Workspace
 from dreamcatcher.sessions import SessionRecord, create_session, read_sessions
 from dreamcatcher.state import StateDirectory
 

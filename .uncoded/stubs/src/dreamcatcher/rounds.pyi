@@ -18,12 +18,16 @@ RECORD = 'round.json'
 def read_round_records(directory: Path) -> list[RoundRecord]:
     ...
 
+class Ending(Document):
+    at: datetime
+    status: int
+    is_failed: bool
+
 class RoundRecord(Document):
     started: datetime
     pid: int
     cause: str
-    ended: datetime | None = None
-    status: int | None = None
+    ending: Ending | None = None
 
 class Workspace:
     worktree: Path

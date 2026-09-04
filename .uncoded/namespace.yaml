@@ -100,6 +100,7 @@ src/:
       read_config:
     daemon.py:
       DISPATCHED:
+      COOLDOWN:
       Daemon:
         __init__:
         run:
@@ -111,6 +112,7 @@ src/:
         _stop_rounds:
         _locate_harnesses:
         _sweep_orphans:
+      _cooling:
     documents.py:
       Document:
         model_config:
@@ -210,12 +212,15 @@ src/:
       compose_first_round_prompt:
     rounds.py:
       RECORD:
+      Ending:
+        at:
+        status:
+        is_failed:
       RoundRecord:
         started:
         pid:
         cause:
-        ended:
-        status:
+        ending:
       Workspace:
         worktree:
         directory:
@@ -475,6 +480,9 @@ tests/:
     test_a_tick_that_could_not_dispatch_records_the_failure_and_ticks_again:
     test_a_run_that_cannot_be_told_which_repository_this_is_refuses:
     test_the_daemon_ends_the_rounds_it_holds_as_it_goes_down:
+    test_a_round_that_failed_lately_holds_every_launch:
+    test_a_round_that_failed_long_enough_ago_holds_nothing:
+    test_a_round_that_ended_well_holds_nothing:
   test_documents.py:
     READERS:
     Sample:
