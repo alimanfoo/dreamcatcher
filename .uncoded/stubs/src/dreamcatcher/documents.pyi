@@ -6,6 +6,8 @@ from pathlib import Path
 from pydantic import BaseModel, ConfigDict, ValidationError
 from dreamcatcher.errors import ReportableError
 
+WRITING = '.writing'
+
 def read_toml(model: type[DocumentT], path: Path) -> DocumentT:
     ...
 

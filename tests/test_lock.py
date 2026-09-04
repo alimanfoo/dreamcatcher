@@ -1,8 +1,9 @@
 import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
-from conftest import dead_pid
 
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.lock import hold
@@ -10,6 +11,13 @@ from dreamcatcher.lock import hold
 
 def refuse(*_: object) -> None:
     raise PermissionError("the lock cannot be removed")
+
+
+def dead_pid() -> int:
+    """A pid that no process holds, from ending one that did."""
+    child = subprocess.Popen([sys.executable, "-c", ""])
+    child.wait()
+    return child.pid
 
 
 def test_holding_the_lock_records_the_daemon_and_releasing_removes_it(tmp_path):

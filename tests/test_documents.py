@@ -115,6 +115,16 @@ def test_a_write_lands_where_it_is_asked_for(tmp_path):
     assert written.read_text(encoding="utf-8") == "what it holds\n"
 
 
+def test_a_write_leaves_nothing_of_itself_beside_what_it_wrote(tmp_path):
+    # A whole write lands through a file beside the target, and a reader of the
+    # session's rounds globs the directory, so nothing may be left there.
+    written = tmp_path / "round.json"
+
+    write_text("what it holds\n", written)
+
+    assert [found.name for found in tmp_path.iterdir()] == ["round.json"]
+
+
 def test_a_write_that_fails_says_so(tmp_path):
     with pytest.raises(ReportableError, match="cannot write"):
         write_text("what it holds\n", tmp_path)

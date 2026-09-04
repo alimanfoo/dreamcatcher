@@ -41,6 +41,9 @@ def test_a_json_document_that_breaks_its_model_lists_every_fault(tmp_path):
 def test_a_write_lands_where_it_is_asked_for(tmp_path):
     ...
 
+def test_a_write_leaves_nothing_of_itself_beside_what_it_wrote(tmp_path):
+    ...
+
 def test_a_write_that_fails_says_so(tmp_path):
     ...
 

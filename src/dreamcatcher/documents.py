@@ -7,6 +7,9 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 
 from dreamcatcher.errors import ReportableError
 
+# What a whole write is written to before it takes its target's place.
+WRITING = ".writing"
+
 
 class Document(BaseModel):
     """A document that dreamcatcher reads or writes.
@@ -47,11 +50,22 @@ def read_json[DocumentT: Document](model: type[DocumentT], path: Path) -> Docume
 def write_text(text: str, path: Path) -> None:
     """Write text to path as UTF-8, over whatever was there before.
 
+    The write lands whole. The text goes to a file beside the target and then
+    takes the target's place in one step, so a reader of the target reads the
+    document that was there or the one that replaced it, and never half of
+    one. A reader really does arrive mid-write: a round records how it ended
+    on a thread of its own, while a tick is reading every round's record.
+
     Raise ReportableError when the write fails. A full disk or a read-only
     directory is not a bug in the tool, and the user can act on either, so it
     reads as a message.
     """
-    _write(text, path, "w")
+    beside = path.with_name(f"{path.name}{WRITING}")
+    _write(text, beside, "w")
+    try:
+        beside.replace(path)
+    except OSError as error:
+        raise ReportableError(f"cannot write {path}: {error}.") from error
 
 
 def append_text(text: str, path: Path) -> None:
@@ -60,7 +74,9 @@ def append_text(text: str, path: Path) -> None:
     Raise ReportableError when the write fails, for the reason write_text does.
 
     A round's feed and its raw stream each grow by a line at a time while the
-    round runs, so the round adds to them rather than rewriting them.
+    round runs, so the round adds to them rather than rewriting them. Whoever
+    reads one reads the lines that have landed, so an append needs no step of
+    its own to land whole.
     """
     _write(text, path, "a")
 

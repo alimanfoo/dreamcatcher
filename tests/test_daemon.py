@@ -1,11 +1,23 @@
 import json
 import os
 import sys
+from contextlib import suppress
 
 import psutil
 import pytest
 from clocks import PINNED, Ticking
-from conftest import CONFIG_HEAD, SMITH_CLAUDE, SMITH_CODEX, dead_pid, gone
+from conftest import (
+    CONFIG_HEAD,
+    FILED,
+    LABEL,
+    LATER,
+    REPOSITORY,
+    SMITH_CLAUDE,
+    SMITH_CODEX,
+    git,
+    gone,
+    listing,
+)
 from fakes import Line
 from records import write_round, write_session
 
@@ -21,25 +33,25 @@ KEY = "GH13-20260819-184158"
 # What every round the tests here write down says woke it.
 CAUSE = "dispatched"
 
-REPOSITORY = "alimanfoo/dreamcatcher"
-
-LABEL = "dream:smith"
-
-# When the pinned clock says the issues below were filed.
-FILED = "2026-08-19T18:41:58Z"
-
-LATER = "2026-08-20T09:00:00Z"
+# How long a scripted harness waits after its first line, so a round the daemon
+# launched is certainly still running at the next tick. The waits these tests
+# give the daemon take no real time, so its ticks are milliseconds apart.
+STILL_RUNNING = 30
 
 # The key of the session that a dispatch at the pinned time cuts for issue 8.
 DISPATCHED_KEY = "GH8-20260819-184158"
 
 
 @pytest.fixture
-def left_running(watched):
+def left_running(tmp_path):
     """A process standing in for a round that outlived the daemon that ran it."""
-    child = spawn(sys.executable, "-c", "import time; time.sleep(60)", cwd=watched)
+    child = spawn(sys.executable, "-c", "import time; time.sleep(60)", cwd=tmp_path)
     yield child
-    child.kill()
+    # Whatever a test left of it, and never through the tool's own teardown:
+    # that signals a process group, which a test may already have emptied.
+    with suppress(OSError):
+        child.process.kill()
+    child.process.wait()
 
 
 @pytest.fixture
@@ -226,13 +238,6 @@ def configure(root, head: str = CONFIG_HEAD) -> None:
     (root / CONFIG_NAME).write_text(head + SMITH_CLAUDE + SMITH_CODEX, encoding="utf-8")
 
 
-def listing(*issues: tuple[int, str]) -> str:
-    """What gh answers an issue listing with."""
-    return json.dumps(
-        [{"number": number, "createdAt": created} for number, created in issues]
-    )
-
-
 def held(daemon) -> str:
     """Why the daemon's most recent tick launched nothing at all."""
     hold = recorded(daemon).hold
@@ -337,7 +342,7 @@ def test_a_second_tick_judges_a_dispatched_issue_handled(dispatching):
 
 
 def test_a_tick_at_the_cap_spends_no_github_call(dispatching, offered, harnesses):
-    harnesses["claude"].streams([Line("still working\n")], delay=5)
+    harnesses["claude"].streams([Line("still working\n")], delay=STILL_RUNNING)
     daemon, _, _ = idling(dispatching, ticks=2)
 
     daemon.run()
@@ -403,7 +408,7 @@ def test_a_run_that_cannot_be_told_which_repository_this_is_refuses(
 
 
 def test_the_daemon_ends_the_rounds_it_holds_as_it_goes_down(dispatching, harnesses):
-    harnesses["claude"].streams([Line("still working\n")], delay=30)
+    harnesses["claude"].streams([Line("still working\n")], delay=STILL_RUNNING)
     daemon, _, _ = idling(dispatching, ticks=1)
 
     daemon.run()
@@ -429,7 +434,9 @@ def test_a_round_that_failed_lately_holds_every_launch(dispatching):
 
     daemon.run()
 
-    assert held(daemon) == "the last round failed (exit 1) — next attempt at 18:50"
+    assert held(daemon) == (
+        "the last round failed (exit 1) — next attempt at 18:50 UTC"
+    )
     assert recorded(daemon).dispatched is None
     assert not (daemon.state.worktrees / DISPATCHED_KEY).exists()
 
@@ -469,9 +476,13 @@ def test_a_round_that_ended_well_holds_nothing(dispatching):
     assert recorded(daemon).dispatched == DISPATCHED_KEY
 
 
-def test_a_session_whose_last_round_was_interrupted_reads_as_waiting(dispatching):
+def test_a_session_whose_last_round_was_interrupted_reads_as_waiting(
+    dispatching, left_running
+):
     directory = write_session(StateDirectory(dispatching), KEY, 13)
-    write_round(directory, 1, RoundRecord(started=PINNED, pid=dead_pid(), cause=CAUSE))
+    write_round(
+        directory, 1, RoundRecord(started=PINNED, pid=left_running.pid, cause=CAUSE)
+    )
     daemon, _, _ = idling(dispatching, ticks=1)
 
     daemon.run()
@@ -508,7 +519,7 @@ def test_a_session_the_daemon_is_running_a_round_for_is_not_waiting(
     dispatching, harnesses
 ):
     configure(dispatching, "max_agents = 2\n\n")
-    harnesses["claude"].streams([Line("still working\n")], delay=30)
+    harnesses["claude"].streams([Line("still working\n")], delay=STILL_RUNNING)
     daemon, _, _ = idling(dispatching, ticks=2)
 
     daemon.run()
@@ -539,10 +550,49 @@ def test_a_session_whose_last_round_ended_well_is_not_waiting(dispatching):
     assert recorded(daemon).waiting == []
 
 
-def test_a_session_that_has_run_no_round_at_all_is_not_waiting(dispatching):
+def test_a_session_that_has_run_no_round_at_all_waits_for_its_first(dispatching):
     write_session(StateDirectory(dispatching), KEY, 13)
     daemon, _, _ = idling(dispatching, ticks=1)
 
     daemon.run()
 
-    assert recorded(daemon).waiting == []
+    assert recorded(daemon).waiting == [
+        Waiting(session=KEY, issue=13, reason="no round has run yet")
+    ]
+
+
+def test_a_dispatch_whose_round_will_not_start_leaves_no_session_behind(dispatching):
+    # A file where the session's rounds go, so no round can record its start.
+    occupied = StateDirectory(dispatching).sessions / DISPATCHED_KEY / "rounds"
+    occupied.parent.mkdir(parents=True)
+    occupied.write_text("something else is here\n", encoding="utf-8")
+    daemon, _, _ = idling(dispatching, ticks=1)
+
+    daemon.run()
+
+    assert "cannot write" in held(daemon)
+    assert recorded(daemon).candidates == [Candidate(issue=8, label=LABEL)]
+    assert not (daemon.state.worktrees / DISPATCHED_KEY).exists()
+    branch = f"dreamcatcher-{DISPATCHED_KEY}"
+    assert git("branch", "--list", branch, cwd=dispatching) == ""
+
+
+def test_a_run_that_cannot_read_a_session_refuses_to_start(dispatching):
+    directory = write_session(StateDirectory(dispatching), KEY, 13)
+    (directory / "session.json").write_text("{}", encoding="utf-8")
+    daemon, _, _ = idling(dispatching, ticks=1)
+
+    with pytest.raises(ReportableError, match=r"session\.json is not valid"):
+        daemon.run()
+
+
+def test_a_session_that_goes_bad_under_a_running_daemon_costs_one_tick(dispatching):
+    # The startup sweep read this session, so only a tick meets it broken.
+    daemon, _, _ = idling(dispatching)
+    directory = write_session(daemon.state, KEY, 13)
+    (directory / "session.json").write_text("{}", encoding="utf-8")
+
+    daemon.tick(REPOSITORY)
+
+    assert "session.json is not valid" in held(daemon)
+    assert recorded(daemon).candidates == []

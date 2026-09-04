@@ -26,7 +26,12 @@ from dreamcatcher.github import Unknown, identify
 from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.lock import hold
 from dreamcatcher.rounds import Round
-from dreamcatcher.sessions import Session, create_session, read_sessions
+from dreamcatcher.sessions import (
+    Session,
+    create_session,
+    discard_session,
+    read_sessions,
+)
 from dreamcatcher.state import Candidate, LastTick, StateDirectory, Waiting
 
 # What a round that a tick dispatched says woke it.
@@ -71,7 +76,15 @@ class Daemon:
         self.rounds: dict[str, Round] = {}
 
     def run(self) -> None:
-        """Hold the repo and tick until the user interrupts."""
+        """Hold the repo and tick until the user interrupts.
+
+        Everything a run cannot do without is settled before the loop: the
+        harness CLIs, the state directory, the repository's name, the lock, and
+        the sessions the sweep reads. A run refuses when any of those will not
+        answer, rather than starting a loop that could never dispatch. Once the
+        loop is going, a tick that fails records the failure and the next tick
+        tries again.
+        """
         self._locate_harnesses()
         self.state.bootstrap()
         repository = self._identify()
@@ -97,8 +110,13 @@ class Daemon:
         running now.
 
         A tick that failed still leaves the evidence where the user can read
-        it, and the next tick tries again. A daemon that ended on a full disk
-        or a GitHub outage would leave the sessions it holds to nobody.
+        it, and the next tick tries again, rather than the daemon ending and
+        leaving the sessions it holds to nobody.
+
+        Writing that evidence down is the exception. A daemon that cannot write
+        `last-tick.json` has no way left to say anything at all, so that
+        failure ends the run with a message the user can act on, and the rounds
+        it was holding end with it and read as interrupted.
         """
         self.rounds = {
             key: running for key, running in self.rounds.items() if running.is_alive
@@ -157,11 +175,24 @@ class Daemon:
         eligible = [candidate for candidate in judged if candidate.is_eligible]
         if not eligible:
             return LastTick(at=at, candidates=judged, waiting=waiting)
-        key = self._launch(eligible[0], at)
+        try:
+            key = self._launch(eligible[0], at)
+        except ReportableError as failure:
+            # The tick looked, and everything it saw is worth keeping. Only the
+            # launch went wrong, and the next tick tries the same issue again.
+            return LastTick(
+                at=at, hold=str(failure), candidates=judged, waiting=waiting
+            )
         return LastTick(at=at, dispatched=key, candidates=judged, waiting=waiting)
 
     def _launch(self, candidate: Candidate, at: datetime) -> str:
-        """Cut a session for the candidate, run its first round, and hold it."""
+        """Cut a session for the candidate, run its first round, and hold it.
+
+        A session whose round will not start is taken away again, because a
+        session with no round claims its issue and can never advance by
+        itself. So a dispatch that got part way leaves nothing behind, and the
+        issue is free for the next tick to try again.
+        """
         session = create_session(
             self.state,
             self.config.mappings[candidate.label],
@@ -176,13 +207,17 @@ class Daemon:
             effort=session.record.effort,
             prompt=session.record.prompt,
         )
-        self.rounds[session.key] = Round(
-            adapter,
-            adapter.first_round(launch),
-            session.next_workspace,
-            DISPATCHED,
-            clock=self.clock,
-        )
+        try:
+            self.rounds[session.key] = Round(
+                adapter,
+                adapter.first_round(launch),
+                session.next_workspace,
+                DISPATCHED,
+                clock=self.clock,
+            )
+        except ReportableError:
+            discard_session(self.state, session.record)
+            raise
         return session.key
 
     def _locate_harnesses(self) -> None:
@@ -245,7 +280,8 @@ def _check_cooldown(sessions: list[Session], at: datetime) -> str | None:
     if at >= until:
         return None
     return (
-        f"the last round failed (exit {latest.status}) — next attempt at {until:%H:%M}"
+        f"the last round failed (exit {latest.status}) "
+        f"— next attempt at {until:%H:%M} UTC"
     )
 
 
@@ -258,7 +294,7 @@ def _list_waiting(sessions: list[Session], running: dict[str, Round]) -> list[Wa
     """
     waiting = []
     for session in sessions:
-        reason = None if session.key in running else _check_last_round(session)
+        reason = None if session.key in running else _check_rounds(session)
         if reason is not None:
             waiting.append(
                 Waiting(session=session.key, issue=session.record.issue, reason=reason)
@@ -266,10 +302,15 @@ def _list_waiting(sessions: list[Session], running: dict[str, Round]) -> list[Wa
     return waiting
 
 
-def _check_last_round(session: Session) -> str | None:
-    """Return what the session's most recent round leaves it waiting on."""
+def _check_rounds(session: Session) -> str | None:
+    """Return what the session's rounds leave it waiting on.
+
+    A session with no round at all is one whose dispatch could not start its
+    first round and could not take the session away again either, so it is
+    waiting for a first round rather than for another one.
+    """
     if not session.rounds:
-        return None
+        return "no round has run yet"
     ending = session.rounds[-1].ending
     if ending is None:
         return "the last round was interrupted"

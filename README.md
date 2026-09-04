@@ -90,9 +90,10 @@ ignores itself, so git never sees it. `last-tick.json` there says what the most
 recent look observed and decided, including what the daemon did not do and why.
 
 Rounds die with the daemon, so a `run` you stop takes its sessions' rounds with
-it, and the next `run` carries them on. After any round fails, the daemon holds
-every launch for fifteen minutes, so a usage limit that lasts for hours costs a
-few failed rounds rather than a fresh worktree every couple of minutes.
+it, and the next `run` reports each of those sessions as waiting. Carrying one
+on is still to come. After any round fails, the daemon holds every launch for
+fifteen minutes, so a usage limit that lasts for hours costs a few failed rounds
+rather than a fresh worktree every couple of minutes.
 
 Removing the label is how you say stop. An issue whose pull request closes
 unmerged is free to dispatch again while the label is still on it.

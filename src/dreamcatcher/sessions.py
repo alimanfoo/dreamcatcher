@@ -159,7 +159,7 @@ def create_session(
         add_worktree(state.root, record.worktree, record.branch)
         write_json(record, directory / RECORD)
     except ReportableError:
-        _back_out(state.root, record.worktree, record.branch)
+        discard_session(state, record)
         raise
     return Session(directory=directory, record=record)
 
@@ -173,15 +173,24 @@ def _read_session(directory: Path) -> Session:
     )
 
 
-def _back_out(root: Path, worktree: Path, branch: str) -> None:
-    """Take away the worktree and the branch that a failed creation made.
+def discard_session(state: StateDirectory, record: SessionRecord) -> None:
+    """Take away the worktree and the branch that a session was given.
+
+    A creation that failed part way calls this, and so does a dispatch whose
+    round would not start. A session with no round claims its issue and can
+    never advance by itself, so the dispatch takes it away rather than leave
+    it, and its issue is free to go again.
 
     The worktree goes first, because git keeps a branch that a worktree has
     checked out. Either command can fail in its turn, and neither failure
-    travels. The failure that stopped the creation is the one worth reporting,
+    travels. The failure that stopped the dispatch is the one worth reporting,
     and the caller already holds it.
+
+    The record stays where it is. Nothing reads a session's record without a
+    worktree beside it, so a record left under `sessions/` costs a reader
+    nothing.
     """
     with suppress(CommandError):
-        remove_worktree(root, worktree)
+        remove_worktree(state.root, record.worktree)
     with suppress(CommandError):
-        delete_branch(root, branch)
+        delete_branch(state.root, record.branch)

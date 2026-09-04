@@ -4,10 +4,11 @@
 import json
 import os
 import sys
+from contextlib import suppress
 import psutil
 import pytest
 from clocks import PINNED, Ticking
-from conftest import CONFIG_HEAD, SMITH_CLAUDE, SMITH_CODEX, dead_pid, gone
+from conftest import CONFIG_HEAD, FILED, LABEL, LATER, REPOSITORY, SMITH_CLAUDE, SMITH_CODEX, git, gone, listing
 from fakes import Line
 from records import write_round, write_session
 from dreamcatcher.commands import spawn
@@ -19,13 +20,10 @@ from dreamcatcher.state import Candidate, LastTick, StateDirectory, Waiting
 
 KEY = 'GH13-20260819-184158'
 CAUSE = 'dispatched'
-REPOSITORY = 'alimanfoo/dreamcatcher'
-LABEL = 'dream:smith'
-FILED = '2026-08-19T18:41:58Z'
-LATER = '2026-08-20T09:00:00Z'
+STILL_RUNNING = 30
 DISPATCHED_KEY = 'GH8-20260819-184158'
 
-def left_running(watched):
+def left_running(tmp_path):
     ...
 
 def alone(fake, stand_ins, monkeypatch):
@@ -77,9 +75,6 @@ def test_a_round_that_recorded_an_ending_is_left_running_by_the_sweep(watched, h
     ...
 
 def configure(root, head: str) -> None:
-    ...
-
-def listing(*issues: tuple[int, str]) -> str:
     ...
 
 def held(daemon) -> str:
@@ -136,7 +131,7 @@ def test_a_round_that_failed_long_enough_ago_holds_nothing(dispatching):
 def test_a_round_that_ended_well_holds_nothing(dispatching):
     ...
 
-def test_a_session_whose_last_round_was_interrupted_reads_as_waiting(dispatching):
+def test_a_session_whose_last_round_was_interrupted_reads_as_waiting(dispatching, left_running):
     ...
 
 def test_a_session_whose_last_round_failed_reads_as_waiting_with_its_status(dispatching):
@@ -148,7 +143,16 @@ def test_a_session_the_daemon_is_running_a_round_for_is_not_waiting(dispatching,
 def test_a_session_whose_last_round_ended_well_is_not_waiting(dispatching):
     ...
 
-def test_a_session_that_has_run_no_round_at_all_is_not_waiting(dispatching):
+def test_a_session_that_has_run_no_round_at_all_waits_for_its_first(dispatching):
+    ...
+
+def test_a_dispatch_whose_round_will_not_start_leaves_no_session_behind(dispatching):
+    ...
+
+def test_a_run_that_cannot_read_a_session_refuses_to_start(dispatching):
+    ...
+
+def test_a_session_that_goes_bad_under_a_running_daemon_costs_one_tick(dispatching):
     ...
 
 class Interrupting:

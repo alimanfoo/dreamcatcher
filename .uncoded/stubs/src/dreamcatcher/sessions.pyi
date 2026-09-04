@@ -27,7 +27,7 @@ def create_session(state: StateDirectory, mapping: DispatchMapping, named: Harne
 def _read_session(directory: Path) -> Session:
     ...
 
-def _back_out(root: Path, worktree: Path, branch: str) -> None:
+def discard_session(state: StateDirectory, record: SessionRecord) -> None:
     ...
 
 class SessionRecord(Document):

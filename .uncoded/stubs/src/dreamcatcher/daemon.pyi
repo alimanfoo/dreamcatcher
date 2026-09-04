@@ -18,7 +18,7 @@ from dreamcatcher.github import Unknown, identify
 from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.lock import hold
 from dreamcatcher.rounds import Round
-from dreamcatcher.sessions import Session, create_session, read_sessions
+from dreamcatcher.sessions import Session, create_session, discard_session, read_sessions
 from dreamcatcher.state import Candidate, LastTick, StateDirectory, Waiting
 
 DISPATCHED = 'dispatched'
@@ -30,7 +30,7 @@ def _check_cooldown(sessions: list[Session], at: datetime) -> str | None:
 def _list_waiting(sessions: list[Session], running: dict[str, Round]) -> list[Waiting]:
     ...
 
-def _check_last_round(session: Session) -> str | None:
+def _check_rounds(session: Session) -> str | None:
     ...
 
 class Daemon:

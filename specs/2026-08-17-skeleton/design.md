@@ -76,11 +76,11 @@ never touches the repo's own files. Contents:
   `scry` checks it to mark liveness and staleness.
 - `last-tick.json` — overwritten each tick: when the tick ran, and what the
   daemon observed and decided, including what it did not do and why (queued
-  blocked by an open issue, skipped for double labels, deferred at the cap,
-  posts seen but not yet relayed). An eligible issue that the tick did not
-  dispatch carries no reason of its own: the candidates are written in the order
-  they would go, and that order is where its turn is recorded, so the board
-  reads "behind N others" off the position. The board's queue and waiting
+  behind others, blocked by an open issue, skipped for double labels, deferred
+  at the cap, posts seen but not yet relayed). An eligible issue that the tick
+  did not dispatch carries no reason of its own: the candidates are written in
+  the order they would go, and that order is where its turn is recorded, so the
+  board reads "behind N others" off the position. The board's queue and waiting
   sections render this file. The time it records, with `daemon.pid`, tells
   `scry` whether the daemon is alive: the tick writes its own time rather than
   leaning on the file's mtime, which copying a state directory would freshen.
@@ -96,6 +96,13 @@ never touches the repo's own files. Contents:
   and its ending as it ends, and a round that the daemon killed records no
   ending at all, so one the daemon stopped reads as interrupted, which is what
   it is.
+
+Every whole document the tool writes lands in one step: the text goes to a file
+beside the target and then takes the target's place. A round records how it
+ended on a thread of its own while a tick is reading every round's record, so a
+reader really does arrive mid-write, and this is what keeps it from reading half
+a document. A feed and a raw stream grow by a line at a time instead, and
+whoever reads one reads the lines that have landed.
 
 The round records are the story of record: a `round.json` with no end recorded
 is the interrupted detector, a final round's completed record is the final-round
@@ -187,8 +194,9 @@ resume-before-dispatch plus one-launch-per-tick already contains the blast
 radius by construction — a persistent failure is the same session retrying,
 never a pile of fresh worktrees, because the errored retry always outranks a new
 dispatch. The hold lands in `last-tick.json` with the evidence, not a diagnosis:
-"the last round failed (exit 1) — next attempt at HH:MM", which is the same
-phrase the board shows against the session waiting on that round.
+"the last round failed (exit 1) — next attempt at HH:MM UTC". The board shows
+the same words, without the next attempt, against the session waiting on that
+round.
 
 The true wedge is narrower than the port's: a round that exited _zero_ without
 opening a PR — the skill ran to completion and chose to yield without one.

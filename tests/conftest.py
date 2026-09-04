@@ -2,8 +2,6 @@
 
 import json
 import os
-import subprocess
-import sys
 from contextlib import suppress
 from functools import partial
 from pathlib import Path
@@ -20,6 +18,17 @@ ARMING = "PYTHONWARNDEFAULTENCODING"
 CONFIG_HEAD = """interval = 300
 
 """
+
+# The repository the tests say gh names this checkout as.
+REPOSITORY = "alimanfoo/dreamcatcher"
+
+# The label that the dispatch blocks below map, as the tests name it.
+LABEL = "dream:smith"
+
+# When the tests say an issue was filed, and a time after it.
+FILED = "2026-08-19T18:41:58Z"
+
+LATER = "2026-08-20T09:00:00Z"
 
 SMITH_CLAUDE = """[[dispatch]]
 label = "dream:smith"
@@ -52,16 +61,16 @@ def streamed(**fields: object) -> str:
     return json.dumps(fields)
 
 
+def listing(*issues: tuple[int, str]) -> str:
+    """Return what gh answers an issue listing with."""
+    return json.dumps(
+        [{"number": number, "createdAt": created} for number, created in issues]
+    )
+
+
 def git(*arguments: str, cwd: Path) -> str:
     """Run git in cwd and return its output, through the tool's own runner."""
     return run("git", *arguments, cwd=cwd)
-
-
-def dead_pid() -> int:
-    """Return a pid that no process holds, by ending one that did."""
-    child = subprocess.Popen([sys.executable, "-c", ""])
-    child.wait()
-    return child.pid
 
 
 def gone(pid: int) -> bool:

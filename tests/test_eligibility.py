@@ -1,19 +1,12 @@
 import json
 
 import pytest
+from conftest import FILED, LABEL, LATER, REPOSITORY, listing
 
 from dreamcatcher.config import Config
 from dreamcatcher.eligibility import judge_issues
 from dreamcatcher.github import Unknown
 from dreamcatcher.state import Candidate
-
-REPOSITORY = "alimanfoo/dreamcatcher"
-
-FILED = "2026-08-19T18:41:58Z"
-
-LATER = "2026-08-20T09:00:00Z"
-
-LABEL = "dream:smith"
 
 # A block for one harness, so a label the tests write maps to something.
 SETTINGS = {"prompt": "/dream:smith GH{issue}", "model": "opus[1m]", "effort": "xhigh"}
@@ -23,13 +16,6 @@ def mapping(*labels: str) -> Config:
     """A config mapping each of these labels to the same harness block."""
     return Config.model_validate(
         {"dispatch": [{"label": label, "claude": SETTINGS} for label in labels]}
-    )
-
-
-def listing(*issues: tuple[int, str]) -> str:
-    """What gh answers an issue listing with."""
-    return json.dumps(
-        [{"number": number, "createdAt": created} for number, created in issues]
     )
 
 
