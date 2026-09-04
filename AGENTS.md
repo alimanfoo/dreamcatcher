@@ -109,13 +109,16 @@ uv run pre-commit run --all-files
 - Shell out from `commands.py` alone. `pyproject.toml` waives ruff's subprocess
   rules for that one module, so any other module that imports `subprocess` fails
   the check.
-- Pass any text the tool puts on a harness's own command line through
-  `commands.refuse_unquotable` first. On Windows cmd.exe acts on a percent sign
-  or a line ending in that text rather than passing it to the harness, and
-  quoting carries neither. `config.QuotableText` does this for the settings a
-  dispatch holds, where pydantic turns the `ValueError` into a named error.
-  Anywhere else, catch the `ValueError` and raise a `ReportableError`, or the
-  user reads a traceback.
+- Give a harness its prompt as a file to read, never as an argument. A round
+  writes `prompt.txt` and `commands.spawn` hands it over as the child's stdin,
+  so a prompt can run to any length and hold anything. On Windows cmd.exe acts
+  on a percent sign or a line ending in a command line rather than passing it to
+  the harness, and quoting carries neither.
+- Pass any other text the tool puts on a harness's own command line through
+  `commands.refuse_unquotable` first, for that same reason.
+  `config.QuotableText` does this for the model and the effort a dispatch holds,
+  where pydantic turns the `ValueError` into a named error. Anywhere else, catch
+  the `ValueError` and raise a `ReportableError`, or the user reads a traceback.
 - Name a method or a function for what it does, with a verb: `render`, `stop`,
   `strip_worktree`. A name like `rendered` or `holder` reads as a value, so a
   reader takes it for a property and not for something that runs.
