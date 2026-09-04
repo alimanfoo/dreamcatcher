@@ -94,7 +94,7 @@ src/:
         max_agents:
         assignee:
         dispatch:
-        mappings:
+        label_mappings:
         mapped_harnesses:
         _each_label_maps_once:
       read_config:
@@ -105,10 +105,10 @@ src/:
         __init__:
         run:
         tick:
-        _identify:
-        _decide:
-        _dispatch:
-        _launch:
+        _identify_repository:
+        _decide_and_launch:
+        _dispatch_oldest_issue:
+        _launch_session:
         _locate_harnesses:
         _sweep_orphans:
       _check_cooldown:
@@ -129,9 +129,9 @@ src/:
     eligibility.py:
       judge_issues:
       _list_issues:
-      _obstacle:
-      _claim:
-      _blocker:
+      _find_obstacle:
+      _check_pull_requests:
+      _check_blockers:
     errors.py:
       ReportableError:
     feed.py:

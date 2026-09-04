@@ -43,16 +43,16 @@ class Daemon:
     def tick(self, repository: str) -> None:
         ...
 
-    def _identify(self) -> str:
+    def _identify_repository(self) -> str:
         ...
 
-    def _decide(self, repository: str, at: datetime) -> LastTick:
+    def _decide_and_launch(self, repository: str, at: datetime) -> LastTick:
         ...
 
-    def _dispatch(self, at: datetime, judged: list[Candidate], waiting: list[Waiting]) -> LastTick:
+    def _dispatch_oldest_issue(self, at: datetime, judged: list[Candidate], waiting: list[Waiting]) -> LastTick:
         ...
 
-    def _launch(self, candidate: Candidate, at: datetime) -> str:
+    def _launch_session(self, candidate: Candidate, at: datetime) -> str:
         ...
 
     def _locate_harnesses(self) -> None:

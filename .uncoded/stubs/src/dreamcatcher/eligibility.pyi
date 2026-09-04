@@ -12,11 +12,11 @@ def judge_issues(repository: str, config: Config, claimed: set[int]) -> list[Can
 def _list_issues(repository: str, config: Config) -> list[tuple[Issue, list[str]]] | Unknown:
     ...
 
-def _obstacle(repository: str, issue: int, labels: list[str], claimed: set[int]) -> str | None:
+def _find_obstacle(repository: str, issue: int, labels: list[str], claimed: set[int]) -> str | None:
     ...
 
-def _claim(repository: str, issue: int) -> str | None:
+def _check_pull_requests(repository: str, issue: int) -> str | None:
     ...
 
-def _blocker(repository: str, issue: int) -> str | None:
+def _check_blockers(repository: str, issue: int) -> str | None:
     ...

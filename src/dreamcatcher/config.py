@@ -77,7 +77,7 @@ class Config(Document):
     dispatch: list[DispatchMapping] = Field(min_length=1)
 
     @property
-    def mappings(self) -> dict[str, DispatchMapping]:
+    def label_mappings(self) -> dict[str, DispatchMapping]:
         """Each mapped label's own dispatch mapping.
 
         The label is a mapping's identity, and no two mappings carry the same

@@ -46,7 +46,7 @@ def judge_issues(
         Candidate(
             issue=issue.number,
             label=label,
-            reason=_obstacle(repository, issue.number, labels, claimed),
+            reason=_find_obstacle(repository, issue.number, labels, claimed),
         )
         for issue, labels in listed
         for label in labels
@@ -78,7 +78,7 @@ def _list_issues(
     ]
 
 
-def _obstacle(
+def _find_obstacle(
     repository: str, issue: int, labels: list[str], claimed: set[int]
 ) -> str | None:
     """Return what stands in the way of dispatching the issue, or nothing.
@@ -90,10 +90,10 @@ def _obstacle(
         return f"carries more than one mapped label: {', '.join(sorted(labels))}"
     if issue in claimed:
         return "a session of this run is working on it"
-    return _claim(repository, issue) or _blocker(repository, issue)
+    return _check_pull_requests(repository, issue) or _check_blockers(repository, issue)
 
 
-def _claim(repository: str, issue: int) -> str | None:
+def _check_pull_requests(repository: str, issue: int) -> str | None:
     """Return what says somebody has a pull request open on the issue.
 
     GitHub lists only open pull requests here, so an attempt that was declined
@@ -109,7 +109,7 @@ def _claim(repository: str, issue: int) -> str | None:
     return None
 
 
-def _blocker(repository: str, issue: int) -> str | None:
+def _check_blockers(repository: str, issue: int) -> str | None:
     """Return what still blocks the issue, or nothing when nothing open does."""
     blocking = blockers(repository, issue)
     if isinstance(blocking, Unknown):

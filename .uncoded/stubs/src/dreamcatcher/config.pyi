@@ -38,7 +38,7 @@ class Config(Document):
     max_agents: PositiveInt = 1
     assignee: str = '@me'
     dispatch: list[DispatchMapping] = Field(min_length=1)
-    mappings: dict[str, DispatchMapping]
+    label_mappings: dict[str, DispatchMapping]
     mapped_harnesses: set[Harness]
 
     def _each_label_maps_once(self) -> Self:

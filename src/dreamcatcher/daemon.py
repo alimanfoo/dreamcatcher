@@ -87,7 +87,7 @@ class Daemon:
         """
         self._locate_harnesses()
         self.state.bootstrap()
-        repository = self._identify()
+        repository = self._identify_repository()
         with hold(self.state.lock):
             self._sweep_orphans()
             try:
@@ -123,12 +123,12 @@ class Daemon:
         }
         at = self.clock()
         try:
-            observed = self._decide(repository, at)
+            observed = self._decide_and_launch(repository, at)
         except ReportableError as failure:
             observed = LastTick(at=at, hold=str(failure))
         write_json(observed, self.state.last_tick)
 
-    def _identify(self) -> str:
+    def _identify_repository(self) -> str:
         """Return the repository that GitHub knows this checkout as.
 
         A run reads this once, as it starts. It cannot change while the daemon
@@ -142,7 +142,7 @@ class Daemon:
             )
         return named
 
-    def _decide(self, repository: str, at: datetime) -> LastTick:
+    def _decide_and_launch(self, repository: str, at: datetime) -> LastTick:
         """Launch at most one round, and return what the tick observed.
 
         The cap comes first and spends no GitHub call, because the daemon knows
@@ -161,9 +161,9 @@ class Daemon:
         )
         if isinstance(judged, Unknown):
             return LastTick(at=at, hold=judged.reason, waiting=waiting)
-        return self._dispatch(at, judged, waiting)
+        return self._dispatch_oldest_issue(at, judged, waiting)
 
-    def _dispatch(
+    def _dispatch_oldest_issue(
         self, at: datetime, judged: list[Candidate], waiting: list[Waiting]
     ) -> LastTick:
         """Dispatch the oldest issue that nothing stands in the way of.
@@ -176,7 +176,7 @@ class Daemon:
         if not eligible:
             return LastTick(at=at, candidates=judged, waiting=waiting)
         try:
-            key = self._launch(eligible[0], at)
+            key = self._launch_session(eligible[0], at)
         except ReportableError as failure:
             # The tick looked, and everything it saw is worth keeping. Only the
             # launch went wrong, and the next tick tries the same issue again.
@@ -185,7 +185,7 @@ class Daemon:
             )
         return LastTick(at=at, dispatched=key, candidates=judged, waiting=waiting)
 
-    def _launch(self, candidate: Candidate, at: datetime) -> str:
+    def _launch_session(self, candidate: Candidate, at: datetime) -> str:
         """Cut a session for the candidate, run its first round, and hold it.
 
         A session whose round will not start is taken away again, because a
@@ -195,7 +195,7 @@ class Daemon:
         """
         session = create_session(
             self.state,
-            self.config.mappings[candidate.label],
+            self.config.label_mappings[candidate.label],
             self.harness,
             candidate.issue,
             at,
