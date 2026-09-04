@@ -22,14 +22,19 @@ RECORDING = FIXTURES / "claude" / "round.jsonl"
 
 STAMP = "2026-08-19T18:41:58Z"
 
-# A harness that leaves a process behind holding the round's stdout, and says
-# in the file it is passed which process that is. The process it leaves starts
-# a session of its own, so it is out of the round's group and ending the group
-# cannot reach it, which is the one shape of straggler that gets away.
+# A harness that leaves a process behind holding the round's own streams, and
+# says in the file it is passed which process that is. The streams are handed
+# down by name, because Windows passes a child no handle it was not given. The
+# process it leaves starts a session of its own, so on POSIX it is out of the
+# round's group and ending the group cannot reach it, which is the one shape of
+# straggler that gets away. Windows keeps it in the round's job, where ending
+# the job does reach it.
 LEAVES_A_STRAGGLER = (
     "import pathlib, subprocess, sys\n"
     "waiting = [sys.executable, '-c', 'import time; time.sleep(60)']\n"
-    "left = subprocess.Popen(waiting, start_new_session=True)\n"
+    "left = subprocess.Popen(\n"
+    "    waiting, stdout=sys.stdout, stderr=sys.stderr, start_new_session=True\n"
+    ")\n"
     "pathlib.Path(sys.argv[1]).write_text(str(left.pid), encoding='utf-8')\n"
 )
 
@@ -75,7 +80,7 @@ def directory(tmp_path):
 
 @pytest.fixture
 def straggler(tmp_path):
-    """The file a harness names what it left behind in.
+    """The file that a harness writes into, naming what it left behind.
 
     Whatever the file names is killed once the test has run, so nothing a round
     left behind outlives it, and nothing goes on holding a pipe.

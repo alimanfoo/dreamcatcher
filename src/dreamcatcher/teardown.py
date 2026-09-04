@@ -84,13 +84,13 @@ else:  # pragma: no cover
         a failure.
         """
         # The child leads the group, so its pid is the group's id. A caller
-        # that has reaped the child has let go of that pid, and in principle
-        # the operating system could have given it to somebody else by now.
-        # Only in principle: a pid stays taken while any process still has it
-        # as a group id, so the group has to be empty first, and then the new
-        # owner has to lead a group of its own, all before the next
-        # instruction. Closing the window would mean waiting for a child
-        # without reaping it, and there is no call for that on every platform,
-        # since os.waitid is not on macOS.
+        # that has already waited for the child has let go of that pid, and in
+        # principle the operating system could have given it to somebody else
+        # by now. Only in principle: a pid stays taken while any process still
+        # has it as a group id, so the group has to empty first, and then the
+        # new owner has to lead a group of its own, all in the moment between
+        # the two calls. Holding on to the pid instead would mean waiting for
+        # a child without collecting its status, and there is no such call on
+        # every platform, since os.waitid is missing on macOS.
         with suppress(ProcessLookupError):
             os.killpg(pid, signal.SIGKILL)
