@@ -2,7 +2,7 @@
 # tests/test_relay.py
 
 import pytest
-from conftest import POST_LISTS, POSTED_BY, PULL_REQUEST, REPOSITORY, pages
+from conftest import POST_LIST_PATHS, POSTED_BY, PULL_REQUEST, REPOSITORY, pages
 from dreamcatcher.github import Comment, InlineComment, Post, Review, Unknown, Verdict
 from dreamcatcher.prompts import MARKER
 from dreamcatcher.relay import peek_new_posts
@@ -23,41 +23,41 @@ def inline_comment(**fields: object) -> dict:
 def peeked(watermark: str) -> list[Post]:
     ...
 
-def test_a_pull_request_nobody_has_posted_on_has_nothing_to_relay(quiet):
+def test_a_pull_request_nobody_has_posted_on_has_nothing_to_relay(gh_with_no_posts):
     ...
 
-def test_a_session_that_has_seen_nothing_yet_is_told_the_whole_history(quiet):
+def test_a_session_that_has_seen_nothing_yet_is_told_the_whole_history(gh_with_no_posts):
     ...
 
-def test_a_post_the_session_has_been_told_about_already_does_not_come_back(quiet):
+def test_a_post_the_session_has_been_told_about_already_does_not_come_back(gh_with_no_posts):
     ...
 
-def test_the_posts_come_back_oldest_first_whichever_list_each_came_from(quiet):
+def test_the_posts_come_back_oldest_first_whichever_list_each_came_from(gh_with_no_posts):
     ...
 
-def test_a_post_carrying_the_marker_is_the_sessions_own_and_does_not_come_back(quiet):
+def test_a_post_carrying_the_marker_is_the_sessions_own_and_does_not_come_back(gh_with_no_posts):
     ...
 
-def test_a_post_from_another_account_does_not_come_back(quiet):
+def test_a_post_from_another_account_does_not_come_back(gh_with_no_posts):
     ...
 
-def test_a_post_whose_account_github_no_longer_knows_does_not_come_back(quiet):
+def test_a_post_whose_account_github_no_longer_knows_does_not_come_back(gh_with_no_posts):
     ...
 
-def test_the_empty_review_github_wrapped_an_inline_reply_in_does_not_come_back(quiet):
+def test_the_empty_review_github_wrapped_an_inline_reply_in_does_not_come_back(gh_with_no_posts):
     ...
 
-def test_a_review_that_reached_a_verdict_comes_back_with_an_empty_body(quiet, verdict):
+def test_a_review_that_reached_a_verdict_comes_back_with_an_empty_body(gh_with_no_posts, verdict):
     ...
 
-def test_a_review_nobody_has_submitted_yet_does_not_come_back(quiet):
+def test_a_review_nobody_has_submitted_yet_does_not_come_back(gh_with_no_posts):
     ...
 
-def test_a_suggestion_over_a_range_comes_back_with_its_lines_and_its_diff(quiet):
+def test_a_suggestion_over_a_range_comes_back_with_its_lines_and_its_diff(gh_with_no_posts):
     ...
 
-def test_a_read_that_failed_says_so_rather_than_reading_as_nothing_posted(quiet):
+def test_a_read_that_failed_says_so_rather_than_reading_as_nothing_posted(gh_with_no_posts):
     ...
 
-def test_every_post_the_user_said_something_in_on_a_real_pull_request_comes_back(recorded):
+def test_every_post_the_user_said_something_in_on_a_real_pull_request_comes_back(gh_with_recorded_posts):
     ...

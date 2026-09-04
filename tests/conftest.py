@@ -34,7 +34,7 @@ POSTED_BY = "alimanfoo"
 
 # Where gh keeps each of the three lists that a pull request's posts arrive in.
 # Each is named as the recording of it is named.
-POST_LISTS = {
+POST_LIST_PATHS = {
     "conversation": f"repos/{REPOSITORY}/issues/{PULL_REQUEST}/comments?per_page=100",
     "reviews": f"repos/{REPOSITORY}/pulls/{PULL_REQUEST}/reviews?per_page=100",
     "inline-comments": f"repos/{REPOSITORY}/pulls/{PULL_REQUEST}/comments?per_page=100",
@@ -178,23 +178,23 @@ def fake(stand_ins, monkeypatch):
 
 
 @pytest.fixture
-def quiet(fake):
+def gh_with_no_posts(fake):
     """A gh answering each of a pull request's three post lists with no posts.
 
     A test scripts over the one list it is about, so it carries only the posts
     that it is about.
     """
     stand_in = fake("gh")
-    for path in POST_LISTS.values():
+    for path in POST_LIST_PATHS.values():
         stand_in.replies(pages(), to=f"api {path}")
     return stand_in
 
 
 @pytest.fixture
-def recorded(fake):
+def gh_with_recorded_posts(fake):
     """A gh answering each post list with what a real pull request answered."""
     stand_in = fake("gh")
-    for source, path in POST_LISTS.items():
+    for source, path in POST_LIST_PATHS.items():
         stand_in.replies(recorded_posts(source), to=f"api {path}")
     return stand_in
 

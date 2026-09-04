@@ -255,7 +255,7 @@ POST_LISTS = (
 )
 
 
-def identify(root: Path) -> str | Unknown:
+def identify_repository(root: Path) -> str | Unknown:
     """Return the repository the checkout at root belongs to, as owner/name.
 
     gh reads the repository from the checkout's own remote, so this asks from
@@ -267,7 +267,7 @@ def identify(root: Path) -> str | Unknown:
     return answered.name_with_owner
 
 
-def login() -> str | Unknown:
+def identify_account() -> str | Unknown:
     """Return the login of the account gh is signed in as."""
     answered = _read(ACCOUNT, "api", "user")
     if isinstance(answered, Unknown):
@@ -275,7 +275,7 @@ def login() -> str | Unknown:
     return answered.login
 
 
-def issues(repository: str, *, label: str, assignee: str) -> list[Issue] | Unknown:
+def list_issues(repository: str, *, label: str, assignee: str) -> list[Issue] | Unknown:
     """Return the repository's open issues carrying label and assigned to assignee."""
     return _read(
         ISSUES,
@@ -296,7 +296,7 @@ def issues(repository: str, *, label: str, assignee: str) -> list[Issue] | Unkno
     )
 
 
-def pull_requests(repository: str, branch: str) -> list[PullRequest] | Unknown:
+def list_pull_requests(repository: str, branch: str) -> list[PullRequest] | Unknown:
     """Return the pull requests branch is the head of, whatever state each is in.
 
     A branch usually has one, and an empty list means it has none. Which of
@@ -317,7 +317,7 @@ def pull_requests(repository: str, branch: str) -> list[PullRequest] | Unknown:
     )
 
 
-def linked_pull_requests(
+def list_linked_pull_requests(
     repository: str, issue: int
 ) -> list[LinkedPullRequest] | Unknown:
     """Return the open pull requests GitHub links to this issue.
@@ -341,7 +341,7 @@ def linked_pull_requests(
     return answered.pull_requests
 
 
-def blockers(repository: str, issue: int) -> list[Blocker] | Unknown:
+def list_blockers(repository: str, issue: int) -> list[Blocker] | Unknown:
     """Return the issues blocking this one, each with its own state.
 
     This reads the one page GitHub answers with, so an issue with more than
@@ -352,7 +352,7 @@ def blockers(repository: str, issue: int) -> list[Blocker] | Unknown:
     )
 
 
-def posts(repository: str, pull_request: int) -> list[Post] | Unknown:
+def list_posts(repository: str, pull_request: int) -> list[Post] | Unknown:
     """Return everything anybody posted on the pull request, from all three places.
 
     The three come back as one list, because somebody reading a pull request

@@ -365,26 +365,33 @@ a live one are the same view in different tenses.
 
 ### The relay
 
-`watch.sh` ports as a function with one deliberate change in sequencing. The
-query is a read-only peek: read the three sources — conversation comments,
+`watch.sh` ports as a function, with one deliberate change in sequencing.
+
+The query is a read-only peek: read the three sources — conversation comments,
 reviews, and inline comments, each its own paginated REST list via `gh api`, the
 shape upstream normalised to in dream#900, so the relay never reconciles two
 JSON dialects — keep what is newer than the watermark, and return, writing
-nothing. Each list comes back whole and the watermark filters what came back,
-rather than the fetch asking narrowly. GitHub takes a `since` on the two comment
-lists but not on the reviews, so asking narrowly would be a special case for two
+nothing.
+
+Each list comes back whole, and the watermark filters what came back, rather
+than the fetch asking narrowly. GitHub takes a `since` on the two comment lists
+but not on the reviews, so asking narrowly would be a special case for two
 sources out of three, and one process watching one repository spends few enough
-calls to leave that for a later phase. The PR's own state is not the peek's to
-fetch: the tick reads it per session, and that read is where the peek's PR
-number comes from, so a state read of the peek's own would be one fact read
-twice by two reads that can disagree. The watermark advances only when a round
-actually launches with that batch as its inbox. The port's advance-on-read
-sequencing lost any batch whose round never ran; advance-on-launch means a crash
-before launch re-reads the same posts next tick, the "posts waiting" board state
-becomes real observed data (the peek's results land in `last-tick.json`), and
-two sessions with posts contending for one slot both keep their batches until
-each actually runs. The residual window — crash after launch, before the round
-acts — stays, and stays accepted: you can see the PR and say it again.
+calls to leave that for a later phase.
+
+The PR's own state is not the peek's to fetch. The tick reads it per session,
+and that read is where the peek's PR number comes from, so a state read of the
+peek's own would be one fact read twice by two reads that can disagree.
+
+The watermark advances only when a round actually launches with that batch as
+its inbox. The port's advance-on-read sequencing lost any batch whose round
+never ran. Advance-on-launch means a crash before launch re-reads the same posts
+next tick, the "posts waiting" board state becomes real observed data (the
+peek's results land in `last-tick.json`), and two sessions with posts contending
+for one slot both keep their batches until each actually runs.
+
+The residual window — crash after launch, before the round acts — stays, and
+stays accepted: you can see the PR and say it again.
 
 One narrower window stays open for the same reason. GitHub records a post to the
 second, and the watermark is the newest post of the batch that just launched, so

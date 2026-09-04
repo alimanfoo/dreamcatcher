@@ -18,7 +18,7 @@ FIXTURES = Path(__file__).parent / 'fixtures'
 REPOSITORY = 'alimanfoo/dreamcatcher'
 PULL_REQUEST = 52
 POSTED_BY = 'alimanfoo'
-POST_LISTS = ...
+POST_LIST_PATHS = ...
 LABEL = 'dream:smith'
 FILED = '2026-08-19T18:41:58Z'
 LATER = '2026-08-20T09:00:00Z'
@@ -68,10 +68,10 @@ def stand_ins(tmp_path):
 def fake(stand_ins, monkeypatch):
     ...
 
-def quiet(fake):
+def gh_with_no_posts(fake):
     ...
 
-def recorded(fake):
+def gh_with_recorded_posts(fake):
     ...
 
 def harnesses(fake):

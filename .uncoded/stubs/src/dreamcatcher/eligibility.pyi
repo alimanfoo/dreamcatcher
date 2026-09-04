@@ -3,7 +3,7 @@
 
 from collections import defaultdict
 from dreamcatcher.config import Config
-from dreamcatcher.github import BlockerState, Issue, Unknown, blockers, issues, linked_pull_requests
+from dreamcatcher.github import BlockerState, Issue, Unknown, list_blockers, list_issues, list_linked_pull_requests
 from dreamcatcher.state import Candidate
 
 def judge_issues(repository: str, config: Config, claimed: set[int]) -> list[Candidate] | Unknown:

@@ -7,12 +7,12 @@ import pytest
 from dreamcatcher.github import (
     PullRequest,
     PullRequestState,
-    blockers,
-    identify,
-    issues,
-    linked_pull_requests,
-    login,
-    pull_requests,
+    identify_account,
+    identify_repository,
+    list_blockers,
+    list_issues,
+    list_linked_pull_requests,
+    list_pull_requests,
 )
 
 pytestmark = pytest.mark.integration
@@ -29,34 +29,36 @@ BLOCKING = 8
 
 
 def test_this_checkout_is_this_repository():
-    assert identify(CHECKOUT) == REPOSITORY
+    assert identify_repository(CHECKOUT) == REPOSITORY
 
 
 def test_gh_is_signed_in_as_somebody():
-    assert login()
+    assert identify_account()
 
 
 def test_gh_takes_the_whole_issue_listing_command():
-    assert isinstance(issues(REPOSITORY, label="dream:smith", assignee="@me"), list)
+    assert isinstance(
+        list_issues(REPOSITORY, label="dream:smith", assignee="@me"), list
+    )
 
 
 def test_a_merged_pull_request_comes_back_merged():
-    found = pull_requests(REPOSITORY, MERGED_BRANCH)
+    found = list_pull_requests(REPOSITORY, MERGED_BRANCH)
 
     assert isinstance(found, list)
     assert PullRequest(number=MERGED, state=PullRequestState.MERGED) in found
 
 
 def test_a_branch_that_never_existed_comes_back_empty():
-    assert pull_requests(REPOSITORY, "dreamcatcher-GH0-19700101-000000") == []
+    assert list_pull_requests(REPOSITORY, "dreamcatcher-GH0-19700101-000000") == []
 
 
 def test_gh_takes_the_linked_pull_requests_command():
-    assert isinstance(linked_pull_requests(REPOSITORY, BLOCKED), list)
+    assert isinstance(list_linked_pull_requests(REPOSITORY, BLOCKED), list)
 
 
 def test_a_blocked_issue_names_what_blocks_it():
-    found = blockers(REPOSITORY, BLOCKED)
+    found = list_blockers(REPOSITORY, BLOCKED)
 
     assert isinstance(found, list)
     assert BLOCKING in [blocker.number for blocker in found]

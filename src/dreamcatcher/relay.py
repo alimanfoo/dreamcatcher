@@ -15,7 +15,7 @@ two apart, and the marker every prompt asks the session to end its posts with
 is what does.
 """
 
-from dreamcatcher.github import Post, Unknown, posts
+from dreamcatcher.github import Post, Unknown, list_posts
 from dreamcatcher.prompts import MARKER
 
 
@@ -33,7 +33,7 @@ def peek_new_posts(
     Reading the posts can fail, and the failure travels, so a caller can say
     in one line why it relayed nothing.
     """
-    found = posts(repository, pull_request)
+    found = list_posts(repository, pull_request)
     if isinstance(found, Unknown):
         return found
     return sorted(

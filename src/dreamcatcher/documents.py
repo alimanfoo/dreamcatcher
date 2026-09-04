@@ -50,8 +50,8 @@ def read_json[DocumentT: Document](model: type[DocumentT], path: Path) -> Docume
 def read_text(path: Path) -> str:
     """Return the text the file at path holds, read as UTF-8.
 
-    Every read above goes through this, and so does a file that holds one value
-    and needs no model of its own.
+    `read_toml` and `read_json` both read through this, and so does a file that
+    holds one value and needs no model of its own.
 
     Raise ReportableError when the read fails. A document that is not there, or
     that nothing can read, is something the user can act on, so it reads as a

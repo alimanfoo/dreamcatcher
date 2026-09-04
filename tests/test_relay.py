@@ -1,5 +1,5 @@
 import pytest
-from conftest import POST_LISTS, POSTED_BY, PULL_REQUEST, REPOSITORY, pages
+from conftest import POST_LIST_PATHS, POSTED_BY, PULL_REQUEST, REPOSITORY, pages
 
 from dreamcatcher.github import (
     Comment,
@@ -68,63 +68,85 @@ def peeked(watermark: str = "") -> list[Post]:
     return found
 
 
-def test_a_pull_request_nobody_has_posted_on_has_nothing_to_relay(quiet):
+def test_a_pull_request_nobody_has_posted_on_has_nothing_to_relay(gh_with_no_posts):
     assert peeked() == []
 
 
-def test_a_session_that_has_seen_nothing_yet_is_told_the_whole_history(quiet):
-    quiet.replies(pages(comment()), to=f"api {POST_LISTS['conversation']}")
+def test_a_session_that_has_seen_nothing_yet_is_told_the_whole_history(
+    gh_with_no_posts,
+):
+    gh_with_no_posts.replies(
+        pages(comment()), to=f"api {POST_LIST_PATHS['conversation']}"
+    )
 
     assert [post.id for post in peeked()] == [1]
 
 
-def test_a_post_the_session_has_been_told_about_already_does_not_come_back(quiet):
-    quiet.replies(pages(comment()), to=f"api {POST_LISTS['conversation']}")
+def test_a_post_the_session_has_been_told_about_already_does_not_come_back(
+    gh_with_no_posts,
+):
+    gh_with_no_posts.replies(
+        pages(comment()), to=f"api {POST_LIST_PATHS['conversation']}"
+    )
 
     assert peeked(watermark=POSTED_AT) == []
 
 
-def test_the_posts_come_back_oldest_first_whichever_list_each_came_from(quiet):
-    quiet.replies(
+def test_the_posts_come_back_oldest_first_whichever_list_each_came_from(
+    gh_with_no_posts,
+):
+    gh_with_no_posts.replies(
         pages(comment(created_at="2026-09-03T23:47:28Z")),
-        to=f"api {POST_LISTS['conversation']}",
+        to=f"api {POST_LIST_PATHS['conversation']}",
     )
-    quiet.replies(
+    gh_with_no_posts.replies(
         pages(review(submitted_at=BEFORE, body="see inline")),
-        to=f"api {POST_LISTS['reviews']}",
+        to=f"api {POST_LIST_PATHS['reviews']}",
     )
-    quiet.replies(pages(inline_comment()), to=f"api {POST_LISTS['inline-comments']}")
+    gh_with_no_posts.replies(
+        pages(inline_comment()), to=f"api {POST_LIST_PATHS['inline-comments']}"
+    )
 
     assert [type(post) for post in peeked()] == [Review, InlineComment, Comment]
 
 
-def test_a_post_carrying_the_marker_is_the_sessions_own_and_does_not_come_back(quiet):
-    quiet.replies(
+def test_a_post_carrying_the_marker_is_the_sessions_own_and_does_not_come_back(
+    gh_with_no_posts,
+):
+    gh_with_no_posts.replies(
         pages(comment(body=f"opened the pull request\n\n{MARKER}")),
-        to=f"api {POST_LISTS['conversation']}",
+        to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
     assert peeked() == []
 
 
-def test_a_post_from_another_account_does_not_come_back(quiet):
-    quiet.replies(
+def test_a_post_from_another_account_does_not_come_back(gh_with_no_posts):
+    gh_with_no_posts.replies(
         pages(comment(user={"login": "somebody-else"})),
-        to=f"api {POST_LISTS['conversation']}",
+        to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
     assert peeked() == []
 
 
-def test_a_post_whose_account_github_no_longer_knows_does_not_come_back(quiet):
-    quiet.replies(pages(comment(user=None)), to=f"api {POST_LISTS['conversation']}")
+def test_a_post_whose_account_github_no_longer_knows_does_not_come_back(
+    gh_with_no_posts,
+):
+    gh_with_no_posts.replies(
+        pages(comment(user=None)), to=f"api {POST_LIST_PATHS['conversation']}"
+    )
 
     assert peeked() == []
 
 
-def test_the_empty_review_github_wrapped_an_inline_reply_in_does_not_come_back(quiet):
-    quiet.replies(pages(review()), to=f"api {POST_LISTS['reviews']}")
-    quiet.replies(pages(inline_comment()), to=f"api {POST_LISTS['inline-comments']}")
+def test_the_empty_review_github_wrapped_an_inline_reply_in_does_not_come_back(
+    gh_with_no_posts,
+):
+    gh_with_no_posts.replies(pages(review()), to=f"api {POST_LIST_PATHS['reviews']}")
+    gh_with_no_posts.replies(
+        pages(inline_comment()), to=f"api {POST_LIST_PATHS['inline-comments']}"
+    )
 
     assert [type(post) for post in peeked()] == [InlineComment]
 
@@ -132,22 +154,28 @@ def test_the_empty_review_github_wrapped_an_inline_reply_in_does_not_come_back(q
 @pytest.mark.parametrize(
     "verdict", [Verdict.APPROVED, Verdict.CHANGES_REQUESTED], ids=str
 )
-def test_a_review_that_reached_a_verdict_comes_back_with_an_empty_body(quiet, verdict):
-    quiet.replies(pages(review(state=verdict)), to=f"api {POST_LISTS['reviews']}")
+def test_a_review_that_reached_a_verdict_comes_back_with_an_empty_body(
+    gh_with_no_posts, verdict
+):
+    gh_with_no_posts.replies(
+        pages(review(state=verdict)), to=f"api {POST_LIST_PATHS['reviews']}"
+    )
 
     assert [post.id for post in peeked()] == [2]
 
 
-def test_a_review_nobody_has_submitted_yet_does_not_come_back(quiet):
+def test_a_review_nobody_has_submitted_yet_does_not_come_back(gh_with_no_posts):
     unsubmitted = review(state=Verdict.PENDING, body="half a thought")
     del unsubmitted["submitted_at"]
-    quiet.replies(pages(unsubmitted), to=f"api {POST_LISTS['reviews']}")
+    gh_with_no_posts.replies(pages(unsubmitted), to=f"api {POST_LIST_PATHS['reviews']}")
 
     assert peeked() == []
 
 
-def test_a_suggestion_over_a_range_comes_back_with_its_lines_and_its_diff(quiet):
-    quiet.replies(
+def test_a_suggestion_over_a_range_comes_back_with_its_lines_and_its_diff(
+    gh_with_no_posts,
+):
+    gh_with_no_posts.replies(
         pages(
             inline_comment(
                 body="```suggestion\nfrom dreamcatcher.github import posts\n```",
@@ -155,7 +183,7 @@ def test_a_suggestion_over_a_range_comes_back_with_its_lines_and_its_diff(quiet)
                 line=3,
             )
         ),
-        to=f"api {POST_LISTS['inline-comments']}",
+        to=f"api {POST_LIST_PATHS['inline-comments']}",
     )
 
     suggestion = peeked()[0]
@@ -167,9 +195,11 @@ def test_a_suggestion_over_a_range_comes_back_with_its_lines_and_its_diff(quiet)
     assert suggestion.diff_hunk == HUNK
 
 
-def test_a_read_that_failed_says_so_rather_than_reading_as_nothing_posted(quiet):
-    quiet.fails(
-        "gh: could not connect to github.com", to=f"api {POST_LISTS['reviews']}"
+def test_a_read_that_failed_says_so_rather_than_reading_as_nothing_posted(
+    gh_with_no_posts,
+):
+    gh_with_no_posts.fails(
+        "gh: could not connect to github.com", to=f"api {POST_LIST_PATHS['reviews']}"
     )
 
     found = peek_new_posts(
@@ -181,7 +211,7 @@ def test_a_read_that_failed_says_so_rather_than_reading_as_nothing_posted(quiet)
 
 
 def test_every_post_the_user_said_something_in_on_a_real_pull_request_comes_back(
-    recorded,
+    gh_with_recorded_posts,
 ):
     # The three lists interleave by the time each post was written, and the
     # three empty reviews GitHub wrapped the last three inline comments in are

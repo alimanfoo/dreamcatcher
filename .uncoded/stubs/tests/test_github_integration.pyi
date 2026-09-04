@@ -3,7 +3,7 @@
 
 from pathlib import Path
 import pytest
-from dreamcatcher.github import PullRequest, PullRequestState, blockers, identify, issues, linked_pull_requests, login, pull_requests
+from dreamcatcher.github import PullRequest, PullRequestState, identify_account, identify_repository, list_blockers, list_issues, list_linked_pull_requests, list_pull_requests
 
 pytestmark = pytest.mark.integration
 REPOSITORY = 'alimanfoo/dreamcatcher'

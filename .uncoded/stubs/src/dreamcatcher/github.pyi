@@ -24,25 +24,25 @@ REVIEWS = TypeAdapter(list[list[Review]])
 INLINE_COMMENTS = TypeAdapter(list[list[InlineComment]])
 POST_LISTS = ...
 
-def identify(root: Path) -> str | Unknown:
+def identify_repository(root: Path) -> str | Unknown:
     ...
 
-def login() -> str | Unknown:
+def identify_account() -> str | Unknown:
     ...
 
-def issues(repository: str, *, label: str, assignee: str) -> list[Issue] | Unknown:
+def list_issues(repository: str, *, label: str, assignee: str) -> list[Issue] | Unknown:
     ...
 
-def pull_requests(repository: str, branch: str) -> list[PullRequest] | Unknown:
+def list_pull_requests(repository: str, branch: str) -> list[PullRequest] | Unknown:
     ...
 
-def linked_pull_requests(repository: str, issue: int) -> list[LinkedPullRequest] | Unknown:
+def list_linked_pull_requests(repository: str, issue: int) -> list[LinkedPullRequest] | Unknown:
     ...
 
-def blockers(repository: str, issue: int) -> list[Blocker] | Unknown:
+def list_blockers(repository: str, issue: int) -> list[Blocker] | Unknown:
     ...
 
-def posts(repository: str, pull_request: int) -> list[Post] | Unknown:
+def list_posts(repository: str, pull_request: int) -> list[Post] | Unknown:
     ...
 
 def _read_pages(shape: TypeAdapter[list[list[PostT]]], path: str) -> list[Post] | Unknown:

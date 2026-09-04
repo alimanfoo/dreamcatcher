@@ -224,13 +224,13 @@ src/:
         start_line:
         diff_hunk:
         _fall_back_to_the_original_lines:
-      identify:
-      login:
-      issues:
-      pull_requests:
-      linked_pull_requests:
-      blockers:
-      posts:
+      identify_repository:
+      identify_account:
+      list_issues:
+      list_pull_requests:
+      list_linked_pull_requests:
+      list_blockers:
+      list_posts:
       _read_pages:
       _read:
     harnesses.py:
@@ -343,7 +343,7 @@ tests/:
     REPOSITORY:
     PULL_REQUEST:
     POSTED_BY:
-    POST_LISTS:
+    POST_LIST_PATHS:
     LABEL:
     FILED:
     LATER:
@@ -364,8 +364,8 @@ tests/:
     watched:
     stand_ins:
     fake:
-    quiet:
-    recorded:
+    gh_with_no_posts:
+    gh_with_recorded_posts:
     harnesses:
   fakes.py:
     UNSCRIPTED:
