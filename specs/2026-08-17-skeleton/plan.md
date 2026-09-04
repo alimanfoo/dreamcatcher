@@ -390,10 +390,13 @@ test composes, because no recording of this repository could hold a post from
 another account, an approval of your own pull request, which GitHub refuses, or
 a post carrying a marker no session here has written yet.
 
-The peek's own shape settled one thing. The tick already reads each session's
+The peek's own shape settled two things. The tick already reads each session's
 pull request state, and that read is where the peek's pull request number comes
 from, so the peek fetches no state of its own. design.md's relay section is
-corrected to say so.
+corrected to say so. And a post's kind is the class it reads back as, so it
+carries no field of its own saying the same thing again. The field the port's
+projection had belongs to the phase that writes `inbox.json`, where a kind has
+to survive being written down.
 
 Deliberately out: writing the watermark, inboxes, resumes, and any wiring into
 the tick.

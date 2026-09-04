@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 import pytest
 from conftest import POST_LISTS, POSTED_BY, PULL_REQUEST, pages
-from dreamcatcher.github import Blocker, BlockerState, InlineComment, Issue, LinkedPullRequest, Post, PostKind, PullRequest, PullRequestState, Review, Unknown, Verdict, blockers, identify, issues, linked_pull_requests, login, posts, pull_requests
+from dreamcatcher.github import Blocker, BlockerState, Comment, InlineComment, Issue, LinkedPullRequest, Post, PullRequest, PullRequestState, Review, Unknown, Verdict, blockers, identify, issues, linked_pull_requests, login, posts, pull_requests
 
 REPOSITORY = 'alimanfoo/dreamcatcher'
 BRANCH = 'dreamcatcher-GH8-20260820-000456'

@@ -50,8 +50,8 @@ def read_json[DocumentT: Document](model: type[DocumentT], path: Path) -> Docume
 def read_text(path: Path) -> str:
     """Return the text the file at path holds, read as UTF-8.
 
-    A file holding one value needs no model, and this is how the tool reads
-    one: a session's watermark, and every whole document read above.
+    Every read above goes through this, and so does a file holding one value
+    that needs no model, as a session's watermark does.
 
     Raise ReportableError when the read fails. A document that is not there, or
     that nothing can read, is something the user can act on, so it reads as a

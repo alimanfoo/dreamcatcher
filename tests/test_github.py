@@ -8,11 +8,11 @@ from conftest import POST_LISTS, POSTED_BY, PULL_REQUEST, pages
 from dreamcatcher.github import (
     Blocker,
     BlockerState,
+    Comment,
     InlineComment,
     Issue,
     LinkedPullRequest,
     Post,
-    PostKind,
     PullRequest,
     PullRequestState,
     Review,
@@ -177,10 +177,10 @@ def test_the_posts_of_a_pull_request_come_from_all_three_of_its_lists(quiet):
     quiet.replies(pages(REVIEW), to=f"api {POST_LISTS['reviews']}")
     quiet.replies(pages(INLINE_COMMENT), to=f"api {POST_LISTS['inline-comments']}")
 
-    assert [(post.kind, post.id) for post in posted()] == [
-        (PostKind.COMMENT, 1),
-        (PostKind.REVIEW, 2),
-        (PostKind.INLINE_COMMENT, 3),
+    assert [(type(post), post.id) for post in posted()] == [
+        (Comment, 1),
+        (Review, 2),
+        (InlineComment, 3),
     ]
 
 
@@ -204,8 +204,8 @@ def test_the_pages_of_one_list_come_back_as_one_list(quiet):
 def test_every_post_a_real_pull_request_carries_reads_back(recorded):
     found = posted()
 
-    assert [post.kind for post in found] == (
-        [PostKind.COMMENT] * 9 + [PostKind.REVIEW] * 4 + [PostKind.INLINE_COMMENT] * 6
+    assert [type(post) for post in found] == (
+        [Comment] * 9 + [Review] * 4 + [InlineComment] * 6
     )
     assert all(post.author == POSTED_BY for post in found)
 

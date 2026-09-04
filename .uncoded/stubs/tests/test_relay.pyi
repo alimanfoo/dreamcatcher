@@ -3,7 +3,7 @@
 
 import pytest
 from conftest import POST_LISTS, POSTED_BY, PULL_REQUEST, REPOSITORY, pages
-from dreamcatcher.github import InlineComment, Post, PostKind, Unknown, Verdict
+from dreamcatcher.github import Comment, InlineComment, Post, Review, Unknown, Verdict
 from dreamcatcher.prompts import MARKER
 from dreamcatcher.relay import peek_new_posts
 

@@ -1,7 +1,14 @@
 import pytest
 from conftest import POST_LISTS, POSTED_BY, PULL_REQUEST, REPOSITORY, pages
 
-from dreamcatcher.github import InlineComment, Post, PostKind, Unknown, Verdict
+from dreamcatcher.github import (
+    Comment,
+    InlineComment,
+    Post,
+    Review,
+    Unknown,
+    Verdict,
+)
 from dreamcatcher.prompts import MARKER
 from dreamcatcher.relay import peek_new_posts
 
@@ -88,11 +95,7 @@ def test_the_posts_come_back_oldest_first_whichever_list_each_came_from(quiet):
     )
     quiet.replies(pages(inline_comment()), to=f"api {POST_LISTS['inline-comments']}")
 
-    assert [post.kind for post in peeked()] == [
-        PostKind.REVIEW,
-        PostKind.INLINE_COMMENT,
-        PostKind.COMMENT,
-    ]
+    assert [type(post) for post in peeked()] == [Review, InlineComment, Comment]
 
 
 def test_a_post_carrying_the_marker_is_the_sessions_own_and_does_not_come_back(quiet):
@@ -123,7 +126,7 @@ def test_the_empty_review_github_wrapped_an_inline_reply_in_does_not_come_back(q
     quiet.replies(pages(review()), to=f"api {POST_LISTS['reviews']}")
     quiet.replies(pages(inline_comment()), to=f"api {POST_LISTS['inline-comments']}")
 
-    assert [post.kind for post in peeked()] == [PostKind.INLINE_COMMENT]
+    assert [type(post) for post in peeked()] == [InlineComment]
 
 
 @pytest.mark.parametrize(
@@ -183,21 +186,21 @@ def test_every_post_the_user_said_something_in_on_a_real_pull_request_comes_back
     # The three lists interleave by the time each post was written, and the
     # three empty reviews GitHub wrapped the last three inline comments in are
     # gone, while those inline comments come through on their own.
-    assert [post.kind for post in peeked()] == [
-        PostKind.COMMENT,
-        PostKind.COMMENT,
-        PostKind.COMMENT,
-        PostKind.COMMENT,
-        PostKind.COMMENT,
-        PostKind.COMMENT,
-        PostKind.INLINE_COMMENT,
-        PostKind.INLINE_COMMENT,
-        PostKind.INLINE_COMMENT,
-        PostKind.REVIEW,
-        PostKind.COMMENT,
-        PostKind.INLINE_COMMENT,
-        PostKind.INLINE_COMMENT,
-        PostKind.INLINE_COMMENT,
-        PostKind.COMMENT,
-        PostKind.COMMENT,
+    assert [type(post) for post in peeked()] == [
+        Comment,
+        Comment,
+        Comment,
+        Comment,
+        Comment,
+        Comment,
+        InlineComment,
+        InlineComment,
+        InlineComment,
+        Review,
+        Comment,
+        InlineComment,
+        InlineComment,
+        InlineComment,
+        Comment,
+        Comment,
     ]

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 from pydantic import (
     AliasChoices,
@@ -68,18 +68,6 @@ class BlockerState(StrEnum):
 
     OPEN = "open"
     CLOSED = "closed"
-
-
-class PostKind(StrEnum):
-    """Which of the three places on a pull request a post was written in.
-
-    The three arrive as one list, and nothing GitHub sends says which list a
-    post came from, so each post carries its own kind.
-    """
-
-    COMMENT = "comment"
-    REVIEW = "review"
-    INLINE_COMMENT = "inline_comment"
 
 
 class Verdict(StrEnum):
@@ -166,11 +154,10 @@ class Post(Projection):
     A post whose author GitHub no longer knows, one from a deleted account, is
     likewise authored by nobody, and so is nobody's to relay.
 
-    Each of the three kinds below settles the kind for itself, and no post is
-    read as this base alone.
+    Each of the three kinds below is a class of its own, and no post is read as
+    this base alone.
     """
 
-    kind: PostKind
     id: int
     author: str = Field(default="", validation_alias=AliasPath("user", "login"))
     written_at: str = Field(
@@ -187,13 +174,10 @@ class Post(Projection):
 class Comment(Post):
     """A comment on the pull request's own conversation."""
 
-    kind: Literal[PostKind.COMMENT] = PostKind.COMMENT
-
 
 class Review(Post):
     """A review somebody submitted, and the verdict that it carried."""
 
-    kind: Literal[PostKind.REVIEW] = PostKind.REVIEW
     verdict: Verdict = Field(alias="state")
 
     @property
@@ -218,7 +202,6 @@ class InlineComment(Post):
     the text that it replaces. A comment on a whole file names no line at all.
     """
 
-    kind: Literal[PostKind.INLINE_COMMENT] = PostKind.INLINE_COMMENT
     path: str
     side: str
     line: int | None = None
@@ -251,6 +234,16 @@ LINKED = TypeAdapter(Linked)
 CONVERSATION = TypeAdapter(list[list[Comment]])
 REVIEWS = TypeAdapter(list[list[Review]])
 INLINE_COMMENTS = TypeAdapter(list[list[InlineComment]])
+
+# The three lists a pull request's posts arrive in: what each holds, the kind of
+# thing GitHub keeps it under, and what it is called there. A pull request's own
+# conversation is the conversation of the issue that shares its number, which is
+# why that one is kept under the issues.
+POST_LISTS = (
+    (CONVERSATION, "issues", "comments"),
+    (REVIEWS, "pulls", "reviews"),
+    (INLINE_COMMENTS, "pulls", "comments"),
+)
 
 
 def identify(root: Path) -> str | Unknown:
@@ -355,43 +348,21 @@ def posts(repository: str, pull_request: int) -> list[Post] | Unknown:
 
     The three come back as one list, because somebody reading a pull request
     reads what was written on it and not three lists to reconcile. Nothing is
-    left out: whose post it is, and whether it says anything, is the relay's
-    rule and none of this read's business.
+    left out: whose post it is, and whether the session has heard it already,
+    is the relay's rule and none of this read's business.
 
     A source the tool could not read answers unknown for the whole pull
     request, since the source it cannot see is the one that might hold the post
     the user is waiting for an answer to.
     """
     found: list[Post] = []
-    for read_source in (_read_conversation, _read_reviews, _read_inline_comments):
-        answered = read_source(repository, pull_request)
+    for shape, under, listed in POST_LISTS:
+        path = f"repos/{repository}/{under}/{pull_request}/{listed}"
+        answered = _read_pages(shape, path)
         if isinstance(answered, Unknown):
             return answered
         found.extend(answered)
     return found
-
-
-def _read_conversation(repository: str, pull_request: int) -> list[Post] | Unknown:
-    """Return the comments on the pull request's own conversation.
-
-    A pull request's conversation is the conversation of the issue that shares
-    its number, which is the endpoint this asks.
-    """
-    return _read_pages(
-        CONVERSATION, f"repos/{repository}/issues/{pull_request}/comments"
-    )
-
-
-def _read_reviews(repository: str, pull_request: int) -> list[Post] | Unknown:
-    """Return the reviews somebody submitted on the pull request."""
-    return _read_pages(REVIEWS, f"repos/{repository}/pulls/{pull_request}/reviews")
-
-
-def _read_inline_comments(repository: str, pull_request: int) -> list[Post] | Unknown:
-    """Return the comments somebody left on a line of the pull request's diff."""
-    return _read_pages(
-        INLINE_COMMENTS, f"repos/{repository}/pulls/{pull_request}/comments"
-    )
 
 
 def _read_pages[PostT: Post](

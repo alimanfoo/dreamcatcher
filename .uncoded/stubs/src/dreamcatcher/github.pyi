@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field, TypeAdapter, ValidationError, model_validator
 from dreamcatcher.commands import CommandError, run
 
@@ -21,6 +21,7 @@ LINKED = TypeAdapter(Linked)
 CONVERSATION = TypeAdapter(list[list[Comment]])
 REVIEWS = TypeAdapter(list[list[Review]])
 INLINE_COMMENTS = TypeAdapter(list[list[InlineComment]])
+POST_LISTS = ...
 
 def identify(root: Path) -> str | Unknown:
     ...
@@ -43,15 +44,6 @@ def blockers(repository: str, issue: int) -> list[Blocker] | Unknown:
 def posts(repository: str, pull_request: int) -> list[Post] | Unknown:
     ...
 
-def _read_conversation(repository: str, pull_request: int) -> list[Post] | Unknown:
-    ...
-
-def _read_reviews(repository: str, pull_request: int) -> list[Post] | Unknown:
-    ...
-
-def _read_inline_comments(repository: str, pull_request: int) -> list[Post] | Unknown:
-    ...
-
 def _read_pages(shape: TypeAdapter[list[list[PostT]]], path: str) -> list[Post] | Unknown:
     ...
 
@@ -72,11 +64,6 @@ class PullRequestState(StrEnum):
 class BlockerState(StrEnum):
     OPEN = 'open'
     CLOSED = 'closed'
-
-class PostKind(StrEnum):
-    COMMENT = 'comment'
-    REVIEW = 'review'
-    INLINE_COMMENT = 'inline_comment'
 
 class Verdict(StrEnum):
     APPROVED = 'APPROVED'
@@ -110,7 +97,6 @@ class Linked(Projection):
     pull_requests: list[LinkedPullRequest] = Field(alias='closedByPullRequestsReferences')
 
 class Post(Projection):
-    kind: PostKind
     id: int
     author: str = Field(default='', validation_alias=AliasPath('user', 'login'))
     written_at: str = Field(default='', validation_alias=AliasChoices('created_at', 'submitted_at'))
@@ -118,15 +104,13 @@ class Post(Projection):
     is_speaking: bool
 
 class Comment(Post):
-    kind: Literal[PostKind.COMMENT] = PostKind.COMMENT
+    ...
 
 class Review(Post):
-    kind: Literal[PostKind.REVIEW] = PostKind.REVIEW
     verdict: Verdict = Field(alias='state')
     is_speaking: bool
 
 class InlineComment(Post):
-    kind: Literal[PostKind.INLINE_COMMENT] = PostKind.INLINE_COMMENT
     path: str
     side: str
     line: int | None = None

@@ -172,6 +172,7 @@ src/:
       CONVERSATION:
       REVIEWS:
       INLINE_COMMENTS:
+      POST_LISTS:
       Unknown:
         reason:
       Projection:
@@ -183,10 +184,6 @@ src/:
       BlockerState:
         OPEN:
         CLOSED:
-      PostKind:
-        COMMENT:
-        REVIEW:
-        INLINE_COMMENT:
       Verdict:
         APPROVED:
         CHANGES_REQUESTED:
@@ -211,20 +208,16 @@ src/:
       Linked:
         pull_requests:
       Post:
-        kind:
         id:
         author:
         written_at:
         body:
         is_speaking:
       Comment:
-        kind:
       Review:
-        kind:
         verdict:
         is_speaking:
       InlineComment:
-        kind:
         path:
         side:
         line:
@@ -238,9 +231,6 @@ src/:
       linked_pull_requests:
       blockers:
       posts:
-      _read_conversation:
-      _read_reviews:
-      _read_inline_comments:
       _read_pages:
       _read:
     harnesses.py:
