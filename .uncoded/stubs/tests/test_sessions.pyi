@@ -7,9 +7,10 @@ from conftest import CONFIG, commit, git
 from records import write_round
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import CONFIG_NAME, Harness, read_config
+from dreamcatcher.documents import write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.rounds import Ending, RoundRecord, Workspace
-from dreamcatcher.sessions import SessionRecord, create_session, read_sessions
+from dreamcatcher.sessions import WATERMARK, SessionRecord, create_session, read_sessions
 from dreamcatcher.state import StateDirectory
 
 KEY = 'GH12-20260819-184158'
@@ -52,6 +53,12 @@ def test_a_state_directory_with_no_worktrees_holds_no_sessions(state):
     ...
 
 def test_a_session_reads_back_as_it_was_dispatched(state, mapping):
+    ...
+
+def test_a_session_no_round_has_told_anything_yet_has_seen_no_post(state, mapping):
+    ...
+
+def test_a_session_reads_back_the_newest_post_it_has_been_told_about(state, mapping):
     ...
 
 def test_a_sessions_rounds_read_back_in_the_order_they_ran(state, mapping):

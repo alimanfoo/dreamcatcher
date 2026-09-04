@@ -290,6 +290,7 @@ src/:
       BRANCH_PREFIX:
       RECORD:
       ROUNDS:
+      WATERMARK:
       SessionRecord:
         issue:
         label:
@@ -303,11 +304,13 @@ src/:
         directory:
         record:
         rounds:
+        watermark:
         key:
         next_workspace:
       read_sessions:
       create_session:
       _read_session:
+      _read_watermark:
       discard_session:
     state.py:
       STATE_DIRECTORY:
@@ -754,6 +757,8 @@ tests/:
     test_a_session_that_cannot_record_leaves_no_worktree_and_no_branch:
     test_a_state_directory_with_no_worktrees_holds_no_sessions:
     test_a_session_reads_back_as_it_was_dispatched:
+    test_a_session_no_round_has_told_anything_yet_has_seen_no_post:
+    test_a_session_reads_back_the_newest_post_it_has_been_told_about:
     test_a_sessions_rounds_read_back_in_the_order_they_ran:
     test_every_session_of_the_repo_reads_back_by_key:
     test_a_file_left_among_the_worktrees_is_not_a_session:
