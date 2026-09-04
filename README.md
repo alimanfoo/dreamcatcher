@@ -4,13 +4,21 @@ dreamcatcher watches a repository for labelled issues, dispatches an autonomous
 coding session for each, and carries each issue to a pull request for you to
 review and merge.
 
-Nothing reaches a pull request yet. `run` starts, reads the config, and idles.
-`scry` is still a stub that says so when you run it.
+`run` now carries a labelled issue as far as its first round. It stops there:
+nothing relays what you post on the pull request back to the session, nothing
+carries an interrupted round on, and a merged pull request gets no last round.
+`scry` is still a stub that says so when you run it, so read
+`.dreamcatcher/last-tick.json` and a session's own `feed.txt` to see what a run
+is doing.
 
 ## Install
 
 You need [uv](https://docs.astral.sh/uv/). It fetches its own Python, so you
 need nothing else.
+
+You also need [gh](https://cli.github.com/), signed in to the account whose
+issues you want picked up, and the CLI of every harness your config maps a label
+to. `run` refuses to start when any of them is missing.
 
 ```sh
 uvx --from git+https://github.com/alimanfoo/dreamcatcher dreamcatcher --version
@@ -69,6 +77,25 @@ session per labelled issue.
 ```sh
 dreamcatcher run --harness claude
 ```
+
+Every `interval` seconds it looks once and launches at most one round. An issue
+is dispatched when it carries exactly one mapped label, is assigned to
+`assignee`, has no session here already, has no open pull request GitHub links
+to it, and has no open issue blocking it. The oldest such issue goes first. A
+dispatch cuts a branch and a worktree under `.dreamcatcher/`, and runs the
+session's first round there.
+
+Everything the daemon owns lives under `.dreamcatcher/` in the checkout, which
+ignores itself, so git never sees it. `last-tick.json` there says what the most
+recent look observed and decided, including what the daemon did not do and why.
+
+Rounds die with the daemon, so a `run` you stop takes its sessions' rounds with
+it, and the next `run` carries them on. After any round fails, the daemon holds
+every launch for fifteen minutes, so a usage limit that lasts for hours costs a
+few failed rounds rather than a fresh worktree every couple of minutes.
+
+Removing the label is how you say stop. An issue whose pull request closes
+unmerged is free to dispatch again while the label is still on it.
 
 One daemon watches one repo. A second `run` on the same repo refuses while the
 first is alive.
