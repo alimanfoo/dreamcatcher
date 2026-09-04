@@ -28,10 +28,10 @@ def _usage(counts: dict) -> Note:
 class Codex(Adapter):
     program: ClassVar[str] = 'codex'
 
-    def first_round(self, launch: Launch) -> Invocation:
+    def build_first_round(self, launch: Launch) -> Invocation:
         ...
 
-    def resume(self, launch: Launch) -> Invocation:
+    def build_resumed_round(self, launch: Launch) -> Invocation:
         ...
 
     def _events(self, streamed: dict) -> list[Event]:

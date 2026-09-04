@@ -61,10 +61,10 @@ class Unrenderable(Adapter):
 
     program = "harness"
 
-    def first_round(self, launch: Launch) -> Invocation:
+    def build_first_round(self, launch: Launch) -> Invocation:
         return Invocation([self.program], launch.prompt)
 
-    def resume(self, launch: Launch) -> Invocation:
+    def build_resumed_round(self, launch: Launch) -> Invocation:
         return Invocation([self.program], launch.prompt)
 
     def _events(self, streamed: dict) -> list[Event]:

@@ -88,10 +88,10 @@ def test_a_round_a_straggler_outlives_still_stops(worktree, directory, straggler
 class Unrenderable(Adapter):
     program = 'harness'
 
-    def first_round(self, launch: Launch) -> Invocation:
+    def build_first_round(self, launch: Launch) -> Invocation:
         ...
 
-    def resume(self, launch: Launch) -> Invocation:
+    def build_resumed_round(self, launch: Launch) -> Invocation:
         ...
 
     def _events(self, streamed: dict) -> list[Event]:

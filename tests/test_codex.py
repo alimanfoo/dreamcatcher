@@ -25,7 +25,7 @@ def completed(**item) -> str:
 
 # Each command ends in the word that has Codex read its prompt from stdin.
 def test_a_first_round_runs_where_it_is_launched_under_codexs_own_reviewer():
-    assert CODEX.first_round(LAUNCH) == Invocation(
+    assert CODEX.build_first_round(LAUNCH) == Invocation(
         [
             "codex",
             "exec",
@@ -41,7 +41,7 @@ def test_a_first_round_runs_where_it_is_launched_under_codexs_own_reviewer():
 
 
 def test_a_resume_replays_the_settings_and_the_permissions_codex_forgets():
-    assert CODEX.resume(LAUNCH) == Invocation(
+    assert CODEX.build_resumed_round(LAUNCH) == Invocation(
         [
             "codex",
             "exec",

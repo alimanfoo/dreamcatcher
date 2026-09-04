@@ -20,10 +20,10 @@ class Invocation:
 class Adapter(ABC):
     program: ClassVar[str]
 
-    def first_round(self, launch: Launch) -> Invocation:
+    def build_first_round(self, launch: Launch) -> Invocation:
         ...
 
-    def resume(self, launch: Launch) -> Invocation:
+    def build_resumed_round(self, launch: Launch) -> Invocation:
         ...
 
     def read(self, line: str) -> list[Event]:

@@ -210,7 +210,7 @@ class Daemon:
         try:
             self.rounds[session.key] = Round(
                 adapter,
-                adapter.first_round(launch),
+                adapter.build_first_round(launch),
                 session.next_workspace,
                 DISPATCHED,
                 clock=self.clock,

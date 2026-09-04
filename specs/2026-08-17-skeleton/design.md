@@ -286,18 +286,24 @@ Claude Code: first round
 resume the same base plus `--continue` (Claude recovers model and effort itself;
 `--name` is kept from the ported command, naming the session after the session
 key). Neither names a prompt, which is how Claude knows to read one from stdin.
+
 The allowed writes list is the ported one:
 `gh pr create/comment/edit/ready/close`, `gh issue create/comment`,
-`git commit`, `git push`. The parser is `render-claude.sh`'s jq program as
-Python: init events carry the harness session id, assistant text passes whole,
-tool calls become one line via the most-telling-input fallback chain, failed
-tool results surface, a retried request says what it is waiting on, and
-successful tool results and the rest of the housekeeping are dropped. A `result`
-event closes the round with what it spent, in money and in tokens, and then with
-how it ended. Its subtype reads `success` even on a round that failed, so the
-ending reports the event's own error flag instead. A thinking block is marked in
-the feed and nothing more: Claude streams the block with the thinking itself
-withheld, so the feed can say the agent thought and cannot say what it thought.
+`git commit`, `git push`.
+
+The parser is `render-claude.sh`'s jq program as Python: init events carry the
+harness session id, assistant text passes whole, tool calls become one line via
+the most-telling-input fallback chain, failed tool results surface, a retried
+request says what it is waiting on, and successful tool results and the rest of
+the housekeeping are dropped.
+
+A `result` event closes the round with what it spent, in money and in tokens,
+and then with how it ended. Its subtype reads `success` even on a round that
+failed, so the ending reports the event's own error flag instead.
+
+A thinking block is marked in the feed and nothing more: Claude streams the
+block with the thinking itself withheld, so the feed can say the agent thought
+and cannot say what it thought.
 
 Codex: first round
 `codex exec --json --approve-for-me --model <model> -c model_reasoning_effort=... -c sandbox_workspace_write.network_access=true -`;
@@ -305,25 +311,36 @@ resume `codex exec resume --last --json` plus the replayed settings and the
 ported resume permissions (`sandbox_mode="workspace-write"`, network access,
 `approval_policy="on-request"`, `approvals_reviewer="auto_review"`), and the
 same `-`. Codex takes that word where a prompt would go, to read the prompt from
-stdin instead. `--last` is scoped by Codex's own working-directory filter — an
-inherited contract with Codex's session store, stated here so nobody rediscovers
-it. The parser reads `--json` JSONL, lifted from audacious's `codex.py` and
-moved from post-hoc to line-at-a-time. audacious took the `agent_message` text
-alone. The feed also wants the round's landmarks and what the agent did, so the
-parser reads `thread.started` for the session id, `item.completed` for the
-agent's words or one action line, `turn.completed` for what the round used, and
+stdin instead.
+
+`--last` is scoped by Codex's own working-directory filter — an inherited
+contract with Codex's session store, stated here so nobody rediscovers it.
+
+The parser reads `--json` JSONL, lifted from audacious's `codex.py` and moved
+from post-hoc to line-at-a-time. audacious took the `agent_message` text alone.
+The feed also wants the round's landmarks and what the agent did, so the parser
+reads `thread.started` for the session id, `item.completed` for the agent's
+words or one action line, `turn.completed` for what the round used, and
 `turn.failed` for why it stopped. Every round of one session carries the same
-session id. A command's action line carries the command Codex ran. When the
-command did not complete, a second line follows it, labelled with the status
-Codex gave it. Codex reports every file of one patch in a single item, so the
-parser gives each file its own action line. Each line names what happened to the
-file, and the file's path is all the rest of the line. Codex sends each item
-three times, as it starts, changes and finishes, and only the last is complete,
-so the parser drops the other two. Codex gives no prices, so its spend line
-counts tokens alone where Claude's also carries money. A failed turn arrives
-twice, once on its own and again as the turn's ending, and only the ending
-reaches the feed. Codex spends no retries on a usage limit: the round fails on
-the first answer and exits non-zero, where Claude retries ten times first.
+session id.
+
+A command's action line carries the command Codex ran. When the command did not
+complete, a second line follows it, labelled with the status Codex gave it.
+
+Codex reports every file of one patch in a single item, so the parser gives each
+file its own action line. Each line names what happened to the file, and the
+file's path is all the rest of the line.
+
+Codex sends each item three times, as it starts, changes and finishes, and only
+the last is complete, so the parser drops the other two.
+
+Codex gives no prices, so its spend line counts tokens alone where Claude's also
+carries money.
+
+A failed turn arrives twice, once on its own and again as the turn's ending, and
+only the ending reaches the feed. Codex spends no retries on a usage limit: the
+round fails on the first answer and exits non-zero, where Claude retries ten
+times first.
 
 These flag sets are each harness's never-stall answer, written down: Claude
 answers with a pre-approved allowlist under auto mode, Codex with its automatic

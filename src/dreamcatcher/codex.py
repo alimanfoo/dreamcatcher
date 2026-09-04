@@ -32,7 +32,7 @@ class Codex(Adapter):
 
     program: ClassVar[str] = "codex"
 
-    def first_round(self, launch: Launch) -> Invocation:
+    def build_first_round(self, launch: Launch) -> Invocation:
         """Return how to run a session's first round.
 
         The command does not say which directory to work in, so whoever runs
@@ -51,7 +51,7 @@ class Codex(Adapter):
             launch.prompt,
         )
 
-    def resume(self, launch: Launch) -> Invocation:
+    def build_resumed_round(self, launch: Launch) -> Invocation:
         """Return how to resume the session in this directory.
 
         Codex forgets the model and the effort when it resumes, so this sets

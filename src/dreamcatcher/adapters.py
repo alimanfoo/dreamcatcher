@@ -56,15 +56,15 @@ class Adapter(ABC):
     program: ClassVar[str]
 
     @abstractmethod
-    def first_round(self, launch: Launch) -> Invocation:
+    def build_first_round(self, launch: Launch) -> Invocation:
         """Return how to run a session's first round."""
 
     @abstractmethod
-    def resume(self, launch: Launch) -> Invocation:
+    def build_resumed_round(self, launch: Launch) -> Invocation:
         """Return how to resume the session with launch's prompt."""
 
     def read(self, line: str) -> list[Event]:
-        """Return the feed events one line of the harness's stream carries.
+        """Return the feed events from one line of the harness's stream.
 
         Not every line is an event. A CLI prints a warning now and then, and an
         event can arrive in a shape the adapter does not expect. In both cases

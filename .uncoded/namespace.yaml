@@ -20,8 +20,8 @@ src/:
         prompt:
       Adapter:
         program:
-        first_round:
-        resume:
+        build_first_round:
+        build_resumed_round:
         read:
         _events:
     claude.py:
@@ -30,8 +30,8 @@ src/:
       CLAUDE:
       Claude:
         program:
-        first_round:
-        resume:
+        build_first_round:
+        build_resumed_round:
         _events:
         _base:
       _system:
@@ -54,8 +54,8 @@ src/:
       CODEX:
       Codex:
         program:
-        first_round:
-        resume:
+        build_first_round:
+        build_resumed_round:
         _events:
       _settings:
       _overrides:
@@ -732,8 +732,8 @@ tests/:
     AND_WAITS:
     Unrenderable:
       program:
-      first_round:
-      resume:
+      build_first_round:
+      build_resumed_round:
       _events:
     pinned:
     worktree:

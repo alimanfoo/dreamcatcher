@@ -40,7 +40,7 @@ class Claude(Adapter):
 
     program: ClassVar[str] = "claude"
 
-    def first_round(self, launch: Launch) -> Invocation:
+    def build_first_round(self, launch: Launch) -> Invocation:
         """Return how to run a session's first round.
 
         The command names no prompt, which is how Claude knows to read one
@@ -57,7 +57,7 @@ class Claude(Adapter):
             launch.prompt,
         )
 
-    def resume(self, launch: Launch) -> Invocation:
+    def build_resumed_round(self, launch: Launch) -> Invocation:
         """Return how to continue the session in this directory.
 
         Claude recovers the model and the effort itself, so a resume replays
