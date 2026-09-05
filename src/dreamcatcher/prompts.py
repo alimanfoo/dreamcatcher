@@ -1,4 +1,4 @@
-"""Compose what the daemon asks a session to do.
+"""Compose the prompts that the daemon starts and resumes a session with.
 
 A session is asked something at each of the four points its life can turn on: a
 dispatch opens it, an unfinished round is carried on, the user posts on the

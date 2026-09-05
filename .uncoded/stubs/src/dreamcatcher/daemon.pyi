@@ -17,10 +17,10 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import Unknown, identify_account, identify_repository
 from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.lock import hold
-from dreamcatcher.resumes import Finding, Resume, judge_session, list_waiting, sort_resumes
 from dreamcatcher.rounds import Cause, Round
 from dreamcatcher.sessions import Session, advance_watermark, create_session, discard_session, read_sessions
 from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, Waiting
+from dreamcatcher.wakeups import Finding, Wakeup, judge_session, list_waiting, sort_wakeups
 
 COOLDOWN = timedelta(minutes=15)
 
@@ -43,16 +43,16 @@ class Daemon:
     def _decide_and_launch(self, repository: str, account: str, at: datetime) -> LastTick:
         ...
 
-    def _reconcile(self, repository: str, account: str, sessions: list[Session]) -> list[Finding]:
+    def _judge_sessions(self, repository: str, account: str, sessions: list[Session]) -> list[Finding]:
         ...
 
-    def _resume_session(self, at: datetime, resume: Resume, found: list[Finding]) -> LastTick:
+    def _resume_session(self, at: datetime, wakeup: Wakeup, found: list[Finding]) -> LastTick:
         ...
 
-    def _launch_resume(self, resume: Resume) -> None:
+    def _launch_wakeup(self, wakeup: Wakeup) -> None:
         ...
 
-    def _hold_round(self, session: Session, prompt: str, cause: Cause) -> None:
+    def _start_round(self, session: Session, prompt: str, cause: Cause) -> None:
         ...
 
     def _dispatch_oldest_issue(self, at: datetime, judged: list[CandidateIssue], waiting: list[Waiting]) -> LastTick:

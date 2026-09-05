@@ -37,13 +37,16 @@ class CandidateIssue(Document):
 
 
 class Waiting(Document):
-    """A session that no round is running for, and what it is waiting on.
+    """A session with no round running, waiting for the round that would
+    carry it on.
 
-    The reason is the evidence in words, not a diagnosis of it. It is the round
-    the tick found for the session and had no slot to launch, or what stopped
-    the tick giving the session one at all. A round that failed carries the
-    status it failed with, so a run of usage-limit failures reads as what it
-    is.
+    The reason is a string that says what the session is waiting on, in the
+    words the tick found it in. Where the last round did not complete, the
+    reason carries the status it ended with, so a run of usage-limit failures
+    is recognisable from this reason string. A session is also waiting when the
+    tick found it a round and had no slot to launch it, when no round has run
+    yet, when nobody has opened a pull request on it, and when a read of GitHub
+    could not tell.
     """
 
     session: str

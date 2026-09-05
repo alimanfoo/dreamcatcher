@@ -8,7 +8,8 @@ Open work goes before new work, and the most open of it first: a round that did
 not finish is carried on, then a merged or closed pull request gets its last
 round, then a session answers what the user posted. Only when no session needs
 anything does the tick ask GitHub which labelled issues it could dispatch, and
-dispatch the oldest one nothing stands in the way of.
+dispatch the oldest one that no session and no pull request has claimed and no
+open issue blocks. `eligibility.py` holds that rule whole, the labels included.
 
 Whatever it observed and decided goes into `last-tick.json`, so what the daemon
 did not do, and why, is as readable as what it did.
@@ -31,13 +32,6 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import Unknown, identify_account, identify_repository
 from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.lock import hold
-from dreamcatcher.resumes import (
-    Finding,
-    Resume,
-    judge_session,
-    list_waiting,
-    sort_resumes,
-)
 from dreamcatcher.rounds import Cause, Round
 from dreamcatcher.sessions import (
     Session,
@@ -47,6 +41,13 @@ from dreamcatcher.sessions import (
     read_sessions,
 )
 from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, Waiting
+from dreamcatcher.wakeups import (
+    Finding,
+    Wakeup,
+    judge_session,
+    list_waiting,
+    sort_wakeups,
+)
 
 # How long the daemon holds every launch once a round has failed, dispatches
 # and retries alike. There is no cause detection behind this and no schedule:
@@ -159,18 +160,18 @@ class Daemon:
         its own rounds. So a tick that was at the cap says so, rather than
         pretending that it looked.
 
-        The cooldown holds every launch, a resume and a dispatch alike, but it
+        The cooldown holds every launch, a wakeup and a dispatch alike, but it
         holds no read. So a tick under it still says what each session is
         waiting on, rather than going quiet for the whole fifteen minutes.
         """
         if len(self.rounds) >= self.config.max_agents:
             return LastTick(at=at, hold=f"at cap: {len(self.rounds)} rounds running")
         sessions = read_sessions(self.state)
-        found = self._reconcile(repository, account, sessions)
+        found = self._judge_sessions(repository, account, sessions)
         cooling = _check_cooldown(sessions, at)
         if cooling is not None:
             return LastTick(at=at, hold=cooling, waiting=list_waiting(found))
-        ready = sort_resumes([one for one in found if isinstance(one, Resume)])
+        ready = sort_wakeups([one for one in found if isinstance(one, Wakeup)])
         if ready:
             return self._resume_session(at, ready[0], found)
         judged = judge_issues(
@@ -180,13 +181,14 @@ class Daemon:
             return LastTick(at=at, hold=judged.reason, waiting=list_waiting(found))
         return self._dispatch_oldest_issue(at, judged, list_waiting(found))
 
-    def _reconcile(
+    def _judge_sessions(
         self, repository: str, account: str, sessions: list[Session]
     ) -> list[Finding]:
-        """Return what each session that no round is running for needs next.
+        """Return what each session needs next, and what each is waiting on.
 
-        A session the daemon is running a round for is working, not waiting, so
-        the tick leaves it alone and spends no GitHub call on it.
+        A session the daemon is already running a round for is skipped: it is
+        working, not waiting, so the tick leaves it alone and spends no GitHub
+        call on it. A session that needs nothing is left out of the answer.
         """
         found: list[Finding] = []
         for session in sessions:
@@ -198,23 +200,23 @@ class Daemon:
         return found
 
     def _resume_session(
-        self, at: datetime, resume: Resume, found: list[Finding]
+        self, at: datetime, wakeup: Wakeup, found: list[Finding]
     ) -> LastTick:
-        """Run the resume that won the tick, and return what it observed.
+        """Resume the session with the highest priority this tick.
 
-        Everything else the tick found waits for a later tick, and says what it
-        is waiting on. A launch that went wrong leaves all of it waiting, and
-        the next tick tries the same session again.
+        Every other session the tick found waits for a later tick, and says
+        what it is waiting on. A launch that went wrong leaves all of them
+        waiting, and the next tick tries the same session again.
         """
         try:
-            self._launch_resume(resume)
+            self._launch_wakeup(wakeup)
         except ReportableError as failure:
             return LastTick(at=at, hold=str(failure), waiting=list_waiting(found))
-        rest = [one for one in found if one is not resume]
-        return LastTick(at=at, launched=resume.session.key, waiting=list_waiting(rest))
+        rest = [one for one in found if one is not wakeup]
+        return LastTick(at=at, launched=wakeup.session.key, waiting=list_waiting(rest))
 
-    def _launch_resume(self, resume: Resume) -> None:
-        """Run the round the resume asks for, and hold it.
+    def _launch_wakeup(self, wakeup: Wakeup) -> None:
+        """Start the round the wakeup asks for, and keep it in `self.rounds`.
 
         The inbox lands before the round starts, because the prompt sends the
         session straight to it.
@@ -224,15 +226,19 @@ class Daemon:
         next tick reads the same posts again rather than losing them. A round
         that no post woke moves nothing.
         """
-        session = resume.session
-        if resume.inbox is not None:
-            write_json(resume.inbox, session.next_workspace.inbox)
-        self._hold_round(session, resume.prompt, resume.cause)
-        if resume.newest_post:
-            advance_watermark(session, resume.newest_post)
+        session = wakeup.session
+        if wakeup.inbox is not None:
+            write_json(wakeup.inbox, session.next_workspace.inbox)
+        self._start_round(session, wakeup.prompt, wakeup.cause)
+        if wakeup.newest_post:
+            advance_watermark(session, wakeup.newest_post)
 
-    def _hold_round(self, session: Session, prompt: str, cause: Cause) -> None:
-        """Run a round for the session, and hold it until it ends.
+    def _start_round(self, session: Session, prompt: str, cause: Cause) -> None:
+        """Start a round for the session, and keep it in `self.rounds`.
+
+        Keeping it there is what makes the round one of the daemon's own: the
+        cap counts it while it runs, and the daemon ends it as the daemon goes
+        down.
 
         The cause says how the harness starts. A dispatch opens a harness
         session of its own, and every other cause continues the one that the
@@ -261,7 +267,7 @@ class Daemon:
     def _dispatch_oldest_issue(
         self, at: datetime, judged: list[CandidateIssue], waiting: list[Waiting]
     ) -> LastTick:
-        """Dispatch the oldest issue that nothing stands in the way of.
+        """Dispatch the oldest issue that `eligibility.py` judged free to go.
 
         A tick launches one round, so every other eligible issue waits for a
         later tick. Every candidate is written down in the order it would go,
@@ -296,7 +302,7 @@ class Daemon:
             at,
         )
         try:
-            self._hold_round(session, session.record.prompt, Cause.DISPATCH)
+            self._start_round(session, session.record.prompt, Cause.DISPATCH)
         except ReportableError:
             discard_session(self.state, session.record)
             raise

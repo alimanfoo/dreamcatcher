@@ -1,16 +1,16 @@
 """Work out the round that a session needs next.
 
-A session sleeps between rounds, and three things wake it. A round that did not
-finish is carried on. A pull request that is merged or closed calls for one
-last round. And a pull request the user has posted on calls for a round that
-answers what the user said.
+A session lies dormant between its rounds, with no agent of its own running,
+and three things wake it. A round that did not finish is carried on. A pull
+request that is merged or closed calls for one last round. And a pull request
+the user has posted on calls for a round that answers what the user said.
 
 The most open work comes first, and that order is here. A session part way
 through a round is carried on before anything else. Then a finished pull
 request, whose session has one round left to run. Then the user's own posts.
 
 Nothing here launches a round or writes anything down. A caller that has
-decided asks for the resume and runs it.
+decided asks for the wakeup and runs it.
 """
 
 from dataclasses import dataclass
@@ -30,8 +30,8 @@ from dreamcatcher.state import Waiting
 
 
 @dataclass(frozen=True)
-class Resume:
-    """The round a session needs next, ready to run.
+class Wakeup:
+    """The round that would wake a dormant session, ready to run.
 
     The cause is what the round's own record keeps. The reason is the same
     thing in words and with the evidence, which a tick that could not launch
@@ -60,19 +60,19 @@ class Resume:
         return self.inbox.posts[-1].written_at
 
 
-# What a tick found about one session: the round it needs next, or what it is
+# What a tick found about one session: the wakeup it needs, or what it is
 # waiting on instead.
-type Finding = Resume | Waiting
+type Finding = Wakeup | Waiting
 
 
-# The order a tick takes resumes in, the most open work first.
+# The order a tick takes wakeups in, the most open work first.
 PRIORITY = (Cause.CARRY_ON, Cause.FINAL, Cause.POSTS)
 
 
-def sort_resumes(found: list[Resume]) -> list[Resume]:
-    """Return the resumes with the most open work first.
+def sort_wakeups(found: list[Wakeup]) -> list[Wakeup]:
+    """Return the wakeups with the most open work first.
 
-    Two resumes of one kind keep the order their sessions came in, which is by
+    Two wakeups of one kind keep the order their sessions came in, which is by
     key, so a tick takes the same one every time it looks.
     """
     return sorted(found, key=lambda resume: PRIORITY.index(resume.cause))
@@ -81,8 +81,8 @@ def sort_resumes(found: list[Resume]) -> list[Resume]:
 def list_waiting(found: list[Finding]) -> list[Waiting]:
     """Return what each of these findings says its session is waiting on.
 
-    A resume that no round ran is a session waiting for a later tick, and the
-    resume's own reason is what it is waiting on.
+    A wakeup that no round ran is a session waiting for a later tick, and the
+    wakeup's own reason is what it is waiting on.
     """
     return [
         one if isinstance(one, Waiting) else _wait(one.session, one.reason)
@@ -93,14 +93,14 @@ def list_waiting(found: list[Finding]) -> list[Waiting]:
 def judge_session(repository: str, account: str, session: Session) -> Finding | None:
     """Return what the session needs next, or nothing when it needs nothing.
 
-    A session that needs a round comes back as the resume that runs it, and one
+    A session that needs a round comes back as the wakeup that runs it, and one
     that needs something this tick cannot give comes back as the wait it is in.
 
     A session whose last round did not finish is carried on before anything
     else is even read, so a tick spends no GitHub call on the case that needs
     none.
 
-    A session that has run no round at all is waiting rather than resuming.
+    A session that has run no round at all is waiting rather than waking.
     Its dispatch cut the session and never started the first round, so no
     harness session exists to carry on, and only a person can take it from
     here.
@@ -109,7 +109,7 @@ def judge_session(repository: str, account: str, session: Session) -> Finding | 
         return _wait(session, "no round has run yet")
     unfinished = _check_last_round(session)
     if unfinished is not None:
-        return Resume(
+        return Wakeup(
             session=session,
             cause=Cause.CARRY_ON,
             reason=unfinished,
@@ -202,7 +202,7 @@ def _has_run_final_round(session: Session) -> bool:
 
 def _compose_resume(
     session: Session, pull_request: PullRequest, posted: list[AnyPost]
-) -> Resume:
+) -> Wakeup:
     """Return the round that the pull request and the user's posts call for.
 
     The prompt names the file the launch writes the inbox to, and the state in
@@ -210,7 +210,7 @@ def _compose_resume(
     the session up. So both rounds ask for the same thing in the same words.
     """
     is_open = pull_request.state is PullRequestState.OPEN
-    return Resume(
+    return Wakeup(
         session=session,
         cause=Cause.POSTS if is_open else Cause.FINAL,
         reason=(

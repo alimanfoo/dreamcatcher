@@ -21,7 +21,7 @@ from dreamcatcher.prompts import MARKER
 
 
 class Inbox(Document):
-    """The batch a round is woken with, as the session reads it.
+    """The batch of posts that a round is woken with, as the session reads it.
 
     The state is where the pull request had got to when the tick looked at it.
     It is what tells a session whether to answer the user or to wrap the

@@ -17,10 +17,10 @@ from records import write_round, write_session
 from dreamcatcher.github import PullRequestState
 from dreamcatcher.prompts import CARRY_ON_PROMPT, MARKER
 from dreamcatcher.relay import Inbox
-from dreamcatcher.resumes import Resume, judge_session, sort_resumes
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.sessions import advance_watermark, read_sessions
 from dreamcatcher.state import StateDirectory, Waiting
+from dreamcatcher.wakeups import Wakeup, judge_session, sort_wakeups
 
 KEY = "GH13-20260819-184158"
 
@@ -55,7 +55,7 @@ def ran(state, number: int, cause: Cause, status: int | None = 0) -> None:
     )
 
 
-def found(state) -> Resume | Waiting | None:
+def found(state) -> Wakeup | Waiting | None:
     """What the one session in that state directory needs next."""
     return judge_session(REPOSITORY, POSTED_BY, read_sessions(state)[0])
 
@@ -69,7 +69,7 @@ def test_a_session_whose_last_round_was_interrupted_is_carried_on(state):
 
     resume = found(state)
 
-    assert isinstance(resume, Resume)
+    assert isinstance(resume, Wakeup)
     assert resume.cause is Cause.CARRY_ON
     assert resume.reason == "the last round was interrupted"
     assert resume.prompt == CARRY_ON_PROMPT
@@ -81,7 +81,7 @@ def test_a_session_whose_last_round_failed_is_carried_on_with_its_status(state):
 
     resume = found(state)
 
-    assert isinstance(resume, Resume)
+    assert isinstance(resume, Wakeup)
     assert resume.cause is Cause.CARRY_ON
     assert resume.reason == "the last round failed (exit 2)"
 
@@ -106,7 +106,7 @@ def test_a_session_the_user_has_posted_on_answers_what_they_said(state, gh):
 
     resume = found(state)
 
-    assert isinstance(resume, Resume)
+    assert isinstance(resume, Wakeup)
     assert resume.cause is Cause.POSTS
     assert resume.reason == "1 new post to answer"
     assert resume.inbox is not None
@@ -126,7 +126,7 @@ def test_a_batch_of_posts_says_how_many_it_holds(state, gh):
 
     resume = found(state)
 
-    assert isinstance(resume, Resume)
+    assert isinstance(resume, Wakeup)
     assert resume.reason == "2 new posts to answer"
 
 
@@ -146,7 +146,7 @@ def test_the_prompt_of_a_posts_resume_sends_the_session_to_the_next_rounds_inbox
 
     resume = found(state)
 
-    assert isinstance(resume, Resume)
+    assert isinstance(resume, Wakeup)
     assert f"pull request #{PULL_REQUEST}" in resume.prompt
     assert str(resume.session.next_workspace.inbox) in resume.prompt
     assert resume.session.next_workspace.directory.name == "2"
@@ -162,7 +162,7 @@ def test_a_pull_request_that_is_finished_calls_for_one_last_round(
 
     resume = found(state)
 
-    assert isinstance(resume, Resume)
+    assert isinstance(resume, Wakeup)
     assert resume.cause is Cause.FINAL
     assert resume.reason == f"the pull request is {state_name.lower()}"
     assert resume.inbox == Inbox(state=state_name, posts=[])
@@ -176,7 +176,7 @@ def test_a_last_round_carries_what_the_user_said_before_the_merge(state, gh):
 
     resume = found(state)
 
-    assert isinstance(resume, Resume)
+    assert isinstance(resume, Wakeup)
     assert resume.cause is Cause.FINAL
     assert resume.inbox is not None
     assert [post.body for post in resume.inbox.posts] == [
@@ -220,7 +220,7 @@ def test_an_open_pull_request_outranks_the_ones_that_are_finished(state, gh):
 
     resume = found(state)
 
-    assert isinstance(resume, Resume)
+    assert isinstance(resume, Wakeup)
     assert f"pull request #{PULL_REQUEST}" in resume.prompt
 
 
@@ -233,7 +233,7 @@ def test_the_newest_of_two_finished_pull_requests_is_the_sessions_own(state, gh)
 
     resume = found(state)
 
-    assert isinstance(resume, Resume)
+    assert isinstance(resume, Wakeup)
     assert f"pull request #{PULL_REQUEST}" in resume.prompt
 
 
@@ -263,10 +263,10 @@ def test_a_peek_that_failed_leaves_the_session_waiting(state, gh):
 def test_the_most_open_work_comes_first(state):
     session = read_sessions(state)[0]
 
-    def resume(cause: Cause) -> Resume:
-        return Resume(session=session, cause=cause, reason="", prompt="")
+    def resume(cause: Cause) -> Wakeup:
+        return Wakeup(session=session, cause=cause, reason="", prompt="")
 
-    ordered = sort_resumes(
+    ordered = sort_wakeups(
         [resume(Cause.POSTS), resume(Cause.FINAL), resume(Cause.CARRY_ON)]
     )
 

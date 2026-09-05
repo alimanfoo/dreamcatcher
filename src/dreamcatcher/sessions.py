@@ -207,7 +207,7 @@ def _read_watermark(directory: Path) -> str:
 
 
 def advance_watermark(session: Session, newest: str) -> None:
-    """Write down the newest post the session has now been told about.
+    """Write the time of the newest post the session has now been told about.
 
     A round launching with a batch of posts as its inbox is what tells the
     session about them, and this is that launch's own write. Until it lands the
