@@ -26,7 +26,7 @@ from dreamcatcher.config import CONFIG_NAME, Harness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.rounds import Ending, RoundRecord
-from dreamcatcher.state import Candidate, LastTick, StateDirectory, Waiting
+from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, Waiting
 
 KEY = "GH13-20260819-184158"
 
@@ -322,8 +322,8 @@ def test_a_tick_launches_one_round_and_leaves_the_rest_in_the_queue(
     daemon.run()
 
     assert recorded(daemon).candidates == [
-        Candidate(issue=8, label=LABEL),
-        Candidate(issue=9, label=LABEL),
+        CandidateIssue(issue=8, label=LABEL),
+        CandidateIssue(issue=9, label=LABEL),
     ]
     assert recorded(daemon).dispatched == DISPATCHED_KEY
     assert not (daemon.state.worktrees / "GH9-20260819-184158").exists()
@@ -337,7 +337,9 @@ def test_a_second_tick_judges_a_dispatched_issue_handled(dispatching):
 
     assert recorded(daemon).dispatched is None
     assert recorded(daemon).candidates == [
-        Candidate(issue=8, label=LABEL, reason="a session of this run is working on it")
+        CandidateIssue(
+            issue=8, label=LABEL, reason="a session of this run is working on it"
+        )
     ]
 
 
@@ -364,7 +366,7 @@ def test_a_tick_with_nothing_eligible_dispatches_nothing(dispatching, offered):
 
     assert recorded(daemon).dispatched is None
     assert recorded(daemon).candidates == [
-        Candidate(issue=8, label=LABEL, reason="blocked by GH7")
+        CandidateIssue(issue=8, label=LABEL, reason="blocked by GH7")
     ]
     assert not daemon.state.worktrees.exists()
 
@@ -571,7 +573,7 @@ def test_a_dispatch_whose_round_will_not_start_leaves_no_session_behind(dispatch
     daemon.run()
 
     assert "cannot write" in held(daemon)
-    assert recorded(daemon).candidates == [Candidate(issue=8, label=LABEL)]
+    assert recorded(daemon).candidates == [CandidateIssue(issue=8, label=LABEL)]
     assert not (daemon.state.worktrees / DISPATCHED_KEY).exists()
     branch = f"dreamcatcher-{DISPATCHED_KEY}"
     assert git("branch", "--list", branch, cwd=dispatching) == ""

@@ -16,7 +16,7 @@ from dreamcatcher.config import CONFIG_NAME, Harness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.rounds import Ending, RoundRecord
-from dreamcatcher.state import Candidate, LastTick, StateDirectory, Waiting
+from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, Waiting
 
 KEY = 'GH13-20260819-184158'
 CAUSE = 'dispatched'

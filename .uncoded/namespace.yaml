@@ -313,7 +313,7 @@ src/:
       discard_session:
     state.py:
       STATE_DIRECTORY:
-      Candidate:
+      CandidateIssue:
         issue:
         label:
         reason:

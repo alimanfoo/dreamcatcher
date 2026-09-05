@@ -112,6 +112,10 @@ select = [
 ]
 ignore = [
     "any-type", # too broad to enforce
+    # A summary is one sentence, not one line. This rule ends the summary at the
+    # first newline, so a summary sentence that wraps reads to it as a
+    # description with no blank line before it.
+    "missing-blank-line-after-summary",
 ]
 
 [tool.ruff.lint.mccabe]

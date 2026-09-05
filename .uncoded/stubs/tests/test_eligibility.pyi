@@ -7,7 +7,7 @@ from conftest import FILED, LABEL, LATER, REPOSITORY, listing
 from dreamcatcher.config import Config
 from dreamcatcher.eligibility import judge_issues
 from dreamcatcher.github import Unknown
-from dreamcatcher.state import Candidate
+from dreamcatcher.state import CandidateIssue
 
 SETTINGS = {'prompt': '/dream:smith GH{issue}', 'model': 'opus[1m]', 'effort': 'xhigh'}
 
