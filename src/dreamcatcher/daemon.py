@@ -180,7 +180,7 @@ class Daemon:
             return LastTick(
                 at=at, hold=str(failure), candidates=judged, waiting=waiting
             )
-        return LastTick(at=at, dispatched=key, candidates=judged, waiting=waiting)
+        return LastTick(at=at, launched=key, candidates=judged, waiting=waiting)
 
     def _launch_session(self, candidate: CandidateIssue, at: datetime) -> str:
         """Cut a session for the candidate, run its first round, and hold it.

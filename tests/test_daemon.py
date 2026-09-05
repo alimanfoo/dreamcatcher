@@ -290,7 +290,7 @@ def test_a_tick_dispatches_the_oldest_issue_nothing_stands_in_the_way_of(
     session = daemon.state.sessions / DISPATCHED_KEY
     assert (daemon.state.worktrees / DISPATCHED_KEY / "README.md").exists()
     assert (session / "session.json").exists()
-    assert recorded(daemon).dispatched == DISPATCHED_KEY
+    assert recorded(daemon).launched == DISPATCHED_KEY
     assert (
         harnesses["claude"].calls[0].directory
         == (daemon.state.worktrees / DISPATCHED_KEY).resolve()
@@ -325,7 +325,7 @@ def test_a_tick_launches_one_round_and_leaves_the_rest_in_the_queue(
         CandidateIssue(issue=8, label=LABEL),
         CandidateIssue(issue=9, label=LABEL),
     ]
-    assert recorded(daemon).dispatched == DISPATCHED_KEY
+    assert recorded(daemon).launched == DISPATCHED_KEY
     assert not (daemon.state.worktrees / "GH9-20260819-184158").exists()
 
 
@@ -335,7 +335,7 @@ def test_a_second_tick_judges_a_dispatched_issue_handled(dispatching):
 
     daemon.run()
 
-    assert recorded(daemon).dispatched is None
+    assert recorded(daemon).launched is None
     assert recorded(daemon).candidates == [
         CandidateIssue(
             issue=8, label=LABEL, reason="a session of this run is working on it"
@@ -364,7 +364,7 @@ def test_a_tick_with_nothing_eligible_dispatches_nothing(dispatching, offered):
 
     daemon.run()
 
-    assert recorded(daemon).dispatched is None
+    assert recorded(daemon).launched is None
     assert recorded(daemon).candidates == [
         CandidateIssue(issue=8, label=LABEL, reason="blocked by GH7")
     ]
@@ -396,7 +396,7 @@ def test_a_tick_that_could_not_dispatch_records_the_failure_and_ticks_again(
 
     assert waiting.waited == [300, 300]
     assert "git worktree add" in held(daemon)
-    assert recorded(daemon).dispatched is None
+    assert recorded(daemon).launched is None
 
 
 def test_a_run_that_cannot_be_told_which_repository_this_is_refuses(
@@ -439,7 +439,7 @@ def test_a_round_that_failed_lately_holds_every_launch(dispatching):
     assert held(daemon) == (
         "the last round failed (exit 1) — next attempt at 18:50 UTC"
     )
-    assert recorded(daemon).dispatched is None
+    assert recorded(daemon).launched is None
     assert not (daemon.state.worktrees / DISPATCHED_KEY).exists()
 
 
@@ -459,7 +459,7 @@ def test_a_round_that_failed_long_enough_ago_holds_nothing(dispatching):
 
     daemon.run()
 
-    assert recorded(daemon).dispatched == DISPATCHED_KEY
+    assert recorded(daemon).launched == DISPATCHED_KEY
 
 
 def test_a_round_that_ended_well_holds_nothing(dispatching):
@@ -475,7 +475,7 @@ def test_a_round_that_ended_well_holds_nothing(dispatching):
 
     daemon.run()
 
-    assert recorded(daemon).dispatched == DISPATCHED_KEY
+    assert recorded(daemon).launched == DISPATCHED_KEY
 
 
 def test_a_session_whose_last_round_was_interrupted_reads_as_waiting(

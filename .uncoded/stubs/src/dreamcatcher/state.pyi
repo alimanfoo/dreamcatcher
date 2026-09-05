@@ -23,7 +23,7 @@ class Waiting(Document):
 class LastTick(Document):
     at: datetime
     hold: str | None = None
-    dispatched: str | None = None
+    launched: str | None = None
     candidates: list[CandidateIssue] = Field(default_factory=list)
     waiting: list[Waiting] = Field(default_factory=list)
 
