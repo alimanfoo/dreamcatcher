@@ -77,9 +77,13 @@ never touches the repo's own files. Contents:
 - `last-tick.json` — overwritten each tick: when the tick ran, and what the
   daemon observed and decided, including what it did not do and why (queued
   behind others, blocked by an open issue, skipped for double labels, deferred
-  at the cap, posts seen but not yet relayed). An eligible issue that the tick
-  did not dispatch carries no reason of its own: the candidates are written in
-  the order they would go, and that order is where its turn is recorded, so the
+  at the cap, posts seen but not yet relayed). Every session that no round is
+  running for is written down with what it is waiting on, which is the resume
+  the tick found and had no slot for, or the reason it can give the session
+  none: a read that could not tell, a session whose first round never started, a
+  session with no pull request open on it. An eligible issue that the tick did
+  not dispatch carries no reason of its own: the candidates are written in the
+  order they would go, and that order is where its turn is recorded, so the
   board reads "behind N others" off the position. The board's queue and waiting
   sections render this file. The time it records, with `daemon.pid`, tells
   `scry` whether the daemon is alive: the tick writes its own time rather than
@@ -163,12 +167,14 @@ failed `worktree add` has one to take away.
 ### The tick
 
 At startup, once: check that every harness CLI a mapping can settle a label on
-is installed, read the repository GitHub knows the checkout as, acquire the
-lock, sweep orphans — the pid of any round record with no end recorded is ended,
-and ending one that has already gone does nothing — and treat every round record
-with no end as interrupted. `run` refuses when a CLI is missing or when `gh`
-cannot name the repository, because neither can change under a running daemon
-and a run without them dispatches nothing.
+is installed, read the repository GitHub knows the checkout as and the account
+`gh` is signed in as, acquire the lock, sweep orphans — the pid of any round
+record with no end recorded is ended, and ending one that has already gone does
+nothing — and treat every round record with no end as interrupted. `run` refuses
+when a CLI is missing or when `gh` can name neither the repository nor the
+account, because none of them can change under a running daemon, a run without
+the repository dispatches nothing, and the relay tells the user's posts from the
+session's own by the account.
 
 Each tick, in order, launching at most one round per tick:
 
@@ -176,7 +182,10 @@ Each tick, in order, launching at most one round per tick:
    capped tick spends no GitHub calls at all. The board shows "at cap" honestly
    rather than pretending it checked.
 2. Reconcile: enumerate session worktrees, read GitHub state per session, peek
-   each open session's new posts (a read-only relay query — see below).
+   each session's new posts (a read-only relay query — see below). The peek runs
+   whatever state the pull request is in, so the final round of a merged pull
+   request still carries whatever the user said before merging it. A session
+   whose final round has already run is not peeked at again.
 3. Resume the most-open work first: interrupted and errored rounds (a fixed
    "carry on" resume, no inbox — interrupted means no end recorded, errored
    means the latest round exited non-zero, which a usage-limit failure is
@@ -361,9 +370,11 @@ into events, and rendering turns an event into text.
 One format regardless of harness: a timestamp, then a sentence the agent said or
 a bracketed action — `[Edit] src/theme.css`, `[Bash] pytest`, `[failed] ...` —
 with subagent activity indented, and round boundaries marked with their cause
-("round 3: resumed on 2 posts — a review, an inline comment"). Timestamps make
-silence legible: the follow view shows the age of the last event, which is the
-"working or stuck" answer and the seed of later stall detection.
+("round 3: new posts"). A cause is one of a fixed few words, and the batch that
+woke the round is in the `inbox.json` beside the record rather than in them.
+Timestamps make silence legible: the follow view shows the age of the last
+event, which is the "working or stuck" answer and the seed of later stall
+detection.
 
 The bracketed words divide in two. `[session]`, `[usage]`, `[failed]`,
 `[thinking]`, `[retry]`, `[report]` and `[result]` are the feed's own, and mean
