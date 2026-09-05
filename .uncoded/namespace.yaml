@@ -170,6 +170,7 @@ src/:
       LISTING_LIMIT:
       PAGE_SIZE:
       SPEAKING_VERDICTS:
+      AnyPost:
       REPOSITORY:
       ACCOUNT:
       ISSUES:
@@ -221,10 +222,13 @@ src/:
         body:
         is_speaking:
       Comment:
+        kind:
       Review:
+        kind:
         verdict:
         is_speaking:
       InlineComment:
+        kind:
         path:
         side:
         line:
@@ -254,6 +258,9 @@ src/:
       compose_first_round_prompt:
       compose_inbox_prompt:
     relay.py:
+      Inbox:
+        state:
+        posts:
       peek_new_posts:
       _is_new_from_user:
     rounds.py:
@@ -733,6 +740,8 @@ tests/:
     test_a_suggestion_over_a_range_comes_back_with_its_lines_and_its_diff:
     test_a_read_that_failed_says_so_rather_than_reading_as_nothing_posted:
     test_every_post_the_user_said_something_in_on_a_real_pull_request_comes_back:
+    test_an_inbox_says_where_the_pull_request_got_to_and_what_each_post_is:
+    test_an_inbox_a_merged_pull_request_woke_carries_no_post:
   test_rounds.py:
     RECORDING:
     STAMP:

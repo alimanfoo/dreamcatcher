@@ -5,7 +5,7 @@ from datetime import datetime
 from enum import StrEnum
 from itertools import chain
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import (
     AliasChoices,
@@ -157,7 +157,9 @@ class Post(Projection):
     likewise authored by nobody, and so is nobody's to relay.
 
     Each of the three kinds below is a class of its own, and no post is read as
-    this base alone.
+    this base alone. Each also names its own kind, because the three reach a
+    session as one list, written to a file where the class no longer says which
+    is which.
     """
 
     id: int
@@ -176,10 +178,13 @@ class Post(Projection):
 class Comment(Post):
     """A comment on the pull request's own conversation."""
 
+    kind: Literal["comment"] = "comment"
+
 
 class Review(Post):
     """A review somebody submitted, and the verdict that it carried."""
 
+    kind: Literal["review"] = "review"
     verdict: Verdict = Field(alias="state")
 
     @property
@@ -206,6 +211,7 @@ class InlineComment(Post):
     whole file names no line at all.
     """
 
+    kind: Literal["inlineComment"] = "inlineComment"
     path: str
     side: str
     line: int | None = None
@@ -232,6 +238,11 @@ class InlineComment(Post):
             "start_line": document.get("start_line")
             or document.get("original_start_line"),
         }
+
+
+# Every kind of post a pull request carries. The three read back as themselves,
+# so a batch written to a round's inbox keeps what each one is.
+type AnyPost = Comment | Review | InlineComment
 
 
 REPOSITORY = TypeAdapter(Repository)
@@ -352,7 +363,7 @@ def list_blockers(repository: str, issue: int) -> list[Blocker] | Unknown:
     )
 
 
-def list_posts(repository: str, pull_request: int) -> list[Post] | Unknown:
+def list_posts(repository: str, pull_request: int) -> list[AnyPost] | Unknown:
     """Return everything anybody posted on the pull request, from all three places.
 
     The three come back as one list, because somebody reading a pull request
@@ -364,7 +375,7 @@ def list_posts(repository: str, pull_request: int) -> list[Post] | Unknown:
     request, since the source it cannot see is the one that might hold the post
     the user is waiting for an answer to.
     """
-    found: list[Post] = []
+    found: list[AnyPost] = []
     for shape, under, listed in POST_LISTS:
         path = f"repos/{repository}/{under}/{pull_request}/{listed}"
         answered = _read_pages(shape, path)
@@ -374,9 +385,9 @@ def list_posts(repository: str, pull_request: int) -> list[Post] | Unknown:
     return found
 
 
-def _read_pages[PostT: Post](
+def _read_pages[PostT: AnyPost](
     shape: TypeAdapter[list[list[PostT]]], path: str
-) -> list[Post] | Unknown:
+) -> list[AnyPost] | Unknown:
     """Return every post the paginated list at path holds, or Unknown.
 
     gh reads every page for us, and answers with one array for each page it
@@ -387,7 +398,8 @@ def _read_pages[PostT: Post](
     )
     if isinstance(answered, Unknown):
         return answered
-    return list(chain.from_iterable(answered))
+    found: list[AnyPost] = list(chain.from_iterable(answered))
+    return found
 
 
 def _read[ReadT](

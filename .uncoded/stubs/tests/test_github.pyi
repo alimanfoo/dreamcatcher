@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 import pytest
 from conftest import POST_LIST_PATHS, POSTED_BY, PULL_REQUEST, pages
-from dreamcatcher.github import Blocker, BlockerState, Comment, InlineComment, Issue, LinkedPullRequest, Post, PullRequest, PullRequestState, Review, Unknown, Verdict, identify_account, identify_repository, list_blockers, list_issues, list_linked_pull_requests, list_posts, list_pull_requests
+from dreamcatcher.github import AnyPost, Blocker, BlockerState, Comment, InlineComment, Issue, LinkedPullRequest, PullRequest, PullRequestState, Review, Unknown, Verdict, identify_account, identify_repository, list_blockers, list_issues, list_linked_pull_requests, list_posts, list_pull_requests
 
 REPOSITORY = 'alimanfoo/dreamcatcher'
 BRANCH = 'dreamcatcher-GH8-20260820-000456'
@@ -38,7 +38,7 @@ def test_an_issue_nobody_has_claimed_has_no_linked_pull_request(fake):
 def test_the_blockers_of_an_issue_come_back_with_their_states(fake):
     ...
 
-def posted() -> list[Post]:
+def posted() -> list[AnyPost]:
     ...
 
 def test_a_pull_request_nobody_has_posted_on_comes_back_with_no_posts(gh_with_no_posts):
