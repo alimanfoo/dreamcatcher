@@ -18,13 +18,13 @@ def sort_resumes(found: list[Resume]) -> list[Resume]:
 def list_waiting(found: list[Finding]) -> list[Waiting]:
     ...
 
-def find_resume(repository: str, account: str, session: Session) -> Finding | None:
+def judge_session(repository: str, account: str, session: Session) -> Finding | None:
     ...
 
 def _check_last_round(session: Session) -> str | None:
     ...
 
-def _find_pull_request_resume(repository: str, account: str, session: Session) -> Finding | None:
+def _judge_pull_request(repository: str, account: str, session: Session) -> Finding | None:
     ...
 
 def _choose_pull_request(found: list[PullRequest]) -> PullRequest | None:

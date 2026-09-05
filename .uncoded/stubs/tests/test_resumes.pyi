@@ -5,22 +5,17 @@ import json
 from datetime import timedelta
 import pytest
 from clocks import PINNED
-from conftest import POST_LIST_PATHS, POSTED_BY, REPOSITORY, pages
+from conftest import POST_LIST_PATHS, POSTED_AT, POSTED_BY, PULL_REQUEST, REPOSITORY, comment, pages
 from records import write_round, write_session
 from dreamcatcher.github import PullRequestState
 from dreamcatcher.prompts import CARRY_ON_PROMPT, MARKER
 from dreamcatcher.relay import Inbox
-from dreamcatcher.resumes import Resume, find_resume, sort_resumes
+from dreamcatcher.resumes import Resume, judge_session, sort_resumes
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.sessions import advance_watermark, read_sessions
 from dreamcatcher.state import StateDirectory, Waiting
 
 KEY = 'GH13-20260819-184158'
-PULL_REQUEST = 52
-POSTED_AT = '2026-09-03T22:19:55Z'
-
-def comment(**fields: object) -> dict:
-    ...
 
 def state(tmp_path):
     ...

@@ -2,13 +2,13 @@
 # src/dreamcatcher/relay.py
 
 from dreamcatcher.documents import Document
-from dreamcatcher.github import AnyPost, Post, PullRequestState, Unknown, list_posts
+from dreamcatcher.github import AnyPost, PullRequestState, Unknown, list_posts
 from dreamcatcher.prompts import MARKER
 
 def peek_new_posts(repository: str, pull_request: int, *, account: str, watermark: str) -> list[AnyPost] | Unknown:
     ...
 
-def _is_new_from_user(post: Post, account: str, watermark: str) -> bool:
+def _is_new_from_user(post: AnyPost, account: str, watermark: str) -> bool:
     ...
 
 class Inbox(Document):

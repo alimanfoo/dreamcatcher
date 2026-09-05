@@ -3,24 +3,13 @@
 
 import json
 import pytest
-from conftest import POST_LIST_PATHS, POSTED_BY, PULL_REQUEST, REPOSITORY, pages
+from conftest import HUNK, POST_LIST_PATHS, POSTED_AT, POSTED_BY, PULL_REQUEST, REPOSITORY, comment, inline_comment, pages, review
 from dreamcatcher.documents import write_json
 from dreamcatcher.github import AnyPost, Comment, InlineComment, PullRequestState, Review, Unknown, Verdict
 from dreamcatcher.prompts import MARKER
 from dreamcatcher.relay import Inbox, peek_new_posts
 
-POSTED_AT = '2026-09-03T22:19:55Z'
 BEFORE = '2026-09-03T16:49:35Z'
-HUNK = ...
-
-def comment(**fields: object) -> dict:
-    ...
-
-def review(**fields: object) -> dict:
-    ...
-
-def inline_comment(**fields: object) -> dict:
-    ...
 
 def peeked(watermark: str) -> list[AnyPost]:
     ...

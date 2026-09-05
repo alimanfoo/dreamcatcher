@@ -82,8 +82,8 @@ def test_a_subagents_lines_are_indented_under_the_timestamp():
 
 
 def test_a_round_opens_with_its_number_and_its_cause():
-    assert feed().boundary(3, "resumed on 2 posts") == (
-        "2026-08-19T18:41:58Z  round 3: resumed on 2 posts\n"
+    assert feed().boundary(3, "new posts") == (
+        "2026-08-19T18:41:58Z  round 3: new posts\n"
     )
 
 

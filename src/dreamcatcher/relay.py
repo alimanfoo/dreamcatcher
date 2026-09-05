@@ -16,7 +16,7 @@ is what does.
 """
 
 from dreamcatcher.documents import Document
-from dreamcatcher.github import AnyPost, Post, PullRequestState, Unknown, list_posts
+from dreamcatcher.github import AnyPost, PullRequestState, Unknown, list_posts
 from dreamcatcher.prompts import MARKER
 
 
@@ -63,7 +63,7 @@ def peek_new_posts(
     )
 
 
-def _is_new_from_user(post: Post, account: str, watermark: str) -> bool:
+def _is_new_from_user(post: AnyPost, account: str, watermark: str) -> bool:
     """Whether the peek returns this post.
 
     The post has to be newer than the watermark, or the session has already

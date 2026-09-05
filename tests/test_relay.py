@@ -1,7 +1,18 @@
 import json
 
 import pytest
-from conftest import POST_LIST_PATHS, POSTED_BY, PULL_REQUEST, REPOSITORY, pages
+from conftest import (
+    HUNK,
+    POST_LIST_PATHS,
+    POSTED_AT,
+    POSTED_BY,
+    PULL_REQUEST,
+    REPOSITORY,
+    comment,
+    inline_comment,
+    pages,
+    review,
+)
 
 from dreamcatcher.documents import write_json
 from dreamcatcher.github import (
@@ -16,51 +27,8 @@ from dreamcatcher.github import (
 from dreamcatcher.prompts import MARKER
 from dreamcatcher.relay import Inbox, peek_new_posts
 
-# When the tests say the user posted, and a time before it.
-POSTED_AT = "2026-09-03T22:19:55Z"
-
+# A time before anything the tests say the user posted.
 BEFORE = "2026-09-03T16:49:35Z"
-
-# The diff an inline comment was written against.
-HUNK = (
-    '@@ -0,0 +1,3 @@\n+"""Carry what the user posts."""\n'
-    "+\n+from dreamcatcher import github"
-)
-
-
-def comment(**fields: object) -> dict:
-    """What gh answers one comment on the pull request's conversation with."""
-    return {
-        "id": 1,
-        "user": {"login": POSTED_BY},
-        "created_at": POSTED_AT,
-        "body": "have another look at the filter",
-    } | fields
-
-
-def review(**fields: object) -> dict:
-    """What gh answers one review with."""
-    return {
-        "id": 2,
-        "user": {"login": POSTED_BY},
-        "submitted_at": POSTED_AT,
-        "body": "",
-        "state": Verdict.COMMENTED,
-    } | fields
-
-
-def inline_comment(**fields: object) -> dict:
-    """What gh answers one comment on a line of the diff with."""
-    return {
-        "id": 3,
-        "user": {"login": POSTED_BY},
-        "created_at": POSTED_AT,
-        "body": "this reads the watermark twice",
-        "path": "src/dreamcatcher/relay.py",
-        "side": "RIGHT",
-        "line": 3,
-        "diff_hunk": HUNK,
-    } | fields
 
 
 def peeked(watermark: str = "") -> list[AnyPost]:

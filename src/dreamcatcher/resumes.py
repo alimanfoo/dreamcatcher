@@ -90,8 +90,11 @@ def list_waiting(found: list[Finding]) -> list[Waiting]:
     ]
 
 
-def find_resume(repository: str, account: str, session: Session) -> Finding | None:
-    """Return the round the session needs next, the wait it is in, or nothing.
+def judge_session(repository: str, account: str, session: Session) -> Finding | None:
+    """Return what the session needs next, or nothing when it needs nothing.
+
+    A session that needs a round comes back as the resume that runs it, and one
+    that needs something this tick cannot give comes back as the wait it is in.
 
     A session whose last round did not finish is carried on before anything
     else is even read, so a tick spends no GitHub call on the case that needs
@@ -112,7 +115,7 @@ def find_resume(repository: str, account: str, session: Session) -> Finding | No
             reason=unfinished,
             prompt=CARRY_ON_PROMPT,
         )
-    return _find_pull_request_resume(repository, account, session)
+    return _judge_pull_request(repository, account, session)
 
 
 def _check_last_round(session: Session) -> str | None:
@@ -131,7 +134,7 @@ def _check_last_round(session: Session) -> str | None:
     return None
 
 
-def _find_pull_request_resume(
+def _judge_pull_request(
     repository: str, account: str, session: Session
 ) -> Finding | None:
     """Return what the session's pull request asks of it, if anything.

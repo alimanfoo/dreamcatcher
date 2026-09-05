@@ -3,33 +3,26 @@ from datetime import timedelta
 
 import pytest
 from clocks import PINNED
-from conftest import POST_LIST_PATHS, POSTED_BY, REPOSITORY, pages
+from conftest import (
+    POST_LIST_PATHS,
+    POSTED_AT,
+    POSTED_BY,
+    PULL_REQUEST,
+    REPOSITORY,
+    comment,
+    pages,
+)
 from records import write_round, write_session
 
 from dreamcatcher.github import PullRequestState
 from dreamcatcher.prompts import CARRY_ON_PROMPT, MARKER
 from dreamcatcher.relay import Inbox
-from dreamcatcher.resumes import Resume, find_resume, sort_resumes
+from dreamcatcher.resumes import Resume, judge_session, sort_resumes
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.sessions import advance_watermark, read_sessions
 from dreamcatcher.state import StateDirectory, Waiting
 
 KEY = "GH13-20260819-184158"
-
-PULL_REQUEST = 52
-
-# When the tests say the user posted.
-POSTED_AT = "2026-09-03T22:19:55Z"
-
-
-def comment(**fields: object) -> dict:
-    """What gh answers one comment on the pull request's conversation with."""
-    return {
-        "id": 1,
-        "user": {"login": POSTED_BY},
-        "created_at": POSTED_AT,
-        "body": "have another look at the filter",
-    } | fields
 
 
 @pytest.fixture
@@ -66,7 +59,7 @@ def ran(state, number: int, cause: Cause, status: int | None = 0) -> None:
 
 def found(state) -> Resume | Waiting | None:
     """What the one session in that state directory needs next."""
-    return find_resume(REPOSITORY, POSTED_BY, read_sessions(state)[0])
+    return judge_session(REPOSITORY, POSTED_BY, read_sessions(state)[0])
 
 
 def test_a_session_that_has_run_no_round_at_all_waits_for_a_person(state):

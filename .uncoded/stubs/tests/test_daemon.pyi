@@ -8,7 +8,7 @@ from contextlib import suppress
 import psutil
 import pytest
 from clocks import PINNED, Ticking
-from conftest import CONFIG_HEAD, FILED, LABEL, LATER, POST_LIST_PATHS, POSTED_BY, REPOSITORY, SMITH_CLAUDE, SMITH_CODEX, git, gone, listing, pages
+from conftest import CONFIG_HEAD, FILED, LABEL, LATER, POST_LIST_PATHS, POSTED_AT, POSTED_BY, PULL_REQUEST, REPOSITORY, SMITH_CLAUDE, SMITH_CODEX, comment, git, gone, listing, pages
 from fakes import Line
 from records import write_round, write_session
 from dreamcatcher.commands import spawn
@@ -23,10 +23,7 @@ KEY = 'GH13-20260819-184158'
 CAUSE = Cause.DISPATCH
 STILL_RUNNING = 30
 DISPATCHED_KEY = 'GH8-20260819-184158'
-PULL_REQUEST = 52
 CONVERSATION = POST_LIST_PATHS['conversation']
-POSTED_AT = '2026-09-03T22:19:55Z'
-POSTED = ...
 
 def left_running(tmp_path):
     ...

@@ -112,16 +112,16 @@ src/:
         __init__:
         run:
         tick:
-        _identify_repository:
-        _identify_account:
         _decide_and_launch:
         _reconcile:
         _resume_session:
         _launch_resume:
+        _hold_round:
         _dispatch_oldest_issue:
         _launch_session:
         _locate_harnesses:
         _sweep_orphans:
+      _refuse_unknown:
       _check_cooldown:
     documents.py:
       WRITING:
@@ -277,9 +277,9 @@ src/:
         newest_post:
       sort_resumes:
       list_waiting:
-      find_resume:
+      judge_session:
       _check_last_round:
-      _find_pull_request_resume:
+      _judge_pull_request:
       _choose_pull_request:
       _has_run_final_round:
       _compose_resume:
@@ -390,6 +390,8 @@ tests/:
     REPOSITORY:
     PULL_REQUEST:
     POSTED_BY:
+    POSTED_AT:
+    HUNK:
     POST_LIST_PATHS:
     LABEL:
     FILED:
@@ -400,6 +402,9 @@ tests/:
     pytest_configure:
     streamed:
     listing:
+    comment:
+    review:
+    inline_comment:
     pages:
     recorded_posts:
     git:
@@ -553,10 +558,7 @@ tests/:
     CAUSE:
     STILL_RUNNING:
     DISPATCHED_KEY:
-    PULL_REQUEST:
     CONVERSATION:
-    POSTED_AT:
-    POSTED:
     Interrupting:
       __init__:
       __call__:
@@ -762,12 +764,7 @@ tests/:
     RECORDINGS:
     test_a_recorded_stream_renders_as_its_golden_feed:
   test_relay.py:
-    POSTED_AT:
     BEFORE:
-    HUNK:
-    comment:
-    review:
-    inline_comment:
     peeked:
     test_a_pull_request_nobody_has_posted_on_has_nothing_to_relay:
     test_a_session_that_has_seen_nothing_yet_is_told_the_whole_history:
@@ -786,9 +783,6 @@ tests/:
     test_an_inbox_a_merged_pull_request_woke_carries_no_post:
   test_resumes.py:
     KEY:
-    PULL_REQUEST:
-    POSTED_AT:
-    comment:
     state:
     gh:
     ran:

@@ -7,7 +7,7 @@ from dreamcatcher.commands import CommandError
 from dreamcatcher.config import CONFIG_NAME, Harness, read_config
 from dreamcatcher.documents import write_text
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.rounds import Ending, RoundRecord, Workspace
+from dreamcatcher.rounds import Cause, Ending, RoundRecord, Workspace
 from dreamcatcher.sessions import (
     WATERMARK,
     SessionRecord,
@@ -164,14 +164,14 @@ def test_a_sessions_rounds_read_back_in_the_order_they_ran(state, mapping):
     create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
     later = PINNED.replace(minute=50)
     directory = state.sessions / KEY
-    write_round(directory, 2, RoundRecord(started=later, pid=1, cause="dispatched"))
+    write_round(directory, 2, RoundRecord(started=later, pid=1, cause=Cause.DISPATCH))
     write_round(
         directory,
         1,
         RoundRecord(
             started=PINNED,
             pid=1,
-            cause="dispatched",
+            cause=Cause.DISPATCH,
             ending=Ending(at=later, status=0),
         ),
     )

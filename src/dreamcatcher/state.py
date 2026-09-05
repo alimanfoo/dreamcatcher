@@ -37,14 +37,13 @@ class CandidateIssue(Document):
 
 
 class Waiting(Document):
-    """A session where the last round did not complete successfully and so is
-    waiting for another round to continue.
+    """A session that no round is running for, and what it is waiting on.
 
-    The reason is a string that says why the session's most recent round ended,
-    in the words that the round's own record kept. A round may have been
-    interrupted, or it may have failed with a status, and the reason carries
-    that status. A run of usage-limit failures is therefore recognisable from
-    this reason string.
+    The reason is the evidence in words, not a diagnosis of it. It is the round
+    the tick found for the session and had no slot to launch, or what stopped
+    the tick giving the session one at all. A round that failed carries the
+    status it failed with, so a run of usage-limit failures reads as what it
+    is.
     """
 
     session: str

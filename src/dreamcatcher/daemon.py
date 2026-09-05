@@ -34,7 +34,7 @@ from dreamcatcher.lock import hold
 from dreamcatcher.resumes import (
     Finding,
     Resume,
-    find_resume,
+    judge_session,
     list_waiting,
     sort_resumes,
 )
@@ -95,11 +95,20 @@ class Daemon:
         refuses when any of those will not answer, rather than starting a loop
         that could never dispatch. Once the loop is going, a tick that fails
         records the failure and the next tick tries again.
+
+        The repository and the account are read here and nowhere else. Neither
+        can change while the daemon holds the repo, a run that cannot name the
+        repository dispatches nothing, and the relay tells the user's posts
+        from the session's own by the account.
         """
         self._locate_harnesses()
         self.state.bootstrap()
-        repository = self._identify_repository()
-        account = self._identify_account()
+        repository = _refuse_unknown(
+            identify_repository(self.state.root), "which repository this is"
+        )
+        account = _refuse_unknown(
+            identify_account(), "which account gh is signed in as"
+        )
         with hold(self.state.lock):
             self._sweep_orphans()
             try:
@@ -139,36 +148,6 @@ class Daemon:
         except ReportableError as failure:
             observed = LastTick(at=at, hold=str(failure))
         write_json(observed, self.state.last_tick)
-
-    def _identify_repository(self) -> str:
-        """Return the repository that GitHub knows this checkout as.
-
-        A run reads this once, as it starts. It cannot change while the daemon
-        holds the repo, and a run that cannot name it can do nothing at all, so
-        the run refuses here rather than failing every tick.
-        """
-        named = identify_repository(self.state.root)
-        if isinstance(named, Unknown):
-            raise ReportableError(
-                f"dreamcatcher cannot tell which repository this is: {named.reason}"
-            )
-        return named
-
-    def _identify_account(self) -> str:
-        """Return the account that gh is signed in as.
-
-        A run reads this once, as it starts, for the reason it reads the
-        repository once. It cannot change while the daemon holds the repo, and
-        the relay tells the user's posts from the session's own by it, so a run
-        that cannot name it could never carry a post to a session.
-        """
-        named = identify_account()
-        if isinstance(named, Unknown):
-            raise ReportableError(
-                "dreamcatcher cannot tell which account gh is signed in as: "
-                f"{named.reason}"
-            )
-        return named
 
     def _decide_and_launch(
         self, repository: str, account: str, at: datetime
@@ -212,7 +191,7 @@ class Daemon:
         for session in sessions:
             if session.key in self.rounds:
                 continue
-            needed = find_resume(repository, account, session)
+            needed = judge_session(repository, account, session)
             if needed is not None:
                 found.append(needed)
         return found
@@ -245,25 +224,38 @@ class Daemon:
         that no post woke moves nothing.
         """
         session = resume.session
-        workspace = session.next_workspace
         if resume.inbox is not None:
-            write_json(resume.inbox, workspace.inbox)
+            write_json(resume.inbox, session.next_workspace.inbox)
+        self._hold_round(session, resume.prompt, resume.cause)
+        if resume.newest_post:
+            advance_watermark(session, resume.newest_post)
+
+    def _hold_round(self, session: Session, prompt: str, cause: Cause) -> None:
+        """Run a round for the session, and hold it until it ends.
+
+        The cause says how the harness starts. A dispatch opens a harness
+        session of its own, and every other cause continues the one that the
+        session already has, so no caller has to say which.
+
+        Every round runs with the model and the effort the dispatch settled,
+        which is why they come from the session's record and never from the
+        config.
+        """
         adapter = ADAPTERS[session.record.harness]
         launch = Launch(
             session=session.key,
             model=session.record.model,
             effort=session.record.effort,
-            prompt=resume.prompt,
+            prompt=prompt,
+        )
+        invocation = (
+            adapter.build_first_round(launch)
+            if cause is Cause.DISPATCH
+            else adapter.build_resumed_round(launch)
         )
         self.rounds[session.key] = Round(
-            adapter,
-            adapter.build_resumed_round(launch),
-            workspace,
-            resume.cause,
-            clock=self.clock,
+            adapter, invocation, session.next_workspace, cause, clock=self.clock
         )
-        if resume.newest_post:
-            advance_watermark(session, resume.newest_post)
 
     def _dispatch_oldest_issue(
         self, at: datetime, judged: list[CandidateIssue], waiting: list[Waiting]
@@ -302,21 +294,8 @@ class Daemon:
             candidate.issue,
             at,
         )
-        adapter = ADAPTERS[session.record.harness]
-        launch = Launch(
-            session=session.key,
-            model=session.record.model,
-            effort=session.record.effort,
-            prompt=session.record.prompt,
-        )
         try:
-            self.rounds[session.key] = Round(
-                adapter,
-                adapter.build_first_round(launch),
-                session.next_workspace,
-                Cause.DISPATCH,
-                clock=self.clock,
-            )
+            self._hold_round(session, session.record.prompt, Cause.DISPATCH)
         except ReportableError:
             discard_session(self.state, session.record)
             raise
@@ -360,6 +339,13 @@ class Daemon:
             for record in session.rounds:
                 if record.ending is None:
                     teardown.end(record.pid)
+
+
+def _refuse_unknown(named: str | Unknown, question: str) -> str:
+    """Return what gh named, or refuse the run saying what it could not tell."""
+    if isinstance(named, Unknown):
+        raise ReportableError(f"dreamcatcher cannot tell {question}: {named.reason}")
+    return named
 
 
 def _check_cooldown(sessions: list[Session], at: datetime) -> str | None:

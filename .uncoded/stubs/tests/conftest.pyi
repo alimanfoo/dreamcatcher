@@ -18,6 +18,8 @@ FIXTURES = Path(__file__).parent / 'fixtures'
 REPOSITORY = 'alimanfoo/dreamcatcher'
 PULL_REQUEST = 52
 POSTED_BY = 'alimanfoo'
+POSTED_AT = '2026-09-03T22:19:55Z'
+HUNK = ...
 POST_LIST_PATHS = ...
 LABEL = 'dream:smith'
 FILED = '2026-08-19T18:41:58Z'
@@ -33,6 +35,15 @@ def streamed(**fields: object) -> str:
     ...
 
 def listing(*issues: tuple[int, str]) -> str:
+    ...
+
+def comment(**fields: object) -> dict:
+    ...
+
+def review(**fields: object) -> dict:
+    ...
+
+def inline_comment(**fields: object) -> dict:
     ...
 
 def pages(*posts: dict) -> str:

@@ -12,10 +12,13 @@ from conftest import (
     LABEL,
     LATER,
     POST_LIST_PATHS,
+    POSTED_AT,
     POSTED_BY,
+    PULL_REQUEST,
     REPOSITORY,
     SMITH_CLAUDE,
     SMITH_CODEX,
+    comment,
     git,
     gone,
     listing,
@@ -45,21 +48,9 @@ STILL_RUNNING = 30
 # The key of the session that a dispatch at the pinned time cuts for issue 8.
 DISPATCHED_KEY = "GH8-20260819-184158"
 
-# The pull request the tests say the session on disk has open, and where gh
-# keeps the conversation on it.
-PULL_REQUEST = 52
-
+# Where gh keeps the conversation on the pull request that the session on disk
+# has open.
 CONVERSATION = POST_LIST_PATHS["conversation"]
-
-# When the tests say the user posted, and the comment they posted.
-POSTED_AT = "2026-09-03T22:19:55Z"
-
-POSTED = {
-    "id": 1,
-    "user": {"login": POSTED_BY},
-    "created_at": POSTED_AT,
-    "body": "have another look at the filter",
-}
 
 
 @pytest.fixture
@@ -668,7 +659,7 @@ def test_a_carried_on_round_says_that_is_what_woke_it(resuming, left_running):
 def test_a_session_the_user_has_posted_on_is_told_what_they_said(resuming, gh):
     ran(resuming, 1, Cause.DISPATCH)
     gh.replies(json.dumps([{"number": PULL_REQUEST, "state": "OPEN"}]), to="pr list")
-    gh.replies(pages(POSTED), to=f"api {POST_LIST_PATHS['conversation']}")
+    gh.replies(pages(comment()), to=f"api {POST_LIST_PATHS['conversation']}")
     daemon = settling(resuming)
 
     daemon.run()
@@ -686,7 +677,7 @@ def test_a_session_the_user_has_posted_on_is_told_what_they_said(resuming, gh):
 def test_a_session_told_about_a_batch_hears_it_only_once(resuming, gh):
     ran(resuming, 1, Cause.DISPATCH)
     gh.replies(json.dumps([{"number": PULL_REQUEST, "state": "OPEN"}]), to="pr list")
-    gh.replies(pages(POSTED), to=f"api {POST_LIST_PATHS['conversation']}")
+    gh.replies(pages(comment()), to=f"api {POST_LIST_PATHS['conversation']}")
     daemon = settling(resuming, ticks=2)
 
     daemon.run()
@@ -701,7 +692,7 @@ def test_a_session_told_about_a_batch_hears_it_only_once(resuming, gh):
 def test_a_batch_no_round_ever_launched_is_read_again_next_tick(resuming, gh):
     ran(resuming, 1, Cause.DISPATCH)
     gh.replies(json.dumps([{"number": PULL_REQUEST, "state": "OPEN"}]), to="pr list")
-    gh.replies(pages(POSTED), to=f"api {POST_LIST_PATHS['conversation']}")
+    gh.replies(pages(comment()), to=f"api {POST_LIST_PATHS['conversation']}")
     # A file where the round's own directory goes, so no round can ever start.
     occupied = StateDirectory(resuming).sessions / KEY / "rounds" / "2"
     occupied.parent.mkdir(parents=True, exist_ok=True)

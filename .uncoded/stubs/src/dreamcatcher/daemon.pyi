@@ -17,12 +17,15 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import Unknown, identify_account, identify_repository
 from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.lock import hold
-from dreamcatcher.resumes import Finding, Resume, find_resume, list_waiting, sort_resumes
+from dreamcatcher.resumes import Finding, Resume, judge_session, list_waiting, sort_resumes
 from dreamcatcher.rounds import Cause, Round
 from dreamcatcher.sessions import Session, advance_watermark, create_session, discard_session, read_sessions
 from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, Waiting
 
 COOLDOWN = timedelta(minutes=15)
+
+def _refuse_unknown(named: str | Unknown, question: str) -> str:
+    ...
 
 def _check_cooldown(sessions: list[Session], at: datetime) -> str | None:
     ...
@@ -37,12 +40,6 @@ class Daemon:
     def tick(self, repository: str, account: str) -> None:
         ...
 
-    def _identify_repository(self) -> str:
-        ...
-
-    def _identify_account(self) -> str:
-        ...
-
     def _decide_and_launch(self, repository: str, account: str, at: datetime) -> LastTick:
         ...
 
@@ -53,6 +50,9 @@ class Daemon:
         ...
 
     def _launch_resume(self, resume: Resume) -> None:
+        ...
+
+    def _hold_round(self, session: Session, prompt: str, cause: Cause) -> None:
         ...
 
     def _dispatch_oldest_issue(self, at: datetime, judged: list[CandidateIssue], waiting: list[Waiting]) -> LastTick:
