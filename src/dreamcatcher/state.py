@@ -12,14 +12,17 @@ STATE_DIRECTORY = ".dreamcatcher"
 
 
 class Candidate(Document):
-    """One labelled issue a tick weighed, and what stood in its way.
+    """A labelled issue that is a candidate for dispatch.
 
-    A candidate is an issue under a single label, because the label decides
-    which harness runs it and which prompt it starts with. An issue that carries
-    two mapped labels becomes a candidate under each of them, and neither of
-    those can be dispatched.
+    A candidate is an issue under a single label, where the label decides which
+    harness runs it and which prompt it starts with.
 
-    A candidate with no reason is one that nothing stood in the way of.
+    An issue that carries two mapped labels becomes a candidate under each of
+    them, and so cannot be dispatched. The user has to resolve this ambiguity
+    first by removing one of the labels.
+
+    A candidate carries the reason that it cannot be dispatched, and a candidate
+    with no reason is one that nothing stood in the way of.
     """
 
     issue: int
@@ -33,13 +36,13 @@ class Candidate(Document):
 
 
 class Waiting(Document):
-    """A session with a round that nothing has carried on yet.
+    """A session whose last round did not succeed, waiting for a round to continue.
 
-    The reason says what the session's most recent round left it waiting on, in
-    the words that the round's own record kept. A round can have been
-    interrupted, or it can have failed with a status, and the reason carries
-    that status. A run of usage-limit failures is therefore recognisable for
-    what it is.
+    The reason is a string that says why the session's most recent round ended,
+    in the words that the round's own record kept. A round may have been
+    interrupted, or it may have failed with a status, and the reason carries
+    that status. A run of usage-limit failures is therefore recognisable from
+    this reason string.
     """
 
     session: str
