@@ -238,3 +238,35 @@ def test_an_inbox_a_merged_pull_request_woke_carries_no_post(tmp_path):
 
     read_back = json.loads(written.read_text(encoding="utf-8"))
     assert read_back == {"state": "MERGED", "posts": []}
+
+
+def test_a_comment_on_a_whole_file_says_so_rather_than_naming_line_one(
+    gh_with_no_posts,
+):
+    gh_with_no_posts.replies(
+        pages(inline_comment(subject_type="file", line=1)),
+        to=f"api {POST_LIST_PATHS['inline-comments']}",
+    )
+
+    written = peeked()
+
+    assert [type(post) for post in written] == [InlineComment]
+    assert [
+        (post.subject_type, post.line)
+        for post in written
+        if isinstance(post, InlineComment)
+    ] == [("file", 1)]
+
+
+def test_a_comment_gh_says_nothing_about_the_subject_of_reads_as_one_on_a_line(
+    gh_with_no_posts,
+):
+    answered = inline_comment()
+    del answered["subject_type"]
+    gh_with_no_posts.replies(
+        pages(answered), to=f"api {POST_LIST_PATHS['inline-comments']}"
+    )
+
+    assert [
+        post.subject_type for post in peeked() if isinstance(post, InlineComment)
+    ] == ["line"]

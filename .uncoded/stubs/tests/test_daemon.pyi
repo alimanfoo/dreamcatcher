@@ -8,7 +8,7 @@ from contextlib import suppress
 import psutil
 import pytest
 from clocks import PINNED, Ticking
-from conftest import CONFIG_HEAD, FILED, LABEL, LATER, POST_LIST_PATHS, POSTED_AT, POSTED_BY, PULL_REQUEST, REPOSITORY, SMITH_CLAUDE, SMITH_CODEX, comment, git, gone, listing, pages
+from conftest import CONFIG_HEAD, FILED, LABEL, LATER, POST_LIST_PATHS, POSTED_AT, POSTED_BY, PULL_REQUEST, REPOSITORY, SMITH_CLAUDE, SMITH_CODEX, comment, git, gone, listing, pages, pull_requests
 from fakes import Line
 from records import write_round, write_session
 from dreamcatcher.commands import spawn

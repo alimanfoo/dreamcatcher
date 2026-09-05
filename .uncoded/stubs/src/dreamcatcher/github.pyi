@@ -116,6 +116,7 @@ class Review(Post):
 class InlineComment(Post):
     kind: Literal['inlineComment'] = 'inlineComment'
     path: str
+    subject_type: str = 'line'
     side: str
     line: int | None = None
     start_line: int | None = None

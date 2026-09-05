@@ -191,10 +191,11 @@ def _choose_pull_request(found: list[PullRequest]) -> PullRequest | None:
 def _has_run_final_round(session: Session) -> bool:
     """Whether the session has already run the round that winds it up.
 
-    Only a session whose last round finished reaches this, so a final round
-    among its rounds is a final round that completed. One that was interrupted
-    or that failed is carried on first, and the carry-on finishes what the
-    final round started.
+    Any round of the session having been the final round is what this reads,
+    and no record's ending comes into it. A session whose last round did not
+    finish is carried on before this is ever asked, and that carry-on finishes
+    what the final round started, so by the time the question is put the work
+    the final round stood for is done however many rounds it took.
     """
     return any(record.cause is Cause.FINAL for record in session.rounds)
 

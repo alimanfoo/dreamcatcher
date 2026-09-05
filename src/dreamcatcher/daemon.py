@@ -98,8 +98,9 @@ class Daemon:
 
         The repository and the account are read here and nowhere else. Neither
         can change while the daemon holds the repo, a run that cannot name the
-        repository dispatches nothing, and the relay tells the user's posts
-        from the session's own by the account.
+        repository dispatches nothing, and the relay reads every post against
+        the account before the marker tells the user's posts from the
+        session's own.
         """
         self._locate_harnesses()
         self.state.bootstrap()
@@ -199,7 +200,7 @@ class Daemon:
     def _resume_session(
         self, at: datetime, resume: Resume, found: list[Finding]
     ) -> LastTick:
-        """Carry the session on, and return what the tick observed.
+        """Run the resume that won the tick, and return what it observed.
 
         Everything else the tick found waits for a later tick, and says what it
         is waiting on. A launch that went wrong leaves all of it waiting, and

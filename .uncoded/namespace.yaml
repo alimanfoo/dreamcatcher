@@ -232,6 +232,7 @@ src/:
       InlineComment:
         kind:
         path:
+        subject_type:
         side:
         line:
         start_line:
@@ -405,6 +406,7 @@ tests/:
     comment:
     review:
     inline_comment:
+    pull_requests:
     pages:
     recorded_posts:
     git:
@@ -781,6 +783,8 @@ tests/:
     test_every_post_the_user_said_something_in_on_a_real_pull_request_comes_back:
     test_an_inbox_says_where_the_pull_request_got_to_and_what_each_post_is:
     test_an_inbox_a_merged_pull_request_woke_carries_no_post:
+    test_a_comment_on_a_whole_file_says_so_rather_than_naming_line_one:
+    test_a_comment_gh_says_nothing_about_the_subject_of_reads_as_one_on_a_line:
   test_resumes.py:
     KEY:
     state:

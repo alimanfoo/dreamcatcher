@@ -124,10 +124,16 @@ def inline_comment(**fields: object) -> dict:
         "created_at": POSTED_AT,
         "body": "this reads the watermark twice",
         "path": "src/dreamcatcher/relay.py",
+        "subject_type": "line",
         "side": "RIGHT",
         "line": 3,
         "diff_hunk": HUNK,
     } | fields
+
+
+def pull_requests(*listed: tuple[int, str]) -> str:
+    """Return what gh answers a pull request listing with."""
+    return json.dumps([{"number": number, "state": state} for number, state in listed])
 
 
 def pages(*posts: dict) -> str:

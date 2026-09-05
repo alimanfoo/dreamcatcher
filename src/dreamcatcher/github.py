@@ -207,12 +207,18 @@ class InlineComment(Post):
     The lines are where the comment was written, and the hunk is the piece of
     the diff those lines sit in. So a comment on a range of lines reaches the
     session with the lines themselves, and not with their numbers alone, which
-    is what a comment proposing a replacement for them needs. A comment on a
-    whole file names no line at all.
+    is what a comment proposing a replacement for them needs.
+
+    Somebody can comment on a whole file rather than on any line of it, and
+    GitHub says `file` for that one and reports it against line 1 all the
+    same. So the subject is what tells a session that the user picked the file
+    and not that line. GitHub says `line` for every other comment, and an old
+    comment that says nothing at all named a line, which is what it reads as.
     """
 
     kind: Literal["inlineComment"] = "inlineComment"
     path: str
+    subject_type: str = "line"
     side: str
     line: int | None = None
     start_line: int | None = None

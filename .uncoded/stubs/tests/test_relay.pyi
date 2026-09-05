@@ -58,3 +58,9 @@ def test_an_inbox_says_where_the_pull_request_got_to_and_what_each_post_is(gh_wi
 
 def test_an_inbox_a_merged_pull_request_woke_carries_no_post(tmp_path):
     ...
+
+def test_a_comment_on_a_whole_file_says_so_rather_than_naming_line_one(gh_with_no_posts):
+    ...
+
+def test_a_comment_gh_says_nothing_about_the_subject_of_reads_as_one_on_a_line(gh_with_no_posts):
+    ...

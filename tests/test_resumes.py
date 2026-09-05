@@ -1,4 +1,3 @@
-import json
 from datetime import timedelta
 
 import pytest
@@ -11,6 +10,7 @@ from conftest import (
     REPOSITORY,
     comment,
     pages,
+    pull_requests,
 )
 from records import write_round, write_session
 
@@ -36,9 +36,7 @@ def state(tmp_path):
 @pytest.fixture
 def gh(gh_with_no_posts):
     """A gh answering with one open pull request that nobody has posted on."""
-    gh_with_no_posts.replies(
-        json.dumps([{"number": PULL_REQUEST, "state": "OPEN"}]), to="pr list"
-    )
+    gh_with_no_posts.replies(pull_requests((PULL_REQUEST, "OPEN")), to="pr list")
     return gh_with_no_posts
 
 
@@ -160,9 +158,7 @@ def test_a_pull_request_that_is_finished_calls_for_one_last_round(
     state, gh, state_name
 ):
     ran(state, 1, Cause.DISPATCH)
-    gh.replies(
-        json.dumps([{"number": PULL_REQUEST, "state": state_name}]), to="pr list"
-    )
+    gh.replies(pull_requests((PULL_REQUEST, state_name)), to="pr list")
 
     resume = found(state)
 
@@ -175,7 +171,7 @@ def test_a_pull_request_that_is_finished_calls_for_one_last_round(
 
 def test_a_last_round_carries_what_the_user_said_before_the_merge(state, gh):
     ran(state, 1, Cause.DISPATCH)
-    gh.replies(json.dumps([{"number": PULL_REQUEST, "state": "MERGED"}]), to="pr list")
+    gh.replies(pull_requests((PULL_REQUEST, "MERGED")), to="pr list")
     gh.replies(pages(comment()), to=f"api {POST_LIST_PATHS['conversation']}")
 
     resume = found(state)
@@ -191,7 +187,7 @@ def test_a_last_round_carries_what_the_user_said_before_the_merge(state, gh):
 def test_a_session_whose_last_round_wound_it_up_needs_nothing(state, gh):
     ran(state, 1, Cause.DISPATCH)
     ran(state, 2, Cause.FINAL)
-    gh.replies(json.dumps([{"number": PULL_REQUEST, "state": "MERGED"}]), to="pr list")
+    gh.replies(pull_requests((PULL_REQUEST, "MERGED")), to="pr list")
 
     assert found(state) is None
 
@@ -200,7 +196,7 @@ def test_a_last_round_that_was_carried_on_is_still_the_last_round(state, gh):
     ran(state, 1, Cause.DISPATCH)
     ran(state, 2, Cause.FINAL, status=None)
     ran(state, 3, Cause.CARRY_ON)
-    gh.replies(json.dumps([{"number": PULL_REQUEST, "state": "MERGED"}]), to="pr list")
+    gh.replies(pull_requests((PULL_REQUEST, "MERGED")), to="pr list")
 
     assert found(state) is None
 
@@ -217,12 +213,7 @@ def test_a_session_with_no_pull_request_of_its_own_waits_for_a_person(state, gh)
 def test_an_open_pull_request_outranks_the_ones_that_are_finished(state, gh):
     ran(state, 1, Cause.DISPATCH)
     gh.replies(
-        json.dumps(
-            [
-                {"number": 60, "state": "CLOSED"},
-                {"number": PULL_REQUEST, "state": "OPEN"},
-            ]
-        ),
+        pull_requests((60, "CLOSED"), (PULL_REQUEST, "OPEN")),
         to="pr list",
     )
     gh.replies(pages(comment()), to=f"api {POST_LIST_PATHS['conversation']}")
@@ -236,12 +227,7 @@ def test_an_open_pull_request_outranks_the_ones_that_are_finished(state, gh):
 def test_the_newest_of_two_finished_pull_requests_is_the_sessions_own(state, gh):
     ran(state, 1, Cause.DISPATCH)
     gh.replies(
-        json.dumps(
-            [
-                {"number": PULL_REQUEST, "state": "CLOSED"},
-                {"number": 40, "state": "MERGED"},
-            ]
-        ),
+        pull_requests((PULL_REQUEST, "CLOSED"), (40, "MERGED")),
         to="pr list",
     )
 

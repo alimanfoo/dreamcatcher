@@ -23,6 +23,7 @@ from conftest import (
     gone,
     listing,
     pages,
+    pull_requests,
 )
 from fakes import Line
 from records import write_round, write_session
@@ -414,7 +415,7 @@ def test_a_tick_at_the_cap_spends_no_github_call(dispatching, offered, harnesses
 
 
 def test_a_tick_with_nothing_eligible_dispatches_nothing(dispatching, offered):
-    offered.replies(json.dumps([{"number": 7, "state": "open"}]), to="api")
+    offered.replies(pull_requests((7, "open")), to="api")
     daemon, _, _ = idling(dispatching, ticks=1)
 
     daemon.run()
@@ -558,7 +559,7 @@ def test_a_session_with_an_open_pull_request_and_nothing_new_is_not_waiting(
     resuming, gh
 ):
     ran(resuming, 1, Cause.DISPATCH)
-    gh.replies(json.dumps([{"number": PULL_REQUEST, "state": "OPEN"}]), to="pr list")
+    gh.replies(pull_requests((PULL_REQUEST, "OPEN")), to="pr list")
     daemon, _, _ = idling(resuming, ticks=1)
 
     daemon.run()
@@ -658,7 +659,7 @@ def test_a_carried_on_round_says_that_is_what_woke_it(resuming, left_running):
 
 def test_a_session_the_user_has_posted_on_is_told_what_they_said(resuming, gh):
     ran(resuming, 1, Cause.DISPATCH)
-    gh.replies(json.dumps([{"number": PULL_REQUEST, "state": "OPEN"}]), to="pr list")
+    gh.replies(pull_requests((PULL_REQUEST, "OPEN")), to="pr list")
     gh.replies(pages(comment()), to=f"api {POST_LIST_PATHS['conversation']}")
     daemon = settling(resuming)
 
@@ -676,7 +677,7 @@ def test_a_session_the_user_has_posted_on_is_told_what_they_said(resuming, gh):
 
 def test_a_session_told_about_a_batch_hears_it_only_once(resuming, gh):
     ran(resuming, 1, Cause.DISPATCH)
-    gh.replies(json.dumps([{"number": PULL_REQUEST, "state": "OPEN"}]), to="pr list")
+    gh.replies(pull_requests((PULL_REQUEST, "OPEN")), to="pr list")
     gh.replies(pages(comment()), to=f"api {POST_LIST_PATHS['conversation']}")
     daemon = settling(resuming, ticks=2)
 
@@ -691,7 +692,7 @@ def test_a_session_told_about_a_batch_hears_it_only_once(resuming, gh):
 
 def test_a_batch_no_round_ever_launched_is_read_again_next_tick(resuming, gh):
     ran(resuming, 1, Cause.DISPATCH)
-    gh.replies(json.dumps([{"number": PULL_REQUEST, "state": "OPEN"}]), to="pr list")
+    gh.replies(pull_requests((PULL_REQUEST, "OPEN")), to="pr list")
     gh.replies(pages(comment()), to=f"api {POST_LIST_PATHS['conversation']}")
     # A file where the round's own directory goes, so no round can ever start.
     occupied = StateDirectory(resuming).sessions / KEY / "rounds" / "2"
@@ -710,9 +711,7 @@ def test_a_batch_no_round_ever_launched_is_read_again_next_tick(resuming, gh):
 @pytest.mark.parametrize("state_name", ["MERGED", "CLOSED"])
 def test_a_pull_request_that_is_finished_gets_one_last_round(resuming, gh, state_name):
     ran(resuming, 1, Cause.DISPATCH)
-    gh.replies(
-        json.dumps([{"number": PULL_REQUEST, "state": state_name}]), to="pr list"
-    )
+    gh.replies(pull_requests((PULL_REQUEST, state_name)), to="pr list")
     daemon = settling(resuming)
 
     daemon.run()
@@ -728,7 +727,7 @@ def test_a_pull_request_that_is_finished_gets_one_last_round(resuming, gh, state
 def test_a_session_that_has_had_its_last_round_gets_no_other(resuming, gh):
     ran(resuming, 1, Cause.DISPATCH)
     ran(resuming, 2, Cause.FINAL)
-    gh.replies(json.dumps([{"number": PULL_REQUEST, "state": "MERGED"}]), to="pr list")
+    gh.replies(pull_requests((PULL_REQUEST, "MERGED")), to="pr list")
     daemon, _, _ = idling(resuming, ticks=1)
 
     daemon.run()
@@ -750,7 +749,7 @@ def test_a_last_round_that_was_interrupted_is_carried_on_as_the_last_round(
             cause=Cause.FINAL,
         ),
     )
-    gh.replies(json.dumps([{"number": PULL_REQUEST, "state": "MERGED"}]), to="pr list")
+    gh.replies(pull_requests((PULL_REQUEST, "MERGED")), to="pr list")
     daemon = settling(resuming, ticks=2)
 
     daemon.run()

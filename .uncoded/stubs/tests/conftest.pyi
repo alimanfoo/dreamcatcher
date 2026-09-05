@@ -46,6 +46,9 @@ def review(**fields: object) -> dict:
 def inline_comment(**fields: object) -> dict:
     ...
 
+def pull_requests(*listed: tuple[int, str]) -> str:
+    ...
+
 def pages(*posts: dict) -> str:
     ...
 

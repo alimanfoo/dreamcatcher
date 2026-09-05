@@ -173,8 +173,8 @@ record with no end recorded is ended, and ending one that has already gone does
 nothing — and treat every round record with no end as interrupted. `run` refuses
 when a CLI is missing or when `gh` can name neither the repository nor the
 account, because none of them can change under a running daemon, a run without
-the repository dispatches nothing, and the relay tells the user's posts from the
-session's own by the account.
+the repository dispatches nothing, and the relay reads every post against the
+account before the marker tells the user's posts from the session's own.
 
 Each tick, in order, launching at most one round per tick:
 
@@ -450,9 +450,16 @@ watermark and needs no rule of its own.
 
 The projection widens per dream#891: inline comments carry `path`, `line` (with
 the `original_line` fallback), `start_line` (with `original_start_line`),
-`side`, `id`, and `diff_hunk`, so a range suggestion reaches the agent with the
-text it replaces. Each round's inbox is written to that round's directory and
-kept.
+`side`, `id`, `subject_type`, and `diff_hunk`, so a range suggestion reaches the
+agent with the text it replaces, and a comment on a whole file reads as one
+rather than as a comment on line 1, which is where GitHub reports it. Each
+round's inbox is written to that round's directory and kept.
+
+The inbox is dreamcatcher's own document, so it names each field for what that
+field is rather than for GitHub's own word: a post says who wrote it under
+`author` and when under `written_at`, and a review says what it said under
+`verdict`. That last one earns its name twice over, since the inbox already says
+`state` about the pull request itself.
 
 The marker: every prompt the daemon composes ends with a postscript instructing
 the session to end every GitHub post — PR bodies, comments, replies on diff
