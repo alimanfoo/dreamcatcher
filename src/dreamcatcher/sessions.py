@@ -17,7 +17,13 @@ from pathlib import Path
 from dreamcatcher import prompts
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import DispatchMapping, Harness
-from dreamcatcher.documents import Document, read_json, read_text, write_json
+from dreamcatcher.documents import (
+    Document,
+    read_json,
+    read_text,
+    write_json,
+    write_text,
+)
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import add_worktree, delete_branch, fetch, remove_worktree
 from dreamcatcher.rounds import RoundRecord, Workspace, read_round_records
@@ -198,6 +204,17 @@ def _read_watermark(directory: Path) -> str:
     if not path.exists():
         return ""
     return read_text(path).strip()
+
+
+def advance_watermark(session: Session, newest: str) -> None:
+    """Write down the newest post the session has now been told about.
+
+    A round launching with a batch of posts as its inbox is what tells the
+    session about them, and this is that launch's own write. Until it lands the
+    session has heard nothing, so a daemon that died before the round started
+    reads those same posts again on its next tick rather than losing them.
+    """
+    write_text(newest, session.directory / WATERMARK)
 
 
 def discard_session(state: StateDirectory, record: SessionRecord) -> None:

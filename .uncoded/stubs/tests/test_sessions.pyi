@@ -10,7 +10,7 @@ from dreamcatcher.config import CONFIG_NAME, Harness, read_config
 from dreamcatcher.documents import write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.rounds import Ending, RoundRecord, Workspace
-from dreamcatcher.sessions import WATERMARK, SessionRecord, create_session, read_sessions
+from dreamcatcher.sessions import WATERMARK, SessionRecord, advance_watermark, create_session, read_sessions
 from dreamcatcher.state import StateDirectory
 
 KEY = 'GH12-20260819-184158'
@@ -59,6 +59,9 @@ def test_a_session_no_round_has_told_anything_yet_has_seen_no_post(state, mappin
     ...
 
 def test_a_session_reads_back_the_newest_post_it_has_been_told_about(state, mapping):
+    ...
+
+def test_a_session_told_about_a_batch_of_posts_reads_the_newest_of_them_back(state, mapping):
     ...
 
 def test_a_sessions_rounds_read_back_in_the_order_they_ran(state, mapping):

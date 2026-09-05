@@ -11,6 +11,7 @@ from dreamcatcher.rounds import Ending, RoundRecord, Workspace
 from dreamcatcher.sessions import (
     WATERMARK,
     SessionRecord,
+    advance_watermark,
     create_session,
     read_sessions,
 )
@@ -145,6 +146,16 @@ def test_a_session_no_round_has_told_anything_yet_has_seen_no_post(state, mappin
 def test_a_session_reads_back_the_newest_post_it_has_been_told_about(state, mapping):
     create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
     write_text("2026-09-03T22:31:51Z\n", state.sessions / KEY / WATERMARK)
+
+    assert read_sessions(state)[0].watermark == "2026-09-03T22:31:51Z"
+
+
+def test_a_session_told_about_a_batch_of_posts_reads_the_newest_of_them_back(
+    state, mapping
+):
+    created = create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
+
+    advance_watermark(created, "2026-09-03T22:31:51Z")
 
     assert read_sessions(state)[0].watermark == "2026-09-03T22:31:51Z"
 
