@@ -22,7 +22,8 @@ class CandidateIssue(Document):
     first by removing one of the labels.
 
     If a candidate could not be dispatched, the `reason` attribute describes
-    why. A candidate with no reason is one that nothing stood in the way of.
+    why. `reason` is `None` when the tick found nothing preventing dispatch,
+    and that is what `is_eligible` reports.
     """
 
     issue: int
