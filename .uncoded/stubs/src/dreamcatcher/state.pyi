@@ -9,7 +9,7 @@ from dreamcatcher.documents import Document, write_text
 
 STATE_DIRECTORY = '.dreamcatcher'
 
-class Candidate(Document):
+class CandidateIssue(Document):
     issue: int
     label: str
     reason: str | None = None
@@ -24,7 +24,7 @@ class LastTick(Document):
     at: datetime
     hold: str | None = None
     dispatched: str | None = None
-    candidates: list[Candidate] = Field(default_factory=list)
+    candidates: list[CandidateIssue] = Field(default_factory=list)
     waiting: list[Waiting] = Field(default_factory=list)
 
 class StateDirectory:

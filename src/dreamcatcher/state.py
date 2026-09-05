@@ -11,7 +11,7 @@ from dreamcatcher.documents import Document, write_text
 STATE_DIRECTORY = ".dreamcatcher"
 
 
-class Candidate(Document):
+class CandidateIssue(Document):
     """A labelled issue that is a candidate for dispatch.
 
     A candidate is an issue under a single label, where the label decides which
@@ -69,7 +69,7 @@ class LastTick(Document):
     at: datetime
     hold: str | None = None
     dispatched: str | None = None
-    candidates: list[Candidate] = Field(default_factory=list)
+    candidates: list[CandidateIssue] = Field(default_factory=list)
     waiting: list[Waiting] = Field(default_factory=list)
 
 

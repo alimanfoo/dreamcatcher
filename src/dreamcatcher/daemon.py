@@ -32,7 +32,7 @@ from dreamcatcher.sessions import (
     discard_session,
     read_sessions,
 )
-from dreamcatcher.state import Candidate, LastTick, StateDirectory, Waiting
+from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, Waiting
 
 # What a round that a tick dispatched says woke it.
 DISPATCHED = "dispatched"
@@ -164,7 +164,7 @@ class Daemon:
         return self._dispatch_oldest_issue(at, judged, waiting)
 
     def _dispatch_oldest_issue(
-        self, at: datetime, judged: list[Candidate], waiting: list[Waiting]
+        self, at: datetime, judged: list[CandidateIssue], waiting: list[Waiting]
     ) -> LastTick:
         """Dispatch the oldest issue that nothing stands in the way of.
 
@@ -185,7 +185,7 @@ class Daemon:
             )
         return LastTick(at=at, dispatched=key, candidates=judged, waiting=waiting)
 
-    def _launch_session(self, candidate: Candidate, at: datetime) -> str:
+    def _launch_session(self, candidate: CandidateIssue, at: datetime) -> str:
         """Cut a session for the candidate, run its first round, and hold it.
 
         A session whose round will not start is taken away again, because a

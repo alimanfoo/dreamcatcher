@@ -25,12 +25,12 @@ from dreamcatcher.github import (
     list_issues,
     list_linked_pull_requests,
 )
-from dreamcatcher.state import Candidate
+from dreamcatcher.state import CandidateIssue
 
 
 def judge_issues(
     repository: str, config: Config, claimed: set[int]
-) -> list[Candidate] | Unknown:
+) -> list[CandidateIssue] | Unknown:
     """Return every labelled issue assigned to the user, oldest first.
 
     Each issue comes back as a candidate that carries information about what, if
@@ -48,7 +48,7 @@ def judge_issues(
     if isinstance(listed, Unknown):
         return listed
     return [
-        Candidate(
+        CandidateIssue(
             issue=issue.number,
             label=label,
             reason=_find_obstacle(repository, issue.number, labels, claimed),

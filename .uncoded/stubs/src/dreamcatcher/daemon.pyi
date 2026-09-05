@@ -19,7 +19,7 @@ from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.lock import hold
 from dreamcatcher.rounds import Round
 from dreamcatcher.sessions import Session, create_session, discard_session, read_sessions
-from dreamcatcher.state import Candidate, LastTick, StateDirectory, Waiting
+from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, Waiting
 
 DISPATCHED = 'dispatched'
 COOLDOWN = timedelta(minutes=15)
@@ -49,10 +49,10 @@ class Daemon:
     def _decide_and_launch(self, repository: str, at: datetime) -> LastTick:
         ...
 
-    def _dispatch_oldest_issue(self, at: datetime, judged: list[Candidate], waiting: list[Waiting]) -> LastTick:
+    def _dispatch_oldest_issue(self, at: datetime, judged: list[CandidateIssue], waiting: list[Waiting]) -> LastTick:
         ...
 
-    def _launch_session(self, candidate: Candidate, at: datetime) -> str:
+    def _launch_session(self, candidate: CandidateIssue, at: datetime) -> str:
         ...
 
     def _locate_harnesses(self) -> None:

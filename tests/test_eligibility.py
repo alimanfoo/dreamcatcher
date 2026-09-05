@@ -6,7 +6,7 @@ from conftest import FILED, LABEL, LATER, REPOSITORY, listing
 from dreamcatcher.config import Config
 from dreamcatcher.eligibility import judge_issues
 from dreamcatcher.github import Unknown
-from dreamcatcher.state import Candidate
+from dreamcatcher.state import CandidateIssue
 
 # A block for one harness, so a label the tests write maps to something.
 SETTINGS = {"prompt": "/dream:smith GH{issue}", "model": "opus[1m]", "effort": "xhigh"}
@@ -41,7 +41,7 @@ def weighed(config, claimed=frozenset()):
 def test_an_issue_nothing_stands_in_the_way_of_can_be_dispatched(gh):
     judged = weighed(mapping("dream:smith"))
 
-    assert judged == [Candidate(issue=8, label=LABEL)]
+    assert judged == [CandidateIssue(issue=8, label=LABEL)]
     assert judged[0].is_eligible
 
 
@@ -62,12 +62,12 @@ def test_a_listing_the_tool_cannot_read_answers_unknown_for_the_whole_tick(gh):
 
 def test_an_issue_carrying_more_than_one_mapped_label_is_skipped(gh):
     assert weighed(mapping("dream:smith", "dream:less")) == [
-        Candidate(
+        CandidateIssue(
             issue=8,
             label=LABEL,
             reason="carries more than one mapped label: dream:less, dream:smith",
         ),
-        Candidate(
+        CandidateIssue(
             issue=8,
             label="dream:less",
             reason="carries more than one mapped label: dream:less, dream:smith",
@@ -77,7 +77,9 @@ def test_an_issue_carrying_more_than_one_mapped_label_is_skipped(gh):
 
 def test_an_issue_a_session_of_this_run_is_working_on_is_left_alone(gh):
     assert weighed(mapping("dream:smith"), claimed={8}) == [
-        Candidate(issue=8, label=LABEL, reason="a session of this run is working on it")
+        CandidateIssue(
+            issue=8, label=LABEL, reason="a session of this run is working on it"
+        )
     ]
 
 
@@ -88,7 +90,7 @@ def test_an_issue_with_a_pull_request_open_on_it_is_left_alone(gh):
     )
 
     assert weighed(mapping("dream:smith")) == [
-        Candidate(issue=8, label=LABEL, reason="a pull request is open on it: #28")
+        CandidateIssue(issue=8, label=LABEL, reason="a pull request is open on it: #28")
     ]
 
 
@@ -96,7 +98,7 @@ def test_a_pull_request_read_that_failed_reads_as_claimed(gh):
     gh.fails("gh: the issue is not there", to="issue view")
 
     assert weighed(mapping("dream:smith")) == [
-        Candidate(
+        CandidateIssue(
             issue=8,
             label=LABEL,
             reason=(
@@ -116,7 +118,7 @@ def test_an_issue_an_open_issue_blocks_names_what_blocks_it(gh):
     )
 
     assert weighed(mapping("dream:smith")) == [
-        Candidate(issue=8, label=LABEL, reason="blocked by GH9")
+        CandidateIssue(issue=8, label=LABEL, reason="blocked by GH9")
     ]
 
 
@@ -124,7 +126,7 @@ def test_a_blocker_read_that_failed_reads_as_blocked(gh):
     gh.fails("gh: could not connect to github.com", to="api")
 
     assert weighed(mapping("dream:smith")) == [
-        Candidate(
+        CandidateIssue(
             issue=8,
             label=LABEL,
             reason=(
