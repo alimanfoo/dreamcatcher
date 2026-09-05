@@ -14,22 +14,17 @@ from dreamcatcher.config import Harness, read_config
 from dreamcatcher.documents import write_json
 from dreamcatcher.eligibility import judge_issues
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.github import Unknown, identify_repository
+from dreamcatcher.github import Unknown, identify_account, identify_repository
 from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.lock import hold
+from dreamcatcher.resumes import Finding, Resume, find_resume, list_waiting, sort_resumes
 from dreamcatcher.rounds import Cause, Round
-from dreamcatcher.sessions import Session, create_session, discard_session, read_sessions
+from dreamcatcher.sessions import Session, advance_watermark, create_session, discard_session, read_sessions
 from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, Waiting
 
 COOLDOWN = timedelta(minutes=15)
 
 def _check_cooldown(sessions: list[Session], at: datetime) -> str | None:
-    ...
-
-def _list_waiting(sessions: list[Session], running: dict[str, Round]) -> list[Waiting]:
-    ...
-
-def _check_rounds(session: Session) -> str | None:
     ...
 
 class Daemon:
@@ -39,13 +34,25 @@ class Daemon:
     def run(self) -> None:
         ...
 
-    def tick(self, repository: str) -> None:
+    def tick(self, repository: str, account: str) -> None:
         ...
 
     def _identify_repository(self) -> str:
         ...
 
-    def _decide_and_launch(self, repository: str, at: datetime) -> LastTick:
+    def _identify_account(self) -> str:
+        ...
+
+    def _decide_and_launch(self, repository: str, account: str, at: datetime) -> LastTick:
+        ...
+
+    def _reconcile(self, repository: str, account: str, sessions: list[Session]) -> list[Finding]:
+        ...
+
+    def _resume_session(self, at: datetime, resume: Resume, found: list[Finding]) -> LastTick:
+        ...
+
+    def _launch_resume(self, resume: Resume) -> None:
         ...
 
     def _dispatch_oldest_issue(self, at: datetime, judged: list[CandidateIssue], waiting: list[Waiting]) -> LastTick:

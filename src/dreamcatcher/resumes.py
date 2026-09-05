@@ -60,6 +60,11 @@ class Resume:
         return self.inbox.posts[-1].written_at
 
 
+# What a tick found about one session: the round it needs next, or what it is
+# waiting on instead.
+type Finding = Resume | Waiting
+
+
 # The order a tick takes resumes in, the most open work first.
 PRIORITY = (Cause.CARRY_ON, Cause.FINAL, Cause.POSTS)
 
@@ -73,9 +78,19 @@ def sort_resumes(found: list[Resume]) -> list[Resume]:
     return sorted(found, key=lambda resume: PRIORITY.index(resume.cause))
 
 
-def find_resume(
-    repository: str, account: str, session: Session
-) -> Resume | Waiting | None:
+def list_waiting(found: list[Finding]) -> list[Waiting]:
+    """Return what each of these findings says its session is waiting on.
+
+    A resume that no round ran is a session waiting for a later tick, and the
+    resume's own reason is what it is waiting on.
+    """
+    return [
+        one if isinstance(one, Waiting) else _wait(one.session, one.reason)
+        for one in found
+    ]
+
+
+def find_resume(repository: str, account: str, session: Session) -> Finding | None:
     """Return the round the session needs next, the wait it is in, or nothing.
 
     A session whose last round did not finish is carried on before anything
@@ -118,7 +133,7 @@ def _check_last_round(session: Session) -> str | None:
 
 def _find_pull_request_resume(
     repository: str, account: str, session: Session
-) -> Resume | Waiting | None:
+) -> Finding | None:
     """Return what the session's pull request asks of it, if anything.
 
     Every read here biases toward doing nothing: a read that could not tell
