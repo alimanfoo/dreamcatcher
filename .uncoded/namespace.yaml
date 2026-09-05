@@ -249,7 +249,10 @@ src/:
       MARKER:
       ISSUE_PLACEHOLDER:
       POSTSCRIPT:
+      CARRY_ON_PROMPT:
+      INBOX_PROMPT:
       compose_first_round_prompt:
+      compose_inbox_prompt:
     relay.py:
       peek_new_posts:
       _is_new_from_user:
@@ -702,6 +705,9 @@ tests/:
     OPENINGS:
     test_a_template_holding_other_words_in_braces_keeps_them:
     test_the_prompt_that_opens_a_session_is_its_template_then_the_postscript:
+    test_the_prompt_that_carries_a_round_on_says_the_last_one_stopped_short:
+    test_the_prompt_that_hands_over_an_inbox_names_the_pull_request_and_the_file:
+    test_every_prompt_the_daemon_composes_asks_for_the_marker:
   test_recordings.py:
     RECORDED_IN:
     RECORDINGS:
