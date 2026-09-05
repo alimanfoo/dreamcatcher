@@ -36,7 +36,8 @@ class CandidateIssue(Document):
 
 
 class Waiting(Document):
-    """A session whose last round did not succeed, waiting for a round to continue.
+    """A session where the last round did not complete successfully and so is
+    waiting for another round to continue.
 
     The reason is a string that says why the session's most recent round ended,
     in the words that the round's own record kept. A round may have been
