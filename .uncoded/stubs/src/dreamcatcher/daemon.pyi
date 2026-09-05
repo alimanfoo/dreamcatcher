@@ -17,11 +17,10 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import Unknown, identify_repository
 from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.lock import hold
-from dreamcatcher.rounds import Round
+from dreamcatcher.rounds import Cause, Round
 from dreamcatcher.sessions import Session, create_session, discard_session, read_sessions
 from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, Waiting
 
-DISPATCHED = 'dispatched'
 COOLDOWN = timedelta(minutes=15)
 
 def _check_cooldown(sessions: list[Session], at: datetime) -> str | None:

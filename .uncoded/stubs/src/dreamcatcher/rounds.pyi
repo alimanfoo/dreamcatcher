@@ -4,6 +4,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
+from enum import StrEnum
 from pathlib import Path
 from threading import Event, Lock, Thread
 from pydantic import PositiveInt
@@ -19,6 +20,12 @@ RECORD = 'round.json'
 def read_round_records(directory: Path) -> list[RoundRecord]:
     ...
 
+class Cause(StrEnum):
+    DISPATCH = 'dispatched'
+    CARRY_ON = 'carried on'
+    POSTS = 'new posts'
+    FINAL = 'final round'
+
 class Ending(Document):
     at: datetime
     status: int
@@ -27,7 +34,7 @@ class Ending(Document):
 class RoundRecord(Document):
     started: datetime
     pid: PositiveInt
-    cause: str
+    cause: Cause
     ending: Ending | None = None
 
 class Workspace:
@@ -41,7 +48,7 @@ class Workspace:
 class Round:
     is_alive: bool
 
-    def __init__(self, adapter: Adapter, invocation: Invocation, workspace: Workspace, cause: str, clock: Callable[[], datetime]) -> None:
+    def __init__(self, adapter: Adapter, invocation: Invocation, workspace: Workspace, cause: Cause, clock: Callable[[], datetime]) -> None:
         ...
 
     def wait(self) -> None:

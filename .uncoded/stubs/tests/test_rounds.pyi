@@ -16,11 +16,11 @@ from dreamcatcher.adapters import Adapter, Invocation, Launch
 from dreamcatcher.claude import CLAUDE
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Event, Note, Renderer
-from dreamcatcher.rounds import RECORD, Ending, Round, RoundRecord, Workspace
+from dreamcatcher.rounds import RECORD, Cause, Ending, Round, RoundRecord, Workspace
 
 RECORDING = FIXTURES / 'claude' / 'round.jsonl'
 STAMP = '2026-08-19T18:41:58Z'
-CAUSE = 'dispatched'
+CAUSE = Cause.DISPATCH
 PROMPT = '/dream:smith GH9\nfinish 50% of it'
 LEAVES_A_STRAGGLER = ...
 AND_WAITS = 'left.wait()\n'

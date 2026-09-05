@@ -25,7 +25,7 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import Unknown, identify_repository
 from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.lock import hold
-from dreamcatcher.rounds import Round
+from dreamcatcher.rounds import Cause, Round
 from dreamcatcher.sessions import (
     Session,
     create_session,
@@ -33,9 +33,6 @@ from dreamcatcher.sessions import (
     read_sessions,
 )
 from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, Waiting
-
-# What a round that a tick dispatched says woke it.
-DISPATCHED = "dispatched"
 
 # How long the daemon holds every launch once a round has failed, dispatches
 # and retries alike. There is no cause detection behind this and no schedule:
@@ -212,7 +209,7 @@ class Daemon:
                 adapter,
                 adapter.build_first_round(launch),
                 session.next_workspace,
-                DISPATCHED,
+                Cause.DISPATCH,
                 clock=self.clock,
             )
         except ReportableError:

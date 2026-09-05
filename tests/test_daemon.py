@@ -25,13 +25,13 @@ from dreamcatcher.commands import spawn
 from dreamcatcher.config import CONFIG_NAME, Harness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.rounds import Ending, RoundRecord
+from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, Waiting
 
 KEY = "GH13-20260819-184158"
 
 # What every round the tests here write down says woke it.
-CAUSE = "dispatched"
+CAUSE = Cause.DISPATCH
 
 # How long a scripted harness waits after its first line, so a round the daemon
 # launched is certainly still running at the next tick. The waits these tests
@@ -307,7 +307,7 @@ def test_a_dispatched_round_records_what_caused_it_and_what_it_said(dispatching)
         RoundRecord.model_validate_json(
             (written / "round.json").read_text(encoding="utf-8")
         ).cause
-        == "dispatched"
+        is Cause.DISPATCH
     )
     assert "what the round said" in (written / "feed.txt").read_text(encoding="utf-8")
 

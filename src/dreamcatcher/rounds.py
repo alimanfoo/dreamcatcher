@@ -19,6 +19,7 @@ streams on threads of its own, and records its own ending on another.
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
+from enum import StrEnum
 from pathlib import Path
 from threading import Event, Lock, Thread
 
@@ -41,6 +42,26 @@ from dreamcatcher.feed import Prose, Renderer
 RECORD = "round.json"
 
 
+class Cause(StrEnum):
+    """What woke a round.
+
+    The daemon decides one of these for every round it launches, and the
+    round's record keeps it. A reader of a session's rounds then reads the
+    story of why each one ran, and the tick reads what a round was for without
+    reading prose: a session whose final round has run is a session that is
+    done.
+
+    The words are what a feed opens a round with, after the round's number.
+    The batch that woke a round is not in them: an inbox resume and a final
+    round each keep theirs in the `inbox.json` beside the record.
+    """
+
+    DISPATCH = "dispatched"
+    CARRY_ON = "carried on"
+    POSTS = "new posts"
+    FINAL = "final round"
+
+
 class Ending(Document):
     """How a round ended: when it ended, and the status it ended with.
 
@@ -60,10 +81,8 @@ class Ending(Document):
 class RoundRecord(Document):
     """What a round says about itself, written at each end of the round.
 
-    The cause is what woke the round, in the words the daemon decided it in:
-    the dispatch that opened the session, or whatever a later tick found for it
-    to do. A reader of the session's rounds then reads the story of why each
-    one ran.
+    The cause is what woke the round: the dispatch that opened the session, or
+    whatever a later tick found for it to do.
 
     A record with no ending means the round was interrupted. Either the daemon
     exited while the round was still going, or the daemon stopped the round
@@ -73,7 +92,7 @@ class RoundRecord(Document):
 
     started: datetime
     pid: PositiveInt
-    cause: str
+    cause: Cause
     ending: Ending | None = None
 
 
@@ -142,7 +161,7 @@ class Round:
         adapter: Adapter,
         invocation: Invocation,
         workspace: Workspace,
-        cause: str,
+        cause: Cause,
         clock: Callable[[], datetime] = now,
     ) -> None:
         """Run the invocation as a round in the workspace it was given.

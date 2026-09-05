@@ -15,7 +15,7 @@ from dreamcatcher.adapters import Adapter, Invocation, Launch
 from dreamcatcher.claude import CLAUDE
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Event, Note, Renderer
-from dreamcatcher.rounds import RECORD, Ending, Round, RoundRecord, Workspace
+from dreamcatcher.rounds import RECORD, Cause, Ending, Round, RoundRecord, Workspace
 
 # A round that listed a directory, read a file that was not there, and sent a
 # subagent to count the files. Its golden feed is asserted in test_recordings.
@@ -24,7 +24,7 @@ RECORDING = FIXTURES / "claude" / "round.jsonl"
 STAMP = "2026-08-19T18:41:58Z"
 
 # What the tests here say woke every round they run.
-CAUSE = "dispatched"
+CAUSE = Cause.DISPATCH
 
 # What every round here asks the harness to do. It holds a percent sign and runs
 # over two lines, neither of which a command line could carry to a batch file,
