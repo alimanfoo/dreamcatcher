@@ -21,8 +21,8 @@ class CandidateIssue(Document):
     them, and so cannot be dispatched. The user has to resolve this ambiguity
     first by removing one of the labels.
 
-    A candidate carries the reason that it cannot be dispatched, and a candidate
-    with no reason is one that nothing stood in the way of.
+    If a candidate could not be dispatched, the `reason` attribute describes
+    why. A candidate with no reason is one that nothing stood in the way of.
     """
 
     issue: int
