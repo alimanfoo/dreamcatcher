@@ -33,12 +33,12 @@ class RoundRecord(Document):
 class Workspace:
     worktree: Path
     directory: Path
-
-class Round:
     prompt: Path
     record: Path
     feed: Path
     raw: Path
+
+class Round:
     is_alive: bool
 
     def __init__(self, adapter: Adapter, invocation: Invocation, workspace: Workspace, cause: str, clock: Callable[[], datetime]) -> None:

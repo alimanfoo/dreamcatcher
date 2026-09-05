@@ -268,11 +268,11 @@ src/:
       Workspace:
         worktree:
         directory:
-      Round:
         prompt:
         record:
         feed:
         raw:
+      Round:
         is_alive:
         __init__:
         wait:
