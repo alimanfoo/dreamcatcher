@@ -133,6 +133,11 @@ class Workspace:
         """The file holding the harness's own stdout, as it arrived."""
         return self.directory / "raw.jsonl"
 
+    @property
+    def inbox(self) -> Path:
+        """The file holding the batch that the round was woken with."""
+        return self.directory / "inbox.json"
+
 
 def read_round_records(directory: Path) -> list[RoundRecord]:
     """Return the records of the rounds written under directory, oldest first.

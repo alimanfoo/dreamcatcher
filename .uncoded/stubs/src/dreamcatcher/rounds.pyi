@@ -44,6 +44,7 @@ class Workspace:
     record: Path
     feed: Path
     raw: Path
+    inbox: Path
 
 class Round:
     is_alive: bool

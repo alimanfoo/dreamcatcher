@@ -263,6 +263,24 @@ src/:
         posts:
       peek_new_posts:
       _is_new_from_user:
+    resumes.py:
+      PRIORITY:
+      Resume:
+        session:
+        cause:
+        reason:
+        prompt:
+        inbox:
+        newest_post:
+      sort_resumes:
+      find_resume:
+      _check_last_round:
+      _find_pull_request_resume:
+      _choose_pull_request:
+      _has_run_final_round:
+      _compose_resume:
+      _count_posts:
+      _wait:
     rounds.py:
       RECORD:
       Cause:
@@ -286,6 +304,7 @@ src/:
         record:
         feed:
         raw:
+        inbox:
       Round:
         is_alive:
         __init__:
@@ -743,6 +762,34 @@ tests/:
     test_every_post_the_user_said_something_in_on_a_real_pull_request_comes_back:
     test_an_inbox_says_where_the_pull_request_got_to_and_what_each_post_is:
     test_an_inbox_a_merged_pull_request_woke_carries_no_post:
+  test_resumes.py:
+    KEY:
+    PULL_REQUEST:
+    POSTED_AT:
+    comment:
+    state:
+    gh:
+    ran:
+    found:
+    test_a_session_that_has_run_no_round_at_all_waits_for_a_person:
+    test_a_session_whose_last_round_was_interrupted_is_carried_on:
+    test_a_session_whose_last_round_failed_is_carried_on_with_its_status:
+    test_a_round_that_did_not_finish_is_carried_on_before_github_is_asked:
+    test_a_session_nobody_has_posted_on_needs_nothing:
+    test_a_session_the_user_has_posted_on_answers_what_they_said:
+    test_a_batch_of_posts_says_how_many_it_holds:
+    test_a_post_the_session_has_been_told_about_already_wakes_nothing:
+    test_the_prompt_of_a_posts_resume_sends_the_session_to_the_next_rounds_inbox:
+    test_a_pull_request_that_is_finished_calls_for_one_last_round:
+    test_a_last_round_carries_what_the_user_said_before_the_merge:
+    test_a_session_whose_last_round_wound_it_up_needs_nothing:
+    test_a_last_round_that_was_carried_on_is_still_the_last_round:
+    test_a_session_with_no_pull_request_of_its_own_waits_for_a_person:
+    test_an_open_pull_request_outranks_the_ones_that_are_finished:
+    test_the_newest_of_two_finished_pull_requests_is_the_sessions_own:
+    test_a_pull_request_read_that_failed_leaves_the_session_waiting:
+    test_a_peek_that_failed_leaves_the_session_waiting:
+    test_the_most_open_work_comes_first:
   test_rounds.py:
     RECORDING:
     STAMP:
