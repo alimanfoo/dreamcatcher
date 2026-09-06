@@ -22,6 +22,7 @@ src/:
         program:
         build_first_round:
         build_resumed_round:
+        build_hand_resume:
         read:
         _events:
     board.py:
@@ -75,6 +76,7 @@ src/:
         program:
         build_first_round:
         build_resumed_round:
+        build_hand_resume:
         _events:
         _base:
       _system:
@@ -103,6 +105,7 @@ src/:
         program:
         build_first_round:
         build_resumed_round:
+        build_hand_resume:
         _events:
       _settings:
       _overrides:
@@ -563,6 +566,7 @@ tests/:
     assistant:
     test_a_first_round_names_the_model_and_the_effort_it_was_dispatched_with:
     test_a_resume_continues_the_session_and_replays_no_settings:
+    test_a_person_takes_the_session_over_by_continuing_it_where_it_ran:
     test_the_first_event_names_the_model_and_the_session:
     test_what_the_agent_says_comes_through_whole:
     test_a_thinking_block_says_only_that_the_agent_thought:
@@ -604,6 +608,7 @@ tests/:
     completed:
     test_a_first_round_runs_where_it_is_launched_under_codexs_own_reviewer:
     test_a_resume_replays_the_settings_and_the_permissions_codex_forgets:
+    test_a_person_takes_the_session_over_with_codexs_interactive_resume:
     test_the_first_event_names_the_session:
     test_what_the_agent_says_comes_through_whole:
     test_a_command_that_ran_reports_what_it_was:
@@ -908,6 +913,7 @@ tests/:
       program:
       build_first_round:
       build_resumed_round:
+      build_hand_resume:
       _events:
     pinned:
     worktree:

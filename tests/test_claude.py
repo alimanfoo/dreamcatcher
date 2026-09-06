@@ -47,6 +47,10 @@ def test_a_resume_continues_the_session_and_replays_no_settings():
     )
 
 
+def test_a_person_takes_the_session_over_by_continuing_it_where_it_ran():
+    assert CLAUDE.build_hand_resume() == ["claude", "--continue"]
+
+
 def test_the_first_event_names_the_model_and_the_session():
     line = streamed(
         type="system", subtype="init", model="claude-opus-5", session_id="abc-123"

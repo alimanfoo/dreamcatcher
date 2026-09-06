@@ -18,6 +18,9 @@ def test_a_first_round_runs_where_it_is_launched_under_codexs_own_reviewer():
 def test_a_resume_replays_the_settings_and_the_permissions_codex_forgets():
     ...
 
+def test_a_person_takes_the_session_over_with_codexs_interactive_resume():
+    ...
+
 def test_the_first_event_names_the_session():
     ...
 

@@ -63,6 +63,16 @@ class Adapter(ABC):
     def build_resumed_round(self, launch: Launch) -> Invocation:
         """Return how to resume the session with launch's prompt."""
 
+    @abstractmethod
+    def build_hand_resume(self) -> list[str]:
+        """Return the command a person runs to take the session over themselves.
+
+        Whoever runs it runs it in the session's worktree, which is what tells
+        the harness which of its own sessions to carry on. It carries no
+        prompt: unlike every round the daemon runs, this one is interactive,
+        and whoever ran it does the talking.
+        """
+
     def read(self, line: str) -> list[Event]:
         """Return the feed events from one line of the harness's stream.
 

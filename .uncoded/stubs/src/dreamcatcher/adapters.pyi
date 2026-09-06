@@ -26,6 +26,9 @@ class Adapter(ABC):
     def build_resumed_round(self, launch: Launch) -> Invocation:
         ...
 
+    def build_hand_resume(self) -> list[str]:
+        ...
+
     def read(self, line: str) -> list[Event]:
         ...
 

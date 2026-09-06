@@ -496,7 +496,9 @@ attempt, older attempts listed beneath it. The session view shows vitals (issue,
 PR, branch, harness and model, the literal first prompt), the round list with
 causes and durations, and — when no round is live — the exact command to resume
 the session interactively by hand (`claude --continue` from the worktree, or the
-matching `codex exec resume`), built from `session.json`.
+matching `codex resume --last`), built from `session.json`. `codex exec resume`
+is the headless resume the daemon's own rounds run, so the interactive
+`codex resume` is what a person is given instead.
 
 ### The contract page
 

@@ -20,6 +20,9 @@ def test_a_first_round_names_the_model_and_the_effort_it_was_dispatched_with():
 def test_a_resume_continues_the_session_and_replays_no_settings():
     ...
 
+def test_a_person_takes_the_session_over_by_continuing_it_where_it_ran():
+    ...
+
 def test_the_first_event_names_the_model_and_the_session():
     ...
 
