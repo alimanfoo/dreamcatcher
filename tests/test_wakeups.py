@@ -62,7 +62,7 @@ def found(state) -> Wakeup | WaitingSession | None:
 
 def test_a_session_that_has_run_no_round_at_all_waits_for_a_person(state):
     assert found(state) == WaitingSession(
-        session=KEY, issue=13, reason="no round has run yet"
+        session=KEY, issue=13, reason="no round has run yet", is_stuck=True
     )
 
 
@@ -208,7 +208,10 @@ def test_a_session_with_no_pull_request_of_its_own_waits_for_a_person(state, gh)
     gh.replies("[]", to="pr list")
 
     assert found(state) == WaitingSession(
-        session=KEY, issue=13, reason="no pull request has been opened on it"
+        session=KEY,
+        issue=13,
+        reason="no pull request has been opened on it",
+        is_stuck=True,
     )
 
 
@@ -247,6 +250,8 @@ def test_a_pull_request_read_that_failed_leaves_the_session_waiting(state, gh):
 
     assert isinstance(waiting, WaitingSession)
     assert waiting.reason.startswith("cannot tell which pull request it has")
+    # A read that could not tell is asked again next tick, so nobody has to act.
+    assert not waiting.is_stuck
 
 
 def test_a_peek_that_failed_leaves_the_session_waiting(state, gh):

@@ -576,7 +576,10 @@ def test_a_session_with_no_pull_request_of_its_own_reads_as_waiting(resuming):
 
     assert recorded(daemon).waiting == [
         WaitingSession(
-            session=KEY, issue=13, reason="no pull request has been opened on it"
+            session=KEY,
+            issue=13,
+            reason="no pull request has been opened on it",
+            is_stuck=True,
         )
     ]
 
@@ -588,7 +591,9 @@ def test_a_session_that_has_run_no_round_at_all_waits_for_its_first(dispatching)
     daemon.run()
 
     assert recorded(daemon).waiting == [
-        WaitingSession(session=KEY, issue=13, reason="no round has run yet")
+        WaitingSession(
+            session=KEY, issue=13, reason="no round has run yet", is_stuck=True
+        )
     ]
 
 

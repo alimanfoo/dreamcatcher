@@ -106,7 +106,7 @@ def judge_session(repository: str, account: str, session: Session) -> Finding | 
     here.
     """
     if not session.rounds:
-        return _wait(session, "no round has run yet")
+        return _wait(session, "no round has run yet", is_stuck=True)
     unfinished = session.describe_unfinished_round()
     if unfinished is not None:
         return Wakeup(
@@ -137,7 +137,7 @@ def _judge_pull_request(
         return _wait(session, f"cannot tell which pull request it has: {found.reason}")
     pull_request = _choose_pull_request(found)
     if pull_request is None:
-        return _wait(session, "no pull request has been opened on it")
+        return _wait(session, "no pull request has been opened on it", is_stuck=True)
     is_open = pull_request.state is PullRequestState.OPEN
     if not is_open and session.has_run_final_round:
         return None
@@ -202,8 +202,17 @@ def _count_posts(posted: list[AnyPost]) -> str:
     return f"{len(posted)} new posts"
 
 
-def _wait(session: Session, reason: str) -> WaitingSession:
-    """Return the session as one waiting on what this reason says."""
+def _wait(session: Session, reason: str, is_stuck: bool = False) -> WaitingSession:
+    """Return the session as one waiting on what this reason says.
+
+    A wait is stuck when no later tick clears it: the dispatch never started
+    the session's first round, or a round ended cleanly and opened no pull
+    request. Every other wait clears by itself, so a stuck one is the one that
+    has to reach a person.
+    """
     return WaitingSession(
-        session=session.key, issue=session.record.issue, reason=reason
+        session=session.key,
+        issue=session.record.issue,
+        reason=reason,
+        is_stuck=is_stuck,
     )

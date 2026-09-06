@@ -47,11 +47,16 @@ class WaitingSession(Document):
     tick found it a round and had no slot to launch it, when no round has run
     yet, when nobody has opened a pull request on it, and when a read of GitHub
     could not tell.
+
+    Most of those waits clear by themselves, and a later tick is all they need.
+    A session that is stuck is one no tick can move on, so it waits for a
+    person, and whoever reads this record has to see the difference.
     """
 
     session: str
     issue: int
     reason: str
+    is_stuck: bool = False
 
 
 class LastTick(Document):

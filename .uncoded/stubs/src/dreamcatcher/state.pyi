@@ -19,6 +19,7 @@ class WaitingSession(Document):
     session: str
     issue: int
     reason: str
+    is_stuck: bool = False
 
 class LastTick(Document):
     at: datetime
