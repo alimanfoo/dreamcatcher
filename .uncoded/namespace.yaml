@@ -337,7 +337,7 @@ src/:
         label:
         reason:
         is_eligible:
-      Waiting:
+      WaitingSession:
         session:
         issue:
         reason:

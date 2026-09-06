@@ -40,7 +40,7 @@ from dreamcatcher.sessions import (
     discard_session,
     read_sessions,
 )
-from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, Waiting
+from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, WaitingSession
 from dreamcatcher.wakeups import (
     Finding,
     Wakeup,
@@ -265,7 +265,7 @@ class Daemon:
         )
 
     def _dispatch_oldest_issue(
-        self, at: datetime, judged: list[CandidateIssue], waiting: list[Waiting]
+        self, at: datetime, judged: list[CandidateIssue], waiting: list[WaitingSession]
     ) -> LastTick:
         """Dispatch the oldest issue that `eligibility.py` judged free to go.
 

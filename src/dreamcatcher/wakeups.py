@@ -26,7 +26,7 @@ from dreamcatcher.prompts import CARRY_ON_PROMPT, compose_inbox_prompt
 from dreamcatcher.relay import Inbox, peek_new_posts
 from dreamcatcher.rounds import Cause
 from dreamcatcher.sessions import Session
-from dreamcatcher.state import Waiting
+from dreamcatcher.state import WaitingSession
 
 
 @dataclass(frozen=True)
@@ -62,7 +62,7 @@ class Wakeup:
 
 # What a tick found about one session: the wakeup it needs, or what it is
 # waiting on instead.
-type Finding = Wakeup | Waiting
+type Finding = Wakeup | WaitingSession
 
 
 # The order a tick takes wakeups in, the most open work first.
@@ -78,14 +78,14 @@ def sort_wakeups(found: list[Wakeup]) -> list[Wakeup]:
     return sorted(found, key=lambda resume: PRIORITY.index(resume.cause))
 
 
-def list_waiting(found: list[Finding]) -> list[Waiting]:
+def list_waiting(found: list[Finding]) -> list[WaitingSession]:
     """Return what each of these findings says its session is waiting on.
 
     A wakeup that no round ran is a session waiting for a later tick, and the
     wakeup's own reason is what it is waiting on.
     """
     return [
-        one if isinstance(one, Waiting) else _wait(one.session, one.reason)
+        one if isinstance(one, WaitingSession) else _wait(one.session, one.reason)
         for one in found
     ]
 
@@ -230,6 +230,8 @@ def _count_posts(posted: list[AnyPost]) -> str:
     return f"{len(posted)} new posts"
 
 
-def _wait(session: Session, reason: str) -> Waiting:
+def _wait(session: Session, reason: str) -> WaitingSession:
     """Return the session as one waiting on what this reason says."""
-    return Waiting(session=session.key, issue=session.record.issue, reason=reason)
+    return WaitingSession(
+        session=session.key, issue=session.record.issue, reason=reason
+    )

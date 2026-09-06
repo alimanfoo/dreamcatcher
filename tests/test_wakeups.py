@@ -19,7 +19,7 @@ from dreamcatcher.prompts import CARRY_ON_PROMPT, MARKER
 from dreamcatcher.relay import Inbox
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.sessions import advance_watermark, read_sessions
-from dreamcatcher.state import StateDirectory, Waiting
+from dreamcatcher.state import StateDirectory, WaitingSession
 from dreamcatcher.wakeups import Wakeup, judge_session, sort_wakeups
 
 KEY = "GH13-20260819-184158"
@@ -55,13 +55,15 @@ def ran(state, number: int, cause: Cause, status: int | None = 0) -> None:
     )
 
 
-def found(state) -> Wakeup | Waiting | None:
+def found(state) -> Wakeup | WaitingSession | None:
     """What the one session in that state directory needs next."""
     return judge_session(REPOSITORY, POSTED_BY, read_sessions(state)[0])
 
 
 def test_a_session_that_has_run_no_round_at_all_waits_for_a_person(state):
-    assert found(state) == Waiting(session=KEY, issue=13, reason="no round has run yet")
+    assert found(state) == WaitingSession(
+        session=KEY, issue=13, reason="no round has run yet"
+    )
 
 
 def test_a_session_whose_last_round_was_interrupted_is_carried_on(state):
@@ -205,7 +207,7 @@ def test_a_session_with_no_pull_request_of_its_own_waits_for_a_person(state, gh)
     ran(state, 1, Cause.DISPATCH)
     gh.replies("[]", to="pr list")
 
-    assert found(state) == Waiting(
+    assert found(state) == WaitingSession(
         session=KEY, issue=13, reason="no pull request has been opened on it"
     )
 
@@ -243,7 +245,7 @@ def test_a_pull_request_read_that_failed_leaves_the_session_waiting(state, gh):
 
     waiting = found(state)
 
-    assert isinstance(waiting, Waiting)
+    assert isinstance(waiting, WaitingSession)
     assert waiting.reason.startswith("cannot tell which pull request it has")
 
 
@@ -256,7 +258,7 @@ def test_a_peek_that_failed_leaves_the_session_waiting(state, gh):
 
     waiting = found(state)
 
-    assert isinstance(waiting, Waiting)
+    assert isinstance(waiting, WaitingSession)
     assert waiting.reason.startswith("cannot tell what the user posted")
 
 

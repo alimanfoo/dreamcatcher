@@ -7,15 +7,15 @@ from dreamcatcher.prompts import CARRY_ON_PROMPT, compose_inbox_prompt
 from dreamcatcher.relay import Inbox, peek_new_posts
 from dreamcatcher.rounds import Cause
 from dreamcatcher.sessions import Session
-from dreamcatcher.state import Waiting
+from dreamcatcher.state import WaitingSession
 
-type Finding = Wakeup | Waiting
+type Finding = Wakeup | WaitingSession
 PRIORITY = (Cause.CARRY_ON, Cause.FINAL, Cause.POSTS)
 
 def sort_wakeups(found: list[Wakeup]) -> list[Wakeup]:
     ...
 
-def list_waiting(found: list[Finding]) -> list[Waiting]:
+def list_waiting(found: list[Finding]) -> list[WaitingSession]:
     ...
 
 def judge_session(repository: str, account: str, session: Session) -> Finding | None:
@@ -39,7 +39,7 @@ def _compose_resume(session: Session, pull_request: PullRequest, posted: list[An
 def _count_posts(posted: list[AnyPost]) -> str:
     ...
 
-def _wait(session: Session, reason: str) -> Waiting:
+def _wait(session: Session, reason: str) -> WaitingSession:
     ...
 
 class Wakeup:

@@ -34,7 +34,7 @@ from dreamcatcher.daemon import Daemon
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.prompts import CARRY_ON_PROMPT
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
-from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, Waiting
+from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, WaitingSession
 
 KEY = "GH13-20260819-184158"
 
@@ -575,7 +575,9 @@ def test_a_session_with_no_pull_request_of_its_own_reads_as_waiting(resuming):
     daemon.run()
 
     assert recorded(daemon).waiting == [
-        Waiting(session=KEY, issue=13, reason="no pull request has been opened on it")
+        WaitingSession(
+            session=KEY, issue=13, reason="no pull request has been opened on it"
+        )
     ]
 
 
@@ -586,7 +588,7 @@ def test_a_session_that_has_run_no_round_at_all_waits_for_its_first(dispatching)
     daemon.run()
 
     assert recorded(daemon).waiting == [
-        Waiting(session=KEY, issue=13, reason="no round has run yet")
+        WaitingSession(session=KEY, issue=13, reason="no round has run yet")
     ]
 
 
@@ -794,7 +796,7 @@ def test_a_cooling_tick_still_says_what_each_session_is_waiting_on(resuming):
 
     assert "next attempt at 18:50 UTC" in held(daemon)
     assert recorded(daemon).waiting == [
-        Waiting(session=KEY, issue=13, reason="the last round failed (exit 1)")
+        WaitingSession(session=KEY, issue=13, reason="the last round failed (exit 1)")
     ]
 
 

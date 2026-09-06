@@ -11,7 +11,7 @@ from dreamcatcher.prompts import CARRY_ON_PROMPT, MARKER
 from dreamcatcher.relay import Inbox
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.sessions import advance_watermark, read_sessions
-from dreamcatcher.state import StateDirectory, Waiting
+from dreamcatcher.state import StateDirectory, WaitingSession
 from dreamcatcher.wakeups import Wakeup, judge_session, sort_wakeups
 
 KEY = 'GH13-20260819-184158'
@@ -25,7 +25,7 @@ def gh(gh_with_no_posts):
 def ran(state, number: int, cause: Cause, status: int | None) -> None:
     ...
 
-def found(state) -> Wakeup | Waiting | None:
+def found(state) -> Wakeup | WaitingSession | None:
     ...
 
 def test_a_session_that_has_run_no_round_at_all_waits_for_a_person(state):

@@ -36,7 +36,7 @@ class CandidateIssue(Document):
         return self.reason is None
 
 
-class Waiting(Document):
+class WaitingSession(Document):
     """A session with no round running, waiting for the round that would
     carry it on.
 
@@ -76,7 +76,7 @@ class LastTick(Document):
     hold: str | None = None
     launched: str | None = None
     candidates: list[CandidateIssue] = Field(default_factory=list)
-    waiting: list[Waiting] = Field(default_factory=list)
+    waiting: list[WaitingSession] = Field(default_factory=list)
 
 
 @dataclass(frozen=True)
