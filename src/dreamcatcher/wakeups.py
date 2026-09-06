@@ -85,7 +85,9 @@ def list_waiting(found: list[Finding]) -> list[WaitingSession]:
     wakeup's own reason is what it is waiting on.
     """
     return [
-        one if isinstance(one, WaitingSession) else _wait(one.session, one.reason)
+        one
+        if isinstance(one, WaitingSession)
+        else describe_wait(one.session, one.reason)
         for one in found
     ]
 
@@ -106,7 +108,7 @@ def judge_session(repository: str, account: str, session: Session) -> Finding | 
     here.
     """
     if not session.rounds:
-        return _wait(session, "no round has run yet", is_stuck=True)
+        return describe_wait(session, "no round has run yet", is_stuck=True)
     unfinished = session.describe_unfinished_round()
     if unfinished is not None:
         return Wakeup(
@@ -134,10 +136,14 @@ def _judge_pull_request(
     """
     found = list_pull_requests(repository, session.record.branch)
     if isinstance(found, Unknown):
-        return _wait(session, f"cannot tell which pull request it has: {found.reason}")
+        return describe_wait(
+            session, f"cannot tell which pull request it has: {found.reason}"
+        )
     pull_request = _choose_pull_request(found)
     if pull_request is None:
-        return _wait(session, "no pull request has been opened on it", is_stuck=True)
+        return describe_wait(
+            session, "no pull request has been opened on it", is_stuck=True
+        )
     is_open = pull_request.state is PullRequestState.OPEN
     if not is_open and session.has_run_final_round:
         return None
@@ -148,7 +154,9 @@ def _judge_pull_request(
         watermark=session.watermark,
     )
     if isinstance(posted, Unknown):
-        return _wait(session, f"cannot tell what the user posted: {posted.reason}")
+        return describe_wait(
+            session, f"cannot tell what the user posted: {posted.reason}"
+        )
     if is_open and not posted:
         return None
     return _compose_resume(session, pull_request, posted)
@@ -202,7 +210,9 @@ def _count_posts(posted: list[AnyPost]) -> str:
     return f"{len(posted)} new posts"
 
 
-def _wait(session: Session, reason: str, is_stuck: bool = False) -> WaitingSession:
+def describe_wait(
+    session: Session, reason: str, is_stuck: bool = False
+) -> WaitingSession:
     """Return the session as one waiting on what this reason says.
 
     A wait is stuck when no later tick clears it: the dispatch never started

@@ -113,6 +113,7 @@ src/:
         run:
         tick:
         _decide_and_launch:
+        _defer_at_cap:
         _judge_sessions:
         _resume_session:
         _launch_wakeup:
@@ -386,7 +387,7 @@ src/:
       _choose_pull_request:
       _compose_resume:
       _count_posts:
-      _wait:
+      describe_wait:
 tests/:
   clocks.py:
     PINNED:
@@ -605,6 +606,8 @@ tests/:
     test_a_dispatched_round_records_what_caused_it_and_what_it_said:
     test_a_tick_launches_one_round_and_leaves_the_rest_in_the_queue:
     test_a_second_tick_judges_a_dispatched_issue_handled:
+    test_a_tick_at_the_cap_says_the_cap_is_what_each_session_waits_on:
+    test_a_tick_at_the_cap_leaves_a_wound_up_session_waiting_on_nothing:
     test_a_tick_at_the_cap_spends_no_github_call:
     test_a_tick_with_nothing_eligible_dispatches_nothing:
     test_a_tick_whose_listing_failed_records_what_it_could_not_read:

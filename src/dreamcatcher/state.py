@@ -67,9 +67,9 @@ class LastTick(Document):
 
     A tick launches at most one round, and the key of that round's session is
     what it launched. A tick that launched nothing at all says in one line what
-    held it. A tick that was held at the cap looked no further than its own
-    rounds, so it records nothing else, rather than suggesting that it had
-    looked.
+    held it. A tick that was held at the cap read no further than its own
+    rounds and the sessions on the disk, so the cap is what it writes down
+    against every session it is holding, and it weighed no issue at all.
 
     The candidates are every labelled issue that the tick weighed, in the order
     they would be dispatched. A candidate with nothing in its way that the tick

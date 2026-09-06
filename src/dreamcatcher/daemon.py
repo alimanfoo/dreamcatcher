@@ -44,6 +44,7 @@ from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, Waiting
 from dreamcatcher.wakeups import (
     Finding,
     Wakeup,
+    describe_wait,
     judge_session,
     list_waiting,
     sort_wakeups,
@@ -165,7 +166,7 @@ class Daemon:
         waiting on, rather than going quiet for the whole fifteen minutes.
         """
         if len(self.rounds) >= self.config.max_agents:
-            return LastTick(at=at, hold=f"at cap: {len(self.rounds)} rounds running")
+            return self._defer_at_cap(at)
         sessions = read_sessions(self.state)
         found = self._judge_sessions(repository, account, sessions)
         cooling = _check_cooldown(sessions, at)
@@ -180,6 +181,28 @@ class Daemon:
         if isinstance(judged, Unknown):
             return LastTick(at=at, hold=judged.reason, waiting=list_waiting(found))
         return self._dispatch_oldest_issue(at, judged, list_waiting(found))
+
+    def _defer_at_cap(self, at: datetime) -> LastTick:
+        """Return what a tick held at the cap saw, and what the cap is holding.
+
+        The cap is the daemon's own rounds, and the sessions are on the disk,
+        so this spends no GitHub call. That is what lets the record still say
+        of every session that no round is running for what it is waiting on:
+        each of them is waiting on the cap, and none of them was peeked at.
+
+        A session that has run its final round is waiting for nothing, so the
+        cap holds nothing of its.
+        """
+        hold = f"at cap: {len(self.rounds)} rounds running"
+        return LastTick(
+            at=at,
+            hold=hold,
+            waiting=[
+                describe_wait(session, hold)
+                for session in read_sessions(self.state)
+                if session.key not in self.rounds and not session.has_run_final_round
+            ],
+        )
 
     def _judge_sessions(
         self, repository: str, account: str, sessions: list[Session]

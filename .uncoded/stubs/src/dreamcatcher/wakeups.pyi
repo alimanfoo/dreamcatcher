@@ -33,7 +33,7 @@ def _compose_resume(session: Session, pull_request: PullRequest, posted: list[An
 def _count_posts(posted: list[AnyPost]) -> str:
     ...
 
-def _wait(session: Session, reason: str, is_stuck: bool) -> WaitingSession:
+def describe_wait(session: Session, reason: str, is_stuck: bool) -> WaitingSession:
     ...
 
 class Wakeup:

@@ -398,6 +398,35 @@ def test_a_second_tick_judges_a_dispatched_issue_handled(dispatching):
     ]
 
 
+def test_a_tick_at_the_cap_says_the_cap_is_what_each_session_waits_on(
+    dispatching, harnesses
+):
+    harnesses["claude"].streams([Line("still working\n")], delay=STILL_RUNNING)
+    write_session(StateDirectory(dispatching), KEY, 13)
+    daemon, _, _ = idling(dispatching, ticks=2)
+
+    daemon.run()
+
+    # The first tick dispatched issue 8, and its round is what fills the cap,
+    # so the session already on disk is the one the cap holds.
+    assert recorded(daemon).waiting == [
+        WaitingSession(session=KEY, issue=13, reason="at cap: 1 rounds running")
+    ]
+
+
+def test_a_tick_at_the_cap_leaves_a_wound_up_session_waiting_on_nothing(
+    dispatching, harnesses
+):
+    harnesses["claude"].streams([Line("still working\n")], delay=STILL_RUNNING)
+    write_session(StateDirectory(dispatching), KEY, 13)
+    ran(dispatching, 1, Cause.FINAL)
+    daemon, _, _ = idling(dispatching, ticks=2)
+
+    daemon.run()
+
+    assert recorded(daemon).waiting == []
+
+
 def test_a_tick_at_the_cap_spends_no_github_call(dispatching, offered, harnesses):
     harnesses["claude"].streams([Line("still working\n")], delay=STILL_RUNNING)
     daemon, _, _ = idling(dispatching, ticks=2)
