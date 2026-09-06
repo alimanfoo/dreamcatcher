@@ -5,10 +5,9 @@ from datetime import UTC, datetime, timedelta
 # How a time is written wherever the tool writes one.
 STAMP = "%Y-%m-%dT%H:%M:%SZ"
 
-# How many of the smaller unit make one of the next unit up.
-MINUTE = 60
-HOUR = 60
-DAY = 24
+SECONDS_PER_MINUTE = 60
+MINUTES_PER_HOUR = 60
+HOURS_PER_DAY = 24
 
 
 def describe_time(at: datetime) -> str:
@@ -23,15 +22,15 @@ def describe_span(span: timedelta) -> str:
     alone would round a whole working day away.
     """
     seconds = int(span.total_seconds())
-    if seconds < MINUTE:
+    if seconds < SECONDS_PER_MINUTE:
         return f"{seconds}s"
-    minutes = seconds // MINUTE
-    if minutes < HOUR:
+    minutes = seconds // SECONDS_PER_MINUTE
+    if minutes < MINUTES_PER_HOUR:
         return f"{minutes}m"
-    hours = minutes // HOUR
-    if hours < DAY:
-        return f"{hours}h {minutes % HOUR}m"
-    return f"{hours // DAY}d {hours % DAY}h"
+    hours = minutes // MINUTES_PER_HOUR
+    if hours < HOURS_PER_DAY:
+        return f"{hours}h {minutes % MINUTES_PER_HOUR}m"
+    return f"{hours // HOURS_PER_DAY}d {hours % HOURS_PER_DAY}h"
 
 
 def describe_count(number: int, noun: str) -> str:

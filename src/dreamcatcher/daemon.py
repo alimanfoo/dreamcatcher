@@ -44,7 +44,7 @@ from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, Waiting
 from dreamcatcher.wakeups import (
     Finding,
     Wakeup,
-    describe_wait,
+    compose_wait,
     judge_session,
     list_waiting,
     sort_wakeups,
@@ -198,7 +198,7 @@ class Daemon:
             at=at,
             hold=hold,
             waiting=[
-                describe_wait(session, hold)
+                compose_wait(session, hold)
                 for session in read_sessions(self.state)
                 if session.key not in self.rounds and not session.has_run_final_round
             ],

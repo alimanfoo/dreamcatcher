@@ -26,7 +26,6 @@ src/:
         read:
         _events:
     board.py:
-      NEVER_STARTED:
       Standing:
         NEEDS_YOU:
         WORKING:
@@ -420,6 +419,7 @@ src/:
       discard_session:
     state.py:
       STATE_DIRECTORY:
+      NO_ROUND_HAS_RUN:
       CandidateIssue:
         issue:
         label:
@@ -463,12 +463,12 @@ src/:
       _judge_pull_request:
       _choose_pull_request:
       _compose_resume:
-      describe_wait:
+      compose_wait:
     words.py:
       STAMP:
-      MINUTE:
-      HOUR:
-      DAY:
+      SECONDS_PER_MINUTE:
+      MINUTES_PER_HOUR:
+      HOURS_PER_DAY:
       describe_time:
       describe_span:
       describe_count:
@@ -1003,7 +1003,6 @@ tests/:
     test_a_round_that_wrote_no_feed_shows_the_line_that_opens_it:
     test_a_round_the_session_never_ran_says_how_many_it_did:
     test_an_issue_no_session_here_has_says_so:
-    test_the_console_scry_opens_writes_where_the_user_is_looking:
   test_sessions.py:
     KEY:
     BRANCH:

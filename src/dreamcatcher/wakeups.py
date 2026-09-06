@@ -26,7 +26,7 @@ from dreamcatcher.prompts import CARRY_ON_PROMPT, compose_inbox_prompt
 from dreamcatcher.relay import Inbox, peek_new_posts
 from dreamcatcher.rounds import Cause
 from dreamcatcher.sessions import Session
-from dreamcatcher.state import WaitingSession
+from dreamcatcher.state import NO_ROUND_HAS_RUN, WaitingSession
 from dreamcatcher.words import describe_count
 
 
@@ -88,7 +88,7 @@ def list_waiting(found: list[Finding]) -> list[WaitingSession]:
     return [
         one
         if isinstance(one, WaitingSession)
-        else describe_wait(one.session, one.reason)
+        else compose_wait(one.session, one.reason)
         for one in found
     ]
 
@@ -109,7 +109,7 @@ def judge_session(repository: str, account: str, session: Session) -> Finding | 
     here.
     """
     if not session.rounds:
-        return describe_wait(session, "no round has run yet", is_stuck=True)
+        return compose_wait(session, NO_ROUND_HAS_RUN, is_stuck=True)
     unfinished = session.describe_unfinished_round()
     if unfinished is not None:
         return Wakeup(
@@ -137,12 +137,12 @@ def _judge_pull_request(
     """
     found = list_pull_requests(repository, session.record.branch)
     if isinstance(found, Unknown):
-        return describe_wait(
+        return compose_wait(
             session, f"cannot tell which pull request it has: {found.reason}"
         )
     pull_request = _choose_pull_request(found)
     if pull_request is None:
-        return describe_wait(
+        return compose_wait(
             session, "no pull request has been opened on it", is_stuck=True
         )
     is_open = pull_request.state is PullRequestState.OPEN
@@ -155,7 +155,7 @@ def _judge_pull_request(
         watermark=session.watermark,
     )
     if isinstance(posted, Unknown):
-        return describe_wait(
+        return compose_wait(
             session, f"cannot tell what the user posted: {posted.reason}"
         )
     if is_open and not posted:
@@ -204,7 +204,7 @@ def _compose_resume(
     )
 
 
-def describe_wait(
+def compose_wait(
     session: Session, reason: str, is_stuck: bool = False
 ) -> WaitingSession:
     """Return the session as one waiting on what this reason says.

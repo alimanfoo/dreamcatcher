@@ -17,7 +17,7 @@ from dreamcatcher.daemon import Daemon
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.prompts import CARRY_ON_PROMPT
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
-from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, WaitingSession
+from dreamcatcher.state import NO_ROUND_HAS_RUN, CandidateIssue, LastTick, StateDirectory, WaitingSession
 
 KEY = 'GH13-20260819-184158'
 CAUSE = Cause.DISPATCH

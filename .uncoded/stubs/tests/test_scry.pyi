@@ -13,8 +13,8 @@ from dreamcatcher.documents import write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Line
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
-from dreamcatcher.scry import PAUSE, open_console, show_board, show_feed, show_round, show_session
-from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, WaitingSession
+from dreamcatcher.scry import PAUSE, show_board, show_feed, show_round, show_session
+from dreamcatcher.state import NO_ROUND_HAS_RUN, CandidateIssue, LastTick, StateDirectory, WaitingSession
 
 LOOKED_AT = PINNED + timedelta(hours=2)
 WIDTH = 100
@@ -102,7 +102,4 @@ def test_a_round_the_session_never_ran_says_how_many_it_did(tmp_path, daemon):
     ...
 
 def test_an_issue_no_session_here_has_says_so(tmp_path):
-    ...
-
-def test_the_console_scry_opens_writes_where_the_user_is_looking(capsys, tmp_path):
     ...

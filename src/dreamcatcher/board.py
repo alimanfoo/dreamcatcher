@@ -22,12 +22,13 @@ from dreamcatcher.documents import read_json
 from dreamcatcher.feed import Line, read_last_feed_line
 from dreamcatcher.lock import read_daemon_pid
 from dreamcatcher.sessions import Session, read_sessions
-from dreamcatcher.state import LastTick, StateDirectory, WaitingSession
+from dreamcatcher.state import (
+    NO_ROUND_HAS_RUN,
+    LastTick,
+    StateDirectory,
+    WaitingSession,
+)
 from dreamcatcher.words import describe_count, describe_span
-
-# What the board says of a session whose dispatch never started a round, when
-# no tick has said anything about it.
-NEVER_STARTED = "its first round never started"
 
 
 class Standing(StrEnum):
@@ -150,18 +151,18 @@ class _Look:
         found = []
         for issue in sorted(by_issue):
             made = by_issue[issue]
-            for place, session in reversed(list(enumerate(made, start=1))):
-                found.append(self._read_attempt(session, place, len(made)))
+            for attempt, session in reversed(list(enumerate(made, start=1))):
+                found.append(self._read_attempt(session, attempt, len(made)))
         return found
 
-    def _read_attempt(self, session: Session, place: int, attempts: int) -> Attempt:
+    def _read_attempt(self, session: Session, attempt: int, attempts: int) -> Attempt:
         """Return the session as one attempt at its issue, where it stands."""
         standing, detail = self._judge_standing(session)
         return Attempt(
             session=session,
             standing=standing,
             detail=detail,
-            attempt=place,
+            attempt=attempt,
             attempts=attempts,
         )
 
@@ -193,7 +194,7 @@ class _Look:
         wait = self.waits.get(session.key)
         if wait is None:
             if not session.rounds:
-                return Standing.STUCK, NEVER_STARTED
+                return Standing.STUCK, NO_ROUND_HAS_RUN
             return Standing.NEEDS_YOU, self._describe_idle(session)
         if wait.is_stuck:
             return Standing.STUCK, self._point_at_feed(session, wait.reason)
@@ -263,6 +264,4 @@ def _describe_place(ahead: int) -> str:
     """Return the place in the queue that this many issues ahead of it is."""
     if ahead == 0:
         return "next"
-    if ahead == 1:
-        return "behind 1 other"
-    return f"behind {ahead} others"
+    return f"behind {describe_count(ahead, 'other')}"

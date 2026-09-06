@@ -5,10 +5,11 @@ import pytest
 from clocks import PINNED
 from records import write_feed, write_round, write_session, write_tick
 
-from dreamcatcher.board import NEVER_STARTED, Standing, read_board
+from dreamcatcher.board import Standing, read_board
 from dreamcatcher.feed import Line
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.state import (
+    NO_ROUND_HAS_RUN,
     CandidateIssue,
     LastTick,
     StateDirectory,
@@ -187,7 +188,7 @@ def test_a_stuck_session_that_ran_no_round_has_no_feed_to_point_at(state):
                 WaitingSession(
                     session=KEY,
                     issue=13,
-                    reason="no round has run yet",
+                    reason=NO_ROUND_HAS_RUN,
                     is_stuck=True,
                 )
             ],
@@ -200,7 +201,7 @@ def test_a_stuck_session_that_ran_no_round_has_no_feed_to_point_at(state):
 
 def test_a_session_no_tick_has_weighed_and_no_round_has_run_is_stuck(state):
     assert only(state).standing is Standing.STUCK
-    assert only(state).detail == NEVER_STARTED
+    assert only(state).detail == NO_ROUND_HAS_RUN
 
 
 def test_the_attempts_at_one_issue_read_as_attempts_newest_first(state):

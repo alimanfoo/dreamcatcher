@@ -19,7 +19,7 @@ from dreamcatcher.prompts import CARRY_ON_PROMPT, MARKER
 from dreamcatcher.relay import Inbox
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.sessions import advance_watermark, read_sessions
-from dreamcatcher.state import StateDirectory, WaitingSession
+from dreamcatcher.state import NO_ROUND_HAS_RUN, StateDirectory, WaitingSession
 from dreamcatcher.wakeups import Wakeup, judge_session, sort_wakeups
 
 KEY = "GH13-20260819-184158"
@@ -62,7 +62,7 @@ def found(state) -> Wakeup | WaitingSession | None:
 
 def test_a_session_that_has_run_no_round_at_all_waits_for_a_person(state):
     assert found(state) == WaitingSession(
-        session=KEY, issue=13, reason="no round has run yet", is_stuck=True
+        session=KEY, issue=13, reason=NO_ROUND_HAS_RUN, is_stuck=True
     )
 
 

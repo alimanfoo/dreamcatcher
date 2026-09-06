@@ -4,9 +4,9 @@
 from datetime import UTC, datetime, timedelta
 
 STAMP = '%Y-%m-%dT%H:%M:%SZ'
-MINUTE = 60
-HOUR = 60
-DAY = 24
+SECONDS_PER_MINUTE = 60
+MINUTES_PER_HOUR = 60
+HOURS_PER_DAY = 24
 
 def describe_time(at: datetime) -> str:
     ...

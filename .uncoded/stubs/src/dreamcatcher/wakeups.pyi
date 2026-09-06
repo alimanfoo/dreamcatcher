@@ -7,7 +7,7 @@ from dreamcatcher.prompts import CARRY_ON_PROMPT, compose_inbox_prompt
 from dreamcatcher.relay import Inbox, peek_new_posts
 from dreamcatcher.rounds import Cause
 from dreamcatcher.sessions import Session
-from dreamcatcher.state import WaitingSession
+from dreamcatcher.state import NO_ROUND_HAS_RUN, WaitingSession
 from dreamcatcher.words import describe_count
 
 type Finding = Wakeup | WaitingSession
@@ -31,7 +31,7 @@ def _choose_pull_request(found: list[PullRequest]) -> PullRequest | None:
 def _compose_resume(session: Session, pull_request: PullRequest, posted: list[AnyPost]) -> Wakeup:
     ...
 
-def describe_wait(session: Session, reason: str, is_stuck: bool) -> WaitingSession:
+def compose_wait(session: Session, reason: str, is_stuck: bool) -> WaitingSession:
     ...
 
 class Wakeup:

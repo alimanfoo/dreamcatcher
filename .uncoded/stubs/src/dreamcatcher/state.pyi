@@ -8,6 +8,7 @@ from pydantic import Field
 from dreamcatcher.documents import Document, write_text
 
 STATE_DIRECTORY = '.dreamcatcher'
+NO_ROUND_HAS_RUN = 'no round has run yet'
 
 class CandidateIssue(Document):
     issue: int

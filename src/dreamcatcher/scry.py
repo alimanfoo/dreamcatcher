@@ -4,8 +4,8 @@
 GitHub or to the daemon, so it answers whether the daemon is alive or dead, and
 answers fastest when you most want to look.
 
-rich renders every view here, and nowhere else, so what the daemon writes stays
-plain text and the colour is put on at the moment of reading.
+What the daemon writes stays plain text, and the colour goes on at the moment of
+reading.
 """
 
 from collections.abc import Callable, Iterable

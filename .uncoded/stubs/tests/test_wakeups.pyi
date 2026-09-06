@@ -11,7 +11,7 @@ from dreamcatcher.prompts import CARRY_ON_PROMPT, MARKER
 from dreamcatcher.relay import Inbox
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.sessions import advance_watermark, read_sessions
-from dreamcatcher.state import StateDirectory, WaitingSession
+from dreamcatcher.state import NO_ROUND_HAS_RUN, StateDirectory, WaitingSession
 from dreamcatcher.wakeups import Wakeup, judge_session, sort_wakeups
 
 KEY = 'GH13-20260819-184158'
