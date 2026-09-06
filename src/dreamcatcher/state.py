@@ -121,6 +121,21 @@ class StateDirectory:
         """The directory holding each session's own files, named by its key."""
         return self.path / "sessions"
 
+    def describe_path(self, path: Path) -> str:
+        """Return the path as it reads from the checkout, for a reader to open.
+
+        The one way of writing it on every platform, so what a reader is told
+        to open reads the same wherever they are.
+
+        A path the checkout does not hold reads whole. The dispatch writes the
+        checkout's own path into the session's record, and a reader can be
+        standing in that same checkout under another name, a symlink's for
+        instance, so the two do not always meet.
+        """
+        if path.is_relative_to(self.root):
+            return path.relative_to(self.root).as_posix()
+        return path.as_posix()
+
     def bootstrap(self) -> None:
         """Create the directory, ignoring itself, so git never sees its files.
 

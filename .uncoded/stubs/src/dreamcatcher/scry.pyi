@@ -68,9 +68,6 @@ def _show_hand_resume(console: Console, state: StateDirectory, attempt: Attempt)
 def _show_older_attempts(console: Console, older: list[Attempt]) -> None:
     ...
 
-def _under_the_checkout(state: StateDirectory, path: Path) -> str:
-    ...
-
 def show_round(state: StateDirectory, issue: int, number: int, console: Console, clock: Callable[[], datetime]) -> None:
     ...
 

@@ -221,14 +221,12 @@ class _Look:
         """Return what the session waits on, and where to read what it did.
 
         A stuck session moves no further until a person reads what happened, so
-        its row says where that reading is. The path is written the one way on
-        every platform, so what a reader is told to open reads the same
-        wherever they are.
+        its row says where that reading is.
         """
         if not session.rounds:
             return reason
         feed = session.workspace(len(session.rounds)).feed
-        return f"{reason} ({feed.relative_to(self.state.root).as_posix()})"
+        return f"{reason} ({self.state.describe_path(feed)})"
 
 
 def _when_it_last_ran(attempt: Attempt) -> datetime:

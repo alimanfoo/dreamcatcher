@@ -36,5 +36,8 @@ class StateDirectory:
     worktrees: Path
     sessions: Path
 
+    def describe_path(self, path: Path) -> str:
+        ...
+
     def bootstrap(self) -> None:
         ...

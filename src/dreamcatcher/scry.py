@@ -171,7 +171,7 @@ def _show_vitals(console: Console, state: StateDirectory, attempt: Attempt) -> N
         ("key", attempt.session.key),
         ("label", record.label),
         ("branch", record.branch),
-        ("worktree", _under_the_checkout(state, record.worktree)),
+        ("worktree", state.describe_path(record.worktree)),
         ("harness", record.harness),
         ("model", record.model),
         ("effort", record.effort),
@@ -230,7 +230,7 @@ def _show_hand_resume(
     """
     if attempt.standing is Standing.WORKING or not attempt.session.rounds:
         return
-    worktree = _under_the_checkout(state, attempt.session.record.worktree)
+    worktree = state.describe_path(attempt.session.record.worktree)
     command = " ".join(ADAPTERS[attempt.session.record.harness].build_hand_resume())
     _print_section(
         console, "take it over yourself", "blue", Text(f"cd {worktree}\n{command}")
@@ -249,11 +249,6 @@ def _show_older_attempts(console: Console, older: list[Attempt]) -> None:
             Text(attempt.detail),
         )
     _print_section(console, "older attempts", "blue", table)
-
-
-def _under_the_checkout(state: StateDirectory, path: Path) -> str:
-    """Return the path as it reads from the checkout, the one way everywhere."""
-    return path.relative_to(state.root).as_posix()
 
 
 def show_round(

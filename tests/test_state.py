@@ -40,3 +40,18 @@ def test_the_daemon_files_sit_in_the_state_directory(tmp_path):
     assert state.last_tick == state.path / "last-tick.json"
     assert state.worktrees == state.path / "worktrees"
     assert state.sessions == state.path / "sessions"
+
+
+def test_a_path_the_checkout_holds_reads_from_the_checkout(tmp_path):
+    state = StateDirectory(tmp_path)
+
+    assert state.describe_path(state.worktrees / "GH13") == (
+        ".dreamcatcher/worktrees/GH13"
+    )
+
+
+def test_a_path_the_checkout_does_not_hold_reads_whole(tmp_path):
+    state = StateDirectory(tmp_path)
+    elsewhere = tmp_path.parent / "another checkout" / "worktrees" / "GH13"
+
+    assert state.describe_path(elsewhere) == elsewhere.as_posix()
