@@ -4,12 +4,6 @@ dreamcatcher watches a repository for labelled issues, dispatches an autonomous
 coding session for each, and carries each issue to a pull request for you to
 review and merge.
 
-`run` now carries a labelled issue the whole way. It dispatches the first round,
-relays what you post on the pull request into a resumed round, carries an
-interrupted or failed round on from where it stopped, and gives a merged or
-closed pull request one last round. `scry` shows what every session is doing.
-What is still to come is the first release.
-
 ## Install
 
 You need [uv](https://docs.astral.sh/uv/). It fetches its own Python, so you
