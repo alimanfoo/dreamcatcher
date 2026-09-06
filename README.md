@@ -105,10 +105,10 @@ worktree every couple of minutes.
 Removing the label is how you say stop. An issue whose pull request closes
 unmerged is free to dispatch again while the label is still on it.
 
-If you are moving from `dream:catcher`, the shell scripts this replaces, retire
-it with nothing in flight. dreamcatcher does not see an old-catcher session that
-has not opened its pull request yet, so it dispatches that issue as well and two
-agents work on it at once.
+If you are moving from `dream:catcher`, the shell scripts that dreamcatcher
+replaces, wait until it has nothing in flight before you retire it. dreamcatcher
+cannot see a `dream:catcher` session that has not opened its pull request yet,
+so it dispatches that issue as well and two agents work on it at once.
 
 One daemon watches one repo. A second `run` on the same repo refuses while the
 first is alive.

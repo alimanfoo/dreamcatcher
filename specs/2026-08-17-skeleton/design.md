@@ -146,11 +146,11 @@ unchanged until the dream-side prompt argument lands.)
 The new branch prefix means dreamcatcher never mistakes old `dream-catcher-*`
 work for its own — and, the same coin's other face, never _sees_ it. GitHub's
 link closes most of that gap, since an old-catcher PR saying it closes the issue
-is one the eligibility check reads like any other, draft or not. What stays open
-is the window before that PR exists: an old-catcher session in flight and yet to
-open one reads as unhandled here, and its issue re-dispatches. The crossover
-rule is therefore: retire the old catcher with nothing in flight, or expect
-doubled attempts on whatever was.
+is one that the eligibility check reads like any other, draft or not. What stays
+open is the window before that PR exists: an old-catcher session in flight and
+yet to open one reads as unhandled here, and its issue re-dispatches. The
+crossover rule is therefore: retire the old catcher with nothing in flight, or
+expect doubled attempts on whatever was.
 
 Two costs of nesting, accepted: tools that ignore gitignore (`find`, some
 indexers) see repo copies inside the checkout — git, ripgrep, and the harnesses'
@@ -508,7 +508,7 @@ interactive `codex resume` is what a person is given instead.
 
 `CONTRACT.md` at the repo root, a deliverable of this phase: what a skill must
 do to be dispatchable. That page carries the requirements themselves, so they
-are not restated here. One decision shapes what it leaves out: marking is
+are not restated here. One decision shapes what it leaves out: the marker is
 injected by the dispatcher, and the skill needs no knowledge of it.
 
 ### Cross-platform notes

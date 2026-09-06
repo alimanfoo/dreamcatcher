@@ -39,10 +39,11 @@ jobs:
       - run: uv sync --locked
       - run: uv run pre-commit run --all-files
 
-  # Installs and runs the way the README's install command does. It proves the
+  # Builds and runs the package in an environment of its own, which proves the
   # wheel builds, the console script is there, and every runtime dependency
-  # resolves outside the development environment, which uv sync would hide.
-  # hatch-vcs reads the version from git, so this needs the whole history.
+  # resolves outside the one uv sync makes. It builds from this checkout, not
+  # from the git URL the README gives, because that URL always names main.
+  # hatch-vcs reads the version from the full history.
   package:
     needs: checks
     runs-on: ${{ matrix.os }}
