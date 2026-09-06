@@ -61,17 +61,37 @@ input. Nothing answers it, and the round stalls until dreamcatcher stops.
 ## Resumed rounds
 
 dreamcatcher gives an agent a further round whenever there is more for it to do.
-Each such round resumes the harness where the last one left off, and its prompt
-says why the agent was woken. A dispatchable skill must handle both prompts.
+Each such round resumes the harness where the last one left off, so the agent
+still has what the earlier rounds said in front of it, and dreamcatcher's prompt
+says why it was woken.
 
-The first says that the previous round did not finish, because that round was
-killed with the dreamcatcher process that started it, or failed on its own. The
-skill must carry the work on from where it stopped.
+### A comment or review from the user
 
-The second names a JSON file that holds what the pull request is now, and what
-the user has said on it. The skill must read `state` before anything else.
-`MERGED` or `CLOSED` means that the pull request is finished, and the skill
-should wind the work up. Otherwise `posts` holds what the user newly said,
-oldest first, and the skill must act on all of it and reply on the pull request.
-dreamcatcher counts a post as delivered once the round starts, so it never sends
-that post again.
+dreamcatcher's prompt names a JSON file and asks the agent to read it. `state`
+in that file says where the pull request has got to, and `posts` holds every
+comment and review the user has left since the last round that was given one,
+oldest first.
+
+A dispatchable skill must instruct the agent to read `state` before anything
+else, and, when `state` reads `OPEN`, to act on every post and reply on the pull
+request. dreamcatcher counts a post as delivered once the round starts, so it
+never sends that post again.
+
+### A merged or closed pull request
+
+dreamcatcher gives the agent a last round when the user merges or closes the
+pull request, with the same prompt naming the same file. `state` then reads
+`MERGED` or `CLOSED`, and `posts` still holds anything the user said before
+merging or closing.
+
+A dispatchable skill must instruct the agent to wind the work up when `state`
+reads anything but `OPEN`.
+
+### An interrupted round
+
+dreamcatcher's prompt says that the previous round did not finish, because that
+round was killed with the dreamcatcher process that started it, or because it
+failed on its own.
+
+A dispatchable skill needs nothing of its own here. The resumed agent still has
+its own transcript, and dreamcatcher's prompt is enough to carry it on.
