@@ -2,17 +2,34 @@
 # src/dreamcatcher/cli.py
 
 import argparse
+import re
 import sys
 from collections.abc import Sequence
 from importlib.metadata import version
 from pathlib import Path
 import dreamcatcher
+from dreamcatcher import scry
 from dreamcatcher.config import Harness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.errors import ReportableError
+from dreamcatcher.state import StateDirectory
+
+ISSUE = re.compile('gh(\\d+)$', re.IGNORECASE)
 
 def build_parser() -> argparse.ArgumentParser:
     ...
 
 def main(argv: Sequence[str] | None) -> int:
+    ...
+
+def _scry(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+    ...
+
+def _refuse_a_feed_of_nothing(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+    ...
+
+def _find_state(root: Path) -> StateDirectory:
+    ...
+
+def _read_issue(given: str) -> int:
     ...

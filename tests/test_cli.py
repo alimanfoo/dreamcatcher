@@ -1,10 +1,29 @@
+import os
 from importlib.metadata import version
 
 import pytest
+from clocks import PINNED
+from records import write_feed, write_round, write_session
 
 from dreamcatcher.cli import main
 from dreamcatcher.config import Harness
 from dreamcatcher.daemon import Daemon
+from dreamcatcher.documents import write_text
+from dreamcatcher.feed import Line
+from dreamcatcher.rounds import Cause, RoundRecord
+from dreamcatcher.state import StateDirectory
+
+
+@pytest.fixture
+def watching(tmp_path):
+    """A checkout a daemon has watched, holding one session with a live round."""
+    state = StateDirectory(tmp_path)
+    state.bootstrap()
+    write_text(f"{os.getpid()}\n", state.lock)
+    directory = write_session(state, "GH13-20260819-184158", 13)
+    write_round(directory, 1, RoundRecord(started=PINNED, pid=1, cause=Cause.DISPATCH))
+    write_feed(directory, 1, Line(PINNED, "[Bash] pytest"))
+    return state
 
 
 @pytest.fixture
@@ -23,9 +42,73 @@ def test_version_prints_the_installed_version(capsys):
     assert capsys.readouterr().out.strip() == version("dreamcatcher")
 
 
-def test_scry_is_not_implemented_yet(capsys):
+def test_a_checkout_no_daemon_has_watched_has_nothing_to_show(
+    monkeypatch, tmp_path, capsys
+):
+    monkeypatch.chdir(tmp_path)
+
     assert main(["scry"]) == 1
-    assert "scry" in capsys.readouterr().err
+    assert "nothing to show" in capsys.readouterr().err
+
+
+def test_scry_shows_the_board(monkeypatch, watching, capsys):
+    monkeypatch.chdir(watching.root)
+
+    assert main(["scry"]) == 0
+    assert "agent working" in capsys.readouterr().out
+
+
+def test_scry_naming_an_issue_shows_that_sessions_view(monkeypatch, watching, capsys):
+    monkeypatch.chdir(watching.root)
+
+    assert main(["scry", "GH13"]) == 0
+    assert "first prompt" in capsys.readouterr().out
+
+
+def test_an_issue_reads_however_the_reader_wrote_it(monkeypatch, watching, capsys):
+    monkeypatch.chdir(watching.root)
+
+    assert main(["scry", "gh13"]) == 0
+    assert "first prompt" in capsys.readouterr().out
+
+
+def test_something_that_is_not_an_issue_reference_is_refused(capsys):
+    with pytest.raises(SystemExit) as exit_info:
+        main(["scry", "the one about the parser"])
+
+    assert exit_info.value.code == 2
+    assert "GH123" in capsys.readouterr().err
+
+
+def test_scry_following_an_issue_shows_its_feed(monkeypatch, watching, capsys):
+    monkeypatch.chdir(watching.root)
+    (watching.lock).unlink()
+
+    assert main(["scry", "GH13", "--follow"]) == 0
+    assert "round 1: dispatched" in capsys.readouterr().out
+
+
+def test_scry_naming_a_round_shows_that_rounds_feed(monkeypatch, watching, capsys):
+    monkeypatch.chdir(watching.root)
+
+    assert main(["scry", "GH13", "--round", "1"]) == 0
+    assert "round 1: dispatched" in capsys.readouterr().out
+
+
+def test_a_feed_view_with_no_issue_to_show_asks_for_one(capsys):
+    with pytest.raises(SystemExit) as exit_info:
+        main(["scry", "--follow"])
+
+    assert exit_info.value.code == 2
+    assert "need an issue" in capsys.readouterr().err
+
+
+def test_a_feed_reads_as_it_arrives_or_as_it_stands_and_never_as_both(capsys):
+    with pytest.raises(SystemExit) as exit_info:
+        main(["scry", "GH13", "--follow", "--round", "1"])
+
+    assert exit_info.value.code == 2
+    assert "not allowed with" in capsys.readouterr().err
 
 
 def test_a_bare_invocation_asks_for_a_verb(capsys):
