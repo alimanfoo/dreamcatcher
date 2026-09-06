@@ -10,7 +10,6 @@ plain text and the colour is put on at the moment of reading.
 
 from collections.abc import Callable, Iterable
 from datetime import datetime
-from pathlib import Path
 from time import sleep
 
 from rich.console import Console, RenderableType
@@ -20,9 +19,14 @@ from rich.text import Text
 
 from dreamcatcher.board import Attempt, Board, Standing, read_board
 from dreamcatcher.clock import now
-from dreamcatcher.documents import read_text
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.feed import GAP, Line, compose_round_boundary, read_feed_line
+from dreamcatcher.feed import (
+    GAP,
+    Line,
+    compose_round_boundary,
+    read_feed_line,
+    read_feed_lines,
+)
 from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.rounds import RoundRecord
 from dreamcatcher.sessions import Session
@@ -326,25 +330,9 @@ def _compose_feed(session: Session, numbers: Iterable[int]) -> list[Text]:
         painted.append(_paint(boundary, Text(boundary.text, style="bold")))
         painted.extend(
             _paint_written(written)
-            for written in _read_feed(session.workspace(number).feed)
+            for written in read_feed_lines(session.workspace(number).feed)
         )
     return painted
-
-
-def _read_feed(path: Path) -> list[str]:
-    """Return the lines the feed at path holds whole, without their endings.
-
-    A round writes its feed a line at a time as it goes, so a round that has
-    said nothing yet has no feed, and a line with no ending on it is a write
-    still landing. The next look shows that one whole.
-    """
-    if not path.exists():
-        return []
-    written = read_text(path)
-    lines = written.splitlines()
-    if lines and not written.endswith("\n"):
-        lines.pop()
-    return lines
 
 
 def _paint_written(written: str) -> Text:

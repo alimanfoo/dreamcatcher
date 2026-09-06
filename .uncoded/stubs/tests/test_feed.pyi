@@ -65,6 +65,9 @@ def test_the_last_line_of_a_feed_is_what_the_feed_last_said(tmp_path):
 def test_a_write_that_never_landed_leaves_the_line_before_it_as_the_last(tmp_path):
     ...
 
+def test_a_feed_whose_last_line_is_not_one_has_nothing_to_say(tmp_path):
+    ...
+
 def test_a_feed_holding_nothing_yet_has_no_last_line(tmp_path):
     ...
 

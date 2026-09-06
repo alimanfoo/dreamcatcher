@@ -72,24 +72,31 @@ def read_feed_line(written: str) -> Line | None:
     return Line(at, text)
 
 
-def read_last_feed_line(path: Path) -> Line | None:
-    """Return the last line the feed at path holds, or nothing when it holds none.
+def read_feed_lines(path: Path) -> list[str]:
+    """Return the lines the feed at path holds whole, without their endings.
 
-    A round writes its feed as it goes, so a round that has said nothing yet
-    has no feed at all. That reads as nothing said, which is what it is.
+    A round writes its feed a line at a time as it goes, so a round that has
+    said nothing yet has no feed at all, and that reads as nothing said.
 
-    A feed grows a line at a time while its round runs, so a round that was
-    killed part way through a write can leave a part line at the end. The line
-    before it is then the last one the feed really holds, which is what this
-    answers.
+    A round the daemon killed part way through a write leaves a line with no
+    ending on it. That line has not landed, so it is not one the feed holds,
+    and a later read shows it whole.
     """
     if not path.exists():
+        return []
+    written = read_text(path)
+    lines = written.splitlines()
+    if lines and not written.endswith("\n"):
+        lines.pop()
+    return lines
+
+
+def read_last_feed_line(path: Path) -> Line | None:
+    """Return the last line the feed at path holds, or nothing when it holds none."""
+    lines = read_feed_lines(path)
+    if not lines:
         return None
-    for written in reversed(read_text(path).splitlines()):
-        line = read_feed_line(written)
-        if line is not None:
-            return line
-    return None
+    return read_feed_line(lines[-1])
 
 
 @dataclass(frozen=True)

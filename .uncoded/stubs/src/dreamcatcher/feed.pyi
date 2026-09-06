@@ -20,6 +20,9 @@ def compose_round_boundary(number: int, cause: str, at: datetime) -> Line:
 def read_feed_line(written: str) -> Line | None:
     ...
 
+def read_feed_lines(path: Path) -> list[str]:
+    ...
+
 def read_last_feed_line(path: Path) -> Line | None:
     ...
 

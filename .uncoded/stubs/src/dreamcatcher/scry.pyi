@@ -3,7 +3,6 @@
 
 from collections.abc import Callable, Iterable
 from datetime import datetime
-from pathlib import Path
 from time import sleep
 from rich.console import Console, RenderableType
 from rich.padding import Padding
@@ -11,9 +10,8 @@ from rich.table import Table
 from rich.text import Text
 from dreamcatcher.board import Attempt, Board, Standing, read_board
 from dreamcatcher.clock import now
-from dreamcatcher.documents import read_text
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.feed import GAP, Line, compose_round_boundary, read_feed_line
+from dreamcatcher.feed import GAP, Line, compose_round_boundary, read_feed_line, read_feed_lines
 from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.rounds import RoundRecord
 from dreamcatcher.sessions import Session
@@ -78,9 +76,6 @@ def _find_attempts(board: Board, issue: int) -> list[Attempt]:
     ...
 
 def _compose_feed(session: Session, numbers: Iterable[int]) -> list[Text]:
-    ...
-
-def _read_feed(path: Path) -> list[str]:
     ...
 
 def _paint_written(written: str) -> Text:

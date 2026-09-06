@@ -220,6 +220,7 @@ src/:
         _stamp:
       compose_round_boundary:
       read_feed_line:
+      read_feed_lines:
       read_last_feed_line:
     git.py:
       fetch:
@@ -385,7 +386,6 @@ src/:
       show_feed:
       _find_attempts:
       _compose_feed:
-      _read_feed:
       _paint_written:
       _paint:
     sessions.py:
@@ -832,6 +832,7 @@ tests/:
     test_a_line_whose_stamp_is_not_a_time_is_not_a_feed_line:
     test_the_last_line_of_a_feed_is_what_the_feed_last_said:
     test_a_write_that_never_landed_leaves_the_line_before_it_as_the_last:
+    test_a_feed_whose_last_line_is_not_one_has_nothing_to_say:
     test_a_feed_holding_nothing_yet_has_no_last_line:
     test_a_round_that_has_said_nothing_yet_has_no_last_line:
     test_a_clock_that_is_not_in_utc_still_stamps_utc:
