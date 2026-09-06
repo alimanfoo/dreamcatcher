@@ -393,7 +393,7 @@ def test_a_second_tick_judges_a_dispatched_issue_handled(dispatching):
     assert recorded(daemon).launched is None
     assert recorded(daemon).candidates == [
         CandidateIssue(
-            issue=8, label=LABEL, reason="a session of this run is working on it"
+            issue=8, label=LABEL, reason="a session in this checkout is working on it"
         )
     ]
 

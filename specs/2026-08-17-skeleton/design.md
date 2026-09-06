@@ -228,17 +228,18 @@ launched nothing, so the daemon ticks again rather than ending and leaving the
 sessions it holds to nobody.
 
 The two claims on an issue answer different questions, which is why both are
-asked. A session worktree says this daemon is working on it, and covers the
-window before any pull request exists. GitHub's link says somebody has a pull
-request open on it, and covers every attempt whose worktree is not here — a
-second checkout of the same repository, or one rebuilt since. The port answered
-that second question by listing five hundred pull requests and matching head
-branch names against its own naming pattern; the link needs one read, has no
-limit to fall out of, and rests on no naming convention. GitHub lists only open
-pull requests there, so a declined attempt drops out and its issue is free
-again, and a merged one closes the issue out of the listing altogether. It also
-counts a pull request you opened yourself, which is the intended reading: an
-issue somebody is already working on is not up for grabs.
+asked. A session worktree says a session in this checkout is working on it, and
+covers the window before any pull request exists. A worktree outlives the daemon
+run that cut it, so this says nothing about which run that was. GitHub's link
+says somebody has a pull request open on it, and covers every attempt whose
+worktree is not here — a second checkout of the same repository, or one rebuilt
+since. The port answered that second question by listing five hundred pull
+requests and matching head branch names against its own naming pattern; the link
+needs one read, has no limit to fall out of, and rests on no naming convention.
+GitHub lists only open pull requests there, so a declined attempt drops out and
+its issue is free again, and a merged one closes the issue out of the listing
+altogether. It also counts a pull request you opened yourself, which is the
+intended reading: an issue somebody is already working on is not up for grabs.
 
 The final-round guard improves on the port: the final round's completed record
 is the marker, so "final completed" rather than "final started". A final round

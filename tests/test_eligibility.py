@@ -78,7 +78,7 @@ def test_an_issue_carrying_more_than_one_mapped_label_is_skipped(gh):
 def test_an_issue_a_session_of_this_run_is_working_on_is_left_alone(gh):
     assert weighed(mapping("dream:smith"), claimed={8}) == [
         CandidateIssue(
-            issue=8, label=LABEL, reason="a session of this run is working on it"
+            issue=8, label=LABEL, reason="a session in this checkout is working on it"
         )
     ]
 
