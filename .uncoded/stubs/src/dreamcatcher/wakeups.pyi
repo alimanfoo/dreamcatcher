@@ -21,16 +21,10 @@ def list_waiting(found: list[Finding]) -> list[WaitingSession]:
 def judge_session(repository: str, account: str, session: Session) -> Finding | None:
     ...
 
-def _check_last_round(session: Session) -> str | None:
-    ...
-
 def _judge_pull_request(repository: str, account: str, session: Session) -> Finding | None:
     ...
 
 def _choose_pull_request(found: list[PullRequest]) -> PullRequest | None:
-    ...
-
-def _has_run_final_round(session: Session) -> bool:
     ...
 
 def _compose_resume(session: Session, pull_request: PullRequest, posted: list[AnyPost]) -> Wakeup:

@@ -11,7 +11,7 @@ from dreamcatcher.config import DispatchMapping, Harness
 from dreamcatcher.documents import Document, read_json, read_text, write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import add_worktree, delete_branch, fetch, remove_worktree
-from dreamcatcher.rounds import RoundRecord, Workspace, read_round_records
+from dreamcatcher.rounds import Cause, RoundRecord, Workspace, read_round_records
 from dreamcatcher.state import StateDirectory
 
 BRANCH_PREFIX = 'dreamcatcher-'
@@ -53,4 +53,8 @@ class Session:
     rounds: list[RoundRecord] = field(default_factory=list)
     watermark: str = ''
     key: str
+    has_run_final_round: bool
     next_workspace: Workspace
+
+    def describe_unfinished_round(self) -> str | None:
+        ...

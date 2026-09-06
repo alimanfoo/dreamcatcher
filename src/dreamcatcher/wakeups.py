@@ -107,7 +107,7 @@ def judge_session(repository: str, account: str, session: Session) -> Finding | 
     """
     if not session.rounds:
         return _wait(session, "no round has run yet")
-    unfinished = _check_last_round(session)
+    unfinished = session.describe_unfinished_round()
     if unfinished is not None:
         return Wakeup(
             session=session,
@@ -116,22 +116,6 @@ def judge_session(repository: str, account: str, session: Session) -> Finding | 
             prompt=CARRY_ON_PROMPT,
         )
     return _judge_pull_request(repository, account, session)
-
-
-def _check_last_round(session: Session) -> str | None:
-    """Return what the session's most recent round left unfinished, or nothing.
-
-    A record with no ending is a round the daemon stopped or outlived, and a
-    round that ended with a failing status stopped short of its own accord.
-    Both leave the work part done, so both are carried on from where they
-    stopped.
-    """
-    ending = session.rounds[-1].ending
-    if ending is None:
-        return "the last round was interrupted"
-    if ending.is_failed:
-        return f"the last round failed (exit {ending.status})"
-    return None
 
 
 def _judge_pull_request(
@@ -155,7 +139,7 @@ def _judge_pull_request(
     if pull_request is None:
         return _wait(session, "no pull request has been opened on it")
     is_open = pull_request.state is PullRequestState.OPEN
-    if not is_open and _has_run_final_round(session):
+    if not is_open and session.has_run_final_round:
         return None
     posted = peek_new_posts(
         repository,
@@ -186,18 +170,6 @@ def _choose_pull_request(found: list[PullRequest]) -> PullRequest | None:
             pull_request.number,
         ),
     )
-
-
-def _has_run_final_round(session: Session) -> bool:
-    """Whether the session has already run the round that winds it up.
-
-    Any round of the session having been the final round is what this reads,
-    and no record's ending comes into it. A session whose last round did not
-    finish is carried on before this is ever asked, and that carry-on finishes
-    what the final round started, so by the time the question is put the work
-    the final round stood for is done however many rounds it took.
-    """
-    return any(record.cause is Cause.FINAL for record in session.rounds)
 
 
 def _compose_resume(
