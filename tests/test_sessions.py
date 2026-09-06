@@ -126,6 +126,14 @@ def ended(status):
     )
 
 
+def test_a_round_a_session_has_run_is_found_by_the_number_it_ran_as(fabricated):
+    session = standing(fabricated, ended(0), ended(0))
+
+    assert session.workspace(2) == Workspace(
+        session.record.worktree, fabricated.sessions / KEY / "rounds" / "2"
+    )
+
+
 def test_a_session_that_has_run_no_round_has_left_nothing_unfinished(fabricated):
     session = standing(fabricated)
 

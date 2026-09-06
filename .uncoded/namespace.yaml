@@ -326,6 +326,7 @@ src/:
         has_run_final_round:
         next_workspace:
         describe_unfinished_round:
+        workspace:
       read_sessions:
       create_session:
       _read_session:
@@ -832,6 +833,7 @@ tests/:
     test_a_new_session_has_run_no_rounds_and_its_next_is_its_first:
     standing:
     ended:
+    test_a_round_a_session_has_run_is_found_by_the_number_it_ran_as:
     test_a_session_that_has_run_no_round_has_left_nothing_unfinished:
     test_a_session_whose_last_round_was_interrupted_says_so:
     test_a_session_whose_last_round_failed_says_the_status_it_failed_with:

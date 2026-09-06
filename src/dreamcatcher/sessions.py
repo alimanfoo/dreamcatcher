@@ -123,16 +123,24 @@ class Session:
             return f"the last round failed (exit {ending.status})"
         return None
 
-    @property
-    def next_workspace(self) -> Workspace:
-        """Where the session's next round runs, and where it writes.
+    def workspace(self, number: int) -> Workspace:
+        """Where the session's numbered round ran, and where it wrote.
 
         Every round runs in the session's worktree, and writes into a
         directory named by the number of the round it is.
+
+        A session runs one round at a time, and each round is numbered by how
+        many the session had run before it, so the rounds are numbered from one
+        in the order they ran. The place of a record in `rounds` is therefore
+        the number of the round it records, which is how a reader of the round
+        list finds each round's own files.
         """
-        return Workspace(
-            self.record.worktree, self.directory / ROUNDS / str(len(self.rounds) + 1)
-        )
+        return Workspace(self.record.worktree, self.directory / ROUNDS / str(number))
+
+    @property
+    def next_workspace(self) -> Workspace:
+        """Where the session's next round runs, and where it writes."""
+        return self.workspace(len(self.rounds) + 1)
 
 
 def read_sessions(state: StateDirectory) -> list[Session]:

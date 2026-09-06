@@ -58,3 +58,6 @@ class Session:
 
     def describe_unfinished_round(self) -> str | None:
         ...
+
+    def workspace(self, number: int) -> Workspace:
+        ...
