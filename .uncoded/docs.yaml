@@ -21,14 +21,13 @@ AGENTS.md:
     Commands:
     Conventions:
 CONTRACT.md:
-  What a dispatchable skill must do:
-    What a round gives you:
-    Open the pull request before you change anything:
-    Say that the pull request closes the issue:
-    Yield by ending your turn:
-    The rounds after the first:
-      Carrying on:
-      The pull request inbox:
+  Dispatchable skills:
+    Arguments:
+    Branch adoption:
+    Opening a pull request:
+    Linking the pull request to the issue:
+    Ending a turn:
+    Resumed rounds:
 specs/:
   2026-08-17-skeleton/:
     design.md:
