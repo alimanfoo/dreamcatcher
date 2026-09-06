@@ -17,12 +17,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 
-from dreamcatcher.clock import describe_span, now
+from dreamcatcher.clock import now
 from dreamcatcher.documents import read_json
 from dreamcatcher.feed import Line, read_last_feed_line
 from dreamcatcher.lock import read_daemon_pid
 from dreamcatcher.sessions import Session, read_sessions
 from dreamcatcher.state import LastTick, StateDirectory, WaitingSession
+from dreamcatcher.words import describe_count, describe_span
 
 # What the board says of a session whose dispatch never started a round, when
 # no tick has said anything about it.
@@ -178,7 +179,7 @@ class _Look:
                 return Standing.WORKING, self._describe_live_round(session)
             return Standing.WAITING, unfinished
         if session.has_run_final_round:
-            return Standing.DONE, _count_rounds(session)
+            return Standing.DONE, describe_count(len(session.rounds), "round")
         return self._judge_wait(session)
 
     def _judge_wait(self, session: Session) -> tuple[Standing, str]:
@@ -228,13 +229,6 @@ class _Look:
             return reason
         feed = session.workspace(len(session.rounds)).feed
         return f"{reason} ({feed.relative_to(self.state.root).as_posix()})"
-
-
-def _count_rounds(session: Session) -> str:
-    """Return how many rounds the session ran, in words that read for one."""
-    if len(session.rounds) == 1:
-        return "1 round"
-    return f"{len(session.rounds)} rounds"
 
 
 def _when_it_last_ran(attempt: Attempt) -> datetime:

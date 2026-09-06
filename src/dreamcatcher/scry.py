@@ -19,7 +19,7 @@ from rich.table import Table
 from rich.text import Text
 
 from dreamcatcher.board import Attempt, Board, Standing, read_board
-from dreamcatcher.clock import describe_span, describe_time, now
+from dreamcatcher.clock import now
 from dreamcatcher.documents import read_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import GAP, Line, compose_round_boundary, read_feed_line
@@ -27,6 +27,7 @@ from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.rounds import RoundRecord
 from dreamcatcher.sessions import Session
 from dreamcatcher.state import StateDirectory
+from dreamcatcher.words import describe_count, describe_span, describe_time
 
 # What each section of the board is set in, so a reader finds the one they
 # came for without reading the words.
@@ -269,8 +270,8 @@ def show_round(
     session = _find_attempts(read_board(state, clock), issue)[0].session
     if not 1 <= number <= len(session.rounds):
         raise ReportableError(
-            f"GH{issue} has run {len(session.rounds)} rounds, so it has no "
-            f"round {number}."
+            f"GH{issue} has run {describe_count(len(session.rounds), 'round')}, "
+            f"so it has no round {number}."
         )
     for painted in _compose_feed(session, [number]):
         console.print(painted)

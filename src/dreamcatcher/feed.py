@@ -14,8 +14,9 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path, PurePath
 
-from dreamcatcher.clock import STAMP, describe_time, now
+from dreamcatcher.clock import now
 from dreamcatcher.documents import read_text
+from dreamcatcher.words import STAMP, describe_time
 
 # A note's detail can be as long as a whole file, so the line is clipped. The
 # figure is the port's, wide enough for a command or a path.

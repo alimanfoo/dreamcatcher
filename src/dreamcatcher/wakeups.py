@@ -27,6 +27,7 @@ from dreamcatcher.relay import Inbox, peek_new_posts
 from dreamcatcher.rounds import Cause
 from dreamcatcher.sessions import Session
 from dreamcatcher.state import WaitingSession
+from dreamcatcher.words import describe_count
 
 
 @dataclass(frozen=True)
@@ -194,20 +195,13 @@ def _compose_resume(
         session=session,
         cause=Cause.POSTS if is_open else Cause.FINAL,
         reason=(
-            f"{_count_posts(posted)} to answer"
+            f"{describe_count(len(posted), 'new post')} to answer"
             if is_open
             else f"the pull request is {pull_request.state.lower()}"
         ),
         prompt=compose_inbox_prompt(pull_request.number, session.next_workspace.inbox),
         inbox=Inbox(state=pull_request.state, posts=posted),
     )
-
-
-def _count_posts(posted: list[AnyPost]) -> str:
-    """Return how many posts these are, in words that read for one or for many."""
-    if len(posted) == 1:
-        return "1 new post"
-    return f"{len(posted)} new posts"
 
 
 def describe_wait(

@@ -64,7 +64,6 @@ src/:
         _read_last_said:
         _point_at_feed:
       read_board:
-      _count_rounds:
       _when_it_last_ran:
       _list_queue:
       _describe_place:
@@ -96,13 +95,7 @@ src/:
       _find_state:
       _read_issue:
     clock.py:
-      STAMP:
-      MINUTE:
-      HOUR:
-      DAY:
       now:
-      describe_time:
-      describe_span:
     codex.py:
       NETWORK_ACCESS:
       STDIN:
@@ -470,8 +463,15 @@ src/:
       _judge_pull_request:
       _choose_pull_request:
       _compose_resume:
-      _count_posts:
       describe_wait:
+    words.py:
+      STAMP:
+      MINUTE:
+      HOUR:
+      DAY:
+      describe_time:
+      describe_span:
+      describe_count:
 tests/:
   clocks.py:
     PINNED:
@@ -633,7 +633,6 @@ tests/:
     test_a_write_the_daemon_cannot_make_is_a_message_not_a_traceback:
   test_clock.py:
     test_the_clock_reads_in_utc:
-    test_a_span_reads_in_the_largest_unit_that_says_it:
   test_codex.py:
     LAUNCH:
     SETTINGS:
@@ -1073,6 +1072,10 @@ tests/:
     test_a_pull_request_read_that_failed_leaves_the_session_waiting:
     test_a_peek_that_failed_leaves_the_session_waiting:
     test_the_most_open_work_comes_first:
+  test_words.py:
+    test_a_time_is_written_the_one_way_the_tool_writes_one:
+    test_a_span_reads_in_the_largest_unit_that_says_it:
+    test_a_count_reads_for_one_or_for_more_than_one:
 tools/:
   forbid_invisible_characters.py:
     INVISIBLE_CATEGORY:

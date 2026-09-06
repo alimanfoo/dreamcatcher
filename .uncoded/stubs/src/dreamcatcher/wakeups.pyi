@@ -8,6 +8,7 @@ from dreamcatcher.relay import Inbox, peek_new_posts
 from dreamcatcher.rounds import Cause
 from dreamcatcher.sessions import Session
 from dreamcatcher.state import WaitingSession
+from dreamcatcher.words import describe_count
 
 type Finding = Wakeup | WaitingSession
 PRIORITY = (Cause.CARRY_ON, Cause.FINAL, Cause.POSTS)
@@ -28,9 +29,6 @@ def _choose_pull_request(found: list[PullRequest]) -> PullRequest | None:
     ...
 
 def _compose_resume(session: Session, pull_request: PullRequest, posted: list[AnyPost]) -> Wakeup:
-    ...
-
-def _count_posts(posted: list[AnyPost]) -> str:
     ...
 
 def describe_wait(session: Session, reason: str, is_stuck: bool) -> WaitingSession:

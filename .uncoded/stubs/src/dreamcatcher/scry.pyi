@@ -10,7 +10,7 @@ from rich.padding import Padding
 from rich.table import Table
 from rich.text import Text
 from dreamcatcher.board import Attempt, Board, Standing, read_board
-from dreamcatcher.clock import describe_span, describe_time, now
+from dreamcatcher.clock import now
 from dreamcatcher.documents import read_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import GAP, Line, compose_round_boundary, read_feed_line
@@ -18,6 +18,7 @@ from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.rounds import RoundRecord
 from dreamcatcher.sessions import Session
 from dreamcatcher.state import StateDirectory
+from dreamcatcher.words import describe_count, describe_span, describe_time
 
 COLOURS = ...
 QUEUE = 'queued'

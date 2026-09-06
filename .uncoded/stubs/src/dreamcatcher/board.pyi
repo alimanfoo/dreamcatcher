@@ -5,19 +5,17 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
-from dreamcatcher.clock import describe_span, now
+from dreamcatcher.clock import now
 from dreamcatcher.documents import read_json
 from dreamcatcher.feed import Line, read_last_feed_line
 from dreamcatcher.lock import read_daemon_pid
 from dreamcatcher.sessions import Session, read_sessions
 from dreamcatcher.state import LastTick, StateDirectory, WaitingSession
+from dreamcatcher.words import describe_count, describe_span
 
 NEVER_STARTED = 'its first round never started'
 
 def read_board(state: StateDirectory, clock: Callable[[], datetime]) -> Board:
-    ...
-
-def _count_rounds(session: Session) -> str:
     ...
 
 def _when_it_last_ran(attempt: Attempt) -> datetime:
