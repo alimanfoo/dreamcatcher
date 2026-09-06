@@ -507,14 +507,9 @@ interactive `codex resume` is what a person is given instead.
 ### The contract page
 
 `CONTRACT.md` at the repo root, a deliverable of this phase: what a skill must
-do to be dispatchable. Adopt the branch you wake up on and open your PR from it
-— before you change anything, so the user can watch commits arrive and you have
-a channel to ask questions from the start. Act on the issue reference in your
-prompt, and make the PR say it closes that issue, since GitHub's link from the
-issue to that PR is how the dispatcher knows the issue is claimed. Handle the
-resume prompts (the inbox shape, the carry-on, the final round's
-merged-or-closed state). Yield by ending your turn; the PR is the only channel.
-Marking is injected by the dispatcher; the skill needs no knowledge of it.
+do to be dispatchable. That page carries the requirements themselves, so they
+are not restated here. One decision shapes what it leaves out: marking is
+injected by the dispatcher, and the skill needs no knowledge of it.
 
 ### Cross-platform notes
 

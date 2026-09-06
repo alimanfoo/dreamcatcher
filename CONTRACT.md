@@ -8,19 +8,15 @@ dreamcatcher can run every issue carrying that label.
 ## What a round gives you
 
 dreamcatcher runs your skill as a round: one run of the harness's own command
-line, which ends when that command exits. The rounds dreamcatcher runs on one
-issue are its session.
+line, which ends when that command exits. A session is one attempt at one issue,
+and it holds every round that attempt runs.
 
 Before the first round starts, dreamcatcher fetches origin's main, cuts a branch
-from it, and adds a worktree on that branch under `.dreamcatcher/worktrees/`.
-The round runs in that worktree, so the branch is checked out and the working
-tree is clean when you wake up.
+from it, and adds a worktree on that branch. The round runs in that worktree, so
+the branch is checked out and the working tree is clean when you wake up.
 
-Your prompt arrives on standard input. dreamcatcher composes it from the
-template that `dreamcatcher.toml` gives your label, putting the issue's number
-wherever the template says `{issue}`. A template of `/dream:smith GH{issue}`
-reaches you as `/dream:smith GH123`. Read the issue number out of your prompt,
-and act on that issue.
+Your prompt arrives on standard input, and it carries the issue's number. Read
+that number out of your prompt, and act on the issue it names.
 
 ## Open the pull request before you change anything
 
@@ -96,10 +92,11 @@ Every post says what it is under `kind`, and carries `author`, `written_at` and
 `body`:
 
 - `comment` is a comment on the pull request's conversation.
-- `review` is a review that the user submitted. Its `verdict` says `APPROVED`,
-  `CHANGES_REQUESTED` or `COMMENTED`.
-- `inlineComment` is a comment on a line of the diff. It says which file under
-  `path`, which lines under `line` and `start_line`, which side of the diff
-  under `side`, and what the comment was written against under `diff_hunk`.
+- `review` is a review that the user submitted. Its `verdict` says what the
+  review said, such as `APPROVED` or `CHANGES_REQUESTED`.
+- `inlineComment` is a comment on the diff. It says which file under `path`, and
+  what the comment was written against under `diff_hunk`. `line`, `start_line`
+  and `side` place it on the diff, and `subject_type` says `file` when the user
+  picked the whole file rather than any line of it.
 
 The inbox holds only what you have not been given before.

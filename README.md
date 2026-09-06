@@ -67,9 +67,7 @@ one block.
 Write both blocks for a label either harness can run. Write one block for a
 label that belongs to one harness, and issues carrying it always go there.
 
-Point `prompt` at a skill that meets dreamcatcher's contract.
-[What a dispatchable skill must do](CONTRACT.md) says what that contract asks of
-it.
+Point `prompt` at a skill that meets [dreamcatcher's contract](CONTRACT.md).
 
 ## Commands
 
@@ -108,10 +106,9 @@ Removing the label is how you say stop. An issue whose pull request closes
 unmerged is free to dispatch again while the label is still on it.
 
 If you are moving from `dream:catcher`, the shell scripts this replaces, retire
-it with nothing in flight. dreamcatcher counts an issue as taken when it has a
-session of its own on it, or when GitHub links an open pull request to it. An
-old-catcher session that has not opened its pull request yet is neither, so
-dreamcatcher dispatches that issue as well and two agents work on it at once.
+it with nothing in flight. dreamcatcher does not see an old-catcher session that
+has not opened its pull request yet, so it dispatches that issue as well and two
+agents work on it at once.
 
 One daemon watches one repo. A second `run` on the same repo refuses while the
 first is alive.
