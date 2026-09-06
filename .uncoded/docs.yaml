@@ -20,6 +20,15 @@ AGENTS.md:
     Dev setup:
     Commands:
     Conventions:
+CONTRACT.md:
+  What a dispatchable skill must do:
+    What a round gives you:
+    Open the pull request before you change anything:
+    Say that the pull request closes the issue:
+    Yield by ending your turn:
+    The rounds after the first:
+      Carrying on:
+      The pull request inbox:
 specs/:
   2026-08-17-skeleton/:
     design.md:
