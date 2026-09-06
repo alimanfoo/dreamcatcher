@@ -118,8 +118,8 @@ dreamcatcher scry
 That shows the board. The board is a section per standing, and the sections run
 in the order of whose turn it is:
 
-- `needs you` is a session with a pull request open and nothing left to do until
-  you read it.
+- `needs you` is a session with a pull request open that the agent has nothing
+  left to do on, so it is ready for you to review.
 - `agent working` is a live round, with the last thing it said and how long ago.
 - `waiting` is a session the next tick will pick up, with what it is waiting on.
 - `stuck` is a session no tick can move on, with where to read what happened.

@@ -16,9 +16,6 @@ from dreamcatcher.words import describe_count, describe_span
 def read_board(state: StateDirectory, clock: Callable[[], datetime]) -> Board:
     ...
 
-def _when_it_last_ran(attempt: Attempt) -> datetime:
-    ...
-
 def _list_queue(tick: LastTick | None, claimed: set[int]) -> list[QueuedIssue]:
     ...
 

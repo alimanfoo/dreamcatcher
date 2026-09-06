@@ -63,7 +63,6 @@ src/:
         _read_last_said:
         _point_at_feed:
       read_board:
-      _when_it_last_ran:
       _list_queue:
       _describe_place:
     claude.py:

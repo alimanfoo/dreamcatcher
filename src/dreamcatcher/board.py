@@ -36,6 +36,16 @@ class Standing(StrEnum):
 
     The words are the board's own headings, so the section a reader looks under
     and the standing a session is in are one thing.
+
+    A session needs you when the daemon has nothing left to do for it: every
+    round it has run finished, its pull request is open, and the agent has
+    answered everything posted on it. The next move is the user's, and that
+    move is to read the pull request.
+
+    A session is working while a round of its own is running. It is waiting
+    when it has a round to run that no daemon has launched yet, and stuck when
+    no tick can move it on however long it waits, so that only a person can. It
+    is done once it has run the round that winds it up.
     """
 
     NEEDS_YOU = "needs you"
@@ -102,7 +112,9 @@ class Board:
         """
         found = [one for one in self.attempts if one.standing is standing]
         if standing is Standing.DONE:
-            return sorted(found, key=_when_it_last_ran, reverse=True)
+            return sorted(
+                found, key=lambda one: one.session.rounds[-1].started, reverse=True
+            )
         return found
 
 
@@ -231,11 +243,6 @@ class _Look:
         return f"{reason} ({self.state.describe_path(feed)})"
 
 
-def _when_it_last_ran(attempt: Attempt) -> datetime:
-    """Return when the attempt's last round started."""
-    return attempt.session.rounds[-1].started
-
-
 def _list_queue(tick: LastTick | None, claimed: set[int]) -> list[QueuedIssue]:
     """Return the labelled issues the last tick weighed, in the order they go.
 
@@ -262,7 +269,7 @@ def _list_queue(tick: LastTick | None, claimed: set[int]) -> list[QueuedIssue]:
 
 
 def _describe_place(ahead: int) -> str:
-    """Return the place in the queue that this many issues ahead of it is."""
+    """Return where an issue with this many issues ahead of it stands."""
     if ahead == 0:
         return "next"
     return f"behind {describe_count(ahead, 'other')}"
