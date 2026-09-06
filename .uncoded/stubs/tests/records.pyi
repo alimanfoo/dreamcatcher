@@ -4,11 +4,21 @@
 from pathlib import Path
 from dreamcatcher import rounds, sessions
 from dreamcatcher.config import Harness
-from dreamcatcher.documents import write_json
-from dreamcatcher.state import StateDirectory
+from dreamcatcher.documents import write_json, write_text
+from dreamcatcher.feed import Line
+from dreamcatcher.state import LastTick, StateDirectory
 
 def write_session(state: StateDirectory, key: str, issue: int) -> Path:
     ...
 
 def write_round(directory: Path, number: int, record: rounds.RoundRecord) -> rounds.RoundRecord:
+    ...
+
+def write_feed(directory: Path, number: int, *lines: Line) -> None:
+    ...
+
+def write_tick(state: StateDirectory, tick: LastTick) -> None:
+    ...
+
+def _workspace(directory: Path, number: int) -> rounds.Workspace:
     ...

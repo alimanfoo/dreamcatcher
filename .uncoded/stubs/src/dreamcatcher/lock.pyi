@@ -12,5 +12,5 @@ from dreamcatcher.errors import ReportableError
 def hold(path: Path) -> Iterator[None]:
     ...
 
-def _holder(path: Path) -> int | None:
+def read_daemon_pid(path: Path) -> int | None:
     ...

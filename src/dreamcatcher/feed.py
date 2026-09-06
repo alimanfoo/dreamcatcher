@@ -77,11 +77,16 @@ def read_feed_line(written: str) -> Line | None:
 def read_last_feed_line(path: Path) -> Line | None:
     """Return the last line the feed at path holds, or nothing when it holds none.
 
+    A round writes its feed as it goes, so a round that has said nothing yet
+    has no feed at all. That reads as nothing said, which is what it is.
+
     A feed grows a line at a time while its round runs, so a round that was
     killed part way through a write can leave a part line at the end. The line
     before it is then the last one the feed really holds, which is what this
     answers.
     """
+    if not path.exists():
+        return None
     for written in reversed(read_text(path).splitlines()):
         line = read_feed_line(written)
         if line is not None:

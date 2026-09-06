@@ -3,9 +3,7 @@
 
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import PurePosixPath, PureWindowsPath
-import pytest
 from clocks import PINNED, Ticking
-from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import WIDTH, Line, Note, Prose, Renderer, compose_round_boundary, read_feed_line, read_last_feed_line
 
 WORKTREE = PurePosixPath('/checkout/worktree')
@@ -70,7 +68,7 @@ def test_a_write_that_never_landed_leaves_the_line_before_it_as_the_last(tmp_pat
 def test_a_feed_holding_nothing_yet_has_no_last_line(tmp_path):
     ...
 
-def test_a_feed_that_is_not_there_says_so(tmp_path):
+def test_a_round_that_has_said_nothing_yet_has_no_last_line(tmp_path):
     ...
 
 def test_a_clock_that_is_not_in_utc_still_stamps_utc():

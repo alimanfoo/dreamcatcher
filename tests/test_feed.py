@@ -1,10 +1,8 @@
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import PurePosixPath, PureWindowsPath
 
-import pytest
 from clocks import PINNED, Ticking
 
-from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import (
     WIDTH,
     Line,
@@ -144,9 +142,8 @@ def test_a_feed_holding_nothing_yet_has_no_last_line(tmp_path):
     assert read_last_feed_line(written) is None
 
 
-def test_a_feed_that_is_not_there_says_so(tmp_path):
-    with pytest.raises(ReportableError, match="does not exist"):
-        read_last_feed_line(tmp_path / "feed.txt")
+def test_a_round_that_has_said_nothing_yet_has_no_last_line(tmp_path):
+    assert read_last_feed_line(tmp_path / "feed.txt") is None
 
 
 def test_a_clock_that_is_not_in_utc_still_stamps_utc():
