@@ -7,7 +7,9 @@ on:
     branches: [main]
 
 jobs:
-  # Both jobs take their interpreter from .python-version.
+  # The test and checks jobs take their interpreter from .python-version. The
+  # package job takes whatever uvx picks, which is what a user installing the
+  # tool gets.
   test:
     needs: checks
     runs-on: ${{ matrix.os }}
@@ -36,3 +38,22 @@ jobs:
       - uses: astral-sh/setup-uv@v10.0.1
       - run: uv sync --locked
       - run: uv run pre-commit run --all-files
+
+  # Builds and runs the package in an environment of its own, which proves the
+  # wheel builds, the console script is there, and every runtime dependency
+  # resolves outside the one uv sync makes. It builds from this checkout, not
+  # from the git URL the README gives, because that URL always names main.
+  # hatch-vcs reads the version from the full history.
+  package:
+    needs: checks
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v10.0.1
+      - run: uvx --from . dreamcatcher --version

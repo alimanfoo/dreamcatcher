@@ -459,12 +459,15 @@ In scope:
 
 - `CONTRACT.md` at the repo root: the dispatchable-skill contract as designed
   (design.md, The contract page).
-- The README's last gap: the operational truths it has to place prominently —
-  removing the label is how you say stop (an issue whose PR closes unmerged will
-  dispatch again while the label remains), and the crossover rule (design.md,
-  Sessions, worktrees, branches). Phase 2 wrote the rest for a newcomer, under
-  review: install via `uvx`, a Configuration section carrying every setting and
-  its default, and the two verbs.
+- The README's last gap: a pointer to the contract page, and the removal of the
+  progress report the opening carried, which this phase makes untrue. The stop
+  rule — removing the label, and an issue whose PR closes unmerged dispatching
+  again while the label remains — is already there. The crossover rule
+  (design.md, Sessions, worktrees, branches) stays in design.md alone, because
+  the only person crossing over is the author, who knows it already. Phase 2
+  wrote the rest for a newcomer, under review: install via `uvx`, a
+  Configuration section carrying every setting and its default, and the two
+  verbs.
 - A packaging check: `uvx` installing and running from a fresh environment.
 
 Done when: the documents are in and the release checklist sits on this phase's

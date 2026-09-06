@@ -20,6 +20,17 @@ AGENTS.md:
     Dev setup:
     Commands:
     Conventions:
+CONTRACT.md:
+  Dispatchable skills:
+    Arguments:
+    Branch adoption:
+    Opening a pull request:
+    Linking the pull request to the issue:
+    Ending a turn:
+    Resumed rounds:
+      A comment or review from the user:
+      A merged or closed pull request:
+      An interrupted round:
 specs/:
   2026-08-17-skeleton/:
     design.md:
