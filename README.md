@@ -8,8 +8,7 @@ review and merge.
 relays what you post on the pull request into a resumed round, carries an
 interrupted or failed round on from where it stopped, and gives a merged or
 closed pull request one last round. `scry` shows what every session is doing.
-What is still to come is the written contract that says what a skill must do to
-be dispatchable, and the first release.
+What is still to come is the first release.
 
 ## Install
 
@@ -68,6 +67,10 @@ one block.
 Write both blocks for a label either harness can run. Write one block for a
 label that belongs to one harness, and issues carrying it always go there.
 
+Point `prompt` at a skill that meets dreamcatcher's contract.
+[What a dispatchable skill must do](CONTRACT.md) says what that contract asks of
+it.
+
 ## Commands
 
 `run` is the daemon. Start it from the repository's main checkout, and name the
@@ -103,6 +106,12 @@ worktree every couple of minutes.
 
 Removing the label is how you say stop. An issue whose pull request closes
 unmerged is free to dispatch again while the label is still on it.
+
+If you are moving from `dream:catcher`, the shell scripts this replaces, retire
+it with nothing in flight. dreamcatcher counts an issue as taken when it has a
+session of its own on it, or when GitHub links an open pull request to it. An
+old-catcher session that has not opened its pull request yet is neither, so
+dreamcatcher dispatches that issue as well and two agents work on it at once.
 
 One daemon watches one repo. A second `run` on the same repo refuses while the
 first is alive.

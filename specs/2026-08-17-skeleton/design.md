@@ -144,10 +144,13 @@ still contains a `GH<n>` token, so today's smith and less boot by branch-scan
 unchanged until the dream-side prompt argument lands.)
 
 The new branch prefix means dreamcatcher never mistakes old `dream-catcher-*`
-work for its own — and, the same coin's other face, never _sees_ it: an issue
-with an in-flight old-catcher PR reads as unhandled here and would re-dispatch.
-The crossover rule is therefore: retire the old catcher with nothing in flight,
-or expect doubled attempts on whatever was.
+work for its own — and, the same coin's other face, never _sees_ it. GitHub's
+link closes most of that gap, since an old-catcher PR saying it closes the issue
+is one the eligibility check reads like any other, draft or not. What stays open
+is the window before that PR exists: an old-catcher session in flight and yet to
+open one reads as unhandled here, and its issue re-dispatches. The crossover
+rule is therefore: retire the old catcher with nothing in flight, or expect
+doubled attempts on whatever was.
 
 Two costs of nesting, accepted: tools that ignore gitignore (`find`, some
 indexers) see repo copies inside the checkout — git, ripgrep, and the harnesses'
