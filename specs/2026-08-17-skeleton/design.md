@@ -492,13 +492,14 @@ Commits are not marked; the relay only filters posts.
 
 Repeat attempts group under their issue: three sessions for one issue read as
 three attempts at one thing, current one first. `scry GH123` shows the newest
-attempt, older attempts listed beneath it. The session view shows vitals (issue,
-PR, branch, harness and model, the literal first prompt), the round list with
-causes and durations, and — when no round is live — the exact command to resume
-the session interactively by hand (`claude --continue` from the worktree, or the
-matching `codex resume --last`), built from `session.json`. `codex exec resume`
-is the headless resume the daemon's own rounds run, so the interactive
-`codex resume` is what a person is given instead.
+attempt, older attempts listed beneath it. The session view shows vitals (the
+session's key, its label, its branch, its worktree, and the harness, model and
+effort it was dispatched with, then the literal first prompt), the round list
+with causes and durations, and — when no round is live — the exact command to
+resume the session interactively by hand (`claude --continue` from the worktree,
+or the matching `codex resume --last`), built from `session.json`.
+`codex exec resume` is the headless resume the daemon's own rounds run, so the
+interactive `codex resume` is what a person is given instead.
 
 ### The contract page
 

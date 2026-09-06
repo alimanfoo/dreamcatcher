@@ -190,7 +190,11 @@ def fabricate_repeat_attempts(state):
         directory = write_session(state, f"GH13-{stamp}", 13)
         for number, record in enumerate(rounds, start=1):
             write_round(directory, number, record)
-        write_feed(directory, len(rounds), Line(PINNED, "[Bash] git push"))
+        write_feed(
+            directory,
+            len(rounds),
+            Line(PINNED + timedelta(minutes=len(rounds) + 1), "[Bash] git push"),
+        )
     write_tick(state, LastTick(at=PINNED + timedelta(hours=1, minutes=58)))
 
 
@@ -221,14 +225,35 @@ SESSIONS = {
 }
 
 
+def pinned(written_to) -> Console:
+    """Return a console that renders the same text wherever it runs.
+
+    Every setting rich would otherwise take from the shell or the platform is
+    named here: a shell exporting FORCE_COLOR would make it write escape codes,
+    and a legacy Windows console would take a column off its width.
+    """
+    return Console(
+        file=written_to,
+        width=WIDTH,
+        force_terminal=False,
+        no_color=True,
+        legacy_windows=False,
+    )
+
+
+def stopping(state):
+    """Return a wait that ends the daemon, so a following view stops."""
+
+    def wait(seconds):
+        state.lock.unlink(missing_ok=True)
+
+    return wait
+
+
 def rendered(state) -> str:
     """Return the board that state directory renders as, on a pinned console."""
     written_to = StringIO()
-    show_board(
-        state,
-        Console(file=written_to, width=WIDTH),
-        clock=lambda: LOOKED_AT,
-    )
+    show_board(state, pinned(written_to), clock=lambda: LOOKED_AT)
     return written_to.getvalue()
 
 
@@ -245,9 +270,7 @@ def test_a_state_directory_renders_as_its_golden_board(name, tmp_path, daemon):
 def viewed(state, issue: int) -> str:
     """Return the session view that issue renders as, on a pinned console."""
     written_to = StringIO()
-    show_session(
-        state, issue, Console(file=written_to, width=WIDTH), clock=lambda: LOOKED_AT
-    )
+    show_session(state, issue, pinned(written_to), clock=lambda: LOOKED_AT)
     return written_to.getvalue()
 
 
@@ -265,13 +288,7 @@ def test_a_session_renders_as_its_golden_view(name, tmp_path, daemon):
 def followed(state, issue: int, wait=lambda seconds: None) -> str:
     """Return the feed view that issue renders as, on a pinned console."""
     written_to = StringIO()
-    show_feed(
-        state,
-        issue,
-        Console(file=written_to, width=WIDTH),
-        wait=wait,
-        clock=lambda: LOOKED_AT,
-    )
+    show_feed(state, issue, pinned(written_to), wait=wait, clock=lambda: LOOKED_AT)
     return written_to.getvalue()
 
 
@@ -281,7 +298,7 @@ def test_a_feed_renders_as_its_golden_view(name, tmp_path, daemon):
     fabricate, issue = FEEDS[name]
     fabricate(state)
 
-    feed = followed(state, issue, wait=lambda seconds: state.lock.unlink())
+    feed = followed(state, issue, wait=stopping(state))
 
     assert feed == (FIXTURES / "board" / f"{name}.txt").read_text(encoding="utf-8")
 
@@ -293,11 +310,13 @@ def test_a_following_view_waits_while_a_round_is_still_running(tmp_path, daemon)
 
     def wait(seconds):
         waits.append(seconds)
-        state.lock.unlink()
+        state.lock.unlink(missing_ok=True)
 
     followed(state, 13, wait=wait)
 
-    assert waits == [PAUSE]
+    # The daemon went while the view was waiting, so the view looked once more
+    # for whatever the round was still writing as it stopped.
+    assert waits == [PAUSE, PAUSE]
 
 
 def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path, daemon):
@@ -307,8 +326,10 @@ def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path, dae
 
     def wait(seconds):
         write_round(directory, 3, running(60, cause=Cause.CARRY_ON))
-        write_feed(directory, 3, Line(PINNED, "[Bash] git push"))
-        state.lock.unlink()
+        write_feed(
+            directory, 3, Line(PINNED + timedelta(minutes=61), "[Bash] git push")
+        )
+        state.lock.unlink(missing_ok=True)
 
     feed = followed(state, 13, wait=wait)
 
@@ -338,7 +359,7 @@ def test_a_write_that_never_landed_waits_for_the_look_that_shows_it_whole(
             feed.read_text(encoding="utf-8") + "2026-08-19T18:41:58Z  [Grep] pypro",
             encoding="utf-8",
         )
-        state.lock.unlink()
+        state.lock.unlink(missing_ok=True)
 
     assert "[Grep]" not in followed(state, 13, wait=wait)
 
@@ -353,21 +374,25 @@ def test_a_line_the_view_cannot_read_reaches_the_reader_as_it_was_written(
         state.sessions / f"GH13-{STAMP}" / "rounds" / "2" / "feed.txt",
     )
 
-    feed = followed(state, 13, wait=lambda seconds: state.lock.unlink())
+    feed = followed(state, 13, wait=stopping(state))
 
     assert "the harness said something else" in feed
+
+
+def test_a_reader_who_has_seen_enough_interrupts_the_view(tmp_path, daemon):
+    state = StateDirectory(tmp_path)
+    fabricate_everything(state)
+
+    def wait(seconds):
+        raise KeyboardInterrupt
+
+    assert "[Bash] pytest" in followed(state, 13, wait=wait)
 
 
 def viewed_round(state, issue: int, number: int) -> str:
     """Return the view of one round of that issue, on a pinned console."""
     written_to = StringIO()
-    show_round(
-        state,
-        issue,
-        number,
-        Console(file=written_to, width=WIDTH),
-        clock=lambda: LOOKED_AT,
-    )
+    show_round(state, issue, number, pinned(written_to), clock=lambda: LOOKED_AT)
     return written_to.getvalue()
 
 

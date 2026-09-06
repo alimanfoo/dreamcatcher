@@ -14,7 +14,7 @@ from dreamcatcher.daemon import Daemon
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.state import StateDirectory
 
-ISSUE = re.compile('gh(\\d+)$', re.IGNORECASE)
+ISSUE = re.compile('gh(\\d+)\\Z', re.IGNORECASE)
 
 def build_parser() -> argparse.ArgumentParser:
     ...
@@ -22,10 +22,10 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None) -> int:
     ...
 
-def _scry(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+def _scry(args: argparse.Namespace) -> None:
     ...
 
-def _refuse_a_feed_of_nothing(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+def _refuse_a_feed_of_nothing(args: argparse.Namespace) -> None:
     ...
 
 def _find_state(root: Path) -> StateDirectory:

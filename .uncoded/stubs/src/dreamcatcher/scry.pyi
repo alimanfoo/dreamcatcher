@@ -2,6 +2,7 @@
 # src/dreamcatcher/scry.py
 
 from collections.abc import Callable, Iterable
+from contextlib import suppress
 from datetime import datetime
 from time import sleep
 from rich.console import Console, RenderableType

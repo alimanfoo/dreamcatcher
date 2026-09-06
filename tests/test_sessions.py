@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 import pytest
 from clocks import PINNED
 from conftest import CONFIG, commit, git
@@ -116,18 +118,19 @@ def standing(state, *rounds):
     return read_sessions(state)[0]
 
 
-def ended(status):
-    """Return a round that ran and ended with this status."""
+def ended(status, minute=0):
+    """Return a round that started that minute past the hour and ended."""
+    started = PINNED + timedelta(minutes=minute)
     return RoundRecord(
-        started=PINNED,
+        started=started,
         pid=1,
         cause=Cause.DISPATCH,
-        ending=Ending(at=PINNED, status=status),
+        ending=Ending(at=started, status=status),
     )
 
 
 def test_a_round_a_session_has_run_is_found_by_the_number_it_ran_as(fabricated):
-    session = standing(fabricated, ended(0), ended(0))
+    session = standing(fabricated, ended(0), ended(0, minute=1))
 
     assert session.workspace(2) == Workspace(
         session.record.worktree, fabricated.sessions / KEY / "rounds" / "2"
@@ -156,7 +159,7 @@ def test_a_session_whose_last_round_failed_says_the_status_it_failed_with(fabric
 
 
 def test_a_session_whose_last_round_ended_well_has_left_nothing_unfinished(fabricated):
-    session = standing(fabricated, ended(1), ended(0))
+    session = standing(fabricated, ended(1), ended(0, minute=1))
 
     assert session.describe_unfinished_round() is None
 
@@ -166,10 +169,10 @@ def test_a_session_that_has_run_its_final_round_says_so(fabricated):
         fabricated,
         ended(0),
         RoundRecord(
-            started=PINNED,
+            started=PINNED + timedelta(minutes=1),
             pid=1,
             cause=Cause.FINAL,
-            ending=Ending(at=PINNED, status=0),
+            ending=Ending(at=PINNED + timedelta(minutes=1), status=0),
         ),
     )
 

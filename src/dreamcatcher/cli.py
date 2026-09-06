@@ -15,7 +15,7 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.state import StateDirectory
 
 # How a view names the issue it is about, as the issue itself is written.
-ISSUE = re.compile(r"gh(\d+)$", re.IGNORECASE)
+ISSUE = re.compile(r"gh(\d+)\Z", re.IGNORECASE)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -55,16 +55,19 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="N",
         help="show the feed of that round of the session, as it stands",
     )
+    # How this verb refuses what its own arguments cannot mean. Refusing
+    # through its own parser is what puts the verb's usage above the message,
+    # where a reader finds the arguments the message names.
+    scry_parser.set_defaults(refuse=scry_parser.error)
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the verb that the arguments name, and return the exit status."""
-    parser = build_parser()
-    args = parser.parse_args(argv)
+    args = build_parser().parse_args(argv)
     try:
         if args.verb == "scry":
-            _scry(parser, args)
+            _scry(args)
         else:
             Daemon(Path.cwd(), Harness(args.harness)).run()
     except ReportableError as error:
@@ -73,14 +76,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     return 0
 
 
-def _scry(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+def _scry(args: argparse.Namespace) -> None:
     """Show the view the arguments ask for, from the checkout we are in.
 
     The board is what a reader wants most of the time, so it is what `scry`
     alone shows. Naming an issue narrows the view to one session, and the two
     feed views narrow it further, to what that session's agent said.
     """
-    _refuse_a_feed_of_nothing(parser, args)
+    _refuse_a_feed_of_nothing(args)
     state = _find_state(Path.cwd())
     console = scry.open_console()
     if args.issue is None:
@@ -93,16 +96,14 @@ def _scry(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
         scry.show_session(state, args.issue, console)
 
 
-def _refuse_a_feed_of_nothing(
-    parser: argparse.ArgumentParser, args: argparse.Namespace
-) -> None:
+def _refuse_a_feed_of_nothing(args: argparse.Namespace) -> None:
     """Refuse a feed view that was given no session to show the feed of.
 
     This comes before anything is read off the disk, so a reader who asked for
     the wrong thing hears that rather than hearing about the directory.
     """
     if args.issue is None and (args.follow or args.round is not None):
-        parser.error("--follow and --round each need an issue, as in: scry GH123")
+        args.refuse("--follow and --round each need an issue, as in: scry GH123")
 
 
 def _find_state(root: Path) -> StateDirectory:

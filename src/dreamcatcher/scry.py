@@ -9,6 +9,7 @@ reading.
 """
 
 from collections.abc import Callable, Iterable
+from contextlib import suppress
 from datetime import datetime
 from time import sleep
 
@@ -291,18 +292,30 @@ def show_feed(
 
     Every look reads the session again, so a round that starts while the view
     is going is shown as it arrives, and not only the rounds it opened with.
+
+    A round records its ending as soon as its own child has gone, and whatever
+    it was still writing lands after that, so a round that has just stopped
+    running gets one more look before the view ends. A session that was not
+    running when the view opened gets no extra look and no wait.
+
+    The reader ends a view of a live round by interrupting it, which is how
+    they say they have seen enough, so it ends without a word.
     """
     shown = 0
-    while True:
-        attempt = _find_attempts(read_board(state, clock), issue)[0]
-        session = attempt.session
-        painted = _compose_feed(session, range(1, len(session.rounds) + 1))
-        for line in painted[shown:]:
-            console.print(line)
-        shown = len(painted)
-        if attempt.standing is not Standing.WORKING:
-            return
-        wait(PAUSE)
+    was_running = False
+    with suppress(KeyboardInterrupt):
+        while True:
+            attempt = _find_attempts(read_board(state, clock), issue)[0]
+            session = attempt.session
+            painted = _compose_feed(session, range(1, len(session.rounds) + 1))
+            for line in painted[shown:]:
+                console.print(line)
+            shown = len(painted)
+            is_running = attempt.standing is Standing.WORKING
+            if not is_running and not was_running:
+                return
+            was_running = is_running
+            wait(PAUSE)
 
 
 def _find_attempts(board: Board, issue: int) -> list[Attempt]:

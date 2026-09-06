@@ -95,9 +95,10 @@ class Board:
     def list_standing(self, standing: Standing) -> list[Attempt]:
         """Return the attempts standing there, in the order the board reads them.
 
-        Work that is done reads most recent first, since the last thing to
-        finish is the one you were waiting for. Everything else reads by issue,
-        with the newest attempt at an issue ahead of the older ones.
+        Work that is done reads by when its last round started, most recent
+        first, since the last thing to run is the one you were waiting for.
+        Everything else reads by issue, with the newest attempt at an issue
+        ahead of the older ones.
         """
         found = [one for one in self.attempts if one.standing is standing]
         if standing is Standing.DONE:

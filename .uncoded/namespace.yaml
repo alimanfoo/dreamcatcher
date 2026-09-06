@@ -987,6 +987,8 @@ tests/:
     fabricate_a_dead_daemon:
     fabricate_the_cap:
     fabricate_repeat_attempts:
+    pinned:
+    stopping:
     rendered:
     test_a_state_directory_renders_as_its_golden_board:
     viewed:
@@ -998,6 +1000,7 @@ tests/:
     test_a_view_of_a_session_no_daemon_is_running_never_waits:
     test_a_write_that_never_landed_waits_for_the_look_that_shows_it_whole:
     test_a_line_the_view_cannot_read_reaches_the_reader_as_it_was_written:
+    test_a_reader_who_has_seen_enough_interrupts_the_view:
     viewed_round:
     test_one_round_of_a_session_reads_on_its_own:
     test_a_round_that_wrote_no_feed_shows_the_line_that_opens_it:
