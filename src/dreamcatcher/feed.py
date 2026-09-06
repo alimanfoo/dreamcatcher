@@ -1,16 +1,21 @@
 """One feed for every harness: what a line can say, and how it reads.
 
+A feed holds a line for each thing that happened, stamped with the time it
+happened. `Line` is that line, both as `feed.txt` holds it and as a reader
+of `feed.txt` reads it back.
+
 A harness adapter turns what its CLI streams into the events here, and the
-renderer turns those into the lines of `feed.txt`. So a reader sees the same
-feed whichever harness ran, and an adapter never writes a line itself.
+renderer turns those events into lines. So a reader sees the same feed
+whichever harness ran, and an adapter never writes a line itself.
 """
 
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from pathlib import PurePath
+from pathlib import Path, PurePath
 
 from dreamcatcher.clock import now
+from dreamcatcher.documents import read_text
 
 # A note's detail can be as long as a whole file, so the line is clipped. The
 # figure is the port's, wide enough for a command or a path.
@@ -19,6 +24,69 @@ WIDTH = 200
 # What a subagent's lines are set in from, so the main thread stays easy to
 # follow. It sits after the timestamp, which keeps the timestamps in a column.
 INDENT = "  "
+
+# How a line stamps the time it was written.
+STAMP = "%Y-%m-%dT%H:%M:%SZ"
+
+# What sits between a line's stamp and what the line says.
+GAP = "  "
+
+
+@dataclass(frozen=True)
+class Line:
+    """One line of a feed: when it was written, and what it says.
+
+    The text is everything the line holds after its stamp, so a subagent's
+    line keeps the indent that sets it in from the rest.
+    """
+
+    at: datetime
+    text: str
+
+    def render(self) -> str:
+        """Return the line as a feed holds it, the line ending included."""
+        return f"{self.at.astimezone(UTC):{STAMP}}{GAP}{self.text}\n"
+
+
+def compose_round_boundary(number: int, cause: str, at: datetime) -> Line:
+    """Return the line that opens a round, saying what caused it.
+
+    A feed holds one round, so nothing writes this line as the round runs.
+    Whoever reads a whole session's rounds in order writes it between them,
+    stamped with the time that round started.
+    """
+    return Line(at, f"round {number}: {cause}")
+
+
+def read_feed_line(written: str) -> Line | None:
+    """Return what one written line says, or nothing when it is not a line.
+
+    Every line a feed holds opens with its stamp, so anything else is the end
+    of a write that never landed whole.
+    """
+    stamp, gap, text = written.partition(GAP)
+    if not gap:
+        return None
+    try:
+        at = datetime.strptime(stamp, STAMP).replace(tzinfo=UTC)
+    except ValueError:
+        return None
+    return Line(at, text)
+
+
+def read_last_feed_line(path: Path) -> Line | None:
+    """Return the last line the feed at path holds, or nothing when it holds none.
+
+    A feed grows a line at a time while its round runs, so a round that was
+    killed part way through a write can leave a part line at the end. The line
+    before it is then the last one the feed really holds, which is what this
+    answers.
+    """
+    for written in reversed(read_text(path).splitlines()):
+        line = read_feed_line(written)
+        if line is not None:
+            return line
+    return None
 
 
 @dataclass(frozen=True)
@@ -60,10 +128,6 @@ class Renderer:
     worktree: PurePath
     clock: Callable[[], datetime] = now
 
-    def boundary(self, number: int, cause: str) -> str:
-        """Return the line that opens a round, saying what caused it."""
-        return self._stamp([f"round {number}: {cause}"], is_subagent=False)
-
     def render(self, event: Event) -> str:
         """Return the feed lines the event becomes, or nothing when it has none."""
         if isinstance(event, Note):
@@ -101,5 +165,5 @@ class Renderer:
     def _stamp(self, contents: list[str], is_subagent: bool) -> str:
         """Return the contents as timestamped lines, indented for a subagent."""
         indent = INDENT if is_subagent else ""
-        stamp = f"{self.clock().astimezone(UTC):%Y-%m-%dT%H:%M:%SZ}"
-        return "".join(f"{stamp}  {indent}{content}\n" for content in contents)
+        at = self.clock()
+        return "".join(Line(at, f"{indent}{content}").render() for content in contents)

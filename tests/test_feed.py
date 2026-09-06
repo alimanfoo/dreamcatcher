@@ -1,9 +1,20 @@
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import PurePosixPath, PureWindowsPath
 
+import pytest
 from clocks import PINNED, Ticking
 
-from dreamcatcher.feed import WIDTH, Note, Prose, Renderer
+from dreamcatcher.errors import ReportableError
+from dreamcatcher.feed import (
+    WIDTH,
+    Line,
+    Note,
+    Prose,
+    Renderer,
+    compose_round_boundary,
+    read_feed_line,
+    read_last_feed_line,
+)
 
 WORKTREE = PurePosixPath("/checkout/worktree")
 
@@ -82,9 +93,60 @@ def test_a_subagents_lines_are_indented_under_the_timestamp():
 
 
 def test_a_round_opens_with_its_number_and_its_cause():
-    assert feed().boundary(3, "new posts") == (
-        "2026-08-19T18:41:58Z  round 3: new posts\n"
+    boundary = compose_round_boundary(3, "new posts", PINNED)
+
+    assert boundary.render() == "2026-08-19T18:41:58Z  round 3: new posts\n"
+
+
+def test_a_written_line_reads_back_as_what_it_says_and_when():
+    assert read_feed_line("2026-08-19T18:41:58Z  [Bash] pytest") == Line(
+        PINNED, "[Bash] pytest"
     )
+
+
+def test_a_subagents_line_reads_back_with_the_indent_that_sets_it_in():
+    written = feed().render(Note("Bash", "pytest", is_subagent=True))
+
+    assert read_feed_line(written.rstrip("\n")) == Line(PINNED, "  [Bash] pytest")
+
+
+def test_a_line_with_no_stamp_on_it_is_not_a_feed_line():
+    assert read_feed_line("half a line") is None
+
+
+def test_a_line_whose_stamp_is_not_a_time_is_not_a_feed_line():
+    assert read_feed_line("the other day  [Bash] pytest") is None
+
+
+def test_the_last_line_of_a_feed_is_what_the_feed_last_said(tmp_path):
+    written = tmp_path / "feed.txt"
+    written.write_text(
+        "2026-08-19T18:41:58Z  [Bash] pytest\n2026-08-19T18:42:58Z  [Read] pyproject\n",
+        encoding="utf-8",
+    )
+
+    assert read_last_feed_line(written) == Line(
+        PINNED + timedelta(minutes=1), "[Read] pyproject"
+    )
+
+
+def test_a_write_that_never_landed_leaves_the_line_before_it_as_the_last(tmp_path):
+    written = tmp_path / "feed.txt"
+    written.write_text("2026-08-19T18:41:58Z  [Bash] pytest\n2026-08", encoding="utf-8")
+
+    assert read_last_feed_line(written) == Line(PINNED, "[Bash] pytest")
+
+
+def test_a_feed_holding_nothing_yet_has_no_last_line(tmp_path):
+    written = tmp_path / "feed.txt"
+    written.write_text("", encoding="utf-8")
+
+    assert read_last_feed_line(written) is None
+
+
+def test_a_feed_that_is_not_there_says_so(tmp_path):
+    with pytest.raises(ReportableError, match="does not exist"):
+        read_last_feed_line(tmp_path / "feed.txt")
 
 
 def test_a_clock_that_is_not_in_utc_still_stamps_utc():

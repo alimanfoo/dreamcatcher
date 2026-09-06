@@ -4,12 +4,31 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from pathlib import PurePath
+from pathlib import Path, PurePath
 from dreamcatcher.clock import now
+from dreamcatcher.documents import read_text
 
 WIDTH = 200
 INDENT = '  '
+STAMP = '%Y-%m-%dT%H:%M:%SZ'
+GAP = '  '
 type Event = Note | Prose
+
+def compose_round_boundary(number: int, cause: str, at: datetime) -> Line:
+    ...
+
+def read_feed_line(written: str) -> Line | None:
+    ...
+
+def read_last_feed_line(path: Path) -> Line | None:
+    ...
+
+class Line:
+    at: datetime
+    text: str
+
+    def render(self) -> str:
+        ...
 
 class Note:
     label: str
@@ -23,9 +42,6 @@ class Prose:
 class Renderer:
     worktree: PurePath
     clock: Callable[[], datetime] = now
-
-    def boundary(self, number: int, cause: str) -> str:
-        ...
 
     def render(self, event: Event) -> str:
         ...
