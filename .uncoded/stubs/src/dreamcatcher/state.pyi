@@ -8,6 +8,7 @@ from pydantic import Field
 from dreamcatcher.documents import Document, write_text
 
 STATE_DIRECTORY = '.dreamcatcher'
+NO_ROUND_HAS_RUN = 'no round has run yet'
 
 class CandidateIssue(Document):
     issue: int
@@ -19,6 +20,7 @@ class WaitingSession(Document):
     session: str
     issue: int
     reason: str
+    is_stuck: bool = False
 
 class LastTick(Document):
     at: datetime
@@ -34,6 +36,9 @@ class StateDirectory:
     last_tick: Path
     worktrees: Path
     sessions: Path
+
+    def describe_path(self, path: Path) -> str:
+        ...
 
     def bootstrap(self) -> None:
         ...

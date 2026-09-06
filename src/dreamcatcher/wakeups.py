@@ -26,7 +26,8 @@ from dreamcatcher.prompts import CARRY_ON_PROMPT, compose_inbox_prompt
 from dreamcatcher.relay import Inbox, peek_new_posts
 from dreamcatcher.rounds import Cause
 from dreamcatcher.sessions import Session
-from dreamcatcher.state import WaitingSession
+from dreamcatcher.state import NO_ROUND_HAS_RUN, WaitingSession
+from dreamcatcher.words import describe_count
 
 
 @dataclass(frozen=True)
@@ -85,7 +86,9 @@ def list_waiting(found: list[Finding]) -> list[WaitingSession]:
     wakeup's own reason is what it is waiting on.
     """
     return [
-        one if isinstance(one, WaitingSession) else _wait(one.session, one.reason)
+        one
+        if isinstance(one, WaitingSession)
+        else compose_wait(one.session, one.reason)
         for one in found
     ]
 
@@ -106,8 +109,8 @@ def judge_session(repository: str, account: str, session: Session) -> Finding | 
     here.
     """
     if not session.rounds:
-        return _wait(session, "no round has run yet")
-    unfinished = _check_last_round(session)
+        return compose_wait(session, NO_ROUND_HAS_RUN, is_stuck=True)
+    unfinished = session.describe_unfinished_round()
     if unfinished is not None:
         return Wakeup(
             session=session,
@@ -116,22 +119,6 @@ def judge_session(repository: str, account: str, session: Session) -> Finding | 
             prompt=CARRY_ON_PROMPT,
         )
     return _judge_pull_request(repository, account, session)
-
-
-def _check_last_round(session: Session) -> str | None:
-    """Return what the session's most recent round left unfinished, or nothing.
-
-    A record with no ending is a round the daemon stopped or outlived, and a
-    round that ended with a failing status stopped short of its own accord.
-    Both leave the work part done, so both are carried on from where they
-    stopped.
-    """
-    ending = session.rounds[-1].ending
-    if ending is None:
-        return "the last round was interrupted"
-    if ending.is_failed:
-        return f"the last round failed (exit {ending.status})"
-    return None
 
 
 def _judge_pull_request(
@@ -150,12 +137,16 @@ def _judge_pull_request(
     """
     found = list_pull_requests(repository, session.record.branch)
     if isinstance(found, Unknown):
-        return _wait(session, f"cannot tell which pull request it has: {found.reason}")
+        return compose_wait(
+            session, f"cannot tell which pull request it has: {found.reason}"
+        )
     pull_request = _choose_pull_request(found)
     if pull_request is None:
-        return _wait(session, "no pull request has been opened on it")
+        return compose_wait(
+            session, "no pull request has been opened on it", is_stuck=True
+        )
     is_open = pull_request.state is PullRequestState.OPEN
-    if not is_open and _has_run_final_round(session):
+    if not is_open and session.has_run_final_round:
         return None
     posted = peek_new_posts(
         repository,
@@ -164,7 +155,9 @@ def _judge_pull_request(
         watermark=session.watermark,
     )
     if isinstance(posted, Unknown):
-        return _wait(session, f"cannot tell what the user posted: {posted.reason}")
+        return compose_wait(
+            session, f"cannot tell what the user posted: {posted.reason}"
+        )
     if is_open and not posted:
         return None
     return _compose_resume(session, pull_request, posted)
@@ -188,18 +181,6 @@ def _choose_pull_request(found: list[PullRequest]) -> PullRequest | None:
     )
 
 
-def _has_run_final_round(session: Session) -> bool:
-    """Whether the session has already run the round that winds it up.
-
-    Any round of the session having been the final round is what this reads,
-    and no record's ending comes into it. A session whose last round did not
-    finish is carried on before this is ever asked, and that carry-on finishes
-    what the final round started, so by the time the question is put the work
-    the final round stood for is done however many rounds it took.
-    """
-    return any(record.cause is Cause.FINAL for record in session.rounds)
-
-
 def _compose_resume(
     session: Session, pull_request: PullRequest, posted: list[AnyPost]
 ) -> Wakeup:
@@ -214,7 +195,7 @@ def _compose_resume(
         session=session,
         cause=Cause.POSTS if is_open else Cause.FINAL,
         reason=(
-            f"{_count_posts(posted)} to answer"
+            f"{describe_count(len(posted), 'new post')} to answer"
             if is_open
             else f"the pull request is {pull_request.state.lower()}"
         ),
@@ -223,15 +204,19 @@ def _compose_resume(
     )
 
 
-def _count_posts(posted: list[AnyPost]) -> str:
-    """Return how many posts these are, in words that read for one or for many."""
-    if len(posted) == 1:
-        return "1 new post"
-    return f"{len(posted)} new posts"
+def compose_wait(
+    session: Session, reason: str, is_stuck: bool = False
+) -> WaitingSession:
+    """Return the session as one waiting on what this reason says.
 
-
-def _wait(session: Session, reason: str) -> WaitingSession:
-    """Return the session as one waiting on what this reason says."""
+    A wait is stuck when no later tick clears it: the dispatch never started
+    the session's first round, or a round ended cleanly and opened no pull
+    request. Every other wait clears by itself, so a stuck one is the one that
+    has to reach a person.
+    """
     return WaitingSession(
-        session=session.key, issue=session.record.issue, reason=reason
+        session=session.key,
+        issue=session.record.issue,
+        reason=reason,
+        is_stuck=is_stuck,
     )

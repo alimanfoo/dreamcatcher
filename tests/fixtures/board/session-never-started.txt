@@ -1,0 +1,14 @@
+GH44, attempt 1 of 1
+stuck, no round has run yet
+
+session
+  key       GH44-20260819-184158                        
+  label     dream:smith                                 
+  branch    dreamcatcher-GH44-20260819-184158           
+  worktree  .dreamcatcher/worktrees/GH44-20260819-184158
+  harness   claude                                      
+  model     opus[1m]                                    
+  effort    xhigh                                       
+
+first prompt
+  /dream:smith GH44

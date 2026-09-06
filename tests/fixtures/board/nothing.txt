@@ -1,0 +1,2 @@
+no daemon running, no tick recorded
+nothing dispatched yet

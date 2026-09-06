@@ -179,8 +179,10 @@ account before the marker tells the user's posts from the session's own.
 Each tick, in order, launching at most one round per tick:
 
 1. If live rounds fill the cap, defer — the daemon knows its own children, so a
-   capped tick spends no GitHub calls at all. The board shows "at cap" honestly
-   rather than pretending it checked.
+   capped tick spends no GitHub calls at all. It reads the sessions off the
+   disk, which spends none either, and writes the cap down against each one it
+   is holding, so the board shows "at cap" honestly rather than pretending it
+   checked.
 2. Reconcile: enumerate session worktrees, read GitHub state per session, peek
    each session's new posts (a read-only relay query — see below). The peek runs
    whatever state the pull request is in, so the final round of a merged pull
@@ -479,8 +481,8 @@ Commits are not marked; the relay only filters posts.
 - waiting: posts peeked but another launch took this tick's slot, or an
   interrupted or errored round awaiting its carry-on retry — with the last exit
   status, so a run of usage-limit failures reads as what it is. (While the
-  daemon sits at the cap it doesn't peek, and the board says "at cap" rather
-  than guessing.)
+  daemon sits at the cap it doesn't peek, so every session it holds waits on the
+  cap, and the board says "at cap" rather than guessing.)
 - stuck: a session in a state the daemon cannot advance — a round exited cleanly
   without opening a PR — surfaced instead of silently skipped, with a pointer to
   the feed.
@@ -490,11 +492,14 @@ Commits are not marked; the relay only filters posts.
 
 Repeat attempts group under their issue: three sessions for one issue read as
 three attempts at one thing, current one first. `scry GH123` shows the newest
-attempt, older attempts listed beneath it. The session view shows vitals (issue,
-PR, branch, harness and model, the literal first prompt), the round list with
-causes and durations, and — when no round is live — the exact command to resume
-the session interactively by hand (`claude --continue` from the worktree, or the
-matching `codex exec resume`), built from `session.json`.
+attempt, older attempts listed beneath it. The session view shows vitals (the
+session's key, its label, its branch, its worktree, and the harness, model and
+effort it was dispatched with, then the literal first prompt), the round list
+with causes and durations, and — when no round is live — the exact command to
+resume the session interactively by hand (`claude --continue` from the worktree,
+or the matching `codex resume --last`), built from `session.json`.
+`codex exec resume` is the headless resume the daemon's own rounds run, so the
+interactive `codex resume` is what a person is given instead.
 
 ### The contract page
 

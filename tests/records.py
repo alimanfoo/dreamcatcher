@@ -9,8 +9,9 @@ from pathlib import Path
 
 from dreamcatcher import rounds, sessions
 from dreamcatcher.config import Harness
-from dreamcatcher.documents import write_json
-from dreamcatcher.state import StateDirectory
+from dreamcatcher.documents import write_json, write_text
+from dreamcatcher.feed import Line
+from dreamcatcher.state import LastTick, StateDirectory
 
 
 def write_session(state: StateDirectory, key: str, issue: int) -> Path:
@@ -37,5 +38,22 @@ def write_round(
     directory: Path, number: int, record: rounds.RoundRecord
 ) -> rounds.RoundRecord:
     """Write the record of one round of the session at this directory."""
-    write_json(record, directory / sessions.ROUNDS / str(number) / rounds.RECORD)
+    write_json(record, _workspace(directory, number).record)
     return record
+
+
+def write_feed(directory: Path, number: int, *lines: Line) -> None:
+    """Write the feed of one round of the session at this directory."""
+    write_text(
+        "".join(line.render() for line in lines), _workspace(directory, number).feed
+    )
+
+
+def write_tick(state: StateDirectory, tick: LastTick) -> None:
+    """Write what the daemon's most recent tick saw."""
+    write_json(tick, state.last_tick)
+
+
+def _workspace(directory: Path, number: int) -> rounds.Workspace:
+    """Where the numbered round of the session at this directory wrote."""
+    return rounds.Workspace(directory, directory / sessions.ROUNDS / str(number))

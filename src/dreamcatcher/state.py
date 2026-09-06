@@ -47,11 +47,23 @@ class WaitingSession(Document):
     tick found it a round and had no slot to launch it, when no round has run
     yet, when nobody has opened a pull request on it, and when a read of GitHub
     could not tell.
+
+    Most of those waits clear by themselves, and a later tick is all they need.
+    A session that is stuck is one no tick can move on, so it waits for a
+    person, and whoever reads this record has to see the difference.
     """
 
     session: str
     issue: int
     reason: str
+    is_stuck: bool = False
+
+
+# What a session that has run no round at all is waiting on. Its dispatch never
+# started a first round, so no harness session exists to carry on, and only a
+# person can take it from there. Both the tick that writes a wait and the board
+# that reads one say this, so a reader hears it the one way.
+NO_ROUND_HAS_RUN = "no round has run yet"
 
 
 class LastTick(Document):
@@ -62,9 +74,9 @@ class LastTick(Document):
 
     A tick launches at most one round, and the key of that round's session is
     what it launched. A tick that launched nothing at all says in one line what
-    held it. A tick that was held at the cap looked no further than its own
-    rounds, so it records nothing else, rather than suggesting that it had
-    looked.
+    held it. A tick that was held at the cap read no further than its own
+    rounds and the sessions on the disk, so the cap is what it writes down
+    against every session it is holding, and it weighed no issue at all.
 
     The candidates are every labelled issue that the tick weighed, in the order
     they would be dispatched. A candidate with nothing in its way that the tick
@@ -115,6 +127,21 @@ class StateDirectory:
     def sessions(self) -> Path:
         """The directory holding each session's own files, named by its key."""
         return self.path / "sessions"
+
+    def describe_path(self, path: Path) -> str:
+        """Return the path as it reads from the checkout, for a reader to open.
+
+        The one way of writing it on every platform, so what a reader is told
+        to open reads the same wherever they are.
+
+        A path the checkout does not hold reads whole. The dispatch writes the
+        checkout's own path into the session's record, and a reader can be
+        standing in that same checkout under another name, a symlink's for
+        instance, so the two do not always meet.
+        """
+        if path.is_relative_to(self.root):
+            return path.relative_to(self.root).as_posix()
+        return path.as_posix()
 
     def bootstrap(self) -> None:
         """Create the directory, ignoring itself, so git never sees its files.

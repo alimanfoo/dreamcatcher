@@ -67,6 +67,9 @@ class Unrenderable(Adapter):
     def build_resumed_round(self, launch: Launch) -> Invocation:
         return Invocation([self.program], launch.prompt)
 
+    def build_hand_resume(self) -> list[str]:
+        return [self.program]
+
     def _events(self, streamed: dict) -> list[Event]:
         # A real harness can send a path or a command as something other than
         # text, and the renderer cannot write an event that holds one.

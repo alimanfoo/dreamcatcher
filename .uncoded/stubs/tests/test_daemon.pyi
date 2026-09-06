@@ -17,7 +17,7 @@ from dreamcatcher.daemon import Daemon
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.prompts import CARRY_ON_PROMPT
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
-from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, WaitingSession
+from dreamcatcher.state import NO_ROUND_HAS_RUN, CandidateIssue, LastTick, StateDirectory, WaitingSession
 
 KEY = 'GH13-20260819-184158'
 CAUSE = Cause.DISPATCH
@@ -116,6 +116,12 @@ def test_a_tick_launches_one_round_and_leaves_the_rest_in_the_queue(dispatching,
     ...
 
 def test_a_second_tick_judges_a_dispatched_issue_handled(dispatching):
+    ...
+
+def test_a_tick_at_the_cap_says_the_cap_is_what_each_session_waits_on(dispatching, harnesses):
+    ...
+
+def test_a_tick_at_the_cap_leaves_a_wound_up_session_waiting_on_nothing(dispatching, harnesses):
     ...
 
 def test_a_tick_at_the_cap_spends_no_github_call(dispatching, offered, harnesses):

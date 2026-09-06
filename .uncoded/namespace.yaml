@@ -22,8 +22,49 @@ src/:
         program:
         build_first_round:
         build_resumed_round:
+        build_hand_resume:
         read:
         _events:
+    board.py:
+      Standing:
+        NEEDS_YOU:
+        WORKING:
+        WAITING:
+        STUCK:
+        DONE:
+      Attempt:
+        session:
+        standing:
+        detail:
+        attempt:
+        attempts:
+      QueuedIssue:
+        issue:
+        label:
+        reason:
+      Board:
+        at:
+        daemon_pid:
+        tick:
+        attempts:
+        queued:
+        list_standing:
+      _Look:
+        state:
+        at:
+        daemon_pid:
+        waits:
+        list_attempts:
+        _read_attempt:
+        _judge_standing:
+        _judge_wait:
+        _describe_live_round:
+        _describe_idle:
+        _read_last_said:
+        _point_at_feed:
+      read_board:
+      _list_queue:
+      _describe_place:
     claude.py:
       ALLOWED_TOOLS:
       TELLING_INPUTS:
@@ -32,6 +73,7 @@ src/:
         program:
         build_first_round:
         build_resumed_round:
+        build_hand_resume:
         _events:
         _base:
       _system:
@@ -43,8 +85,13 @@ src/:
       _telling_input:
       _text:
     cli.py:
+      ISSUE:
       build_parser:
       main:
+      _scry:
+      _refuse_a_feed_of_nothing:
+      _find_state:
+      _read_issue:
     clock.py:
       now:
     codex.py:
@@ -56,6 +103,7 @@ src/:
         program:
         build_first_round:
         build_resumed_round:
+        build_hand_resume:
         _events:
       _settings:
       _overrides:
@@ -113,6 +161,7 @@ src/:
         run:
         tick:
         _decide_and_launch:
+        _defer_at_cap:
         _judge_sessions:
         _resume_session:
         _launch_wakeup:
@@ -146,7 +195,12 @@ src/:
     feed.py:
       WIDTH:
       INDENT:
+      GAP:
       Event:
+      Line:
+        at:
+        text:
+        render:
       Note:
         label:
         detail:
@@ -157,12 +211,15 @@ src/:
       Renderer:
         worktree:
         clock:
-        boundary:
         render:
         _render_note:
         _shorten:
         _strip_worktree:
         _stamp:
+      compose_round_boundary:
+      read_feed_line:
+      read_feed_lines:
+      read_last_feed_line:
     git.py:
       fetch:
       add_worktree:
@@ -251,7 +308,7 @@ src/:
       ADAPTERS:
     lock.py:
       hold:
-      _holder:
+      read_daemon_pid:
     prompts.py:
       MARKER:
       ISSUE_PLACEHOLDER:
@@ -303,6 +360,32 @@ src/:
         _pass_through:
         _append:
       read_round_records:
+    scry.py:
+      COLOURS:
+      QUEUE:
+      PAUSE:
+      LABEL:
+      INDENT:
+      open_console:
+      show_board:
+      _describe_daemon:
+      _show_attempts:
+      _show_queue:
+      _open_table:
+      _print_section:
+      show_session:
+      _show_vitals:
+      _show_rounds:
+      _describe_run:
+      _describe_ending:
+      _show_hand_resume:
+      _show_older_attempts:
+      show_round:
+      show_feed:
+      _find_attempts:
+      _compose_feed:
+      _paint_written:
+      _paint:
     sessions.py:
       BRANCH_PREFIX:
       RECORD:
@@ -323,7 +406,10 @@ src/:
         rounds:
         watermark:
         key:
+        has_run_final_round:
         next_workspace:
+        describe_unfinished_round:
+        workspace:
       read_sessions:
       create_session:
       _read_session:
@@ -332,6 +418,7 @@ src/:
       discard_session:
     state.py:
       STATE_DIRECTORY:
+      NO_ROUND_HAS_RUN:
       CandidateIssue:
         issue:
         label:
@@ -341,6 +428,7 @@ src/:
         session:
         issue:
         reason:
+        is_stuck:
       LastTick:
         at:
         hold:
@@ -354,6 +442,7 @@ src/:
         last_tick:
         worktrees:
         sessions:
+        describe_path:
         bootstrap:
     teardown.py:
       OWN_SESSION:
@@ -370,13 +459,18 @@ src/:
       sort_wakeups:
       list_waiting:
       judge_session:
-      _check_last_round:
       _judge_pull_request:
       _choose_pull_request:
-      _has_run_final_round:
       _compose_resume:
-      _count_posts:
-      _wait:
+      compose_wait:
+    words.py:
+      STAMP:
+      SECONDS_PER_MINUTE:
+      MINUTES_PER_HOUR:
+      HOURS_PER_DAY:
+      describe_time:
+      describe_span:
+      describe_count:
 tests/:
   clocks.py:
     PINNED:
@@ -454,6 +548,38 @@ tests/:
   records.py:
     write_session:
     write_round:
+    write_feed:
+    write_tick:
+    _workspace:
+  test_board.py:
+    KEY:
+    LOOKED_AT:
+    LABEL:
+    state:
+    running:
+    ran:
+    said:
+    looked:
+    only:
+    test_a_state_directory_nothing_has_run_in_yet_holds_an_empty_board:
+    test_the_daemon_holding_the_repo_is_the_one_the_lock_names:
+    test_a_round_a_running_daemon_has_not_ended_is_the_agent_working:
+    test_a_running_round_that_has_said_nothing_yet_says_that:
+    test_a_round_with_no_daemon_left_to_run_it_is_waiting:
+    test_a_round_that_failed_waits_with_the_status_it_failed_with:
+    test_a_session_whose_final_round_has_run_is_done:
+    test_a_session_done_in_one_round_counts_that_round_as_one:
+    test_a_session_the_tick_found_nothing_to_do_for_needs_you:
+    test_a_session_that_wrote_no_feed_at_all_is_idle_for_who_knows_how_long:
+    test_a_session_the_tick_left_waiting_says_what_it_waits_on:
+    test_a_stuck_session_says_where_to_read_what_it_did:
+    test_a_stuck_session_that_ran_no_round_has_no_feed_to_point_at:
+    test_a_session_no_tick_has_weighed_and_no_round_has_run_is_stuck:
+    test_the_attempts_at_one_issue_read_as_attempts_newest_first:
+    test_the_work_that_is_done_reads_most_recent_first:
+    test_the_sessions_in_one_standing_come_back_in_the_boards_own_order:
+    test_the_queue_reads_each_issues_turn_off_its_place:
+    test_an_issue_a_session_here_already_claims_is_not_queued:
   test_claude.py:
     LAUNCH:
     BASE:
@@ -462,6 +588,7 @@ tests/:
     assistant:
     test_a_first_round_names_the_model_and_the_effort_it_was_dispatched_with:
     test_a_resume_continues_the_session_and_replays_no_settings:
+    test_a_person_takes_the_session_over_by_continuing_it_where_it_ran:
     test_the_first_event_names_the_model_and_the_session:
     test_what_the_agent_says_comes_through_whole:
     test_a_thinking_block_says_only_that_the_agent_thought:
@@ -484,9 +611,18 @@ tests/:
     test_an_event_shaped_in_a_way_the_parser_cannot_read_comes_through_unchanged:
     test_a_tool_input_that_is_not_a_mapping_comes_through_unchanged:
   test_cli.py:
+    watching:
     started:
     test_version_prints_the_installed_version:
-    test_scry_is_not_implemented_yet:
+    test_a_checkout_no_daemon_has_watched_has_nothing_to_show:
+    test_scry_shows_the_board:
+    test_scry_naming_an_issue_shows_that_sessions_view:
+    test_an_issue_reads_however_the_reader_wrote_it:
+    test_something_that_is_not_an_issue_reference_is_refused:
+    test_scry_following_an_issue_shows_its_feed:
+    test_scry_naming_a_round_shows_that_rounds_feed:
+    test_a_feed_view_with_no_issue_to_show_asks_for_one:
+    test_a_feed_reads_as_it_arrives_or_as_it_stands_and_never_as_both:
     test_a_bare_invocation_asks_for_a_verb:
     test_run_starts_a_daemon_on_the_current_directory:
     test_the_harness_flag_says_what_to_run_rounds_with:
@@ -502,6 +638,7 @@ tests/:
     completed:
     test_a_first_round_runs_where_it_is_launched_under_codexs_own_reviewer:
     test_a_resume_replays_the_settings_and_the_permissions_codex_forgets:
+    test_a_person_takes_the_session_over_with_codexs_interactive_resume:
     test_the_first_event_names_the_session:
     test_what_the_agent_says_comes_through_whole:
     test_a_command_that_ran_reports_what_it_was:
@@ -595,6 +732,8 @@ tests/:
     test_a_dispatched_round_records_what_caused_it_and_what_it_said:
     test_a_tick_launches_one_round_and_leaves_the_rest_in_the_queue:
     test_a_second_tick_judges_a_dispatched_issue_handled:
+    test_a_tick_at_the_cap_says_the_cap_is_what_each_session_waits_on:
+    test_a_tick_at_the_cap_leaves_a_wound_up_session_waiting_on_nothing:
     test_a_tick_at_the_cap_spends_no_github_call:
     test_a_tick_with_nothing_eligible_dispatches_nothing:
     test_a_tick_whose_listing_failed_records_what_it_could_not_read:
@@ -686,6 +825,15 @@ tests/:
     test_prose_with_nothing_in_it_writes_nothing:
     test_a_subagents_lines_are_indented_under_the_timestamp:
     test_a_round_opens_with_its_number_and_its_cause:
+    test_a_written_line_reads_back_as_what_it_says_and_when:
+    test_a_subagents_line_reads_back_with_the_indent_that_sets_it_in:
+    test_a_line_with_no_stamp_on_it_is_not_a_feed_line:
+    test_a_line_whose_stamp_is_not_a_time_is_not_a_feed_line:
+    test_the_last_line_of_a_feed_is_what_the_feed_last_said:
+    test_a_write_that_never_landed_leaves_the_line_before_it_as_the_last:
+    test_a_feed_whose_last_line_is_not_one_has_nothing_to_say:
+    test_a_feed_holding_nothing_yet_has_no_last_line:
+    test_a_round_that_has_said_nothing_yet_has_no_last_line:
     test_a_clock_that_is_not_in_utc_still_stamps_utc:
     test_the_clock_a_renderer_reads_by_default_is_the_time_now_in_utc:
   test_git.py:
@@ -796,6 +944,7 @@ tests/:
       program:
       build_first_round:
       build_resumed_round:
+      build_hand_resume:
       _events:
     pinned:
     worktree:
@@ -817,11 +966,51 @@ tests/:
     test_a_round_that_cannot_record_its_start_does_not_run_on:
     test_a_round_a_straggler_outlives_still_records_an_ending:
     test_a_round_a_straggler_outlives_still_stops:
+  test_scry.py:
+    LOOKED_AT:
+    WIDTH:
+    DAEMON_PID:
+    STAMP:
+    SAID:
+    DOUBLE_LABELLED:
+    BOARDS:
+    FEEDS:
+    SESSIONS:
+    daemon:
+    written:
+    ended:
+    running:
+    holding:
+    fabricate_nothing:
+    fabricate_everything:
+    fabricate_a_dead_daemon:
+    fabricate_the_cap:
+    fabricate_repeat_attempts:
+    pinned:
+    stopping:
+    rendered:
+    test_a_state_directory_renders_as_its_golden_board:
+    viewed:
+    test_a_session_renders_as_its_golden_view:
+    followed:
+    test_a_feed_renders_as_its_golden_view:
+    test_a_following_view_waits_while_a_round_is_still_running:
+    test_a_round_that_starts_while_the_view_is_going_arrives_in_it:
+    test_a_view_of_a_session_no_daemon_is_running_never_waits:
+    test_a_write_that_never_landed_waits_for_the_look_that_shows_it_whole:
+    test_a_line_the_view_cannot_read_reaches_the_reader_as_it_was_written:
+    test_a_reader_who_has_seen_enough_interrupts_the_view:
+    viewed_round:
+    test_one_round_of_a_session_reads_on_its_own:
+    test_a_round_that_wrote_no_feed_shows_the_line_that_opens_it:
+    test_a_round_the_session_never_ran_says_how_many_it_did:
+    test_an_issue_no_session_here_has_says_so:
   test_sessions.py:
     KEY:
     BRANCH:
     checkout:
     state:
+    fabricated:
     mapping:
     written:
     test_a_session_cuts_a_worktree_of_its_own_under_the_state_directory:
@@ -829,6 +1018,14 @@ tests/:
     test_a_session_records_what_it_was_dispatched_with:
     test_a_session_runs_on_the_harness_the_run_named:
     test_a_new_session_has_run_no_rounds_and_its_next_is_its_first:
+    standing:
+    ended:
+    test_a_round_a_session_has_run_is_found_by_the_number_it_ran_as:
+    test_a_session_that_has_run_no_round_has_left_nothing_unfinished:
+    test_a_session_whose_last_round_was_interrupted_says_so:
+    test_a_session_whose_last_round_failed_says_the_status_it_failed_with:
+    test_a_session_whose_last_round_ended_well_has_left_nothing_unfinished:
+    test_a_session_that_has_run_its_final_round_says_so:
     test_a_session_git_cannot_cut_leaves_no_branch_behind:
     test_a_session_that_cannot_record_leaves_no_worktree_and_no_branch:
     test_a_state_directory_with_no_worktrees_holds_no_sessions:
@@ -846,6 +1043,8 @@ tests/:
     test_bootstrap_heals_a_deleted_gitignore:
     test_bootstrap_says_so_when_a_file_sits_where_the_directory_goes:
     test_the_daemon_files_sit_in_the_state_directory:
+    test_a_path_the_checkout_holds_reads_from_the_checkout:
+    test_a_path_the_checkout_does_not_hold_reads_whole:
   test_teardown.py:
     STARTS_A_CHILD:
     AND_WAITS:
@@ -877,6 +1076,10 @@ tests/:
     test_a_pull_request_read_that_failed_leaves_the_session_waiting:
     test_a_peek_that_failed_leaves_the_session_waiting:
     test_the_most_open_work_comes_first:
+  test_words.py:
+    test_a_time_is_written_the_one_way_the_tool_writes_one:
+    test_a_span_reads_in_the_largest_unit_that_says_it:
+    test_a_count_reads_for_one_or_for_more_than_one:
 tools/:
   forbid_invisible_characters.py:
     INVISIBLE_CATEGORY:

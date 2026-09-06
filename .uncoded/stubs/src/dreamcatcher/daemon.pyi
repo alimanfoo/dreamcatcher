@@ -20,7 +20,7 @@ from dreamcatcher.lock import hold
 from dreamcatcher.rounds import Cause, Round
 from dreamcatcher.sessions import Session, advance_watermark, create_session, discard_session, read_sessions
 from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, WaitingSession
-from dreamcatcher.wakeups import Finding, Wakeup, judge_session, list_waiting, sort_wakeups
+from dreamcatcher.wakeups import Finding, Wakeup, compose_wait, judge_session, list_waiting, sort_wakeups
 
 COOLDOWN = timedelta(minutes=15)
 
@@ -41,6 +41,9 @@ class Daemon:
         ...
 
     def _decide_and_launch(self, repository: str, account: str, at: datetime) -> LastTick:
+        ...
+
+    def _defer_at_cap(self, at: datetime) -> LastTick:
         ...
 
     def _judge_sessions(self, repository: str, account: str, sessions: list[Session]) -> list[Finding]:

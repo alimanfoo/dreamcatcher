@@ -65,6 +65,14 @@ class Claude(Adapter):
         """
         return Invocation([*self._base(launch), "--continue"], launch.prompt)
 
+    def build_hand_resume(self) -> list[str]:
+        """Return how a person carries on the session in this directory.
+
+        Claude continues the newest conversation of the directory it runs in,
+        which is the session's own.
+        """
+        return [self.program, "--continue"]
+
     def _events(self, streamed: dict) -> list[Event]:
         """Return the feed events one Claude event turns into."""
         is_subagent = streamed.get("parent_tool_use_id") is not None

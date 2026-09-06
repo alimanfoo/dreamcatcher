@@ -75,6 +75,15 @@ class Codex(Adapter):
             launch.prompt,
         )
 
+    def build_hand_resume(self) -> list[str]:
+        """Return how a person carries on the session in this directory.
+
+        `codex resume` is Codex's interactive resume, where `codex exec resume`
+        is the headless one that every round of a session runs. `--last` means
+        the newest session, out of the ones Codex ran in the current directory.
+        """
+        return [self.program, "resume", "--last"]
+
     def _events(self, streamed: dict) -> list[Event]:
         """Return the feed events one Codex event turns into.
 

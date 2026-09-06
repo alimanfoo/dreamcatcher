@@ -17,3 +17,9 @@ def test_bootstrap_says_so_when_a_file_sits_where_the_directory_goes(repo):
 
 def test_the_daemon_files_sit_in_the_state_directory(tmp_path):
     ...
+
+def test_a_path_the_checkout_holds_reads_from_the_checkout(tmp_path):
+    ...
+
+def test_a_path_the_checkout_does_not_hold_reads_whole(tmp_path):
+    ...

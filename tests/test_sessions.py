@@ -1,7 +1,9 @@
+from datetime import timedelta
+
 import pytest
 from clocks import PINNED
 from conftest import CONFIG, commit, git
-from records import write_round
+from records import write_round, write_session
 
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import CONFIG_NAME, Harness, read_config
@@ -33,6 +35,12 @@ def checkout(cloned):
 def state(checkout):
     """The state directory of that checkout."""
     return StateDirectory(checkout)
+
+
+@pytest.fixture
+def fabricated(tmp_path):
+    """A state directory holding records alone, with no checkout behind it."""
+    return StateDirectory(tmp_path)
 
 
 @pytest.fixture
@@ -100,6 +108,75 @@ def test_a_new_session_has_run_no_rounds_and_its_next_is_its_first(state, mappin
     assert session.next_workspace == Workspace(
         session.record.worktree, state.sessions / KEY / "rounds" / "1"
     )
+
+
+def standing(state, *rounds):
+    """Return the session that these rounds leave behind, read back from disk."""
+    directory = write_session(state, KEY, 12)
+    for number, record in enumerate(rounds, start=1):
+        write_round(directory, number, record)
+    return read_sessions(state)[0]
+
+
+def ended(status, minute=0):
+    """Return a round that started that minute past the hour and ended."""
+    started = PINNED + timedelta(minutes=minute)
+    return RoundRecord(
+        started=started,
+        pid=1,
+        cause=Cause.DISPATCH,
+        ending=Ending(at=started, status=status),
+    )
+
+
+def test_a_round_a_session_has_run_is_found_by_the_number_it_ran_as(fabricated):
+    session = standing(fabricated, ended(0), ended(0, minute=1))
+
+    assert session.workspace(2) == Workspace(
+        session.record.worktree, fabricated.sessions / KEY / "rounds" / "2"
+    )
+
+
+def test_a_session_that_has_run_no_round_has_left_nothing_unfinished(fabricated):
+    session = standing(fabricated)
+
+    assert session.describe_unfinished_round() is None
+    assert not session.has_run_final_round
+
+
+def test_a_session_whose_last_round_was_interrupted_says_so(fabricated):
+    session = standing(
+        fabricated, RoundRecord(started=PINNED, pid=1, cause=Cause.DISPATCH)
+    )
+
+    assert session.describe_unfinished_round() == "the last round was interrupted"
+
+
+def test_a_session_whose_last_round_failed_says_the_status_it_failed_with(fabricated):
+    session = standing(fabricated, ended(2))
+
+    assert session.describe_unfinished_round() == "the last round failed (exit 2)"
+
+
+def test_a_session_whose_last_round_ended_well_has_left_nothing_unfinished(fabricated):
+    session = standing(fabricated, ended(1), ended(0, minute=1))
+
+    assert session.describe_unfinished_round() is None
+
+
+def test_a_session_that_has_run_its_final_round_says_so(fabricated):
+    session = standing(
+        fabricated,
+        ended(0),
+        RoundRecord(
+            started=PINNED + timedelta(minutes=1),
+            pid=1,
+            cause=Cause.FINAL,
+            ending=Ending(at=PINNED + timedelta(minutes=1), status=0),
+        ),
+    )
+
+    assert session.has_run_final_round
 
 
 def test_a_session_git_cannot_cut_leaves_no_branch_behind(state, mapping):

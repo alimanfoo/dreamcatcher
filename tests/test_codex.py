@@ -63,6 +63,10 @@ def test_a_resume_replays_the_settings_and_the_permissions_codex_forgets():
     )
 
 
+def test_a_person_takes_the_session_over_with_codexs_interactive_resume():
+    assert CODEX.build_hand_resume() == ["codex", "resume", "--last"]
+
+
 def test_the_first_event_names_the_session():
     line = streamed(type="thread.started", thread_id="01a0213c-9c67")
 

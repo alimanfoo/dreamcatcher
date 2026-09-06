@@ -26,7 +26,7 @@ from dreamcatcher.documents import (
 )
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import add_worktree, delete_branch, fetch, remove_worktree
-from dreamcatcher.rounds import RoundRecord, Workspace, read_round_records
+from dreamcatcher.rounds import Cause, RoundRecord, Workspace, read_round_records
 from dreamcatcher.state import StateDirectory
 
 # What a session's branch is called, before its key. The prefix keeps
@@ -90,15 +90,57 @@ class Session:
         return self.directory.name
 
     @property
-    def next_workspace(self) -> Workspace:
-        """Where the session's next round runs, and where it writes.
+    def has_run_final_round(self) -> bool:
+        """Whether the session has already run the round that winds it up.
+
+        Any round of the session having been the final round is what this
+        reads, and no record's ending comes into it. A session whose last round
+        did not finish is carried on before this is ever asked, and that
+        carry-on finishes what the final round started, so by the time the
+        question is put the work the final round stood for is done however many
+        rounds it took.
+        """
+        return any(record.cause is Cause.FINAL for record in self.rounds)
+
+    def describe_unfinished_round(self) -> str | None:
+        """Return what the session's last round left unfinished, or nothing.
+
+        A record with no ending is a round the daemon stopped or outlived, and
+        a round that ended with a failing status stopped short of its own
+        accord. Both leave the work part done, so both are carried on from
+        where they stopped.
+
+        A session that has run no round at all has left nothing unfinished. Its
+        first round never started, which is another matter, and one that only a
+        person can take further.
+        """
+        if not self.rounds:
+            return None
+        ending = self.rounds[-1].ending
+        if ending is None:
+            return "the last round was interrupted"
+        if ending.is_failed:
+            return f"the last round failed (exit {ending.status})"
+        return None
+
+    def workspace(self, number: int) -> Workspace:
+        """Where the session's numbered round ran, and where it wrote.
 
         Every round runs in the session's worktree, and writes into a
         directory named by the number of the round it is.
+
+        A session runs one round at a time, and each round is numbered by how
+        many the session had run before it, so the rounds are numbered from one
+        in the order they ran. The place of a record in `rounds` is therefore
+        the number of the round it records, which is how a reader of the round
+        list finds each round's own files.
         """
-        return Workspace(
-            self.record.worktree, self.directory / ROUNDS / str(len(self.rounds) + 1)
-        )
+        return Workspace(self.record.worktree, self.directory / ROUNDS / str(number))
+
+    @property
+    def next_workspace(self) -> Workspace:
+        """Where the session's next round runs, and where it writes."""
+        return self.workspace(len(self.rounds) + 1)
 
 
 def read_sessions(state: StateDirectory) -> list[Session]:

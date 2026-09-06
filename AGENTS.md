@@ -84,10 +84,15 @@ uv run pre-commit run --all-files
   repair is already in your working tree.
 - Never edit `.uncoded/` or the `uncoded-*` skills by hand. `uncoded sync`
   writes them from the source and the docs, and overwrites them on every commit.
-- Never repair a file under `tests/fixtures/`. Each one is a verbatim recording
-  of what a harness streamed, so tidying it makes a golden test assert something
-  the harness never sent. `.pre-commit-config.yaml` excludes that path from
-  every hook, and `.gitattributes` keeps its line endings.
+- Never repair a file under `tests/fixtures/`. Each one is a recording: of what
+  a harness streamed, of what gh answered, or of what a view rendered. Tidying
+  one makes a golden test assert something that was never produced.
+  `.pre-commit-config.yaml` excludes that path from every hook, and
+  `.gitattributes` keeps its line endings.
+- Put every golden under `tests/fixtures/`, and nowhere else, because that is
+  the one path no hook rewrites. A rendered table's rows end in the spaces that
+  pad them, and the trailing-whitespace hook would take those away anywhere
+  else, so the test would then assert what the view never wrote.
 - For a failure that the user needs to read, raise a `ReportableError`.
   `cli.main` catches that one class and prints the message, and anything else
   reaches the user as a traceback, which means a bug in the tool. A failed write
@@ -109,6 +114,10 @@ uv run pre-commit run --all-files
 - Shell out from `commands.py` alone. `pyproject.toml` waives ruff's subprocess
   rules for that one module, so any other module that imports `subprocess` fails
   the check.
+- Render with rich in `scry.py` alone. It is the one module that shows anything
+  to a person, and everything the daemon writes stays plain text, so a colour
+  code can never reach a file. `pyproject.toml` waives no rule for this, so any
+  other module that imports rich is a mistake a reviewer has to catch.
 - Give a harness its prompt as a file to read, never as an argument. A round
   writes `prompt.txt` and `commands.spawn` hands it over as the child's stdin,
   so a prompt can run to any length and hold anything. On Windows cmd.exe acts

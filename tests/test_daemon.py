@@ -34,7 +34,13 @@ from dreamcatcher.daemon import Daemon
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.prompts import CARRY_ON_PROMPT
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
-from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, WaitingSession
+from dreamcatcher.state import (
+    NO_ROUND_HAS_RUN,
+    CandidateIssue,
+    LastTick,
+    StateDirectory,
+    WaitingSession,
+)
 
 KEY = "GH13-20260819-184158"
 
@@ -398,13 +404,42 @@ def test_a_second_tick_judges_a_dispatched_issue_handled(dispatching):
     ]
 
 
+def test_a_tick_at_the_cap_says_the_cap_is_what_each_session_waits_on(
+    dispatching, harnesses
+):
+    harnesses["claude"].streams([Line("still working\n")], delay=STILL_RUNNING)
+    write_session(StateDirectory(dispatching), KEY, 13)
+    daemon, _, _ = idling(dispatching, ticks=2)
+
+    daemon.run()
+
+    # The first tick dispatched issue 8, and its round is what fills the cap,
+    # so the session already on disk is the one the cap holds.
+    assert recorded(daemon).waiting == [
+        WaitingSession(session=KEY, issue=13, reason="at cap: 1 of 1 rounds running")
+    ]
+
+
+def test_a_tick_at_the_cap_leaves_a_wound_up_session_waiting_on_nothing(
+    dispatching, harnesses
+):
+    harnesses["claude"].streams([Line("still working\n")], delay=STILL_RUNNING)
+    write_session(StateDirectory(dispatching), KEY, 13)
+    ran(dispatching, 1, Cause.FINAL)
+    daemon, _, _ = idling(dispatching, ticks=2)
+
+    daemon.run()
+
+    assert recorded(daemon).waiting == []
+
+
 def test_a_tick_at_the_cap_spends_no_github_call(dispatching, offered, harnesses):
     harnesses["claude"].streams([Line("still working\n")], delay=STILL_RUNNING)
     daemon, _, _ = idling(dispatching, ticks=2)
 
     daemon.run()
 
-    assert recorded(daemon).hold == "at cap: 1 rounds running"
+    assert recorded(daemon).hold == "at cap: 1 of 1 rounds running"
     assert [call.arguments[:2] for call in offered.calls] == [
         ["repo", "view"],
         ["api", "user"],
@@ -576,7 +611,10 @@ def test_a_session_with_no_pull_request_of_its_own_reads_as_waiting(resuming):
 
     assert recorded(daemon).waiting == [
         WaitingSession(
-            session=KEY, issue=13, reason="no pull request has been opened on it"
+            session=KEY,
+            issue=13,
+            reason="no pull request has been opened on it",
+            is_stuck=True,
         )
     ]
 
@@ -588,7 +626,7 @@ def test_a_session_that_has_run_no_round_at_all_waits_for_its_first(dispatching)
     daemon.run()
 
     assert recorded(daemon).waiting == [
-        WaitingSession(session=KEY, issue=13, reason="no round has run yet")
+        WaitingSession(session=KEY, issue=13, reason=NO_ROUND_HAS_RUN, is_stuck=True)
     ]
 
 

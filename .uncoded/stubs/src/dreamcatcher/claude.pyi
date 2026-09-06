@@ -44,6 +44,9 @@ class Claude(Adapter):
     def build_resumed_round(self, launch: Launch) -> Invocation:
         ...
 
+    def build_hand_resume(self) -> list[str]:
+        ...
+
     def _events(self, streamed: dict) -> list[Event]:
         ...
 

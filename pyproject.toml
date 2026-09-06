@@ -17,10 +17,12 @@ classifiers = [
 ]
 dependencies = [
     # pydantic validates the config and every JSON document the tool owns.
-    # psutil answers whether a recorded pid is still alive. pywin32 reaches the
-    # Job Object that holds a round on Windows, and installs there alone.
+    # psutil answers whether a recorded pid is still alive. rich renders scry's
+    # views. pywin32 reaches the Job Object that holds a round on Windows, and
+    # installs there alone.
     "pydantic>=2.0",
     "psutil>=6.0",
+    "rich>=13.0",
     "pywin32>=306; sys_platform == 'win32'",
 ]
 

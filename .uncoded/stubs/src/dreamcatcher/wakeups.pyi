@@ -7,7 +7,8 @@ from dreamcatcher.prompts import CARRY_ON_PROMPT, compose_inbox_prompt
 from dreamcatcher.relay import Inbox, peek_new_posts
 from dreamcatcher.rounds import Cause
 from dreamcatcher.sessions import Session
-from dreamcatcher.state import WaitingSession
+from dreamcatcher.state import NO_ROUND_HAS_RUN, WaitingSession
+from dreamcatcher.words import describe_count
 
 type Finding = Wakeup | WaitingSession
 PRIORITY = (Cause.CARRY_ON, Cause.FINAL, Cause.POSTS)
@@ -21,25 +22,16 @@ def list_waiting(found: list[Finding]) -> list[WaitingSession]:
 def judge_session(repository: str, account: str, session: Session) -> Finding | None:
     ...
 
-def _check_last_round(session: Session) -> str | None:
-    ...
-
 def _judge_pull_request(repository: str, account: str, session: Session) -> Finding | None:
     ...
 
 def _choose_pull_request(found: list[PullRequest]) -> PullRequest | None:
     ...
 
-def _has_run_final_round(session: Session) -> bool:
-    ...
-
 def _compose_resume(session: Session, pull_request: PullRequest, posted: list[AnyPost]) -> Wakeup:
     ...
 
-def _count_posts(posted: list[AnyPost]) -> str:
-    ...
-
-def _wait(session: Session, reason: str) -> WaitingSession:
+def compose_wait(session: Session, reason: str, is_stuck: bool) -> WaitingSession:
     ...
 
 class Wakeup:

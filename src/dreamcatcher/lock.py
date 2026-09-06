@@ -19,7 +19,7 @@ def hold(path: Path) -> Iterator[None]:
 
     Reclaim a stale lock, one no live daemon holds.
     """
-    running = _holder(path)
+    running = read_daemon_pid(path)
     if running is not None:
         raise ReportableError(f"dreamcatcher is already running as pid {running}.")
     write_text(f"{os.getpid()}\n", path)
@@ -33,7 +33,7 @@ def hold(path: Path) -> Iterator[None]:
             path.unlink()
 
 
-def _holder(path: Path) -> int | None:
+def read_daemon_pid(path: Path) -> int | None:
     """Return the pid of the daemon holding the lock, if one still is.
 
     A lock nobody can read as a live pid is stale. That covers a file that is

@@ -1,0 +1,25 @@
+GH13, attempt 3 of 3
+needs you, idle 1h 58m
+
+session
+  key       GH13-20260819-184158                        
+  label     dream:smith                                 
+  branch    dreamcatcher-GH13-20260819-184158           
+  worktree  .dreamcatcher/worktrees/GH13-20260819-184158
+  harness   claude                                      
+  model     opus[1m]                                    
+  effort    xhigh                                       
+
+first prompt
+  /dream:smith GH13
+
+rounds
+  1  dispatched  2026-08-19T18:42:58Z  ran 4m  exit 0
+
+take it over yourself
+  cd .dreamcatcher/worktrees/GH13-20260819-184158
+  claude --continue                              
+
+older attempts
+  GH13-20260818-090000  done  2 rounds
+  GH13-20260817-090000  done  2 rounds

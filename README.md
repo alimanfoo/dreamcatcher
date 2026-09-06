@@ -4,12 +4,12 @@ dreamcatcher watches a repository for labelled issues, dispatches an autonomous
 coding session for each, and carries each issue to a pull request for you to
 review and merge.
 
-`run` now carries a labelled issue as far as its first round. It stops there:
-nothing relays what you post on the pull request back to the session, nothing
-carries an interrupted round on, and a merged pull request gets no last round.
-`scry` is still a stub that says so when you run it, so read
-`.dreamcatcher/last-tick.json` and a session's own `feed.txt` to see what a run
-is doing.
+`run` now carries a labelled issue the whole way. It dispatches the first round,
+relays what you post on the pull request into a resumed round, carries an
+interrupted or failed round on from where it stopped, and gives a merged or
+closed pull request one last round. `scry` shows what every session is doing.
+What is still to come is the written contract that says what a skill must do to
+be dispatchable, and the first release.
 
 ## Install
 
@@ -89,11 +89,17 @@ Everything the daemon owns lives under `.dreamcatcher/` in the checkout, which
 ignores itself, so git never sees it. `last-tick.json` there says what the most
 recent look observed and decided, including what the daemon did not do and why.
 
+Open work goes before new work. Before it dispatches anything, the daemon reads
+each session it already has and gives it whatever it needs next: a round that
+did not finish is carried on, a merged or closed pull request gets one last
+round, and a pull request you have posted on gets a round that answers what you
+said. Only when no session needs anything does the daemon dispatch a new issue.
+
 Rounds die with the daemon, so a `run` you stop takes its sessions' rounds with
-it, and the next `run` reports each of those sessions as waiting. Carrying one
-on is still to come. After any round fails, the daemon holds every launch for
-fifteen minutes, so a usage limit that lasts for hours costs a few failed rounds
-rather than a fresh worktree every couple of minutes.
+it. The next `run` carries each of those rounds on from where it stopped. After
+any round fails, the daemon holds every launch for fifteen minutes, so a usage
+limit that lasts for hours costs a few failed rounds rather than a fresh
+worktree every couple of minutes.
 
 Removing the label is how you say stop. An issue whose pull request closes
 unmerged is free to dispatch again while the label is still on it.
@@ -101,9 +107,41 @@ unmerged is free to dispatch again while the label is still on it.
 One daemon watches one repo. A second `run` on the same repo refuses while the
 first is alive.
 
-Use `scry` to peer into the crystal ball and see what the agent sessions are
-doing.
+`scry` is the watch tower. It reads what the daemon left under `.dreamcatcher/`
+and asks GitHub nothing, so it answers whether the daemon is running or long
+dead. Run it from the same checkout.
 
 ```sh
 dreamcatcher scry
+```
+
+That shows the board. The board is a section per standing, and the sections run
+in the order of whose turn it is:
+
+- `needs you` is a session with a pull request open that the agent has nothing
+  left to do on, so it is ready for you to review.
+- `agent working` is a live round, with the last thing it said and how long ago.
+- `waiting` is a session the next tick will pick up, with what it is waiting on.
+- `stuck` is a session no tick can move on, with where to read what happened.
+- `queued` is the labelled issues not dispatched yet, each with the reason it
+  has not gone.
+- `done` is the sessions that have run their last round.
+
+Three attempts at one issue read as three attempts at one thing, so a label you
+forgot to remove shows as what it is rather than as three unrelated rows.
+
+Name an issue to see one session: what its dispatch settled, the rounds it has
+run, the command that takes the session over by hand, and the older attempts at
+the same issue.
+
+```sh
+dreamcatcher scry GH123
+```
+
+Add `--follow` to watch the agent work. It shows every round's feed in order,
+and keeps showing what arrives until no round is running. `--round 2` shows the
+feed of one round alone, as it stands.
+
+```sh
+dreamcatcher scry GH123 --follow
 ```
