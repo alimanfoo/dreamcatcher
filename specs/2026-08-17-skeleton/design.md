@@ -77,9 +77,13 @@ never touches the repo's own files. Contents:
 - `last-tick.json` — overwritten each tick: when the tick ran, and what the
   daemon observed and decided, including what it did not do and why (queued
   behind others, blocked by an open issue, skipped for double labels, deferred
-  at the cap, posts seen but not yet relayed). An eligible issue that the tick
-  did not dispatch carries no reason of its own: the candidates are written in
-  the order they would go, and that order is where its turn is recorded, so the
+  at the cap, posts seen but not yet relayed). Every session that no round is
+  running for is written down with what it is waiting on, which is the resume
+  the tick found and had no slot for, or the reason it can give the session
+  none: a read that could not tell, a session whose first round never started, a
+  session with no pull request open on it. An eligible issue that the tick did
+  not dispatch carries no reason of its own: the candidates are written in the
+  order they would go, and that order is where its turn is recorded, so the
   board reads "behind N others" off the position. The board's queue and waiting
   sections render this file. The time it records, with `daemon.pid`, tells
   `scry` whether the daemon is alive: the tick writes its own time rather than
@@ -163,12 +167,14 @@ failed `worktree add` has one to take away.
 ### The tick
 
 At startup, once: check that every harness CLI a mapping can settle a label on
-is installed, read the repository GitHub knows the checkout as, acquire the
-lock, sweep orphans — the pid of any round record with no end recorded is ended,
-and ending one that has already gone does nothing — and treat every round record
-with no end as interrupted. `run` refuses when a CLI is missing or when `gh`
-cannot name the repository, because neither can change under a running daemon
-and a run without them dispatches nothing.
+is installed, read the repository GitHub knows the checkout as and the account
+`gh` is signed in as, acquire the lock, sweep orphans — the pid of any round
+record with no end recorded is ended, and ending one that has already gone does
+nothing — and treat every round record with no end as interrupted. `run` refuses
+when a CLI is missing or when `gh` can name neither the repository nor the
+account, because none of them can change under a running daemon, a run without
+the repository dispatches nothing, and the relay reads every post against the
+account before the marker tells the user's posts from the session's own.
 
 Each tick, in order, launching at most one round per tick:
 
@@ -176,7 +182,10 @@ Each tick, in order, launching at most one round per tick:
    capped tick spends no GitHub calls at all. The board shows "at cap" honestly
    rather than pretending it checked.
 2. Reconcile: enumerate session worktrees, read GitHub state per session, peek
-   each open session's new posts (a read-only relay query — see below).
+   each session's new posts (a read-only relay query — see below). The peek runs
+   whatever state the pull request is in, so the final round of a merged pull
+   request still carries whatever the user said before merging it. A session
+   whose final round has already run is not peeked at again.
 3. Resume the most-open work first: interrupted and errored rounds (a fixed
    "carry on" resume, no inbox — interrupted means no end recorded, errored
    means the latest round exited non-zero, which a usage-limit failure is
@@ -219,17 +228,18 @@ launched nothing, so the daemon ticks again rather than ending and leaving the
 sessions it holds to nobody.
 
 The two claims on an issue answer different questions, which is why both are
-asked. A session worktree says this daemon is working on it, and covers the
-window before any pull request exists. GitHub's link says somebody has a pull
-request open on it, and covers every attempt whose worktree is not here — a
-second checkout of the same repository, or one rebuilt since. The port answered
-that second question by listing five hundred pull requests and matching head
-branch names against its own naming pattern; the link needs one read, has no
-limit to fall out of, and rests on no naming convention. GitHub lists only open
-pull requests there, so a declined attempt drops out and its issue is free
-again, and a merged one closes the issue out of the listing altogether. It also
-counts a pull request you opened yourself, which is the intended reading: an
-issue somebody is already working on is not up for grabs.
+asked. A session worktree says a session in this checkout is working on it, and
+covers the window before any pull request exists. A worktree outlives the daemon
+run that cut it, so this says nothing about which run that was. GitHub's link
+says somebody has a pull request open on it, and covers every attempt whose
+worktree is not here — a second checkout of the same repository, or one rebuilt
+since. The port answered that second question by listing five hundred pull
+requests and matching head branch names against its own naming pattern; the link
+needs one read, has no limit to fall out of, and rests on no naming convention.
+GitHub lists only open pull requests there, so a declined attempt drops out and
+its issue is free again, and a merged one closes the issue out of the listing
+altogether. It also counts a pull request you opened yourself, which is the
+intended reading: an issue somebody is already working on is not up for grabs.
 
 The final-round guard improves on the port: the final round's completed record
 is the marker, so "final completed" rather than "final started". A final round
@@ -361,9 +371,11 @@ into events, and rendering turns an event into text.
 One format regardless of harness: a timestamp, then a sentence the agent said or
 a bracketed action — `[Edit] src/theme.css`, `[Bash] pytest`, `[failed] ...` —
 with subagent activity indented, and round boundaries marked with their cause
-("round 3: resumed on 2 posts — a review, an inline comment"). Timestamps make
-silence legible: the follow view shows the age of the last event, which is the
-"working or stuck" answer and the seed of later stall detection.
+("round 3: new posts"). A cause is one of a fixed few words, and the batch that
+woke the round is in the `inbox.json` beside the record rather than in them.
+Timestamps make silence legible: the follow view shows the age of the last
+event, which is the "working or stuck" answer and the seed of later stall
+detection.
 
 The bracketed words divide in two. `[session]`, `[usage]`, `[failed]`,
 `[thinking]`, `[retry]`, `[report]` and `[result]` are the feed's own, and mean
@@ -439,9 +451,16 @@ watermark and needs no rule of its own.
 
 The projection widens per dream#891: inline comments carry `path`, `line` (with
 the `original_line` fallback), `start_line` (with `original_start_line`),
-`side`, `id`, and `diff_hunk`, so a range suggestion reaches the agent with the
-text it replaces. Each round's inbox is written to that round's directory and
-kept.
+`side`, `id`, `subject_type`, and `diff_hunk`, so a range suggestion reaches the
+agent with the text it replaces, and a comment on a whole file reads as one
+rather than as a comment on line 1, which is where GitHub reports it. Each
+round's inbox is written to that round's directory and kept.
+
+The inbox is dreamcatcher's own document, so it names each field for what that
+field is rather than for GitHub's own word: a post says who wrote it under
+`author` and when under `written_at`, and a review says what it said under
+`verdict`. That last one earns its name twice over, since the inbox already says
+`state` about the pull request itself.
 
 The marker: every prompt the daemon composes ends with a postscript instructing
 the session to end every GitHub post — PR bodies, comments, replies on diff

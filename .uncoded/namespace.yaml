@@ -107,21 +107,22 @@ src/:
         _each_label_maps_once:
       read_config:
     daemon.py:
-      DISPATCHED:
       COOLDOWN:
       Daemon:
         __init__:
         run:
         tick:
-        _identify_repository:
         _decide_and_launch:
+        _judge_sessions:
+        _resume_session:
+        _launch_wakeup:
+        _start_round:
         _dispatch_oldest_issue:
         _launch_session:
         _locate_harnesses:
         _sweep_orphans:
+      _refuse_unknown:
       _check_cooldown:
-      _list_waiting:
-      _check_rounds:
     documents.py:
       WRITING:
       Document:
@@ -171,6 +172,7 @@ src/:
       LISTING_LIMIT:
       PAGE_SIZE:
       SPEAKING_VERDICTS:
+      AnyPost:
       REPOSITORY:
       ACCOUNT:
       ISSUES:
@@ -222,11 +224,15 @@ src/:
         body:
         is_speaking:
       Comment:
+        kind:
       Review:
+        kind:
         verdict:
         is_speaking:
       InlineComment:
+        kind:
         path:
+        subject_type:
         side:
         line:
         start_line:
@@ -250,12 +256,23 @@ src/:
       MARKER:
       ISSUE_PLACEHOLDER:
       POSTSCRIPT:
+      CARRY_ON_PROMPT:
+      INBOX_PROMPT:
       compose_first_round_prompt:
+      compose_inbox_prompt:
     relay.py:
+      Inbox:
+        state:
+        posts:
       peek_new_posts:
       _is_new_from_user:
     rounds.py:
       RECORD:
+      Cause:
+        DISPATCH:
+        CARRY_ON:
+        POSTS:
+        FINAL:
       Ending:
         at:
         status:
@@ -268,11 +285,12 @@ src/:
       Workspace:
         worktree:
         directory:
-      Round:
         prompt:
         record:
         feed:
         raw:
+        inbox:
+      Round:
         is_alive:
         __init__:
         wait:
@@ -310,6 +328,7 @@ src/:
       create_session:
       _read_session:
       _read_watermark:
+      advance_watermark:
       discard_session:
     state.py:
       STATE_DIRECTORY:
@@ -318,14 +337,14 @@ src/:
         label:
         reason:
         is_eligible:
-      Waiting:
+      WaitingSession:
         session:
         issue:
         reason:
       LastTick:
         at:
         hold:
-        dispatched:
+        launched:
         candidates:
         waiting:
       StateDirectory:
@@ -338,6 +357,26 @@ src/:
         bootstrap:
     teardown.py:
       OWN_SESSION:
+    wakeups.py:
+      Finding:
+      PRIORITY:
+      Wakeup:
+        session:
+        cause:
+        reason:
+        prompt:
+        inbox:
+        newest_post:
+      sort_wakeups:
+      list_waiting:
+      judge_session:
+      _check_last_round:
+      _judge_pull_request:
+      _choose_pull_request:
+      _has_run_final_round:
+      _compose_resume:
+      _count_posts:
+      _wait:
 tests/:
   clocks.py:
     PINNED:
@@ -352,6 +391,8 @@ tests/:
     REPOSITORY:
     PULL_REQUEST:
     POSTED_BY:
+    POSTED_AT:
+    HUNK:
     POST_LIST_PATHS:
     LABEL:
     FILED:
@@ -362,6 +403,10 @@ tests/:
     pytest_configure:
     streamed:
     listing:
+    comment:
+    review:
+    inline_comment:
+    pull_requests:
     pages:
     recorded_posts:
     git:
@@ -515,6 +560,7 @@ tests/:
     CAUSE:
     STILL_RUNNING:
     DISPATCHED_KEY:
+    CONVERSATION:
     Interrupting:
       __init__:
       __call__:
@@ -537,10 +583,14 @@ tests/:
     test_a_round_that_recorded_an_ending_is_left_running_by_the_sweep:
     configure:
     held:
+    cause_of:
     recorded:
     gh:
     offered:
     dispatching:
+    resuming:
+    ran:
+    written_round:
     test_a_tick_dispatches_the_oldest_issue_nothing_stands_in_the_way_of:
     test_a_dispatched_round_records_what_caused_it_and_what_it_said:
     test_a_tick_launches_one_round_and_leaves_the_rest_in_the_queue:
@@ -554,14 +604,24 @@ tests/:
     test_a_round_that_failed_lately_holds_every_launch:
     test_a_round_that_failed_long_enough_ago_holds_nothing:
     test_a_round_that_ended_well_holds_nothing:
-    test_a_session_whose_last_round_was_interrupted_reads_as_waiting:
-    test_a_session_whose_last_round_failed_reads_as_waiting_with_its_status:
     test_a_session_the_daemon_is_running_a_round_for_is_not_waiting:
-    test_a_session_whose_last_round_ended_well_is_not_waiting:
+    test_a_session_with_an_open_pull_request_and_nothing_new_is_not_waiting:
+    test_a_session_with_no_pull_request_of_its_own_reads_as_waiting:
     test_a_session_that_has_run_no_round_at_all_waits_for_its_first:
     test_a_dispatch_whose_round_will_not_start_leaves_no_session_behind:
     test_a_run_that_cannot_read_a_session_refuses_to_start:
     test_a_session_that_goes_bad_under_a_running_daemon_costs_one_tick:
+    test_a_session_whose_last_round_did_not_finish_is_carried_on:
+    test_a_carried_on_round_says_that_is_what_woke_it:
+    test_a_session_the_user_has_posted_on_is_told_what_they_said:
+    test_a_session_told_about_a_batch_hears_it_only_once:
+    test_a_batch_no_round_ever_launched_is_read_again_next_tick:
+    test_a_pull_request_that_is_finished_gets_one_last_round:
+    test_a_session_that_has_had_its_last_round_gets_no_other:
+    test_a_last_round_that_was_interrupted_is_carried_on_as_the_last_round:
+    test_open_work_is_carried_on_before_a_new_issue_is_dispatched:
+    test_a_cooling_tick_still_says_what_each_session_is_waiting_on:
+    test_a_run_that_cannot_be_told_which_account_gh_is_signed_in_as_refuses:
   test_documents.py:
     READERS:
     Sample:
@@ -698,17 +758,15 @@ tests/:
     OPENINGS:
     test_a_template_holding_other_words_in_braces_keeps_them:
     test_the_prompt_that_opens_a_session_is_its_template_then_the_postscript:
+    test_the_prompt_that_carries_a_round_on_says_the_last_one_stopped_short:
+    test_the_prompt_that_hands_over_an_inbox_names_the_pull_request_and_the_file:
+    test_every_prompt_the_daemon_composes_asks_for_the_marker:
   test_recordings.py:
     RECORDED_IN:
     RECORDINGS:
     test_a_recorded_stream_renders_as_its_golden_feed:
   test_relay.py:
-    POSTED_AT:
     BEFORE:
-    HUNK:
-    comment:
-    review:
-    inline_comment:
     peeked:
     test_a_pull_request_nobody_has_posted_on_has_nothing_to_relay:
     test_a_session_that_has_seen_nothing_yet_is_told_the_whole_history:
@@ -723,6 +781,10 @@ tests/:
     test_a_suggestion_over_a_range_comes_back_with_its_lines_and_its_diff:
     test_a_read_that_failed_says_so_rather_than_reading_as_nothing_posted:
     test_every_post_the_user_said_something_in_on_a_real_pull_request_comes_back:
+    test_an_inbox_says_where_the_pull_request_got_to_and_what_each_post_is:
+    test_an_inbox_a_merged_pull_request_woke_carries_no_post:
+    test_a_comment_on_a_whole_file_says_so_rather_than_naming_line_one:
+    test_a_comment_gh_says_nothing_about_the_subject_of_reads_as_one_on_a_line:
   test_rounds.py:
     RECORDING:
     STAMP:
@@ -773,6 +835,7 @@ tests/:
     test_a_session_reads_back_as_it_was_dispatched:
     test_a_session_no_round_has_told_anything_yet_has_seen_no_post:
     test_a_session_reads_back_the_newest_post_it_has_been_told_about:
+    test_a_session_told_about_a_batch_of_posts_reads_the_newest_of_them_back:
     test_a_sessions_rounds_read_back_in_the_order_they_ran:
     test_every_session_of_the_repo_reads_back_by_key:
     test_a_file_left_among_the_worktrees_is_not_a_session:
@@ -789,6 +852,31 @@ tests/:
     test_a_kill_reaches_what_the_child_started:
     test_a_child_that_ends_by_itself_takes_what_it_started_with_it:
     test_a_kill_after_the_child_ended_leaves_its_pid_alone:
+  test_wakeups.py:
+    KEY:
+    state:
+    gh:
+    ran:
+    found:
+    test_a_session_that_has_run_no_round_at_all_waits_for_a_person:
+    test_a_session_whose_last_round_was_interrupted_is_carried_on:
+    test_a_session_whose_last_round_failed_is_carried_on_with_its_status:
+    test_a_round_that_did_not_finish_is_carried_on_before_github_is_asked:
+    test_a_session_nobody_has_posted_on_needs_nothing:
+    test_a_session_the_user_has_posted_on_answers_what_they_said:
+    test_a_batch_of_posts_says_how_many_it_holds:
+    test_a_post_the_session_has_been_told_about_already_wakes_nothing:
+    test_the_prompt_of_a_posts_resume_sends_the_session_to_the_next_rounds_inbox:
+    test_a_pull_request_that_is_finished_calls_for_one_last_round:
+    test_a_last_round_carries_what_the_user_said_before_the_merge:
+    test_a_session_whose_last_round_wound_it_up_needs_nothing:
+    test_a_last_round_that_was_carried_on_is_still_the_last_round:
+    test_a_session_with_no_pull_request_of_its_own_waits_for_a_person:
+    test_an_open_pull_request_outranks_the_ones_that_are_finished:
+    test_the_newest_of_two_finished_pull_requests_is_the_sessions_own:
+    test_a_pull_request_read_that_failed_leaves_the_session_waiting:
+    test_a_peek_that_failed_leaves_the_session_waiting:
+    test_the_most_open_work_comes_first:
 tools/:
   forbid_invisible_characters.py:
     INVISIBLE_CATEGORY:

@@ -413,8 +413,10 @@ In scope:
 - The watermark advancing at round launch, and each round's own `inbox.json`
   (design.md, The relay).
 - The three resume kinds joining the tick's priority order (design.md, The
-  tick), each with its own prompt text (design.md, The harness adapters) plus
-  the marker postscript.
+  tick), each with its prompt text (design.md, The harness adapters) plus the
+  marker postscript. There are two such texts, not three. The carry-on has its
+  own, and the PR-inbox text serves both the posts resume and the final round,
+  because the state in the inbox is what tells one from the other.
 
 Done when: CI tests against the fakes prove the sequencing — a batch peeked but
 never launched is re-peeked intact next tick; a killed final round's retry is

@@ -15,7 +15,7 @@ from dreamcatcher.adapters import Adapter, Invocation, Launch
 from dreamcatcher.claude import CLAUDE
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Event, Note, Renderer
-from dreamcatcher.rounds import RECORD, Ending, Round, RoundRecord, Workspace
+from dreamcatcher.rounds import RECORD, Cause, Ending, Round, RoundRecord, Workspace
 
 # A round that listed a directory, read a file that was not there, and sent a
 # subagent to count the files. Its golden feed is asserted in test_recordings.
@@ -24,7 +24,7 @@ RECORDING = FIXTURES / "claude" / "round.jsonl"
 STAMP = "2026-08-19T18:41:58Z"
 
 # What the tests here say woke every round they run.
-CAUSE = "dispatched"
+CAUSE = Cause.DISPATCH
 
 # What every round here asks the harness to do. It holds a percent sign and runs
 # over two lines, neither of which a command line could carry to a batch file,
@@ -145,7 +145,7 @@ def test_a_round_gives_the_harness_its_prompt_to_read(fake, worktree, directory)
     running.wait()
 
     assert harness.calls[0].prompt == PROMPT
-    assert running.prompt.read_text(encoding="utf-8") == PROMPT
+    assert running.workspace.prompt.read_text(encoding="utf-8") == PROMPT
 
 
 def test_the_feed_a_round_writes_is_the_feed_its_stream_renders_as(
@@ -162,7 +162,7 @@ def test_the_feed_a_round_writes_is_the_feed_its_stream_renders_as(
     )
     running.wait()
 
-    assert running.feed.read_text(encoding="utf-8") == rendered(
+    assert running.workspace.feed.read_text(encoding="utf-8") == rendered(
         CLAUDE,
         RECORDING.read_text(encoding="utf-8").splitlines(),
         Renderer(worktree, clock=pinned),
@@ -181,7 +181,7 @@ def test_a_round_keeps_the_harnesss_own_stream_as_it_arrived(fake, worktree, dir
     )
     running.wait()
 
-    assert running.raw.read_text(encoding="utf-8") == RECORDING.read_text(
+    assert running.workspace.raw.read_text(encoding="utf-8") == RECORDING.read_text(
         encoding="utf-8"
     )
 
@@ -205,12 +205,12 @@ def test_what_the_harness_says_on_stderr_lands_where_it_happened(
     )
     running.wait()
 
-    assert running.feed.read_text(encoding="utf-8").splitlines() == [
+    assert running.workspace.feed.read_text(encoding="utf-8").splitlines() == [
         f"{STAMP}  first",
         f"{STAMP}  an aside",
         f"{STAMP}  second",
     ]
-    assert running.raw.read_text(encoding="utf-8") == "first\nsecond\n"
+    assert running.workspace.raw.read_text(encoding="utf-8") == "first\nsecond\n"
 
 
 def test_a_line_the_feed_cannot_write_costs_that_line_alone(fake, worktree, directory):
@@ -225,7 +225,7 @@ def test_a_line_the_feed_cannot_write_costs_that_line_alone(fake, worktree, dire
     )
     running.wait()
 
-    assert running.feed.read_text(encoding="utf-8").splitlines() == [
+    assert running.workspace.feed.read_text(encoding="utf-8").splitlines() == [
         f'{STAMP}  {{"said": "hello"}}',
         f"{STAMP}  plain",
     ]
@@ -245,7 +245,7 @@ def test_a_round_says_when_it_started_what_caused_it_and_what_process_it_is(
     )
 
     assert running.is_alive
-    assert written(running.record) == RoundRecord(
+    assert written(running.workspace.record) == RoundRecord(
         started=PINNED, pid=running.child.pid, cause=CAUSE
     )
 
@@ -265,7 +265,7 @@ def test_a_round_that_finished_says_how_it_ended(fake, worktree, directory):
     running.wait()
 
     assert not running.is_alive
-    assert written(running.record) == RoundRecord(
+    assert written(running.workspace.record) == RoundRecord(
         started=PINNED,
         pid=running.child.pid,
         cause=CAUSE,
@@ -286,7 +286,7 @@ def test_a_round_somebody_stopped_says_no_ending(fake, worktree, directory):
     running.stop()
 
     assert not running.is_alive
-    assert written(running.record).ending is None
+    assert written(running.workspace.record).ending is None
 
 
 def test_a_round_that_cannot_write_its_feed_stops_rather_than_stalls(
@@ -306,7 +306,7 @@ def test_a_round_that_cannot_write_its_feed_stops_rather_than_stalls(
     running.wait()
 
     assert not running.is_alive
-    assert written(running.record).ending is None
+    assert written(running.workspace.record).ending is None
 
 
 def test_a_round_that_cannot_write_its_prompt_never_starts(fake, worktree, tmp_path):
@@ -357,7 +357,7 @@ def test_a_round_a_straggler_outlives_still_records_an_ending(
     )
 
     assert within(30, lambda: not running.is_alive)
-    assert written(running.record) == RoundRecord(
+    assert written(running.workspace.record) == RoundRecord(
         started=PINNED,
         pid=running.child.pid,
         cause=CAUSE,
@@ -386,4 +386,4 @@ def test_a_round_a_straggler_outlives_still_stops(worktree, directory, straggler
 
     assert not stopping.is_alive()
     assert not running.is_alive
-    assert written(running.record).ending is None
+    assert written(running.workspace.record).ending is None

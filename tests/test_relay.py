@@ -1,65 +1,37 @@
-import pytest
-from conftest import POST_LIST_PATHS, POSTED_BY, PULL_REQUEST, REPOSITORY, pages
+import json
 
+import pytest
+from conftest import (
+    HUNK,
+    POST_LIST_PATHS,
+    POSTED_AT,
+    POSTED_BY,
+    PULL_REQUEST,
+    REPOSITORY,
+    comment,
+    inline_comment,
+    pages,
+    review,
+)
+
+from dreamcatcher.documents import write_json
 from dreamcatcher.github import (
+    AnyPost,
     Comment,
     InlineComment,
-    Post,
+    PullRequestState,
     Review,
     Unknown,
     Verdict,
 )
 from dreamcatcher.prompts import MARKER
-from dreamcatcher.relay import peek_new_posts
+from dreamcatcher.relay import Inbox, peek_new_posts
 
-# When the tests say the user posted, and a time before it.
-POSTED_AT = "2026-09-03T22:19:55Z"
-
+# A time before anything the tests say the user posted.
 BEFORE = "2026-09-03T16:49:35Z"
 
-# The diff an inline comment was written against.
-HUNK = (
-    '@@ -0,0 +1,3 @@\n+"""Carry what the user posts."""\n'
-    "+\n+from dreamcatcher import github"
-)
 
-
-def comment(**fields: object) -> dict:
-    """What gh answers one comment on the pull request's conversation with."""
-    return {
-        "id": 1,
-        "user": {"login": POSTED_BY},
-        "created_at": POSTED_AT,
-        "body": "have another look at the filter",
-    } | fields
-
-
-def review(**fields: object) -> dict:
-    """What gh answers one review with."""
-    return {
-        "id": 2,
-        "user": {"login": POSTED_BY},
-        "submitted_at": POSTED_AT,
-        "body": "",
-        "state": Verdict.COMMENTED,
-    } | fields
-
-
-def inline_comment(**fields: object) -> dict:
-    """What gh answers one comment on a line of the diff with."""
-    return {
-        "id": 3,
-        "user": {"login": POSTED_BY},
-        "created_at": POSTED_AT,
-        "body": "this reads the watermark twice",
-        "path": "src/dreamcatcher/relay.py",
-        "side": "RIGHT",
-        "line": 3,
-        "diff_hunk": HUNK,
-    } | fields
-
-
-def peeked(watermark: str = "") -> list[Post]:
+def peeked(watermark: str = "") -> list[AnyPost]:
     """What the user newly posted, given that gh answered every post list."""
     found = peek_new_posts(
         REPOSITORY, PULL_REQUEST, account=POSTED_BY, watermark=watermark
@@ -234,3 +206,67 @@ def test_every_post_the_user_said_something_in_on_a_real_pull_request_comes_back
         Comment,
         Comment,
     ]
+
+
+def test_an_inbox_says_where_the_pull_request_got_to_and_what_each_post_is(
+    gh_with_no_posts, tmp_path
+):
+    for source, post in (
+        ("conversation", comment()),
+        ("reviews", review(body="have a look")),
+        ("inline-comments", inline_comment()),
+    ):
+        gh_with_no_posts.replies(pages(post), to=f"api {POST_LIST_PATHS[source]}")
+    written = tmp_path / "inbox.json"
+
+    write_json(Inbox(state=PullRequestState.OPEN, posts=peeked()), written)
+
+    read_back = json.loads(written.read_text(encoding="utf-8"))
+    assert read_back["state"] == "OPEN"
+    assert [post["kind"] for post in read_back["posts"]] == [
+        "comment",
+        "review",
+        "inlineComment",
+    ]
+    assert read_back["posts"][2]["diff_hunk"] == HUNK
+
+
+def test_an_inbox_a_merged_pull_request_woke_carries_no_post(tmp_path):
+    written = tmp_path / "inbox.json"
+
+    write_json(Inbox(state=PullRequestState.MERGED, posts=[]), written)
+
+    read_back = json.loads(written.read_text(encoding="utf-8"))
+    assert read_back == {"state": "MERGED", "posts": []}
+
+
+def test_a_comment_on_a_whole_file_says_so_rather_than_naming_line_one(
+    gh_with_no_posts,
+):
+    gh_with_no_posts.replies(
+        pages(inline_comment(subject_type="file", line=1)),
+        to=f"api {POST_LIST_PATHS['inline-comments']}",
+    )
+
+    written = peeked()
+
+    assert [type(post) for post in written] == [InlineComment]
+    assert [
+        (post.subject_type, post.line)
+        for post in written
+        if isinstance(post, InlineComment)
+    ] == [("file", 1)]
+
+
+def test_a_comment_gh_says_nothing_about_the_subject_of_reads_as_one_on_a_line(
+    gh_with_no_posts,
+):
+    answered = inline_comment()
+    del answered["subject_type"]
+    gh_with_no_posts.replies(
+        pages(answered), to=f"api {POST_LIST_PATHS['inline-comments']}"
+    )
+
+    assert [
+        post.subject_type for post in peeked() if isinstance(post, InlineComment)
+    ] == ["line"]

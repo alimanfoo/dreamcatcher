@@ -8,7 +8,7 @@ from pathlib import Path
 from dreamcatcher import prompts
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import DispatchMapping, Harness
-from dreamcatcher.documents import Document, read_json, read_text, write_json
+from dreamcatcher.documents import Document, read_json, read_text, write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import add_worktree, delete_branch, fetch, remove_worktree
 from dreamcatcher.rounds import RoundRecord, Workspace, read_round_records
@@ -29,6 +29,9 @@ def _read_session(directory: Path) -> Session:
     ...
 
 def _read_watermark(directory: Path) -> str:
+    ...
+
+def advance_watermark(session: Session, newest: str) -> None:
     ...
 
 def discard_session(state: StateDirectory, record: SessionRecord) -> None:

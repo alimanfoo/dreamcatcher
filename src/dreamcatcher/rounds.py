@@ -19,6 +19,7 @@ streams on threads of its own, and records its own ending on another.
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
+from enum import StrEnum
 from pathlib import Path
 from threading import Event, Lock, Thread
 
@@ -41,6 +42,26 @@ from dreamcatcher.feed import Prose, Renderer
 RECORD = "round.json"
 
 
+class Cause(StrEnum):
+    """What woke a round.
+
+    The daemon decides one of these for every round it launches, and the
+    round's record keeps it. A reader of a session's rounds then reads the
+    story of why each one ran, and the tick reads what a round was for without
+    reading prose: a session whose final round has run is a session that is
+    done.
+
+    The words are what a feed opens a round with, after the round's number.
+    The batch that woke a round is not in them: an inbox resume and a final
+    round each keep theirs in the `inbox.json` beside the record.
+    """
+
+    DISPATCH = "dispatched"
+    CARRY_ON = "carried on"
+    POSTS = "new posts"
+    FINAL = "final round"
+
+
 class Ending(Document):
     """How a round ended: when it ended, and the status it ended with.
 
@@ -60,10 +81,8 @@ class Ending(Document):
 class RoundRecord(Document):
     """What a round says about itself, written at each end of the round.
 
-    The cause is what woke the round, in the words the daemon decided it in:
-    the dispatch that opened the session, or whatever a later tick found for it
-    to do. A reader of the session's rounds then reads the story of why each
-    one ran.
+    The cause is what woke the round: the dispatch that opened the session, or
+    whatever a later tick found for it to do.
 
     A record with no ending means the round was interrupted. Either the daemon
     exited while the round was still going, or the daemon stopped the round
@@ -73,22 +92,51 @@ class RoundRecord(Document):
 
     started: datetime
     pid: PositiveInt
-    cause: str
+    cause: Cause
     ending: Ending | None = None
 
 
 @dataclass(frozen=True)
 class Workspace:
-    """Where one round runs, and where it writes what it did.
+    """Where one round runs, and the files it writes as it goes.
 
     Both paths come from the session the round belongs to: the round runs in
     that session's worktree, and writes into a directory of its own under the
     session's own files. They travel together because no round ever has one
     without the other.
+
+    The files themselves are named here, beside the directory that holds them,
+    so whoever has a workspace can name a file of the round before the round
+    that writes it exists.
     """
 
     worktree: Path
     directory: Path
+
+    @property
+    def prompt(self) -> Path:
+        """The file holding what the round asked the harness to do."""
+        return self.directory / "prompt.txt"
+
+    @property
+    def record(self) -> Path:
+        """The file saying when the round started, and how it ended."""
+        return self.directory / RECORD
+
+    @property
+    def feed(self) -> Path:
+        """The file holding the round as a reader reads it."""
+        return self.directory / "feed.txt"
+
+    @property
+    def raw(self) -> Path:
+        """The file holding the harness's own stdout, as it arrived."""
+        return self.directory / "raw.jsonl"
+
+    @property
+    def inbox(self) -> Path:
+        """The file holding the batch that the round was woken with."""
+        return self.directory / "inbox.json"
 
 
 def read_round_records(directory: Path) -> list[RoundRecord]:
@@ -118,7 +166,7 @@ class Round:
         adapter: Adapter,
         invocation: Invocation,
         workspace: Workspace,
-        cause: str,
+        cause: Cause,
         clock: Callable[[], datetime] = now,
     ) -> None:
         """Run the invocation as a round in the workspace it was given.
@@ -139,14 +187,14 @@ class Round:
         self.is_interrupted = False
         self._ended = Event()
         self._writing = Lock()
-        write_text(invocation.prompt, self.prompt)
+        write_text(invocation.prompt, workspace.prompt)
         self.child = spawn(
-            *invocation.command, cwd=workspace.worktree, stdin=self.prompt
+            *invocation.command, cwd=workspace.worktree, stdin=workspace.prompt
         )
         try:
             write_json(
                 RoundRecord(started=self.started, pid=self.child.pid, cause=cause),
-                self.record,
+                self.workspace.record,
             )
         except ReportableError:
             # A round nothing recorded is a round nothing will watch or find
@@ -162,26 +210,6 @@ class Round:
             pump.start()
         self._closing = Thread(target=self._close, daemon=True)
         self._closing.start()
-
-    @property
-    def prompt(self) -> Path:
-        """The file holding what the round asked the harness to do."""
-        return self.workspace.directory / "prompt.txt"
-
-    @property
-    def record(self) -> Path:
-        """The file saying when the round started, and how it ended."""
-        return self.workspace.directory / RECORD
-
-    @property
-    def feed(self) -> Path:
-        """The file holding the round as a reader reads it."""
-        return self.workspace.directory / "feed.txt"
-
-    @property
-    def raw(self) -> Path:
-        """The file holding the harness's own stdout, as it arrived."""
-        return self.workspace.directory / "raw.jsonl"
 
     @property
     def is_alive(self) -> bool:
@@ -235,7 +263,7 @@ class Round:
     def _read_stdout(self) -> None:
         """Keep each line that the harness streams, and write what it says."""
         for line in self.child.out:
-            append_text(line, self.raw)
+            append_text(line, self.workspace.raw)
             self._append(line, self._render)
 
     def _read_stderr(self) -> None:
@@ -263,7 +291,7 @@ class Round:
                         cause=self.cause,
                         ending=Ending(at=self.clock(), status=status),
                     ),
-                    self.record,
+                    self.workspace.record,
                 )
         finally:
             # However the close went, the round has ended, so whoever is
@@ -302,4 +330,4 @@ class Round:
         with self._writing:
             written = render(line)
             if written:
-                append_text(written, self.feed)
+                append_text(written, self.workspace.feed)

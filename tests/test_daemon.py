@@ -11,12 +11,19 @@ from conftest import (
     FILED,
     LABEL,
     LATER,
+    POST_LIST_PATHS,
+    POSTED_AT,
+    POSTED_BY,
+    PULL_REQUEST,
     REPOSITORY,
     SMITH_CLAUDE,
     SMITH_CODEX,
+    comment,
     git,
     gone,
     listing,
+    pages,
+    pull_requests,
 )
 from fakes import Line
 from records import write_round, write_session
@@ -25,13 +32,14 @@ from dreamcatcher.commands import spawn
 from dreamcatcher.config import CONFIG_NAME, Harness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.rounds import Ending, RoundRecord
-from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, Waiting
+from dreamcatcher.prompts import CARRY_ON_PROMPT
+from dreamcatcher.rounds import Cause, Ending, RoundRecord
+from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, WaitingSession
 
 KEY = "GH13-20260819-184158"
 
 # What every round the tests here write down says woke it.
-CAUSE = "dispatched"
+CAUSE = Cause.DISPATCH
 
 # How long a scripted harness waits after its first line, so a round the daemon
 # launched is certainly still running at the next tick. The waits these tests
@@ -40,6 +48,10 @@ STILL_RUNNING = 30
 
 # The key of the session that a dispatch at the pinned time cuts for issue 8.
 DISPATCHED_KEY = "GH8-20260819-184158"
+
+# Where gh keeps the conversation on the pull request that the session on disk
+# has open.
+CONVERSATION = POST_LIST_PATHS["conversation"]
 
 
 @pytest.fixture
@@ -245,6 +257,13 @@ def held(daemon) -> str:
     return hold
 
 
+def cause_of(daemon, number: int) -> Cause:
+    """What the session's round of that number says woke it."""
+    return RoundRecord.model_validate_json(
+        written_round(daemon, number, "round.json")
+    ).cause
+
+
 def recorded(daemon) -> LastTick:
     """What the daemon's most recent tick wrote down."""
     return LastTick.model_validate_json(
@@ -254,13 +273,19 @@ def recorded(daemon) -> LastTick:
 
 @pytest.fixture
 def gh(fake):
-    """A gh that knows the repository and offers no labelled issue at all."""
+    """A gh that knows the repository and the account, and offers no work.
+
+    No labelled issue is up for dispatch, no session has a pull request, and
+    every list a peek reads comes back empty.
+    """
     stand_in = fake("gh")
     stand_in.replies(json.dumps({"nameWithOwner": REPOSITORY}), to="repo view")
+    stand_in.replies(json.dumps({"login": POSTED_BY}), to="api user")
     stand_in.replies("[]", to="issue list")
     stand_in.replies(
         json.dumps({"closedByPullRequestsReferences": []}), to="issue view"
     )
+    stand_in.replies("[]", to="pr list")
     stand_in.replies("[]", to="api")
     return stand_in
 
@@ -280,6 +305,36 @@ def dispatching(cloned, offered, harnesses):
     return cloned
 
 
+@pytest.fixture
+def resuming(cloned, gh, harnesses):
+    """A checkout holding one session, with no labelled issue up for dispatch."""
+    configure(cloned)
+    harnesses["claude"].streams([Line("what the round said\n")])
+    write_session(StateDirectory(cloned), KEY, 13)
+    return cloned
+
+
+def ran(root, number: int, cause: Cause, status: int | None = 0) -> None:
+    """Write down a round of the session on disk, ended as the status says.
+
+    Every one of them ran the hour before the pinned clock reads, so a round
+    that failed is long enough ago to hold nothing.
+    """
+    started = PINNED.replace(hour=17, minute=number)
+    ending = None if status is None else Ending(at=started, status=status)
+    write_round(
+        StateDirectory(root).sessions / KEY,
+        number,
+        RoundRecord(started=started, pid=1, cause=cause, ending=ending),
+    )
+
+
+def written_round(daemon, number: int, name: str) -> str:
+    """What the session's round wrote into the file of that name."""
+    directory = daemon.state.sessions / KEY / "rounds" / str(number)
+    return (directory / name).read_text(encoding="utf-8")
+
+
 def test_a_tick_dispatches_the_oldest_issue_nothing_stands_in_the_way_of(
     dispatching, harnesses
 ):
@@ -290,7 +345,7 @@ def test_a_tick_dispatches_the_oldest_issue_nothing_stands_in_the_way_of(
     session = daemon.state.sessions / DISPATCHED_KEY
     assert (daemon.state.worktrees / DISPATCHED_KEY / "README.md").exists()
     assert (session / "session.json").exists()
-    assert recorded(daemon).dispatched == DISPATCHED_KEY
+    assert recorded(daemon).launched == DISPATCHED_KEY
     assert (
         harnesses["claude"].calls[0].directory
         == (daemon.state.worktrees / DISPATCHED_KEY).resolve()
@@ -307,7 +362,7 @@ def test_a_dispatched_round_records_what_caused_it_and_what_it_said(dispatching)
         RoundRecord.model_validate_json(
             (written / "round.json").read_text(encoding="utf-8")
         ).cause
-        == "dispatched"
+        is Cause.DISPATCH
     )
     assert "what the round said" in (written / "feed.txt").read_text(encoding="utf-8")
 
@@ -325,7 +380,7 @@ def test_a_tick_launches_one_round_and_leaves_the_rest_in_the_queue(
         CandidateIssue(issue=8, label=LABEL),
         CandidateIssue(issue=9, label=LABEL),
     ]
-    assert recorded(daemon).dispatched == DISPATCHED_KEY
+    assert recorded(daemon).launched == DISPATCHED_KEY
     assert not (daemon.state.worktrees / "GH9-20260819-184158").exists()
 
 
@@ -335,10 +390,10 @@ def test_a_second_tick_judges_a_dispatched_issue_handled(dispatching):
 
     daemon.run()
 
-    assert recorded(daemon).dispatched is None
+    assert recorded(daemon).launched is None
     assert recorded(daemon).candidates == [
         CandidateIssue(
-            issue=8, label=LABEL, reason="a session of this run is working on it"
+            issue=8, label=LABEL, reason="a session in this checkout is working on it"
         )
     ]
 
@@ -352,6 +407,7 @@ def test_a_tick_at_the_cap_spends_no_github_call(dispatching, offered, harnesses
     assert recorded(daemon).hold == "at cap: 1 rounds running"
     assert [call.arguments[:2] for call in offered.calls] == [
         ["repo", "view"],
+        ["api", "user"],
         ["issue", "list"],
         ["issue", "view"],
         ["api", f"repos/{REPOSITORY}/issues/8/dependencies/blocked_by"],
@@ -359,12 +415,12 @@ def test_a_tick_at_the_cap_spends_no_github_call(dispatching, offered, harnesses
 
 
 def test_a_tick_with_nothing_eligible_dispatches_nothing(dispatching, offered):
-    offered.replies(json.dumps([{"number": 7, "state": "open"}]), to="api")
+    offered.replies(pull_requests((7, "open")), to="api")
     daemon, _, _ = idling(dispatching, ticks=1)
 
     daemon.run()
 
-    assert recorded(daemon).dispatched is None
+    assert recorded(daemon).launched is None
     assert recorded(daemon).candidates == [
         CandidateIssue(issue=8, label=LABEL, reason="blocked by GH7")
     ]
@@ -396,7 +452,7 @@ def test_a_tick_that_could_not_dispatch_records_the_failure_and_ticks_again(
 
     assert waiting.waited == [300, 300]
     assert "git worktree add" in held(daemon)
-    assert recorded(daemon).dispatched is None
+    assert recorded(daemon).launched is None
 
 
 def test_a_run_that_cannot_be_told_which_repository_this_is_refuses(
@@ -439,7 +495,7 @@ def test_a_round_that_failed_lately_holds_every_launch(dispatching):
     assert held(daemon) == (
         "the last round failed (exit 1) — next attempt at 18:50 UTC"
     )
-    assert recorded(daemon).dispatched is None
+    assert recorded(daemon).launched is None
     assert not (daemon.state.worktrees / DISPATCHED_KEY).exists()
 
 
@@ -459,7 +515,9 @@ def test_a_round_that_failed_long_enough_ago_holds_nothing(dispatching):
 
     daemon.run()
 
-    assert recorded(daemon).dispatched == DISPATCHED_KEY
+    # That round is the most open work there is, so the launch the cooldown
+    # was holding is its carry-on and not the dispatch.
+    assert recorded(daemon).launched == KEY
 
 
 def test_a_round_that_ended_well_holds_nothing(dispatching):
@@ -475,46 +533,7 @@ def test_a_round_that_ended_well_holds_nothing(dispatching):
 
     daemon.run()
 
-    assert recorded(daemon).dispatched == DISPATCHED_KEY
-
-
-def test_a_session_whose_last_round_was_interrupted_reads_as_waiting(
-    dispatching, left_running
-):
-    directory = write_session(StateDirectory(dispatching), KEY, 13)
-    write_round(
-        directory, 1, RoundRecord(started=PINNED, pid=left_running.pid, cause=CAUSE)
-    )
-    daemon, _, _ = idling(dispatching, ticks=1)
-
-    daemon.run()
-
-    assert recorded(daemon).waiting == [
-        Waiting(session=KEY, issue=13, reason="the last round was interrupted")
-    ]
-
-
-def test_a_session_whose_last_round_failed_reads_as_waiting_with_its_status(
-    dispatching,
-):
-    directory = write_session(StateDirectory(dispatching), KEY, 13)
-    write_round(
-        directory,
-        1,
-        RoundRecord(
-            started=PINNED,
-            pid=1,
-            cause=CAUSE,
-            ending=Ending(at=PINNED.replace(hour=18, minute=0), status=2),
-        ),
-    )
-    daemon, _, _ = idling(dispatching, ticks=1)
-
-    daemon.run()
-
-    assert recorded(daemon).waiting == [
-        Waiting(session=KEY, issue=13, reason="the last round failed (exit 2)")
-    ]
+    assert recorded(daemon).launched == DISPATCHED_KEY
 
 
 def test_a_session_the_daemon_is_running_a_round_for_is_not_waiting(
@@ -536,20 +555,30 @@ def test_a_session_the_daemon_is_running_a_round_for_is_not_waiting(
     assert recorded(daemon).waiting == []
 
 
-def test_a_session_whose_last_round_ended_well_is_not_waiting(dispatching):
-    directory = write_session(StateDirectory(dispatching), KEY, 13)
-    write_round(
-        directory,
-        1,
-        RoundRecord(
-            started=PINNED, pid=1, cause=CAUSE, ending=Ending(at=PINNED, status=0)
-        ),
-    )
-    daemon, _, _ = idling(dispatching, ticks=1)
+def test_a_session_with_an_open_pull_request_and_nothing_new_is_not_waiting(
+    resuming, gh
+):
+    ran(resuming, 1, Cause.DISPATCH)
+    gh.replies(pull_requests((PULL_REQUEST, "OPEN")), to="pr list")
+    daemon, _, _ = idling(resuming, ticks=1)
 
     daemon.run()
 
+    assert recorded(daemon).launched is None
     assert recorded(daemon).waiting == []
+
+
+def test_a_session_with_no_pull_request_of_its_own_reads_as_waiting(resuming):
+    ran(resuming, 1, Cause.DISPATCH)
+    daemon, _, _ = idling(resuming, ticks=1)
+
+    daemon.run()
+
+    assert recorded(daemon).waiting == [
+        WaitingSession(
+            session=KEY, issue=13, reason="no pull request has been opened on it"
+        )
+    ]
 
 
 def test_a_session_that_has_run_no_round_at_all_waits_for_its_first(dispatching):
@@ -559,7 +588,7 @@ def test_a_session_that_has_run_no_round_at_all_waits_for_its_first(dispatching)
     daemon.run()
 
     assert recorded(daemon).waiting == [
-        Waiting(session=KEY, issue=13, reason="no round has run yet")
+        WaitingSession(session=KEY, issue=13, reason="no round has run yet")
     ]
 
 
@@ -594,7 +623,188 @@ def test_a_session_that_goes_bad_under_a_running_daemon_costs_one_tick(dispatchi
     directory = write_session(daemon.state, KEY, 13)
     (directory / "session.json").write_text("{}", encoding="utf-8")
 
-    daemon.tick(REPOSITORY)
+    daemon.tick(REPOSITORY, POSTED_BY)
 
     assert "session.json is not valid" in held(daemon)
     assert recorded(daemon).candidates == []
+
+
+def test_a_session_whose_last_round_did_not_finish_is_carried_on(
+    resuming, left_running
+):
+    write_round(
+        StateDirectory(resuming).sessions / KEY,
+        1,
+        RoundRecord(started=PINNED, pid=left_running.pid, cause=CAUSE),
+    )
+    daemon = settling(resuming)
+
+    daemon.run()
+
+    assert recorded(daemon).launched == KEY
+    assert written_round(daemon, 2, "prompt.txt") == CARRY_ON_PROMPT
+    assert not (daemon.state.sessions / KEY / "rounds" / "2" / "inbox.json").exists()
+
+
+def test_a_carried_on_round_says_that_is_what_woke_it(resuming, left_running):
+    write_round(
+        StateDirectory(resuming).sessions / KEY,
+        1,
+        RoundRecord(started=PINNED, pid=left_running.pid, cause=CAUSE),
+    )
+    daemon = settling(resuming)
+
+    daemon.run()
+
+    assert cause_of(daemon, 2) is Cause.CARRY_ON
+
+
+def test_a_session_the_user_has_posted_on_is_told_what_they_said(resuming, gh):
+    ran(resuming, 1, Cause.DISPATCH)
+    gh.replies(pull_requests((PULL_REQUEST, "OPEN")), to="pr list")
+    gh.replies(pages(comment()), to=f"api {POST_LIST_PATHS['conversation']}")
+    daemon = settling(resuming)
+
+    daemon.run()
+
+    assert recorded(daemon).launched == KEY
+    assert cause_of(daemon, 2) is Cause.POSTS
+    inbox = json.loads(written_round(daemon, 2, "inbox.json"))
+    assert inbox["state"] == "OPEN"
+    assert [post["kind"] for post in inbox["posts"]] == ["comment"]
+    assert str(daemon.state.sessions / KEY / "rounds" / "2" / "inbox.json") in (
+        written_round(daemon, 2, "prompt.txt")
+    )
+
+
+def test_a_session_told_about_a_batch_hears_it_only_once(resuming, gh):
+    ran(resuming, 1, Cause.DISPATCH)
+    gh.replies(pull_requests((PULL_REQUEST, "OPEN")), to="pr list")
+    gh.replies(pages(comment()), to=f"api {POST_LIST_PATHS['conversation']}")
+    daemon = settling(resuming, ticks=2)
+
+    daemon.run()
+
+    assert (daemon.state.sessions / KEY / "watermark").read_text(
+        encoding="utf-8"
+    ) == POSTED_AT
+    assert recorded(daemon).launched is None
+    assert not (daemon.state.sessions / KEY / "rounds" / "3").exists()
+
+
+def test_a_batch_no_round_ever_launched_is_read_again_next_tick(resuming, gh):
+    ran(resuming, 1, Cause.DISPATCH)
+    gh.replies(pull_requests((PULL_REQUEST, "OPEN")), to="pr list")
+    gh.replies(pages(comment()), to=f"api {POST_LIST_PATHS['conversation']}")
+    # A file where the round's own directory goes, so no round can ever start.
+    occupied = StateDirectory(resuming).sessions / KEY / "rounds" / "2"
+    occupied.parent.mkdir(parents=True, exist_ok=True)
+    occupied.write_text("something else is here\n", encoding="utf-8")
+    daemon, _, _ = idling(resuming, ticks=2)
+
+    daemon.run()
+
+    assert "cannot write" in held(daemon)
+    assert not (daemon.state.sessions / KEY / "watermark").exists()
+    peeks = [call for call in gh.calls if call.arguments[:2] == ["api", CONVERSATION]]
+    assert len(peeks) == 2
+
+
+@pytest.mark.parametrize("state_name", ["MERGED", "CLOSED"])
+def test_a_pull_request_that_is_finished_gets_one_last_round(resuming, gh, state_name):
+    ran(resuming, 1, Cause.DISPATCH)
+    gh.replies(pull_requests((PULL_REQUEST, state_name)), to="pr list")
+    daemon = settling(resuming)
+
+    daemon.run()
+
+    assert recorded(daemon).launched == KEY
+    assert cause_of(daemon, 2) is Cause.FINAL
+    assert json.loads(written_round(daemon, 2, "inbox.json")) == {
+        "state": state_name,
+        "posts": [],
+    }
+
+
+def test_a_session_that_has_had_its_last_round_gets_no_other(resuming, gh):
+    ran(resuming, 1, Cause.DISPATCH)
+    ran(resuming, 2, Cause.FINAL)
+    gh.replies(pull_requests((PULL_REQUEST, "MERGED")), to="pr list")
+    daemon, _, _ = idling(resuming, ticks=1)
+
+    daemon.run()
+
+    assert recorded(daemon).launched is None
+    assert not (daemon.state.sessions / KEY / "rounds" / "3").exists()
+
+
+def test_a_last_round_that_was_interrupted_is_carried_on_as_the_last_round(
+    resuming, gh, left_running
+):
+    ran(resuming, 1, Cause.DISPATCH)
+    write_round(
+        StateDirectory(resuming).sessions / KEY,
+        2,
+        RoundRecord(
+            started=PINNED.replace(hour=17, minute=2),
+            pid=left_running.pid,
+            cause=Cause.FINAL,
+        ),
+    )
+    gh.replies(pull_requests((PULL_REQUEST, "MERGED")), to="pr list")
+    daemon = settling(resuming, ticks=2)
+
+    daemon.run()
+
+    # The carry-on finished what the last round started, so no second one runs.
+    assert cause_of(daemon, 3) is Cause.CARRY_ON
+    assert not (daemon.state.sessions / KEY / "rounds" / "4").exists()
+
+
+def test_open_work_is_carried_on_before_a_new_issue_is_dispatched(
+    resuming, gh, offered, left_running
+):
+    write_round(
+        StateDirectory(resuming).sessions / KEY,
+        1,
+        RoundRecord(started=PINNED, pid=left_running.pid, cause=CAUSE),
+    )
+    daemon, _, _ = idling(resuming, ticks=1)
+
+    daemon.run()
+
+    assert recorded(daemon).launched == KEY
+    assert not (daemon.state.worktrees / DISPATCHED_KEY).exists()
+    assert recorded(daemon).candidates == []
+
+
+def test_a_cooling_tick_still_says_what_each_session_is_waiting_on(resuming):
+    directory = StateDirectory(resuming).sessions / KEY
+    write_round(
+        directory,
+        1,
+        RoundRecord(
+            started=PINNED,
+            pid=1,
+            cause=CAUSE,
+            ending=Ending(at=PINNED.replace(minute=35), status=1),
+        ),
+    )
+    daemon, _, _ = idling(resuming, ticks=1)
+
+    daemon.run()
+
+    assert "next attempt at 18:50 UTC" in held(daemon)
+    assert recorded(daemon).waiting == [
+        WaitingSession(session=KEY, issue=13, reason="the last round failed (exit 1)")
+    ]
+
+
+def test_a_run_that_cannot_be_told_which_account_gh_is_signed_in_as_refuses(
+    cloned, gh, harnesses
+):
+    configure(cloned)
+    gh.fails("gh: you are not logged in", to="api user")
+
+    with pytest.raises(ReportableError, match="cannot tell which account"):
+        Daemon(cloned, Harness.CLAUDE, wait=Interrupting(1)).run()

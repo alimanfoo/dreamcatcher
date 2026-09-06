@@ -32,6 +32,15 @@ PULL_REQUEST = 52
 
 POSTED_BY = "alimanfoo"
 
+# When the tests say the user posted on that pull request, and the piece of the
+# diff that they wrote an inline comment against.
+POSTED_AT = "2026-09-03T22:19:55Z"
+
+HUNK = (
+    '@@ -0,0 +1,3 @@\n+"""Carry what the user posts."""\n'
+    "+\n+from dreamcatcher import github"
+)
+
 # Where gh keeps each of the three lists that a pull request's posts arrive in.
 # Each is named as the recording of it is named.
 POST_LIST_PATHS = {
@@ -84,6 +93,47 @@ def listing(*issues: tuple[int, str]) -> str:
     return json.dumps(
         [{"number": number, "createdAt": created} for number, created in issues]
     )
+
+
+def comment(**fields: object) -> dict:
+    """What gh answers one comment on the pull request's conversation with."""
+    return {
+        "id": 1,
+        "user": {"login": POSTED_BY},
+        "created_at": POSTED_AT,
+        "body": "have another look at the filter",
+    } | fields
+
+
+def review(**fields: object) -> dict:
+    """What gh answers one review with."""
+    return {
+        "id": 2,
+        "user": {"login": POSTED_BY},
+        "submitted_at": POSTED_AT,
+        "body": "",
+        "state": "COMMENTED",
+    } | fields
+
+
+def inline_comment(**fields: object) -> dict:
+    """What gh answers one comment on a line of the diff with."""
+    return {
+        "id": 3,
+        "user": {"login": POSTED_BY},
+        "created_at": POSTED_AT,
+        "body": "this reads the watermark twice",
+        "path": "src/dreamcatcher/relay.py",
+        "subject_type": "line",
+        "side": "RIGHT",
+        "line": 3,
+        "diff_hunk": HUNK,
+    } | fields
+
+
+def pull_requests(*listed: tuple[int, str]) -> str:
+    """Return what gh answers a pull request listing with."""
+    return json.dumps([{"number": number, "state": state} for number, state in listed])
 
 
 def pages(*posts: dict) -> str:

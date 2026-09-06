@@ -15,13 +15,34 @@ two apart, and the marker every prompt asks the session to end its posts with
 is what does.
 """
 
-from dreamcatcher.github import Post, Unknown, list_posts
+from dreamcatcher.documents import Document
+from dreamcatcher.github import AnyPost, PullRequestState, Unknown, list_posts
 from dreamcatcher.prompts import MARKER
+
+
+class Inbox(Document):
+    """The batch of posts that a round is woken with, as the session reads it.
+
+    The state is where the pull request had got to when the tick looked at it.
+    It is what tells a session whether to answer the user or to wrap the
+    session up, so one prompt serves both kinds of round.
+
+    The posts are what the user newly said, oldest first. A round that a merged
+    or closed pull request woke carries whatever the user said last, and often
+    nothing at all.
+
+    A round writes this into its own directory before it starts, and it stays
+    there, so whoever reads the session afterwards reads what each round was
+    given.
+    """
+
+    state: PullRequestState
+    posts: list[AnyPost]
 
 
 def peek_new_posts(
     repository: str, pull_request: int, *, account: str, watermark: str
-) -> list[Post] | Unknown:
+) -> list[AnyPost] | Unknown:
     """Return what the user posted since the watermark, oldest first.
 
     The account is the one gh is signed in as, which is the user's own.
@@ -42,7 +63,7 @@ def peek_new_posts(
     )
 
 
-def _is_new_from_user(post: Post, account: str, watermark: str) -> bool:
+def _is_new_from_user(post: AnyPost, account: str, watermark: str) -> bool:
     """Whether the peek returns this post.
 
     The post has to be newer than the watermark, or the session has already

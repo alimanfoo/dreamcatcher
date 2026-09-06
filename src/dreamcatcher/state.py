@@ -36,15 +36,17 @@ class CandidateIssue(Document):
         return self.reason is None
 
 
-class Waiting(Document):
-    """A session where the last round did not complete successfully and so is
-    waiting for another round to continue.
+class WaitingSession(Document):
+    """A session with no round running, waiting for the round that would
+    carry it on.
 
-    The reason is a string that says why the session's most recent round ended,
-    in the words that the round's own record kept. A round may have been
-    interrupted, or it may have failed with a status, and the reason carries
-    that status. A run of usage-limit failures is therefore recognisable from
-    this reason string.
+    The reason is a string that says what the session is waiting on, in the
+    words the tick found it in. Where the last round did not complete, the
+    reason carries the status it ended with, so a run of usage-limit failures
+    is recognisable from this reason string. A session is also waiting when the
+    tick found it a round and had no slot to launch it, when no round has run
+    yet, when nobody has opened a pull request on it, and when a read of GitHub
+    could not tell.
     """
 
     session: str
@@ -58,9 +60,11 @@ class LastTick(Document):
     The record carries the tick's own time rather than taking it from the file,
     so copying a state directory cannot make a stale tick look fresh.
 
-    A tick that launched nothing at all says in one line what held it. A tick
-    that was held at the cap looked no further than its own rounds, so it
-    records nothing else, rather than suggesting that it had looked.
+    A tick launches at most one round, and the key of that round's session is
+    what it launched. A tick that launched nothing at all says in one line what
+    held it. A tick that was held at the cap looked no further than its own
+    rounds, so it records nothing else, rather than suggesting that it had
+    looked.
 
     The candidates are every labelled issue that the tick weighed, in the order
     they would be dispatched. A candidate with nothing in its way that the tick
@@ -70,9 +74,9 @@ class LastTick(Document):
 
     at: datetime
     hold: str | None = None
-    dispatched: str | None = None
+    launched: str | None = None
     candidates: list[CandidateIssue] = Field(default_factory=list)
-    waiting: list[Waiting] = Field(default_factory=list)
+    waiting: list[WaitingSession] = Field(default_factory=list)
 
 
 @dataclass(frozen=True)

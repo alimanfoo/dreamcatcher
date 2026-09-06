@@ -14,23 +14,20 @@ from dreamcatcher.config import Harness, read_config
 from dreamcatcher.documents import write_json
 from dreamcatcher.eligibility import judge_issues
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.github import Unknown, identify_repository
+from dreamcatcher.github import Unknown, identify_account, identify_repository
 from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.lock import hold
-from dreamcatcher.rounds import Round
-from dreamcatcher.sessions import Session, create_session, discard_session, read_sessions
-from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, Waiting
+from dreamcatcher.rounds import Cause, Round
+from dreamcatcher.sessions import Session, advance_watermark, create_session, discard_session, read_sessions
+from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, WaitingSession
+from dreamcatcher.wakeups import Finding, Wakeup, judge_session, list_waiting, sort_wakeups
 
-DISPATCHED = 'dispatched'
 COOLDOWN = timedelta(minutes=15)
 
+def _refuse_unknown(named: str | Unknown, question: str) -> str:
+    ...
+
 def _check_cooldown(sessions: list[Session], at: datetime) -> str | None:
-    ...
-
-def _list_waiting(sessions: list[Session], running: dict[str, Round]) -> list[Waiting]:
-    ...
-
-def _check_rounds(session: Session) -> str | None:
     ...
 
 class Daemon:
@@ -40,16 +37,25 @@ class Daemon:
     def run(self) -> None:
         ...
 
-    def tick(self, repository: str) -> None:
+    def tick(self, repository: str, account: str) -> None:
         ...
 
-    def _identify_repository(self) -> str:
+    def _decide_and_launch(self, repository: str, account: str, at: datetime) -> LastTick:
         ...
 
-    def _decide_and_launch(self, repository: str, at: datetime) -> LastTick:
+    def _judge_sessions(self, repository: str, account: str, sessions: list[Session]) -> list[Finding]:
         ...
 
-    def _dispatch_oldest_issue(self, at: datetime, judged: list[CandidateIssue], waiting: list[Waiting]) -> LastTick:
+    def _resume_session(self, at: datetime, wakeup: Wakeup, found: list[Finding]) -> LastTick:
+        ...
+
+    def _launch_wakeup(self, wakeup: Wakeup) -> None:
+        ...
+
+    def _start_round(self, session: Session, prompt: str, cause: Cause) -> None:
+        ...
+
+    def _dispatch_oldest_issue(self, at: datetime, judged: list[CandidateIssue], waiting: list[WaitingSession]) -> LastTick:
         ...
 
     def _launch_session(self, candidate: CandidateIssue, at: datetime) -> str:

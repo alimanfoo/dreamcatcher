@@ -7,10 +7,11 @@ from dreamcatcher.commands import CommandError
 from dreamcatcher.config import CONFIG_NAME, Harness, read_config
 from dreamcatcher.documents import write_text
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.rounds import Ending, RoundRecord, Workspace
+from dreamcatcher.rounds import Cause, Ending, RoundRecord, Workspace
 from dreamcatcher.sessions import (
     WATERMARK,
     SessionRecord,
+    advance_watermark,
     create_session,
     read_sessions,
 )
@@ -149,18 +150,28 @@ def test_a_session_reads_back_the_newest_post_it_has_been_told_about(state, mapp
     assert read_sessions(state)[0].watermark == "2026-09-03T22:31:51Z"
 
 
+def test_a_session_told_about_a_batch_of_posts_reads_the_newest_of_them_back(
+    state, mapping
+):
+    created = create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
+
+    advance_watermark(created, "2026-09-03T22:31:51Z")
+
+    assert read_sessions(state)[0].watermark == "2026-09-03T22:31:51Z"
+
+
 def test_a_sessions_rounds_read_back_in_the_order_they_ran(state, mapping):
     create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
     later = PINNED.replace(minute=50)
     directory = state.sessions / KEY
-    write_round(directory, 2, RoundRecord(started=later, pid=1, cause="dispatched"))
+    write_round(directory, 2, RoundRecord(started=later, pid=1, cause=Cause.DISPATCH))
     write_round(
         directory,
         1,
         RoundRecord(
             started=PINNED,
             pid=1,
-            cause="dispatched",
+            cause=Cause.DISPATCH,
             ending=Ending(at=later, status=0),
         ),
     )

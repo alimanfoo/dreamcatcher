@@ -8,20 +8,22 @@ from contextlib import suppress
 import psutil
 import pytest
 from clocks import PINNED, Ticking
-from conftest import CONFIG_HEAD, FILED, LABEL, LATER, REPOSITORY, SMITH_CLAUDE, SMITH_CODEX, git, gone, listing
+from conftest import CONFIG_HEAD, FILED, LABEL, LATER, POST_LIST_PATHS, POSTED_AT, POSTED_BY, PULL_REQUEST, REPOSITORY, SMITH_CLAUDE, SMITH_CODEX, comment, git, gone, listing, pages, pull_requests
 from fakes import Line
 from records import write_round, write_session
 from dreamcatcher.commands import spawn
 from dreamcatcher.config import CONFIG_NAME, Harness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.rounds import Ending, RoundRecord
-from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, Waiting
+from dreamcatcher.prompts import CARRY_ON_PROMPT
+from dreamcatcher.rounds import Cause, Ending, RoundRecord
+from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, WaitingSession
 
 KEY = 'GH13-20260819-184158'
-CAUSE = 'dispatched'
+CAUSE = Cause.DISPATCH
 STILL_RUNNING = 30
 DISPATCHED_KEY = 'GH8-20260819-184158'
+CONVERSATION = POST_LIST_PATHS['conversation']
 
 def left_running(tmp_path):
     ...
@@ -80,6 +82,9 @@ def configure(root, head: str) -> None:
 def held(daemon) -> str:
     ...
 
+def cause_of(daemon, number: int) -> Cause:
+    ...
+
 def recorded(daemon) -> LastTick:
     ...
 
@@ -90,6 +95,15 @@ def offered(gh):
     ...
 
 def dispatching(cloned, offered, harnesses):
+    ...
+
+def resuming(cloned, gh, harnesses):
+    ...
+
+def ran(root, number: int, cause: Cause, status: int | None) -> None:
+    ...
+
+def written_round(daemon, number: int, name: str) -> str:
     ...
 
 def test_a_tick_dispatches_the_oldest_issue_nothing_stands_in_the_way_of(dispatching, harnesses):
@@ -131,16 +145,13 @@ def test_a_round_that_failed_long_enough_ago_holds_nothing(dispatching):
 def test_a_round_that_ended_well_holds_nothing(dispatching):
     ...
 
-def test_a_session_whose_last_round_was_interrupted_reads_as_waiting(dispatching, left_running):
-    ...
-
-def test_a_session_whose_last_round_failed_reads_as_waiting_with_its_status(dispatching):
-    ...
-
 def test_a_session_the_daemon_is_running_a_round_for_is_not_waiting(dispatching, harnesses):
     ...
 
-def test_a_session_whose_last_round_ended_well_is_not_waiting(dispatching):
+def test_a_session_with_an_open_pull_request_and_nothing_new_is_not_waiting(resuming, gh):
+    ...
+
+def test_a_session_with_no_pull_request_of_its_own_reads_as_waiting(resuming):
     ...
 
 def test_a_session_that_has_run_no_round_at_all_waits_for_its_first(dispatching):
@@ -153,6 +164,39 @@ def test_a_run_that_cannot_read_a_session_refuses_to_start(dispatching):
     ...
 
 def test_a_session_that_goes_bad_under_a_running_daemon_costs_one_tick(dispatching):
+    ...
+
+def test_a_session_whose_last_round_did_not_finish_is_carried_on(resuming, left_running):
+    ...
+
+def test_a_carried_on_round_says_that_is_what_woke_it(resuming, left_running):
+    ...
+
+def test_a_session_the_user_has_posted_on_is_told_what_they_said(resuming, gh):
+    ...
+
+def test_a_session_told_about_a_batch_hears_it_only_once(resuming, gh):
+    ...
+
+def test_a_batch_no_round_ever_launched_is_read_again_next_tick(resuming, gh):
+    ...
+
+def test_a_pull_request_that_is_finished_gets_one_last_round(resuming, gh, state_name):
+    ...
+
+def test_a_session_that_has_had_its_last_round_gets_no_other(resuming, gh):
+    ...
+
+def test_a_last_round_that_was_interrupted_is_carried_on_as_the_last_round(resuming, gh, left_running):
+    ...
+
+def test_open_work_is_carried_on_before_a_new_issue_is_dispatched(resuming, gh, offered, left_running):
+    ...
+
+def test_a_cooling_tick_still_says_what_each_session_is_waiting_on(resuming):
+    ...
+
+def test_a_run_that_cannot_be_told_which_account_gh_is_signed_in_as_refuses(cloned, gh, harnesses):
     ...
 
 class Interrupting:

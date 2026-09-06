@@ -15,7 +15,7 @@ class CandidateIssue(Document):
     reason: str | None = None
     is_eligible: bool
 
-class Waiting(Document):
+class WaitingSession(Document):
     session: str
     issue: int
     reason: str
@@ -23,9 +23,9 @@ class Waiting(Document):
 class LastTick(Document):
     at: datetime
     hold: str | None = None
-    dispatched: str | None = None
+    launched: str | None = None
     candidates: list[CandidateIssue] = Field(default_factory=list)
-    waiting: list[Waiting] = Field(default_factory=list)
+    waiting: list[WaitingSession] = Field(default_factory=list)
 
 class StateDirectory:
     root: Path

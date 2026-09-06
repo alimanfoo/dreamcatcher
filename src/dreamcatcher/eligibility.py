@@ -8,8 +8,10 @@ An error from GitHub can therefore cost the daemon a tick, but the daemon can
 never dispatch an issue twice, and never dispatch one out of turn.
 
 Two of the checks ask who has a claim on an issue, and they answer different
-questions. The first checks whether the current run has a session already working
-on the issue, which covers the time before any pull request exists. The second
+questions. The first checks whether a session in this checkout is already working
+on the issue, which covers the time before any pull request exists. A session
+outlives the daemon run that cut it, so one an earlier run left behind claims its
+issue just as a session of the running daemon's does. The second
 checks whether the issue has an open linked pull request on GitHub, which covers
 the situation where the issue is being worked on via a worktree somewhere else.
 """
@@ -37,8 +39,8 @@ def judge_issues(
     anything, stands in the way of dispatching it. A candidate with nothing in
     its way can be dispatched.
 
-    The caller passes in `claimed`, the issues that a session of this run is
-    already working on. The caller knows about those and GitHub does not.
+    The caller passes in `claimed`, the issues that a session in this checkout
+    is already working on. The caller knows about those and GitHub does not.
 
     If the tool could not read the listing, it answers Unknown for the whole
     tick. Otherwise, an issue that it cannot see might be dispatched a second
@@ -96,7 +98,7 @@ def _find_obstacle(
     if len(labels) > 1:
         return f"carries more than one mapped label: {', '.join(sorted(labels))}"
     if issue in claimed:
-        return "a session of this run is working on it"
+        return "a session in this checkout is working on it"
     return _check_pull_requests(repository, issue) or _check_blockers(repository, issue)
 
 

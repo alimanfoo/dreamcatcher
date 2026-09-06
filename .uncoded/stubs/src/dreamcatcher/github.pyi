@@ -6,13 +6,14 @@ from datetime import datetime
 from enum import StrEnum
 from itertools import chain
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field, TypeAdapter, ValidationError, model_validator
 from dreamcatcher.commands import CommandError, run
 
 LISTING_LIMIT = '500'
 PAGE_SIZE = '100'
 SPEAKING_VERDICTS = frozenset({Verdict.APPROVED, Verdict.CHANGES_REQUESTED})
+type AnyPost = Comment | Review | InlineComment
 REPOSITORY = TypeAdapter(Repository)
 ACCOUNT = TypeAdapter(Account)
 ISSUES = TypeAdapter(list[Issue])
@@ -42,10 +43,10 @@ def list_linked_pull_requests(repository: str, issue: int) -> list[LinkedPullReq
 def list_blockers(repository: str, issue: int) -> list[Blocker] | Unknown:
     ...
 
-def list_posts(repository: str, pull_request: int) -> list[Post] | Unknown:
+def list_posts(repository: str, pull_request: int) -> list[AnyPost] | Unknown:
     ...
 
-def _read_pages(shape: TypeAdapter[list[list[PostT]]], path: str) -> list[Post] | Unknown:
+def _read_pages(shape: TypeAdapter[list[list[PostT]]], path: str) -> list[AnyPost] | Unknown:
     ...
 
 def _read(shape: TypeAdapter[ReadT], *arguments: str, cwd: Path | None) -> ReadT | Unknown:
@@ -105,14 +106,17 @@ class Post(Projection):
     is_speaking: bool
 
 class Comment(Post):
-    ...
+    kind: Literal['comment'] = 'comment'
 
 class Review(Post):
+    kind: Literal['review'] = 'review'
     verdict: Verdict = Field(alias='state')
     is_speaking: bool
 
 class InlineComment(Post):
+    kind: Literal['inlineComment'] = 'inlineComment'
     path: str
+    subject_type: str = 'line'
     side: str
     line: int | None = None
     start_line: int | None = None

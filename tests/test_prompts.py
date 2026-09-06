@@ -1,8 +1,16 @@
+from pathlib import Path
+
 import pytest
 from conftest import CONFIG
 
 from dreamcatcher.config import CONFIG_NAME, Harness, read_config
-from dreamcatcher.prompts import POSTSCRIPT, compose_first_round_prompt
+from dreamcatcher.prompts import (
+    CARRY_ON_PROMPT,
+    MARKER,
+    POSTSCRIPT,
+    compose_first_round_prompt,
+    compose_inbox_prompt,
+)
 
 # What each harness's template in the test config renders as for issue 12. A
 # harness with no line here fails the test below rather than going untested.
@@ -28,3 +36,30 @@ def test_the_prompt_that_opens_a_session_is_its_template_then_the_postscript(
     composed = compose_first_round_prompt(settings.prompt, 12)
 
     assert composed == OPENINGS[harness] + POSTSCRIPT
+
+
+def test_the_prompt_that_carries_a_round_on_says_the_last_one_stopped_short():
+    assert CARRY_ON_PROMPT.startswith("Your previous round did not finish.")
+    assert CARRY_ON_PROMPT.endswith(POSTSCRIPT)
+
+
+def test_the_prompt_that_hands_over_an_inbox_names_the_pull_request_and_the_file(
+    tmp_path,
+):
+    inbox = tmp_path / "inbox.json"
+
+    composed = compose_inbox_prompt(52, inbox)
+
+    assert composed.startswith("PR-inbox prompt for pull request #52:")
+    assert str(inbox) in composed
+    assert composed.endswith(POSTSCRIPT)
+
+
+def test_every_prompt_the_daemon_composes_asks_for_the_marker():
+    composed = [
+        compose_first_round_prompt("/dream:smith GH12", 12),
+        CARRY_ON_PROMPT,
+        compose_inbox_prompt(52, Path("inbox.json")),
+    ]
+
+    assert all(MARKER in prompt for prompt in composed)

@@ -6,13 +6,13 @@ import pytest
 from conftest import POST_LIST_PATHS, POSTED_BY, PULL_REQUEST, pages
 
 from dreamcatcher.github import (
+    AnyPost,
     Blocker,
     BlockerState,
     Comment,
     InlineComment,
     Issue,
     LinkedPullRequest,
-    Post,
     PullRequest,
     PullRequestState,
     Review,
@@ -161,7 +161,7 @@ def test_the_blockers_of_an_issue_come_back_with_their_states(fake):
     ]
 
 
-def posted() -> list[Post]:
+def posted() -> list[AnyPost]:
     """The pull request's posts, given that gh answered every one of its lists."""
     found = list_posts(REPOSITORY, PULL_REQUEST)
     assert not isinstance(found, Unknown)
