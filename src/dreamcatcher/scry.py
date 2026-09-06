@@ -8,9 +8,10 @@ rich renders every view here, and nowhere else, so what the daemon writes stays
 plain text and the colour is put on at the moment of reading.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from datetime import datetime
 from pathlib import Path
+from time import sleep
 
 from rich.console import Console, RenderableType
 from rich.padding import Padding
@@ -19,9 +20,12 @@ from rich.text import Text
 
 from dreamcatcher.board import Attempt, Board, Standing, read_board
 from dreamcatcher.clock import describe_span, describe_time, now
+from dreamcatcher.documents import read_text
 from dreamcatcher.errors import ReportableError
+from dreamcatcher.feed import GAP, Line, compose_round_boundary, read_feed_line
 from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.rounds import RoundRecord
+from dreamcatcher.sessions import Session
 from dreamcatcher.state import StateDirectory
 
 # What each section of the board is set in, so a reader finds the one they
@@ -35,6 +39,13 @@ COLOURS = {
 }
 
 QUEUE = "queued"
+
+# How long a following view waits between looks at what the round has written.
+PAUSE = 1.0
+
+# What marks the label of a feed line, which is the harness's own word for what
+# it just did.
+LABEL = r"^\s*\[[^\]]+\]"
 
 # How far a section's rows are set in from its heading.
 INDENT = (0, 0, 0, 2)
@@ -139,10 +150,7 @@ def show_session(
     dispatch. The newest is the one still going, or the one that got furthest,
     so it is the one the view is about.
     """
-    board = read_board(state, clock)
-    attempts = [one for one in board.attempts if one.session.record.issue == issue]
-    if not attempts:
-        raise ReportableError(f"No session here for GH{issue}.")
+    attempts = _find_attempts(read_board(state, clock), issue)
     newest = attempts[0]
     console.print(Text(f"GH{issue}, attempt {newest.attempt} of {newest.attempts}"))
     console.print(
@@ -245,3 +253,118 @@ def _show_older_attempts(console: Console, older: list[Attempt]) -> None:
 def _under_the_checkout(state: StateDirectory, path: Path) -> str:
     """Return the path as it reads from the checkout, the one way everywhere."""
     return path.relative_to(state.root).as_posix()
+
+
+def show_round(
+    state: StateDirectory,
+    issue: int,
+    number: int,
+    console: Console,
+    clock: Callable[[], datetime] = now,
+) -> None:
+    """Show the feed of one round of the issue's newest attempt.
+
+    The round list of the session view is where a reader finds the number.
+    """
+    session = _find_attempts(read_board(state, clock), issue)[0].session
+    if not 1 <= number <= len(session.rounds):
+        raise ReportableError(
+            f"GH{issue} has run {len(session.rounds)} rounds, so it has no "
+            f"round {number}."
+        )
+    for painted in _compose_feed(session, [number]):
+        console.print(painted)
+
+
+def show_feed(
+    state: StateDirectory,
+    issue: int,
+    console: Console,
+    wait: Callable[[float], None] = sleep,
+    clock: Callable[[], datetime] = now,
+) -> None:
+    """Show every round of the issue's newest attempt, and follow what arrives.
+
+    Reading a session that is over and watching one that is going are the same
+    view in two tenses, so this shows what is there and then keeps showing what
+    lands until no round is running.
+
+    Every look reads the session again, so a round that starts while the view
+    is going is shown as it arrives, and not only the rounds it opened with.
+    """
+    shown = 0
+    while True:
+        attempt = _find_attempts(read_board(state, clock), issue)[0]
+        session = attempt.session
+        painted = _compose_feed(session, range(1, len(session.rounds) + 1))
+        for line in painted[shown:]:
+            console.print(line)
+        shown = len(painted)
+        if attempt.standing is not Standing.WORKING:
+            return
+        wait(PAUSE)
+
+
+def _find_attempts(board: Board, issue: int) -> list[Attempt]:
+    """Return the attempts at the issue, newest first, or refuse if there are none."""
+    attempts = [one for one in board.attempts if one.session.record.issue == issue]
+    if not attempts:
+        raise ReportableError(f"No session here for GH{issue}.")
+    return attempts
+
+
+def _compose_feed(session: Session, numbers: Iterable[int]) -> list[Text]:
+    """Return the lines these rounds of the session read as, in order.
+
+    Each round opens with the line that says what caused it, stamped with the
+    time that round started, and the rounds are set apart by a blank line. A
+    feed holds one round, so the stitch between them is the reader's and lands
+    in no file.
+    """
+    painted: list[Text] = []
+    for number in numbers:
+        record = session.rounds[number - 1]
+        if painted:
+            painted.append(Text())
+        boundary = compose_round_boundary(number, record.cause, record.started)
+        painted.append(_paint(boundary, Text(boundary.text, style="bold")))
+        painted.extend(
+            _paint_written(written)
+            for written in _read_feed(session.workspace(number).feed)
+        )
+    return painted
+
+
+def _read_feed(path: Path) -> list[str]:
+    """Return the lines the feed at path holds whole, without their endings.
+
+    A round writes its feed a line at a time as it goes, so a round that has
+    said nothing yet has no feed, and a line with no ending on it is a write
+    still landing. The next look shows that one whole.
+    """
+    if not path.exists():
+        return []
+    written = read_text(path)
+    lines = written.splitlines()
+    if lines and not written.endswith("\n"):
+        lines.pop()
+    return lines
+
+
+def _paint_written(written: str) -> Text:
+    """Return one line of a feed as it reads on a console.
+
+    A line the reader cannot parse reaches the reader as it was written, since
+    showing what the feed holds is the whole point of showing it.
+    """
+    line = read_feed_line(written)
+    if line is None:
+        return Text(written)
+    said = Text(line.text)
+    said.highlight_regex(LABEL, "cyan")
+    return _paint(line, said)
+
+
+def _paint(line: Line, said: Text) -> Text:
+    """Return the line with its stamp set back, so the words stand out."""
+    return Text(describe_time(line.at), style="dim") + Text(GAP) + said

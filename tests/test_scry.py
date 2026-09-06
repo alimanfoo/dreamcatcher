@@ -22,7 +22,14 @@ from dreamcatcher.documents import write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Line
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
-from dreamcatcher.scry import open_console, show_board, show_session
+from dreamcatcher.scry import (
+    PAUSE,
+    open_console,
+    show_board,
+    show_feed,
+    show_round,
+    show_session,
+)
 from dreamcatcher.state import (
     CandidateIssue,
     LastTick,
@@ -41,6 +48,22 @@ WIDTH = 100
 DAEMON_PID = 4242
 
 STAMP = "20260819-184158"
+
+# What one round of a session said, as its feed holds it. A subagent's lines
+# are set in from the rest, and a line that is not a feed line at all is what a
+# harness printed on its stderr.
+SAID = (
+    Line(PINNED + timedelta(minutes=1), "[session] model opus[1m], id 7f3c9a"),
+    Line(PINNED + timedelta(minutes=2), "I will read the issue first."),
+    Line(PINNED + timedelta(minutes=2), "[Read] specs/2026-08-17-skeleton/plan.md"),
+    Line(PINNED + timedelta(minutes=3), "  [Bash] ls"),
+    Line(PINNED + timedelta(minutes=3), "[failed] no such file or directory"),
+    Line(
+        PINNED + timedelta(minutes=5),
+        "[usage] $0.1772, 455 output, 8 input, 123529 cache read, 8606 cache write",
+    ),
+    Line(PINNED + timedelta(minutes=5), "[result] success"),
+)
 
 # What a tick writes down against an issue carrying two mapped labels.
 DOUBLE_LABELLED = "carries more than one mapped label: dream:less, dream:smith"
@@ -89,11 +112,9 @@ def fabricate_nothing(state):
 def fabricate_everything(state):
     """A daemon running, with a session in every standing and a queue behind."""
     holding(state)
-    write_feed(
-        written(state, 13, ended(1), running(30, cause=Cause.POSTS)),
-        2,
-        Line(PINNED, "[Bash] pytest"),
-    )
+    directory = written(state, 13, ended(1), running(30, cause=Cause.POSTS))
+    write_feed(directory, 1, *SAID)
+    write_feed(directory, 2, Line(PINNED + timedelta(minutes=31), "[Bash] pytest"))
     write_feed(written(state, 20, ended(1)), 1, Line(PINNED, "[Bash] git push"))
     written(state, 31, ended(1))
     written(state, 35, ended(1, status=2))
@@ -182,6 +203,14 @@ BOARDS = {
 }
 
 
+# The feed view each fabricated state directory is worth reading, by the issue
+# whose newest attempt it shows.
+FEEDS = {
+    "feed-working": (fabricate_everything, 13),
+    "feed-older-attempts": (fabricate_repeat_attempts, 13),
+}
+
+
 # The session view each fabricated state directory is worth reading, by the
 # issue whose newest attempt it shows.
 SESSIONS = {
@@ -231,6 +260,140 @@ def test_a_session_renders_as_its_golden_view(name, tmp_path, daemon):
     view = viewed(state, issue)
 
     assert view == (FIXTURES / "board" / f"{name}.txt").read_text(encoding="utf-8")
+
+
+def followed(state, issue: int, wait=lambda seconds: None) -> str:
+    """Return the feed view that issue renders as, on a pinned console."""
+    written_to = StringIO()
+    show_feed(
+        state,
+        issue,
+        Console(file=written_to, width=WIDTH),
+        wait=wait,
+        clock=lambda: LOOKED_AT,
+    )
+    return written_to.getvalue()
+
+
+@pytest.mark.parametrize("name", sorted(FEEDS))
+def test_a_feed_renders_as_its_golden_view(name, tmp_path, daemon):
+    state = StateDirectory(tmp_path)
+    fabricate, issue = FEEDS[name]
+    fabricate(state)
+
+    feed = followed(state, issue, wait=lambda seconds: state.lock.unlink())
+
+    assert feed == (FIXTURES / "board" / f"{name}.txt").read_text(encoding="utf-8")
+
+
+def test_a_following_view_waits_while_a_round_is_still_running(tmp_path, daemon):
+    state = StateDirectory(tmp_path)
+    fabricate_everything(state)
+    waits = []
+
+    def wait(seconds):
+        waits.append(seconds)
+        state.lock.unlink()
+
+    followed(state, 13, wait=wait)
+
+    assert waits == [PAUSE]
+
+
+def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path, daemon):
+    state = StateDirectory(tmp_path)
+    fabricate_everything(state)
+    directory = state.sessions / f"GH13-{STAMP}"
+
+    def wait(seconds):
+        write_round(directory, 3, running(60, cause=Cause.CARRY_ON))
+        write_feed(directory, 3, Line(PINNED, "[Bash] git push"))
+        state.lock.unlink()
+
+    feed = followed(state, 13, wait=wait)
+
+    assert "round 3: carried on" in feed
+    assert feed.count("round 1: dispatched") == 1
+
+
+def test_a_view_of_a_session_no_daemon_is_running_never_waits(tmp_path):
+    state = StateDirectory(tmp_path)
+    fabricate_a_dead_daemon(state)
+    waits = []
+
+    followed(state, 13, wait=waits.append)
+
+    assert waits == []
+
+
+def test_a_write_that_never_landed_waits_for_the_look_that_shows_it_whole(
+    tmp_path, daemon
+):
+    state = StateDirectory(tmp_path)
+    fabricate_everything(state)
+    feed = state.sessions / f"GH13-{STAMP}" / "rounds" / "2" / "feed.txt"
+
+    def wait(seconds):
+        feed.write_text(
+            feed.read_text(encoding="utf-8") + "2026-08-19T18:41:58Z  [Grep] pypro",
+            encoding="utf-8",
+        )
+        state.lock.unlink()
+
+    assert "[Grep]" not in followed(state, 13, wait=wait)
+
+
+def test_a_line_the_view_cannot_read_reaches_the_reader_as_it_was_written(
+    tmp_path, daemon
+):
+    state = StateDirectory(tmp_path)
+    fabricate_everything(state)
+    write_text(
+        "the harness said something else\n",
+        state.sessions / f"GH13-{STAMP}" / "rounds" / "2" / "feed.txt",
+    )
+
+    feed = followed(state, 13, wait=lambda seconds: state.lock.unlink())
+
+    assert "the harness said something else" in feed
+
+
+def viewed_round(state, issue: int, number: int) -> str:
+    """Return the view of one round of that issue, on a pinned console."""
+    written_to = StringIO()
+    show_round(
+        state,
+        issue,
+        number,
+        Console(file=written_to, width=WIDTH),
+        clock=lambda: LOOKED_AT,
+    )
+    return written_to.getvalue()
+
+
+def test_one_round_of_a_session_reads_on_its_own(tmp_path, daemon):
+    state = StateDirectory(tmp_path)
+    fabricate_everything(state)
+
+    assert viewed_round(state, 13, 2) == (
+        "2026-08-19T19:11:58Z  round 2: new posts\n"
+        "2026-08-19T19:12:58Z  [Bash] pytest\n"
+    )
+
+
+def test_a_round_that_wrote_no_feed_shows_the_line_that_opens_it(tmp_path, daemon):
+    state = StateDirectory(tmp_path)
+    fabricate_everything(state)
+
+    assert viewed_round(state, 12, 1) == "2026-08-19T18:42:58Z  round 1: dispatched\n"
+
+
+def test_a_round_the_session_never_ran_says_how_many_it_did(tmp_path, daemon):
+    state = StateDirectory(tmp_path)
+    fabricate_everything(state)
+
+    with pytest.raises(ReportableError, match="has run 2 rounds"):
+        viewed_round(state, 13, 7)
 
 
 def test_an_issue_no_session_here_has_says_so(tmp_path):

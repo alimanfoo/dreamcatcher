@@ -366,6 +366,8 @@ src/:
     scry.py:
       COLOURS:
       QUEUE:
+      PAUSE:
+      LABEL:
       INDENT:
       open_console:
       show_board:
@@ -382,6 +384,13 @@ src/:
       _show_hand_resume:
       _show_older_attempts:
       _under_the_checkout:
+      show_round:
+      show_feed:
+      _find_attempts:
+      _compose_feed:
+      _read_feed:
+      _paint_written:
+      _paint:
     sessions.py:
       BRANCH_PREFIX:
       RECORD:
@@ -949,8 +958,10 @@ tests/:
     WIDTH:
     DAEMON_PID:
     STAMP:
+    SAID:
     DOUBLE_LABELLED:
     BOARDS:
+    FEEDS:
     SESSIONS:
     daemon:
     written:
@@ -966,6 +977,17 @@ tests/:
     test_a_state_directory_renders_as_its_golden_board:
     viewed:
     test_a_session_renders_as_its_golden_view:
+    followed:
+    test_a_feed_renders_as_its_golden_view:
+    test_a_following_view_waits_while_a_round_is_still_running:
+    test_a_round_that_starts_while_the_view_is_going_arrives_in_it:
+    test_a_view_of_a_session_no_daemon_is_running_never_waits:
+    test_a_write_that_never_landed_waits_for_the_look_that_shows_it_whole:
+    test_a_line_the_view_cannot_read_reaches_the_reader_as_it_was_written:
+    viewed_round:
+    test_one_round_of_a_session_reads_on_its_own:
+    test_a_round_that_wrote_no_feed_shows_the_line_that_opens_it:
+    test_a_round_the_session_never_ran_says_how_many_it_did:
     test_an_issue_no_session_here_has_says_so:
     test_the_console_scry_opens_writes_where_the_user_is_looking:
   test_sessions.py:
