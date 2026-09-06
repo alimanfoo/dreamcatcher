@@ -10,14 +10,18 @@ plain text and the colour is put on at the moment of reading.
 
 from collections.abc import Callable
 from datetime import datetime
+from pathlib import Path
 
-from rich.console import Console
+from rich.console import Console, RenderableType
 from rich.padding import Padding
 from rich.table import Table
 from rich.text import Text
 
-from dreamcatcher.board import Board, Standing, read_board
-from dreamcatcher.clock import describe_span, now
+from dreamcatcher.board import Attempt, Board, Standing, read_board
+from dreamcatcher.clock import describe_span, describe_time, now
+from dreamcatcher.errors import ReportableError
+from dreamcatcher.harnesses import ADAPTERS
+from dreamcatcher.rounds import RoundRecord
 from dreamcatcher.state import StateDirectory
 
 # What each section of the board is set in, so a reader finds the one they
@@ -108,16 +112,136 @@ def _show_queue(console: Console, board: Board) -> None:
 
 
 def _open_table() -> Table:
-    """Return an empty table of the three columns every section shows."""
+    """Return an empty table whose columns fit whatever a section puts in them."""
     table = Table(box=None, show_header=False, pad_edge=False)
     table.add_column(style="bold")
-    table.add_column()
-    table.add_column()
     return table
 
 
-def _print_section(console: Console, heading: str, colour: str, table: Table) -> None:
-    """Print one section of the board, under its own heading."""
+def _print_section(
+    console: Console, heading: str, colour: str, body: RenderableType
+) -> None:
+    """Print one section of a view, set in under its own heading."""
     console.print()
     console.print(Text(heading, style=f"bold {colour}"))
-    console.print(Padding(table, INDENT, expand=False))
+    console.print(Padding(body, INDENT, expand=False))
+
+
+def show_session(
+    state: StateDirectory,
+    issue: int,
+    console: Console,
+    clock: Callable[[], datetime] = now,
+) -> None:
+    """Show the newest attempt at the issue, with the older ones beneath it.
+
+    An issue that has been dispatched more than once has an attempt for each
+    dispatch. The newest is the one still going, or the one that got furthest,
+    so it is the one the view is about.
+    """
+    board = read_board(state, clock)
+    attempts = [one for one in board.attempts if one.session.record.issue == issue]
+    if not attempts:
+        raise ReportableError(f"No session here for GH{issue}.")
+    newest = attempts[0]
+    console.print(Text(f"GH{issue}, attempt {newest.attempt} of {newest.attempts}"))
+    console.print(
+        Text(f"{newest.standing}, {newest.detail}", style=COLOURS[newest.standing])
+    )
+    _show_vitals(console, state, newest)
+    _show_rounds(console, newest)
+    _show_hand_resume(console, state, newest)
+    _show_older_attempts(console, attempts[1:])
+
+
+def _show_vitals(console: Console, state: StateDirectory, attempt: Attempt) -> None:
+    """Show what the dispatch settled, which every round of the session runs with."""
+    record = attempt.session.record
+    table = _open_table()
+    for name, value in (
+        ("key", attempt.session.key),
+        ("label", record.label),
+        ("branch", record.branch),
+        ("worktree", _under_the_checkout(state, record.worktree)),
+        ("harness", record.harness),
+        ("model", record.model),
+        ("effort", record.effort),
+    ):
+        table.add_row(Text(name), Text(str(value)))
+    _print_section(console, "session", "blue", table)
+    _print_section(console, "first prompt", "blue", Text(record.prompt))
+
+
+def _show_rounds(console: Console, attempt: Attempt) -> None:
+    """Show the rounds the session has run, oldest first."""
+    rounds = attempt.session.rounds
+    if not rounds:
+        return
+    table = _open_table()
+    for number, record in enumerate(rounds, start=1):
+        is_running = attempt.standing is Standing.WORKING and number == len(rounds)
+        table.add_row(
+            Text(str(number)),
+            Text(record.cause),
+            Text(describe_time(record.started)),
+            Text(_describe_run(record)),
+            Text(_describe_ending(record, is_running)),
+        )
+    _print_section(console, "rounds", "blue", table)
+
+
+def _describe_run(record: RoundRecord) -> str:
+    """Return how long the round ran, or nothing while it is still running."""
+    if record.ending is None:
+        return ""
+    return f"ran {describe_span(record.ending.at - record.started)}"
+
+
+def _describe_ending(record: RoundRecord, is_running: bool) -> str:
+    """Return how the round ended, or what it is doing instead.
+
+    A round that recorded no ending never finished. It is running when a daemon
+    is still there to run it, and interrupted once that daemon has gone, since
+    a round cannot outlive its daemon.
+    """
+    if record.ending is not None:
+        return f"exit {record.ending.status}"
+    return "running" if is_running else "interrupted"
+
+
+def _show_hand_resume(
+    console: Console, state: StateDirectory, attempt: Attempt
+) -> None:
+    """Show how to carry the session on by hand, when there is one to carry on.
+
+    A round of the daemon's own is talking to the harness already, so there is
+    nothing to take over until it has finished. A session that has run no round
+    at all has no harness session behind it either, so there is nothing to
+    take over there and never will be.
+    """
+    if attempt.standing is Standing.WORKING or not attempt.session.rounds:
+        return
+    worktree = _under_the_checkout(state, attempt.session.record.worktree)
+    command = " ".join(ADAPTERS[attempt.session.record.harness].build_hand_resume())
+    _print_section(
+        console, "take it over yourself", "blue", Text(f"cd {worktree}\n{command}")
+    )
+
+
+def _show_older_attempts(console: Console, older: list[Attempt]) -> None:
+    """Show the attempts at this issue that came before, newest first."""
+    if not older:
+        return
+    table = _open_table()
+    for attempt in older:
+        table.add_row(
+            Text(attempt.session.key),
+            Text(str(attempt.standing)),
+            Text(attempt.detail),
+        )
+    _print_section(console, "older attempts", "blue", table)
+
+
+def _under_the_checkout(state: StateDirectory, path: Path) -> str:
+    """Return the path as it reads from the checkout, the one way everywhere."""
+    return path.relative_to(state.root).as_posix()

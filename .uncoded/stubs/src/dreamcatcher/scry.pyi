@@ -3,12 +3,16 @@
 
 from collections.abc import Callable
 from datetime import datetime
-from rich.console import Console
+from pathlib import Path
+from rich.console import Console, RenderableType
 from rich.padding import Padding
 from rich.table import Table
 from rich.text import Text
-from dreamcatcher.board import Board, Standing, read_board
-from dreamcatcher.clock import describe_span, now
+from dreamcatcher.board import Attempt, Board, Standing, read_board
+from dreamcatcher.clock import describe_span, describe_time, now
+from dreamcatcher.errors import ReportableError
+from dreamcatcher.harnesses import ADAPTERS
+from dreamcatcher.rounds import RoundRecord
 from dreamcatcher.state import StateDirectory
 
 COLOURS = ...
@@ -33,5 +37,29 @@ def _show_queue(console: Console, board: Board) -> None:
 def _open_table() -> Table:
     ...
 
-def _print_section(console: Console, heading: str, colour: str, table: Table) -> None:
+def _print_section(console: Console, heading: str, colour: str, body: RenderableType) -> None:
+    ...
+
+def show_session(state: StateDirectory, issue: int, console: Console, clock: Callable[[], datetime]) -> None:
+    ...
+
+def _show_vitals(console: Console, state: StateDirectory, attempt: Attempt) -> None:
+    ...
+
+def _show_rounds(console: Console, attempt: Attempt) -> None:
+    ...
+
+def _describe_run(record: RoundRecord) -> str:
+    ...
+
+def _describe_ending(record: RoundRecord, is_running: bool) -> str:
+    ...
+
+def _show_hand_resume(console: Console, state: StateDirectory, attempt: Attempt) -> None:
+    ...
+
+def _show_older_attempts(console: Console, older: list[Attempt]) -> None:
+    ...
+
+def _under_the_checkout(state: StateDirectory, path: Path) -> str:
     ...

@@ -10,9 +10,10 @@ from conftest import FIXTURES, LABEL
 from records import write_feed, write_round, write_session, write_tick
 from rich.console import Console
 from dreamcatcher.documents import write_text
+from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Line
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
-from dreamcatcher.scry import open_console, show_board
+from dreamcatcher.scry import open_console, show_board, show_session
 from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, WaitingSession
 
 LOOKED_AT = PINNED + timedelta(hours=2)
@@ -21,6 +22,7 @@ DAEMON_PID = 4242
 STAMP = '20260819-184158'
 DOUBLE_LABELLED = 'carries more than one mapped label: dream:less, dream:smith'
 BOARDS = ...
+SESSIONS = ...
 
 def daemon(monkeypatch):
     ...
@@ -31,7 +33,7 @@ def written(state, issue: int, *records: RoundRecord):
 def ended(minute: int, status: int, cause: Cause):
     ...
 
-def running(minute: int):
+def running(minute: int, cause: Cause):
     ...
 
 def holding(state):
@@ -56,6 +58,15 @@ def rendered(state) -> str:
     ...
 
 def test_a_state_directory_renders_as_its_golden_board(name, tmp_path, daemon):
+    ...
+
+def viewed(state, issue: int) -> str:
+    ...
+
+def test_a_session_renders_as_its_golden_view(name, tmp_path, daemon):
+    ...
+
+def test_an_issue_no_session_here_has_says_so(tmp_path):
     ...
 
 def test_the_console_scry_opens_writes_where_the_user_is_looking(capsys, tmp_path):

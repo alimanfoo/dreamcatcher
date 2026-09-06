@@ -6,6 +6,9 @@ reader of a feed both want it in the same words.
 
 from datetime import UTC, datetime, timedelta
 
+# How a time is written wherever the tool writes one.
+STAMP = "%Y-%m-%dT%H:%M:%SZ"
+
 # How many of the smaller unit make one of the next unit up.
 MINUTE = 60
 HOUR = 60
@@ -15,6 +18,11 @@ DAY = 24
 def now() -> datetime:
     """Return the time now, in UTC."""
     return datetime.now(UTC)
+
+
+def describe_time(at: datetime) -> str:
+    """Return the time as the tool writes one, in UTC whatever it was read in."""
+    return f"{at.astimezone(UTC):{STAMP}}"
 
 
 def describe_span(span: timedelta) -> str:

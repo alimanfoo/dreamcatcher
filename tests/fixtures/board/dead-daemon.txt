@@ -9,8 +9,9 @@ waiting
   GH35  attempt 1 of 1  the last round failed (exit 2)
 
 stuck
-  GH9  attempt 1 of 1  no pull request has been opened on it                                        
-                       (.dreamcatcher/sessions/GH9-20260819-184158/rounds/1/feed.txt)               
+  GH9   attempt 1 of 1  no pull request has been opened on it                                       
+                        (.dreamcatcher/sessions/GH9-20260819-184158/rounds/1/feed.txt)              
+  GH44  attempt 1 of 1  no round has run yet                                                        
 
 queued
   GH50  dream:smith  next                                                       

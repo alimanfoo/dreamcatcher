@@ -19,9 +19,10 @@ from records import write_feed, write_round, write_session, write_tick
 from rich.console import Console
 
 from dreamcatcher.documents import write_text
+from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Line
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
-from dreamcatcher.scry import open_console, show_board
+from dreamcatcher.scry import open_console, show_board, show_session
 from dreamcatcher.state import (
     CandidateIssue,
     LastTick,
@@ -60,18 +61,19 @@ def written(state, issue: int, *records: RoundRecord):
 
 
 def ended(minute: int, status: int = 0, cause: Cause = Cause.DISPATCH):
-    """A round that started that minute past the pinned hour and ended well."""
+    """A round that started that minute past the pinned hour and ran for four."""
     started = PINNED + timedelta(minutes=minute)
     return RoundRecord(
-        started=started, pid=1, cause=cause, ending=Ending(at=started, status=status)
+        started=started,
+        pid=1,
+        cause=cause,
+        ending=Ending(at=started + timedelta(minutes=4), status=status),
     )
 
 
-def running(minute: int = 0):
-    """A round that started and has recorded no ending."""
-    return RoundRecord(
-        started=PINNED + timedelta(minutes=minute), pid=1, cause=Cause.POSTS
-    )
+def running(minute: int, cause: Cause = Cause.DISPATCH):
+    """A round that started that minute past the pinned hour and is still going."""
+    return RoundRecord(started=PINNED + timedelta(minutes=minute), pid=1, cause=cause)
 
 
 def holding(state):
@@ -87,12 +89,17 @@ def fabricate_nothing(state):
 def fabricate_everything(state):
     """A daemon running, with a session in every standing and a queue behind."""
     holding(state)
-    write_feed(written(state, 13, running()), 1, Line(PINNED, "[Bash] pytest"))
+    write_feed(
+        written(state, 13, ended(1), running(30, cause=Cause.POSTS)),
+        2,
+        Line(PINNED, "[Bash] pytest"),
+    )
     write_feed(written(state, 20, ended(1)), 1, Line(PINNED, "[Bash] git push"))
     written(state, 31, ended(1))
     written(state, 35, ended(1, status=2))
     written(state, 9, ended(1))
     written(state, 12, ended(1), ended(2, cause=Cause.FINAL))
+    written(state, 44)
     write_tick(
         state,
         LastTick(
@@ -119,6 +126,12 @@ def fabricate_everything(state):
                     reason="no pull request has been opened on it",
                     is_stuck=True,
                 ),
+                WaitingSession(
+                    session=f"GH44-{STAMP}",
+                    issue=44,
+                    reason="no round has run yet",
+                    is_stuck=True,
+                ),
             ],
         ),
     )
@@ -133,7 +146,7 @@ def fabricate_a_dead_daemon(state):
 def fabricate_the_cap(state):
     """A daemon at its cap, which peeked at nothing and holds every session."""
     holding(state)
-    write_feed(written(state, 13, running()), 1, Line(PINNED, "[Bash] pytest"))
+    write_feed(written(state, 13, running(30)), 1, Line(PINNED, "[Bash] pytest"))
     written(state, 20, ended(1))
     hold = "at cap: 1 of 1 rounds running"
     write_tick(
@@ -156,6 +169,7 @@ def fabricate_repeat_attempts(state):
         directory = write_session(state, f"GH13-{stamp}", 13)
         for number, record in enumerate(rounds, start=1):
             write_round(directory, number, record)
+        write_feed(directory, len(rounds), Line(PINNED, "[Bash] git push"))
     write_tick(state, LastTick(at=PINNED + timedelta(hours=1, minutes=58)))
 
 
@@ -165,6 +179,16 @@ BOARDS = {
     "dead-daemon": fabricate_a_dead_daemon,
     "at-cap": fabricate_the_cap,
     "repeat-attempts": fabricate_repeat_attempts,
+}
+
+
+# The session view each fabricated state directory is worth reading, by the
+# issue whose newest attempt it shows.
+SESSIONS = {
+    "session-working": (fabricate_everything, 13),
+    "session-older-attempts": (fabricate_repeat_attempts, 13),
+    "session-stuck": (fabricate_everything, 9),
+    "session-never-started": (fabricate_everything, 44),
 }
 
 
@@ -187,6 +211,31 @@ def test_a_state_directory_renders_as_its_golden_board(name, tmp_path, daemon):
     board = rendered(state)
 
     assert board == (FIXTURES / "board" / f"{name}.txt").read_text(encoding="utf-8")
+
+
+def viewed(state, issue: int) -> str:
+    """Return the session view that issue renders as, on a pinned console."""
+    written_to = StringIO()
+    show_session(
+        state, issue, Console(file=written_to, width=WIDTH), clock=lambda: LOOKED_AT
+    )
+    return written_to.getvalue()
+
+
+@pytest.mark.parametrize("name", sorted(SESSIONS))
+def test_a_session_renders_as_its_golden_view(name, tmp_path, daemon):
+    state = StateDirectory(tmp_path)
+    fabricate, issue = SESSIONS[name]
+    fabricate(state)
+
+    view = viewed(state, issue)
+
+    assert view == (FIXTURES / "board" / f"{name}.txt").read_text(encoding="utf-8")
+
+
+def test_an_issue_no_session_here_has_says_so(tmp_path):
+    with pytest.raises(ReportableError, match="GH99"):
+        viewed(StateDirectory(tmp_path), 99)
 
 
 def test_the_console_scry_opens_writes_where_the_user_is_looking(capsys, tmp_path):

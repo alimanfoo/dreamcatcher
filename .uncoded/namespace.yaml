@@ -91,10 +91,12 @@ src/:
       build_parser:
       main:
     clock.py:
+      STAMP:
       MINUTE:
       HOUR:
       DAY:
       now:
+      describe_time:
       describe_span:
     codex.py:
       NETWORK_ACCESS:
@@ -197,7 +199,6 @@ src/:
     feed.py:
       WIDTH:
       INDENT:
-      STAMP:
       GAP:
       Event:
       Line:
@@ -373,6 +374,14 @@ src/:
       _show_queue:
       _open_table:
       _print_section:
+      show_session:
+      _show_vitals:
+      _show_rounds:
+      _describe_run:
+      _describe_ending:
+      _show_hand_resume:
+      _show_older_attempts:
+      _under_the_checkout:
     sessions.py:
       BRANCH_PREFIX:
       RECORD:
@@ -942,6 +951,7 @@ tests/:
     STAMP:
     DOUBLE_LABELLED:
     BOARDS:
+    SESSIONS:
     daemon:
     written:
     ended:
@@ -954,6 +964,9 @@ tests/:
     fabricate_repeat_attempts:
     rendered:
     test_a_state_directory_renders_as_its_golden_board:
+    viewed:
+    test_a_session_renders_as_its_golden_view:
+    test_an_issue_no_session_here_has_says_so:
     test_the_console_scry_opens_writes_where_the_user_is_looking:
   test_sessions.py:
     KEY:

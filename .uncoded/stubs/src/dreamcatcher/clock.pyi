@@ -3,11 +3,15 @@
 
 from datetime import UTC, datetime, timedelta
 
+STAMP = '%Y-%m-%dT%H:%M:%SZ'
 MINUTE = 60
 HOUR = 60
 DAY = 24
 
 def now() -> datetime:
+    ...
+
+def describe_time(at: datetime) -> str:
     ...
 
 def describe_span(span: timedelta) -> str:

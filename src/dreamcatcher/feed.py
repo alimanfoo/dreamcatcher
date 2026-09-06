@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path, PurePath
 
-from dreamcatcher.clock import now
+from dreamcatcher.clock import STAMP, describe_time, now
 from dreamcatcher.documents import read_text
 
 # A note's detail can be as long as a whole file, so the line is clipped. The
@@ -24,9 +24,6 @@ WIDTH = 200
 # What a subagent's lines are set in from, so the main thread stays easy to
 # follow. It sits after the timestamp, which keeps the timestamps in a column.
 INDENT = "  "
-
-# How a line stamps the time it was written.
-STAMP = "%Y-%m-%dT%H:%M:%SZ"
 
 # What sits between a line's stamp and what the line says.
 GAP = "  "
@@ -45,7 +42,7 @@ class Line:
 
     def render(self) -> str:
         """Return the line as a feed holds it, the line ending included."""
-        return f"{self.at.astimezone(UTC):{STAMP}}{GAP}{self.text}\n"
+        return f"{describe_time(self.at)}{GAP}{self.text}\n"
 
 
 def compose_round_boundary(number: int, cause: str, at: datetime) -> Line:

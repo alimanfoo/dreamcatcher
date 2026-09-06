@@ -5,12 +5,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path, PurePath
-from dreamcatcher.clock import now
+from dreamcatcher.clock import STAMP, describe_time, now
 from dreamcatcher.documents import read_text
 
 WIDTH = 200
 INDENT = '  '
-STAMP = '%Y-%m-%dT%H:%M:%SZ'
 GAP = '  '
 type Event = Note | Prose
 
