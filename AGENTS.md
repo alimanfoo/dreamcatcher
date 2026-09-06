@@ -84,10 +84,13 @@ uv run pre-commit run --all-files
   repair is already in your working tree.
 - Never edit `.uncoded/` or the `uncoded-*` skills by hand. `uncoded sync`
   writes them from the source and the docs, and overwrites them on every commit.
-- Never repair a file under `tests/fixtures/`. Each one is a verbatim recording
-  of what a harness streamed, so tidying it makes a golden test assert something
-  the harness never sent. `.pre-commit-config.yaml` excludes that path from
-  every hook, and `.gitattributes` keeps its line endings.
+- Never repair a file under `tests/fixtures/`. Each one is a recording: of what
+  a harness streamed, of what gh answered, or of what a view rendered. Tidying
+  one makes a golden test assert something that was never produced.
+  `.pre-commit-config.yaml` excludes that path from every hook, and
+  `.gitattributes` keeps its line endings. Write a golden that a hook would
+  otherwise repair under there, as a rendered table is, since its rows end in
+  the spaces that pad them.
 - For a failure that the user needs to read, raise a `ReportableError`.
   `cli.main` catches that one class and prints the message, and anything else
   reaches the user as a traceback, which means a bug in the tool. A failed write

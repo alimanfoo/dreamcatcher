@@ -359,6 +359,17 @@ src/:
         _pass_through:
         _append:
       read_round_records:
+    scry.py:
+      COLOURS:
+      QUEUE:
+      INDENT:
+      open_console:
+      show_board:
+      _describe_daemon:
+      _show_attempts:
+      _show_queue:
+      _open_table:
+      _print_section:
     sessions.py:
       BRANCH_PREFIX:
       RECORD:
@@ -918,6 +929,26 @@ tests/:
     test_a_round_that_cannot_record_its_start_does_not_run_on:
     test_a_round_a_straggler_outlives_still_records_an_ending:
     test_a_round_a_straggler_outlives_still_stops:
+  test_scry.py:
+    LOOKED_AT:
+    WIDTH:
+    DAEMON_PID:
+    STAMP:
+    DOUBLE_LABELLED:
+    BOARDS:
+    daemon:
+    written:
+    ended:
+    running:
+    holding:
+    fabricate_nothing:
+    fabricate_everything:
+    fabricate_a_dead_daemon:
+    fabricate_the_cap:
+    fabricate_repeat_attempts:
+    rendered:
+    test_a_state_directory_renders_as_its_golden_board:
+    test_the_console_scry_opens_writes_where_the_user_is_looking:
   test_sessions.py:
     KEY:
     BRANCH:

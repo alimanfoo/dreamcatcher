@@ -193,7 +193,7 @@ class Daemon:
         A session that has run its final round is waiting for nothing, so the
         cap holds nothing of its.
         """
-        hold = f"at cap: {len(self.rounds)} rounds running"
+        hold = f"at cap: {len(self.rounds)} of {self.config.max_agents} rounds running"
         return LastTick(
             at=at,
             hold=hold,

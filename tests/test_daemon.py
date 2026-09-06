@@ -410,7 +410,7 @@ def test_a_tick_at_the_cap_says_the_cap_is_what_each_session_waits_on(
     # The first tick dispatched issue 8, and its round is what fills the cap,
     # so the session already on disk is the one the cap holds.
     assert recorded(daemon).waiting == [
-        WaitingSession(session=KEY, issue=13, reason="at cap: 1 rounds running")
+        WaitingSession(session=KEY, issue=13, reason="at cap: 1 of 1 rounds running")
     ]
 
 
@@ -433,7 +433,7 @@ def test_a_tick_at_the_cap_spends_no_github_call(dispatching, offered, harnesses
 
     daemon.run()
 
-    assert recorded(daemon).hold == "at cap: 1 rounds running"
+    assert recorded(daemon).hold == "at cap: 1 of 1 rounds running"
     assert [call.arguments[:2] for call in offered.calls] == [
         ["repo", "view"],
         ["api", "user"],
