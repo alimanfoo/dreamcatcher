@@ -1,17 +1,16 @@
 """Run the daemon: hold the repo, and tick on the configured interval.
 
-A tick looks once and launches at most one round. It weighs its own live rounds
-against the cap first. When they fill the cap, the tick refreshes the candidate
-issues for the board and defers every launch. Otherwise, it reads the sessions
-on disk and works out what each of them needs next.
+A tick looks once and launches at most one round. It reads the sessions on disk
+and asks GitHub which labelled issues could be dispatched, so every tick leaves
+the board a current queue. It then weighs its own live rounds against the cap
+and works out what each session needs next when a slot is free.
 
 Open work goes before new work, and the most open of it first: a round that did
 not finish is carried on, then a merged or closed pull request gets its last
 round, then a session answers what the user posted. Only when no session needs
-anything does an uncapped tick ask GitHub which labelled issues it could
-dispatch, and dispatch the oldest one that no session and no pull request has
-claimed and no open issue blocks. `eligibility.py` holds that rule whole, the
-labels included.
+anything does an uncapped tick dispatch the oldest candidate that no session
+and no pull request has claimed and no open issue blocks. `eligibility.py` holds
+that rule whole, the labels included.
 
 Whatever it observed and decided goes into `last-tick.json`, so what the daemon
 did not do, and why, is as readable as what it did.
@@ -160,60 +159,59 @@ class Daemon:
     ) -> LastTick:
         """Launch at most one round, and return what the tick observed.
 
-        The cap prevents a launch, but not a read. A capped tick still weighs
-        the candidate issues, so the board keeps showing the current queue
-        while another round is running.
+        Every tick weighs the candidate issues, so the board keeps showing the
+        current queue while the daemon is carrying on open work or waiting for
+        a launch slot.
 
         The cooldown holds every launch, a wakeup and a dispatch alike, but it
         holds no read. So a tick under it still says what each session is
         waiting on, rather than going quiet for the whole fifteen minutes.
         """
-        if len(self.rounds) >= self.config.max_agents:
-            return self._defer_at_cap(repository, at)
         sessions = read_sessions(self.state)
+        judged = judge_issues(
+            repository, self.config, {session.record.issue for session in sessions}
+        )
+        if isinstance(judged, Unknown):
+            candidate_failure = judged.reason
+            candidates = []
+        else:
+            candidate_failure = None
+            candidates = judged
+        if len(self.rounds) >= self.config.max_agents:
+            cap = (
+                f"at cap: {len(self.rounds)} of {self.config.max_agents} rounds running"
+            )
+            hold = (
+                cap
+                if candidate_failure is None
+                else f"{cap}; could not refresh queue: {candidate_failure}"
+            )
+            return LastTick(
+                at=at,
+                hold=hold,
+                candidates=candidates,
+                waiting=[
+                    compose_wait(session, cap)
+                    for session in sessions
+                    if session.key not in self.rounds
+                    and not session.has_run_final_round
+                ],
+            )
         found = self._judge_sessions(repository, account, sessions)
         cooling = _check_cooldown(sessions, at)
         if cooling is not None:
-            return LastTick(at=at, hold=cooling, waiting=list_waiting(found))
+            return LastTick(
+                at=at,
+                hold=cooling,
+                candidates=candidates,
+                waiting=list_waiting(found),
+            )
         ready = sort_wakeups([one for one in found if isinstance(one, Wakeup)])
         if ready:
-            return self._resume_session(at, ready[0], found)
-        judged = judge_issues(
-            repository, self.config, {session.record.issue for session in sessions}
-        )
-        if isinstance(judged, Unknown):
-            return LastTick(at=at, hold=judged.reason, waiting=list_waiting(found))
-        return self._dispatch_oldest_issue(at, judged, list_waiting(found))
-
-    def _defer_at_cap(self, repository: str, at: datetime) -> LastTick:
-        """Return what a tick held at the cap saw, and what the cap is holding.
-
-        The cap prevents a launch, but the tick still weighs the candidate
-        issues so the board's queue stays current. Each session that no round
-        is running for waits on the cap without a peek of its pull request.
-
-        A session that has run its final round is waiting for nothing, so the
-        cap holds nothing of its. If the issue listing fails, that failure is
-        what held the tick because the board cannot show a current queue.
-        """
-        hold = f"at cap: {len(self.rounds)} of {self.config.max_agents} rounds running"
-        sessions = read_sessions(self.state)
-        waiting = [
-            compose_wait(session, hold)
-            for session in sessions
-            if session.key not in self.rounds and not session.has_run_final_round
-        ]
-        judged = judge_issues(
-            repository, self.config, {session.record.issue for session in sessions}
-        )
-        if isinstance(judged, Unknown):
-            return LastTick(at=at, hold=judged.reason, waiting=waiting)
-        return LastTick(
-            at=at,
-            hold=hold,
-            candidates=judged,
-            waiting=waiting,
-        )
+            return self._resume_session(at, ready[0], found, candidates)
+        if candidate_failure is not None:
+            return LastTick(at=at, hold=candidate_failure, waiting=list_waiting(found))
+        return self._dispatch_oldest_issue(at, candidates, list_waiting(found))
 
     def _judge_sessions(
         self, repository: str, account: str, sessions: list[Session]
@@ -234,7 +232,11 @@ class Daemon:
         return found
 
     def _resume_session(
-        self, at: datetime, wakeup: Wakeup, found: list[Finding]
+        self,
+        at: datetime,
+        wakeup: Wakeup,
+        found: list[Finding],
+        candidates: list[CandidateIssue],
     ) -> LastTick:
         """Resume the session with the highest priority this tick.
 
@@ -245,9 +247,19 @@ class Daemon:
         try:
             self._launch_wakeup(wakeup)
         except ReportableError as failure:
-            return LastTick(at=at, hold=str(failure), waiting=list_waiting(found))
+            return LastTick(
+                at=at,
+                hold=str(failure),
+                candidates=candidates,
+                waiting=list_waiting(found),
+            )
         rest = [one for one in found if one is not wakeup]
-        return LastTick(at=at, launched=wakeup.session.key, waiting=list_waiting(rest))
+        return LastTick(
+            at=at,
+            launched=wakeup.session.key,
+            candidates=candidates,
+            waiting=list_waiting(rest),
+        )
 
     def _launch_wakeup(self, wakeup: Wakeup) -> None:
         """Start the round the wakeup asks for, and keep it in `self.rounds`.

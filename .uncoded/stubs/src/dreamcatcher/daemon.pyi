@@ -43,13 +43,10 @@ class Daemon:
     def _decide_and_launch(self, repository: str, account: str, at: datetime) -> LastTick:
         ...
 
-    def _defer_at_cap(self, repository: str, at: datetime) -> LastTick:
-        ...
-
     def _judge_sessions(self, repository: str, account: str, sessions: list[Session]) -> list[Finding]:
         ...
 
-    def _resume_session(self, at: datetime, wakeup: Wakeup, found: list[Finding]) -> LastTick:
+    def _resume_session(self, at: datetime, wakeup: Wakeup, found: list[Finding], candidates: list[CandidateIssue]) -> LastTick:
         ...
 
     def _launch_wakeup(self, wakeup: Wakeup) -> None:

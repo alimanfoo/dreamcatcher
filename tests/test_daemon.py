@@ -418,7 +418,7 @@ def test_a_second_tick_judges_a_dispatched_issue_handled(dispatching):
 
 
 def test_a_tick_at_the_cap_says_the_cap_is_what_each_session_waits_on(
-    dispatching, harnesses
+    dispatching, offered, harnesses
 ):
     harnesses["claude"].streams([Line("still working\n")], delay=STILL_RUNNING)
     write_session(StateDirectory(dispatching), KEY, 13)
@@ -431,6 +431,7 @@ def test_a_tick_at_the_cap_says_the_cap_is_what_each_session_waits_on(
     assert recorded(daemon).waiting == [
         WaitingSession(session=KEY, issue=13, reason="at cap: 1 of 1 rounds running")
     ]
+    assert not any(call.arguments[:2] == ["pr", "list"] for call in offered.calls)
 
 
 def test_a_tick_at_the_cap_leaves_a_wound_up_session_waiting_on_nothing(
@@ -476,7 +477,9 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
 
     daemon.run()
 
-    assert "could not connect" in held(daemon)
+    hold = held(daemon)
+    assert hold.startswith("at cap: 1 of 1 rounds running; could not refresh queue: ")
+    assert "could not connect" in hold
     assert recorded(daemon).candidates == []
     assert recorded(daemon).waiting == [
         WaitingSession(session=KEY, issue=13, reason="at cap: 1 of 1 rounds running")
@@ -847,10 +850,10 @@ def test_open_work_is_carried_on_before_a_new_issue_is_dispatched(
 
     assert recorded(daemon).launched == KEY
     assert not (daemon.state.worktrees / DISPATCHED_KEY).exists()
-    assert recorded(daemon).candidates == []
+    assert recorded(daemon).candidates == [CandidateIssue(issue=8, label=LABEL)]
 
 
-def test_a_cooling_tick_still_says_what_each_session_is_waiting_on(resuming):
+def test_a_cooling_tick_still_says_what_each_session_is_waiting_on(resuming, offered):
     directory = StateDirectory(resuming).sessions / KEY
     write_round(
         directory,
@@ -870,6 +873,7 @@ def test_a_cooling_tick_still_says_what_each_session_is_waiting_on(resuming):
     assert recorded(daemon).waiting == [
         WaitingSession(session=KEY, issue=13, reason="the last round failed (exit 1)")
     ]
+    assert recorded(daemon).candidates == [CandidateIssue(issue=8, label=LABEL)]
 
 
 def test_a_run_that_cannot_be_told_which_account_gh_is_signed_in_as_refuses(

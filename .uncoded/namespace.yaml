@@ -161,7 +161,6 @@ src/:
         run:
         tick:
         _decide_and_launch:
-        _defer_at_cap:
         _judge_sessions:
         _resume_session:
         _launch_wakeup:

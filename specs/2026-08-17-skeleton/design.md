@@ -181,13 +181,13 @@ account before the marker tells the user's posts from the session's own. Once
 these checks succeed, `run` prints `dreamcatcher is running` before the first
 tick.
 
-Each tick, in order, launching at most one round per tick:
+Each tick reads the sessions and weighs the candidate issues first, so every
+`last-tick.json` gives the board a current queue. The tick then follows these
+priorities, launching at most one round:
 
-1. If live rounds fill the cap, defer every launch. The tick still weighs the
-   candidate issues, so `last-tick.json` and the board keep showing the current
-   queue while another round is running. It reads the sessions off the disk and
-   writes the cap down against each one it is holding, without peeking at any
-   session's pull request.
+1. If live rounds fill the cap, defer every launch. Write the cap down against
+   each session that it is holding, without peeking at any session's pull
+   request.
 2. Reconcile: enumerate session worktrees, read GitHub state per session, peek
    each session's new posts (a read-only relay query — see below). The peek runs
    whatever state the pull request is in, so the final round of a merged pull
