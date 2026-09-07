@@ -127,7 +127,10 @@ def test_a_tick_at_the_cap_says_the_cap_is_what_each_session_waits_on(dispatchin
 def test_a_tick_at_the_cap_leaves_a_wound_up_session_waiting_on_nothing(dispatching, harnesses):
     ...
 
-def test_a_tick_at_the_cap_spends_no_github_call(dispatching, offered, harnesses):
+def test_a_tick_at_the_cap_refreshes_the_candidates(dispatching, offered, harnesses):
+    ...
+
+def test_a_tick_at_the_cap_records_a_candidate_listing_failure(dispatching, offered, harnesses):
     ...
 
 def test_a_tick_with_nothing_eligible_dispatches_nothing(dispatching, offered):

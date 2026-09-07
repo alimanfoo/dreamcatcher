@@ -735,7 +735,8 @@ tests/:
     test_a_second_tick_judges_a_dispatched_issue_handled:
     test_a_tick_at_the_cap_says_the_cap_is_what_each_session_waits_on:
     test_a_tick_at_the_cap_leaves_a_wound_up_session_waiting_on_nothing:
-    test_a_tick_at_the_cap_spends_no_github_call:
+    test_a_tick_at_the_cap_refreshes_the_candidates:
+    test_a_tick_at_the_cap_records_a_candidate_listing_failure:
     test_a_tick_with_nothing_eligible_dispatches_nothing:
     test_a_tick_whose_listing_failed_records_what_it_could_not_read:
     test_a_tick_that_could_not_dispatch_records_the_failure_and_ticks_again:

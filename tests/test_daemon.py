@@ -446,19 +446,40 @@ def test_a_tick_at_the_cap_leaves_a_wound_up_session_waiting_on_nothing(
     assert recorded(daemon).waiting == []
 
 
-def test_a_tick_at_the_cap_spends_no_github_call(dispatching, offered, harnesses):
+def test_a_tick_at_the_cap_refreshes_the_candidates(dispatching, offered, harnesses):
     harnesses["claude"].streams([Line("still working\n")], delay=STILL_RUNNING)
+    offered.replies(listing((8, FILED), (9, LATER)), to="issue list")
     daemon, _, _ = idling(dispatching, ticks=2)
 
     daemon.run()
 
     assert recorded(daemon).hold == "at cap: 1 of 1 rounds running"
-    assert [call.arguments[:2] for call in offered.calls] == [
-        ["repo", "view"],
-        ["api", "user"],
-        ["issue", "list"],
-        ["issue", "view"],
-        ["api", f"repos/{REPOSITORY}/issues/8/dependencies/blocked_by"],
+    assert recorded(daemon).candidates == [
+        CandidateIssue(
+            issue=8,
+            label=LABEL,
+            reason="a session in this checkout is working on it",
+        ),
+        CandidateIssue(issue=9, label=LABEL),
+    ]
+
+
+def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
+    dispatching, offered, harnesses
+):
+    harnesses["claude"].streams([Line("still working\n")], delay=STILL_RUNNING)
+    write_session(StateDirectory(dispatching), KEY, 13)
+    daemon, waiting, _ = idling(dispatching, ticks=2)
+    waiting.settle = lambda: offered.fails(
+        "gh: could not connect to github.com", to="issue list"
+    )
+
+    daemon.run()
+
+    assert "could not connect" in held(daemon)
+    assert recorded(daemon).candidates == []
+    assert recorded(daemon).waiting == [
+        WaitingSession(session=KEY, issue=13, reason="at cap: 1 of 1 rounds running")
     ]
 
 
