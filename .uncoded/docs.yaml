@@ -86,3 +86,28 @@ specs/:
         The watcher:
         The skill side of the contract:
         The sharp edges:
+  2026-09-08-watchtower/:
+    design.md:
+      'Design: the watch tower':
+        What we're building:
+        How it works:
+          Three verbs:
+          Live by default:
+          When a view returns:
+          Repainting and appending:
+          Views become renderables:
+          What a refresh reads:
+          Cross-platform notes:
+          Dependencies:
+        What this supersedes in the skeleton design:
+        What changes, and what goes away:
+        Why it's this and not something else:
+        What's still open:
+    requirements.md:
+      'Requirements: the watch tower':
+        What this phase is for:
+        What's wrong with what we have:
+        What it has to do:
+        What limits this:
+        How we'll know it worked:
+        What's still open:
