@@ -40,7 +40,7 @@ def settling(root, ticks: int) -> Daemon:
 def test_the_daemon_ticks_on_the_interval_until_the_user_interrupts(watched, harnesses, gh):
     ...
 
-def test_the_daemon_reports_when_it_has_started(watched, harnesses, gh, capsys):
+def test_the_daemon_reports_when_it_has_started_before_its_first_tick(watched, harnesses, gh, monkeypatch, capsys):
     ...
 
 def test_every_tick_records_when_it_ran(watched, harnesses, gh):

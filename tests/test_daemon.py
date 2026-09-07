@@ -141,12 +141,17 @@ def test_the_daemon_ticks_on_the_interval_until_the_user_interrupts(
     assert waiting.waited == [300, 300]
 
 
-def test_the_daemon_reports_when_it_has_started(watched, harnesses, gh, capsys):
+def test_the_daemon_reports_when_it_has_started_before_its_first_tick(
+    watched, harnesses, gh, monkeypatch, capsys
+):
     daemon, _, _ = idling(watched)
 
-    daemon.run()
+    def verify_report(_repository, _account):
+        assert capsys.readouterr().out == "dreamcatcher is running\n"
+        raise KeyboardInterrupt
 
-    assert capsys.readouterr().out == "dreamcatcher is running\n"
+    monkeypatch.setattr(daemon, "tick", verify_report)
+    daemon.run()
 
 
 def test_every_tick_records_when_it_ran(watched, harnesses, gh):
