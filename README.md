@@ -74,9 +74,6 @@ session per labelled issue.
 dreamcatcher run --harness claude
 ```
 
-When startup succeeds, `run` prints `dreamcatcher is running` before its first
-tick.
-
 Every `interval` seconds it looks once and launches at most one round. An issue
 is dispatched when it carries exactly one mapped label, is assigned to
 `assignee`, has no session here already, has no open pull request GitHub links
