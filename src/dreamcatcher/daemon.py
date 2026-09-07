@@ -114,6 +114,7 @@ class Daemon:
         )
         with hold(self.state.lock):
             self._sweep_orphans()
+            print("dreamcatcher is running", flush=True)
             try:
                 with suppress(KeyboardInterrupt):
                     while True:

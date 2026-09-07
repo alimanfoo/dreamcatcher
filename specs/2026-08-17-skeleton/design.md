@@ -177,7 +177,9 @@ nothing — and treat every round record with no end as interrupted. `run` refus
 when a CLI is missing or when `gh` can name neither the repository nor the
 account, because none of them can change under a running daemon, a run without
 the repository dispatches nothing, and the relay reads every post against the
-account before the marker tells the user's posts from the session's own.
+account before the marker tells the user's posts from the session's own. Once
+these checks succeed, `run` prints `dreamcatcher is running` before the first
+tick.
 
 Each tick, in order, launching at most one round per tick:
 
