@@ -103,6 +103,15 @@ specs/:
         What changes, and what goes away:
         Why it's this and not something else:
         What's still open:
+    plan.md:
+      'Plan: the watch tower':
+        'Step 1: read only what a view needs':
+        'Step 2: follow a feed by what arrived':
+        'Step 3: three verbs':
+        'Step 4: views return renderables':
+        'Step 5: live by default':
+        Why this order:
+        How the steps are tracked:
     requirements.md:
       'Requirements: the watch tower':
         What this phase is for:

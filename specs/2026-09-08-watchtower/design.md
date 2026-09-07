@@ -98,13 +98,13 @@ doing one thing. A state has a current value. A log has an end.
 
 Today every `_show_*` helper prints straight to the console. `Live` needs
 something it can hold and redraw, so the board and session views become
-functions that build a rich renderable — a `Group` of the sections they compose
-today — and one small helper does the following: build, hand to `Live`, wait,
-build again.
+functions that build a rich renderable holding the sections they compose today —
+and one small helper does the following: build, hand to `Live`, wait, build
+again.
 
-The goldens keep working: rendering a `Group` to the same pinned console
-produces the same text. They also improve, in that they become assertions about
-a value rather than about a side effect.
+The goldens keep working: rendering that to the same pinned console produces the
+same text. They also improve, in that they become assertions about a value
+rather than about a side effect.
 
 ### What a refresh reads
 
@@ -121,10 +121,21 @@ once a second to answer a question about the newest one.
 Two changes, in order of how much they buy:
 
 1. **Read rounds on demand.** A session stops reading its rounds when it is
-   read, and reads them when something asks. The board asks for the last round
-   record only. The session view, which really does want the whole list, asks
-   for one session's worth. This alone turns a walk over every round in the repo
-   into a couple of small reads per session.
+   read, and reads them when something asks. The session view really does want
+   the whole list, and asks for one session's worth. The board wants much less,
+   but not quite as little as it first appears: it needs the last record, to
+   know whether a round is running and how the last one ended; it needs the
+   number of rounds, which the rounds directory answers without opening
+   anything; and it needs to know whether any round was the final one, which
+   `has_run_final_round` answers today by reading every record.
+
+   That last question is the awkward one, because the final round is not
+   reliably the last: a final round that gets interrupted is followed by
+   carry-on rounds finishing what it started. Answering it without reading every
+   record is the part of this to work out rather than to follow a recipe for,
+   and the answer may well turn on what the daemon guarantees about what can
+   follow a completed final round. Whatever it turns out to be, correct this
+   section to say so.
 
 2. **Don't re-derive a finished session.** A session whose final round has
    completed and whose pull request is merged or closed cannot change again — if
@@ -157,10 +168,10 @@ advances to just after the last complete line ending, never to the end of file.
 
 Remembering a position in a feed file cannot be a count of characters. On
 Windows a text-mode read translates line endings, so the number of characters a
-reader has seen and the position it should resume from are different numbers.
-The position is therefore whatever `tell()` returns on the text stream the feed
-is read from, handed back to `seek()` — an opaque value, but the only one that
-is correct on every platform.
+reader has seen and the position it should resume from are different numbers. So
+the position has to be something the file itself agrees with rather than
+something counted while reading. What that is exactly is for whoever builds it
+to settle against the platforms.
 
 Rich's `Live` works on Windows terminals, and the console settings the tests
 already pin (`legacy_windows=False` among them) keep the rendering identical
