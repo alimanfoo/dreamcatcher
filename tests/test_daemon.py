@@ -141,6 +141,14 @@ def test_the_daemon_ticks_on_the_interval_until_the_user_interrupts(
     assert waiting.waited == [300, 300]
 
 
+def test_the_daemon_reports_when_it_has_started(watched, harnesses, gh, capsys):
+    daemon, _, _ = idling(watched)
+
+    daemon.run()
+
+    assert capsys.readouterr().out == "dreamcatcher is running\n"
+
+
 def test_every_tick_records_when_it_ran(watched, harnesses, gh):
     daemon, _, ticking = idling(watched)
 
