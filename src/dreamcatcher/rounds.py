@@ -148,8 +148,8 @@ class RoundReader:
     number, which writes into a directory of its own. So the newest record of a
     session is the only one that can be written again.
 
-    So a read costs a listing of the rounds directory and the one record that
-    can have changed, however many rounds the session has run.
+    A read therefore costs a listing of the rounds directory and the one record
+    that can have changed, however many rounds the session has run.
 
     A record is kept only once a later round has started. Every record is read
     while it is still the newest of its session, and it is written again after
