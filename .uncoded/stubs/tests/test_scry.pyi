@@ -56,7 +56,7 @@ def fabricate_the_cap(state):
 def fabricate_repeat_attempts(state):
     ...
 
-def pinned(written_to) -> Console:
+def pinned(written_to, width: int) -> Console:
     ...
 
 def stopping(state):
@@ -68,7 +68,10 @@ def rendered(state) -> str:
 def test_a_state_directory_renders_as_its_golden_board(name, tmp_path, daemon):
     ...
 
-def viewed(state, issue: int) -> str:
+def viewed(state, issue: int, width: int) -> str:
+    ...
+
+def test_wrapped_latest_output_keeps_its_indent(tmp_path, daemon):
     ...
 
 def test_a_session_renders_as_its_golden_view(name, tmp_path, daemon):

@@ -999,6 +999,7 @@ tests/:
     rendered:
     test_a_state_directory_renders_as_its_golden_board:
     viewed:
+    test_wrapped_latest_output_keeps_its_indent:
     test_a_session_renders_as_its_golden_view:
     followed:
     test_a_feed_renders_as_its_golden_view:

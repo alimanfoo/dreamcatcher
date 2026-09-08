@@ -225,7 +225,7 @@ SESSIONS = {
 }
 
 
-def pinned(written_to) -> Console:
+def pinned(written_to, width: int = WIDTH) -> Console:
     """Return a console that renders the same text wherever it runs.
 
     Every setting rich would otherwise take from the shell or the platform is
@@ -234,7 +234,7 @@ def pinned(written_to) -> Console:
     """
     return Console(
         file=written_to,
-        width=WIDTH,
+        width=width,
         force_terminal=False,
         no_color=True,
         legacy_windows=False,
@@ -267,11 +267,39 @@ def test_a_state_directory_renders_as_its_golden_board(name, tmp_path, daemon):
     assert board == (FIXTURES / "board" / f"{name}.txt").read_text(encoding="utf-8")
 
 
-def viewed(state, issue: int) -> str:
+def viewed(state, issue: int, width: int = WIDTH) -> str:
     """Return the session view that issue renders as, on a pinned console."""
     written_to = StringIO()
-    show_session(state, issue, pinned(written_to), clock=lambda: LOOKED_AT)
+    show_session(state, issue, pinned(written_to, width), clock=lambda: LOOKED_AT)
     return written_to.getvalue()
+
+
+def test_wrapped_latest_output_keeps_its_indent(tmp_path, daemon):
+    state = StateDirectory(tmp_path)
+    holding(state)
+    directory = written(state, 13, running(1, cause=Cause.DISPATCH))
+    write_feed(
+        directory,
+        1,
+        Line(
+            PINNED,
+            "The agent is explaining a long change that needs to wrap onto "
+            "another line.",
+        ),
+    )
+
+    view = viewed(state, 13, width=40)
+    output = [
+        line
+        for line in view.splitlines()
+        if "agent is explaining" in line or "that needs to wrap" in line
+    ]
+
+    assert [line.strip() for line in output] == [
+        "The agent is explaining a long change",
+        "that needs to wrap onto another line.",
+    ]
+    assert all(line.startswith("  ") and not line.startswith("   ") for line in output)
 
 
 @pytest.mark.parametrize("name", sorted(SESSIONS))
