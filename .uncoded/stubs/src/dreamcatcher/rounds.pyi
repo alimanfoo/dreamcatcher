@@ -17,9 +17,6 @@ from dreamcatcher.feed import Prose, Renderer
 
 RECORD = 'round.json'
 
-def read_round_records(directory: Path) -> list[RoundRecord]:
-    ...
-
 class Cause(StrEnum):
     DISPATCH = 'dispatched'
     CARRY_ON = 'carried on'
@@ -45,6 +42,16 @@ class Workspace:
     feed: Path
     raw: Path
     inbox: Path
+
+class RoundReader:
+    def __init__(self) -> None:
+        ...
+
+    def read(self, directory: Path) -> list[RoundRecord]:
+        ...
+
+    def _read(self, path: Path) -> RoundRecord:
+        ...
 
 class Round:
     is_alive: bool

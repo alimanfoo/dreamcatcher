@@ -35,7 +35,7 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import Unknown, identify_account, identify_repository
 from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.lock import hold
-from dreamcatcher.rounds import Cause, Round
+from dreamcatcher.rounds import Cause, Round, RoundReader
 from dreamcatcher.sessions import (
     Session,
     advance_watermark,
@@ -101,6 +101,11 @@ class Daemon:
         # belongs to. They are what the cap counts, and what the daemon ends as
         # it goes down.
         self.rounds: dict[str, Round] = {}
+        # What the daemon has read of every session's rounds. Holding it for as
+        # long as the daemon runs is what keeps a tick's reading proportional
+        # to what has happened since the last one, rather than to every round
+        # the repo has ever run.
+        self.reader = RoundReader()
 
     def run(self) -> None:
         """Hold the repo and tick until the user interrupts.
@@ -188,7 +193,7 @@ class Daemon:
         holds no read. So a tick under it still says what each session is
         waiting on, rather than going quiet for the whole fifteen minutes.
         """
-        sessions = read_sessions(self.state)
+        sessions = read_sessions(self.state, self.reader)
         judged = judge_issues(
             repository, self.config, {session.record.issue for session in sessions}
         )
@@ -409,7 +414,7 @@ class Daemon:
         empties itself when the daemon's last handle on it closes, so no round
         outlives its daemon and there is never anything to end.
         """
-        for session in read_sessions(self.state):
+        for session in read_sessions(self.state, self.reader):
             for record in session.rounds:
                 if record.ending is None:
                     teardown.end(record.pid)

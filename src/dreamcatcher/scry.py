@@ -29,7 +29,7 @@ from dreamcatcher.feed import (
     read_feed_lines,
 )
 from dreamcatcher.harnesses import ADAPTERS
-from dreamcatcher.rounds import RoundRecord
+from dreamcatcher.rounds import RoundReader, RoundRecord
 from dreamcatcher.sessions import Session
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.words import describe_count, describe_span, describe_time
@@ -349,9 +349,12 @@ def show_feed(
     # Nothing was going before the view opened, so a session that has already
     # ended when it opens ends the view on its first look.
     was_over = True
+    # One reader across every look, so a look reads the round records that have
+    # changed since the last one rather than every record again.
+    reader = RoundReader()
     with suppress(KeyboardInterrupt):
         while True:
-            row = _find_rows(read_board(state, clock), issue)[0]
+            row = _find_rows(read_board(state, clock, reader), issue)[0]
             session = row.session
             painted = _compose_feed(session, range(1, len(session.rounds) + 1))
             for line in painted[shown:]:

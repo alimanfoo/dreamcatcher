@@ -139,19 +139,53 @@ class Workspace:
         return self.directory / "inbox.json"
 
 
-def read_round_records(directory: Path) -> list[RoundRecord]:
-    """Return the records of the rounds written under directory, oldest first.
+class RoundReader:
+    """Read the records of a session's rounds, keeping the ones that are fixed.
 
-    Each round writes into a directory of its own under this one, so a session
-    passes the directory holding all of them.
+    A round records itself twice and no more: once as it starts, and once as it
+    ends, carrying its ending. A round that nothing let finish is given no
+    ending at all, and either way the work is carried on by a round of a later
+    number, which writes into a directory of its own. So the newest record of a
+    session is the only one that can be written again.
 
-    The order comes from the records themselves, so nothing here has to read a
-    directory's name as a number. A directory with no record in it yet, and a
-    directory that holds no rounds at all, both come back with nothing rather
-    than as a failure.
+    One reader is one process's reading. A process that reads the same rounds
+    again and again holds its reader across those reads, and each read then
+    costs a listing of the rounds directory and the one record that can have
+    changed, however many rounds the session has run. A process that reads
+    once holds a reader of its own and keeps nothing worth keeping.
+
+    A record is kept only once a later round has started. Every record is read
+    while it is still the newest of its session, and it is written again after
+    that, so a reader that kept what it read then would keep a round that has
+    since ended reading as one still going.
     """
-    records = [read_json(RoundRecord, found) for found in directory.glob(f"*/{RECORD}")]
-    return sorted(records, key=lambda record: record.started)
+
+    def __init__(self) -> None:
+        """Set up a reader that has read nothing yet."""
+        self._kept: dict[Path, RoundRecord] = {}
+
+    def read(self, directory: Path) -> list[RoundRecord]:
+        """Return the records of the rounds written under directory, oldest first.
+
+        Each round writes into a directory of its own under this one, so a
+        session passes the directory holding all of them.
+
+        The order comes from the records themselves, so nothing here has to
+        read a directory's name as a number. A directory with no record in it
+        yet, and a directory that holds no rounds at all, both come back with
+        nothing rather than as a failure.
+        """
+        found = [(path, self._read(path)) for path in directory.glob(f"*/{RECORD}")]
+        found.sort(key=lambda pair: pair[1].started)
+        self._kept.update(found[:-1])
+        return [record for _, record in found]
+
+    def _read(self, path: Path) -> RoundRecord:
+        """Return what the record at path says, opening it unless it is kept."""
+        kept = self._kept.get(path)
+        if kept is None:
+            return read_json(RoundRecord, path)
+        return kept
 
 
 class Round:

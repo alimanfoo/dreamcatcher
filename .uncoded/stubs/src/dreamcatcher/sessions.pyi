@@ -2,7 +2,7 @@
 # src/dreamcatcher/sessions.py
 
 from contextlib import suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from functools import cached_property
 from pathlib import Path
@@ -12,7 +12,7 @@ from dreamcatcher.config import DispatchMapping, Harness
 from dreamcatcher.documents import Document, read_json, read_text, write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import add_worktree, delete_branch, fetch, remove_worktree
-from dreamcatcher.rounds import Cause, RoundRecord, Workspace, read_round_records
+from dreamcatcher.rounds import Cause, RoundReader, RoundRecord, Workspace
 from dreamcatcher.state import StateDirectory
 
 BRANCH_PREFIX = 'dreamcatcher-'
@@ -20,13 +20,13 @@ RECORD = 'session.json'
 ROUNDS = 'rounds'
 WATERMARK = 'watermark'
 
-def read_sessions(state: StateDirectory) -> list[Session]:
+def read_sessions(state: StateDirectory, reader: RoundReader | None) -> list[Session]:
     ...
 
 def create_session(state: StateDirectory, mapping: DispatchMapping, named: Harness, issue: int, at: datetime) -> Session:
     ...
 
-def _read_session(directory: Path) -> Session:
+def _read_session(directory: Path, reader: RoundReader) -> Session:
     ...
 
 def _read_watermark(directory: Path) -> str:
@@ -52,6 +52,7 @@ class Session:
     directory: Path
     record: SessionRecord
     watermark: str = ''
+    reader: RoundReader = field(default_factory=RoundReader, compare=False, repr=False)
     key: str
     has_run_final_round: bool
     next_workspace: Workspace

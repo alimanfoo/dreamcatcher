@@ -14,7 +14,7 @@ from dreamcatcher.clock import now
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import GAP, Line, compose_round_boundary, read_feed_line, read_feed_lines
 from dreamcatcher.harnesses import ADAPTERS
-from dreamcatcher.rounds import RoundRecord
+from dreamcatcher.rounds import RoundReader, RoundRecord
 from dreamcatcher.sessions import Session
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.words import describe_count, describe_span, describe_time

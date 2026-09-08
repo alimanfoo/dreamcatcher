@@ -9,7 +9,7 @@ from dreamcatcher.commands import CommandError
 from dreamcatcher.config import CONFIG_NAME, Harness, read_config
 from dreamcatcher.documents import write_text
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.rounds import Cause, Ending, RoundRecord, Workspace
+from dreamcatcher.rounds import Cause, Ending, RoundReader, RoundRecord, Workspace
 from dreamcatcher.sessions import (
     WATERMARK,
     SessionRecord,
@@ -177,6 +177,80 @@ def test_a_session_that_has_run_its_final_round_says_so(fabricated):
     )
 
     assert session.has_run_final_round
+
+
+def running(minute=0):
+    """Return a round that started that minute past the hour and is still going."""
+    return RoundRecord(
+        started=PINNED + timedelta(minutes=minute), pid=1, cause=Cause.DISPATCH
+    )
+
+
+def read_again(state, reader):
+    """Return the rounds that a reader that has read before reads this time."""
+    return read_sessions(state, reader)[0].rounds
+
+
+def test_a_second_read_does_not_open_a_round_record_it_has_already_read(fabricated):
+    directory = write_session(fabricated, KEY, 12)
+    write_round(directory, 1, ended(0))
+    write_round(directory, 2, running(minute=1))
+    reader = RoundReader()
+    read_again(fabricated, reader)
+
+    # Rewriting the first round's record puts something there that only a read
+    # of that file could find. A reader that has read it does not look again.
+    write_round(directory, 1, ended(2))
+
+    assert [record.ending for record in read_again(fabricated, reader)] == [
+        ended(0).ending,
+        None,
+    ]
+
+
+def test_a_second_read_carries_an_ending_that_landed_on_the_newest_round(fabricated):
+    directory = write_session(fabricated, KEY, 12)
+    write_round(directory, 1, running())
+    reader = RoundReader()
+    read_again(fabricated, reader)
+
+    write_round(directory, 1, ended(0))
+
+    assert [record.ending for record in read_again(fabricated, reader)] == [
+        ended(0).ending
+    ]
+
+
+def test_a_second_read_finds_a_round_that_has_started_since_the_first(fabricated):
+    directory = write_session(fabricated, KEY, 12)
+    write_round(directory, 1, ended(0))
+    reader = RoundReader()
+    read_again(fabricated, reader)
+
+    write_round(directory, 2, running(minute=1))
+
+    assert [record.started for record in read_again(fabricated, reader)] == [
+        PINNED,
+        PINNED + timedelta(minutes=1),
+    ]
+
+
+def test_a_round_read_as_it_ran_is_read_again_once_a_later_round_has_started(
+    fabricated,
+):
+    directory = write_session(fabricated, KEY, 12)
+    write_round(directory, 1, running())
+    reader = RoundReader()
+    read_again(fabricated, reader)
+
+    # The first round ended, and the round that carried its work on started.
+    write_round(directory, 1, ended(0))
+    write_round(directory, 2, running(minute=1))
+
+    assert [record.ending for record in read_again(fabricated, reader)] == [
+        ended(0).ending,
+        None,
+    ]
 
 
 def test_a_session_git_cannot_cut_leaves_no_branch_behind(state, mapping):

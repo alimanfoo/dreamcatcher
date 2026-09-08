@@ -10,7 +10,7 @@ asks for the session.
 """
 
 from contextlib import suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from functools import cached_property
 from pathlib import Path
@@ -27,7 +27,7 @@ from dreamcatcher.documents import (
 )
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import add_worktree, delete_branch, fetch, remove_worktree
-from dreamcatcher.rounds import Cause, RoundRecord, Workspace, read_round_records
+from dreamcatcher.rounds import Cause, RoundReader, RoundRecord, Workspace
 from dreamcatcher.state import StateDirectory
 
 # What a session's branch is called, before its key. The prefix keeps
@@ -77,11 +77,16 @@ class Session:
     The watermark is the newest post the session has been told about. A session
     that has been told about none has the beginning of time, so the first peek
     at its pull request returns the whole history.
+
+    The reader is what the session reads its rounds through, and it is no part
+    of the session itself, so two sessions read from one directory read as one
+    session whichever reader each was given.
     """
 
     directory: Path
     record: SessionRecord
     watermark: str = ""
+    reader: RoundReader = field(default_factory=RoundReader, compare=False, repr=False)
 
     @cached_property
     def rounds(self) -> list[RoundRecord]:
@@ -92,7 +97,7 @@ class Session:
         a session that is asked twice is one look either way, as its record and
         its watermark are.
         """
-        return read_round_records(self.directory / ROUNDS)
+        return self.reader.read(self.directory / ROUNDS)
 
     @property
     def key(self) -> str:
@@ -153,12 +158,20 @@ class Session:
         return self.workspace(len(self.rounds) + 1)
 
 
-def read_sessions(state: StateDirectory) -> list[Session]:
+def read_sessions(
+    state: StateDirectory, reader: RoundReader | None = None
+) -> list[Session]:
     """Return every session the state directory holds, by key.
 
     A worktree under `worktrees/` is what says a session exists, since that is
     the one place a session of this daemon's can be. The session's own files
     sit under `sessions/`, in a directory the same key names.
+
+    A caller that reads the same state directory again and again hands the
+    reader it holds, and every session comes back reading its rounds through
+    it, so a later read opens only the round records that can have changed. A
+    caller that reads once hands none, and each session it gets back reads its
+    own rounds.
 
     A state directory with no worktrees in it yet holds no sessions, so this
     answers with nothing rather than failing. Anything under `worktrees/` that
@@ -174,13 +187,15 @@ def read_sessions(state: StateDirectory) -> list[Session]:
     """
     if not state.worktrees.is_dir():
         return []
+    if reader is None:
+        reader = RoundReader()
     directories = [
         state.sessions / worktree.name
         for worktree in sorted(state.worktrees.iterdir())
         if worktree.is_dir()
     ]
     return [
-        _read_session(directory)
+        _read_session(directory, reader)
         for directory in directories
         if (directory / RECORD).exists()
     ]
@@ -231,12 +246,13 @@ def create_session(
     return Session(directory=directory, record=record)
 
 
-def _read_session(directory: Path) -> Session:
+def _read_session(directory: Path, reader: RoundReader) -> Session:
     """Return the session whose own files sit in this directory."""
     return Session(
         directory=directory,
         record=read_json(SessionRecord, directory / RECORD),
         watermark=_read_watermark(directory),
+        reader=reader,
     )
 
 
