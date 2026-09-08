@@ -292,6 +292,26 @@ def test_a_round_somebody_stopped_says_no_ending(fake, worktree, directory):
     assert written(running.workspace.record).ending is None
 
 
+def test_a_round_stopped_after_it_finished_keeps_its_ending(fake, worktree, directory):
+    fake("harness").streams([Line("done\n")])
+
+    running = Round(
+        CLAUDE,
+        Invocation(["harness"], PROMPT),
+        Workspace(worktree, directory),
+        CAUSE,
+        clock=pinned,
+    )
+    running.wait()
+
+    # The daemon stops every round it holds as it goes down, and one of them
+    # can be a round that finished a moment before.
+    running.stop()
+
+    assert not running.is_interrupted
+    assert written(running.workspace.record).ending == Ending(at=PINNED, status=0)
+
+
 def test_a_round_that_cannot_write_its_feed_stops_rather_than_stalls(
     fake, worktree, directory
 ):
