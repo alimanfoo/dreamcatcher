@@ -102,7 +102,8 @@ never touches the repo's own files. Contents:
   killed while it was still running records no ending at all, so one the daemon
   stopped mid-round reads as interrupted, which is what it is. A round that had
   already finished when the daemon stopped it keeps the ending it recorded for
-  itself, so the session does not pay a second time for a round it has done.
+  itself, so a later tick does not send the session back over a round it has
+  done.
 
 Every whole document the tool writes lands in one step: the text goes to a file
 beside the target and then takes the target's place. A round records how it

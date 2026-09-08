@@ -86,7 +86,7 @@ class RoundRecord(Document):
 
     A record with no ending means the round was still going when something
     ended it. Either the daemon went down and stopped it, or the round could
-    not write its own feed. Both leave work half done, so a later tick resumes
+    not write its own files. Both leave work half done, so a later tick resumes
     the round rather than starting a new one.
     """
 
@@ -254,12 +254,12 @@ class Round:
         made, and reordering the two would let it write an ending for a round
         the daemon interrupted.
 
-        One window stays open. The child can go between the answer and the
-        mark, and a round that has just finished then reads as interrupted.
-        Reading the exit status would settle it, and what a killed child's
-        status says differs by platform, for the reasons `teardown` gives, so
-        that is more platform-specific reasoning than a window this size is
-        worth. A lock is no help: `_close` would have to hold it across
+        One window stays open. The child can go after `child.is_running` has
+        answered and before the mark goes on, and a round that has just
+        finished then reads as interrupted. Reading the exit status would not
+        settle it, because on Windows a killed child leaves the status a
+        harness that failed would leave, for the reason `teardown` gives. A
+        lock is no help either: `_close` would have to hold it across
         `child.wait()`, and then a stop would wait for the child to finish by
         itself, which is what a stop is there to avoid.
         """
@@ -273,7 +273,8 @@ class Round:
         A round that cannot write its own files has nothing to show for itself.
         It would also hang: a reader that stops reading fills the pipe, the
         harness blocks on its next write, and nothing ever ends the round. So
-        the round is ended here.
+        the round is ended here. A child that had already gone ended the round
+        by itself and keeps its ending, however short the feed came out.
         """
         try:
             read()
