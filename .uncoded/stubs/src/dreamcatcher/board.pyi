@@ -73,6 +73,9 @@ class _Look:
     def _describe_live_round(self, session: Session) -> tuple[str, str | None]:
         ...
 
+    def _describe_finish(self, session: Session) -> str:
+        ...
+
     def _describe_idle(self, session: Session) -> str:
         ...
 

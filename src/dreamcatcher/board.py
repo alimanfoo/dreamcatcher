@@ -197,7 +197,7 @@ class _Look:
                 return Standing.WORKING, detail, last_output
             return Standing.WAITING, unfinished, None
         if session.has_run_final_round:
-            return Standing.DONE, describe_count(len(session.rounds), "round"), None
+            return Standing.DONE, self._describe_finish(session), None
         standing, detail = self._judge_wait(session)
         return standing, detail, None
 
@@ -224,6 +224,19 @@ class _Look:
         if line is None:
             return f"round {len(session.rounds)} has said nothing yet", None
         return f"last output {describe_span(self.at - line.at)} ago", line.text.strip()
+
+    def _describe_finish(self, session: Session) -> str:
+        """Return how long it is since the round that wound the session up spoke.
+
+        The last line that round wrote is the last thing the session did, so
+        its age is how long ago the work finished. How many rounds it took is
+        beside the point by then, and the row says which round it got to
+        anyway.
+        """
+        line = self._read_last_said(session)
+        if line is None:
+            return "finished"
+        return f"finished {describe_span(self.at - line.at)} ago"
 
     def _describe_idle(self, session: Session) -> str:
         """Return how long it is since the session last said anything."""

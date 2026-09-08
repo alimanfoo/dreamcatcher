@@ -60,6 +60,7 @@ src/:
         _judge_standing:
         _judge_wait:
         _describe_live_round:
+        _describe_finish:
         _describe_idle:
         _read_last_said:
         _point_at_feed:
@@ -572,7 +573,7 @@ tests/:
     test_a_round_with_no_daemon_left_to_run_it_is_waiting:
     test_a_round_that_failed_waits_with_the_status_it_failed_with:
     test_a_session_whose_final_round_has_run_is_done:
-    test_a_session_done_in_one_round_counts_that_round_as_one:
+    test_a_session_whose_final_round_said_nothing_is_dated_by_nothing:
     test_a_session_the_tick_found_nothing_to_do_for_needs_you:
     test_a_session_that_wrote_no_feed_at_all_is_idle_for_who_knows_how_long:
     test_a_session_the_tick_left_waiting_says_what_it_waits_on:

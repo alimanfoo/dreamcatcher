@@ -122,7 +122,8 @@ def fabricate_everything(state):
     written(state, 31, ended(1))
     written(state, 35, ended(1, status=2))
     written(state, 9, ended(1))
-    written(state, 12, ended(1), ended(2, cause=Cause.FINAL))
+    directory = written(state, 12, ended(1), ended(2, cause=Cause.FINAL))
+    write_feed(directory, 2, Line(PINNED + timedelta(minutes=6), "[result] success"))
     written(state, 44)
     write_tick(
         state,

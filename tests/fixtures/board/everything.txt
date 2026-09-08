@@ -23,4 +23,4 @@ queued
   GH53  dream:smith  carries more than one mapped label: dream:less, dream:smith
 
 done
-  GH12  round 2  2 rounds
+  GH12  round 2  finished 1h 54m ago

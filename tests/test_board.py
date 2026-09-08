@@ -118,15 +118,16 @@ def test_a_round_that_failed_waits_with_the_status_it_failed_with(running):
 def test_a_session_whose_final_round_has_run_is_done(state):
     ran(state, 1)
     ran(state, 2, Cause.FINAL)
+    said(state, 2, "[result] success")
 
     assert only(state).standing is Standing.DONE
-    assert only(state).detail == "2 rounds"
+    assert only(state).detail == "finished 2h 0m ago"
 
 
-def test_a_session_done_in_one_round_counts_that_round_as_one(state):
+def test_a_session_whose_final_round_said_nothing_is_dated_by_nothing(state):
     ran(state, 1, Cause.FINAL)
 
-    assert only(state).detail == "1 round"
+    assert only(state).detail == "finished"
 
 
 def test_a_session_the_tick_found_nothing_to_do_for_needs_you(state):
