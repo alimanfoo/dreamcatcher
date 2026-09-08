@@ -29,7 +29,7 @@ class Standing(StrEnum):
     STUCK = 'stuck'
     DONE = 'done'
 
-class Attempt:
+class Row:
     session: Session
     standing: Standing
     detail: str
@@ -44,10 +44,10 @@ class Board:
     at: datetime
     daemon_pid: int | None
     tick: LastTick | None
-    attempts: list[Attempt]
+    rows: list[Row]
     queued: list[QueuedIssue]
 
-    def list_standing(self, standing: Standing) -> list[Attempt]:
+    def list_standing(self, standing: Standing) -> list[Row]:
         ...
 
 class _Look:
@@ -56,10 +56,10 @@ class _Look:
     daemon_pid: int | None
     waits: dict[str, WaitingSession]
 
-    def list_attempts(self, sessions: list[Session]) -> list[Attempt]:
+    def list_rows(self, sessions: list[Session]) -> list[Row]:
         ...
 
-    def _read_attempt(self, session: Session) -> Attempt:
+    def _read_row(self, session: Session) -> Row:
         ...
 
     def _judge_standing(self, session: Session) -> tuple[Standing, str, str | None]:

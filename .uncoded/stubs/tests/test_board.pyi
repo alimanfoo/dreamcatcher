@@ -75,7 +75,7 @@ def test_a_stuck_session_that_ran_no_round_has_no_feed_to_point_at(state):
 def test_a_session_no_tick_has_weighed_and_no_round_has_run_is_stuck(state):
     ...
 
-def test_the_attempts_at_one_issue_read_as_attempts_newest_first(state):
+def test_the_sessions_at_one_issue_read_as_sessions_newest_first(state):
     ...
 
 def test_the_work_that_is_done_reads_most_recent_first(state):

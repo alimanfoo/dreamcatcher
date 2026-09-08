@@ -54,7 +54,10 @@ def fabricate_a_dead_daemon(state):
 def fabricate_the_cap(state):
     ...
 
-def fabricate_repeat_attempts(state):
+def fabricate_repeat_sessions(state):
+    ...
+
+def fabricate_a_silent_round(state):
     ...
 
 def pinned(written_to, width: int) -> Console:

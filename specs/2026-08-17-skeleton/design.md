@@ -89,7 +89,7 @@ never touches the repo's own files. Contents:
   `scry` whether the daemon is alive: the tick writes its own time rather than
   leaning on the file's mtime, which copying a state directory would freshen.
 - `worktrees/<session-key>/` — the session worktrees themselves (next section).
-- `sessions/<session-key>/` — one directory per attempt, named by the session
+- `sessions/<session-key>/` — one directory per session, named by the session
   key (below): `session.json` (issue, label, branch, worktree path, harness,
   model, effort, rendered first prompt — frozen at dispatch), `watermark` (the
   relay high-water mark), and `rounds/<n>/` per round.
@@ -150,7 +150,7 @@ is one that the eligibility check reads like any other, draft or not. What stays
 open is the window before that PR exists: an old-catcher session in flight and
 yet to open one reads as unhandled here, and its issue re-dispatches. The
 crossover rule is therefore: retire the old catcher with nothing in flight, or
-expect doubled attempts on whatever was.
+expect doubled sessions on whatever was.
 
 Two costs of nesting, accepted: tools that ignore gitignore (`find`, some
 indexers) see repo copies inside the checkout — git, ripgrep, and the harnesses'
@@ -241,12 +241,12 @@ The two claims on an issue answer different questions, which is why both are
 asked. A session worktree says a session in this checkout is working on it, and
 covers the window before any pull request exists. A worktree outlives the daemon
 run that cut it, so this says nothing about which run that was. GitHub's link
-says somebody has a pull request open on it, and covers every attempt whose
+says somebody has a pull request open on it, and covers every session whose
 worktree is not here — a second checkout of the same repository, or one rebuilt
 since. The port answered that second question by listing five hundred pull
 requests and matching head branch names against its own naming pattern; the link
 needs one read, has no limit to fall out of, and rests on no naming convention.
-GitHub lists only open pull requests there, so a declined attempt drops out and
+GitHub lists only open pull requests there, so a declined session drops out and
 its issue is free again, and a merged one closes the issue out of the listing
 altogether. It also counts a pull request you opened yourself, which is the
 intended reading: an issue somebody is already working on is not up for grabs.
@@ -507,9 +507,14 @@ Every row that names a session names it by the session's own key, which is the
 name `run` prints for it too, so one session reads as one name wherever you meet
 it. A queued row names an issue and not a session, so it reads `GH<n>`.
 
-Repeat attempts group under their issue: three sessions for one issue read as
-three attempts at one thing, current one first. `scry GH123` shows the newest
-attempt, older attempts listed beneath it. The session view opens with the key,
+A working row opens with the round that is running:
+`round 2, last output 3m ago`. No other row names a round, since a session
+between rounds has one behind it and another to come, so a bare number there
+would read as either.
+
+Repeat sessions group under their issue: three sessions for one issue read as
+three goes at one thing, current one first. `scry GH123` shows the newest
+session, older sessions listed beneath it. The session view opens with the key,
 and shows vitals (the session's label, its branch, its worktree, and the
 harness, model and effort it was dispatched with, then the literal first
 prompt), the round list with causes and durations, and — when no round is live —

@@ -32,7 +32,7 @@ src/:
         WAITING:
         STUCK:
         DONE:
-      Attempt:
+      Row:
         session:
         standing:
         detail:
@@ -45,7 +45,7 @@ src/:
         at:
         daemon_pid:
         tick:
-        attempts:
+        rows:
         queued:
         list_standing:
       _Look:
@@ -53,8 +53,8 @@ src/:
         at:
         daemon_pid:
         waits:
-        list_attempts:
-        _read_attempt:
+        list_rows:
+        _read_row:
         _judge_standing:
         _judge_wait:
         _describe_live_round:
@@ -368,8 +368,9 @@ src/:
       open_console:
       show_board:
       _describe_daemon:
-      _show_attempts:
-      _render_attempt_detail:
+      _show_rows:
+      _describe_round:
+      _render_detail:
       _show_queue:
       _open_table:
       _print_section:
@@ -379,10 +380,10 @@ src/:
       _describe_run:
       _describe_ending:
       _show_hand_resume:
-      _show_older_attempts:
+      _show_older_sessions:
       show_round:
       show_feed:
-      _find_attempts:
+      _find_rows:
       _compose_feed:
       _paint_written:
       _paint:
@@ -575,7 +576,7 @@ tests/:
     test_a_stuck_session_says_where_to_read_what_it_did:
     test_a_stuck_session_that_ran_no_round_has_no_feed_to_point_at:
     test_a_session_no_tick_has_weighed_and_no_round_has_run_is_stuck:
-    test_the_attempts_at_one_issue_read_as_attempts_newest_first:
+    test_the_sessions_at_one_issue_read_as_sessions_newest_first:
     test_the_work_that_is_done_reads_most_recent_first:
     test_the_sessions_in_one_standing_come_back_in_the_boards_own_order:
     test_the_queue_reads_each_issues_turn_off_its_place:
@@ -991,7 +992,8 @@ tests/:
     fabricate_everything:
     fabricate_a_dead_daemon:
     fabricate_the_cap:
-    fabricate_repeat_attempts:
+    fabricate_repeat_sessions:
+    fabricate_a_silent_round:
     pinned:
     interrupting:
     rendered:

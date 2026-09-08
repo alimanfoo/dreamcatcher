@@ -183,8 +183,8 @@ def fabricate_the_cap(state):
     )
 
 
-def fabricate_repeat_attempts(state):
-    """Three attempts at one issue, so a repeat dispatch reads as one thing."""
+def fabricate_repeat_sessions(state):
+    """Three sessions at one issue, so a repeat dispatch reads as one thing."""
     for stamp, rounds in (
         ("20260817-090000", (ended(1), ended(2, cause=Cause.FINAL))),
         ("20260818-090000", (ended(1), ended(2, cause=Cause.FINAL))),
@@ -201,28 +201,45 @@ def fabricate_repeat_attempts(state):
     write_tick(state, LastTick(at=PINNED + timedelta(hours=1, minutes=58)))
 
 
+def fabricate_a_silent_round(state):
+    """A daemon running a round that has yet to write a line of its own.
+
+    The row opens with the round that is running, so what follows says only
+    that the round has said nothing.
+    """
+    holding(state)
+    directory = written(state, 13, ended(1), running(30, cause=Cause.POSTS))
+    write_feed(directory, 1, Line(PINNED, "[Bash] git push"))
+    write_tick(
+        state,
+        LastTick(at=PINNED + timedelta(hours=1, minutes=58), launched=f"GH13-{STAMP}"),
+    )
+
+
 BOARDS = {
     "nothing": fabricate_nothing,
     "everything": fabricate_everything,
     "dead-daemon": fabricate_a_dead_daemon,
     "at-cap": fabricate_the_cap,
-    "repeat-attempts": fabricate_repeat_attempts,
+    "silent-round": fabricate_a_silent_round,
+    "repeat-sessions": fabricate_repeat_sessions,
 }
 
 
 # The feed view each fabricated state directory is worth reading, by the issue
-# whose newest attempt it shows.
+# whose newest session it shows.
 FEEDS = {
     "feed-working": (fabricate_everything, 13),
-    "feed-older-attempts": (fabricate_repeat_attempts, 13),
+    "feed-older-sessions": (fabricate_repeat_sessions, 13),
 }
 
 
 # The session view each fabricated state directory is worth reading, by the
-# issue whose newest attempt it shows.
+# issue whose newest session it shows.
 SESSIONS = {
     "session-working": (fabricate_everything, 13),
-    "session-older-attempts": (fabricate_repeat_attempts, 13),
+    "session-silent-round": (fabricate_a_silent_round, 13),
+    "session-older-sessions": (fabricate_repeat_sessions, 13),
     "session-stuck": (fabricate_everything, 9),
     "session-never-started": (fabricate_everything, 44),
 }
@@ -267,9 +284,9 @@ def test_a_state_directory_renders_as_its_golden_board(name, tmp_path, daemon):
 
 
 def test_a_key_too_wide_for_the_console_folds_rather_than_being_cut(tmp_path):
-    """Two attempts at one issue differ only in the time their keys carry."""
+    """Two sessions at one issue differ only in the time their keys carry."""
     state = StateDirectory(tmp_path)
-    fabricate_repeat_attempts(state)
+    fabricate_repeat_sessions(state)
 
     board = rendered(state, width=24)
 

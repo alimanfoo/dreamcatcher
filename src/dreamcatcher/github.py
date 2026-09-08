@@ -131,7 +131,7 @@ class Linked(Projection):
 
     GitHub lists only the open pull requests here, and counts both the ones that
     said they close the issue and the ones somebody linked by hand. A declined
-    attempt drops out, which is what leaves its issue free to go again.
+    session drops out, which is what leaves its issue free to go again.
     """
 
     pull_requests: list[LinkedPullRequest] = Field(

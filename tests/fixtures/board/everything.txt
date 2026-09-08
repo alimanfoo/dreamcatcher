@@ -4,8 +4,8 @@ needs you
   GH20-20260819-184158  idle 2h 0m
 
 agent working
-  GH13-20260819-184158  last output 1h 29m ago
-                        [Bash] pytest         
+  GH13-20260819-184158  round 2, last output 1h 29m ago
+                        [Bash] pytest                  
 
 waiting
   GH31-20260819-184158  1 new post to answer          
