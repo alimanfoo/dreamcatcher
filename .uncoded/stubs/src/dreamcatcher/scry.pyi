@@ -40,6 +40,9 @@ def _show_attempts(console: Console, board: Board, standing: Standing) -> None:
 def _describe_attempt(attempt: Attempt) -> str:
     ...
 
+def _describe_round(attempt: Attempt) -> str:
+    ...
+
 def _describe_progress(attempt: Attempt) -> str:
     ...
 

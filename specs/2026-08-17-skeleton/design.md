@@ -498,8 +498,8 @@ Commits are not marked; the relay only filters posts.
 - queued: eligible issues in dispatch order, each with its reason not yet —
   behind N others, blocked by `GH<x>`, skipped for double labels.
 - done: merged or closed with the final round completed, most recent first —
-  with the age of the last thing that round said, which is when the work
-  finished. How many rounds it took is what the round beside the issue says.
+  with the age of that round's recorded ending, which is when the work finished.
+  How many rounds it took is what the round beside the issue says.
 
 Every row says which round the session is on between its issue and what its
 standing has to say: the round running while the agent works, and the last one

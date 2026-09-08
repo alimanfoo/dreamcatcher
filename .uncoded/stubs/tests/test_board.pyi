@@ -54,9 +54,6 @@ def test_a_round_that_failed_waits_with_the_status_it_failed_with(running):
 def test_a_session_whose_final_round_has_run_is_done(state):
     ...
 
-def test_a_session_whose_final_round_said_nothing_is_dated_by_nothing(state):
-    ...
-
 def test_a_session_the_tick_found_nothing_to_do_for_needs_you(state):
     ...
 

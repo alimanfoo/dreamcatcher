@@ -4,5 +4,5 @@ needs you
   GH13  attempt 3 of 3, round 1  idle 1h 58m
 
 done
-  GH13  attempt 2 of 3, round 2  finished 1h 57m ago
-  GH13  attempt 1 of 3, round 2  finished 1h 57m ago
+  GH13  attempt 2 of 3, round 2  finished 1h 54m ago
+  GH13  attempt 1 of 3, round 2  finished 1h 54m ago
