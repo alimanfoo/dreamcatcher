@@ -501,22 +501,24 @@ Commits are not marked; the relay only filters posts.
   with the age of that round's recorded ending, which is when the work finished.
   How many rounds it took is what the round beside the issue says.
 
-Every row says which round the session is on between its issue and what its
+A session's row says which round it is on between its issue and what its
 standing has to say: the round running while the agent works, and the last one
-that ran otherwise. A session whose first round has yet to start names no round.
+that ran otherwise. A session whose first round has yet to start names no round,
+and a queued issue has none to name.
 
 Repeat attempts group under their issue: three sessions for one issue read as
 three attempts at one thing, current one first. A row says which attempt of how
 many it is only where an issue has more than one, since which of one it is says
-nothing. `scry GH123` shows the newest attempt, older attempts listed beneath
-it. The session view shows vitals (the session's key, its label, its branch, its
-worktree, and the harness, model and effort it was dispatched with, then the
-literal first prompt), the round list with causes and durations, and — when no
-round is live — the exact command to resume the session interactively by hand
-(`claude --continue` from the worktree, or the matching `codex resume --last`),
-built from `session.json`. `codex exec resume` is the headless resume the
-daemon's own rounds run, so the interactive `codex resume` is what a person is
-given instead.
+nothing, and it says so in the same place as the round:
+`attempt 2 of 3, round 5`. `scry GH123` shows the newest attempt, older attempts
+listed beneath it. The session view shows vitals (the session's key, its label,
+its branch, its worktree, and the harness, model and effort it was dispatched
+with, then the literal first prompt), the round list with causes and durations,
+and — when no round is live — the exact command to resume the session
+interactively by hand (`claude --continue` from the worktree, or the matching
+`codex resume --last`), built from `session.json`. `codex exec resume` is the
+headless resume the daemon's own rounds run, so the interactive `codex resume`
+is what a person is given instead.
 
 ### The contract page
 

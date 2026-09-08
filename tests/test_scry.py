@@ -183,6 +183,21 @@ def fabricate_the_cap(state):
     )
 
 
+def fabricate_a_silent_round(state):
+    """A daemon running a round that has yet to write a line of its own.
+
+    The round it is on is what the row's own column says, so the detail beside
+    it says only that the round has said nothing.
+    """
+    holding(state)
+    directory = written(state, 13, ended(1), running(30, cause=Cause.POSTS))
+    write_feed(directory, 1, Line(PINNED, "[Bash] git push"))
+    write_tick(
+        state,
+        LastTick(at=PINNED + timedelta(hours=1, minutes=58), launched=f"GH13-{STAMP}"),
+    )
+
+
 def fabricate_repeat_attempts(state):
     """Three attempts at one issue, so a repeat dispatch reads as one thing."""
     for stamp, rounds in (
@@ -206,6 +221,7 @@ BOARDS = {
     "everything": fabricate_everything,
     "dead-daemon": fabricate_a_dead_daemon,
     "at-cap": fabricate_the_cap,
+    "silent-round": fabricate_a_silent_round,
     "repeat-attempts": fabricate_repeat_attempts,
 }
 
@@ -222,6 +238,7 @@ FEEDS = {
 # issue whose newest attempt it shows.
 SESSIONS = {
     "session-working": (fabricate_everything, 13),
+    "session-silent-round": (fabricate_a_silent_round, 13),
     "session-older-attempts": (fabricate_repeat_attempts, 13),
     "session-stuck": (fabricate_everything, 9),
     "session-never-started": (fabricate_everything, 44),

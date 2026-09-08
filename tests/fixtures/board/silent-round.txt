@@ -1,0 +1,4 @@
+daemon running as pid 4242, last tick 2m ago
+
+agent working
+  GH13  round 2  has said nothing yet

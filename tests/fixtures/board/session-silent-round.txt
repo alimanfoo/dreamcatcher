@@ -1,0 +1,18 @@
+GH13
+agent working, has said nothing yet
+
+session
+  key       GH13-20260819-184158                        
+  label     dream:smith                                 
+  branch    dreamcatcher-GH13-20260819-184158           
+  worktree  .dreamcatcher/worktrees/GH13-20260819-184158
+  harness   claude                                      
+  model     opus[1m]                                    
+  effort    xhigh                                       
+
+first prompt
+  /dream:smith GH13
+
+rounds
+  1  dispatched  2026-08-19T18:42:58Z  ran 4m  exit 0 
+  2  new posts   2026-08-19T19:11:58Z          running

@@ -996,6 +996,7 @@ tests/:
     fabricate_everything:
     fabricate_a_dead_daemon:
     fabricate_the_cap:
+    fabricate_a_silent_round:
     fabricate_repeat_attempts:
     pinned:
     stopping:
