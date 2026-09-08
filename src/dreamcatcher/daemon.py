@@ -13,9 +13,11 @@ and no pull request has claimed and no open issue blocks. `eligibility.py` holds
 that rule whole, the labels included.
 
 Whatever it observed and decided goes into `last-tick.json`, so what the daemon
-did not do, and why, is as readable as what it did.
+did not do, and why, is as readable as what it did. A timestamped line on stdout
+summarises each tick as it finishes.
 """
 
+import sys
 from collections.abc import Callable
 from contextlib import suppress
 from datetime import datetime, timedelta
@@ -50,6 +52,7 @@ from dreamcatcher.wakeups import (
     list_waiting,
     sort_wakeups,
 )
+from dreamcatcher.words import describe_time
 
 # How long the daemon holds every launch once a round has failed, dispatches
 # and retries alike. There is no cause detection behind this and no schedule:
@@ -57,6 +60,16 @@ from dreamcatcher.wakeups import (
 # account and so hits every session at once, and a passing blip costs at most
 # this long of an idle daemon.
 COOLDOWN = timedelta(minutes=15)
+
+
+def _write_output(line: str) -> None:
+    """Write and flush one line, escaped for the stream that receives it."""
+    try:
+        encoding = sys.stdout.encoding or "utf-8"
+        safe_line = line.encode(encoding, errors="backslashreplace").decode(encoding)
+        print(safe_line, flush=True)
+    except (OSError, UnicodeError) as error:
+        raise ReportableError("Could not write daemon output.") from error
 
 
 class Daemon:
@@ -115,12 +128,14 @@ class Daemon:
         )
         with hold(self.state.lock):
             self._sweep_orphans()
-            print("dreamcatcher is running", flush=True)
+            at = self.clock()
+            _write_output(f"{describe_time(at)}  dreamcatcher is running")
             try:
                 with suppress(KeyboardInterrupt):
                     while True:
-                        self.tick(repository, account)
+                        self.tick(repository, account, at)
                         self.wait(self.config.interval)
+                        at = self.clock()
             finally:
                 # Rounds die with the daemon by design, so this happens however
                 # the run ends: on the user's interrupt, and on a failure the
@@ -129,7 +144,7 @@ class Daemon:
                 for running in self.rounds.values():
                     running.stop()
 
-    def tick(self, repository: str, account: str) -> None:
+    def tick(self, repository: str, account: str, at: datetime) -> None:
         """Look once, launch at most one round, and record what happened.
 
         A round that has ended is forgotten first, so the cap counts what is
@@ -147,12 +162,18 @@ class Daemon:
         self.rounds = {
             key: running for key, running in self.rounds.items() if running.is_alive
         }
-        at = self.clock()
         try:
             observed = self._decide_and_launch(repository, account, at)
         except ReportableError as failure:
             observed = LastTick(at=at, hold=str(failure))
         write_json(observed, self.state.last_tick)
+        if observed.launched is not None:
+            outcome = f"launched round for {observed.launched}"
+        elif observed.hold is not None:
+            outcome = f"held: {' '.join(observed.hold.split())}"
+        else:
+            outcome = "nothing launched"
+        _write_output(f"{describe_time(observed.at)}  {outcome}")
 
     def _decide_and_launch(
         self, repository: str, account: str, at: datetime
