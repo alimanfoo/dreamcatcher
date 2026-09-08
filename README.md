@@ -82,7 +82,7 @@ dispatch cuts a branch and a worktree under `.dreamcatcher/`, and runs the
 session's first round there.
 
 After every look, `run` prints one UTC-stamped line that says whether it
-launched a session, was held and why, or launched nothing.
+launched a round, was held and why, or launched nothing.
 
 Everything the daemon owns lives under `.dreamcatcher/` in the checkout, which
 ignores itself, so git never sees it. `last-tick.json` there says what the most

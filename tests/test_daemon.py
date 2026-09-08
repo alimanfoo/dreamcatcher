@@ -2,6 +2,7 @@ import json
 import os
 import sys
 from contextlib import suppress
+from io import BytesIO, TextIOWrapper
 
 import psutil
 import pytest
@@ -152,6 +153,43 @@ def test_the_daemon_reports_when_it_has_started_before_its_first_tick(
 
     monkeypatch.setattr(daemon, "tick", verify_report)
     daemon.run()
+
+
+def test_the_daemon_flushes_every_report(watched, harnesses, gh, monkeypatch):
+    daemon, _, _ = idling(watched, ticks=1)
+    reports = []
+
+    def report(line, *, flush):
+        reports.append((line, flush))
+
+    monkeypatch.setattr("builtins.print", report)
+    daemon.run()
+
+    assert reports == [
+        ("dreamcatcher is running", True),
+        ("2026-08-19T18:41:58Z  nothing launched", True),
+    ]
+
+
+def test_a_tick_output_the_daemon_cannot_write_is_a_named_failure(
+    watched, harnesses, gh, monkeypatch
+):
+    daemon, _, _ = idling(watched, ticks=1)
+    writes = 0
+
+    def fail_on_the_tick(_line, *, flush):
+        nonlocal writes
+        assert flush
+        writes += 1
+        if writes == 2:
+            raise BrokenPipeError
+
+    monkeypatch.setattr("builtins.print", fail_on_the_tick)
+
+    with pytest.raises(ReportableError, match="Could not write daemon output"):
+        daemon.run()
+
+    assert daemon.state.last_tick.exists()
 
 
 def test_every_tick_records_when_it_ran(watched, harnesses, gh, capsys):
@@ -371,7 +409,8 @@ def test_a_tick_dispatches_the_oldest_issue_nothing_stands_in_the_way_of(
     assert (session / "session.json").exists()
     assert recorded(daemon).launched == DISPATCHED_KEY
     assert capsys.readouterr().out == (
-        f"dreamcatcher is running\n2026-08-19T18:41:58Z  launched {DISPATCHED_KEY}\n"
+        "dreamcatcher is running\n"
+        f"2026-08-19T18:41:58Z  launched round for {DISPATCHED_KEY}\n"
     )
     assert (
         harnesses["claude"].calls[0].directory
@@ -497,6 +536,21 @@ def test_a_tick_whose_listing_failed_records_what_it_could_not_read(
     assert output.startswith("dreamcatcher is running\n2026-08-19T18:41:58Z  held: ")
     assert output.endswith("gh: could not connect to github.com gh: try again\n")
     assert output.count("\n") == 2
+
+
+def test_tick_output_escapes_text_the_stream_cannot_encode(
+    dispatching, offered, harnesses, monkeypatch
+):
+    offered.fails("gh: wait — try again", to="issue list")
+    daemon, _, _ = idling(dispatching, ticks=1)
+    buffered = BytesIO()
+    output = TextIOWrapper(buffered, encoding="ascii", newline="\n")
+    monkeypatch.setattr(sys, "stdout", output)
+
+    daemon.run()
+    output.flush()
+
+    assert b"gh: wait \\u2014 try again" in buffered.getvalue()
 
 
 def test_a_tick_that_could_not_dispatch_records_the_failure_and_ticks_again(

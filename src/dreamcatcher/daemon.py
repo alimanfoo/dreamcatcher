@@ -16,6 +16,7 @@ did not do, and why, is as readable as what it did. A timestamped line on stdout
 summarises each tick as it finishes.
 """
 
+import sys
 from collections.abc import Callable
 from contextlib import suppress
 from datetime import datetime, timedelta
@@ -58,6 +59,16 @@ from dreamcatcher.words import describe_time
 # account and so hits every session at once, and a passing blip costs at most
 # this long of an idle daemon.
 COOLDOWN = timedelta(minutes=15)
+
+
+def _write_output(line: str) -> None:
+    """Write and flush one line, escaped for the stream that receives it."""
+    try:
+        encoding = sys.stdout.encoding or "utf-8"
+        safe_line = line.encode(encoding, errors="backslashreplace").decode(encoding)
+        print(safe_line, flush=True)
+    except (OSError, UnicodeError) as error:
+        raise ReportableError("Could not write daemon output.") from error
 
 
 class Daemon:
@@ -116,7 +127,7 @@ class Daemon:
         )
         with hold(self.state.lock):
             self._sweep_orphans()
-            print("dreamcatcher is running", flush=True)
+            _write_output("dreamcatcher is running")
             try:
                 with suppress(KeyboardInterrupt):
                     while True:
@@ -155,12 +166,12 @@ class Daemon:
             observed = LastTick(at=at, hold=str(failure))
         write_json(observed, self.state.last_tick)
         if observed.launched is not None:
-            outcome = f"launched {observed.launched}"
+            outcome = f"launched round for {observed.launched}"
         elif observed.hold is not None:
             outcome = f"held: {' '.join(observed.hold.split())}"
         else:
             outcome = "nothing launched"
-        print(f"{describe_time(observed.at)}  {outcome}", flush=True)
+        _write_output(f"{describe_time(observed.at)}  {outcome}")
 
     def _decide_and_launch(
         self, repository: str, account: str, at: datetime

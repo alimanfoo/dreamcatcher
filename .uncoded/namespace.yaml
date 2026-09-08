@@ -170,6 +170,7 @@ src/:
         _launch_session:
         _locate_harnesses:
         _sweep_orphans:
+      _write_output:
       _refuse_unknown:
       _check_cooldown:
     documents.py:
@@ -707,6 +708,8 @@ tests/:
     settling:
     test_the_daemon_ticks_on_the_interval_until_the_user_interrupts:
     test_the_daemon_reports_when_it_has_started_before_its_first_tick:
+    test_the_daemon_flushes_every_report:
+    test_a_tick_output_the_daemon_cannot_write_is_a_named_failure:
     test_every_tick_records_when_it_ran:
     test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock:
     test_a_second_daemon_refuses_while_the_first_holds_the_repo:
@@ -738,6 +741,7 @@ tests/:
     test_a_tick_at_the_cap_spends_no_github_call:
     test_a_tick_with_nothing_eligible_dispatches_nothing:
     test_a_tick_whose_listing_failed_records_what_it_could_not_read:
+    test_tick_output_escapes_text_the_stream_cannot_encode:
     test_a_tick_that_could_not_dispatch_records_the_failure_and_ticks_again:
     test_a_run_that_cannot_be_told_which_repository_this_is_refuses:
     test_the_daemon_ends_the_rounds_it_holds_as_it_goes_down:
