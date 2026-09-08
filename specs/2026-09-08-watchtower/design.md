@@ -147,7 +147,7 @@ is carried on by a new round, which takes `next_workspace` and so a directory of
 its own, never the one an earlier record sits in.
 
 **Only a session's newest round record can change. Every earlier one is fixed
-the moment it is written.**
+the moment a later round starts.**
 
 So a reading process reads each session's rounds once and keeps them, and on
 every later pass reads only:
@@ -155,6 +155,13 @@ every later pass reads only:
 - a listing of the session's rounds directory, which is what says whether a new
   round has started; and
 - the newest round record, which is the only one that can have changed.
+
+A record is kept only once a later round has started, and not when it is first
+read. Every record is read while it is still the newest of its session, since
+that is what it is when it is written, and the ending lands on it after that. A
+reader that kept a record at that point would keep a round that has since ended
+reading as one still going. So the pass that finds a new round reads two
+records: the new one, and the one it displaced.
 
 That is one directory listing and one small read per session per pass,
 independent of how many rounds the repo has ever run. Sessions read their rounds
