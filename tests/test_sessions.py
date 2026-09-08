@@ -129,6 +129,13 @@ def ended(status, minute=0):
     )
 
 
+def running(minute=0):
+    """Return a round that started that minute past the hour and is still going."""
+    return RoundRecord(
+        started=PINNED + timedelta(minutes=minute), pid=1, cause=Cause.DISPATCH
+    )
+
+
 def test_a_round_a_session_has_run_is_found_by_the_number_it_ran_as(fabricated):
     session = standing(fabricated, ended(0), ended(0, minute=1))
 
@@ -145,9 +152,7 @@ def test_a_session_that_has_run_no_round_has_left_nothing_unfinished(fabricated)
 
 
 def test_a_session_whose_last_round_was_interrupted_says_so(fabricated):
-    session = standing(
-        fabricated, RoundRecord(started=PINNED, pid=1, cause=Cause.DISPATCH)
-    )
+    session = standing(fabricated, running())
 
     assert session.describe_unfinished_round() == "the last round was interrupted"
 
@@ -179,13 +184,6 @@ def test_a_session_that_has_run_its_final_round_says_so(fabricated):
     assert session.has_run_final_round
 
 
-def running(minute=0):
-    """Return a round that started that minute past the hour and is still going."""
-    return RoundRecord(
-        started=PINNED + timedelta(minutes=minute), pid=1, cause=Cause.DISPATCH
-    )
-
-
 def endings(state, reader):
     """Return how each round of the state directory's one session ended."""
     return [record.ending for record in read_sessions(state, reader)[0].rounds]
@@ -205,7 +203,7 @@ def test_a_second_read_does_not_open_a_round_record_it_has_already_read(fabricat
     assert endings(fabricated, reader) == [ended(0).ending, None]
 
 
-def test_a_second_read_carries_an_ending_that_landed_on_the_newest_round(fabricated):
+def test_a_second_read_carries_an_ending_that_landed_since_the_first(fabricated):
     directory = write_session(fabricated, KEY, 12)
     write_round(directory, 1, running())
     reader = RoundReader()
@@ -232,15 +230,14 @@ def test_a_second_read_finds_a_round_that_has_started_since_the_first(fabricated
     ]
 
 
-def test_a_round_read_as_it_ran_is_read_again_once_a_later_round_has_started(
-    fabricated,
-):
+def test_a_round_that_ended_as_a_later_round_started_reads_back_ended(fabricated):
     directory = write_session(fabricated, KEY, 12)
     write_round(directory, 1, running())
     reader = RoundReader()
     read_sessions(fabricated, reader)
 
-    # The first round ended, and the round that carried its work on started.
+    # The first round ended, and the round that carried its work on started,
+    # so the record that ended is no longer the session's newest.
     write_round(directory, 1, ended(0))
     write_round(directory, 2, running(minute=1))
 

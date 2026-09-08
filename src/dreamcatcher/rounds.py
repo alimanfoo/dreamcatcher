@@ -143,18 +143,18 @@ class RoundReader:
     """Read the records of a session's rounds, keeping the ones that are fixed.
 
     A round records itself twice and no more: once as it starts, and once as it
-    ends, carrying its ending. A round that nothing let finish is given no
-    ending at all, and either way the work is carried on by a round of a later
-    number, which writes into a directory of its own. So the newest record of a
-    session is the only one that can be written again.
+    ends, carrying its ending. So a record that carries an ending has had both
+    of its writes, and a reader that has read one need never open it again.
 
-    A read therefore costs a listing of the rounds directory and the one record
-    that can have changed, however many rounds the session has run.
+    A record with no ending is opened again on every read, because the record
+    does not say whether its ending is still to come. A round that is running
+    will record one, a round that nothing let finish never will, and both read
+    the same.
 
-    A record is kept only once a later round has started. Every record is read
-    while it is still the newest of its session, and it is written again after
-    that, so a reader that kept what it read then would keep a round that has
-    since ended reading as one still going.
+    So a read costs a listing of the rounds directory, and one small read for
+    each round of the session that has recorded no ending — one while a round
+    of the session is running, and none at all once every round has ended,
+    however many rounds the session has run.
     """
 
     def __init__(self) -> None:
@@ -172,17 +172,18 @@ class RoundReader:
         yet, and a directory that holds no rounds at all, both come back with
         nothing rather than as a failure.
         """
-        found = [(path, self._read(path)) for path in directory.glob(f"*/{RECORD}")]
-        found.sort(key=lambda pair: pair[1].started)
-        self._kept.update(found[:-1])
-        return [record for _, record in found]
+        records = [self._read(found) for found in directory.glob(f"*/{RECORD}")]
+        return sorted(records, key=lambda record: record.started)
 
     def _read(self, path: Path) -> RoundRecord:
-        """Return what the record at path says, opening it unless it is kept."""
+        """Return what the record at path says, and keep it once it is fixed."""
         kept = self._kept.get(path)
-        if kept is None:
-            return read_json(RoundRecord, path)
-        return kept
+        if kept is not None:
+            return kept
+        record = read_json(RoundRecord, path)
+        if record.ending is not None:
+            self._kept[path] = record
+        return record
 
 
 class Round:

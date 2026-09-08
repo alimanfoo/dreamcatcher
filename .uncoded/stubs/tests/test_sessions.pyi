@@ -53,6 +53,9 @@ def standing(state, *rounds):
 def ended(status, minute):
     ...
 
+def running(minute):
+    ...
+
 def test_a_round_a_session_has_run_is_found_by_the_number_it_ran_as(fabricated):
     ...
 
@@ -71,22 +74,19 @@ def test_a_session_whose_last_round_ended_well_has_left_nothing_unfinished(fabri
 def test_a_session_that_has_run_its_final_round_says_so(fabricated):
     ...
 
-def running(minute):
-    ...
-
 def endings(state, reader):
     ...
 
 def test_a_second_read_does_not_open_a_round_record_it_has_already_read(fabricated):
     ...
 
-def test_a_second_read_carries_an_ending_that_landed_on_the_newest_round(fabricated):
+def test_a_second_read_carries_an_ending_that_landed_since_the_first(fabricated):
     ...
 
 def test_a_second_read_finds_a_round_that_has_started_since_the_first(fabricated):
     ...
 
-def test_a_round_read_as_it_ran_is_read_again_once_a_later_round_has_started(fabricated):
+def test_a_round_that_ended_as_a_later_round_started_reads_back_ended(fabricated):
     ...
 
 def test_a_session_git_cannot_cut_leaves_no_branch_behind(state, mapping):

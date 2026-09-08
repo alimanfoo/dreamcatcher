@@ -146,28 +146,36 @@ had already finished keeps the ending `_close` wrote for it. Either way the work
 is carried on by a new round, which takes `next_workspace` and so a directory of
 its own, never the one an earlier record sits in.
 
-**Only a session's newest round record can change. Every earlier one is fixed
-the moment a later round starts.**
+**A round record that carries an ending is fixed. It has had both of its writes,
+and nothing writes it again.**
 
-So a reading process reads each session's rounds once and keeps them, and on
+So a reading process keeps every record it reads that carries an ending, and on
 every later pass reads only:
 
 - a listing of the session's rounds directory, which is what says whether a new
   round has started; and
-- the newest round record, which is the only one that can have changed.
+- the record of each round of the session that has recorded no ending.
 
-A record is kept only once a later round has started, and not when it is first
-read. Every record is read while it is still the newest of its session, since
-that is what it is when it is written, and the ending lands on it after that. A
-reader that kept a record at that point would keep a round that has since ended
-reading as one still going. So the pass that finds a new round reads two
-records: the new one, and the one it displaced.
+A record with no ending is read again because the record does not say whether
+its ending is still to come. A round that is running will record one, a round
+that nothing let finish never will, and both read the same.
 
-That is one directory listing and one small read per session per pass,
-independent of how many rounds the repo has ever run. A session's rounds are
-read with the session rather than on demand, because every view goes through the
-board, and the board reads where each session stands from that session's own
-rounds. Reading them on demand would save nothing while that holds.
+That is one directory listing and one small read per session while a round of it
+is running, and a listing alone once every round has ended, independent of how
+many rounds the repo has ever run.
+
+Keeping every record but a session's newest was the other way to read the same
+fact, and it is worse on both counts. It never keeps the last record of a
+finished session, since no later round displaces it, so a repo of finished
+sessions would go on reading one record per session for ever, which is most of
+what this is here to stop. And it rests on the order the records read in, so two
+rounds that recorded the same start time could leave a running round's record
+kept as one still going, for as long as the process lived.
+
+A session's rounds are read with the session rather than on demand, because
+every view goes through the board, and the board reads where each session stands
+from that session's own rounds. Reading them on demand would save nothing while
+that holds.
 
 This deliberately does not lean on a session being finished. It is tempting to
 say that a session whose final round has completed and whose pull request is
