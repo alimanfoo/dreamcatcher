@@ -115,11 +115,6 @@ def _show_rows(console: Console, board: Board, standing: Standing) -> None:
     _print_section(console, str(standing), COLOURS[standing], table)
 
 
-def _join(*said: str) -> str:
-    """Return the pieces that have something to say, one comma-separated line."""
-    return ", ".join(filter(None, said))
-
-
 def _describe_round(row: Row) -> str:
     """Return which round is running, or nothing while none is.
 
@@ -139,7 +134,7 @@ def _render_detail(
     style: str = "",
 ) -> RenderableType:
     """Render a row's detail behind its prefix, latest output beneath it."""
-    detail = Text(_join(prefix, row.detail), style=style)
+    detail = Text(", ".join(filter(None, (prefix, row.detail))), style=style)
     if row.last_output is None:
         return detail
     output = Padding(

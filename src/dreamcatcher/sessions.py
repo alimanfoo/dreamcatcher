@@ -1,10 +1,9 @@
 """Create a session for an issue, and read back the ones a repo already has.
 
-A session is one go at one issue. It gets a key of its own: the issue's
-number, and the time the session started. That key names its branch, its
-worktree, and the directory that holds its own files. So three worktrees for
-one issue read as three sessions at one thing, each with its own pull
-request.
+A session is what one dispatch of an issue makes. It gets a key of its own: the
+issue's number, and the time the session started. That key names its branch, its
+worktree, and the directory that holds its own files. So three worktrees for one
+issue read as three sessions at one thing, each with its own pull request.
 
 Nothing here decides which issue to dispatch, or when. A caller that has decided
 asks for the session.

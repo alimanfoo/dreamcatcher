@@ -37,9 +37,6 @@ def _describe_daemon(board: Board) -> Text:
 def _show_rows(console: Console, board: Board, standing: Standing) -> None:
     ...
 
-def _join(*said: str) -> str:
-    ...
-
 def _describe_round(row: Row) -> str:
     ...
 

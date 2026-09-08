@@ -369,7 +369,6 @@ src/:
       show_board:
       _describe_daemon:
       _show_rows:
-      _join:
       _describe_round:
       _render_detail:
       _show_queue:
