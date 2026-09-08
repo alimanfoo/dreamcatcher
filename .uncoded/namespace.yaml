@@ -37,8 +37,6 @@ src/:
         standing:
         detail:
         last_output:
-        attempt:
-        attempts:
       QueuedIssue:
         issue:
         label:

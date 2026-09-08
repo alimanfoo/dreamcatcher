@@ -34,8 +34,6 @@ class Attempt:
     standing: Standing
     detail: str
     last_output: str | None
-    attempt: int
-    attempts: int
 
 class QueuedIssue:
     issue: int
@@ -61,7 +59,7 @@ class _Look:
     def list_attempts(self, sessions: list[Session]) -> list[Attempt]:
         ...
 
-    def _read_attempt(self, session: Session, attempt: int, attempts: int) -> Attempt:
+    def _read_attempt(self, session: Session) -> Attempt:
         ...
 
     def _judge_standing(self, session: Session) -> tuple[Standing, str, str | None]:

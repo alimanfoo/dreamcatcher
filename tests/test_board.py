@@ -216,10 +216,10 @@ def test_the_attempts_at_one_issue_read_as_attempts_newest_first(state):
 
     rows = looked(state).attempts
 
-    assert [(row.session.record.issue, row.attempt, row.attempts) for row in rows] == [
-        (9, 1, 1),
-        (13, 2, 2),
-        (13, 1, 2),
+    assert [row.session.key for row in rows] == [
+        "GH9-20260819-184158",
+        "GH13-20260820-090000",
+        "GH13-20260819-184158",
     ]
 
 
