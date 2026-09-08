@@ -1,0 +1,8 @@
+no daemon running, last tick 2m ago
+
+needs you
+  GH13-20260819-184158  idle 1h 58m
+
+done
+  GH13-20260818-090000  2 rounds
+  GH13-20260817-090000  2 rounds

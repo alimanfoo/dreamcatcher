@@ -32,13 +32,11 @@ src/:
         WAITING:
         STUCK:
         DONE:
-      Attempt:
+      Row:
         session:
         standing:
         detail:
         last_output:
-        attempt:
-        attempts:
       QueuedIssue:
         issue:
         label:
@@ -47,7 +45,7 @@ src/:
         at:
         daemon_pid:
         tick:
-        attempts:
+        rows:
         queued:
         list_standing:
       _Look:
@@ -55,8 +53,8 @@ src/:
         at:
         daemon_pid:
         waits:
-        list_attempts:
-        _read_attempt:
+        list_rows:
+        _read_row:
         _judge_standing:
         _judge_wait:
         _describe_live_round:
@@ -370,8 +368,9 @@ src/:
       open_console:
       show_board:
       _describe_daemon:
-      _show_attempts:
-      _render_attempt_detail:
+      _show_rows:
+      _describe_round:
+      _render_detail:
       _show_queue:
       _open_table:
       _print_section:
@@ -381,10 +380,10 @@ src/:
       _describe_run:
       _describe_ending:
       _show_hand_resume:
-      _show_older_attempts:
+      _show_older_sessions:
       show_round:
       show_feed:
-      _find_attempts:
+      _find_rows:
       _compose_feed:
       _paint_written:
       _paint:
@@ -577,7 +576,7 @@ tests/:
     test_a_stuck_session_says_where_to_read_what_it_did:
     test_a_stuck_session_that_ran_no_round_has_no_feed_to_point_at:
     test_a_session_no_tick_has_weighed_and_no_round_has_run_is_stuck:
-    test_the_attempts_at_one_issue_read_as_attempts_newest_first:
+    test_the_sessions_at_one_issue_read_as_sessions_newest_first:
     test_the_work_that_is_done_reads_most_recent_first:
     test_the_sessions_in_one_standing_come_back_in_the_boards_own_order:
     test_the_queue_reads_each_issues_turn_off_its_place:
@@ -993,20 +992,25 @@ tests/:
     fabricate_everything:
     fabricate_a_dead_daemon:
     fabricate_the_cap:
-    fabricate_repeat_attempts:
+    fabricate_repeat_sessions:
+    fabricate_a_silent_round:
     pinned:
-    stopping:
+    interrupting:
     rendered:
     test_a_state_directory_renders_as_its_golden_board:
+    test_a_key_too_wide_for_the_console_folds_rather_than_being_cut:
     viewed:
     test_wrapped_latest_output_keeps_its_indent:
     test_a_session_renders_as_its_golden_view:
     followed:
     test_a_feed_renders_as_its_golden_view:
     test_only_a_feed_lines_stamp_is_dim:
-    test_a_following_view_waits_while_a_round_is_still_running:
+    test_a_following_view_waits_for_the_round_a_session_has_yet_to_run:
+    test_a_following_view_looks_once_more_when_the_last_round_stops:
     test_a_round_that_starts_while_the_view_is_going_arrives_in_it:
-    test_a_view_of_a_session_no_daemon_is_running_never_waits:
+    test_a_view_of_a_session_that_is_over_never_waits:
+    test_a_following_view_waits_for_the_next_daemon:
+    test_a_view_of_a_stuck_session_never_waits:
     test_a_write_that_never_landed_waits_for_the_look_that_shows_it_whole:
     test_a_line_the_view_cannot_read_reaches_the_reader_as_it_was_written:
     test_a_reader_who_has_seen_enough_interrupts_the_view:

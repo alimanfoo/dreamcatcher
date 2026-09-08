@@ -123,11 +123,11 @@ in the order of whose turn it is:
   has not gone.
 - `done` is the sessions that have run their last round.
 
-Three attempts at one issue read as three attempts at one thing, so a label you
+Three sessions at one issue read as three sessions at one thing, so a label you
 forgot to remove shows as what it is rather than as three unrelated rows.
 
 Name an issue to see one session: what its dispatch settled, the rounds it has
-run, the command that takes the session over by hand, and the older attempts at
+run, the command that takes the session over by hand, and the older sessions at
 the same issue.
 
 ```sh
@@ -135,8 +135,13 @@ dreamcatcher scry GH123
 ```
 
 Add `--follow` to watch the agent work. It shows every round's feed in order,
-and keeps showing what arrives until no round is running. `--round 2` shows the
-feed of one round alone, as it stands.
+and keeps showing what arrives for as long as the session has another round
+coming, so you can leave it running in a console for a whole session and see
+every round of it arrive. It waits through every gap between one round and the
+next, including a gap where you have stopped the daemon and not started it again
+yet. The view ends once the session has run its final round, and on a stuck
+session, which only you can move on. Interrupt the view to end it sooner.
+`--round 2` shows the feed of one round alone, as it stands.
 
 ```sh
 dreamcatcher scry GH123 --follow

@@ -1,8 +1,0 @@
-no daemon running, last tick 2m ago
-
-needs you
-  GH13  attempt 3 of 3  idle 1h 58m
-
-done
-  GH13  attempt 2 of 3  2 rounds
-  GH13  attempt 1 of 3  2 rounds

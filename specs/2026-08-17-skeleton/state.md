@@ -94,7 +94,7 @@ One anchored naming pattern, `dream-catcher-GH<n>-<timestamp>`, does three jobs
 at once: it is the ownership test (a human branch never matches, so the catcher
 can't mistake your work for its own), the issue-identity record
 (`issue_number_of_branch` pulls the number back out), and the retry-uniqueness
-mechanism (the timestamp makes each attempt's branch and PR distinct).
+mechanism (the timestamp makes each session's branch and PR distinct).
 `session_worktrees` builds the working set by listing every worktree with
 `git worktree list --porcelain` and keeping those whose directory basename
 matches the pattern — so the branch name and directory name must stay equal,
@@ -117,8 +117,8 @@ specific disaster. `already_handled`: does the issue have an active worktree, or
 an open or merged PR from an earlier catcher branch? The PR half lists up to 500
 PRs of any state and matches head branch names against the pattern with this
 issue's number; a closed-but-unmerged PR deliberately doesn't count, so a
-declined attempt frees the issue for another go — removing the label is how you
-say stop. (The 500 limit means attempts older than the newest 500 PRs fall out
+declined session frees the issue for another go — removing the label is how you
+say stop. (The 500 limit means sessions older than the newest 500 PRs fall out
 of view on a very busy repo.) `dispatched_worktree_exists` guards against a
 first round that died before opening a PR: the worktree alone claims the issue,
 so the next tick doesn't re-dispatch under a fresh timestamp. A worktree whose
@@ -339,7 +339,7 @@ mid-flight never reruns, and its worktree then stops claiming the issue.
 The branch-equals-directory invariant is created once in `dispatch` and never
 checked again. Renaming or moving a session worktree silently orphans it.
 
-`already_handled` sees at most 500 PRs, so on a very busy repo an old attempt's
+`already_handled` sees at most 500 PRs, so on a very busy repo an old session's
 merged PR could fall out of view and let an issue re-dispatch.
 
 Feed lines carry no timestamps, so staleness is invisible when attaching to a

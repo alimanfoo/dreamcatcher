@@ -89,7 +89,7 @@ never touches the repo's own files. Contents:
   `scry` whether the daemon is alive: the tick writes its own time rather than
   leaning on the file's mtime, which copying a state directory would freshen.
 - `worktrees/<session-key>/` — the session worktrees themselves (next section).
-- `sessions/<session-key>/` — one directory per attempt, named by the session
+- `sessions/<session-key>/` — one directory per session, named by the session
   key (below): `session.json` (issue, label, branch, worktree path, harness,
   model, effort, rendered first prompt — frozen at dispatch), `watermark` (the
   relay high-water mark), and `rounds/<n>/` per round.
@@ -150,7 +150,7 @@ is one that the eligibility check reads like any other, draft or not. What stays
 open is the window before that PR exists: an old-catcher session in flight and
 yet to open one reads as unhandled here, and its issue re-dispatches. The
 crossover rule is therefore: retire the old catcher with nothing in flight, or
-expect doubled attempts on whatever was.
+expect doubled sessions on whatever was.
 
 Two costs of nesting, accepted: tools that ignore gitignore (`find`, some
 indexers) see repo copies inside the checkout — git, ripgrep, and the harnesses'
@@ -241,12 +241,12 @@ The two claims on an issue answer different questions, which is why both are
 asked. A session worktree says a session in this checkout is working on it, and
 covers the window before any pull request exists. A worktree outlives the daemon
 run that cut it, so this says nothing about which run that was. GitHub's link
-says somebody has a pull request open on it, and covers every attempt whose
+says somebody has a pull request open on it, and covers every session whose
 worktree is not here — a second checkout of the same repository, or one rebuilt
 since. The port answered that second question by listing five hundred pull
 requests and matching head branch names against its own naming pattern; the link
 needs one read, has no limit to fall out of, and rests on no naming convention.
-GitHub lists only open pull requests there, so a declined attempt drops out and
+GitHub lists only open pull requests there, so a declined session drops out and
 its issue is free again, and a merged one closes the issue out of the listing
 altogether. It also counts a pull request you opened yourself, which is the
 intended reading: an issue somebody is already working on is not up for grabs.
@@ -402,12 +402,16 @@ collapses the whitespace, and clips what is left at 200 characters. So
 reported the whole absolute path.
 
 `scry GH123 --follow` shows the whole session: every round's feed concatenated
-in order, boundaries between them, following at the tail while a round is live.
-One completed round is an entry point from the round list —
-`scry GH123 --round 2` — same rendering, static. Storage stays one directory per
-round (the round is the unit that has a cause); the concatenation is the
-viewer's stitch of sorted round directories. Reading a dead session and watching
-a live one are the same view in different tenses.
+in order, boundaries between them, following at the tail for as long as the
+session has another round coming. A session between rounds is still going, so
+the view holds through the gaps and the next round resumes it; it ends on the
+final round, or on a stuck session that only a person can move on, and the
+reader interrupts to end it sooner. One completed round is an entry point from
+the round list — `scry GH123 --round 2` — same rendering, static. Storage stays
+one directory per round (the round is the unit that has a cause); the
+concatenation is the viewer's stitch of sorted round directories. Reading a
+session that is over and watching one that is going are the same view in
+different tenses.
 
 ### The relay
 
@@ -499,16 +503,26 @@ Commits are not marked; the relay only filters posts.
   behind N others, blocked by `GH<x>`, skipped for double labels.
 - done: merged or closed with the final round completed, most recent first.
 
-Repeat attempts group under their issue: three sessions for one issue read as
-three attempts at one thing, current one first. `scry GH123` shows the newest
-attempt, older attempts listed beneath it. The session view shows vitals (the
-session's key, its label, its branch, its worktree, and the harness, model and
-effort it was dispatched with, then the literal first prompt), the round list
-with causes and durations, and — when no round is live — the exact command to
-resume the session interactively by hand (`claude --continue` from the worktree,
-or the matching `codex resume --last`), built from `session.json`.
-`codex exec resume` is the headless resume the daemon's own rounds run, so the
-interactive `codex resume` is what a person is given instead.
+Every row that names a session names it by the session's own key, which is the
+name `run` prints for it too, so one session reads as one name wherever you meet
+it. A queued row names an issue and not a session, so it reads `GH<n>`.
+
+A working row opens with the round that is running:
+`round 2, last output 3m ago`. No other row names a round, since a session
+between rounds has one behind it and another to come, so a bare number there
+would read as either.
+
+Repeat sessions group under their issue: three sessions for one issue read as
+three goes at one thing, current one first. `scry GH123` shows the newest
+session, older sessions listed beneath it. The session view opens with the key,
+and shows vitals (the session's label, its branch, its worktree, and the
+harness, model and effort it was dispatched with, then the literal first
+prompt), the round list with causes and durations, and — when no round is live —
+the exact command to resume the session interactively by hand
+(`claude --continue` from the worktree, or the matching `codex resume --last`),
+built from `session.json`. `codex exec resume` is the headless resume the
+daemon's own rounds run, so the interactive `codex resume` is what a person is
+given instead.
 
 ### The contract page
 
