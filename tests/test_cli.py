@@ -10,7 +10,7 @@ from dreamcatcher.config import Harness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.documents import write_text
 from dreamcatcher.feed import Line
-from dreamcatcher.rounds import Cause, RoundRecord
+from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.state import StateDirectory
 
 
@@ -82,7 +82,18 @@ def test_something_that_is_not_an_issue_reference_is_refused(capsys):
 
 def test_scry_following_an_issue_shows_its_feed(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
-    (watching.lock).unlink()
+    # A following view runs until the session has run its final round, so this
+    # one is over before the view opens and the view never waits.
+    write_round(
+        watching.sessions / "GH13-20260819-184158",
+        2,
+        RoundRecord(
+            started=PINNED,
+            pid=1,
+            cause=Cause.FINAL,
+            ending=Ending(at=PINNED, status=0),
+        ),
+    )
 
     assert main(["scry", "GH13", "--follow"]) == 0
     assert "round 1: dispatched" in capsys.readouterr().out

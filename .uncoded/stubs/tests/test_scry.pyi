@@ -60,7 +60,7 @@ def fabricate_repeat_attempts(state):
 def pinned(written_to, width: int) -> Console:
     ...
 
-def stopping(state):
+def interrupting(seconds):
     ...
 
 def rendered(state) -> str:
@@ -87,13 +87,16 @@ def test_a_feed_renders_as_its_golden_view(name, tmp_path, daemon):
 def test_only_a_feed_lines_stamp_is_dim():
     ...
 
-def test_a_following_view_waits_while_a_round_is_still_running(tmp_path, daemon):
+def test_a_following_view_waits_for_the_round_a_session_has_yet_to_run(tmp_path, daemon):
+    ...
+
+def test_a_following_view_looks_once_more_when_the_last_round_stops(tmp_path, daemon):
     ...
 
 def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path, daemon):
     ...
 
-def test_a_view_of_a_session_no_daemon_is_running_never_waits(tmp_path):
+def test_a_view_of_a_session_that_is_over_never_waits(tmp_path, daemon):
     ...
 
 def test_a_write_that_never_landed_waits_for_the_look_that_shows_it_whole(tmp_path, daemon):

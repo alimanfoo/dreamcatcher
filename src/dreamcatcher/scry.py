@@ -310,18 +310,23 @@ def show_feed(
 
     Reading a session that is over and watching one that is going are the same
     view in two tenses, so this shows what is there and then keeps showing what
-    lands until no round is running.
+    lands until the session has run its final round.
+
+    A session between rounds is still going, so the view stays open through the
+    gaps: while the daemon holds the session for its next round, and while the
+    pull request waits for the reader to post on it. A reader can leave the
+    view running for a whole session and see every round of it arrive.
 
     Every look reads the session again, so a round that starts while the view
     is going is shown as it arrives, and not only the rounds it opened with.
 
     A round records its ending as soon as its own child has gone, and whatever
     it was still writing lands after that, so a round that has just stopped
-    running gets one more look before the view ends. A session that was not
-    running when the view opened gets no extra look and no wait.
+    running gets one more look before the view ends. A session that was already
+    over when the view opened gets no extra look and no wait.
 
-    The reader ends a view of a live round by interrupting it, which is how
-    they say they have seen enough, so it ends without a word.
+    The reader ends a view of a session that is still going by interrupting it,
+    which is how they say they have seen enough, so it ends without a word.
     """
     shown = 0
     was_running = False
@@ -333,10 +338,9 @@ def show_feed(
             for line in painted[shown:]:
                 console.print(line)
             shown = len(painted)
-            is_running = attempt.standing is Standing.WORKING
-            if not is_running and not was_running:
+            if attempt.standing is Standing.DONE and not was_running:
                 return
-            was_running = is_running
+            was_running = attempt.standing is Standing.WORKING
             wait(PAUSE)
 
 
