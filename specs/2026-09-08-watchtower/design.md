@@ -7,7 +7,7 @@ default:
 
 ```sh
 dreamcatcher board                 # every session and every queued issue
-dreamcatcher session GH123         # one issue's newest attempt, in detail
+dreamcatcher session GH123         # one issue's newest session, in detail
 dreamcatcher feed GH123            # what the agent said, as it says it
 dreamcatcher feed GH123 --round 2  # one round of it
 ```
@@ -75,9 +75,14 @@ it.
 For `session` and `feed`, there is something to follow until the session can
 produce nothing more. Not until the current round ends — a session between
 rounds is waiting for its next one, and a reader who left the view open wants to
-see that round arrive rather than to run the command again (#94). So these
-follow while the session is unfinished, showing each new round as it starts, and
-return once the session has run its final round.
+see that round arrive rather than to run the command again. So these follow
+while the session is unfinished, showing each new round as it starts, and stay
+open through every gap between rounds, including a gap where the daemon has been
+stopped and not started again.
+
+Two standings end such a view, because neither has another round coming: a
+session that has run its final round, and a stuck session, which only a person
+can move on.
 
 Reading a finished session is not a special mode. It is the same view, arriving
 at its end immediately.
@@ -85,9 +90,11 @@ at its end immediately.
 `feed --round N` is narrower and returns sooner: one named round is all it
 shows, so it returns when that round ends.
 
-This is close to how `show_feed` behaves today, and differs in the one way #94
-asks for: today it returns when no round is running, which is what makes a
-reader restart it between rounds.
+**The feed already works this way.** #94 asked for it and landed it in
+`show_feed`, whose docstring is where the gaps and the two ending standings are
+set out. So this section describes what the feed does and what the board and
+session view have yet to do, and part 5 extends the rule rather than inventing
+it.
 
 A reader ends a live view by interrupting it, which is how they say they have
 seen enough, so it ends without a message.
@@ -115,8 +122,8 @@ same text. They also improve, in that they become assertions about a value
 rather than about a side effect.
 
 Some of this has already arrived from another direction: #86 added
-`_render_attempt_detail`, which returns a renderable rather than printing one,
-and brought `Group` into the module with it. So this is extending a pattern the
+`_render_detail`, which returns a renderable rather than printing one, and
+brought `Group` into the module with it. So this is extending a pattern the
 module already has, not introducing one.
 
 ### What a refresh reads
@@ -229,7 +236,7 @@ views; incremental feed reads.
 
 Changed shape, same behaviour: what each view actually shows is unchanged by
 this phase. The board still sorts by whose turn it is, the session view still
-shows vitals, rounds, the hand-over command and older attempts, and the feed
+shows vitals, rounds, the hand-over command and older sessions, and the feed
 still renders what the harness said. Several open issues in the skeleton phase
 improve the content of those views, and they are independent of this.
 

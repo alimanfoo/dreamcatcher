@@ -94,8 +94,8 @@ In scope:
 
 Done when: each command's `--help` is a complete description of that view; the
 board and session goldens are unchanged, since only the way in has changed; and
-`feed GH123` shows a live session's feed, which it does by inheriting whatever
-`--follow` does at the time rather than through any new machinery.
+`feed GH123` follows a live session for the whole session, which it does by
+inheriting what `--follow` already does rather than through any new machinery.
 
 Deliberately out: making the board and session views live, and changing when a
 following view returns. Both are part 5.
@@ -121,8 +121,8 @@ has gone wrong.
 
 This is the largest diff of the five and the least risky. Say so in the pull
 request, and point the reviewer at the unchanged goldens first. It is also
-extending a pattern the module already has: #86 added `_render_attempt_detail`,
-which returns a renderable rather than printing one.
+extending a pattern the module already has: #86 added the helper now called
+`_render_detail`, which returns a renderable rather than printing one.
 
 ## Part 5: live by default
 
@@ -133,10 +133,10 @@ In scope:
 
 - The terminal check that decides between following and rendering once
   (design.md, Live by default).
-- The rule for when a following view returns (design.md, When a view returns):
-  the board follows until interrupted; `session` and `feed` follow until the
-  session has run its final round, showing each new round as it starts;
-  `feed --round N` returns when that round ends.
+- The rule for when a following view returns (design.md, When a view returns),
+  extended to the two views that do not yet honour it: the board follows until
+  interrupted, and `session` follows for the whole session, as `feed` already
+  does since #94. `feed --round N` returns when that round ends.
 - The following helper, and `Live` for the board and session views (design.md,
   Repainting and appending).
 
@@ -146,10 +146,13 @@ sleeping:
 - a board on a terminal console renders again on each pass and does not return
   while the wait keeps returning;
 - the same board on a non-terminal console renders once and returns;
-- a feed of a session whose round has ended keeps following, and shows the next
-  round when one starts;
-- a feed of a session that has run its final round returns;
+- a session view of a session whose round has ended keeps following, and shows
+  the next round when one starts;
+- a session view returns on a session that has run its final round, and on a
+  stuck one;
 - `feed --round N` of an ended round returns;
+- the feed's own behaviour from #94 is unchanged, which its existing tests
+  carry;
 - the feed appends rather than repainting, so its output is still the whole
   history in order.
 
@@ -157,9 +160,10 @@ Deliberately out: a configurable refresh interval. One second for all three,
 which is what the following feed uses today (requirements.md, What's still
 open).
 
-If #94 has already landed by the time this part runs, the return rule for `feed`
-will be partly in place; adopt what is there rather than rebuilding it, and this
-part covers `session` and the board.
+The feed already does this, since #94 landed: `show_feed` follows for a whole
+session and ends on a final round or a stuck one. Take the rule from there
+rather than writing it again; this part is about giving the board and the
+session view the same rule, and about the terminal check, which no view has yet.
 
 ## Why this order
 

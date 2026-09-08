@@ -49,7 +49,8 @@ works at all.
 - **A view left open stays useful.** A feed that stops when the current round
   ends makes you run the command again every time the next round starts, which
   is the whole complaint in #94. A view should outlive the round it opened on
-  and end only when the session it is watching has.
+  and end only when the session it is watching has. #94 has since delivered this
+  for the feed, so what remains is holding every view to it.
 
 - **Still usable when nothing is watching.** A view that never returns can't be
   piped, redirected, captured in a log, or pasted into an issue. There has to be
