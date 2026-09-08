@@ -853,6 +853,24 @@ def test_open_work_is_carried_on_before_a_new_issue_is_dispatched(
     assert recorded(daemon).candidates == [CandidateIssue(issue=8, label=LABEL)]
 
 
+def test_a_failed_issue_listing_leaves_open_work_for_a_later_tick(
+    resuming, gh, left_running
+):
+    write_round(
+        StateDirectory(resuming).sessions / KEY,
+        1,
+        RoundRecord(started=PINNED, pid=left_running.pid, cause=CAUSE),
+    )
+    gh.fails("gh: could not connect to github.com", to="issue list")
+    daemon, _, _ = idling(resuming, ticks=1)
+
+    daemon.run()
+
+    assert "could not connect" in held(daemon)
+    assert recorded(daemon).launched is None
+    assert not (daemon.state.sessions / KEY / "rounds" / "2").exists()
+
+
 def test_a_cooling_tick_still_says_what_each_session_is_waiting_on(resuming, offered):
     directory = StateDirectory(resuming).sessions / KEY
     write_round(

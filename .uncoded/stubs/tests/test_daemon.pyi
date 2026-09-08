@@ -205,6 +205,9 @@ def test_a_last_round_that_was_interrupted_is_carried_on_as_the_last_round(resum
 def test_open_work_is_carried_on_before_a_new_issue_is_dispatched(resuming, gh, offered, left_running):
     ...
 
+def test_a_failed_issue_listing_leaves_open_work_for_a_later_tick(resuming, gh, left_running):
+    ...
+
 def test_a_cooling_tick_still_says_what_each_session_is_waiting_on(resuming, offered):
     ...
 

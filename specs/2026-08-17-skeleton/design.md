@@ -181,8 +181,9 @@ account before the marker tells the user's posts from the session's own. Once
 these checks succeed, `run` prints `dreamcatcher is running` before the first
 tick.
 
-Each tick reads the sessions and weighs the candidate issues first, so every
-`last-tick.json` gives the board a current queue. The tick then follows these
+Each tick reads the sessions and tries to weigh the candidate issues first. A
+successful read gives `last-tick.json` and the board a current queue; a failed
+listing skips the tick and records the failure. The tick then follows these
 priorities, launching at most one round:
 
 1. If live rounds fill the cap, defer every launch. Write the cap down against

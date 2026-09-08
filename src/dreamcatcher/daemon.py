@@ -1,9 +1,9 @@
 """Run the daemon: hold the repo, and tick on the configured interval.
 
 A tick looks once and launches at most one round. It reads the sessions on disk
-and asks GitHub which labelled issues could be dispatched, so every tick leaves
-the board a current queue. It then weighs its own live rounds against the cap
-and works out what each session needs next when a slot is free.
+and asks GitHub which labelled issues could be dispatched, so every successful
+tick leaves the board a current queue. It then weighs its own live rounds
+against the cap and works out what each session needs next when a slot is free.
 
 Open work goes before new work, and the most open of it first: a round that did
 not finish is carried on, then a merged or closed pull request gets its last
@@ -159,9 +159,9 @@ class Daemon:
     ) -> LastTick:
         """Launch at most one round, and return what the tick observed.
 
-        Every tick weighs the candidate issues, so the board keeps showing the
-        current queue while the daemon is carrying on open work or waiting for
-        a launch slot.
+        Every tick tries to weigh the candidate issues, so the board keeps
+        showing the current queue while the daemon is carrying on open work or
+        waiting for a launch slot. A failed listing holds the tick.
 
         The cooldown holds every launch, a wakeup and a dispatch alike, but it
         holds no read. So a tick under it still says what each session is
@@ -198,6 +198,8 @@ class Daemon:
                 ],
             )
         found = self._judge_sessions(repository, account, sessions)
+        if candidate_failure is not None:
+            return LastTick(at=at, hold=candidate_failure, waiting=list_waiting(found))
         cooling = _check_cooldown(sessions, at)
         if cooling is not None:
             return LastTick(
@@ -209,8 +211,6 @@ class Daemon:
         ready = sort_wakeups([one for one in found if isinstance(one, Wakeup)])
         if ready:
             return self._resume_session(at, ready[0], found, candidates)
-        if candidate_failure is not None:
-            return LastTick(at=at, hold=candidate_failure, waiting=list_waiting(found))
         return self._dispatch_oldest_issue(at, candidates, list_waiting(found))
 
     def _judge_sessions(
