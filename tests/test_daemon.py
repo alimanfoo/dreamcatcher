@@ -486,7 +486,7 @@ def test_a_tick_with_nothing_eligible_dispatches_nothing(dispatching, offered):
 def test_a_tick_whose_listing_failed_records_what_it_could_not_read(
     dispatching, offered, capsys
 ):
-    offered.fails("gh: could not connect to github.com", to="issue list")
+    offered.fails("gh: could not connect to github.com\ngh: try again", to="issue list")
     daemon, _, _ = idling(dispatching, ticks=1)
 
     daemon.run()
@@ -495,7 +495,8 @@ def test_a_tick_whose_listing_failed_records_what_it_could_not_read(
     assert recorded(daemon).candidates == []
     output = capsys.readouterr().out
     assert output.startswith("dreamcatcher is running\n2026-08-19T18:41:58Z  held: ")
-    assert output.endswith("gh: could not connect to github.com\n")
+    assert output.endswith("gh: could not connect to github.com gh: try again\n")
+    assert output.count("\n") == 2
 
 
 def test_a_tick_that_could_not_dispatch_records_the_failure_and_ticks_again(

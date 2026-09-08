@@ -25,9 +25,6 @@ from dreamcatcher.words import describe_time
 
 COOLDOWN = timedelta(minutes=15)
 
-def _describe_tick(tick: LastTick) -> str:
-    ...
-
 def _refuse_unknown(named: str | Unknown, question: str) -> str:
     ...
 

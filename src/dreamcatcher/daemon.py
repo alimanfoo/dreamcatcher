@@ -60,17 +60,6 @@ from dreamcatcher.words import describe_time
 COOLDOWN = timedelta(minutes=15)
 
 
-def _describe_tick(tick: LastTick) -> str:
-    """Return the one-line account of what this tick did."""
-    if tick.launched is not None:
-        outcome = f"launched {tick.launched}"
-    elif tick.hold is not None:
-        outcome = f"held: {tick.hold}"
-    else:
-        outcome = "nothing launched"
-    return f"{describe_time(tick.at)}  {outcome}"
-
-
 class Daemon:
     """The foreground process watching one repo.
 
@@ -165,7 +154,13 @@ class Daemon:
         except ReportableError as failure:
             observed = LastTick(at=at, hold=str(failure))
         write_json(observed, self.state.last_tick)
-        print(_describe_tick(observed), flush=True)
+        if observed.launched is not None:
+            outcome = f"launched {observed.launched}"
+        elif observed.hold is not None:
+            outcome = f"held: {' '.join(observed.hold.split())}"
+        else:
+            outcome = "nothing launched"
+        print(f"{describe_time(observed.at)}  {outcome}", flush=True)
 
     def _decide_and_launch(
         self, repository: str, account: str, at: datetime
