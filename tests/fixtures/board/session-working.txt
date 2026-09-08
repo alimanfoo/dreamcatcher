@@ -1,9 +1,8 @@
-GH13
+GH13-20260819-184158
 agent working, last output 1h 29m ago
   [Bash] pytest
 
 session
-  key       GH13-20260819-184158                        
   label     dream:smith                                 
   branch    dreamcatcher-GH13-20260819-184158           
   worktree  .dreamcatcher/worktrees/GH13-20260819-184158

@@ -40,13 +40,7 @@ def _show_rows(console: Console, board: Board, standing: Standing) -> None:
 def _join(*said: str) -> str:
     ...
 
-def _describe_session(row: Row) -> str:
-    ...
-
 def _describe_round(row: Row) -> str:
-    ...
-
-def _describe_progress(row: Row) -> str:
     ...
 
 def _render_detail(row: Row, prefix: str, continuation_indent: int, style: str) -> RenderableType:

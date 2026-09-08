@@ -54,22 +54,25 @@ def fabricate_a_dead_daemon(state):
 def fabricate_the_cap(state):
     ...
 
-def fabricate_a_silent_round(state):
+def fabricate_repeat_sessions(state):
     ...
 
-def fabricate_repeat_sessions(state):
+def fabricate_a_silent_round(state):
     ...
 
 def pinned(written_to, width: int) -> Console:
     ...
 
-def stopping(state):
+def interrupting(seconds):
     ...
 
-def rendered(state) -> str:
+def rendered(state, width: int) -> str:
     ...
 
 def test_a_state_directory_renders_as_its_golden_board(name, tmp_path, daemon):
+    ...
+
+def test_a_key_too_wide_for_the_console_folds_rather_than_being_cut(tmp_path):
     ...
 
 def viewed(state, issue: int, width: int) -> str:
@@ -90,13 +93,22 @@ def test_a_feed_renders_as_its_golden_view(name, tmp_path, daemon):
 def test_only_a_feed_lines_stamp_is_dim():
     ...
 
-def test_a_following_view_waits_while_a_round_is_still_running(tmp_path, daemon):
+def test_a_following_view_waits_for_the_round_a_session_has_yet_to_run(tmp_path, daemon):
+    ...
+
+def test_a_following_view_looks_once_more_when_the_last_round_stops(tmp_path, daemon):
     ...
 
 def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path, daemon):
     ...
 
-def test_a_view_of_a_session_no_daemon_is_running_never_waits(tmp_path):
+def test_a_view_of_a_session_that_is_over_never_waits(tmp_path, daemon):
+    ...
+
+def test_a_following_view_waits_for_the_next_daemon(tmp_path):
+    ...
+
+def test_a_view_of_a_stuck_session_never_waits(tmp_path, daemon):
     ...
 
 def test_a_write_that_never_landed_waits_for_the_look_that_shows_it_whole(tmp_path, daemon):

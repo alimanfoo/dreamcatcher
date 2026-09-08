@@ -57,11 +57,10 @@ class Standing(StrEnum):
 
 @dataclass(frozen=True)
 class Row:
-    """One session on the board: which of its issue's sessions, and how it is doing.
+    """One session on the board, and how it is doing.
 
-    An issue is usually dispatched once and carried to a pull request. One that
-    was dispatched again has a session for each go, and the number says which:
-    the oldest is the first, and the newest is the last of that count.
+    An issue dispatched three times has three sessions at one thing. The board
+    reads the newest of them first.
 
     The detail is what the row says beside the standing, in the words the disk
     put it in. A working session keeps its latest output separate so the view
@@ -72,8 +71,6 @@ class Row:
     standing: Standing
     detail: str
     last_output: str | None
-    number: int
-    count: int
 
 
 @dataclass(frozen=True)
@@ -155,22 +152,18 @@ class _Look:
     def list_rows(self, sessions: list[Session]) -> list[Row]:
         """Return a row for every session, the newest session at an issue first.
 
-        A session's key opens with its issue and closes with the time it was
-        cut, so sorting by key puts the sessions at one issue together and in
-        the order they were made. The board shows the newest of them first, and
-        each says which of how many it is.
+        A session's key closes with the time the session was cut, so sorting by
+        key backwards puts the newest session at an issue ahead of the older
+        ones. Sorting that by issue keeps each issue's sessions in the order it
+        left them, because a sort in Python holds what it does not reorder.
         """
-        by_issue: dict[int, list[Session]] = {}
-        for session in sorted(sessions, key=lambda one: one.key):
-            by_issue.setdefault(session.record.issue, []).append(session)
-        found = []
-        for issue in sorted(by_issue):
-            made = by_issue[issue]
-            for number, session in reversed(list(enumerate(made, start=1))):
-                found.append(self._read_row(session, number, len(made)))
-        return found
+        newest_first = sorted(sessions, key=lambda one: one.key, reverse=True)
+        return [
+            self._read_row(session)
+            for session in sorted(newest_first, key=lambda one: one.record.issue)
+        ]
 
-    def _read_row(self, session: Session, number: int, count: int) -> Row:
+    def _read_row(self, session: Session) -> Row:
         """Return the session as one row of the board, where it stands."""
         standing, detail, last_output = self._judge_standing(session)
         return Row(
@@ -178,8 +171,6 @@ class _Look:
             standing=standing,
             detail=detail,
             last_output=last_output,
-            number=number,
-            count=count,
         )
 
     def _judge_standing(self, session: Session) -> tuple[Standing, str, str | None]:

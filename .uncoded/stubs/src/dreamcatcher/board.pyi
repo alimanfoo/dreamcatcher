@@ -34,8 +34,6 @@ class Row:
     standing: Standing
     detail: str
     last_output: str | None
-    number: int
-    count: int
 
 class QueuedIssue:
     issue: int
@@ -61,7 +59,7 @@ class _Look:
     def list_rows(self, sessions: list[Session]) -> list[Row]:
         ...
 
-    def _read_row(self, session: Session, number: int, count: int) -> Row:
+    def _read_row(self, session: Session) -> Row:
         ...
 
     def _judge_standing(self, session: Session) -> tuple[Standing, str, str | None]:

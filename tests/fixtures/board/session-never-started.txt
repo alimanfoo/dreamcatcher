@@ -1,8 +1,7 @@
-GH44
+GH44-20260819-184158
 stuck, no round has run yet
 
 session
-  key       GH44-20260819-184158                        
   label     dream:smith                                 
   branch    dreamcatcher-GH44-20260819-184158           
   worktree  .dreamcatcher/worktrees/GH44-20260819-184158

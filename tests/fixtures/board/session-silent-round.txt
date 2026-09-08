@@ -1,8 +1,7 @@
-GH13
+GH13-20260819-184158
 agent working, has said nothing yet
 
 session
-  key       GH13-20260819-184158                        
   label     dream:smith                                 
   branch    dreamcatcher-GH13-20260819-184158           
   worktree  .dreamcatcher/worktrees/GH13-20260819-184158

@@ -402,12 +402,16 @@ collapses the whitespace, and clips what is left at 200 characters. So
 reported the whole absolute path.
 
 `scry GH123 --follow` shows the whole session: every round's feed concatenated
-in order, boundaries between them, following at the tail while a round is live.
-One completed round is an entry point from the round list —
-`scry GH123 --round 2` — same rendering, static. Storage stays one directory per
-round (the round is the unit that has a cause); the concatenation is the
-viewer's stitch of sorted round directories. Reading a dead session and watching
-a live one are the same view in different tenses.
+in order, boundaries between them, following at the tail for as long as the
+session has another round coming. A session between rounds is still going, so
+the view holds through the gaps and the next round resumes it; it ends on the
+final round, or on a stuck session that only a person can move on, and the
+reader interrupts to end it sooner. One completed round is an entry point from
+the round list — `scry GH123 --round 2` — same rendering, static. Storage stays
+one directory per round (the round is the unit that has a cause); the
+concatenation is the viewer's stitch of sorted round directories. Reading a
+session that is over and watching one that is going are the same view in
+different tenses.
 
 ### The relay
 
@@ -499,23 +503,26 @@ Commits are not marked; the relay only filters posts.
   behind N others, blocked by `GH<x>`, skipped for double labels.
 - done: merged or closed with the final round completed, most recent first.
 
-A working row opens with which round is running: `round 2, last output 3m ago`.
-No other row names a round, since a session between rounds has one behind it and
-another to come, so a bare number there would read as either.
+Every row that names a session names it by the session's own key, which is the
+name `run` prints for it too, so one session reads as one name wherever you meet
+it. A queued row names an issue and not a session, so it reads `GH<n>`.
+
+A working row opens with the round that is running:
+`round 2, last output 3m ago`. No other row names a round, since a session
+between rounds has one behind it and another to come, so a bare number there
+would read as either.
 
 Repeat sessions group under their issue: three sessions for one issue read as
-three goes at one thing, current one first. A row says which of its issue's
-sessions it is only where the issue has more than one, since which of one it is
-says nothing, and it opens the row ahead of the round:
-`session 2 of 3, round 5, last output 3m ago`. `scry GH123` shows the newest
-session, older sessions listed beneath it. The session view shows vitals (the
-session's key, its label, its branch, its worktree, and the harness, model and
-effort it was dispatched with, then the literal first prompt), the round list
-with causes and durations, and — when no round is live — the exact command to
-resume the session interactively by hand (`claude --continue` from the worktree,
-or the matching `codex resume --last`), built from `session.json`.
-`codex exec resume` is the headless resume the daemon's own rounds run, so the
-interactive `codex resume` is what a person is given instead.
+three goes at one thing, current one first. `scry GH123` shows the newest
+session, older sessions listed beneath it. The session view opens with the key,
+and shows vitals (the session's label, its branch, its worktree, and the
+harness, model and effort it was dispatched with, then the literal first
+prompt), the round list with causes and durations, and — when no round is live —
+the exact command to resume the session interactively by hand
+(`claude --continue` from the worktree, or the matching `codex resume --last`),
+built from `session.json`. `codex exec resume` is the headless resume the
+daemon's own rounds run, so the interactive `codex resume` is what a person is
+given instead.
 
 ### The contract page
 

@@ -183,21 +183,6 @@ def fabricate_the_cap(state):
     )
 
 
-def fabricate_a_silent_round(state):
-    """A daemon running a round that has yet to write a line of its own.
-
-    The row opens with the round that is running, so what follows says only
-    that the round has said nothing.
-    """
-    holding(state)
-    directory = written(state, 13, ended(1), running(30, cause=Cause.POSTS))
-    write_feed(directory, 1, Line(PINNED, "[Bash] git push"))
-    write_tick(
-        state,
-        LastTick(at=PINNED + timedelta(hours=1, minutes=58), launched=f"GH13-{STAMP}"),
-    )
-
-
 def fabricate_repeat_sessions(state):
     """Three sessions at one issue, so a repeat dispatch reads as one thing."""
     for stamp, rounds in (
@@ -214,6 +199,21 @@ def fabricate_repeat_sessions(state):
             Line(PINNED + timedelta(minutes=len(rounds) + 1), "[Bash] git push"),
         )
     write_tick(state, LastTick(at=PINNED + timedelta(hours=1, minutes=58)))
+
+
+def fabricate_a_silent_round(state):
+    """A daemon running a round that has yet to write a line of its own.
+
+    The row opens with the round that is running, so what follows says only
+    that the round has said nothing.
+    """
+    holding(state)
+    directory = written(state, 13, ended(1), running(30, cause=Cause.POSTS))
+    write_feed(directory, 1, Line(PINNED, "[Bash] git push"))
+    write_tick(
+        state,
+        LastTick(at=PINNED + timedelta(hours=1, minutes=58), launched=f"GH13-{STAMP}"),
+    )
 
 
 BOARDS = {
@@ -261,19 +261,15 @@ def pinned(written_to, width: int = WIDTH) -> Console:
     )
 
 
-def stopping(state):
-    """Return a wait that ends the daemon, so a following view stops."""
-
-    def wait(seconds):
-        state.lock.unlink(missing_ok=True)
-
-    return wait
+def interrupting(seconds):
+    """A wait the reader interrupts, which is how a view of a live session ends."""
+    raise KeyboardInterrupt
 
 
-def rendered(state) -> str:
+def rendered(state, width: int = WIDTH) -> str:
     """Return the board that state directory renders as, on a pinned console."""
     written_to = StringIO()
-    show_board(state, pinned(written_to), clock=lambda: LOOKED_AT)
+    show_board(state, pinned(written_to, width), clock=lambda: LOOKED_AT)
     return written_to.getvalue()
 
 
@@ -285,6 +281,17 @@ def test_a_state_directory_renders_as_its_golden_board(name, tmp_path, daemon):
     board = rendered(state)
 
     assert board == (FIXTURES / "board" / f"{name}.txt").read_text(encoding="utf-8")
+
+
+def test_a_key_too_wide_for_the_console_folds_rather_than_being_cut(tmp_path):
+    """Two sessions at one issue differ only in the time their keys carry."""
+    state = StateDirectory(tmp_path)
+    fabricate_repeat_sessions(state)
+
+    board = rendered(state, width=24)
+
+    assert "8-090000" in board
+    assert "7-090000" in board
 
 
 def viewed(state, issue: int, width: int = WIDTH) -> str:
@@ -346,7 +353,7 @@ def test_a_feed_renders_as_its_golden_view(name, tmp_path, daemon):
     fabricate, issue = FEEDS[name]
     fabricate(state)
 
-    feed = followed(state, issue, wait=stopping(state))
+    feed = followed(state, issue, wait=interrupting)
 
     assert feed == (FIXTURES / "board" / f"{name}.txt").read_text(encoding="utf-8")
 
@@ -369,47 +376,103 @@ def test_only_a_feed_lines_stamp_is_dim():
     assert not boundary.get_style_at_offset(console, boundary_text).dim
 
 
-def test_a_following_view_waits_while_a_round_is_still_running(tmp_path, daemon):
+def test_a_following_view_waits_for_the_round_a_session_has_yet_to_run(
+    tmp_path, daemon
+):
     state = StateDirectory(tmp_path)
     fabricate_everything(state)
     waits = []
 
     def wait(seconds):
         waits.append(seconds)
-        state.lock.unlink(missing_ok=True)
+        raise KeyboardInterrupt
+
+    followed(state, 20, wait=wait)
+
+    # The session's pull request is waiting for the reader, so the round that
+    # answers them is still to come and the view waits for it rather than
+    # ending between the rounds.
+    assert waits == [PAUSE]
+
+
+def test_a_following_view_looks_once_more_when_the_last_round_stops(tmp_path, daemon):
+    state = StateDirectory(tmp_path)
+    fabricate_everything(state)
+    directory = state.sessions / f"GH13-{STAMP}"
+    waits = []
+
+    def wait(seconds):
+        waits.append(seconds)
+        write_round(directory, 2, ended(30, cause=Cause.FINAL))
 
     followed(state, 13, wait=wait)
 
-    # The daemon went while the view was waiting, so the view looked once more
-    # for whatever the round was still writing as it stopped.
+    # The final round ended while the view was waiting, so the view looked once
+    # more for whatever that round was still writing as it stopped.
     assert waits == [PAUSE, PAUSE]
 
 
 def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path, daemon):
     state = StateDirectory(tmp_path)
     fabricate_everything(state)
-    directory = state.sessions / f"GH13-{STAMP}"
+    directory = state.sessions / f"GH20-{STAMP}"
+    looks = []
 
     def wait(seconds):
-        write_round(directory, 3, running(60, cause=Cause.CARRY_ON))
+        looks.append(seconds)
+        if len(looks) > 1:
+            raise KeyboardInterrupt
+        write_round(directory, 2, running(60, cause=Cause.POSTS))
         write_feed(
-            directory, 3, Line(PINNED + timedelta(minutes=61), "[Bash] git push")
+            directory, 2, Line(PINNED + timedelta(minutes=61), "[Bash] git commit")
         )
-        state.lock.unlink(missing_ok=True)
 
-    feed = followed(state, 13, wait=wait)
+    feed = followed(state, 20, wait=wait)
 
-    assert "round 3: carried on" in feed
+    # The pull request was waiting for the reader when the view opened, and the
+    # round that answers what they posted started while the view was going, so
+    # the reader reads its feed while it is still running.
+    assert "round 2: new posts" in feed
+    assert "[Bash] git commit" in feed
     assert feed.count("round 1: dispatched") == 1
 
 
-def test_a_view_of_a_session_no_daemon_is_running_never_waits(tmp_path):
+def test_a_view_of_a_session_that_is_over_never_waits(tmp_path, daemon):
+    state = StateDirectory(tmp_path)
+    fabricate_everything(state)
+    waits = []
+
+    followed(state, 12, wait=waits.append)
+
+    assert waits == []
+
+
+def test_a_following_view_waits_for_the_next_daemon(tmp_path):
     state = StateDirectory(tmp_path)
     fabricate_a_dead_daemon(state)
     waits = []
 
-    followed(state, 13, wait=waits.append)
+    def wait(seconds):
+        waits.append(seconds)
+        raise KeyboardInterrupt
 
+    followed(state, 13, wait=wait)
+
+    # The daemon that was running the session has gone, and the next one
+    # carries its round on from where it stopped, so the view waits for that
+    # round rather than end with the daemon.
+    assert waits == [PAUSE]
+
+
+def test_a_view_of_a_stuck_session_never_waits(tmp_path, daemon):
+    state = StateDirectory(tmp_path)
+    fabricate_everything(state)
+    waits = []
+
+    followed(state, 44, wait=waits.append)
+
+    # Only a person can move a stuck session on, so the view ends rather than
+    # wait for a round that is not coming.
     assert waits == []
 
 
@@ -425,7 +488,7 @@ def test_a_write_that_never_landed_waits_for_the_look_that_shows_it_whole(
             feed.read_text(encoding="utf-8") + "2026-08-19T18:41:58Z  [Grep] pypro",
             encoding="utf-8",
         )
-        state.lock.unlink(missing_ok=True)
+        raise KeyboardInterrupt
 
     assert "[Grep]" not in followed(state, 13, wait=wait)
 
@@ -440,7 +503,7 @@ def test_a_line_the_view_cannot_read_reaches_the_reader_as_it_was_written(
         state.sessions / f"GH13-{STAMP}" / "rounds" / "2" / "feed.txt",
     )
 
-    feed = followed(state, 13, wait=stopping(state))
+    feed = followed(state, 13, wait=interrupting)
 
     assert "the harness said something else" in feed
 
@@ -449,10 +512,7 @@ def test_a_reader_who_has_seen_enough_interrupts_the_view(tmp_path, daemon):
     state = StateDirectory(tmp_path)
     fabricate_everything(state)
 
-    def wait(seconds):
-        raise KeyboardInterrupt
-
-    assert "[Bash] pytest" in followed(state, 13, wait=wait)
+    assert "[Bash] pytest" in followed(state, 13, wait=interrupting)
 
 
 def viewed_round(state, issue: int, number: int) -> str:

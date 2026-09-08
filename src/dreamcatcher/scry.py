@@ -109,8 +109,8 @@ def _show_rows(console: Console, board: Board, standing: Standing) -> None:
     table = _open_table()
     for row in rows:
         table.add_row(
-            Text(f"GH{row.session.record.issue}"),
-            _render_detail(row, prefix=_describe_progress(row)),
+            Text(row.session.key),
+            _render_detail(row, prefix=_describe_round(row)),
         )
     _print_section(console, str(standing), COLOURS[standing], table)
 
@@ -118,19 +118,6 @@ def _show_rows(console: Console, board: Board, standing: Standing) -> None:
 def _join(*said: str) -> str:
     """Return the pieces that have something to say, one comma-separated line."""
     return ", ".join(filter(None, said))
-
-
-def _describe_session(row: Row) -> str:
-    """Return which of its issue's sessions this is, or nothing when it is the only one.
-
-    An issue is dispatched once and carried to a pull request, so nearly every
-    session is the only session its issue has, and saying which of one it is
-    says nothing. The words appear where they mean something, which is where an
-    issue was dispatched again.
-    """
-    if row.count == 1:
-        return ""
-    return f"session {row.number} of {row.count}"
 
 
 def _describe_round(row: Row) -> str:
@@ -143,11 +130,6 @@ def _describe_round(row: Row) -> str:
     if row.standing is not Standing.WORKING:
         return ""
     return f"round {len(row.session.rounds)}"
-
-
-def _describe_progress(row: Row) -> str:
-    """Return how far the session has got, to open its row with."""
-    return _join(_describe_session(row), _describe_round(row))
 
 
 def _render_detail(
@@ -179,9 +161,15 @@ def _show_queue(console: Console, board: Board) -> None:
 
 
 def _open_table() -> Table:
-    """Return an empty table whose columns fit whatever a section puts in them."""
+    """Return an empty table whose columns fit whatever a section puts in them.
+
+    The first column names a session or an issue, which is what a reader picks
+    a row out by, so it folds onto another line rather than being cut short.
+    Two sessions at one issue differ only in the time in their keys, and a cut
+    that reached that far would leave the rows reading the same.
+    """
     table = Table(box=None, show_header=False, pad_edge=False)
-    table.add_column(style="bold")
+    table.add_column(style="bold", overflow="fold")
     return table
 
 
@@ -208,7 +196,7 @@ def show_session(
     """
     rows = _find_rows(read_board(state, clock), issue)
     newest = rows[0]
-    console.print(Text(_join(f"GH{issue}", _describe_session(newest))))
+    console.print(Text(newest.session.key))
     console.print(
         _render_detail(
             newest,
@@ -228,7 +216,6 @@ def _show_vitals(console: Console, state: StateDirectory, row: Row) -> None:
     record = row.session.record
     table = _open_table()
     for name, value in (
-        ("key", row.session.key),
         ("label", record.label),
         ("branch", record.branch),
         ("worktree", state.describe_path(record.worktree)),
@@ -323,7 +310,7 @@ def show_round(
     session = _find_rows(read_board(state, clock), issue)[0].session
     if not 1 <= number <= len(session.rounds):
         raise ReportableError(
-            f"GH{issue} has run {describe_count(len(session.rounds), 'round')}, "
+            f"{session.key} has run {describe_count(len(session.rounds), 'round')}, "
             f"so it has no round {number}."
         )
     for painted in _compose_feed(session, [number]):
@@ -341,21 +328,32 @@ def show_feed(
 
     Reading a session that is over and watching one that is going are the same
     view in two tenses, so this shows what is there and then keeps showing what
-    lands until no round is running.
+    lands for as long as the session has another round coming.
+
+    A session between rounds is still going, so the view stays open through the
+    gaps: while the session waits for a round that no daemon has launched yet,
+    while its pull request waits for the reader to post on it, and while the
+    daemon that was running it is stopped and started again.
+
+    A session that has run its final round has nothing more to say, and a stuck
+    session says nothing more until a person moves it on, so either one ends
+    the view rather than have it wait for a round that is not coming.
 
     Every look reads the session again, so a round that starts while the view
     is going is shown as it arrives, and not only the rounds it opened with.
 
     A round records its ending as soon as its own child has gone, and whatever
-    it was still writing lands after that, so a round that has just stopped
-    running gets one more look before the view ends. A session that was not
-    running when the view opened gets no extra look and no wait.
+    it was still writing lands after that, so a session that ends while the
+    view is going gets one more look before the view ends too. A session that
+    had already ended when the view opened gets no extra look and no wait.
 
-    The reader ends a view of a live round by interrupting it, which is how
-    they say they have seen enough, so it ends without a word.
+    The reader ends a view of a session that is still going by interrupting it,
+    which is how they say they have seen enough, so it ends without a word.
     """
     shown = 0
-    was_running = False
+    # Nothing was going before the view opened, so a session that has already
+    # ended when it opens ends the view on its first look.
+    was_over = True
     with suppress(KeyboardInterrupt):
         while True:
             row = _find_rows(read_board(state, clock), issue)[0]
@@ -364,10 +362,10 @@ def show_feed(
             for line in painted[shown:]:
                 console.print(line)
             shown = len(painted)
-            is_running = row.standing is Standing.WORKING
-            if not is_running and not was_running:
+            is_over = row.standing in (Standing.DONE, Standing.STUCK)
+            if is_over and was_over:
                 return
-            was_running = is_running
+            was_over = is_over
             wait(PAUSE)
 
 
