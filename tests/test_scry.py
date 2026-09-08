@@ -17,6 +17,7 @@ from clocks import PINNED
 from conftest import FIXTURES, LABEL
 from records import write_feed, write_round, write_session, write_tick
 from rich.console import Console
+from rich.text import Text
 
 from dreamcatcher.documents import write_text
 from dreamcatcher.errors import ReportableError
@@ -24,6 +25,8 @@ from dreamcatcher.feed import Line
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.scry import (
     PAUSE,
+    _paint,
+    _paint_written,
     show_board,
     show_feed,
     show_round,
@@ -241,18 +244,6 @@ def pinned(written_to) -> Console:
     )
 
 
-def open_coloured_console(written_to) -> Console:
-    """Return a console that writes standard terminal colours."""
-    return Console(
-        file=written_to,
-        width=WIDTH,
-        force_terminal=True,
-        color_system="standard",
-        no_color=False,
-        legacy_windows=False,
-    )
-
-
 def stopping(state):
     """Return a wait that ends the daemon, so a following view stops."""
 
@@ -315,27 +306,22 @@ def test_a_feed_renders_as_its_golden_view(name, tmp_path, daemon):
     assert feed == (FIXTURES / "board" / f"{name}.txt").read_text(encoding="utf-8")
 
 
-def test_only_feed_stamps_are_dim(tmp_path, daemon):
-    state = StateDirectory(tmp_path)
-    fabricate_everything(state)
-    written_to = StringIO()
+def test_only_a_feed_lines_stamp_is_dim():
+    console = Console(color_system="standard")
+    action = _paint_written(SAID[2].render())
+    label = action.plain.index("[")
+    detail = action.plain.index("specs")
+    boundary = _paint(SAID[1], Text(SAID[1].text, style="bold"))
+    boundary_text = boundary.plain.index(SAID[1].text)
+    label_colour = action.get_style_at_offset(console, label).color
 
-    show_feed(
-        state,
-        13,
-        open_coloured_console(written_to),
-        wait=stopping(state),
-        clock=lambda: LOOKED_AT,
-    )
-
-    feed = written_to.getvalue()
-    assert (
-        "\x1b[2m2026-08-19T18:42:58Z\x1b[0m  \x1b[1mround 1: dispatched\x1b[0m"
-    ) in feed
-    assert (
-        "\x1b[2m2026-08-19T18:43:58Z\x1b[0m  "
-        "\x1b[36m[Read]\x1b[0m specs/2026-08-17-skeleton/plan.md"
-    ) in feed
+    assert action.get_style_at_offset(console, 0).dim
+    assert not action.get_style_at_offset(console, label - 1).dim
+    assert label_colour is not None
+    assert label_colour.name == "cyan"
+    assert not action.get_style_at_offset(console, detail).dim
+    assert boundary.get_style_at_offset(console, boundary_text).bold
+    assert not boundary.get_style_at_offset(console, boundary_text).dim
 
 
 def test_a_following_view_waits_while_a_round_is_still_running(tmp_path, daemon):
