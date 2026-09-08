@@ -99,6 +99,9 @@ def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path, dae
 def test_a_view_of_a_session_that_is_over_never_waits(tmp_path, daemon):
     ...
 
+def test_a_view_of_a_stuck_session_never_waits(tmp_path, daemon):
+    ...
+
 def test_a_write_that_never_landed_waits_for_the_look_that_shows_it_whole(tmp_path, daemon):
     ...
 

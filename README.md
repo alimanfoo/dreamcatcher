@@ -135,12 +135,13 @@ dreamcatcher scry GH123
 ```
 
 Add `--follow` to watch the agent work. It shows every round's feed in order,
-and keeps showing what arrives until the session has run its final round, so you
-can leave it running in a console for a whole session and see every round of it
-arrive. A round that starts after a gap resumes the view, whether the gap was
-the daemon waiting for a slot or the pull request waiting for you. Interrupt the
-view to end it before the session is over. `--round 2` shows the feed of one
-round alone, as it stands.
+and keeps showing what arrives for as long as the session has another round
+coming, so you can leave it running in a console for a whole session and see
+every round of it arrive. A round that starts after a gap resumes the view,
+whether the gap was the daemon waiting for a slot or the pull request waiting
+for you. The view ends once the session has run its final round, or once the
+session is stuck, since only you can move a stuck session on. Interrupt the view
+to end it sooner. `--round 2` shows the feed of one round alone, as it stands.
 
 ```sh
 dreamcatcher scry GH123 --follow

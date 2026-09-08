@@ -402,14 +402,16 @@ collapses the whitespace, and clips what is left at 200 characters. So
 reported the whole absolute path.
 
 `scry GH123 --follow` shows the whole session: every round's feed concatenated
-in order, boundaries between them, following at the tail until the session has
-run its final round. A session between rounds is still going, so the view holds
-through the gaps and the next round resumes it; the reader interrupts to end it
-early. One completed round is an entry point from the round list —
-`scry GH123 --round 2` — same rendering, static. Storage stays one directory per
-round (the round is the unit that has a cause); the concatenation is the
-viewer's stitch of sorted round directories. Reading a session that is over and
-watching one that is going are the same view in different tenses.
+in order, boundaries between them, following at the tail for as long as the
+session has another round coming. A session between rounds is still going, so
+the view holds through the gaps and the next round resumes it; it ends on the
+final round, or on a stuck session that only a person can move on, and the
+reader interrupts to end it sooner. One completed round is an entry point from
+the round list — `scry GH123 --round 2` — same rendering, static. Storage stays
+one directory per round (the round is the unit that has a cause); the
+concatenation is the viewer's stitch of sorted round directories. Reading a
+session that is over and watching one that is going are the same view in
+different tenses.
 
 ### The relay
 

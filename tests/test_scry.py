@@ -411,6 +411,18 @@ def test_a_view_of_a_session_that_is_over_never_waits(tmp_path, daemon):
     assert waits == []
 
 
+def test_a_view_of_a_stuck_session_never_waits(tmp_path, daemon):
+    state = StateDirectory(tmp_path)
+    fabricate_everything(state)
+    waits = []
+
+    followed(state, 44, wait=waits.append)
+
+    # Only a person can move a stuck session on, so the view ends rather than
+    # wait for a round that is not coming.
+    assert waits == []
+
+
 def test_a_write_that_never_landed_waits_for_the_look_that_shows_it_whole(
     tmp_path, daemon
 ):
