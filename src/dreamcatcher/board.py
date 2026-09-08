@@ -64,12 +64,14 @@ class Attempt:
     last.
 
     The detail is what the row says beside the standing, in the words the disk
-    put it in.
+    put it in. A working attempt keeps its latest output separate so the view
+    can set it apart from that status.
     """
 
     session: Session
     standing: Standing
     detail: str
+    last_output: str | None
     attempt: int
     attempts: int
 
@@ -170,16 +172,17 @@ class _Look:
 
     def _read_attempt(self, session: Session, attempt: int, attempts: int) -> Attempt:
         """Return the session as one attempt at its issue, where it stands."""
-        standing, detail = self._judge_standing(session)
+        standing, detail, last_output = self._judge_standing(session)
         return Attempt(
             session=session,
             standing=standing,
             detail=detail,
+            last_output=last_output,
             attempt=attempt,
             attempts=attempts,
         )
 
-    def _judge_standing(self, session: Session) -> tuple[Standing, str]:
+    def _judge_standing(self, session: Session) -> tuple[Standing, str, str | None]:
         """Return where the session's own rounds put it, and what its row says.
 
         The records answer first, and they answer whatever the daemon is doing.
@@ -190,11 +193,13 @@ class _Look:
         unfinished = session.describe_unfinished_round()
         if unfinished is not None:
             if self.daemon_pid is not None and session.rounds[-1].ending is None:
-                return Standing.WORKING, self._describe_live_round(session)
-            return Standing.WAITING, unfinished
+                detail, last_output = self._describe_live_round(session)
+                return Standing.WORKING, detail, last_output
+            return Standing.WAITING, unfinished, None
         if session.has_run_final_round:
-            return Standing.DONE, describe_count(len(session.rounds), "round")
-        return self._judge_wait(session)
+            return Standing.DONE, describe_count(len(session.rounds), "round"), None
+        standing, detail = self._judge_wait(session)
+        return standing, detail, None
 
     def _judge_wait(self, session: Session) -> tuple[Standing, str]:
         """Return what the last tick left a session its rounds say nothing about.
@@ -213,12 +218,12 @@ class _Look:
             return Standing.STUCK, self._point_at_feed(session, wait.reason)
         return Standing.WAITING, wait.reason
 
-    def _describe_live_round(self, session: Session) -> str:
+    def _describe_live_round(self, session: Session) -> tuple[str, str | None]:
         """Return what the running round last said, and how long ago it said it."""
         line = self._read_last_said(session)
         if line is None:
-            return f"round {len(session.rounds)} has said nothing yet"
-        return f"{line.text.strip()}, {describe_span(self.at - line.at)} ago"
+            return f"round {len(session.rounds)} has said nothing yet", None
+        return f"last output {describe_span(self.at - line.at)} ago", line.text.strip()
 
     def _describe_idle(self, session: Session) -> str:
         """Return how long it is since the session last said anything."""

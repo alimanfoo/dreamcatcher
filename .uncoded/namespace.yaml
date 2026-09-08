@@ -36,6 +36,7 @@ src/:
         session:
         standing:
         detail:
+        last_output:
         attempt:
         attempts:
       QueuedIssue:
@@ -370,6 +371,7 @@ src/:
       show_board:
       _describe_daemon:
       _show_attempts:
+      _render_attempt_detail:
       _show_queue:
       _open_table:
       _print_section:

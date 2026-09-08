@@ -1,5 +1,6 @@
 GH13, attempt 1 of 1
-agent working, [Bash] pytest, 1h 29m ago
+agent working, last output 1h 29m ago
+  [Bash] pytest
 
 session
   key       GH13-20260819-184158                        

@@ -111,9 +111,18 @@ def _show_attempts(console: Console, board: Board, standing: Standing) -> None:
         table.add_row(
             Text(f"GH{attempt.session.record.issue}"),
             Text(f"attempt {attempt.attempt} of {attempt.attempts}"),
-            Text(attempt.detail),
+            _render_attempt_detail(attempt),
         )
     _print_section(console, str(standing), COLOURS[standing], table)
+
+
+def _render_attempt_detail(attempt: Attempt) -> Text:
+    """Render an attempt's detail, with its latest output on a separate line."""
+    detail = Text(attempt.detail)
+    if attempt.last_output is not None:
+        detail.append("\n")
+        detail.append(attempt.last_output)
+    return detail
 
 
 def _show_queue(console: Console, board: Board) -> None:
@@ -162,6 +171,8 @@ def show_session(
     console.print(
         Text(f"{newest.standing}, {newest.detail}", style=COLOURS[newest.standing])
     )
+    if newest.last_output is not None:
+        console.print(Padding(Text(newest.last_output), INDENT, expand=False))
     _show_vitals(console, state, newest)
     _show_rounds(console, newest)
     _show_hand_resume(console, state, newest)
@@ -251,7 +262,7 @@ def _show_older_attempts(console: Console, older: list[Attempt]) -> None:
         table.add_row(
             Text(attempt.session.key),
             Text(str(attempt.standing)),
-            Text(attempt.detail),
+            _render_attempt_detail(attempt),
         )
     _print_section(console, "older attempts", "blue", table)
 

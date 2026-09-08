@@ -85,14 +85,20 @@ def test_a_round_a_running_daemon_has_not_ended_is_the_agent_working(running):
     ran(running, 1, status=None)
     said(running, 1, "[Bash] pytest")
 
-    assert only(running).standing is Standing.WORKING
-    assert only(running).detail == "[Bash] pytest, 2h 0m ago"
+    attempt = only(running)
+
+    assert attempt.standing is Standing.WORKING
+    assert attempt.detail == "last output 2h 0m ago"
+    assert attempt.last_output == "[Bash] pytest"
 
 
 def test_a_running_round_that_has_said_nothing_yet_says_that(running):
     ran(running, 1, status=None)
 
-    assert only(running).detail == "round 1 has said nothing yet"
+    attempt = only(running)
+
+    assert attempt.detail == "round 1 has said nothing yet"
+    assert attempt.last_output is None
 
 
 def test_a_round_with_no_daemon_left_to_run_it_is_waiting(state):
