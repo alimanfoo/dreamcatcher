@@ -121,13 +121,16 @@ def test_a_tick_launches_one_round_and_leaves_the_rest_in_the_queue(dispatching,
 def test_a_second_tick_judges_a_dispatched_issue_handled(dispatching):
     ...
 
-def test_a_tick_at_the_cap_says_the_cap_is_what_each_session_waits_on(dispatching, harnesses):
+def test_a_tick_at_the_cap_says_the_cap_is_what_each_session_waits_on(dispatching, offered, harnesses):
     ...
 
 def test_a_tick_at_the_cap_leaves_a_wound_up_session_waiting_on_nothing(dispatching, harnesses):
     ...
 
-def test_a_tick_at_the_cap_spends_no_github_call(dispatching, offered, harnesses):
+def test_a_tick_at_the_cap_refreshes_the_candidates(dispatching, offered, harnesses):
+    ...
+
+def test_a_tick_at_the_cap_records_a_candidate_listing_failure(dispatching, offered, harnesses):
     ...
 
 def test_a_tick_with_nothing_eligible_dispatches_nothing(dispatching, offered):
@@ -202,7 +205,10 @@ def test_a_last_round_that_was_interrupted_is_carried_on_as_the_last_round(resum
 def test_open_work_is_carried_on_before_a_new_issue_is_dispatched(resuming, gh, offered, left_running):
     ...
 
-def test_a_cooling_tick_still_says_what_each_session_is_waiting_on(resuming):
+def test_a_failed_issue_listing_leaves_open_work_for_a_later_tick(resuming, gh, left_running):
+    ...
+
+def test_a_cooling_tick_still_says_what_each_session_is_waiting_on(resuming, offered):
     ...
 
 def test_a_run_that_cannot_be_told_which_account_gh_is_signed_in_as_refuses(cloned, gh, harnesses):

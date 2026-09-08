@@ -181,13 +181,14 @@ account before the marker tells the user's posts from the session's own. Once
 these checks succeed, `run` prints `dreamcatcher is running` before the first
 tick.
 
-Each tick, in order, launching at most one round per tick:
+Each tick reads the sessions and tries to weigh the candidate issues first. A
+successful read gives `last-tick.json` and the board a current queue; a failed
+listing skips the tick and records the failure. The tick then follows these
+priorities, launching at most one round:
 
-1. If live rounds fill the cap, defer — the daemon knows its own children, so a
-   capped tick spends no GitHub calls at all. It reads the sessions off the
-   disk, which spends none either, and writes the cap down against each one it
-   is holding, so the board shows "at cap" honestly rather than pretending it
-   checked.
+1. If live rounds fill the cap, defer every launch. Write the cap down against
+   each session that it is holding, without peeking at any session's pull
+   request.
 2. Reconcile: enumerate session worktrees, read GitHub state per session, peek
    each session's new posts (a read-only relay query — see below). The peek runs
    whatever state the pull request is in, so the final round of a merged pull
@@ -486,8 +487,9 @@ Commits are not marked; the relay only filters posts.
 - waiting: posts peeked but another launch took this tick's slot, or an
   interrupted or errored round awaiting its carry-on retry — with the last exit
   status, so a run of usage-limit failures reads as what it is. (While the
-  daemon sits at the cap it doesn't peek, so every session it holds waits on the
-  cap, and the board says "at cap" rather than guessing.)
+  daemon sits at the cap it does not peek at sessions, so every session it holds
+  waits on the cap. It still weighs candidate issues so the queue stays
+  current.)
 - stuck: a session in a state the daemon cannot advance — a round exited cleanly
   without opening a PR — surfaced instead of silently skipped, with a pointer to
   the feed.
