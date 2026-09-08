@@ -2,6 +2,7 @@
 # tests/test_cli.py
 
 import os
+from datetime import timedelta
 from importlib.metadata import version
 import pytest
 from clocks import PINNED
