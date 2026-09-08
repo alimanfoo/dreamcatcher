@@ -58,6 +58,9 @@ class Round:
     def stop(self) -> None:
         ...
 
+    def _interrupt(self) -> None:
+        ...
+
     def _pump(self, read: Callable[[], None]) -> None:
         ...
 

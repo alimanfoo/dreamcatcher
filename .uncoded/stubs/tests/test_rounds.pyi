@@ -70,6 +70,9 @@ def test_a_round_that_finished_says_how_it_ended(fake, worktree, directory):
 def test_a_round_somebody_stopped_says_no_ending(fake, worktree, directory):
     ...
 
+def test_a_round_stopped_after_it_finished_keeps_its_ending(fake, worktree, directory):
+    ...
+
 def test_a_round_that_cannot_write_its_feed_stops_rather_than_stalls(fake, worktree, directory):
     ...
 

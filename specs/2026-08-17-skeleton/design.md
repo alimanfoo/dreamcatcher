@@ -99,8 +99,11 @@ never touches the repo's own files. Contents:
   (rendered, timestamped), `raw.jsonl` (the harness's own stdout stream), and
   `inbox.json` (the batch that caused the round, kept forever). A round records
   its start as it spawns and its ending as it ends, and a round that the daemon
-  killed records no ending at all, so one the daemon stopped reads as
-  interrupted, which is what it is.
+  killed while it was still running records no ending at all, so one the daemon
+  stopped mid-round reads as interrupted, which is what it is. A round that had
+  already finished when the daemon stopped it keeps the ending it recorded for
+  itself, so a later tick does not send the session back over a round it has
+  done.
 
 Every whole document the tool writes lands in one step: the text goes to a file
 beside the target and then takes the target's place. A round records how it
