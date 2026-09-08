@@ -84,10 +84,10 @@ class RoundRecord(Document):
     The cause is what woke the round: the dispatch that opened the session, or
     whatever a later tick found for it to do.
 
-    A record with no ending means the round was interrupted. Either the daemon
-    exited while the round was still going, or the daemon stopped the round
-    itself. Both leave work half done, so a later tick resumes the round rather
-    than starting a new one.
+    A record with no ending means the round was still going when something
+    ended it. Either the daemon went down and stopped it, or the round could
+    not write its own files. Both leave work half done, so a later tick resumes
+    the round rather than starting a new one.
     """
 
     started: datetime
@@ -231,18 +231,41 @@ class Round:
         self._closing.join()
 
     def stop(self) -> None:
-        """End the round now, and everything it started, leaving it unfinished.
-
-        A stopped round did not finish, so nothing writes an ending to its
-        record. A later tick then sees an interrupted round and resumes it.
+        """End the round now, and everything it started.
 
         This returns as soon as the round has ended, and does not wait for the
         feed, so that a stream somebody else is still holding cannot hold up
         the daemon.
         """
-        self.is_interrupted = True
-        self.child.kill()
+        self._interrupt()
         self._ended.wait()
+
+    def _interrupt(self) -> None:
+        """End the round while it is still running, so it reads as unfinished.
+
+        A round nobody let finish has nothing to show for itself, so nothing
+        writes an ending to its record, and a later tick sees an interrupted
+        round and resumes it. A child that has already gone finished by itself
+        and keeps the ending `_close` writes for it, so this leaves that record
+        alone rather than sending a session back over a round it has done.
+
+        The mark goes on before the kill, because the kill is what makes
+        `_close` return from `child.wait()`. So `_close` reads a mark this
+        made, and reordering the two would let it write an ending for a round
+        the daemon interrupted.
+
+        One window stays open. The child can go after `child.is_running` has
+        answered and before the mark goes on, and a round that has just
+        finished then reads as interrupted. Reading the exit status would not
+        settle it, because on Windows a killed child leaves the status a
+        harness that failed would leave, for the reason `teardown` gives. A
+        lock is no help either: `_close` would have to hold it across
+        `child.wait()`, and then a stop would wait for the child to finish by
+        itself, which is what a stop is there to avoid.
+        """
+        if self.child.is_running:
+            self.is_interrupted = True
+            self.child.kill()
 
     def _pump(self, read: Callable[[], None]) -> None:
         """Read one of the round's streams, and end the round if that fails.
@@ -250,15 +273,13 @@ class Round:
         A round that cannot write its own files has nothing to show for itself.
         It would also hang: a reader that stops reading fills the pipe, the
         harness blocks on its next write, and nothing ever ends the round. So
-        the round is ended here, and its record keeps no ending, which marks it
-        as interrupted. A child that had already gone leaves the record alone:
-        that round ended by itself, however short its feed came out.
+        the round is ended here. A child that had already gone ended the round
+        by itself and keeps its ending, however short the feed came out.
         """
         try:
             read()
         except ReportableError:
-            self.is_interrupted = True
-            self.child.kill()
+            self._interrupt()
 
     def _read_stdout(self) -> None:
         """Keep each line that the harness streams, and write what it says."""

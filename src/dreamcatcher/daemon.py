@@ -157,7 +157,7 @@ class Daemon:
         Writing that evidence down is the exception. A daemon that cannot write
         `last-tick.json` has no way left to say anything at all, so that
         failure ends the run with a message the user can act on, and the rounds
-        it was holding end with it and read as interrupted.
+        it was holding end with it.
         """
         self.rounds = {
             key: running for key, running in self.rounds.items() if running.is_alive
