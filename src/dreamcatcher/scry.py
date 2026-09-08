@@ -349,8 +349,8 @@ def show_feed(
     # Nothing was going before the view opened, so a session that has already
     # ended when it opens ends the view on its first look.
     was_over = True
-    # One reader across every look, so a look reads the round records that have
-    # changed since the last one rather than every record again.
+    # One reader across every look, so a look after the first reads what has
+    # changed since the one before it.
     reader = RoundReader()
     with suppress(KeyboardInterrupt):
         while True:

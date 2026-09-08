@@ -12,7 +12,6 @@ asks for the session.
 from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import datetime
-from functools import cached_property
 from pathlib import Path
 
 from dreamcatcher import prompts
@@ -72,32 +71,18 @@ class Session:
 
     The directory is where the session keeps its own files, and its own name is
     the session's key, which is how a reader of the disk finds one. The record
-    says what the dispatch settled.
+    says what the dispatch settled, and the rounds are what the session has run
+    so far, oldest first.
 
     The watermark is the newest post the session has been told about. A session
     that has been told about none has the beginning of time, so the first peek
     at its pull request returns the whole history.
-
-    The reader is what the session reads its rounds through, and it is no part
-    of the session itself, so two sessions read from one directory read as one
-    session whichever reader each was given.
     """
 
     directory: Path
     record: SessionRecord
+    rounds: list[RoundRecord] = field(default_factory=list)
     watermark: str = ""
-    reader: RoundReader = field(default_factory=RoundReader, compare=False, repr=False)
-
-    @cached_property
-    def rounds(self) -> list[RoundRecord]:
-        """The rounds the session has run so far, oldest first.
-
-        These are read when they are first asked for, and kept, so a session
-        nobody asks about the rounds of costs no round record read at all, and
-        a session that is asked twice is one look either way, as its record and
-        its watermark are.
-        """
-        return self.reader.read(self.directory / ROUNDS)
 
     @property
     def key(self) -> str:
@@ -168,10 +153,8 @@ def read_sessions(
     sit under `sessions/`, in a directory the same key names.
 
     A caller that reads the same state directory again and again hands the
-    reader it holds, and every session comes back reading its rounds through
-    it, so a later read opens only the round records that can have changed. A
-    caller that reads once hands none, and each session it gets back reads its
-    own rounds.
+    reader it holds, so a later read opens only the round records that can have
+    changed.
 
     A state directory with no worktrees in it yet holds no sessions, so this
     answers with nothing rather than failing. Anything under `worktrees/` that
@@ -251,8 +234,8 @@ def _read_session(directory: Path, reader: RoundReader) -> Session:
     return Session(
         directory=directory,
         record=read_json(SessionRecord, directory / RECORD),
+        rounds=reader.read(directory / ROUNDS),
         watermark=_read_watermark(directory),
-        reader=reader,
     )
 
 

@@ -101,10 +101,9 @@ class Daemon:
         # belongs to. They are what the cap counts, and what the daemon ends as
         # it goes down.
         self.rounds: dict[str, Round] = {}
-        # What the daemon has read of every session's rounds. Holding it for as
-        # long as the daemon runs is what keeps a tick's reading proportional
-        # to what has happened since the last one, rather than to every round
-        # the repo has ever run.
+        # What the daemon has read of every session's rounds, kept for as long
+        # as the daemon runs, so every tick after the first reads what has
+        # changed since the one before it.
         self.reader = RoundReader()
 
     def run(self) -> None:

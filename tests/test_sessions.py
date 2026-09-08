@@ -186,9 +186,9 @@ def running(minute=0):
     )
 
 
-def read_again(state, reader):
-    """Return the rounds that a reader that has read before reads this time."""
-    return read_sessions(state, reader)[0].rounds
+def endings(state, reader):
+    """Return how each round of the state directory's one session ended."""
+    return [record.ending for record in read_sessions(state, reader)[0].rounds]
 
 
 def test_a_second_read_does_not_open_a_round_record_it_has_already_read(fabricated):
@@ -196,40 +196,37 @@ def test_a_second_read_does_not_open_a_round_record_it_has_already_read(fabricat
     write_round(directory, 1, ended(0))
     write_round(directory, 2, running(minute=1))
     reader = RoundReader()
-    read_again(fabricated, reader)
+    read_sessions(fabricated, reader)
 
     # Rewriting the first round's record puts something there that only a read
     # of that file could find. A reader that has read it does not look again.
     write_round(directory, 1, ended(2))
 
-    assert [record.ending for record in read_again(fabricated, reader)] == [
-        ended(0).ending,
-        None,
-    ]
+    assert endings(fabricated, reader) == [ended(0).ending, None]
 
 
 def test_a_second_read_carries_an_ending_that_landed_on_the_newest_round(fabricated):
     directory = write_session(fabricated, KEY, 12)
     write_round(directory, 1, running())
     reader = RoundReader()
-    read_again(fabricated, reader)
+    read_sessions(fabricated, reader)
 
     write_round(directory, 1, ended(0))
 
-    assert [record.ending for record in read_again(fabricated, reader)] == [
-        ended(0).ending
-    ]
+    assert endings(fabricated, reader) == [ended(0).ending]
 
 
 def test_a_second_read_finds_a_round_that_has_started_since_the_first(fabricated):
     directory = write_session(fabricated, KEY, 12)
     write_round(directory, 1, ended(0))
     reader = RoundReader()
-    read_again(fabricated, reader)
+    read_sessions(fabricated, reader)
 
     write_round(directory, 2, running(minute=1))
 
-    assert [record.started for record in read_again(fabricated, reader)] == [
+    read = read_sessions(fabricated, reader)[0]
+
+    assert [record.started for record in read.rounds] == [
         PINNED,
         PINNED + timedelta(minutes=1),
     ]
@@ -241,16 +238,13 @@ def test_a_round_read_as_it_ran_is_read_again_once_a_later_round_has_started(
     directory = write_session(fabricated, KEY, 12)
     write_round(directory, 1, running())
     reader = RoundReader()
-    read_again(fabricated, reader)
+    read_sessions(fabricated, reader)
 
     # The first round ended, and the round that carried its work on started.
     write_round(directory, 1, ended(0))
     write_round(directory, 2, running(minute=1))
 
-    assert [record.ending for record in read_again(fabricated, reader)] == [
-        ended(0).ending,
-        None,
-    ]
+    assert endings(fabricated, reader) == [ended(0).ending, None]
 
 
 def test_a_session_git_cannot_cut_leaves_no_branch_behind(state, mapping):

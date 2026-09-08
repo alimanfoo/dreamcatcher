@@ -4,7 +4,6 @@
 from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import datetime
-from functools import cached_property
 from pathlib import Path
 from dreamcatcher import prompts
 from dreamcatcher.commands import CommandError
@@ -51,14 +50,11 @@ class SessionRecord(Document):
 class Session:
     directory: Path
     record: SessionRecord
+    rounds: list[RoundRecord] = field(default_factory=list)
     watermark: str = ''
-    reader: RoundReader = field(default_factory=RoundReader, compare=False, repr=False)
     key: str
     has_run_final_round: bool
     next_workspace: Workspace
-
-    def rounds(self) -> list[RoundRecord]:
-        ...
 
     def describe_unfinished_round(self) -> str | None:
         ...

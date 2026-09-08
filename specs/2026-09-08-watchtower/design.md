@@ -164,10 +164,10 @@ reading as one still going. So the pass that finds a new round reads two
 records: the new one, and the one it displaced.
 
 That is one directory listing and one small read per session per pass,
-independent of how many rounds the repo has ever run. Sessions read their rounds
-on demand rather than eagerly, so a view that wants nothing from a session's
-rounds — and the session view wants them for one session only — pays nothing for
-the rest.
+independent of how many rounds the repo has ever run. A session's rounds are
+read with the session rather than on demand, because every view goes through the
+board, and the board reads where each session stands from that session's own
+rounds. Reading them on demand would save nothing while that holds.
 
 This deliberately does not lean on a session being finished. It is tempting to
 say that a session whose final round has completed and whose pull request is

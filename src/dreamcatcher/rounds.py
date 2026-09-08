@@ -148,11 +148,8 @@ class RoundReader:
     number, which writes into a directory of its own. So the newest record of a
     session is the only one that can be written again.
 
-    One reader is one process's reading. A process that reads the same rounds
-    again and again holds its reader across those reads, and each read then
-    costs a listing of the rounds directory and the one record that can have
-    changed, however many rounds the session has run. A process that reads
-    once holds a reader of its own and keeps nothing worth keeping.
+    So a read costs a listing of the rounds directory and the one record that
+    can have changed, however many rounds the session has run.
 
     A record is kept only once a later round has started. Every record is read
     while it is still the newest of its session, and it is written again after

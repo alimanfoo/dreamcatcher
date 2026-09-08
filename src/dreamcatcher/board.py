@@ -125,8 +125,7 @@ def read_board(
 ) -> Board:
     """Return what the state directory says every session and issue is doing.
 
-    A caller that reads the board again and again hands the round reader it
-    holds, so a later read opens only the round records that can have changed.
+    The reader travels on to `read_sessions`, which is what reads the rounds.
     """
     tick = read_json(LastTick, state.last_tick) if state.last_tick.exists() else None
     look = _Look(

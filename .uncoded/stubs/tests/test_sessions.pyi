@@ -74,7 +74,7 @@ def test_a_session_that_has_run_its_final_round_says_so(fabricated):
 def running(minute):
     ...
 
-def read_again(state, reader):
+def endings(state, reader):
     ...
 
 def test_a_second_read_does_not_open_a_round_record_it_has_already_read(fabricated):
