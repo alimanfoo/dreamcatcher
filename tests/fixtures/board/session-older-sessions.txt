@@ -1,4 +1,4 @@
-GH13, attempt 3 of 3
+GH13, session 3 of 3
 needs you, idle 1h 58m
 
 session
@@ -20,6 +20,6 @@ take it over yourself
   cd .dreamcatcher/worktrees/GH13-20260819-184158
   claude --continue                              
 
-older attempts
-  GH13-20260818-090000  done  finished 1h 54m ago
-  GH13-20260817-090000  done  finished 1h 54m ago
+older sessions
+  GH13-20260818-090000  done  2 rounds
+  GH13-20260817-090000  done  2 rounds

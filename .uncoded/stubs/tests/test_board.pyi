@@ -54,6 +54,9 @@ def test_a_round_that_failed_waits_with_the_status_it_failed_with(running):
 def test_a_session_whose_final_round_has_run_is_done(state):
     ...
 
+def test_a_session_done_in_one_round_counts_that_round_as_one(state):
+    ...
+
 def test_a_session_the_tick_found_nothing_to_do_for_needs_you(state):
     ...
 
@@ -72,7 +75,7 @@ def test_a_stuck_session_that_ran_no_round_has_no_feed_to_point_at(state):
 def test_a_session_no_tick_has_weighed_and_no_round_has_run_is_stuck(state):
     ...
 
-def test_the_attempts_at_one_issue_read_as_attempts_newest_first(state):
+def test_the_sessions_at_one_issue_read_as_sessions_newest_first(state):
     ...
 
 def test_the_work_that_is_done_reads_most_recent_first(state):

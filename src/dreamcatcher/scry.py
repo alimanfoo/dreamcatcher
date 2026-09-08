@@ -18,7 +18,7 @@ from rich.padding import Padding
 from rich.table import Table
 from rich.text import Text
 
-from dreamcatcher.board import Attempt, Board, Standing, read_board
+from dreamcatcher.board import Board, Row, Standing, read_board
 from dreamcatcher.clock import now
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import (
@@ -73,13 +73,13 @@ def show_board(
     """
     board = read_board(state, clock)
     console.print(_describe_daemon(board))
-    _show_attempts(console, board, Standing.NEEDS_YOU)
-    _show_attempts(console, board, Standing.WORKING)
-    _show_attempts(console, board, Standing.WAITING)
-    _show_attempts(console, board, Standing.STUCK)
+    _show_rows(console, board, Standing.NEEDS_YOU)
+    _show_rows(console, board, Standing.WORKING)
+    _show_rows(console, board, Standing.WAITING)
+    _show_rows(console, board, Standing.STUCK)
     _show_queue(console, board)
-    _show_attempts(console, board, Standing.DONE)
-    if not board.attempts and not board.queued:
+    _show_rows(console, board, Standing.DONE)
+    if not board.rows and not board.queued:
         console.print("nothing dispatched yet")
 
 
@@ -101,64 +101,67 @@ def _describe_daemon(board: Board) -> Text:
     return Text(f"{daemon}, last tick {ticked} ago{held}")
 
 
-def _show_attempts(console: Console, board: Board, standing: Standing) -> None:
+def _show_rows(console: Console, board: Board, standing: Standing) -> None:
     """Show the sessions standing there, a row for each."""
-    attempts = board.list_standing(standing)
-    if not attempts:
+    rows = board.list_standing(standing)
+    if not rows:
         return
     table = _open_table()
-    for attempt in attempts:
+    for row in rows:
         table.add_row(
-            Text(f"GH{attempt.session.record.issue}"),
-            Text(_describe_progress(attempt)),
-            _render_attempt_detail(attempt),
+            Text(f"GH{row.session.record.issue}"),
+            _render_detail(row, prefix=_describe_progress(row)),
         )
     _print_section(console, str(standing), COLOURS[standing], table)
 
 
-def _describe_attempt(attempt: Attempt) -> str:
-    """Return which attempt of how many this is, or nothing when it is the only one.
+def _join(*said: str) -> str:
+    """Return the pieces that have something to say, one comma-separated line."""
+    return ", ".join(filter(None, said))
+
+
+def _describe_session(row: Row) -> str:
+    """Return which of its issue's sessions this is, or nothing when it is the only one.
 
     An issue is dispatched once and carried to a pull request, so nearly every
-    attempt is the only attempt there is, and saying which of one it is says
-    nothing. The words appear where they mean something, which is where an
+    session is the only session its issue has, and saying which of one it is
+    says nothing. The words appear where they mean something, which is where an
     issue was dispatched again.
     """
-    if attempt.attempts == 1:
+    if row.count == 1:
         return ""
-    return f"attempt {attempt.attempt} of {attempt.attempts}"
+    return f"session {row.number} of {row.count}"
 
 
-def _describe_round(attempt: Attempt) -> str:
-    """Return which round the attempt is on, or nothing before it has run one.
+def _describe_round(row: Row) -> str:
+    """Return which round is running, or nothing while none is.
 
-    The round is the one running while the agent works, and the last one that
-    ran otherwise, so either way it says where the session has got to.
+    A number says which round only while a round is running. A session between
+    rounds has one behind it and another to come, and a bare number there reads
+    as either.
     """
-    if not attempt.session.rounds:
+    if row.standing is not Standing.WORKING:
         return ""
-    return f"round {len(attempt.session.rounds)}"
+    return f"round {len(row.session.rounds)}"
 
 
-def _describe_progress(attempt: Attempt) -> str:
-    """Return how far the attempt has got, for the column beside its issue."""
-    return ", ".join(
-        filter(None, (_describe_attempt(attempt), _describe_round(attempt)))
-    )
+def _describe_progress(row: Row) -> str:
+    """Return how far the session has got, to open its row with."""
+    return _join(_describe_session(row), _describe_round(row))
 
 
-def _render_attempt_detail(
-    attempt: Attempt,
+def _render_detail(
+    row: Row,
     prefix: str = "",
     continuation_indent: int = 0,
     style: str = "",
 ) -> RenderableType:
-    """Render an attempt's detail and set its latest output beneath it."""
-    detail = Text(f"{prefix}{attempt.detail}", style=style)
-    if attempt.last_output is None:
+    """Render a row's detail behind its prefix, latest output beneath it."""
+    detail = Text(_join(prefix, row.detail), style=style)
+    if row.last_output is None:
         return detail
     output = Padding(
-        Text(attempt.last_output), (0, 0, 0, continuation_indent), expand=False
+        Text(row.last_output), (0, 0, 0, continuation_indent), expand=False
     )
     return Group(detail, output)
 
@@ -197,21 +200,19 @@ def show_session(
     console: Console,
     clock: Callable[[], datetime] = now,
 ) -> None:
-    """Show the newest attempt at the issue, with the older ones beneath it.
+    """Show the newest session at the issue, with the older ones beneath it.
 
-    An issue that has been dispatched more than once has an attempt for each
+    An issue that has been dispatched more than once has a session for each
     dispatch. The newest is the one still going, or the one that got furthest,
     so it is the one the view is about.
     """
-    attempts = _find_attempts(read_board(state, clock), issue)
-    newest = attempts[0]
-    heading = ", ".join(filter(None, (f"GH{issue}", _describe_attempt(newest))))
-    console.print(Text(heading))
-    prefix = f"{newest.standing}, "
+    rows = _find_rows(read_board(state, clock), issue)
+    newest = rows[0]
+    console.print(Text(_join(f"GH{issue}", _describe_session(newest))))
     console.print(
-        _render_attempt_detail(
+        _render_detail(
             newest,
-            prefix=prefix,
+            prefix=str(newest.standing),
             continuation_indent=INDENT[3],
             style=COLOURS[newest.standing],
         )
@@ -219,15 +220,15 @@ def show_session(
     _show_vitals(console, state, newest)
     _show_rounds(console, newest)
     _show_hand_resume(console, state, newest)
-    _show_older_attempts(console, attempts[1:])
+    _show_older_sessions(console, rows[1:])
 
 
-def _show_vitals(console: Console, state: StateDirectory, attempt: Attempt) -> None:
+def _show_vitals(console: Console, state: StateDirectory, row: Row) -> None:
     """Show what the dispatch settled, which every round of the session runs with."""
-    record = attempt.session.record
+    record = row.session.record
     table = _open_table()
     for name, value in (
-        ("key", attempt.session.key),
+        ("key", row.session.key),
         ("label", record.label),
         ("branch", record.branch),
         ("worktree", state.describe_path(record.worktree)),
@@ -240,14 +241,14 @@ def _show_vitals(console: Console, state: StateDirectory, attempt: Attempt) -> N
     _print_section(console, "first prompt", "blue", Text(record.prompt))
 
 
-def _show_rounds(console: Console, attempt: Attempt) -> None:
+def _show_rounds(console: Console, row: Row) -> None:
     """Show the rounds the session has run, oldest first."""
-    rounds = attempt.session.rounds
+    rounds = row.session.rounds
     if not rounds:
         return
     table = _open_table()
     for number, record in enumerate(rounds, start=1):
-        is_running = attempt.standing is Standing.WORKING and number == len(rounds)
+        is_running = row.standing is Standing.WORKING and number == len(rounds)
         table.add_row(
             Text(str(number)),
             Text(record.cause),
@@ -277,9 +278,7 @@ def _describe_ending(record: RoundRecord, is_running: bool) -> str:
     return "running" if is_running else "interrupted"
 
 
-def _show_hand_resume(
-    console: Console, state: StateDirectory, attempt: Attempt
-) -> None:
+def _show_hand_resume(console: Console, state: StateDirectory, row: Row) -> None:
     """Show how to carry the session on by hand, when there is one to carry on.
 
     A round of the daemon's own is talking to the harness already, so there is
@@ -287,27 +286,27 @@ def _show_hand_resume(
     at all has no harness session behind it either, so there is nothing to
     take over there and never will be.
     """
-    if attempt.standing is Standing.WORKING or not attempt.session.rounds:
+    if row.standing is Standing.WORKING or not row.session.rounds:
         return
-    worktree = state.describe_path(attempt.session.record.worktree)
-    command = " ".join(ADAPTERS[attempt.session.record.harness].build_hand_resume())
+    worktree = state.describe_path(row.session.record.worktree)
+    command = " ".join(ADAPTERS[row.session.record.harness].build_hand_resume())
     _print_section(
         console, "take it over yourself", "blue", Text(f"cd {worktree}\n{command}")
     )
 
 
-def _show_older_attempts(console: Console, older: list[Attempt]) -> None:
-    """Show the attempts at this issue that came before, newest first."""
+def _show_older_sessions(console: Console, older: list[Row]) -> None:
+    """Show the sessions at this issue that came before, newest first."""
     if not older:
         return
     table = _open_table()
-    for attempt in older:
+    for row in older:
         table.add_row(
-            Text(attempt.session.key),
-            Text(str(attempt.standing)),
-            _render_attempt_detail(attempt),
+            Text(row.session.key),
+            Text(str(row.standing)),
+            _render_detail(row),
         )
-    _print_section(console, "older attempts", "blue", table)
+    _print_section(console, "older sessions", "blue", table)
 
 
 def show_round(
@@ -317,11 +316,11 @@ def show_round(
     console: Console,
     clock: Callable[[], datetime] = now,
 ) -> None:
-    """Show the feed of one round of the issue's newest attempt.
+    """Show the feed of one round of the issue's newest session.
 
     The round list of the session view is where a reader finds the number.
     """
-    session = _find_attempts(read_board(state, clock), issue)[0].session
+    session = _find_rows(read_board(state, clock), issue)[0].session
     if not 1 <= number <= len(session.rounds):
         raise ReportableError(
             f"GH{issue} has run {describe_count(len(session.rounds), 'round')}, "
@@ -338,7 +337,7 @@ def show_feed(
     wait: Callable[[float], None] = sleep,
     clock: Callable[[], datetime] = now,
 ) -> None:
-    """Show every round of the issue's newest attempt, and follow what arrives.
+    """Show every round of the issue's newest session, and follow what arrives.
 
     Reading a session that is over and watching one that is going are the same
     view in two tenses, so this shows what is there and then keeps showing what
@@ -359,25 +358,25 @@ def show_feed(
     was_running = False
     with suppress(KeyboardInterrupt):
         while True:
-            attempt = _find_attempts(read_board(state, clock), issue)[0]
-            session = attempt.session
+            row = _find_rows(read_board(state, clock), issue)[0]
+            session = row.session
             painted = _compose_feed(session, range(1, len(session.rounds) + 1))
             for line in painted[shown:]:
                 console.print(line)
             shown = len(painted)
-            is_running = attempt.standing is Standing.WORKING
+            is_running = row.standing is Standing.WORKING
             if not is_running and not was_running:
                 return
             was_running = is_running
             wait(PAUSE)
 
 
-def _find_attempts(board: Board, issue: int) -> list[Attempt]:
-    """Return the attempts at the issue, newest first, or refuse if there are none."""
-    attempts = [one for one in board.attempts if one.session.record.issue == issue]
-    if not attempts:
+def _find_rows(board: Board, issue: int) -> list[Row]:
+    """Return the rows for the issue, newest session first, or refuse if none."""
+    rows = [one for one in board.rows if one.session.record.issue == issue]
+    if not rows:
         raise ReportableError(f"No session here for GH{issue}.")
-    return attempts
+    return rows
 
 
 def _compose_feed(session: Session, numbers: Iterable[int]) -> list[Text]:

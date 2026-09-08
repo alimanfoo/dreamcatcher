@@ -1,9 +1,10 @@
 """Create a session for an issue, and read back the ones a repo already has.
 
-A session is one attempt at one issue. It gets a key of its own: the issue's
-number, and the time the attempt started. That key names its branch, its
+A session is one go at one issue. It gets a key of its own: the issue's
+number, and the time the session started. That key names its branch, its
 worktree, and the directory that holds its own files. So three worktrees for
-one issue read as three attempts at one thing, each with its own pull request.
+one issue read as three sessions at one thing, each with its own pull
+request.
 
 Nothing here decides which issue to dispatch, or when. A caller that has decided
 asks for the session.
@@ -67,7 +68,7 @@ class SessionRecord(Document):
 
 @dataclass(frozen=True)
 class Session:
-    """One attempt at one issue, as it stands.
+    """One session at one issue, as it stands.
 
     The directory is where the session keeps its own files, and its own name is
     the session's key, which is how a reader of the disk finds one. The record

@@ -1,0 +1,8 @@
+no daemon running, last tick 2m ago
+
+needs you
+  GH13  session 3 of 3, idle 1h 58m
+
+done
+  GH13  session 2 of 3, 2 rounds
+  GH13  session 1 of 3, 2 rounds

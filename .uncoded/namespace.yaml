@@ -32,13 +32,13 @@ src/:
         WAITING:
         STUCK:
         DONE:
-      Attempt:
+      Row:
         session:
         standing:
         detail:
         last_output:
-        attempt:
-        attempts:
+        number:
+        count:
       QueuedIssue:
         issue:
         label:
@@ -47,7 +47,7 @@ src/:
         at:
         daemon_pid:
         tick:
-        attempts:
+        rows:
         queued:
         list_standing:
       _Look:
@@ -55,12 +55,11 @@ src/:
         at:
         daemon_pid:
         waits:
-        list_attempts:
-        _read_attempt:
+        list_rows:
+        _read_row:
         _judge_standing:
         _judge_wait:
         _describe_live_round:
-        _describe_finish:
         _describe_idle:
         _read_last_said:
         _point_at_feed:
@@ -371,11 +370,12 @@ src/:
       open_console:
       show_board:
       _describe_daemon:
-      _show_attempts:
-      _describe_attempt:
+      _show_rows:
+      _join:
+      _describe_session:
       _describe_round:
       _describe_progress:
-      _render_attempt_detail:
+      _render_detail:
       _show_queue:
       _open_table:
       _print_section:
@@ -385,10 +385,10 @@ src/:
       _describe_run:
       _describe_ending:
       _show_hand_resume:
-      _show_older_attempts:
+      _show_older_sessions:
       show_round:
       show_feed:
-      _find_attempts:
+      _find_rows:
       _compose_feed:
       _paint_written:
       _paint:
@@ -574,13 +574,14 @@ tests/:
     test_a_round_with_no_daemon_left_to_run_it_is_waiting:
     test_a_round_that_failed_waits_with_the_status_it_failed_with:
     test_a_session_whose_final_round_has_run_is_done:
+    test_a_session_done_in_one_round_counts_that_round_as_one:
     test_a_session_the_tick_found_nothing_to_do_for_needs_you:
     test_a_session_that_wrote_no_feed_at_all_is_idle_for_who_knows_how_long:
     test_a_session_the_tick_left_waiting_says_what_it_waits_on:
     test_a_stuck_session_says_where_to_read_what_it_did:
     test_a_stuck_session_that_ran_no_round_has_no_feed_to_point_at:
     test_a_session_no_tick_has_weighed_and_no_round_has_run_is_stuck:
-    test_the_attempts_at_one_issue_read_as_attempts_newest_first:
+    test_the_sessions_at_one_issue_read_as_sessions_newest_first:
     test_the_work_that_is_done_reads_most_recent_first:
     test_the_sessions_in_one_standing_come_back_in_the_boards_own_order:
     test_the_queue_reads_each_issues_turn_off_its_place:
@@ -997,7 +998,7 @@ tests/:
     fabricate_a_dead_daemon:
     fabricate_the_cap:
     fabricate_a_silent_round:
-    fabricate_repeat_attempts:
+    fabricate_repeat_sessions:
     pinned:
     stopping:
     rendered:

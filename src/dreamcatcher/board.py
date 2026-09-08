@@ -56,15 +56,15 @@ class Standing(StrEnum):
 
 
 @dataclass(frozen=True)
-class Attempt:
-    """One session on the board: which attempt it is, and how it is doing.
+class Row:
+    """One session on the board: which of its issue's sessions, and how it is doing.
 
-    Three sessions for one issue are three attempts at one thing, and the
-    numbers say so: the oldest attempt is the first, and the newest is the
-    last.
+    An issue is usually dispatched once and carried to a pull request. One that
+    was dispatched again has a session for each go, and the number says which:
+    the oldest is the first, and the newest is the last of that count.
 
     The detail is what the row says beside the standing, in the words the disk
-    put it in. A working attempt keeps its latest output separate so the view
+    put it in. A working session keeps its latest output separate so the view
     can set it apart from that status.
     """
 
@@ -72,8 +72,8 @@ class Attempt:
     standing: Standing
     detail: str
     last_output: str | None
-    attempt: int
-    attempts: int
+    number: int
+    count: int
 
 
 @dataclass(frozen=True)
@@ -101,18 +101,18 @@ class Board:
     at: datetime
     daemon_pid: int | None
     tick: LastTick | None
-    attempts: list[Attempt]
+    rows: list[Row]
     queued: list[QueuedIssue]
 
-    def list_standing(self, standing: Standing) -> list[Attempt]:
-        """Return the attempts standing there, in the order the board reads them.
+    def list_standing(self, standing: Standing) -> list[Row]:
+        """Return the rows standing there, in the order the board reads them.
 
         Work that is done reads by when its last round started, most recent
         first, since the last thing to run is the one you were waiting for.
-        Everything else reads by issue, with the newest attempt at an issue
+        Everything else reads by issue, with the newest session at an issue
         ahead of the older ones.
         """
-        found = [one for one in self.attempts if one.standing is standing]
+        found = [one for one in self.rows if one.standing is standing]
         if standing is Standing.DONE:
             return sorted(
                 found, key=lambda one: one.session.rounds[-1].started, reverse=True
@@ -134,7 +134,7 @@ def read_board(state: StateDirectory, clock: Callable[[], datetime] = now) -> Bo
         at=look.at,
         daemon_pid=look.daemon_pid,
         tick=tick,
-        attempts=look.list_attempts(sessions),
+        rows=look.list_rows(sessions),
         queued=_list_queue(tick, {session.record.issue for session in sessions}),
     )
 
@@ -152,11 +152,11 @@ class _Look:
     daemon_pid: int | None
     waits: dict[str, WaitingSession]
 
-    def list_attempts(self, sessions: list[Session]) -> list[Attempt]:
-        """Return every session as an attempt at its issue, newest attempt first.
+    def list_rows(self, sessions: list[Session]) -> list[Row]:
+        """Return a row for every session, the newest session at an issue first.
 
         A session's key opens with its issue and closes with the time it was
-        cut, so sorting by key puts the attempts at one issue together and in
+        cut, so sorting by key puts the sessions at one issue together and in
         the order they were made. The board shows the newest of them first, and
         each says which of how many it is.
         """
@@ -166,20 +166,20 @@ class _Look:
         found = []
         for issue in sorted(by_issue):
             made = by_issue[issue]
-            for attempt, session in reversed(list(enumerate(made, start=1))):
-                found.append(self._read_attempt(session, attempt, len(made)))
+            for number, session in reversed(list(enumerate(made, start=1))):
+                found.append(self._read_row(session, number, len(made)))
         return found
 
-    def _read_attempt(self, session: Session, attempt: int, attempts: int) -> Attempt:
-        """Return the session as one attempt at its issue, where it stands."""
+    def _read_row(self, session: Session, number: int, count: int) -> Row:
+        """Return the session as one row of the board, where it stands."""
         standing, detail, last_output = self._judge_standing(session)
-        return Attempt(
+        return Row(
             session=session,
             standing=standing,
             detail=detail,
             last_output=last_output,
-            attempt=attempt,
-            attempts=attempts,
+            number=number,
+            count=count,
         )
 
     def _judge_standing(self, session: Session) -> tuple[Standing, str, str | None]:
@@ -197,7 +197,7 @@ class _Look:
                 return Standing.WORKING, detail, last_output
             return Standing.WAITING, unfinished, None
         if session.has_run_final_round:
-            return Standing.DONE, self._describe_finish(session), None
+            return Standing.DONE, describe_count(len(session.rounds), "round"), None
         standing, detail = self._judge_wait(session)
         return standing, detail, None
 
@@ -224,17 +224,6 @@ class _Look:
         if line is None:
             return "has said nothing yet", None
         return f"last output {describe_span(self.at - line.at)} ago", line.text.strip()
-
-    def _describe_finish(self, session: Session) -> str:
-        """Return how long it is since the round that wound the session up ended.
-
-        A session is done only once its last round ended, and the round
-        records say when, so the last ending recorded is when the work
-        finished. How many rounds it took is beside the point by then, and the
-        row says which round it got to anyway.
-        """
-        ended = [one.ending for one in session.rounds if one.ending is not None]
-        return f"finished {describe_span(self.at - ended[-1].at)} ago"
 
     def _describe_idle(self, session: Session) -> str:
         """Return how long it is since the session last said anything."""
@@ -264,8 +253,8 @@ def _list_queue(tick: LastTick | None, claimed: set[int]) -> list[QueuedIssue]:
 
     An issue a session here already claims is not queued: it is that session.
     The tick that dispatched it weighed it before it had one, so its own record
-    still calls it eligible, and by the time anyone reads the board it has an
-    attempt of its own to read instead.
+    still calls it eligible, and by the time anyone reads the board it has a
+    row of its own to read instead.
     """
     if tick is None:
         return []

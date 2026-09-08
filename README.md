@@ -123,11 +123,11 @@ in the order of whose turn it is:
   has not gone.
 - `done` is the sessions that have run their last round.
 
-Three attempts at one issue read as three attempts at one thing, so a label you
+Three sessions at one issue read as three sessions at one thing, so a label you
 forgot to remove shows as what it is rather than as three unrelated rows.
 
 Name an issue to see one session: what its dispatch settled, the rounds it has
-run, the command that takes the session over by hand, and the older attempts at
+run, the command that takes the session over by hand, and the older sessions at
 the same issue.
 
 ```sh

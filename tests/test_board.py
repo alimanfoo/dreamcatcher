@@ -61,8 +61,8 @@ def looked(state):
 
 
 def only(state):
-    """The one attempt the board found."""
-    found = looked(state).attempts
+    """The one row the board found."""
+    found = looked(state).rows
     assert len(found) == 1
     return found[0]
 
@@ -73,7 +73,7 @@ def test_a_state_directory_nothing_has_run_in_yet_holds_an_empty_board(tmp_path)
     assert board.at == LOOKED_AT
     assert board.daemon_pid is None
     assert board.tick is None
-    assert board.attempts == []
+    assert board.rows == []
     assert board.queued == []
 
 
@@ -85,20 +85,20 @@ def test_a_round_a_running_daemon_has_not_ended_is_the_agent_working(running):
     ran(running, 1, status=None)
     said(running, 1, "[Bash] pytest")
 
-    attempt = only(running)
+    row = only(running)
 
-    assert attempt.standing is Standing.WORKING
-    assert attempt.detail == "last output 2h 0m ago"
-    assert attempt.last_output == "[Bash] pytest"
+    assert row.standing is Standing.WORKING
+    assert row.detail == "last output 2h 0m ago"
+    assert row.last_output == "[Bash] pytest"
 
 
 def test_a_running_round_that_has_said_nothing_yet_says_that(running):
     ran(running, 1, status=None)
 
-    attempt = only(running)
+    row = only(running)
 
-    assert attempt.detail == "has said nothing yet"
-    assert attempt.last_output is None
+    assert row.detail == "has said nothing yet"
+    assert row.last_output is None
 
 
 def test_a_round_with_no_daemon_left_to_run_it_is_waiting(state):
@@ -120,7 +120,13 @@ def test_a_session_whose_final_round_has_run_is_done(state):
     ran(state, 2, Cause.FINAL)
 
     assert only(state).standing is Standing.DONE
-    assert only(state).detail == "finished 1h 58m ago"
+    assert only(state).detail == "2 rounds"
+
+
+def test_a_session_done_in_one_round_counts_that_round_as_one(state):
+    ran(state, 1, Cause.FINAL)
+
+    assert only(state).detail == "1 round"
 
 
 def test_a_session_the_tick_found_nothing_to_do_for_needs_you(state):
@@ -204,13 +210,13 @@ def test_a_session_no_tick_has_weighed_and_no_round_has_run_is_stuck(state):
     assert only(state).detail == NO_ROUND_HAS_RUN
 
 
-def test_the_attempts_at_one_issue_read_as_attempts_newest_first(state):
+def test_the_sessions_at_one_issue_read_as_sessions_newest_first(state):
     write_session(state, "GH13-20260820-090000", 13)
     write_session(state, "GH9-20260819-184158", 9)
 
-    rows = looked(state).attempts
+    rows = looked(state).rows
 
-    assert [(row.session.record.issue, row.attempt, row.attempts) for row in rows] == [
+    assert [(row.session.record.issue, row.number, row.count) for row in rows] == [
         (9, 1, 1),
         (13, 2, 2),
         (13, 1, 2),

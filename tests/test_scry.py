@@ -186,8 +186,8 @@ def fabricate_the_cap(state):
 def fabricate_a_silent_round(state):
     """A daemon running a round that has yet to write a line of its own.
 
-    The round it is on is what the row's own column says, so the detail beside
-    it says only that the round has said nothing.
+    The row opens with the round that is running, so what follows says only
+    that the round has said nothing.
     """
     holding(state)
     directory = written(state, 13, ended(1), running(30, cause=Cause.POSTS))
@@ -198,8 +198,8 @@ def fabricate_a_silent_round(state):
     )
 
 
-def fabricate_repeat_attempts(state):
-    """Three attempts at one issue, so a repeat dispatch reads as one thing."""
+def fabricate_repeat_sessions(state):
+    """Three sessions at one issue, so a repeat dispatch reads as one thing."""
     for stamp, rounds in (
         ("20260817-090000", (ended(1), ended(2, cause=Cause.FINAL))),
         ("20260818-090000", (ended(1), ended(2, cause=Cause.FINAL))),
@@ -222,24 +222,24 @@ BOARDS = {
     "dead-daemon": fabricate_a_dead_daemon,
     "at-cap": fabricate_the_cap,
     "silent-round": fabricate_a_silent_round,
-    "repeat-attempts": fabricate_repeat_attempts,
+    "repeat-sessions": fabricate_repeat_sessions,
 }
 
 
 # The feed view each fabricated state directory is worth reading, by the issue
-# whose newest attempt it shows.
+# whose newest session it shows.
 FEEDS = {
     "feed-working": (fabricate_everything, 13),
-    "feed-older-attempts": (fabricate_repeat_attempts, 13),
+    "feed-older-sessions": (fabricate_repeat_sessions, 13),
 }
 
 
 # The session view each fabricated state directory is worth reading, by the
-# issue whose newest attempt it shows.
+# issue whose newest session it shows.
 SESSIONS = {
     "session-working": (fabricate_everything, 13),
     "session-silent-round": (fabricate_a_silent_round, 13),
-    "session-older-attempts": (fabricate_repeat_attempts, 13),
+    "session-older-sessions": (fabricate_repeat_sessions, 13),
     "session-stuck": (fabricate_everything, 9),
     "session-never-started": (fabricate_everything, 44),
 }

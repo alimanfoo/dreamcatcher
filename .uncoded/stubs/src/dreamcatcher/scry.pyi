@@ -9,7 +9,7 @@ from rich.console import Console, Group, RenderableType
 from rich.padding import Padding
 from rich.table import Table
 from rich.text import Text
-from dreamcatcher.board import Attempt, Board, Standing, read_board
+from dreamcatcher.board import Board, Row, Standing, read_board
 from dreamcatcher.clock import now
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import GAP, Line, compose_round_boundary, read_feed_line, read_feed_lines
@@ -34,19 +34,22 @@ def show_board(state: StateDirectory, console: Console, clock: Callable[[], date
 def _describe_daemon(board: Board) -> Text:
     ...
 
-def _show_attempts(console: Console, board: Board, standing: Standing) -> None:
+def _show_rows(console: Console, board: Board, standing: Standing) -> None:
     ...
 
-def _describe_attempt(attempt: Attempt) -> str:
+def _join(*said: str) -> str:
     ...
 
-def _describe_round(attempt: Attempt) -> str:
+def _describe_session(row: Row) -> str:
     ...
 
-def _describe_progress(attempt: Attempt) -> str:
+def _describe_round(row: Row) -> str:
     ...
 
-def _render_attempt_detail(attempt: Attempt, prefix: str, continuation_indent: int, style: str) -> RenderableType:
+def _describe_progress(row: Row) -> str:
+    ...
+
+def _render_detail(row: Row, prefix: str, continuation_indent: int, style: str) -> RenderableType:
     ...
 
 def _show_queue(console: Console, board: Board) -> None:
@@ -61,10 +64,10 @@ def _print_section(console: Console, heading: str, colour: str, body: Renderable
 def show_session(state: StateDirectory, issue: int, console: Console, clock: Callable[[], datetime]) -> None:
     ...
 
-def _show_vitals(console: Console, state: StateDirectory, attempt: Attempt) -> None:
+def _show_vitals(console: Console, state: StateDirectory, row: Row) -> None:
     ...
 
-def _show_rounds(console: Console, attempt: Attempt) -> None:
+def _show_rounds(console: Console, row: Row) -> None:
     ...
 
 def _describe_run(record: RoundRecord) -> str:
@@ -73,10 +76,10 @@ def _describe_run(record: RoundRecord) -> str:
 def _describe_ending(record: RoundRecord, is_running: bool) -> str:
     ...
 
-def _show_hand_resume(console: Console, state: StateDirectory, attempt: Attempt) -> None:
+def _show_hand_resume(console: Console, state: StateDirectory, row: Row) -> None:
     ...
 
-def _show_older_attempts(console: Console, older: list[Attempt]) -> None:
+def _show_older_sessions(console: Console, older: list[Row]) -> None:
     ...
 
 def show_round(state: StateDirectory, issue: int, number: int, console: Console, clock: Callable[[], datetime]) -> None:
@@ -85,7 +88,7 @@ def show_round(state: StateDirectory, issue: int, number: int, console: Console,
 def show_feed(state: StateDirectory, issue: int, console: Console, wait: Callable[[float], None], clock: Callable[[], datetime]) -> None:
     ...
 
-def _find_attempts(board: Board, issue: int) -> list[Attempt]:
+def _find_rows(board: Board, issue: int) -> list[Row]:
     ...
 
 def _compose_feed(session: Session, numbers: Iterable[int]) -> list[Text]:

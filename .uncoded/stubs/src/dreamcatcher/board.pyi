@@ -29,13 +29,13 @@ class Standing(StrEnum):
     STUCK = 'stuck'
     DONE = 'done'
 
-class Attempt:
+class Row:
     session: Session
     standing: Standing
     detail: str
     last_output: str | None
-    attempt: int
-    attempts: int
+    number: int
+    count: int
 
 class QueuedIssue:
     issue: int
@@ -46,10 +46,10 @@ class Board:
     at: datetime
     daemon_pid: int | None
     tick: LastTick | None
-    attempts: list[Attempt]
+    rows: list[Row]
     queued: list[QueuedIssue]
 
-    def list_standing(self, standing: Standing) -> list[Attempt]:
+    def list_standing(self, standing: Standing) -> list[Row]:
         ...
 
 class _Look:
@@ -58,10 +58,10 @@ class _Look:
     daemon_pid: int | None
     waits: dict[str, WaitingSession]
 
-    def list_attempts(self, sessions: list[Session]) -> list[Attempt]:
+    def list_rows(self, sessions: list[Session]) -> list[Row]:
         ...
 
-    def _read_attempt(self, session: Session, attempt: int, attempts: int) -> Attempt:
+    def _read_row(self, session: Session, number: int, count: int) -> Row:
         ...
 
     def _judge_standing(self, session: Session) -> tuple[Standing, str, str | None]:
@@ -71,9 +71,6 @@ class _Look:
         ...
 
     def _describe_live_round(self, session: Session) -> tuple[str, str | None]:
-        ...
-
-    def _describe_finish(self, session: Session) -> str:
         ...
 
     def _describe_idle(self, session: Session) -> str:

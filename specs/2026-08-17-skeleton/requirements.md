@@ -57,7 +57,7 @@ Minimal narration from the agent is ideal, not a shortfall: GitHub is the main
 channel, and most of the time nobody is watching, so session output is spent
 tokens. Codex's plain stream is the floor.
 
-The status view has to show repeat attempts as attempts at one issue, not
+The status view has to show repeat sessions as sessions at one issue, not
 unrelated rows, so the triple-dispatch surprise can't happen to me silently
 again. And it stays true that a closed-but-unmerged pull request lets the issue
 dispatch again — removing the label is how I say stop, and that wants
@@ -100,7 +100,7 @@ something.
   process per repo, but the design shouldn't nail that door shut.
 - The noisy skip for double-labelled issues was a coin-toss; either behaviour
   would do.
-- How much session history to keep and show beyond making repeat attempts
+- How much session history to keep and show beyond making repeat sessions
   visible — the richer ledger and status board belong to a later phase.
 - Exactly where the config and state files live on disk (a design question,
   noted so it isn't lost).
