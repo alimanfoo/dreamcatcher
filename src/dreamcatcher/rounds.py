@@ -231,7 +231,7 @@ class Round:
         self._closing.join()
 
     def stop(self) -> None:
-        """End the round now, and everything it started, leaving it unfinished.
+        """End the round now, and everything it started.
 
         This returns as soon as the round has ended, and does not wait for the
         feed, so that a stream somebody else is still holding cannot hold up
@@ -249,12 +249,19 @@ class Round:
         and keeps the ending `_close` writes for it, so this leaves that record
         alone rather than sending a session back over a round it has done.
 
-        One window stays open. The child can go between the answer here and the
-        mark, and at that moment nothing can tell a round that has just
-        finished from one that is running. Settling it would mean reading the
-        exit status, which says one thing on POSIX, where teardown ends a
-        process group, and another on Windows, where it ends a Job Object. That
-        is more platform-specific reasoning than a window this size is worth.
+        The mark goes on before the kill, because the kill is what makes
+        `_close` return from `child.wait()`. So `_close` reads a mark this
+        made, and reordering the two would let it write an ending for a round
+        the daemon interrupted.
+
+        One window stays open. The child can go between the answer and the
+        mark, and a round that has just finished then reads as interrupted.
+        Reading the exit status would settle it, and what a killed child's
+        status says differs by platform, for the reasons `teardown` gives, so
+        that is more platform-specific reasoning than a window this size is
+        worth. A lock is no help: `_close` would have to hold it across
+        `child.wait()`, and then a stop would wait for the child to finish by
+        itself, which is what a stop is there to avoid.
         """
         if self.child.is_running:
             self.is_interrupted = True
