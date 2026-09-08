@@ -63,10 +63,13 @@ def pinned(written_to, width: int) -> Console:
 def stopping(state):
     ...
 
-def rendered(state) -> str:
+def rendered(state, width: int) -> str:
     ...
 
 def test_a_state_directory_renders_as_its_golden_board(name, tmp_path, daemon):
+    ...
+
+def test_a_key_too_wide_for_the_console_folds_rather_than_being_cut(tmp_path):
     ...
 
 def viewed(state, issue: int, width: int) -> str:

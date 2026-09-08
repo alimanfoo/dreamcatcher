@@ -144,9 +144,15 @@ def _show_queue(console: Console, board: Board) -> None:
 
 
 def _open_table() -> Table:
-    """Return an empty table whose columns fit whatever a section puts in them."""
+    """Return an empty table whose columns fit whatever a section puts in them.
+
+    The first column names a session or an issue, which is what a reader picks
+    a row out by, so it folds onto another line rather than being cut short.
+    Two attempts at one issue differ only in the time in their keys, and a cut
+    that reached that far would leave the rows reading the same.
+    """
     table = Table(box=None, show_header=False, pad_edge=False)
-    table.add_column(style="bold")
+    table.add_column(style="bold", overflow="fold")
     return table
 
 

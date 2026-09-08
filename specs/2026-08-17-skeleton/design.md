@@ -499,8 +499,8 @@ Commits are not marked; the relay only filters posts.
   behind N others, blocked by `GH<x>`, skipped for double labels.
 - done: merged or closed with the final round completed, most recent first.
 
-Every row that names a session names it by the session's own key, which the run
-output names it by as well, so one session reads as one name wherever you meet
+Every row that names a session names it by the session's own key, which is the
+name `run` prints for it too, so one session reads as one name wherever you meet
 it. A queued row names an issue and not a session, so it reads `GH<n>`.
 
 Repeat attempts group under their issue: three sessions for one issue read as

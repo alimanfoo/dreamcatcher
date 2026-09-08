@@ -12,6 +12,7 @@ Nothing here renders anything either. A caller that has read the board shows
 it.
 """
 
+from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
@@ -59,8 +60,8 @@ class Standing(StrEnum):
 class Attempt:
     """One session on the board, and how it is doing.
 
-    Three sessions for one issue are three attempts at one thing, and the
-    board reads them in the order they were made, newest first.
+    Three sessions for one issue are three attempts at one thing. The board
+    reads the newest of them first.
 
     The detail is what the row says beside the standing, in the words the disk
     put it in. A working attempt keeps its latest output separate so the view
@@ -156,9 +157,9 @@ class _Look:
         cut, so sorting by key puts the attempts at one issue together and in
         the order they were made. The board shows the newest of them first.
         """
-        by_issue: dict[int, list[Session]] = {}
+        by_issue: defaultdict[int, list[Session]] = defaultdict(list)
         for session in sorted(sessions, key=lambda one: one.key):
-            by_issue.setdefault(session.record.issue, []).append(session)
+            by_issue[session.record.issue].append(session)
         return [
             self._read_attempt(session)
             for issue in sorted(by_issue)
