@@ -1000,6 +1000,7 @@ tests/:
     test_a_session_renders_as_its_golden_view:
     followed:
     test_a_feed_renders_as_its_golden_view:
+    test_only_a_feed_lines_stamp_is_dim:
     test_a_following_view_waits_while_a_round_is_still_running:
     test_a_round_that_starts_while_the_view_is_going_arrives_in_it:
     test_a_view_of_a_session_no_daemon_is_running_never_waits:

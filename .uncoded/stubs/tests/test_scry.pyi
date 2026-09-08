@@ -9,11 +9,12 @@ from clocks import PINNED
 from conftest import FIXTURES, LABEL
 from records import write_feed, write_round, write_session, write_tick
 from rich.console import Console
+from rich.text import Text
 from dreamcatcher.documents import write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Line
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
-from dreamcatcher.scry import PAUSE, show_board, show_feed, show_round, show_session
+from dreamcatcher.scry import PAUSE, _paint, _paint_written, show_board, show_feed, show_round, show_session
 from dreamcatcher.state import NO_ROUND_HAS_RUN, CandidateIssue, LastTick, StateDirectory, WaitingSession
 
 LOOKED_AT = PINNED + timedelta(hours=2)
@@ -78,6 +79,9 @@ def followed(state, issue: int, wait) -> str:
     ...
 
 def test_a_feed_renders_as_its_golden_view(name, tmp_path, daemon):
+    ...
+
+def test_only_a_feed_lines_stamp_is_dim():
     ...
 
 def test_a_following_view_waits_while_a_round_is_still_running(tmp_path, daemon):
