@@ -13,7 +13,7 @@ from contextlib import suppress
 from datetime import datetime
 from time import sleep
 
-from rich.console import Console, RenderableType
+from rich.console import Console, Group, RenderableType
 from rich.padding import Padding
 from rich.table import Table
 from rich.text import Text
@@ -111,9 +111,25 @@ def _show_attempts(console: Console, board: Board, standing: Standing) -> None:
         table.add_row(
             Text(f"GH{attempt.session.record.issue}"),
             Text(f"attempt {attempt.attempt} of {attempt.attempts}"),
-            Text(attempt.detail),
+            _render_attempt_detail(attempt),
         )
     _print_section(console, str(standing), COLOURS[standing], table)
+
+
+def _render_attempt_detail(
+    attempt: Attempt,
+    prefix: str = "",
+    continuation_indent: int = 0,
+    style: str = "",
+) -> RenderableType:
+    """Render an attempt's detail and set its latest output beneath it."""
+    detail = Text(f"{prefix}{attempt.detail}", style=style)
+    if attempt.last_output is None:
+        return detail
+    output = Padding(
+        Text(attempt.last_output), (0, 0, 0, continuation_indent), expand=False
+    )
+    return Group(detail, output)
 
 
 def _show_queue(console: Console, board: Board) -> None:
@@ -159,8 +175,14 @@ def show_session(
     attempts = _find_attempts(read_board(state, clock), issue)
     newest = attempts[0]
     console.print(Text(f"GH{issue}, attempt {newest.attempt} of {newest.attempts}"))
+    prefix = f"{newest.standing}, "
     console.print(
-        Text(f"{newest.standing}, {newest.detail}", style=COLOURS[newest.standing])
+        _render_attempt_detail(
+            newest,
+            prefix=prefix,
+            continuation_indent=INDENT[3],
+            style=COLOURS[newest.standing],
+        )
     )
     _show_vitals(console, state, newest)
     _show_rounds(console, newest)
@@ -251,7 +273,7 @@ def _show_older_attempts(console: Console, older: list[Attempt]) -> None:
         table.add_row(
             Text(attempt.session.key),
             Text(str(attempt.standing)),
-            Text(attempt.detail),
+            _render_attempt_detail(attempt),
         )
     _print_section(console, "older attempts", "blue", table)
 

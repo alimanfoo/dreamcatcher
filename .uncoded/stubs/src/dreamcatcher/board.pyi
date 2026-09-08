@@ -33,6 +33,7 @@ class Attempt:
     session: Session
     standing: Standing
     detail: str
+    last_output: str | None
     attempt: int
     attempts: int
 
@@ -63,13 +64,13 @@ class _Look:
     def _read_attempt(self, session: Session, attempt: int, attempts: int) -> Attempt:
         ...
 
-    def _judge_standing(self, session: Session) -> tuple[Standing, str]:
+    def _judge_standing(self, session: Session) -> tuple[Standing, str, str | None]:
         ...
 
     def _judge_wait(self, session: Session) -> tuple[Standing, str]:
         ...
 
-    def _describe_live_round(self, session: Session) -> str:
+    def _describe_live_round(self, session: Session) -> tuple[str, str | None]:
         ...
 
     def _describe_idle(self, session: Session) -> str:

@@ -5,7 +5,7 @@ from collections.abc import Callable, Iterable
 from contextlib import suppress
 from datetime import datetime
 from time import sleep
-from rich.console import Console, RenderableType
+from rich.console import Console, Group, RenderableType
 from rich.padding import Padding
 from rich.table import Table
 from rich.text import Text
@@ -35,6 +35,9 @@ def _describe_daemon(board: Board) -> Text:
     ...
 
 def _show_attempts(console: Console, board: Board, standing: Standing) -> None:
+    ...
+
+def _render_attempt_detail(attempt: Attempt, prefix: str, continuation_indent: int, style: str) -> RenderableType:
     ...
 
 def _show_queue(console: Console, board: Board) -> None:

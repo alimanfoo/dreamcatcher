@@ -4,7 +4,8 @@ needs you
   GH20  attempt 1 of 1  idle 2h 0m
 
 agent working
-  GH13  attempt 1 of 1  [Bash] pytest, 1h 29m ago
+  GH13  attempt 1 of 1  last output 1h 29m ago
+                        [Bash] pytest         
 
 waiting
   GH31  attempt 1 of 1  1 new post to answer          
