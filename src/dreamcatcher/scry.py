@@ -313,9 +313,9 @@ def show_feed(
     lands for as long as the session has another round coming.
 
     A session between rounds is still going, so the view stays open through the
-    gaps: while the daemon holds the session for its next round, and while the
-    pull request waits for the reader to post on it. A reader can leave the
-    view running for a whole session and see every round of it arrive.
+    gaps: while the session waits for a round that no daemon has launched yet,
+    while its pull request waits for the reader to post on it, and while the
+    daemon that was running it is stopped and started again.
 
     A session that has run its final round has nothing more to say, and a stuck
     session says nothing more until a person moves it on, so either one ends

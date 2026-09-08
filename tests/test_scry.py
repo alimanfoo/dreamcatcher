@@ -388,16 +388,24 @@ def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path, dae
     state = StateDirectory(tmp_path)
     fabricate_everything(state)
     directory = state.sessions / f"GH20-{STAMP}"
+    looks = []
 
     def wait(seconds):
-        write_round(directory, 2, ended(60, cause=Cause.FINAL))
+        looks.append(seconds)
+        if len(looks) > 1:
+            raise KeyboardInterrupt
+        write_round(directory, 2, running(60, cause=Cause.POSTS))
         write_feed(
-            directory, 2, Line(PINNED + timedelta(minutes=61), "[Bash] git push")
+            directory, 2, Line(PINNED + timedelta(minutes=61), "[Bash] git commit")
         )
 
     feed = followed(state, 20, wait=wait)
 
-    assert "round 2: final round" in feed
+    # The pull request was waiting for the reader when the view opened, and the
+    # round that answers what they posted started while the view was going, so
+    # the reader reads its feed while it is still running.
+    assert "round 2: new posts" in feed
+    assert "[Bash] git commit" in feed
     assert feed.count("round 1: dispatched") == 1
 
 
@@ -409,6 +417,23 @@ def test_a_view_of_a_session_that_is_over_never_waits(tmp_path, daemon):
     followed(state, 12, wait=waits.append)
 
     assert waits == []
+
+
+def test_a_following_view_waits_for_the_next_daemon(tmp_path):
+    state = StateDirectory(tmp_path)
+    fabricate_a_dead_daemon(state)
+    waits = []
+
+    def wait(seconds):
+        waits.append(seconds)
+        raise KeyboardInterrupt
+
+    followed(state, 13, wait=wait)
+
+    # The daemon that was running the session has gone, and the next one
+    # carries its round on from where it stopped, so the view waits for that
+    # round rather than end with the daemon.
+    assert waits == [PAUSE]
 
 
 def test_a_view_of_a_stuck_session_never_waits(tmp_path, daemon):
