@@ -77,10 +77,15 @@ class Child:
 
     @property
     def is_running(self) -> bool:
-        """Whether the child has still to be waited for.
+        """Whether the child is still running.
 
-        A child already waited for has gone. The answer is what it was when it
-        was asked, so a caller acting on it acts on what was true a moment ago.
+        The answer is no once somebody has waited for the child and collected
+        the status it ended with. So a child that has ended, and that nobody
+        has waited for yet, still reads as running.
+
+        A caller acts on the answer a moment after asking for it, and the
+        child can end in that moment, so an answer of yes can already be out
+        of date.
         """
         return self.process.returncode is None
 
