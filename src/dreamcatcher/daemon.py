@@ -12,7 +12,8 @@ dispatch the oldest one that no session and no pull request has claimed and no
 open issue blocks. `eligibility.py` holds that rule whole, the labels included.
 
 Whatever it observed and decided goes into `last-tick.json`, so what the daemon
-did not do, and why, is as readable as what it did.
+did not do, and why, is as readable as what it did. A timestamped line on stdout
+summarises each tick as it finishes.
 """
 
 from collections.abc import Callable
@@ -49,6 +50,7 @@ from dreamcatcher.wakeups import (
     list_waiting,
     sort_wakeups,
 )
+from dreamcatcher.words import describe_time
 
 # How long the daemon holds every launch once a round has failed, dispatches
 # and retries alike. There is no cause detection behind this and no schedule:
@@ -56,6 +58,17 @@ from dreamcatcher.wakeups import (
 # account and so hits every session at once, and a passing blip costs at most
 # this long of an idle daemon.
 COOLDOWN = timedelta(minutes=15)
+
+
+def _describe_tick(tick: LastTick) -> str:
+    """Return the one-line account of what this tick did."""
+    if tick.launched is not None:
+        outcome = f"launched {tick.launched}"
+    elif tick.hold is not None:
+        outcome = f"held: {tick.hold}"
+    else:
+        outcome = "nothing launched"
+    return f"{describe_time(tick.at)}  {outcome}"
 
 
 class Daemon:
@@ -152,6 +165,7 @@ class Daemon:
         except ReportableError as failure:
             observed = LastTick(at=at, hold=str(failure))
         write_json(observed, self.state.last_tick)
+        print(_describe_tick(observed), flush=True)
 
     def _decide_and_launch(
         self, repository: str, account: str, at: datetime

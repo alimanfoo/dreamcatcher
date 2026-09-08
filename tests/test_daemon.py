@@ -154,7 +154,7 @@ def test_the_daemon_reports_when_it_has_started_before_its_first_tick(
     daemon.run()
 
 
-def test_every_tick_records_when_it_ran(watched, harnesses, gh):
+def test_every_tick_records_when_it_ran(watched, harnesses, gh, capsys):
     daemon, _, ticking = idling(watched)
 
     daemon.run()
@@ -162,6 +162,11 @@ def test_every_tick_records_when_it_ran(watched, harnesses, gh):
     recorded = daemon.state.last_tick.read_text(encoding="utf-8")
     assert len(ticking.readings) == 2
     assert LastTick.model_validate_json(recorded).at == ticking.readings[-1]
+    assert capsys.readouterr().out == (
+        "dreamcatcher is running\n"
+        "2026-08-19T18:41:58Z  nothing launched\n"
+        "2026-08-19T18:46:58Z  nothing launched\n"
+    )
 
 
 def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(
@@ -355,7 +360,7 @@ def written_round(daemon, number: int, name: str) -> str:
 
 
 def test_a_tick_dispatches_the_oldest_issue_nothing_stands_in_the_way_of(
-    dispatching, harnesses
+    dispatching, harnesses, capsys
 ):
     daemon = settling(dispatching)
 
@@ -365,6 +370,9 @@ def test_a_tick_dispatches_the_oldest_issue_nothing_stands_in_the_way_of(
     assert (daemon.state.worktrees / DISPATCHED_KEY / "README.md").exists()
     assert (session / "session.json").exists()
     assert recorded(daemon).launched == DISPATCHED_KEY
+    assert capsys.readouterr().out == (
+        f"dreamcatcher is running\n2026-08-19T18:41:58Z  launched {DISPATCHED_KEY}\n"
+    )
     assert (
         harnesses["claude"].calls[0].directory
         == (daemon.state.worktrees / DISPATCHED_KEY).resolve()
@@ -476,7 +484,7 @@ def test_a_tick_with_nothing_eligible_dispatches_nothing(dispatching, offered):
 
 
 def test_a_tick_whose_listing_failed_records_what_it_could_not_read(
-    dispatching, offered
+    dispatching, offered, capsys
 ):
     offered.fails("gh: could not connect to github.com", to="issue list")
     daemon, _, _ = idling(dispatching, ticks=1)
@@ -485,6 +493,9 @@ def test_a_tick_whose_listing_failed_records_what_it_could_not_read(
 
     assert "could not connect" in held(daemon)
     assert recorded(daemon).candidates == []
+    output = capsys.readouterr().out
+    assert output.startswith("dreamcatcher is running\n2026-08-19T18:41:58Z  held: ")
+    assert output.endswith("gh: could not connect to github.com\n")
 
 
 def test_a_tick_that_could_not_dispatch_records_the_failure_and_ticks_again(

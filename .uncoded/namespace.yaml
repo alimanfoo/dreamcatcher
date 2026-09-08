@@ -170,6 +170,7 @@ src/:
         _launch_session:
         _locate_harnesses:
         _sweep_orphans:
+      _describe_tick:
       _refuse_unknown:
       _check_cooldown:
     documents.py:

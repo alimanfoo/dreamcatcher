@@ -21,8 +21,12 @@ from dreamcatcher.rounds import Cause, Round
 from dreamcatcher.sessions import Session, advance_watermark, create_session, discard_session, read_sessions
 from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, WaitingSession
 from dreamcatcher.wakeups import Finding, Wakeup, compose_wait, judge_session, list_waiting, sort_wakeups
+from dreamcatcher.words import describe_time
 
 COOLDOWN = timedelta(minutes=15)
+
+def _describe_tick(tick: LastTick) -> str:
+    ...
 
 def _refuse_unknown(named: str | Unknown, question: str) -> str:
     ...

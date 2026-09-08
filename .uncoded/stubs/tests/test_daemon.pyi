@@ -43,7 +43,7 @@ def test_the_daemon_ticks_on_the_interval_until_the_user_interrupts(watched, har
 def test_the_daemon_reports_when_it_has_started_before_its_first_tick(watched, harnesses, gh, monkeypatch, capsys):
     ...
 
-def test_every_tick_records_when_it_ran(watched, harnesses, gh):
+def test_every_tick_records_when_it_ran(watched, harnesses, gh, capsys):
     ...
 
 def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(watched, harnesses, gh):
@@ -109,7 +109,7 @@ def ran(root, number: int, cause: Cause, status: int | None) -> None:
 def written_round(daemon, number: int, name: str) -> str:
     ...
 
-def test_a_tick_dispatches_the_oldest_issue_nothing_stands_in_the_way_of(dispatching, harnesses):
+def test_a_tick_dispatches_the_oldest_issue_nothing_stands_in_the_way_of(dispatching, harnesses, capsys):
     ...
 
 def test_a_dispatched_round_records_what_caused_it_and_what_it_said(dispatching):
@@ -133,7 +133,7 @@ def test_a_tick_at_the_cap_spends_no_github_call(dispatching, offered, harnesses
 def test_a_tick_with_nothing_eligible_dispatches_nothing(dispatching, offered):
     ...
 
-def test_a_tick_whose_listing_failed_records_what_it_could_not_read(dispatching, offered):
+def test_a_tick_whose_listing_failed_records_what_it_could_not_read(dispatching, offered, capsys):
     ...
 
 def test_a_tick_that_could_not_dispatch_records_the_failure_and_ticks_again(dispatching):
