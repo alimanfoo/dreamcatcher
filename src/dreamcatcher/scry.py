@@ -109,8 +109,7 @@ def _show_attempts(console: Console, board: Board, standing: Standing) -> None:
     table = _open_table()
     for attempt in attempts:
         table.add_row(
-            Text(f"GH{attempt.session.record.issue}"),
-            Text(f"attempt {attempt.attempt} of {attempt.attempts}"),
+            Text(attempt.session.key),
             _render_attempt_detail(attempt),
         )
     _print_section(console, str(standing), COLOURS[standing], table)
@@ -174,7 +173,7 @@ def show_session(
     """
     attempts = _find_attempts(read_board(state, clock), issue)
     newest = attempts[0]
-    console.print(Text(f"GH{issue}, attempt {newest.attempt} of {newest.attempts}"))
+    console.print(Text(newest.session.key))
     prefix = f"{newest.standing}, "
     console.print(
         _render_attempt_detail(
@@ -195,7 +194,6 @@ def _show_vitals(console: Console, state: StateDirectory, attempt: Attempt) -> N
     record = attempt.session.record
     table = _open_table()
     for name, value in (
-        ("key", attempt.session.key),
         ("label", record.label),
         ("branch", record.branch),
         ("worktree", state.describe_path(record.worktree)),
@@ -292,7 +290,7 @@ def show_round(
     session = _find_attempts(read_board(state, clock), issue)[0].session
     if not 1 <= number <= len(session.rounds):
         raise ReportableError(
-            f"GH{issue} has run {describe_count(len(session.rounds), 'round')}, "
+            f"{session.key} has run {describe_count(len(session.rounds), 'round')}, "
             f"so it has no round {number}."
         )
     for painted in _compose_feed(session, [number]):

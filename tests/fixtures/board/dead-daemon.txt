@@ -1,17 +1,17 @@
 no daemon running, last tick 2m ago
 
 needs you
-  GH20  attempt 1 of 1  idle 2h 0m
+  GH20-20260819-184158  idle 2h 0m
 
 waiting
-  GH13  attempt 1 of 1  the last round was interrupted
-  GH31  attempt 1 of 1  1 new post to answer          
-  GH35  attempt 1 of 1  the last round failed (exit 2)
+  GH13-20260819-184158  the last round was interrupted
+  GH31-20260819-184158  1 new post to answer          
+  GH35-20260819-184158  the last round failed (exit 2)
 
 stuck
-  GH9   attempt 1 of 1  no pull request has been opened on it                                       
+  GH9-20260819-184158   no pull request has been opened on it                                       
                         (.dreamcatcher/sessions/GH9-20260819-184158/rounds/1/feed.txt)              
-  GH44  attempt 1 of 1  no round has run yet                                                        
+  GH44-20260819-184158  no round has run yet                                                        
 
 queued
   GH50  dream:smith  next                                                       
@@ -20,4 +20,4 @@ queued
   GH53  dream:smith  carries more than one mapped label: dream:less, dream:smith
 
 done
-  GH12  attempt 1 of 1  2 rounds
+  GH12-20260819-184158  2 rounds
