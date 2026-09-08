@@ -59,6 +59,9 @@ def fabricate_repeat_attempts(state):
 def pinned(written_to) -> Console:
     ...
 
+def open_coloured_console(written_to) -> Console:
+    ...
+
 def stopping(state):
     ...
 
@@ -78,6 +81,9 @@ def followed(state, issue: int, wait) -> str:
     ...
 
 def test_a_feed_renders_as_its_golden_view(name, tmp_path, daemon):
+    ...
+
+def test_only_feed_stamps_are_dim(tmp_path, daemon):
     ...
 
 def test_a_following_view_waits_while_a_round_is_still_running(tmp_path, daemon):

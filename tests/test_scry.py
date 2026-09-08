@@ -241,6 +241,18 @@ def pinned(written_to) -> Console:
     )
 
 
+def open_coloured_console(written_to) -> Console:
+    """Return a console that writes standard terminal colours."""
+    return Console(
+        file=written_to,
+        width=WIDTH,
+        force_terminal=True,
+        color_system="standard",
+        no_color=False,
+        legacy_windows=False,
+    )
+
+
 def stopping(state):
     """Return a wait that ends the daemon, so a following view stops."""
 
@@ -301,6 +313,29 @@ def test_a_feed_renders_as_its_golden_view(name, tmp_path, daemon):
     feed = followed(state, issue, wait=stopping(state))
 
     assert feed == (FIXTURES / "board" / f"{name}.txt").read_text(encoding="utf-8")
+
+
+def test_only_feed_stamps_are_dim(tmp_path, daemon):
+    state = StateDirectory(tmp_path)
+    fabricate_everything(state)
+    written_to = StringIO()
+
+    show_feed(
+        state,
+        13,
+        open_coloured_console(written_to),
+        wait=stopping(state),
+        clock=lambda: LOOKED_AT,
+    )
+
+    feed = written_to.getvalue()
+    assert (
+        "\x1b[2m2026-08-19T18:42:58Z\x1b[0m  \x1b[1mround 1: dispatched\x1b[0m"
+    ) in feed
+    assert (
+        "\x1b[2m2026-08-19T18:43:58Z\x1b[0m  "
+        "\x1b[36m[Read]\x1b[0m specs/2026-08-17-skeleton/plan.md"
+    ) in feed
 
 
 def test_a_following_view_waits_while_a_round_is_still_running(tmp_path, daemon):

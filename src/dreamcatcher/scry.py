@@ -364,4 +364,8 @@ def _paint_written(written: str) -> Text:
 
 def _paint(line: Line, said: Text) -> Text:
     """Return the line with its stamp set back, so the words stand out."""
-    return Text(describe_time(line.at), style="dim") + Text(GAP) + said
+    painted = Text()
+    painted.append(describe_time(line.at), style="dim")
+    painted.append(GAP)
+    painted.append(said)
+    return painted
