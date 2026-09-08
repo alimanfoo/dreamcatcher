@@ -12,7 +12,6 @@ Nothing here renders anything either. A caller that has read the board shows
 it.
 """
 
-from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
@@ -153,17 +152,15 @@ class _Look:
     def list_attempts(self, sessions: list[Session]) -> list[Attempt]:
         """Return every session as an attempt at its issue, newest attempt first.
 
-        A session's key opens with its issue and closes with the time it was
-        cut, so sorting by key puts the attempts at one issue together and in
-        the order they were made. The board shows the newest of them first.
+        A session's key closes with the time the session was cut, so sorting by
+        key backwards puts the newest attempt at an issue ahead of the older
+        ones. Sorting that by issue keeps each issue's attempts in the order it
+        left them, because a sort in Python holds what it does not reorder.
         """
-        by_issue: defaultdict[int, list[Session]] = defaultdict(list)
-        for session in sorted(sessions, key=lambda one: one.key):
-            by_issue[session.record.issue].append(session)
+        newest_first = sorted(sessions, key=lambda one: one.key, reverse=True)
         return [
             self._read_attempt(session)
-            for issue in sorted(by_issue)
-            for session in reversed(by_issue[issue])
+            for session in sorted(newest_first, key=lambda one: one.record.issue)
         ]
 
     def _read_attempt(self, session: Session) -> Attempt:
