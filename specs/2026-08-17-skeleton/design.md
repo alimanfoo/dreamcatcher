@@ -178,8 +178,10 @@ when a CLI is missing or when `gh` can name neither the repository nor the
 account, because none of them can change under a running daemon, a run without
 the repository dispatches nothing, and the relay reads every post against the
 account before the marker tells the user's posts from the session's own. Once
-these checks succeed, `run` prints `dreamcatcher is running` before the first
-tick.
+these checks succeed, `run` prints a UTC timestamp followed by
+`dreamcatcher is running` before the first tick. After every tick that it
+records, `run` prints one line in the same format that says whether the tick
+launched a round, was held and why, or launched nothing.
 
 Each tick reads the sessions and tries to weigh the candidate issues first. A
 successful read gives `last-tick.json` and the board a current queue; a failed
@@ -222,7 +224,7 @@ Today's smith does exactly this when it finds no issue reference: it asks the
 user a question and ends its turn cleanly, which headless means nobody answers
 and no PR ever appears. No retry can advance that, so the board surfaces it as
 stuck. 4. Otherwise dispatch the oldest eligible labelled issue. 5. Write
-`last-tick.json`.
+`last-tick.json`, then print the tick's one-line summary.
 
 Eligibility keeps the ported doctrine, and one ported rule is replaced. An issue
 is eligible when it carries exactly one mapped label, is assigned to the
