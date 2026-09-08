@@ -137,11 +137,17 @@ beneath it. Then the board uses almost none of that. On a repo that has run a
 hundred sessions, a one-second repaint reads every round record of every session
 once a second to answer a question about the newest one.
 
-What makes this fixable is that a round record is written twice and no more:
-once when the round starts, and once by `Round._close` when its child has gone,
-carrying the ending. An interrupted round is never given an ending at all, so
-its record is never rewritten either. **Only a session's newest round record can
-change. Every earlier one is fixed the moment it is written.**
+What makes this fixable is that a round record is written twice and no more.
+`RoundRecord` says so itself: it is "written at each end of the round" — once
+when the round starts, and once by `Round._close` when its child has gone,
+carrying the ending. A round the daemon interrupts is given no ending at all,
+and since #50 that means only a round whose child was still running; one that
+had already finished keeps the ending `_close` wrote for it. Either way the work
+is carried on by a new round, which takes `next_workspace` and so a directory of
+its own, never the one an earlier record sits in.
+
+**Only a session's newest round record can change. Every earlier one is fixed
+the moment it is written.**
 
 So a reading process reads each session's rounds once and keeps them, and on
 every later pass reads only:
