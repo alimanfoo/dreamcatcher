@@ -2,6 +2,7 @@
 # tests/test_cli.py
 
 import os
+from datetime import timedelta
 from importlib.metadata import version
 import pytest
 from clocks import PINNED
@@ -11,7 +12,7 @@ from dreamcatcher.config import Harness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.documents import write_text
 from dreamcatcher.feed import Line
-from dreamcatcher.rounds import Cause, RoundRecord
+from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.state import StateDirectory
 
 def watching(tmp_path):
