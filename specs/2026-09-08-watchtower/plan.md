@@ -2,59 +2,61 @@
 
 This is the third document of the spec. `requirements.md` says what has to be
 true, `design.md` says what we're building and how it works, and this breaks
-that into steps.
+that into parts.
 
-Each step is one working session and one pull request. A step section says what
-is in scope, what proves it done, and what it deliberately leaves alone. Where a
-step builds a mechanism, it names the mechanism and points at the `design.md`
-section that describes it, rather than describing it again — otherwise a later
-change has two places to correct and only one of them gets corrected.
+Each part is one pull request. A part section says what is in scope, what proves
+it done, and what it deliberately leaves alone. Where a part builds a mechanism,
+it names the mechanism and points at the `design.md` section that describes it,
+rather than describing it again — otherwise a later change has two places to
+correct and only one of them gets corrected.
 
-The steps are worked interactively, with a person and an agent in the session
-together, not dispatched unattended. Two of the five carry a judgement that is
-easier to make with a person present than to specify in advance, and they are
-marked.
+Every part is meant to be executable without stopping to ask. Where a decision
+was needed it has been made and written into `design.md`; where a detail is
+genuinely free — which container a renderable is, how a file position is
+remembered — the part says so, and whoever builds it chooses. If a part turns
+out to need a decision that isn't there, that is a gap in the design, and the
+fix is to correct `design.md` in the same pull request and say so.
 
-Every step is reviewed, so every step serves its reviewer:
+Every part is reviewed, so every part serves its reviewer:
 
-- Where a step changes rendering, the goldens under `tests/fixtures/` are the
+- Where a part changes rendering, the goldens under `tests/fixtures/` are the
   review surface. Read them as the person running the command would, and judge
   the result rather than deriving it from the code.
-- Two steps are cost changes that must not alter a single byte of output. Say so
+- Two parts are cost changes that must not alter a single byte of output. Say so
   in the pull request, and let the unchanged goldens carry the claim.
 - Generated files — the `.uncoded/` index in particular — land in the commit
   that caused them, since pre-commit regenerates and fails until they are
   staged. Say which parts of a diff are generated so the reviewer can skip them.
 
-## Step 1: read only what a view needs
+## Part 1: read only what a view needs
 
 The board and the daemon both read every session and every round record beneath
-it, for every session the repo has ever run. This makes them read what they
-actually use.
+it, for every session the repo has ever run. This makes them read once what
+cannot change, and re-read only what can.
 
 In scope:
 
 - Sessions read their rounds on demand rather than eagerly (design.md, What a
   refresh reads).
-- The board answers its three questions cheaply: the last record, the number of
-  rounds, and whether any round was final.
-- A session judged done is not judged again for the life of the reading process.
+- A reading process keeps the round records it has read, and on later passes
+  reads only a listing of each session's rounds directory and that session's
+  newest round record — the only one that can have changed.
 
 Done when: the whole existing suite passes unchanged, because nothing a user
-sees has moved; and a test shows that reading a board twice does not reopen a
-done session's records.
+sees has moved; and a test shows that a second read of the same state directory
+does not reopen a round record it has already read.
 
-Deliberately out: everything about how the views look or are invoked.
+Deliberately out: everything about how the views look or are invoked. Also out:
+any attempt to stop reading a finished session altogether. The design says why
+that is unsound, and why it is unnecessary.
 
-**Wants a person in the session.** Answering "was any round final" cheaply is
-the open part of this step, and it likely turns on what the daemon guarantees
-about what can follow a completed final round. Work that out against the tick
-rather than assuming it, and correct the design section to say whatever you
-settle on.
+`has_run_final_round` stays as it is, scanning for a final cause. After the
+first pass it scans records the process already holds, so it costs nothing, and
+its meaning does not have to change to make it cheap.
 
-## Step 2: follow a feed by what arrived
+## Part 2: follow a feed by what arrived
 
-A following feed re-reads every round's feed file from the start each second and
+A following feed re-reads every round's feed file from the start each pass and
 rebuilds every line, to print the few that are new. This makes each pass read
 and render only what arrived.
 
@@ -64,21 +66,21 @@ In scope:
   position per round (design.md, What a refresh reads).
 - A round that has ended is read to its end once and not opened again.
 
-Done when: the feed goldens are unchanged, a following view over a growing feed
-reads only the tail on each pass, and a feed whose last line is still being
+Done when: the feed goldens are unchanged; a following view over a growing feed
+reads only the tail on each pass; and a feed whose last line is still being
 written shows that line whole once the rest of it lands.
 
-Deliberately out: any change to what the feed renders or how it is coloured;
-those are separate issues in the skeleton phase.
+Deliberately out: any change to what the feed renders or how it is coloured, and
+any change to when a following feed returns. That is part 5.
 
 Two traps decide whether this is right, both in design.md (What a refresh reads,
 and Cross-platform notes). The remembered position has to stop at the last
 complete line ending rather than at end of file, or a half-written line is lost
 when the rest of it lands. And it cannot be a count of characters, because
 line-ending translation makes that a different number from a position in the
-file.
+file. How the position is actually held is free.
 
-## Step 3: three verbs
+## Part 3: three verbs
 
 `scry` becomes `board`, `session` and `feed`.
 
@@ -92,81 +94,96 @@ In scope:
 
 Done when: each command's `--help` is a complete description of that view; the
 board and session goldens are unchanged, since only the way in has changed; and
-`feed GH123` follows a live session, which it does by inheriting today's
-`--follow` behaviour rather than by any new machinery.
+`feed GH123` shows a live session's feed, which it does by inheriting whatever
+`--follow` does at the time rather than through any new machinery.
 
-Deliberately out: making the board and session views live — that is step 5. They
-stay one-shot here.
+Deliberately out: making the board and session views live, and changing when a
+following view returns. Both are part 5.
 
-Worth knowing: `--follow` disappears in this step at no cost. It selects
+Worth knowing: `--follow` disappears in this part at no cost. It selects
 `show_feed` today, and after the split the verb's name does that instead.
 
-## Step 4: views return renderables
+## Part 4: views return renderables
 
 The board and session views build something rather than printing it, which is
-what the following view in step 5 needs to hold and redraw.
+what the following view in part 5 needs to hold and redraw.
 
 In scope:
 
 - The `_show_*` helpers return a rich renderable; the command prints it
   (design.md, Views become renderables).
 
-Done when: every golden is byte-identical and no test changes except where it
+Done when: every golden is byte-identical, and no test changes except where it
 now renders a value instead of capturing a side effect.
 
-Deliberately out: any behaviour change at all. If this step alters output, it
+Deliberately out: any behaviour change at all. If this part alters output, it
 has gone wrong.
 
 This is the largest diff of the five and the least risky. Say so in the pull
-request, and point the reviewer at the unchanged goldens first.
+request, and point the reviewer at the unchanged goldens first. It is also
+extending a pattern the module already has: #86 added `_render_attempt_detail`,
+which returns a renderable rather than printing one.
 
-## Step 5: live by default
+## Part 5: live by default
 
-The payoff. The board and the session view stay on the screen and keep up.
+The payoff. The board and the session view stay on the screen and keep up, and a
+view left open outlives the round it opened on.
 
 In scope:
 
 - The terminal check that decides between following and rendering once
   (design.md, Live by default).
-- The rule for when a following view returns (design.md, When a view returns).
+- The rule for when a following view returns (design.md, When a view returns):
+  the board follows until interrupted; `session` and `feed` follow until the
+  session has run its final round, showing each new round as it starts;
+  `feed --round N` returns when that round ends.
 - The following helper, and `Live` for the board and session views (design.md,
   Repainting and appending).
 
-Done when: `dreamcatcher board` in a terminal stays up and keeps current until
-interrupted; the same command redirected to a file writes one board and exits; a
-session view of a finished session prints once and returns; and the feed still
-appends rather than repainting, so its scrollback survives.
+Done when, each with a test that injects the wait and the clock rather than
+sleeping:
 
-Deliberately out: a configurable refresh interval. One second for all three is
-the starting point, and whether it is right is a question for after it can be
-watched (requirements.md, What's still open).
+- a board on a terminal console renders again on each pass and does not return
+  while the wait keeps returning;
+- the same board on a non-terminal console renders once and returns;
+- a feed of a session whose round has ended keeps following, and shows the next
+  round when one starts;
+- a feed of a session that has run its final round returns;
+- `feed --round N` of an ended round returns;
+- the feed appends rather than repainting, so its output is still the whole
+  history in order.
 
-**Wants a person in the session.** This is the step whose result is a judgement
-about whether the thing is nice to watch, and that is not a test.
+Deliberately out: a configurable refresh interval. One second for all three,
+which is what the following feed uses today (requirements.md, What's still
+open).
+
+If #94 has already landed by the time this part runs, the return rule for `feed`
+will be partly in place; adopt what is there rather than rebuilding it, and this
+part covers `session` and the board.
 
 ## Why this order
 
-Steps 1 and 2 come first because they cost nothing to a user and make step 5
+Parts 1 and 2 come first because they cost nothing to a user and make part 5
 viable. A repainting board on a repo with a long history is only pleasant if the
-refresh is cheap, and dogfooding means that history grows every week. Both steps
-also stand on their own: step 1 speeds up the daemon's tick today, which is what
-GH62 asked for in the first place, so nothing is banked waiting for a later step
+refresh is cheap, and dogfooding means that history grows every week. Both parts
+also stand on their own: part 1 speeds up the daemon's tick today, which is what
+GH62 asked for in the first place, so nothing is banked waiting for a later part
 to pay off.
 
-Step 3 comes before step 4 so the command names are in front of a person early,
+Part 3 comes before part 4 so the command names are in front of a person early,
 while they are still cheap to change, rather than after the internals have been
 restructured around them.
 
-Step 4 comes before step 5 because step 5 needs something to redraw.
+Part 4 comes before part 5 because part 5 needs something to redraw.
 
-The alternative order — the visible steps first, the cost steps after — gets the
+The alternative order — the visible parts first, the cost parts after — gets the
 new commands sooner at the price of shipping a board that gets slower the more
 the tool is used. This order takes the opposite trade deliberately.
 
-## How the steps are tracked
+## How the parts are tracked
 
-GH87 is the umbrella. Steps 1 and 2 are GH62 and GH80, already beneath it. Steps
+GH87 is the umbrella. Parts 1 and 2 are GH62 and GH80, already beneath it. Parts
 3, 4 and 5 need child issues, each blocked by its predecessor, so the order is
 carried by the dependency graph rather than by memory. Each child issue's body
 is short: read the three documents in `specs/2026-09-08-watchtower/` and
-implement that step's section of this plan.
+implement that part's section of this plan.

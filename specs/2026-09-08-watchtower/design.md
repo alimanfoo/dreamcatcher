@@ -72,13 +72,22 @@ For the board, there is always something: a daemon can start, a tick can
 dispatch, a round can begin. So the board follows until the reader interrupts
 it.
 
-For `session` and `feed`, there is something to follow while a round is running.
-When none is, the view has shown everything there will be, so it prints it and
-gives the prompt back. Reading a finished session is not a special mode — it is
-the same view, arriving at its end immediately.
+For `session` and `feed`, there is something to follow until the session can
+produce nothing more. Not until the current round ends — a session between
+rounds is waiting for its next one, and a reader who left the view open wants to
+see that round arrive rather than to run the command again (#94). So these
+follow while the session is unfinished, showing each new round as it starts, and
+return once the session has run its final round.
 
-This is already how `show_feed` behaves. The rule generalises it rather than
-inventing it.
+Reading a finished session is not a special mode. It is the same view, arriving
+at its end immediately.
+
+`feed --round N` is narrower and returns sooner: one named round is all it
+shows, so it returns when that round ends.
+
+This is close to how `show_feed` behaves today, and differs in the one way #94
+asks for: today it returns when no round is running, which is what makes a
+reader restart it between rounds.
 
 A reader ends a live view by interrupting it, which is how they say they have
 seen enough, so it ends without a message.
@@ -96,15 +105,19 @@ doing one thing. A state has a current value. A log has an end.
 
 ### Views become renderables
 
-Today every `_show_*` helper prints straight to the console. `Live` needs
-something it can hold and redraw, so the board and session views become
-functions that build a rich renderable holding the sections they compose today —
-and one small helper does the following: build, hand to `Live`, wait, build
-again.
+Most `_show_*` helpers print straight to the console. `Live` needs something it
+can hold and redraw, so the board and session views become functions that build
+a rich renderable holding the sections they compose today — and one small helper
+does the following: build, hand to `Live`, wait, build again.
 
 The goldens keep working: rendering that to the same pinned console produces the
 same text. They also improve, in that they become assertions about a value
 rather than about a side effect.
+
+Some of this has already arrived from another direction: #86 added
+`_render_attempt_detail`, which returns a renderable rather than printing one,
+and brought `Group` into the module with it. So this is extending a pattern the
+module already has, not introducing one.
 
 ### What a refresh reads
 
@@ -113,37 +126,41 @@ seen twice: both views re-derive everything on every pass.
 
 **The board reads every round the repo ever ran.** `read_sessions` reads each
 session's record and, through `_read_session`, eagerly reads every round record
-beneath it. Then the board uses almost none of that: to judge a session's
-standing it needs the last round, not all of them. On a repo that has run a
+beneath it. Then the board uses almost none of that. On a repo that has run a
 hundred sessions, a one-second repaint reads every round record of every session
 once a second to answer a question about the newest one.
 
-Two changes, in order of how much they buy:
+What makes this fixable is that a round record is written twice and no more:
+once when the round starts, and once by `Round._close` when its child has gone,
+carrying the ending. An interrupted round is never given an ending at all, so
+its record is never rewritten either. **Only a session's newest round record can
+change. Every earlier one is fixed the moment it is written.**
 
-1. **Read rounds on demand.** A session stops reading its rounds when it is
-   read, and reads them when something asks. The session view really does want
-   the whole list, and asks for one session's worth. The board wants much less,
-   but not quite as little as it first appears: it needs the last record, to
-   know whether a round is running and how the last one ended; it needs the
-   number of rounds, which the rounds directory answers without opening
-   anything; and it needs to know whether any round was the final one, which
-   `has_run_final_round` answers today by reading every record.
+So a reading process reads each session's rounds once and keeps them, and on
+every later pass reads only:
 
-   That last question is the awkward one, because the final round is not
-   reliably the last: a final round that gets interrupted is followed by
-   carry-on rounds finishing what it started. Answering it without reading every
-   record is the part of this to work out rather than to follow a recipe for,
-   and the answer may well turn on what the daemon guarantees about what can
-   follow a completed final round. Whatever it turns out to be, correct this
-   section to say so.
+- a listing of the session's rounds directory, which is what says whether a new
+  round has started; and
+- the newest round record, which is the only one that can have changed.
 
-2. **Don't re-derive a finished session.** A session whose final round has
-   completed and whose pull request is merged or closed cannot change again — if
-   its issue is dispatched a second time, that is a new session with a new key.
-   So once a reading process has judged a session done, that judgement holds for
-   the life of the process and the session's files need never be opened again.
-   This needs no new file on disk and no marker: it follows from what "done"
-   already means.
+That is one directory listing and one small read per session per pass,
+independent of how many rounds the repo has ever run. Sessions read their rounds
+on demand rather than eagerly, so a view that wants nothing from a session's
+rounds — and the session view wants them for one session only — pays nothing for
+the rest.
+
+This deliberately does not lean on a session being finished. It is tempting to
+say that a session whose final round has completed and whose pull request is
+merged or closed can never change, and to stop reading it entirely. That is not
+quite true: `wakeups._judge_pull_request` only treats a final round as the end
+while the pull request is not open, and a closed pull request can be reopened,
+which would wake the session for another round. Caching what cannot change needs
+no such claim, and is why this design makes none.
+
+For the same reason, `has_run_final_round` — which scans every record for a
+final cause — stays as it is. It is answered from records the process already
+holds, so the scan costs nothing after the first pass, and its meaning does not
+have to be narrowed to make it cheap.
 
 Both the daemon and the views go through `read_sessions`, so both get this. The
 daemon's tick has the same complaint for the same reason.
@@ -253,8 +270,3 @@ preference to trade away for a smaller diff.
 - **Whether `session` earns its own command.** Once the board is live and
   detailed, much of what the session view adds could be carried by a wider
   board. Keeping it is the conservative choice here.
-
-- **How a done session is recognised**, since the answer decides when its
-  judgement can be kept. This design says a completed final round with a merged
-  or closed pull request is terminal. That is true of the daemon's model today,
-  and it is the assumption most worth arguing with before it is built on.

@@ -46,6 +46,11 @@ works at all.
 - **Live without asking.** Running a view is enough to get one that keeps up. No
   flag to remember, no `watch` to wrap it in, no difference between platforms.
 
+- **A view left open stays useful.** A feed that stops when the current round
+  ends makes you run the command again every time the next round starts, which
+  is the whole complaint in #94. A view should outlive the round it opened on
+  and end only when the session it is watching has.
+
 - **Still usable when nothing is watching.** A view that never returns can't be
   piped, redirected, captured in a log, or pasted into an issue. There has to be
   a way to get a snapshot, and it shouldn't cost the reader a decision.
