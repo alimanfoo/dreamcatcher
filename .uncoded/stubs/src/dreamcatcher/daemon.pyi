@@ -42,7 +42,7 @@ class Daemon:
     def run(self) -> None:
         ...
 
-    def tick(self, repository: str, account: str) -> None:
+    def tick(self, repository: str, account: str, at: datetime) -> None:
         ...
 
     def _decide_and_launch(self, repository: str, account: str, at: datetime) -> LastTick:

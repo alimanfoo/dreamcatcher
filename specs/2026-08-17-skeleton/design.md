@@ -178,9 +178,10 @@ when a CLI is missing or when `gh` can name neither the repository nor the
 account, because none of them can change under a running daemon, a run without
 the repository dispatches nothing, and the relay reads every post against the
 account before the marker tells the user's posts from the session's own. Once
-these checks succeed, `run` prints `dreamcatcher is running` before the first
-tick. After every tick that it records, `run` prints one UTC-stamped line that
-says whether the tick launched a round, was held and why, or launched nothing.
+these checks succeed, `run` prints a UTC timestamp followed by
+`dreamcatcher is running` before the first tick. After every tick that it
+records, `run` prints one line in the same format that says whether the tick
+launched a round, was held and why, or launched nothing.
 
 Each tick, in order, launching at most one round per tick:
 

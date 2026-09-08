@@ -147,8 +147,10 @@ def test_the_daemon_reports_when_it_has_started_before_its_first_tick(
 ):
     daemon, _, _ = idling(watched)
 
-    def verify_report(_repository, _account):
-        assert capsys.readouterr().out == "dreamcatcher is running\n"
+    def verify_report(_repository, _account, _at):
+        assert (
+            capsys.readouterr().out == "2026-08-19T18:41:58Z  dreamcatcher is running\n"
+        )
         raise KeyboardInterrupt
 
     monkeypatch.setattr(daemon, "tick", verify_report)
@@ -166,7 +168,7 @@ def test_the_daemon_flushes_every_report(watched, harnesses, gh, monkeypatch):
     daemon.run()
 
     assert reports == [
-        ("dreamcatcher is running", True),
+        ("2026-08-19T18:41:58Z  dreamcatcher is running", True),
         ("2026-08-19T18:41:58Z  nothing launched", True),
     ]
 
@@ -201,7 +203,7 @@ def test_every_tick_records_when_it_ran(watched, harnesses, gh, capsys):
     assert len(ticking.readings) == 2
     assert LastTick.model_validate_json(recorded).at == ticking.readings[-1]
     assert capsys.readouterr().out == (
-        "dreamcatcher is running\n"
+        "2026-08-19T18:41:58Z  dreamcatcher is running\n"
         "2026-08-19T18:41:58Z  nothing launched\n"
         "2026-08-19T18:46:58Z  nothing launched\n"
     )
@@ -409,7 +411,7 @@ def test_a_tick_dispatches_the_oldest_issue_nothing_stands_in_the_way_of(
     assert (session / "session.json").exists()
     assert recorded(daemon).launched == DISPATCHED_KEY
     assert capsys.readouterr().out == (
-        "dreamcatcher is running\n"
+        "2026-08-19T18:41:58Z  dreamcatcher is running\n"
         f"2026-08-19T18:41:58Z  launched round for {DISPATCHED_KEY}\n"
     )
     assert (
@@ -533,7 +535,9 @@ def test_a_tick_whose_listing_failed_records_what_it_could_not_read(
     assert "could not connect" in held(daemon)
     assert recorded(daemon).candidates == []
     output = capsys.readouterr().out
-    assert output.startswith("dreamcatcher is running\n2026-08-19T18:41:58Z  held: ")
+    assert output.startswith(
+        "2026-08-19T18:41:58Z  dreamcatcher is running\n2026-08-19T18:41:58Z  held: "
+    )
     assert output.endswith("gh: could not connect to github.com gh: try again\n")
     assert output.count("\n") == 2
 
@@ -740,7 +744,7 @@ def test_a_session_that_goes_bad_under_a_running_daemon_costs_one_tick(dispatchi
     directory = write_session(daemon.state, KEY, 13)
     (directory / "session.json").write_text("{}", encoding="utf-8")
 
-    daemon.tick(REPOSITORY, POSTED_BY)
+    daemon.tick(REPOSITORY, POSTED_BY, daemon.clock())
 
     assert "session.json is not valid" in held(daemon)
     assert recorded(daemon).candidates == []

@@ -81,9 +81,6 @@ to it, and has no open issue blocking it. The oldest such issue goes first. A
 dispatch cuts a branch and a worktree under `.dreamcatcher/`, and runs the
 session's first round there.
 
-After every look, `run` prints one UTC-stamped line that says whether it
-launched a round, was held and why, or launched nothing.
-
 Everything the daemon owns lives under `.dreamcatcher/` in the checkout, which
 ignores itself, so git never sees it. `last-tick.json` there says what the most
 recent look observed and decided, including what the daemon did not do and why.

@@ -127,12 +127,14 @@ class Daemon:
         )
         with hold(self.state.lock):
             self._sweep_orphans()
-            _write_output("dreamcatcher is running")
+            at = self.clock()
+            _write_output(f"{describe_time(at)}  dreamcatcher is running")
             try:
                 with suppress(KeyboardInterrupt):
                     while True:
-                        self.tick(repository, account)
+                        self.tick(repository, account, at)
                         self.wait(self.config.interval)
+                        at = self.clock()
             finally:
                 # Rounds die with the daemon by design, so this happens however
                 # the run ends: on the user's interrupt, and on a failure the
@@ -141,7 +143,7 @@ class Daemon:
                 for running in self.rounds.values():
                     running.stop()
 
-    def tick(self, repository: str, account: str) -> None:
+    def tick(self, repository: str, account: str, at: datetime) -> None:
         """Look once, launch at most one round, and record what happened.
 
         A round that has ended is forgotten first, so the cap counts what is
@@ -159,7 +161,6 @@ class Daemon:
         self.rounds = {
             key: running for key, running in self.rounds.items() if running.is_alive
         }
-        at = self.clock()
         try:
             observed = self._decide_and_launch(repository, account, at)
         except ReportableError as failure:
