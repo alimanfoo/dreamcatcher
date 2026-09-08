@@ -118,6 +118,7 @@ src/:
         err:
         process:
         pid:
+        is_running:
         wait:
         kill:
       refuse_unquotable:

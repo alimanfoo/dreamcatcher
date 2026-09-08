@@ -75,6 +75,15 @@ class Child:
         """The process id the operating system gave the child."""
         return self.process.pid
 
+    @property
+    def is_running(self) -> bool:
+        """Whether the child has still to be waited for.
+
+        A child already waited for has gone. The answer is what it was when it
+        was asked, so a caller acting on it acts on what was true a moment ago.
+        """
+        return self.process.returncode is None
+
     def wait(self) -> int:
         """Wait for the child to end, and return the status that it ended with.
 
@@ -88,12 +97,12 @@ class Child:
     def kill(self) -> None:
         """End the child, and everything that the child started, outright.
 
-        A child already waited for has gone, and the operating system is free
-        to give its pid to somebody else, so this leaves it alone. `wait` does
-        signal at that point, because there the two statements sit next to
-        each other, while a kill can come long afterwards.
+        A child that has gone leaves the operating system free to give its pid
+        to somebody else, so this leaves it alone. `wait` does signal at that
+        point, because there the two statements sit next to each other, while a
+        kill can come long afterwards.
         """
-        if self.process.returncode is None:
+        if self.is_running:
             teardown.end(self.pid)
 
 

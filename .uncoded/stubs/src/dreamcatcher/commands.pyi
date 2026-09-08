@@ -43,6 +43,7 @@ class Child:
     err: IO[str]
     process: subprocess.Popen[str]
     pid: int
+    is_running: bool
 
     def wait(self) -> int:
         ...
