@@ -37,7 +37,7 @@ def _describe_daemon(board: Board) -> Text:
 def _show_attempts(console: Console, board: Board, standing: Standing) -> None:
     ...
 
-def _render_attempt_detail(attempt: Attempt) -> Text:
+def _render_attempt_detail(attempt: Attempt, prefix: str, continuation_indent: int) -> Text:
     ...
 
 def _show_queue(console: Console, board: Board) -> None:

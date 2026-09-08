@@ -116,11 +116,13 @@ def _show_attempts(console: Console, board: Board, standing: Standing) -> None:
     _print_section(console, str(standing), COLOURS[standing], table)
 
 
-def _render_attempt_detail(attempt: Attempt) -> Text:
-    """Render an attempt's detail, with its latest output on a separate line."""
-    detail = Text(attempt.detail)
+def _render_attempt_detail(
+    attempt: Attempt, prefix: str = "", continuation_indent: int = 0
+) -> Text:
+    """Render an attempt's detail and set its latest output beneath it."""
+    detail = Text(f"{prefix}{attempt.detail}")
     if attempt.last_output is not None:
-        detail.append("\n")
+        detail.append(f"\n{' ' * continuation_indent}")
         detail.append(attempt.last_output)
     return detail
 
@@ -168,11 +170,12 @@ def show_session(
     attempts = _find_attempts(read_board(state, clock), issue)
     newest = attempts[0]
     console.print(Text(f"GH{issue}, attempt {newest.attempt} of {newest.attempts}"))
-    console.print(
-        Text(f"{newest.standing}, {newest.detail}", style=COLOURS[newest.standing])
+    prefix = f"{newest.standing}, "
+    status = _render_attempt_detail(
+        newest, prefix=prefix, continuation_indent=INDENT[3]
     )
-    if newest.last_output is not None:
-        console.print(Padding(Text(newest.last_output), INDENT, expand=False))
+    status.stylize(COLOURS[newest.standing], 0, len(prefix + newest.detail))
+    console.print(status)
     _show_vitals(console, state, newest)
     _show_rounds(console, newest)
     _show_hand_resume(console, state, newest)
