@@ -182,8 +182,9 @@ the tool is used. This order takes the opposite trade deliberately.
 
 ## How the parts are tracked
 
-GH87 is the umbrella. Parts 1 and 2 are GH62 and GH80, already beneath it. Parts
-3, 4 and 5 need child issues, each blocked by its predecessor, so the order is
-carried by the dependency graph rather than by memory. Each child issue's body
-is short: read the three documents in `specs/2026-09-08-watchtower/` and
-implement that part's section of this plan.
+GH87 is the umbrella, and each part is one child issue of it: GH62, GH80, GH106,
+GH107 and GH108, in that order. Each is marked blocked by its predecessor, so
+the order is carried by the dependency graph rather than by memory, and a
+dispatcher working through unblocked issues takes them one at a time. Each child
+issue's body is short: read the three documents in
+`specs/2026-09-08-watchtower/` and implement that part's section of this plan.
