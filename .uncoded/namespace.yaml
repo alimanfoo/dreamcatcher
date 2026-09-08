@@ -406,11 +406,11 @@ src/:
       Session:
         directory:
         record:
-        rounds:
         watermark:
         key:
         has_run_final_round:
         next_workspace:
+        rounds:
         describe_unfinished_round:
         workspace:
       read_sessions:

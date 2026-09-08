@@ -10,8 +10,9 @@ asks for the session.
 """
 
 from contextlib import suppress
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
+from functools import cached_property
 from pathlib import Path
 
 from dreamcatcher import prompts
@@ -71,8 +72,7 @@ class Session:
 
     The directory is where the session keeps its own files, and its own name is
     the session's key, which is how a reader of the disk finds one. The record
-    says what the dispatch settled, and the rounds are what the session has run
-    so far, oldest first.
+    says what the dispatch settled.
 
     The watermark is the newest post the session has been told about. A session
     that has been told about none has the beginning of time, so the first peek
@@ -81,8 +81,18 @@ class Session:
 
     directory: Path
     record: SessionRecord
-    rounds: list[RoundRecord] = field(default_factory=list)
     watermark: str = ""
+
+    @cached_property
+    def rounds(self) -> list[RoundRecord]:
+        """The rounds the session has run so far, oldest first.
+
+        These are read when they are first asked for, and kept, so a session
+        nobody asks about the rounds of costs no round record read at all, and
+        a session that is asked twice is one look either way, as its record and
+        its watermark are.
+        """
+        return read_round_records(self.directory / ROUNDS)
 
     @property
     def key(self) -> str:
@@ -226,7 +236,6 @@ def _read_session(directory: Path) -> Session:
     return Session(
         directory=directory,
         record=read_json(SessionRecord, directory / RECORD),
-        rounds=read_round_records(directory / ROUNDS),
         watermark=_read_watermark(directory),
     )
 
