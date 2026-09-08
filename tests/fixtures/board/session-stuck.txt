@@ -1,9 +1,8 @@
-GH9, attempt 1 of 1
+GH9-20260819-184158
 stuck, no pull request has been opened on it 
 (.dreamcatcher/sessions/GH9-20260819-184158/rounds/1/feed.txt)
 
 session
-  key       GH9-20260819-184158                        
   label     dream:smith                                
   branch    dreamcatcher-GH9-20260819-184158           
   worktree  .dreamcatcher/worktrees/GH9-20260819-184158

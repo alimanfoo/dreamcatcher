@@ -57,11 +57,10 @@ class Standing(StrEnum):
 
 @dataclass(frozen=True)
 class Attempt:
-    """One session on the board: which attempt it is, and how it is doing.
+    """One session on the board, and how it is doing.
 
-    Three sessions for one issue are three attempts at one thing, and the
-    numbers say so: the oldest attempt is the first, and the newest is the
-    last.
+    Three sessions for one issue are three attempts at one thing. The board
+    reads the newest of them first.
 
     The detail is what the row says beside the standing, in the words the disk
     put it in. A working attempt keeps its latest output separate so the view
@@ -72,8 +71,6 @@ class Attempt:
     standing: Standing
     detail: str
     last_output: str | None
-    attempt: int
-    attempts: int
 
 
 @dataclass(frozen=True)
@@ -155,22 +152,18 @@ class _Look:
     def list_attempts(self, sessions: list[Session]) -> list[Attempt]:
         """Return every session as an attempt at its issue, newest attempt first.
 
-        A session's key opens with its issue and closes with the time it was
-        cut, so sorting by key puts the attempts at one issue together and in
-        the order they were made. The board shows the newest of them first, and
-        each says which of how many it is.
+        A session's key closes with the time the session was cut, so sorting by
+        key backwards puts the newest attempt at an issue ahead of the older
+        ones. Sorting that by issue keeps each issue's attempts in the order it
+        left them, because a sort in Python holds what it does not reorder.
         """
-        by_issue: dict[int, list[Session]] = {}
-        for session in sorted(sessions, key=lambda one: one.key):
-            by_issue.setdefault(session.record.issue, []).append(session)
-        found = []
-        for issue in sorted(by_issue):
-            made = by_issue[issue]
-            for attempt, session in reversed(list(enumerate(made, start=1))):
-                found.append(self._read_attempt(session, attempt, len(made)))
-        return found
+        newest_first = sorted(sessions, key=lambda one: one.key, reverse=True)
+        return [
+            self._read_attempt(session)
+            for session in sorted(newest_first, key=lambda one: one.record.issue)
+        ]
 
-    def _read_attempt(self, session: Session, attempt: int, attempts: int) -> Attempt:
+    def _read_attempt(self, session: Session) -> Attempt:
         """Return the session as one attempt at its issue, where it stands."""
         standing, detail, last_output = self._judge_standing(session)
         return Attempt(
@@ -178,8 +171,6 @@ class _Look:
             standing=standing,
             detail=detail,
             last_output=last_output,
-            attempt=attempt,
-            attempts=attempts,
         )
 
     def _judge_standing(self, session: Session) -> tuple[Standing, str, str | None]:

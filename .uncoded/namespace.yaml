@@ -37,8 +37,6 @@ src/:
         standing:
         detail:
         last_output:
-        attempt:
-        attempts:
       QueuedIssue:
         issue:
         label:
@@ -998,6 +996,7 @@ tests/:
     stopping:
     rendered:
     test_a_state_directory_renders_as_its_golden_board:
+    test_a_key_too_wide_for_the_console_folds_rather_than_being_cut:
     viewed:
     test_wrapped_latest_output_keeps_its_indent:
     test_a_session_renders_as_its_golden_view:

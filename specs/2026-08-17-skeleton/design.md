@@ -499,16 +499,21 @@ Commits are not marked; the relay only filters posts.
   behind N others, blocked by `GH<x>`, skipped for double labels.
 - done: merged or closed with the final round completed, most recent first.
 
+Every row that names a session names it by the session's own key, which is the
+name `run` prints for it too, so one session reads as one name wherever you meet
+it. A queued row names an issue and not a session, so it reads `GH<n>`.
+
 Repeat attempts group under their issue: three sessions for one issue read as
 three attempts at one thing, current one first. `scry GH123` shows the newest
-attempt, older attempts listed beneath it. The session view shows vitals (the
-session's key, its label, its branch, its worktree, and the harness, model and
-effort it was dispatched with, then the literal first prompt), the round list
-with causes and durations, and — when no round is live — the exact command to
-resume the session interactively by hand (`claude --continue` from the worktree,
-or the matching `codex resume --last`), built from `session.json`.
-`codex exec resume` is the headless resume the daemon's own rounds run, so the
-interactive `codex resume` is what a person is given instead.
+attempt, older attempts listed beneath it. The session view opens with the key,
+and shows vitals (the session's label, its branch, its worktree, and the
+harness, model and effort it was dispatched with, then the literal first
+prompt), the round list with causes and durations, and — when no round is live —
+the exact command to resume the session interactively by hand
+(`claude --continue` from the worktree, or the matching `codex resume --last`),
+built from `session.json`. `codex exec resume` is the headless resume the
+daemon's own rounds run, so the interactive `codex resume` is what a person is
+given instead.
 
 ### The contract page
 

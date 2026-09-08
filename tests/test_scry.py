@@ -253,10 +253,10 @@ def stopping(state):
     return wait
 
 
-def rendered(state) -> str:
+def rendered(state, width: int = WIDTH) -> str:
     """Return the board that state directory renders as, on a pinned console."""
     written_to = StringIO()
-    show_board(state, pinned(written_to), clock=lambda: LOOKED_AT)
+    show_board(state, pinned(written_to, width), clock=lambda: LOOKED_AT)
     return written_to.getvalue()
 
 
@@ -268,6 +268,17 @@ def test_a_state_directory_renders_as_its_golden_board(name, tmp_path, daemon):
     board = rendered(state)
 
     assert board == (FIXTURES / "board" / f"{name}.txt").read_text(encoding="utf-8")
+
+
+def test_a_key_too_wide_for_the_console_folds_rather_than_being_cut(tmp_path):
+    """Two attempts at one issue differ only in the time their keys carry."""
+    state = StateDirectory(tmp_path)
+    fabricate_repeat_attempts(state)
+
+    board = rendered(state, width=24)
+
+    assert "8-090000" in board
+    assert "7-090000" in board
 
 
 def viewed(state, issue: int, width: int = WIDTH) -> str:
