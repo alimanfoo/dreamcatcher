@@ -110,10 +110,36 @@ def _show_attempts(console: Console, board: Board, standing: Standing) -> None:
     for attempt in attempts:
         table.add_row(
             Text(f"GH{attempt.session.record.issue}"),
-            Text(f"attempt {attempt.attempt} of {attempt.attempts}"),
+            Text(_describe_progress(attempt)),
             _render_attempt_detail(attempt),
         )
     _print_section(console, str(standing), COLOURS[standing], table)
+
+
+def _describe_attempt(attempt: Attempt) -> str:
+    """Return which attempt of how many this is, or nothing when it is the only one.
+
+    An issue is dispatched once and carried to a pull request, so nearly every
+    attempt is the only attempt there is, and saying which of one it is says
+    nothing. The words appear where they mean something, which is where an
+    issue was dispatched again.
+    """
+    if attempt.attempts == 1:
+        return ""
+    return f"attempt {attempt.attempt} of {attempt.attempts}"
+
+
+def _describe_progress(attempt: Attempt) -> str:
+    """Return how far the attempt has got, for the column beside its issue.
+
+    The round is the one running while the agent works, and the last one that
+    ran otherwise, so either way it says where the session has got to. A
+    session whose first round has yet to start has no round to name.
+    """
+    said = [_describe_attempt(attempt)]
+    if attempt.session.rounds:
+        said.append(f"round {len(attempt.session.rounds)}")
+    return ", ".join(word for word in said if word)
 
 
 def _render_attempt_detail(
@@ -174,7 +200,8 @@ def show_session(
     """
     attempts = _find_attempts(read_board(state, clock), issue)
     newest = attempts[0]
-    console.print(Text(f"GH{issue}, attempt {newest.attempt} of {newest.attempts}"))
+    which = _describe_attempt(newest)
+    console.print(Text(f"GH{issue}, {which}" if which else f"GH{issue}"))
     prefix = f"{newest.standing}, "
     console.print(
         _render_attempt_detail(

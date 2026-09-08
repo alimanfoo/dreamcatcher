@@ -1,4 +1,4 @@
-GH13, attempt 1 of 1
+GH13
 agent working, last output 1h 29m ago
   [Bash] pytest
 

@@ -1,4 +1,4 @@
-GH9, attempt 1 of 1
+GH9
 stuck, no pull request has been opened on it 
 (.dreamcatcher/sessions/GH9-20260819-184158/rounds/1/feed.txt)
 

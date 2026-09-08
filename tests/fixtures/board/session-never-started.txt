@@ -1,4 +1,4 @@
-GH44, attempt 1 of 1
+GH44
 stuck, no round has run yet
 
 session
