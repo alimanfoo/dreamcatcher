@@ -10,8 +10,8 @@ from dreamcatcher.commands import CommandError
 from dreamcatcher.config import CONFIG_NAME, Harness, read_config
 from dreamcatcher.documents import write_text
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.rounds import Cause, Ending, RoundReader, RoundRecord, Workspace
-from dreamcatcher.sessions import WATERMARK, SessionRecord, advance_watermark, create_session, read_sessions
+from dreamcatcher.rounds import Cause, Ending, RoundRecord, Workspace
+from dreamcatcher.sessions import WATERMARK, SessionReader, SessionRecord, advance_watermark, create_session
 from dreamcatcher.state import StateDirectory
 
 KEY = 'GH12-20260819-184158'

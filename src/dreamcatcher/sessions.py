@@ -143,45 +143,68 @@ class Session:
         return self.workspace(len(self.rounds) + 1)
 
 
-def read_sessions(
-    state: StateDirectory, reader: RoundReader | None = None
-) -> list[Session]:
-    """Return every session the state directory holds, by key.
+class SessionReader:
+    """What one process has read of a state directory's sessions.
 
-    A worktree under `worktrees/` is what says a session exists, since that is
-    the one place a session of this daemon's can be. The session's own files
-    sit under `sessions/`, in a directory the same key names.
+    Reading a session reads its record, its watermark and the records of every
+    round it has run, and a round's record is the only one of those that can be
+    written a second time. So a reader keeps every complete round record it
+    reads, and a later read of the same session opens only the records that are
+    still incomplete.
 
-    A caller that reads the same state directory again and again hands the
-    reader it holds, so a later read opens only the round records that can have
-    changed.
-
-    A state directory with no worktrees in it yet holds no sessions, so this
-    answers with nothing rather than failing. Anything under `worktrees/` that
-    is not a directory is not a worktree, which is what keeps a file a file
-    browser left there from reading as a session.
-
-    A worktree whose record is not there is not a session either. A creation
-    cuts the worktree and then writes the record, so a daemon that died between
-    the two leaves one, and it stands for a session that ran nothing and opened
-    no pull request. Reading it as no session leaves its issue free to go
-    again, and leaves the worktree itself for whoever wants the disk back. A
-    record that is there and will not read is another matter, and says so.
+    One reader is one process's reading. A process that looks once makes one
+    and lets it go. A process that looks again and again holds the one it made:
+    the daemon holds one for its whole run, and a view holds one for as long as
+    it stays on the screen. A reader made afresh for each look has read nothing
+    yet, so each look would cost what the first one did.
     """
-    if not state.worktrees.is_dir():
-        return []
-    if reader is None:
-        reader = RoundReader()
-    directories = [
-        state.sessions / worktree.name
-        for worktree in sorted(state.worktrees.iterdir())
-        if worktree.is_dir()
-    ]
-    return [
-        _read_session(directory, reader)
-        for directory in directories
-        if (directory / RECORD).exists()
-    ]
+
+    def __init__(self, state: StateDirectory) -> None:
+        """Set up a reader of that state directory, having read nothing yet."""
+        self.state = state
+        self._rounds = RoundReader()
+
+    def read_sessions(self) -> list[Session]:
+        """Return every session the state directory holds, by key.
+
+        A worktree under `worktrees/` is what says a session exists, since that
+        is the one place a session of this daemon's can be. The session's own
+        files sit under `sessions/`, in a directory the same key names.
+
+        A state directory with no worktrees in it yet holds no sessions, so
+        this answers with nothing rather than failing. Anything under
+        `worktrees/` that is not a directory is not a worktree, which is what
+        keeps a file a file browser left there from reading as a session.
+
+        A worktree whose record is not there is not a session either. A
+        creation cuts the worktree and then writes the record, so a daemon that
+        died between the two leaves one, and it stands for a session that ran
+        nothing and opened no pull request. Reading it as no session leaves its
+        issue free to go again, and leaves the worktree itself for whoever
+        wants the disk back. A record that is there and will not read is
+        another matter, and says so.
+        """
+        if not self.state.worktrees.is_dir():
+            return []
+        directories = [
+            self.state.sessions / worktree.name
+            for worktree in sorted(self.state.worktrees.iterdir())
+            if worktree.is_dir()
+        ]
+        return [
+            self._read_session(directory)
+            for directory in directories
+            if (directory / RECORD).exists()
+        ]
+
+    def _read_session(self, directory: Path) -> Session:
+        """Return the session whose own files sit in this directory."""
+        return Session(
+            directory=directory,
+            record=read_json(SessionRecord, directory / RECORD),
+            rounds=self._rounds.read_records(directory / ROUNDS),
+            watermark=_read_watermark(directory),
+        )
 
 
 def create_session(
@@ -227,16 +250,6 @@ def create_session(
         discard_session(state, record)
         raise
     return Session(directory=directory, record=record)
-
-
-def _read_session(directory: Path, reader: RoundReader) -> Session:
-    """Return the session whose own files sit in this directory."""
-    return Session(
-        directory=directory,
-        record=read_json(SessionRecord, directory / RECORD),
-        rounds=reader.read_records(directory / ROUNDS),
-        watermark=_read_watermark(directory),
-    )
 
 
 def _read_watermark(directory: Path) -> str:

@@ -21,8 +21,7 @@ from dreamcatcher.clock import now
 from dreamcatcher.documents import read_json
 from dreamcatcher.feed import Line, read_last_feed_line
 from dreamcatcher.lock import read_daemon_pid
-from dreamcatcher.rounds import RoundReader
-from dreamcatcher.sessions import Session, read_sessions
+from dreamcatcher.sessions import Session, SessionReader
 from dreamcatcher.state import (
     NO_ROUND_HAS_RUN,
     LastTick,
@@ -118,15 +117,14 @@ class Board:
         return found
 
 
-def read_board(
-    state: StateDirectory,
-    clock: Callable[[], datetime] = now,
-    reader: RoundReader | None = None,
-) -> Board:
+def read_board(reader: SessionReader, clock: Callable[[], datetime] = now) -> Board:
     """Return what the state directory says every session and issue is doing.
 
-    The reader travels on to `read_sessions`, which is what reads the rounds.
+    The reader is the state directory this reads, and what a look at it has
+    read already, so a caller that reads the board again and again holds the
+    one it read with.
     """
+    state = reader.state
     tick = read_json(LastTick, state.last_tick) if state.last_tick.exists() else None
     look = _Look(
         state=state,
@@ -134,7 +132,7 @@ def read_board(
         daemon_pid=read_daemon_pid(state.lock),
         waits={} if tick is None else {one.session: one for one in tick.waiting},
     )
-    sessions = read_sessions(state, reader)
+    sessions = reader.read_sessions()
     return Board(
         at=look.at,
         daemon_pid=look.daemon_pid,

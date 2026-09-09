@@ -18,8 +18,8 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import Unknown, identify_account, identify_repository
 from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.lock import hold
-from dreamcatcher.rounds import Cause, Round, RoundReader
-from dreamcatcher.sessions import Session, advance_watermark, create_session, discard_session, read_sessions
+from dreamcatcher.rounds import Cause, Round
+from dreamcatcher.sessions import Session, SessionReader, advance_watermark, create_session, discard_session
 from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, WaitingSession
 from dreamcatcher.wakeups import Finding, Wakeup, compose_wait, judge_session, list_waiting, sort_wakeups
 from dreamcatcher.words import describe_time

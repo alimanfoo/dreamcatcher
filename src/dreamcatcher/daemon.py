@@ -35,13 +35,13 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import Unknown, identify_account, identify_repository
 from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.lock import hold
-from dreamcatcher.rounds import Cause, Round, RoundReader
+from dreamcatcher.rounds import Cause, Round
 from dreamcatcher.sessions import (
     Session,
+    SessionReader,
     advance_watermark,
     create_session,
     discard_session,
-    read_sessions,
 )
 from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, WaitingSession
 from dreamcatcher.wakeups import (
@@ -101,10 +101,10 @@ class Daemon:
         # belongs to. They are what the cap counts, and what the daemon ends as
         # it goes down.
         self.rounds: dict[str, Round] = {}
-        # What the daemon has read of every session's rounds, kept for as long
-        # as the daemon runs, so every tick after the first reads what has
-        # changed since the one before it.
-        self.reader = RoundReader()
+        # What the daemon has read of the state directory. It reads again on
+        # every tick, so it holds the one reader for as long as it runs, and a
+        # tick then costs what has happened since the tick before it.
+        self.reader = SessionReader(self.state)
 
     def run(self) -> None:
         """Hold the repo and tick until the user interrupts.
@@ -192,7 +192,7 @@ class Daemon:
         holds no read. So a tick under it still says what each session is
         waiting on, rather than going quiet for the whole fifteen minutes.
         """
-        sessions = read_sessions(self.state, self.reader)
+        sessions = self.reader.read_sessions()
         judged = judge_issues(
             repository, self.config, {session.record.issue for session in sessions}
         )
@@ -413,7 +413,7 @@ class Daemon:
         empties itself when the daemon's last handle on it closes, so no round
         outlives its daemon and there is never anything to end.
         """
-        for session in read_sessions(self.state, self.reader):
+        for session in self.reader.read_sessions():
             for record in session.rounds:
                 if not record.is_complete:
                     teardown.end(record.pid)

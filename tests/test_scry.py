@@ -32,6 +32,7 @@ from dreamcatcher.scry import (
     show_round,
     show_session,
 )
+from dreamcatcher.sessions import SessionReader
 from dreamcatcher.state import (
     NO_ROUND_HAS_RUN,
     CandidateIssue,
@@ -269,7 +270,7 @@ def interrupting(seconds):
 def rendered(state, width: int = WIDTH) -> str:
     """Return the board that state directory renders as, on a pinned console."""
     written_to = StringIO()
-    show_board(state, pinned(written_to, width), clock=lambda: LOOKED_AT)
+    show_board(SessionReader(state), pinned(written_to, width), clock=lambda: LOOKED_AT)
     return written_to.getvalue()
 
 
@@ -297,7 +298,9 @@ def test_a_key_too_wide_for_the_console_folds_rather_than_being_cut(tmp_path):
 def viewed(state, issue: int, width: int = WIDTH) -> str:
     """Return the session view that issue renders as, on a pinned console."""
     written_to = StringIO()
-    show_session(state, issue, pinned(written_to, width), clock=lambda: LOOKED_AT)
+    show_session(
+        SessionReader(state), issue, pinned(written_to, width), clock=lambda: LOOKED_AT
+    )
     return written_to.getvalue()
 
 
@@ -343,7 +346,13 @@ def test_a_session_renders_as_its_golden_view(name, tmp_path, daemon):
 def followed(state, issue: int, wait=lambda seconds: None) -> str:
     """Return the feed view that issue renders as, on a pinned console."""
     written_to = StringIO()
-    show_feed(state, issue, pinned(written_to), wait=wait, clock=lambda: LOOKED_AT)
+    show_feed(
+        SessionReader(state),
+        issue,
+        pinned(written_to),
+        wait=wait,
+        clock=lambda: LOOKED_AT,
+    )
     return written_to.getvalue()
 
 
@@ -518,7 +527,9 @@ def test_a_reader_who_has_seen_enough_interrupts_the_view(tmp_path, daemon):
 def viewed_round(state, issue: int, number: int) -> str:
     """Return the view of one round of that issue, on a pinned console."""
     written_to = StringIO()
-    show_round(state, issue, number, pinned(written_to), clock=lambda: LOOKED_AT)
+    show_round(
+        SessionReader(state), issue, number, pinned(written_to), clock=lambda: LOOKED_AT
+    )
     return written_to.getvalue()
 
 

@@ -19,13 +19,7 @@ RECORD = 'session.json'
 ROUNDS = 'rounds'
 WATERMARK = 'watermark'
 
-def read_sessions(state: StateDirectory, reader: RoundReader | None) -> list[Session]:
-    ...
-
 def create_session(state: StateDirectory, mapping: DispatchMapping, named: Harness, issue: int, at: datetime) -> Session:
-    ...
-
-def _read_session(directory: Path, reader: RoundReader) -> Session:
     ...
 
 def _read_watermark(directory: Path) -> str:
@@ -60,4 +54,14 @@ class Session:
         ...
 
     def workspace(self, number: int) -> Workspace:
+        ...
+
+class SessionReader:
+    def __init__(self, state: StateDirectory) -> None:
+        ...
+
+    def read_sessions(self) -> list[Session]:
+        ...
+
+    def _read_session(self, directory: Path) -> Session:
         ...

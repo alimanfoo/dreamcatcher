@@ -111,12 +111,6 @@ uv run pre-commit run --all-files
   fields we declare and lets every other key pass, because GitHub owns that
   document and adds to it as it pleases. A `Document` refuses a key that it
   doesn't expect, which is right only for a document the tool owns itself.
-- Hold one `rounds.RoundReader` in any process that reads the state directory
-  more than once, and hand it to `read_sessions` or `read_board` on every read.
-  A complete round record is never written again, so a reader that keeps those
-  opens again only the records that are still incomplete, and a tick or a
-  repaint then costs what has changed rather than every round the repo has ever
-  run. A process that reads once hands over no reader.
 - Shell out from `commands.py` alone. `pyproject.toml` waives ruff's subprocess
   rules for that one module, so any other module that imports `subprocess` fails
   the check.

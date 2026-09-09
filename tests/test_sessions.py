@@ -9,13 +9,13 @@ from dreamcatcher.commands import CommandError
 from dreamcatcher.config import CONFIG_NAME, Harness, read_config
 from dreamcatcher.documents import write_text
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.rounds import Cause, Ending, RoundReader, RoundRecord, Workspace
+from dreamcatcher.rounds import Cause, Ending, RoundRecord, Workspace
 from dreamcatcher.sessions import (
     WATERMARK,
+    SessionReader,
     SessionRecord,
     advance_watermark,
     create_session,
-    read_sessions,
 )
 from dreamcatcher.state import StateDirectory
 
@@ -115,7 +115,7 @@ def standing(state, *rounds):
     directory = write_session(state, KEY, 12)
     for number, record in enumerate(rounds, start=1):
         write_round(directory, number, record)
-    return read_sessions(state)[0]
+    return SessionReader(state).read_sessions()[0]
 
 
 def ended(status, minute=0):
@@ -186,15 +186,15 @@ def test_a_session_that_has_run_its_final_round_says_so(fabricated):
 
 def endings(state, reader):
     """Return how each round of the state directory's one session ended."""
-    return [record.ending for record in read_sessions(state, reader)[0].rounds]
+    return [record.ending for record in reader.read_sessions()[0].rounds]
 
 
 def test_a_second_read_does_not_open_a_round_record_it_has_already_read(fabricated):
     directory = write_session(fabricated, KEY, 12)
     write_round(directory, 1, ended(0))
     write_round(directory, 2, running(minute=1))
-    reader = RoundReader()
-    read_sessions(fabricated, reader)
+    reader = SessionReader(fabricated)
+    reader.read_sessions()
 
     # Rewriting the first round's record puts something there that only a read
     # of that file could find. A reader that has read it does not look again.
@@ -206,8 +206,8 @@ def test_a_second_read_does_not_open_a_round_record_it_has_already_read(fabricat
 def test_a_second_read_carries_an_ending_that_landed_since_the_first(fabricated):
     directory = write_session(fabricated, KEY, 12)
     write_round(directory, 1, running())
-    reader = RoundReader()
-    read_sessions(fabricated, reader)
+    reader = SessionReader(fabricated)
+    reader.read_sessions()
 
     write_round(directory, 1, ended(0))
 
@@ -217,12 +217,12 @@ def test_a_second_read_carries_an_ending_that_landed_since_the_first(fabricated)
 def test_a_second_read_finds_a_round_that_has_started_since_the_first(fabricated):
     directory = write_session(fabricated, KEY, 12)
     write_round(directory, 1, ended(0))
-    reader = RoundReader()
-    read_sessions(fabricated, reader)
+    reader = SessionReader(fabricated)
+    reader.read_sessions()
 
     write_round(directory, 2, running(minute=1))
 
-    read = read_sessions(fabricated, reader)[0]
+    read = reader.read_sessions()[0]
 
     assert [record.started for record in read.rounds] == [
         PINNED,
@@ -233,8 +233,8 @@ def test_a_second_read_finds_a_round_that_has_started_since_the_first(fabricated
 def test_a_round_that_ended_as_a_later_round_started_reads_back_ended(fabricated):
     directory = write_session(fabricated, KEY, 12)
     write_round(directory, 1, running())
-    reader = RoundReader()
-    read_sessions(fabricated, reader)
+    reader = SessionReader(fabricated)
+    reader.read_sessions()
 
     # The first round ended, and the round that carried its work on started,
     # so the record that ended is no longer the session's newest.
@@ -270,26 +270,26 @@ def test_a_session_that_cannot_record_leaves_no_worktree_and_no_branch(state, ma
 
 
 def test_a_state_directory_with_no_worktrees_holds_no_sessions(state):
-    assert read_sessions(state) == []
+    assert SessionReader(state).read_sessions() == []
 
 
 def test_a_session_reads_back_as_it_was_dispatched(state, mapping):
     created = create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
 
-    assert read_sessions(state) == [created]
+    assert SessionReader(state).read_sessions() == [created]
 
 
 def test_a_session_no_round_has_told_anything_yet_has_seen_no_post(state, mapping):
     create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
 
-    assert read_sessions(state)[0].watermark == ""
+    assert SessionReader(state).read_sessions()[0].watermark == ""
 
 
 def test_a_session_reads_back_the_newest_post_it_has_been_told_about(state, mapping):
     create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
     write_text("2026-09-03T22:31:51Z\n", state.sessions / KEY / WATERMARK)
 
-    assert read_sessions(state)[0].watermark == "2026-09-03T22:31:51Z"
+    assert SessionReader(state).read_sessions()[0].watermark == "2026-09-03T22:31:51Z"
 
 
 def test_a_session_told_about_a_batch_of_posts_reads_the_newest_of_them_back(
@@ -299,7 +299,7 @@ def test_a_session_told_about_a_batch_of_posts_reads_the_newest_of_them_back(
 
     advance_watermark(created, "2026-09-03T22:31:51Z")
 
-    assert read_sessions(state)[0].watermark == "2026-09-03T22:31:51Z"
+    assert SessionReader(state).read_sessions()[0].watermark == "2026-09-03T22:31:51Z"
 
 
 def test_a_sessions_rounds_read_back_in_the_order_they_ran(state, mapping):
@@ -318,7 +318,7 @@ def test_a_sessions_rounds_read_back_in_the_order_they_ran(state, mapping):
         ),
     )
 
-    read = read_sessions(state)[0]
+    read = SessionReader(state).read_sessions()[0]
 
     assert [record.started for record in read.rounds] == [PINNED, later]
     assert read.next_workspace.directory == state.sessions / KEY / "rounds" / "3"
@@ -328,7 +328,7 @@ def test_every_session_of_the_repo_reads_back_by_key(state, mapping):
     create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
     create_session(state, mapping, Harness.CLAUDE, 3, PINNED)
 
-    assert [session.key for session in read_sessions(state)] == [
+    assert [session.key for session in SessionReader(state).read_sessions()] == [
         "GH12-20260819-184158",
         "GH3-20260819-184158",
     ]
@@ -338,14 +338,14 @@ def test_a_file_left_among_the_worktrees_is_not_a_session(state, mapping):
     created = create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
     (state.worktrees / ".DS_Store").write_text("a file browser\n", encoding="utf-8")
 
-    assert read_sessions(state) == [created]
+    assert SessionReader(state).read_sessions() == [created]
 
 
 def test_a_worktree_with_no_record_beside_it_is_not_a_session(state, mapping):
     created = create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
     (state.worktrees / "GH3-20260819-184158").mkdir()
 
-    assert read_sessions(state) == [created]
+    assert SessionReader(state).read_sessions() == [created]
 
 
 def test_a_session_record_that_will_not_read_names_the_file(state, mapping):
@@ -353,4 +353,4 @@ def test_a_session_record_that_will_not_read_names_the_file(state, mapping):
     (state.sessions / KEY / "session.json").write_text("{}", encoding="utf-8")
 
     with pytest.raises(ReportableError, match=r"session\.json is not valid"):
-        read_sessions(state)
+        SessionReader(state).read_sessions()

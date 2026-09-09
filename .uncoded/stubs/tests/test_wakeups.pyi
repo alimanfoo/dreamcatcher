@@ -10,7 +10,7 @@ from dreamcatcher.github import PullRequestState
 from dreamcatcher.prompts import CARRY_ON_PROMPT, MARKER
 from dreamcatcher.relay import Inbox
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
-from dreamcatcher.sessions import advance_watermark, read_sessions
+from dreamcatcher.sessions import SessionReader, advance_watermark
 from dreamcatcher.state import NO_ROUND_HAS_RUN, StateDirectory, WaitingSession
 from dreamcatcher.wakeups import Wakeup, judge_session, sort_wakeups
 

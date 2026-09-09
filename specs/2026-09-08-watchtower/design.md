@@ -179,6 +179,13 @@ every view goes through the board, and the board reads where each session stands
 from that session's own rounds. Reading them on demand would save nothing while
 that holds.
 
+`SessionReader` is what a process reads sessions through, and holding one is
+what keeps what it has read. So the answer to what a look costs is the reader
+the looker holds, and nothing about how long to keep one has to be remembered: a
+process that looks once makes one and lets it go, the daemon holds one for its
+whole run, and a view holds one for as long as it stays on the screen. The board
+is read through the reader for the same reason.
+
 This deliberately does not lean on a session being finished. It is tempting to
 say that a session whose final round has completed and whose pull request is
 merged or closed can never change, and to stop reading it entirely. That is not

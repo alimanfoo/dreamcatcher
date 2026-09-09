@@ -15,6 +15,7 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Line
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.scry import PAUSE, _paint, _paint_written, show_board, show_feed, show_round, show_session
+from dreamcatcher.sessions import SessionReader
 from dreamcatcher.state import NO_ROUND_HAS_RUN, CandidateIssue, LastTick, StateDirectory, WaitingSession
 
 LOOKED_AT = PINNED + timedelta(hours=2)

@@ -9,12 +9,11 @@ from dreamcatcher.clock import now
 from dreamcatcher.documents import read_json
 from dreamcatcher.feed import Line, read_last_feed_line
 from dreamcatcher.lock import read_daemon_pid
-from dreamcatcher.rounds import RoundReader
-from dreamcatcher.sessions import Session, read_sessions
+from dreamcatcher.sessions import Session, SessionReader
 from dreamcatcher.state import NO_ROUND_HAS_RUN, LastTick, StateDirectory, WaitingSession
 from dreamcatcher.words import describe_count, describe_span
 
-def read_board(state: StateDirectory, clock: Callable[[], datetime], reader: RoundReader | None) -> Board:
+def read_board(reader: SessionReader, clock: Callable[[], datetime]) -> Board:
     ...
 
 def _list_queue(tick: LastTick | None, claimed: set[int]) -> list[QueuedIssue]:

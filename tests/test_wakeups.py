@@ -18,7 +18,7 @@ from dreamcatcher.github import PullRequestState
 from dreamcatcher.prompts import CARRY_ON_PROMPT, MARKER
 from dreamcatcher.relay import Inbox
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
-from dreamcatcher.sessions import advance_watermark, read_sessions
+from dreamcatcher.sessions import SessionReader, advance_watermark
 from dreamcatcher.state import NO_ROUND_HAS_RUN, StateDirectory, WaitingSession
 from dreamcatcher.wakeups import Wakeup, judge_session, sort_wakeups
 
@@ -57,7 +57,7 @@ def ran(state, number: int, cause: Cause, status: int | None = 0) -> None:
 
 def found(state) -> Wakeup | WaitingSession | None:
     """What the one session in that state directory needs next."""
-    return judge_session(REPOSITORY, POSTED_BY, read_sessions(state)[0])
+    return judge_session(REPOSITORY, POSTED_BY, SessionReader(state).read_sessions()[0])
 
 
 def test_a_session_that_has_run_no_round_at_all_waits_for_a_person(state):
@@ -135,7 +135,7 @@ def test_a_batch_of_posts_says_how_many_it_holds(state, gh):
 def test_a_post_the_session_has_been_told_about_already_wakes_nothing(state, gh):
     ran(state, 1, Cause.DISPATCH)
     gh.replies(pages(comment()), to=f"api {POST_LIST_PATHS['conversation']}")
-    advance_watermark(read_sessions(state)[0], POSTED_AT)
+    advance_watermark(SessionReader(state).read_sessions()[0], POSTED_AT)
 
     assert found(state) is None
 
@@ -268,7 +268,7 @@ def test_a_peek_that_failed_leaves_the_session_waiting(state, gh):
 
 
 def test_the_most_open_work_comes_first(state):
-    session = read_sessions(state)[0]
+    session = SessionReader(state).read_sessions()[0]
 
     def resume(cause: Cause) -> Wakeup:
         return Wakeup(session=session, cause=cause, reason="", prompt="")

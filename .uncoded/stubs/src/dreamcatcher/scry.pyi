@@ -14,8 +14,8 @@ from dreamcatcher.clock import now
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import GAP, Line, compose_round_boundary, read_feed_line, read_feed_lines
 from dreamcatcher.harnesses import ADAPTERS
-from dreamcatcher.rounds import RoundReader, RoundRecord
-from dreamcatcher.sessions import Session
+from dreamcatcher.rounds import RoundRecord
+from dreamcatcher.sessions import Session, SessionReader
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.words import describe_count, describe_span, describe_time
 
@@ -28,7 +28,7 @@ INDENT = (0, 0, 0, 2)
 def open_console() -> Console:
     ...
 
-def show_board(state: StateDirectory, console: Console, clock: Callable[[], datetime]) -> None:
+def show_board(reader: SessionReader, console: Console, clock: Callable[[], datetime]) -> None:
     ...
 
 def _describe_daemon(board: Board) -> Text:
@@ -52,7 +52,7 @@ def _open_table() -> Table:
 def _print_section(console: Console, heading: str, colour: str, body: RenderableType) -> None:
     ...
 
-def show_session(state: StateDirectory, issue: int, console: Console, clock: Callable[[], datetime]) -> None:
+def show_session(reader: SessionReader, issue: int, console: Console, clock: Callable[[], datetime]) -> None:
     ...
 
 def _show_vitals(console: Console, state: StateDirectory, row: Row) -> None:
@@ -73,10 +73,10 @@ def _show_hand_resume(console: Console, state: StateDirectory, row: Row) -> None
 def _show_older_sessions(console: Console, older: list[Row]) -> None:
     ...
 
-def show_round(state: StateDirectory, issue: int, number: int, console: Console, clock: Callable[[], datetime]) -> None:
+def show_round(reader: SessionReader, issue: int, number: int, console: Console, clock: Callable[[], datetime]) -> None:
     ...
 
-def show_feed(state: StateDirectory, issue: int, console: Console, wait: Callable[[float], None], clock: Callable[[], datetime]) -> None:
+def show_feed(reader: SessionReader, issue: int, console: Console, wait: Callable[[float], None], clock: Callable[[], datetime]) -> None:
     ...
 
 def _find_rows(board: Board, issue: int) -> list[Row]:

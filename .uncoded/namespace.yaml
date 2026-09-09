@@ -417,9 +417,11 @@ src/:
         next_workspace:
         describe_unfinished_round:
         workspace:
-      read_sessions:
+      SessionReader:
+        __init__:
+        read_sessions:
+        _read_session:
       create_session:
-      _read_session:
       _read_watermark:
       advance_watermark:
       discard_session:
