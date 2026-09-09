@@ -5,7 +5,7 @@ import pytest
 from clocks import PINNED
 from records import write_feed, write_round, write_session, write_tick
 
-from dreamcatcher.board import Standing, read_board
+from dreamcatcher.board import Standing, read_board, read_rows
 from dreamcatcher.feed import Line
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.state import (
@@ -65,6 +65,35 @@ def only(state):
     found = looked(state).rows
     assert len(found) == 1
     return found[0]
+
+
+def rows_at(state, issue: int):
+    """Read the rows for that issue alone, at the pinned looking time."""
+    return read_rows(state, issue, clock=lambda: LOOKED_AT)
+
+
+def test_the_rows_for_an_issue_are_its_own_sessions_newest_first(running):
+    ran(running, 1)
+    other = write_session(running, "GH99-20260819-184158", 99)
+    write_round(other, 1, RoundRecord(started=PINNED, pid=1, cause=Cause.DISPATCH))
+
+    assert [row.session.record.issue for row in rows_at(running, 13)] == [13]
+
+
+def test_an_issue_no_session_here_has_holds_no_rows(state):
+    assert rows_at(state, 99) == []
+
+
+def test_a_look_at_one_issue_leaves_another_session_s_feed_unread(running):
+    ran(running, 1, status=None)
+    said(running, 1, "[Bash] pytest")
+    other = write_session(running, "GH99-20260819-184158", 99)
+    write_round(other, 1, RoundRecord(started=PINNED, pid=1, cause=Cause.DISPATCH))
+    # Bytes that are not UTF-8 stand for a feed that a look must not open,
+    # since reading this one would report it rather than answer.
+    (other / "rounds" / "1" / "feed.txt").write_bytes(b"\xff\n")
+
+    assert rows_at(running, 13)[0].last_output == "[Bash] pytest"
 
 
 def test_a_state_directory_nothing_has_run_in_yet_holds_an_empty_board(tmp_path):

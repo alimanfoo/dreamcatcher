@@ -49,10 +49,7 @@ src/:
         queued:
         list_standing:
       _Look:
-        state:
-        at:
-        daemon_pid:
-        waits:
+        __init__:
         list_rows:
         _read_row:
         _judge_standing:
@@ -62,6 +59,7 @@ src/:
         _read_last_said:
         _point_at_feed:
       read_board:
+      read_rows:
       _list_queue:
       _describe_place:
     claude.py:
@@ -579,6 +577,10 @@ tests/:
     said:
     looked:
     only:
+    rows_at:
+    test_the_rows_for_an_issue_are_its_own_sessions_newest_first:
+    test_an_issue_no_session_here_has_holds_no_rows:
+    test_a_look_at_one_issue_leaves_another_session_s_feed_unread:
     test_a_state_directory_nothing_has_run_in_yet_holds_an_empty_board:
     test_the_daemon_holding_the_repo_is_the_one_the_lock_names:
     test_a_round_a_running_daemon_has_not_ended_is_the_agent_working:

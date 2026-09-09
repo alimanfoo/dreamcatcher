@@ -20,7 +20,7 @@ from rich.padding import Padding
 from rich.table import Table
 from rich.text import Text
 
-from dreamcatcher.board import Board, Row, Standing, read_board
+from dreamcatcher.board import Board, Row, Standing, read_board, read_rows
 from dreamcatcher.clock import now
 from dreamcatcher.documents import read_lines_from
 from dreamcatcher.errors import ReportableError
@@ -186,7 +186,7 @@ def show_session(
     dispatch. The newest is the one still going, or the one that got furthest,
     so it is the one the view is about.
     """
-    rows = _find_rows(read_board(state, clock), issue)
+    rows = _find_rows(state, issue, clock)
     newest = rows[0]
     console.print(Text(newest.session.key))
     console.print(
@@ -299,7 +299,7 @@ def show_round(
 
     The round list of the session view is where a reader finds the number.
     """
-    session = _find_rows(read_board(state, clock), issue)[0].session
+    session = _find_rows(state, issue, clock)[0].session
     if not 1 <= number <= len(session.rounds):
         raise ReportableError(
             f"{session.key} has run {describe_count(len(session.rounds), 'round')}, "
@@ -347,7 +347,7 @@ def show_feed(
     was_over = True
     with suppress(KeyboardInterrupt):
         while True:
-            row = _find_rows(read_board(state, clock), issue)[0]
+            row = _find_rows(state, issue, clock)[0]
             session = row.session
             feed.show(session, range(1, len(session.rounds) + 1))
             is_over = row.standing in (Standing.DONE, Standing.STUCK)
@@ -357,9 +357,16 @@ def show_feed(
             wait(PAUSE)
 
 
-def _find_rows(board: Board, issue: int) -> list[Row]:
-    """Return the rows for the issue, newest session first, or refuse if none."""
-    rows = [one for one in board.rows if one.session.record.issue == issue]
+def _find_rows(
+    state: StateDirectory, issue: int, clock: Callable[[], datetime]
+) -> list[Row]:
+    """Return the rows for the issue, newest session first, or refuse if none.
+
+    A view of one issue reads that issue's rows rather than the whole board,
+    so it never pays for a session it does not show. This is the one place
+    that turns an issue with no session behind it into words for the reader.
+    """
+    rows = read_rows(state, issue, clock)
     if not rows:
         raise ReportableError(f"No session here for GH{issue}.")
     return rows

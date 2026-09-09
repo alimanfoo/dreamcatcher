@@ -119,35 +119,56 @@ class Board:
 
 def read_board(state: StateDirectory, clock: Callable[[], datetime] = now) -> Board:
     """Return what the state directory says every session and issue is doing."""
-    tick = read_json(LastTick, state.last_tick) if state.last_tick.exists() else None
-    look = _Look(
-        state=state,
-        at=clock(),
-        daemon_pid=read_daemon_pid(state.lock),
-        waits={} if tick is None else {one.session: one for one in tick.waiting},
-    )
+    look = _Look(state, clock)
     sessions = read_sessions(state)
     return Board(
         at=look.at,
         daemon_pid=look.daemon_pid,
-        tick=tick,
+        tick=look.tick,
         rows=look.list_rows(sessions),
-        queued=_list_queue(tick, {session.record.issue for session in sessions}),
+        queued=_list_queue(look.tick, {session.record.issue for session in sessions}),
     )
 
 
-@dataclass(frozen=True)
+def read_rows(
+    state: StateDirectory, issue: int, clock: Callable[[], datetime] = now
+) -> list[Row]:
+    """Return a row for each session at the issue, the newest session first.
+
+    A view of one issue reads this rather than the whole board. Judging a
+    session reads what its running round last said, so a look at one issue
+    then reads that issue's own feeds and not the feed of every session the
+    repo has ever run, and a feed it cannot read is one belonging to the issue
+    the reader asked about.
+
+    An issue that no session here has reads as no rows at all, which is a
+    thing for whoever asked to say rather than a failure.
+    """
+    look = _Look(state, clock)
+    return look.list_rows(
+        [one for one in read_sessions(state) if one.record.issue == issue]
+    )
+
+
 class _Look:
     """What one look at the state directory knows before it judges anything.
 
-    Reading the board is one look, so the time it reads, the daemon it found
-    and what the last tick said travel together rather than down every call.
+    A look is one read of the lock and of the last tick, so the time it reads,
+    the daemon it found and what that tick said travel together rather than
+    down every call.
     """
 
-    state: StateDirectory
-    at: datetime
-    daemon_pid: int | None
-    waits: dict[str, WaitingSession]
+    def __init__(self, state: StateDirectory, clock: Callable[[], datetime]) -> None:
+        """Take one look at the state directory."""
+        self.state = state
+        self.at = clock()
+        self.daemon_pid = read_daemon_pid(state.lock)
+        self.tick = (
+            read_json(LastTick, state.last_tick) if state.last_tick.exists() else None
+        )
+        self.waits: dict[str, WaitingSession] = (
+            {} if self.tick is None else {one.session: one for one in self.tick.waiting}
+        )
 
     def list_rows(self, sessions: list[Session]) -> list[Row]:
         """Return a row for every session, the newest session at an issue first.

@@ -11,7 +11,7 @@ from rich.console import Console, Group, RenderableType
 from rich.padding import Padding
 from rich.table import Table
 from rich.text import Text
-from dreamcatcher.board import Board, Row, Standing, read_board
+from dreamcatcher.board import Board, Row, Standing, read_board, read_rows
 from dreamcatcher.clock import now
 from dreamcatcher.documents import read_lines_from
 from dreamcatcher.errors import ReportableError
@@ -82,7 +82,7 @@ def show_round(state: StateDirectory, issue: int, number: int, console: Console,
 def show_feed(state: StateDirectory, issue: int, console: Console, wait: Callable[[float], None], clock: Callable[[], datetime]) -> None:
     ...
 
-def _find_rows(board: Board, issue: int) -> list[Row]:
+def _find_rows(state: StateDirectory, issue: int, clock: Callable[[], datetime]) -> list[Row]:
     ...
 
 def _paint_written(written: str) -> Text:

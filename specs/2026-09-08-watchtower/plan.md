@@ -70,6 +70,9 @@ In scope:
   reads nothing from it.
 - The board's read of what a session's round last said, which took a whole feed
   to take one line off the end (design.md, What a refresh reads).
+- A view of one issue reading that issue's rows rather than the whole board, so
+  that a look at one feed does not read every other session's (design.md, What a
+  refresh reads).
 
 Done when: the feed goldens are unchanged; a following view over a growing feed
 reads only the tail on each pass; and a feed whose last line is still being

@@ -170,9 +170,15 @@ kept as one still going, for as long as the process lived. Completeness is a
 property of the record itself, and rests on nothing else.
 
 A session's rounds are read with the session rather than on demand, because
-every view goes through the board, and the board reads where each session stands
-from that session's own rounds. Reading them on demand would save nothing while
-that holds.
+judging where a session stands reads that session's own rounds, and every view
+judges the sessions it shows.
+
+A view of one issue judges that issue's sessions alone, through `read_rows`, and
+so still reads the record and the rounds of every session to find them. Whether
+that read is worth narrowing as well is open: after the above, it costs a
+listing of each session's rounds directory and nothing more, and narrowing it
+means reading a session's rounds only once its record says it is one of the
+sessions asked for.
 
 `StateDirectory` is what a process reads the directory through, so that is what
 holds the records it has read, in `round_reader`. Whoever holds the directory
@@ -222,6 +228,14 @@ session standing `agent working` or `needs you` has its row say that, and
 `documents.read_last_line` finds it by reading the file backwards a window at a
 time. So a line longer than one window is found all the same, and no read of a
 feed grows with the feed.
+
+**A view of one issue reads that issue's rows, not the board.** `read_board`
+answers for every session the repo has run, which is what the board view shows
+and more than any other view needs. `read_rows` answers for one issue, so a look
+costs the feeds of that issue's own sessions rather than of every session
+standing `agent working` or `needs you`, and an unreadable feed can only be one
+belonging to the issue the reader asked about. The board view reads the board,
+because the board is what it shows.
 
 ### Cross-platform notes
 
