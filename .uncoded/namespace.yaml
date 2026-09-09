@@ -172,7 +172,7 @@ src/:
       _check_cooldown:
     documents.py:
       WRITING:
-      WINDOW:
+      BACKWARD_WINDOW:
       Document:
         model_config:
       read_toml:
@@ -374,12 +374,12 @@ src/:
       PAUSE:
       LABEL:
       INDENT:
-      _Feed:
+      _FeedView:
         console:
         positions:
-        show:
-        _open_round:
-        _show_arrived:
+        show_what_arrived:
+        _show_round_heading:
+        _show_new_lines:
       open_console:
       show_board:
       _describe_daemon:
@@ -398,7 +398,7 @@ src/:
       _show_older_sessions:
       show_round:
       show_feed:
-      _find_rows:
+      _find_rows_for_issue:
       _paint_written:
       _paint:
     sessions.py:

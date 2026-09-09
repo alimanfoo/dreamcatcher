@@ -57,10 +57,11 @@ class Standing(StrEnum):
 
 @dataclass(frozen=True)
 class Row:
-    """One session on the board, and how it is doing.
+    """One session and how it is doing, as a view shows it.
 
-    An issue dispatched three times has three sessions at one thing. The board
-    reads the newest of them first.
+    The board holds a row for every session, and a view of one issue holds a
+    row for each session at that issue. An issue dispatched three times has
+    three sessions at one thing, and the newest of them reads first.
 
     The detail is what the row says beside the standing, in the words the disk
     put it in. A working session keeps its latest output separate so the view

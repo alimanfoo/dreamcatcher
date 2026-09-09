@@ -205,7 +205,7 @@ Both the daemon and the views go through `read_sessions`, so both read this way.
 
 **A following feed reads on from where it stopped.** Feed files are append-only,
 so a following view remembers where it stopped and reads from there.
-`documents.read_lines_from` is that read, and `scry._Feed` is what holds a
+`documents.read_lines_from` is that read, and `scry._FeedView` is what holds a
 position for each round of the session, so a pass reads only what arrived and
 paints only what it will print. A round that has ended is read to its end once,
 and every pass after that reads nothing from it.

@@ -14,10 +14,10 @@ from dreamcatcher.errors import ReportableError
 # What a whole write is written to before it takes its target's place.
 WRITING = ".writing"
 
-# How much of the end of a file one read takes, where a reader wants the last
-# line of it rather than the whole. A last line longer than this takes another
-# read to find, and nothing else turns on the size.
-WINDOW = 4096
+# How much of the end of a file each read of a backward search takes. A last
+# line longer than this takes another read to find, and nothing else turns on
+# the size.
+BACKWARD_WINDOW = 4096
 
 
 class Document(BaseModel):
@@ -123,13 +123,13 @@ def read_last_line(path: Path) -> str | None:
     Raise ReportableError when the read fails, for the reason read_text does.
     """
     with _open_bytes(path) as opened:
-        ends = _find_line_ending(opened, opened.seek(0, SEEK_END))
-        if ends is None:
+        end_of_line = _find_line_ending(opened, opened.seek(0, SEEK_END))
+        if end_of_line is None:
             return None
-        before = _find_line_ending(opened, ends)
-        starts = 0 if before is None else before + 1
-        opened.seek(starts)
-        return _decode(opened.read(ends - starts), path)
+        ending_before = _find_line_ending(opened, end_of_line)
+        start_of_line = 0 if ending_before is None else ending_before + 1
+        opened.seek(start_of_line)
+        return _decode(opened.read(end_of_line - start_of_line), path)
 
 
 def write_text(text: str, path: Path) -> None:
@@ -203,7 +203,7 @@ def _find_line_ending(opened: IO[bytes], before: int) -> int | None:
     """
     end = before
     while end > 0:
-        start = max(0, end - WINDOW)
+        start = max(0, end - BACKWARD_WINDOW)
         opened.seek(start)
         found = opened.read(end - start).rfind(b"\n")
         if found >= 0:

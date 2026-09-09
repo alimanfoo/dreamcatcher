@@ -5,7 +5,6 @@ from collections.abc import Callable, Iterable
 from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import datetime
-from pathlib import Path
 from time import sleep
 from rich.console import Console, Group, RenderableType
 from rich.padding import Padding
@@ -82,7 +81,7 @@ def show_round(state: StateDirectory, issue: int, number: int, console: Console,
 def show_feed(state: StateDirectory, issue: int, console: Console, wait: Callable[[float], None], clock: Callable[[], datetime]) -> None:
     ...
 
-def _find_rows(state: StateDirectory, issue: int, clock: Callable[[], datetime]) -> list[Row]:
+def _find_rows_for_issue(state: StateDirectory, issue: int, clock: Callable[[], datetime]) -> list[Row]:
     ...
 
 def _paint_written(written: str) -> Text:
@@ -91,15 +90,15 @@ def _paint_written(written: str) -> Text:
 def _paint(line: Line, said: Text) -> Text:
     ...
 
-class _Feed:
+class _FeedView:
     console: Console
     positions: dict[int, int] = field(default_factory=dict)
 
-    def show(self, session: Session, numbers: Iterable[int]) -> None:
+    def show_what_arrived(self, session: Session, round_numbers: Iterable[int]) -> None:
         ...
 
-    def _open_round(self, record: RoundRecord, number: int) -> None:
+    def _show_round_heading(self, session: Session, round_number: int) -> None:
         ...
 
-    def _show_arrived(self, feed: Path, number: int) -> None:
+    def _show_new_lines(self, session: Session, round_number: int) -> None:
         ...

@@ -3,7 +3,7 @@
 
 from pathlib import Path
 import pytest
-from dreamcatcher.documents import WINDOW, Document, append_text, read_json, read_last_line, read_lines_from, read_toml, write_text
+from dreamcatcher.documents import BACKWARD_WINDOW, Document, append_text, read_json, read_last_line, read_lines_from, read_toml, write_text
 from dreamcatcher.errors import ReportableError
 
 READERS = [pytest.param(read_toml, id='toml'), pytest.param(read_json, id='json')]

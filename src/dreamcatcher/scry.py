@@ -12,7 +12,6 @@ from collections.abc import Callable, Iterable
 from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import datetime
-from pathlib import Path
 from time import sleep
 
 from rich.console import Console, Group, RenderableType
@@ -186,7 +185,7 @@ def show_session(
     dispatch. The newest is the one still going, or the one that got furthest,
     so it is the one the view is about.
     """
-    rows = _find_rows(state, issue, clock)
+    rows = _find_rows_for_issue(state, issue, clock)
     newest = rows[0]
     console.print(Text(newest.session.key))
     console.print(
@@ -299,13 +298,13 @@ def show_round(
 
     The round list of the session view is where a reader finds the number.
     """
-    session = _find_rows(state, issue, clock)[0].session
+    session = _find_rows_for_issue(state, issue, clock)[0].session
     if not 1 <= number <= len(session.rounds):
         raise ReportableError(
             f"{session.key} has run {describe_count(len(session.rounds), 'round')}, "
             f"so it has no round {number}."
         )
-    _Feed(console).show(session, [number])
+    _FeedView(console).show_what_arrived(session, [number])
 
 
 def show_feed(
@@ -341,15 +340,15 @@ def show_feed(
     The reader ends a view of a session that is still going by interrupting it,
     which is how they say they have seen enough, so it ends without a word.
     """
-    feed = _Feed(console)
+    view = _FeedView(console)
     # Nothing was going before the view opened, so a session that has already
     # ended when it opens ends the view on its first look.
     was_over = True
     with suppress(KeyboardInterrupt):
         while True:
-            row = _find_rows(state, issue, clock)[0]
+            row = _find_rows_for_issue(state, issue, clock)[0]
             session = row.session
-            feed.show(session, range(1, len(session.rounds) + 1))
+            view.show_what_arrived(session, range(1, len(session.rounds) + 1))
             is_over = row.standing in (Standing.DONE, Standing.STUCK)
             if is_over and was_over:
                 return
@@ -357,7 +356,7 @@ def show_feed(
             wait(PAUSE)
 
 
-def _find_rows(
+def _find_rows_for_issue(
     state: StateDirectory, issue: int, clock: Callable[[], datetime]
 ) -> list[Row]:
     """Return the rows for the issue, newest session first, or refuse if none.
@@ -373,44 +372,46 @@ def _find_rows(
 
 
 @dataclass(frozen=True)
-class _Feed:
-    """A session's feed as it reads on a console, and how far it has been read.
+class _FeedView:
+    """A session's feed on a console, and how far each round of it has been read.
 
     A feed only grows, so a later look at one reads each round on from where
     the last look stopped and shows what arrived. The rounds a position is held
     for are the rounds already shown, so a round that has started since the
-    last look is the one that opens with the line saying what caused it.
+    last look is the one that opens with its own heading.
     """
 
     console: Console
     positions: dict[int, int] = field(default_factory=dict)
 
-    def show(self, session: Session, numbers: Iterable[int]) -> None:
+    def show_what_arrived(self, session: Session, round_numbers: Iterable[int]) -> None:
         """Show what these rounds of the session have said since the last look."""
-        for number in numbers:
-            if number not in self.positions:
-                self._open_round(session.rounds[number - 1], number)
-            self._show_arrived(session.workspace(number).feed, number)
+        for round_number in round_numbers:
+            if round_number not in self.positions:
+                self._show_round_heading(session, round_number)
+            self._show_new_lines(session, round_number)
 
-    def _open_round(self, record: RoundRecord, number: int) -> None:
+    def _show_round_heading(self, session: Session, round_number: int) -> None:
         """Show the line that opens a round, saying what caused it.
 
         A feed holds one round, so the stitch between two of them lands in no
-        file and is the reader's. The rounds are set apart by a blank line,
-        which is why the first round of a view opens without one.
+        file and is the reader's. A blank line sets each round apart from the
+        one before, which is why the first round of a view opens without one.
         """
         if self.positions:
             self.console.print()
-        boundary = compose_round_boundary(number, record.cause, record.started)
-        self.console.print(_paint(boundary, Text(boundary.text, style="bold")))
-        self.positions[number] = 0
+        record = session.rounds[round_number - 1]
+        heading = compose_round_boundary(round_number, record.cause, record.started)
+        self.console.print(_paint(heading, Text(heading.text, style="bold")))
+        self.positions[round_number] = 0
 
-    def _show_arrived(self, feed: Path, number: int) -> None:
+    def _show_new_lines(self, session: Session, round_number: int) -> None:
         """Show the lines this round has written since the last look at it."""
-        lines, position = read_lines_from(feed, self.positions[number])
+        feed = session.workspace(round_number).feed
+        lines, position = read_lines_from(feed, self.positions[round_number])
         for line in lines:
             self.console.print(_paint_written(line))
-        self.positions[number] = position
+        self.positions[round_number] = position
 
 
 def _paint_written(written: str) -> Text:
