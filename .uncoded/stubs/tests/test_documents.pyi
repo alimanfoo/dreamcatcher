@@ -3,7 +3,7 @@
 
 from pathlib import Path
 import pytest
-from dreamcatcher.documents import Document, append_text, read_json, read_toml, write_text
+from dreamcatcher.documents import Document, append_text, read_json, read_lines_from, read_toml, write_text
 from dreamcatcher.errors import ReportableError
 
 READERS = [pytest.param(read_toml, id='toml'), pytest.param(read_json, id='json')]
@@ -24,6 +24,33 @@ def test_an_unreadable_document_says_so(tmp_path, read):
     ...
 
 def test_a_document_that_is_not_utf_8_says_so(tmp_path, read):
+    ...
+
+def growing(path: Path, written: str) -> Path:
+    ...
+
+def test_a_file_reads_as_the_lines_it_holds_and_where_they_end(tmp_path):
+    ...
+
+def test_a_read_from_where_the_last_one_stopped_finds_what_arrived_since(tmp_path):
+    ...
+
+def test_a_line_still_being_written_is_not_one_a_file_holds(tmp_path):
+    ...
+
+def test_a_line_still_being_written_reads_whole_once_the_rest_lands(tmp_path):
+    ...
+
+def test_a_file_with_nothing_in_it_holds_no_lines(tmp_path):
+    ...
+
+def test_a_file_that_is_not_there_holds_no_lines(tmp_path):
+    ...
+
+def test_a_file_of_lines_that_is_not_utf_8_says_so(tmp_path):
+    ...
+
+def test_lines_that_cannot_be_read_say_so(tmp_path):
     ...
 
 def test_a_document_that_is_not_toml_says_so(tmp_path):

@@ -3,7 +3,9 @@
 
 from collections.abc import Callable, Iterable
 from contextlib import suppress
+from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 from time import sleep
 from rich.console import Console, Group, RenderableType
 from rich.padding import Padding
@@ -11,8 +13,9 @@ from rich.table import Table
 from rich.text import Text
 from dreamcatcher.board import Board, Row, Standing, read_board
 from dreamcatcher.clock import now
+from dreamcatcher.documents import read_lines_from
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.feed import GAP, Line, compose_round_boundary, read_feed_line, read_feed_lines
+from dreamcatcher.feed import GAP, Line, compose_round_boundary, read_feed_line
 from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.rounds import RoundRecord
 from dreamcatcher.sessions import Session
@@ -82,11 +85,21 @@ def show_feed(state: StateDirectory, issue: int, console: Console, wait: Callabl
 def _find_rows(board: Board, issue: int) -> list[Row]:
     ...
 
-def _compose_feed(session: Session, numbers: Iterable[int]) -> list[Text]:
-    ...
-
 def _paint_written(written: str) -> Text:
     ...
 
 def _paint(line: Line, said: Text) -> Text:
     ...
+
+class _Feed:
+    console: Console
+    positions: dict[int, int] = field(default_factory=dict)
+
+    def show(self, session: Session, numbers: Iterable[int]) -> None:
+        ...
+
+    def _open_round(self, record: RoundRecord, number: int) -> None:
+        ...
+
+    def _show_arrived(self, feed: Path, number: int) -> None:
+        ...

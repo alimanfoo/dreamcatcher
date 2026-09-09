@@ -1,7 +1,11 @@
 """Read and write the files that dreamcatcher owns."""
 
 import tomllib
+from collections.abc import Iterator
+from contextlib import contextmanager
+from io import BytesIO
 from pathlib import Path
+from typing import IO
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
@@ -70,6 +74,35 @@ def read_text(path: Path) -> str:
     return _decode(read, path)
 
 
+def read_lines_from(path: Path, position: int) -> tuple[list[str], int]:
+    """Return the lines the file at path holds whole past this position in it,
+    and where the last of them ends.
+
+    A file something is still writing grows a line at a time, and the line the
+    write is part way through carries no ending yet, so the file does not hold
+    that line. The position that comes back therefore stops just past the last
+    line ending and never at the end of the file, and a read that starts there
+    shows the line whole once the rest of it lands.
+
+    A file that is not there holds no lines, and neither does one nothing has
+    finished a line of yet, so each reads as nothing rather than as a failure.
+    A round that has said nothing yet has no feed at all.
+
+    The position is a count of bytes, which is what the file itself agrees
+    with. What a reader counted while reading would be another number, since a
+    text-mode read turns each line ending into a newline.
+
+    Raise ReportableError when the read fails, for the reason read_text does.
+    """
+    with _reading(path) as opened:
+        opened.seek(position)
+        read = opened.read()
+    landed, ending, _ = read.rpartition(b"\n")
+    if not ending:
+        return [], position
+    return _decode(landed, path).split("\n"), position + len(landed) + len(ending)
+
+
 def write_text(text: str, path: Path) -> None:
     """Write text to path as UTF-8, over whatever was there before.
 
@@ -107,6 +140,29 @@ def append_text(text: str, path: Path) -> None:
 def write_json(document: Document, path: Path) -> None:
     """Write the document to path as JSON."""
     write_text(document.model_dump_json(indent=2) + "\n", path)
+
+
+@contextmanager
+def _reading(path: Path) -> Iterator[IO[bytes]]:
+    """Yield the file at path, open for reading the bytes that it holds.
+
+    Finding one part of a file takes more than one read of it, so whoever
+    reads holds the file open across them.
+
+    The bytes come as the file holds them. A text-mode read turns each line
+    ending into a newline, and then a position that a reader kept and the
+    position the file itself agrees with are different numbers.
+
+    A file that is not there reads as one holding nothing, so a reader of a
+    round that has said nothing yet reads no lines rather than a failure.
+
+    Raise ReportableError when the read fails, for the reason read_text does.
+    """
+    try:
+        with path.open("rb") if path.exists() else BytesIO() as opened:
+            yield opened
+    except OSError as error:
+        raise ReportableError(f"cannot read {path}: {error}.") from error
 
 
 def _decode(read: bytes, path: Path) -> str:

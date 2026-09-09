@@ -10,7 +10,9 @@ reading.
 
 from collections.abc import Callable, Iterable
 from contextlib import suppress
+from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 from time import sleep
 
 from rich.console import Console, Group, RenderableType
@@ -20,14 +22,9 @@ from rich.text import Text
 
 from dreamcatcher.board import Board, Row, Standing, read_board
 from dreamcatcher.clock import now
+from dreamcatcher.documents import read_lines_from
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.feed import (
-    GAP,
-    Line,
-    compose_round_boundary,
-    read_feed_line,
-    read_feed_lines,
-)
+from dreamcatcher.feed import GAP, Line, compose_round_boundary, read_feed_line
 from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.rounds import RoundRecord
 from dreamcatcher.sessions import Session
@@ -308,8 +305,7 @@ def show_round(
             f"{session.key} has run {describe_count(len(session.rounds), 'round')}, "
             f"so it has no round {number}."
         )
-    for painted in _compose_feed(session, [number]):
-        console.print(painted)
+    _Feed(console).show(session, [number])
 
 
 def show_feed(
@@ -345,7 +341,7 @@ def show_feed(
     The reader ends a view of a session that is still going by interrupting it,
     which is how they say they have seen enough, so it ends without a word.
     """
-    shown = 0
+    feed = _Feed(console)
     # Nothing was going before the view opened, so a session that has already
     # ended when it opens ends the view on its first look.
     was_over = True
@@ -353,10 +349,7 @@ def show_feed(
         while True:
             row = _find_rows(read_board(state, clock), issue)[0]
             session = row.session
-            painted = _compose_feed(session, range(1, len(session.rounds) + 1))
-            for line in painted[shown:]:
-                console.print(line)
-            shown = len(painted)
+            feed.show(session, range(1, len(session.rounds) + 1))
             is_over = row.standing in (Standing.DONE, Standing.STUCK)
             if is_over and was_over:
                 return
@@ -372,26 +365,45 @@ def _find_rows(board: Board, issue: int) -> list[Row]:
     return rows
 
 
-def _compose_feed(session: Session, numbers: Iterable[int]) -> list[Text]:
-    """Return the lines these rounds of the session read as, in order.
+@dataclass(frozen=True)
+class _Feed:
+    """A session's feed as it reads on a console, and how far it has been read.
 
-    Each round opens with the line that says what caused it, stamped with the
-    time that round started, and the rounds are set apart by a blank line. A
-    feed holds one round, so the stitch between them is the reader's and lands
-    in no file.
+    A feed only grows, so a later look at one reads each round on from where
+    the last look stopped and shows what arrived. The rounds a position is held
+    for are the rounds already shown, so a round that has started since the
+    last look is the one that opens with the line saying what caused it.
     """
-    painted: list[Text] = []
-    for number in numbers:
-        record = session.rounds[number - 1]
-        if painted:
-            painted.append(Text())
+
+    console: Console
+    positions: dict[int, int] = field(default_factory=dict)
+
+    def show(self, session: Session, numbers: Iterable[int]) -> None:
+        """Show what these rounds of the session have said since the last look."""
+        for number in numbers:
+            if number not in self.positions:
+                self._open_round(session.rounds[number - 1], number)
+            self._show_arrived(session.workspace(number).feed, number)
+
+    def _open_round(self, record: RoundRecord, number: int) -> None:
+        """Show the line that opens a round, saying what caused it.
+
+        A feed holds one round, so the stitch between two of them lands in no
+        file and is the reader's. The rounds are set apart by a blank line,
+        which is why the first round of a view opens without one.
+        """
+        if self.positions:
+            self.console.print()
         boundary = compose_round_boundary(number, record.cause, record.started)
-        painted.append(_paint(boundary, Text(boundary.text, style="bold")))
-        painted.extend(
-            _paint_written(written)
-            for written in read_feed_lines(session.workspace(number).feed)
-        )
-    return painted
+        self.console.print(_paint(boundary, Text(boundary.text, style="bold")))
+        self.positions[number] = 0
+
+    def _show_arrived(self, feed: Path, number: int) -> None:
+        """Show the lines this round has written since the last look at it."""
+        written, position = read_lines_from(feed, self.positions[number])
+        for line in written:
+            self.console.print(_paint_written(line))
+        self.positions[number] = position
 
 
 def _paint_written(written: str) -> Text:

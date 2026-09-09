@@ -15,7 +15,7 @@ from datetime import UTC, datetime
 from pathlib import Path, PurePath
 
 from dreamcatcher.clock import now
-from dreamcatcher.documents import read_text
+from dreamcatcher.documents import read_lines_from
 from dreamcatcher.words import STAMP, describe_time
 
 # A note's detail can be as long as a whole file, so the line is clipped. The
@@ -72,28 +72,9 @@ def read_feed_line(written: str) -> Line | None:
     return Line(at, text)
 
 
-def read_feed_lines(path: Path) -> list[str]:
-    """Return the lines the feed at path holds whole, without their endings.
-
-    A round writes its feed a line at a time as it goes, so a round that has
-    said nothing yet has no feed at all, and that reads as nothing said.
-
-    A round the daemon killed part way through a write leaves a line with no
-    ending on it. That line has not landed, so it is not one the feed holds,
-    and a later read shows it whole.
-    """
-    if not path.exists():
-        return []
-    written = read_text(path)
-    lines = written.splitlines()
-    if lines and not written.endswith("\n"):
-        lines.pop()
-    return lines
-
-
 def read_last_feed_line(path: Path) -> Line | None:
     """Return the last line the feed at path holds, or nothing when it holds none."""
-    lines = read_feed_lines(path)
+    lines, _ = read_lines_from(path, 0)
     if not lines:
         return None
     return read_feed_line(lines[-1])

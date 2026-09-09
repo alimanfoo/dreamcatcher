@@ -2,7 +2,11 @@
 # src/dreamcatcher/documents.py
 
 import tomllib
+from collections.abc import Iterator
+from contextlib import contextmanager
+from io import BytesIO
 from pathlib import Path
+from typing import IO
 from pydantic import BaseModel, ConfigDict, ValidationError
 from dreamcatcher.errors import ReportableError
 
@@ -17,6 +21,9 @@ def read_json(model: type[DocumentT], path: Path) -> DocumentT:
 def read_text(path: Path) -> str:
     ...
 
+def read_lines_from(path: Path, position: int) -> tuple[list[str], int]:
+    ...
+
 def write_text(text: str, path: Path) -> None:
     ...
 
@@ -24,6 +31,9 @@ def append_text(text: str, path: Path) -> None:
     ...
 
 def write_json(document: Document, path: Path) -> None:
+    ...
+
+def _reading(path: Path) -> Iterator[IO[bytes]]:
     ...
 
 def _decode(read: bytes, path: Path) -> str:

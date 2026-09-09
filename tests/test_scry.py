@@ -19,7 +19,7 @@ from records import write_feed, write_round, write_session, write_tick
 from rich.console import Console
 from rich.text import Text
 
-from dreamcatcher.documents import write_text
+from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Line
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
@@ -476,21 +476,57 @@ def test_a_view_of_a_stuck_session_never_waits(tmp_path, daemon):
     assert waits == []
 
 
+def test_a_following_view_reads_a_round_on_from_where_it_stopped(tmp_path, daemon):
+    state = StateDirectory(tmp_path)
+    fabricate_everything(state)
+    directory = state.sessions / f"GH13-{STAMP}"
+    looks = []
+
+    def wait(seconds):
+        looks.append(seconds)
+        if len(looks) > 1:
+            raise KeyboardInterrupt
+        # A feed only grows, so rewriting a line the view has shown already
+        # puts something there that only a second read of that line could
+        # find. The rewritten line is as long as the one it replaces, so the
+        # line after it starts where the view stopped reading.
+        write_feed(
+            directory,
+            1,
+            Line(SAID[0].at, "[session] model opus[1m], id 000000"),
+            *SAID[1:],
+            Line(PINNED + timedelta(minutes=7), "[Bash] git push"),
+        )
+
+    feed = followed(state, 13, wait=wait)
+
+    assert "[Bash] git push" in feed
+    assert "id 000000" not in feed
+
+
 def test_a_write_that_never_landed_waits_for_the_look_that_shows_it_whole(
     tmp_path, daemon
 ):
     state = StateDirectory(tmp_path)
     fabricate_everything(state)
     feed = state.sessions / f"GH13-{STAMP}" / "rounds" / "2" / "feed.txt"
+    looks = []
 
     def wait(seconds):
-        feed.write_text(
-            feed.read_text(encoding="utf-8") + "2026-08-19T18:41:58Z  [Grep] pypro",
-            encoding="utf-8",
-        )
-        raise KeyboardInterrupt
+        looks.append(seconds)
+        if len(looks) == 1:
+            append_text("2026-08-19T19:13:58Z  [Grep] pypro", feed)
+        elif len(looks) == 2:
+            append_text("ject.toml\n", feed)
+        else:
+            raise KeyboardInterrupt
 
-    assert "[Grep]" not in followed(state, 13, wait=wait)
+    shown = followed(state, 13, wait=wait)
+
+    # The line was not shown while it was half written, and the look after the
+    # rest of it landed showed the whole of it once.
+    assert "[Grep] pypro\n" not in shown
+    assert shown.count("[Grep] pyproject.toml") == 1
 
 
 def test_a_line_the_view_cannot_read_reaches_the_reader_as_it_was_written(
