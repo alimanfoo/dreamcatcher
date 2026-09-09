@@ -234,7 +234,7 @@ def _read_session(directory: Path, reader: RoundReader) -> Session:
     return Session(
         directory=directory,
         record=read_json(SessionRecord, directory / RECORD),
-        rounds=reader.read(directory / ROUNDS),
+        rounds=reader.read_records(directory / ROUNDS),
         watermark=_read_watermark(directory),
     )
 

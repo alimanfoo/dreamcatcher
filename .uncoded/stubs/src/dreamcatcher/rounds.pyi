@@ -33,6 +33,7 @@ class RoundRecord(Document):
     pid: PositiveInt
     cause: Cause
     ending: Ending | None = None
+    is_complete: bool
 
 class Workspace:
     worktree: Path
@@ -47,10 +48,10 @@ class RoundReader:
     def __init__(self) -> None:
         ...
 
-    def read(self, directory: Path) -> list[RoundRecord]:
+    def read_records(self, directory: Path) -> list[RoundRecord]:
         ...
 
-    def _read(self, path: Path) -> RoundRecord:
+    def _read_record(self, path: Path) -> RoundRecord:
         ...
 
 class Round:

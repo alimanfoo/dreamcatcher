@@ -146,23 +146,24 @@ had already finished keeps the ending `_close` wrote for it. Either way the work
 is carried on by a new round, which takes `next_workspace` and so a directory of
 its own, never the one an earlier record sits in.
 
-**A round record that carries an ending is fixed. It has had both of its writes,
-and nothing writes it again.**
+**A round record is complete once it carries an ending. It has had both of its
+writes, and nothing writes it again.** `RoundRecord.is_complete` is where that
+is written down, and the word is the one to use for it everywhere.
 
-So a reading process keeps every record it reads that carries an ending, and on
-every later pass reads only:
+So a reading process keeps every complete record it reads, and on every later
+pass reads only:
 
 - a listing of the session's rounds directory, which is what says whether a new
   round has started; and
-- the record of each round of the session that has recorded no ending.
+- the incomplete record of each round of the session.
 
-A record with no ending is read again because the record does not say whether
-its ending is still to come. A round that is running will record one, a round
-that nothing let finish never will, and both read the same.
+An incomplete record is read again because the record does not say whether its
+ending is still to come. A round that is running will record one, a round that
+nothing let finish never will, and both read the same.
 
 That is one directory listing and one small read per session while a round of it
-is running, and a listing alone once every round has ended, independent of how
-many rounds the repo has ever run.
+is running, and a listing alone once every one of its rounds is complete,
+independent of how many rounds the repo has ever run.
 
 Keeping every record but a session's newest was the other way to read the same
 fact, and it is worse on both counts. It never keeps the last record of a
@@ -170,7 +171,8 @@ finished session, since no later round displaces it, so a repo of finished
 sessions would go on reading one record per session for ever, which is most of
 what this is here to stop. And it rests on the order the records read in, so two
 rounds that recorded the same start time could leave a running round's record
-kept as one still going, for as long as the process lived.
+kept as one still going, for as long as the process lived. Completeness is a
+property of the record itself, and rests on nothing else.
 
 A session's rounds are read with the session rather than on demand, because
 every view goes through the board, and the board reads where each session stands

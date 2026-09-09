@@ -191,7 +191,7 @@ class _Look:
         """
         unfinished = session.describe_unfinished_round()
         if unfinished is not None:
-            if self.daemon_pid is not None and session.rounds[-1].ending is None:
+            if self.daemon_pid is not None and not session.rounds[-1].is_complete:
                 detail, last_output = self._describe_live_round(session)
                 return Standing.WORKING, detail, last_output
             return Standing.WAITING, unfinished, None

@@ -339,6 +339,7 @@ src/:
         pid:
         cause:
         ending:
+        is_complete:
       Workspace:
         worktree:
         directory:
@@ -349,8 +350,8 @@ src/:
         inbox:
       RoundReader:
         __init__:
-        read:
-        _read:
+        read_records:
+        _read_record:
       Round:
         is_alive:
         __init__:

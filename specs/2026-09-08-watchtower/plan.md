@@ -36,9 +36,9 @@ cannot change, and re-read only what can.
 
 In scope:
 
-- A reading process keeps every round record it reads that carries an ending,
-  since nothing writes one again, and on later passes reads only a listing of
-  each session's rounds directory and the records that carry no ending.
+- A reading process keeps every complete round record it reads, since nothing
+  writes one again, and on later passes reads only a listing of each session's
+  rounds directory and the records that are still incomplete.
 
 Done when: the whole existing suite passes unchanged, because nothing a user
 sees has moved; and a test shows that a second read of the same state directory

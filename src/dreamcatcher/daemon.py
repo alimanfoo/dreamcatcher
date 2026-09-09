@@ -415,7 +415,7 @@ class Daemon:
         """
         for session in read_sessions(self.state, self.reader):
             for record in session.rounds:
-                if record.ending is None:
+                if not record.is_complete:
                     teardown.end(record.pid)
 
 
