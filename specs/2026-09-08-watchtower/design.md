@@ -146,21 +146,46 @@ had already finished keeps the ending `_close` wrote for it. Either way the work
 is carried on by a new round, which takes `next_workspace` and so a directory of
 its own, never the one an earlier record sits in.
 
-**Only a session's newest round record can change. Every earlier one is fixed
-the moment it is written.**
+**A round record is complete once it carries an ending. It has had both of its
+writes, and nothing writes it again.** `RoundRecord.is_complete` is where that
+is written down, and the word is the one to use for it everywhere.
 
-So a reading process reads each session's rounds once and keeps them, and on
-every later pass reads only:
+So a reading process keeps every complete record it reads, and on every later
+pass reads only:
 
 - a listing of the session's rounds directory, which is what says whether a new
   round has started; and
-- the newest round record, which is the only one that can have changed.
+- the incomplete record of each round of the session.
 
-That is one directory listing and one small read per session per pass,
-independent of how many rounds the repo has ever run. Sessions read their rounds
-on demand rather than eagerly, so a view that wants nothing from a session's
-rounds — and the session view wants them for one session only — pays nothing for
-the rest.
+An incomplete record is read again because the record does not say whether its
+ending is still to come. A round that is running will record one, a round that
+nothing let finish never will, and both read the same.
+
+That is one directory listing and one small read per session while a round of it
+is running, and a listing alone once every one of its rounds is complete,
+independent of how many rounds the repo has ever run.
+
+Keeping every record but a session's newest was the other way to read the same
+fact, and it is worse on both counts. It never keeps the last record of a
+finished session, since no later round displaces it, so a repo of finished
+sessions would go on reading one record per session for ever, which is most of
+what this is here to stop. And it rests on the order the records read in, so two
+rounds that recorded the same start time could leave a running round's record
+kept as one still going, for as long as the process lived. Completeness is a
+property of the record itself, and rests on nothing else.
+
+A session's rounds are read with the session rather than on demand, because
+every view goes through the board, and the board reads where each session stands
+from that session's own rounds. Reading them on demand would save nothing while
+that holds.
+
+`StateDirectory` is what a process reads the directory through, so that is what
+holds the records it has read, in `round_reader`. Whoever holds the directory
+holds them, and holds them for as long: the daemon holds one for its whole run,
+a view holds one for as long as it stays on the screen, and a process that looks
+once lets both go together. So `read_sessions` and `read_board` take what they
+always took, nothing has a reader threaded through it, and nothing about how
+long to keep one has to be remembered.
 
 This deliberately does not lean on a session being finished. It is tempting to
 say that a session whose final round has completed and whose pull request is

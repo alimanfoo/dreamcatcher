@@ -95,6 +95,21 @@ class RoundRecord(Document):
     cause: Cause
     ending: Ending | None = None
 
+    @property
+    def is_complete(self) -> bool:
+        """Whether the round recorded how it ended.
+
+        A round records itself twice and no more: once as it starts, and once
+        as it ends, carrying its ending. So a record that has an ending has had
+        both of its writes and is complete, and nothing writes it again.
+
+        A round that nothing let finish records no ending, so its record is
+        never complete, however long ago the round stopped. What the round
+        ended with is another matter. A round that failed recorded that it
+        failed, which completes its record and leaves its work unfinished.
+        """
+        return self.ending is not None
+
 
 @dataclass(frozen=True)
 class Workspace:
@@ -139,19 +154,50 @@ class Workspace:
         return self.directory / "inbox.json"
 
 
-def read_round_records(directory: Path) -> list[RoundRecord]:
-    """Return the records of the rounds written under directory, oldest first.
+class RoundReader:
+    """Read the records of a session's rounds, keeping the complete ones.
 
-    Each round writes into a directory of its own under this one, so a session
-    passes the directory holding all of them.
+    A complete record has had both of its writes, and nothing writes it again,
+    so a reader that has read one need never open it again.
 
-    The order comes from the records themselves, so nothing here has to read a
-    directory's name as a number. A directory with no record in it yet, and a
-    directory that holds no rounds at all, both come back with nothing rather
-    than as a failure.
+    An incomplete record is opened again on every read, because the record does
+    not say whether its ending is still to come. A round that is running will
+    record one, a round that nothing let finish never will, and both read the
+    same.
+
+    So a read costs a listing of the rounds directory, and one small read for
+    each round of the session whose record is incomplete — one while a round of
+    the session is running, and none at all once every round has ended, however
+    many rounds the session has run.
     """
-    records = [read_json(RoundRecord, found) for found in directory.glob(f"*/{RECORD}")]
-    return sorted(records, key=lambda record: record.started)
+
+    def __init__(self) -> None:
+        """Set up a reader that has read nothing yet."""
+        self._cache: dict[Path, RoundRecord] = {}
+
+    def read_records(self, directory: Path) -> list[RoundRecord]:
+        """Return the records of the rounds written under directory, oldest first.
+
+        Each round writes into a directory of its own under this one, so a
+        session passes the directory holding all of them.
+
+        The order comes from the records themselves, so nothing here has to
+        read a directory's name as a number. A directory with no record in it
+        yet, and a directory that holds no rounds at all, both come back with
+        nothing rather than as a failure.
+        """
+        records = [self._read_record(found) for found in directory.glob(f"*/{RECORD}")]
+        return sorted(records, key=lambda record: record.started)
+
+    def _read_record(self, path: Path) -> RoundRecord:
+        """Return what the record at path says, and cache it once it is complete."""
+        cached = self._cache.get(path)
+        if cached is not None:
+            return cached
+        record = read_json(RoundRecord, path)
+        if record.is_complete:
+            self._cache[path] = record
+        return record
 
 
 class Round:

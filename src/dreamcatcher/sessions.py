@@ -26,7 +26,7 @@ from dreamcatcher.documents import (
 )
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import add_worktree, delete_branch, fetch, remove_worktree
-from dreamcatcher.rounds import Cause, RoundRecord, Workspace, read_round_records
+from dreamcatcher.rounds import Cause, RoundRecord, Workspace
 from dreamcatcher.state import StateDirectory
 
 # What a session's branch is called, before its key. The prefix keeps
@@ -150,6 +150,10 @@ def read_sessions(state: StateDirectory) -> list[Session]:
     the one place a session of this daemon's can be. The session's own files
     sit under `sessions/`, in a directory the same key names.
 
+    The state directory is also what the round records are read through, so a
+    process that reads the same one again reads only the records that can have
+    changed since.
+
     A state directory with no worktrees in it yet holds no sessions, so this
     answers with nothing rather than failing. Anything under `worktrees/` that
     is not a directory is not a worktree, which is what keeps a file a file
@@ -170,7 +174,7 @@ def read_sessions(state: StateDirectory) -> list[Session]:
         if worktree.is_dir()
     ]
     return [
-        _read_session(directory)
+        _read_session(state, directory)
         for directory in directories
         if (directory / RECORD).exists()
     ]
@@ -221,12 +225,12 @@ def create_session(
     return Session(directory=directory, record=record)
 
 
-def _read_session(directory: Path) -> Session:
+def _read_session(state: StateDirectory, directory: Path) -> Session:
     """Return the session whose own files sit in this directory."""
     return Session(
         directory=directory,
         record=read_json(SessionRecord, directory / RECORD),
-        rounds=read_round_records(directory / ROUNDS),
+        rounds=state.round_reader.read_records(directory / ROUNDS),
         watermark=_read_watermark(directory),
     )
 

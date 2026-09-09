@@ -2,11 +2,13 @@
 
 from dataclasses import dataclass
 from datetime import datetime
+from functools import cached_property
 from pathlib import Path
 
 from pydantic import Field
 
 from dreamcatcher.documents import Document, write_text
+from dreamcatcher.rounds import RoundReader
 
 STATE_DIRECTORY = ".dreamcatcher"
 
@@ -93,9 +95,28 @@ class LastTick(Document):
 
 @dataclass(frozen=True)
 class StateDirectory:
-    """The directory holding everything dreamcatcher knows about one repo."""
+    """The directory holding everything dreamcatcher knows about one repo.
+
+    One of these is what a process reads the directory through, so it also
+    holds what that process has read and need not read again.
+    """
 
     root: Path
+
+    @cached_property
+    def round_reader(self) -> RoundReader:
+        """What this process has read of the round records under here.
+
+        Reading a session reads the records of every round it has run, and a
+        reader keeps the complete ones, so a later read of that session opens
+        only the records that are still incomplete.
+
+        Whoever holds the directory holds them, and holds them for as long:
+        the daemon holds one for its whole run, a view holds one for as long as
+        it stays on the screen, and a process that looks once lets both go
+        together.
+        """
+        return RoundReader()
 
     @property
     def path(self) -> Path:

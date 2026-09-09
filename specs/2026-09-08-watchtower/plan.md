@@ -36,11 +36,9 @@ cannot change, and re-read only what can.
 
 In scope:
 
-- Sessions read their rounds on demand rather than eagerly (design.md, What a
-  refresh reads).
-- A reading process keeps the round records it has read, and on later passes
-  reads only a listing of each session's rounds directory and that session's
-  newest round record — the only one that can have changed.
+- A reading process keeps every complete round record it reads, since nothing
+  writes one again, and on later passes reads only a listing of each session's
+  rounds directory and the records that are still incomplete.
 
 Done when: the whole existing suite passes unchanged, because nothing a user
 sees has moved; and a test shows that a second read of the same state directory
@@ -48,7 +46,10 @@ does not reopen a round record it has already read.
 
 Deliberately out: everything about how the views look or are invoked. Also out:
 any attempt to stop reading a finished session altogether. The design says why
-that is unsound, and why it is unnecessary.
+that is unsound, and why it is unnecessary. Out too: reading a session's rounds
+only on demand, since every view goes through the board, and the board reads
+where each session stands from that session's own rounds (design.md, What a
+refresh reads).
 
 `has_run_final_round` stays as it is, scanning for a final cause. After the
 first pass it scans records the process already holds, so it costs nothing, and
