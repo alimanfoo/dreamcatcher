@@ -67,9 +67,14 @@ def test_a_document_that_is_not_utf_8_says_so(tmp_path, read):
 
 
 def growing(path: Path, written: str) -> Path:
-    """Write a file that something adds a line at a time to, and return it."""
+    """Write a file that something adds a line at a time to, and return it.
+
+    The bytes go down as they are written. A text-mode write turns each line
+    ending into the one the platform prefers, and then the positions these
+    tests assert would be Windows's own numbers rather than these.
+    """
     file = path / "feed.txt"
-    file.write_text(written, encoding="utf-8")
+    file.write_bytes(written.encode("utf-8"))
     return file
 
 

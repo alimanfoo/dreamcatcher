@@ -486,7 +486,7 @@ def test_a_following_view_reads_a_round_on_from_where_it_stopped(tmp_path, daemo
         looks.append(seconds)
         if len(looks) > 1:
             raise KeyboardInterrupt
-        # A feed only grows, so rewriting a line the view has shown already
+        # A feed only grows, so rewriting a line that the view has shown already
         # puts something there that only a second read of that line could
         # find. The rewritten line is as long as the one it replaces, so the
         # line after it starts where the view stopped reading.

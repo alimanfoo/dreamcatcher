@@ -14,9 +14,9 @@ from dreamcatcher.errors import ReportableError
 # What a whole write is written to before it takes its target's place.
 WRITING = ".writing"
 
-# How much of the end of a file one read of it takes, where a reader is after
-# the end of the file rather than the whole. A line longer than this takes
-# another read, so the size costs a reader nothing but the reads it saves.
+# How much of the end of a file one read takes, where a reader wants the last
+# line of it rather than the whole. A last line longer than this takes another
+# read to find, and nothing else turns on the size.
 WINDOW = 4096
 
 
@@ -82,22 +82,22 @@ def read_lines_from(path: Path, position: int) -> tuple[list[str], int]:
     """Return the lines the file at path holds whole past this position in it,
     and where the last of them ends.
 
-    A file something is still writing grows a line at a time, and the line the
-    write is part way through carries no ending yet, so the file does not hold
-    that line. The position that comes back therefore stops just past the last
-    line ending rather than wherever the file happens to end, and a read that
-    starts there shows the line whole once the rest of it lands.
+    A file that something appends to grows a line at a time, and the last line
+    of it carries no ending until the append that writes it lands. A line with
+    no ending is not one the file holds, so the position that comes back stops
+    just past the last line ending rather than wherever the file happens to
+    end, and a read that starts there shows that line whole once the rest of
+    it lands.
 
-    A file that is not there holds no lines, and neither does one nothing has
-    finished a line of yet, so each reads as nothing rather than as a failure.
+    A file that is not there holds no lines, and neither does one that nothing
+    has finished a line of yet, so each reads as nothing rather than as a
+    failure.
 
-    The position is a count of bytes, which is what the file itself agrees
-    with. What a reader counted while reading would be another number, since a
-    text-mode read turns each line ending into a newline.
+    The position is a count of bytes, for the reason `_open_bytes` gives.
 
     Raise ReportableError when the read fails, for the reason read_text does.
     """
-    with _reading(path) as opened:
+    with _open_bytes(path) as opened:
         opened.seek(position)
         landed, ending, _ = opened.read().rpartition(b"\n")
     if not ending:
@@ -108,21 +108,21 @@ def read_lines_from(path: Path, position: int) -> tuple[list[str], int]:
 def read_last_line(path: Path) -> str | None:
     """Return the last line the file at path holds whole, without its ending.
 
-    A file something is still writing grows a line at a time, and the line the
-    write is part way through carries no ending yet, so the file does not hold
-    that line and the one before it is the last that it does.
+    A line with no ending is not one the file holds, for the reason
+    `read_lines_from` gives, so the line before it is the last that the file
+    does hold.
 
     A file with no whole line in it holds no last line, and neither does a file
     that is not there, so each reads as nothing rather than as a failure.
 
-    The end of the file is what this reads. A feed grows for as long as its
-    round runs, and the board asks this of every session it shows, so a read
-    that took the whole file would cost the board everything every session
-    ever said.
+    The end of the file is what this reads. A file that something keeps
+    appending to grows without limit, so a read that took the whole of it would
+    cost everything ever written, and a caller that asks again on a timer would
+    pay that again each time.
 
     Raise ReportableError when the read fails, for the reason read_text does.
     """
-    with _reading(path) as opened:
+    with _open_bytes(path) as opened:
         ends = _find_line_ending(opened, opened.seek(0, SEEK_END))
         if ends is None:
             return None
@@ -172,17 +172,18 @@ def write_json(document: Document, path: Path) -> None:
 
 
 @contextmanager
-def _reading(path: Path) -> Iterator[IO[bytes]]:
-    """Yield the file at path, open for reading the bytes that it holds.
+def _open_bytes(path: Path) -> Iterator[IO[bytes]]:
+    """Open the file at path for reading bytes, and close it however it ends.
 
     Finding one part of a file takes more than one read of it, so whoever
     reads holds the file open across them.
 
-    The bytes come as the file holds them. A text-mode read turns each line
-    ending into a newline, and then a position that a reader kept and the
-    position the file itself agrees with are different numbers.
+    The bytes come as the file holds them, which is how `_write` leaves them.
+    A text-mode read turns each line ending into a newline, and then a
+    position that a reader kept and the position the file itself agrees with
+    are different numbers.
 
-    A file that is not there reads as one holding nothing, so a reader of a
+    A file that is not there opens as one holding nothing, so a reader of a
     round that has said nothing yet reads no lines rather than a failure.
 
     Raise ReportableError when the read fails, for the reason read_text does.

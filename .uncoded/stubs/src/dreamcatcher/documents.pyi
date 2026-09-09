@@ -37,7 +37,7 @@ def append_text(text: str, path: Path) -> None:
 def write_json(document: Document, path: Path) -> None:
     ...
 
-def _reading(path: Path) -> Iterator[IO[bytes]]:
+def _open_bytes(path: Path) -> Iterator[IO[bytes]]:
     ...
 
 def _find_line_ending(opened: IO[bytes], before: int) -> int | None:

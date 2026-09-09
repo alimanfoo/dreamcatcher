@@ -158,6 +158,11 @@ uv run pre-commit run --all-files
   `unspecified-encoding` rule catches a file opened without `encoding=`. Ruff
   cannot see subprocess calls, so the test suite catches those: it fails on any
   EncodingWarning a test reaches.
+- Write the bytes, in a test that writes a file whose bytes the tool then
+  measures. A text-mode write turns each line ending into the one the platform
+  prefers, so the same test would measure Windows's numbers and not yours, and
+  no check catches it. `documents.write_text` and `append_text` pin the line
+  endings for the tool itself, so a test can write through either instead.
 - Cover both arms of every branch. The suite gates branch coverage over `src` at
   100%. When an arm looks unreachable it is dead code, so remove it rather than
   reach for a pragma. Mark a genuinely platform-specific branch with

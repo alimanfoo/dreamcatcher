@@ -185,7 +185,7 @@ src/:
       write_text:
       append_text:
       write_json:
-      _reading:
+      _open_bytes:
       _find_line_ending:
       _decode:
       _write:

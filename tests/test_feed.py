@@ -118,9 +118,8 @@ def test_a_line_whose_stamp_is_not_a_time_is_not_a_feed_line():
 
 def test_the_last_line_of_a_feed_is_what_the_feed_last_said(tmp_path):
     written = tmp_path / "feed.txt"
-    written.write_text(
-        "2026-08-19T18:41:58Z  [Bash] pytest\n2026-08-19T18:42:58Z  [Read] pyproject\n",
-        encoding="utf-8",
+    written.write_bytes(
+        b"2026-08-19T18:41:58Z  [Bash] pytest\n2026-08-19T18:42:58Z  [Read] pyproject\n"
     )
 
     assert read_last_feed_line(written) == Line(
@@ -132,9 +131,8 @@ def test_a_write_that_never_landed_leaves_the_line_before_it_as_the_last(tmp_pat
     written = tmp_path / "feed.txt"
     # The write was cut off inside the line's own words, so what is there reads
     # as a whole line and is not one.
-    written.write_text(
-        "2026-08-19T18:41:58Z  [Bash] pytest\n2026-08-19T18:42:58Z  [Read] pypro",
-        encoding="utf-8",
+    written.write_bytes(
+        b"2026-08-19T18:41:58Z  [Bash] pytest\n2026-08-19T18:42:58Z  [Read] pypro"
     )
 
     assert read_last_feed_line(written) == Line(PINNED, "[Bash] pytest")
@@ -142,14 +140,14 @@ def test_a_write_that_never_landed_leaves_the_line_before_it_as_the_last(tmp_pat
 
 def test_a_feed_whose_last_line_is_not_one_has_nothing_to_say(tmp_path):
     written = tmp_path / "feed.txt"
-    written.write_text("the harness said something else\n", encoding="utf-8")
+    written.write_bytes(b"the harness said something else\n")
 
     assert read_last_feed_line(written) is None
 
 
 def test_a_feed_holding_nothing_yet_has_no_last_line(tmp_path):
     written = tmp_path / "feed.txt"
-    written.write_text("", encoding="utf-8")
+    written.write_bytes(b"")
 
     assert read_last_feed_line(written) is None
 

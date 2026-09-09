@@ -12,10 +12,10 @@ correct and only one of them gets corrected.
 
 Every part is meant to be executable without stopping to ask. Where a decision
 was needed it has been made and written into `design.md`; where a detail is
-genuinely free — which container a renderable is, how a file position is
-remembered — the part says so, and whoever builds it chooses. If a part turns
-out to need a decision that isn't there, that is a gap in the design, and the
-fix is to correct `design.md` in the same pull request and say so.
+genuinely free — which container a renderable is, for instance — the part says
+so, and whoever builds it chooses. If a part turns out to need a decision that
+isn't there, that is a gap in the design, and the fix is to correct `design.md`
+in the same pull request and say so.
 
 Every part is reviewed, so every part serves its reviewer:
 
