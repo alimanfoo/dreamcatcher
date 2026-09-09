@@ -74,9 +74,6 @@ def test_a_file_that_is_not_there_holds_no_last_line(tmp_path):
 def test_a_last_line_longer_than_one_read_of_the_end_reads_whole(tmp_path):
     ...
 
-def test_the_last_line_of_a_long_file_is_read_from_the_end_of_it(tmp_path):
-    ...
-
 def test_a_file_whose_last_line_is_not_utf_8_says_so(tmp_path):
     ...
 

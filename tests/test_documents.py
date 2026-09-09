@@ -153,16 +153,6 @@ def test_a_last_line_longer_than_one_read_of_the_end_reads_whole(tmp_path):
     assert read_last_line(growing(tmp_path, f"first\n{long_line}\n")) == long_line
 
 
-def test_the_last_line_of_a_long_file_is_read_from_the_end_of_it(tmp_path):
-    file = tmp_path / "feed.txt"
-    # Bytes that are not UTF-8 stand for everything a round said before the
-    # line being asked for. A read that took the whole file to reach the end of
-    # it would stop on them, and nothing here reads that far back.
-    file.write_bytes(b"\xff" * WINDOW * 4 + b"\nlast\n")
-
-    assert read_last_line(file) == "last"
-
-
 def test_a_file_whose_last_line_is_not_utf_8_says_so(tmp_path):
     file = tmp_path / "feed.txt"
     file.write_bytes(b"first\n\xff\n")

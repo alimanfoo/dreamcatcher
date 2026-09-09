@@ -43,7 +43,7 @@ def _reading(path: Path) -> Iterator[IO[bytes]]:
 def _find_line_ending(opened: IO[bytes], before: int) -> int | None:
     ...
 
-def _decode(read: bytes, path: Path) -> str:
+def _decode(contents: bytes, path: Path) -> str:
     ...
 
 def _write(text: str, path: Path, mode: str) -> None:

@@ -400,8 +400,8 @@ class _Feed:
 
     def _show_arrived(self, feed: Path, number: int) -> None:
         """Show the lines this round has written since the last look at it."""
-        written, position = read_lines_from(feed, self.positions[number])
-        for line in written:
+        lines, position = read_lines_from(feed, self.positions[number])
+        for line in lines:
             self.console.print(_paint_written(line))
         self.positions[number] = position
 

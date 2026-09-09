@@ -71,12 +71,11 @@ def read_text(path: Path) -> str:
     message rather than a traceback.
     """
     try:
-        read = path.read_bytes()
+        return _decode(path.read_bytes(), path)
     except FileNotFoundError as error:
         raise ReportableError(f"{path} does not exist.") from error
     except OSError as error:
         raise ReportableError(f"cannot read {path}: {error}.") from error
-    return _decode(read, path)
 
 
 def read_lines_from(path: Path, position: int) -> tuple[list[str], int]:
@@ -86,12 +85,11 @@ def read_lines_from(path: Path, position: int) -> tuple[list[str], int]:
     A file something is still writing grows a line at a time, and the line the
     write is part way through carries no ending yet, so the file does not hold
     that line. The position that comes back therefore stops just past the last
-    line ending and never at the end of the file, and a read that starts there
-    shows the line whole once the rest of it lands.
+    line ending rather than wherever the file happens to end, and a read that
+    starts there shows the line whole once the rest of it lands.
 
     A file that is not there holds no lines, and neither does one nothing has
     finished a line of yet, so each reads as nothing rather than as a failure.
-    A round that has said nothing yet has no feed at all.
 
     The position is a count of bytes, which is what the file itself agrees
     with. What a reader counted while reading would be another number, since a
@@ -101,8 +99,7 @@ def read_lines_from(path: Path, position: int) -> tuple[list[str], int]:
     """
     with _reading(path) as opened:
         opened.seek(position)
-        read = opened.read()
-    landed, ending, _ = read.rpartition(b"\n")
+        landed, ending, _ = opened.read().rpartition(b"\n")
     if not ending:
         return [], position
     return _decode(landed, path).split("\n"), position + len(landed) + len(ending)
@@ -116,8 +113,7 @@ def read_last_line(path: Path) -> str | None:
     that line and the one before it is the last that it does.
 
     A file with no whole line in it holds no last line, and neither does a file
-    that is not there, so each reads as nothing rather than as a failure. A
-    round that has said nothing yet has no feed at all.
+    that is not there, so each reads as nothing rather than as a failure.
 
     The end of the file is what this reads. A feed grows for as long as its
     round runs, and the board asks this of every session it shows, so a read
@@ -215,8 +211,8 @@ def _find_line_ending(opened: IO[bytes], before: int) -> int | None:
     return None
 
 
-def _decode(read: bytes, path: Path) -> str:
-    """Return the bytes of the file at path as the UTF-8 text they hold.
+def _decode(contents: bytes, path: Path) -> str:
+    """Return these bytes of the file at path as the UTF-8 text they hold.
 
     Every file the tool reads is UTF-8, whether it reads the whole of one or a
     part of one, so this is the one place that says what a file that is not
@@ -226,7 +222,7 @@ def _decode(read: bytes, path: Path) -> str:
     read_text does.
     """
     try:
-        return read.decode("utf-8")
+        return contents.decode("utf-8")
     except UnicodeDecodeError as error:
         raise ReportableError(f"{path} is not UTF-8 text.") from error
 

@@ -73,11 +73,7 @@ def read_feed_line(written: str) -> Line | None:
 
 
 def read_last_feed_line(path: Path) -> Line | None:
-    """Return the last line the feed at path holds, or nothing when it holds none.
-
-    The board asks this of every session it shows, so the end of the file is
-    what it reads, however long the round has been writing.
-    """
+    """Return the last line the feed at path holds, or nothing when it holds none."""
     written = read_last_line(path)
     if written is None:
         return None
