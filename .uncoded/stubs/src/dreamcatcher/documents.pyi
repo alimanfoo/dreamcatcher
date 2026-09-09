@@ -26,6 +26,9 @@ def append_text(text: str, path: Path) -> None:
 def write_json(document: Document, path: Path) -> None:
     ...
 
+def _decode(read: bytes, path: Path) -> str:
+    ...
+
 def _write(text: str, path: Path, mode: str) -> None:
     ...
 

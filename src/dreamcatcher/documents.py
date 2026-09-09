@@ -53,18 +53,21 @@ def read_text(path: Path) -> str:
     `read_toml` and `read_json` both read through this, and so does a file that
     holds one value and needs no model of its own.
 
+    The line endings come as the file holds them, which is how `_write` leaves
+    them. Left to itself Python turns each of them into a newline, and then a
+    read and a write of one file would not agree on what is in it.
+
     Raise ReportableError when the read fails. A document that is not there, or
     that nothing can read, is something the user can act on, so it reads as a
     message rather than a traceback.
     """
     try:
-        return path.read_text(encoding="utf-8")
+        read = path.read_bytes()
     except FileNotFoundError as error:
         raise ReportableError(f"{path} does not exist.") from error
-    except UnicodeDecodeError as error:
-        raise ReportableError(f"{path} is not UTF-8 text.") from error
     except OSError as error:
         raise ReportableError(f"cannot read {path}: {error}.") from error
+    return _decode(read, path)
 
 
 def write_text(text: str, path: Path) -> None:
@@ -104,6 +107,22 @@ def append_text(text: str, path: Path) -> None:
 def write_json(document: Document, path: Path) -> None:
     """Write the document to path as JSON."""
     write_text(document.model_dump_json(indent=2) + "\n", path)
+
+
+def _decode(read: bytes, path: Path) -> str:
+    """Return the bytes of the file at path as the UTF-8 text they hold.
+
+    Every file the tool reads is UTF-8, whether it reads the whole of one or a
+    part of one, so this is the one place that says what a file that is not
+    UTF-8 is.
+
+    Raise ReportableError when the bytes are not UTF-8, for the reason
+    read_text does.
+    """
+    try:
+        return read.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise ReportableError(f"{path} is not UTF-8 text.") from error
 
 
 def _write(text: str, path: Path, mode: str) -> None:

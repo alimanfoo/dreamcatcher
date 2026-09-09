@@ -182,6 +182,7 @@ src/:
       write_text:
       append_text:
       write_json:
+      _decode:
       _write:
       _report:
     eligibility.py:
