@@ -130,7 +130,7 @@ def read_board(state: StateDirectory, clock: Callable[[], datetime] = now) -> Bo
     )
 
 
-def read_rows(
+def read_rows_for_issue(
     state: StateDirectory, issue: int, clock: Callable[[], datetime] = now
 ) -> list[Row]:
     """Return a row for each session at the issue, the newest session first.

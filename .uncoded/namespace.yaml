@@ -59,7 +59,7 @@ src/:
         _read_last_said:
         _point_at_feed:
       read_board:
-      read_rows:
+      read_rows_for_issue:
       _list_queue:
       _describe_place:
     claude.py:

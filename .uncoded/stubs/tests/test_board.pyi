@@ -6,7 +6,7 @@ from datetime import timedelta
 import pytest
 from clocks import PINNED
 from records import write_feed, write_round, write_session, write_tick
-from dreamcatcher.board import Standing, read_board, read_rows
+from dreamcatcher.board import Standing, read_board, read_rows_for_issue
 from dreamcatcher.feed import Line
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.state import NO_ROUND_HAS_RUN, CandidateIssue, LastTick, StateDirectory, WaitingSession

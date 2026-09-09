@@ -5,7 +5,7 @@ import pytest
 from clocks import PINNED
 from records import write_feed, write_round, write_session, write_tick
 
-from dreamcatcher.board import Standing, read_board, read_rows
+from dreamcatcher.board import Standing, read_board, read_rows_for_issue
 from dreamcatcher.feed import Line
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.state import (
@@ -69,7 +69,7 @@ def only(state):
 
 def rows_at(state, issue: int):
     """Read the rows for that issue alone, at the pinned looking time."""
-    return read_rows(state, issue, clock=lambda: LOOKED_AT)
+    return read_rows_for_issue(state, issue, clock=lambda: LOOKED_AT)
 
 
 def test_the_rows_for_an_issue_are_its_own_sessions_newest_first(running):

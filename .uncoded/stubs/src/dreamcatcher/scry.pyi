@@ -11,7 +11,7 @@ from rich.console import Console, Group, RenderableType
 from rich.padding import Padding
 from rich.table import Table
 from rich.text import Text
-from dreamcatcher.board import Board, Row, Standing, read_board, read_rows
+from dreamcatcher.board import Board, Row, Standing, read_board, read_rows_for_issue
 from dreamcatcher.clock import now
 from dreamcatcher.documents import read_lines_from
 from dreamcatcher.errors import ReportableError
