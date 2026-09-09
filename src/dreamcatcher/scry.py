@@ -30,7 +30,7 @@ from dreamcatcher.feed import (
 )
 from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.rounds import RoundRecord
-from dreamcatcher.sessions import Session, SessionReader
+from dreamcatcher.sessions import Session
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.words import describe_count, describe_span, describe_time
 
@@ -63,7 +63,7 @@ def open_console() -> Console:
 
 
 def show_board(
-    reader: SessionReader, console: Console, clock: Callable[[], datetime] = now
+    state: StateDirectory, console: Console, clock: Callable[[], datetime] = now
 ) -> None:
     """Show every session and every queued issue, sorted by whose turn it is.
 
@@ -71,7 +71,7 @@ def show_board(
     work waiting on them first and the work that is finished last. A section
     with nothing in it is left out rather than shown empty.
     """
-    board = read_board(reader, clock)
+    board = read_board(state, clock)
     console.print(_describe_daemon(board))
     _show_rows(console, board, Standing.NEEDS_YOU)
     _show_rows(console, board, Standing.WORKING)
@@ -178,7 +178,7 @@ def _print_section(
 
 
 def show_session(
-    reader: SessionReader,
+    state: StateDirectory,
     issue: int,
     console: Console,
     clock: Callable[[], datetime] = now,
@@ -189,7 +189,7 @@ def show_session(
     dispatch. The newest is the one still going, or the one that got furthest,
     so it is the one the view is about.
     """
-    rows = _find_rows(read_board(reader, clock), issue)
+    rows = _find_rows(read_board(state, clock), issue)
     newest = rows[0]
     console.print(Text(newest.session.key))
     console.print(
@@ -200,9 +200,9 @@ def show_session(
             style=COLOURS[newest.standing],
         )
     )
-    _show_vitals(console, reader.state, newest)
+    _show_vitals(console, state, newest)
     _show_rounds(console, newest)
-    _show_hand_resume(console, reader.state, newest)
+    _show_hand_resume(console, state, newest)
     _show_older_sessions(console, rows[1:])
 
 
@@ -292,7 +292,7 @@ def _show_older_sessions(console: Console, older: list[Row]) -> None:
 
 
 def show_round(
-    reader: SessionReader,
+    state: StateDirectory,
     issue: int,
     number: int,
     console: Console,
@@ -302,7 +302,7 @@ def show_round(
 
     The round list of the session view is where a reader finds the number.
     """
-    session = _find_rows(read_board(reader, clock), issue)[0].session
+    session = _find_rows(read_board(state, clock), issue)[0].session
     if not 1 <= number <= len(session.rounds):
         raise ReportableError(
             f"{session.key} has run {describe_count(len(session.rounds), 'round')}, "
@@ -313,7 +313,7 @@ def show_round(
 
 
 def show_feed(
-    reader: SessionReader,
+    state: StateDirectory,
     issue: int,
     console: Console,
     wait: Callable[[float], None] = sleep,
@@ -351,7 +351,7 @@ def show_feed(
     was_over = True
     with suppress(KeyboardInterrupt):
         while True:
-            row = _find_rows(read_board(reader, clock), issue)[0]
+            row = _find_rows(read_board(state, clock), issue)[0]
             session = row.session
             painted = _compose_feed(session, range(1, len(session.rounds) + 1))
             for line in painted[shown:]:

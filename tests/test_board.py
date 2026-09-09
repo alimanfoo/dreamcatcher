@@ -8,7 +8,6 @@ from records import write_feed, write_round, write_session, write_tick
 from dreamcatcher.board import Standing, read_board
 from dreamcatcher.feed import Line
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
-from dreamcatcher.sessions import SessionReader
 from dreamcatcher.state import (
     NO_ROUND_HAS_RUN,
     CandidateIssue,
@@ -58,7 +57,7 @@ def said(state, number: int, *texts: str):
 
 def looked(state):
     """Read the board off that state directory, at the pinned looking time."""
-    return read_board(SessionReader(state), clock=lambda: LOOKED_AT)
+    return read_board(state, clock=lambda: LOOKED_AT)
 
 
 def only(state):
@@ -69,7 +68,7 @@ def only(state):
 
 
 def test_a_state_directory_nothing_has_run_in_yet_holds_an_empty_board(tmp_path):
-    board = read_board(SessionReader(StateDirectory(tmp_path)), clock=lambda: LOOKED_AT)
+    board = read_board(StateDirectory(tmp_path), clock=lambda: LOOKED_AT)
 
     assert board.at == LOOKED_AT
     assert board.daemon_pid is None

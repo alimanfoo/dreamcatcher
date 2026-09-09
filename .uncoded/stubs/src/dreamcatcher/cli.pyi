@@ -12,7 +12,6 @@ from dreamcatcher import scry
 from dreamcatcher.config import Harness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.sessions import SessionReader
 from dreamcatcher.state import StateDirectory
 
 ISSUE = re.compile('gh(\\d+)\\Z', re.IGNORECASE)

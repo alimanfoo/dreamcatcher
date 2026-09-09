@@ -417,11 +417,9 @@ src/:
         next_workspace:
         describe_unfinished_round:
         workspace:
-      SessionReader:
-        __init__:
-        read_sessions:
-        _read_session:
+      read_sessions:
       create_session:
+      _read_session:
       _read_watermark:
       advance_watermark:
       discard_session:
@@ -451,6 +449,7 @@ src/:
         last_tick:
         worktrees:
         sessions:
+        round_reader:
         describe_path:
         bootstrap:
     teardown.py:

@@ -11,7 +11,7 @@ from dreamcatcher.config import DispatchMapping, Harness
 from dreamcatcher.documents import Document, read_json, read_text, write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import add_worktree, delete_branch, fetch, remove_worktree
-from dreamcatcher.rounds import Cause, RoundReader, RoundRecord, Workspace
+from dreamcatcher.rounds import Cause, RoundRecord, Workspace
 from dreamcatcher.state import StateDirectory
 
 BRANCH_PREFIX = 'dreamcatcher-'
@@ -19,7 +19,13 @@ RECORD = 'session.json'
 ROUNDS = 'rounds'
 WATERMARK = 'watermark'
 
+def read_sessions(state: StateDirectory) -> list[Session]:
+    ...
+
 def create_session(state: StateDirectory, mapping: DispatchMapping, named: Harness, issue: int, at: datetime) -> Session:
+    ...
+
+def _read_session(state: StateDirectory, directory: Path) -> Session:
     ...
 
 def _read_watermark(directory: Path) -> str:
@@ -54,14 +60,4 @@ class Session:
         ...
 
     def workspace(self, number: int) -> Workspace:
-        ...
-
-class SessionReader:
-    def __init__(self, state: StateDirectory) -> None:
-        ...
-
-    def read_sessions(self) -> list[Session]:
-        ...
-
-    def _read_session(self, directory: Path) -> Session:
         ...

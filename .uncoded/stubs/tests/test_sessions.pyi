@@ -11,7 +11,7 @@ from dreamcatcher.config import CONFIG_NAME, Harness, read_config
 from dreamcatcher.documents import write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.rounds import Cause, Ending, RoundRecord, Workspace
-from dreamcatcher.sessions import WATERMARK, SessionReader, SessionRecord, advance_watermark, create_session
+from dreamcatcher.sessions import WATERMARK, SessionRecord, advance_watermark, create_session, read_sessions
 from dreamcatcher.state import StateDirectory
 
 KEY = 'GH12-20260819-184158'
@@ -74,7 +74,7 @@ def test_a_session_whose_last_round_ended_well_has_left_nothing_unfinished(fabri
 def test_a_session_that_has_run_its_final_round_says_so(fabricated):
     ...
 
-def endings(state, reader):
+def endings(state):
     ...
 
 def test_a_second_read_does_not_open_a_round_record_it_has_already_read(fabricated):

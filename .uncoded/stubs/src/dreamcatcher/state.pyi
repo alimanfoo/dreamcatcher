@@ -3,9 +3,11 @@
 
 from dataclasses import dataclass
 from datetime import datetime
+from functools import cached_property
 from pathlib import Path
 from pydantic import Field
 from dreamcatcher.documents import Document, write_text
+from dreamcatcher.rounds import RoundReader
 
 STATE_DIRECTORY = '.dreamcatcher'
 NO_ROUND_HAS_RUN = 'no round has run yet'
@@ -36,6 +38,9 @@ class StateDirectory:
     last_tick: Path
     worktrees: Path
     sessions: Path
+
+    def round_reader(self) -> RoundReader:
+        ...
 
     def describe_path(self, path: Path) -> str:
         ...

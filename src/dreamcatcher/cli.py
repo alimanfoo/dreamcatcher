@@ -12,7 +12,6 @@ from dreamcatcher import scry
 from dreamcatcher.config import Harness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.sessions import SessionReader
 from dreamcatcher.state import StateDirectory
 
 # How a view names the issue it is about, as the issue itself is written.
@@ -85,16 +84,16 @@ def _scry(args: argparse.Namespace) -> None:
     feed views narrow it further, to what that session's agent said.
     """
     _refuse_a_feed_of_nothing(args)
-    reader = SessionReader(_find_state(Path.cwd()))
+    state = _find_state(Path.cwd())
     console = scry.open_console()
     if args.issue is None:
-        scry.show_board(reader, console)
+        scry.show_board(state, console)
     elif args.follow:
-        scry.show_feed(reader, args.issue, console)
+        scry.show_feed(state, args.issue, console)
     elif args.round is not None:
-        scry.show_round(reader, args.issue, args.round, console)
+        scry.show_round(state, args.issue, args.round, console)
     else:
-        scry.show_session(reader, args.issue, console)
+        scry.show_session(state, args.issue, console)
 
 
 def _refuse_a_feed_of_nothing(args: argparse.Namespace) -> None:
