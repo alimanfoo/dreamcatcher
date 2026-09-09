@@ -15,7 +15,7 @@ from datetime import UTC, datetime
 from pathlib import Path, PurePath
 
 from dreamcatcher.clock import now
-from dreamcatcher.documents import read_lines_from
+from dreamcatcher.documents import read_last_line
 from dreamcatcher.words import STAMP, describe_time
 
 # A note's detail can be as long as a whole file, so the line is clipped. The
@@ -73,11 +73,15 @@ def read_feed_line(written: str) -> Line | None:
 
 
 def read_last_feed_line(path: Path) -> Line | None:
-    """Return the last line the feed at path holds, or nothing when it holds none."""
-    lines, _ = read_lines_from(path, 0)
-    if not lines:
+    """Return the last line the feed at path holds, or nothing when it holds none.
+
+    The board asks this of every session it shows, so the end of the file is
+    what it reads, however long the round has been writing.
+    """
+    written = read_last_line(path)
+    if written is None:
         return None
-    return read_feed_line(lines[-1])
+    return read_feed_line(written)
 
 
 @dataclass(frozen=True)

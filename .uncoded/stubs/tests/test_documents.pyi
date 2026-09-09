@@ -3,7 +3,7 @@
 
 from pathlib import Path
 import pytest
-from dreamcatcher.documents import Document, append_text, read_json, read_lines_from, read_toml, write_text
+from dreamcatcher.documents import WINDOW, Document, append_text, read_json, read_last_line, read_lines_from, read_toml, write_text
 from dreamcatcher.errors import ReportableError
 
 READERS = [pytest.param(read_toml, id='toml'), pytest.param(read_json, id='json')]
@@ -51,6 +51,36 @@ def test_a_file_of_lines_that_is_not_utf_8_says_so(tmp_path):
     ...
 
 def test_lines_that_cannot_be_read_say_so(tmp_path):
+    ...
+
+def test_the_last_line_a_file_holds_is_the_last_one_written_whole(tmp_path):
+    ...
+
+def test_a_file_holding_one_line_holds_it_as_its_last(tmp_path):
+    ...
+
+def test_a_line_still_being_written_is_not_the_last_a_file_holds(tmp_path):
+    ...
+
+def test_a_file_with_no_whole_line_in_it_yet_holds_no_last_line(tmp_path):
+    ...
+
+def test_a_file_with_nothing_in_it_holds_no_last_line(tmp_path):
+    ...
+
+def test_a_file_that_is_not_there_holds_no_last_line(tmp_path):
+    ...
+
+def test_a_last_line_longer_than_one_read_of_the_end_reads_whole(tmp_path):
+    ...
+
+def test_the_last_line_of_a_long_file_is_read_from_the_end_of_it(tmp_path):
+    ...
+
+def test_a_file_whose_last_line_is_not_utf_8_says_so(tmp_path):
+    ...
+
+def test_a_last_line_that_cannot_be_read_says_so(tmp_path):
     ...
 
 def test_a_document_that_is_not_toml_says_so(tmp_path):

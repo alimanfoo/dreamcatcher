@@ -4,13 +4,14 @@
 import tomllib
 from collections.abc import Iterator
 from contextlib import contextmanager
-from io import BytesIO
+from io import SEEK_END, BytesIO
 from pathlib import Path
 from typing import IO
 from pydantic import BaseModel, ConfigDict, ValidationError
 from dreamcatcher.errors import ReportableError
 
 WRITING = '.writing'
+WINDOW = 4096
 
 def read_toml(model: type[DocumentT], path: Path) -> DocumentT:
     ...
@@ -24,6 +25,9 @@ def read_text(path: Path) -> str:
 def read_lines_from(path: Path, position: int) -> tuple[list[str], int]:
     ...
 
+def read_last_line(path: Path) -> str | None:
+    ...
+
 def write_text(text: str, path: Path) -> None:
     ...
 
@@ -34,6 +38,9 @@ def write_json(document: Document, path: Path) -> None:
     ...
 
 def _reading(path: Path) -> Iterator[IO[bytes]]:
+    ...
+
+def _find_line_ending(opened: IO[bytes], before: int) -> int | None:
     ...
 
 def _decode(read: bytes, path: Path) -> str:

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path, PurePath
 from dreamcatcher.clock import now
-from dreamcatcher.documents import read_lines_from
+from dreamcatcher.documents import read_last_line
 from dreamcatcher.words import STAMP, describe_time
 
 WIDTH = 200

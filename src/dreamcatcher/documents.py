@@ -3,7 +3,7 @@
 import tomllib
 from collections.abc import Iterator
 from contextlib import contextmanager
-from io import BytesIO
+from io import SEEK_END, BytesIO
 from pathlib import Path
 from typing import IO
 
@@ -13,6 +13,11 @@ from dreamcatcher.errors import ReportableError
 
 # What a whole write is written to before it takes its target's place.
 WRITING = ".writing"
+
+# How much of the end of a file one read of it takes, where a reader is after
+# the end of the file rather than the whole. A line longer than this takes
+# another read, so the size costs a reader nothing but the reads it saves.
+WINDOW = 4096
 
 
 class Document(BaseModel):
@@ -103,6 +108,34 @@ def read_lines_from(path: Path, position: int) -> tuple[list[str], int]:
     return _decode(landed, path).split("\n"), position + len(landed) + len(ending)
 
 
+def read_last_line(path: Path) -> str | None:
+    """Return the last line the file at path holds whole, without its ending.
+
+    A file something is still writing grows a line at a time, and the line the
+    write is part way through carries no ending yet, so the file does not hold
+    that line and the one before it is the last that it does.
+
+    A file with no whole line in it holds no last line, and neither does a file
+    that is not there, so each reads as nothing rather than as a failure. A
+    round that has said nothing yet has no feed at all.
+
+    The end of the file is what this reads. A feed grows for as long as its
+    round runs, and the board asks this of every session it shows, so a read
+    that took the whole file would cost the board everything every session
+    ever said.
+
+    Raise ReportableError when the read fails, for the reason read_text does.
+    """
+    with _reading(path) as opened:
+        ends = _find_line_ending(opened, opened.seek(0, SEEK_END))
+        if ends is None:
+            return None
+        before = _find_line_ending(opened, ends)
+        starts = 0 if before is None else before + 1
+        opened.seek(starts)
+        return _decode(opened.read(ends - starts), path)
+
+
 def write_text(text: str, path: Path) -> None:
     """Write text to path as UTF-8, over whatever was there before.
 
@@ -163,6 +196,23 @@ def _reading(path: Path) -> Iterator[IO[bytes]]:
             yield opened
     except OSError as error:
         raise ReportableError(f"cannot read {path}: {error}.") from error
+
+
+def _find_line_ending(opened: IO[bytes], before: int) -> int | None:
+    """Return where the last line ending before this position is, or nothing.
+
+    The file is read backwards a window at a time, so no read of it takes the
+    whole, and a line longer than one window is found all the same.
+    """
+    end = before
+    while end > 0:
+        start = max(0, end - WINDOW)
+        opened.seek(start)
+        found = opened.read(end - start).rfind(b"\n")
+        if found >= 0:
+            return start + found
+        end = start
+    return None
 
 
 def _decode(read: bytes, path: Path) -> str:
