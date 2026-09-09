@@ -63,9 +63,13 @@ and render only what arrived.
 
 In scope:
 
-- An offset-aware read in `feed.py`, and a following view that remembers a
-  position per round (design.md, What a refresh reads).
-- A round that has ended is read to its end once and not opened again.
+- An offset-aware read in `documents.py`, which is where the tool reads and
+  writes its files, and a following view that remembers a position per round
+  (design.md, What a refresh reads).
+- A round that has ended is read to its end once, and every pass after that
+  reads nothing from it.
+- The board's read of what a session's round last said, which took a whole feed
+  to take one line off the end (design.md, What a refresh reads).
 
 Done when: the feed goldens are unchanged; a following view over a growing feed
 reads only the tail on each pass; and a feed whose last line is still being
@@ -79,7 +83,7 @@ and Cross-platform notes). The remembered position has to stop at the last
 complete line ending rather than at end of file, or a half-written line is lost
 when the rest of it lands. And it cannot be a count of characters, because
 line-ending translation makes that a different number from a position in the
-file. How the position is actually held is free.
+file. It is held as a count of bytes (design.md, Cross-platform notes).
 
 ## Part 3: three verbs
 

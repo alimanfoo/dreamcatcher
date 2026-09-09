@@ -203,21 +203,37 @@ have to be narrowed to make it cheap.
 Both the daemon and the views go through `read_sessions`, so both get this. The
 daemon's tick has the same complaint for the same reason.
 
-**A following feed re-reads every feed file from the start.** `read_feed_lines`
-reads a whole file with `read_text` and splits it, and `_compose_feed` does that
-for every round on every pass, rebuilds a `Text` for every line, and then prints
-only the handful past what it has already shown.
+**A following feed re-read every feed file from the start.** `read_feed_lines`
+read a whole file and split it, `_compose_feed` did that for every round on
+every pass and rebuilt a `Text` for every line, and the pass then printed only
+the handful past what it had already shown.
 
-Feed files are append-only, so a following view can remember where it stopped
-and read from there. Per pass it then reads only what arrived, and renders only
-what it will print. A round that has ended is read to its end once and not
-opened again.
+Feed files are append-only, so a following view remembers where it stopped and
+reads on from there. `documents.read_lines_from` is that read, and `scry._Feed`
+is what holds a position for each round of the session, so a pass reads only
+what arrived and paints only what it will print. A round that has ended is read
+to its end once, and every pass after that reads nothing from it.
+
+A pass still opens each round's feed rather than closing the ones that have
+ended, because nothing a reader can see says that a feed has stopped growing. A
+round records its ending as soon as its own child has gone and its feed catches
+up afterwards, so a reader that stopped opening a complete round's feed would
+lose whatever landed last. An open that reads nothing costs a handful of system
+calls, and the reading is what this is here to stop.
 
 One detail this has to get right: a round killed mid-write can leave a line with
-no ending on it, and `read_feed_lines` correctly treats that line as not yet
-landed. An incremental read must not advance its remembered position past such a
-line, or the line will be lost when the rest of it arrives. So the position
-advances to just after the last complete line ending, never to the end of file.
+no ending on it, and that line has not landed. An incremental read must not
+advance its remembered position past such a line, or the line will be lost when
+the rest of it arrives. So the position advances to just after the last complete
+line ending, never to the end of file.
+
+**The board read a whole feed to take one line off the end.** Every session
+standing `agent working` or `needs you` has its row say what its round last
+said, and `read_last_feed_line` read the whole file to find it. So a view of one
+issue paid for every other session's history, and read the watched session's own
+feed twice. `documents.read_last_line` reads the end of the file instead, a
+window at a time backwards, so a line longer than one window is found all the
+same.
 
 ### Cross-platform notes
 
@@ -225,8 +241,9 @@ Remembering a position in a feed file cannot be a count of characters. On
 Windows a text-mode read translates line endings, so the number of characters a
 reader has seen and the position it should resume from are different numbers. So
 the position has to be something the file itself agrees with rather than
-something counted while reading. What that is exactly is for whoever builds it
-to settle against the platforms.
+something counted while reading. It is a count of bytes, and every read that
+takes a part of a file reads the bytes the file holds rather than the text a
+text-mode read would make of them.
 
 Rich's `Live` works on Windows terminals, and the console settings the tests
 already pin (`legacy_windows=False` among them) keep the rendering identical
