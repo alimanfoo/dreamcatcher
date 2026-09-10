@@ -116,7 +116,7 @@ def _show_rows(console: Console, board: Board, standing: SessionStanding) -> Non
             Text(row.session.key),
             _render_detail(row, prefix=_describe_round(row)),
         )
-    _print_section(console, str(standing), COLOURS[standing], table)
+    console.print(_render_section(str(standing), COLOURS[standing], table))
 
 
 def _describe_round(row: SessionRow) -> str:
@@ -156,7 +156,7 @@ def _show_queue(console: Console, board: Board) -> None:
         table.add_row(
             Text(f"GH{queued.issue}"), Text(queued.label), Text(queued.reason)
         )
-    _print_section(console, QUEUE, "blue", table)
+    console.print(_render_section(QUEUE, "blue", table))
 
 
 def _open_table() -> Table:
@@ -172,13 +172,17 @@ def _open_table() -> Table:
     return table
 
 
-def _print_section(
-    console: Console, heading: str, colour: str, body: RenderableType
-) -> None:
-    """Print one section of a view, set in under its own heading."""
-    console.print()
-    console.print(Text(heading, style=f"bold {colour}"))
-    console.print(Padding(body, INDENT, expand=False))
+def _render_section(heading: str, colour: str, body: RenderableType) -> RenderableType:
+    """Return one section of a view, set in under its own heading.
+
+    A blank line opens the section, which sets it apart from the section above
+    and from the line that opens the view.
+    """
+    return Group(
+        Text(),
+        Text(heading, style=f"bold {colour}"),
+        Padding(body, INDENT, expand=False),
+    )
 
 
 def show_session(
@@ -223,8 +227,8 @@ def _show_vitals(console: Console, state: StateDirectory, row: SessionRow) -> No
         ("effort", record.effort),
     ):
         table.add_row(Text(name), Text(str(value)))
-    _print_section(console, "session", "blue", table)
-    _print_section(console, "first prompt", "blue", Text(record.prompt))
+    console.print(_render_section("session", "blue", table))
+    console.print(_render_section("first prompt", "blue", Text(record.prompt)))
 
 
 def _show_rounds(console: Console, row: SessionRow) -> None:
@@ -242,7 +246,7 @@ def _show_rounds(console: Console, row: SessionRow) -> None:
             Text(_describe_run(record)),
             Text(_describe_ending(record, is_running)),
         )
-    _print_section(console, "rounds", "blue", table)
+    console.print(_render_section("rounds", "blue", table))
 
 
 def _describe_run(record: RoundRecord) -> str:
@@ -276,8 +280,10 @@ def _show_hand_resume(console: Console, state: StateDirectory, row: SessionRow) 
         return
     worktree = state.describe_path(row.session.record.worktree)
     command = " ".join(ADAPTERS[row.session.record.harness].build_hand_resume())
-    _print_section(
-        console, "take it over yourself", "blue", Text(f"cd {worktree}\n{command}")
+    console.print(
+        _render_section(
+            "take it over yourself", "blue", Text(f"cd {worktree}\n{command}")
+        )
     )
 
 
@@ -292,7 +298,7 @@ def _show_older_sessions(console: Console, older: list[SessionRow]) -> None:
             Text(str(row.standing)),
             _render_detail(row),
         )
-    _print_section(console, "older sessions", "blue", table)
+    console.print(_render_section("older sessions", "blue", table))
 
 
 def show_feed(

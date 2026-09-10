@@ -453,7 +453,7 @@ src/:
       _render_detail:
       _show_queue:
       _open_table:
-      _print_section:
+      _render_section:
       show_session:
       _show_vitals:
       _show_rounds:

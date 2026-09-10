@@ -51,7 +51,7 @@ def _show_queue(console: Console, board: Board) -> None:
 def _open_table() -> Table:
     ...
 
-def _print_section(console: Console, heading: str, colour: str, body: RenderableType) -> None:
+def _render_section(heading: str, colour: str, body: RenderableType) -> RenderableType:
     ...
 
 def show_session(state: StateDirectory, issue: int, console: Console, clock: Callable[[], datetime]) -> None:
