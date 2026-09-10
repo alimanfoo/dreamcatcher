@@ -34,7 +34,7 @@ def gh(fake):
 
 def weighed(config, claimed=frozenset()):
     """The candidates for that config, given that the listing came through."""
-    judged = judge_issues(REPOSITORY, config, claimed=set(claimed))
+    judged = judge_issues(repository=REPOSITORY, config=config, claimed=set(claimed))
     assert not isinstance(judged, Unknown)
     return judged
 
@@ -57,7 +57,9 @@ def test_the_issues_come_back_oldest_first(gh):
 def test_a_listing_the_tool_cannot_read_answers_unknown_for_the_whole_tick(gh):
     gh.fails("gh: could not connect to github.com", to="issue list")
 
-    judged = judge_issues(REPOSITORY, mapping(labels=["dream:smith"]), claimed=set())
+    judged = judge_issues(
+        repository=REPOSITORY, config=mapping(labels=["dream:smith"]), claimed=set()
+    )
 
     assert isinstance(judged, Unknown)
     assert "could not connect" in judged.reason

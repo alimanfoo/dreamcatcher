@@ -121,7 +121,7 @@ class Daemon:
         self._locate_harnesses()
         self.state.bootstrap()
         repository = _refuse_unknown(
-            identify_repository(self.state.root), "which repository this is"
+            identify_repository(root=self.state.root), "which repository this is"
         )
         account = _refuse_unknown(
             identify_account(), "which account gh is signed in as"
@@ -190,7 +190,9 @@ class Daemon:
         """
         sessions = read_sessions(state=self.state)
         judged = judge_issues(
-            repository, self.config, {session.record.issue for session in sessions}
+            repository=repository,
+            config=self.config,
+            claimed={session.record.issue for session in sessions},
         )
         if isinstance(judged, Unknown):
             candidate_failure = judged.reason
@@ -212,7 +214,7 @@ class Daemon:
                 hold=hold,
                 candidates=candidates,
                 waiting=[
-                    compose_wait(session, cap)
+                    compose_wait(session=session, reason=cap)
                     for session in sessions
                     if session.key not in self.rounds
                     and not session.has_run_final_round
@@ -220,19 +222,21 @@ class Daemon:
             )
         found = self._judge_sessions(repository, account, sessions)
         if candidate_failure is not None:
-            return LastTick(at=at, hold=candidate_failure, waiting=list_waiting(found))
+            return LastTick(
+                at=at, hold=candidate_failure, waiting=list_waiting(found=found)
+            )
         cooling = _check_cooldown(sessions, at)
         if cooling is not None:
             return LastTick(
                 at=at,
                 hold=cooling,
                 candidates=candidates,
-                waiting=list_waiting(found),
+                waiting=list_waiting(found=found),
             )
-        ready = sort_wakeups([one for one in found if isinstance(one, Wakeup)])
+        ready = sort_wakeups(found=[one for one in found if isinstance(one, Wakeup)])
         if ready:
             return self._resume_session(at, ready[0], found, candidates)
-        return self._dispatch_oldest_issue(at, candidates, list_waiting(found))
+        return self._dispatch_oldest_issue(at, candidates, list_waiting(found=found))
 
     def _judge_sessions(
         self, repository: str, account: str, sessions: list[Session]
@@ -247,7 +251,9 @@ class Daemon:
         for session in sessions:
             if session.key in self.rounds:
                 continue
-            needed = judge_session(repository, account, session)
+            needed = judge_session(
+                repository=repository, account=account, session=session
+            )
             if needed is not None:
                 found.append(needed)
         return found
@@ -272,14 +278,14 @@ class Daemon:
                 at=at,
                 hold=str(failure),
                 candidates=candidates,
-                waiting=list_waiting(found),
+                waiting=list_waiting(found=found),
             )
         rest = [one for one in found if one is not wakeup]
         return LastTick(
             at=at,
             launched=wakeup.session.key,
             candidates=candidates,
-            waiting=list_waiting(rest),
+            waiting=list_waiting(found=rest),
         )
 
     def _launch_wakeup(self, wakeup: Wakeup) -> None:

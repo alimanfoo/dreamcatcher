@@ -13,25 +13,25 @@ from dreamcatcher.words import describe_count
 type Finding = Wakeup | WaitingSession
 PRIORITY = (Cause.CARRY_ON, Cause.FINAL, Cause.POSTS)
 
-def sort_wakeups(found: list[Wakeup]) -> list[Wakeup]:
+def sort_wakeups(*, found: list[Wakeup]) -> list[Wakeup]:
     ...
 
-def list_waiting(found: list[Finding]) -> list[WaitingSession]:
+def list_waiting(*, found: list[Finding]) -> list[WaitingSession]:
     ...
 
-def judge_session(repository: str, account: str, session: Session) -> Finding | None:
+def judge_session(*, repository: str, account: str, session: Session) -> Finding | None:
     ...
 
-def _judge_pull_request(repository: str, account: str, session: Session) -> Finding | None:
+def _judge_pull_request(*, repository: str, account: str, session: Session) -> Finding | None:
     ...
 
-def _choose_pull_request(found: list[PullRequest]) -> PullRequest | None:
+def _choose_pull_request(*, found: list[PullRequest]) -> PullRequest | None:
     ...
 
-def _compose_resume(session: Session, pull_request: PullRequest, posted: list[AnyPost]) -> Wakeup:
+def _compose_resume(*, session: Session, pull_request: PullRequest, posted: list[AnyPost]) -> Wakeup:
     ...
 
-def compose_wait(session: Session, reason: str, is_stuck: bool) -> WaitingSession:
+def compose_wait(*, session: Session, reason: str, is_stuck: bool) -> WaitingSession:
     ...
 
 class Wakeup:

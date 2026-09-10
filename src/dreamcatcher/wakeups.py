@@ -70,7 +70,7 @@ type Finding = Wakeup | WaitingSession
 PRIORITY = (Cause.CARRY_ON, Cause.FINAL, Cause.POSTS)
 
 
-def sort_wakeups(found: list[Wakeup]) -> list[Wakeup]:
+def sort_wakeups(*, found: list[Wakeup]) -> list[Wakeup]:
     """Return the wakeups with the most open work first.
 
     Two wakeups of one kind keep the order their sessions came in, which is by
@@ -79,7 +79,7 @@ def sort_wakeups(found: list[Wakeup]) -> list[Wakeup]:
     return sorted(found, key=lambda resume: PRIORITY.index(resume.cause))
 
 
-def list_waiting(found: list[Finding]) -> list[WaitingSession]:
+def list_waiting(*, found: list[Finding]) -> list[WaitingSession]:
     """Return what each of these findings says its session is waiting on.
 
     A wakeup that no round ran is a session waiting for a later tick, and the
@@ -88,12 +88,12 @@ def list_waiting(found: list[Finding]) -> list[WaitingSession]:
     return [
         one
         if isinstance(one, WaitingSession)
-        else compose_wait(one.session, one.reason)
+        else compose_wait(session=one.session, reason=one.reason)
         for one in found
     ]
 
 
-def judge_session(repository: str, account: str, session: Session) -> Finding | None:
+def judge_session(*, repository: str, account: str, session: Session) -> Finding | None:
     """Return what the session needs next, or nothing when it needs nothing.
 
     A session that needs a round comes back as the wakeup that runs it, and one
@@ -109,7 +109,7 @@ def judge_session(repository: str, account: str, session: Session) -> Finding | 
     here.
     """
     if not session.rounds:
-        return compose_wait(session, NO_ROUND_HAS_RUN, is_stuck=True)
+        return compose_wait(session=session, reason=NO_ROUND_HAS_RUN, is_stuck=True)
     unfinished = session.describe_unfinished_round()
     if unfinished is not None:
         return Wakeup(
@@ -118,11 +118,11 @@ def judge_session(repository: str, account: str, session: Session) -> Finding | 
             reason=unfinished,
             prompt=CARRY_ON_PROMPT,
         )
-    return _judge_pull_request(repository, account, session)
+    return _judge_pull_request(repository=repository, account=account, session=session)
 
 
 def _judge_pull_request(
-    repository: str, account: str, session: Session
+    *, repository: str, account: str, session: Session
 ) -> Finding | None:
     """Return what the session's pull request asks of it, if anything.
 
@@ -135,35 +135,38 @@ def _judge_pull_request(
     A session that has already run that last round is done, and is not peeked
     at again.
     """
-    found = list_pull_requests(repository, session.record.branch)
+    found = list_pull_requests(repository=repository, branch=session.record.branch)
     if isinstance(found, Unknown):
         return compose_wait(
-            session, f"cannot tell which pull request it has: {found.reason}"
+            session=session,
+            reason=f"cannot tell which pull request it has: {found.reason}",
         )
-    pull_request = _choose_pull_request(found)
+    pull_request = _choose_pull_request(found=found)
     if pull_request is None:
         return compose_wait(
-            session, "no pull request has been opened on it", is_stuck=True
+            session=session,
+            reason="no pull request has been opened on it",
+            is_stuck=True,
         )
     is_open = pull_request.state is PullRequestState.OPEN
     if not is_open and session.has_run_final_round:
         return None
     posted = peek_new_posts(
-        repository,
-        pull_request.number,
+        repository=repository,
+        pull_request=pull_request.number,
         account=account,
         watermark=session.watermark,
     )
     if isinstance(posted, Unknown):
         return compose_wait(
-            session, f"cannot tell what the user posted: {posted.reason}"
+            session=session, reason=f"cannot tell what the user posted: {posted.reason}"
         )
     if is_open and not posted:
         return None
-    return _compose_resume(session, pull_request, posted)
+    return _compose_resume(session=session, pull_request=pull_request, posted=posted)
 
 
-def _choose_pull_request(found: list[PullRequest]) -> PullRequest | None:
+def _choose_pull_request(*, found: list[PullRequest]) -> PullRequest | None:
     """Return the pull request that says where the session's work has got to.
 
     A branch has one pull request, near enough. Where it has more, an open one
@@ -182,7 +185,7 @@ def _choose_pull_request(found: list[PullRequest]) -> PullRequest | None:
 
 
 def _compose_resume(
-    session: Session, pull_request: PullRequest, posted: list[AnyPost]
+    *, session: Session, pull_request: PullRequest, posted: list[AnyPost]
 ) -> Wakeup:
     """Return the round that the pull request and the user's posts call for.
 
@@ -207,7 +210,7 @@ def _compose_resume(
 
 
 def compose_wait(
-    session: Session, reason: str, is_stuck: bool = False
+    *, session: Session, reason: str, is_stuck: bool = False
 ) -> WaitingSession:
     """Return the session as one waiting on what this reason says.
 

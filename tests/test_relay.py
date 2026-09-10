@@ -34,7 +34,10 @@ BEFORE = "2026-09-03T16:49:35Z"
 def peeked(watermark: str = "") -> list[AnyPost]:
     """What the user newly posted, given that gh answered every post list."""
     found = peek_new_posts(
-        REPOSITORY, PULL_REQUEST, account=POSTED_BY, watermark=watermark
+        repository=REPOSITORY,
+        pull_request=PULL_REQUEST,
+        account=POSTED_BY,
+        watermark=watermark,
     )
     assert not isinstance(found, Unknown)
     return found
@@ -181,7 +184,10 @@ def test_a_read_that_failed_says_so_rather_than_reading_as_nothing_posted(
     )
 
     found = peek_new_posts(
-        REPOSITORY, PULL_REQUEST, account=POSTED_BY, watermark=POSTED_AT
+        repository=REPOSITORY,
+        pull_request=PULL_REQUEST,
+        account=POSTED_BY,
+        watermark=POSTED_AT,
     )
 
     assert isinstance(found, Unknown)

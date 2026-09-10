@@ -31,7 +31,7 @@ from dreamcatcher.state import CandidateIssue
 
 
 def judge_issues(
-    repository: str, config: Config, claimed: set[int]
+    *, repository: str, config: Config, claimed: set[int]
 ) -> list[CandidateIssue] | Unknown:
     """Return every labelled issue assigned to the user, oldest first.
 
@@ -46,14 +46,19 @@ def judge_issues(
     tick. Otherwise, an issue that it cannot see might be dispatched a second
     time.
     """
-    listed = _list_issues(repository, config)
+    listed = _list_issues(repository=repository, config=config)
     if isinstance(listed, Unknown):
         return listed
     return [
         CandidateIssue(
             issue=issue.number,
             label=label,
-            reason=_find_obstacle(repository, issue.number, labels, claimed),
+            reason=_find_obstacle(
+                repository=repository,
+                issue=issue.number,
+                labels=labels,
+                claimed=claimed,
+            ),
         )
         for issue, labels in listed
         for label in labels
@@ -61,7 +66,7 @@ def judge_issues(
 
 
 def _list_issues(
-    repository: str, config: Config
+    *, repository: str, config: Config
 ) -> list[tuple[Issue, list[str]]] | Unknown:
     """Return each listed issue with the mapped labels it carries, oldest first.
 
@@ -72,7 +77,7 @@ def _list_issues(
     found: dict[int, Issue] = {}
     for mapping in config.dispatch:
         answered = list_issues(
-            repository, label=mapping.label, assignee=config.assignee
+            repository=repository, label=mapping.label, assignee=config.assignee
         )
         if isinstance(answered, Unknown):
             return answered
@@ -88,7 +93,7 @@ def _list_issues(
 
 
 def _find_obstacle(
-    repository: str, issue: int, labels: list[str], claimed: set[int]
+    *, repository: str, issue: int, labels: list[str], claimed: set[int]
 ) -> str | None:
     """Return what stands in the way of dispatching the issue, or nothing.
 
@@ -99,17 +104,19 @@ def _find_obstacle(
         return f"carries more than one mapped label: {', '.join(sorted(labels))}"
     if issue in claimed:
         return "a session in this checkout is working on it"
-    return _check_pull_requests(repository, issue) or _check_blockers(repository, issue)
+    return _check_pull_requests(repository=repository, issue=issue) or _check_blockers(
+        repository=repository, issue=issue
+    )
 
 
-def _check_pull_requests(repository: str, issue: int) -> str | None:
+def _check_pull_requests(*, repository: str, issue: int) -> str | None:
     """Return what says somebody has a pull request open on the issue.
 
     GitHub lists only open pull requests here. A pull request that was closed
     without merging therefore drops out of the listing, and its issue is free to
     be dispatched again. To stop that, the user can remove the label.
     """
-    linked = list_linked_pull_requests(repository, issue)
+    linked = list_linked_pull_requests(repository=repository, issue=issue)
     if isinstance(linked, Unknown):
         return f"cannot tell whether a pull request claims it: {linked.reason}"
     if linked:
@@ -118,9 +125,9 @@ def _check_pull_requests(repository: str, issue: int) -> str | None:
     return None
 
 
-def _check_blockers(repository: str, issue: int) -> str | None:
+def _check_blockers(*, repository: str, issue: int) -> str | None:
     """Return what still blocks the issue, or nothing when no blocker is open."""
-    blocking = list_blockers(repository, issue)
+    blocking = list_blockers(repository=repository, issue=issue)
     if isinstance(blocking, Unknown):
         return f"cannot tell what blocks it: {blocking.reason}"
     open_blockers = [

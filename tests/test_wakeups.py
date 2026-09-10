@@ -59,7 +59,9 @@ def ran(state, number: int, cause: Cause, status: int | None = 0) -> None:
 
 def found(state) -> Wakeup | WaitingSession | None:
     """What the one session in that state directory needs next."""
-    return judge_session(REPOSITORY, POSTED_BY, read_sessions(state=state)[0])
+    return judge_session(
+        repository=REPOSITORY, account=POSTED_BY, session=read_sessions(state=state)[0]
+    )
 
 
 def test_a_session_that_has_run_no_round_at_all_waits_for_a_person(state):
@@ -276,7 +278,7 @@ def test_the_most_open_work_comes_first(state):
         return Wakeup(session=session, cause=cause, reason="", prompt="")
 
     ordered = sort_wakeups(
-        [resume(Cause.POSTS), resume(Cause.FINAL), resume(Cause.CARRY_ON)]
+        found=[resume(Cause.POSTS), resume(Cause.FINAL), resume(Cause.CARRY_ON)]
     )
 
     assert [found.cause for found in ordered] == [

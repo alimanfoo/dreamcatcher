@@ -227,8 +227,11 @@ class InlineComment(Post):
 
     @model_validator(mode="before")
     @classmethod
-    def _fall_back_to_the_original_lines(cls, document: Any) -> Any:
+    def _fall_back_to_the_original_lines(cls, document: Any, /) -> Any:
         """Read the lines the comment was written against, wherever they are.
+
+        pydantic is what calls this, and it passes the document positionally,
+        so the parameter is positional-only.
 
         A commit that lands after the comment can move the code it was written
         against, or take it away. GitHub then answers no line and keeps the
@@ -273,7 +276,7 @@ POST_LISTS = (
 )
 
 
-def identify_repository(root: Path) -> str | Unknown:
+def identify_repository(*, root: Path) -> str | Unknown:
     """Return the repository the checkout at root belongs to, as owner/name.
 
     gh reads the repository from the checkout's own remote, so this asks from
@@ -297,7 +300,7 @@ def identify_account() -> str | Unknown:
     return answered.login
 
 
-def list_issues(repository: str, *, label: str, assignee: str) -> list[Issue] | Unknown:
+def list_issues(*, repository: str, label: str, assignee: str) -> list[Issue] | Unknown:
     """Return the repository's open issues carrying label and assigned to assignee."""
     return _read(
         shape=ISSUES,
@@ -320,7 +323,7 @@ def list_issues(repository: str, *, label: str, assignee: str) -> list[Issue] | 
     )
 
 
-def list_pull_requests(repository: str, branch: str) -> list[PullRequest] | Unknown:
+def list_pull_requests(*, repository: str, branch: str) -> list[PullRequest] | Unknown:
     """Return the pull requests branch is the head of, whatever state each is in.
 
     A branch usually has one, and an empty list means it has none. Which of
@@ -344,7 +347,7 @@ def list_pull_requests(repository: str, branch: str) -> list[PullRequest] | Unkn
 
 
 def list_linked_pull_requests(
-    repository: str, issue: int
+    *, repository: str, issue: int
 ) -> list[LinkedPullRequest] | Unknown:
     """Return the open pull requests GitHub links to this issue.
 
@@ -369,7 +372,7 @@ def list_linked_pull_requests(
     return answered.pull_requests
 
 
-def list_blockers(repository: str, issue: int) -> list[Blocker] | Unknown:
+def list_blockers(*, repository: str, issue: int) -> list[Blocker] | Unknown:
     """Return the issues blocking this one, each with its own state.
 
     This reads the one page GitHub answers with, so an issue with more than
@@ -384,7 +387,7 @@ def list_blockers(repository: str, issue: int) -> list[Blocker] | Unknown:
     )
 
 
-def list_posts(repository: str, pull_request: int) -> list[AnyPost] | Unknown:
+def list_posts(*, repository: str, pull_request: int) -> list[AnyPost] | Unknown:
     """Return everything anybody posted on the pull request, from all three places.
 
     The three come back as one list, because somebody reading a pull request
@@ -399,7 +402,7 @@ def list_posts(repository: str, pull_request: int) -> list[AnyPost] | Unknown:
     found: list[AnyPost] = []
     for shape, under, listed in POST_LISTS:
         path = f"repos/{repository}/{under}/{pull_request}/{listed}"
-        answered = _read_pages(shape, path)
+        answered = _read_pages(shape=shape, path=path)
         if isinstance(answered, Unknown):
             return answered
         found.extend(answered)
@@ -407,7 +410,7 @@ def list_posts(repository: str, pull_request: int) -> list[AnyPost] | Unknown:
 
 
 def _read_pages[PostT: AnyPost](
-    shape: TypeAdapter[list[list[PostT]]], path: str
+    *, shape: TypeAdapter[list[list[PostT]]], path: str
 ) -> list[AnyPost] | Unknown:
     """Return every post the paginated list at path holds, or Unknown.
 

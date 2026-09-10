@@ -26,28 +26,28 @@ REVIEWS = TypeAdapter(list[list[Review]])
 INLINE_COMMENTS = TypeAdapter(list[list[InlineComment]])
 POST_LISTS = ...
 
-def identify_repository(root: Path) -> str | Unknown:
+def identify_repository(*, root: Path) -> str | Unknown:
     ...
 
 def identify_account() -> str | Unknown:
     ...
 
-def list_issues(repository: str, *, label: str, assignee: str) -> list[Issue] | Unknown:
+def list_issues(*, repository: str, label: str, assignee: str) -> list[Issue] | Unknown:
     ...
 
-def list_pull_requests(repository: str, branch: str) -> list[PullRequest] | Unknown:
+def list_pull_requests(*, repository: str, branch: str) -> list[PullRequest] | Unknown:
     ...
 
-def list_linked_pull_requests(repository: str, issue: int) -> list[LinkedPullRequest] | Unknown:
+def list_linked_pull_requests(*, repository: str, issue: int) -> list[LinkedPullRequest] | Unknown:
     ...
 
-def list_blockers(repository: str, issue: int) -> list[Blocker] | Unknown:
+def list_blockers(*, repository: str, issue: int) -> list[Blocker] | Unknown:
     ...
 
-def list_posts(repository: str, pull_request: int) -> list[AnyPost] | Unknown:
+def list_posts(*, repository: str, pull_request: int) -> list[AnyPost] | Unknown:
     ...
 
-def _read_pages(shape: TypeAdapter[list[list[PostT]]], path: str) -> list[AnyPost] | Unknown:
+def _read_pages(*, shape: TypeAdapter[list[list[PostT]]], path: str) -> list[AnyPost] | Unknown:
     ...
 
 def _read(*, shape: TypeAdapter[ReadT], arguments: Sequence[str], cwd: Path | None) -> ReadT | Unknown:
@@ -123,5 +123,5 @@ class InlineComment(Post):
     start_line: int | None = None
     diff_hunk: str
 
-    def _fall_back_to_the_original_lines(cls, document: Any) -> Any:
+    def _fall_back_to_the_original_lines(cls, document: Any, /) -> Any:
         ...
