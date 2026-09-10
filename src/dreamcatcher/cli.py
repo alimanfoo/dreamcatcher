@@ -91,7 +91,7 @@ def _scry(args: argparse.Namespace) -> None:
     elif args.follow:
         scry.show_feed(state, args.issue, console)
     elif args.round is not None:
-        scry.show_round(state, args.issue, args.round, console)
+        scry.show_feed(state, args.issue, console, round_number=args.round)
     else:
         scry.show_session(state, args.issue, console)
 

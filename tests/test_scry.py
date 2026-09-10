@@ -29,7 +29,6 @@ from dreamcatcher.scry import (
     _paint_written,
     show_board,
     show_feed,
-    show_round,
     show_session,
 )
 from dreamcatcher.state import (
@@ -343,7 +342,7 @@ def test_a_session_renders_as_its_golden_view(name, tmp_path, daemon):
 def followed(state, issue: int, wait=lambda seconds: None) -> str:
     """Return the feed view that issue renders as, on a pinned console."""
     written_to = StringIO()
-    show_feed(state, issue, pinned(written_to), wait=wait, clock=lambda: LOOKED_AT)
+    show_feed(state, issue, pinned(written_to), wait=wait)
     return written_to.getvalue()
 
 
@@ -551,10 +550,10 @@ def test_a_reader_who_has_seen_enough_interrupts_the_view(tmp_path, daemon):
     assert "[Bash] pytest" in followed(state, 13, wait=interrupting)
 
 
-def viewed_round(state, issue: int, number: int) -> str:
+def viewed_round(state, issue: int, number: int, wait=lambda seconds: None) -> str:
     """Return the view of one round of that issue, on a pinned console."""
     written_to = StringIO()
-    show_round(state, issue, number, pinned(written_to), clock=lambda: LOOKED_AT)
+    show_feed(state, issue, pinned(written_to), round_number=number, wait=wait)
     return written_to.getvalue()
 
 
@@ -573,6 +572,18 @@ def test_a_round_that_wrote_no_feed_shows_the_line_that_opens_it(tmp_path, daemo
     fabricate_everything(state)
 
     assert viewed_round(state, 12, 1) == "2026-08-19T18:42:58Z  round 1: dispatched\n"
+
+
+def test_a_view_of_one_round_shows_it_as_it_stands(tmp_path, daemon):
+    state = StateDirectory(tmp_path)
+    fabricate_everything(state)
+    waits = []
+
+    # Round 2 of this session is still running, so a view that followed the
+    # whole session would wait here for whatever it says next.
+    viewed_round(state, 13, 2, wait=waits.append)
+
+    assert waits == []
 
 
 def test_a_round_the_session_never_ran_says_how_many_it_did(tmp_path, daemon):

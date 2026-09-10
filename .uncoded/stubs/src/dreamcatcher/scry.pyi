@@ -75,10 +75,13 @@ def _show_hand_resume(console: Console, state: StateDirectory, row: SessionRow) 
 def _show_older_sessions(console: Console, older: list[SessionRow]) -> None:
     ...
 
-def show_round(state: StateDirectory, issue: int, number: int, console: Console, clock: Callable[[], datetime]) -> None:
+def show_feed(state: StateDirectory, issue: int, console: Console, round_number: int | None, wait: Callable[[float], None]) -> None:
     ...
 
-def show_feed(state: StateDirectory, issue: int, console: Console, wait: Callable[[float], None], clock: Callable[[], datetime]) -> None:
+def _list_shown_rounds(session: Session, round_number: int | None) -> list[int]:
+    ...
+
+def _is_view_over(row: SessionRow, round_number: int | None) -> bool:
     ...
 
 def _find_rows_for_issue(state: StateDirectory, issue: int, clock: Callable[[], datetime]) -> list[SessionRow]:

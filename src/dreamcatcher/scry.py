@@ -293,34 +293,23 @@ def _show_older_sessions(console: Console, older: list[SessionRow]) -> None:
     _print_section(console, "older sessions", "blue", table)
 
 
-def show_round(
-    state: StateDirectory,
-    issue: int,
-    number: int,
-    console: Console,
-    clock: Callable[[], datetime] = now,
-) -> None:
-    """Show the feed of one round of the issue's newest session.
-
-    The round list of the session view is where a reader finds the number.
-    """
-    session = _find_rows_for_issue(state, issue, clock)[0].session
-    if not 1 <= number <= len(session.rounds):
-        raise ReportableError(
-            f"{session.key} has run {describe_count(len(session.rounds), 'round')}, "
-            f"so it has no round {number}."
-        )
-    _FeedView(console).show_what_arrived(session, [number])
-
-
 def show_feed(
     state: StateDirectory,
     issue: int,
     console: Console,
+    round_number: int | None = None,
     wait: Callable[[float], None] = sleep,
-    clock: Callable[[], datetime] = now,
 ) -> None:
-    """Show every round of the issue's newest session, and follow what arrives.
+    """Show what the issue's newest session said, and follow what arrives.
+
+    Naming a round narrows the view to that one round, as it stands. The round
+    list of the session view is where a reader finds the number. Everything
+    below is about the view of the whole session, which is what a reader gets
+    when they name no round.
+
+    This view reads no clock, unlike the two that say how long ago something
+    happened. Every line it shows carries the time it was written, so what it
+    shows is the same whenever it is read.
 
     Reading a session that is over and watching one that is going are the same
     view in two tenses, so this shows what is there and then keeps showing what
@@ -352,18 +341,47 @@ def show_feed(
     was_over = True
     with suppress(KeyboardInterrupt):
         while True:
-            row = _find_rows_for_issue(state, issue, clock)[0]
+            row = _find_rows_for_issue(state, issue)[0]
             session = row.session
-            view.show_what_arrived(session, range(1, len(session.rounds) + 1))
-            is_over = row.standing in (SessionStanding.DONE, SessionStanding.STUCK)
+            view.show_what_arrived(session, _list_shown_rounds(session, round_number))
+            is_over = _is_view_over(row, round_number)
             if is_over and was_over:
                 return
             was_over = is_over
             wait(PAUSE)
 
 
+def _list_shown_rounds(session: Session, round_number: int | None) -> list[int]:
+    """Return the numbers of the rounds the view shows.
+
+    A view of the whole session shows every round it has run, and a view of
+    one round shows that one. A number no round of the session carries is the
+    reader's mistake, and is the one thing this turns into words for them.
+    """
+    if round_number is None:
+        return list(range(1, len(session.rounds) + 1))
+    if not 1 <= round_number <= len(session.rounds):
+        raise ReportableError(
+            f"{session.key} has run {describe_count(len(session.rounds), 'round')}, "
+            f"so it has no round {round_number}."
+        )
+    return [round_number]
+
+
+def _is_view_over(row: SessionRow, round_number: int | None) -> bool:
+    """Say whether the view has shown everything that it is going to show.
+
+    A named round is shown as it stands, so the view of one is over as soon as
+    it has shown it. A view of the whole session is over once the session can
+    produce no more rounds, which is what its standing says.
+    """
+    if round_number is not None:
+        return True
+    return row.standing in (SessionStanding.DONE, SessionStanding.STUCK)
+
+
 def _find_rows_for_issue(
-    state: StateDirectory, issue: int, clock: Callable[[], datetime]
+    state: StateDirectory, issue: int, clock: Callable[[], datetime] = now
 ) -> list[SessionRow]:
     """Return the rows for the issue, newest session first, or refuse if none.
 

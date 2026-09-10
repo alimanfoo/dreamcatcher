@@ -397,8 +397,9 @@ src/:
       _describe_ending:
       _show_hand_resume:
       _show_older_sessions:
-      show_round:
       show_feed:
+      _list_shown_rounds:
+      _is_view_over:
       _find_rows_for_issue:
       _paint_written:
       _paint:
@@ -1057,6 +1058,7 @@ tests/:
     viewed_round:
     test_one_round_of_a_session_reads_on_its_own:
     test_a_round_that_wrote_no_feed_shows_the_line_that_opens_it:
+    test_a_view_of_one_round_shows_it_as_it_stands:
     test_a_round_the_session_never_ran_says_how_many_it_did:
     test_an_issue_no_session_here_has_says_so:
   test_sessions.py:
