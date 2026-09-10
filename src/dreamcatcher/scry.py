@@ -61,7 +61,7 @@ INDENT = (0, 0, 0, 2)
 
 
 def open_console() -> Console:
-    """Return the console the views are written to."""
+    """Return the console that the views are written to."""
     return Console()
 
 

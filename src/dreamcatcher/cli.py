@@ -30,7 +30,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--version", action="version", version=version("dreamcatcher"))
     verbs = parser.add_subparsers(title="verbs", dest="verb", required=True)
-    run_parser = verbs.add_parser("run", help="run the dreamcatcher daemon")
+    run_parser = verbs.add_parser(
+        "run",
+        help="run the dreamcatcher daemon",
+        description=(
+            "Watch this repository for labelled issues, dispatch an agent "
+            "session for each, and carry every session on until its pull "
+            "request is yours to review. One daemon watches one repo, so a "
+            "second run on this one refuses while the first is alive."
+        ),
+    )
     run_parser.add_argument(
         "--harness",
         required=True,
@@ -41,35 +50,57 @@ def build_parser() -> argparse.ArgumentParser:
     )
     run_parser.set_defaults(act=_run)
     board_parser = verbs.add_parser(
-        "board", help="show every session and every queued issue"
+        "board",
+        help="show every session and every queued issue",
+        description=(
+            "Show every session and every queued issue, a section per "
+            "standing, in the order of whose turn it is."
+        ),
     )
     board_parser.set_defaults(act=_show_board)
     session_parser = verbs.add_parser(
-        "session", help="show one issue's newest session, in detail"
+        "session",
+        help="show one issue's newest session, in detail",
+        description=(
+            "Show the newest session at the issue: what its dispatch "
+            "settled, the rounds it has run, the command that takes the "
+            "session over by hand, and the older sessions at the same issue."
+        ),
     )
     _take_an_issue(session_parser)
     session_parser.set_defaults(act=_show_session)
     feed_parser = verbs.add_parser(
-        "feed", help="show what the agent said, as it says it"
+        "feed",
+        help="show what the agent said, as it says it",
+        description=(
+            "Show every round of the issue's newest session, and keep "
+            "showing what arrives for as long as the session has another "
+            "round coming. It ends once the session has run its final "
+            "round, and on a stuck session, which only you can move on. "
+            "Interrupt it to end it sooner."
+        ),
     )
     _take_an_issue(feed_parser)
     feed_parser.add_argument(
         "--round",
         type=int,
         metavar="N",
-        help="show the feed of that round of the session, as it stands",
+        help=(
+            "show the feed of that round alone, as it stands. The session "
+            "view's round list is where you find the number"
+        ),
     )
     feed_parser.set_defaults(act=_show_feed)
     return parser
 
 
 def _take_an_issue(parser: argparse.ArgumentParser) -> None:
-    """Give the verb the issue whose newest session it shows."""
+    """Give the verb the issue it shows, written as the issue itself is."""
     parser.add_argument(
         "issue",
         type=_read_issue,
         metavar="GH<n>",
-        help="the issue whose newest session to show",
+        help="the issue to show",
     )
 
 

@@ -134,6 +134,19 @@ def test_the_board_takes_no_issue(capsys):
     assert "GH13" in capsys.readouterr().err
 
 
+@pytest.mark.parametrize("verb", ["run", "board", "session", "feed"])
+def test_every_verb_describes_itself_in_its_own_help(verb, capsys):
+    with pytest.raises(SystemExit) as exit_info:
+        main([verb, "--help"])
+
+    # argparse sets the verb's description between the usage line and the
+    # first list of arguments, so a verb that carries none runs the two
+    # together and the reader learns nothing but the arguments.
+    assert exit_info.value.code == 0
+    _, _, described = capsys.readouterr().out.partition("\n\n")
+    assert not described.startswith(("positional arguments:", "options:"))
+
+
 def test_a_bare_invocation_asks_for_a_verb(capsys):
     with pytest.raises(SystemExit) as exit_info:
         main([])

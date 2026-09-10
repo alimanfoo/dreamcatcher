@@ -54,6 +54,9 @@ def test_a_round_belongs_to_the_feed_and_to_no_other_verb(capsys):
 def test_the_board_takes_no_issue(capsys):
     ...
 
+def test_every_verb_describes_itself_in_its_own_help(verb, capsys):
+    ...
+
 def test_a_bare_invocation_asks_for_a_verb(capsys):
     ...
 

@@ -648,6 +648,7 @@ tests/:
     test_a_feed_with_no_issue_to_show_asks_for_one:
     test_a_round_belongs_to_the_feed_and_to_no_other_verb:
     test_the_board_takes_no_issue:
+    test_every_verb_describes_itself_in_its_own_help:
     test_a_bare_invocation_asks_for_a_verb:
     test_run_starts_a_daemon_on_the_current_directory:
     test_the_harness_flag_says_what_to_run_rounds_with:
