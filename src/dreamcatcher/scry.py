@@ -105,7 +105,7 @@ def _describe_daemon(board: Board) -> Text:
 
 def _show_rows(console: Console, board: Board, standing: SessionStanding) -> None:
     """Show the sessions standing there, a row for each."""
-    rows = board.list_standing(standing)
+    rows = board.list_rows_for_standing(standing)
     if not rows:
         return
     table = _open_table()

@@ -50,7 +50,7 @@ class Board:
     rows: list[SessionRow]
     queued: list[QueuedIssue]
 
-    def list_standing(self, standing: SessionStanding) -> list[SessionRow]:
+    def list_rows_for_standing(self, standing: SessionStanding) -> list[SessionRow]:
         ...
 
 class _Look:

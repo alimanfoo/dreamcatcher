@@ -266,7 +266,7 @@ def test_the_work_that_is_done_reads_most_recent_first(state):
         ),
     )
 
-    done = looked(state).list_standing(SessionStanding.DONE)
+    done = looked(state).list_rows_for_standing(SessionStanding.DONE)
 
     assert [row.session.record.issue for row in done] == [9, 13]
 
@@ -274,7 +274,7 @@ def test_the_work_that_is_done_reads_most_recent_first(state):
 def test_the_sessions_in_one_standing_come_back_in_the_boards_own_order(state):
     write_session(state, "GH9-20260819-184158", 9)
 
-    waiting = looked(state).list_standing(SessionStanding.STUCK)
+    waiting = looked(state).list_rows_for_standing(SessionStanding.STUCK)
 
     assert [row.session.record.issue for row in waiting] == [9, 13]
 

@@ -108,7 +108,7 @@ class Board:
     rows: list[SessionRow]
     queued: list[QueuedIssue]
 
-    def list_standing(self, standing: SessionStanding) -> list[SessionRow]:
+    def list_rows_for_standing(self, standing: SessionStanding) -> list[SessionRow]:
         """Return the rows standing there, in the order the board reads them.
 
         Work that is done reads by when its last round started, most recent
