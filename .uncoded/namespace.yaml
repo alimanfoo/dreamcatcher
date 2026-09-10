@@ -649,6 +649,7 @@ tests/:
     test_an_event_shaped_in_a_way_the_parser_cannot_read_comes_through_unchanged:
     test_a_tool_input_that_is_not_a_mapping_comes_through_unchanged:
   test_cli.py:
+    SESSION:
     watching:
     started:
     test_version_prints_the_installed_version:

@@ -519,13 +519,12 @@ Repeat sessions group under their issue: three sessions for one issue read as
 three goes at one thing, current one first. `scry GH123` shows the newest
 session, older sessions listed beneath it. The session view opens with the key,
 and shows vitals (the session's label, its branch, its worktree, and the
-harness, model and effort it was dispatched with, then the literal first
-prompt), the round list with causes and durations, and — when no round is live —
-the exact command to resume the session interactively by hand
-(`claude --continue` from the worktree, or the matching `codex resume --last`),
-built from `session.json`. `codex exec resume` is the headless resume the
-daemon's own rounds run, so the interactive `codex resume` is what a person is
-given instead.
+harness, model and effort it was dispatched with), the round list with causes
+and durations, and — when no round is live — the exact command to resume the
+session interactively by hand (`claude --continue` from the worktree, or the
+matching `codex resume --last`), built from `session.json`. `codex exec resume`
+is the headless resume the daemon's own rounds run, so the interactive
+`codex resume` is what a person is given instead.
 
 ### The contract page
 

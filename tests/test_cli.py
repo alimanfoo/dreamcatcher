@@ -14,6 +14,9 @@ from dreamcatcher.feed import Line
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.state import StateDirectory
 
+# The one session the watched checkout holds, by the key it is written under.
+SESSION = "GH13-20260819-184158"
+
 
 @pytest.fixture
 def watching(tmp_path):
@@ -21,7 +24,7 @@ def watching(tmp_path):
     state = StateDirectory(tmp_path)
     state.bootstrap()
     write_text(f"{os.getpid()}\n", state.lock)
-    directory = write_session(state, "GH13-20260819-184158", 13)
+    directory = write_session(state, SESSION, 13)
     write_round(directory, 1, RoundRecord(started=PINNED, pid=1, cause=Cause.DISPATCH))
     write_feed(directory, 1, Line(PINNED, "[Bash] pytest"))
     return state
@@ -63,14 +66,14 @@ def test_session_shows_the_newest_session_at_the_issue(monkeypatch, watching, ca
     monkeypatch.chdir(watching.root)
 
     assert main(["session", "GH13"]) == 0
-    assert "first prompt" in capsys.readouterr().out
+    assert SESSION in capsys.readouterr().out
 
 
 def test_an_issue_reads_however_the_reader_wrote_it(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
 
     assert main(["session", "gh13"]) == 0
-    assert "first prompt" in capsys.readouterr().out
+    assert SESSION in capsys.readouterr().out
 
 
 def test_something_that_is_not_an_issue_reference_is_refused(capsys):
@@ -89,7 +92,7 @@ def test_feed_shows_what_the_session_said(monkeypatch, watching, capsys):
     # after the first one rather than alongside it.
     later = PINNED + timedelta(minutes=1)
     write_round(
-        watching.sessions / "GH13-20260819-184158",
+        watching.sessions / SESSION,
         2,
         RoundRecord(
             started=later,

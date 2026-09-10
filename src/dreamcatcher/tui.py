@@ -384,10 +384,7 @@ def _render_vitals(state: StateDirectory, row: SessionRow) -> RenderableType:
         ("effort", record.effort),
     ):
         table.add_row(Text(name), Text(str(value)))
-    return Group(
-        _render_section("session", "blue", table),
-        _render_section("first prompt", "blue", Text(record.prompt)),
-    )
+    return _render_section("session", "blue", table)
 
 
 def _render_rounds(row: SessionRow) -> RenderableType | None:

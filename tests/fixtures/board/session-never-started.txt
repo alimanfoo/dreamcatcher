@@ -8,6 +8,3 @@ session
   harness   claude                                      
   model     opus[1m]                                    
   effort    xhigh                                       
-
-first prompt
-  /dream:smith GH44
