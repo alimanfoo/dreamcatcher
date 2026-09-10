@@ -513,16 +513,18 @@ it. A queued row names an issue and not a session, so it reads `GH<n>`.
 
 A working row opens with the round that is running, and how long it has been
 running: `round 2, running 8m, last output 3m ago`. How long it has run reads
-before what it last said, because a round that has run far longer than its
-fellows is doing something pathological whatever it last said. No other row
-names a round, since a session between rounds has one behind it and another to
-come, so a bare number there would read as either.
+before what it last said, so a round going far longer than the others shows as
+one however recently it spoke. No other row names a round, since a session
+between rounds has one behind it and another to come, so a bare number there
+would read as either.
 
 Repeat sessions group under their issue: three sessions for one issue read as
 three goes at one thing, current one first. `scry GH123` shows the newest
-session, older sessions listed beneath it. The session view opens with the key,
-and shows vitals (the session's label, its branch, its worktree, and the
-harness, model and effort it was dispatched with, then the literal first
+session, older sessions listed beneath it. The session view opens with the key
+and where the session stands, in the words the board's own row gives it, so a
+working session says there how long its round has been running and what it last
+said. It then shows vitals (the session's label, its branch, its worktree, and
+the harness, model and effort it was dispatched with, then the literal first
 prompt), the round list with causes and durations, and — when no round is live —
 the exact command to resume the session interactively by hand
 (`claude --continue` from the worktree, or the matching `codex resume --last`),

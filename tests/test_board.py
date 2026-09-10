@@ -40,9 +40,17 @@ def running(state):
 
 
 def ran(state, number: int, cause: Cause = Cause.DISPATCH, status: int | None = 0):
-    """Write down a round of the session, ended as the status says."""
+    """Write down a round of the session, ended as the status says.
+
+    A round that ended ran for four minutes, so a line its feed holds landed
+    while the round was still going rather than after it had finished.
+    """
     started = PINNED + timedelta(minutes=number)
-    ending = None if status is None else Ending(at=started, status=status)
+    ending = (
+        None
+        if status is None
+        else Ending(at=started + timedelta(minutes=4), status=status)
+    )
     write_round(
         state.sessions / KEY,
         number,
