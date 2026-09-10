@@ -37,7 +37,11 @@ jobs:
           fetch-depth: 0
       - uses: astral-sh/setup-uv@v10.0.1
       - run: uv sync --locked
+      # Skips the uncoded hook. It writes the index and the skill files, which
+      # git does not track, so a run here would have nothing to check.
       - run: uv run pre-commit run --all-files
+        env:
+          SKIP: uncoded
 
   # Builds and runs the package in an environment of its own, which proves the
   # wheel builds, the console script is there, and every runtime dependency
