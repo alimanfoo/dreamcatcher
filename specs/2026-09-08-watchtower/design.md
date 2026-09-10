@@ -117,9 +117,16 @@ doing one thing. A state has a current value. A log has an end.
 ### Views become renderables
 
 Most `_show_*` helpers print straight to the console. `Live` needs something it
-can hold and redraw, so the board and session views become functions that build
-a rich renderable holding the sections they compose today — and one small helper
-does the following: build, hand to `Live`, wait, build again.
+can hold and redraw, so each of those helpers returns a renderable instead, and
+`render_board` and `render_session` build one renderable from them. Neither
+takes a console and neither prints. What prints is `show_board` and
+`show_session`, which are what the verbs call, and that is where one small
+helper does the following: build, hand to `Live`, wait, build again.
+
+The printing stays inside `tui.py` rather than moving out to the command line,
+because that module is the one that shows anything to a person, which is the
+rule `AGENTS.md` states. A part that has nothing to say answers nothing, and one
+helper leaves those out, so both views compose themselves the same way.
 
 The goldens keep working: rendering that to the same pinned console produces the
 same text. They also improve, in that they become assertions about a value
