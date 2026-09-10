@@ -458,12 +458,13 @@ src/:
       _open_table:
       _render_section:
       show_session:
-      _show_vitals:
-      _show_rounds:
+      render_session:
+      _render_vitals:
+      _render_rounds:
       _describe_run:
       _describe_ending:
-      _show_hand_resume:
-      _show_older_sessions:
+      _render_hand_resume:
+      _render_older_sessions:
       show_feed:
       _show_one_round:
       _find_rows_for_issue:

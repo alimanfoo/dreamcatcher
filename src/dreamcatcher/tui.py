@@ -6,6 +6,10 @@ and one session's feed. It reads the state directory and never talks to GitHub
 or to the daemon, so it answers whether the daemon is alive or dead, and
 answers fastest when you most want to look.
 
+The board and one session are pictures of a state, so each is built whole and
+then printed, which is what lets a view hold one and redraw it. A feed is a
+log, so it is printed as it is read, and the reader keeps their scrollback.
+
 What the daemon writes stays plain text, and the colour goes on at the moment of
 reading.
 """
@@ -221,7 +225,14 @@ def show_session(
     console: Console,
     clock: Callable[[], datetime] = now,
 ) -> None:
-    """Show the newest session at the issue, with the older ones beneath it.
+    """Show the newest session at the issue on the console."""
+    console.print(render_session(state, issue, clock))
+
+
+def render_session(
+    state: StateDirectory, issue: int, clock: Callable[[], datetime] = now
+) -> RenderableType:
+    """Return the newest session at the issue, with the older ones beneath it.
 
     An issue that has been dispatched more than once has a session for each
     dispatch. The newest is the one still going, or the one that got furthest,
@@ -229,23 +240,23 @@ def show_session(
     """
     rows = _find_rows_for_issue(state, issue, clock)
     newest = rows[0]
-    console.print(Text(newest.session.key))
-    console.print(
+    return _render_parts(
+        Text(newest.session.key),
         _render_detail(
             newest,
             prefix=str(newest.standing),
             continuation_indent=INDENT[3],
             style=COLOURS[newest.standing],
-        )
+        ),
+        _render_vitals(state, newest),
+        _render_rounds(newest),
+        _render_hand_resume(state, newest),
+        _render_older_sessions(rows[1:]),
     )
-    _show_vitals(console, state, newest)
-    _show_rounds(console, newest)
-    _show_hand_resume(console, state, newest)
-    _show_older_sessions(console, rows[1:])
 
 
-def _show_vitals(console: Console, state: StateDirectory, row: SessionRow) -> None:
-    """Show what the dispatch settled, which every round of the session runs with."""
+def _render_vitals(state: StateDirectory, row: SessionRow) -> RenderableType:
+    """Return what the dispatch settled, which every round of the session runs with."""
     record = row.session.record
     table = _open_table()
     for name, value in (
@@ -257,15 +268,20 @@ def _show_vitals(console: Console, state: StateDirectory, row: SessionRow) -> No
         ("effort", record.effort),
     ):
         table.add_row(Text(name), Text(str(value)))
-    console.print(_render_section("session", "blue", table))
-    console.print(_render_section("first prompt", "blue", Text(record.prompt)))
+    return _render_parts(
+        _render_section("session", "blue", table),
+        _render_section("first prompt", "blue", Text(record.prompt)),
+    )
 
 
-def _show_rounds(console: Console, row: SessionRow) -> None:
-    """Show the rounds the session has run, oldest first."""
+def _render_rounds(row: SessionRow) -> RenderableType | None:
+    """Return the rounds the session has run, oldest first.
+
+    A session that has run none answers nothing.
+    """
     rounds = row.session.rounds
     if not rounds:
-        return
+        return None
     table = _open_table()
     for number, record in enumerate(rounds, start=1):
         is_running = row.standing is SessionStanding.WORKING and number == len(rounds)
@@ -276,7 +292,7 @@ def _show_rounds(console: Console, row: SessionRow) -> None:
             Text(_describe_run(record)),
             Text(_describe_ending(record, is_running)),
         )
-    console.print(_render_section("rounds", "blue", table))
+    return _render_section("rounds", "blue", table)
 
 
 def _describe_run(record: RoundRecord) -> str:
@@ -298,8 +314,10 @@ def _describe_ending(record: RoundRecord, is_running: bool) -> str:
     return "running" if is_running else "interrupted"
 
 
-def _show_hand_resume(console: Console, state: StateDirectory, row: SessionRow) -> None:
-    """Show how to carry the session on by hand, when there is one to carry on.
+def _render_hand_resume(
+    state: StateDirectory, row: SessionRow
+) -> RenderableType | None:
+    """Return how to carry the session on by hand, when there is one to carry on.
 
     A round of the daemon's own is talking to the harness already, so there is
     nothing to take over until it has finished. A session that has run no round
@@ -307,20 +325,21 @@ def _show_hand_resume(console: Console, state: StateDirectory, row: SessionRow) 
     take over there and never will be.
     """
     if row.standing is SessionStanding.WORKING or not row.session.rounds:
-        return
+        return None
     worktree = state.describe_path(row.session.record.worktree)
     command = " ".join(ADAPTERS[row.session.record.harness].build_hand_resume())
-    console.print(
-        _render_section(
-            "take it over yourself", "blue", Text(f"cd {worktree}\n{command}")
-        )
+    return _render_section(
+        "take it over yourself", "blue", Text(f"cd {worktree}\n{command}")
     )
 
 
-def _show_older_sessions(console: Console, older: list[SessionRow]) -> None:
-    """Show the sessions at this issue that came before, newest first."""
+def _render_older_sessions(older: list[SessionRow]) -> RenderableType | None:
+    """Return the sessions at this issue that came before, newest first.
+
+    A session that is the only one at its issue has none, and answers nothing.
+    """
     if not older:
-        return
+        return None
     table = _open_table()
     for row in older:
         table.add_row(
@@ -328,7 +347,7 @@ def _show_older_sessions(console: Console, older: list[SessionRow]) -> None:
             Text(str(row.standing)),
             _render_detail(row),
         )
-    console.print(_render_section("older sessions", "blue", table))
+    return _render_section("older sessions", "blue", table)
 
 
 def show_feed(

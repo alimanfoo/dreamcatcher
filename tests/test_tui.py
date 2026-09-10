@@ -35,8 +35,8 @@ from dreamcatcher.tui import (
     _paint,
     _paint_written,
     render_board,
+    render_session,
     show_feed,
-    show_session,
 )
 
 # When a view is rendered: two hours after the last thing on the disk happened.
@@ -296,7 +296,9 @@ def test_a_key_too_wide_for_the_console_folds_rather_than_being_cut(tmp_path):
 def viewed(state, issue: int, width: int = WIDTH) -> str:
     """Return the session view that issue renders as, on a pinned console."""
     written_to = StringIO()
-    show_session(state, issue, pinned(written_to, width), clock=lambda: LOOKED_AT)
+    pinned(written_to, width).print(
+        render_session(state, issue, clock=lambda: LOOKED_AT)
+    )
     return written_to.getvalue()
 
 
