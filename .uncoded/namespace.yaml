@@ -451,6 +451,7 @@ src/:
         _show_new_lines:
       open_console:
       _repaint:
+      _follow:
       _is_watched:
       _keep_looking:
       show_board:
@@ -1133,7 +1134,8 @@ tests/:
     viewed_round:
     test_one_round_of_a_session_reads_on_its_own:
     test_a_round_that_wrote_no_feed_shows_the_line_that_opens_it:
-    test_a_view_of_one_round_shows_it_as_it_stands:
+    test_a_view_of_a_round_that_has_ended_never_waits:
+    test_a_view_of_a_running_round_ends_when_that_round_does:
     test_a_round_the_session_never_ran_says_how_many_it_did:
     test_an_issue_no_session_here_has_says_so:
   test_wakeups.py:

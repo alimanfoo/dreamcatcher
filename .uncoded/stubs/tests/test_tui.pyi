@@ -139,7 +139,7 @@ def test_a_line_the_view_cannot_read_reaches_the_reader_as_it_was_written(tmp_pa
 def test_a_reader_who_has_seen_enough_interrupts_the_view(tmp_path, daemon):
     ...
 
-def viewed_round(state, issue: int, number: int, wait) -> str:
+def viewed_round(state, issue: int, number: int, wait, is_terminal: bool) -> str:
     ...
 
 def test_one_round_of_a_session_reads_on_its_own(tmp_path, daemon):
@@ -148,7 +148,10 @@ def test_one_round_of_a_session_reads_on_its_own(tmp_path, daemon):
 def test_a_round_that_wrote_no_feed_shows_the_line_that_opens_it(tmp_path, daemon):
     ...
 
-def test_a_view_of_one_round_shows_it_as_it_stands(tmp_path, daemon):
+def test_a_view_of_a_round_that_has_ended_never_waits(tmp_path, daemon):
+    ...
+
+def test_a_view_of_a_running_round_ends_when_that_round_does(tmp_path, daemon):
     ...
 
 def test_a_round_the_session_never_ran_says_how_many_it_did(tmp_path, daemon):

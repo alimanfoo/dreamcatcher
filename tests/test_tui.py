@@ -662,10 +662,22 @@ def test_a_reader_who_has_seen_enough_interrupts_the_view(tmp_path, daemon):
     assert "[Bash] pytest" in followed(state, 13, wait=interrupting)
 
 
-def viewed_round(state, issue: int, number: int, wait=lambda seconds: None) -> str:
+def viewed_round(
+    state,
+    issue: int,
+    number: int,
+    wait=lambda seconds: None,
+    is_terminal: bool = False,
+) -> str:
     """Return the view of one round of that issue, on a pinned console."""
     written_to = StringIO()
-    show_feed(state, issue, pinned(written_to), round_number=number, wait=wait)
+    show_feed(
+        state,
+        issue,
+        pinned(written_to, is_terminal=is_terminal),
+        round_number=number,
+        wait=wait,
+    )
     return written_to.getvalue()
 
 
@@ -686,16 +698,34 @@ def test_a_round_that_wrote_no_feed_shows_the_line_that_opens_it(tmp_path, daemo
     assert viewed_round(state, 12, 1) == "2026-08-19T18:42:58Z  round 1: dispatched\n"
 
 
-def test_a_view_of_one_round_shows_it_as_it_stands(tmp_path, daemon):
+def test_a_view_of_a_round_that_has_ended_never_waits(tmp_path, daemon):
     state = StateDirectory(tmp_path)
     fabricate_everything(state)
     waits = []
 
-    # Round 2 of this session is still running, so a view that followed the
-    # whole session would wait here for whatever it says next.
-    viewed_round(state, 13, 2, wait=waits.append)
+    # Round 1 of this session ended, and one named round is all the view shows,
+    # so it ends there rather than wait for what round 2 says next.
+    viewed_round(state, 13, 1, wait=waits.append, is_terminal=True)
 
     assert waits == []
+
+
+def test_a_view_of_a_running_round_ends_when_that_round_does(tmp_path, daemon):
+    state = StateDirectory(tmp_path)
+    fabricate_everything(state)
+    directory = state.sessions / f"GH13-{STAMP}"
+    looks = []
+
+    def wait(seconds):
+        looks.append(seconds)
+        write_round(directory, 2, ended(30))
+
+    shown = viewed_round(state, 13, 2, wait=wait, is_terminal=True)
+
+    # The round ended while the view was waiting, so the view looked once more
+    # for whatever that round was still writing as it stopped, and ended.
+    assert looks == [PAUSE, PAUSE]
+    assert "[Bash] pytest" in shown
 
 
 def test_a_round_the_session_never_ran_says_how_many_it_did(tmp_path, daemon):

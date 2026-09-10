@@ -111,6 +111,21 @@ def _repaint(
         _keep_looking(draw, wait)
 
 
+def _follow(
+    console: Console, look: Callable[[], bool], wait: Callable[[float], None]
+) -> None:
+    """Print what each look finds after the last, until the view is over.
+
+    A log has an end rather than a current value, so each look prints what
+    arrived since the one before it and the reader keeps their scrollback. A
+    view nobody is watching prints the one look it takes and returns.
+    """
+    if not _is_watched(console):
+        look()
+        return
+    _keep_looking(look, wait)
+
+
 def _is_watched(console: Console) -> bool:
     """Say whether a reader is watching the view, rather than a pipe or a log.
 
@@ -488,7 +503,7 @@ def show_feed(
     is going is shown as it arrives, and not only the rounds it opened with.
     """
     if round_number is not None:
-        _show_one_round(state, issue, round_number, console)
+        _show_one_round(state, issue, round_number, console, wait)
         return
     view = _FeedView(console)
 
@@ -499,28 +514,41 @@ def show_feed(
         view.show_what_arrived(session, range(1, len(session.rounds) + 1))
         return row.standing in OVER
 
-    if not _is_watched(console):
-        look()
-        return
-    _keep_looking(look, wait)
+    _follow(console, look, wait)
 
 
 def _show_one_round(
-    state: StateDirectory, issue: int, number: int, console: Console
+    state: StateDirectory,
+    issue: int,
+    number: int,
+    console: Console,
+    wait: Callable[[float], None],
 ) -> None:
-    """Show one round of the issue's newest session, as it stands.
+    """Show one round of the issue's newest session, until that round ends.
+
+    One named round is all this shows, so it ends when that round has, rather
+    than stay open for the round after it. Staying open for the whole session
+    is what a reader gets when they name no round.
 
     The round list of the session view is where a reader finds the number, so
     a number no round of the session carries is the reader's mistake, and is
     the one thing this turns into words for them.
     """
-    session = _find_rows_for_issue(state, issue)[0].session
-    if not 1 <= number <= len(session.rounds):
-        raise ReportableError(
-            f"{session.key} has run {describe_count(len(session.rounds), 'round')}, "
-            f"so it has no round {number}."
-        )
-    _FeedView(console).show_what_arrived(session, [number])
+    view = _FeedView(console)
+
+    def look() -> bool:
+        """Show what the round said since the last look, and say if it has ended."""
+        session = _find_rows_for_issue(state, issue)[0].session
+        if not 1 <= number <= len(session.rounds):
+            raise ReportableError(
+                f"{session.key} has run "
+                f"{describe_count(len(session.rounds), 'round')}, "
+                f"so it has no round {number}."
+            )
+        view.show_what_arrived(session, [number])
+        return session.rounds[number - 1].is_complete
+
+    _follow(console, look, wait)
 
 
 def _find_rows_for_issue(
