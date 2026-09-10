@@ -1,5 +1,5 @@
 GH13-20260819-184158
-agent working, last output 1h 29m ago
+agent working, running 1h 30m, last output 1h 29m ago
   [Bash] pytest
 
 session

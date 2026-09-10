@@ -261,11 +261,18 @@ class _Look:
         return SessionStanding.WAITING, wait.reason
 
     def _describe_live_round(self, session: Session) -> tuple[str, str | None]:
-        """Return what the running round last said, and how long ago it said it."""
+        """Return how the running round is going, and the last thing it said.
+
+        How long the round has been running reads first, because a round that
+        has run far longer than its fellows is doing something pathological
+        whatever it last said.
+        """
+        running = f"running {describe_span(self.at - session.rounds[-1].started)}"
         line = self._read_last_said(session)
         if line is None:
-            return "has said nothing yet", None
-        return f"last output {describe_span(self.at - line.at)} ago", line.text.strip()
+            return f"{running}, has said nothing yet", None
+        said = f"last output {describe_span(self.at - line.at)} ago"
+        return f"{running}, {said}", line.text.strip()
 
     def _describe_idle(self, session: Session) -> str:
         """Return how long it is since the session last said anything."""

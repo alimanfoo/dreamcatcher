@@ -117,7 +117,7 @@ def test_a_round_a_running_daemon_has_not_ended_is_the_agent_working(running):
     row = only(running)
 
     assert row.standing is SessionStanding.WORKING
-    assert row.detail == "last output 2h 0m ago"
+    assert row.detail == "running 1h 59m, last output 2h 0m ago"
     assert row.last_output == "[Bash] pytest"
 
 
@@ -126,7 +126,7 @@ def test_a_running_round_that_has_said_nothing_yet_says_that(running):
 
     row = only(running)
 
-    assert row.detail == "has said nothing yet"
+    assert row.detail == "running 1h 59m, has said nothing yet"
     assert row.last_output is None
 
 
