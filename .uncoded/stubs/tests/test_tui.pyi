@@ -15,10 +15,11 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Line
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.state import NO_ROUND_HAS_RUN, CandidateIssue, LastTick, StateDirectory, WaitingSession
-from dreamcatcher.tui import PAUSE, _paint, _paint_written, render_board, render_session, show_board, show_feed, show_session
+from dreamcatcher.tui import PAUSE, _paint, _paint_written, show_board, show_feed, show_session
 
 LOOKED_AT = PINNED + timedelta(hours=2)
 WIDTH = 100
+HEIGHT = 60
 DAEMON_PID = 4242
 STAMP = '20260819-184158'
 SAID = ...
@@ -72,10 +73,13 @@ def rendered(state, width: int) -> str:
 def test_a_state_directory_renders_as_its_golden_board(name, tmp_path, daemon):
     ...
 
-def test_showing_the_board_prints_the_board_it_built(tmp_path, daemon):
+def test_a_key_too_wide_for_the_console_folds_rather_than_being_cut(tmp_path):
     ...
 
-def test_a_key_too_wide_for_the_console_folds_rather_than_being_cut(tmp_path):
+def test_a_board_nobody_is_watching_is_drawn_once_and_returns(tmp_path, daemon):
+    ...
+
+def test_a_board_a_reader_watches_keeps_up_with_what_the_daemon_writes(tmp_path, daemon):
     ...
 
 def viewed(state, issue: int, width: int) -> str:
@@ -84,10 +88,13 @@ def viewed(state, issue: int, width: int) -> str:
 def test_wrapped_latest_output_keeps_its_indent(tmp_path, daemon):
     ...
 
-def test_showing_a_session_prints_the_session_view_it_built(tmp_path, daemon):
+def test_a_session_renders_as_its_golden_view(name, tmp_path, daemon):
     ...
 
-def test_a_session_renders_as_its_golden_view(name, tmp_path, daemon):
+def test_a_session_view_shows_the_round_that_starts_while_it_is_open(tmp_path, daemon):
+    ...
+
+def test_a_session_view_of_a_session_that_is_over_never_waits(issue, tmp_path, daemon):
     ...
 
 def followed(state, issue: int, wait) -> str:

@@ -440,6 +440,9 @@ src/:
       PAUSE:
       LABEL:
       INDENT:
+      _Look:
+        shown:
+        is_over:
       _FeedView:
         console:
         positions:
@@ -447,8 +450,12 @@ src/:
         _show_round_heading:
         _show_new_lines:
       open_console:
+      _repaint:
+      _is_watched:
+      _keep_looking:
       show_board:
-      render_board:
+      _look_at_board:
+      _render_board:
       _render_parts:
       _describe_daemon:
       _render_rows:
@@ -459,7 +466,8 @@ src/:
       _open_table:
       _render_section:
       show_session:
-      render_session:
+      _look_at_session:
+      _render_session:
       _render_vitals:
       _render_rounds:
       _describe_run:
@@ -467,8 +475,6 @@ src/:
       _render_hand_resume:
       _render_older_sessions:
       show_feed:
-      _is_watched:
-      _keep_looking:
       _show_one_round:
       _find_rows_for_issue:
       _paint_written:
@@ -1079,6 +1085,7 @@ tests/:
   test_tui.py:
     LOOKED_AT:
     WIDTH:
+    HEIGHT:
     DAEMON_PID:
     STAMP:
     SAID:
@@ -1101,12 +1108,14 @@ tests/:
     interrupting:
     rendered:
     test_a_state_directory_renders_as_its_golden_board:
-    test_showing_the_board_prints_the_board_it_built:
     test_a_key_too_wide_for_the_console_folds_rather_than_being_cut:
+    test_a_board_nobody_is_watching_is_drawn_once_and_returns:
+    test_a_board_a_reader_watches_keeps_up_with_what_the_daemon_writes:
     viewed:
     test_wrapped_latest_output_keeps_its_indent:
-    test_showing_a_session_prints_the_session_view_it_built:
     test_a_session_renders_as_its_golden_view:
+    test_a_session_view_shows_the_round_that_starts_while_it_is_open:
+    test_a_session_view_of_a_session_that_is_over_never_waits:
     followed:
     test_a_feed_nobody_is_watching_shows_what_is_there_and_returns:
     test_a_feed_renders_as_its_golden_view:
