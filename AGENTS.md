@@ -4,16 +4,16 @@ This guide grounds a fresh agent session before it works on this repo.
 
 ## Before you start
 
-Run `uv run uncoded sync` first, because git ignores what it writes, so a fresh
-clone or worktree holds none of it: the index under `.uncoded/`, and the
-navigation skills under `.claude/skills/` and `.agents/skills/`. A harness that
-started before the sync has no skill to load, so read the skill's own `SKILL.md`
-in that case.
+Run `uv run uncoded sync` first. Git ignores what it writes, so a fresh clone or
+worktree holds neither the index under `.uncoded/` nor the navigation skills
+under `.claude/skills/`, and every session dreamcatcher dispatches starts in a
+fresh worktree. A harness fixes its list of skills before it reads this guide,
+so read each skill's own file rather than loading it as a skill.
 
-- Load the `uncoded-code-navigation` skill before searching, reading or editing
-  any code.
-- Load the `uncoded-doc-navigation` skill before searching, reading or editing
-  any docs.
+- Read `.claude/skills/uncoded-code-navigation/SKILL.md` before searching,
+  reading or editing any code.
+- Read `.claude/skills/uncoded-doc-navigation/SKILL.md` before searching,
+  reading or editing any docs.
 
 ## What this is
 
