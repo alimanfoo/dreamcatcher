@@ -447,20 +447,24 @@ src/:
         _show_new_lines:
       open_console:
       show_board:
+      render_board:
+      _render_parts:
       _describe_daemon:
-      _show_rows:
+      _render_rows:
       _describe_round:
       _render_detail:
-      _show_queue:
+      _render_queue:
+      _describe_nothing_dispatched:
       _open_table:
-      _print_section:
+      _render_section:
       show_session:
-      _show_vitals:
-      _show_rounds:
+      render_session:
+      _render_vitals:
+      _render_rounds:
       _describe_run:
       _describe_ending:
-      _show_hand_resume:
-      _show_older_sessions:
+      _render_hand_resume:
+      _render_older_sessions:
       show_feed:
       _show_one_round:
       _find_rows_for_issue:
@@ -1094,9 +1098,11 @@ tests/:
     interrupting:
     rendered:
     test_a_state_directory_renders_as_its_golden_board:
+    test_showing_the_board_prints_the_board_it_built:
     test_a_key_too_wide_for_the_console_folds_rather_than_being_cut:
     viewed:
     test_wrapped_latest_output_keeps_its_indent:
+    test_showing_a_session_prints_the_session_view_it_built:
     test_a_session_renders_as_its_golden_view:
     followed:
     test_a_feed_renders_as_its_golden_view:

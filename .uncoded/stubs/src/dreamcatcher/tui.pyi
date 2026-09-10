@@ -33,10 +33,16 @@ def open_console() -> Console:
 def show_board(state: StateDirectory, console: Console, clock: Callable[[], datetime]) -> None:
     ...
 
+def render_board(state: StateDirectory, clock: Callable[[], datetime]) -> RenderableType:
+    ...
+
+def _render_parts(*parts: RenderableType | None) -> RenderableType:
+    ...
+
 def _describe_daemon(board: Board) -> Text:
     ...
 
-def _show_rows(console: Console, board: Board, standing: SessionStanding) -> None:
+def _render_rows(board: Board, standing: SessionStanding) -> RenderableType | None:
     ...
 
 def _describe_round(row: SessionRow) -> str:
@@ -45,22 +51,28 @@ def _describe_round(row: SessionRow) -> str:
 def _render_detail(row: SessionRow, prefix: str, continuation_indent: int, style: str) -> RenderableType:
     ...
 
-def _show_queue(console: Console, board: Board) -> None:
+def _render_queue(board: Board) -> RenderableType | None:
+    ...
+
+def _describe_nothing_dispatched(board: Board) -> Text | None:
     ...
 
 def _open_table() -> Table:
     ...
 
-def _print_section(console: Console, heading: str, colour: str, body: RenderableType) -> None:
+def _render_section(heading: str, colour: str, body: RenderableType) -> RenderableType:
     ...
 
 def show_session(state: StateDirectory, issue: int, console: Console, clock: Callable[[], datetime]) -> None:
     ...
 
-def _show_vitals(console: Console, state: StateDirectory, row: SessionRow) -> None:
+def render_session(state: StateDirectory, issue: int, clock: Callable[[], datetime]) -> RenderableType:
     ...
 
-def _show_rounds(console: Console, row: SessionRow) -> None:
+def _render_vitals(state: StateDirectory, row: SessionRow) -> RenderableType:
+    ...
+
+def _render_rounds(row: SessionRow) -> RenderableType | None:
     ...
 
 def _describe_run(record: RoundRecord) -> str:
@@ -69,10 +81,10 @@ def _describe_run(record: RoundRecord) -> str:
 def _describe_ending(record: RoundRecord, is_running: bool) -> str:
     ...
 
-def _show_hand_resume(console: Console, state: StateDirectory, row: SessionRow) -> None:
+def _render_hand_resume(state: StateDirectory, row: SessionRow) -> RenderableType | None:
     ...
 
-def _show_older_sessions(console: Console, older: list[SessionRow]) -> None:
+def _render_older_sessions(older: list[SessionRow]) -> RenderableType | None:
     ...
 
 def show_feed(state: StateDirectory, issue: int, console: Console, round_number: int | None, wait: Callable[[float], None]) -> None:

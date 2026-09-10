@@ -14,10 +14,10 @@ it.
 Two things live here and they do different jobs. `_Look` reads and judges: it
 takes one look at the directory and says where each session stands. `Board`,
 `SessionRow` and `QueuedIssue` are what it found, and they hold no directory
-and read nothing, so a view renders one and a test writes one down. That is
-why a look is not a board and a board cannot refresh itself: a view that keeps
-up takes a new look, which is one read of the lock and of the last tick and a
-fresh judgement of each session against them.
+and read nothing, so a view renders one. That is why a look is not a board and
+a board cannot refresh itself: a view that keeps up takes a new look, which is
+one read of the lock and of the last tick and a fresh judgement of each session
+against them.
 """
 
 from collections.abc import Callable
