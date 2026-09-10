@@ -103,8 +103,8 @@ def _render_parts(*parts: RenderableType | None) -> RenderableType:
     """Return the parts of a view that have something to say, as one renderable.
 
     A part with nothing to say answers nothing, so it is left out rather than
-    shown empty. Every view composes itself through this, so what that means is
-    written down once.
+    shown empty. The board and one session both compose themselves through
+    this, so what that means is written down once.
     """
     return Group(*(part for part in parts if part is not None))
 
