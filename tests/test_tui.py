@@ -246,18 +246,20 @@ SESSIONS = {
 }
 
 
-def pinned(written_to, width: int = WIDTH) -> Console:
+def pinned(written_to, width: int = WIDTH, is_terminal: bool = False) -> Console:
     """Return a console that renders the same text wherever it runs.
 
     Every setting rich would otherwise take from the shell or the platform is
     named here: a shell exporting FORCE_COLOR would make it write escape codes,
-    and a legacy Windows console would take a column off its width.
+    and a legacy Windows console would take a column off its width. Saying it
+    has no colour system pins that too, so a console that says it is a
+    terminal, which is what makes a view follow, still writes plain text.
     """
     return Console(
         file=written_to,
         width=width,
-        force_terminal=False,
-        no_color=True,
+        force_terminal=is_terminal,
+        color_system=None,
         legacy_windows=False,
     )
 
@@ -366,10 +368,24 @@ def test_a_session_renders_as_its_golden_view(name, tmp_path, daemon):
 
 
 def followed(state, issue: int, wait=lambda seconds: None) -> str:
-    """Return the feed view that issue renders as, on a pinned console."""
+    """Return the feed view that issue renders as, on a console being watched."""
     written_to = StringIO()
-    show_feed(state, issue, pinned(written_to), wait=wait)
+    show_feed(state, issue, pinned(written_to, is_terminal=True), wait=wait)
     return written_to.getvalue()
+
+
+def test_a_feed_nobody_is_watching_shows_what_is_there_and_returns(tmp_path, daemon):
+    state = StateDirectory(tmp_path)
+    fabricate_everything(state)
+    written_to = StringIO()
+    waits = []
+
+    # A console that is no terminal is a pipe, a redirect or a log, and a view
+    # that followed for as long as this session runs could be none of those.
+    show_feed(state, 13, pinned(written_to), wait=waits.append)
+
+    assert waits == []
+    assert "[Bash] pytest" in written_to.getvalue()
 
 
 @pytest.mark.parametrize("name", sorted(FEEDS))

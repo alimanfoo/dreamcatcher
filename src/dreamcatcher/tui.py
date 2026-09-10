@@ -54,6 +54,10 @@ COLOURS = {
 
 QUEUE = "queued"
 
+# What a session standing at either of these says: no round of it is coming, so
+# a view of that session has seen the last of what it will ever show.
+OVER = (SessionStanding.DONE, SessionStanding.STUCK)
+
 # How long a following view waits between looks at what the round has written.
 PAUSE = 1.0
 
@@ -382,28 +386,56 @@ def show_feed(
 
     Every look reads the session again, so a round that starts while the view
     is going is shown as it arrives, and not only the rounds it opened with.
-
-    A round records its ending as soon as its own child has gone, and whatever
-    it was still writing lands after that, so a session that ends while the
-    view is going gets one more look before the view ends too. A session that
-    had already ended when the view opened gets no extra look and no wait.
-
-    The reader ends a view of a session that is still going by interrupting it,
-    which is how they say they have seen enough, so it ends without a word.
     """
     if round_number is not None:
         _show_one_round(state, issue, round_number, console)
         return
     view = _FeedView(console)
-    # Nothing was going before the view opened, so a session that has already
-    # ended when it opens ends the view on its first look.
+
+    def look() -> bool:
+        """Show what the session said since the last look, and say if it is over."""
+        row = _find_rows_for_issue(state, issue)[0]
+        session = row.session
+        view.show_what_arrived(session, range(1, len(session.rounds) + 1))
+        return row.standing in OVER
+
+    if not _is_watched(console):
+        look()
+        return
+    _keep_looking(look, wait)
+
+
+def _is_watched(console: Console) -> bool:
+    """Say whether a reader is watching the view, rather than a pipe or a log.
+
+    A view that follows never returns on its own, so it cannot be piped,
+    redirected or captured, and a console that is no terminal is exactly where
+    one of those is being done to it. So this is what chooses between a view
+    that follows and a view that shows what is there and returns, and the
+    reader is asked for no flag either way.
+    """
+    return console.is_terminal
+
+
+def _keep_looking(look: Callable[[], bool], wait: Callable[[float], None]) -> None:
+    """Look again and again, until the view has seen the last of what it shows.
+
+    A look shows where the view stands now and answers whether the view is
+    over, which is to say whether anything more can reach it.
+
+    A round records its ending as soon as its own child has gone, and whatever
+    it was still writing lands after that, so a view that finds itself over
+    looks once more before it ends. Nothing was going before the view opened,
+    so a view that opens on something already over ends on its first look and
+    never waits.
+
+    The reader ends a view that is still going by interrupting it, which is how
+    they say they have seen enough, so it ends without a word.
+    """
     was_over = True
     with suppress(KeyboardInterrupt):
         while True:
-            row = _find_rows_for_issue(state, issue)[0]
-            session = row.session
-            view.show_what_arrived(session, range(1, len(session.rounds) + 1))
-            is_over = row.standing in (SessionStanding.DONE, SessionStanding.STUCK)
+            is_over = look()
             if is_over and was_over:
                 return
             was_over = is_over

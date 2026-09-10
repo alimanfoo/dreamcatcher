@@ -23,6 +23,7 @@ from dreamcatcher.words import describe_count, describe_span, describe_time
 
 COLOURS = ...
 QUEUE = 'queued'
+OVER = (SessionStanding.DONE, SessionStanding.STUCK)
 PAUSE = 1.0
 LABEL = '^\\s*\\[[^\\]]+\\]'
 INDENT = (0, 0, 0, 2)
@@ -88,6 +89,12 @@ def _render_older_sessions(older: list[SessionRow]) -> RenderableType | None:
     ...
 
 def show_feed(state: StateDirectory, issue: int, console: Console, round_number: int | None, wait: Callable[[float], None]) -> None:
+    ...
+
+def _is_watched(console: Console) -> bool:
+    ...
+
+def _keep_looking(look: Callable[[], bool], wait: Callable[[float], None]) -> None:
     ...
 
 def _show_one_round(state: StateDirectory, issue: int, number: int, console: Console) -> None:

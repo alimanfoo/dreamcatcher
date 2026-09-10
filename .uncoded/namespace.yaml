@@ -436,6 +436,7 @@ src/:
     tui.py:
       COLOURS:
       QUEUE:
+      OVER:
       PAUSE:
       LABEL:
       INDENT:
@@ -466,6 +467,8 @@ src/:
       _render_hand_resume:
       _render_older_sessions:
       show_feed:
+      _is_watched:
+      _keep_looking:
       _show_one_round:
       _find_rows_for_issue:
       _paint_written:
@@ -1105,6 +1108,7 @@ tests/:
     test_showing_a_session_prints_the_session_view_it_built:
     test_a_session_renders_as_its_golden_view:
     followed:
+    test_a_feed_nobody_is_watching_shows_what_is_there_and_returns:
     test_a_feed_renders_as_its_golden_view:
     test_only_a_feed_lines_stamp_is_dim:
     test_a_following_view_waits_for_the_round_a_session_has_yet_to_run:

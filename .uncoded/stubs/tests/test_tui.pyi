@@ -60,7 +60,7 @@ def fabricate_repeat_sessions(state):
 def fabricate_a_silent_round(state):
     ...
 
-def pinned(written_to, width: int) -> Console:
+def pinned(written_to, width: int, is_terminal: bool) -> Console:
     ...
 
 def interrupting(seconds):
@@ -91,6 +91,9 @@ def test_a_session_renders_as_its_golden_view(name, tmp_path, daemon):
     ...
 
 def followed(state, issue: int, wait) -> str:
+    ...
+
+def test_a_feed_nobody_is_watching_shows_what_is_there_and_returns(tmp_path, daemon):
     ...
 
 def test_a_feed_renders_as_its_golden_view(name, tmp_path, daemon):
