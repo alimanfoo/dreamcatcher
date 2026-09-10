@@ -219,10 +219,10 @@ __marimo__/
 
 # uncoded
 #   The commit hook runs `uncoded sync`, which writes the index under
-#   `.uncoded/` and an `uncoded-*` skill directory under each of
-#   `.claude/skills/` and `.agents/skills/`. Every one of them is derived from
-#   the source and the docs in this repository, so committing one would put a
-#   second copy of what the source already says into the diff a reviewer reads.
+#   `.uncoded/` and the `uncoded-*` skills under `.claude/skills/` and
+#   `.agents/skills/`. Every one of them is derived from the source and the docs
+#   in this repository, so committing one would put a second copy of what the
+#   source already says into the diff a reviewer reads.
 .uncoded/
 .claude/skills/uncoded-*/
 .agents/skills/uncoded-*/
