@@ -56,9 +56,10 @@ COLOURS = {
 
 QUEUE = "queued"
 
-# What a session standing at either of these says: no round of it is coming, so
-# a view of that session has seen the last of what it will ever show.
-OVER = (SessionStanding.DONE, SessionStanding.STUCK)
+# The standings at which a view of that session ends. A session standing at
+# either of them has no round coming, so a view of it has seen the last of what
+# it will ever show.
+STANDINGS_THAT_END_A_VIEW = (SessionStanding.DONE, SessionStanding.STUCK)
 
 # How long a following view waits between looks at what the round has written.
 PAUSE = 1.0
@@ -77,10 +78,10 @@ def open_console() -> Console:
 
 
 class _Picture(NamedTuple):
-    """A view as one look found it: what to draw, and whether it was the last.
+    """A view as one look found it: what to draw, and whether the view is over.
 
-    A view is over when nothing more can reach it, so a look that finds it over
-    is the last look worth taking.
+    A view is over when nothing more can reach it. That is not the same as the
+    last look, because `_keep_looking` takes one more after it.
     """
 
     shown: RenderableType
@@ -93,9 +94,14 @@ def _repaint(
     """Draw what each look finds over the one before, until the view is over.
 
     A picture of a state has a current value rather than a history, so rich's
-    Live holds one place on the screen and every look is drawn into it. A view
-    that is not being followed has no place to hold, so the one look it takes
-    is printed as anything else is.
+    Live holds one place on the screen and every look is drawn into it. A place
+    on the screen is as tall as the screen, so a picture that outgrows it is
+    cut at the bottom, which takes the sections a reader came for last: the
+    board is sorted by whose turn it is, so what goes first is what is done.
+
+    This decides where a look is drawn, and `_keep_looking` decides how long to
+    go on looking. A view nobody is watching has no place to hold, so the one
+    look it takes is printed as anything else is.
     """
     if not console.is_terminal:
         console.print(look().shown)
@@ -103,7 +109,7 @@ def _repaint(
     with Live(console=console, auto_refresh=False) as live:
 
         def draw() -> bool:
-            """Draw what this look found, and say whether it was the last."""
+            """Draw what this look found, and say whether the view is over."""
             found = look()
             live.update(found.shown, refresh=True)
             return found.is_over
@@ -153,7 +159,8 @@ def show_board(
 
     A board always has something more to show: a daemon can start, a tick can
     dispatch, a round can begin. So a board is never over, and a reader
-    watching one ends it by interrupting it.
+    watching one ends it by interrupting it. A console that is no terminal has
+    nobody watching, so there the board is drawn once and this returns.
     """
     _repaint(console, lambda: _look_at_board(state, clock), wait)
 
@@ -314,7 +321,8 @@ def show_session(
     A session between rounds has another round coming, so the view stays open
     through the gap and shows that round as it starts. A session that has run
     its final round, and a stuck session, have no round coming, so either one
-    ends the view.
+    ends the view. A console that is no terminal has nobody watching, so there
+    the session is drawn once and this returns.
     """
     _repaint(console, lambda: _look_at_session(state, issue, clock), wait)
 
@@ -328,7 +336,10 @@ def _look_at_session(
     where the session stands from them.
     """
     rows = _find_rows_for_issue(state, issue, clock)
-    return _Picture(_render_session(state, rows), is_over=rows[0].standing in OVER)
+    return _Picture(
+        _render_session(state, rows),
+        is_over=rows[0].standing in STANDINGS_THAT_END_A_VIEW,
+    )
 
 
 def _render_session(state: StateDirectory, rows: list[SessionRow]) -> RenderableType:
@@ -481,6 +492,9 @@ def show_feed(
 
     Every look reads the session again, so a round that starts while the view
     is going is shown as it arrives, and not only the rounds it opened with.
+
+    A console that is no terminal has nobody watching, so there either view
+    shows what is there once and returns.
     """
     if round_number is not None:
         _show_one_round(state, issue, round_number, console, wait)
@@ -492,7 +506,7 @@ def show_feed(
         row = _find_rows_for_issue(state, issue)[0]
         session = row.session
         view.show_what_arrived(session, range(1, len(session.rounds) + 1))
-        return row.standing in OVER
+        return row.standing in STANDINGS_THAT_END_A_VIEW
 
     _keep_looking(console, look, wait)
 

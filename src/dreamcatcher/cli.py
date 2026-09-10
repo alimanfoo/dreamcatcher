@@ -17,16 +17,18 @@ from dreamcatcher.state import StateDirectory
 # How a view names the issue it is about, as the issue itself is written.
 ISSUE = re.compile(r"gh(\d+)\Z", re.IGNORECASE)
 
-# When a view of one session ends, which the session view and the feed both
-# say, since a reader reads one verb's help and no other.
-ENDS_WITH_THE_SESSION = (
+# The help that says when a view of one session ends, which the session view
+# and the feed both give, since a reader reads one verb's help and no other.
+HELP_WHEN_A_VIEW_ENDS = (
     "It ends once the session has run its final round, and on a stuck "
     "session, which only you can move on. Interrupt it to end it sooner."
 )
 
-# What every view does when nothing is watching it, with the name of the one
-# the verb shows.
-SHOWS_ONCE = "Piped, redirected or captured, it shows the {view} once and returns."
+# The help that says what a view does when nothing is watching it, which every
+# verb gives.
+HELP_WHEN_NOTHING_WATCHES = (
+    "Piped, redirected or captured, it shows what is there once and returns."
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -70,8 +72,7 @@ def build_parser() -> argparse.ArgumentParser:
         description=(
             "Show every session and every queued issue, a section per "
             "standing, in the order of whose turn it is. It stays on the "
-            "screen and keeps up until you interrupt it. "
-            + SHOWS_ONCE.format(view="board")
+            "screen and keeps up until you interrupt it. " + HELP_WHEN_NOTHING_WATCHES
         ),
     )
     board_parser.set_defaults(act=_show_board)
@@ -84,9 +85,9 @@ def build_parser() -> argparse.ArgumentParser:
             "takes the session over by hand, and the older sessions at the "
             "same issue. It stays on the screen and keeps up for as long as "
             "the session has another round coming. "
-            + ENDS_WITH_THE_SESSION
+            + HELP_WHEN_A_VIEW_ENDS
             + " "
-            + SHOWS_ONCE.format(view="session")
+            + HELP_WHEN_NOTHING_WATCHES
         ),
     )
     _take_an_issue(session_parser)
@@ -98,9 +99,9 @@ def build_parser() -> argparse.ArgumentParser:
             "Show the agent's actions and outputs from every round of "
             "the issue's newest session, and keep showing what arrives for "
             "as long as the session has another round coming. "
-            + ENDS_WITH_THE_SESSION
+            + HELP_WHEN_A_VIEW_ENDS
             + " "
-            + SHOWS_ONCE.format(view="feed")
+            + HELP_WHEN_NOTHING_WATCHES
         ),
     )
     _take_an_issue(feed_parser)

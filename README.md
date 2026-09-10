@@ -109,14 +109,18 @@ each answers whether the daemon is running or long dead. Run them from the same
 checkout.
 
 Every view stays on the screen and keeps up while you watch it, so there is
-nothing to wrap it in and nothing to remember. `board` is never over, so it
-stays until you interrupt it. `session` and `feed` stay open for as long as the
-session has another round coming, so you can leave one running for a whole
-session and see every round of it arrive. They wait through every gap between
-one round and the next, including a gap where you have stopped the daemon and
-not started it again yet, and they end once the session has run its final round,
-and on a stuck session, which only you can move on. Interrupt any view to end it
-sooner.
+nothing to wrap it in.
+
+`board` is never over, so it stays until you interrupt it.
+
+`session` and `feed` stay open for as long as the session has another round
+coming, so you can leave one running for a whole session and see every round of
+it arrive. They wait through every gap between one round and the next, including
+a gap where you have stopped the daemon and not started it again yet. They end
+once the session has run its final round, and on a stuck session, which only you
+can move on.
+
+Interrupt any view to end it sooner.
 
 A view whose output is not a terminal, because you piped it, redirected it or
 captured it, shows what is there once and returns. You need no flag either way.

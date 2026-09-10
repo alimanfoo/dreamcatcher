@@ -70,9 +70,8 @@ colour system as none, so a console saying it is a terminal still writes plain
 text and a golden read through one holds what it always held. The following path
 is tested the way `show_feed` is tested today, with an injected wait.
 
-The rule reaches the feed too, which #94 left following whatever its console
-was. A feed being piped or captured shows what is there and returns, and a feed
-a reader is watching follows exactly as it did.
+The rule reaches every view, the feed included. A feed being piped or captured
+shows what is there and returns, and a feed a reader is watching follows.
 
 ### When a view returns
 
@@ -118,6 +117,12 @@ what arrived since the last one, and the reader keeps their scrollback. Under
 `Live` a long feed would be clipped to the height of the screen and everything
 above it lost, which is the opposite of what a feed is for.
 
+A picture is clipped too, and that is right for a picture: a place on the screen
+is as tall as the screen, and what a picture holds now is all a reader wants. A
+board taller than the screen is cut at the bottom, which takes its sections in
+reverse order of whose turn it is, so `done` goes before anything a reader came
+for.
+
 These are two mechanisms because they are two kinds of thing, not two ways of
 doing one thing. A state has a current value. A log has an end.
 
@@ -131,9 +136,11 @@ read rather than reading it itself. In front of each sits a look,
 `_look_at_board` and `_look_at_session`, which reads the state once and answers
 both what to draw and whether the view is over, so a following view judges where
 it stands without reading the state twice. What prints is `show_board` and
-`show_session`, which are what the verbs call, and that is where one small
-helper does the following: look, hand what the look found to `Live`, wait, look
-again.
+`show_session`, which are what the verbs call. Each hands its look to
+`_repaint`, which chooses where a look is drawn, and `_repaint` hands it on to
+`_keep_looking`, which decides how long to go on looking. The feed hands its own
+look to `_keep_looking` directly, so how long a view stays is settled in one
+place for all three.
 
 The printing stays inside `tui.py` rather than moving out to the command line,
 because that module is the one that shows anything to a person, which is the

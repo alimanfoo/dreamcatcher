@@ -25,7 +25,7 @@ from dreamcatcher.words import describe_count, describe_span, describe_time
 
 COLOURS = ...
 QUEUE = 'queued'
-OVER = (SessionStanding.DONE, SessionStanding.STUCK)
+STANDINGS_THAT_END_A_VIEW = (SessionStanding.DONE, SessionStanding.STUCK)
 PAUSE = 1.0
 LABEL = '^\\s*\\[[^\\]]+\\]'
 INDENT = (0, 0, 0, 2)

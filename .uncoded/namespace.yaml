@@ -84,8 +84,8 @@ src/:
       _text:
     cli.py:
       ISSUE:
-      ENDS_WITH_THE_SESSION:
-      SHOWS_ONCE:
+      HELP_WHEN_A_VIEW_ENDS:
+      HELP_WHEN_NOTHING_WATCHES:
       build_parser:
       _take_an_issue:
       main:
@@ -438,7 +438,7 @@ src/:
     tui.py:
       COLOURS:
       QUEUE:
-      OVER:
+      STANDINGS_THAT_END_A_VIEW:
       PAUSE:
       LABEL:
       INDENT:

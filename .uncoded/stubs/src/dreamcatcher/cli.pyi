@@ -15,8 +15,8 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.state import StateDirectory
 
 ISSUE = re.compile('gh(\\d+)\\Z', re.IGNORECASE)
-ENDS_WITH_THE_SESSION = ...
-SHOWS_ONCE = 'Piped, redirected or captured, it shows the {view} once and returns.'
+HELP_WHEN_A_VIEW_ENDS = ...
+HELP_WHEN_NOTHING_WATCHES = 'Piped, redirected or captured, it shows what is there once and returns.'
 
 def build_parser() -> argparse.ArgumentParser:
     ...
