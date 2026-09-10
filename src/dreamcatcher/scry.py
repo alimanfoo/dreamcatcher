@@ -1,7 +1,8 @@
 """Show what the sessions are doing, from what the daemon left on the disk.
 
-`scry` is the watch tower. It reads the state directory and never talks to
-GitHub or to the daemon, so it answers whether the daemon is alive or dead, and
+This is the watch tower, and it holds the three views: the board, one session,
+and one session's feed. It reads the state directory and never talks to GitHub
+or to the daemon, so it answers whether the daemon is alive or dead, and
 answers fastest when you most want to look.
 
 What the daemon writes stays plain text, and the colour goes on at the moment of
@@ -60,7 +61,7 @@ INDENT = (0, 0, 0, 2)
 
 
 def open_console() -> Console:
-    """Return the console that scry writes its views to."""
+    """Return the console the views are written to."""
     return Console()
 
 

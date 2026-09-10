@@ -19,13 +19,22 @@ ISSUE = re.compile('gh(\\d+)\\Z', re.IGNORECASE)
 def build_parser() -> argparse.ArgumentParser:
     ...
 
+def _take_an_issue(parser: argparse.ArgumentParser) -> None:
+    ...
+
 def main(argv: Sequence[str] | None) -> int:
     ...
 
-def _scry(args: argparse.Namespace) -> None:
+def _run(args: argparse.Namespace) -> None:
     ...
 
-def _refuse_a_feed_of_nothing(args: argparse.Namespace) -> None:
+def _show_board(args: argparse.Namespace) -> None:
+    ...
+
+def _show_session(args: argparse.Namespace) -> None:
+    ...
+
+def _show_feed(args: argparse.Namespace) -> None:
     ...
 
 def _find_state(root: Path) -> StateDirectory:

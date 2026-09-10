@@ -85,9 +85,12 @@ src/:
     cli.py:
       ISSUE:
       build_parser:
+      _take_an_issue:
       main:
-      _scry:
-      _refuse_a_feed_of_nothing:
+      _run:
+      _show_board:
+      _show_session:
+      _show_feed:
       _find_state:
       _read_issue:
     clock.py:
@@ -637,14 +640,15 @@ tests/:
     started:
     test_version_prints_the_installed_version:
     test_a_checkout_no_daemon_has_watched_has_nothing_to_show:
-    test_scry_shows_the_board:
-    test_scry_naming_an_issue_shows_that_sessions_view:
+    test_board_shows_every_session:
+    test_session_shows_the_newest_session_at_the_issue:
     test_an_issue_reads_however_the_reader_wrote_it:
     test_something_that_is_not_an_issue_reference_is_refused:
-    test_scry_following_an_issue_shows_its_feed:
-    test_scry_naming_a_round_shows_that_rounds_feed:
-    test_a_feed_view_with_no_issue_to_show_asks_for_one:
-    test_a_feed_reads_as_it_arrives_or_as_it_stands_and_never_as_both:
+    test_feed_shows_what_the_session_said:
+    test_feed_naming_a_round_shows_that_rounds_feed:
+    test_a_feed_with_no_issue_to_show_asks_for_one:
+    test_a_round_belongs_to_the_feed_and_to_no_other_verb:
+    test_the_board_takes_no_issue:
     test_a_bare_invocation_asks_for_a_verb:
     test_run_starts_a_daemon_on_the_current_directory:
     test_the_harness_flag_says_what_to_run_rounds_with:
