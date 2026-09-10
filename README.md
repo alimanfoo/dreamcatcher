@@ -111,9 +111,8 @@ checkout.
 Every view keeps up with what the daemon writes while you watch it, so there is
 nothing to wrap it in.
 
-`board` and `session` take the whole terminal while they are going, and hand it
-back as they found it, so your prompt and your scrollback are there again when
-the view ends.
+`board` and `session` take the whole terminal while they are going, and give it
+back when they end.
 
 `board` is never over, so it stays until you interrupt it.
 
@@ -130,10 +129,6 @@ ever opened on its branch. Only you can take a stuck session from there, so a
 view left open on one would wait for ever.
 
 Interrupt any view to end it sooner.
-
-A `session` view that ends because nothing more is coming prints the last thing
-it showed, so the session stays on the screen for you to read. One you interrupt
-leaves nothing behind, since interrupting is how you say you have seen enough.
 
 A view whose output is not a terminal, because you piped it, redirected it or
 captured it, shows what is there once and returns. You need no flag either way.

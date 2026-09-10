@@ -73,6 +73,13 @@ is tested the way `show_feed` is tested today, with an injected wait.
 The rule reaches every view, the feed included. A feed being piped or captured
 shows what is there and returns, and a feed a reader is watching follows.
 
+A terminal that reports itself as dumb, which is what a shell running inside
+another program often gives, takes no control code, so rich draws nothing into a
+screen there and a picture drawn into one would be nothing at all. So a dumb
+terminal renders once and returns, as a console that is no terminal does. That
+is the reader's second situation, not a second rule: either way nobody can watch
+a picture being redrawn.
+
 ### When a view returns
 
 **A view follows while there is something to follow, and returns when there
@@ -299,7 +306,9 @@ Rich takes the alternate screen only where the console can give it, and a legacy
 Windows console, one rich cannot turn VT processing on for, cannot. There the
 picture is drawn in place and rich clears it as the view ends, so that reader
 alone still reads the view under the commands above it, and a view that found
-itself over prints its last picture as it does anywhere else.
+itself over prints its last picture as it does anywhere else. The tests pin the
+whole environment rich reads, TERM among it, so a shell that names a dumb
+terminal cannot change what a test renders.
 
 Interrupting a live view raises `KeyboardInterrupt` on all three platforms,
 which is what ends it.

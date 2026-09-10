@@ -27,9 +27,7 @@ HELP_WHEN_A_VIEW_ENDS = (
 # The help that says what a view does to the terminal it runs in, which the two
 # views that draw a picture over the one before give.
 HELP_WHEN_A_VIEW_TAKES_THE_SCREEN = (
-    "It takes the whole terminal while it runs, and gives it back when it "
-    "ends. A view that ends on its own prints what it last showed. One you "
-    "interrupt leaves nothing behind."
+    "It takes the whole terminal while it runs, and gives it back when it ends."
 )
 
 # The help that says what a view does when nothing is watching it, which every
@@ -99,7 +97,8 @@ def build_parser() -> argparse.ArgumentParser:
             + HELP_WHEN_A_VIEW_ENDS
             + " "
             + HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
-            + " "
+            + " A session that is over stays on the screen for you to read. "
+            "Interrupt one that is still going and nothing is left behind. "
             + HELP_WHEN_NOTHING_WATCHES
         ),
     )

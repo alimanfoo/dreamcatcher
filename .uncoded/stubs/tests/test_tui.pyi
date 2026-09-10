@@ -64,7 +64,7 @@ def fabricate_repeat_sessions(state):
 def fabricate_a_silent_round(state):
     ...
 
-def pinned(written_to, width: int, is_terminal: bool) -> Console:
+def pinned(written_to, width: int, is_terminal: bool, term: str) -> Console:
     ...
 
 def interrupting(seconds):
@@ -89,6 +89,9 @@ def test_a_board_a_reader_watches_keeps_up_with_what_the_daemon_writes(tmp_path,
     ...
 
 def test_a_board_a_reader_watches_takes_the_screen_and_hands_it_back(tmp_path, daemon):
+    ...
+
+def test_a_board_on_a_dumb_terminal_is_drawn_once_and_returns(tmp_path, daemon):
     ...
 
 def viewed(state, issue: int, width: int) -> str:

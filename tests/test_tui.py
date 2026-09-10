@@ -256,15 +256,22 @@ SESSIONS = {
 }
 
 
-def pinned(written_to, width: int = WIDTH, is_terminal: bool = False) -> Console:
+def pinned(
+    written_to, width: int = WIDTH, is_terminal: bool = False, term: str = "xterm"
+) -> Console:
     """Return a console that renders the same text wherever it runs.
 
     Every setting rich would otherwise take from the shell or the platform is
-    named here: a shell exporting FORCE_COLOR would make it write escape codes,
-    a shell exporting LINES would say how tall the screen a view fills is, and
-    a legacy Windows console would take a column off its width. Saying it has
-    no colour system pins that too, so a console that says it is a terminal,
-    which is what makes a view follow, still writes plain text.
+    named here. An environment of its own is what pins the shell's share of
+    them, since a shell exporting FORCE_COLOR would make it write escape
+    codes, one exporting LINES would say how tall the screen a view fills is,
+    and one exporting TERM as dumb would stop it writing a control code at
+    all. A legacy Windows console would take a column off its width, and
+    saying it has no colour system pins the colour, so a console that says it
+    is a terminal, which is what makes a view follow, still writes plain text.
+
+    Naming the terminal is how a test asks for the dumb one, which is a
+    terminal a reader watches and rich can draw no picture into.
     """
     return Console(
         file=written_to,
@@ -273,6 +280,7 @@ def pinned(written_to, width: int = WIDTH, is_terminal: bool = False) -> Console
         force_terminal=is_terminal,
         color_system=None,
         legacy_windows=False,
+        _environ={"TERM": term},
     )
 
 
@@ -379,6 +387,26 @@ def test_a_board_a_reader_watches_takes_the_screen_and_hands_it_back(tmp_path, d
     # nothing behind.
     assert board.index(SCREEN_TAKEN) < board.index("daemon running")
     assert board.endswith(SCREEN_HANDED_BACK)
+
+
+def test_a_board_on_a_dumb_terminal_is_drawn_once_and_returns(tmp_path, daemon):
+    """A dumb terminal takes no control code, so rich draws no picture into one."""
+    state = StateDirectory(tmp_path)
+    fabricate_everything(state)
+    written_to = StringIO()
+
+    show_board(
+        state,
+        pinned(written_to, is_terminal=True, term="dumb"),
+        clock=lambda: LOOKED_AT,
+        wait=refusing,
+    )
+    board = written_to.getvalue()
+
+    # Nothing was drawn over anything, so the reader reads the board itself
+    # rather than the nothing that rich writes into a screen it cannot take.
+    assert "daemon running" in board
+    assert SCREEN_TAKEN not in board
 
 
 def viewed(state, issue: int, width: int = WIDTH) -> str:

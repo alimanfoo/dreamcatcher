@@ -1117,6 +1117,7 @@ tests/:
     test_a_board_nobody_is_watching_is_drawn_once_and_returns:
     test_a_board_a_reader_watches_keeps_up_with_what_the_daemon_writes:
     test_a_board_a_reader_watches_takes_the_screen_and_hands_it_back:
+    test_a_board_on_a_dumb_terminal_is_drawn_once_and_returns:
     viewed:
     test_wrapped_latest_output_keeps_its_indent:
     test_a_session_renders_as_its_golden_view:

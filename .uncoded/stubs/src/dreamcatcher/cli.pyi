@@ -16,7 +16,7 @@ from dreamcatcher.state import StateDirectory
 
 ISSUE = re.compile('gh(\\d+)\\Z', re.IGNORECASE)
 HELP_WHEN_A_VIEW_ENDS = ...
-HELP_WHEN_A_VIEW_TAKES_THE_SCREEN = ...
+HELP_WHEN_A_VIEW_TAKES_THE_SCREEN = 'It takes the whole terminal while it runs, and gives it back when it ends.'
 HELP_WHEN_NOTHING_WATCHES = 'Piped, redirected or captured, it shows what is there once and returns.'
 
 def build_parser() -> argparse.ArgumentParser:
