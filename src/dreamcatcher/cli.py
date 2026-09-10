@@ -102,7 +102,7 @@ def build_parser() -> argparse.ArgumentParser:
             + HELP_WHEN_NOTHING_WATCHES
         ),
     )
-    _take_an_issue(session_parser)
+    _take_an_issue(parser=session_parser)
     session_parser.set_defaults(act=_show_session)
     feed_parser = verbs.add_parser(
         "feed",
@@ -116,7 +116,7 @@ def build_parser() -> argparse.ArgumentParser:
             + HELP_WHEN_NOTHING_WATCHES
         ),
     )
-    _take_an_issue(feed_parser)
+    _take_an_issue(parser=feed_parser)
     feed_parser.add_argument(
         "--round",
         type=int,
@@ -131,7 +131,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _take_an_issue(parser: argparse.ArgumentParser) -> None:
+def _take_an_issue(*, parser: argparse.ArgumentParser) -> None:
     """Give the verb the issue it shows, written as the issue itself is."""
     parser.add_argument(
         "issue",
@@ -141,43 +141,45 @@ def _take_an_issue(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def main(*, argv: Sequence[str] | None = None) -> int:
     """Run the verb that the arguments name, and return the exit status."""
     args = build_parser().parse_args(argv)
     try:
-        args.act(args)
+        args.act(args=args)
     except ReportableError as error:
         print(error, file=sys.stderr)
         return 1
     return 0
 
 
-def _run(args: argparse.Namespace) -> None:
+def _run(*, args: argparse.Namespace) -> None:
     """Run a daemon on the checkout we are in."""
-    Daemon(Path.cwd(), Harness(args.harness)).run()
+    Daemon(root=Path.cwd(), harness=Harness(args.harness)).run()
 
 
-def _show_board(args: argparse.Namespace) -> None:
+def _show_board(*, args: argparse.Namespace) -> None:
     """Show the board of the checkout we are in."""
-    tui.show_board(_find_state(Path.cwd()), tui.open_console())
+    tui.show_board(state=_find_state(root=Path.cwd()), console=tui.open_console())
 
 
-def _show_session(args: argparse.Namespace) -> None:
+def _show_session(*, args: argparse.Namespace) -> None:
     """Show the issue's newest session, from the checkout we are in."""
-    tui.show_session(_find_state(Path.cwd()), args.issue, tui.open_console())
+    tui.show_session(
+        state=_find_state(root=Path.cwd()), issue=args.issue, console=tui.open_console()
+    )
 
 
-def _show_feed(args: argparse.Namespace) -> None:
+def _show_feed(*, args: argparse.Namespace) -> None:
     """Show the issue's feed, from the checkout we are in."""
     tui.show_feed(
-        _find_state(Path.cwd()),
-        args.issue,
-        tui.open_console(),
+        state=_find_state(root=Path.cwd()),
+        issue=args.issue,
+        console=tui.open_console(),
         round_number=args.round,
     )
 
 
-def _find_state(root: Path) -> StateDirectory:
+def _find_state(*, root: Path) -> StateDirectory:
     """Return the state directory here, or say there is nothing here to show.
 
     A view reads what a daemon left on the disk, and a daemon leaves it in the
@@ -193,8 +195,12 @@ def _find_state(root: Path) -> StateDirectory:
     return state
 
 
-def _read_issue(given: str) -> int:
-    """Return the issue number the argument names, as GH123 names issue 123."""
+def _read_issue(given: str, /) -> int:
+    """Return the issue number the argument names, as GH123 names issue 123.
+
+    argparse is what calls this, as the type behind the issue argument, and it
+    passes the text positionally, so the parameter is positional-only.
+    """
     found = ISSUE.match(given)
     if found is None:
         raise argparse.ArgumentTypeError(f"name an issue as GH123, not as {given}")

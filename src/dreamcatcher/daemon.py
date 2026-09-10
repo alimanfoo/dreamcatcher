@@ -62,7 +62,7 @@ from dreamcatcher.words import describe_time
 COOLDOWN = timedelta(minutes=15)
 
 
-def _write_output(line: str) -> None:
+def _write_output(*, line: str) -> None:
     """Write and flush one line, escaped for the stream that receives it."""
     try:
         encoding = sys.stdout.encoding or "utf-8"
@@ -81,6 +81,7 @@ class Daemon:
 
     def __init__(
         self,
+        *,
         root: Path,
         harness: Harness,
         clock: Callable[[], datetime] = now,
@@ -121,19 +122,20 @@ class Daemon:
         self._locate_harnesses()
         self.state.bootstrap()
         repository = _refuse_unknown(
-            identify_repository(root=self.state.root), "which repository this is"
+            named=identify_repository(root=self.state.root),
+            question="which repository this is",
         )
         account = _refuse_unknown(
-            identify_account(), "which account gh is signed in as"
+            named=identify_account(), question="which account gh is signed in as"
         )
         with hold(path=self.state.lock):
             self._sweep_orphans()
             at = self.clock()
-            _write_output(f"{describe_time(at=at)}  dreamcatcher is running")
+            _write_output(line=f"{describe_time(at=at)}  dreamcatcher is running")
             try:
                 with suppress(KeyboardInterrupt):
                     while True:
-                        self.tick(repository, account, at)
+                        self.tick(repository=repository, account=account, at=at)
                         self.wait(self.config.interval)
                         at = self.clock()
             finally:
@@ -144,7 +146,7 @@ class Daemon:
                 for running in self.rounds.values():
                     running.stop()
 
-    def tick(self, repository: str, account: str, at: datetime) -> None:
+    def tick(self, *, repository: str, account: str, at: datetime) -> None:
         """Look once, launch at most one round, and record what happened.
 
         A round that has ended is forgotten first, so the cap counts what is
@@ -163,7 +165,9 @@ class Daemon:
             key: running for key, running in self.rounds.items() if running.is_alive
         }
         try:
-            observed = self._decide_and_launch(repository, account, at)
+            observed = self._decide_and_launch(
+                repository=repository, account=account, at=at
+            )
         except ReportableError as failure:
             observed = LastTick(at=at, hold=str(failure))
         write_json(document=observed, path=self.state.last_tick)
@@ -173,10 +177,10 @@ class Daemon:
             outcome = f"held: {' '.join(observed.hold.split())}"
         else:
             outcome = "nothing launched"
-        _write_output(f"{describe_time(at=observed.at)}  {outcome}")
+        _write_output(line=f"{describe_time(at=observed.at)}  {outcome}")
 
     def _decide_and_launch(
-        self, repository: str, account: str, at: datetime
+        self, *, repository: str, account: str, at: datetime
     ) -> LastTick:
         """Launch at most one round, and return what the tick observed.
 
@@ -220,12 +224,14 @@ class Daemon:
                     and not session.has_run_final_round
                 ],
             )
-        found = self._judge_sessions(repository, account, sessions)
+        found = self._judge_sessions(
+            repository=repository, account=account, sessions=sessions
+        )
         if candidate_failure is not None:
             return LastTick(
                 at=at, hold=candidate_failure, waiting=list_waiting(found=found)
             )
-        cooling = _check_cooldown(sessions, at)
+        cooling = _check_cooldown(sessions=sessions, at=at)
         if cooling is not None:
             return LastTick(
                 at=at,
@@ -235,11 +241,15 @@ class Daemon:
             )
         ready = sort_wakeups(found=[one for one in found if isinstance(one, Wakeup)])
         if ready:
-            return self._resume_session(at, ready[0], found, candidates)
-        return self._dispatch_oldest_issue(at, candidates, list_waiting(found=found))
+            return self._resume_session(
+                at=at, wakeup=ready[0], found=found, candidates=candidates
+            )
+        return self._dispatch_oldest_issue(
+            at=at, judged=candidates, waiting=list_waiting(found=found)
+        )
 
     def _judge_sessions(
-        self, repository: str, account: str, sessions: list[Session]
+        self, *, repository: str, account: str, sessions: list[Session]
     ) -> list[Finding]:
         """Return what each session needs next, and what each is waiting on.
 
@@ -260,6 +270,7 @@ class Daemon:
 
     def _resume_session(
         self,
+        *,
         at: datetime,
         wakeup: Wakeup,
         found: list[Finding],
@@ -272,7 +283,7 @@ class Daemon:
         waiting, and the next tick tries the same session again.
         """
         try:
-            self._launch_wakeup(wakeup)
+            self._launch_wakeup(wakeup=wakeup)
         except ReportableError as failure:
             return LastTick(
                 at=at,
@@ -288,7 +299,7 @@ class Daemon:
             waiting=list_waiting(found=rest),
         )
 
-    def _launch_wakeup(self, wakeup: Wakeup) -> None:
+    def _launch_wakeup(self, *, wakeup: Wakeup) -> None:
         """Start the round the wakeup asks for, and keep it in `self.rounds`.
 
         The inbox lands before the round starts, because the prompt sends the
@@ -302,11 +313,11 @@ class Daemon:
         session = wakeup.session
         if wakeup.inbox is not None:
             write_json(document=wakeup.inbox, path=session.next_workspace.inbox)
-        self._start_round(session, wakeup.prompt, wakeup.cause)
+        self._start_round(session=session, prompt=wakeup.prompt, cause=wakeup.cause)
         if wakeup.newest_post:
             advance_watermark(session=session, newest=wakeup.newest_post)
 
-    def _start_round(self, session: Session, prompt: str, cause: Cause) -> None:
+    def _start_round(self, *, session: Session, prompt: str, cause: Cause) -> None:
         """Start a round for the session, and keep it in `self.rounds`.
 
         Keeping it there is what makes the round one of the daemon's own: the
@@ -342,7 +353,11 @@ class Daemon:
         )
 
     def _dispatch_oldest_issue(
-        self, at: datetime, judged: list[CandidateIssue], waiting: list[WaitingSession]
+        self,
+        *,
+        at: datetime,
+        judged: list[CandidateIssue],
+        waiting: list[WaitingSession],
     ) -> LastTick:
         """Dispatch the oldest issue that `eligibility.py` judged free to go.
 
@@ -354,7 +369,7 @@ class Daemon:
         if not eligible:
             return LastTick(at=at, candidates=judged, waiting=waiting)
         try:
-            key = self._launch_session(eligible[0], at)
+            key = self._launch_session(candidate=eligible[0], at=at)
         except ReportableError as failure:
             # The tick looked, and everything it saw is worth keeping. Only the
             # launch went wrong, and the next tick tries the same issue again.
@@ -363,7 +378,7 @@ class Daemon:
             )
         return LastTick(at=at, launched=key, candidates=judged, waiting=waiting)
 
-    def _launch_session(self, candidate: CandidateIssue, at: datetime) -> str:
+    def _launch_session(self, *, candidate: CandidateIssue, at: datetime) -> str:
         """Cut a session for the candidate, run its first round, and hold it.
 
         A session whose round will not start is taken away again, because a
@@ -379,7 +394,9 @@ class Daemon:
             at=at,
         )
         try:
-            self._start_round(session, session.record.prompt, Cause.DISPATCH)
+            self._start_round(
+                session=session, prompt=session.record.prompt, cause=Cause.DISPATCH
+            )
         except ReportableError:
             discard_session(state=self.state, record=session.record)
             raise
@@ -425,14 +442,14 @@ class Daemon:
                     teardown.end(pid=record.pid)
 
 
-def _refuse_unknown(named: str | Unknown, question: str) -> str:
+def _refuse_unknown(*, named: str | Unknown, question: str) -> str:
     """Return what gh named, or refuse the run saying what it could not tell."""
     if isinstance(named, Unknown):
         raise ReportableError(f"dreamcatcher cannot tell {question}: {named.reason}")
     return named
 
 
-def _check_cooldown(sessions: list[Session], at: datetime) -> str | None:
+def _check_cooldown(*, sessions: list[Session], at: datetime) -> str | None:
     """Return the hold every launch is under, when a round failed lately enough.
 
     The words are the evidence the record left and not a diagnosis of it. A

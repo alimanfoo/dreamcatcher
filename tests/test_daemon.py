@@ -117,7 +117,11 @@ class Interrupting:
 def idling(root, ticks: int = 2) -> tuple[Daemon, Interrupting, Ticking]:
     waiting = Interrupting(ticks)
     ticking = Ticking(step=300)
-    return Daemon(root, Harness.CLAUDE, clock=ticking, wait=waiting), waiting, ticking
+    return (
+        Daemon(root=root, harness=Harness.CLAUDE, clock=ticking, wait=waiting),
+        waiting,
+        ticking,
+    )
 
 
 def settling(root, ticks: int = 1) -> Daemon:
@@ -152,7 +156,7 @@ def test_the_daemon_reports_when_it_has_started_before_its_first_tick(
 ):
     daemon, _, _ = idling(watched)
 
-    def verify_report(_repository, _account, _at):
+    def verify_report(*, repository, account, at):
         assert (
             capsys.readouterr().out == "2026-08-19T18:41:58Z  dreamcatcher is running\n"
         )
@@ -235,28 +239,28 @@ def test_a_second_daemon_refuses_while_the_first_holds_the_repo(watched, harness
 
 
 def test_the_daemon_runs_the_harness_it_was_given(watched):
-    assert Daemon(watched, Harness.CODEX).harness is Harness.CODEX
+    assert Daemon(root=watched, harness=Harness.CODEX).harness is Harness.CODEX
 
 
 def test_a_checkout_with_no_config_names_the_file_it_needs(repo):
     with pytest.raises(ReportableError, match=CONFIG_NAME):
-        Daemon(repo, Harness.CLAUDE)
+        Daemon(root=repo, harness=Harness.CLAUDE)
 
 
 def test_a_directory_that_is_not_a_repository_is_refused(tmp_path):
     with pytest.raises(ReportableError, match="main checkout"):
-        Daemon(tmp_path, Harness.CLAUDE)
+        Daemon(root=tmp_path, harness=Harness.CLAUDE)
 
 
 def test_a_linked_worktree_is_refused(tmp_path):
     (tmp_path / ".git").write_text("gitdir: elsewhere\n", encoding="utf-8")
 
     with pytest.raises(ReportableError, match="main checkout"):
-        Daemon(tmp_path, Harness.CLAUDE)
+        Daemon(root=tmp_path, harness=Harness.CLAUDE)
 
 
 def test_the_state_directory_sits_in_the_checkout(watched):
-    daemon = Daemon(watched, Harness.CLAUDE)
+    daemon = Daemon(root=watched, harness=Harness.CLAUDE)
 
     assert daemon.state == StateDirectory(root=watched)
 
@@ -276,7 +280,7 @@ def test_a_run_refuses_when_the_harness_it_was_named_is_not_installed(repo, alon
     alone(programs=["claude"])
 
     with pytest.raises(ReportableError, match="codex is not on the PATH"):
-        Daemon(repo, Harness.CODEX, wait=Interrupting(1)).run()
+        Daemon(root=repo, harness=Harness.CODEX, wait=Interrupting(1)).run()
 
 
 def test_a_round_the_daemon_before_this_one_left_running_is_ended(
@@ -609,7 +613,7 @@ def test_a_run_that_cannot_be_told_which_repository_this_is_refuses(
     gh.fails("gh: no such remote", to="repo view")
 
     with pytest.raises(ReportableError, match="cannot tell which repository"):
-        Daemon(cloned, Harness.CLAUDE, wait=Interrupting(1)).run()
+        Daemon(root=cloned, harness=Harness.CLAUDE, wait=Interrupting(1)).run()
 
 
 def test_the_daemon_ends_the_rounds_it_holds_as_it_goes_down(dispatching, harnesses):
@@ -773,7 +777,7 @@ def test_a_session_that_goes_bad_under_a_running_daemon_costs_one_tick(dispatchi
     directory = write_session(daemon.state, KEY, 13)
     (directory / "session.json").write_text("{}", encoding="utf-8")
 
-    daemon.tick(REPOSITORY, POSTED_BY, daemon.clock())
+    daemon.tick(repository=REPOSITORY, account=POSTED_BY, at=daemon.clock())
 
     assert "session.json is not valid" in held(daemon)
     assert recorded(daemon).candidates == []
@@ -976,4 +980,4 @@ def test_a_run_that_cannot_be_told_which_account_gh_is_signed_in_as_refuses(
     gh.fails("gh: you are not logged in", to="api user")
 
     with pytest.raises(ReportableError, match="cannot tell which account"):
-        Daemon(cloned, Harness.CLAUDE, wait=Interrupting(1)).run()
+        Daemon(root=cloned, harness=Harness.CLAUDE, wait=Interrupting(1)).run()

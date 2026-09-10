@@ -26,44 +26,44 @@ from dreamcatcher.words import describe_time
 
 COOLDOWN = timedelta(minutes=15)
 
-def _write_output(line: str) -> None:
+def _write_output(*, line: str) -> None:
     ...
 
-def _refuse_unknown(named: str | Unknown, question: str) -> str:
+def _refuse_unknown(*, named: str | Unknown, question: str) -> str:
     ...
 
-def _check_cooldown(sessions: list[Session], at: datetime) -> str | None:
+def _check_cooldown(*, sessions: list[Session], at: datetime) -> str | None:
     ...
 
 class Daemon:
-    def __init__(self, root: Path, harness: Harness, clock: Callable[[], datetime], wait: Callable[[float], None]) -> None:
+    def __init__(self, *, root: Path, harness: Harness, clock: Callable[[], datetime], wait: Callable[[float], None]) -> None:
         ...
 
     def run(self) -> None:
         ...
 
-    def tick(self, repository: str, account: str, at: datetime) -> None:
+    def tick(self, *, repository: str, account: str, at: datetime) -> None:
         ...
 
-    def _decide_and_launch(self, repository: str, account: str, at: datetime) -> LastTick:
+    def _decide_and_launch(self, *, repository: str, account: str, at: datetime) -> LastTick:
         ...
 
-    def _judge_sessions(self, repository: str, account: str, sessions: list[Session]) -> list[Finding]:
+    def _judge_sessions(self, *, repository: str, account: str, sessions: list[Session]) -> list[Finding]:
         ...
 
-    def _resume_session(self, at: datetime, wakeup: Wakeup, found: list[Finding], candidates: list[CandidateIssue]) -> LastTick:
+    def _resume_session(self, *, at: datetime, wakeup: Wakeup, found: list[Finding], candidates: list[CandidateIssue]) -> LastTick:
         ...
 
-    def _launch_wakeup(self, wakeup: Wakeup) -> None:
+    def _launch_wakeup(self, *, wakeup: Wakeup) -> None:
         ...
 
-    def _start_round(self, session: Session, prompt: str, cause: Cause) -> None:
+    def _start_round(self, *, session: Session, prompt: str, cause: Cause) -> None:
         ...
 
-    def _dispatch_oldest_issue(self, at: datetime, judged: list[CandidateIssue], waiting: list[WaitingSession]) -> LastTick:
+    def _dispatch_oldest_issue(self, *, at: datetime, judged: list[CandidateIssue], waiting: list[WaitingSession]) -> LastTick:
         ...
 
-    def _launch_session(self, candidate: CandidateIssue, at: datetime) -> str:
+    def _launch_session(self, *, candidate: CandidateIssue, at: datetime) -> str:
         ...
 
     def _locate_harnesses(self) -> None:

@@ -22,26 +22,26 @@ HELP_WHEN_NOTHING_WATCHES = 'Piped, redirected or captured, it shows what is the
 def build_parser() -> argparse.ArgumentParser:
     ...
 
-def _take_an_issue(parser: argparse.ArgumentParser) -> None:
+def _take_an_issue(*, parser: argparse.ArgumentParser) -> None:
     ...
 
-def main(argv: Sequence[str] | None) -> int:
+def main(*, argv: Sequence[str] | None) -> int:
     ...
 
-def _run(args: argparse.Namespace) -> None:
+def _run(*, args: argparse.Namespace) -> None:
     ...
 
-def _show_board(args: argparse.Namespace) -> None:
+def _show_board(*, args: argparse.Namespace) -> None:
     ...
 
-def _show_session(args: argparse.Namespace) -> None:
+def _show_session(*, args: argparse.Namespace) -> None:
     ...
 
-def _show_feed(args: argparse.Namespace) -> None:
+def _show_feed(*, args: argparse.Namespace) -> None:
     ...
 
-def _find_state(root: Path) -> StateDirectory:
+def _find_state(*, root: Path) -> StateDirectory:
     ...
 
-def _read_issue(given: str) -> int:
+def _read_issue(given: str, /) -> int:
     ...

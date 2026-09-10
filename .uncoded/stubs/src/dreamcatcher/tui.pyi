@@ -32,88 +32,88 @@ INDENT = (0, 0, 0, 2)
 def open_console() -> Console:
     ...
 
-def _repaint(console: Console, look: Callable[[], _Picture], wait: Callable[[float], None]) -> None:
+def _repaint(*, console: Console, look: Callable[[], _Picture], wait: Callable[[float], None]) -> None:
     ...
 
-def _keep_looking(console: Console, look: Callable[[], bool], wait: Callable[[float], None]) -> None:
+def _keep_looking(*, console: Console, look: Callable[[], bool], wait: Callable[[float], None]) -> None:
     ...
 
-def show_board(state: StateDirectory, console: Console, clock: Callable[[], datetime], wait: Callable[[float], None]) -> None:
+def show_board(*, state: StateDirectory, console: Console, clock: Callable[[], datetime], wait: Callable[[float], None]) -> None:
     ...
 
-def _look_at_board(state: StateDirectory, clock: Callable[[], datetime]) -> _Picture:
+def _look_at_board(*, state: StateDirectory, clock: Callable[[], datetime]) -> _Picture:
     ...
 
-def _render_board(board: Board) -> RenderableType:
+def _render_board(*, board: Board) -> RenderableType:
     ...
 
 def _render_parts(*, parts: Sequence[RenderableType | None]) -> RenderableType:
     ...
 
-def _describe_daemon(board: Board) -> Text:
+def _describe_daemon(*, board: Board) -> Text:
     ...
 
-def _render_rows(board: Board, standing: SessionStanding) -> RenderableType | None:
+def _render_rows(*, board: Board, standing: SessionStanding) -> RenderableType | None:
     ...
 
-def _describe_round(row: SessionRow) -> str:
+def _describe_round(*, row: SessionRow) -> str:
     ...
 
-def _render_detail(row: SessionRow, prefix: str, continuation_indent: int, style: str) -> RenderableType:
+def _render_detail(*, row: SessionRow, prefix: str, continuation_indent: int, style: str) -> RenderableType:
     ...
 
-def _render_queue(board: Board) -> RenderableType | None:
+def _render_queue(*, board: Board) -> RenderableType | None:
     ...
 
-def _describe_nothing_dispatched(board: Board) -> Text | None:
+def _describe_nothing_dispatched(*, board: Board) -> Text | None:
     ...
 
 def _open_table() -> Table:
     ...
 
-def _render_section(heading: str, colour: str, body: RenderableType) -> RenderableType:
+def _render_section(*, heading: str, colour: str, body: RenderableType) -> RenderableType:
     ...
 
-def show_session(state: StateDirectory, issue: int, console: Console, clock: Callable[[], datetime], wait: Callable[[float], None]) -> None:
+def show_session(*, state: StateDirectory, issue: int, console: Console, clock: Callable[[], datetime], wait: Callable[[float], None]) -> None:
     ...
 
-def _look_at_session(state: StateDirectory, issue: int, clock: Callable[[], datetime]) -> _Picture:
+def _look_at_session(*, state: StateDirectory, issue: int, clock: Callable[[], datetime]) -> _Picture:
     ...
 
-def _render_session(state: StateDirectory, rows: list[SessionRow]) -> RenderableType:
+def _render_session(*, state: StateDirectory, rows: list[SessionRow]) -> RenderableType:
     ...
 
-def _render_vitals(state: StateDirectory, row: SessionRow) -> RenderableType:
+def _render_vitals(*, state: StateDirectory, row: SessionRow) -> RenderableType:
     ...
 
-def _render_rounds(row: SessionRow) -> RenderableType | None:
+def _render_rounds(*, row: SessionRow) -> RenderableType | None:
     ...
 
-def _describe_run(record: RoundRecord) -> str:
+def _describe_run(*, record: RoundRecord) -> str:
     ...
 
-def _describe_ending(record: RoundRecord, is_running: bool) -> str:
+def _describe_ending(*, record: RoundRecord, is_running: bool) -> str:
     ...
 
-def _render_hand_resume(state: StateDirectory, row: SessionRow) -> RenderableType | None:
+def _render_hand_resume(*, state: StateDirectory, row: SessionRow) -> RenderableType | None:
     ...
 
-def _render_older_sessions(older: list[SessionRow]) -> RenderableType | None:
+def _render_older_sessions(*, older: list[SessionRow]) -> RenderableType | None:
     ...
 
-def show_feed(state: StateDirectory, issue: int, console: Console, round_number: int | None, wait: Callable[[float], None]) -> None:
+def show_feed(*, state: StateDirectory, issue: int, console: Console, round_number: int | None, wait: Callable[[float], None]) -> None:
     ...
 
-def _show_one_round(state: StateDirectory, issue: int, number: int, console: Console, wait: Callable[[float], None]) -> None:
+def _show_one_round(*, state: StateDirectory, issue: int, number: int, console: Console, wait: Callable[[float], None]) -> None:
     ...
 
-def _find_rows_for_issue(state: StateDirectory, issue: int, clock: Callable[[], datetime]) -> list[SessionRow]:
+def _find_rows_for_issue(*, state: StateDirectory, issue: int, clock: Callable[[], datetime]) -> list[SessionRow]:
     ...
 
-def _paint_written(written: str) -> Text:
+def _paint_written(*, written: str) -> Text:
     ...
 
-def _paint(line: Line, said: Text) -> Text:
+def _paint(*, line: Line, said: Text) -> Text:
     ...
 
 class _Picture:
@@ -124,11 +124,11 @@ class _FeedView:
     console: Console
     positions: dict[int, int] = field(default_factory=dict)
 
-    def show_what_arrived(self, session: Session, round_numbers: Iterable[int]) -> None:
+    def show_what_arrived(self, *, session: Session, round_numbers: Iterable[int]) -> None:
         ...
 
-    def _show_round_heading(self, session: Session, round_number: int) -> None:
+    def _show_round_heading(self, *, session: Session, round_number: int) -> None:
         ...
 
-    def _show_new_lines(self, session: Session, round_number: int) -> None:
+    def _show_new_lines(self, *, session: Session, round_number: int) -> None:
         ...

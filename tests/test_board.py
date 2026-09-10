@@ -75,7 +75,7 @@ def said(*, state, number: int, texts: Sequence[str]):
 
 def looked(state):
     """Read the board off that state directory, at the pinned looking time."""
-    return read_board(state, clock=lambda: LOOKED_AT)
+    return read_board(state=state, clock=lambda: LOOKED_AT)
 
 
 def only(state):
@@ -87,7 +87,7 @@ def only(state):
 
 def rows_at(state, issue: int):
     """Read the rows for that issue alone, at the pinned looking time."""
-    return read_rows_for_issue(state, issue, clock=lambda: LOOKED_AT)
+    return read_rows_for_issue(state=state, issue=issue, clock=lambda: LOOKED_AT)
 
 
 def test_the_rows_for_an_issue_are_its_own_sessions_newest_first(running):
@@ -115,7 +115,7 @@ def test_a_look_at_one_issue_leaves_another_session_s_feed_unread(running):
 
 
 def test_a_state_directory_nothing_has_run_in_yet_holds_an_empty_board(tmp_path):
-    board = read_board(StateDirectory(root=tmp_path), clock=lambda: LOOKED_AT)
+    board = read_board(state=StateDirectory(root=tmp_path), clock=lambda: LOOKED_AT)
 
     assert board.at == LOOKED_AT
     assert board.daemon_pid is None
@@ -284,7 +284,7 @@ def test_the_work_that_is_done_reads_most_recent_first(state):
         ),
     )
 
-    done = looked(state).list_rows_for_standing(SessionStanding.DONE)
+    done = looked(state).list_rows_for_standing(standing=SessionStanding.DONE)
 
     assert [row.session.record.issue for row in done] == [9, 13]
 
@@ -292,7 +292,7 @@ def test_the_work_that_is_done_reads_most_recent_first(state):
 def test_the_sessions_in_one_standing_come_back_in_the_boards_own_order(state):
     write_session(state, "GH9-20260819-184158", 9)
 
-    waiting = looked(state).list_rows_for_standing(SessionStanding.STUCK)
+    waiting = looked(state).list_rows_for_standing(standing=SessionStanding.STUCK)
 
     assert [row.session.record.issue for row in waiting] == [9, 13]
 

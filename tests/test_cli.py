@@ -41,7 +41,7 @@ def started(monkeypatch):
 
 def test_version_prints_the_installed_version(capsys):
     with pytest.raises(SystemExit) as exit_info:
-        main(["--version"])
+        main(argv=["--version"])
 
     assert exit_info.value.code == 0
     assert capsys.readouterr().out.strip() == version("dreamcatcher")
@@ -52,34 +52,34 @@ def test_a_checkout_no_daemon_has_watched_has_nothing_to_show(
 ):
     monkeypatch.chdir(tmp_path)
 
-    assert main(["board"]) == 1
+    assert main(argv=["board"]) == 1
     assert "nothing to show" in capsys.readouterr().err
 
 
 def test_board_shows_every_session(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
 
-    assert main(["board"]) == 0
+    assert main(argv=["board"]) == 0
     assert "agent working" in capsys.readouterr().out
 
 
 def test_session_shows_the_newest_session_at_the_issue(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
 
-    assert main(["session", "GH13"]) == 0
+    assert main(argv=["session", "GH13"]) == 0
     assert KEY in capsys.readouterr().out
 
 
 def test_an_issue_reads_however_the_reader_wrote_it(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
 
-    assert main(["session", "gh13"]) == 0
+    assert main(argv=["session", "gh13"]) == 0
     assert KEY in capsys.readouterr().out
 
 
 def test_something_that_is_not_an_issue_reference_is_refused(capsys):
     with pytest.raises(SystemExit) as exit_info:
-        main(["session", "the one about the parser"])
+        main(argv=["session", "the one about the parser"])
 
     assert exit_info.value.code == 2
     assert "GH123" in capsys.readouterr().err
@@ -103,20 +103,20 @@ def test_feed_shows_what_the_session_said(monkeypatch, watching, capsys):
         ),
     )
 
-    assert main(["feed", "GH13"]) == 0
+    assert main(argv=["feed", "GH13"]) == 0
     assert "round 1: dispatched" in capsys.readouterr().out
 
 
 def test_feed_naming_a_round_shows_that_rounds_feed(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
 
-    assert main(["feed", "GH13", "--round", "1"]) == 0
+    assert main(argv=["feed", "GH13", "--round", "1"]) == 0
     assert "round 1: dispatched" in capsys.readouterr().out
 
 
 def test_a_feed_with_no_issue_to_show_asks_for_one(capsys):
     with pytest.raises(SystemExit) as exit_info:
-        main(["feed"])
+        main(argv=["feed"])
 
     assert exit_info.value.code == 2
     assert "GH<n>" in capsys.readouterr().err
@@ -124,7 +124,7 @@ def test_a_feed_with_no_issue_to_show_asks_for_one(capsys):
 
 def test_a_round_belongs_to_the_feed_and_to_no_other_verb(capsys):
     with pytest.raises(SystemExit) as exit_info:
-        main(["session", "GH13", "--round", "1"])
+        main(argv=["session", "GH13", "--round", "1"])
 
     assert exit_info.value.code == 2
     assert "--round" in capsys.readouterr().err
@@ -132,7 +132,7 @@ def test_a_round_belongs_to_the_feed_and_to_no_other_verb(capsys):
 
 def test_the_board_takes_no_issue(capsys):
     with pytest.raises(SystemExit) as exit_info:
-        main(["board", "GH13"])
+        main(argv=["board", "GH13"])
 
     assert exit_info.value.code == 2
     assert "GH13" in capsys.readouterr().err
@@ -141,7 +141,7 @@ def test_the_board_takes_no_issue(capsys):
 @pytest.mark.parametrize("verb", ["run", "board", "session", "feed"])
 def test_every_verb_describes_itself_in_its_own_help(verb, capsys):
     with pytest.raises(SystemExit) as exit_info:
-        main([verb, "--help"])
+        main(argv=[verb, "--help"])
 
     # argparse sets the verb's description between the usage line and the
     # first list of arguments, so a verb that carries none runs the two
@@ -153,7 +153,7 @@ def test_every_verb_describes_itself_in_its_own_help(verb, capsys):
 
 def test_a_bare_invocation_asks_for_a_verb(capsys):
     with pytest.raises(SystemExit) as exit_info:
-        main([])
+        main(argv=[])
 
     assert exit_info.value.code == 2
     assert "verb" in capsys.readouterr().err
@@ -162,7 +162,7 @@ def test_a_bare_invocation_asks_for_a_verb(capsys):
 def test_run_starts_a_daemon_on_the_current_directory(monkeypatch, watched, started):
     monkeypatch.chdir(watched)
 
-    assert main(["run", "--harness", "claude"]) == 0
+    assert main(argv=["run", "--harness", "claude"]) == 0
     assert started[0].state.root == watched
     assert started[0].harness is Harness.CLAUDE
 
@@ -170,13 +170,13 @@ def test_run_starts_a_daemon_on_the_current_directory(monkeypatch, watched, star
 def test_the_harness_flag_says_what_to_run_rounds_with(monkeypatch, watched, started):
     monkeypatch.chdir(watched)
 
-    assert main(["run", "--harness", "codex"]) == 0
+    assert main(argv=["run", "--harness", "codex"]) == 0
     assert started[0].harness is Harness.CODEX
 
 
 def test_a_run_with_no_harness_asks_for_one(capsys):
     with pytest.raises(SystemExit) as exit_info:
-        main(["run"])
+        main(argv=["run"])
 
     assert exit_info.value.code == 2
     assert "--harness" in capsys.readouterr().err
@@ -184,7 +184,7 @@ def test_a_run_with_no_harness_asks_for_one(capsys):
 
 def test_a_harness_that_does_not_exist_is_refused(capsys):
     with pytest.raises(SystemExit) as exit_info:
-        main(["run", "--harness", "cloud"])
+        main(argv=["run", "--harness", "cloud"])
 
     assert exit_info.value.code == 2
     complaint = capsys.readouterr().err
@@ -197,7 +197,7 @@ def test_a_failure_the_user_must_read_is_a_message_not_a_traceback(
 ):
     monkeypatch.chdir(tmp_path)
 
-    assert main(["run", "--harness", "claude"]) == 1
+    assert main(argv=["run", "--harness", "claude"]) == 1
     assert "main checkout" in capsys.readouterr().err
 
 
@@ -207,5 +207,5 @@ def test_a_write_the_daemon_cannot_make_is_a_message_not_a_traceback(
     monkeypatch.chdir(watched)
     (watched / ".dreamcatcher").write_text("not a directory\n", encoding="utf-8")
 
-    assert main(["run", "--harness", "claude"]) == 1
+    assert main(argv=["run", "--harness", "claude"]) == 1
     assert "cannot write" in capsys.readouterr().err

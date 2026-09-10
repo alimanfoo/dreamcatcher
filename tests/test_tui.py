@@ -335,7 +335,12 @@ def rendered(state, width: int = WIDTH) -> str:
     once and the view returns, which is the board a reader reads.
     """
     written_to = StringIO()
-    show_board(state, pinned(written_to, width), clock=lambda: LOOKED_AT, wait=refusing)
+    show_board(
+        state=state,
+        console=pinned(written_to, width),
+        clock=lambda: LOOKED_AT,
+        wait=refusing,
+    )
     return written_to.getvalue()
 
 
@@ -365,7 +370,9 @@ def test_a_board_nobody_is_watching_is_drawn_once_and_returns(tmp_path, daemon):
     fabricate_everything(state)
     written_to = StringIO()
 
-    show_board(state, pinned(written_to), clock=lambda: LOOKED_AT, wait=refusing)
+    show_board(
+        state=state, console=pinned(written_to), clock=lambda: LOOKED_AT, wait=refusing
+    )
 
     assert "daemon running" in written_to.getvalue()
 
@@ -391,7 +398,10 @@ def test_a_board_a_reader_watches_keeps_up_with_what_the_daemon_writes(
         )
 
     show_board(
-        state, pinned(written_to, is_terminal=True), clock=lambda: LOOKED_AT, wait=wait
+        state=state,
+        console=pinned(written_to, is_terminal=True),
+        clock=lambda: LOOKED_AT,
+        wait=wait,
     )
     board = written_to.getvalue()
 
@@ -409,8 +419,8 @@ def test_a_board_a_reader_watches_takes_the_screen_and_hands_it_back(tmp_path, d
     written_to = StringIO()
 
     show_board(
-        state,
-        pinned(written_to, is_terminal=True),
+        state=state,
+        console=pinned(written_to, is_terminal=True),
         clock=lambda: LOOKED_AT,
         wait=interrupting,
     )
@@ -431,8 +441,8 @@ def test_a_board_on_a_dumb_terminal_is_drawn_once_and_returns(tmp_path, daemon):
     written_to = StringIO()
 
     show_board(
-        state,
-        pinned(written_to, is_terminal=True, term="dumb"),
+        state=state,
+        console=pinned(written_to, is_terminal=True, term="dumb"),
         clock=lambda: LOOKED_AT,
         wait=refusing,
     )
@@ -448,7 +458,11 @@ def viewed(state, issue: int, width: int = WIDTH) -> str:
     """Return the session view that issue renders as, on a pinned console."""
     written_to = StringIO()
     show_session(
-        state, issue, pinned(written_to, width), clock=lambda: LOOKED_AT, wait=refusing
+        state=state,
+        issue=issue,
+        console=pinned(written_to, width),
+        clock=lambda: LOOKED_AT,
+        wait=refusing,
     )
     return written_to.getvalue()
 
@@ -509,9 +523,9 @@ def test_a_session_view_shows_the_round_that_starts_while_it_is_open(tmp_path, d
         write_round(state.sessions / f"GH20-{STAMP}", 2, running(60, cause=Cause.POSTS))
 
     show_session(
-        state,
-        20,
-        pinned(written_to, is_terminal=True),
+        state=state,
+        issue=20,
+        console=pinned(written_to, is_terminal=True),
         clock=lambda: LOOKED_AT,
         wait=wait,
     )
@@ -531,9 +545,9 @@ def test_a_session_view_of_a_session_that_is_over_never_waits(issue, tmp_path, d
     written_to = StringIO()
 
     show_session(
-        state,
-        issue,
-        pinned(written_to, is_terminal=True),
+        state=state,
+        issue=issue,
+        console=pinned(written_to, is_terminal=True),
         clock=lambda: LOOKED_AT,
         wait=refusing,
     )
@@ -550,9 +564,9 @@ def test_a_session_view_of_a_session_that_is_over_keeps_its_last_picture(
     written_to = StringIO()
 
     show_session(
-        state,
-        12,
-        pinned(written_to, is_terminal=True),
+        state=state,
+        issue=12,
+        console=pinned(written_to, is_terminal=True),
         clock=lambda: LOOKED_AT,
         wait=refusing,
     )
@@ -567,7 +581,12 @@ def test_a_session_view_of_a_session_that_is_over_keeps_its_last_picture(
 def followed(state, issue: int, wait=refusing) -> str:
     """Return the feed view that issue renders as, on a console being watched."""
     written_to = StringIO()
-    show_feed(state, issue, pinned(written_to, is_terminal=True), wait=wait)
+    show_feed(
+        state=state,
+        issue=issue,
+        console=pinned(written_to, is_terminal=True),
+        wait=wait,
+    )
     return written_to.getvalue()
 
 
@@ -578,7 +597,7 @@ def test_a_feed_nobody_is_watching_shows_what_is_there_and_returns(tmp_path, dae
 
     # A console that is no terminal is a pipe, a redirect or a log, and a view
     # that followed for as long as this session runs could be none of those.
-    show_feed(state, 13, pinned(written_to), wait=refusing)
+    show_feed(state=state, issue=13, console=pinned(written_to), wait=refusing)
 
     assert "[Bash] pytest" in written_to.getvalue()
 
@@ -596,10 +615,10 @@ def test_a_feed_renders_as_its_golden_view(name, tmp_path, daemon):
 
 def test_only_a_feed_lines_stamp_is_dim():
     console = Console(color_system="standard")
-    action = _paint_written(SAID[2].render())
+    action = _paint_written(written=SAID[2].render())
     label = action.plain.index("[")
     detail = action.plain.index("specs")
-    boundary = _paint(SAID[1], Text(SAID[1].text, style="bold"))
+    boundary = _paint(line=SAID[1], said=Text(SAID[1].text, style="bold"))
     boundary_text = boundary.plain.index(SAID[1].text)
     label_colour = action.get_style_at_offset(console, label).color
 
@@ -795,9 +814,9 @@ def viewed_round(
     """Return the view of one round of that issue, on a pinned console."""
     written_to = StringIO()
     show_feed(
-        state,
-        issue,
-        pinned(written_to, is_terminal=is_terminal),
+        state=state,
+        issue=issue,
+        console=pinned(written_to, is_terminal=is_terminal),
         round_number=number,
         wait=wait,
     )
