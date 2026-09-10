@@ -73,6 +73,13 @@ is tested the way `show_feed` is tested today, with an injected wait.
 The rule reaches every view, the feed included. A feed being piped or captured
 shows what is there and returns, and a feed a reader is watching follows.
 
+A terminal that reports itself as dumb, which is what a shell running inside
+another program often gives, takes no control code, so rich draws nothing into a
+screen there and a picture drawn into one would be nothing at all. So a dumb
+terminal renders once and returns, as a console that is no terminal does. That
+is the reader's second situation, not a second rule: either way nobody can watch
+a picture being redrawn.
+
 ### When a view returns
 
 **A view follows while there is something to follow, and returns when there
@@ -111,17 +118,30 @@ seen enough, so it ends without a message.
 
 ### Repainting and appending
 
-The board and the session view are pictures of a state, so they are redrawn in
-place with rich's `Live`. The feed is a log, so it appends: each pass prints
-what arrived since the last one, and the reader keeps their scrollback. Under
-`Live` a long feed would be clipped to the height of the screen and everything
-above it lost, which is the opposite of what a feed is for.
+The board and the session view are pictures of a state, so they take the
+terminal's alternate screen and rich's `Live` draws each look over the one
+before. A view that owns the screen is the whole of what a reader sees while it
+is going, so a board is never read under the commands the shell printed above
+it, and a screen handed back as it was found leaves the reader their prompt and
+their scrollback.
 
-A picture is clipped too, and that is right for a picture: a place on the screen
-is as tall as the screen, and what a picture holds now is all a reader wants. A
-board taller than the screen is cut at the bottom, which takes its sections in
-reverse order of whose turn it is, so `done` goes before anything a reader came
-for.
+The feed is a log, so it appends: each pass prints what arrived since the last
+one, and the reader keeps their scrollback as it grows. On a screen a long feed
+would be cut to the height of that screen and everything above it lost, which is
+the opposite of what a feed is for.
+
+A picture is cut too, and that is right for a picture: a screen is as tall as it
+is, and what a picture holds now is all a reader wants. A board taller than the
+screen is cut at the bottom, which takes its sections in reverse order of whose
+turn it is, so `done` goes before anything a reader came for.
+
+Handing the screen back takes the last picture with it, so a view that has seen
+the last of what it shows prints that picture as it goes, where the reader can
+go on reading it. `session` on a session that is already over is drawn once and
+then printed, which is what a reader looking one up reads, and without the
+printing they would read nothing at all. A view that the reader interrupts
+leaves nothing behind, because interrupting is how they say they have seen
+enough.
 
 These are two mechanisms because they are two kinds of thing, not two ways of
 doing one thing. A state has a current value. A log has an end.
@@ -214,10 +234,10 @@ record says it is one of the sessions asked for.
 `StateDirectory` is what a process reads the directory through, so that is what
 holds the records it has read, in `round_reader`. Whoever holds the directory
 holds them, and holds them for as long: the daemon holds one for its whole run,
-a view holds one for as long as it stays on the screen, and a process that looks
-once lets both go together. So `read_sessions` and `read_board` take what they
-always took, nothing has a reader threaded through it, and nothing about how
-long to keep one has to be remembered.
+a view holds one for as long as it runs, and a process that looks once lets both
+go together. So `read_sessions` and `read_board` take what they always took,
+nothing has a reader threaded through it, and nothing about how long to keep one
+has to be remembered.
 
 This deliberately does not lean on a session being finished. It is tempting to
 say that a session whose final round has completed and whose pull request is
@@ -282,6 +302,14 @@ Rich's `Live` works on Windows terminals, and the console settings the tests
 already pin (`legacy_windows=False` among them) keep the rendering identical
 across platforms.
 
+Rich takes the alternate screen only where the console can give it, and a legacy
+Windows console, one rich cannot turn VT processing on for, cannot. There the
+picture is drawn in place and rich clears it as the view ends, so that reader
+alone still reads the view under the commands above it, and a view that found
+itself over prints its last picture as it does anywhere else. The tests pin the
+whole environment rich reads, TERM among it, so a shell that names a dumb
+terminal cannot change what a test renders.
+
 Interrupting a live view raises `KeyboardInterrupt` on all three platforms,
 which is what ends it.
 
@@ -343,12 +371,12 @@ from a remembered position is `seek`, `read` and one split, so there is nothing
 there for a library to do. A library that reads the lines it has not read yet,
 `pygtail` for one, keeps its position in a file of its own beside the log and
 handles log rotation, and a view wants neither: it holds its position for as
-long as it is on the screen, and nothing rotates a feed. `mmap.rfind` would
-replace the backward search for a feed's last line, and that is the one place
-with machinery to lose, but the daemon appends to that file while the view reads
-it, and touching a mapping of a file that has since been truncated raises
-`SIGBUS`, which takes the process down rather than raising an exception. A log
-viewer built on a mapping hit exactly that
+long as it runs, and nothing rotates a feed. `mmap.rfind` would replace the
+backward search for a feed's last line, and that is the one place with machinery
+to lose, but the daemon appends to that file while the view reads it, and
+touching a mapping of a file that has since been truncated raises `SIGBUS`,
+which takes the process down rather than raising an exception. A log viewer
+built on a mapping hit exactly that
 ([Textualize/toolong#9](https://github.com/Textualize/toolong/issues/9)). An
 empty file cannot be mapped on Windows at all. `seek` and `read` behave the same
 on all three platforms and cannot take a view down, whatever happens to the file

@@ -113,8 +113,7 @@ class StateDirectory:
 
         Whoever holds the directory holds them, and holds them for as long:
         the daemon holds one for its whole run, a view holds one for as long as
-        it stays on the screen, and a process that looks once lets both go
-        together.
+        it runs, and a process that looks once lets both go together.
         """
         return RoundReader()
 

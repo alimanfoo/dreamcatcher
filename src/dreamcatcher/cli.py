@@ -24,6 +24,12 @@ HELP_WHEN_A_VIEW_ENDS = (
     "session, which only you can move on. Interrupt it to end it sooner."
 )
 
+# The help that says what a view does to the terminal it runs in, which the two
+# views that draw a picture over the one before give.
+HELP_WHEN_A_VIEW_TAKES_THE_SCREEN = (
+    "It takes the whole terminal while it runs, and gives it back when it ends."
+)
+
 # The help that says what a view does when nothing is watching it, which every
 # verb gives.
 HELP_WHEN_NOTHING_WATCHES = (
@@ -71,8 +77,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="show an overview of every session and every queued issue",
         description=(
             "Show every session and every queued issue, a section per "
-            "standing, in the order of whose turn it is. It stays on the "
-            "screen and keeps up until you interrupt it. " + HELP_WHEN_NOTHING_WATCHES
+            "standing, in the order of whose turn it is. It keeps up until "
+            "you interrupt it. "
+            + HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
+            + " "
+            + HELP_WHEN_NOTHING_WATCHES
         ),
     )
     board_parser.set_defaults(act=_show_board)
@@ -83,10 +92,13 @@ def build_parser() -> argparse.ArgumentParser:
             "Show an overview of the newest session at the issue: what "
             "its dispatch settled, the rounds it has run, the command that "
             "takes the session over by hand, and the older sessions at the "
-            "same issue. It stays on the screen and keeps up for as long as "
-            "the session has another round coming. "
+            "same issue. It keeps up for as long as the session has another "
+            "round coming. "
             + HELP_WHEN_A_VIEW_ENDS
             + " "
+            + HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
+            + " A session that is over stays on the screen for you to read. "
+            "Interrupt one that is still going and nothing is left behind. "
             + HELP_WHEN_NOTHING_WATCHES
         ),
     )
