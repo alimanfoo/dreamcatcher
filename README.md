@@ -103,12 +103,13 @@ unmerged is free to dispatch again while the label is still on it.
 One daemon watches one repo. A second `run` on the same repo refuses while the
 first is alive.
 
-`scry` is the watch tower. It reads what the daemon left under `.dreamcatcher/`
-and asks GitHub nothing, so it answers whether the daemon is running or long
-dead. Run it from the same checkout.
+The watch tower is a command per view: `board`, `session` and `feed`. Each one
+reads what the daemon left under `.dreamcatcher/` and asks GitHub nothing, so
+each answers whether the daemon is running or long dead. Run them from the same
+checkout.
 
 ```sh
-dreamcatcher scry
+dreamcatcher board
 ```
 
 That shows the board. The board is a section per standing, and the sections run
@@ -126,23 +127,29 @@ in the order of whose turn it is:
 Three sessions at one issue read as three sessions at one thing, so a label you
 forgot to remove shows as what it is rather than as three unrelated rows.
 
-Name an issue to see one session: what its dispatch settled, the rounds it has
-run, the command that takes the session over by hand, and the older sessions at
-the same issue.
+`session` shows one issue's newest session: what its dispatch settled, the
+rounds it has run, the command that takes the session over by hand, and the
+older sessions at the same issue.
 
 ```sh
-dreamcatcher scry GH123
+dreamcatcher session GH123
 ```
 
-Add `--follow` to watch the agent work. It shows every round's feed in order,
-and keeps showing what arrives for as long as the session has another round
-coming, so you can leave it running in a console for a whole session and see
-every round of it arrive. It waits through every gap between one round and the
-next, including a gap where you have stopped the daemon and not started it again
-yet. The view ends once the session has run its final round, and on a stuck
-session, which only you can move on. Interrupt the view to end it sooner.
-`--round 2` shows the feed of one round alone, as it stands.
+`feed` shows what the agent said, as it says it. It shows every round's feed in
+order, and keeps showing what arrives for as long as the session has another
+round coming, so you can leave it running in a console for a whole session and
+see every round of it arrive. It waits through every gap between one round and
+the next, including a gap where you have stopped the daemon and not started it
+again yet. The view ends once the session has run its final round, and on a
+stuck session, which only you can move on. Interrupt the view to end it sooner.
 
 ```sh
-dreamcatcher scry GH123 --follow
+dreamcatcher feed GH123
+```
+
+`--round 2` narrows the feed to one round, as it stands. The round list of the
+session view is where you find the number.
+
+```sh
+dreamcatcher feed GH123 --round 2
 ```
