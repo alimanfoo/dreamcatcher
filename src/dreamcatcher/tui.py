@@ -73,7 +73,13 @@ INDENT = (0, 0, 0, 2)
 
 
 def open_console() -> Console:
-    """Return the console that the views are written to."""
+    """Return the console that the views are written to.
+
+    It names no width and no height, so rich reads the terminal's own on every
+    look, and a view redrawn into a window the reader has since resized fills
+    the size it is now. Only the tests name a size, so that a picture is cut in
+    the same place whatever terminal runs them.
+    """
     return Console()
 
 
