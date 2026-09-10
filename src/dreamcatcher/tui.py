@@ -1,6 +1,7 @@
 """Show what the sessions are doing, from what the daemon left on the disk.
 
-This is the watch tower, and it holds the three views: the board, one session,
+This is the terminal interface, and the whole of it. It holds the three views
+a reader reaches through a verb of the command line: the board, one session,
 and one session's feed. It reads the state directory and never talks to GitHub
 or to the daemon, so it answers whether the daemon is alive or dead, and
 answers fastest when you most want to look.

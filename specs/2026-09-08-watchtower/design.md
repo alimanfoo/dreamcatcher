@@ -40,6 +40,10 @@ usage line for the one view they asked about, rather than for all four.
 
 Retiring `scry` also settles the note the skeleton design left open, that the
 name is charming and opaque. `board`, `session` and `feed` say what they show.
+The module the views live in is renamed with the verb, from `scry.py` to
+`tui.py`, since what it holds is the whole of the terminal interface.
+`AGENTS.md` names that module in its rule that rich is rendered in one place, so
+it is corrected too.
 
 ### Live by default
 
@@ -58,7 +62,7 @@ asking. `--once` would be a flag that only ever gets typed when the terminal
 check would have been right anyway.
 
 This also happens to be well covered already. Every golden test builds its
-console with `force_terminal=False` (`tests/test_scry.py`), precisely so the
+console with `force_terminal=False` (`tests/test_tui.py`), precisely so the
 output doesn't vary with the shell or the platform — so the whole existing suite
 already exercises the render-once path, unchanged. The following path is tested
 the way `show_feed` is tested today, with an injected wait.
@@ -205,7 +209,7 @@ Both the daemon and the views go through `read_sessions`, so both read this way.
 
 **A following feed reads on from where it stopped.** Feed files are append-only,
 so a following view remembers where it stopped and reads from there.
-`documents.read_lines_from` is that read, and `scry._FeedView` is what holds a
+`documents.read_lines_from` is that read, and `tui._FeedView` is what holds a
 position for each round of the session, so a pass reads only what arrived and
 paints only what it will print. A round that has ended is read to its end once,
 and every pass after that reads nothing from it.
@@ -279,7 +283,8 @@ changes rather than when this spec lands.
 ## What changes, and what goes away
 
 Gone: the `scry` verb; the `--follow` flag; the mutually exclusive group in the
-parser; `_refuse_a_feed_of_nothing`; `show_round` as a separate function.
+parser; `_refuse_a_feed_of_nothing`; `show_round` as a separate function; the
+name `scry.py`, which is now `tui.py`.
 
 New: three verbs; a terminal check; a following helper; renderable-returning
 views; incremental feed reads.

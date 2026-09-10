@@ -8,7 +8,7 @@ from importlib.metadata import version
 from pathlib import Path
 
 import dreamcatcher
-from dreamcatcher import scry
+from dreamcatcher import tui
 from dreamcatcher.config import Harness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.errors import ReportableError
@@ -23,7 +23,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     Each verb shows one view, or runs the daemon, and every argument belongs
     to the verb that takes it. So a verb's own --help describes the whole of
-    what that verb does, and argparse refuses whatever a verb cannot mean.
+    what that verb does, and argparse does all the refusing: a verb given an
+    argument it does not take, or given none of the arguments it requires,
+    is refused with that verb's own usage line above the message. Nothing
+    here has to check an argument against the verb it arrived with.
     """
     parser = argparse.ArgumentParser(
         prog="dreamcatcher", description=dreamcatcher.__doc__
@@ -36,8 +39,9 @@ def build_parser() -> argparse.ArgumentParser:
         description=(
             "Watch this repository for labelled issues, dispatch an agent "
             "session for each, and carry every session on until its pull "
-            "request is yours to review. One daemon watches one repo, so a "
-            "second run on this one refuses while the first is alive."
+            "request is ready for you to review. One daemon watches one "
+            "repo, so a second run on this one refuses while the first is "
+            "alive."
         ),
     )
     run_parser.add_argument(
@@ -51,7 +55,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.set_defaults(act=_run)
     board_parser = verbs.add_parser(
         "board",
-        help="show every session and every queued issue",
+        help="show an overview of every session and every queued issue",
         description=(
             "Show every session and every queued issue, a section per "
             "standing, in the order of whose turn it is."
@@ -62,9 +66,10 @@ def build_parser() -> argparse.ArgumentParser:
         "session",
         help="show one issue's newest session, in detail",
         description=(
-            "Show the newest session at the issue: what its dispatch "
-            "settled, the rounds it has run, the command that takes the "
-            "session over by hand, and the older sessions at the same issue."
+            "Show an overview of the newest session at the issue: what "
+            "its dispatch settled, the rounds it has run, the command that "
+            "takes the session over by hand, and the older sessions at the "
+            "same issue."
         ),
     )
     _take_an_issue(session_parser)
@@ -73,11 +78,11 @@ def build_parser() -> argparse.ArgumentParser:
         "feed",
         help="show what the agent said, as it says it",
         description=(
-            "Show every round of the issue's newest session, and keep "
-            "showing what arrives for as long as the session has another "
-            "round coming. It ends once the session has run its final "
-            "round, and on a stuck session, which only you can move on. "
-            "Interrupt it to end it sooner."
+            "Show the agent's actions and outputs from every round of "
+            "the issue's newest session, and keep showing what arrives for "
+            "as long as the session has another round coming. It ends once "
+            "the session has run its final round, and on a stuck session, "
+            "which only you can move on. Interrupt it to end it sooner."
         ),
     )
     _take_an_issue(feed_parser)
@@ -122,20 +127,20 @@ def _run(args: argparse.Namespace) -> None:
 
 def _show_board(args: argparse.Namespace) -> None:
     """Show the board of the checkout we are in."""
-    scry.show_board(_find_state(Path.cwd()), scry.open_console())
+    tui.show_board(_find_state(Path.cwd()), tui.open_console())
 
 
 def _show_session(args: argparse.Namespace) -> None:
     """Show the issue's newest session, from the checkout we are in."""
-    scry.show_session(_find_state(Path.cwd()), args.issue, scry.open_console())
+    tui.show_session(_find_state(Path.cwd()), args.issue, tui.open_console())
 
 
 def _show_feed(args: argparse.Namespace) -> None:
     """Show the issue's feed, from the checkout we are in."""
-    scry.show_feed(
+    tui.show_feed(
         _find_state(Path.cwd()),
         args.issue,
-        scry.open_console(),
+        tui.open_console(),
         round_number=args.round,
     )
 

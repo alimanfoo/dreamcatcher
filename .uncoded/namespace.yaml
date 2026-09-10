@@ -372,39 +372,6 @@ src/:
         _render:
         _pass_through:
         _append:
-    scry.py:
-      COLOURS:
-      QUEUE:
-      PAUSE:
-      LABEL:
-      INDENT:
-      _FeedView:
-        console:
-        positions:
-        show_what_arrived:
-        _show_round_heading:
-        _show_new_lines:
-      open_console:
-      show_board:
-      _describe_daemon:
-      _show_rows:
-      _describe_round:
-      _render_detail:
-      _show_queue:
-      _open_table:
-      _print_section:
-      show_session:
-      _show_vitals:
-      _show_rounds:
-      _describe_run:
-      _describe_ending:
-      _show_hand_resume:
-      _show_older_sessions:
-      show_feed:
-      _show_one_round:
-      _find_rows_for_issue:
-      _paint_written:
-      _paint:
     sessions.py:
       BRANCH_PREFIX:
       RECORD:
@@ -466,6 +433,39 @@ src/:
         bootstrap:
     teardown.py:
       OWN_SESSION:
+    tui.py:
+      COLOURS:
+      QUEUE:
+      PAUSE:
+      LABEL:
+      INDENT:
+      _FeedView:
+        console:
+        positions:
+        show_what_arrived:
+        _show_round_heading:
+        _show_new_lines:
+      open_console:
+      show_board:
+      _describe_daemon:
+      _show_rows:
+      _describe_round:
+      _render_detail:
+      _show_queue:
+      _open_table:
+      _print_section:
+      show_session:
+      _show_vitals:
+      _show_rounds:
+      _describe_run:
+      _describe_ending:
+      _show_hand_resume:
+      _show_older_sessions:
+      show_feed:
+      _show_one_round:
+      _find_rows_for_issue:
+      _paint_written:
+      _paint:
     wakeups.py:
       Finding:
       PRIORITY:
@@ -1017,54 +1017,6 @@ tests/:
     test_a_round_that_cannot_record_its_start_does_not_run_on:
     test_a_round_a_straggler_outlives_still_records_an_ending:
     test_a_round_a_straggler_outlives_still_stops:
-  test_scry.py:
-    LOOKED_AT:
-    WIDTH:
-    DAEMON_PID:
-    STAMP:
-    SAID:
-    DOUBLE_LABELLED:
-    BOARDS:
-    FEEDS:
-    SESSIONS:
-    daemon:
-    written:
-    ended:
-    running:
-    holding:
-    fabricate_nothing:
-    fabricate_everything:
-    fabricate_a_dead_daemon:
-    fabricate_the_cap:
-    fabricate_repeat_sessions:
-    fabricate_a_silent_round:
-    pinned:
-    interrupting:
-    rendered:
-    test_a_state_directory_renders_as_its_golden_board:
-    test_a_key_too_wide_for_the_console_folds_rather_than_being_cut:
-    viewed:
-    test_wrapped_latest_output_keeps_its_indent:
-    test_a_session_renders_as_its_golden_view:
-    followed:
-    test_a_feed_renders_as_its_golden_view:
-    test_only_a_feed_lines_stamp_is_dim:
-    test_a_following_view_waits_for_the_round_a_session_has_yet_to_run:
-    test_a_following_view_looks_once_more_when_the_last_round_stops:
-    test_a_round_that_starts_while_the_view_is_going_arrives_in_it:
-    test_a_view_of_a_session_that_is_over_never_waits:
-    test_a_following_view_waits_for_the_next_daemon:
-    test_a_view_of_a_stuck_session_never_waits:
-    test_a_following_view_reads_a_round_on_from_where_it_stopped:
-    test_a_write_that_never_landed_waits_for_the_look_that_shows_it_whole:
-    test_a_line_the_view_cannot_read_reaches_the_reader_as_it_was_written:
-    test_a_reader_who_has_seen_enough_interrupts_the_view:
-    viewed_round:
-    test_one_round_of_a_session_reads_on_its_own:
-    test_a_round_that_wrote_no_feed_shows_the_line_that_opens_it:
-    test_a_view_of_one_round_shows_it_as_it_stands:
-    test_a_round_the_session_never_ran_says_how_many_it_did:
-    test_an_issue_no_session_here_has_says_so:
   test_sessions.py:
     KEY:
     BRANCH:
@@ -1117,6 +1069,54 @@ tests/:
     test_a_kill_reaches_what_the_child_started:
     test_a_child_that_ends_by_itself_takes_what_it_started_with_it:
     test_a_kill_after_the_child_ended_leaves_its_pid_alone:
+  test_tui.py:
+    LOOKED_AT:
+    WIDTH:
+    DAEMON_PID:
+    STAMP:
+    SAID:
+    DOUBLE_LABELLED:
+    BOARDS:
+    FEEDS:
+    SESSIONS:
+    daemon:
+    written:
+    ended:
+    running:
+    holding:
+    fabricate_nothing:
+    fabricate_everything:
+    fabricate_a_dead_daemon:
+    fabricate_the_cap:
+    fabricate_repeat_sessions:
+    fabricate_a_silent_round:
+    pinned:
+    interrupting:
+    rendered:
+    test_a_state_directory_renders_as_its_golden_board:
+    test_a_key_too_wide_for_the_console_folds_rather_than_being_cut:
+    viewed:
+    test_wrapped_latest_output_keeps_its_indent:
+    test_a_session_renders_as_its_golden_view:
+    followed:
+    test_a_feed_renders_as_its_golden_view:
+    test_only_a_feed_lines_stamp_is_dim:
+    test_a_following_view_waits_for_the_round_a_session_has_yet_to_run:
+    test_a_following_view_looks_once_more_when_the_last_round_stops:
+    test_a_round_that_starts_while_the_view_is_going_arrives_in_it:
+    test_a_view_of_a_session_that_is_over_never_waits:
+    test_a_following_view_waits_for_the_next_daemon:
+    test_a_view_of_a_stuck_session_never_waits:
+    test_a_following_view_reads_a_round_on_from_where_it_stopped:
+    test_a_write_that_never_landed_waits_for_the_look_that_shows_it_whole:
+    test_a_line_the_view_cannot_read_reaches_the_reader_as_it_was_written:
+    test_a_reader_who_has_seen_enough_interrupts_the_view:
+    viewed_round:
+    test_one_round_of_a_session_reads_on_its_own:
+    test_a_round_that_wrote_no_feed_shows_the_line_that_opens_it:
+    test_a_view_of_one_round_shows_it_as_it_stands:
+    test_a_round_the_session_never_ran_says_how_many_it_did:
+    test_an_issue_no_session_here_has_says_so:
   test_wakeups.py:
     KEY:
     state:

@@ -114,7 +114,7 @@ uv run pre-commit run --all-files
 - Shell out from `commands.py` alone. `pyproject.toml` waives ruff's subprocess
   rules for that one module, so any other module that imports `subprocess` fails
   the check.
-- Render with rich in `scry.py` alone. It is the one module that shows anything
+- Render with rich in `tui.py` alone. It is the one module that shows anything
   to a person, and everything the daemon writes stays plain text, so a colour
   code can never reach a file. `pyproject.toml` waives no rule for this, so any
   other module that imports rich is a mistake a reviewer has to catch.

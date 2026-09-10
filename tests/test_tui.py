@@ -23,20 +23,20 @@ from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Line
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
-from dreamcatcher.scry import (
-    PAUSE,
-    _paint,
-    _paint_written,
-    show_board,
-    show_feed,
-    show_session,
-)
 from dreamcatcher.state import (
     NO_ROUND_HAS_RUN,
     CandidateIssue,
     LastTick,
     StateDirectory,
     WaitingSession,
+)
+from dreamcatcher.tui import (
+    PAUSE,
+    _paint,
+    _paint_written,
+    show_board,
+    show_feed,
+    show_session,
 )
 
 # When a view is rendered: two hours after the last thing on the disk happened.

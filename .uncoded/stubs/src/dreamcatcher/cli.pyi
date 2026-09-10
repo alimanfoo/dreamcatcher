@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from importlib.metadata import version
 from pathlib import Path
 import dreamcatcher
-from dreamcatcher import scry
+from dreamcatcher import tui
 from dreamcatcher.config import Harness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.errors import ReportableError

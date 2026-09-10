@@ -98,6 +98,8 @@ In scope:
 - `show_round` folds into `show_feed` as a narrowing of it.
 - The mutually exclusive group and `_refuse_a_feed_of_nothing` go, because every
   argument now belongs to the command that takes it.
+- `scry.py` is renamed `tui.py`, since the verb it was named for has gone and
+  what the module holds is the terminal interface (design.md, Three verbs).
 - `README.md` updated to describe the three commands.
 
 Done when: each command's `--help` is a complete description of that view; the
