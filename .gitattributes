@@ -1,8 +1,5 @@
-# Collapse generated files in a diff, and keep them out of the language
-# statistics. uncoded writes the first three; uv writes the lock.
-.uncoded/** linguist-generated=true
-.claude/skills/** linguist-generated=true
-.agents/skills/** linguist-generated=true
+# Collapse the lock in a diff, and keep it out of the language statistics. uv
+# writes it.
 uv.lock linguist-generated=true
 
 # A recorded stream is read back byte for byte by a golden test, so no checkout
