@@ -9,7 +9,7 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.lock import hold
 
 
-def refuse(*_: object) -> None:
+def refuse(_: object, /) -> None:
     raise PermissionError("the lock cannot be removed")
 
 
@@ -23,7 +23,7 @@ def dead_pid() -> int:
 def test_holding_the_lock_records_the_daemon_and_releasing_removes_it(tmp_path):
     lock = tmp_path / "daemon.pid"
 
-    with hold(lock):
+    with hold(path=lock):
         assert lock.read_text(encoding="utf-8").strip() == str(os.getpid())
 
     assert not lock.exists()
@@ -33,7 +33,7 @@ def test_a_live_daemon_keeps_the_lock(tmp_path):
     lock = tmp_path / "daemon.pid"
     lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
 
-    with pytest.raises(ReportableError, match=f"pid {os.getpid()}"), hold(lock):
+    with pytest.raises(ReportableError, match=f"pid {os.getpid()}"), hold(path=lock):
         pass
 
 
@@ -41,7 +41,7 @@ def test_a_lock_naming_a_pid_that_is_gone_is_reclaimed(tmp_path):
     lock = tmp_path / "daemon.pid"
     lock.write_text(f"{dead_pid()}\n", encoding="utf-8")
 
-    with hold(lock):
+    with hold(path=lock):
         assert lock.read_text(encoding="utf-8").strip() == str(os.getpid())
 
 
@@ -58,21 +58,21 @@ def test_a_lock_nobody_can_read_as_a_live_pid_is_reclaimed(tmp_path, kind, held)
     lock = tmp_path / "daemon.pid"
     lock.write_text(f"{held}\n", encoding="utf-8")
 
-    with hold(lock):
+    with hold(path=lock):
         assert lock.read_text(encoding="utf-8").strip() == str(os.getpid())
 
 
 def test_the_lock_is_released_when_the_daemon_fails(tmp_path):
     lock = tmp_path / "daemon.pid"
 
-    with pytest.raises(RuntimeError), hold(lock):
+    with pytest.raises(RuntimeError), hold(path=lock):
         raise RuntimeError("the daemon fell over")
 
     assert not lock.exists()
 
 
 def test_a_lock_the_daemon_cannot_write_says_so(tmp_path):
-    with pytest.raises(ReportableError, match="cannot write"), hold(tmp_path):
+    with pytest.raises(ReportableError, match="cannot write"), hold(path=tmp_path):
         pass
 
 
@@ -82,5 +82,5 @@ def test_a_release_that_cannot_happen_leaves_the_failure_that_ended_the_run(
     lock = tmp_path / "daemon.pid"
     monkeypatch.setattr(Path, "unlink", refuse)
 
-    with pytest.raises(ReportableError, match="the tick"), hold(lock):
+    with pytest.raises(ReportableError, match="the tick"), hold(path=lock):
         raise ReportableError("the tick could not write what it decided")

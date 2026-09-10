@@ -59,7 +59,7 @@ class DispatchMapping(Document):
         """The settings block of each harness that can run the label."""
         return self.__pydantic_extra__
 
-    def choose_harness(self, named: Harness) -> Harness:
+    def choose_harness(self, *, named: Harness) -> Harness:
         """Return the harness that runs this label, given what the run named.
 
         A label carrying a block for the named harness runs on that one. There
@@ -119,6 +119,6 @@ class Config(Document):
         return self
 
 
-def read_config(root: Path) -> Config:
+def read_config(*, root: Path) -> Config:
     """Return the configuration the repo at root holds."""
-    return read_toml(Config, root / CONFIG_NAME)
+    return read_toml(model=Config, path=root / CONFIG_NAME)

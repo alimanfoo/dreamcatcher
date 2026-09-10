@@ -17,7 +17,7 @@ from typing import ClassVar
 from dreamcatcher.feed import Event, Prose
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Launch:
     """What one round starts with.
 
@@ -31,18 +31,23 @@ class Launch:
     prompt: str
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Invocation:
-    """How one round runs: the command to start, and the prompt it reads.
+    """How one round runs: the program to start, its arguments, and its prompt.
+
+    `commands.spawn` takes the program apart from its arguments, and a list
+    holding both would have whoever spawns it split the two apart again. So the
+    program is named apart from its arguments here as well.
 
     A harness reads its prompt from stdin rather than from its command line,
-    so the two travel together and the adapter is what knows which is which.
+    so the three travel together and the adapter is what knows which is which.
     That keeps a prompt off every command line, where cmd.exe would act on a
     percent sign or a line ending in it, and it lets a prompt run to any
     length.
     """
 
-    command: list[str]
+    program: str
+    arguments: list[str]
     prompt: str
 
 
@@ -56,11 +61,11 @@ class Adapter(ABC):
     program: ClassVar[str]
 
     @abstractmethod
-    def build_first_round(self, launch: Launch) -> Invocation:
+    def build_first_round(self, *, launch: Launch) -> Invocation:
         """Return how to run a session's first round."""
 
     @abstractmethod
-    def build_resumed_round(self, launch: Launch) -> Invocation:
+    def build_resumed_round(self, *, launch: Launch) -> Invocation:
         """Return how to resume the session with launch's prompt."""
 
     @abstractmethod
@@ -73,7 +78,7 @@ class Adapter(ABC):
         and whoever ran it does the talking.
         """
 
-    def read(self, line: str) -> list[Event]:
+    def read(self, *, line: str) -> list[Event]:
         """Return the feed events from one line of the harness's stream.
 
         Not every line is an event. A CLI prints a warning now and then, and an
@@ -84,11 +89,13 @@ class Adapter(ABC):
         try:
             streamed = json.loads(line)
             return (
-                self._events(streamed) if isinstance(streamed, dict) else [Prose(line)]
+                self._events(streamed=streamed)
+                if isinstance(streamed, dict)
+                else [Prose(text=line)]
             )
         except Exception:
-            return [Prose(line)]
+            return [Prose(text=line)]
 
     @abstractmethod
-    def _events(self, streamed: dict) -> list[Event]:
+    def _events(self, *, streamed: dict) -> list[Event]:
         """Return the feed events one event of this harness's stream turns into."""

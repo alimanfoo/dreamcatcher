@@ -61,7 +61,7 @@ CLOSED, finish per your session's rules. Otherwise act on posts per your
 session's rules. End your turn when done."""
 
 
-def compose_first_round_prompt(template: str, issue: int) -> str:
+def compose_first_round_prompt(*, template: str, issue: int) -> str:
     """Return the prompt that opens a session on the issue.
 
     The template is the label's own, from the config, and the issue's number
@@ -71,7 +71,7 @@ def compose_first_round_prompt(template: str, issue: int) -> str:
     return template.replace(ISSUE_PLACEHOLDER, str(issue)) + POSTSCRIPT
 
 
-def compose_inbox_prompt(pull_request: int, inbox: Path) -> str:
+def compose_inbox_prompt(*, pull_request: int, inbox: Path) -> str:
     """Return the prompt that sends a session to the inbox a round was given.
 
     The pull request is the session's own, and the inbox is the file that the

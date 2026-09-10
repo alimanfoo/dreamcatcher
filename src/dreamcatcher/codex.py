@@ -1,5 +1,6 @@
 """Run Codex, and read what it streams back."""
 
+from collections.abc import Sequence
 from typing import ClassVar
 
 from dreamcatcher.adapters import Adapter, Invocation, Launch
@@ -32,26 +33,26 @@ class Codex(Adapter):
 
     program: ClassVar[str] = "codex"
 
-    def build_first_round(self, launch: Launch) -> Invocation:
+    def build_first_round(self, *, launch: Launch) -> Invocation:
         """Return how to run a session's first round.
 
         The command does not say which directory to work in, so whoever runs
         it has to run it in the session's worktree.
         """
         return Invocation(
-            [
-                self.program,
+            program=self.program,
+            arguments=[
                 "exec",
                 "--json",
                 "--approve-for-me",
-                *_settings(launch),
-                *_overrides(NETWORK_ACCESS),
+                *_settings(launch=launch),
+                *_overrides(settings=[NETWORK_ACCESS]),
                 STDIN,
             ],
-            launch.prompt,
+            prompt=launch.prompt,
         )
 
-    def build_resumed_round(self, launch: Launch) -> Invocation:
+    def build_resumed_round(self, *, launch: Launch) -> Invocation:
         """Return how to resume the session in this directory.
 
         Codex forgets the model and the effort when it resumes, so this sets
@@ -62,17 +63,17 @@ class Codex(Adapter):
         worktree is what picks the right session.
         """
         return Invocation(
-            [
-                self.program,
+            program=self.program,
+            arguments=[
                 "exec",
                 "resume",
                 "--last",
                 "--json",
-                *_settings(launch),
-                *_overrides(*RESUME_PERMISSIONS),
+                *_settings(launch=launch),
+                *_overrides(settings=RESUME_PERMISSIONS),
                 STDIN,
             ],
-            launch.prompt,
+            prompt=launch.prompt,
         )
 
     def build_hand_resume(self) -> list[str]:
@@ -84,7 +85,7 @@ class Codex(Adapter):
         """
         return [self.program, "resume", "--last"]
 
-    def _events(self, streamed: dict) -> list[Event]:
+    def _events(self, *, streamed: dict) -> list[Event]:
         """Return the feed events one Codex event turns into.
 
         An event this does not handle gets no feed line. The feed writes its own
@@ -94,37 +95,37 @@ class Codex(Adapter):
         """
         kind = streamed["type"]
         if kind == "thread.started":
-            return [Note("session", f"id {streamed['thread_id']}")]
+            return [Note(label="session", detail=f"id {streamed['thread_id']}")]
         if kind == "item.completed":
-            return _item(streamed["item"])
+            return _item(item=streamed["item"])
         if kind == "turn.completed":
-            return [_usage(streamed["usage"])]
+            return [_usage(counts=streamed["usage"])]
         # When a turn fails, Codex sends the error twice: once on its own, then
         # again as the reason the turn failed. Keeping only this second one means
         # the reader sees the failure once.
         if kind == "turn.failed":
-            return [Note("failed", streamed["error"]["message"])]
+            return [Note(label="failed", detail=streamed["error"]["message"])]
         return []
 
 
 CODEX = Codex()
 
 
-def _settings(launch: Launch) -> list[str]:
+def _settings(*, launch: Launch) -> list[str]:
     """Return the model and effort flags. Every round of a session uses both."""
     return [
         "--model",
         launch.model,
-        *_overrides(f'model_reasoning_effort="{launch.effort}"'),
+        *_overrides(settings=[f'model_reasoning_effort="{launch.effort}"']),
     ]
 
 
-def _overrides(*settings: str) -> list[str]:
+def _overrides(*, settings: Sequence[str]) -> list[str]:
     """Return each setting as the `-c setting` pair Codex expects."""
     return [part for setting in settings for part in ("-c", setting)]
 
 
-def _item(item: dict) -> list[Event]:
+def _item(*, item: dict) -> list[Event]:
     """Return the feed events one finished item turns into.
 
     When the agent does something, the item becomes one action line. Codex's own
@@ -138,23 +139,26 @@ def _item(item: dict) -> list[Event]:
     """
     kind = item["type"]
     if kind == "agent_message":
-        return [Prose(item["text"])]
+        return [Prose(text=item["text"])]
     if kind == "command_execution":
-        return _command(item)
+        return _command(item=item)
     if kind == "file_change":
         # Codex reports all the files of one patch in a single item, so give each
         # file its own line. Putting what happened to the file in the label
         # leaves the path as the whole detail, and the feed can then cut the
         # worktree's path off the front of it.
-        return [Note(change["kind"], change["path"]) for change in item["changes"]]
+        return [
+            Note(label=change["kind"], detail=change["path"])
+            for change in item["changes"]
+        ]
     if kind == "web_search":
-        return [Note(kind, item["query"])]
+        return [Note(label=kind, detail=item["query"])]
     if kind == "error":
-        return [Note(kind, item["message"])]
+        return [Note(label=kind, detail=item["message"])]
     return []
 
 
-def _command(item: dict) -> list[Event]:
+def _command(*, item: dict) -> list[Event]:
     """Return the command the agent ran, and how it went.
 
     A command that finished cleanly says all it needs to in one line. Anything
@@ -162,14 +166,14 @@ def _command(item: dict) -> list[Event]:
     command says `failed` and a declined one says `declined`, and this does not
     have to know which statuses Codex has.
     """
-    ran = Note(item["type"], item["command"])
+    ran = Note(label=item["type"], detail=item["command"])
     status = item["status"]
     if status == "completed":
         return [ran]
-    return [ran, Note(status, item["aggregated_output"])]
+    return [ran, Note(label=status, detail=item["aggregated_output"])]
 
 
-def _usage(counts: dict) -> Note:
+def _usage(*, counts: dict) -> Note:
     """Return what the round used, counted in tokens.
 
     Codex tells us no prices, so this reports tokens and no money. Each count
@@ -180,8 +184,8 @@ def _usage(counts: dict) -> Note:
     feed that the model thought at all.
     """
     return Note(
-        "usage",
-        f"{counts['output_tokens']} output, "
+        label="usage",
+        detail=f"{counts['output_tokens']} output, "
         f"{counts['reasoning_output_tokens']} reasoning, "
         f"{counts['input_tokens']} input, "
         f"{counts['cached_input_tokens']} cache read, "

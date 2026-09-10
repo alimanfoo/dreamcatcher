@@ -7,7 +7,7 @@ from dreamcatcher.words import describe_count, describe_span, describe_time
 
 
 def test_a_time_is_written_the_one_way_the_tool_writes_one():
-    assert describe_time(PINNED) == "2026-08-19T18:41:58Z"
+    assert describe_time(at=PINNED) == "2026-08-19T18:41:58Z"
 
 
 @pytest.mark.parametrize(
@@ -24,7 +24,7 @@ def test_a_time_is_written_the_one_way_the_tool_writes_one():
     ],
 )
 def test_a_span_reads_in_the_largest_unit_that_says_it(span, described):
-    assert describe_span(span) == described
+    assert describe_span(span=span) == described
 
 
 @pytest.mark.parametrize(
@@ -32,4 +32,4 @@ def test_a_span_reads_in_the_largest_unit_that_says_it(span, described):
     [(0, "0 rounds"), (1, "1 round"), (2, "2 rounds")],
 )
 def test_a_count_reads_for_one_or_for_more_than_one(number, described):
-    assert describe_count(number, "round") == described
+    assert describe_count(number=number, noun="round") == described

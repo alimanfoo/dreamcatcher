@@ -21,7 +21,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
-from threading import Event, Lock, Thread
+from threading import Event as Flag
+from threading import Lock, Thread
 
 from pydantic import PositiveInt
 
@@ -36,7 +37,7 @@ from dreamcatcher.documents import (
     write_text,
 )
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.feed import Prose, Renderer
+from dreamcatcher.feed import Event, Prose, Renderer
 
 # The file in a round's own directory saying what the round did.
 RECORD = "round.json"
@@ -111,7 +112,7 @@ class RoundRecord(Document):
         return self.ending is not None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Workspace:
     """Where one round runs, and the files it writes as it goes.
 
@@ -175,7 +176,7 @@ class RoundReader:
         """Set up a reader that has read nothing yet."""
         self._cache: dict[Path, RoundRecord] = {}
 
-    def read_records(self, directory: Path) -> list[RoundRecord]:
+    def read_records(self, *, directory: Path) -> list[RoundRecord]:
         """Return the records of the rounds written under directory, oldest first.
 
         Each round writes into a directory of its own under this one, so a
@@ -186,15 +187,17 @@ class RoundReader:
         yet, and a directory that holds no rounds at all, both come back with
         nothing rather than as a failure.
         """
-        records = [self._read_record(found) for found in directory.glob(f"*/{RECORD}")]
+        records = [
+            self._read_record(path=found) for found in directory.glob(f"*/{RECORD}")
+        ]
         return sorted(records, key=lambda record: record.started)
 
-    def _read_record(self, path: Path) -> RoundRecord:
+    def _read_record(self, *, path: Path) -> RoundRecord:
         """Return what the record at path says, and cache it once it is complete."""
         cached = self._cache.get(path)
         if cached is not None:
             return cached
-        record = read_json(RoundRecord, path)
+        record = read_json(model=RoundRecord, path=path)
         if record.is_complete:
             self._cache[path] = record
         return record
@@ -209,6 +212,7 @@ class Round:
 
     def __init__(
         self,
+        *,
         adapter: Adapter,
         invocation: Invocation,
         workspace: Workspace,
@@ -228,19 +232,24 @@ class Round:
         self.workspace = workspace
         self.cause = cause
         self.clock = clock
-        self.renderer = Renderer(workspace.worktree, clock=clock)
+        self.renderer = Renderer(worktree=workspace.worktree, clock=clock)
         self.started = clock()
         self.is_interrupted = False
-        self._ended = Event()
+        self._ended = Flag()
         self._writing = Lock()
-        write_text(invocation.prompt, workspace.prompt)
+        write_text(text=invocation.prompt, path=workspace.prompt)
         self.child = spawn(
-            *invocation.command, cwd=workspace.worktree, stdin=workspace.prompt
+            program=invocation.program,
+            arguments=invocation.arguments,
+            cwd=workspace.worktree,
+            stdin=workspace.prompt,
         )
         try:
             write_json(
-                RoundRecord(started=self.started, pid=self.child.pid, cause=cause),
-                self.workspace.record,
+                document=RoundRecord(
+                    started=self.started, pid=self.child.pid, cause=cause
+                ),
+                path=self.workspace.record,
             )
         except ReportableError:
             # A round nothing recorded is a round nothing will watch or find
@@ -249,8 +258,16 @@ class Round:
             self.child.wait()
             raise
         self._pumps = [
-            Thread(target=self._pump, args=(self._read_stdout,), daemon=True),
-            Thread(target=self._pump, args=(self._read_stderr,), daemon=True),
+            Thread(
+                target=self._pump,
+                kwargs={"read": self._read_stdout},
+                daemon=True,
+            ),
+            Thread(
+                target=self._pump,
+                kwargs={"read": self._read_stderr},
+                daemon=True,
+            ),
         ]
         for pump in self._pumps:
             pump.start()
@@ -313,7 +330,7 @@ class Round:
             self.is_interrupted = True
             self.child.kill()
 
-    def _pump(self, read: Callable[[], None]) -> None:
+    def _pump(self, *, read: Callable[[], None]) -> None:
         """Read one of the round's streams, and end the round if that fails.
 
         A round that cannot write its own files has nothing to show for itself.
@@ -330,13 +347,13 @@ class Round:
     def _read_stdout(self) -> None:
         """Keep each line that the harness streams, and write what it says."""
         for line in self.child.out:
-            append_text(line, self.workspace.raw)
-            self._append(line, self._render)
+            append_text(text=line, path=self.workspace.raw)
+            self._append(line=line, events=self.adapter.read(line=line))
 
     def _read_stderr(self) -> None:
         """Write what the harness says on stderr, among the lines around it."""
         for line in self.child.err:
-            self._append(line, self._pass_through)
+            self._append(line=line, events=[Prose(text=line)])
 
     def _close(self) -> None:
         """Record how the round ended as soon as its child has gone.
@@ -352,13 +369,13 @@ class Round:
             status = self.child.wait()
             if not self.is_interrupted:
                 write_json(
-                    RoundRecord(
+                    document=RoundRecord(
                         started=self.started,
                         pid=self.child.pid,
                         cause=self.cause,
                         ending=Ending(at=self.clock(), status=status),
                     ),
-                    self.workspace.record,
+                    path=self.workspace.record,
                 )
         finally:
             # However the close went, the round has ended, so whoever is
@@ -368,33 +385,21 @@ class Round:
             for pump in self._pumps:
                 pump.join()
 
-    def _render(self, line: str) -> str:
-        """Return the feed lines that one line of the harness's stream becomes.
-
-        Reading a line through an adapter never raises. Rendering what the
-        adapter read is a second step, and that step does fail when an event
-        holds something other than text. A line the feed cannot render is
-        written out as the harness sent it, so one bad line costs one line.
-        """
-        try:
-            return "".join(
-                self.renderer.render(event) for event in self.adapter.read(line)
-            )
-        except Exception:
-            return self.renderer.render(Prose(line))
-
-    def _pass_through(self, line: str) -> str:
-        """Return the feed line one line of the harness's stderr becomes."""
-        return self.renderer.render(Prose(line))
-
-    def _append(self, line: str, render: Callable[[str], str]) -> None:
+    def _append(self, *, line: str, events: list[Event]) -> None:
         """Add what one line says to the feed, letting one stream write at a time.
 
         Rendering happens under the same lock as the write. A line is stamped
         as it is rendered, so holding the lock across both keeps the stamps in
         the same order as the lines.
+
+        Rendering an event fails when the event holds something other than
+        text. A line the feed cannot render is written out as the harness sent
+        it, so one bad line costs one line.
         """
         with self._writing:
-            written = render(line)
+            try:
+                written = "".join(self.renderer.render(event=event) for event in events)
+            except Exception:
+                written = self.renderer.render(event=Prose(text=line))
             if written:
-                append_text(written, self.workspace.feed)
+                append_text(text=written, path=self.workspace.feed)

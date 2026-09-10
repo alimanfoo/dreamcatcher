@@ -9,17 +9,17 @@ from dreamcatcher.git import add_worktree, delete_branch, fetch, remove_worktree
 BRANCH = "dreamcatcher-GH8-20260820-000456"
 
 
-def session_worktree(root):
+def session_worktree(*, root):
     return root / ".dreamcatcher" / "worktrees" / "GH8-20260820-000456"
 
 
-def worktrees(root):
+def worktrees(*, root):
     """The path of every worktree of the checkout at root.
 
     git prints a path with forward slashes on Windows too, so these come back as
     paths rather than as text. Comparing the text would pass whatever git said.
     """
-    listed = git("worktree", "list", "--porcelain", cwd=root)
+    listed = git(arguments=["worktree", "list", "--porcelain"], cwd=root)
     return [
         Path(line.removeprefix("worktree "))
         for line in listed.splitlines()
@@ -28,65 +28,65 @@ def worktrees(root):
 
 
 def test_a_fetch_brings_origins_main_back(cloned):
-    git("update-ref", "-d", "refs/remotes/origin/main", cwd=cloned)
+    git(arguments=["update-ref", "-d", "refs/remotes/origin/main"], cwd=cloned)
 
-    fetch(cloned)
+    fetch(root=cloned)
 
-    assert git("rev-parse", "origin/main", cwd=cloned).strip()
+    assert git(arguments=["rev-parse", "origin/main"], cwd=cloned).strip()
 
 
 def test_a_worktree_lands_where_it_is_asked_for_on_its_own_branch(cloned):
-    path = session_worktree(cloned)
+    path = session_worktree(root=cloned)
 
-    add_worktree(cloned, path, BRANCH)
+    add_worktree(root=cloned, path=path, branch=BRANCH)
 
     assert (path / "README.md").exists()
-    assert BRANCH in git("branch", "--list", BRANCH, cwd=cloned)
-    assert path in worktrees(cloned)
+    assert BRANCH in git(arguments=["branch", "--list", BRANCH], cwd=cloned)
+    assert path in worktrees(root=cloned)
 
 
 def test_a_worktree_git_refuses_says_what_git_said(cloned):
-    path = session_worktree(cloned)
-    add_worktree(cloned, path, BRANCH)
+    path = session_worktree(root=cloned)
+    add_worktree(root=cloned, path=path, branch=BRANCH)
 
     with pytest.raises(CommandError) as error:
-        add_worktree(cloned, path, BRANCH)
+        add_worktree(root=cloned, path=path, branch=BRANCH)
 
     assert "git worktree add" in str(error.value)
     assert BRANCH in str(error.value)
 
 
 def test_a_removed_worktree_leaves_the_disk_and_the_list(cloned):
-    path = session_worktree(cloned)
-    add_worktree(cloned, path, BRANCH)
+    path = session_worktree(root=cloned)
+    add_worktree(root=cloned, path=path, branch=BRANCH)
 
-    remove_worktree(cloned, path)
+    remove_worktree(root=cloned, path=path)
 
     assert not path.exists()
-    assert path not in worktrees(cloned)
+    assert path not in worktrees(root=cloned)
 
 
 def test_removing_a_worktree_that_was_never_made_says_what_git_said(cloned):
     with pytest.raises(CommandError) as error:
-        remove_worktree(cloned, session_worktree(cloned))
+        remove_worktree(root=cloned, path=session_worktree(root=cloned))
 
     assert "git worktree remove" in str(error.value)
 
 
 def test_a_deleted_branch_leaves_the_branch_list(cloned):
-    path = session_worktree(cloned)
-    add_worktree(cloned, path, BRANCH)
-    remove_worktree(cloned, path)
+    path = session_worktree(root=cloned)
+    add_worktree(root=cloned, path=path, branch=BRANCH)
+    remove_worktree(root=cloned, path=path)
 
-    delete_branch(cloned, BRANCH)
+    delete_branch(root=cloned, branch=BRANCH)
 
-    assert git("branch", "--list", BRANCH, cwd=cloned) == ""
+    assert git(arguments=["branch", "--list", BRANCH], cwd=cloned) == ""
 
 
 def test_a_branch_a_worktree_holds_is_not_deleted_quietly(cloned):
-    add_worktree(cloned, session_worktree(cloned), BRANCH)
+    add_worktree(root=cloned, path=session_worktree(root=cloned), branch=BRANCH)
 
     with pytest.raises(CommandError) as error:
-        delete_branch(cloned, BRANCH)
+        delete_branch(root=cloned, branch=BRANCH)
 
     assert "git branch --delete" in str(error.value)

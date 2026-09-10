@@ -1,5 +1,6 @@
 """Ask gh what GitHub knows about the repository dreamcatcher watches."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
@@ -32,7 +33,7 @@ LISTING_LIMIT = "500"
 PAGE_SIZE = "100"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Unknown:
     """What a read answers when it could not tell.
 
@@ -226,7 +227,7 @@ class InlineComment(Post):
 
     @model_validator(mode="before")
     @classmethod
-    def _fall_back_to_the_original_lines(cls, document: Any) -> Any:
+    def _fall_back_to_the_original_lines(cls, document: Any, /) -> Any:
         """Read the lines the comment was written against, wherever they are.
 
         A commit that lands after the comment can move the code it was written
@@ -236,6 +237,9 @@ class InlineComment(Post):
 
         Anything that is not a document at all passes straight through, so
         pydantic is what says why it cannot be read.
+
+        pydantic is also what calls this, and it passes the document
+        positionally, so the parameter is positional-only.
         """
         if not isinstance(document, dict):
             return document
@@ -272,13 +276,17 @@ POST_LISTS = (
 )
 
 
-def identify_repository(root: Path) -> str | Unknown:
+def identify_repository(*, root: Path) -> str | Unknown:
     """Return the repository the checkout at root belongs to, as owner/name.
 
     gh reads the repository from the checkout's own remote, so this asks from
     inside the checkout.
     """
-    answered = _read(REPOSITORY, "repo", "view", "--json", "nameWithOwner", cwd=root)
+    answered = _read(
+        shape=REPOSITORY,
+        arguments=["repo", "view", "--json", "nameWithOwner"],
+        cwd=root,
+    )
     if isinstance(answered, Unknown):
         return answered
     return answered.name_with_owner
@@ -286,56 +294,60 @@ def identify_repository(root: Path) -> str | Unknown:
 
 def identify_account() -> str | Unknown:
     """Return the login of the account gh is signed in as."""
-    answered = _read(ACCOUNT, "api", "user")
+    answered = _read(shape=ACCOUNT, arguments=["api", "user"])
     if isinstance(answered, Unknown):
         return answered
     return answered.login
 
 
-def list_issues(repository: str, *, label: str, assignee: str) -> list[Issue] | Unknown:
+def list_issues(*, repository: str, label: str, assignee: str) -> list[Issue] | Unknown:
     """Return the repository's open issues carrying label and assigned to assignee."""
     return _read(
-        ISSUES,
-        "issue",
-        "list",
-        "--repo",
-        repository,
-        "--assignee",
-        assignee,
-        "--label",
-        label,
-        "--state",
-        "open",
-        "--limit",
-        LISTING_LIMIT,
-        "--json",
-        "number,createdAt",
+        shape=ISSUES,
+        arguments=[
+            "issue",
+            "list",
+            "--repo",
+            repository,
+            "--assignee",
+            assignee,
+            "--label",
+            label,
+            "--state",
+            "open",
+            "--limit",
+            LISTING_LIMIT,
+            "--json",
+            "number,createdAt",
+        ],
     )
 
 
-def list_pull_requests(repository: str, branch: str) -> list[PullRequest] | Unknown:
+def list_pull_requests(*, repository: str, branch: str) -> list[PullRequest] | Unknown:
     """Return the pull requests branch is the head of, whatever state each is in.
 
     A branch usually has one, and an empty list means it has none. Which of
     several counts is the caller's rule, not this read's.
     """
     return _read(
-        PULL_REQUESTS,
-        "pr",
-        "list",
-        "--repo",
-        repository,
-        "--head",
-        branch,
-        "--state",
-        "all",
-        "--json",
-        "number,state",
+        shape=PULL_REQUESTS,
+        arguments=[
+            "pr",
+            "list",
+            "--repo",
+            repository,
+            "--head",
+            branch,
+            "--state",
+            "all",
+            "--json",
+            "number,state",
+        ],
     )
 
 
 def list_linked_pull_requests(
-    repository: str, issue: int
+    *, repository: str, issue: int
 ) -> list[LinkedPullRequest] | Unknown:
     """Return the open pull requests GitHub links to this issue.
 
@@ -344,32 +356,38 @@ def list_linked_pull_requests(
     in.
     """
     answered = _read(
-        LINKED,
-        "issue",
-        "view",
-        str(issue),
-        "--repo",
-        repository,
-        "--json",
-        "closedByPullRequestsReferences",
+        shape=LINKED,
+        arguments=[
+            "issue",
+            "view",
+            str(issue),
+            "--repo",
+            repository,
+            "--json",
+            "closedByPullRequestsReferences",
+        ],
     )
     if isinstance(answered, Unknown):
         return answered
     return answered.pull_requests
 
 
-def list_blockers(repository: str, issue: int) -> list[Blocker] | Unknown:
+def list_blockers(*, repository: str, issue: int) -> list[Blocker] | Unknown:
     """Return the issues blocking this one, each with its own state.
 
     This reads the one page GitHub answers with, so an issue with more than
     thirty blockers would keep the rest out of view.
     """
     return _read(
-        BLOCKERS, "api", f"repos/{repository}/issues/{issue}/dependencies/blocked_by"
+        shape=BLOCKERS,
+        arguments=[
+            "api",
+            f"repos/{repository}/issues/{issue}/dependencies/blocked_by",
+        ],
     )
 
 
-def list_posts(repository: str, pull_request: int) -> list[AnyPost] | Unknown:
+def list_posts(*, repository: str, pull_request: int) -> list[AnyPost] | Unknown:
     """Return everything anybody posted on the pull request, from all three places.
 
     The three come back as one list, because somebody reading a pull request
@@ -384,7 +402,7 @@ def list_posts(repository: str, pull_request: int) -> list[AnyPost] | Unknown:
     found: list[AnyPost] = []
     for shape, under, listed in POST_LISTS:
         path = f"repos/{repository}/{under}/{pull_request}/{listed}"
-        answered = _read_pages(shape, path)
+        answered = _read_pages(shape=shape, path=path)
         if isinstance(answered, Unknown):
             return answered
         found.extend(answered)
@@ -392,7 +410,7 @@ def list_posts(repository: str, pull_request: int) -> list[AnyPost] | Unknown:
 
 
 def _read_pages[PostT: AnyPost](
-    shape: TypeAdapter[list[list[PostT]]], path: str
+    *, shape: TypeAdapter[list[list[PostT]]], path: str
 ) -> list[AnyPost] | Unknown:
     """Return every post the paginated list at path holds, or Unknown.
 
@@ -400,7 +418,8 @@ def _read_pages[PostT: AnyPost](
     read, so the pages join back into one list here.
     """
     answered = _read(
-        shape, "api", f"{path}?per_page={PAGE_SIZE}", "--paginate", "--slurp"
+        shape=shape,
+        arguments=["api", f"{path}?per_page={PAGE_SIZE}", "--paginate", "--slurp"],
     )
     if isinstance(answered, Unknown):
         return answered
@@ -409,7 +428,10 @@ def _read_pages[PostT: AnyPost](
 
 
 def _read[ReadT](
-    shape: TypeAdapter[ReadT], *arguments: str, cwd: Path | None = None
+    *,
+    shape: TypeAdapter[ReadT],
+    arguments: Sequence[str],
+    cwd: Path | None = None,
 ) -> ReadT | Unknown:
     """Return what gh answered, read into shape, or Unknown when the read failed.
 
@@ -417,10 +439,10 @@ def _read[ReadT](
     cannot hold. Both answer Unknown, so neither reaches a caller as data.
     """
     try:
-        answered = run("gh", *arguments, cwd=cwd)
+        answered = run(program="gh", arguments=arguments, cwd=cwd)
     except CommandError as error:
-        return Unknown(str(error))
+        return Unknown(reason=str(error))
     try:
         return shape.validate_json(answered)
     except ValidationError as error:
-        return Unknown(f"gh answered what dreamcatcher cannot read: {error}")
+        return Unknown(reason=f"gh answered what dreamcatcher cannot read: {error}")

@@ -10,7 +10,7 @@ from datetime import UTC, datetime, timedelta
 PINNED = datetime(2026, 8, 19, 18, 41, 58, tzinfo=UTC)
 
 
-@dataclass
+@dataclass(kw_only=True)
 class Ticking:
     """A clock that starts at the pinned time and moves on with every reading."""
 

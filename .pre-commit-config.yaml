@@ -23,6 +23,11 @@ repos:
         entry: uv run python tools/forbid_invisible_characters.py
         language: system
         types: [text]
+      - id: require-keyword-parameters
+        name: require keyword parameters
+        entry: uv run python tools/require_keyword_parameters.py
+        language: system
+        files: ^(src|tests|tools)/.*\.py$
       - id: ruff-check
         name: ruff check
         entry: uv run ruff check --fix --exit-non-zero-on-fix --show-fixes

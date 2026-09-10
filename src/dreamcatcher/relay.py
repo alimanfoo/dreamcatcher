@@ -41,7 +41,7 @@ class Inbox(Document):
 
 
 def peek_new_posts(
-    repository: str, pull_request: int, *, account: str, watermark: str
+    *, repository: str, pull_request: int, account: str, watermark: str
 ) -> list[AnyPost] | Unknown:
     """Return what the user posted since the watermark, oldest first.
 
@@ -54,16 +54,20 @@ def peek_new_posts(
     Reading the posts can fail, and the failure travels, so a caller can say
     in one line why it relayed nothing.
     """
-    found = list_posts(repository, pull_request)
+    found = list_posts(repository=repository, pull_request=pull_request)
     if isinstance(found, Unknown):
         return found
     return sorted(
-        (post for post in found if _is_new_from_user(post, account, watermark)),
+        (
+            post
+            for post in found
+            if _is_new_from_user(post=post, account=account, watermark=watermark)
+        ),
         key=lambda post: post.written_at,
     )
 
 
-def _is_new_from_user(post: AnyPost, account: str, watermark: str) -> bool:
+def _is_new_from_user(*, post: AnyPost, account: str, watermark: str) -> bool:
     """Whether the peek returns this post.
 
     The post has to be newer than the watermark, or the session has already
