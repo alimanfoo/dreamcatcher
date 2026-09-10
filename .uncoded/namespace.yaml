@@ -84,6 +84,8 @@ src/:
       _text:
     cli.py:
       ISSUE:
+      ENDS_WITH_THE_SESSION:
+      SHOWS_ONCE:
       build_parser:
       _take_an_issue:
       main:
@@ -440,7 +442,7 @@ src/:
       PAUSE:
       LABEL:
       INDENT:
-      _Look:
+      _Picture:
         shown:
         is_over:
       _FeedView:
@@ -451,8 +453,6 @@ src/:
         _show_new_lines:
       open_console:
       _repaint:
-      _follow:
-      _is_watched:
       _keep_looking:
       show_board:
       _look_at_board:
@@ -1086,7 +1086,6 @@ tests/:
   test_tui.py:
     LOOKED_AT:
     WIDTH:
-    HEIGHT:
     DAEMON_PID:
     STAMP:
     SAID:

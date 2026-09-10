@@ -76,8 +76,8 @@ def open_console() -> Console:
     return Console()
 
 
-class _Look(NamedTuple):
-    """What one look at a view found: what to draw, and whether it was the last.
+class _Picture(NamedTuple):
+    """A view as one look found it: what to draw, and whether it was the last.
 
     A view is over when nothing more can reach it, so a look that finds it over
     is the last look worth taking.
@@ -88,16 +88,16 @@ class _Look(NamedTuple):
 
 
 def _repaint(
-    console: Console, look: Callable[[], _Look], wait: Callable[[float], None]
+    console: Console, look: Callable[[], _Picture], wait: Callable[[float], None]
 ) -> None:
     """Draw what each look finds over the one before, until the view is over.
 
     A picture of a state has a current value rather than a history, so rich's
-    Live holds one place on the screen and every look is drawn into it. A view
-    nobody is watching has one look to draw and no place to hold, so it is
-    printed as anything else is.
+    Live holds one place on the screen and every look is drawn into it. Nobody
+    is watching a console that is no terminal, so there the one look the view
+    takes is printed and no place on the screen is held.
     """
-    if not _is_watched(console):
+    if not console.is_terminal:
         console.print(look().shown)
         return
     with Live(console=console, auto_refresh=False) as live:
@@ -108,41 +108,21 @@ def _repaint(
             live.update(found.shown, refresh=True)
             return found.is_over
 
-        _keep_looking(draw, wait)
+        _keep_looking(console, draw, wait)
 
 
-def _follow(
+def _keep_looking(
     console: Console, look: Callable[[], bool], wait: Callable[[float], None]
 ) -> None:
-    """Print what each look finds after the last, until the view is over.
-
-    A log has an end rather than a current value, so each look prints what
-    arrived since the one before it and the reader keeps their scrollback. A
-    view nobody is watching prints the one look it takes and returns.
-    """
-    if not _is_watched(console):
-        look()
-        return
-    _keep_looking(look, wait)
-
-
-def _is_watched(console: Console) -> bool:
-    """Say whether a reader is watching the view, rather than a pipe or a log.
-
-    A view that follows never returns on its own, so it cannot be piped,
-    redirected or captured, and a console that is no terminal is exactly where
-    one of those is being done to it. So this is what chooses between a view
-    that follows and a view that shows what is there and returns, and the
-    reader is asked for no flag either way.
-    """
-    return console.is_terminal
-
-
-def _keep_looking(look: Callable[[], bool], wait: Callable[[float], None]) -> None:
     """Look again and again, until the view has seen the last of what it shows.
 
     A look shows where the view stands now and answers whether the view is
     over, which is to say whether anything more can reach it.
+
+    Nobody is watching a console that is no terminal: the view is being piped,
+    redirected or captured, and a view that stayed on the screen could be none
+    of those. So one look is the last look there, and the reader is asked for
+    no flag to say so.
 
     A round records its ending as soon as its own child has gone, and whatever
     it was still writing lands after that, so a view that finds itself over
@@ -157,7 +137,7 @@ def _keep_looking(look: Callable[[], bool], wait: Callable[[float], None]) -> No
     with suppress(KeyboardInterrupt):
         while True:
             is_over = look()
-            if is_over and was_over:
+            if (is_over and was_over) or not console.is_terminal:
                 return
             was_over = is_over
             wait(PAUSE)
@@ -178,9 +158,9 @@ def show_board(
     _repaint(console, lambda: _look_at_board(state, clock), wait)
 
 
-def _look_at_board(state: StateDirectory, clock: Callable[[], datetime]) -> _Look:
+def _look_at_board(state: StateDirectory, clock: Callable[[], datetime]) -> _Picture:
     """Return the board as it stands, which is never the last of it."""
-    return _Look(_render_board(read_board(state, clock)), is_over=False)
+    return _Picture(_render_board(read_board(state, clock)), is_over=False)
 
 
 def _render_board(board: Board) -> RenderableType:
@@ -341,14 +321,14 @@ def show_session(
 
 def _look_at_session(
     state: StateDirectory, issue: int, clock: Callable[[], datetime]
-) -> _Look:
+) -> _Picture:
     """Return the newest session at the issue as it stands, and whether it is over.
 
     One look reads the issue's rows once, and takes both what it draws and
     where the session stands from them.
     """
     rows = _find_rows_for_issue(state, issue, clock)
-    return _Look(_render_session(state, rows), is_over=rows[0].standing in OVER)
+    return _Picture(_render_session(state, rows), is_over=rows[0].standing in OVER)
 
 
 def _render_session(state: StateDirectory, rows: list[SessionRow]) -> RenderableType:
@@ -478,9 +458,9 @@ def show_feed(
 ) -> None:
     """Show what the issue's newest session said, and follow what arrives.
 
-    Naming a round narrows the view to that one round, as it stands, and
-    everything below is about the view of the whole session, which is what a
-    reader gets when they name no round.
+    Naming a round narrows the view to that one round, and everything below is
+    about the view of the whole session, which is what a reader gets when they
+    name no round.
 
     Neither view reads a clock, unlike the board and the session view, which
     say how long ago something happened. Every line a feed shows carries the
@@ -514,7 +494,7 @@ def show_feed(
         view.show_what_arrived(session, range(1, len(session.rounds) + 1))
         return row.standing in OVER
 
-    _follow(console, look, wait)
+    _keep_looking(console, look, wait)
 
 
 def _show_one_round(
@@ -548,7 +528,7 @@ def _show_one_round(
         view.show_what_arrived(session, [number])
         return session.rounds[number - 1].is_complete
 
-    _follow(console, look, wait)
+    _keep_looking(console, look, wait)
 
 
 def _find_rows_for_issue(

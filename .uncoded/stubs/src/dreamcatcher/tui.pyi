@@ -33,22 +33,16 @@ INDENT = (0, 0, 0, 2)
 def open_console() -> Console:
     ...
 
-def _repaint(console: Console, look: Callable[[], _Look], wait: Callable[[float], None]) -> None:
+def _repaint(console: Console, look: Callable[[], _Picture], wait: Callable[[float], None]) -> None:
     ...
 
-def _follow(console: Console, look: Callable[[], bool], wait: Callable[[float], None]) -> None:
-    ...
-
-def _is_watched(console: Console) -> bool:
-    ...
-
-def _keep_looking(look: Callable[[], bool], wait: Callable[[float], None]) -> None:
+def _keep_looking(console: Console, look: Callable[[], bool], wait: Callable[[float], None]) -> None:
     ...
 
 def show_board(state: StateDirectory, console: Console, clock: Callable[[], datetime], wait: Callable[[float], None]) -> None:
     ...
 
-def _look_at_board(state: StateDirectory, clock: Callable[[], datetime]) -> _Look:
+def _look_at_board(state: StateDirectory, clock: Callable[[], datetime]) -> _Picture:
     ...
 
 def _render_board(board: Board) -> RenderableType:
@@ -84,7 +78,7 @@ def _render_section(heading: str, colour: str, body: RenderableType) -> Renderab
 def show_session(state: StateDirectory, issue: int, console: Console, clock: Callable[[], datetime], wait: Callable[[float], None]) -> None:
     ...
 
-def _look_at_session(state: StateDirectory, issue: int, clock: Callable[[], datetime]) -> _Look:
+def _look_at_session(state: StateDirectory, issue: int, clock: Callable[[], datetime]) -> _Picture:
     ...
 
 def _render_session(state: StateDirectory, rows: list[SessionRow]) -> RenderableType:
@@ -123,7 +117,7 @@ def _paint_written(written: str) -> Text:
 def _paint(line: Line, said: Text) -> Text:
     ...
 
-class _Look(NamedTuple):
+class _Picture(NamedTuple):
     shown: RenderableType
     is_over: bool
 

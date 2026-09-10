@@ -19,7 +19,6 @@ from dreamcatcher.tui import PAUSE, _paint, _paint_written, show_board, show_fee
 
 LOOKED_AT = PINNED + timedelta(hours=2)
 WIDTH = 100
-HEIGHT = 60
 DAEMON_PID = 4242
 STAMP = '20260819-184158'
 SAID = ...

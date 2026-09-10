@@ -45,11 +45,6 @@ LOOKED_AT = PINNED + timedelta(hours=2)
 # How wide the console is, so a line wraps in the same place every run.
 WIDTH = 100
 
-# How tall the console is. A view a reader is watching is drawn into the height
-# of the screen, and this is taller than any view fabricated here, so nothing a
-# test looks for is cut off the bottom.
-HEIGHT = 60
-
 # The pid the fabricated lock names, and the one the stand-in psutil says is
 # alive. A real pid would differ from run to run and no golden could hold it.
 DAEMON_PID = 4242
@@ -261,7 +256,6 @@ def pinned(written_to, width: int = WIDTH, is_terminal: bool = False) -> Console
     return Console(
         file=written_to,
         width=width,
-        height=HEIGHT,
         force_terminal=is_terminal,
         color_system=None,
         legacy_windows=False,

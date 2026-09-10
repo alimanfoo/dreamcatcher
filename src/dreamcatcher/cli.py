@@ -17,6 +17,17 @@ from dreamcatcher.state import StateDirectory
 # How a view names the issue it is about, as the issue itself is written.
 ISSUE = re.compile(r"gh(\d+)\Z", re.IGNORECASE)
 
+# When a view of one session ends, which the session view and the feed both
+# say, since a reader reads one verb's help and no other.
+ENDS_WITH_THE_SESSION = (
+    "It ends once the session has run its final round, and on a stuck "
+    "session, which only you can move on. Interrupt it to end it sooner."
+)
+
+# What every view does when nothing is watching it, with the name of the one
+# the verb shows.
+SHOWS_ONCE = "Piped, redirected or captured, it shows the {view} once and returns."
+
 
 def build_parser() -> argparse.ArgumentParser:
     """Return the parser for the dreamcatcher command line.
@@ -59,8 +70,8 @@ def build_parser() -> argparse.ArgumentParser:
         description=(
             "Show every session and every queued issue, a section per "
             "standing, in the order of whose turn it is. It stays on the "
-            "screen and keeps up until you interrupt it. Piped, redirected "
-            "or captured, it shows the board once and returns."
+            "screen and keeps up until you interrupt it. "
+            + SHOWS_ONCE.format(view="board")
         ),
     )
     board_parser.set_defaults(act=_show_board)
@@ -72,10 +83,10 @@ def build_parser() -> argparse.ArgumentParser:
             "its dispatch settled, the rounds it has run, the command that "
             "takes the session over by hand, and the older sessions at the "
             "same issue. It stays on the screen and keeps up for as long as "
-            "the session has another round coming. It ends once the session "
-            "has run its final round, and on a stuck session, which only you "
-            "can move on. Interrupt it to end it sooner. Piped, redirected "
-            "or captured, it shows the session once and returns."
+            "the session has another round coming. "
+            + ENDS_WITH_THE_SESSION
+            + " "
+            + SHOWS_ONCE.format(view="session")
         ),
     )
     _take_an_issue(session_parser)
@@ -86,11 +97,10 @@ def build_parser() -> argparse.ArgumentParser:
         description=(
             "Show the agent's actions and outputs from every round of "
             "the issue's newest session, and keep showing what arrives for "
-            "as long as the session has another round coming. It ends once "
-            "the session has run its final round, and on a stuck session, "
-            "which only you can move on. Interrupt it to end it sooner. "
-            "Piped, redirected or captured, it shows the feed once and "
-            "returns."
+            "as long as the session has another round coming. "
+            + ENDS_WITH_THE_SESSION
+            + " "
+            + SHOWS_ONCE.format(view="feed")
         ),
     )
     _take_an_issue(feed_parser)
