@@ -128,6 +128,21 @@ uv run pre-commit run --all-files
   `config.QuotableText` does this for the model and the effort a dispatch holds,
   where pydantic turns the `ValueError` into a named error. Anywhere else, catch
   the `ValueError` and raise a `ReportableError`, or the user reads a traceback.
+- Give every function and method keyword-only parameters, so a call says what
+  each argument means and reordering a signature cannot change what a caller
+  already passes. `tools/require_keyword_parameters.py` enforces this on every
+  commit. Where something outside dreamcatcher makes the call, declare the
+  parameter positional-only with `/` and say in the docstring what calls it:
+  pydantic passes a validator's value by position, and argparse passes the text
+  a `type` reads. A test, a fixture and a `pytest_` hook are left as they are,
+  because pytest calls each of those and resolves every argument by the
+  parameter's own name.
+- Give a callback parameter a `Protocol` whose `__call__` is keyword-only, where
+  this project implements the callback itself, as `claude._ReadsBlock` and
+  `rounds._RendersLine` do. A `Callable` has no keyword-only form, so a callback
+  typed as one is called by position. Keep `Callable[[], X]` for a callback that
+  takes nothing, which has nothing to pass, and for one whose value comes from
+  outside, as the wait a view takes is `time.sleep`.
 - Name a method or a function for what it does, with a verb: `render`, `stop`,
   `strip_worktree`. A name like `rendered` or `holder` reads as a value, so a
   reader takes it for a property and not for something that runs.

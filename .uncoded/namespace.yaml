@@ -1186,3 +1186,8 @@ tools/:
     describe:
     invisible_characters:
     main:
+  require_keyword_parameters.py:
+    RECEIVERS:
+    is_pytests:
+    positional_parameters:
+    main:
