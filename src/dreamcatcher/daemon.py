@@ -26,7 +26,7 @@ from time import sleep
 
 from dreamcatcher import teardown
 from dreamcatcher.adapters import Launch
-from dreamcatcher.clock import now
+from dreamcatcher.clock import Wait, now
 from dreamcatcher.commands import locate
 from dreamcatcher.config import Harness, read_config
 from dreamcatcher.documents import write_json
@@ -85,7 +85,7 @@ class Daemon:
         root: Path,
         harness: Harness,
         clock: Callable[[], datetime] = now,
-        wait: Callable[[float], None] = sleep,
+        wait: Wait = sleep,
     ) -> None:
         """Set the daemon up for the repo checked out at root."""
         if not (root / ".git").is_dir():

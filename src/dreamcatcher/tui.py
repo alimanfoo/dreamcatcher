@@ -33,7 +33,7 @@ from dreamcatcher.board import (
     read_board,
     read_rows_for_issue,
 )
-from dreamcatcher.clock import now
+from dreamcatcher.clock import Wait, now
 from dreamcatcher.documents import read_lines_from
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import GAP, Line, compose_round_boundary, read_feed_line
@@ -94,9 +94,7 @@ class _Picture:
     is_over: bool
 
 
-def _repaint(
-    *, console: Console, look: Callable[[], _Picture], wait: Callable[[float], None]
-) -> None:
+def _repaint(*, console: Console, look: Callable[[], _Picture], wait: Wait) -> None:
     """Draw what each look finds over the one before, until the view is over.
 
     A picture of a state has a current value rather than a history, so every
@@ -140,9 +138,7 @@ def _repaint(
         console.print(last_picture.shown)
 
 
-def _keep_looking(
-    *, console: Console, look: Callable[[], bool], wait: Callable[[float], None]
-) -> None:
+def _keep_looking(*, console: Console, look: Callable[[], bool], wait: Wait) -> None:
     """Look again and again, until the view has seen the last of what it shows.
 
     A look shows where the view stands now and answers whether the view is
@@ -177,7 +173,7 @@ def show_board(
     state: StateDirectory,
     console: Console,
     clock: Callable[[], datetime] = now,
-    wait: Callable[[float], None] = sleep,
+    wait: Wait = sleep,
 ) -> None:
     """Show every session and every queued issue, and keep on showing them.
 
@@ -356,7 +352,7 @@ def show_session(
     issue: int,
     console: Console,
     clock: Callable[[], datetime] = now,
-    wait: Callable[[float], None] = sleep,
+    wait: Wait = sleep,
 ) -> None:
     """Show the newest session at the issue, and keep on showing it.
 
@@ -517,7 +513,7 @@ def show_feed(
     issue: int,
     console: Console,
     round_number: int | None = None,
-    wait: Callable[[float], None] = sleep,
+    wait: Wait = sleep,
 ) -> None:
     """Show what the issue's newest session said, and follow what arrives.
 
@@ -573,7 +569,7 @@ def _show_one_round(
     issue: int,
     number: int,
     console: Console,
-    wait: Callable[[float], None],
+    wait: Wait,
 ) -> None:
     """Show one round of the issue's newest session, until that round ends.
 

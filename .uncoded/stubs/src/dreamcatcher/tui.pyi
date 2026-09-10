@@ -12,7 +12,7 @@ from rich.padding import Padding
 from rich.table import Table
 from rich.text import Text
 from dreamcatcher.board import Board, SessionRow, SessionStanding, read_board, read_rows_for_issue
-from dreamcatcher.clock import now
+from dreamcatcher.clock import Wait, now
 from dreamcatcher.documents import read_lines_from
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import GAP, Line, compose_round_boundary, read_feed_line
@@ -32,13 +32,13 @@ INDENT = (0, 0, 0, 2)
 def open_console() -> Console:
     ...
 
-def _repaint(*, console: Console, look: Callable[[], _Picture], wait: Callable[[float], None]) -> None:
+def _repaint(*, console: Console, look: Callable[[], _Picture], wait: Wait) -> None:
     ...
 
-def _keep_looking(*, console: Console, look: Callable[[], bool], wait: Callable[[float], None]) -> None:
+def _keep_looking(*, console: Console, look: Callable[[], bool], wait: Wait) -> None:
     ...
 
-def show_board(*, state: StateDirectory, console: Console, clock: Callable[[], datetime], wait: Callable[[float], None]) -> None:
+def show_board(*, state: StateDirectory, console: Console, clock: Callable[[], datetime], wait: Wait) -> None:
     ...
 
 def _look_at_board(*, state: StateDirectory, clock: Callable[[], datetime]) -> _Picture:
@@ -74,7 +74,7 @@ def _open_table() -> Table:
 def _render_section(*, heading: str, colour: str, body: RenderableType) -> RenderableType:
     ...
 
-def show_session(*, state: StateDirectory, issue: int, console: Console, clock: Callable[[], datetime], wait: Callable[[float], None]) -> None:
+def show_session(*, state: StateDirectory, issue: int, console: Console, clock: Callable[[], datetime], wait: Wait) -> None:
     ...
 
 def _look_at_session(*, state: StateDirectory, issue: int, clock: Callable[[], datetime]) -> _Picture:
@@ -101,10 +101,10 @@ def _render_hand_resume(*, state: StateDirectory, row: SessionRow) -> Renderable
 def _render_older_sessions(*, older: list[SessionRow]) -> RenderableType | None:
     ...
 
-def show_feed(*, state: StateDirectory, issue: int, console: Console, round_number: int | None, wait: Callable[[float], None]) -> None:
+def show_feed(*, state: StateDirectory, issue: int, console: Console, round_number: int | None, wait: Wait) -> None:
     ...
 
-def _show_one_round(*, state: StateDirectory, issue: int, number: int, console: Console, wait: Callable[[float], None]) -> None:
+def _show_one_round(*, state: StateDirectory, issue: int, number: int, console: Console, wait: Wait) -> None:
     ...
 
 def _find_rows_for_issue(*, state: StateDirectory, issue: int, clock: Callable[[], datetime]) -> list[SessionRow]:

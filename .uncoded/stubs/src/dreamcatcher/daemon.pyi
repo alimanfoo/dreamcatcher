@@ -9,7 +9,7 @@ from pathlib import Path
 from time import sleep
 from dreamcatcher import teardown
 from dreamcatcher.adapters import Launch
-from dreamcatcher.clock import now
+from dreamcatcher.clock import Wait, now
 from dreamcatcher.commands import locate
 from dreamcatcher.config import Harness, read_config
 from dreamcatcher.documents import write_json
@@ -36,7 +36,7 @@ def _check_cooldown(*, sessions: list[Session], at: datetime) -> str | None:
     ...
 
 class Daemon:
-    def __init__(self, *, root: Path, harness: Harness, clock: Callable[[], datetime], wait: Callable[[float], None]) -> None:
+    def __init__(self, *, root: Path, harness: Harness, clock: Callable[[], datetime], wait: Wait) -> None:
         ...
 
     def run(self) -> None:
