@@ -7,6 +7,7 @@ from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
 from threading import Event, Lock, Thread
+from typing import Protocol
 from pydantic import PositiveInt
 from dreamcatcher.adapters import Adapter, Invocation
 from dreamcatcher.clock import now
@@ -44,20 +45,24 @@ class Workspace:
     raw: Path
     inbox: Path
 
+class _RendersLine(Protocol):
+    def __call__(self, *, line: str) -> str:
+        ...
+
 class RoundReader:
     def __init__(self) -> None:
         ...
 
-    def read_records(self, directory: Path) -> list[RoundRecord]:
+    def read_records(self, *, directory: Path) -> list[RoundRecord]:
         ...
 
-    def _read_record(self, path: Path) -> RoundRecord:
+    def _read_record(self, *, path: Path) -> RoundRecord:
         ...
 
 class Round:
     is_alive: bool
 
-    def __init__(self, adapter: Adapter, invocation: Invocation, workspace: Workspace, cause: Cause, clock: Callable[[], datetime]) -> None:
+    def __init__(self, *, adapter: Adapter, invocation: Invocation, workspace: Workspace, cause: Cause, clock: Callable[[], datetime]) -> None:
         ...
 
     def wait(self) -> None:
@@ -69,7 +74,7 @@ class Round:
     def _interrupt(self) -> None:
         ...
 
-    def _pump(self, read: Callable[[], None]) -> None:
+    def _pump(self, *, read: Callable[[], None]) -> None:
         ...
 
     def _read_stdout(self) -> None:
@@ -81,11 +86,11 @@ class Round:
     def _close(self) -> None:
         ...
 
-    def _render(self, line: str) -> str:
+    def _render(self, *, line: str) -> str:
         ...
 
-    def _pass_through(self, line: str) -> str:
+    def _pass_through(self, *, line: str) -> str:
         ...
 
-    def _append(self, line: str, render: Callable[[str], str]) -> None:
+    def _append(self, *, line: str, render: _RendersLine) -> None:
         ...

@@ -361,6 +361,8 @@ src/:
         feed:
         raw:
         inbox:
+      _RendersLine:
+        __call__:
       RoundReader:
         __init__:
         read_records:

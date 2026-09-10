@@ -405,7 +405,7 @@ def _render_vitals(state: StateDirectory, row: SessionRow) -> RenderableType:
     for name, value in (
         ("label", record.label),
         ("branch", record.branch),
-        ("worktree", state.describe_path(record.worktree)),
+        ("worktree", state.describe_path(path=record.worktree)),
         ("harness", record.harness),
         ("model", record.model),
         ("effort", record.effort),
@@ -470,7 +470,7 @@ def _render_hand_resume(
     """
     if row.standing is SessionStanding.WORKING or not row.session.rounds:
         return None
-    worktree = state.describe_path(row.session.record.worktree)
+    worktree = state.describe_path(path=row.session.record.worktree)
     command = " ".join(ADAPTERS[row.session.record.harness].build_hand_resume())
     return _render_section(
         "take it over yourself", "blue", Text(f"cd {worktree}\n{command}")
@@ -631,7 +631,7 @@ class _FeedView:
 
     def _show_new_lines(self, session: Session, round_number: int) -> None:
         """Show the lines this round has written since the last look at it."""
-        feed = session.workspace(round_number).feed
+        feed = session.workspace(number=round_number).feed
         lines, position = read_lines_from(
             path=feed, position=self.positions[round_number]
         )

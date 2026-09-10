@@ -42,7 +42,7 @@ class StateDirectory:
     def round_reader(self) -> RoundReader:
         ...
 
-    def describe_path(self, path: Path) -> str:
+    def describe_path(self, *, path: Path) -> str:
         ...
 
     def bootstrap(self) -> None:

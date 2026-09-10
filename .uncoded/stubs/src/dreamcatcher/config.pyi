@@ -11,7 +11,7 @@ from dreamcatcher.documents import Document, read_toml
 CONFIG_NAME = 'dreamcatcher.toml'
 QuotableText = Annotated[str, AfterValidator(refuse_unquotable)]
 
-def read_config(root: Path) -> Config:
+def read_config(*, root: Path) -> Config:
     ...
 
 class Harness(StrEnum):
@@ -29,7 +29,7 @@ class DispatchMapping(Document):
     label: str
     harness_settings: dict[Harness, HarnessSettings]
 
-    def choose_harness(self, named: Harness) -> Harness:
+    def choose_harness(self, *, named: Harness) -> Harness:
         ...
 
     def _carries_a_block(self) -> Self:

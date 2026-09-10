@@ -31,7 +31,7 @@ def test_the_prompt_that_opens_a_session_is_its_template_then_the_postscript(
     tmp_path, harness
 ):
     (tmp_path / CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
-    settings = read_config(tmp_path).dispatch[0].harness_settings[harness]
+    settings = read_config(root=tmp_path).dispatch[0].harness_settings[harness]
 
     composed = compose_first_round_prompt(template=settings.prompt, issue=12)
 

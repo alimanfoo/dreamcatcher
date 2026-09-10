@@ -24,7 +24,7 @@ def write_config(root: Path, text: str) -> None:
 def test_a_valid_config_reads_back(tmp_path):
     write_config(tmp_path, CONFIG)
 
-    config = read_config(tmp_path)
+    config = read_config(root=tmp_path)
 
     assert config.interval == 300
     assert [mapping.label for mapping in config.dispatch] == ["dream:smith"]
@@ -37,7 +37,7 @@ def test_a_valid_config_reads_back(tmp_path):
 def test_the_settings_the_design_gives_defaults_for_have_them(tmp_path):
     write_config(tmp_path, CONFIG.replace("interval = 300\n", ""))
 
-    config = read_config(tmp_path)
+    config = read_config(root=tmp_path)
 
     assert config.interval == 120
     assert config.max_agents == 1
@@ -47,7 +47,7 @@ def test_the_settings_the_design_gives_defaults_for_have_them(tmp_path):
 def test_a_setting_the_config_names_beats_its_default(tmp_path):
     write_config(tmp_path, 'max_agents = 3\nassignee = "alimanfoo"\n' + CONFIG)
 
-    config = read_config(tmp_path)
+    config = read_config(root=tmp_path)
 
     assert config.max_agents == 3
     assert config.assignee == "alimanfoo"
@@ -56,7 +56,7 @@ def test_a_setting_the_config_names_beats_its_default(tmp_path):
 def test_a_label_one_harness_can_run_carries_that_block_alone(tmp_path):
     write_config(tmp_path, WITHOUT_CODEX)
 
-    mapping = read_config(tmp_path).dispatch[0]
+    mapping = read_config(root=tmp_path).dispatch[0]
 
     assert mapping.harness_settings == {Harness.CLAUDE: CLAUDE_SETTINGS}
 
@@ -64,18 +64,18 @@ def test_a_label_one_harness_can_run_carries_that_block_alone(tmp_path):
 def test_a_label_either_harness_can_run_runs_on_the_one_the_run_named(tmp_path):
     write_config(tmp_path, CONFIG)
 
-    mapping = read_config(tmp_path).dispatch[0]
+    mapping = read_config(root=tmp_path).dispatch[0]
 
-    assert mapping.choose_harness(Harness.CLAUDE) == Harness.CLAUDE
-    assert mapping.choose_harness(Harness.CODEX) == Harness.CODEX
+    assert mapping.choose_harness(named=Harness.CLAUDE) == Harness.CLAUDE
+    assert mapping.choose_harness(named=Harness.CODEX) == Harness.CODEX
 
 
 def test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named(tmp_path):
     write_config(tmp_path, WITHOUT_CODEX)
 
-    mapping = read_config(tmp_path).dispatch[0]
+    mapping = read_config(root=tmp_path).dispatch[0]
 
-    assert mapping.choose_harness(Harness.CODEX) == Harness.CLAUDE
+    assert mapping.choose_harness(named=Harness.CODEX) == Harness.CLAUDE
 
 
 @pytest.mark.parametrize(
@@ -130,7 +130,7 @@ def test_a_config_mistake_names_the_setting_and_the_fault(
     write_config(tmp_path, text)
 
     with pytest.raises(ReportableError) as error:
-        read_config(tmp_path)
+        read_config(root=tmp_path)
 
     assert str(error.value) == f"{tmp_path / CONFIG_NAME} is not valid:\n  {fault}"
 
@@ -142,7 +142,7 @@ def test_a_setting_a_harness_cannot_be_given_names_itself(tmp_path, setting):
     write_config(tmp_path, CONFIG.replace(f'{setting} = "', f'{setting} = "%TIME% ', 1))
 
     with pytest.raises(ReportableError) as error:
-        read_config(tmp_path)
+        read_config(root=tmp_path)
 
     assert str(error.value) == (
         f"{tmp_path / CONFIG_NAME} is not valid:\n"
@@ -156,7 +156,7 @@ def test_a_prompt_may_hold_what_no_command_line_could_carry(tmp_path):
     written = "/dream:smith GH{issue}\\nfinish 50% of it"
     write_config(tmp_path, CONFIG.replace("/dream:smith GH{issue}", written, 1))
 
-    mapping = read_config(tmp_path).dispatch[0]
+    mapping = read_config(root=tmp_path).dispatch[0]
 
     assert mapping.harness_settings[Harness.CLAUDE].prompt == (
         "/dream:smith GH{issue}\nfinish 50% of it"
@@ -165,4 +165,4 @@ def test_a_prompt_may_hold_what_no_command_line_could_carry(tmp_path):
 
 def test_a_repo_with_no_config_says_which_file_is_missing(tmp_path):
     with pytest.raises(ReportableError, match=CONFIG_NAME):
-        read_config(tmp_path)
+        read_config(root=tmp_path)

@@ -134,7 +134,7 @@ class Board:
 
 def read_board(state: StateDirectory, clock: Callable[[], datetime] = now) -> Board:
     """Return what the state directory says every session and issue is doing."""
-    return _Look(state, clock).compose_board(read_sessions(state))
+    return _Look(state, clock).compose_board(read_sessions(state=state))
 
 
 def read_rows_for_issue(
@@ -153,7 +153,7 @@ def read_rows_for_issue(
     """
     look = _Look(state, clock)
     return look.list_rows(
-        [one for one in read_sessions(state) if one.record.issue == issue]
+        [one for one in read_sessions(state=state) if one.record.issue == issue]
     )
 
 
@@ -283,7 +283,9 @@ class _Look:
 
     def _read_last_said(self, session: Session) -> Line | None:
         """Return the last line the session's last round wrote to its feed."""
-        return read_last_feed_line(path=session.workspace(len(session.rounds)).feed)
+        return read_last_feed_line(
+            path=session.workspace(number=len(session.rounds)).feed
+        )
 
     def _list_queued_issues(self, claimed: set[int]) -> list[QueuedIssue]:
         """Return the labelled issues the last tick weighed, in the order they go.
@@ -317,8 +319,8 @@ class _Look:
         """
         if not session.rounds:
             return reason
-        feed = session.workspace(len(session.rounds)).feed
-        return f"{reason} ({self.state.describe_path(feed)})"
+        feed = session.workspace(number=len(session.rounds)).feed
+        return f"{reason} ({self.state.describe_path(path=feed)})"
 
 
 def _describe_place_in_queue(ahead: int) -> str:

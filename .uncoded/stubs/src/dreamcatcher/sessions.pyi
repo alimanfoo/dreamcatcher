@@ -19,22 +19,22 @@ RECORD = 'session.json'
 ROUNDS = 'rounds'
 WATERMARK = 'watermark'
 
-def read_sessions(state: StateDirectory) -> list[Session]:
+def read_sessions(*, state: StateDirectory) -> list[Session]:
     ...
 
-def create_session(state: StateDirectory, mapping: DispatchMapping, named: Harness, issue: int, at: datetime) -> Session:
+def create_session(*, state: StateDirectory, mapping: DispatchMapping, named: Harness, issue: int, at: datetime) -> Session:
     ...
 
-def _read_session(state: StateDirectory, directory: Path) -> Session:
+def _read_session(*, state: StateDirectory, directory: Path) -> Session:
     ...
 
-def _read_watermark(directory: Path) -> str:
+def _read_watermark(*, directory: Path) -> str:
     ...
 
-def advance_watermark(session: Session, newest: str) -> None:
+def advance_watermark(*, session: Session, newest: str) -> None:
     ...
 
-def discard_session(state: StateDirectory, record: SessionRecord) -> None:
+def discard_session(*, state: StateDirectory, record: SessionRecord) -> None:
     ...
 
 class SessionRecord(Document):
@@ -59,5 +59,5 @@ class Session:
     def describe_unfinished_round(self) -> str | None:
         ...
 
-    def workspace(self, number: int) -> Workspace:
+    def workspace(self, *, number: int) -> Workspace:
         ...

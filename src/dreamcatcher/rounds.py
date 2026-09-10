@@ -22,6 +22,7 @@ from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
 from threading import Event, Lock, Thread
+from typing import Protocol
 
 from pydantic import PositiveInt
 
@@ -154,6 +155,13 @@ class Workspace:
         return self.directory / "inbox.json"
 
 
+class _RendersLine(Protocol):
+    """What one line of a harness's stream becomes, as `_append` calls it."""
+
+    def __call__(self, *, line: str) -> str:
+        """Return the feed line that this line becomes."""
+
+
 class RoundReader:
     """Read the records of a session's rounds, keeping the complete ones.
 
@@ -175,7 +183,7 @@ class RoundReader:
         """Set up a reader that has read nothing yet."""
         self._cache: dict[Path, RoundRecord] = {}
 
-    def read_records(self, directory: Path) -> list[RoundRecord]:
+    def read_records(self, *, directory: Path) -> list[RoundRecord]:
         """Return the records of the rounds written under directory, oldest first.
 
         Each round writes into a directory of its own under this one, so a
@@ -186,10 +194,12 @@ class RoundReader:
         yet, and a directory that holds no rounds at all, both come back with
         nothing rather than as a failure.
         """
-        records = [self._read_record(found) for found in directory.glob(f"*/{RECORD}")]
+        records = [
+            self._read_record(path=found) for found in directory.glob(f"*/{RECORD}")
+        ]
         return sorted(records, key=lambda record: record.started)
 
-    def _read_record(self, path: Path) -> RoundRecord:
+    def _read_record(self, *, path: Path) -> RoundRecord:
         """Return what the record at path says, and cache it once it is complete."""
         cached = self._cache.get(path)
         if cached is not None:
@@ -209,6 +219,7 @@ class Round:
 
     def __init__(
         self,
+        *,
         adapter: Adapter,
         invocation: Invocation,
         workspace: Workspace,
@@ -254,8 +265,16 @@ class Round:
             self.child.wait()
             raise
         self._pumps = [
-            Thread(target=self._pump, args=(self._read_stdout,), daemon=True),
-            Thread(target=self._pump, args=(self._read_stderr,), daemon=True),
+            Thread(
+                target=self._pump,
+                kwargs={"read": self._read_stdout},
+                daemon=True,
+            ),
+            Thread(
+                target=self._pump,
+                kwargs={"read": self._read_stderr},
+                daemon=True,
+            ),
         ]
         for pump in self._pumps:
             pump.start()
@@ -318,7 +337,7 @@ class Round:
             self.is_interrupted = True
             self.child.kill()
 
-    def _pump(self, read: Callable[[], None]) -> None:
+    def _pump(self, *, read: Callable[[], None]) -> None:
         """Read one of the round's streams, and end the round if that fails.
 
         A round that cannot write its own files has nothing to show for itself.
@@ -336,12 +355,12 @@ class Round:
         """Keep each line that the harness streams, and write what it says."""
         for line in self.child.out:
             append_text(text=line, path=self.workspace.raw)
-            self._append(line, self._render)
+            self._append(line=line, render=self._render)
 
     def _read_stderr(self) -> None:
         """Write what the harness says on stderr, among the lines around it."""
         for line in self.child.err:
-            self._append(line, self._pass_through)
+            self._append(line=line, render=self._pass_through)
 
     def _close(self) -> None:
         """Record how the round ended as soon as its child has gone.
@@ -373,7 +392,7 @@ class Round:
             for pump in self._pumps:
                 pump.join()
 
-    def _render(self, line: str) -> str:
+    def _render(self, *, line: str) -> str:
         """Return the feed lines that one line of the harness's stream becomes.
 
         Reading a line through an adapter never raises. Rendering what the
@@ -389,11 +408,11 @@ class Round:
         except Exception:
             return self.renderer.render(event=Prose(text=line))
 
-    def _pass_through(self, line: str) -> str:
+    def _pass_through(self, *, line: str) -> str:
         """Return the feed line one line of the harness's stderr becomes."""
         return self.renderer.render(event=Prose(text=line))
 
-    def _append(self, line: str, render: Callable[[str], str]) -> None:
+    def _append(self, *, line: str, render: _RendersLine) -> None:
         """Add what one line says to the feed, letting one stream write at a time.
 
         Rendering happens under the same lock as the write. A line is stamped
@@ -401,6 +420,6 @@ class Round:
         the same order as the lines.
         """
         with self._writing:
-            written = render(line)
+            written = render(line=line)
             if written:
                 append_text(text=written, path=self.workspace.feed)

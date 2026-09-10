@@ -123,7 +123,7 @@ class Session:
             return f"the last round failed (exit {ending.status})"
         return None
 
-    def workspace(self, number: int) -> Workspace:
+    def workspace(self, *, number: int) -> Workspace:
         """Where the session's numbered round ran, and where it wrote.
 
         Every round runs in the session's worktree, and writes into a
@@ -143,10 +143,10 @@ class Session:
     @property
     def next_workspace(self) -> Workspace:
         """Where the session's next round runs, and where it writes."""
-        return self.workspace(len(self.rounds) + 1)
+        return self.workspace(number=len(self.rounds) + 1)
 
 
-def read_sessions(state: StateDirectory) -> list[Session]:
+def read_sessions(*, state: StateDirectory) -> list[Session]:
     """Return every session the state directory holds, by key.
 
     A worktree under `worktrees/` is what says a session exists, since that is
@@ -177,13 +177,14 @@ def read_sessions(state: StateDirectory) -> list[Session]:
         if worktree.is_dir()
     ]
     return [
-        _read_session(state, directory)
+        _read_session(state=state, directory=directory)
         for directory in directories
         if (directory / RECORD).exists()
     ]
 
 
 def create_session(
+    *,
     state: StateDirectory,
     mapping: DispatchMapping,
     named: Harness,
@@ -204,7 +205,7 @@ def create_session(
     has one to take away. The caller hears the failure that stopped the
     creation, not any failure that removing them hits.
     """
-    harness = mapping.choose_harness(named)
+    harness = mapping.choose_harness(named=named)
     settings = mapping.harness_settings[harness]
     key = f"GH{issue}-{at:%Y%m%d-%H%M%S}"
     record = SessionRecord(
@@ -225,22 +226,22 @@ def create_session(
         add_worktree(root=state.root, path=record.worktree, branch=record.branch)
         write_json(document=record, path=directory / RECORD)
     except ReportableError:
-        discard_session(state, record)
+        discard_session(state=state, record=record)
         raise
     return Session(directory=directory, record=record)
 
 
-def _read_session(state: StateDirectory, directory: Path) -> Session:
+def _read_session(*, state: StateDirectory, directory: Path) -> Session:
     """Return the session whose own files sit in this directory."""
     return Session(
         directory=directory,
         record=read_json(model=SessionRecord, path=directory / RECORD),
-        rounds=state.round_reader.read_records(directory / ROUNDS),
-        watermark=_read_watermark(directory),
+        rounds=state.round_reader.read_records(directory=directory / ROUNDS),
+        watermark=_read_watermark(directory=directory),
     )
 
 
-def _read_watermark(directory: Path) -> str:
+def _read_watermark(*, directory: Path) -> str:
     """Return the newest post this session has been told about.
 
     A session is told about a batch of posts when a round launches with that
@@ -257,7 +258,7 @@ def _read_watermark(directory: Path) -> str:
     return read_text(path=path).strip()
 
 
-def advance_watermark(session: Session, newest: str) -> None:
+def advance_watermark(*, session: Session, newest: str) -> None:
     """Write the time of the newest post the session has now been told about.
 
     A round launching with a batch of posts as its inbox is what tells the
@@ -268,7 +269,7 @@ def advance_watermark(session: Session, newest: str) -> None:
     write_text(text=newest, path=session.directory / WATERMARK)
 
 
-def discard_session(state: StateDirectory, record: SessionRecord) -> None:
+def discard_session(*, state: StateDirectory, record: SessionRecord) -> None:
     """Take away the worktree and the branch that a session was given.
 
     A creation that failed part way calls this, and so does a dispatch whose

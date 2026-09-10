@@ -123,10 +123,10 @@ def test_a_round_runs_the_command_it_was_given_in_the_worktree(
     harness.replies("")
 
     Round(
-        CLAUDE,
-        Invocation(program="harness", arguments=["--print"], prompt=PROMPT),
-        Workspace(worktree=worktree, directory=directory),
-        CAUSE,
+        adapter=CLAUDE,
+        invocation=Invocation(program="harness", arguments=["--print"], prompt=PROMPT),
+        workspace=Workspace(worktree=worktree, directory=directory),
+        cause=CAUSE,
         clock=pinned,
     ).wait()
 
@@ -139,10 +139,10 @@ def test_a_round_gives_the_harness_its_prompt_to_read(fake, worktree, directory)
     harness.replies("")
 
     running = Round(
-        CLAUDE,
-        Invocation(program="harness", arguments=[], prompt=PROMPT),
-        Workspace(worktree=worktree, directory=directory),
-        CAUSE,
+        adapter=CLAUDE,
+        invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
+        workspace=Workspace(worktree=worktree, directory=directory),
+        cause=CAUSE,
         clock=pinned,
     )
     running.wait()
@@ -157,10 +157,10 @@ def test_the_feed_a_round_writes_is_the_feed_its_stream_renders_as(
     fake("harness").streams(recorded(RECORDING))
 
     running = Round(
-        CLAUDE,
-        Invocation(program="harness", arguments=[], prompt=PROMPT),
-        Workspace(worktree=worktree, directory=directory),
-        CAUSE,
+        adapter=CLAUDE,
+        invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
+        workspace=Workspace(worktree=worktree, directory=directory),
+        cause=CAUSE,
         clock=pinned,
     )
     running.wait()
@@ -176,10 +176,10 @@ def test_a_round_keeps_the_harnesss_own_stream_as_it_arrived(fake, worktree, dir
     fake("harness").streams(recorded(RECORDING))
 
     running = Round(
-        CLAUDE,
-        Invocation(program="harness", arguments=[], prompt=PROMPT),
-        Workspace(worktree=worktree, directory=directory),
-        CAUSE,
+        adapter=CLAUDE,
+        invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
+        workspace=Workspace(worktree=worktree, directory=directory),
+        cause=CAUSE,
         clock=pinned,
     )
     running.wait()
@@ -204,10 +204,10 @@ def test_what_the_harness_says_on_stderr_lands_where_it_happened(
     )
 
     running = Round(
-        CLAUDE,
-        Invocation(program="harness", arguments=[], prompt=PROMPT),
-        Workspace(worktree=worktree, directory=directory),
-        CAUSE,
+        adapter=CLAUDE,
+        invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
+        workspace=Workspace(worktree=worktree, directory=directory),
+        cause=CAUSE,
         clock=pinned,
     )
     running.wait()
@@ -224,10 +224,10 @@ def test_a_line_the_feed_cannot_write_costs_that_line_alone(fake, worktree, dire
     fake("harness").streams([Line(text='{"said": "hello"}\n'), Line(text="plain\n")])
 
     running = Round(
-        Unrenderable(),
-        Invocation(program="harness", arguments=[], prompt=PROMPT),
-        Workspace(worktree=worktree, directory=directory),
-        CAUSE,
+        adapter=Unrenderable(),
+        invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
+        workspace=Workspace(worktree=worktree, directory=directory),
+        cause=CAUSE,
         clock=pinned,
     )
     running.wait()
@@ -246,10 +246,10 @@ def test_a_round_says_when_it_started_what_caused_it_and_what_process_it_is(
     )
 
     running = Round(
-        CLAUDE,
-        Invocation(program="harness", arguments=[], prompt=PROMPT),
-        Workspace(worktree=worktree, directory=directory),
-        CAUSE,
+        adapter=CLAUDE,
+        invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
+        workspace=Workspace(worktree=worktree, directory=directory),
+        cause=CAUSE,
         clock=pinned,
     )
 
@@ -265,10 +265,10 @@ def test_a_round_that_finished_says_how_it_ended(fake, worktree, directory):
     fake("harness").streams([Line(text="giving up\n")], status=2)
 
     running = Round(
-        CLAUDE,
-        Invocation(program="harness", arguments=[], prompt=PROMPT),
-        Workspace(worktree=worktree, directory=directory),
-        CAUSE,
+        adapter=CLAUDE,
+        invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
+        workspace=Workspace(worktree=worktree, directory=directory),
+        cause=CAUSE,
         clock=pinned,
     )
     running.wait()
@@ -288,10 +288,10 @@ def test_a_round_somebody_stopped_says_no_ending(fake, worktree, directory):
     )
 
     running = Round(
-        CLAUDE,
-        Invocation(program="harness", arguments=[], prompt=PROMPT),
-        Workspace(worktree=worktree, directory=directory),
-        CAUSE,
+        adapter=CLAUDE,
+        invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
+        workspace=Workspace(worktree=worktree, directory=directory),
+        cause=CAUSE,
         clock=pinned,
     )
     running.stop()
@@ -304,10 +304,10 @@ def test_a_round_stopped_after_it_finished_keeps_its_ending(fake, worktree, dire
     fake("harness").streams([Line(text="done\n")])
 
     running = Round(
-        CLAUDE,
-        Invocation(program="harness", arguments=[], prompt=PROMPT),
-        Workspace(worktree=worktree, directory=directory),
-        CAUSE,
+        adapter=CLAUDE,
+        invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
+        workspace=Workspace(worktree=worktree, directory=directory),
+        cause=CAUSE,
         clock=pinned,
     )
     running.wait()
@@ -328,10 +328,10 @@ def test_a_round_that_cannot_write_its_feed_stops_rather_than_stalls(
     (directory / "feed.txt").mkdir()
 
     running = Round(
-        CLAUDE,
-        Invocation(program="harness", arguments=[], prompt=PROMPT),
-        Workspace(worktree=worktree, directory=directory),
-        CAUSE,
+        adapter=CLAUDE,
+        invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
+        workspace=Workspace(worktree=worktree, directory=directory),
+        cause=CAUSE,
         clock=pinned,
     )
     running.wait()
@@ -348,10 +348,10 @@ def test_a_round_that_cannot_write_its_prompt_never_starts(fake, worktree, tmp_p
 
     with pytest.raises(ReportableError, match=r"prompt\.txt"):
         Round(
-            CLAUDE,
-            Invocation(program="harness", arguments=[], prompt=PROMPT),
-            Workspace(worktree=worktree, directory=occupied / "1"),
-            CAUSE,
+            adapter=CLAUDE,
+            invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
+            workspace=Workspace(worktree=worktree, directory=occupied / "1"),
+            cause=CAUSE,
             clock=pinned,
         )
 
@@ -368,10 +368,10 @@ def test_a_round_that_cannot_record_its_start_does_not_run_on(
 
     with pytest.raises(ReportableError, match=r"round\.json"):
         Round(
-            CLAUDE,
-            Invocation(program="harness", arguments=[], prompt=PROMPT),
-            Workspace(worktree=worktree, directory=directory),
-            CAUSE,
+            adapter=CLAUDE,
+            invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
+            workspace=Workspace(worktree=worktree, directory=directory),
+            cause=CAUSE,
             clock=pinned,
         )
 
@@ -380,14 +380,14 @@ def test_a_round_a_straggler_outlives_still_records_an_ending(
     worktree, directory, straggler
 ):
     running = Round(
-        CLAUDE,
-        Invocation(
+        adapter=CLAUDE,
+        invocation=Invocation(
             program=sys.executable,
             arguments=["-c", LEAVES_A_STRAGGLER, str(straggler)],
             prompt=PROMPT,
         ),
-        Workspace(worktree=worktree, directory=directory),
-        CAUSE,
+        workspace=Workspace(worktree=worktree, directory=directory),
+        cause=CAUSE,
         clock=pinned,
     )
 
@@ -402,14 +402,14 @@ def test_a_round_a_straggler_outlives_still_records_an_ending(
 
 def test_a_round_a_straggler_outlives_still_stops(worktree, directory, straggler):
     running = Round(
-        CLAUDE,
-        Invocation(
+        adapter=CLAUDE,
+        invocation=Invocation(
             program=sys.executable,
             arguments=["-c", LEAVES_A_STRAGGLER + AND_WAITS, str(straggler)],
             prompt=PROMPT,
         ),
-        Workspace(worktree=worktree, directory=directory),
-        CAUSE,
+        workspace=Workspace(worktree=worktree, directory=directory),
+        cause=CAUSE,
         clock=pinned,
     )
     assert within(30, straggler.exists)

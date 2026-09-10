@@ -93,7 +93,7 @@ class Daemon:
                 f"{root} is not one."
             )
         self.harness = harness
-        self.config = read_config(root)
+        self.config = read_config(root=root)
         self.state = StateDirectory(root=root)
         self.clock = clock
         self.wait = wait
@@ -188,7 +188,7 @@ class Daemon:
         holds no read. So a tick under it still says what each session is
         waiting on, rather than going quiet for the whole fifteen minutes.
         """
-        sessions = read_sessions(self.state)
+        sessions = read_sessions(state=self.state)
         judged = judge_issues(
             repository, self.config, {session.record.issue for session in sessions}
         )
@@ -298,7 +298,7 @@ class Daemon:
             write_json(document=wakeup.inbox, path=session.next_workspace.inbox)
         self._start_round(session, wakeup.prompt, wakeup.cause)
         if wakeup.newest_post:
-            advance_watermark(session, wakeup.newest_post)
+            advance_watermark(session=session, newest=wakeup.newest_post)
 
     def _start_round(self, session: Session, prompt: str, cause: Cause) -> None:
         """Start a round for the session, and keep it in `self.rounds`.
@@ -328,7 +328,11 @@ class Daemon:
             else adapter.build_resumed_round(launch=launch)
         )
         self.rounds[session.key] = Round(
-            adapter, invocation, session.next_workspace, cause, clock=self.clock
+            adapter=adapter,
+            invocation=invocation,
+            workspace=session.next_workspace,
+            cause=cause,
+            clock=self.clock,
         )
 
     def _dispatch_oldest_issue(
@@ -362,16 +366,16 @@ class Daemon:
         issue is free for the next tick to try again.
         """
         session = create_session(
-            self.state,
-            self.config.label_mappings[candidate.label],
-            self.harness,
-            candidate.issue,
-            at,
+            state=self.state,
+            mapping=self.config.label_mappings[candidate.label],
+            named=self.harness,
+            issue=candidate.issue,
+            at=at,
         )
         try:
             self._start_round(session, session.record.prompt, Cause.DISPATCH)
         except ReportableError:
-            discard_session(self.state, session.record)
+            discard_session(state=self.state, record=session.record)
             raise
         return session.key
 
@@ -409,7 +413,7 @@ class Daemon:
         empties itself when the daemon's last handle on it closes, so no round
         outlives its daemon and there is never anything to end.
         """
-        for session in read_sessions(self.state):
+        for session in read_sessions(state=self.state):
             for record in session.rounds:
                 if not record.is_complete:
                     teardown.end(pid=record.pid)
