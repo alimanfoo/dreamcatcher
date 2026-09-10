@@ -69,22 +69,40 @@ def open_console() -> Console:
 def show_board(
     state: StateDirectory, console: Console, clock: Callable[[], datetime] = now
 ) -> None:
-    """Show every session and every queued issue, sorted by whose turn it is.
+    """Show every session and every queued issue on the console."""
+    console.print(render_board(state, clock))
+
+
+def render_board(
+    state: StateDirectory, clock: Callable[[], datetime] = now
+) -> RenderableType:
+    """Return every session and every queued issue, sorted by whose turn it is.
 
     The sections run in the order of whose turn it is, so the reader meets the
     work waiting on them first and the work that is finished last. A section
     with nothing in it is left out rather than shown empty.
     """
     board = read_board(state, clock)
-    console.print(_describe_daemon(board))
-    _show_rows(console, board, SessionStanding.NEEDS_YOU)
-    _show_rows(console, board, SessionStanding.WORKING)
-    _show_rows(console, board, SessionStanding.WAITING)
-    _show_rows(console, board, SessionStanding.STUCK)
-    _show_queue(console, board)
-    _show_rows(console, board, SessionStanding.DONE)
-    if not board.rows and not board.queued:
-        console.print("nothing dispatched yet")
+    return _render_parts(
+        _describe_daemon(board),
+        _render_rows(board, SessionStanding.NEEDS_YOU),
+        _render_rows(board, SessionStanding.WORKING),
+        _render_rows(board, SessionStanding.WAITING),
+        _render_rows(board, SessionStanding.STUCK),
+        _render_queue(board),
+        _render_rows(board, SessionStanding.DONE),
+        _describe_nothing_dispatched(board),
+    )
+
+
+def _render_parts(*parts: RenderableType | None) -> RenderableType:
+    """Return the parts of a view that have something to say, as one renderable.
+
+    A part with nothing to say answers nothing, so it is left out rather than
+    shown empty. Every view composes itself through this, so what that means is
+    written down once.
+    """
+    return Group(*(part for part in parts if part is not None))
 
 
 def _describe_daemon(board: Board) -> Text:
@@ -105,18 +123,18 @@ def _describe_daemon(board: Board) -> Text:
     return Text(f"{daemon}, last tick {ticked} ago{held}")
 
 
-def _show_rows(console: Console, board: Board, standing: SessionStanding) -> None:
-    """Show the sessions standing there, a row for each."""
+def _render_rows(board: Board, standing: SessionStanding) -> RenderableType | None:
+    """Return the sessions standing there, a row for each, or nothing if none do."""
     rows = board.list_rows_for_standing(standing)
     if not rows:
-        return
+        return None
     table = _open_table()
     for row in rows:
         table.add_row(
             Text(row.session.key),
             _render_detail(row, prefix=_describe_round(row)),
         )
-    console.print(_render_section(str(standing), COLOURS[standing], table))
+    return _render_section(str(standing), COLOURS[standing], table)
 
 
 def _describe_round(row: SessionRow) -> str:
@@ -147,16 +165,28 @@ def _render_detail(
     return Group(detail, output)
 
 
-def _show_queue(console: Console, board: Board) -> None:
-    """Show the labelled issues waiting to be dispatched, a row for each."""
+def _render_queue(board: Board) -> RenderableType | None:
+    """Return the labelled issues waiting to be dispatched, or nothing if none are."""
     if not board.queued:
-        return
+        return None
     table = _open_table()
     for queued in board.queued:
         table.add_row(
             Text(f"GH{queued.issue}"), Text(queued.label), Text(queued.reason)
         )
-    console.print(_render_section(QUEUE, "blue", table))
+    return _render_section(QUEUE, "blue", table)
+
+
+def _describe_nothing_dispatched(board: Board) -> Text | None:
+    """Return the line for a board with nothing on it, or nothing while it has.
+
+    A board with no session and no queued issue would otherwise be the daemon's
+    line and blank space, which reads as a view that failed rather than as a
+    repo nothing has been dispatched in.
+    """
+    if board.rows or board.queued:
+        return None
+    return Text("nothing dispatched yet")
 
 
 def _open_table() -> Table:

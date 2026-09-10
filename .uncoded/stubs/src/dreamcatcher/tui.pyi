@@ -33,10 +33,16 @@ def open_console() -> Console:
 def show_board(state: StateDirectory, console: Console, clock: Callable[[], datetime]) -> None:
     ...
 
+def render_board(state: StateDirectory, clock: Callable[[], datetime]) -> RenderableType:
+    ...
+
+def _render_parts(*parts: RenderableType | None) -> RenderableType:
+    ...
+
 def _describe_daemon(board: Board) -> Text:
     ...
 
-def _show_rows(console: Console, board: Board, standing: SessionStanding) -> None:
+def _render_rows(board: Board, standing: SessionStanding) -> RenderableType | None:
     ...
 
 def _describe_round(row: SessionRow) -> str:
@@ -45,7 +51,10 @@ def _describe_round(row: SessionRow) -> str:
 def _render_detail(row: SessionRow, prefix: str, continuation_indent: int, style: str) -> RenderableType:
     ...
 
-def _show_queue(console: Console, board: Board) -> None:
+def _render_queue(board: Board) -> RenderableType | None:
+    ...
+
+def _describe_nothing_dispatched(board: Board) -> Text | None:
     ...
 
 def _open_table() -> Table:

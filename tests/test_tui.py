@@ -34,7 +34,7 @@ from dreamcatcher.tui import (
     PAUSE,
     _paint,
     _paint_written,
-    show_board,
+    render_board,
     show_feed,
     show_session,
 )
@@ -268,7 +268,7 @@ def interrupting(seconds):
 def rendered(state, width: int = WIDTH) -> str:
     """Return the board that state directory renders as, on a pinned console."""
     written_to = StringIO()
-    show_board(state, pinned(written_to, width), clock=lambda: LOOKED_AT)
+    pinned(written_to, width).print(render_board(state, clock=lambda: LOOKED_AT))
     return written_to.getvalue()
 
 

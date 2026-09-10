@@ -447,11 +447,14 @@ src/:
         _show_new_lines:
       open_console:
       show_board:
+      render_board:
+      _render_parts:
       _describe_daemon:
-      _show_rows:
+      _render_rows:
       _describe_round:
       _render_detail:
-      _show_queue:
+      _render_queue:
+      _describe_nothing_dispatched:
       _open_table:
       _render_section:
       show_session:
