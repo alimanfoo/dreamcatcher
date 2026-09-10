@@ -66,6 +66,9 @@ def pinned(written_to, width: int, is_terminal: bool) -> Console:
 def interrupting(seconds):
     ...
 
+def refusing(seconds):
+    ...
+
 def rendered(state, width: int) -> str:
     ...
 

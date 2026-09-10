@@ -118,9 +118,8 @@ not started it again yet, and they end once the session has run its final round,
 and on a stuck session, which only you can move on. Interrupt any view to end it
 sooner.
 
-A view whose output is not a terminal is being piped, redirected or captured,
-and a view that stayed on the screen could be none of those. So there it shows
-what is there once and returns, and you need no flag either way.
+A view whose output is not a terminal, because you piped it, redirected it or
+captured it, shows what is there once and returns. You need no flag either way.
 
 ```sh
 dreamcatcher board
@@ -150,8 +149,8 @@ dreamcatcher session GH123
 ```
 
 `feed` shows what the agent said, as it says it. It shows every round's feed in
-order, and keeps showing what arrives. A feed is a log rather than a picture of
-a state, so it is printed as it is read and you keep your scrollback.
+order. A feed is a log rather than a picture of a state, so it is printed as it
+is read and you keep your scrollback.
 
 ```sh
 dreamcatcher feed GH123

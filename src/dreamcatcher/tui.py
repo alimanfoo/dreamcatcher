@@ -6,9 +6,9 @@ and one session's feed. It reads the state directory and never talks to GitHub
 or to the daemon, so it answers whether the daemon is alive or dead, and
 answers fastest when you most want to look.
 
-The board and one session are pictures of a state, so each look at one is drawn
-over the look before it. A feed is a log, so it is printed as it is read, and
-the reader keeps their scrollback.
+The board and one session are pictures of a state, so each is drawn over the
+one before it. A feed is a log, so it is printed as it is read, and the reader
+keeps their scrollback.
 
 What the daemon writes stays plain text, and the colour goes on at the moment of
 reading.
@@ -93,9 +93,9 @@ def _repaint(
     """Draw what each look finds over the one before, until the view is over.
 
     A picture of a state has a current value rather than a history, so rich's
-    Live holds one place on the screen and every look is drawn into it. Nobody
-    is watching a console that is no terminal, so there the one look the view
-    takes is printed and no place on the screen is held.
+    Live holds one place on the screen and every look is drawn into it. A view
+    that is not being followed has no place to hold, so the one look it takes
+    is printed as anything else is.
     """
     if not console.is_terminal:
         console.print(look().shown)
@@ -507,8 +507,7 @@ def _show_one_round(
     """Show one round of the issue's newest session, until that round ends.
 
     One named round is all this shows, so it ends when that round has, rather
-    than stay open for the round after it. Staying open for the whole session
-    is what a reader gets when they name no round.
+    than stay open for the round after it.
 
     The round list of the session view is where a reader finds the number, so
     a number no round of the session carries is the reader's mistake, and is
