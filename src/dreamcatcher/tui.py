@@ -93,20 +93,30 @@ def _repaint(
 ) -> None:
     """Draw what each look finds over the one before, until the view is over.
 
-    A picture of a state has a current value rather than a history, so rich's
-    Live holds one place on the screen and every look is drawn into it. A place
-    on the screen is as tall as the screen, so a picture that outgrows it is
-    cut at the bottom, which takes the sections a reader came for last: the
-    board is sorted by whose turn it is, so what goes first is what is done.
+    A picture of a state has a current value rather than a history, so every
+    look is drawn over the one before rather than under it. rich's Live draws
+    into the terminal's alternate screen, which it fills and hands back as it
+    found it, so the view is the whole of what the reader sees while it is
+    going and whatever the shell printed before it comes back afterwards. A
+    screen is as tall as it is, so a picture that outgrows it is cut at the
+    bottom, which takes the sections a reader came for last: the board is
+    sorted by whose turn it is, so what goes first is what is done.
+
+    Handing the screen back takes the last picture with it, so a view that has
+    seen the last of what it shows prints that picture where the reader can go
+    on reading it. A session that was already over when the view opened is
+    drawn once and printed, which is what a reader looking one up reads. A view
+    that the reader interrupts leaves nothing behind, because interrupting is
+    how they say they have seen enough.
 
     This decides where a look is drawn, and `_keep_looking` decides how long to
-    go on looking. A view nobody is watching has no place to hold, so the one
+    go on looking. A view nobody is watching has no screen to take, so the one
     look it takes is printed as anything else is.
     """
     if not console.is_terminal:
         console.print(look().shown)
         return
-    with Live(console=console, auto_refresh=False) as live:
+    with Live(console=console, auto_refresh=False, screen=True) as live:
 
         def draw() -> bool:
             """Draw what this look found, and say whether the view is over."""
@@ -114,16 +124,20 @@ def _repaint(
             live.update(found.shown, refresh=True)
             return found.is_over
 
-        _keep_looking(console, draw, wait)
+        is_over = _keep_looking(console, draw, wait)
+    if is_over:
+        console.print(live.get_renderable())
 
 
 def _keep_looking(
     console: Console, look: Callable[[], bool], wait: Callable[[float], None]
-) -> None:
+) -> bool:
     """Look again and again, until the view has seen the last of what it shows.
 
     A look shows where the view stands now and answers whether the view is
-    over, which is to say whether anything more can reach it.
+    over, which is to say whether anything more can reach it. This answers
+    what the last look said, so a caller that has something to do at the end
+    of a view knows whether the view ran out or the reader ended it.
 
     Nobody is watching a console that is no terminal: the view is being piped,
     redirected or captured, and a view that stayed on the screen could be none
@@ -137,16 +151,18 @@ def _keep_looking(
     never waits.
 
     The reader ends a view that is still going by interrupting it, which is how
-    they say they have seen enough, so it ends without a word.
+    they say they have seen enough, so it ends without a word and answers that
+    the view was not over.
     """
     was_over = True
     with suppress(KeyboardInterrupt):
         while True:
             is_over = look()
             if (is_over and was_over) or not console.is_terminal:
-                return
+                return is_over
             was_over = is_over
             wait(PAUSE)
+    return False
 
 
 def show_board(

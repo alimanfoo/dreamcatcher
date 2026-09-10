@@ -9,6 +9,7 @@ from clocks import PINNED
 from conftest import FIXTURES, LABEL
 from records import write_feed, write_round, write_session, write_tick
 from rich.console import Console
+from rich.control import Control
 from rich.text import Text
 from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
@@ -19,6 +20,9 @@ from dreamcatcher.tui import PAUSE, _paint, _paint_written, show_board, show_fee
 
 LOOKED_AT = PINNED + timedelta(hours=2)
 WIDTH = 100
+HEIGHT = 40
+SCREEN_TAKEN = Control.alt_screen(True).segment.text
+SCREEN_HANDED_BACK = Control.alt_screen(False).segment.text
 DAEMON_PID = 4242
 STAMP = '20260819-184158'
 SAID = ...
@@ -84,6 +88,9 @@ def test_a_board_nobody_is_watching_is_drawn_once_and_returns(tmp_path, daemon):
 def test_a_board_a_reader_watches_keeps_up_with_what_the_daemon_writes(tmp_path, daemon):
     ...
 
+def test_a_board_a_reader_watches_takes_the_screen_and_hands_it_back(tmp_path, daemon):
+    ...
+
 def viewed(state, issue: int, width: int) -> str:
     ...
 
@@ -97,6 +104,9 @@ def test_a_session_view_shows_the_round_that_starts_while_it_is_open(tmp_path, d
     ...
 
 def test_a_session_view_of_a_session_that_is_over_never_waits(issue, tmp_path, daemon):
+    ...
+
+def test_a_session_view_of_a_session_that_is_over_keeps_its_last_picture(tmp_path, daemon):
     ...
 
 def followed(state, issue: int, wait) -> str:

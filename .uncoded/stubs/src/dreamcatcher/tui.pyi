@@ -36,7 +36,7 @@ def open_console() -> Console:
 def _repaint(console: Console, look: Callable[[], _Picture], wait: Callable[[float], None]) -> None:
     ...
 
-def _keep_looking(console: Console, look: Callable[[], bool], wait: Callable[[float], None]) -> None:
+def _keep_looking(console: Console, look: Callable[[], bool], wait: Callable[[float], None]) -> bool:
     ...
 
 def show_board(state: StateDirectory, console: Console, clock: Callable[[], datetime], wait: Callable[[float], None]) -> None:
