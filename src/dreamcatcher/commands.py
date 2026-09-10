@@ -117,11 +117,12 @@ def refuse_unquotable(text: str, /) -> str:
 
     Whoever reads text in from outside calls this, so the message can name where
     the text came from. A ValueError is what pydantic turns into that message.
-    pydantic is also what calls this, as the validator behind `QuotableText`,
-    and it passes the text positionally, so the parameter is positional-only.
 
     The message names every character it found, rather than the first, so the
     repo's owner fixes a setting once instead of once for each.
+
+    pydantic is what calls this, as the validator behind `QuotableText`, and it
+    passes the text positionally, so the parameter is positional-only.
     """
     found = [name for character, name in UNQUOTABLE.items() if character in text]
     if found:

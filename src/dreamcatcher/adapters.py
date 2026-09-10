@@ -35,9 +35,9 @@ class Launch:
 class Invocation:
     """How one round runs: the program to start, its arguments, and its prompt.
 
-    The program is named apart from its arguments, because that is how
-    `commands.spawn` takes a command, and a list holding both would have
-    whoever spawns it split the two apart again.
+    `commands.spawn` takes the program apart from its arguments, and a list
+    holding both would have whoever spawns it split the two apart again. So the
+    program is named apart from its arguments here as well.
 
     A harness reads its prompt from stdin rather than from its command line,
     so the three travel together and the adapter is what knows which is which.

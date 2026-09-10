@@ -7,11 +7,15 @@ from collections.abc import Iterator, Sequence
 from pathlib import Path
 
 RECEIVERS = ('self', 'cls')
+FIXTURE = 'fixture'
 
 def is_called_by_pytest(*, definition: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
     ...
 
-def positional_parameters(*, text: str) -> Iterator[str]:
+def _name_of(*, decorator: ast.expr) -> str:
+    ...
+
+def find_positional_parameters(*, text: str) -> Iterator[str]:
     ...
 
 def main(*, paths: Sequence[str]) -> int:

@@ -230,9 +230,6 @@ class InlineComment(Post):
     def _fall_back_to_the_original_lines(cls, document: Any, /) -> Any:
         """Read the lines the comment was written against, wherever they are.
 
-        pydantic is what calls this, and it passes the document positionally,
-        so the parameter is positional-only.
-
         A commit that lands after the comment can move the code it was written
         against, or take it away. GitHub then answers no line and keeps the
         original, which is the line the comment was written against and the one
@@ -240,6 +237,9 @@ class InlineComment(Post):
 
         Anything that is not a document at all passes straight through, so
         pydantic is what says why it cannot be read.
+
+        pydantic is also what calls this, and it passes the document
+        positionally, so the parameter is positional-only.
         """
         if not isinstance(document, dict):
             return document

@@ -392,10 +392,9 @@ class Round:
         as it is rendered, so holding the lock across both keeps the stamps in
         the same order as the lines.
 
-        Reading a line through an adapter never raises. Rendering what the
-        adapter read is a second step, and that step does fail when an event
-        holds something other than text. A line the feed cannot render is
-        written out as the harness sent it, so one bad line costs one line.
+        Rendering an event fails when the event holds something other than
+        text. A line the feed cannot render is written out as the harness sent
+        it, so one bad line costs one line.
         """
         with self._writing:
             try:

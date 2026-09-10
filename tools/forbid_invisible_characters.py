@@ -18,7 +18,7 @@ def describe(*, character: str) -> str:
     return f"U+{ord(character):04X} {unicodedata.name(character)}"
 
 
-def invisible_characters(*, text: str) -> Iterator[tuple[int, int, str]]:
+def find_invisible_characters(*, text: str) -> Iterator[tuple[int, int, str]]:
     """Yield the line, the column and the name of each invisible character."""
     for number, line in enumerate(text.split("\n"), start=1):
         for column, character in enumerate(line, start=1):
@@ -31,7 +31,7 @@ def main(*, paths: Sequence[str]) -> int:
     found = False
     for path in paths:
         text = Path(path).read_text(encoding="utf-8", errors="replace")
-        for number, column, name in invisible_characters(text=text):
+        for number, column, name in find_invisible_characters(text=text):
             print(f"{path}:{number}:{column} {name}")
             found = True
     return int(found)

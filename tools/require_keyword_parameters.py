@@ -23,17 +23,38 @@ from pathlib import Path
 # parameters after it do.
 RECEIVERS = ("self", "cls")
 
+# What pytest's own decorator is called, wherever it was imported from.
+FIXTURE = "fixture"
+
 
 def is_called_by_pytest(*, definition: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
     """Whether pytest is what calls this definition, so its shape is pytest's."""
     if definition.name.startswith(("test_", "pytest_")):
         return True
     return any(
-        "fixture" in ast.unparse(decorator) for decorator in definition.decorator_list
+        _name_of(decorator=decorator) == FIXTURE
+        for decorator in definition.decorator_list
     )
 
 
-def positional_parameters(*, text: str) -> Iterator[str]:
+def _name_of(*, decorator: ast.expr) -> str:
+    """Return what a decorator is called, without its module or its arguments.
+
+    A decorator reads as `pytest.fixture`, as `fixture`, or as either of those
+    called with arguments, and each of those has to answer the same name. A
+    decorator this cannot read at all answers its own source, which no name
+    matches.
+    """
+    if isinstance(decorator, ast.Call):
+        return _name_of(decorator=decorator.func)
+    if isinstance(decorator, ast.Attribute):
+        return decorator.attr
+    if isinstance(decorator, ast.Name):
+        return decorator.id
+    return ast.unparse(decorator)
+
+
+def find_positional_parameters(*, text: str) -> Iterator[str]:
     """Yield the line and the words naming each such parameter."""
     for node in ast.walk(ast.parse(text)):
         if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
@@ -54,7 +75,7 @@ def main(*, paths: Sequence[str]) -> int:
     found = False
     for path in paths:
         text = Path(path).read_text(encoding="utf-8")
-        for reported in positional_parameters(text=text):
+        for reported in find_positional_parameters(text=text):
             print(f"{path}:{reported}")
             found = True
     return int(found)

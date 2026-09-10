@@ -11,7 +11,7 @@ INVISIBLE_CATEGORY = 'Cf'
 def describe(*, character: str) -> str:
     ...
 
-def invisible_characters(*, text: str) -> Iterator[tuple[int, int, str]]:
+def find_invisible_characters(*, text: str) -> Iterator[tuple[int, int, str]]:
     ...
 
 def main(*, paths: Sequence[str]) -> int:

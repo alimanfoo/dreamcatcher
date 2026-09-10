@@ -1180,10 +1180,12 @@ tools/:
   forbid_invisible_characters.py:
     INVISIBLE_CATEGORY:
     describe:
-    invisible_characters:
+    find_invisible_characters:
     main:
   require_keyword_parameters.py:
     RECEIVERS:
+    FIXTURE:
     is_called_by_pytest:
-    positional_parameters:
+    _name_of:
+    find_positional_parameters:
     main:
