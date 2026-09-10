@@ -34,8 +34,6 @@ from dreamcatcher.tui import (
     PAUSE,
     _paint,
     _paint_written,
-    render_board,
-    render_session,
     show_board,
     show_feed,
     show_session,
@@ -246,18 +244,20 @@ SESSIONS = {
 }
 
 
-def pinned(written_to, width: int = WIDTH) -> Console:
+def pinned(written_to, width: int = WIDTH, is_terminal: bool = False) -> Console:
     """Return a console that renders the same text wherever it runs.
 
     Every setting rich would otherwise take from the shell or the platform is
     named here: a shell exporting FORCE_COLOR would make it write escape codes,
-    and a legacy Windows console would take a column off its width.
+    and a legacy Windows console would take a column off its width. Saying it
+    has no colour system pins that too, so a console that says it is a
+    terminal, which is what makes a view follow, still writes plain text.
     """
     return Console(
         file=written_to,
         width=width,
-        force_terminal=False,
-        no_color=True,
+        force_terminal=is_terminal,
+        color_system=None,
         legacy_windows=False,
     )
 
@@ -267,10 +267,23 @@ def interrupting(seconds):
     raise KeyboardInterrupt
 
 
+def refusing(seconds):
+    """A wait that a view with nothing more to show must never reach.
+
+    A view that reaches it has gone on looking, and a wait that let it would
+    let it look for ever, so the test would hang rather than fail.
+    """
+    raise AssertionError("the view waited for something that was not coming")
+
+
 def rendered(state, width: int = WIDTH) -> str:
-    """Return the board that state directory renders as, on a pinned console."""
+    """Return the board that state directory renders as, on a pinned console.
+
+    Nobody is watching a console that is no terminal, so the board is drawn
+    once and the view returns, which is the board a reader reads.
+    """
     written_to = StringIO()
-    pinned(written_to, width).print(render_board(state, clock=lambda: LOOKED_AT))
+    show_board(state, pinned(written_to, width), clock=lambda: LOOKED_AT, wait=refusing)
     return written_to.getvalue()
 
 
@@ -284,17 +297,6 @@ def test_a_state_directory_renders_as_its_golden_board(name, tmp_path, daemon):
     assert board == (FIXTURES / "board" / f"{name}.txt").read_text(encoding="utf-8")
 
 
-def test_showing_the_board_prints_the_board_it_built(tmp_path, daemon):
-    """The goldens read the value, so this is what pins the printing of it."""
-    state = StateDirectory(tmp_path)
-    fabricate_everything(state)
-    written_to = StringIO()
-
-    show_board(state, pinned(written_to), clock=lambda: LOOKED_AT)
-
-    assert written_to.getvalue() == rendered(state)
-
-
 def test_a_key_too_wide_for_the_console_folds_rather_than_being_cut(tmp_path):
     """Two sessions at one issue differ only in the time their keys carry."""
     state = StateDirectory(tmp_path)
@@ -306,11 +308,48 @@ def test_a_key_too_wide_for_the_console_folds_rather_than_being_cut(tmp_path):
     assert "7-090000" in board
 
 
+def test_a_board_nobody_is_watching_is_drawn_once_and_returns(tmp_path, daemon):
+    state = StateDirectory(tmp_path)
+    fabricate_everything(state)
+    written_to = StringIO()
+
+    show_board(state, pinned(written_to), clock=lambda: LOOKED_AT, wait=refusing)
+
+    assert "daemon running" in written_to.getvalue()
+
+
+def test_a_board_a_reader_watches_keeps_up_with_what_the_daemon_writes(
+    tmp_path, daemon
+):
+    state = StateDirectory(tmp_path)
+    fabricate_nothing(state)
+    written_to = StringIO()
+    looks = []
+
+    def wait(seconds):
+        looks.append(seconds)
+        if len(looks) > 1:
+            raise KeyboardInterrupt
+        holding(state)
+        write_feed(written(state, 13, running(30)), 1, Line(PINNED, "[Bash] pytest"))
+
+    show_board(
+        state, pinned(written_to, is_terminal=True), clock=lambda: LOOKED_AT, wait=wait
+    )
+    board = written_to.getvalue()
+
+    # A board is never over, so it drew again on the session that was dispatched
+    # while the reader was watching, and ended only when they interrupted it.
+    assert looks == [PAUSE, PAUSE]
+    assert "nothing dispatched yet" in board
+    assert f"GH13-{STAMP}" in board
+
+
 def viewed(state, issue: int, width: int = WIDTH) -> str:
     """Return the session view that issue renders as, on a pinned console."""
     written_to = StringIO()
-    pinned(written_to, width).print(
-        render_session(state, issue, clock=lambda: LOOKED_AT)
+    show_session(
+        state, issue, pinned(written_to, width), clock=lambda: LOOKED_AT, wait=refusing
     )
     return written_to.getvalue()
 
@@ -343,17 +382,6 @@ def test_wrapped_latest_output_keeps_its_indent(tmp_path, daemon):
     assert all(line.startswith("  ") and not line.startswith("   ") for line in output)
 
 
-def test_showing_a_session_prints_the_session_view_it_built(tmp_path, daemon):
-    """The goldens read the value, so this is what pins the printing of it."""
-    state = StateDirectory(tmp_path)
-    fabricate_everything(state)
-    written_to = StringIO()
-
-    show_session(state, 13, pinned(written_to), clock=lambda: LOOKED_AT)
-
-    assert written_to.getvalue() == viewed(state, 13)
-
-
 @pytest.mark.parametrize("name", sorted(SESSIONS))
 def test_a_session_renders_as_its_golden_view(name, tmp_path, daemon):
     state = StateDirectory(tmp_path)
@@ -365,11 +393,68 @@ def test_a_session_renders_as_its_golden_view(name, tmp_path, daemon):
     assert view == (FIXTURES / "board" / f"{name}.txt").read_text(encoding="utf-8")
 
 
-def followed(state, issue: int, wait=lambda seconds: None) -> str:
-    """Return the feed view that issue renders as, on a pinned console."""
+def test_a_session_view_shows_the_round_that_starts_while_it_is_open(tmp_path, daemon):
+    state = StateDirectory(tmp_path)
+    fabricate_everything(state)
     written_to = StringIO()
-    show_feed(state, issue, pinned(written_to), wait=wait)
+    looks = []
+
+    def wait(seconds):
+        looks.append(seconds)
+        if len(looks) > 1:
+            raise KeyboardInterrupt
+        write_round(state.sessions / f"GH20-{STAMP}", 2, running(60, cause=Cause.POSTS))
+
+    show_session(
+        state,
+        20,
+        pinned(written_to, is_terminal=True),
+        clock=lambda: LOOKED_AT,
+        wait=wait,
+    )
+
+    # The round GH20 had run was over and its pull request was waiting for the
+    # reader, so the view stayed open through the gap and drew the round that
+    # answered what they posted.
+    assert looks == [PAUSE, PAUSE]
+    assert "new posts" in written_to.getvalue()
+
+
+@pytest.mark.parametrize("issue", [12, 9])
+def test_a_session_view_of_a_session_that_is_over_never_waits(issue, tmp_path, daemon):
+    """GH12 has run its final round, and GH9 is stuck, so neither has one coming."""
+    state = StateDirectory(tmp_path)
+    fabricate_everything(state)
+    written_to = StringIO()
+
+    show_session(
+        state,
+        issue,
+        pinned(written_to, is_terminal=True),
+        clock=lambda: LOOKED_AT,
+        wait=refusing,
+    )
+
+    assert f"GH{issue}-{STAMP}" in written_to.getvalue()
+
+
+def followed(state, issue: int, wait=refusing) -> str:
+    """Return the feed view that issue renders as, on a console being watched."""
+    written_to = StringIO()
+    show_feed(state, issue, pinned(written_to, is_terminal=True), wait=wait)
     return written_to.getvalue()
+
+
+def test_a_feed_nobody_is_watching_shows_what_is_there_and_returns(tmp_path, daemon):
+    state = StateDirectory(tmp_path)
+    fabricate_everything(state)
+    written_to = StringIO()
+
+    # A console that is no terminal is a pipe, a redirect or a log, and a view
+    # that followed for as long as this session runs could be none of those.
+    show_feed(state, 13, pinned(written_to), wait=refusing)
+
+    assert "[Bash] pytest" in written_to.getvalue()
 
 
 @pytest.mark.parametrize("name", sorted(FEEDS))
@@ -465,11 +550,8 @@ def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path, dae
 def test_a_view_of_a_session_that_is_over_never_waits(tmp_path, daemon):
     state = StateDirectory(tmp_path)
     fabricate_everything(state)
-    waits = []
 
-    followed(state, 12, wait=waits.append)
-
-    assert waits == []
+    assert "round 2: final round" in followed(state, 12)
 
 
 def test_a_following_view_waits_for_the_next_daemon(tmp_path):
@@ -492,13 +574,10 @@ def test_a_following_view_waits_for_the_next_daemon(tmp_path):
 def test_a_view_of_a_stuck_session_never_waits(tmp_path, daemon):
     state = StateDirectory(tmp_path)
     fabricate_everything(state)
-    waits = []
-
-    followed(state, 44, wait=waits.append)
 
     # Only a person can move a stuck session on, so the view ends rather than
     # wait for a round that is not coming.
-    assert waits == []
+    assert followed(state, 44) == ""
 
 
 def test_a_following_view_reads_a_round_on_from_where_it_stopped(tmp_path, daemon):
@@ -576,10 +655,22 @@ def test_a_reader_who_has_seen_enough_interrupts_the_view(tmp_path, daemon):
     assert "[Bash] pytest" in followed(state, 13, wait=interrupting)
 
 
-def viewed_round(state, issue: int, number: int, wait=lambda seconds: None) -> str:
+def viewed_round(
+    state,
+    issue: int,
+    number: int,
+    wait=refusing,
+    is_terminal: bool = False,
+) -> str:
     """Return the view of one round of that issue, on a pinned console."""
     written_to = StringIO()
-    show_feed(state, issue, pinned(written_to), round_number=number, wait=wait)
+    show_feed(
+        state,
+        issue,
+        pinned(written_to, is_terminal=is_terminal),
+        round_number=number,
+        wait=wait,
+    )
     return written_to.getvalue()
 
 
@@ -600,16 +691,35 @@ def test_a_round_that_wrote_no_feed_shows_the_line_that_opens_it(tmp_path, daemo
     assert viewed_round(state, 12, 1) == "2026-08-19T18:42:58Z  round 1: dispatched\n"
 
 
-def test_a_view_of_one_round_shows_it_as_it_stands(tmp_path, daemon):
+def test_a_view_of_a_round_that_has_ended_never_waits(tmp_path, daemon):
     state = StateDirectory(tmp_path)
     fabricate_everything(state)
-    waits = []
 
-    # Round 2 of this session is still running, so a view that followed the
-    # whole session would wait here for whatever it says next.
-    viewed_round(state, 13, 2, wait=waits.append)
+    # Round 1 of this session ended, and one named round is all the view shows,
+    # so it ends there rather than wait for what round 2 says next.
+    shown = viewed_round(state, 13, 1, is_terminal=True)
 
-    assert waits == []
+    assert "round 1: dispatched" in shown
+
+
+def test_a_view_of_a_running_round_ends_when_that_round_does(tmp_path, daemon):
+    state = StateDirectory(tmp_path)
+    fabricate_everything(state)
+    directory = state.sessions / f"GH13-{STAMP}"
+    looks = []
+
+    def wait(seconds):
+        looks.append(seconds)
+        if len(looks) > 2:
+            raise AssertionError("the view outlived the round it was showing")
+        write_round(directory, 2, ended(30))
+
+    shown = viewed_round(state, 13, 2, wait=wait, is_terminal=True)
+
+    # The round ended while the view was waiting, so the view looked once more
+    # for whatever that round was still writing as it stopped, and ended.
+    assert looks == [PAUSE, PAUSE]
+    assert "[Bash] pytest" in shown
 
 
 def test_a_round_the_session_never_ran_says_how_many_it_did(tmp_path, daemon):

@@ -6,7 +6,9 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import datetime
 from time import sleep
+from typing import NamedTuple
 from rich.console import Console, Group, RenderableType
+from rich.live import Live
 from rich.padding import Padding
 from rich.table import Table
 from rich.text import Text
@@ -23,6 +25,7 @@ from dreamcatcher.words import describe_count, describe_span, describe_time
 
 COLOURS = ...
 QUEUE = 'queued'
+STANDINGS_THAT_END_A_VIEW = (SessionStanding.DONE, SessionStanding.STUCK)
 PAUSE = 1.0
 LABEL = '^\\s*\\[[^\\]]+\\]'
 INDENT = (0, 0, 0, 2)
@@ -30,10 +33,19 @@ INDENT = (0, 0, 0, 2)
 def open_console() -> Console:
     ...
 
-def show_board(state: StateDirectory, console: Console, clock: Callable[[], datetime]) -> None:
+def _repaint(console: Console, look: Callable[[], _Picture], wait: Callable[[float], None]) -> None:
     ...
 
-def render_board(state: StateDirectory, clock: Callable[[], datetime]) -> RenderableType:
+def _keep_looking(console: Console, look: Callable[[], bool], wait: Callable[[float], None]) -> None:
+    ...
+
+def show_board(state: StateDirectory, console: Console, clock: Callable[[], datetime], wait: Callable[[float], None]) -> None:
+    ...
+
+def _look_at_board(state: StateDirectory, clock: Callable[[], datetime]) -> _Picture:
+    ...
+
+def _render_board(board: Board) -> RenderableType:
     ...
 
 def _render_parts(*parts: RenderableType | None) -> RenderableType:
@@ -63,10 +75,13 @@ def _open_table() -> Table:
 def _render_section(heading: str, colour: str, body: RenderableType) -> RenderableType:
     ...
 
-def show_session(state: StateDirectory, issue: int, console: Console, clock: Callable[[], datetime]) -> None:
+def show_session(state: StateDirectory, issue: int, console: Console, clock: Callable[[], datetime], wait: Callable[[float], None]) -> None:
     ...
 
-def render_session(state: StateDirectory, issue: int, clock: Callable[[], datetime]) -> RenderableType:
+def _look_at_session(state: StateDirectory, issue: int, clock: Callable[[], datetime]) -> _Picture:
+    ...
+
+def _render_session(state: StateDirectory, rows: list[SessionRow]) -> RenderableType:
     ...
 
 def _render_vitals(state: StateDirectory, row: SessionRow) -> RenderableType:
@@ -90,7 +105,7 @@ def _render_older_sessions(older: list[SessionRow]) -> RenderableType | None:
 def show_feed(state: StateDirectory, issue: int, console: Console, round_number: int | None, wait: Callable[[float], None]) -> None:
     ...
 
-def _show_one_round(state: StateDirectory, issue: int, number: int, console: Console) -> None:
+def _show_one_round(state: StateDirectory, issue: int, number: int, console: Console, wait: Callable[[float], None]) -> None:
     ...
 
 def _find_rows_for_issue(state: StateDirectory, issue: int, clock: Callable[[], datetime]) -> list[SessionRow]:
@@ -101,6 +116,10 @@ def _paint_written(written: str) -> Text:
 
 def _paint(line: Line, said: Text) -> Text:
     ...
+
+class _Picture(NamedTuple):
+    shown: RenderableType
+    is_over: bool
 
 class _FeedView:
     console: Console

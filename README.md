@@ -108,6 +108,28 @@ reads what the daemon left under `.dreamcatcher/` and asks GitHub nothing, so
 each answers whether the daemon is running or long dead. Run them from the same
 checkout.
 
+Every view stays on the screen and keeps up while you watch it, so there is
+nothing to wrap it in.
+
+`board` is never over, so it stays until you interrupt it.
+
+`session` and `feed` stay open for as long as the session has another round
+coming, so you can leave one running for a whole session and see every round of
+it arrive. They wait through every gap between one round and the next, including
+a gap where you have stopped the daemon and not started it again yet.
+
+Two things end them, because after either one no round is coming. One is the
+session running its final round, which winds it up. The other is the session
+getting stuck, which means no tick can move it on however long it waits: either
+its dispatch never ran a first round, or its rounds ran and no pull request was
+ever opened on its branch. Only you can take a stuck session from there, so a
+view left open on one would wait for ever.
+
+Interrupt any view to end it sooner.
+
+A view whose output is not a terminal, because you piped it, redirected it or
+captured it, shows what is there once and returns. You need no flag either way.
+
 ```sh
 dreamcatcher board
 ```
@@ -136,19 +158,16 @@ dreamcatcher session GH123
 ```
 
 `feed` shows what the agent said, as it says it. It shows every round's feed in
-order, and keeps showing what arrives for as long as the session has another
-round coming, so you can leave it running in a console for a whole session and
-see every round of it arrive. It waits through every gap between one round and
-the next, including a gap where you have stopped the daemon and not started it
-again yet. The view ends once the session has run its final round, and on a
-stuck session, which only you can move on. Interrupt the view to end it sooner.
+order. A feed is a log rather than a picture of a state, so it is printed as it
+is read and you keep your scrollback.
 
 ```sh
 dreamcatcher feed GH123
 ```
 
-`--round 2` narrows the feed to one round, as it stands. The round list of the
-session view is where you find the number.
+`--round 2` narrows the feed to one round. One named round is all that view
+shows, so it ends when that round ends rather than stay open for the round after
+it. The round list of the session view is where you find the number.
 
 ```sh
 dreamcatcher feed GH123 --round 2

@@ -84,6 +84,8 @@ src/:
       _text:
     cli.py:
       ISSUE:
+      HELP_WHEN_A_VIEW_ENDS:
+      HELP_WHEN_NOTHING_WATCHES:
       build_parser:
       _take_an_issue:
       main:
@@ -436,9 +438,13 @@ src/:
     tui.py:
       COLOURS:
       QUEUE:
+      STANDINGS_THAT_END_A_VIEW:
       PAUSE:
       LABEL:
       INDENT:
+      _Picture:
+        shown:
+        is_over:
       _FeedView:
         console:
         positions:
@@ -446,8 +452,11 @@ src/:
         _show_round_heading:
         _show_new_lines:
       open_console:
+      _repaint:
+      _keep_looking:
       show_board:
-      render_board:
+      _look_at_board:
+      _render_board:
       _render_parts:
       _describe_daemon:
       _render_rows:
@@ -458,7 +467,8 @@ src/:
       _open_table:
       _render_section:
       show_session:
-      render_session:
+      _look_at_session:
+      _render_session:
       _render_vitals:
       _render_rounds:
       _describe_run:
@@ -1096,15 +1106,19 @@ tests/:
     fabricate_a_silent_round:
     pinned:
     interrupting:
+    refusing:
     rendered:
     test_a_state_directory_renders_as_its_golden_board:
-    test_showing_the_board_prints_the_board_it_built:
     test_a_key_too_wide_for_the_console_folds_rather_than_being_cut:
+    test_a_board_nobody_is_watching_is_drawn_once_and_returns:
+    test_a_board_a_reader_watches_keeps_up_with_what_the_daemon_writes:
     viewed:
     test_wrapped_latest_output_keeps_its_indent:
-    test_showing_a_session_prints_the_session_view_it_built:
     test_a_session_renders_as_its_golden_view:
+    test_a_session_view_shows_the_round_that_starts_while_it_is_open:
+    test_a_session_view_of_a_session_that_is_over_never_waits:
     followed:
+    test_a_feed_nobody_is_watching_shows_what_is_there_and_returns:
     test_a_feed_renders_as_its_golden_view:
     test_only_a_feed_lines_stamp_is_dim:
     test_a_following_view_waits_for_the_round_a_session_has_yet_to_run:
@@ -1120,7 +1134,8 @@ tests/:
     viewed_round:
     test_one_round_of_a_session_reads_on_its_own:
     test_a_round_that_wrote_no_feed_shows_the_line_that_opens_it:
-    test_a_view_of_one_round_shows_it_as_it_stands:
+    test_a_view_of_a_round_that_has_ended_never_waits:
+    test_a_view_of_a_running_round_ends_when_that_round_does:
     test_a_round_the_session_never_ran_says_how_many_it_did:
     test_an_issue_no_session_here_has_says_so:
   test_wakeups.py:

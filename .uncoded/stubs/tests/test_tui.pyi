@@ -15,7 +15,7 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Line
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.state import NO_ROUND_HAS_RUN, CandidateIssue, LastTick, StateDirectory, WaitingSession
-from dreamcatcher.tui import PAUSE, _paint, _paint_written, render_board, render_session, show_board, show_feed, show_session
+from dreamcatcher.tui import PAUSE, _paint, _paint_written, show_board, show_feed, show_session
 
 LOOKED_AT = PINNED + timedelta(hours=2)
 WIDTH = 100
@@ -60,10 +60,13 @@ def fabricate_repeat_sessions(state):
 def fabricate_a_silent_round(state):
     ...
 
-def pinned(written_to, width: int) -> Console:
+def pinned(written_to, width: int, is_terminal: bool) -> Console:
     ...
 
 def interrupting(seconds):
+    ...
+
+def refusing(seconds):
     ...
 
 def rendered(state, width: int) -> str:
@@ -72,10 +75,13 @@ def rendered(state, width: int) -> str:
 def test_a_state_directory_renders_as_its_golden_board(name, tmp_path, daemon):
     ...
 
-def test_showing_the_board_prints_the_board_it_built(tmp_path, daemon):
+def test_a_key_too_wide_for_the_console_folds_rather_than_being_cut(tmp_path):
     ...
 
-def test_a_key_too_wide_for_the_console_folds_rather_than_being_cut(tmp_path):
+def test_a_board_nobody_is_watching_is_drawn_once_and_returns(tmp_path, daemon):
+    ...
+
+def test_a_board_a_reader_watches_keeps_up_with_what_the_daemon_writes(tmp_path, daemon):
     ...
 
 def viewed(state, issue: int, width: int) -> str:
@@ -84,13 +90,19 @@ def viewed(state, issue: int, width: int) -> str:
 def test_wrapped_latest_output_keeps_its_indent(tmp_path, daemon):
     ...
 
-def test_showing_a_session_prints_the_session_view_it_built(tmp_path, daemon):
-    ...
-
 def test_a_session_renders_as_its_golden_view(name, tmp_path, daemon):
     ...
 
+def test_a_session_view_shows_the_round_that_starts_while_it_is_open(tmp_path, daemon):
+    ...
+
+def test_a_session_view_of_a_session_that_is_over_never_waits(issue, tmp_path, daemon):
+    ...
+
 def followed(state, issue: int, wait) -> str:
+    ...
+
+def test_a_feed_nobody_is_watching_shows_what_is_there_and_returns(tmp_path, daemon):
     ...
 
 def test_a_feed_renders_as_its_golden_view(name, tmp_path, daemon):
@@ -129,7 +141,7 @@ def test_a_line_the_view_cannot_read_reaches_the_reader_as_it_was_written(tmp_pa
 def test_a_reader_who_has_seen_enough_interrupts_the_view(tmp_path, daemon):
     ...
 
-def viewed_round(state, issue: int, number: int, wait) -> str:
+def viewed_round(state, issue: int, number: int, wait, is_terminal: bool) -> str:
     ...
 
 def test_one_round_of_a_session_reads_on_its_own(tmp_path, daemon):
@@ -138,7 +150,10 @@ def test_one_round_of_a_session_reads_on_its_own(tmp_path, daemon):
 def test_a_round_that_wrote_no_feed_shows_the_line_that_opens_it(tmp_path, daemon):
     ...
 
-def test_a_view_of_one_round_shows_it_as_it_stands(tmp_path, daemon):
+def test_a_view_of_a_round_that_has_ended_never_waits(tmp_path, daemon):
+    ...
+
+def test_a_view_of_a_running_round_ends_when_that_round_does(tmp_path, daemon):
     ...
 
 def test_a_round_the_session_never_ran_says_how_many_it_did(tmp_path, daemon):

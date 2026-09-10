@@ -64,8 +64,14 @@ check would have been right anyway.
 This also happens to be well covered already. Every golden test builds its
 console with `force_terminal=False` (`tests/test_tui.py`), precisely so the
 output doesn't vary with the shell or the platform — so the whole existing suite
-already exercises the render-once path, unchanged. The following path is tested
-the way `show_feed` is tested today, with an injected wait.
+already exercises the render-once path, unchanged. A test of a following view
+builds the same console with `force_terminal=True`, and that console names its
+colour system as none, so a console saying it is a terminal still writes plain
+text and a golden read through one holds what it always held. The following path
+is tested the way `show_feed` is tested today, with an injected wait.
+
+The rule reaches every view, the feed included. A feed being piped or captured
+shows what is there and returns, and a feed a reader is watching follows.
 
 ### When a view returns
 
@@ -111,6 +117,12 @@ what arrived since the last one, and the reader keeps their scrollback. Under
 `Live` a long feed would be clipped to the height of the screen and everything
 above it lost, which is the opposite of what a feed is for.
 
+A picture is clipped too, and that is right for a picture: a place on the screen
+is as tall as the screen, and what a picture holds now is all a reader wants. A
+board taller than the screen is cut at the bottom, which takes its sections in
+reverse order of whose turn it is, so `done` goes before anything a reader came
+for.
+
 These are two mechanisms because they are two kinds of thing, not two ways of
 doing one thing. A state has a current value. A log has an end.
 
@@ -118,19 +130,27 @@ doing one thing. A state has a current value. A log has an end.
 
 Most `_show_*` helpers print straight to the console. `Live` needs something it
 can hold and redraw, so each of those helpers returns a renderable instead, and
-`render_board` and `render_session` build one renderable from them. Neither
-takes a console and neither prints. What prints is `show_board` and
-`show_session`, which are what the verbs call, and that is where one small
-helper does the following: build, hand to `Live`, wait, build again.
+`_render_board` and `_render_session` build one renderable from them. Neither
+takes a console and neither prints, and each is handed what has already been
+read rather than reading it itself. In front of each sits a look,
+`_look_at_board` and `_look_at_session`, which reads the state once and answers
+both what to draw and whether the view is over, so a following view judges where
+it stands without reading the state twice. What prints is `show_board` and
+`show_session`, which are what the verbs call. Each hands its look to
+`_repaint`, which chooses where a look is drawn, and `_repaint` hands it on to
+`_keep_looking`, which decides how long to go on looking. The feed hands its own
+look to `_keep_looking` directly, so how long a view stays is settled in one
+place for all three.
 
 The printing stays inside `tui.py` rather than moving out to the command line,
 because that module is the one that shows anything to a person, which is the
 rule `AGENTS.md` states. A part that has nothing to say answers nothing, and one
 helper leaves those out, so both views compose themselves the same way.
 
-The goldens keep working: rendering that to the same pinned console produces the
-same text. They also improve, in that they become assertions about a value
-rather than about a side effect.
+The goldens keep working: drawing that to the same pinned console produces the
+same text. They read it through `show_board` and `show_session` on a console
+that is no terminal, which is the render-once path, so what a golden holds is
+what a reader piping the command reads.
 
 Some of this has already arrived from another direction: #86 added
 `_render_detail`, which returns a renderable rather than printing one, and

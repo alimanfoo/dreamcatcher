@@ -161,8 +161,9 @@ sleeping:
 - a session view returns on a session that has run its final round, and on a
   stuck one;
 - `feed --round N` of an ended round returns;
-- the feed's own behaviour from #94 is unchanged, which its existing tests
-  carry;
+- the feed follows for a whole session, which its existing tests carry, and
+  takes the terminal check with the other two views, so those tests declare a
+  console that is a terminal;
 - the feed appends rather than repainting, so its output is still the whole
   history in order.
 

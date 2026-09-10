@@ -6,8 +6,8 @@ and one session's feed. It reads the state directory and never talks to GitHub
 or to the daemon, so it answers whether the daemon is alive or dead, and
 answers fastest when you most want to look.
 
-The board and one session are pictures of a state, so each is built whole and
-then printed. A feed is a log, so it is printed as it is read, and the reader
+The board and one session are pictures of a state, so each is drawn over the
+one before it. A feed is a log, so it is printed as it is read, and the reader
 keeps their scrollback.
 
 What the daemon writes stays plain text, and the colour goes on at the moment of
@@ -19,8 +19,10 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import datetime
 from time import sleep
+from typing import NamedTuple
 
 from rich.console import Console, Group, RenderableType
+from rich.live import Live
 from rich.padding import Padding
 from rich.table import Table
 from rich.text import Text
@@ -54,6 +56,11 @@ COLOURS = {
 
 QUEUE = "queued"
 
+# The standings at which a view of that session ends. A session standing at
+# either of them has no round coming, so a view of it has seen the last of what
+# it will ever show.
+STANDINGS_THAT_END_A_VIEW = (SessionStanding.DONE, SessionStanding.STUCK)
+
 # How long a following view waits between looks at what the round has written.
 PAUSE = 1.0
 
@@ -70,23 +77,112 @@ def open_console() -> Console:
     return Console()
 
 
-def show_board(
-    state: StateDirectory, console: Console, clock: Callable[[], datetime] = now
+class _Picture(NamedTuple):
+    """A view as one look found it: what to draw, and whether the view is over.
+
+    A view is over when nothing more can reach it. That is not the same as the
+    last look, because `_keep_looking` takes one more after it.
+    """
+
+    shown: RenderableType
+    is_over: bool
+
+
+def _repaint(
+    console: Console, look: Callable[[], _Picture], wait: Callable[[float], None]
 ) -> None:
-    """Show every session and every queued issue on the console."""
-    console.print(render_board(state, clock))
+    """Draw what each look finds over the one before, until the view is over.
+
+    A picture of a state has a current value rather than a history, so rich's
+    Live holds one place on the screen and every look is drawn into it. A place
+    on the screen is as tall as the screen, so a picture that outgrows it is
+    cut at the bottom, which takes the sections a reader came for last: the
+    board is sorted by whose turn it is, so what goes first is what is done.
+
+    This decides where a look is drawn, and `_keep_looking` decides how long to
+    go on looking. A view nobody is watching has no place to hold, so the one
+    look it takes is printed as anything else is.
+    """
+    if not console.is_terminal:
+        console.print(look().shown)
+        return
+    with Live(console=console, auto_refresh=False) as live:
+
+        def draw() -> bool:
+            """Draw what this look found, and say whether the view is over."""
+            found = look()
+            live.update(found.shown, refresh=True)
+            return found.is_over
+
+        _keep_looking(console, draw, wait)
 
 
-def render_board(
-    state: StateDirectory, clock: Callable[[], datetime] = now
-) -> RenderableType:
+def _keep_looking(
+    console: Console, look: Callable[[], bool], wait: Callable[[float], None]
+) -> None:
+    """Look again and again, until the view has seen the last of what it shows.
+
+    A look shows where the view stands now and answers whether the view is
+    over, which is to say whether anything more can reach it.
+
+    Nobody is watching a console that is no terminal: the view is being piped,
+    redirected or captured, and a view that stayed on the screen could be none
+    of those. So one look is the last look there, and the reader is asked for
+    no flag to say so.
+
+    A round records its ending as soon as its own child has gone, and whatever
+    it was still writing lands after that, so a view that finds itself over
+    looks once more before it ends. Nothing was going before the view opened,
+    so a view that opens on something already over ends on its first look and
+    never waits.
+
+    The reader ends a view that is still going by interrupting it, which is how
+    they say they have seen enough, so it ends without a word.
+    """
+    was_over = True
+    with suppress(KeyboardInterrupt):
+        while True:
+            is_over = look()
+            if (is_over and was_over) or not console.is_terminal:
+                return
+            was_over = is_over
+            wait(PAUSE)
+
+
+def show_board(
+    state: StateDirectory,
+    console: Console,
+    clock: Callable[[], datetime] = now,
+    wait: Callable[[float], None] = sleep,
+) -> None:
+    """Show every session and every queued issue, and keep on showing them.
+
+    A board always has something more to show: a daemon can start, a tick can
+    dispatch, a round can begin. So a board is never over, and a reader
+    watching one ends it by interrupting it. A console that is no terminal has
+    nobody watching, so there the board is drawn once and this returns.
+    """
+    _repaint(console, lambda: _look_at_board(state, clock), wait)
+
+
+def _look_at_board(state: StateDirectory, clock: Callable[[], datetime]) -> _Picture:
+    """Return the board as it stands, which no look ever finds over.
+
+    A daemon can start, a tick can dispatch, a round can begin, so a later look
+    can always find what this one did not. The picture answers `is_over` as
+    False for that reason, and that is what keeps a board on the screen until
+    the reader interrupts it.
+    """
+    return _Picture(_render_board(read_board(state, clock)), is_over=False)
+
+
+def _render_board(board: Board) -> RenderableType:
     """Return every session and every queued issue, sorted by whose turn it is.
 
     The sections run in the order of whose turn it is, so the reader meets the
     work waiting on them first and the work that is finished last. A section
     with nothing in it is left out rather than shown empty.
     """
-    board = read_board(state, clock)
     return _render_parts(
         _describe_daemon(board),
         _render_rows(board, SessionStanding.NEEDS_YOU),
@@ -224,21 +320,41 @@ def show_session(
     issue: int,
     console: Console,
     clock: Callable[[], datetime] = now,
+    wait: Callable[[float], None] = sleep,
 ) -> None:
-    """Show the newest session at the issue on the console."""
-    console.print(render_session(state, issue, clock))
+    """Show the newest session at the issue, and keep on showing it.
+
+    A session between rounds has another round coming, so the view stays open
+    through the gap and shows that round as it starts. A session that has run
+    its final round, and a stuck session, have no round coming, so either one
+    ends the view. A console that is no terminal has nobody watching, so there
+    the session is drawn once and this returns.
+    """
+    _repaint(console, lambda: _look_at_session(state, issue, clock), wait)
 
 
-def render_session(
-    state: StateDirectory, issue: int, clock: Callable[[], datetime] = now
-) -> RenderableType:
-    """Return the newest session at the issue, with the older ones beneath it.
+def _look_at_session(
+    state: StateDirectory, issue: int, clock: Callable[[], datetime]
+) -> _Picture:
+    """Return the newest session at the issue as it stands, and whether it is over.
+
+    One look reads the issue's rows once, and takes both what it draws and
+    where the session stands from them.
+    """
+    rows = _find_rows_for_issue(state, issue, clock)
+    return _Picture(
+        _render_session(state, rows),
+        is_over=rows[0].standing in STANDINGS_THAT_END_A_VIEW,
+    )
+
+
+def _render_session(state: StateDirectory, rows: list[SessionRow]) -> RenderableType:
+    """Return the newest of these sessions, with the older ones beneath it.
 
     An issue that has been dispatched more than once has a session for each
     dispatch. The newest is the one still going, or the one that got furthest,
     so it is the one the view is about.
     """
-    rows = _find_rows_for_issue(state, issue, clock)
     newest = rows[0]
     return _render_parts(
         Text(newest.session.key),
@@ -359,9 +475,9 @@ def show_feed(
 ) -> None:
     """Show what the issue's newest session said, and follow what arrives.
 
-    Naming a round narrows the view to that one round, as it stands, and
-    everything below is about the view of the whole session, which is what a
-    reader gets when they name no round.
+    Naming a round narrows the view to that one round, and everything below is
+    about the view of the whole session, which is what a reader gets when they
+    name no round.
 
     Neither view reads a clock, unlike the board and the session view, which
     say how long ago something happened. Every line a feed shows carries the
@@ -383,49 +499,55 @@ def show_feed(
     Every look reads the session again, so a round that starts while the view
     is going is shown as it arrives, and not only the rounds it opened with.
 
-    A round records its ending as soon as its own child has gone, and whatever
-    it was still writing lands after that, so a session that ends while the
-    view is going gets one more look before the view ends too. A session that
-    had already ended when the view opened gets no extra look and no wait.
-
-    The reader ends a view of a session that is still going by interrupting it,
-    which is how they say they have seen enough, so it ends without a word.
+    A console that is no terminal has nobody watching, so there either view
+    shows what is there once and returns.
     """
     if round_number is not None:
-        _show_one_round(state, issue, round_number, console)
+        _show_one_round(state, issue, round_number, console, wait)
         return
     view = _FeedView(console)
-    # Nothing was going before the view opened, so a session that has already
-    # ended when it opens ends the view on its first look.
-    was_over = True
-    with suppress(KeyboardInterrupt):
-        while True:
-            row = _find_rows_for_issue(state, issue)[0]
-            session = row.session
-            view.show_what_arrived(session, range(1, len(session.rounds) + 1))
-            is_over = row.standing in (SessionStanding.DONE, SessionStanding.STUCK)
-            if is_over and was_over:
-                return
-            was_over = is_over
-            wait(PAUSE)
+
+    def look() -> bool:
+        """Show what the session said since the last look, and say if it is over."""
+        row = _find_rows_for_issue(state, issue)[0]
+        session = row.session
+        view.show_what_arrived(session, range(1, len(session.rounds) + 1))
+        return row.standing in STANDINGS_THAT_END_A_VIEW
+
+    _keep_looking(console, look, wait)
 
 
 def _show_one_round(
-    state: StateDirectory, issue: int, number: int, console: Console
+    state: StateDirectory,
+    issue: int,
+    number: int,
+    console: Console,
+    wait: Callable[[float], None],
 ) -> None:
-    """Show one round of the issue's newest session, as it stands.
+    """Show one round of the issue's newest session, until that round ends.
+
+    One named round is all this shows, so it ends when that round has, rather
+    than stay open for the round after it.
 
     The round list of the session view is where a reader finds the number, so
     a number no round of the session carries is the reader's mistake, and is
     the one thing this turns into words for them.
     """
-    session = _find_rows_for_issue(state, issue)[0].session
-    if not 1 <= number <= len(session.rounds):
-        raise ReportableError(
-            f"{session.key} has run {describe_count(len(session.rounds), 'round')}, "
-            f"so it has no round {number}."
-        )
-    _FeedView(console).show_what_arrived(session, [number])
+    view = _FeedView(console)
+
+    def look() -> bool:
+        """Show what the round said since the last look, and say if it has ended."""
+        session = _find_rows_for_issue(state, issue)[0].session
+        if not 1 <= number <= len(session.rounds):
+            raise ReportableError(
+                f"{session.key} has run "
+                f"{describe_count(len(session.rounds), 'round')}, "
+                f"so it has no round {number}."
+            )
+        view.show_what_arrived(session, [number])
+        return session.rounds[number - 1].is_complete
+
+    _keep_looking(console, look, wait)
 
 
 def _find_rows_for_issue(
