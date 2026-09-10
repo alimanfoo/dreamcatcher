@@ -28,7 +28,7 @@ KEY = "GH13-20260819-184158"
 @pytest.fixture
 def state(tmp_path):
     """A state directory holding one session, with no round run yet."""
-    directory = StateDirectory(tmp_path)
+    directory = StateDirectory(root=tmp_path)
     write_session(directory, KEY, 13)
     return directory
 

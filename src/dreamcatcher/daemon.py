@@ -94,7 +94,7 @@ class Daemon:
             )
         self.harness = harness
         self.config = read_config(root)
-        self.state = StateDirectory(root)
+        self.state = StateDirectory(root=root)
         self.clock = clock
         self.wait = wait
         # The rounds this daemon is running, by the key of the session each

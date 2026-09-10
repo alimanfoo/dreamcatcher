@@ -184,7 +184,7 @@ def _find_state(root: Path) -> StateDirectory:
     checkout it watches. So a directory with no state directory in it is one
     the reader did not mean to be in.
     """
-    state = StateDirectory(root)
+    state = StateDirectory(root=root)
     if not state.path.is_dir():
         raise ReportableError(
             f"dreamcatcher has nothing to show in {root}. Run this from the "

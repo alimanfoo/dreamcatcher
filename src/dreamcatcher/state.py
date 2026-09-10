@@ -93,7 +93,7 @@ class LastTick(Document):
     waiting: list[WaitingSession] = Field(default_factory=list)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class StateDirectory:
     """The directory holding everything dreamcatcher knows about one repo.
 

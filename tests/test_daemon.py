@@ -258,7 +258,7 @@ def test_a_linked_worktree_is_refused(tmp_path):
 def test_the_state_directory_sits_in_the_checkout(watched):
     daemon = Daemon(watched, Harness.CLAUDE)
 
-    assert daemon.state == StateDirectory(watched)
+    assert daemon.state == StateDirectory(root=watched)
 
 
 def test_a_run_refuses_when_a_harness_it_could_dispatch_to_is_not_installed(
@@ -282,7 +282,7 @@ def test_a_run_refuses_when_the_harness_it_was_named_is_not_installed(repo, alon
 def test_a_round_the_daemon_before_this_one_left_running_is_ended(
     watched, harnesses, gh, left_running
 ):
-    directory = write_session(StateDirectory(watched), KEY, 13)
+    directory = write_session(StateDirectory(root=watched), KEY, 13)
     write_round(
         directory, 1, RoundRecord(started=PINNED, pid=left_running.pid, cause=CAUSE)
     )
@@ -296,7 +296,7 @@ def test_a_round_the_daemon_before_this_one_left_running_is_ended(
 def test_a_round_that_recorded_an_ending_is_left_running_by_the_sweep(
     watched, harnesses, gh, left_running
 ):
-    directory = write_session(StateDirectory(watched), KEY, 13)
+    directory = write_session(StateDirectory(root=watched), KEY, 13)
     write_round(
         directory,
         1,
@@ -370,7 +370,7 @@ def offered(gh):
 def dispatching(cloned, offered, harnesses):
     """A checkout that a run can carry a labelled issue to a first round from."""
     configure(cloned)
-    harnesses["claude"].streams([Line("what the round said\n")])
+    harnesses["claude"].streams([Line(text="what the round said\n")])
     return cloned
 
 
@@ -378,8 +378,8 @@ def dispatching(cloned, offered, harnesses):
 def resuming(cloned, gh, harnesses):
     """A checkout holding one session, with no labelled issue up for dispatch."""
     configure(cloned)
-    harnesses["claude"].streams([Line("what the round said\n")])
-    write_session(StateDirectory(cloned), KEY, 13)
+    harnesses["claude"].streams([Line(text="what the round said\n")])
+    write_session(StateDirectory(root=cloned), KEY, 13)
     return cloned
 
 
@@ -392,7 +392,7 @@ def ran(root, number: int, cause: Cause, status: int | None = 0) -> None:
     started = PINNED.replace(hour=17, minute=number)
     ending = None if status is None else Ending(at=started, status=status)
     write_round(
-        StateDirectory(root).sessions / KEY,
+        StateDirectory(root=root).sessions / KEY,
         number,
         RoundRecord(started=started, pid=1, cause=cause, ending=ending),
     )
@@ -474,8 +474,8 @@ def test_a_second_tick_judges_a_dispatched_issue_handled(dispatching):
 def test_a_tick_at_the_cap_says_the_cap_is_what_each_session_waits_on(
     dispatching, offered, harnesses
 ):
-    harnesses["claude"].streams([Line("still working\n")], delay=STILL_RUNNING)
-    write_session(StateDirectory(dispatching), KEY, 13)
+    harnesses["claude"].streams([Line(text="still working\n")], delay=STILL_RUNNING)
+    write_session(StateDirectory(root=dispatching), KEY, 13)
     daemon, _, _ = idling(dispatching, ticks=2)
 
     daemon.run()
@@ -491,8 +491,8 @@ def test_a_tick_at_the_cap_says_the_cap_is_what_each_session_waits_on(
 def test_a_tick_at_the_cap_leaves_a_wound_up_session_waiting_on_nothing(
     dispatching, harnesses
 ):
-    harnesses["claude"].streams([Line("still working\n")], delay=STILL_RUNNING)
-    write_session(StateDirectory(dispatching), KEY, 13)
+    harnesses["claude"].streams([Line(text="still working\n")], delay=STILL_RUNNING)
+    write_session(StateDirectory(root=dispatching), KEY, 13)
     ran(dispatching, 1, Cause.FINAL)
     daemon, _, _ = idling(dispatching, ticks=2)
 
@@ -502,7 +502,7 @@ def test_a_tick_at_the_cap_leaves_a_wound_up_session_waiting_on_nothing(
 
 
 def test_a_tick_at_the_cap_refreshes_the_candidates(dispatching, offered, harnesses):
-    harnesses["claude"].streams([Line("still working\n")], delay=STILL_RUNNING)
+    harnesses["claude"].streams([Line(text="still working\n")], delay=STILL_RUNNING)
     offered.replies(listing(issues=[(8, FILED), (9, LATER)]), to="issue list")
     daemon, _, _ = idling(dispatching, ticks=2)
 
@@ -522,8 +522,8 @@ def test_a_tick_at_the_cap_refreshes_the_candidates(dispatching, offered, harnes
 def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
     dispatching, offered, harnesses
 ):
-    harnesses["claude"].streams([Line("still working\n")], delay=STILL_RUNNING)
-    write_session(StateDirectory(dispatching), KEY, 13)
+    harnesses["claude"].streams([Line(text="still working\n")], delay=STILL_RUNNING)
+    write_session(StateDirectory(root=dispatching), KEY, 13)
     daemon, waiting, _ = idling(dispatching, ticks=2)
     waiting.settle = lambda: offered.fails(
         "gh: could not connect to github.com", to="issue list"
@@ -590,7 +590,7 @@ def test_a_tick_that_could_not_dispatch_records_the_failure_and_ticks_again(
     dispatching,
 ):
     # A file where every worktree goes, so no dispatch can ever cut one.
-    state = StateDirectory(dispatching)
+    state = StateDirectory(root=dispatching)
     state.path.mkdir(parents=True)
     state.worktrees.write_text("something else is here\n", encoding="utf-8")
     daemon, waiting, _ = idling(dispatching, ticks=2)
@@ -613,7 +613,7 @@ def test_a_run_that_cannot_be_told_which_repository_this_is_refuses(
 
 
 def test_the_daemon_ends_the_rounds_it_holds_as_it_goes_down(dispatching, harnesses):
-    harnesses["claude"].streams([Line("still working\n")], delay=STILL_RUNNING)
+    harnesses["claude"].streams([Line(text="still working\n")], delay=STILL_RUNNING)
     daemon, _, _ = idling(dispatching, ticks=1)
 
     daemon.run()
@@ -624,7 +624,7 @@ def test_the_daemon_ends_the_rounds_it_holds_as_it_goes_down(dispatching, harnes
 
 
 def test_a_round_that_failed_lately_holds_every_launch(dispatching):
-    directory = write_session(StateDirectory(dispatching), KEY, 13)
+    directory = write_session(StateDirectory(root=dispatching), KEY, 13)
     write_round(
         directory,
         1,
@@ -647,7 +647,7 @@ def test_a_round_that_failed_lately_holds_every_launch(dispatching):
 
 
 def test_a_round_that_failed_long_enough_ago_holds_nothing(dispatching):
-    directory = write_session(StateDirectory(dispatching), KEY, 13)
+    directory = write_session(StateDirectory(root=dispatching), KEY, 13)
     write_round(
         directory,
         1,
@@ -668,7 +668,7 @@ def test_a_round_that_failed_long_enough_ago_holds_nothing(dispatching):
 
 
 def test_a_round_that_ended_well_holds_nothing(dispatching):
-    directory = write_session(StateDirectory(dispatching), KEY, 13)
+    directory = write_session(StateDirectory(root=dispatching), KEY, 13)
     write_round(
         directory,
         1,
@@ -687,7 +687,7 @@ def test_a_session_the_daemon_is_running_a_round_for_is_not_waiting(
     dispatching, harnesses
 ):
     configure(dispatching, "max_agents = 2\n\n")
-    harnesses["claude"].streams([Line("still working\n")], delay=STILL_RUNNING)
+    harnesses["claude"].streams([Line(text="still working\n")], delay=STILL_RUNNING)
     daemon, _, _ = idling(dispatching, ticks=2)
 
     daemon.run()
@@ -732,7 +732,7 @@ def test_a_session_with_no_pull_request_of_its_own_reads_as_waiting(resuming):
 
 
 def test_a_session_that_has_run_no_round_at_all_waits_for_its_first(dispatching):
-    write_session(StateDirectory(dispatching), KEY, 13)
+    write_session(StateDirectory(root=dispatching), KEY, 13)
     daemon, _, _ = idling(dispatching, ticks=1)
 
     daemon.run()
@@ -744,7 +744,7 @@ def test_a_session_that_has_run_no_round_at_all_waits_for_its_first(dispatching)
 
 def test_a_dispatch_whose_round_will_not_start_leaves_no_session_behind(dispatching):
     # A file where the session's rounds go, so no round can record its start.
-    occupied = StateDirectory(dispatching).sessions / DISPATCHED_KEY / "rounds"
+    occupied = StateDirectory(root=dispatching).sessions / DISPATCHED_KEY / "rounds"
     occupied.parent.mkdir(parents=True)
     occupied.write_text("something else is here\n", encoding="utf-8")
     daemon, _, _ = idling(dispatching, ticks=1)
@@ -759,7 +759,7 @@ def test_a_dispatch_whose_round_will_not_start_leaves_no_session_behind(dispatch
 
 
 def test_a_run_that_cannot_read_a_session_refuses_to_start(dispatching):
-    directory = write_session(StateDirectory(dispatching), KEY, 13)
+    directory = write_session(StateDirectory(root=dispatching), KEY, 13)
     (directory / "session.json").write_text("{}", encoding="utf-8")
     daemon, _, _ = idling(dispatching, ticks=1)
 
@@ -783,7 +783,7 @@ def test_a_session_whose_last_round_did_not_finish_is_carried_on(
     resuming, left_running
 ):
     write_round(
-        StateDirectory(resuming).sessions / KEY,
+        StateDirectory(root=resuming).sessions / KEY,
         1,
         RoundRecord(started=PINNED, pid=left_running.pid, cause=CAUSE),
     )
@@ -798,7 +798,7 @@ def test_a_session_whose_last_round_did_not_finish_is_carried_on(
 
 def test_a_carried_on_round_says_that_is_what_woke_it(resuming, left_running):
     write_round(
-        StateDirectory(resuming).sessions / KEY,
+        StateDirectory(root=resuming).sessions / KEY,
         1,
         RoundRecord(started=PINNED, pid=left_running.pid, cause=CAUSE),
     )
@@ -847,7 +847,7 @@ def test_a_batch_no_round_ever_launched_is_read_again_next_tick(resuming, gh):
     gh.replies(pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list")
     gh.replies(pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}")
     # A file where the round's own directory goes, so no round can ever start.
-    occupied = StateDirectory(resuming).sessions / KEY / "rounds" / "2"
+    occupied = StateDirectory(root=resuming).sessions / KEY / "rounds" / "2"
     occupied.parent.mkdir(parents=True, exist_ok=True)
     occupied.write_text("something else is here\n", encoding="utf-8")
     daemon, _, _ = idling(resuming, ticks=2)
@@ -893,7 +893,7 @@ def test_a_last_round_that_was_interrupted_is_carried_on_as_the_last_round(
 ):
     ran(resuming, 1, Cause.DISPATCH)
     write_round(
-        StateDirectory(resuming).sessions / KEY,
+        StateDirectory(root=resuming).sessions / KEY,
         2,
         RoundRecord(
             started=PINNED.replace(hour=17, minute=2),
@@ -915,7 +915,7 @@ def test_open_work_is_carried_on_before_a_new_issue_is_dispatched(
     resuming, gh, offered, left_running
 ):
     write_round(
-        StateDirectory(resuming).sessions / KEY,
+        StateDirectory(root=resuming).sessions / KEY,
         1,
         RoundRecord(started=PINNED, pid=left_running.pid, cause=CAUSE),
     )
@@ -932,7 +932,7 @@ def test_a_failed_issue_listing_leaves_open_work_for_a_later_tick(
     resuming, gh, left_running
 ):
     write_round(
-        StateDirectory(resuming).sessions / KEY,
+        StateDirectory(root=resuming).sessions / KEY,
         1,
         RoundRecord(started=PINNED, pid=left_running.pid, cause=CAUSE),
     )
@@ -947,7 +947,7 @@ def test_a_failed_issue_listing_leaves_open_work_for_a_later_tick(
 
 
 def test_a_cooling_tick_still_says_what_each_session_is_waiting_on(resuming, offered):
-    directory = StateDirectory(resuming).sessions / KEY
+    directory = StateDirectory(root=resuming).sessions / KEY
     write_round(
         directory,
         1,

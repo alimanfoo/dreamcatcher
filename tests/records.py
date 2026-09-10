@@ -57,4 +57,6 @@ def write_tick(state: StateDirectory, tick: LastTick) -> None:
 
 def _workspace(directory: Path, number: int) -> rounds.Workspace:
     """Where the numbered round of the session at this directory wrote."""
-    return rounds.Workspace(directory, directory / sessions.ROUNDS / str(number))
+    return rounds.Workspace(
+        worktree=directory, directory=directory / sessions.ROUNDS / str(number)
+    )

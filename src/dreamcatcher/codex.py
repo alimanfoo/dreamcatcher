@@ -95,7 +95,7 @@ class Codex(Adapter):
         """
         kind = streamed["type"]
         if kind == "thread.started":
-            return [Note("session", f"id {streamed['thread_id']}")]
+            return [Note(label="session", detail=f"id {streamed['thread_id']}")]
         if kind == "item.completed":
             return _item(streamed["item"])
         if kind == "turn.completed":
@@ -104,7 +104,7 @@ class Codex(Adapter):
         # again as the reason the turn failed. Keeping only this second one means
         # the reader sees the failure once.
         if kind == "turn.failed":
-            return [Note("failed", streamed["error"]["message"])]
+            return [Note(label="failed", detail=streamed["error"]["message"])]
         return []
 
 
@@ -139,7 +139,7 @@ def _item(item: dict) -> list[Event]:
     """
     kind = item["type"]
     if kind == "agent_message":
-        return [Prose(item["text"])]
+        return [Prose(text=item["text"])]
     if kind == "command_execution":
         return _command(item)
     if kind == "file_change":
@@ -147,11 +147,14 @@ def _item(item: dict) -> list[Event]:
         # file its own line. Putting what happened to the file in the label
         # leaves the path as the whole detail, and the feed can then cut the
         # worktree's path off the front of it.
-        return [Note(change["kind"], change["path"]) for change in item["changes"]]
+        return [
+            Note(label=change["kind"], detail=change["path"])
+            for change in item["changes"]
+        ]
     if kind == "web_search":
-        return [Note(kind, item["query"])]
+        return [Note(label=kind, detail=item["query"])]
     if kind == "error":
-        return [Note(kind, item["message"])]
+        return [Note(label=kind, detail=item["message"])]
     return []
 
 
@@ -163,11 +166,11 @@ def _command(item: dict) -> list[Event]:
     command says `failed` and a declined one says `declined`, and this does not
     have to know which statuses Codex has.
     """
-    ran = Note(item["type"], item["command"])
+    ran = Note(label=item["type"], detail=item["command"])
     status = item["status"]
     if status == "completed":
         return [ran]
-    return [ran, Note(status, item["aggregated_output"])]
+    return [ran, Note(label=status, detail=item["aggregated_output"])]
 
 
 def _usage(counts: dict) -> Note:
@@ -181,8 +184,8 @@ def _usage(counts: dict) -> Note:
     feed that the model thought at all.
     """
     return Note(
-        "usage",
-        f"{counts['output_tokens']} output, "
+        label="usage",
+        detail=f"{counts['output_tokens']} output, "
         f"{counts['reasoning_output_tokens']} reasoning, "
         f"{counts['input_tokens']} input, "
         f"{counts['cached_input_tokens']} cache read, "

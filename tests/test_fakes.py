@@ -36,7 +36,11 @@ def test_a_stand_in_harness_streams_at_the_pace_it_was_given(fake, recording):
 
 def test_a_stand_in_harness_writes_each_line_to_the_stream_it_names(fake):
     fake("harness").streams(
-        [Line("first\n"), Line("an aside\n", Stream.ERR), Line("second\n")]
+        [
+            Line(text="first\n"),
+            Line(text="an aside\n", stream=Stream.ERR),
+            Line(text="second\n"),
+        ]
     )
 
     assert run(program="harness", arguments=[]) == "first\nsecond\n"

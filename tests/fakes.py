@@ -29,7 +29,7 @@ class Stream(StrEnum):
     ERR = "stderr"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Line:
     """One line a stand-in writes, and the stream it writes it to.
 
@@ -42,7 +42,7 @@ class Line:
     stream: Stream = Stream.OUT
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Call:
     """One call a stand-in took: what it was passed, where it ran, what it read.
 
@@ -55,7 +55,7 @@ class Call:
     prompt: str
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Fake:
     """A stand-in for one program.
 
@@ -74,11 +74,11 @@ class Fake:
 
     def replies(self, stdout: str, *, to: str = "") -> None:
         """Answer this on stdout, with a status of zero."""
-        self._answer([Line(stdout)], to=to)
+        self._answer([Line(text=stdout)], to=to)
 
     def fails(self, stderr: str, status: int = 1, *, to: str = "") -> None:
         """Fail with this on stderr, and a failing status."""
-        self._answer([Line(stderr, Stream.ERR)], status=status, to=to)
+        self._answer([Line(text=stderr, stream=Stream.ERR)], status=status, to=to)
 
     def streams(
         self, lines: list[Line], delay: float = 0, status: int = 0, *, to: str = ""
@@ -93,7 +93,11 @@ class Fake:
     def calls(self) -> list[Call]:
         """Every call the stand-in took, oldest first."""
         return [
-            Call(taken["arguments"], Path(taken["directory"]), taken["prompt"])
+            Call(
+                arguments=taken["arguments"],
+                directory=Path(taken["directory"]),
+                prompt=taken["prompt"],
+            )
             for taken in _lines(_taken(self.base))
         ]
 
@@ -114,7 +118,7 @@ class Fake:
 def recorded(path: Path) -> list[Line]:
     """Return the recording at path as the lines a harness streams to stdout."""
     return [
-        Line(text)
+        Line(text=text)
         for text in path.read_text(encoding="utf-8").splitlines(keepends=True)
     ]
 
@@ -124,7 +128,7 @@ def install(directory: Path, program: str) -> Fake:
     directory.mkdir(parents=True, exist_ok=True)
     base = directory / program
     _launcher(base)
-    return Fake(base)
+    return Fake(base=base)
 
 
 def replay(base: Path, arguments: list[str]) -> int:

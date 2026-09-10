@@ -17,7 +17,7 @@ from typing import ClassVar
 from dreamcatcher.feed import Event, Prose
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Launch:
     """What one round starts with.
 
@@ -31,7 +31,7 @@ class Launch:
     prompt: str
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Invocation:
     """How one round runs: the program to start, its arguments, and its prompt.
 
@@ -89,10 +89,12 @@ class Adapter(ABC):
         try:
             streamed = json.loads(line)
             return (
-                self._events(streamed) if isinstance(streamed, dict) else [Prose(line)]
+                self._events(streamed)
+                if isinstance(streamed, dict)
+                else [Prose(text=line)]
             )
         except Exception:
-            return [Prose(line)]
+            return [Prose(text=line)]
 
     @abstractmethod
     def _events(self, streamed: dict) -> list[Event]:

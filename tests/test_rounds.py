@@ -73,7 +73,7 @@ class Unrenderable(Adapter):
     def _events(self, streamed: dict) -> list[Event]:
         # A real harness can send a path or a command as something other than
         # text, and the renderer cannot write an event that holds one.
-        return [Note("read", cast("str", streamed))]
+        return [Note(label="read", detail=cast("str", streamed))]
 
 
 @pytest.fixture
@@ -125,7 +125,7 @@ def test_a_round_runs_the_command_it_was_given_in_the_worktree(
     Round(
         CLAUDE,
         Invocation(program="harness", arguments=["--print"], prompt=PROMPT),
-        Workspace(worktree, directory),
+        Workspace(worktree=worktree, directory=directory),
         CAUSE,
         clock=pinned,
     ).wait()
@@ -141,7 +141,7 @@ def test_a_round_gives_the_harness_its_prompt_to_read(fake, worktree, directory)
     running = Round(
         CLAUDE,
         Invocation(program="harness", arguments=[], prompt=PROMPT),
-        Workspace(worktree, directory),
+        Workspace(worktree=worktree, directory=directory),
         CAUSE,
         clock=pinned,
     )
@@ -159,7 +159,7 @@ def test_the_feed_a_round_writes_is_the_feed_its_stream_renders_as(
     running = Round(
         CLAUDE,
         Invocation(program="harness", arguments=[], prompt=PROMPT),
-        Workspace(worktree, directory),
+        Workspace(worktree=worktree, directory=directory),
         CAUSE,
         clock=pinned,
     )
@@ -168,7 +168,7 @@ def test_the_feed_a_round_writes_is_the_feed_its_stream_renders_as(
     assert running.workspace.feed.read_text(encoding="utf-8") == rendered(
         CLAUDE,
         RECORDING.read_text(encoding="utf-8").splitlines(),
-        Renderer(worktree, clock=pinned),
+        Renderer(worktree=worktree, clock=pinned),
     )
 
 
@@ -178,7 +178,7 @@ def test_a_round_keeps_the_harnesss_own_stream_as_it_arrived(fake, worktree, dir
     running = Round(
         CLAUDE,
         Invocation(program="harness", arguments=[], prompt=PROMPT),
-        Workspace(worktree, directory),
+        Workspace(worktree=worktree, directory=directory),
         CAUSE,
         clock=pinned,
     )
@@ -193,7 +193,11 @@ def test_what_the_harness_says_on_stderr_lands_where_it_happened(
     fake, worktree, directory
 ):
     fake("harness").streams(
-        [Line("first\n"), Line("an aside\n", Stream.ERR), Line("second\n")],
+        [
+            Line(text="first\n"),
+            Line(text="an aside\n", stream=Stream.ERR),
+            Line(text="second\n"),
+        ],
         # The two streams reach the round on threads of their own, so the space
         # between the lines is what puts them in a known order.
         delay=0.25,
@@ -202,7 +206,7 @@ def test_what_the_harness_says_on_stderr_lands_where_it_happened(
     running = Round(
         CLAUDE,
         Invocation(program="harness", arguments=[], prompt=PROMPT),
-        Workspace(worktree, directory),
+        Workspace(worktree=worktree, directory=directory),
         CAUSE,
         clock=pinned,
     )
@@ -217,12 +221,12 @@ def test_what_the_harness_says_on_stderr_lands_where_it_happened(
 
 
 def test_a_line_the_feed_cannot_write_costs_that_line_alone(fake, worktree, directory):
-    fake("harness").streams([Line('{"said": "hello"}\n'), Line("plain\n")])
+    fake("harness").streams([Line(text='{"said": "hello"}\n'), Line(text="plain\n")])
 
     running = Round(
         Unrenderable(),
         Invocation(program="harness", arguments=[], prompt=PROMPT),
-        Workspace(worktree, directory),
+        Workspace(worktree=worktree, directory=directory),
         CAUSE,
         clock=pinned,
     )
@@ -237,12 +241,14 @@ def test_a_line_the_feed_cannot_write_costs_that_line_alone(fake, worktree, dire
 def test_a_round_says_when_it_started_what_caused_it_and_what_process_it_is(
     fake, worktree, directory
 ):
-    fake("harness").streams([Line("working\n"), Line("still working\n")], delay=5)
+    fake("harness").streams(
+        [Line(text="working\n"), Line(text="still working\n")], delay=5
+    )
 
     running = Round(
         CLAUDE,
         Invocation(program="harness", arguments=[], prompt=PROMPT),
-        Workspace(worktree, directory),
+        Workspace(worktree=worktree, directory=directory),
         CAUSE,
         clock=pinned,
     )
@@ -256,12 +262,12 @@ def test_a_round_says_when_it_started_what_caused_it_and_what_process_it_is(
 
 
 def test_a_round_that_finished_says_how_it_ended(fake, worktree, directory):
-    fake("harness").streams([Line("giving up\n")], status=2)
+    fake("harness").streams([Line(text="giving up\n")], status=2)
 
     running = Round(
         CLAUDE,
         Invocation(program="harness", arguments=[], prompt=PROMPT),
-        Workspace(worktree, directory),
+        Workspace(worktree=worktree, directory=directory),
         CAUSE,
         clock=pinned,
     )
@@ -277,12 +283,14 @@ def test_a_round_that_finished_says_how_it_ended(fake, worktree, directory):
 
 
 def test_a_round_somebody_stopped_says_no_ending(fake, worktree, directory):
-    fake("harness").streams([Line("working\n"), Line("still working\n")], delay=5)
+    fake("harness").streams(
+        [Line(text="working\n"), Line(text="still working\n")], delay=5
+    )
 
     running = Round(
         CLAUDE,
         Invocation(program="harness", arguments=[], prompt=PROMPT),
-        Workspace(worktree, directory),
+        Workspace(worktree=worktree, directory=directory),
         CAUSE,
         clock=pinned,
     )
@@ -293,12 +301,12 @@ def test_a_round_somebody_stopped_says_no_ending(fake, worktree, directory):
 
 
 def test_a_round_stopped_after_it_finished_keeps_its_ending(fake, worktree, directory):
-    fake("harness").streams([Line("done\n")])
+    fake("harness").streams([Line(text="done\n")])
 
     running = Round(
         CLAUDE,
         Invocation(program="harness", arguments=[], prompt=PROMPT),
-        Workspace(worktree, directory),
+        Workspace(worktree=worktree, directory=directory),
         CAUSE,
         clock=pinned,
     )
@@ -315,14 +323,14 @@ def test_a_round_stopped_after_it_finished_keeps_its_ending(fake, worktree, dire
 def test_a_round_that_cannot_write_its_feed_stops_rather_than_stalls(
     fake, worktree, directory
 ):
-    fake("harness").streams([Line("first\n"), Line("second\n")], delay=0.25)
+    fake("harness").streams([Line(text="first\n"), Line(text="second\n")], delay=0.25)
     directory.mkdir(parents=True)
     (directory / "feed.txt").mkdir()
 
     running = Round(
         CLAUDE,
         Invocation(program="harness", arguments=[], prompt=PROMPT),
-        Workspace(worktree, directory),
+        Workspace(worktree=worktree, directory=directory),
         CAUSE,
         clock=pinned,
     )
@@ -342,7 +350,7 @@ def test_a_round_that_cannot_write_its_prompt_never_starts(fake, worktree, tmp_p
         Round(
             CLAUDE,
             Invocation(program="harness", arguments=[], prompt=PROMPT),
-            Workspace(worktree, occupied / "1"),
+            Workspace(worktree=worktree, directory=occupied / "1"),
             CAUSE,
             clock=pinned,
         )
@@ -353,7 +361,7 @@ def test_a_round_that_cannot_write_its_prompt_never_starts(fake, worktree, tmp_p
 def test_a_round_that_cannot_record_its_start_does_not_run_on(
     fake, worktree, directory
 ):
-    fake("harness").streams([Line("working\n")], delay=5)
+    fake("harness").streams([Line(text="working\n")], delay=5)
     # A directory where the record goes, so the prompt lands and the record
     # cannot, which is what leaves a child running with nothing to find it by.
     (directory / RECORD).mkdir(parents=True)
@@ -362,7 +370,7 @@ def test_a_round_that_cannot_record_its_start_does_not_run_on(
         Round(
             CLAUDE,
             Invocation(program="harness", arguments=[], prompt=PROMPT),
-            Workspace(worktree, directory),
+            Workspace(worktree=worktree, directory=directory),
             CAUSE,
             clock=pinned,
         )
@@ -378,7 +386,7 @@ def test_a_round_a_straggler_outlives_still_records_an_ending(
             arguments=["-c", LEAVES_A_STRAGGLER, str(straggler)],
             prompt=PROMPT,
         ),
-        Workspace(worktree, directory),
+        Workspace(worktree=worktree, directory=directory),
         CAUSE,
         clock=pinned,
     )
@@ -400,7 +408,7 @@ def test_a_round_a_straggler_outlives_still_stops(worktree, directory, straggler
             arguments=["-c", LEAVES_A_STRAGGLER + AND_WAITS, str(straggler)],
             prompt=PROMPT,
         ),
-        Workspace(worktree, directory),
+        Workspace(worktree=worktree, directory=directory),
         CAUSE,
         clock=pinned,
     )

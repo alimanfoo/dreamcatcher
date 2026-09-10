@@ -58,7 +58,7 @@ class CommandError(ReportableError):
     """A command dreamcatcher ran is not there, or it failed."""
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Child:
     """A program running as a child process, with both its streams on pipes.
 
@@ -208,7 +208,9 @@ def spawn(
     # This asked for both pipes above, so both are there. subprocess types them
     # for every caller, including the ones that asked for neither.
     return Child(
-        cast("IO[str]", started.stdout), cast("IO[str]", started.stderr), started
+        out=cast("IO[str]", started.stdout),
+        err=cast("IO[str]", started.stderr),
+        process=started,
     )
 
 

@@ -100,7 +100,9 @@ def test_an_argument_a_second_reader_would_act_on_still_arrives_whole(fake):
 
 def test_a_spawned_command_runs_where_it_is_told_and_streams_as_it_goes(fake, tmp_path):
     probe = fake("probe")
-    probe.streams([Line("what it said\n"), Line("an aside\n", Stream.ERR)])
+    probe.streams(
+        [Line(text="what it said\n"), Line(text="an aside\n", stream=Stream.ERR)]
+    )
 
     child = spawn(program="probe", arguments=["--loudly"], cwd=tmp_path)
 

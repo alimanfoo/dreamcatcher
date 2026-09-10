@@ -116,22 +116,25 @@ def _system(streamed: dict) -> list[Event]:
     subtype = streamed["subtype"]
     if subtype == "init":
         return [
-            Note("session", f"model {streamed['model']}, id {streamed['session_id']}")
+            Note(
+                label="session",
+                detail=f"model {streamed['model']}, id {streamed['session_id']}",
+            )
         ]
     # A subagent reports its token usage as it finishes, and a background
     # command does not, so the usage is what tells the two events apart.
     if subtype == "task_notification" and streamed.get("usage") is not None:
         return [
-            Note("report", streamed["status"], is_subagent=True),
-            Prose(streamed["summary"], is_subagent=True),
+            Note(label="report", detail=streamed["status"], is_subagent=True),
+            Prose(text=streamed["summary"], is_subagent=True),
         ]
     # A retried round says nothing else while it waits, and ten retries of a
     # rate limit take about three minutes, so the feed says what it waits on.
     if subtype == "api_retry":
         return [
             Note(
-                "retry",
-                f"{streamed['error']} ({streamed['error_status']}), "
+                label="retry",
+                detail=f"{streamed['error']} ({streamed['error_status']}), "
                 f"attempt {streamed['attempt']} of {streamed['max_retries']}",
             )
         ]
@@ -155,14 +158,18 @@ def _spoken(block: dict, is_subagent: bool) -> list[Event]:
     if kind == "text":
         # A subagent's own words reach the feed as its report, so the feed does
         # not carry them twice.
-        return [] if is_subagent else [Prose(block["text"])]
+        return [] if is_subagent else [Prose(text=block["text"])]
     if kind == "thinking":
         # Claude streams the block without the thinking in it, so the feed says
         # the agent thought and cannot say what it thought.
-        return [Note("thinking", is_subagent=is_subagent)]
+        return [Note(label="thinking", is_subagent=is_subagent)]
     if kind == "tool_use":
         return [
-            Note(block["name"], _telling_input(block["input"]), is_subagent=is_subagent)
+            Note(
+                label=block["name"],
+                detail=_telling_input(block["input"]),
+                is_subagent=is_subagent,
+            )
         ]
     return []
 
@@ -170,7 +177,11 @@ def _spoken(block: dict, is_subagent: bool) -> list[Event]:
 def _failure(block: dict, is_subagent: bool) -> list[Event]:
     """Return the failure one block of a user message carries, if it failed."""
     if block["type"] == "tool_result" and block.get("is_error"):
-        return [Note("failed", _text(block["content"]), is_subagent=is_subagent)]
+        return [
+            Note(
+                label="failed", detail=_text(block["content"]), is_subagent=is_subagent
+            )
+        ]
     return []
 
 
@@ -182,8 +193,8 @@ def _closing(streamed: dict) -> list[Event]:
     """
     used = _usage(streamed["total_cost_usd"], streamed["usage"])
     if streamed.get("is_error"):
-        return [used, Note("failed", _text(streamed["result"]))]
-    return [used, Note("result", streamed["subtype"])]
+        return [used, Note(label="failed", detail=_text(streamed["result"]))]
+    return [used, Note(label="result", detail=streamed["subtype"])]
 
 
 def _usage(cost: float, counts: dict) -> Note:
@@ -195,8 +206,8 @@ def _usage(cost: float, counts: dict) -> Note:
     counts do.
     """
     return Note(
-        "usage",
-        f"${cost:.4f}, "
+        label="usage",
+        detail=f"${cost:.4f}, "
         f"{counts['output_tokens']} output, "
         f"{counts['input_tokens']} input, "
         f"{counts['cache_read_input_tokens']} cache read, "

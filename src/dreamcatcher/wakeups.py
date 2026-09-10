@@ -30,7 +30,7 @@ from dreamcatcher.state import NO_ROUND_HAS_RUN, WaitingSession
 from dreamcatcher.words import describe_count
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Wakeup:
     """The round that would wake a dormant session, ready to run.
 

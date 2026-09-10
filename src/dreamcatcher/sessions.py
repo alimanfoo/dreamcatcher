@@ -65,7 +65,7 @@ class SessionRecord(Document):
     prompt: str
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Session:
     """One session at one issue, as it stands.
 
@@ -135,7 +135,10 @@ class Session:
         the number of the round it records, which is how a reader of the round
         list finds each round's own files.
         """
-        return Workspace(self.record.worktree, self.directory / ROUNDS / str(number))
+        return Workspace(
+            worktree=self.record.worktree,
+            directory=self.directory / ROUNDS / str(number),
+        )
 
     @property
     def next_workspace(self) -> Workspace:

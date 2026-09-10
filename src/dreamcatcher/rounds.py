@@ -111,7 +111,7 @@ class RoundRecord(Document):
         return self.ending is not None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Workspace:
     """Where one round runs, and the files it writes as it goes.
 
@@ -228,7 +228,7 @@ class Round:
         self.workspace = workspace
         self.cause = cause
         self.clock = clock
-        self.renderer = Renderer(workspace.worktree, clock=clock)
+        self.renderer = Renderer(worktree=workspace.worktree, clock=clock)
         self.started = clock()
         self.is_interrupted = False
         self._ended = Event()
@@ -384,11 +384,11 @@ class Round:
                 self.renderer.render(event) for event in self.adapter.read(line)
             )
         except Exception:
-            return self.renderer.render(Prose(line))
+            return self.renderer.render(Prose(text=line))
 
     def _pass_through(self, line: str) -> str:
         """Return the feed line one line of the harness's stderr becomes."""
-        return self.renderer.render(Prose(line))
+        return self.renderer.render(Prose(text=line))
 
     def _append(self, line: str, render: Callable[[str], str]) -> None:
         """Add what one line says to the feed, letting one stream write at a time.

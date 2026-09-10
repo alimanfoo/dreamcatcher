@@ -30,7 +30,7 @@ INDENT = "  "
 GAP = "  "
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Line:
     """One line of a feed: when it was written, and what it says.
 
@@ -53,7 +53,7 @@ def compose_round_boundary(number: int, cause: str, at: datetime) -> Line:
     Whoever reads a whole session's rounds in order writes it between them,
     stamped with the time that round started.
     """
-    return Line(at, f"round {number}: {cause}")
+    return Line(at=at, text=f"round {number}: {cause}")
 
 
 def read_feed_line(written: str) -> Line | None:
@@ -69,7 +69,7 @@ def read_feed_line(written: str) -> Line | None:
         at = datetime.strptime(stamp, STAMP).replace(tzinfo=UTC)
     except ValueError:
         return None
-    return Line(at, text)
+    return Line(at=at, text=text)
 
 
 def read_last_feed_line(path: Path) -> Line | None:
@@ -80,7 +80,7 @@ def read_last_feed_line(path: Path) -> Line | None:
     return read_feed_line(written)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Note:
     """One line saying what happened: a tool call, a failure, a mark.
 
@@ -92,7 +92,7 @@ class Note:
     is_subagent: bool = False
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Prose:
     """Text the feed keeps whole: what the agent said, or a line as it came.
 
@@ -107,7 +107,7 @@ class Prose:
 type Event = Note | Prose
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Renderer:
     """Turns the events of one round into the lines a reader reads.
 
@@ -157,4 +157,6 @@ class Renderer:
         """Return the contents as timestamped lines, indented for a subagent."""
         indent = INDENT if is_subagent else ""
         at = self.clock()
-        return "".join(Line(at, f"{indent}{content}").render() for content in contents)
+        return "".join(
+            Line(at=at, text=f"{indent}{content}").render() for content in contents
+        )

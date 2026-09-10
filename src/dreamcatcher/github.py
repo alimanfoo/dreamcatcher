@@ -33,7 +33,7 @@ LISTING_LIMIT = "500"
 PAGE_SIZE = "100"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Unknown:
     """What a read answers when it could not tell.
 
@@ -438,8 +438,8 @@ def _read[ReadT](
     try:
         answered = run(program="gh", arguments=arguments, cwd=cwd)
     except CommandError as error:
-        return Unknown(str(error))
+        return Unknown(reason=str(error))
     try:
         return shape.validate_json(answered)
     except ValidationError as error:
-        return Unknown(f"gh answered what dreamcatcher cannot read: {error}")
+        return Unknown(reason=f"gh answered what dreamcatcher cannot read: {error}")

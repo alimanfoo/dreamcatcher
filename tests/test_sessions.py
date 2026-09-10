@@ -35,13 +35,13 @@ def checkout(cloned):
 @pytest.fixture
 def state(checkout):
     """The state directory of that checkout."""
-    return StateDirectory(checkout)
+    return StateDirectory(root=checkout)
 
 
 @pytest.fixture
 def fabricated(tmp_path):
     """A state directory holding records alone, with no checkout behind it."""
-    return StateDirectory(tmp_path)
+    return StateDirectory(root=tmp_path)
 
 
 @pytest.fixture
@@ -107,7 +107,8 @@ def test_a_new_session_has_run_no_rounds_and_its_next_is_its_first(state, mappin
 
     assert session.rounds == []
     assert session.next_workspace == Workspace(
-        session.record.worktree, state.sessions / KEY / "rounds" / "1"
+        worktree=session.record.worktree,
+        directory=state.sessions / KEY / "rounds" / "1",
     )
 
 
@@ -141,7 +142,8 @@ def test_a_round_a_session_has_run_is_found_by_the_number_it_ran_as(fabricated):
     session = standing(state=fabricated, rounds=[ended(0), ended(0, minute=1)])
 
     assert session.workspace(2) == Workspace(
-        session.record.worktree, fabricated.sessions / KEY / "rounds" / "2"
+        worktree=session.record.worktree,
+        directory=fabricated.sessions / KEY / "rounds" / "2",
     )
 
 

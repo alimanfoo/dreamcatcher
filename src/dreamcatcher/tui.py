@@ -533,7 +533,7 @@ def show_feed(
     if round_number is not None:
         _show_one_round(state, issue, round_number, console, wait)
         return
-    view = _FeedView(console)
+    view = _FeedView(console=console)
 
     def look() -> bool:
         """Show what the session said since the last look, and say if it is over."""
@@ -561,7 +561,7 @@ def _show_one_round(
     a number no round of the session carries is the reader's mistake, and is
     the one thing this turns into words for them.
     """
-    view = _FeedView(console)
+    view = _FeedView(console=console)
 
     def look() -> bool:
         """Show what the round said since the last look, and say if it has ended."""
@@ -593,7 +593,7 @@ def _find_rows_for_issue(
     return rows
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class _FeedView:
     """A session's feed on a console, and how far each round of it has been read.
 

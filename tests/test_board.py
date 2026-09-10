@@ -28,7 +28,7 @@ LABEL = "dream:smith"
 @pytest.fixture
 def state(tmp_path):
     """A state directory holding one session, with no round run yet."""
-    directory = StateDirectory(tmp_path)
+    directory = StateDirectory(root=tmp_path)
     write_session(directory, KEY, 13)
     return directory
 
@@ -69,7 +69,7 @@ def said(*, state, number: int, texts: Sequence[str]):
     write_feed(
         directory=state.sessions / KEY,
         number=number,
-        lines=[Line(at, text) for text in texts],
+        lines=[Line(at=at, text=text) for text in texts],
     )
 
 
@@ -115,7 +115,7 @@ def test_a_look_at_one_issue_leaves_another_session_s_feed_unread(running):
 
 
 def test_a_state_directory_nothing_has_run_in_yet_holds_an_empty_board(tmp_path):
-    board = read_board(StateDirectory(tmp_path), clock=lambda: LOOKED_AT)
+    board = read_board(StateDirectory(root=tmp_path), clock=lambda: LOOKED_AT)
 
     assert board.at == LOOKED_AT
     assert board.daemon_pid is None

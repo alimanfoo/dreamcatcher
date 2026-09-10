@@ -65,7 +65,7 @@ class SessionStanding(StrEnum):
     DONE = "done"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class SessionRow:
     """One session and what one look at the disk found it doing.
 
@@ -88,7 +88,7 @@ class SessionRow:
     last_output: str | None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class QueuedIssue:
     """A labelled issue the last tick weighed, and why it has not gone yet.
 
@@ -101,7 +101,7 @@ class QueuedIssue:
     reason: str
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Board:
     """Every session and every queued issue, as one look at the disk found them.
 

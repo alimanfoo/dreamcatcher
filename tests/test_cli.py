@@ -20,12 +20,14 @@ KEY = "GH13-20260819-184158"
 @pytest.fixture
 def watching(tmp_path):
     """A checkout a daemon has watched, holding one session with a live round."""
-    state = StateDirectory(tmp_path)
+    state = StateDirectory(root=tmp_path)
     state.bootstrap()
     write_text(f"{os.getpid()}\n", state.lock)
     directory = write_session(state, KEY, 13)
     write_round(directory, 1, RoundRecord(started=PINNED, pid=1, cause=Cause.DISPATCH))
-    write_feed(directory=directory, number=1, lines=[Line(PINNED, "[Bash] pytest")])
+    write_feed(
+        directory=directory, number=1, lines=[Line(at=PINNED, text="[Bash] pytest")]
+    )
     return state
 
 
