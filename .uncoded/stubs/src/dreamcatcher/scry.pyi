@@ -78,10 +78,7 @@ def _show_older_sessions(console: Console, older: list[SessionRow]) -> None:
 def show_feed(state: StateDirectory, issue: int, console: Console, round_number: int | None, wait: Callable[[float], None]) -> None:
     ...
 
-def _list_shown_rounds(session: Session, round_number: int | None) -> list[int]:
-    ...
-
-def _is_view_over(row: SessionRow, round_number: int | None) -> bool:
+def _show_one_round(state: StateDirectory, issue: int, number: int, console: Console) -> None:
     ...
 
 def _find_rows_for_issue(state: StateDirectory, issue: int, clock: Callable[[], datetime]) -> list[SessionRow]:

@@ -29,8 +29,8 @@ Codex's recordings sit under `tests/fixtures/codex/`.
   endpoint answering every request with a 429. Codex spends no retries on it:
   the round fails on the first answer and exits non-zero.
 
-The golden beside each recording is the review surface: read it as the user of
-`scry` would, and judge the feed by it.
+The golden beside each recording is the review surface: read it as the reader of
+a feed would, and judge the feed by it.
 """
 
 from pathlib import PurePosixPath

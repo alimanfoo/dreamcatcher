@@ -1,7 +1,7 @@
 """Render every board a state directory can hold, and read back the goldens.
 
-The goldens are the review surface: read one as the person running `scry` would
-read it, and judge the view by it rather than by the code that wrote it.
+The goldens are the review surface: read one as the person running the view
+would read it, and judge the view by it rather than by the code that wrote it.
 
 Each state directory here is fabricated, so the clock, the console's width and
 the daemon's pid are all pinned and every run and every platform renders the

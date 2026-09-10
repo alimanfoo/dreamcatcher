@@ -303,14 +303,13 @@ def show_feed(
 ) -> None:
     """Show what the issue's newest session said, and follow what arrives.
 
-    Naming a round narrows the view to that one round, as it stands. The round
-    list of the session view is where a reader finds the number. Everything
-    below is about the view of the whole session, which is what a reader gets
-    when they name no round.
+    Naming a round narrows the view to that one round, as it stands, and
+    everything below is about the view of the whole session, which is what a
+    reader gets when they name no round.
 
-    This view reads no clock, unlike the two that say how long ago something
-    happened. Every line it shows carries the time it was written, so what it
-    shows is the same whenever it is read.
+    Neither view reads a clock, unlike the board and the session view, which
+    say how long ago something happened. Every line a feed shows carries the
+    time it was written, so what a feed shows is the same whenever it is read.
 
     Reading a session that is over and watching one that is going are the same
     view in two tenses, so this shows what is there and then keeps showing what
@@ -336,6 +335,9 @@ def show_feed(
     The reader ends a view of a session that is still going by interrupting it,
     which is how they say they have seen enough, so it ends without a word.
     """
+    if round_number is not None:
+        _show_one_round(state, issue, round_number, console)
+        return
     view = _FeedView(console)
     # Nothing was going before the view opened, so a session that has already
     # ended when it opens ends the view on its first look.
@@ -344,41 +346,30 @@ def show_feed(
         while True:
             row = _find_rows_for_issue(state, issue)[0]
             session = row.session
-            view.show_what_arrived(session, _list_shown_rounds(session, round_number))
-            is_over = _is_view_over(row, round_number)
+            view.show_what_arrived(session, range(1, len(session.rounds) + 1))
+            is_over = row.standing in (SessionStanding.DONE, SessionStanding.STUCK)
             if is_over and was_over:
                 return
             was_over = is_over
             wait(PAUSE)
 
 
-def _list_shown_rounds(session: Session, round_number: int | None) -> list[int]:
-    """Return the numbers of the rounds the view shows.
+def _show_one_round(
+    state: StateDirectory, issue: int, number: int, console: Console
+) -> None:
+    """Show one round of the issue's newest session, as it stands.
 
-    A view of the whole session shows every round it has run, and a view of
-    one round shows that one. A number no round of the session carries is the
-    reader's mistake, and is the one thing this turns into words for them.
+    The round list of the session view is where a reader finds the number, so
+    a number no round of the session carries is the reader's mistake, and is
+    the one thing this turns into words for them.
     """
-    if round_number is None:
-        return list(range(1, len(session.rounds) + 1))
-    if not 1 <= round_number <= len(session.rounds):
+    session = _find_rows_for_issue(state, issue)[0].session
+    if not 1 <= number <= len(session.rounds):
         raise ReportableError(
             f"{session.key} has run {describe_count(len(session.rounds), 'round')}, "
-            f"so it has no round {round_number}."
+            f"so it has no round {number}."
         )
-    return [round_number]
-
-
-def _is_view_over(row: SessionRow, round_number: int | None) -> bool:
-    """Say whether the view has shown everything that it is going to show.
-
-    A named round is shown as it stands, so the view of one is over as soon as
-    it has shown it. A view of the whole session is over once the session can
-    produce no more rounds, which is what its standing says.
-    """
-    if round_number is not None:
-        return True
-    return row.standing in (SessionStanding.DONE, SessionStanding.STUCK)
+    _FeedView(console).show_what_arrived(session, [number])
 
 
 def _find_rows_for_issue(

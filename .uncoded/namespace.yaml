@@ -401,8 +401,7 @@ src/:
       _show_hand_resume:
       _show_older_sessions:
       show_feed:
-      _list_shown_rounds:
-      _is_view_over:
+      _show_one_round:
       _find_rows_for_issue:
       _paint_written:
       _paint:

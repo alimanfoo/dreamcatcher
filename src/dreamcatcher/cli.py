@@ -90,17 +90,17 @@ def _run(args: argparse.Namespace) -> None:
 
 
 def _show_board(args: argparse.Namespace) -> None:
-    """Show every session and every queued issue, sorted by whose turn it is."""
+    """Show the board of the checkout we are in."""
     scry.show_board(_find_state(Path.cwd()), scry.open_console())
 
 
 def _show_session(args: argparse.Namespace) -> None:
-    """Show the newest session at the issue, with the older ones beneath it."""
+    """Show the issue's newest session, from the checkout we are in."""
     scry.show_session(_find_state(Path.cwd()), args.issue, scry.open_console())
 
 
 def _show_feed(args: argparse.Namespace) -> None:
-    """Show what the issue's newest session said, or one round of what it said."""
+    """Show the issue's feed, from the checkout we are in."""
     scry.show_feed(
         _find_state(Path.cwd()),
         args.issue,
