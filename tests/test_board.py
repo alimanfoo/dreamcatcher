@@ -5,7 +5,7 @@ import pytest
 from clocks import PINNED
 from records import write_feed, write_round, write_session, write_tick
 
-from dreamcatcher.board import Standing, read_board
+from dreamcatcher.board import SessionStanding, read_board, read_rows_for_issue
 from dreamcatcher.feed import Line
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.state import (
@@ -67,6 +67,35 @@ def only(state):
     return found[0]
 
 
+def rows_at(state, issue: int):
+    """Read the rows for that issue alone, at the pinned looking time."""
+    return read_rows_for_issue(state, issue, clock=lambda: LOOKED_AT)
+
+
+def test_the_rows_for_an_issue_are_its_own_sessions_newest_first(running):
+    ran(running, 1)
+    other = write_session(running, "GH99-20260819-184158", 99)
+    write_round(other, 1, RoundRecord(started=PINNED, pid=1, cause=Cause.DISPATCH))
+
+    assert [row.session.record.issue for row in rows_at(running, 13)] == [13]
+
+
+def test_an_issue_no_session_here_has_holds_no_rows(state):
+    assert rows_at(state, 99) == []
+
+
+def test_a_look_at_one_issue_leaves_another_session_s_feed_unread(running):
+    ran(running, 1, status=None)
+    said(running, 1, "[Bash] pytest")
+    other = write_session(running, "GH99-20260819-184158", 99)
+    write_round(other, 1, RoundRecord(started=PINNED, pid=1, cause=Cause.DISPATCH))
+    # Bytes that are not UTF-8 stand for a feed that a look must not open,
+    # since reading this one would report it rather than answer.
+    (other / "rounds" / "1" / "feed.txt").write_bytes(b"\xff\n")
+
+    assert rows_at(running, 13)[0].last_output == "[Bash] pytest"
+
+
 def test_a_state_directory_nothing_has_run_in_yet_holds_an_empty_board(tmp_path):
     board = read_board(StateDirectory(tmp_path), clock=lambda: LOOKED_AT)
 
@@ -87,7 +116,7 @@ def test_a_round_a_running_daemon_has_not_ended_is_the_agent_working(running):
 
     row = only(running)
 
-    assert row.standing is Standing.WORKING
+    assert row.standing is SessionStanding.WORKING
     assert row.detail == "last output 2h 0m ago"
     assert row.last_output == "[Bash] pytest"
 
@@ -104,14 +133,14 @@ def test_a_running_round_that_has_said_nothing_yet_says_that(running):
 def test_a_round_with_no_daemon_left_to_run_it_is_waiting(state):
     ran(state, 1, status=None)
 
-    assert only(state).standing is Standing.WAITING
+    assert only(state).standing is SessionStanding.WAITING
     assert only(state).detail == "the last round was interrupted"
 
 
 def test_a_round_that_failed_waits_with_the_status_it_failed_with(running):
     ran(running, 1, status=2)
 
-    assert only(running).standing is Standing.WAITING
+    assert only(running).standing is SessionStanding.WAITING
     assert only(running).detail == "the last round failed (exit 2)"
 
 
@@ -119,7 +148,7 @@ def test_a_session_whose_final_round_has_run_is_done(state):
     ran(state, 1)
     ran(state, 2, Cause.FINAL)
 
-    assert only(state).standing is Standing.DONE
+    assert only(state).standing is SessionStanding.DONE
     assert only(state).detail == "2 rounds"
 
 
@@ -134,14 +163,14 @@ def test_a_session_the_tick_found_nothing_to_do_for_needs_you(state):
     said(state, 1, "[Bash] pytest")
     write_tick(state, LastTick(at=PINNED))
 
-    assert only(state).standing is Standing.NEEDS_YOU
+    assert only(state).standing is SessionStanding.NEEDS_YOU
     assert only(state).detail == "idle 2h 0m"
 
 
 def test_a_session_that_wrote_no_feed_at_all_is_idle_for_who_knows_how_long(state):
     ran(state, 1)
 
-    assert only(state).standing is Standing.NEEDS_YOU
+    assert only(state).standing is SessionStanding.NEEDS_YOU
     assert only(state).detail == "idle"
 
 
@@ -157,7 +186,7 @@ def test_a_session_the_tick_left_waiting_says_what_it_waits_on(state):
         ),
     )
 
-    assert only(state).standing is Standing.WAITING
+    assert only(state).standing is SessionStanding.WAITING
     assert only(state).detail == "1 new post to answer"
 
 
@@ -178,7 +207,7 @@ def test_a_stuck_session_says_where_to_read_what_it_did(state):
         ),
     )
 
-    assert only(state).standing is Standing.STUCK
+    assert only(state).standing is SessionStanding.STUCK
     assert only(state).detail == (
         "no pull request has been opened on it "
         f"(.dreamcatcher/sessions/{KEY}/rounds/1/feed.txt)"
@@ -201,12 +230,12 @@ def test_a_stuck_session_that_ran_no_round_has_no_feed_to_point_at(state):
         ),
     )
 
-    assert only(state).standing is Standing.STUCK
+    assert only(state).standing is SessionStanding.STUCK
     assert only(state).detail == "no round has run yet"
 
 
 def test_a_session_no_tick_has_weighed_and_no_round_has_run_is_stuck(state):
-    assert only(state).standing is Standing.STUCK
+    assert only(state).standing is SessionStanding.STUCK
     assert only(state).detail == NO_ROUND_HAS_RUN
 
 
@@ -237,7 +266,7 @@ def test_the_work_that_is_done_reads_most_recent_first(state):
         ),
     )
 
-    done = looked(state).list_standing(Standing.DONE)
+    done = looked(state).list_rows_for_standing(SessionStanding.DONE)
 
     assert [row.session.record.issue for row in done] == [9, 13]
 
@@ -245,7 +274,7 @@ def test_the_work_that_is_done_reads_most_recent_first(state):
 def test_the_sessions_in_one_standing_come_back_in_the_boards_own_order(state):
     write_session(state, "GH9-20260819-184158", 9)
 
-    waiting = looked(state).list_standing(Standing.STUCK)
+    waiting = looked(state).list_rows_for_standing(SessionStanding.STUCK)
 
     assert [row.session.record.issue for row in waiting] == [9, 13]
 

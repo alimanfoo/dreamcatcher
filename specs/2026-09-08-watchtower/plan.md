@@ -12,10 +12,10 @@ correct and only one of them gets corrected.
 
 Every part is meant to be executable without stopping to ask. Where a decision
 was needed it has been made and written into `design.md`; where a detail is
-genuinely free — which container a renderable is, how a file position is
-remembered — the part says so, and whoever builds it chooses. If a part turns
-out to need a decision that isn't there, that is a gap in the design, and the
-fix is to correct `design.md` in the same pull request and say so.
+genuinely free — which container a renderable is, for instance — the part says
+so, and whoever builds it chooses. If a part turns out to need a decision that
+isn't there, that is a gap in the design, and the fix is to correct `design.md`
+in the same pull request and say so.
 
 Every part is reviewed, so every part serves its reviewer:
 
@@ -63,9 +63,16 @@ and render only what arrived.
 
 In scope:
 
-- An offset-aware read in `feed.py`, and a following view that remembers a
-  position per round (design.md, What a refresh reads).
-- A round that has ended is read to its end once and not opened again.
+- An offset-aware read in `documents.py`, which is where the tool reads and
+  writes its files, and a following view that remembers a position per round
+  (design.md, What a refresh reads).
+- A round that has ended is read to its end once, and every pass after that
+  reads nothing from it.
+- The board's read of what a session's round last said, which took a whole feed
+  to take one line off the end (design.md, What a refresh reads).
+- A view of one issue reading that issue's rows rather than the whole board, so
+  that a look at one feed does not read every other session's (design.md, What a
+  refresh reads).
 
 Done when: the feed goldens are unchanged; a following view over a growing feed
 reads only the tail on each pass; and a feed whose last line is still being
@@ -79,7 +86,7 @@ and Cross-platform notes). The remembered position has to stop at the last
 complete line ending rather than at end of file, or a half-written line is lost
 when the rest of it lands. And it cannot be a count of characters, because
 line-ending translation makes that a different number from a position in the
-file. How the position is actually held is free.
+file. It is held as a count of bytes (design.md, Cross-platform notes).
 
 ## Part 3: three verbs
 

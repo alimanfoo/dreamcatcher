@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path, PurePath
 from dreamcatcher.clock import now
-from dreamcatcher.documents import read_text
+from dreamcatcher.documents import read_last_line
 from dreamcatcher.words import STAMP, describe_time
 
 WIDTH = 200
@@ -18,9 +18,6 @@ def compose_round_boundary(number: int, cause: str, at: datetime) -> Line:
     ...
 
 def read_feed_line(written: str) -> Line | None:
-    ...
-
-def read_feed_lines(path: Path) -> list[str]:
     ...
 
 def read_last_feed_line(path: Path) -> Line | None:

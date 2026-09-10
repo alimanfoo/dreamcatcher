@@ -10,6 +10,14 @@ whatever the daemon had to ask GitHub to learn.
 
 Nothing here renders anything either. A caller that has read the board shows
 it.
+
+Two things live here and they do different jobs. `_Look` reads and judges: it
+takes one look at the directory and says where each session stands. `Board`,
+`SessionRow` and `QueuedIssue` are what it found, and they hold no directory
+and read nothing, so a view renders one and a test writes one down. That is
+why a look is not a board and a board cannot refresh itself: a view that keeps
+up takes a new look, which is one read of the lock and of the last tick and a
+fresh judgement of each session against them.
 """
 
 from collections.abc import Callable
@@ -31,11 +39,13 @@ from dreamcatcher.state import (
 from dreamcatcher.words import describe_count, describe_span
 
 
-class Standing(StrEnum):
-    """Where a session stands, which is the section of the board it reads in.
+class SessionStanding(StrEnum):
+    """Where a session stands: whether it is anyone's turn, and whose.
 
-    The words are the board's own headings, so the section a reader looks under
-    and the standing a session is in are one thing.
+    The board sets its sections in these words, so the section a reader looks
+    under and the standing a session is in are one thing. A view of one issue
+    reads the standing rather than showing sections, and a following feed reads
+    it to know when the session it is watching has nothing more to say.
 
     A session needs you when the daemon has nothing left to do for it: every
     round it has run finished, its pull request is open, and the agent has
@@ -56,11 +66,16 @@ class Standing(StrEnum):
 
 
 @dataclass(frozen=True)
-class Row:
-    """One session on the board, and how it is doing.
+class SessionRow:
+    """One session and what one look at the disk found it doing.
 
-    An issue dispatched three times has three sessions at one thing. The board
-    reads the newest of them first.
+    The session is what the disk holds. The standing, the detail and the last
+    output are what the look concluded about it, so a view shows them and
+    nothing has to judge a session twice.
+
+    The board holds one of these for every session, and a view of one issue
+    holds one for each session at that issue. An issue dispatched three times
+    has three sessions at one thing, and the newest of them reads first.
 
     The detail is what the row says beside the standing, in the words the disk
     put it in. A working session keeps its latest output separate so the view
@@ -68,7 +83,7 @@ class Row:
     """
 
     session: Session
-    standing: Standing
+    standing: SessionStanding
     detail: str
     last_output: str | None
 
@@ -98,10 +113,10 @@ class Board:
     at: datetime
     daemon_pid: int | None
     tick: LastTick | None
-    rows: list[Row]
+    rows: list[SessionRow]
     queued: list[QueuedIssue]
 
-    def list_standing(self, standing: Standing) -> list[Row]:
+    def list_rows_for_standing(self, standing: SessionStanding) -> list[SessionRow]:
         """Return the rows standing there, in the order the board reads them.
 
         Work that is done reads by when its last round started, most recent
@@ -110,7 +125,7 @@ class Board:
         ahead of the older ones.
         """
         found = [one for one in self.rows if one.standing is standing]
-        if standing is Standing.DONE:
+        if standing is SessionStanding.DONE:
             return sorted(
                 found, key=lambda one: one.session.rounds[-1].started, reverse=True
             )
@@ -119,37 +134,67 @@ class Board:
 
 def read_board(state: StateDirectory, clock: Callable[[], datetime] = now) -> Board:
     """Return what the state directory says every session and issue is doing."""
-    tick = read_json(LastTick, state.last_tick) if state.last_tick.exists() else None
-    look = _Look(
-        state=state,
-        at=clock(),
-        daemon_pid=read_daemon_pid(state.lock),
-        waits={} if tick is None else {one.session: one for one in tick.waiting},
-    )
-    sessions = read_sessions(state)
-    return Board(
-        at=look.at,
-        daemon_pid=look.daemon_pid,
-        tick=tick,
-        rows=look.list_rows(sessions),
-        queued=_list_queue(tick, {session.record.issue for session in sessions}),
+    return _Look(state, clock).compose_board(read_sessions(state))
+
+
+def read_rows_for_issue(
+    state: StateDirectory, issue: int, clock: Callable[[], datetime] = now
+) -> list[SessionRow]:
+    """Return a row for each session at the issue, the newest session first.
+
+    A view of one issue reads this rather than the whole board. Judging a
+    session reads what its running round last said, so a look at one issue
+    then reads that issue's own feeds and not the feed of every session the
+    repo has ever run, and a feed it cannot read is one belonging to the issue
+    the reader asked about.
+
+    An issue that no session here has reads as no rows at all, which is a
+    thing for whoever asked to say rather than a failure.
+    """
+    look = _Look(state, clock)
+    return look.list_rows(
+        [one for one in read_sessions(state) if one.record.issue == issue]
     )
 
 
-@dataclass(frozen=True)
 class _Look:
-    """What one look at the state directory knows before it judges anything.
+    """One look at the state directory, and what it makes of what it read.
 
-    Reading the board is one look, so the time it reads, the daemon it found
-    and what the last tick said travel together rather than down every call.
+    A look is one read of the lock and of the last tick, so the time it read,
+    the daemon it found and what that tick said travel together rather than
+    down every call. Everything that judges a session hangs off it, because
+    judging one is what those three answer.
+
+    What a look found is a `Board`, and the look is what composes it. So the
+    facts it read reach a board in one place, and nothing outside takes them
+    out of a look to build one.
     """
 
-    state: StateDirectory
-    at: datetime
-    daemon_pid: int | None
-    waits: dict[str, WaitingSession]
+    def __init__(self, state: StateDirectory, clock: Callable[[], datetime]) -> None:
+        """Take one look at the state directory."""
+        self.state = state
+        self.at = clock()
+        self.daemon_pid = read_daemon_pid(state.lock)
+        self.tick = (
+            read_json(LastTick, state.last_tick) if state.last_tick.exists() else None
+        )
+        self.waits: dict[str, WaitingSession] = (
+            {} if self.tick is None else {one.session: one for one in self.tick.waiting}
+        )
 
-    def list_rows(self, sessions: list[Session]) -> list[Row]:
+    def compose_board(self, sessions: list[Session]) -> Board:
+        """Return everything this look found, as the board view shows it."""
+        return Board(
+            at=self.at,
+            daemon_pid=self.daemon_pid,
+            tick=self.tick,
+            rows=self.list_rows(sessions),
+            queued=self._list_queued_issues(
+                {session.record.issue for session in sessions}
+            ),
+        )
+
+    def list_rows(self, sessions: list[Session]) -> list[SessionRow]:
         """Return a row for every session, the newest session at an issue first.
 
         A session's key closes with the time the session was cut, so sorting by
@@ -163,17 +208,19 @@ class _Look:
             for session in sorted(newest_first, key=lambda one: one.record.issue)
         ]
 
-    def _read_row(self, session: Session) -> Row:
+    def _read_row(self, session: Session) -> SessionRow:
         """Return the session as one row of the board, where it stands."""
         standing, detail, last_output = self._judge_standing(session)
-        return Row(
+        return SessionRow(
             session=session,
             standing=standing,
             detail=detail,
             last_output=last_output,
         )
 
-    def _judge_standing(self, session: Session) -> tuple[Standing, str, str | None]:
+    def _judge_standing(
+        self, session: Session
+    ) -> tuple[SessionStanding, str, str | None]:
         """Return where the session's own rounds put it, and what its row says.
 
         The records answer first, and they answer whatever the daemon is doing.
@@ -185,14 +232,18 @@ class _Look:
         if unfinished is not None:
             if self.daemon_pid is not None and not session.rounds[-1].is_complete:
                 detail, last_output = self._describe_live_round(session)
-                return Standing.WORKING, detail, last_output
-            return Standing.WAITING, unfinished, None
+                return SessionStanding.WORKING, detail, last_output
+            return SessionStanding.WAITING, unfinished, None
         if session.has_run_final_round:
-            return Standing.DONE, describe_count(len(session.rounds), "round"), None
+            return (
+                SessionStanding.DONE,
+                describe_count(len(session.rounds), "round"),
+                None,
+            )
         standing, detail = self._judge_wait(session)
         return standing, detail, None
 
-    def _judge_wait(self, session: Session) -> tuple[Standing, str]:
+    def _judge_wait(self, session: Session) -> tuple[SessionStanding, str]:
         """Return what the last tick left a session its rounds say nothing about.
 
         Whether a pull request is open, and whether it carries anything new,
@@ -203,11 +254,11 @@ class _Look:
         wait = self.waits.get(session.key)
         if wait is None:
             if not session.rounds:
-                return Standing.STUCK, NO_ROUND_HAS_RUN
-            return Standing.NEEDS_YOU, self._describe_idle(session)
+                return SessionStanding.STUCK, NO_ROUND_HAS_RUN
+            return SessionStanding.NEEDS_YOU, self._describe_idle(session)
         if wait.is_stuck:
-            return Standing.STUCK, self._point_at_feed(session, wait.reason)
-        return Standing.WAITING, wait.reason
+            return SessionStanding.STUCK, self._point_at_feed(session, wait.reason)
+        return SessionStanding.WAITING, wait.reason
 
     def _describe_live_round(self, session: Session) -> tuple[str, str | None]:
         """Return what the running round last said, and how long ago it said it."""
@@ -227,6 +278,30 @@ class _Look:
         """Return the last line the session's last round wrote to its feed."""
         return read_last_feed_line(session.workspace(len(session.rounds)).feed)
 
+    def _list_queued_issues(self, claimed: set[int]) -> list[QueuedIssue]:
+        """Return the labelled issues the last tick weighed, in the order they go.
+
+        An issue a session here already claims is not queued: it is that
+        session. The tick that dispatched it weighed it before it had one, so
+        its own record still calls it eligible, and by the time anyone reads
+        the board it has a row of its own to read instead.
+        """
+        if self.tick is None:
+            return []
+        queued = []
+        ahead = 0
+        for candidate in self.tick.candidates:
+            if candidate.issue in claimed:
+                continue
+            reason = candidate.reason
+            if reason is None:
+                reason = _describe_place_in_queue(ahead)
+                ahead += 1
+            queued.append(
+                QueuedIssue(issue=candidate.issue, label=candidate.label, reason=reason)
+            )
+        return queued
+
     def _point_at_feed(self, session: Session, reason: str) -> str:
         """Return what the session waits on, and where to read what it did.
 
@@ -239,33 +314,12 @@ class _Look:
         return f"{reason} ({self.state.describe_path(feed)})"
 
 
-def _list_queue(tick: LastTick | None, claimed: set[int]) -> list[QueuedIssue]:
-    """Return the labelled issues the last tick weighed, in the order they go.
+def _describe_place_in_queue(ahead: int) -> str:
+    """Return where an issue with this many issues ahead of it stands.
 
-    An issue a session here already claims is not queued: it is that session.
-    The tick that dispatched it weighed it before it had one, so its own record
-    still calls it eligible, and by the time anyone reads the board it has a
-    row of its own to read instead.
+    This reads nothing and judges nothing, so it sits outside a look: it is a
+    count turned into the words for it.
     """
-    if tick is None:
-        return []
-    queued = []
-    ahead = 0
-    for candidate in tick.candidates:
-        if candidate.issue in claimed:
-            continue
-        reason = candidate.reason
-        if reason is None:
-            reason = _describe_place(ahead)
-            ahead += 1
-        queued.append(
-            QueuedIssue(issue=candidate.issue, label=candidate.label, reason=reason)
-        )
-    return queued
-
-
-def _describe_place(ahead: int) -> str:
-    """Return where an issue with this many issues ahead of it stands."""
     if ahead == 0:
         return "next"
     return f"behind {describe_count(ahead, 'other')}"

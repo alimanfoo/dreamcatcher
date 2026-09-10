@@ -16,22 +16,22 @@ from dreamcatcher.words import describe_count, describe_span
 def read_board(state: StateDirectory, clock: Callable[[], datetime]) -> Board:
     ...
 
-def _list_queue(tick: LastTick | None, claimed: set[int]) -> list[QueuedIssue]:
+def read_rows_for_issue(state: StateDirectory, issue: int, clock: Callable[[], datetime]) -> list[SessionRow]:
     ...
 
-def _describe_place(ahead: int) -> str:
+def _describe_place_in_queue(ahead: int) -> str:
     ...
 
-class Standing(StrEnum):
+class SessionStanding(StrEnum):
     NEEDS_YOU = 'needs you'
     WORKING = 'agent working'
     WAITING = 'waiting'
     STUCK = 'stuck'
     DONE = 'done'
 
-class Row:
+class SessionRow:
     session: Session
-    standing: Standing
+    standing: SessionStanding
     detail: str
     last_output: str | None
 
@@ -44,28 +44,29 @@ class Board:
     at: datetime
     daemon_pid: int | None
     tick: LastTick | None
-    rows: list[Row]
+    rows: list[SessionRow]
     queued: list[QueuedIssue]
 
-    def list_standing(self, standing: Standing) -> list[Row]:
+    def list_rows_for_standing(self, standing: SessionStanding) -> list[SessionRow]:
         ...
 
 class _Look:
-    state: StateDirectory
-    at: datetime
-    daemon_pid: int | None
-    waits: dict[str, WaitingSession]
-
-    def list_rows(self, sessions: list[Session]) -> list[Row]:
+    def __init__(self, state: StateDirectory, clock: Callable[[], datetime]) -> None:
         ...
 
-    def _read_row(self, session: Session) -> Row:
+    def compose_board(self, sessions: list[Session]) -> Board:
         ...
 
-    def _judge_standing(self, session: Session) -> tuple[Standing, str, str | None]:
+    def list_rows(self, sessions: list[Session]) -> list[SessionRow]:
         ...
 
-    def _judge_wait(self, session: Session) -> tuple[Standing, str]:
+    def _read_row(self, session: Session) -> SessionRow:
+        ...
+
+    def _judge_standing(self, session: Session) -> tuple[SessionStanding, str, str | None]:
+        ...
+
+    def _judge_wait(self, session: Session) -> tuple[SessionStanding, str]:
         ...
 
     def _describe_live_round(self, session: Session) -> tuple[str, str | None]:
@@ -75,6 +76,9 @@ class _Look:
         ...
 
     def _read_last_said(self, session: Session) -> Line | None:
+        ...
+
+    def _list_queued_issues(self, claimed: set[int]) -> list[QueuedIssue]:
         ...
 
     def _point_at_feed(self, session: Session, reason: str) -> str:

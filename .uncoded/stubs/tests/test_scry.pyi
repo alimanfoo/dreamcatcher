@@ -10,7 +10,7 @@ from conftest import FIXTURES, LABEL
 from records import write_feed, write_round, write_session, write_tick
 from rich.console import Console
 from rich.text import Text
-from dreamcatcher.documents import write_text
+from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Line
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
@@ -109,6 +109,9 @@ def test_a_following_view_waits_for_the_next_daemon(tmp_path):
     ...
 
 def test_a_view_of_a_stuck_session_never_waits(tmp_path, daemon):
+    ...
+
+def test_a_following_view_reads_a_round_on_from_where_it_stopped(tmp_path, daemon):
     ...
 
 def test_a_write_that_never_landed_waits_for_the_look_that_shows_it_whole(tmp_path, daemon):

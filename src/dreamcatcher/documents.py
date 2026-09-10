@@ -1,7 +1,11 @@
 """Read and write the files that dreamcatcher owns."""
 
 import tomllib
+from collections.abc import Iterator
+from contextlib import contextmanager
+from io import SEEK_END, BytesIO
 from pathlib import Path
+from typing import IO
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
@@ -9,6 +13,11 @@ from dreamcatcher.errors import ReportableError
 
 # What a whole write is written to before it takes its target's place.
 WRITING = ".writing"
+
+# How much of the end of a file each read of a backward search takes. A last
+# line longer than this takes another read to find, and nothing else turns on
+# the size.
+BACKWARD_WINDOW = 4096
 
 
 class Document(BaseModel):
@@ -53,18 +62,74 @@ def read_text(path: Path) -> str:
     `read_toml` and `read_json` both read through this, and so does a file that
     holds one value and needs no model of its own.
 
+    The line endings come as the file holds them, which is how `_write` leaves
+    them. Left to itself Python turns each of them into a newline, and then a
+    read and a write of one file would not agree on what is in it.
+
     Raise ReportableError when the read fails. A document that is not there, or
     that nothing can read, is something the user can act on, so it reads as a
     message rather than a traceback.
     """
     try:
-        return path.read_text(encoding="utf-8")
+        return _decode(path.read_bytes(), path)
     except FileNotFoundError as error:
         raise ReportableError(f"{path} does not exist.") from error
-    except UnicodeDecodeError as error:
-        raise ReportableError(f"{path} is not UTF-8 text.") from error
     except OSError as error:
         raise ReportableError(f"cannot read {path}: {error}.") from error
+
+
+def read_lines_from(path: Path, position: int) -> tuple[list[str], int]:
+    """Return the lines the file at path holds whole past this position in it,
+    and where the last of them ends.
+
+    A file that something appends to grows a line at a time, and the last line
+    of it carries no ending until the append that writes it lands. A line with
+    no ending is not one the file holds, so the position that comes back stops
+    just past the last line ending rather than wherever the file happens to
+    end, and a read that starts there shows that line whole once the rest of
+    it lands.
+
+    A file that is not there holds no lines, and neither does one that nothing
+    has finished a line of yet, so each reads as nothing rather than as a
+    failure.
+
+    The position is a count of bytes, for the reason `_open_bytes` gives.
+
+    Raise ReportableError when the read fails, for the reason read_text does.
+    """
+    with _open_bytes(path) as opened:
+        opened.seek(position)
+        landed, ending, _ = opened.read().rpartition(b"\n")
+    if not ending:
+        return [], position
+    return _decode(landed, path).split("\n"), position + len(landed) + len(ending)
+
+
+def read_last_line(path: Path) -> str | None:
+    """Return the last line the file at path holds whole, without its ending.
+
+    A line with no ending is not one the file holds, for the reason
+    `read_lines_from` gives, so the line before it is the last that the file
+    does hold.
+
+    A file with no whole line in it holds no last line, and neither does a file
+    that is not there, so each reads as nothing rather than as a failure.
+
+    The end of the file is what this reads. A file that something keeps
+    appending to grows without limit, so a read that took the whole of it would
+    cost everything ever written, and a caller that asks again on a timer would
+    pay that again each time.
+
+    Raise ReportableError when the read fails, for the reason read_text does.
+    """
+    with _open_bytes(path) as opened:
+        end_of_line = _find_line_ending(opened, opened.seek(0, SEEK_END))
+        if end_of_line is None:
+            return None
+        ending_before = _find_line_ending(opened, end_of_line)
+        start_of_line = 0 if ending_before is None else ending_before + 1
+        opened.seek(start_of_line)
+        return _decode(opened.read(end_of_line - start_of_line), path)
 
 
 def write_text(text: str, path: Path) -> None:
@@ -104,6 +169,63 @@ def append_text(text: str, path: Path) -> None:
 def write_json(document: Document, path: Path) -> None:
     """Write the document to path as JSON."""
     write_text(document.model_dump_json(indent=2) + "\n", path)
+
+
+@contextmanager
+def _open_bytes(path: Path) -> Iterator[IO[bytes]]:
+    """Open the file at path for reading bytes, and close it however it ends.
+
+    Finding one part of a file takes more than one read of it, so whoever
+    reads holds the file open across them.
+
+    The bytes come as the file holds them, which is how `_write` leaves them.
+    A text-mode read turns each line ending into a newline, and then a
+    position that a reader kept and the position the file itself agrees with
+    are different numbers.
+
+    A file that is not there opens as one holding nothing, so a reader of a
+    round that has said nothing yet reads no lines rather than a failure.
+
+    Raise ReportableError when the read fails, for the reason read_text does.
+    """
+    try:
+        with path.open("rb") if path.exists() else BytesIO() as opened:
+            yield opened
+    except OSError as error:
+        raise ReportableError(f"cannot read {path}: {error}.") from error
+
+
+def _find_line_ending(opened: IO[bytes], before: int) -> int | None:
+    """Return where the last line ending before this position is, or nothing.
+
+    The file is read backwards a window at a time, so no read of it takes the
+    whole, and a line longer than one window is found all the same.
+    """
+    end = before
+    while end > 0:
+        start = max(0, end - BACKWARD_WINDOW)
+        opened.seek(start)
+        found = opened.read(end - start).rfind(b"\n")
+        if found >= 0:
+            return start + found
+        end = start
+    return None
+
+
+def _decode(contents: bytes, path: Path) -> str:
+    """Return these bytes of the file at path as the UTF-8 text they hold.
+
+    Every file the tool reads is UTF-8, whether it reads the whole of one or a
+    part of one, so this is the one place that says what a file that is not
+    UTF-8 is.
+
+    Raise ReportableError when the bytes are not UTF-8, for the reason
+    read_text does.
+    """
+    try:
+        return contents.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise ReportableError(f"{path} is not UTF-8 text.") from error
 
 
 def _write(text: str, path: Path, mode: str) -> None:

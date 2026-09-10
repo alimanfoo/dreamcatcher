@@ -128,23 +128,18 @@ module already has, not introducing one.
 
 ### What a refresh reads
 
-This is where the phase's two other issues live, and they are the same problem
-seen twice: both views re-derive everything on every pass.
+A refresh costs what has changed since the last one, rather than what the repo
+has ever done. The round records carry that one way and the feeds another, so
+this takes them in turn.
 
-**The board reads every round the repo ever ran.** `read_sessions` reads each
-session's record and, through `_read_session`, eagerly reads every round record
-beneath it. Then the board uses almost none of that. On a repo that has run a
-hundred sessions, a one-second repaint reads every round record of every session
-once a second to answer a question about the newest one.
-
-What makes this fixable is that a round record is written twice and no more.
-`RoundRecord` says so itself: it is "written at each end of the round" — once
-when the round starts, and once by `Round._close` when its child has gone,
-carrying the ending. A round the daemon interrupts is given no ending at all,
-and since #50 that means only a round whose child was still running; one that
-had already finished keeps the ending `_close` wrote for it. Either way the work
-is carried on by a new round, which takes `next_workspace` and so a directory of
-its own, never the one an earlier record sits in.
+A round record is written twice and no more. `RoundRecord` says so itself: it is
+"written at each end of the round" — once when the round starts, and once by
+`Round._close` when its child has gone, carrying the ending. A round the daemon
+interrupts is given no ending at all, and since #50 that means only a round
+whose child was still running; one that had already finished keeps the ending
+`_close` wrote for it. Either way the work is carried on by a new round, which
+takes `next_workspace` and so a directory of its own, never the one an earlier
+record sits in.
 
 **A round record is complete once it carries an ending. It has had both of its
 writes, and nothing writes it again.** `RoundRecord.is_complete` is where that
@@ -175,9 +170,15 @@ kept as one still going, for as long as the process lived. Completeness is a
 property of the record itself, and rests on nothing else.
 
 A session's rounds are read with the session rather than on demand, because
-every view goes through the board, and the board reads where each session stands
-from that session's own rounds. Reading them on demand would save nothing while
-that holds.
+judging where a session stands reads that session's own rounds, and every view
+judges the sessions it shows.
+
+A view of one issue judges that issue's sessions alone, through
+`read_rows_for_issue`, and so still reads the record and the rounds of every
+session to find them. Whether that read is worth narrowing as well is open:
+after the above, it costs a listing of each session's rounds directory and
+nothing more, and narrowing it means reading a session's rounds only once its
+record says it is one of the sessions asked for.
 
 `StateDirectory` is what a process reads the directory through, so that is what
 holds the records it has read, in `round_reader`. Whoever holds the directory
@@ -200,24 +201,41 @@ final cause — stays as it is. It is answered from records the process already
 holds, so the scan costs nothing after the first pass, and its meaning does not
 have to be narrowed to make it cheap.
 
-Both the daemon and the views go through `read_sessions`, so both get this. The
-daemon's tick has the same complaint for the same reason.
+Both the daemon and the views go through `read_sessions`, so both read this way.
 
-**A following feed re-reads every feed file from the start.** `read_feed_lines`
-reads a whole file with `read_text` and splits it, and `_compose_feed` does that
-for every round on every pass, rebuilds a `Text` for every line, and then prints
-only the handful past what it has already shown.
+**A following feed reads on from where it stopped.** Feed files are append-only,
+so a following view remembers where it stopped and reads from there.
+`documents.read_lines_from` is that read, and `scry._FeedView` is what holds a
+position for each round of the session, so a pass reads only what arrived and
+paints only what it will print. A round that has ended is read to its end once,
+and every pass after that reads nothing from it.
 
-Feed files are append-only, so a following view can remember where it stopped
-and read from there. Per pass it then reads only what arrived, and renders only
-what it will print. A round that has ended is read to its end once and not
-opened again.
+A pass still opens each round's feed rather than closing the ones that have
+ended, because nothing a reader can see says that a feed has stopped growing. A
+round records its ending as soon as its own child has gone and its feed catches
+up afterwards, so a reader that stopped opening a complete round's feed would
+lose whatever landed last. An open that reads nothing costs a handful of system
+calls, and the reading is what this is here to stop.
 
 One detail this has to get right: a round killed mid-write can leave a line with
-no ending on it, and `read_feed_lines` correctly treats that line as not yet
-landed. An incremental read must not advance its remembered position past such a
-line, or the line will be lost when the rest of it arrives. So the position
-advances to just after the last complete line ending, never to the end of file.
+no ending on it, and that line has not landed. An incremental read must not
+advance its remembered position past such a line, or the line will be lost when
+the rest of it arrives. So the position advances to just after the last complete
+line ending, never to the end of file.
+
+**The board reads the end of a feed for the line its round last said.** Every
+session standing `agent working` or `needs you` has its row say that, and
+`documents.read_last_line` finds it by reading the file backwards a window at a
+time. So a line longer than one window is found all the same, and no read of a
+feed grows with the feed.
+
+**A view of one issue reads that issue's rows, not the board.** `read_board`
+answers for every session the repo has run, which is what the board view shows
+and more than any other view needs. `read_rows_for_issue` answers for one issue,
+so a look costs the feeds of that issue's own sessions rather than of every
+session standing `agent working` or `needs you`, and an unreadable feed can only
+be one belonging to the issue the reader asked about. The board view reads the
+board, because the board is what it shows.
 
 ### Cross-platform notes
 
@@ -225,8 +243,9 @@ Remembering a position in a feed file cannot be a count of characters. On
 Windows a text-mode read translates line endings, so the number of characters a
 reader has seen and the position it should resume from are different numbers. So
 the position has to be something the file itself agrees with rather than
-something counted while reading. What that is exactly is for whoever builds it
-to settle against the platforms.
+something counted while reading. It is a count of bytes, and every read that
+takes a part of a file reads the bytes the file holds rather than the text a
+text-mode read would make of them.
 
 Rich's `Live` works on Windows terminals, and the console settings the tests
 already pin (`legacy_windows=False` among them) keep the rendering identical
@@ -286,6 +305,22 @@ situation where the output is not a terminal.
 **Why not `Live` for the feed as well, for consistency?** Consistency of
 mechanism would cost the reader their scrollback on the one view where the
 history is the content.
+
+**Why not a memory map, or a library, for reading part of a feed?** Reading on
+from a remembered position is `seek`, `read` and one split, so there is nothing
+there for a library to do. A library that reads the lines it has not read yet,
+`pygtail` for one, keeps its position in a file of its own beside the log and
+handles log rotation, and a view wants neither: it holds its position for as
+long as it is on the screen, and nothing rotates a feed. `mmap.rfind` would
+replace the backward search for a feed's last line, and that is the one place
+with machinery to lose, but the daemon appends to that file while the view reads
+it, and touching a mapping of a file that has since been truncated raises
+`SIGBUS`, which takes the process down rather than raising an exception. A log
+viewer built on a mapping hit exactly that
+([Textualize/toolong#9](https://github.com/Textualize/toolong/issues/9)). An
+empty file cannot be mapped on Windows at all. `seek` and `read` behave the same
+on all three platforms and cannot take a view down, whatever happens to the file
+underneath it.
 
 **Why not have the views ask the daemon, rather than reading files faster?** A
 channel between the daemon and its views was considered and cut in the skeleton

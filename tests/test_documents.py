@@ -3,9 +3,12 @@ from pathlib import Path
 import pytest
 
 from dreamcatcher.documents import (
+    BACKWARD_WINDOW,
     Document,
     append_text,
     read_json,
+    read_last_line,
+    read_lines_from,
     read_toml,
     write_text,
 )
@@ -61,6 +64,111 @@ def test_a_document_that_is_not_utf_8_says_so(tmp_path, read):
 
     with pytest.raises(ReportableError, match="not UTF-8"):
         read(Sample, document)
+
+
+def growing(path: Path, written: str) -> Path:
+    """Write a file that something adds a line at a time to, and return it.
+
+    The bytes go down as they are written. A text-mode write turns each line
+    ending into the one the platform prefers, and then the positions these
+    tests assert would be Windows's own numbers rather than these.
+    """
+    file = path / "feed.txt"
+    file.write_bytes(written.encode("utf-8"))
+    return file
+
+
+def test_a_file_reads_as_the_lines_it_holds_and_where_they_end(tmp_path):
+    assert read_lines_from(growing(tmp_path, "first\nsecond\n"), 0) == (
+        ["first", "second"],
+        13,
+    )
+
+
+def test_a_read_from_where_the_last_one_stopped_finds_what_arrived_since(tmp_path):
+    file = growing(tmp_path, "first\n")
+    _, position = read_lines_from(file, 0)
+
+    append_text("second\n", file)
+
+    assert read_lines_from(file, position) == (["second"], 13)
+
+
+def test_a_line_still_being_written_is_not_one_a_file_holds(tmp_path):
+    assert read_lines_from(growing(tmp_path, "first\nseco"), 0) == (["first"], 6)
+
+
+def test_a_line_still_being_written_reads_whole_once_the_rest_lands(tmp_path):
+    file = growing(tmp_path, "first\nseco")
+    _, position = read_lines_from(file, 0)
+
+    append_text("nd\n", file)
+
+    assert read_lines_from(file, position) == (["second"], 13)
+
+
+def test_a_file_with_nothing_in_it_holds_no_lines(tmp_path):
+    assert read_lines_from(growing(tmp_path, ""), 0) == ([], 0)
+
+
+def test_a_file_that_is_not_there_holds_no_lines(tmp_path):
+    assert read_lines_from(tmp_path / "feed.txt", 0) == ([], 0)
+
+
+def test_a_file_of_lines_that_is_not_utf_8_says_so(tmp_path):
+    file = tmp_path / "feed.txt"
+    file.write_bytes(b"first\n\xff\n")
+
+    with pytest.raises(ReportableError, match="not UTF-8"):
+        read_lines_from(file, 0)
+
+
+def test_lines_that_cannot_be_read_say_so(tmp_path):
+    with pytest.raises(ReportableError, match="cannot read"):
+        read_lines_from(tmp_path, 0)
+
+
+def test_the_last_line_a_file_holds_is_the_last_one_written_whole(tmp_path):
+    assert read_last_line(growing(tmp_path, "first\nsecond\n")) == "second"
+
+
+def test_a_file_holding_one_line_holds_it_as_its_last(tmp_path):
+    assert read_last_line(growing(tmp_path, "only\n")) == "only"
+
+
+def test_a_line_still_being_written_is_not_the_last_a_file_holds(tmp_path):
+    assert read_last_line(growing(tmp_path, "first\nseco")) == "first"
+
+
+def test_a_file_with_no_whole_line_in_it_yet_holds_no_last_line(tmp_path):
+    assert read_last_line(growing(tmp_path, "fir")) is None
+
+
+def test_a_file_with_nothing_in_it_holds_no_last_line(tmp_path):
+    assert read_last_line(growing(tmp_path, "")) is None
+
+
+def test_a_file_that_is_not_there_holds_no_last_line(tmp_path):
+    assert read_last_line(tmp_path / "feed.txt") is None
+
+
+def test_a_last_line_longer_than_one_read_of_the_end_reads_whole(tmp_path):
+    long_line = "x" * (BACKWARD_WINDOW * 2 + 1)
+
+    assert read_last_line(growing(tmp_path, f"first\n{long_line}\n")) == long_line
+
+
+def test_a_file_whose_last_line_is_not_utf_8_says_so(tmp_path):
+    file = tmp_path / "feed.txt"
+    file.write_bytes(b"first\n\xff\n")
+
+    with pytest.raises(ReportableError, match="not UTF-8"):
+        read_last_line(file)
+
+
+def test_a_last_line_that_cannot_be_read_says_so(tmp_path):
+    with pytest.raises(ReportableError, match="cannot read"):
+        read_last_line(tmp_path)
 
 
 def test_a_document_that_is_not_toml_says_so(tmp_path):

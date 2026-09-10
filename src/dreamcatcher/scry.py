@@ -10,6 +10,7 @@ reading.
 
 from collections.abc import Callable, Iterable
 from contextlib import suppress
+from dataclasses import dataclass, field
 from datetime import datetime
 from time import sleep
 
@@ -18,16 +19,17 @@ from rich.padding import Padding
 from rich.table import Table
 from rich.text import Text
 
-from dreamcatcher.board import Board, Row, Standing, read_board
-from dreamcatcher.clock import now
-from dreamcatcher.errors import ReportableError
-from dreamcatcher.feed import (
-    GAP,
-    Line,
-    compose_round_boundary,
-    read_feed_line,
-    read_feed_lines,
+from dreamcatcher.board import (
+    Board,
+    SessionRow,
+    SessionStanding,
+    read_board,
+    read_rows_for_issue,
 )
+from dreamcatcher.clock import now
+from dreamcatcher.documents import read_lines_from
+from dreamcatcher.errors import ReportableError
+from dreamcatcher.feed import GAP, Line, compose_round_boundary, read_feed_line
 from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.rounds import RoundRecord
 from dreamcatcher.sessions import Session
@@ -37,11 +39,11 @@ from dreamcatcher.words import describe_count, describe_span, describe_time
 # What each section of the board is set in, so a reader finds the one they
 # came for without reading the words.
 COLOURS = {
-    Standing.NEEDS_YOU: "yellow",
-    Standing.WORKING: "green",
-    Standing.WAITING: "cyan",
-    Standing.STUCK: "red",
-    Standing.DONE: "dim",
+    SessionStanding.NEEDS_YOU: "yellow",
+    SessionStanding.WORKING: "green",
+    SessionStanding.WAITING: "cyan",
+    SessionStanding.STUCK: "red",
+    SessionStanding.DONE: "dim",
 }
 
 QUEUE = "queued"
@@ -73,12 +75,12 @@ def show_board(
     """
     board = read_board(state, clock)
     console.print(_describe_daemon(board))
-    _show_rows(console, board, Standing.NEEDS_YOU)
-    _show_rows(console, board, Standing.WORKING)
-    _show_rows(console, board, Standing.WAITING)
-    _show_rows(console, board, Standing.STUCK)
+    _show_rows(console, board, SessionStanding.NEEDS_YOU)
+    _show_rows(console, board, SessionStanding.WORKING)
+    _show_rows(console, board, SessionStanding.WAITING)
+    _show_rows(console, board, SessionStanding.STUCK)
     _show_queue(console, board)
-    _show_rows(console, board, Standing.DONE)
+    _show_rows(console, board, SessionStanding.DONE)
     if not board.rows and not board.queued:
         console.print("nothing dispatched yet")
 
@@ -101,9 +103,9 @@ def _describe_daemon(board: Board) -> Text:
     return Text(f"{daemon}, last tick {ticked} ago{held}")
 
 
-def _show_rows(console: Console, board: Board, standing: Standing) -> None:
+def _show_rows(console: Console, board: Board, standing: SessionStanding) -> None:
     """Show the sessions standing there, a row for each."""
-    rows = board.list_standing(standing)
+    rows = board.list_rows_for_standing(standing)
     if not rows:
         return
     table = _open_table()
@@ -115,20 +117,20 @@ def _show_rows(console: Console, board: Board, standing: Standing) -> None:
     _print_section(console, str(standing), COLOURS[standing], table)
 
 
-def _describe_round(row: Row) -> str:
+def _describe_round(row: SessionRow) -> str:
     """Return which round is running, or nothing while none is.
 
     A number says which round only while a round is running. A session between
     rounds has one behind it and another to come, and a bare number there reads
     as either.
     """
-    if row.standing is not Standing.WORKING:
+    if row.standing is not SessionStanding.WORKING:
         return ""
     return f"round {len(row.session.rounds)}"
 
 
 def _render_detail(
-    row: Row,
+    row: SessionRow,
     prefix: str = "",
     continuation_indent: int = 0,
     style: str = "",
@@ -189,7 +191,7 @@ def show_session(
     dispatch. The newest is the one still going, or the one that got furthest,
     so it is the one the view is about.
     """
-    rows = _find_rows(read_board(state, clock), issue)
+    rows = _find_rows_for_issue(state, issue, clock)
     newest = rows[0]
     console.print(Text(newest.session.key))
     console.print(
@@ -206,7 +208,7 @@ def show_session(
     _show_older_sessions(console, rows[1:])
 
 
-def _show_vitals(console: Console, state: StateDirectory, row: Row) -> None:
+def _show_vitals(console: Console, state: StateDirectory, row: SessionRow) -> None:
     """Show what the dispatch settled, which every round of the session runs with."""
     record = row.session.record
     table = _open_table()
@@ -223,14 +225,14 @@ def _show_vitals(console: Console, state: StateDirectory, row: Row) -> None:
     _print_section(console, "first prompt", "blue", Text(record.prompt))
 
 
-def _show_rounds(console: Console, row: Row) -> None:
+def _show_rounds(console: Console, row: SessionRow) -> None:
     """Show the rounds the session has run, oldest first."""
     rounds = row.session.rounds
     if not rounds:
         return
     table = _open_table()
     for number, record in enumerate(rounds, start=1):
-        is_running = row.standing is Standing.WORKING and number == len(rounds)
+        is_running = row.standing is SessionStanding.WORKING and number == len(rounds)
         table.add_row(
             Text(str(number)),
             Text(record.cause),
@@ -260,7 +262,7 @@ def _describe_ending(record: RoundRecord, is_running: bool) -> str:
     return "running" if is_running else "interrupted"
 
 
-def _show_hand_resume(console: Console, state: StateDirectory, row: Row) -> None:
+def _show_hand_resume(console: Console, state: StateDirectory, row: SessionRow) -> None:
     """Show how to carry the session on by hand, when there is one to carry on.
 
     A round of the daemon's own is talking to the harness already, so there is
@@ -268,7 +270,7 @@ def _show_hand_resume(console: Console, state: StateDirectory, row: Row) -> None
     at all has no harness session behind it either, so there is nothing to
     take over there and never will be.
     """
-    if row.standing is Standing.WORKING or not row.session.rounds:
+    if row.standing is SessionStanding.WORKING or not row.session.rounds:
         return
     worktree = state.describe_path(row.session.record.worktree)
     command = " ".join(ADAPTERS[row.session.record.harness].build_hand_resume())
@@ -277,7 +279,7 @@ def _show_hand_resume(console: Console, state: StateDirectory, row: Row) -> None
     )
 
 
-def _show_older_sessions(console: Console, older: list[Row]) -> None:
+def _show_older_sessions(console: Console, older: list[SessionRow]) -> None:
     """Show the sessions at this issue that came before, newest first."""
     if not older:
         return
@@ -302,14 +304,13 @@ def show_round(
 
     The round list of the session view is where a reader finds the number.
     """
-    session = _find_rows(read_board(state, clock), issue)[0].session
+    session = _find_rows_for_issue(state, issue, clock)[0].session
     if not 1 <= number <= len(session.rounds):
         raise ReportableError(
             f"{session.key} has run {describe_count(len(session.rounds), 'round')}, "
             f"so it has no round {number}."
         )
-    for painted in _compose_feed(session, [number]):
-        console.print(painted)
+    _FeedView(console).show_what_arrived(session, [number])
 
 
 def show_feed(
@@ -345,53 +346,78 @@ def show_feed(
     The reader ends a view of a session that is still going by interrupting it,
     which is how they say they have seen enough, so it ends without a word.
     """
-    shown = 0
+    view = _FeedView(console)
     # Nothing was going before the view opened, so a session that has already
     # ended when it opens ends the view on its first look.
     was_over = True
     with suppress(KeyboardInterrupt):
         while True:
-            row = _find_rows(read_board(state, clock), issue)[0]
+            row = _find_rows_for_issue(state, issue, clock)[0]
             session = row.session
-            painted = _compose_feed(session, range(1, len(session.rounds) + 1))
-            for line in painted[shown:]:
-                console.print(line)
-            shown = len(painted)
-            is_over = row.standing in (Standing.DONE, Standing.STUCK)
+            view.show_what_arrived(session, range(1, len(session.rounds) + 1))
+            is_over = row.standing in (SessionStanding.DONE, SessionStanding.STUCK)
             if is_over and was_over:
                 return
             was_over = is_over
             wait(PAUSE)
 
 
-def _find_rows(board: Board, issue: int) -> list[Row]:
-    """Return the rows for the issue, newest session first, or refuse if none."""
-    rows = [one for one in board.rows if one.session.record.issue == issue]
+def _find_rows_for_issue(
+    state: StateDirectory, issue: int, clock: Callable[[], datetime]
+) -> list[SessionRow]:
+    """Return the rows for the issue, newest session first, or refuse if none.
+
+    A view of one issue reads that issue's rows rather than the whole board,
+    so it never pays for a session it does not show. This is the one place
+    that turns an issue with no session behind it into words for the reader.
+    """
+    rows = read_rows_for_issue(state, issue, clock)
     if not rows:
         raise ReportableError(f"No session here for GH{issue}.")
     return rows
 
 
-def _compose_feed(session: Session, numbers: Iterable[int]) -> list[Text]:
-    """Return the lines these rounds of the session read as, in order.
+@dataclass(frozen=True)
+class _FeedView:
+    """A session's feed on a console, and how far each round of it has been read.
 
-    Each round opens with the line that says what caused it, stamped with the
-    time that round started, and the rounds are set apart by a blank line. A
-    feed holds one round, so the stitch between them is the reader's and lands
-    in no file.
+    A feed only grows, so a later look at one reads each round on from where
+    the last look stopped and shows what arrived. The rounds a position is held
+    for are the rounds already shown, so a round that has started since the
+    last look is the one that opens with its own heading.
     """
-    painted: list[Text] = []
-    for number in numbers:
-        record = session.rounds[number - 1]
-        if painted:
-            painted.append(Text())
-        boundary = compose_round_boundary(number, record.cause, record.started)
-        painted.append(_paint(boundary, Text(boundary.text, style="bold")))
-        painted.extend(
-            _paint_written(written)
-            for written in read_feed_lines(session.workspace(number).feed)
-        )
-    return painted
+
+    console: Console
+    positions: dict[int, int] = field(default_factory=dict)
+
+    def show_what_arrived(self, session: Session, round_numbers: Iterable[int]) -> None:
+        """Show what these rounds of the session have said since the last look."""
+        for round_number in round_numbers:
+            if round_number not in self.positions:
+                self._show_round_heading(session, round_number)
+            self._show_new_lines(session, round_number)
+
+    def _show_round_heading(self, session: Session, round_number: int) -> None:
+        """Show the line that opens a round, saying what caused it.
+
+        A feed holds one round, so the stitch between two of them lands in no
+        file and is the reader's. A blank line sets each round apart from the
+        one before, which is why the first round of a view opens without one.
+        """
+        if self.positions:
+            self.console.print()
+        record = session.rounds[round_number - 1]
+        heading = compose_round_boundary(round_number, record.cause, record.started)
+        self.console.print(_paint(heading, Text(heading.text, style="bold")))
+        self.positions[round_number] = 0
+
+    def _show_new_lines(self, session: Session, round_number: int) -> None:
+        """Show the lines this round has written since the last look at it."""
+        feed = session.workspace(round_number).feed
+        lines, position = read_lines_from(feed, self.positions[round_number])
+        for line in lines:
+            self.console.print(_paint_written(line))
+        self.positions[round_number] = position
 
 
 def _paint_written(written: str) -> Text:

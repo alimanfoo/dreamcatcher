@@ -3,16 +3,18 @@
 
 from collections.abc import Callable, Iterable
 from contextlib import suppress
+from dataclasses import dataclass, field
 from datetime import datetime
 from time import sleep
 from rich.console import Console, Group, RenderableType
 from rich.padding import Padding
 from rich.table import Table
 from rich.text import Text
-from dreamcatcher.board import Board, Row, Standing, read_board
+from dreamcatcher.board import Board, SessionRow, SessionStanding, read_board, read_rows_for_issue
 from dreamcatcher.clock import now
+from dreamcatcher.documents import read_lines_from
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.feed import GAP, Line, compose_round_boundary, read_feed_line, read_feed_lines
+from dreamcatcher.feed import GAP, Line, compose_round_boundary, read_feed_line
 from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.rounds import RoundRecord
 from dreamcatcher.sessions import Session
@@ -34,13 +36,13 @@ def show_board(state: StateDirectory, console: Console, clock: Callable[[], date
 def _describe_daemon(board: Board) -> Text:
     ...
 
-def _show_rows(console: Console, board: Board, standing: Standing) -> None:
+def _show_rows(console: Console, board: Board, standing: SessionStanding) -> None:
     ...
 
-def _describe_round(row: Row) -> str:
+def _describe_round(row: SessionRow) -> str:
     ...
 
-def _render_detail(row: Row, prefix: str, continuation_indent: int, style: str) -> RenderableType:
+def _render_detail(row: SessionRow, prefix: str, continuation_indent: int, style: str) -> RenderableType:
     ...
 
 def _show_queue(console: Console, board: Board) -> None:
@@ -55,10 +57,10 @@ def _print_section(console: Console, heading: str, colour: str, body: Renderable
 def show_session(state: StateDirectory, issue: int, console: Console, clock: Callable[[], datetime]) -> None:
     ...
 
-def _show_vitals(console: Console, state: StateDirectory, row: Row) -> None:
+def _show_vitals(console: Console, state: StateDirectory, row: SessionRow) -> None:
     ...
 
-def _show_rounds(console: Console, row: Row) -> None:
+def _show_rounds(console: Console, row: SessionRow) -> None:
     ...
 
 def _describe_run(record: RoundRecord) -> str:
@@ -67,10 +69,10 @@ def _describe_run(record: RoundRecord) -> str:
 def _describe_ending(record: RoundRecord, is_running: bool) -> str:
     ...
 
-def _show_hand_resume(console: Console, state: StateDirectory, row: Row) -> None:
+def _show_hand_resume(console: Console, state: StateDirectory, row: SessionRow) -> None:
     ...
 
-def _show_older_sessions(console: Console, older: list[Row]) -> None:
+def _show_older_sessions(console: Console, older: list[SessionRow]) -> None:
     ...
 
 def show_round(state: StateDirectory, issue: int, number: int, console: Console, clock: Callable[[], datetime]) -> None:
@@ -79,10 +81,7 @@ def show_round(state: StateDirectory, issue: int, number: int, console: Console,
 def show_feed(state: StateDirectory, issue: int, console: Console, wait: Callable[[float], None], clock: Callable[[], datetime]) -> None:
     ...
 
-def _find_rows(board: Board, issue: int) -> list[Row]:
-    ...
-
-def _compose_feed(session: Session, numbers: Iterable[int]) -> list[Text]:
+def _find_rows_for_issue(state: StateDirectory, issue: int, clock: Callable[[], datetime]) -> list[SessionRow]:
     ...
 
 def _paint_written(written: str) -> Text:
@@ -90,3 +89,16 @@ def _paint_written(written: str) -> Text:
 
 def _paint(line: Line, said: Text) -> Text:
     ...
+
+class _FeedView:
+    console: Console
+    positions: dict[int, int] = field(default_factory=dict)
+
+    def show_what_arrived(self, session: Session, round_numbers: Iterable[int]) -> None:
+        ...
+
+    def _show_round_heading(self, session: Session, round_number: int) -> None:
+        ...
+
+    def _show_new_lines(self, session: Session, round_number: int) -> None:
+        ...

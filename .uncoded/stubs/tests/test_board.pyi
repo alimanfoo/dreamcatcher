@@ -6,7 +6,7 @@ from datetime import timedelta
 import pytest
 from clocks import PINNED
 from records import write_feed, write_round, write_session, write_tick
-from dreamcatcher.board import Standing, read_board
+from dreamcatcher.board import SessionStanding, read_board, read_rows_for_issue
 from dreamcatcher.feed import Line
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.state import NO_ROUND_HAS_RUN, CandidateIssue, LastTick, StateDirectory, WaitingSession
@@ -31,6 +31,18 @@ def looked(state):
     ...
 
 def only(state):
+    ...
+
+def rows_at(state, issue: int):
+    ...
+
+def test_the_rows_for_an_issue_are_its_own_sessions_newest_first(running):
+    ...
+
+def test_an_issue_no_session_here_has_holds_no_rows(state):
+    ...
+
+def test_a_look_at_one_issue_leaves_another_session_s_feed_unread(running):
     ...
 
 def test_a_state_directory_nothing_has_run_in_yet_holds_an_empty_board(tmp_path):
