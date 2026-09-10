@@ -270,9 +270,6 @@ class _Look:
         How long the round has been running reads first, because a round that
         has run far longer than its fellows is doing something pathological
         whatever it last said.
-
-        The caller hands over the round it is asking about, so this needs no
-        session that has one.
         """
         running = f"running {describe_span(self.at - live_round.started)}"
         line = self._read_last_said(session)
