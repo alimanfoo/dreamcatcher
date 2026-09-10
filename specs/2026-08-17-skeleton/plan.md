@@ -68,9 +68,9 @@ In scope:
   trailing-whitespace fixes, and `uncoded sync`.
 - uncoded: `[tool.uncoded]` with `source-roots = ["src", "tests", "tools"]` and
   `doc-roots` covering `README.md`, `AGENTS.md`, and `specs/`. Git ignores the
-  generated `.uncoded/` index and skills. `AGENTS.md` (which already grounds
-  fresh sessions, with `CLAUDE.md` importing it) gains the standard "Before you
-  start" lines loading the uncoded navigation skills.
+  generated `.uncoded/` index and the `uncoded-*` skills. `AGENTS.md` (which
+  already grounds fresh sessions, with `CLAUDE.md` importing it) gains the
+  standard "Before you start" lines loading the uncoded navigation skills.
 - CI: one workflow running the test suite on Linux, macOS, and Windows, and the
   pre-commit checks once on Linux. UTF-8 is not assumed anywhere:
   `filterwarnings = ["error::EncodingWarning"]` from day one.

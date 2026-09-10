@@ -4,6 +4,12 @@ This guide grounds a fresh agent session before it works on this repo.
 
 ## Before you start
 
+Run `uv run uncoded sync` first, because git ignores what it writes, so a fresh
+clone or worktree holds none of it: the index under `.uncoded/`, and the
+navigation skills under `.claude/skills/` and `.agents/skills/`. A harness that
+started before the sync has no skill to load, so read the skill's own `SKILL.md`
+in that case.
+
 - Load the `uncoded-code-navigation` skill before searching, reading or editing
   any code.
 - Load the `uncoded-doc-navigation` skill before searching, reading or editing
@@ -26,19 +32,16 @@ finding it. The spec is corrected by review, not by drift.
 
 ## Dev setup
 
-Install the tools and the commit hooks, then build the navigation index:
+Install the tools and the commit hooks:
 
 ```sh
 uv sync
 uv run pre-commit install
-uv run uncoded sync
 ```
 
 `.python-version` names the interpreter, and CI reads the same file, so every
 machine runs the same Python. `uv sync` installs the `dev` dependency group
-without being asked. Git ignores everything `uncoded sync` writes, so a fresh
-clone has to build it: the index under `.uncoded/`, and the `uncoded-*` skills
-that "Before you start" tells you to load.
+without being asked.
 
 ## Commands
 
