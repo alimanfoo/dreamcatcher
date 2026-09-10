@@ -6,7 +6,6 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import datetime
 from time import sleep
-from typing import NamedTuple
 from rich.console import Console, Group, RenderableType
 from rich.live import Live
 from rich.padding import Padding
@@ -117,7 +116,7 @@ def _paint_written(written: str) -> Text:
 def _paint(line: Line, said: Text) -> Text:
     ...
 
-class _Picture(NamedTuple):
+class _Picture:
     shown: RenderableType
     is_over: bool
 

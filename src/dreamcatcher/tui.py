@@ -19,7 +19,6 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import datetime
 from time import sleep
-from typing import NamedTuple
 
 from rich.console import Console, Group, RenderableType
 from rich.live import Live
@@ -83,7 +82,8 @@ def open_console() -> Console:
     return Console()
 
 
-class _Picture(NamedTuple):
+@dataclass(frozen=True, kw_only=True)
+class _Picture:
     """A view as one look found it: what to draw, and whether the view is over.
 
     A view is over when nothing more can reach it. That is not the same as the
@@ -196,7 +196,7 @@ def _look_at_board(state: StateDirectory, clock: Callable[[], datetime]) -> _Pic
     False for that reason, and that is what keeps a board on the screen until
     the reader interrupts it.
     """
-    return _Picture(_render_board(read_board(state, clock)), is_over=False)
+    return _Picture(shown=_render_board(read_board(state, clock)), is_over=False)
 
 
 def _render_board(board: Board) -> RenderableType:
@@ -366,7 +366,7 @@ def _look_at_session(
     """
     rows = _find_rows_for_issue(state, issue, clock)
     return _Picture(
-        _render_session(state, rows),
+        shown=_render_session(state, rows),
         is_over=rows[0].standing in STANDINGS_THAT_END_A_VIEW,
     )
 
