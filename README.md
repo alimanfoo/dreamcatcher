@@ -150,8 +150,8 @@ Three sessions at one issue read as three sessions at one thing, so a label you
 forgot to remove shows as what it is rather than as three unrelated rows.
 
 `session` shows one issue's newest session: what its dispatch settled, the
-rounds it has run, the command that takes the session over by hand, and the
-older sessions at the same issue.
+rounds it has run newest first, the command that takes the session over by hand,
+and the older sessions at the same issue.
 
 ```sh
 dreamcatcher session GH123
