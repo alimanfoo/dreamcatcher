@@ -85,6 +85,7 @@ src/:
     cli.py:
       ISSUE:
       HELP_WHEN_A_VIEW_ENDS:
+      HELP_WHEN_A_VIEW_TAKES_THE_SCREEN:
       HELP_WHEN_NOTHING_WATCHES:
       build_parser:
       _take_an_issue:
@@ -1086,6 +1087,9 @@ tests/:
   test_tui.py:
     LOOKED_AT:
     WIDTH:
+    HEIGHT:
+    SCREEN_TAKEN:
+    SCREEN_HANDED_BACK:
     DAEMON_PID:
     STAMP:
     SAID:
@@ -1112,11 +1116,14 @@ tests/:
     test_a_key_too_wide_for_the_console_folds_rather_than_being_cut:
     test_a_board_nobody_is_watching_is_drawn_once_and_returns:
     test_a_board_a_reader_watches_keeps_up_with_what_the_daemon_writes:
+    test_a_board_a_reader_watches_takes_the_screen_and_hands_it_back:
+    test_a_board_on_a_dumb_terminal_is_drawn_once_and_returns:
     viewed:
     test_wrapped_latest_output_keeps_its_indent:
     test_a_session_renders_as_its_golden_view:
     test_a_session_view_shows_the_round_that_starts_while_it_is_open:
     test_a_session_view_of_a_session_that_is_over_never_waits:
+    test_a_session_view_of_a_session_that_is_over_keeps_its_last_picture:
     followed:
     test_a_feed_nobody_is_watching_shows_what_is_there_and_returns:
     test_a_feed_renders_as_its_golden_view:

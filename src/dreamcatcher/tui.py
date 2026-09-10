@@ -73,7 +73,13 @@ INDENT = (0, 0, 0, 2)
 
 
 def open_console() -> Console:
-    """Return the console that the views are written to."""
+    """Return the console that the views are written to.
+
+    It names no width and no height, so rich reads the terminal's own on every
+    look, and a view redrawn into a window the reader has since resized fills
+    the size it is now. Only the tests name a size, so that a picture is cut in
+    the same place whatever terminal runs them.
+    """
     return Console()
 
 
@@ -93,28 +99,45 @@ def _repaint(
 ) -> None:
     """Draw what each look finds over the one before, until the view is over.
 
-    A picture of a state has a current value rather than a history, so rich's
-    Live holds one place on the screen and every look is drawn into it. A place
-    on the screen is as tall as the screen, so a picture that outgrows it is
-    cut at the bottom, which takes the sections a reader came for last: the
-    board is sorted by whose turn it is, so what goes first is what is done.
+    A picture of a state has a current value rather than a history, so every
+    look is drawn over the one before rather than under it. rich's Live draws
+    into the terminal's alternate screen, which it fills, so the view is the
+    whole of what the reader sees while it is going and the commands the shell
+    printed above it are not read alongside it. The screen is as tall as the
+    terminal, so a picture that outgrows it is cut at the bottom, which takes
+    the sections a reader came for last: the board is sorted by whose turn it
+    is, so what goes first is what is done.
+
+    Handing the screen back brings the shell's own output back and takes the
+    last picture with it, so a view whose last look found it over prints that
+    picture where the reader can go on reading it. A session that was already
+    over when the view opened is drawn once and printed, which is what a
+    reader looking one up reads. A view that the reader interrupts while
+    something is still coming leaves nothing behind, because interrupting is
+    how they say they have seen enough.
 
     This decides where a look is drawn, and `_keep_looking` decides how long to
-    go on looking. A view nobody is watching has no place to hold, so the one
-    look it takes is printed as anything else is.
+    go on looking. A view nobody is watching has no screen to take, and a
+    terminal that reports itself as dumb takes no control code, so rich can
+    draw nothing into a screen there and writes nothing at all. Either console
+    gets one look, printed as anything else is.
     """
-    if not console.is_terminal:
+    if not console.is_terminal or console.is_dumb_terminal:
         console.print(look().shown)
         return
-    with Live(console=console, auto_refresh=False) as live:
+    last_picture = _Picture(shown="", is_over=False)
+    with Live(console=console, auto_refresh=False, screen=True) as live:
 
         def draw() -> bool:
             """Draw what this look found, and say whether the view is over."""
-            found = look()
-            live.update(found.shown, refresh=True)
-            return found.is_over
+            nonlocal last_picture
+            last_picture = look()
+            live.update(last_picture.shown, refresh=True)
+            return last_picture.is_over
 
         _keep_looking(console, draw, wait)
+    if last_picture.is_over:
+        console.print(last_picture.shown)
 
 
 def _keep_looking(
@@ -126,9 +149,9 @@ def _keep_looking(
     over, which is to say whether anything more can reach it.
 
     Nobody is watching a console that is no terminal: the view is being piped,
-    redirected or captured, and a view that stayed on the screen could be none
-    of those. So one look is the last look there, and the reader is asked for
-    no flag to say so.
+    redirected or captured, and a view that went on looking would write another
+    picture into that pipe, that file or that log at every look. So one look is
+    the last look there, and the reader is asked for no flag to say so.
 
     A round records its ending as soon as its own child has gone, and whatever
     it was still writing lands after that, so a view that finds itself over

@@ -17,6 +17,7 @@ from clocks import PINNED
 from conftest import FIXTURES, LABEL
 from records import write_feed, write_round, write_session, write_tick
 from rich.console import Console
+from rich.control import Control
 from rich.text import Text
 
 from dreamcatcher.documents import append_text, write_text
@@ -44,6 +45,17 @@ LOOKED_AT = PINNED + timedelta(hours=2)
 
 # How wide the console is, so a line wraps in the same place every run.
 WIDTH = 100
+
+# How tall the console is, so a picture is cut in the same place every run. A
+# view on the alternate screen fills the screen and cuts what does not fit, and
+# no picture a test here draws is this tall.
+HEIGHT = 40
+
+# What a view writes to take the terminal's alternate screen, and what it
+# writes to hand it back. Rich owns both codes, so they are read from rich
+# rather than spelled out again here.
+SCREEN_TAKEN = Control.alt_screen(True).segment.text
+SCREEN_HANDED_BACK = Control.alt_screen(False).segment.text
 
 # The pid the fabricated lock names, and the one the stand-in psutil says is
 # alive. A real pid would differ from run to run and no golden could hold it.
@@ -245,21 +257,31 @@ SESSIONS = {
 }
 
 
-def pinned(written_to, width: int = WIDTH, is_terminal: bool = False) -> Console:
+def pinned(
+    written_to, width: int = WIDTH, is_terminal: bool = False, term: str = "xterm"
+) -> Console:
     """Return a console that renders the same text wherever it runs.
 
     Every setting rich would otherwise take from the shell or the platform is
-    named here: a shell exporting FORCE_COLOR would make it write escape codes,
-    and a legacy Windows console would take a column off its width. Saying it
-    has no colour system pins that too, so a console that says it is a
-    terminal, which is what makes a view follow, still writes plain text.
+    named here. An environment of its own is what pins the shell's share of
+    them, since a shell exporting FORCE_COLOR would make it write escape
+    codes, one exporting LINES would say how tall the screen a view fills is,
+    and one exporting TERM as dumb would stop it writing a control code at
+    all. A legacy Windows console would take a column off its width, and
+    saying it has no colour system pins the colour, so a console that says it
+    is a terminal, which is what makes a view follow, still writes plain text.
+
+    Naming the terminal is how a test asks for the dumb one, which is a
+    terminal a reader watches and rich can draw no picture into.
     """
     return Console(
         file=written_to,
         width=width,
+        height=HEIGHT,
         force_terminal=is_terminal,
         color_system=None,
         legacy_windows=False,
+        _environ={"TERM": term},
     )
 
 
@@ -345,6 +367,48 @@ def test_a_board_a_reader_watches_keeps_up_with_what_the_daemon_writes(
     assert looks == [PAUSE, PAUSE]
     assert "nothing dispatched yet" in board
     assert f"GH13-{STAMP}" in board
+
+
+def test_a_board_a_reader_watches_takes_the_screen_and_hands_it_back(tmp_path, daemon):
+    """The reader gets the terminal back as it was, and their scrollback with it."""
+    state = StateDirectory(tmp_path)
+    fabricate_everything(state)
+    written_to = StringIO()
+
+    show_board(
+        state,
+        pinned(written_to, is_terminal=True),
+        clock=lambda: LOOKED_AT,
+        wait=interrupting,
+    )
+    board = written_to.getvalue()
+
+    # The screen was taken before anything was drawn into it, so nothing the
+    # shell had printed was ever drawn over, and handing it back was the last
+    # thing the view did, so a board the reader has seen enough of leaves
+    # nothing behind.
+    assert board.index(SCREEN_TAKEN) < board.index("daemon running")
+    assert board.endswith(SCREEN_HANDED_BACK)
+
+
+def test_a_board_on_a_dumb_terminal_is_drawn_once_and_returns(tmp_path, daemon):
+    """A dumb terminal takes no control code, so rich draws no picture into one."""
+    state = StateDirectory(tmp_path)
+    fabricate_everything(state)
+    written_to = StringIO()
+
+    show_board(
+        state,
+        pinned(written_to, is_terminal=True, term="dumb"),
+        clock=lambda: LOOKED_AT,
+        wait=refusing,
+    )
+    board = written_to.getvalue()
+
+    # Nothing was drawn over anything, so the reader reads the board itself
+    # rather than the nothing that rich writes into a screen it cannot take.
+    assert "daemon running" in board
+    assert SCREEN_TAKEN not in board
 
 
 def viewed(state, issue: int, width: int = WIDTH) -> str:
@@ -438,6 +502,29 @@ def test_a_session_view_of_a_session_that_is_over_never_waits(issue, tmp_path, d
     )
 
     assert f"GH{issue}-{STAMP}" in written_to.getvalue()
+
+
+def test_a_session_view_of_a_session_that_is_over_keeps_its_last_picture(
+    tmp_path, daemon
+):
+    """GH12 has run its final round, so the view ends and its picture stays."""
+    state = StateDirectory(tmp_path)
+    fabricate_everything(state)
+    written_to = StringIO()
+
+    show_session(
+        state,
+        12,
+        pinned(written_to, is_terminal=True),
+        clock=lambda: LOOKED_AT,
+        wait=refusing,
+    )
+    kept = written_to.getvalue().split(SCREEN_HANDED_BACK)[-1]
+
+    # Handing the screen back took the picture the view ended on with it, so
+    # the view printed that picture where a reader looking the session up
+    # reads it.
+    assert f"GH12-{STAMP}" in kept
 
 
 def followed(state, issue: int, wait=refusing) -> str:
