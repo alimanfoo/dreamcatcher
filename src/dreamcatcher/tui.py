@@ -407,14 +407,15 @@ def _render_vitals(state: StateDirectory, row: SessionRow) -> RenderableType:
         ("effort", record.effort),
     ):
         table.add_row(Text(name), Text(str(value)))
-    return Group(
-        _render_section("session", "blue", table),
-        _render_section("first prompt", "blue", Text(record.prompt)),
-    )
+    return _render_section("session", "blue", table)
 
 
 def _render_rounds(row: SessionRow) -> RenderableType | None:
-    """Return the rounds the session has run, oldest first.
+    """Return the rounds the session has run, newest first.
+
+    The newest round is the one a reader came for, so it opens the section,
+    as the newest session opens the view. Each round keeps the number it ran
+    under, because that is the number `feed --round` takes.
 
     A session that has run none answers nothing.
     """
@@ -422,7 +423,7 @@ def _render_rounds(row: SessionRow) -> RenderableType | None:
     if not rounds:
         return None
     table = _open_table()
-    for number, record in enumerate(rounds, start=1):
+    for number, record in reversed(list(enumerate(rounds, start=1))):
         is_running = row.standing is SessionStanding.WORKING and number == len(rounds)
         table.add_row(
             Text(str(number)),
