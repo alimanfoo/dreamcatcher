@@ -26,16 +26,19 @@ finding it. The spec is corrected by review, not by drift.
 
 ## Dev setup
 
-Install the tools and the commit hooks:
+Install the tools and the commit hooks, then build the navigation index:
 
 ```sh
 uv sync
 uv run pre-commit install
+uv run uncoded sync
 ```
 
 `.python-version` names the interpreter, and CI reads the same file, so every
 machine runs the same Python. `uv sync` installs the `dev` dependency group
-without being asked.
+without being asked. Git ignores everything `uncoded sync` writes, so a fresh
+clone has to build it: the index under `.uncoded/`, and the `uncoded-*` skills
+that "Before you start" tells you to load.
 
 ## Commands
 
@@ -79,11 +82,13 @@ uv run pre-commit run --all-files
 - Run the tests and the checks before every commit. The commit hook runs the
   checks, never the tests.
 - Never commit with `--no-verify`. CI runs the same checks and fails the build.
-- Re-stage and commit again when a hook rewrites a file. The formatters and
-  `uncoded sync` repair what they find, then report the commit as failed, so the
-  repair is already in your working tree.
+- Re-stage and commit again when a hook rewrites a file. The formatters repair
+  what they find, then report the commit as failed, so the repair is already in
+  your working tree.
 - Never edit `.uncoded/` or the `uncoded-*` skills by hand. `uncoded sync`
-  writes them from the source and the docs, and overwrites them on every commit.
+  writes them from the source and the docs, and the commit hook runs it every
+  time, so it overwrites what you wrote. Git ignores them, so your edit never
+  reaches a diff either.
 - Never repair a file under `tests/fixtures/`. Each one is a recording: of what
   a harness streamed, of what gh answered, or of what a view rendered. Tidying
   one makes a golden test assert something that was never produced.
