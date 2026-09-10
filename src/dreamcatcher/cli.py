@@ -27,8 +27,9 @@ HELP_WHEN_A_VIEW_ENDS = (
 # The help that says what a view does to the terminal it runs in, which the two
 # views that draw a picture over the one before give.
 HELP_WHEN_A_VIEW_TAKES_THE_SCREEN = (
-    "It takes the whole terminal while it runs, and hands it back as it found "
-    "it once it ends."
+    "It takes the whole terminal while it runs, and gives it back when it "
+    "ends. A view that ends on its own prints what it last showed. One you "
+    "interrupt leaves nothing behind."
 )
 
 # The help that says what a view does when nothing is watching it, which every
@@ -78,9 +79,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="show an overview of every session and every queued issue",
         description=(
             "Show every session and every queued issue, a section per "
-            "standing, in the order of whose turn it is. "
+            "standing, in the order of whose turn it is. It keeps up until "
+            "you interrupt it. "
             + HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
-            + " It keeps up until you interrupt it. "
+            + " "
             + HELP_WHEN_NOTHING_WATCHES
         ),
     )
@@ -92,10 +94,13 @@ def build_parser() -> argparse.ArgumentParser:
             "Show an overview of the newest session at the issue: what "
             "its dispatch settled, the rounds it has run, the command that "
             "takes the session over by hand, and the older sessions at the "
-            "same issue. "
+            "same issue. It keeps up for as long as the session has another "
+            "round coming. "
+            + HELP_WHEN_A_VIEW_ENDS
+            + " "
             + HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
-            + " It keeps up for as long as the session has another round "
-            "coming. " + HELP_WHEN_A_VIEW_ENDS + " " + HELP_WHEN_NOTHING_WATCHES
+            + " "
+            + HELP_WHEN_NOTHING_WATCHES
         ),
     )
     _take_an_issue(session_parser)

@@ -131,10 +131,9 @@ view left open on one would wait for ever.
 
 Interrupt any view to end it sooner.
 
-A view that ends because nothing more is coming prints the last thing it showed,
-so a `session` view leaves the session on the screen for you to read. One you
-interrupt leaves nothing behind, since interrupting is how you say you have seen
-enough.
+A `session` view that ends because nothing more is coming prints the last thing
+it showed, so the session stays on the screen for you to read. One you interrupt
+leaves nothing behind, since interrupting is how you say you have seen enough.
 
 A view whose output is not a terminal, because you piped it, redirected it or
 captured it, shows what is there once and returns. You need no flag either way.

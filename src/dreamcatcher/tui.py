@@ -95,19 +95,20 @@ def _repaint(
 
     A picture of a state has a current value rather than a history, so every
     look is drawn over the one before rather than under it. rich's Live draws
-    into the terminal's alternate screen, which it fills and hands back as it
-    found it, so the view is the whole of what the reader sees while it is
-    going and whatever the shell printed before it comes back afterwards. A
-    screen is as tall as it is, so a picture that outgrows it is cut at the
-    bottom, which takes the sections a reader came for last: the board is
-    sorted by whose turn it is, so what goes first is what is done.
+    into the terminal's alternate screen, which it fills, so the view is the
+    whole of what the reader sees while it is going and the commands the shell
+    printed above it are not read alongside it. A screen is as tall as it is,
+    so a picture that outgrows it is cut at the bottom, which takes the
+    sections a reader came for last: the board is sorted by whose turn it is,
+    so what goes first is what is done.
 
-    Handing the screen back takes the last picture with it, so a view whose
-    last look found it over prints that picture where the reader can go on
-    reading it. A session that was already over when the view opened is drawn
-    once and printed, which is what a reader looking one up reads. A view that
-    the reader interrupts while something is still coming leaves nothing
-    behind, because interrupting is how they say they have seen enough.
+    Handing the screen back brings the shell's own output back and takes the
+    last picture with it, so a view whose last look found it over prints that
+    picture where the reader can go on reading it. A session that was already
+    over when the view opened is drawn once and printed, which is what a
+    reader looking one up reads. A view that the reader interrupts while
+    something is still coming leaves nothing behind, because interrupting is
+    how they say they have seen enough.
 
     This decides where a look is drawn, and `_keep_looking` decides how long to
     go on looking. A view nobody is watching has no screen to take, so the one

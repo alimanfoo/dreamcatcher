@@ -295,6 +295,12 @@ Rich's `Live` works on Windows terminals, and the console settings the tests
 already pin (`legacy_windows=False` among them) keep the rendering identical
 across platforms.
 
+Rich takes the alternate screen only where the console can give it, and a legacy
+Windows console, one rich cannot turn VT processing on for, cannot. There the
+picture is drawn in place and rich clears it as the view ends, so that reader
+alone still reads the view under the commands above it, and a view that found
+itself over prints its last picture as it does anywhere else.
+
 Interrupting a live view raises `KeyboardInterrupt` on all three platforms,
 which is what ends it.
 
