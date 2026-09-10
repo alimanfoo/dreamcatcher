@@ -19,7 +19,13 @@ from rich.padding import Padding
 from rich.table import Table
 from rich.text import Text
 
-from dreamcatcher.board import Board, Row, Standing, read_board, read_rows_for_issue
+from dreamcatcher.board import (
+    Board,
+    SessionRow,
+    Standing,
+    read_board,
+    read_rows_for_issue,
+)
 from dreamcatcher.clock import now
 from dreamcatcher.documents import read_lines_from
 from dreamcatcher.errors import ReportableError
@@ -111,7 +117,7 @@ def _show_rows(console: Console, board: Board, standing: Standing) -> None:
     _print_section(console, str(standing), COLOURS[standing], table)
 
 
-def _describe_round(row: Row) -> str:
+def _describe_round(row: SessionRow) -> str:
     """Return which round is running, or nothing while none is.
 
     A number says which round only while a round is running. A session between
@@ -124,7 +130,7 @@ def _describe_round(row: Row) -> str:
 
 
 def _render_detail(
-    row: Row,
+    row: SessionRow,
     prefix: str = "",
     continuation_indent: int = 0,
     style: str = "",
@@ -202,7 +208,7 @@ def show_session(
     _show_older_sessions(console, rows[1:])
 
 
-def _show_vitals(console: Console, state: StateDirectory, row: Row) -> None:
+def _show_vitals(console: Console, state: StateDirectory, row: SessionRow) -> None:
     """Show what the dispatch settled, which every round of the session runs with."""
     record = row.session.record
     table = _open_table()
@@ -219,7 +225,7 @@ def _show_vitals(console: Console, state: StateDirectory, row: Row) -> None:
     _print_section(console, "first prompt", "blue", Text(record.prompt))
 
 
-def _show_rounds(console: Console, row: Row) -> None:
+def _show_rounds(console: Console, row: SessionRow) -> None:
     """Show the rounds the session has run, oldest first."""
     rounds = row.session.rounds
     if not rounds:
@@ -256,7 +262,7 @@ def _describe_ending(record: RoundRecord, is_running: bool) -> str:
     return "running" if is_running else "interrupted"
 
 
-def _show_hand_resume(console: Console, state: StateDirectory, row: Row) -> None:
+def _show_hand_resume(console: Console, state: StateDirectory, row: SessionRow) -> None:
     """Show how to carry the session on by hand, when there is one to carry on.
 
     A round of the daemon's own is talking to the harness already, so there is
@@ -273,7 +279,7 @@ def _show_hand_resume(console: Console, state: StateDirectory, row: Row) -> None
     )
 
 
-def _show_older_sessions(console: Console, older: list[Row]) -> None:
+def _show_older_sessions(console: Console, older: list[SessionRow]) -> None:
     """Show the sessions at this issue that came before, newest first."""
     if not older:
         return
@@ -358,7 +364,7 @@ def show_feed(
 
 def _find_rows_for_issue(
     state: StateDirectory, issue: int, clock: Callable[[], datetime]
-) -> list[Row]:
+) -> list[SessionRow]:
     """Return the rows for the issue, newest session first, or refuse if none.
 
     A view of one issue reads that issue's rows rather than the whole board,

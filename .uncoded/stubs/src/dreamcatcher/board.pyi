@@ -16,7 +16,7 @@ from dreamcatcher.words import describe_count, describe_span
 def read_board(state: StateDirectory, clock: Callable[[], datetime]) -> Board:
     ...
 
-def read_rows_for_issue(state: StateDirectory, issue: int, clock: Callable[[], datetime]) -> list[Row]:
+def read_rows_for_issue(state: StateDirectory, issue: int, clock: Callable[[], datetime]) -> list[SessionRow]:
     ...
 
 def _list_queue(tick: LastTick | None, claimed: set[int]) -> list[QueuedIssue]:
@@ -32,7 +32,7 @@ class Standing(StrEnum):
     STUCK = 'stuck'
     DONE = 'done'
 
-class Row:
+class SessionRow:
     session: Session
     standing: Standing
     detail: str
@@ -47,20 +47,20 @@ class Board:
     at: datetime
     daemon_pid: int | None
     tick: LastTick | None
-    rows: list[Row]
+    rows: list[SessionRow]
     queued: list[QueuedIssue]
 
-    def list_standing(self, standing: Standing) -> list[Row]:
+    def list_standing(self, standing: Standing) -> list[SessionRow]:
         ...
 
 class _Look:
     def __init__(self, state: StateDirectory, clock: Callable[[], datetime]) -> None:
         ...
 
-    def list_rows(self, sessions: list[Session]) -> list[Row]:
+    def list_rows(self, sessions: list[Session]) -> list[SessionRow]:
         ...
 
-    def _read_row(self, session: Session) -> Row:
+    def _read_row(self, session: Session) -> SessionRow:
         ...
 
     def _judge_standing(self, session: Session) -> tuple[Standing, str, str | None]:

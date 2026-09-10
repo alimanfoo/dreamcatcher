@@ -32,7 +32,7 @@ src/:
         WAITING:
         STUCK:
         DONE:
-      Row:
+      SessionRow:
         session:
         standing:
         detail:

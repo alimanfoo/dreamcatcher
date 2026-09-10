@@ -56,12 +56,16 @@ class Standing(StrEnum):
 
 
 @dataclass(frozen=True)
-class Row:
-    """One session and how it is doing, as a view shows it.
+class SessionRow:
+    """One session and what one look at the disk found it doing.
 
-    The board holds a row for every session, and a view of one issue holds a
-    row for each session at that issue. An issue dispatched three times has
-    three sessions at one thing, and the newest of them reads first.
+    The session is what the disk holds. The standing, the detail and the last
+    output are what the look concluded about it, so a view shows them and
+    nothing has to judge a session twice.
+
+    The board holds one of these for every session, and a view of one issue
+    holds one for each session at that issue. An issue dispatched three times
+    has three sessions at one thing, and the newest of them reads first.
 
     The detail is what the row says beside the standing, in the words the disk
     put it in. A working session keeps its latest output separate so the view
@@ -99,10 +103,10 @@ class Board:
     at: datetime
     daemon_pid: int | None
     tick: LastTick | None
-    rows: list[Row]
+    rows: list[SessionRow]
     queued: list[QueuedIssue]
 
-    def list_standing(self, standing: Standing) -> list[Row]:
+    def list_standing(self, standing: Standing) -> list[SessionRow]:
         """Return the rows standing there, in the order the board reads them.
 
         Work that is done reads by when its last round started, most recent
@@ -133,7 +137,7 @@ def read_board(state: StateDirectory, clock: Callable[[], datetime] = now) -> Bo
 
 def read_rows_for_issue(
     state: StateDirectory, issue: int, clock: Callable[[], datetime] = now
-) -> list[Row]:
+) -> list[SessionRow]:
     """Return a row for each session at the issue, the newest session first.
 
     A view of one issue reads this rather than the whole board. Judging a
@@ -171,7 +175,7 @@ class _Look:
             {} if self.tick is None else {one.session: one for one in self.tick.waiting}
         )
 
-    def list_rows(self, sessions: list[Session]) -> list[Row]:
+    def list_rows(self, sessions: list[Session]) -> list[SessionRow]:
         """Return a row for every session, the newest session at an issue first.
 
         A session's key closes with the time the session was cut, so sorting by
@@ -185,10 +189,10 @@ class _Look:
             for session in sorted(newest_first, key=lambda one: one.record.issue)
         ]
 
-    def _read_row(self, session: Session) -> Row:
+    def _read_row(self, session: Session) -> SessionRow:
         """Return the session as one row of the board, where it stands."""
         standing, detail, last_output = self._judge_standing(session)
-        return Row(
+        return SessionRow(
             session=session,
             standing=standing,
             detail=detail,
