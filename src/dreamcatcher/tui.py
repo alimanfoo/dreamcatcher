@@ -7,8 +7,8 @@ or to the daemon, so it answers whether the daemon is alive or dead, and
 answers fastest when you most want to look.
 
 The board and one session are pictures of a state, so each is built whole and
-then printed, which is what lets a view hold one and redraw it. A feed is a
-log, so it is printed as it is read, and the reader keeps their scrollback.
+then printed. A feed is a log, so it is printed as it is read, and the reader
+keeps their scrollback.
 
 What the daemon writes stays plain text, and the colour goes on at the moment of
 reading.
@@ -268,7 +268,7 @@ def _render_vitals(state: StateDirectory, row: SessionRow) -> RenderableType:
         ("effort", record.effort),
     ):
         table.add_row(Text(name), Text(str(value)))
-    return _render_parts(
+    return Group(
         _render_section("session", "blue", table),
         _render_section("first prompt", "blue", Text(record.prompt)),
     )

@@ -36,7 +36,9 @@ from dreamcatcher.tui import (
     _paint_written,
     render_board,
     render_session,
+    show_board,
     show_feed,
+    show_session,
 )
 
 # When a view is rendered: two hours after the last thing on the disk happened.
@@ -282,6 +284,17 @@ def test_a_state_directory_renders_as_its_golden_board(name, tmp_path, daemon):
     assert board == (FIXTURES / "board" / f"{name}.txt").read_text(encoding="utf-8")
 
 
+def test_showing_the_board_prints_the_board_it_built(tmp_path, daemon):
+    """The goldens read the value, so this is what pins the printing of it."""
+    state = StateDirectory(tmp_path)
+    fabricate_everything(state)
+    written_to = StringIO()
+
+    show_board(state, pinned(written_to), clock=lambda: LOOKED_AT)
+
+    assert written_to.getvalue() == rendered(state)
+
+
 def test_a_key_too_wide_for_the_console_folds_rather_than_being_cut(tmp_path):
     """Two sessions at one issue differ only in the time their keys carry."""
     state = StateDirectory(tmp_path)
@@ -328,6 +341,17 @@ def test_wrapped_latest_output_keeps_its_indent(tmp_path, daemon):
         "that needs to wrap onto another line.",
     ]
     assert all(line.startswith("  ") and not line.startswith("   ") for line in output)
+
+
+def test_showing_a_session_prints_the_session_view_it_built(tmp_path, daemon):
+    """The goldens read the value, so this is what pins the printing of it."""
+    state = StateDirectory(tmp_path)
+    fabricate_everything(state)
+    written_to = StringIO()
+
+    show_session(state, 13, pinned(written_to), clock=lambda: LOOKED_AT)
+
+    assert written_to.getvalue() == viewed(state, 13)
 
 
 @pytest.mark.parametrize("name", sorted(SESSIONS))
