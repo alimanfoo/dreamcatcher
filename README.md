@@ -108,7 +108,7 @@ reads what the daemon left under `.dreamcatcher/` and asks GitHub nothing, so
 each answers whether the daemon is running or long dead. Run them from the same
 checkout.
 
-Every view stays on the screen and keeps up while you watch it, so there is
+Every view keeps up with what the daemon writes while you watch it, so there is
 nothing to wrap it in.
 
 `board` and `session` take the whole terminal while they are going, and hand it

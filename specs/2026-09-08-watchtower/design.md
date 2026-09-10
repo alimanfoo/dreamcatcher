@@ -227,10 +227,10 @@ record says it is one of the sessions asked for.
 `StateDirectory` is what a process reads the directory through, so that is what
 holds the records it has read, in `round_reader`. Whoever holds the directory
 holds them, and holds them for as long: the daemon holds one for its whole run,
-a view holds one for as long as it stays on the screen, and a process that looks
-once lets both go together. So `read_sessions` and `read_board` take what they
-always took, nothing has a reader threaded through it, and nothing about how
-long to keep one has to be remembered.
+a view holds one for as long as it runs, and a process that looks once lets both
+go together. So `read_sessions` and `read_board` take what they always took,
+nothing has a reader threaded through it, and nothing about how long to keep one
+has to be remembered.
 
 This deliberately does not lean on a session being finished. It is tempting to
 say that a session whose final round has completed and whose pull request is
@@ -356,12 +356,12 @@ from a remembered position is `seek`, `read` and one split, so there is nothing
 there for a library to do. A library that reads the lines it has not read yet,
 `pygtail` for one, keeps its position in a file of its own beside the log and
 handles log rotation, and a view wants neither: it holds its position for as
-long as it is on the screen, and nothing rotates a feed. `mmap.rfind` would
-replace the backward search for a feed's last line, and that is the one place
-with machinery to lose, but the daemon appends to that file while the view reads
-it, and touching a mapping of a file that has since been truncated raises
-`SIGBUS`, which takes the process down rather than raising an exception. A log
-viewer built on a mapping hit exactly that
+long as it runs, and nothing rotates a feed. `mmap.rfind` would replace the
+backward search for a feed's last line, and that is the one place with machinery
+to lose, but the daemon appends to that file while the view reads it, and
+touching a mapping of a file that has since been truncated raises `SIGBUS`,
+which takes the process down rather than raising an exception. A log viewer
+built on a mapping hit exactly that
 ([Textualize/toolong#9](https://github.com/Textualize/toolong/issues/9)). An
 empty file cannot be mapped on Windows at all. `seek` and `read` behave the same
 on all three platforms and cannot take a view down, whatever happens to the file
