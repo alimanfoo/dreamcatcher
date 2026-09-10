@@ -169,7 +169,8 @@ def fabricate_a_dead_daemon(state):
 def fabricate_the_cap(state):
     """A daemon at its cap, which peeked at nothing and holds every session."""
     holding(state)
-    write_feed(written(state, 13, running(30)), 1, Line(PINNED, "[Bash] pytest"))
+    directory = written(state, 13, running(30))
+    write_feed(directory, 1, Line(PINNED + timedelta(minutes=31), "[Bash] pytest"))
     written(state, 20, ended(1))
     hold = "at cap: 1 of 1 rounds running"
     write_tick(
@@ -331,7 +332,8 @@ def test_a_board_a_reader_watches_keeps_up_with_what_the_daemon_writes(
         if len(looks) > 1:
             raise KeyboardInterrupt
         holding(state)
-        write_feed(written(state, 13, running(30)), 1, Line(PINNED, "[Bash] pytest"))
+        directory = written(state, 13, running(30))
+        write_feed(directory, 1, Line(PINNED + timedelta(minutes=31), "[Bash] pytest"))
 
     show_board(
         state, pinned(written_to, is_terminal=True), clock=lambda: LOOKED_AT, wait=wait

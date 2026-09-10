@@ -139,7 +139,8 @@ in the order of whose turn it is:
 
 - `needs you` is a session with a pull request open that the agent has nothing
   left to do on, so it is ready for you to review.
-- `agent working` is a live round, with the last thing it said and how long ago.
+- `agent working` is a live round, with how long it has been running, the last
+  thing it said and how long ago.
 - `waiting` is a session the next tick will pick up, with what it is waiting on.
 - `stuck` is a session no tick can move on, with where to read what happened.
 - `queued` is the labelled issues not dispatched yet, each with the reason it

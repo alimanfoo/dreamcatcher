@@ -492,7 +492,8 @@ Commits are not marked; the relay only filters posts.
 `scry` sorts sessions and queued issues by whose turn it is:
 
 - needs you: PR open, no live round, nothing waiting — with idle age.
-- agent working: live round — with the last feed event and its age.
+- agent working: live round — with how long the round has been running, and the
+  last feed event and its age.
 - waiting: posts peeked but another launch took this tick's slot, or an
   interrupted or errored round awaiting its carry-on retry — with the last exit
   status, so a run of usage-limit failures reads as what it is. (While the
@@ -510,16 +511,20 @@ Every row that names a session names it by the session's own key, which is the
 name `run` prints for it too, so one session reads as one name wherever you meet
 it. A queued row names an issue and not a session, so it reads `GH<n>`.
 
-A working row opens with the round that is running:
-`round 2, last output 3m ago`. No other row names a round, since a session
+A working row opens with the round that is running, and how long it has been
+running: `round 2, running 8m, last output 3m ago`. How long it has run reads
+before what it last said, so a round going far longer than the others shows as
+one however recently it spoke. No other row names a round, since a session
 between rounds has one behind it and another to come, so a bare number there
 would read as either.
 
 Repeat sessions group under their issue: three sessions for one issue read as
 three goes at one thing, current one first. `scry GH123` shows the newest
-session, older sessions listed beneath it. The session view opens with the key,
-and shows vitals (the session's label, its branch, its worktree, and the
-harness, model and effort it was dispatched with, then the literal first
+session, older sessions listed beneath it. The session view opens with the key
+and where the session stands, in the words the board's own row gives it, so a
+working session says there how long its round has been running and what it last
+said. It then shows vitals (the session's label, its branch, its worktree, and
+the harness, model and effort it was dispatched with, then the literal first
 prompt), the round list with causes and durations, and — when no round is live —
 the exact command to resume the session interactively by hand
 (`claude --continue` from the worktree, or the matching `codex resume --last`),
