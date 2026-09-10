@@ -8,7 +8,7 @@ from dreamcatcher.errors import ReportableError
 
 READERS = [pytest.param(read_toml, id='toml'), pytest.param(read_json, id='json')]
 
-def write(path: Path, text: str) -> Path:
+def write(*, path: Path, text: str) -> Path:
     ...
 
 def test_a_valid_document_reads_back(tmp_path):
@@ -26,7 +26,7 @@ def test_an_unreadable_document_says_so(tmp_path, read):
 def test_a_document_that_is_not_utf_8_says_so(tmp_path, read):
     ...
 
-def growing(path: Path, written: str) -> Path:
+def growing(*, path: Path, written: str) -> Path:
     ...
 
 def test_a_file_reads_as_the_lines_it_holds_and_where_they_end(tmp_path):

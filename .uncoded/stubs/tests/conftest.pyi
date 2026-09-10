@@ -53,16 +53,16 @@ def pull_requests(*, listed: Sequence[tuple[int, str]]) -> str:
 def pages(*, posts: Sequence[dict]) -> str:
     ...
 
-def recorded_posts(source: str) -> str:
+def recorded_posts(*, source: str) -> str:
     ...
 
 def git(*, arguments: Sequence[str], cwd: Path) -> str:
     ...
 
-def gone(pid: int) -> bool:
+def gone(*, pid: int) -> bool:
     ...
 
-def commit(path: Path, message: str) -> None:
+def commit(*, path: Path, message: str) -> None:
     ...
 
 def repo(tmp_path):

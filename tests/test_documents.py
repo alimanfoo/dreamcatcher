@@ -25,20 +25,20 @@ class Sample(Document):
     count: int = 1
 
 
-def write(path: Path, text: str) -> Path:
+def write(*, path: Path, text: str) -> Path:
     document = path / "sample.toml"
     document.write_text(text, encoding="utf-8")
     return document
 
 
 def test_a_valid_document_reads_back(tmp_path):
-    document = write(tmp_path, 'name = "probe"\ncount = 3\n')
+    document = write(path=tmp_path, text='name = "probe"\ncount = 3\n')
 
     assert read_toml(model=Sample, path=document) == Sample(name="probe", count=3)
 
 
 def test_a_valid_json_document_reads_back(tmp_path):
-    document = write(tmp_path, '{"name": "probe", "count": 3}')
+    document = write(path=tmp_path, text='{"name": "probe", "count": 3}')
 
     assert read_json(model=Sample, path=document) == Sample(name="probe", count=3)
 
@@ -66,7 +66,7 @@ def test_a_document_that_is_not_utf_8_says_so(tmp_path, read):
         read(model=Sample, path=document)
 
 
-def growing(path: Path, written: str) -> Path:
+def growing(*, path: Path, written: str) -> Path:
     """Write a file that something adds a line at a time to, and return it.
 
     The bytes go down as they are written. A text-mode write turns each line
@@ -79,14 +79,16 @@ def growing(path: Path, written: str) -> Path:
 
 
 def test_a_file_reads_as_the_lines_it_holds_and_where_they_end(tmp_path):
-    assert read_lines_from(path=growing(tmp_path, "first\nsecond\n"), position=0) == (
+    assert read_lines_from(
+        path=growing(path=tmp_path, written="first\nsecond\n"), position=0
+    ) == (
         ["first", "second"],
         13,
     )
 
 
 def test_a_read_from_where_the_last_one_stopped_finds_what_arrived_since(tmp_path):
-    file = growing(tmp_path, "first\n")
+    file = growing(path=tmp_path, written="first\n")
     _, position = read_lines_from(path=file, position=0)
 
     append_text(text="second\n", path=file)
@@ -95,14 +97,16 @@ def test_a_read_from_where_the_last_one_stopped_finds_what_arrived_since(tmp_pat
 
 
 def test_a_line_still_being_written_is_not_one_a_file_holds(tmp_path):
-    assert read_lines_from(path=growing(tmp_path, "first\nseco"), position=0) == (
+    assert read_lines_from(
+        path=growing(path=tmp_path, written="first\nseco"), position=0
+    ) == (
         ["first"],
         6,
     )
 
 
 def test_a_line_still_being_written_reads_whole_once_the_rest_lands(tmp_path):
-    file = growing(tmp_path, "first\nseco")
+    file = growing(path=tmp_path, written="first\nseco")
     _, position = read_lines_from(path=file, position=0)
 
     append_text(text="nd\n", path=file)
@@ -111,7 +115,10 @@ def test_a_line_still_being_written_reads_whole_once_the_rest_lands(tmp_path):
 
 
 def test_a_file_with_nothing_in_it_holds_no_lines(tmp_path):
-    assert read_lines_from(path=growing(tmp_path, ""), position=0) == ([], 0)
+    assert read_lines_from(path=growing(path=tmp_path, written=""), position=0) == (
+        [],
+        0,
+    )
 
 
 def test_a_file_that_is_not_there_holds_no_lines(tmp_path):
@@ -132,23 +139,26 @@ def test_lines_that_cannot_be_read_say_so(tmp_path):
 
 
 def test_the_last_line_a_file_holds_is_the_last_one_written_whole(tmp_path):
-    assert read_last_line(path=growing(tmp_path, "first\nsecond\n")) == "second"
+    assert (
+        read_last_line(path=growing(path=tmp_path, written="first\nsecond\n"))
+        == "second"
+    )
 
 
 def test_a_file_holding_one_line_holds_it_as_its_last(tmp_path):
-    assert read_last_line(path=growing(tmp_path, "only\n")) == "only"
+    assert read_last_line(path=growing(path=tmp_path, written="only\n")) == "only"
 
 
 def test_a_line_still_being_written_is_not_the_last_a_file_holds(tmp_path):
-    assert read_last_line(path=growing(tmp_path, "first\nseco")) == "first"
+    assert read_last_line(path=growing(path=tmp_path, written="first\nseco")) == "first"
 
 
 def test_a_file_with_no_whole_line_in_it_yet_holds_no_last_line(tmp_path):
-    assert read_last_line(path=growing(tmp_path, "fir")) is None
+    assert read_last_line(path=growing(path=tmp_path, written="fir")) is None
 
 
 def test_a_file_with_nothing_in_it_holds_no_last_line(tmp_path):
-    assert read_last_line(path=growing(tmp_path, "")) is None
+    assert read_last_line(path=growing(path=tmp_path, written="")) is None
 
 
 def test_a_file_that_is_not_there_holds_no_last_line(tmp_path):
@@ -158,7 +168,10 @@ def test_a_file_that_is_not_there_holds_no_last_line(tmp_path):
 def test_a_last_line_longer_than_one_read_of_the_end_reads_whole(tmp_path):
     long_line = "x" * (BACKWARD_WINDOW * 2 + 1)
 
-    assert read_last_line(path=growing(tmp_path, f"first\n{long_line}\n")) == long_line
+    assert (
+        read_last_line(path=growing(path=tmp_path, written=f"first\n{long_line}\n"))
+        == long_line
+    )
 
 
 def test_a_file_whose_last_line_is_not_utf_8_says_so(tmp_path):
@@ -175,21 +188,21 @@ def test_a_last_line_that_cannot_be_read_says_so(tmp_path):
 
 
 def test_a_document_that_is_not_toml_says_so(tmp_path):
-    document = write(tmp_path, "name = \n")
+    document = write(path=tmp_path, text="name = \n")
 
     with pytest.raises(ReportableError, match="is not valid TOML"):
         read_toml(model=Sample, path=document)
 
 
 def test_a_document_that_is_not_json_says_so(tmp_path):
-    document = write(tmp_path, "not json at all\n")
+    document = write(path=tmp_path, text="not json at all\n")
 
     with pytest.raises(ReportableError, match="Invalid JSON"):
         read_json(model=Sample, path=document)
 
 
 def test_a_document_that_breaks_its_model_lists_every_fault(tmp_path):
-    document = write(tmp_path, 'count = "many"\nextra = true\n')
+    document = write(path=tmp_path, text='count = "many"\nextra = true\n')
 
     with pytest.raises(ReportableError) as error:
         read_toml(model=Sample, path=document)
@@ -204,7 +217,7 @@ def test_a_document_that_breaks_its_model_lists_every_fault(tmp_path):
 
 
 def test_a_json_document_that_breaks_its_model_lists_every_fault(tmp_path):
-    document = write(tmp_path, '{"count": "many", "extra": true}')
+    document = write(path=tmp_path, text='{"count": "many", "extra": true}')
 
     with pytest.raises(ReportableError) as error:
         read_json(model=Sample, path=document)

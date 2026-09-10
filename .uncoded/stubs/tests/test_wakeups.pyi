@@ -22,10 +22,10 @@ def state(tmp_path):
 def gh(gh_with_no_posts):
     ...
 
-def ran(state, number: int, cause: Cause, status: int | None) -> None:
+def ran(*, state, number: int, cause: Cause, status: int | None) -> None:
     ...
 
-def found(state) -> Wakeup | WaitingSession | None:
+def found(*, state) -> Wakeup | WaitingSession | None:
     ...
 
 def test_a_session_that_has_run_no_round_at_all_waits_for_a_person(state):

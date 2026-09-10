@@ -50,7 +50,7 @@ def mapping(checkout):
     return read_config(root=checkout).dispatch[0]
 
 
-def written(state):
+def written(*, state):
     """Return the record that the session wrote about itself."""
     record = state.sessions / KEY / "session.json"
     return SessionRecord.model_validate_json(record.read_text(encoding="utf-8"))
@@ -73,7 +73,7 @@ def test_a_session_cuts_a_branch_of_its_own_from_origins_main_as_it_is_now(
     # before. Only a fetch of its own brings the creation the newer main.
     known = git(arguments=["rev-parse", "origin/main"], cwd=state.root).strip()
     (state.root / "later.txt").write_text("main moved on\n", encoding="utf-8")
-    commit(state.root, "move main on")
+    commit(path=state.root, message="move main on")
     git(arguments=["push", "origin", "main"], cwd=state.root)
     git(arguments=["update-ref", "refs/remotes/origin/main", known], cwd=state.root)
 
@@ -91,7 +91,7 @@ def test_a_session_records_what_it_was_dispatched_with(state, mapping):
         state=state, mapping=mapping, named=Harness.CLAUDE, issue=12, at=PINNED
     )
 
-    assert written(state) == session.record
+    assert written(state=state) == session.record
     assert session.record.issue == 12
     assert session.record.label == "dream:smith"
     assert session.record.harness == Harness.CLAUDE
@@ -124,13 +124,13 @@ def test_a_new_session_has_run_no_rounds_and_its_next_is_its_first(state, mappin
 
 def standing(*, state, rounds: Sequence[RoundRecord]):
     """Return the session that these rounds leave behind, read back from disk."""
-    directory = write_session(state, KEY, 12)
+    directory = write_session(state=state, key=KEY, issue=12)
     for number, record in enumerate(rounds, start=1):
-        write_round(directory, number, record)
+        write_round(directory=directory, number=number, record=record)
     return read_sessions(state=state)[0]
 
 
-def ended(status, minute=0):
+def ended(*, status, minute=0):
     """Return a round that started that minute past the hour and ended."""
     started = PINNED + timedelta(minutes=minute)
     return RoundRecord(
@@ -141,7 +141,7 @@ def ended(status, minute=0):
     )
 
 
-def running(minute=0):
+def running(*, minute=0):
     """Return a round that started that minute past the hour and is still going."""
     return RoundRecord(
         started=PINNED + timedelta(minutes=minute), pid=1, cause=Cause.DISPATCH
@@ -149,7 +149,9 @@ def running(minute=0):
 
 
 def test_a_round_a_session_has_run_is_found_by_the_number_it_ran_as(fabricated):
-    session = standing(state=fabricated, rounds=[ended(0), ended(0, minute=1)])
+    session = standing(
+        state=fabricated, rounds=[ended(status=0), ended(status=0, minute=1)]
+    )
 
     assert session.workspace(number=2) == Workspace(
         worktree=session.record.worktree,
@@ -171,13 +173,15 @@ def test_a_session_whose_last_round_was_interrupted_says_so(fabricated):
 
 
 def test_a_session_whose_last_round_failed_says_the_status_it_failed_with(fabricated):
-    session = standing(state=fabricated, rounds=[ended(2)])
+    session = standing(state=fabricated, rounds=[ended(status=2)])
 
     assert session.describe_unfinished_round() == "the last round failed (exit 2)"
 
 
 def test_a_session_whose_last_round_ended_well_has_left_nothing_unfinished(fabricated):
-    session = standing(state=fabricated, rounds=[ended(1), ended(0, minute=1)])
+    session = standing(
+        state=fabricated, rounds=[ended(status=1), ended(status=0, minute=1)]
+    )
 
     assert session.describe_unfinished_round() is None
 
@@ -186,7 +190,7 @@ def test_a_session_that_has_run_its_final_round_says_so(fabricated):
     session = standing(
         state=fabricated,
         rounds=[
-            ended(0),
+            ended(status=0),
             RoundRecord(
                 started=PINNED + timedelta(minutes=1),
                 pid=1,
@@ -199,40 +203,40 @@ def test_a_session_that_has_run_its_final_round_says_so(fabricated):
     assert session.has_run_final_round
 
 
-def endings(state):
+def endings(*, state):
     """Return how each round of the state directory's one session ended."""
     return [record.ending for record in read_sessions(state=state)[0].rounds]
 
 
 def test_a_second_read_does_not_open_a_round_record_it_has_already_read(fabricated):
-    directory = write_session(fabricated, KEY, 12)
-    write_round(directory, 1, ended(0))
-    write_round(directory, 2, running(minute=1))
+    directory = write_session(state=fabricated, key=KEY, issue=12)
+    write_round(directory=directory, number=1, record=ended(status=0))
+    write_round(directory=directory, number=2, record=running(minute=1))
     read_sessions(state=fabricated)
 
     # Rewriting the first round's record puts something there that only a read
     # of that file could find. A reader that has read it does not look again.
-    write_round(directory, 1, ended(2))
+    write_round(directory=directory, number=1, record=ended(status=2))
 
-    assert endings(fabricated) == [ended(0).ending, None]
+    assert endings(state=fabricated) == [ended(status=0).ending, None]
 
 
 def test_a_second_read_carries_an_ending_that_landed_since_the_first(fabricated):
-    directory = write_session(fabricated, KEY, 12)
-    write_round(directory, 1, running())
+    directory = write_session(state=fabricated, key=KEY, issue=12)
+    write_round(directory=directory, number=1, record=running())
     read_sessions(state=fabricated)
 
-    write_round(directory, 1, ended(0))
+    write_round(directory=directory, number=1, record=ended(status=0))
 
-    assert endings(fabricated) == [ended(0).ending]
+    assert endings(state=fabricated) == [ended(status=0).ending]
 
 
 def test_a_second_read_finds_a_round_that_has_started_since_the_first(fabricated):
-    directory = write_session(fabricated, KEY, 12)
-    write_round(directory, 1, ended(0))
+    directory = write_session(state=fabricated, key=KEY, issue=12)
+    write_round(directory=directory, number=1, record=ended(status=0))
     read_sessions(state=fabricated)
 
-    write_round(directory, 2, running(minute=1))
+    write_round(directory=directory, number=2, record=running(minute=1))
 
     read = read_sessions(state=fabricated)[0]
 
@@ -243,16 +247,16 @@ def test_a_second_read_finds_a_round_that_has_started_since_the_first(fabricated
 
 
 def test_a_round_that_ended_as_a_later_round_started_reads_back_ended(fabricated):
-    directory = write_session(fabricated, KEY, 12)
-    write_round(directory, 1, running())
+    directory = write_session(state=fabricated, key=KEY, issue=12)
+    write_round(directory=directory, number=1, record=running())
     read_sessions(state=fabricated)
 
     # The first round ended, and the round that carried its work on started,
     # so the record that ended is no longer the session's newest.
-    write_round(directory, 1, ended(0))
-    write_round(directory, 2, running(minute=1))
+    write_round(directory=directory, number=1, record=ended(status=0))
+    write_round(directory=directory, number=2, record=running(minute=1))
 
-    assert endings(fabricated) == [ended(0).ending, None]
+    assert endings(state=fabricated) == [ended(status=0).ending, None]
 
 
 def test_a_session_git_cannot_cut_leaves_no_branch_behind(state, mapping):
@@ -331,11 +335,15 @@ def test_a_sessions_rounds_read_back_in_the_order_they_ran(state, mapping):
     )
     later = PINNED.replace(minute=50)
     directory = state.sessions / KEY
-    write_round(directory, 2, RoundRecord(started=later, pid=1, cause=Cause.DISPATCH))
     write_round(
-        directory,
-        1,
-        RoundRecord(
+        directory=directory,
+        number=2,
+        record=RoundRecord(started=later, pid=1, cause=Cause.DISPATCH),
+    )
+    write_round(
+        directory=directory,
+        number=1,
+        record=RoundRecord(
             started=PINNED,
             pid=1,
             cause=Cause.DISPATCH,

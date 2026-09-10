@@ -9,10 +9,10 @@ from dreamcatcher.git import add_worktree, delete_branch, fetch, remove_worktree
 
 BRANCH = 'dreamcatcher-GH8-20260820-000456'
 
-def session_worktree(root):
+def session_worktree(*, root):
     ...
 
-def worktrees(root):
+def worktrees(*, root):
     ...
 
 def test_a_fetch_brings_origins_main_back(cloned):

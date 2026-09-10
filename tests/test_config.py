@@ -16,13 +16,13 @@ CODEX_SETTINGS = HarnessSettings(
 )
 
 
-def write_config(root: Path, text: str) -> None:
+def write_config(*, root: Path, text: str) -> None:
     """Put a config in the repo root."""
     (root / CONFIG_NAME).write_text(text, encoding="utf-8")
 
 
 def test_a_valid_config_reads_back(tmp_path):
-    write_config(tmp_path, CONFIG)
+    write_config(root=tmp_path, text=CONFIG)
 
     config = read_config(root=tmp_path)
 
@@ -35,7 +35,7 @@ def test_a_valid_config_reads_back(tmp_path):
 
 
 def test_the_settings_the_design_gives_defaults_for_have_them(tmp_path):
-    write_config(tmp_path, CONFIG.replace("interval = 300\n", ""))
+    write_config(root=tmp_path, text=CONFIG.replace("interval = 300\n", ""))
 
     config = read_config(root=tmp_path)
 
@@ -45,7 +45,9 @@ def test_the_settings_the_design_gives_defaults_for_have_them(tmp_path):
 
 
 def test_a_setting_the_config_names_beats_its_default(tmp_path):
-    write_config(tmp_path, 'max_agents = 3\nassignee = "alimanfoo"\n' + CONFIG)
+    write_config(
+        root=tmp_path, text='max_agents = 3\nassignee = "alimanfoo"\n' + CONFIG
+    )
 
     config = read_config(root=tmp_path)
 
@@ -54,7 +56,7 @@ def test_a_setting_the_config_names_beats_its_default(tmp_path):
 
 
 def test_a_label_one_harness_can_run_carries_that_block_alone(tmp_path):
-    write_config(tmp_path, WITHOUT_CODEX)
+    write_config(root=tmp_path, text=WITHOUT_CODEX)
 
     mapping = read_config(root=tmp_path).dispatch[0]
 
@@ -62,7 +64,7 @@ def test_a_label_one_harness_can_run_carries_that_block_alone(tmp_path):
 
 
 def test_a_label_either_harness_can_run_runs_on_the_one_the_run_named(tmp_path):
-    write_config(tmp_path, CONFIG)
+    write_config(root=tmp_path, text=CONFIG)
 
     mapping = read_config(root=tmp_path).dispatch[0]
 
@@ -71,7 +73,7 @@ def test_a_label_either_harness_can_run_runs_on_the_one_the_run_named(tmp_path):
 
 
 def test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named(tmp_path):
-    write_config(tmp_path, WITHOUT_CODEX)
+    write_config(root=tmp_path, text=WITHOUT_CODEX)
 
     mapping = read_config(root=tmp_path).dispatch[0]
 
@@ -127,7 +129,7 @@ def test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named(tmp
 def test_a_config_mistake_names_the_setting_and_the_fault(
     tmp_path, mistake, text, fault
 ):
-    write_config(tmp_path, text)
+    write_config(root=tmp_path, text=text)
 
     with pytest.raises(ReportableError) as error:
         read_config(root=tmp_path)
@@ -139,7 +141,9 @@ def test_a_config_mistake_names_the_setting_and_the_fault(
 # read rather than putting it on a command line.
 @pytest.mark.parametrize("setting", ["model", "effort"])
 def test_a_setting_a_harness_cannot_be_given_names_itself(tmp_path, setting):
-    write_config(tmp_path, CONFIG.replace(f'{setting} = "', f'{setting} = "%TIME% ', 1))
+    write_config(
+        root=tmp_path, text=CONFIG.replace(f'{setting} = "', f'{setting} = "%TIME% ', 1)
+    )
 
     with pytest.raises(ReportableError) as error:
         read_config(root=tmp_path)
@@ -154,7 +158,9 @@ def test_a_setting_a_harness_cannot_be_given_names_itself(tmp_path, setting):
 
 def test_a_prompt_may_hold_what_no_command_line_could_carry(tmp_path):
     written = "/dream:smith GH{issue}\\nfinish 50% of it"
-    write_config(tmp_path, CONFIG.replace("/dream:smith GH{issue}", written, 1))
+    write_config(
+        root=tmp_path, text=CONFIG.replace("/dream:smith GH{issue}", written, 1)
+    )
 
     mapping = read_config(root=tmp_path).dispatch[0]
 

@@ -30,7 +30,7 @@ def fabricated(tmp_path):
 def mapping(checkout):
     ...
 
-def written(state):
+def written(*, state):
     ...
 
 def test_a_session_cuts_a_worktree_of_its_own_under_the_state_directory(state, mapping):
@@ -51,10 +51,10 @@ def test_a_new_session_has_run_no_rounds_and_its_next_is_its_first(state, mappin
 def standing(*, state, rounds: Sequence[RoundRecord]):
     ...
 
-def ended(status, minute):
+def ended(*, status, minute):
     ...
 
-def running(minute):
+def running(*, minute):
     ...
 
 def test_a_round_a_session_has_run_is_found_by_the_number_it_ran_as(fabricated):
@@ -75,7 +75,7 @@ def test_a_session_whose_last_round_ended_well_has_left_nothing_unfinished(fabri
 def test_a_session_that_has_run_its_final_round_says_so(fabricated):
     ...
 
-def endings(state):
+def endings(*, state):
     ...
 
 def test_a_second_read_does_not_open_a_round_record_it_has_already_read(fabricated):

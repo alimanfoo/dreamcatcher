@@ -15,16 +15,16 @@ from dreamcatcher.commands import (
 
 
 def test_a_command_hands_back_what_it_printed(fake):
-    probe = fake("probe")
-    probe.replies("what it said\n")
+    probe = fake(program="probe")
+    probe.replies(stdout="what it said\n")
 
     assert run(program="probe", arguments=["--loudly"]) == "what it said\n"
     assert probe.calls[0].arguments == ["--loudly"]
 
 
 def test_a_command_runs_where_it_is_told(fake, tmp_path):
-    probe = fake("probe")
-    probe.replies("")
+    probe = fake(program="probe")
+    probe.replies(stdout="")
 
     run(program="probe", arguments=[], cwd=tmp_path)
 
@@ -32,7 +32,7 @@ def test_a_command_runs_where_it_is_told(fake, tmp_path):
 
 
 def test_a_program_on_the_path_is_found(fake):
-    fake("probe")
+    fake(program="probe")
 
     assert Path(locate(program="probe")).stem == "probe"
 
@@ -41,7 +41,7 @@ def test_a_program_on_the_path_is_found(fake):
 # shows what taking that directory out of the search is worth. This test sits
 # here even so, where every platform runs it.
 def test_a_program_in_the_current_directory_alone_is_not_found(tmp_path, monkeypatch):
-    install(tmp_path, "probe")
+    install(directory=tmp_path, program="probe")
     monkeypatch.chdir(tmp_path)
 
     with pytest.raises(CommandError, match="not on the PATH"):
@@ -54,8 +54,8 @@ def test_a_program_that_is_not_on_the_path_says_so():
 
 
 def test_a_failure_carries_the_command_and_what_it_said(fake):
-    probe = fake("probe")
-    probe.fails("probe: nothing doing", status=128)
+    probe = fake(program="probe")
+    probe.fails(stderr="probe: nothing doing", status=128)
 
     with pytest.raises(CommandError) as error:
         run(program="probe", arguments=["--try"])
@@ -66,8 +66,8 @@ def test_a_failure_carries_the_command_and_what_it_said(fake):
 
 
 def test_a_failure_that_said_nothing_still_names_the_command(fake):
-    probe = fake("probe")
-    probe.fails("")
+    probe = fake(program="probe")
+    probe.fails(stderr="")
 
     with pytest.raises(CommandError) as error:
         run(program="probe", arguments=[])
@@ -82,8 +82,8 @@ def test_a_command_that_prints_bytes_that_are_not_utf_8_still_reads():
 
 
 def test_an_argument_a_second_reader_would_act_on_still_arrives_whole(fake):
-    probe = fake("probe")
-    probe.replies("")
+    probe = fake(program="probe")
+    probe.replies(stdout="")
 
     run(
         program="probe",
@@ -99,9 +99,9 @@ def test_an_argument_a_second_reader_would_act_on_still_arrives_whole(fake):
 
 
 def test_a_spawned_command_runs_where_it_is_told_and_streams_as_it_goes(fake, tmp_path):
-    probe = fake("probe")
+    probe = fake(program="probe")
     probe.streams(
-        [Line(text="what it said\n"), Line(text="an aside\n", stream=Stream.ERR)]
+        lines=[Line(text="what it said\n"), Line(text="an aside\n", stream=Stream.ERR)]
     )
 
     child = spawn(program="probe", arguments=["--loudly"], cwd=tmp_path)

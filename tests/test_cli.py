@@ -23,8 +23,12 @@ def watching(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
     write_text(text=f"{os.getpid()}\n", path=state.lock)
-    directory = write_session(state, KEY, 13)
-    write_round(directory, 1, RoundRecord(started=PINNED, pid=1, cause=Cause.DISPATCH))
+    directory = write_session(state=state, key=KEY, issue=13)
+    write_round(
+        directory=directory,
+        number=1,
+        record=RoundRecord(started=PINNED, pid=1, cause=Cause.DISPATCH),
+    )
     write_feed(
         directory=directory, number=1, lines=[Line(at=PINNED, text="[Bash] pytest")]
     )
@@ -93,9 +97,9 @@ def test_feed_shows_what_the_session_said(monkeypatch, watching, capsys):
     # after the first one rather than alongside it.
     later = PINNED + timedelta(minutes=1)
     write_round(
-        watching.sessions / KEY,
-        2,
-        RoundRecord(
+        directory=watching.sessions / KEY,
+        number=2,
+        record=RoundRecord(
             started=later,
             pid=1,
             cause=Cause.FINAL,

@@ -12,31 +12,31 @@ from time import sleep
 
 UNSCRIPTED = 97
 
-def recorded(path: Path) -> list[Line]:
+def recorded(*, path: Path) -> list[Line]:
     ...
 
-def install(directory: Path, program: str) -> Fake:
+def install(*, directory: Path, program: str) -> Fake:
     ...
 
-def replay(base: Path, arguments: list[str]) -> int:
+def replay(*, base: Path, arguments: list[str]) -> int:
     ...
 
-def _launcher(base: Path) -> None:
+def _launcher(*, base: Path) -> None:
     ...
 
-def _scripted(base: Path) -> Path:
+def _scripted(*, base: Path) -> Path:
     ...
 
-def _scripted_for(base: Path, arguments: list[str]) -> dict | None:
+def _scripted_for(*, base: Path, arguments: list[str]) -> dict | None:
     ...
 
-def _taken(base: Path) -> Path:
+def _taken(*, base: Path) -> Path:
     ...
 
-def _append(path: Path, line: dict) -> None:
+def _append(*, path: Path, line: dict) -> None:
     ...
 
-def _lines(path: Path) -> list[dict]:
+def _lines(*, path: Path) -> list[dict]:
     ...
 
 class Stream(StrEnum):
@@ -56,14 +56,14 @@ class Fake:
     base: Path
     calls: list[Call]
 
-    def replies(self, stdout: str, *, to: str) -> None:
+    def replies(self, *, stdout: str, to: str) -> None:
         ...
 
-    def fails(self, stderr: str, status: int, *, to: str) -> None:
+    def fails(self, *, stderr: str, status: int, to: str) -> None:
         ...
 
-    def streams(self, lines: list[Line], delay: float, status: int, *, to: str) -> None:
+    def streams(self, *, lines: list[Line], delay: float, status: int, to: str) -> None:
         ...
 
-    def _answer(self, lines: list[Line], status: int, delay: float, to: str) -> None:
+    def _answer(self, *, lines: list[Line], status: int, delay: float, to: str) -> None:
         ...

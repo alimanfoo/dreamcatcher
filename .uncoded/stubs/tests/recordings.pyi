@@ -5,5 +5,5 @@ from collections.abc import Iterable
 from dreamcatcher.adapters import Adapter
 from dreamcatcher.feed import Renderer
 
-def rendered(adapter: Adapter, lines: Iterable[str], renderer: Renderer) -> str:
+def rendered(*, adapter: Adapter, lines: Iterable[str], renderer: Renderer) -> str:
     ...

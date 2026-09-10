@@ -142,7 +142,7 @@ def pages(*, posts: Sequence[dict]) -> str:
     return json.dumps([list(posts)])
 
 
-def recorded_posts(source: str) -> str:
+def recorded_posts(*, source: str) -> str:
     """Return what gh answered for one post list of the recorded pull request."""
     recording = FIXTURES / "github" / f"pull-request-{PULL_REQUEST}" / f"{source}.json"
     return recording.read_text(encoding="utf-8")
@@ -153,7 +153,7 @@ def git(*, arguments: Sequence[str], cwd: Path) -> str:
     return run(program="git", arguments=arguments, cwd=cwd)
 
 
-def gone(pid: int) -> bool:
+def gone(*, pid: int) -> bool:
     """Wait a while for the process at pid to end, and say whether it did."""
     # A process that outstays the wait is a process that is still there, which
     # is the answer, not a failure.
@@ -162,7 +162,7 @@ def gone(pid: int) -> bool:
     return not psutil.pid_exists(pid)
 
 
-def commit(path: Path, message: str) -> None:
+def commit(*, path: Path, message: str) -> None:
     """Commit everything in the checkout at path, under a throwaway identity."""
     git(arguments=["add", "--all"], cwd=path)
     git(
@@ -196,7 +196,7 @@ def upstream(tmp_path):
     seed = tmp_path / "seed"
     git(arguments=["init", "--initial-branch=main", str(seed)], cwd=tmp_path)
     (seed / "README.md").write_text("what the seed holds\n", encoding="utf-8")
-    commit(seed, "seed the upstream")
+    commit(path=seed, message="seed the upstream")
     git(arguments=["remote", "add", "origin", str(bare)], cwd=seed)
     git(arguments=["push", "origin", "main"], cwd=seed)
     return bare
@@ -227,7 +227,7 @@ def stand_ins(tmp_path):
 def fake(stand_ins, monkeypatch):
     """Return a factory that puts a stand-in for a program first on the PATH."""
     monkeypatch.setenv("PATH", f"{stand_ins}{os.pathsep}{os.environ['PATH']}")
-    return partial(fakes.install, stand_ins)
+    return partial(fakes.install, directory=stand_ins)
 
 
 @pytest.fixture
@@ -237,22 +237,22 @@ def gh_with_no_posts(fake):
     A test scripts over the one list it is about, so it carries only the posts
     that it is about.
     """
-    stand_in = fake("gh")
+    stand_in = fake(program="gh")
     for path in POST_LIST_PATHS.values():
-        stand_in.replies(pages(posts=[]), to=f"api {path}")
+        stand_in.replies(stdout=pages(posts=[]), to=f"api {path}")
     return stand_in
 
 
 @pytest.fixture
 def gh_with_recorded_posts(fake):
     """A gh answering each post list with what a real pull request answered."""
-    stand_in = fake("gh")
+    stand_in = fake(program="gh")
     for source, path in POST_LIST_PATHS.items():
-        stand_in.replies(recorded_posts(source), to=f"api {path}")
+        stand_in.replies(stdout=recorded_posts(source=source), to=f"api {path}")
     return stand_in
 
 
 @pytest.fixture
 def harnesses(fake):
     """Both harness CLIs on the PATH, so a run gets past its startup check."""
-    return {program: fake(program) for program in ("claude", "codex")}
+    return {program: fake(program=program) for program in ("claude", "codex")}

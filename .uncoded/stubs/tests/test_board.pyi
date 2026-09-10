@@ -22,19 +22,19 @@ def state(tmp_path):
 def running(state):
     ...
 
-def ran(state, number: int, cause: Cause, status: int | None):
+def ran(*, state, number: int, cause: Cause, status: int | None):
     ...
 
 def said(*, state, number: int, texts: Sequence[str]):
     ...
 
-def looked(state):
+def looked(*, state):
     ...
 
-def only(state):
+def only(*, state):
     ...
 
-def rows_at(state, issue: int):
+def rows_at(*, state, issue: int):
     ...
 
 def test_the_rows_for_an_issue_are_its_own_sessions_newest_first(running):

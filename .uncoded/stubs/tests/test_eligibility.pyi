@@ -18,7 +18,7 @@ def mapping(*, labels: Sequence[str]) -> Config:
 def gh(fake):
     ...
 
-def weighed(config, claimed):
+def weighed(*, config, claimed):
     ...
 
 def test_an_issue_nothing_stands_in_the_way_of_can_be_dispatched(gh):

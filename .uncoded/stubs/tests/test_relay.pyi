@@ -11,7 +11,7 @@ from dreamcatcher.relay import Inbox, peek_new_posts
 
 BEFORE = '2026-09-03T16:49:35Z'
 
-def peeked(watermark: str) -> list[AnyPost]:
+def peeked(*, watermark: str) -> list[AnyPost]:
     ...
 
 def test_a_pull_request_nobody_has_posted_on_has_nothing_to_relay(gh_with_no_posts):

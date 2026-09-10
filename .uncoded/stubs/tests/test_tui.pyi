@@ -38,43 +38,43 @@ def daemon(monkeypatch):
 def written(*, state, issue: int, records: Sequence[RoundRecord]):
     ...
 
-def ended(minute: int, status: int, cause: Cause):
+def ended(*, minute: int, status: int, cause: Cause):
     ...
 
-def running(minute: int, cause: Cause):
+def running(*, minute: int, cause: Cause):
     ...
 
-def holding(state):
+def holding(*, state):
     ...
 
-def fabricate_nothing(state):
+def fabricate_nothing(*, state):
     ...
 
-def fabricate_everything(state):
+def fabricate_everything(*, state):
     ...
 
-def fabricate_a_dead_daemon(state):
+def fabricate_a_dead_daemon(*, state):
     ...
 
-def fabricate_the_cap(state):
+def fabricate_the_cap(*, state):
     ...
 
-def fabricate_repeat_sessions(state):
+def fabricate_repeat_sessions(*, state):
     ...
 
-def fabricate_a_silent_round(state):
+def fabricate_a_silent_round(*, state):
     ...
 
-def pinned(written_to, width: int, is_terminal: bool, term: str) -> Console:
+def pinned(*, written_to, width: int, is_terminal: bool, term: str) -> Console:
     ...
 
-def interrupting(seconds):
+def interrupting(seconds, /):
     ...
 
-def refusing(seconds):
+def refusing(seconds, /):
     ...
 
-def rendered(state, width: int) -> str:
+def rendered(*, state, width: int) -> str:
     ...
 
 def test_a_state_directory_renders_as_its_golden_board(name, tmp_path, daemon):
@@ -95,7 +95,7 @@ def test_a_board_a_reader_watches_takes_the_screen_and_hands_it_back(tmp_path, d
 def test_a_board_on_a_dumb_terminal_is_drawn_once_and_returns(tmp_path, daemon):
     ...
 
-def viewed(state, issue: int, width: int) -> str:
+def viewed(*, state, issue: int, width: int) -> str:
     ...
 
 def test_wrapped_latest_output_keeps_its_indent(tmp_path, daemon):
@@ -113,7 +113,7 @@ def test_a_session_view_of_a_session_that_is_over_never_waits(issue, tmp_path, d
 def test_a_session_view_of_a_session_that_is_over_keeps_its_last_picture(tmp_path, daemon):
     ...
 
-def followed(state, issue: int, wait) -> str:
+def followed(*, state, issue: int, wait) -> str:
     ...
 
 def test_a_feed_nobody_is_watching_shows_what_is_there_and_returns(tmp_path, daemon):
@@ -155,7 +155,7 @@ def test_a_line_the_view_cannot_read_reaches_the_reader_as_it_was_written(tmp_pa
 def test_a_reader_who_has_seen_enough_interrupts_the_view(tmp_path, daemon):
     ...
 
-def viewed_round(state, issue: int, number: int, wait, is_terminal: bool) -> str:
+def viewed_round(*, state, issue: int, number: int, wait, is_terminal: bool) -> str:
     ...
 
 def test_one_round_of_a_session_reads_on_its_own(tmp_path, daemon):

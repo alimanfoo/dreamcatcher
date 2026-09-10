@@ -33,10 +33,10 @@ def left_running(tmp_path):
 def alone(fake, stand_ins, monkeypatch):
     ...
 
-def idling(root, ticks: int) -> tuple[Daemon, Interrupting, Ticking]:
+def idling(*, root, ticks: int) -> tuple[Daemon, Interrupting, Ticking]:
     ...
 
-def settling(root, ticks: int) -> Daemon:
+def settling(*, root, ticks: int) -> Daemon:
     ...
 
 def test_the_daemon_ticks_on_the_interval_until_the_user_interrupts(watched, harnesses, gh):
@@ -87,16 +87,16 @@ def test_a_round_the_daemon_before_this_one_left_running_is_ended(watched, harne
 def test_a_round_that_recorded_an_ending_is_left_running_by_the_sweep(watched, harnesses, gh, left_running):
     ...
 
-def configure(root, head: str) -> None:
+def configure(*, root, head: str) -> None:
     ...
 
-def held(daemon) -> str:
+def held(*, daemon) -> str:
     ...
 
-def cause_of(daemon, number: int) -> Cause:
+def cause_of(*, daemon, number: int) -> Cause:
     ...
 
-def recorded(daemon) -> LastTick:
+def recorded(*, daemon) -> LastTick:
     ...
 
 def gh(fake):
@@ -111,10 +111,10 @@ def dispatching(cloned, offered, harnesses):
 def resuming(cloned, gh, harnesses):
     ...
 
-def ran(root, number: int, cause: Cause, status: int | None) -> None:
+def ran(*, root, number: int, cause: Cause, status: int | None) -> None:
     ...
 
-def written_round(daemon, number: int, name: str) -> str:
+def written_round(*, daemon, number: int, name: str) -> str:
     ...
 
 def test_a_tick_dispatches_the_oldest_issue_nothing_stands_in_the_way_of(dispatching, harnesses, capsys):
@@ -226,8 +226,8 @@ def test_a_run_that_cannot_be_told_which_account_gh_is_signed_in_as_refuses(clon
     ...
 
 class Interrupting:
-    def __init__(self, ticks: int, settle) -> None:
+    def __init__(self, *, ticks: int, settle) -> None:
         ...
 
-    def __call__(self, seconds: float) -> None:
+    def __call__(self, seconds: float, /) -> None:
         ...

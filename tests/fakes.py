@@ -72,22 +72,22 @@ class Fake:
 
     base: Path
 
-    def replies(self, stdout: str, *, to: str = "") -> None:
+    def replies(self, *, stdout: str, to: str = "") -> None:
         """Answer this on stdout, with a status of zero."""
-        self._answer([Line(text=stdout)], to=to)
+        self._answer(lines=[Line(text=stdout)], to=to)
 
-    def fails(self, stderr: str, status: int = 1, *, to: str = "") -> None:
+    def fails(self, *, stderr: str, status: int = 1, to: str = "") -> None:
         """Fail with this on stderr, and a failing status."""
-        self._answer([Line(text=stderr, stream=Stream.ERR)], status=status, to=to)
+        self._answer(lines=[Line(text=stderr, stream=Stream.ERR)], status=status, to=to)
 
     def streams(
-        self, lines: list[Line], delay: float = 0, status: int = 0, *, to: str = ""
+        self, *, lines: list[Line], delay: float = 0, status: int = 0, to: str = ""
     ) -> None:
         """Answer with these lines, one at a time, as a harness does.
 
         The delay is what leaves a round running long enough to be interrupted.
         """
-        self._answer(lines, status=status, delay=delay, to=to)
+        self._answer(lines=lines, status=status, delay=delay, to=to)
 
     @property
     def calls(self) -> list[Call]:
@@ -98,15 +98,15 @@ class Fake:
                 directory=Path(taken["directory"]),
                 prompt=taken["prompt"],
             )
-            for taken in _lines(_taken(self.base))
+            for taken in _lines(path=_taken(base=self.base))
         ]
 
     def _answer(
-        self, lines: list[Line], status: int = 0, delay: float = 0, to: str = ""
+        self, *, lines: list[Line], status: int = 0, delay: float = 0, to: str = ""
     ) -> None:
         _append(
-            _scripted(self.base),
-            {
+            path=_scripted(base=self.base),
+            line={
                 "when": to.split(),
                 "lines": [asdict(line) for line in lines],
                 "status": status,
@@ -115,7 +115,7 @@ class Fake:
         )
 
 
-def recorded(path: Path) -> list[Line]:
+def recorded(*, path: Path) -> list[Line]:
     """Return the recording at path as the lines a harness streams to stdout."""
     return [
         Line(text=text)
@@ -123,27 +123,27 @@ def recorded(path: Path) -> list[Line]:
     ]
 
 
-def install(directory: Path, program: str) -> Fake:
+def install(*, directory: Path, program: str) -> Fake:
     """Return a stand-in for program, written into directory as a launcher."""
     directory.mkdir(parents=True, exist_ok=True)
     base = directory / program
-    _launcher(base)
+    _launcher(base=base)
     return Fake(base=base)
 
 
-def replay(base: Path, arguments: list[str]) -> int:
+def replay(*, base: Path, arguments: list[str]) -> int:
     """Answer one call to the stand-in at base, as its test scripted it."""
     # UTF-8 whatever the console's own code page is, since whoever wrote the
     # prompt wrote it as UTF-8.
     _append(
-        _taken(base),
-        {
+        path=_taken(base=base),
+        line={
             "arguments": arguments,
             "directory": str(Path.cwd()),
             "prompt": sys.stdin.buffer.read().decode("utf-8"),
         },
     )
-    answer = _scripted_for(base, arguments)
+    answer = _scripted_for(base=base, arguments=arguments)
     if answer is None:
         sys.stderr.write(f"{base.name} was not scripted, and it was asked.\n")
         return UNSCRIPTED
@@ -157,7 +157,7 @@ def replay(base: Path, arguments: list[str]) -> int:
     return int(answer["status"])
 
 
-def _launcher(base: Path) -> None:
+def _launcher(*, base: Path) -> None:
     """Write the launcher that hands a call to replay."""
     replayer = Path(__file__).resolve()
     if os.name == "nt":
@@ -174,12 +174,12 @@ def _launcher(base: Path) -> None:
     base.chmod(base.stat().st_mode | stat.S_IXUSR)
 
 
-def _scripted(base: Path) -> Path:
+def _scripted(*, base: Path) -> Path:
     """The file holding what the stand-in was scripted to answer, a rule a line."""
     return base.with_name(f"{base.name}.scripted.jsonl")
 
 
-def _scripted_for(base: Path, arguments: list[str]) -> dict | None:
+def _scripted_for(*, base: Path, arguments: list[str]) -> dict | None:
     """Return the rule answering this call, or none when no rule answers it.
 
     A rule answers a call whose arguments open with the rule's own words, and
@@ -191,7 +191,7 @@ def _scripted_for(base: Path, arguments: list[str]) -> dict | None:
     """
     answering = [
         rule
-        for rule in reversed(_lines(_scripted(base)))
+        for rule in reversed(_lines(path=_scripted(base=base)))
         if arguments[: len(rule["when"])] == rule["when"]
     ]
     if not answering:
@@ -199,18 +199,18 @@ def _scripted_for(base: Path, arguments: list[str]) -> dict | None:
     return max(answering, key=lambda rule: len(rule["when"]))
 
 
-def _taken(base: Path) -> Path:
+def _taken(*, base: Path) -> Path:
     """The file holding the calls the stand-in took."""
     return base.with_name(f"{base.name}.taken.jsonl")
 
 
-def _append(path: Path, line: dict) -> None:
+def _append(*, path: Path, line: dict) -> None:
     """Add one JSON line to the file at path."""
     with path.open("a", encoding="utf-8") as opened:
         opened.write(json.dumps(line) + "\n")
 
 
-def _lines(path: Path) -> list[dict]:
+def _lines(*, path: Path) -> list[dict]:
     """Return the JSON lines the file at path holds, or none when it is not there."""
     if not path.exists():
         return []
@@ -218,4 +218,4 @@ def _lines(path: Path) -> list[dict]:
 
 
 if __name__ == "__main__":
-    sys.exit(replay(Path(sys.argv[1]), sys.argv[2:]))
+    sys.exit(replay(base=Path(sys.argv[1]), arguments=sys.argv[2:]))

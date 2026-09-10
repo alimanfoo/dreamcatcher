@@ -61,16 +61,16 @@ class Unrenderable(Adapter):
 
     program = "harness"
 
-    def build_first_round(self, launch: Launch) -> Invocation:
+    def build_first_round(self, *, launch: Launch) -> Invocation:
         return Invocation(program=self.program, arguments=[], prompt=launch.prompt)
 
-    def build_resumed_round(self, launch: Launch) -> Invocation:
+    def build_resumed_round(self, *, launch: Launch) -> Invocation:
         return Invocation(program=self.program, arguments=[], prompt=launch.prompt)
 
     def build_hand_resume(self) -> list[str]:
         return [self.program]
 
-    def _events(self, streamed: dict) -> list[Event]:
+    def _events(self, *, streamed: dict) -> list[Event]:
         # A real harness can send a path or a command as something other than
         # text, and the renderer cannot write an event that holds one.
         return [Note(label="read", detail=cast("str", streamed))]
@@ -103,12 +103,12 @@ def straggler(tmp_path):
         psutil.Process(int(path.read_text(encoding="utf-8"))).kill()
 
 
-def written(path):
+def written(*, path):
     """Return what the round recorded about itself."""
     return RoundRecord.model_validate_json(path.read_text(encoding="utf-8"))
 
 
-def within(seconds, holds):
+def within(*, seconds, holds):
     """Wait up to seconds for holds to answer true, and say whether it did."""
     deadline = monotonic() + seconds
     while not holds() and monotonic() < deadline:
@@ -119,8 +119,8 @@ def within(seconds, holds):
 def test_a_round_runs_the_command_it_was_given_in_the_worktree(
     fake, worktree, directory
 ):
-    harness = fake("harness")
-    harness.replies("")
+    harness = fake(program="harness")
+    harness.replies(stdout="")
 
     Round(
         adapter=CLAUDE,
@@ -135,8 +135,8 @@ def test_a_round_runs_the_command_it_was_given_in_the_worktree(
 
 
 def test_a_round_gives_the_harness_its_prompt_to_read(fake, worktree, directory):
-    harness = fake("harness")
-    harness.replies("")
+    harness = fake(program="harness")
+    harness.replies(stdout="")
 
     running = Round(
         adapter=CLAUDE,
@@ -154,7 +154,7 @@ def test_a_round_gives_the_harness_its_prompt_to_read(fake, worktree, directory)
 def test_the_feed_a_round_writes_is_the_feed_its_stream_renders_as(
     fake, worktree, directory
 ):
-    fake("harness").streams(recorded(RECORDING))
+    fake(program="harness").streams(lines=recorded(path=RECORDING))
 
     running = Round(
         adapter=CLAUDE,
@@ -166,14 +166,14 @@ def test_the_feed_a_round_writes_is_the_feed_its_stream_renders_as(
     running.wait()
 
     assert running.workspace.feed.read_text(encoding="utf-8") == rendered(
-        CLAUDE,
-        RECORDING.read_text(encoding="utf-8").splitlines(),
-        Renderer(worktree=worktree, clock=pinned),
+        adapter=CLAUDE,
+        lines=RECORDING.read_text(encoding="utf-8").splitlines(),
+        renderer=Renderer(worktree=worktree, clock=pinned),
     )
 
 
 def test_a_round_keeps_the_harnesss_own_stream_as_it_arrived(fake, worktree, directory):
-    fake("harness").streams(recorded(RECORDING))
+    fake(program="harness").streams(lines=recorded(path=RECORDING))
 
     running = Round(
         adapter=CLAUDE,
@@ -192,8 +192,8 @@ def test_a_round_keeps_the_harnesss_own_stream_as_it_arrived(fake, worktree, dir
 def test_what_the_harness_says_on_stderr_lands_where_it_happened(
     fake, worktree, directory
 ):
-    fake("harness").streams(
-        [
+    fake(program="harness").streams(
+        lines=[
             Line(text="first\n"),
             Line(text="an aside\n", stream=Stream.ERR),
             Line(text="second\n"),
@@ -221,7 +221,9 @@ def test_what_the_harness_says_on_stderr_lands_where_it_happened(
 
 
 def test_a_line_the_feed_cannot_write_costs_that_line_alone(fake, worktree, directory):
-    fake("harness").streams([Line(text='{"said": "hello"}\n'), Line(text="plain\n")])
+    fake(program="harness").streams(
+        lines=[Line(text='{"said": "hello"}\n'), Line(text="plain\n")]
+    )
 
     running = Round(
         adapter=Unrenderable(),
@@ -241,8 +243,8 @@ def test_a_line_the_feed_cannot_write_costs_that_line_alone(fake, worktree, dire
 def test_a_round_says_when_it_started_what_caused_it_and_what_process_it_is(
     fake, worktree, directory
 ):
-    fake("harness").streams(
-        [Line(text="working\n"), Line(text="still working\n")], delay=5
+    fake(program="harness").streams(
+        lines=[Line(text="working\n"), Line(text="still working\n")], delay=5
     )
 
     running = Round(
@@ -254,7 +256,7 @@ def test_a_round_says_when_it_started_what_caused_it_and_what_process_it_is(
     )
 
     assert running.is_alive
-    assert written(running.workspace.record) == RoundRecord(
+    assert written(path=running.workspace.record) == RoundRecord(
         started=PINNED, pid=running.child.pid, cause=CAUSE
     )
 
@@ -262,7 +264,7 @@ def test_a_round_says_when_it_started_what_caused_it_and_what_process_it_is(
 
 
 def test_a_round_that_finished_says_how_it_ended(fake, worktree, directory):
-    fake("harness").streams([Line(text="giving up\n")], status=2)
+    fake(program="harness").streams(lines=[Line(text="giving up\n")], status=2)
 
     running = Round(
         adapter=CLAUDE,
@@ -274,7 +276,7 @@ def test_a_round_that_finished_says_how_it_ended(fake, worktree, directory):
     running.wait()
 
     assert not running.is_alive
-    assert written(running.workspace.record) == RoundRecord(
+    assert written(path=running.workspace.record) == RoundRecord(
         started=PINNED,
         pid=running.child.pid,
         cause=CAUSE,
@@ -283,8 +285,8 @@ def test_a_round_that_finished_says_how_it_ended(fake, worktree, directory):
 
 
 def test_a_round_somebody_stopped_says_no_ending(fake, worktree, directory):
-    fake("harness").streams(
-        [Line(text="working\n"), Line(text="still working\n")], delay=5
+    fake(program="harness").streams(
+        lines=[Line(text="working\n"), Line(text="still working\n")], delay=5
     )
 
     running = Round(
@@ -297,11 +299,11 @@ def test_a_round_somebody_stopped_says_no_ending(fake, worktree, directory):
     running.stop()
 
     assert not running.is_alive
-    assert written(running.workspace.record).ending is None
+    assert written(path=running.workspace.record).ending is None
 
 
 def test_a_round_stopped_after_it_finished_keeps_its_ending(fake, worktree, directory):
-    fake("harness").streams([Line(text="done\n")])
+    fake(program="harness").streams(lines=[Line(text="done\n")])
 
     running = Round(
         adapter=CLAUDE,
@@ -317,13 +319,15 @@ def test_a_round_stopped_after_it_finished_keeps_its_ending(fake, worktree, dire
     running.stop()
 
     assert not running.is_interrupted
-    assert written(running.workspace.record).ending == Ending(at=PINNED, status=0)
+    assert written(path=running.workspace.record).ending == Ending(at=PINNED, status=0)
 
 
 def test_a_round_that_cannot_write_its_feed_stops_rather_than_stalls(
     fake, worktree, directory
 ):
-    fake("harness").streams([Line(text="first\n"), Line(text="second\n")], delay=0.25)
+    fake(program="harness").streams(
+        lines=[Line(text="first\n"), Line(text="second\n")], delay=0.25
+    )
     directory.mkdir(parents=True)
     (directory / "feed.txt").mkdir()
 
@@ -337,12 +341,12 @@ def test_a_round_that_cannot_write_its_feed_stops_rather_than_stalls(
     running.wait()
 
     assert not running.is_alive
-    assert written(running.workspace.record).ending is None
+    assert written(path=running.workspace.record).ending is None
 
 
 def test_a_round_that_cannot_write_its_prompt_never_starts(fake, worktree, tmp_path):
-    harness = fake("harness")
-    harness.replies("")
+    harness = fake(program="harness")
+    harness.replies(stdout="")
     occupied = tmp_path / "occupied"
     occupied.write_text("something else is here\n", encoding="utf-8")
 
@@ -361,7 +365,7 @@ def test_a_round_that_cannot_write_its_prompt_never_starts(fake, worktree, tmp_p
 def test_a_round_that_cannot_record_its_start_does_not_run_on(
     fake, worktree, directory
 ):
-    fake("harness").streams([Line(text="working\n")], delay=5)
+    fake(program="harness").streams(lines=[Line(text="working\n")], delay=5)
     # A directory where the record goes, so the prompt lands and the record
     # cannot, which is what leaves a child running with nothing to find it by.
     (directory / RECORD).mkdir(parents=True)
@@ -391,8 +395,8 @@ def test_a_round_a_straggler_outlives_still_records_an_ending(
         clock=pinned,
     )
 
-    assert within(30, lambda: not running.is_alive)
-    assert written(running.workspace.record) == RoundRecord(
+    assert within(seconds=30, holds=lambda: not running.is_alive)
+    assert written(path=running.workspace.record) == RoundRecord(
         started=PINNED,
         pid=running.child.pid,
         cause=CAUSE,
@@ -412,7 +416,7 @@ def test_a_round_a_straggler_outlives_still_stops(worktree, directory, straggler
         cause=CAUSE,
         clock=pinned,
     )
-    assert within(30, straggler.exists)
+    assert within(seconds=30, holds=straggler.exists)
 
     # On its own thread, because a stop that waited on the straggler would
     # hang the suite rather than fail this test.
@@ -422,4 +426,4 @@ def test_a_round_a_straggler_outlives_still_stops(worktree, directory, straggler
 
     assert not stopping.is_alive()
     assert not running.is_alive
-    assert written(running.workspace.record).ending is None
+    assert written(path=running.workspace.record).ending is None
