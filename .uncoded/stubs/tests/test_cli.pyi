@@ -15,7 +15,7 @@ from dreamcatcher.feed import Line
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.state import StateDirectory
 
-SESSION = 'GH13-20260819-184158'
+KEY = 'GH13-20260819-184158'
 
 def watching(tmp_path):
     ...
