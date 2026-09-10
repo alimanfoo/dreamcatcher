@@ -85,6 +85,7 @@ src/:
     cli.py:
       ISSUE:
       HELP_WHEN_A_VIEW_ENDS:
+      HELP_WHEN_A_VIEW_TAKES_THE_SCREEN:
       HELP_WHEN_NOTHING_WATCHES:
       build_parser:
       _take_an_issue:

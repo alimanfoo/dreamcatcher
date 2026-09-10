@@ -111,17 +111,30 @@ seen enough, so it ends without a message.
 
 ### Repainting and appending
 
-The board and the session view are pictures of a state, so they are redrawn in
-place with rich's `Live`. The feed is a log, so it appends: each pass prints
-what arrived since the last one, and the reader keeps their scrollback. Under
-`Live` a long feed would be clipped to the height of the screen and everything
-above it lost, which is the opposite of what a feed is for.
+The board and the session view are pictures of a state, so they take the
+terminal's alternate screen and rich's `Live` draws each look over the one
+before. A view that owns the screen is the whole of what a reader sees while it
+is going, so a board is never read under the commands the shell printed above
+it, and a screen handed back as it was found leaves the reader their prompt and
+their scrollback.
 
-A picture is clipped too, and that is right for a picture: a place on the screen
-is as tall as the screen, and what a picture holds now is all a reader wants. A
-board taller than the screen is cut at the bottom, which takes its sections in
-reverse order of whose turn it is, so `done` goes before anything a reader came
-for.
+The feed is a log, so it appends: each pass prints what arrived since the last
+one, and the reader keeps their scrollback as it grows. On a screen a long feed
+would be cut to the height of that screen and everything above it lost, which is
+the opposite of what a feed is for.
+
+A picture is cut too, and that is right for a picture: a screen is as tall as it
+is, and what a picture holds now is all a reader wants. A board taller than the
+screen is cut at the bottom, which takes its sections in reverse order of whose
+turn it is, so `done` goes before anything a reader came for.
+
+Handing the screen back takes the last picture with it, so a view that has seen
+the last of what it shows prints that picture as it goes, where the reader can
+go on reading it. `session` on a session that is already over is drawn once and
+then printed, which is what a reader looking one up reads, and without the
+printing they would read nothing at all. A view that the reader interrupts
+leaves nothing behind, because interrupting is how they say they have seen
+enough.
 
 These are two mechanisms because they are two kinds of thing, not two ways of
 doing one thing. A state has a current value. A log has an end.
