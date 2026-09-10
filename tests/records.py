@@ -20,7 +20,7 @@ def write_session(state: StateDirectory, key: str, issue: int) -> Path:
     (state.worktrees / key).mkdir(parents=True)
     directory = state.sessions / key
     write_json(
-        sessions.SessionRecord(
+        document=sessions.SessionRecord(
             issue=issue,
             label="dream:smith",
             branch=f"{sessions.BRANCH_PREFIX}{key}",
@@ -30,7 +30,7 @@ def write_session(state: StateDirectory, key: str, issue: int) -> Path:
             effort="xhigh",
             prompt=f"/dream:smith GH{issue}",
         ),
-        directory / sessions.RECORD,
+        path=directory / sessions.RECORD,
     )
     return directory
 
@@ -39,20 +39,21 @@ def write_round(
     directory: Path, number: int, record: rounds.RoundRecord
 ) -> rounds.RoundRecord:
     """Write the record of one round of the session at this directory."""
-    write_json(record, _workspace(directory, number).record)
+    write_json(document=record, path=_workspace(directory, number).record)
     return record
 
 
 def write_feed(*, directory: Path, number: int, lines: Sequence[Line]) -> None:
     """Write the feed of one round of the session at this directory."""
     write_text(
-        "".join(line.render() for line in lines), _workspace(directory, number).feed
+        text="".join(line.render() for line in lines),
+        path=_workspace(directory, number).feed,
     )
 
 
 def write_tick(state: StateDirectory, tick: LastTick) -> None:
     """Write what the daemon's most recent tick saw."""
-    write_json(tick, state.last_tick)
+    write_json(document=tick, path=state.last_tick)
 
 
 def _workspace(directory: Path, number: int) -> rounds.Workspace:

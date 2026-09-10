@@ -13,5 +13,7 @@ from dreamcatcher.feed import Renderer
 def rendered(adapter: Adapter, lines: Iterable[str], renderer: Renderer) -> str:
     """Return the feed the harness's lines render as, read through adapter."""
     return "".join(
-        renderer.render(event) for line in lines for event in adapter.read(line)
+        renderer.render(event=event)
+        for line in lines
+        for event in adapter.read(line=line)
     )

@@ -215,13 +215,15 @@ def create_session(
         harness=harness,
         model=settings.model,
         effort=settings.effort,
-        prompt=prompts.compose_first_round_prompt(settings.prompt, issue),
+        prompt=prompts.compose_first_round_prompt(
+            template=settings.prompt, issue=issue
+        ),
     )
     directory = state.sessions / key
-    fetch(state.root)
+    fetch(root=state.root)
     try:
-        add_worktree(state.root, record.worktree, record.branch)
-        write_json(record, directory / RECORD)
+        add_worktree(root=state.root, path=record.worktree, branch=record.branch)
+        write_json(document=record, path=directory / RECORD)
     except ReportableError:
         discard_session(state, record)
         raise
@@ -232,7 +234,7 @@ def _read_session(state: StateDirectory, directory: Path) -> Session:
     """Return the session whose own files sit in this directory."""
     return Session(
         directory=directory,
-        record=read_json(SessionRecord, directory / RECORD),
+        record=read_json(model=SessionRecord, path=directory / RECORD),
         rounds=state.round_reader.read_records(directory / ROUNDS),
         watermark=_read_watermark(directory),
     )
@@ -252,7 +254,7 @@ def _read_watermark(directory: Path) -> str:
     path = directory / WATERMARK
     if not path.exists():
         return ""
-    return read_text(path).strip()
+    return read_text(path=path).strip()
 
 
 def advance_watermark(session: Session, newest: str) -> None:
@@ -263,7 +265,7 @@ def advance_watermark(session: Session, newest: str) -> None:
     session has heard nothing, so a daemon that died before the round started
     reads those same posts again on its next tick rather than losing them.
     """
-    write_text(newest, session.directory / WATERMARK)
+    write_text(text=newest, path=session.directory / WATERMARK)
 
 
 def discard_session(state: StateDirectory, record: SessionRecord) -> None:
@@ -284,6 +286,6 @@ def discard_session(state: StateDirectory, record: SessionRecord) -> None:
     nothing.
     """
     with suppress(CommandError):
-        remove_worktree(state.root, record.worktree)
+        remove_worktree(root=state.root, path=record.worktree)
     with suppress(CommandError):
-        delete_branch(state.root, record.branch)
+        delete_branch(root=state.root, branch=record.branch)

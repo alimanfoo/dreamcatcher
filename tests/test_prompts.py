@@ -21,9 +21,9 @@ OPENINGS = {
 
 
 def test_a_template_holding_other_words_in_braces_keeps_them():
-    assert compose_first_round_prompt("read {the design} for GH{issue}", 12).startswith(
-        "read {the design} for GH12\n"
-    )
+    assert compose_first_round_prompt(
+        template="read {the design} for GH{issue}", issue=12
+    ).startswith("read {the design} for GH12\n")
 
 
 @pytest.mark.parametrize("harness", list(Harness))
@@ -33,7 +33,7 @@ def test_the_prompt_that_opens_a_session_is_its_template_then_the_postscript(
     (tmp_path / CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
     settings = read_config(tmp_path).dispatch[0].harness_settings[harness]
 
-    composed = compose_first_round_prompt(settings.prompt, 12)
+    composed = compose_first_round_prompt(template=settings.prompt, issue=12)
 
     assert composed == OPENINGS[harness] + POSTSCRIPT
 
@@ -48,7 +48,7 @@ def test_the_prompt_that_hands_over_an_inbox_names_the_pull_request_and_the_file
 ):
     inbox = tmp_path / "inbox.json"
 
-    composed = compose_inbox_prompt(52, inbox)
+    composed = compose_inbox_prompt(pull_request=52, inbox=inbox)
 
     assert composed.startswith("PR-inbox prompt for pull request #52:")
     assert str(inbox) in composed
@@ -57,9 +57,9 @@ def test_the_prompt_that_hands_over_an_inbox_names_the_pull_request_and_the_file
 
 def test_every_prompt_the_daemon_composes_asks_for_the_marker():
     composed = [
-        compose_first_round_prompt("/dream:smith GH12", 12),
+        compose_first_round_prompt(template="/dream:smith GH12", issue=12),
         CARRY_ON_PROMPT,
-        compose_inbox_prompt(52, Path("inbox.json")),
+        compose_inbox_prompt(pull_request=52, inbox=Path("inbox.json")),
     ]
 
     assert all(MARKER in prompt for prompt in composed)

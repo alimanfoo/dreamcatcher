@@ -195,11 +195,13 @@ def _compose_resume(
         session=session,
         cause=Cause.POSTS if is_open else Cause.FINAL,
         reason=(
-            f"{describe_count(len(posted), 'new post')} to answer"
+            f"{describe_count(number=len(posted), noun='new post')} to answer"
             if is_open
             else f"the pull request is {pull_request.state.lower()}"
         ),
-        prompt=compose_inbox_prompt(pull_request.number, session.next_workspace.inbox),
+        prompt=compose_inbox_prompt(
+            pull_request=pull_request.number, inbox=session.next_workspace.inbox
+        ),
         inbox=Inbox(state=pull_request.state, posts=posted),
     )
 

@@ -11,12 +11,12 @@ from pathlib import Path
 from dreamcatcher.commands import run
 
 
-def fetch(root: Path) -> None:
+def fetch(*, root: Path) -> None:
     """Bring origin's main branch up to date in the checkout at root."""
     run(program="git", arguments=["fetch", "origin", "main"], cwd=root)
 
 
-def add_worktree(root: Path, path: Path, branch: str) -> None:
+def add_worktree(*, root: Path, path: Path, branch: str) -> None:
     """Create a worktree at path, on a new branch cut from origin/main."""
     run(
         program="git",
@@ -25,7 +25,7 @@ def add_worktree(root: Path, path: Path, branch: str) -> None:
     )
 
 
-def remove_worktree(root: Path, path: Path) -> None:
+def remove_worktree(*, root: Path, path: Path) -> None:
     """Remove the worktree at path, whatever is left in it."""
     run(
         program="git",
@@ -34,7 +34,7 @@ def remove_worktree(root: Path, path: Path) -> None:
     )
 
 
-def delete_branch(root: Path, branch: str) -> None:
+def delete_branch(*, root: Path, branch: str) -> None:
     """Delete the branch, merged or not.
 
     git keeps a branch a worktree has checked out, so remove that worktree

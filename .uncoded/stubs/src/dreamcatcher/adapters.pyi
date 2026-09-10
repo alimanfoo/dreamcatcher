@@ -21,17 +21,17 @@ class Invocation:
 class Adapter(ABC):
     program: ClassVar[str]
 
-    def build_first_round(self, launch: Launch) -> Invocation:
+    def build_first_round(self, *, launch: Launch) -> Invocation:
         ...
 
-    def build_resumed_round(self, launch: Launch) -> Invocation:
+    def build_resumed_round(self, *, launch: Launch) -> Invocation:
         ...
 
     def build_hand_resume(self) -> list[str]:
         ...
 
-    def read(self, line: str) -> list[Event]:
+    def read(self, *, line: str) -> list[Event]:
         ...
 
-    def _events(self, streamed: dict) -> list[Event]:
+    def _events(self, *, streamed: dict) -> list[Event]:
         ...

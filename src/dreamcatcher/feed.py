@@ -43,10 +43,10 @@ class Line:
 
     def render(self) -> str:
         """Return the line as a feed holds it, the line ending included."""
-        return f"{describe_time(self.at)}{GAP}{self.text}\n"
+        return f"{describe_time(at=self.at)}{GAP}{self.text}\n"
 
 
-def compose_round_boundary(number: int, cause: str, at: datetime) -> Line:
+def compose_round_boundary(*, number: int, cause: str, at: datetime) -> Line:
     """Return the line that opens a round, saying what caused it.
 
     A feed holds one round, so nothing writes this line as the round runs.
@@ -56,7 +56,7 @@ def compose_round_boundary(number: int, cause: str, at: datetime) -> Line:
     return Line(at=at, text=f"round {number}: {cause}")
 
 
-def read_feed_line(written: str) -> Line | None:
+def read_feed_line(*, written: str) -> Line | None:
     """Return what one written line says, or nothing when it is not a line.
 
     Every line a feed holds opens with its stamp, so anything else is the end
@@ -72,12 +72,12 @@ def read_feed_line(written: str) -> Line | None:
     return Line(at=at, text=text)
 
 
-def read_last_feed_line(path: Path) -> Line | None:
+def read_last_feed_line(*, path: Path) -> Line | None:
     """Return the last line the feed at path holds, or nothing when it holds none."""
-    written = read_last_line(path)
+    written = read_last_line(path=path)
     if written is None:
         return None
-    return read_feed_line(written)
+    return read_feed_line(written=written)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -119,28 +119,30 @@ class Renderer:
     worktree: PurePath
     clock: Callable[[], datetime] = now
 
-    def render(self, event: Event) -> str:
+    def render(self, *, event: Event) -> str:
         """Return the feed lines the event becomes, or nothing when it has none."""
         if isinstance(event, Note):
-            return self._stamp([self._render_note(event)], event.is_subagent)
+            return self._stamp(
+                contents=[self._render_note(note=event)], is_subagent=event.is_subagent
+            )
         return self._stamp(
-            [line for line in event.text.splitlines() if line.strip()],
-            event.is_subagent,
+            contents=[line for line in event.text.splitlines() if line.strip()],
+            is_subagent=event.is_subagent,
         )
 
-    def _render_note(self, note: Note) -> str:
+    def _render_note(self, *, note: Note) -> str:
         """Return the one line a note becomes."""
-        detail = self._shorten(note.detail)
+        detail = self._shorten(detail=note.detail)
         return f"[{note.label}] {detail}" if detail else f"[{note.label}]"
 
-    def _shorten(self, detail: str) -> str:
+    def _shorten(self, *, detail: str) -> str:
         """Return the detail as one clipped line, without the worktree's path."""
-        one_line = " ".join(self._strip_worktree(detail).split())
+        one_line = " ".join(self._strip_worktree(detail=detail).split())
         if len(one_line) > WIDTH:
             return f"{one_line[:WIDTH]} ..."
         return one_line
 
-    def _strip_worktree(self, detail: str) -> str:
+    def _strip_worktree(self, *, detail: str) -> str:
         """Return the detail with the path of the round's worktree off its front.
 
         The separator has to be there, so a sibling directory whose name starts
@@ -153,7 +155,7 @@ class Renderer:
                 return detail[len(start) :]
         return detail
 
-    def _stamp(self, contents: list[str], is_subagent: bool) -> str:
+    def _stamp(self, *, contents: list[str], is_subagent: bool) -> str:
         """Return the contents as timestamped lines, indented for a subagent."""
         indent = INDENT if is_subagent else ""
         at = self.clock()

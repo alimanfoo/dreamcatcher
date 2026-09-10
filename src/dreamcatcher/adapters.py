@@ -61,11 +61,11 @@ class Adapter(ABC):
     program: ClassVar[str]
 
     @abstractmethod
-    def build_first_round(self, launch: Launch) -> Invocation:
+    def build_first_round(self, *, launch: Launch) -> Invocation:
         """Return how to run a session's first round."""
 
     @abstractmethod
-    def build_resumed_round(self, launch: Launch) -> Invocation:
+    def build_resumed_round(self, *, launch: Launch) -> Invocation:
         """Return how to resume the session with launch's prompt."""
 
     @abstractmethod
@@ -78,7 +78,7 @@ class Adapter(ABC):
         and whoever ran it does the talking.
         """
 
-    def read(self, line: str) -> list[Event]:
+    def read(self, *, line: str) -> list[Event]:
         """Return the feed events from one line of the harness's stream.
 
         Not every line is an event. A CLI prints a warning now and then, and an
@@ -89,7 +89,7 @@ class Adapter(ABC):
         try:
             streamed = json.loads(line)
             return (
-                self._events(streamed)
+                self._events(streamed=streamed)
                 if isinstance(streamed, dict)
                 else [Prose(text=line)]
             )
@@ -97,5 +97,5 @@ class Adapter(ABC):
             return [Prose(text=line)]
 
     @abstractmethod
-    def _events(self, streamed: dict) -> list[Event]:
+    def _events(self, *, streamed: dict) -> list[Event]:
         """Return the feed events one event of this harness's stream turns into."""

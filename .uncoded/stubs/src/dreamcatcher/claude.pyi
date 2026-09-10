@@ -2,8 +2,7 @@
 # src/dreamcatcher/claude.py
 
 import json
-from collections.abc import Callable
-from typing import ClassVar
+from typing import ClassVar, Protocol
 from dreamcatcher.adapters import Adapter, Invocation, Launch
 from dreamcatcher.feed import Event, Note, Prose
 
@@ -11,44 +10,48 @@ ALLOWED_TOOLS = ...
 TELLING_INPUTS = ('command', 'file_path', 'pattern', 'url', 'skill', 'description', 'prompt')
 CLAUDE = Claude()
 
-def _system(streamed: dict) -> list[Event]:
+def _system(*, streamed: dict) -> list[Event]:
     ...
 
-def _blocks(streamed: dict, read: Callable[[dict, bool], list[Event]], is_subagent: bool) -> list[Event]:
+def _blocks(*, streamed: dict, read: _ReadsBlock, is_subagent: bool) -> list[Event]:
     ...
 
-def _spoken(block: dict, is_subagent: bool) -> list[Event]:
+def _spoken(*, block: dict, is_subagent: bool) -> list[Event]:
     ...
 
-def _failure(block: dict, is_subagent: bool) -> list[Event]:
+def _failure(*, block: dict, is_subagent: bool) -> list[Event]:
     ...
 
-def _closing(streamed: dict) -> list[Event]:
+def _closing(*, streamed: dict) -> list[Event]:
     ...
 
-def _usage(cost: float, counts: dict) -> Note:
+def _usage(*, cost: float, counts: dict) -> Note:
     ...
 
-def _telling_input(given: dict) -> str:
+def _telling_input(*, given: dict) -> str:
     ...
 
-def _text(value: object) -> str:
+def _text(*, value: object) -> str:
     ...
 
 class Claude(Adapter):
     program: ClassVar[str] = 'claude'
 
-    def build_first_round(self, launch: Launch) -> Invocation:
+    def build_first_round(self, *, launch: Launch) -> Invocation:
         ...
 
-    def build_resumed_round(self, launch: Launch) -> Invocation:
+    def build_resumed_round(self, *, launch: Launch) -> Invocation:
         ...
 
     def build_hand_resume(self) -> list[str]:
         ...
 
-    def _events(self, streamed: dict) -> list[Event]:
+    def _events(self, *, streamed: dict) -> list[Event]:
         ...
 
-    def _base(self, launch: Launch) -> list[str]:
+    def _base(self, *, launch: Launch) -> list[str]:
+        ...
+
+class _ReadsBlock(Protocol):
+    def __call__(self, *, block: dict, is_subagent: bool) -> list[Event]:
         ...

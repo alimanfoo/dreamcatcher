@@ -174,9 +174,11 @@ class _Look:
         """Take one look at the state directory."""
         self.state = state
         self.at = clock()
-        self.daemon_pid = read_daemon_pid(state.lock)
+        self.daemon_pid = read_daemon_pid(path=state.lock)
         self.tick = (
-            read_json(LastTick, state.last_tick) if state.last_tick.exists() else None
+            read_json(model=LastTick, path=state.last_tick)
+            if state.last_tick.exists()
+            else None
         )
         self.waits: dict[str, WaitingSession] = (
             {} if self.tick is None else {one.session: one for one in self.tick.waiting}
@@ -237,7 +239,7 @@ class _Look:
         if session.has_run_final_round:
             return (
                 SessionStanding.DONE,
-                describe_count(len(session.rounds), "round"),
+                describe_count(number=len(session.rounds), noun="round"),
                 None,
             )
         standing, detail = self._judge_wait(session)
@@ -262,11 +264,11 @@ class _Look:
 
     def _describe_live_round(self, session: Session) -> tuple[str, str | None]:
         """Return how long the running round has been going, and its last line."""
-        since_started = describe_span(self.at - session.rounds[-1].started)
+        since_started = describe_span(span=self.at - session.rounds[-1].started)
         line = self._read_last_said(session)
         if line is None:
             return f"running {since_started}, has said nothing yet", None
-        since_last_output = describe_span(self.at - line.at)
+        since_last_output = describe_span(span=self.at - line.at)
         return (
             f"running {since_started}, last output {since_last_output} ago",
             line.text.strip(),
@@ -277,11 +279,11 @@ class _Look:
         line = self._read_last_said(session)
         if line is None:
             return "idle"
-        return f"idle {describe_span(self.at - line.at)}"
+        return f"idle {describe_span(span=self.at - line.at)}"
 
     def _read_last_said(self, session: Session) -> Line | None:
         """Return the last line the session's last round wrote to its feed."""
-        return read_last_feed_line(session.workspace(len(session.rounds)).feed)
+        return read_last_feed_line(path=session.workspace(len(session.rounds)).feed)
 
     def _list_queued_issues(self, claimed: set[int]) -> list[QueuedIssue]:
         """Return the labelled issues the last tick weighed, in the order they go.
@@ -327,4 +329,4 @@ def _describe_place_in_queue(ahead: int) -> str:
     """
     if ahead == 0:
         return "next"
-    return f"behind {describe_count(ahead, 'other')}"
+    return f"behind {describe_count(number=ahead, noun='other')}"

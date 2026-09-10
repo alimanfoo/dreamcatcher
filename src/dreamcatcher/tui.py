@@ -243,7 +243,7 @@ def _describe_daemon(board: Board) -> Text:
     )
     if board.tick is None:
         return Text(f"{daemon}, no tick recorded")
-    ticked = describe_span(board.at - board.tick.at)
+    ticked = describe_span(span=board.at - board.tick.at)
     held = "" if board.tick.hold is None else f", {board.tick.hold}"
     return Text(f"{daemon}, last tick {ticked} ago{held}")
 
@@ -432,7 +432,7 @@ def _render_rounds(row: SessionRow) -> RenderableType | None:
         table.add_row(
             Text(str(number)),
             Text(record.cause),
-            Text(describe_time(record.started)),
+            Text(describe_time(at=record.started)),
             Text(_describe_run(record)),
             Text(_describe_ending(record, is_running)),
         )
@@ -443,7 +443,7 @@ def _describe_run(record: RoundRecord) -> str:
     """Return how long the round ran, or nothing while it is still running."""
     if record.ending is None:
         return ""
-    return f"ran {describe_span(record.ending.at - record.started)}"
+    return f"ran {describe_span(span=record.ending.at - record.started)}"
 
 
 def _describe_ending(record: RoundRecord, is_running: bool) -> str:
@@ -569,7 +569,7 @@ def _show_one_round(
         if not 1 <= number <= len(session.rounds):
             raise ReportableError(
                 f"{session.key} has run "
-                f"{describe_count(len(session.rounds), 'round')}, "
+                f"{describe_count(number=len(session.rounds), noun='round')}, "
                 f"so it has no round {number}."
             )
         view.show_what_arrived(session, [number])
@@ -623,14 +623,18 @@ class _FeedView:
         if self.positions:
             self.console.print()
         record = session.rounds[round_number - 1]
-        heading = compose_round_boundary(round_number, record.cause, record.started)
+        heading = compose_round_boundary(
+            number=round_number, cause=record.cause, at=record.started
+        )
         self.console.print(_paint(heading, Text(heading.text, style="bold")))
         self.positions[round_number] = 0
 
     def _show_new_lines(self, session: Session, round_number: int) -> None:
         """Show the lines this round has written since the last look at it."""
         feed = session.workspace(round_number).feed
-        lines, position = read_lines_from(feed, self.positions[round_number])
+        lines, position = read_lines_from(
+            path=feed, position=self.positions[round_number]
+        )
         for line in lines:
             self.console.print(_paint_written(line))
         self.positions[round_number] = position
@@ -642,7 +646,7 @@ def _paint_written(written: str) -> Text:
     A line the reader cannot parse reaches the reader as it was written, since
     showing what the feed holds is the whole point of showing it.
     """
-    line = read_feed_line(written)
+    line = read_feed_line(written=written)
     if line is None:
         return Text(written)
     said = Text(line.text)
@@ -652,4 +656,4 @@ def _paint_written(written: str) -> Text:
 
 def _paint(line: Line, said: Text) -> Text:
     """Return the line with its stamp set back, so the words stand out."""
-    return Text.assemble((describe_time(line.at), "dim"), GAP, said)
+    return Text.assemble((describe_time(at=line.at), "dim"), GAP, said)

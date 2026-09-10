@@ -33,7 +33,7 @@ class Codex(Adapter):
 
     program: ClassVar[str] = "codex"
 
-    def build_first_round(self, launch: Launch) -> Invocation:
+    def build_first_round(self, *, launch: Launch) -> Invocation:
         """Return how to run a session's first round.
 
         The command does not say which directory to work in, so whoever runs
@@ -45,14 +45,14 @@ class Codex(Adapter):
                 "exec",
                 "--json",
                 "--approve-for-me",
-                *_settings(launch),
+                *_settings(launch=launch),
                 *_overrides(settings=[NETWORK_ACCESS]),
                 STDIN,
             ],
             prompt=launch.prompt,
         )
 
-    def build_resumed_round(self, launch: Launch) -> Invocation:
+    def build_resumed_round(self, *, launch: Launch) -> Invocation:
         """Return how to resume the session in this directory.
 
         Codex forgets the model and the effort when it resumes, so this sets
@@ -69,7 +69,7 @@ class Codex(Adapter):
                 "resume",
                 "--last",
                 "--json",
-                *_settings(launch),
+                *_settings(launch=launch),
                 *_overrides(settings=RESUME_PERMISSIONS),
                 STDIN,
             ],
@@ -85,7 +85,7 @@ class Codex(Adapter):
         """
         return [self.program, "resume", "--last"]
 
-    def _events(self, streamed: dict) -> list[Event]:
+    def _events(self, *, streamed: dict) -> list[Event]:
         """Return the feed events one Codex event turns into.
 
         An event this does not handle gets no feed line. The feed writes its own
@@ -97,9 +97,9 @@ class Codex(Adapter):
         if kind == "thread.started":
             return [Note(label="session", detail=f"id {streamed['thread_id']}")]
         if kind == "item.completed":
-            return _item(streamed["item"])
+            return _item(item=streamed["item"])
         if kind == "turn.completed":
-            return [_usage(streamed["usage"])]
+            return [_usage(counts=streamed["usage"])]
         # When a turn fails, Codex sends the error twice: once on its own, then
         # again as the reason the turn failed. Keeping only this second one means
         # the reader sees the failure once.
@@ -111,7 +111,7 @@ class Codex(Adapter):
 CODEX = Codex()
 
 
-def _settings(launch: Launch) -> list[str]:
+def _settings(*, launch: Launch) -> list[str]:
     """Return the model and effort flags. Every round of a session uses both."""
     return [
         "--model",
@@ -125,7 +125,7 @@ def _overrides(*, settings: Sequence[str]) -> list[str]:
     return [part for setting in settings for part in ("-c", setting)]
 
 
-def _item(item: dict) -> list[Event]:
+def _item(*, item: dict) -> list[Event]:
     """Return the feed events one finished item turns into.
 
     When the agent does something, the item becomes one action line. Codex's own
@@ -141,7 +141,7 @@ def _item(item: dict) -> list[Event]:
     if kind == "agent_message":
         return [Prose(text=item["text"])]
     if kind == "command_execution":
-        return _command(item)
+        return _command(item=item)
     if kind == "file_change":
         # Codex reports all the files of one patch in a single item, so give each
         # file its own line. Putting what happened to the file in the label
@@ -158,7 +158,7 @@ def _item(item: dict) -> list[Event]:
     return []
 
 
-def _command(item: dict) -> list[Event]:
+def _command(*, item: dict) -> list[Event]:
     """Return the command the agent ran, and how it went.
 
     A command that finished cleanly says all it needs to in one line. Anything
@@ -173,7 +173,7 @@ def _command(item: dict) -> list[Event]:
     return [ran, Note(label=status, detail=item["aggregated_output"])]
 
 
-def _usage(counts: dict) -> Note:
+def _usage(*, counts: dict) -> Note:
     """Return what the round used, counted in tokens.
 
     Codex tells us no prices, so this reports tokens and no money. Each count

@@ -126,10 +126,10 @@ class Daemon:
         account = _refuse_unknown(
             identify_account(), "which account gh is signed in as"
         )
-        with hold(self.state.lock):
+        with hold(path=self.state.lock):
             self._sweep_orphans()
             at = self.clock()
-            _write_output(f"{describe_time(at)}  dreamcatcher is running")
+            _write_output(f"{describe_time(at=at)}  dreamcatcher is running")
             try:
                 with suppress(KeyboardInterrupt):
                     while True:
@@ -166,14 +166,14 @@ class Daemon:
             observed = self._decide_and_launch(repository, account, at)
         except ReportableError as failure:
             observed = LastTick(at=at, hold=str(failure))
-        write_json(observed, self.state.last_tick)
+        write_json(document=observed, path=self.state.last_tick)
         if observed.launched is not None:
             outcome = f"launched round for {observed.launched}"
         elif observed.hold is not None:
             outcome = f"held: {' '.join(observed.hold.split())}"
         else:
             outcome = "nothing launched"
-        _write_output(f"{describe_time(observed.at)}  {outcome}")
+        _write_output(f"{describe_time(at=observed.at)}  {outcome}")
 
     def _decide_and_launch(
         self, repository: str, account: str, at: datetime
@@ -295,7 +295,7 @@ class Daemon:
         """
         session = wakeup.session
         if wakeup.inbox is not None:
-            write_json(wakeup.inbox, session.next_workspace.inbox)
+            write_json(document=wakeup.inbox, path=session.next_workspace.inbox)
         self._start_round(session, wakeup.prompt, wakeup.cause)
         if wakeup.newest_post:
             advance_watermark(session, wakeup.newest_post)
@@ -323,9 +323,9 @@ class Daemon:
             prompt=prompt,
         )
         invocation = (
-            adapter.build_first_round(launch)
+            adapter.build_first_round(launch=launch)
             if cause is Cause.DISPATCH
-            else adapter.build_resumed_round(launch)
+            else adapter.build_resumed_round(launch=launch)
         )
         self.rounds[session.key] = Round(
             adapter, invocation, session.next_workspace, cause, clock=self.clock
@@ -412,7 +412,7 @@ class Daemon:
         for session in read_sessions(self.state):
             for record in session.rounds:
                 if not record.is_complete:
-                    teardown.end(record.pid)
+                    teardown.end(pid=record.pid)
 
 
 def _refuse_unknown(named: str | Unknown, question: str) -> str:

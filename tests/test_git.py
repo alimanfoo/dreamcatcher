@@ -30,7 +30,7 @@ def worktrees(root):
 def test_a_fetch_brings_origins_main_back(cloned):
     git(arguments=["update-ref", "-d", "refs/remotes/origin/main"], cwd=cloned)
 
-    fetch(cloned)
+    fetch(root=cloned)
 
     assert git(arguments=["rev-parse", "origin/main"], cwd=cloned).strip()
 
@@ -38,7 +38,7 @@ def test_a_fetch_brings_origins_main_back(cloned):
 def test_a_worktree_lands_where_it_is_asked_for_on_its_own_branch(cloned):
     path = session_worktree(cloned)
 
-    add_worktree(cloned, path, BRANCH)
+    add_worktree(root=cloned, path=path, branch=BRANCH)
 
     assert (path / "README.md").exists()
     assert BRANCH in git(arguments=["branch", "--list", BRANCH], cwd=cloned)
@@ -47,10 +47,10 @@ def test_a_worktree_lands_where_it_is_asked_for_on_its_own_branch(cloned):
 
 def test_a_worktree_git_refuses_says_what_git_said(cloned):
     path = session_worktree(cloned)
-    add_worktree(cloned, path, BRANCH)
+    add_worktree(root=cloned, path=path, branch=BRANCH)
 
     with pytest.raises(CommandError) as error:
-        add_worktree(cloned, path, BRANCH)
+        add_worktree(root=cloned, path=path, branch=BRANCH)
 
     assert "git worktree add" in str(error.value)
     assert BRANCH in str(error.value)
@@ -58,9 +58,9 @@ def test_a_worktree_git_refuses_says_what_git_said(cloned):
 
 def test_a_removed_worktree_leaves_the_disk_and_the_list(cloned):
     path = session_worktree(cloned)
-    add_worktree(cloned, path, BRANCH)
+    add_worktree(root=cloned, path=path, branch=BRANCH)
 
-    remove_worktree(cloned, path)
+    remove_worktree(root=cloned, path=path)
 
     assert not path.exists()
     assert path not in worktrees(cloned)
@@ -68,25 +68,25 @@ def test_a_removed_worktree_leaves_the_disk_and_the_list(cloned):
 
 def test_removing_a_worktree_that_was_never_made_says_what_git_said(cloned):
     with pytest.raises(CommandError) as error:
-        remove_worktree(cloned, session_worktree(cloned))
+        remove_worktree(root=cloned, path=session_worktree(cloned))
 
     assert "git worktree remove" in str(error.value)
 
 
 def test_a_deleted_branch_leaves_the_branch_list(cloned):
     path = session_worktree(cloned)
-    add_worktree(cloned, path, BRANCH)
-    remove_worktree(cloned, path)
+    add_worktree(root=cloned, path=path, branch=BRANCH)
+    remove_worktree(root=cloned, path=path)
 
-    delete_branch(cloned, BRANCH)
+    delete_branch(root=cloned, branch=BRANCH)
 
     assert git(arguments=["branch", "--list", BRANCH], cwd=cloned) == ""
 
 
 def test_a_branch_a_worktree_holds_is_not_deleted_quietly(cloned):
-    add_worktree(cloned, session_worktree(cloned), BRANCH)
+    add_worktree(root=cloned, path=session_worktree(cloned), branch=BRANCH)
 
     with pytest.raises(CommandError) as error:
-        delete_branch(cloned, BRANCH)
+        delete_branch(root=cloned, branch=BRANCH)
 
     assert "git branch --delete" in str(error.value)

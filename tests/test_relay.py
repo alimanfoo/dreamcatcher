@@ -227,7 +227,9 @@ def test_an_inbox_says_where_the_pull_request_got_to_and_what_each_post_is(
         )
     written = tmp_path / "inbox.json"
 
-    write_json(Inbox(state=PullRequestState.OPEN, posts=peeked()), written)
+    write_json(
+        document=Inbox(state=PullRequestState.OPEN, posts=peeked()), path=written
+    )
 
     read_back = json.loads(written.read_text(encoding="utf-8"))
     assert read_back["state"] == "OPEN"
@@ -242,7 +244,7 @@ def test_an_inbox_says_where_the_pull_request_got_to_and_what_each_post_is(
 def test_an_inbox_a_merged_pull_request_woke_carries_no_post(tmp_path):
     written = tmp_path / "inbox.json"
 
-    write_json(Inbox(state=PullRequestState.MERGED, posts=[]), written)
+    write_json(document=Inbox(state=PullRequestState.MERGED, posts=[]), path=written)
 
     read_back = json.loads(written.read_text(encoding="utf-8"))
     assert read_back == {"state": "MERGED", "posts": []}

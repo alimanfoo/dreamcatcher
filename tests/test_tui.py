@@ -121,7 +121,7 @@ def running(minute: int, cause: Cause = Cause.DISPATCH):
 
 def holding(state):
     """Write the lock, so the board reads a daemon as holding this repo."""
-    write_text(f"{DAEMON_PID}\n", state.lock)
+    write_text(text=f"{DAEMON_PID}\n", path=state.lock)
 
 
 def fabricate_nothing(state):
@@ -749,9 +749,9 @@ def test_a_write_that_never_landed_waits_for_the_look_that_shows_it_whole(
     def wait(seconds):
         looks.append(seconds)
         if len(looks) == 1:
-            append_text("2026-08-19T19:13:58Z  [Grep] pypro", feed)
+            append_text(text="2026-08-19T19:13:58Z  [Grep] pypro", path=feed)
         elif len(looks) == 2:
-            append_text("ject.toml\n", feed)
+            append_text(text="ject.toml\n", path=feed)
         else:
             raise KeyboardInterrupt
 
@@ -769,8 +769,8 @@ def test_a_line_the_view_cannot_read_reaches_the_reader_as_it_was_written(
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state)
     write_text(
-        "the harness said something else\n",
-        state.sessions / f"GH13-{STAMP}" / "rounds" / "2" / "feed.txt",
+        text="the harness said something else\n",
+        path=state.sessions / f"GH13-{STAMP}" / "rounds" / "2" / "feed.txt",
     )
 
     feed = followed(state, 13, wait=interrupting)

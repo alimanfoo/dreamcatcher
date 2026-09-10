@@ -97,7 +97,7 @@ class Child:
         ended here too, once the child itself has gone.
         """
         status = self.process.wait()
-        teardown.end(self.pid)
+        teardown.end(pid=self.pid)
         return status
 
     def kill(self) -> None:
@@ -109,7 +109,7 @@ class Child:
         kill can come long afterwards.
         """
         if self.is_running:
-            teardown.end(self.pid)
+            teardown.end(pid=self.pid)
 
 
 def refuse_unquotable(text: str, /) -> str:
@@ -204,7 +204,7 @@ def spawn(
             errors="replace",
             start_new_session=teardown.OWN_SESSION,
         )
-    teardown.contain(started.pid)
+    teardown.contain(pid=started.pid)
     # This asked for both pipes above, so both are there. subprocess types them
     # for every caller, including the ones that asked for neither.
     return Child(

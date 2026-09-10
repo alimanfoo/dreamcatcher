@@ -30,19 +30,19 @@ class Document(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
 
-def read_toml[DocumentT: Document](model: type[DocumentT], path: Path) -> DocumentT:
+def read_toml[DocumentT: Document](*, model: type[DocumentT], path: Path) -> DocumentT:
     """Return the document the TOML file holds, or raise ReportableError."""
     try:
-        data = tomllib.loads(read_text(path))
+        data = tomllib.loads(read_text(path=path))
     except tomllib.TOMLDecodeError as error:
         raise ReportableError(f"{path} is not valid TOML: {error}.") from error
     try:
         return model.model_validate(data)
     except ValidationError as error:
-        raise ReportableError(_report(path, error)) from error
+        raise ReportableError(_report(path=path, error=error)) from error
 
 
-def read_json[DocumentT: Document](model: type[DocumentT], path: Path) -> DocumentT:
+def read_json[DocumentT: Document](*, model: type[DocumentT], path: Path) -> DocumentT:
     """Return the document the JSON file holds, or raise ReportableError.
 
     Every document the tool writes for itself is JSON, so this is how the tool
@@ -51,12 +51,12 @@ def read_json[DocumentT: Document](model: type[DocumentT], path: Path) -> Docume
     document has.
     """
     try:
-        return model.model_validate_json(read_text(path))
+        return model.model_validate_json(read_text(path=path))
     except ValidationError as error:
-        raise ReportableError(_report(path, error)) from error
+        raise ReportableError(_report(path=path, error=error)) from error
 
 
-def read_text(path: Path) -> str:
+def read_text(*, path: Path) -> str:
     """Return the text the file at path holds, read as UTF-8.
 
     `read_toml` and `read_json` both read through this, and so does a file that
@@ -71,14 +71,14 @@ def read_text(path: Path) -> str:
     message rather than a traceback.
     """
     try:
-        return _decode(path.read_bytes(), path)
+        return _decode(contents=path.read_bytes(), path=path)
     except FileNotFoundError as error:
         raise ReportableError(f"{path} does not exist.") from error
     except OSError as error:
         raise ReportableError(f"cannot read {path}: {error}.") from error
 
 
-def read_lines_from(path: Path, position: int) -> tuple[list[str], int]:
+def read_lines_from(*, path: Path, position: int) -> tuple[list[str], int]:
     """Return the lines the file at path holds whole past this position in it,
     and where the last of them ends.
 
@@ -97,15 +97,17 @@ def read_lines_from(path: Path, position: int) -> tuple[list[str], int]:
 
     Raise ReportableError when the read fails, for the reason read_text does.
     """
-    with _open_bytes(path) as opened:
+    with _open_bytes(path=path) as opened:
         opened.seek(position)
         landed, ending, _ = opened.read().rpartition(b"\n")
     if not ending:
         return [], position
-    return _decode(landed, path).split("\n"), position + len(landed) + len(ending)
+    return _decode(contents=landed, path=path).split("\n"), position + len(
+        landed
+    ) + len(ending)
 
 
-def read_last_line(path: Path) -> str | None:
+def read_last_line(*, path: Path) -> str | None:
     """Return the last line the file at path holds whole, without its ending.
 
     A line with no ending is not one the file holds, for the reason
@@ -122,17 +124,17 @@ def read_last_line(path: Path) -> str | None:
 
     Raise ReportableError when the read fails, for the reason read_text does.
     """
-    with _open_bytes(path) as opened:
-        end_of_line = _find_line_ending(opened, opened.seek(0, SEEK_END))
+    with _open_bytes(path=path) as opened:
+        end_of_line = _find_line_ending(opened=opened, before=opened.seek(0, SEEK_END))
         if end_of_line is None:
             return None
-        ending_before = _find_line_ending(opened, end_of_line)
+        ending_before = _find_line_ending(opened=opened, before=end_of_line)
         start_of_line = 0 if ending_before is None else ending_before + 1
         opened.seek(start_of_line)
-        return _decode(opened.read(end_of_line - start_of_line), path)
+        return _decode(contents=opened.read(end_of_line - start_of_line), path=path)
 
 
-def write_text(text: str, path: Path) -> None:
+def write_text(*, text: str, path: Path) -> None:
     """Write text to path as UTF-8, over whatever was there before.
 
     The write lands whole. The text goes to a file beside the target and then
@@ -146,14 +148,14 @@ def write_text(text: str, path: Path) -> None:
     reads as a message.
     """
     beside = path.with_name(f"{path.name}{WRITING}")
-    _write(text, beside, "w")
+    _write(text=text, path=beside, mode="w")
     try:
         beside.replace(path)
     except OSError as error:
         raise ReportableError(f"cannot write {path}: {error}.") from error
 
 
-def append_text(text: str, path: Path) -> None:
+def append_text(*, text: str, path: Path) -> None:
     """Add text to the end of the file at path, as UTF-8.
 
     Raise ReportableError when the write fails, for the reason write_text does.
@@ -163,16 +165,16 @@ def append_text(text: str, path: Path) -> None:
     reads one reads the lines that have landed, so an append needs no step of
     its own to land whole.
     """
-    _write(text, path, "a")
+    _write(text=text, path=path, mode="a")
 
 
-def write_json(document: Document, path: Path) -> None:
+def write_json(*, document: Document, path: Path) -> None:
     """Write the document to path as JSON."""
-    write_text(document.model_dump_json(indent=2) + "\n", path)
+    write_text(text=document.model_dump_json(indent=2) + "\n", path=path)
 
 
 @contextmanager
-def _open_bytes(path: Path) -> Iterator[IO[bytes]]:
+def _open_bytes(*, path: Path) -> Iterator[IO[bytes]]:
     """Open the file at path for reading bytes, and close it however it ends.
 
     Finding one part of a file takes more than one read of it, so whoever
@@ -195,7 +197,7 @@ def _open_bytes(path: Path) -> Iterator[IO[bytes]]:
         raise ReportableError(f"cannot read {path}: {error}.") from error
 
 
-def _find_line_ending(opened: IO[bytes], before: int) -> int | None:
+def _find_line_ending(*, opened: IO[bytes], before: int) -> int | None:
     """Return where the last line ending before this position is, or nothing.
 
     The file is read backwards a window at a time, so no read of it takes the
@@ -212,7 +214,7 @@ def _find_line_ending(opened: IO[bytes], before: int) -> int | None:
     return None
 
 
-def _decode(contents: bytes, path: Path) -> str:
+def _decode(*, contents: bytes, path: Path) -> str:
     """Return these bytes of the file at path as the UTF-8 text they hold.
 
     Every file the tool reads is UTF-8, whether it reads the whole of one or a
@@ -228,7 +230,7 @@ def _decode(contents: bytes, path: Path) -> str:
         raise ReportableError(f"{path} is not UTF-8 text.") from error
 
 
-def _write(text: str, path: Path, mode: str) -> None:
+def _write(*, text: str, path: Path, mode: str) -> None:
     """Write text to path as UTF-8, making the directory that holds it.
 
     Making the directory here is what lets a caller write a file without
@@ -246,7 +248,7 @@ def _write(text: str, path: Path, mode: str) -> None:
         raise ReportableError(f"cannot write {path}: {error}.") from error
 
 
-def _report(path: Path, error: ValidationError) -> str:
+def _report(*, path: Path, error: ValidationError) -> str:
     """Return the validation failures as one message, a line for each.
 
     Each line is the path to the setting, as the document nests it, and

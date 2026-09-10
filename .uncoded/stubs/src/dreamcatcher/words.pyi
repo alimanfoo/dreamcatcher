@@ -8,11 +8,11 @@ SECONDS_PER_MINUTE = 60
 MINUTES_PER_HOUR = 60
 HOURS_PER_DAY = 24
 
-def describe_time(at: datetime) -> str:
+def describe_time(*, at: datetime) -> str:
     ...
 
-def describe_span(span: timedelta) -> str:
+def describe_span(*, span: timedelta) -> str:
     ...
 
-def describe_count(number: int, noun: str) -> str:
+def describe_count(*, number: int, noun: str) -> str:
     ...

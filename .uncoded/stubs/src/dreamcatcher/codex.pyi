@@ -11,32 +11,32 @@ STDIN = '-'
 RESUME_PERMISSIONS = ...
 CODEX = Codex()
 
-def _settings(launch: Launch) -> list[str]:
+def _settings(*, launch: Launch) -> list[str]:
     ...
 
 def _overrides(*, settings: Sequence[str]) -> list[str]:
     ...
 
-def _item(item: dict) -> list[Event]:
+def _item(*, item: dict) -> list[Event]:
     ...
 
-def _command(item: dict) -> list[Event]:
+def _command(*, item: dict) -> list[Event]:
     ...
 
-def _usage(counts: dict) -> Note:
+def _usage(*, counts: dict) -> Note:
     ...
 
 class Codex(Adapter):
     program: ClassVar[str] = 'codex'
 
-    def build_first_round(self, launch: Launch) -> Invocation:
+    def build_first_round(self, *, launch: Launch) -> Invocation:
         ...
 
-    def build_resumed_round(self, launch: Launch) -> Invocation:
+    def build_resumed_round(self, *, launch: Launch) -> Invocation:
         ...
 
     def build_hand_resume(self) -> list[str]:
         ...
 
-    def _events(self, streamed: dict) -> list[Event]:
+    def _events(self, *, streamed: dict) -> list[Event]:
         ...

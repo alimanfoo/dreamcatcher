@@ -121,4 +121,4 @@ class Config(Document):
 
 def read_config(root: Path) -> Config:
     """Return the configuration the repo at root holds."""
-    return read_toml(Config, root / CONFIG_NAME)
+    return read_toml(model=Config, path=root / CONFIG_NAME)

@@ -14,13 +14,13 @@ INDENT = '  '
 GAP = '  '
 type Event = Note | Prose
 
-def compose_round_boundary(number: int, cause: str, at: datetime) -> Line:
+def compose_round_boundary(*, number: int, cause: str, at: datetime) -> Line:
     ...
 
-def read_feed_line(written: str) -> Line | None:
+def read_feed_line(*, written: str) -> Line | None:
     ...
 
-def read_last_feed_line(path: Path) -> Line | None:
+def read_last_feed_line(*, path: Path) -> Line | None:
     ...
 
 class Line:
@@ -43,17 +43,17 @@ class Renderer:
     worktree: PurePath
     clock: Callable[[], datetime] = now
 
-    def render(self, event: Event) -> str:
+    def render(self, *, event: Event) -> str:
         ...
 
-    def _render_note(self, note: Note) -> str:
+    def _render_note(self, *, note: Note) -> str:
         ...
 
-    def _shorten(self, detail: str) -> str:
+    def _shorten(self, *, detail: str) -> str:
         ...
 
-    def _strip_worktree(self, detail: str) -> str:
+    def _strip_worktree(self, *, detail: str) -> str:
         ...
 
-    def _stamp(self, contents: list[str], is_subagent: bool) -> str:
+    def _stamp(self, *, contents: list[str], is_subagent: bool) -> str:
         ...

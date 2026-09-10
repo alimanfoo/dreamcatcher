@@ -194,7 +194,7 @@ class RoundReader:
         cached = self._cache.get(path)
         if cached is not None:
             return cached
-        record = read_json(RoundRecord, path)
+        record = read_json(model=RoundRecord, path=path)
         if record.is_complete:
             self._cache[path] = record
         return record
@@ -233,7 +233,7 @@ class Round:
         self.is_interrupted = False
         self._ended = Event()
         self._writing = Lock()
-        write_text(invocation.prompt, workspace.prompt)
+        write_text(text=invocation.prompt, path=workspace.prompt)
         self.child = spawn(
             program=invocation.program,
             arguments=invocation.arguments,
@@ -242,8 +242,10 @@ class Round:
         )
         try:
             write_json(
-                RoundRecord(started=self.started, pid=self.child.pid, cause=cause),
-                self.workspace.record,
+                document=RoundRecord(
+                    started=self.started, pid=self.child.pid, cause=cause
+                ),
+                path=self.workspace.record,
             )
         except ReportableError:
             # A round nothing recorded is a round nothing will watch or find
@@ -333,7 +335,7 @@ class Round:
     def _read_stdout(self) -> None:
         """Keep each line that the harness streams, and write what it says."""
         for line in self.child.out:
-            append_text(line, self.workspace.raw)
+            append_text(text=line, path=self.workspace.raw)
             self._append(line, self._render)
 
     def _read_stderr(self) -> None:
@@ -355,13 +357,13 @@ class Round:
             status = self.child.wait()
             if not self.is_interrupted:
                 write_json(
-                    RoundRecord(
+                    document=RoundRecord(
                         started=self.started,
                         pid=self.child.pid,
                         cause=self.cause,
                         ending=Ending(at=self.clock(), status=status),
                     ),
-                    self.workspace.record,
+                    path=self.workspace.record,
                 )
         finally:
             # However the close went, the round has ended, so whoever is
@@ -381,14 +383,15 @@ class Round:
         """
         try:
             return "".join(
-                self.renderer.render(event) for event in self.adapter.read(line)
+                self.renderer.render(event=event)
+                for event in self.adapter.read(line=line)
             )
         except Exception:
-            return self.renderer.render(Prose(text=line))
+            return self.renderer.render(event=Prose(text=line))
 
     def _pass_through(self, line: str) -> str:
         """Return the feed line one line of the harness's stderr becomes."""
-        return self.renderer.render(Prose(text=line))
+        return self.renderer.render(event=Prose(text=line))
 
     def _append(self, line: str, render: Callable[[str], str]) -> None:
         """Add what one line says to the feed, letting one stream write at a time.
@@ -400,4 +403,4 @@ class Round:
         with self._writing:
             written = render(line)
             if written:
-                append_text(written, self.workspace.feed)
+                append_text(text=written, path=self.workspace.feed)

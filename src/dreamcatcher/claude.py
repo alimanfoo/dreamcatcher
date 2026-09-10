@@ -1,8 +1,7 @@
 """Run Claude Code, and read what it streams back."""
 
 import json
-from collections.abc import Callable
-from typing import ClassVar
+from typing import ClassVar, Protocol
 
 from dreamcatcher.adapters import Adapter, Invocation, Launch
 from dreamcatcher.feed import Event, Note, Prose
@@ -40,7 +39,7 @@ class Claude(Adapter):
 
     program: ClassVar[str] = "claude"
 
-    def build_first_round(self, launch: Launch) -> Invocation:
+    def build_first_round(self, *, launch: Launch) -> Invocation:
         """Return how to run a session's first round.
 
         The command names no prompt, which is how Claude knows to read one
@@ -49,7 +48,7 @@ class Claude(Adapter):
         return Invocation(
             program=self.program,
             arguments=[
-                *self._base(launch),
+                *self._base(launch=launch),
                 "--model",
                 launch.model,
                 "--effort",
@@ -58,7 +57,7 @@ class Claude(Adapter):
             prompt=launch.prompt,
         )
 
-    def build_resumed_round(self, launch: Launch) -> Invocation:
+    def build_resumed_round(self, *, launch: Launch) -> Invocation:
         """Return how to continue the session in this directory.
 
         Claude recovers the model and the effort itself, so a resume replays
@@ -66,7 +65,7 @@ class Claude(Adapter):
         """
         return Invocation(
             program=self.program,
-            arguments=[*self._base(launch), "--continue"],
+            arguments=[*self._base(launch=launch), "--continue"],
             prompt=launch.prompt,
         )
 
@@ -78,21 +77,21 @@ class Claude(Adapter):
         """
         return [self.program, "--continue"]
 
-    def _events(self, streamed: dict) -> list[Event]:
+    def _events(self, *, streamed: dict) -> list[Event]:
         """Return the feed events one Claude event turns into."""
         is_subagent = streamed.get("parent_tool_use_id") is not None
         kind = streamed["type"]
         if kind == "system":
-            return _system(streamed)
+            return _system(streamed=streamed)
         if kind == "assistant":
-            return _blocks(streamed, _spoken, is_subagent)
+            return _blocks(streamed=streamed, read=_spoken, is_subagent=is_subagent)
         if kind == "user":
-            return _blocks(streamed, _failure, is_subagent)
+            return _blocks(streamed=streamed, read=_failure, is_subagent=is_subagent)
         if kind == "result":
-            return _closing(streamed)
+            return _closing(streamed=streamed)
         return []
 
-    def _base(self, launch: Launch) -> list[str]:
+    def _base(self, *, launch: Launch) -> list[str]:
         """Return the arguments every round shares."""
         return [
             "--print",
@@ -111,7 +110,7 @@ class Claude(Adapter):
 CLAUDE = Claude()
 
 
-def _system(streamed: dict) -> list[Event]:
+def _system(*, streamed: dict) -> list[Event]:
     """Return what a system event carries: the session, a report, or nothing."""
     subtype = streamed["subtype"]
     if subtype == "init":
@@ -141,18 +140,23 @@ def _system(streamed: dict) -> list[Event]:
     return []
 
 
-def _blocks(
-    streamed: dict, read: Callable[[dict, bool], list[Event]], is_subagent: bool
-) -> list[Event]:
+class _ReadsBlock(Protocol):
+    """What reads one block of a message, as `_blocks` calls it."""
+
+    def __call__(self, *, block: dict, is_subagent: bool) -> list[Event]:
+        """Return what one block carries."""
+
+
+def _blocks(*, streamed: dict, read: _ReadsBlock, is_subagent: bool) -> list[Event]:
     """Return what every block of one message carries."""
     return [
         event
         for block in streamed["message"]["content"]
-        for event in read(block, is_subagent)
+        for event in read(block=block, is_subagent=is_subagent)
     ]
 
 
-def _spoken(block: dict, is_subagent: bool) -> list[Event]:
+def _spoken(*, block: dict, is_subagent: bool) -> list[Event]:
     """Return what one block of an assistant message carries."""
     kind = block["type"]
     if kind == "text":
@@ -167,37 +171,39 @@ def _spoken(block: dict, is_subagent: bool) -> list[Event]:
         return [
             Note(
                 label=block["name"],
-                detail=_telling_input(block["input"]),
+                detail=_telling_input(given=block["input"]),
                 is_subagent=is_subagent,
             )
         ]
     return []
 
 
-def _failure(block: dict, is_subagent: bool) -> list[Event]:
+def _failure(*, block: dict, is_subagent: bool) -> list[Event]:
     """Return the failure one block of a user message carries, if it failed."""
     if block["type"] == "tool_result" and block.get("is_error"):
         return [
             Note(
-                label="failed", detail=_text(block["content"]), is_subagent=is_subagent
+                label="failed",
+                detail=_text(value=block["content"]),
+                is_subagent=is_subagent,
             )
         ]
     return []
 
 
-def _closing(streamed: dict) -> list[Event]:
+def _closing(*, streamed: dict) -> list[Event]:
     """Return the lines that close the round: what it used, then how it ended.
 
     The subtype reads "success" even on a round that failed, so the event's own
     error flag is what the feed reports.
     """
-    used = _usage(streamed["total_cost_usd"], streamed["usage"])
+    used = _usage(cost=streamed["total_cost_usd"], counts=streamed["usage"])
     if streamed.get("is_error"):
-        return [used, Note(label="failed", detail=_text(streamed["result"]))]
+        return [used, Note(label="failed", detail=_text(value=streamed["result"]))]
     return [used, Note(label="result", detail=streamed["subtype"])]
 
 
-def _usage(cost: float, counts: dict) -> Note:
+def _usage(*, cost: float, counts: dict) -> Note:
     """Return what the round used, in money and in tokens.
 
     Each count keeps the name the event gave it, and this does not add them up.
@@ -215,15 +221,15 @@ def _usage(cost: float, counts: dict) -> Note:
     )
 
 
-def _telling_input(given: dict) -> str:
+def _telling_input(*, given: dict) -> str:
     """Return the one input that says most about what a tool call is doing."""
     for name in TELLING_INPUTS:
         if given.get(name):
-            return _text(given[name])
-    return _text(given)
+            return _text(value=given[name])
+    return _text(value=given)
 
 
-def _text(value: object) -> str:
+def _text(*, value: object) -> str:
     """Return a value out of the stream as feed text, as JSON unless it is text.
 
     A tool result's content, and a failed round's message, each arrive sometimes

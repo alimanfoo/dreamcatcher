@@ -169,4 +169,4 @@ class StateDirectory:
         Writing the .gitignore is what creates the directory. Bootstrap writes
         it on every run, so a directory that was deleted comes back.
         """
-        write_text("*\n", self.path / ".gitignore")
+        write_text(text="*\n", path=self.path / ".gitignore")

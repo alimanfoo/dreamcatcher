@@ -9,8 +9,8 @@ import psutil
 from dreamcatcher.documents import write_text
 from dreamcatcher.errors import ReportableError
 
-def hold(path: Path) -> Iterator[None]:
+def hold(*, path: Path) -> Iterator[None]:
     ...
 
-def read_daemon_pid(path: Path) -> int | None:
+def read_daemon_pid(*, path: Path) -> int | None:
     ...

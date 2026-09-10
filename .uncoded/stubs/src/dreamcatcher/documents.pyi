@@ -13,43 +13,43 @@ from dreamcatcher.errors import ReportableError
 WRITING = '.writing'
 BACKWARD_WINDOW = 4096
 
-def read_toml(model: type[DocumentT], path: Path) -> DocumentT:
+def read_toml(*, model: type[DocumentT], path: Path) -> DocumentT:
     ...
 
-def read_json(model: type[DocumentT], path: Path) -> DocumentT:
+def read_json(*, model: type[DocumentT], path: Path) -> DocumentT:
     ...
 
-def read_text(path: Path) -> str:
+def read_text(*, path: Path) -> str:
     ...
 
-def read_lines_from(path: Path, position: int) -> tuple[list[str], int]:
+def read_lines_from(*, path: Path, position: int) -> tuple[list[str], int]:
     ...
 
-def read_last_line(path: Path) -> str | None:
+def read_last_line(*, path: Path) -> str | None:
     ...
 
-def write_text(text: str, path: Path) -> None:
+def write_text(*, text: str, path: Path) -> None:
     ...
 
-def append_text(text: str, path: Path) -> None:
+def append_text(*, text: str, path: Path) -> None:
     ...
 
-def write_json(document: Document, path: Path) -> None:
+def write_json(*, document: Document, path: Path) -> None:
     ...
 
-def _open_bytes(path: Path) -> Iterator[IO[bytes]]:
+def _open_bytes(*, path: Path) -> Iterator[IO[bytes]]:
     ...
 
-def _find_line_ending(opened: IO[bytes], before: int) -> int | None:
+def _find_line_ending(*, opened: IO[bytes], before: int) -> int | None:
     ...
 
-def _decode(contents: bytes, path: Path) -> str:
+def _decode(*, contents: bytes, path: Path) -> str:
     ...
 
-def _write(text: str, path: Path, mode: str) -> None:
+def _write(*, text: str, path: Path, mode: str) -> None:
     ...
 
-def _report(path: Path, error: ValidationError) -> str:
+def _report(*, path: Path, error: ValidationError) -> str:
     ...
 
 class Document(BaseModel):

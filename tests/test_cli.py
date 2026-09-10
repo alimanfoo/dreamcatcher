@@ -22,7 +22,7 @@ def watching(tmp_path):
     """A checkout a daemon has watched, holding one session with a live round."""
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    write_text(f"{os.getpid()}\n", state.lock)
+    write_text(text=f"{os.getpid()}\n", path=state.lock)
     directory = write_session(state, KEY, 13)
     write_round(directory, 1, RoundRecord(started=PINNED, pid=1, cause=Cause.DISPATCH))
     write_feed(

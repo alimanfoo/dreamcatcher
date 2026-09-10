@@ -288,7 +288,7 @@ def test_a_session_no_round_has_told_anything_yet_has_seen_no_post(state, mappin
 
 def test_a_session_reads_back_the_newest_post_it_has_been_told_about(state, mapping):
     create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
-    write_text("2026-09-03T22:31:51Z\n", state.sessions / KEY / WATERMARK)
+    write_text(text="2026-09-03T22:31:51Z\n", path=state.sessions / KEY / WATERMARK)
 
     assert read_sessions(state)[0].watermark == "2026-09-03T22:31:51Z"
 

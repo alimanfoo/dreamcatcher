@@ -4,14 +4,14 @@
 from pathlib import Path
 from dreamcatcher.commands import run
 
-def fetch(root: Path) -> None:
+def fetch(*, root: Path) -> None:
     ...
 
-def add_worktree(root: Path, path: Path, branch: str) -> None:
+def add_worktree(*, root: Path, path: Path, branch: str) -> None:
     ...
 
-def remove_worktree(root: Path, path: Path) -> None:
+def remove_worktree(*, root: Path, path: Path) -> None:
     ...
 
-def delete_branch(root: Path, branch: str) -> None:
+def delete_branch(*, root: Path, branch: str) -> None:
     ...
