@@ -116,9 +116,14 @@ nothing to wrap it in.
 `session` and `feed` stay open for as long as the session has another round
 coming, so you can leave one running for a whole session and see every round of
 it arrive. They wait through every gap between one round and the next, including
-a gap where you have stopped the daemon and not started it again yet. They end
-once the session has run its final round, and on a stuck session, which only you
-can move on.
+a gap where you have stopped the daemon and not started it again yet.
+
+Two things end them, because after either one no round is coming. One is the
+session running its final round, which winds it up. The other is the session
+getting stuck, which means no tick can move it on however long it waits: either
+its dispatch never ran a first round, or its rounds ran and no pull request was
+ever opened on its branch. Only you can take a stuck session from there, so a
+view left open on one would wait for ever.
 
 Interrupt any view to end it sooner.
 

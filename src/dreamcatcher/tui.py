@@ -166,7 +166,13 @@ def show_board(
 
 
 def _look_at_board(state: StateDirectory, clock: Callable[[], datetime]) -> _Picture:
-    """Return the board as it stands, which is never the last of it."""
+    """Return the board as it stands, which no look ever finds over.
+
+    A daemon can start, a tick can dispatch, a round can begin, so a later look
+    can always find what this one did not. The picture answers `is_over` as
+    False for that reason, and that is what keeps a board on the screen until
+    the reader interrupts it.
+    """
     return _Picture(_render_board(read_board(state, clock)), is_over=False)
 
 
