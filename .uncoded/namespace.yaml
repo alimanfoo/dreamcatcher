@@ -361,8 +361,6 @@ src/:
         feed:
         raw:
         inbox:
-      _RendersLine:
-        __call__:
       RoundReader:
         __init__:
         read_records:
@@ -377,8 +375,6 @@ src/:
         _read_stdout:
         _read_stderr:
         _close:
-        _render:
-        _pass_through:
         _append:
     sessions.py:
       BRANCH_PREFIX:
@@ -1188,6 +1184,6 @@ tools/:
     main:
   require_keyword_parameters.py:
     RECEIVERS:
-    is_pytests:
+    is_called_by_pytest:
     positional_parameters:
     main:

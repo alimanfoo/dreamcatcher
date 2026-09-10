@@ -6,15 +6,15 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
-from threading import Event, Lock, Thread
-from typing import Protocol
+from threading import Event as Flag
+from threading import Lock, Thread
 from pydantic import PositiveInt
 from dreamcatcher.adapters import Adapter, Invocation
 from dreamcatcher.clock import now
 from dreamcatcher.commands import spawn
 from dreamcatcher.documents import Document, append_text, read_json, write_json, write_text
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.feed import Prose, Renderer
+from dreamcatcher.feed import Event, Prose, Renderer
 
 RECORD = 'round.json'
 
@@ -44,10 +44,6 @@ class Workspace:
     feed: Path
     raw: Path
     inbox: Path
-
-class _RendersLine(Protocol):
-    def __call__(self, *, line: str) -> str:
-        ...
 
 class RoundReader:
     def __init__(self) -> None:
@@ -86,11 +82,5 @@ class Round:
     def _close(self) -> None:
         ...
 
-    def _render(self, *, line: str) -> str:
-        ...
-
-    def _pass_through(self, *, line: str) -> str:
-        ...
-
-    def _append(self, *, line: str, render: _RendersLine) -> None:
+    def _append(self, *, line: str, events: list[Event]) -> None:
         ...

@@ -8,10 +8,10 @@ from pathlib import Path
 
 RECEIVERS = ('self', 'cls')
 
-def is_pytests(*, definition: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+def is_called_by_pytest(*, definition: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
     ...
 
-def positional_parameters(*, text: str) -> Iterator[tuple[int, str, str]]:
+def positional_parameters(*, text: str) -> Iterator[str]:
     ...
 
 def main(*, paths: Sequence[str]) -> int:

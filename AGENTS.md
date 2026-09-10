@@ -138,11 +138,11 @@ uv run pre-commit run --all-files
   because pytest calls each of those and resolves every argument by the
   parameter's own name.
 - Give a callback parameter a `Protocol` whose `__call__` is keyword-only, where
-  this project implements the callback itself, as `claude._ReadsBlock` and
-  `rounds._RendersLine` do. A `Callable` has no keyword-only form, so a callback
-  typed as one is called by position. Keep `Callable[[], X]` for a callback that
-  takes nothing, which has nothing to pass, and for one whose value comes from
-  outside, as the wait a view takes is `time.sleep`.
+  this project implements the callback itself and it takes more than one
+  argument, as `claude._ReadsBlock` does. A `Callable` has no keyword-only form,
+  so a callback typed as one is called by position. Keep `Callable[[], X]` for a
+  callback that takes nothing, which has nothing to pass, and for one whose
+  value comes from outside, as the wait a view takes is `time.sleep`.
 - Name a method or a function for what it does, with a verb: `render`, `stop`,
   `strip_worktree`. A name like `rendered` or `holder` reads as a value, so a
   reader takes it for a property and not for something that runs.

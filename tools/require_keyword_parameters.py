@@ -8,6 +8,10 @@ which says so where a reader meets it.
 
 A test, a fixture and a pytest_ hook are left alone. pytest is what calls each
 of those, and it resolves every argument by the parameter's own name.
+
+This reads a def statement and nothing else. A lambda has no keyword-only form,
+so write a def for any callback that takes more than one argument, and the check
+then covers it.
 """
 
 import ast
@@ -20,7 +24,7 @@ from pathlib import Path
 RECEIVERS = ("self", "cls")
 
 
-def is_pytests(*, definition: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+def is_called_by_pytest(*, definition: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
     """Whether pytest is what calls this definition, so its shape is pytest's."""
     if definition.name.startswith(("test_", "pytest_")):
         return True
@@ -29,20 +33,20 @@ def is_pytests(*, definition: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
     )
 
 
-def positional_parameters(*, text: str) -> Iterator[tuple[int, str, str]]:
-    """Yield the line, the definition and the name of each such parameter."""
+def positional_parameters(*, text: str) -> Iterator[str]:
+    """Yield the line and the words naming each such parameter."""
     for node in ast.walk(ast.parse(text)):
         if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
             continue
-        if is_pytests(definition=node):
+        if is_called_by_pytest(definition=node):
             continue
         taken = [argument.arg for argument in node.args.args]
         if taken and taken[0] in RECEIVERS:
             taken = taken[1:]
-        for name in taken:
-            yield node.lineno, node.name, name
         if node.args.vararg is not None:
-            yield node.lineno, node.name, f"*{node.args.vararg.arg}"
+            taken.append(f"*{node.args.vararg.arg}")
+        for parameter in taken:
+            yield f"{node.lineno} {node.name} takes {parameter} by position"
 
 
 def main(*, paths: Sequence[str]) -> int:
@@ -50,8 +54,8 @@ def main(*, paths: Sequence[str]) -> int:
     found = False
     for path in paths:
         text = Path(path).read_text(encoding="utf-8")
-        for number, definition, name in positional_parameters(text=text):
-            print(f"{path}:{number} {definition} takes {name} by position")
+        for reported in positional_parameters(text=text):
+            print(f"{path}:{reported}")
             found = True
     return int(found)
 

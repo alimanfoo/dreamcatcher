@@ -21,8 +21,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
-from threading import Event, Lock, Thread
-from typing import Protocol
+from threading import Event as Flag
+from threading import Lock, Thread
 
 from pydantic import PositiveInt
 
@@ -37,7 +37,7 @@ from dreamcatcher.documents import (
     write_text,
 )
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.feed import Prose, Renderer
+from dreamcatcher.feed import Event, Prose, Renderer
 
 # The file in a round's own directory saying what the round did.
 RECORD = "round.json"
@@ -155,13 +155,6 @@ class Workspace:
         return self.directory / "inbox.json"
 
 
-class _RendersLine(Protocol):
-    """What one line of a harness's stream becomes, as `_append` calls it."""
-
-    def __call__(self, *, line: str) -> str:
-        """Return the feed line that this line becomes."""
-
-
 class RoundReader:
     """Read the records of a session's rounds, keeping the complete ones.
 
@@ -242,7 +235,7 @@ class Round:
         self.renderer = Renderer(worktree=workspace.worktree, clock=clock)
         self.started = clock()
         self.is_interrupted = False
-        self._ended = Event()
+        self._ended = Flag()
         self._writing = Lock()
         write_text(text=invocation.prompt, path=workspace.prompt)
         self.child = spawn(
@@ -355,12 +348,12 @@ class Round:
         """Keep each line that the harness streams, and write what it says."""
         for line in self.child.out:
             append_text(text=line, path=self.workspace.raw)
-            self._append(line=line, render=self._render)
+            self._append(line=line, events=self.adapter.read(line=line))
 
     def _read_stderr(self) -> None:
         """Write what the harness says on stderr, among the lines around it."""
         for line in self.child.err:
-            self._append(line=line, render=self._pass_through)
+            self._append(line=line, events=[Prose(text=line)])
 
     def _close(self) -> None:
         """Record how the round ended as soon as its child has gone.
@@ -392,34 +385,22 @@ class Round:
             for pump in self._pumps:
                 pump.join()
 
-    def _render(self, *, line: str) -> str:
-        """Return the feed lines that one line of the harness's stream becomes.
+    def _append(self, *, line: str, events: list[Event]) -> None:
+        """Add what one line says to the feed, letting one stream write at a time.
+
+        Rendering happens under the same lock as the write. A line is stamped
+        as it is rendered, so holding the lock across both keeps the stamps in
+        the same order as the lines.
 
         Reading a line through an adapter never raises. Rendering what the
         adapter read is a second step, and that step does fail when an event
         holds something other than text. A line the feed cannot render is
         written out as the harness sent it, so one bad line costs one line.
         """
-        try:
-            return "".join(
-                self.renderer.render(event=event)
-                for event in self.adapter.read(line=line)
-            )
-        except Exception:
-            return self.renderer.render(event=Prose(text=line))
-
-    def _pass_through(self, *, line: str) -> str:
-        """Return the feed line one line of the harness's stderr becomes."""
-        return self.renderer.render(event=Prose(text=line))
-
-    def _append(self, *, line: str, render: _RendersLine) -> None:
-        """Add what one line says to the feed, letting one stream write at a time.
-
-        Rendering happens under the same lock as the write. A line is stamped
-        as it is rendered, so holding the lock across both keeps the stamps in
-        the same order as the lines.
-        """
         with self._writing:
-            written = render(line=line)
+            try:
+                written = "".join(self.renderer.render(event=event) for event in events)
+            except Exception:
+                written = self.renderer.render(event=Prose(text=line))
             if written:
                 append_text(text=written, path=self.workspace.feed)
