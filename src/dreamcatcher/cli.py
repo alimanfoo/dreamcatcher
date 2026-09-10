@@ -8,7 +8,7 @@ from importlib.metadata import version
 from pathlib import Path
 
 import dreamcatcher
-from dreamcatcher import scry
+from dreamcatcher import tui
 from dreamcatcher.config import Harness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.errors import ReportableError
@@ -19,13 +19,31 @@ ISSUE = re.compile(r"gh(\d+)\Z", re.IGNORECASE)
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """Return the parser for the dreamcatcher command line."""
+    """Return the parser for the dreamcatcher command line.
+
+    Each verb shows one view, or runs the daemon, and every argument belongs
+    to the verb that takes it. So a verb's own --help describes the whole of
+    what that verb does, and argparse does all the refusing: a verb given an
+    argument it does not take, or given none of the arguments it requires,
+    is refused with that verb's own usage line above the message. Nothing
+    here has to check an argument against the verb it arrived with.
+    """
     parser = argparse.ArgumentParser(
         prog="dreamcatcher", description=dreamcatcher.__doc__
     )
     parser.add_argument("--version", action="version", version=version("dreamcatcher"))
     verbs = parser.add_subparsers(title="verbs", dest="verb", required=True)
-    run_parser = verbs.add_parser("run", help="run the dreamcatcher daemon")
+    run_parser = verbs.add_parser(
+        "run",
+        help="run the dreamcatcher daemon",
+        description=(
+            "Watch this repository for labelled issues, dispatch an agent "
+            "session for each, and carry every session on until its pull "
+            "request is ready for you to review. One daemon watches one "
+            "repo, so a second run on this one refuses while the first is "
+            "alive."
+        ),
+    )
     run_parser.add_argument(
         "--harness",
         required=True,
@@ -34,89 +52,110 @@ def build_parser() -> argparse.ArgumentParser:
         choices=[harness.value for harness in Harness],
         help="the harness to run this repo's rounds with",
     )
-    scry_parser = verbs.add_parser("scry", help="see what the agent sessions are doing")
-    scry_parser.add_argument(
-        "issue",
-        nargs="?",
-        type=_read_issue,
-        metavar="GH<n>",
-        help="the issue to show one session of, rather than the whole board",
+    run_parser.set_defaults(act=_run)
+    board_parser = verbs.add_parser(
+        "board",
+        help="show an overview of every session and every queued issue",
+        description=(
+            "Show every session and every queued issue, a section per "
+            "standing, in the order of whose turn it is."
+        ),
     )
-    # A feed reads either as it arrives or as it stands, and never as both.
-    tense = scry_parser.add_mutually_exclusive_group()
-    tense.add_argument(
-        "--follow",
-        action="store_true",
-        help="show the session's whole feed, and what arrives while you watch",
+    board_parser.set_defaults(act=_show_board)
+    session_parser = verbs.add_parser(
+        "session",
+        help="show one issue's newest session, in detail",
+        description=(
+            "Show an overview of the newest session at the issue: what "
+            "its dispatch settled, the rounds it has run, the command that "
+            "takes the session over by hand, and the older sessions at the "
+            "same issue."
+        ),
     )
-    tense.add_argument(
+    _take_an_issue(session_parser)
+    session_parser.set_defaults(act=_show_session)
+    feed_parser = verbs.add_parser(
+        "feed",
+        help="show what the agent said, as it says it",
+        description=(
+            "Show the agent's actions and outputs from every round of "
+            "the issue's newest session, and keep showing what arrives for "
+            "as long as the session has another round coming. It ends once "
+            "the session has run its final round, and on a stuck session, "
+            "which only you can move on. Interrupt it to end it sooner."
+        ),
+    )
+    _take_an_issue(feed_parser)
+    feed_parser.add_argument(
         "--round",
         type=int,
         metavar="N",
-        help="show the feed of that round of the session, as it stands",
+        help=(
+            "show the feed of that round alone, as it stands. The session "
+            "view's round list is where you find the number"
+        ),
     )
-    # How this verb refuses what its own arguments cannot mean. Refusing
-    # through its own parser is what puts the verb's usage above the message,
-    # where a reader finds the arguments the message names.
-    scry_parser.set_defaults(refuse=scry_parser.error)
+    feed_parser.set_defaults(act=_show_feed)
     return parser
+
+
+def _take_an_issue(parser: argparse.ArgumentParser) -> None:
+    """Give the verb the issue it shows, written as the issue itself is."""
+    parser.add_argument(
+        "issue",
+        type=_read_issue,
+        metavar="GH<n>",
+        help="the issue to show",
+    )
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the verb that the arguments name, and return the exit status."""
     args = build_parser().parse_args(argv)
     try:
-        if args.verb == "scry":
-            _scry(args)
-        else:
-            Daemon(Path.cwd(), Harness(args.harness)).run()
+        args.act(args)
     except ReportableError as error:
         print(error, file=sys.stderr)
         return 1
     return 0
 
 
-def _scry(args: argparse.Namespace) -> None:
-    """Show the view the arguments ask for, from the checkout we are in.
-
-    The board is what a reader wants most of the time, so it is what `scry`
-    alone shows. Naming an issue narrows the view to one session, and the two
-    feed views narrow it further, to what that session's agent said.
-    """
-    _refuse_a_feed_of_nothing(args)
-    state = _find_state(Path.cwd())
-    console = scry.open_console()
-    if args.issue is None:
-        scry.show_board(state, console)
-    elif args.follow:
-        scry.show_feed(state, args.issue, console)
-    elif args.round is not None:
-        scry.show_round(state, args.issue, args.round, console)
-    else:
-        scry.show_session(state, args.issue, console)
+def _run(args: argparse.Namespace) -> None:
+    """Run a daemon on the checkout we are in."""
+    Daemon(Path.cwd(), Harness(args.harness)).run()
 
 
-def _refuse_a_feed_of_nothing(args: argparse.Namespace) -> None:
-    """Refuse a feed view that was given no session to show the feed of.
+def _show_board(args: argparse.Namespace) -> None:
+    """Show the board of the checkout we are in."""
+    tui.show_board(_find_state(Path.cwd()), tui.open_console())
 
-    This comes before anything is read off the disk, so a reader who asked for
-    the wrong thing hears that rather than hearing about the directory.
-    """
-    if args.issue is None and (args.follow or args.round is not None):
-        args.refuse("--follow and --round each need an issue, as in: scry GH123")
+
+def _show_session(args: argparse.Namespace) -> None:
+    """Show the issue's newest session, from the checkout we are in."""
+    tui.show_session(_find_state(Path.cwd()), args.issue, tui.open_console())
+
+
+def _show_feed(args: argparse.Namespace) -> None:
+    """Show the issue's feed, from the checkout we are in."""
+    tui.show_feed(
+        _find_state(Path.cwd()),
+        args.issue,
+        tui.open_console(),
+        round_number=args.round,
+    )
 
 
 def _find_state(root: Path) -> StateDirectory:
     """Return the state directory here, or say there is nothing here to show.
 
-    `scry` reads what a daemon left on the disk, and a daemon leaves it in the
+    A view reads what a daemon left on the disk, and a daemon leaves it in the
     checkout it watches. So a directory with no state directory in it is one
     the reader did not mean to be in.
     """
     state = StateDirectory(root)
     if not state.path.is_dir():
         raise ReportableError(
-            f"dreamcatcher has nothing to show in {root}. Run scry from the "
+            f"dreamcatcher has nothing to show in {root}. Run this from the "
             f"checkout that dreamcatcher run watches."
         )
     return state

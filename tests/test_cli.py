@@ -48,40 +48,40 @@ def test_a_checkout_no_daemon_has_watched_has_nothing_to_show(
 ):
     monkeypatch.chdir(tmp_path)
 
-    assert main(["scry"]) == 1
+    assert main(["board"]) == 1
     assert "nothing to show" in capsys.readouterr().err
 
 
-def test_scry_shows_the_board(monkeypatch, watching, capsys):
+def test_board_shows_every_session(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
 
-    assert main(["scry"]) == 0
+    assert main(["board"]) == 0
     assert "agent working" in capsys.readouterr().out
 
 
-def test_scry_naming_an_issue_shows_that_sessions_view(monkeypatch, watching, capsys):
+def test_session_shows_the_newest_session_at_the_issue(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
 
-    assert main(["scry", "GH13"]) == 0
+    assert main(["session", "GH13"]) == 0
     assert "first prompt" in capsys.readouterr().out
 
 
 def test_an_issue_reads_however_the_reader_wrote_it(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
 
-    assert main(["scry", "gh13"]) == 0
+    assert main(["session", "gh13"]) == 0
     assert "first prompt" in capsys.readouterr().out
 
 
 def test_something_that_is_not_an_issue_reference_is_refused(capsys):
     with pytest.raises(SystemExit) as exit_info:
-        main(["scry", "the one about the parser"])
+        main(["session", "the one about the parser"])
 
     assert exit_info.value.code == 2
     assert "GH123" in capsys.readouterr().err
 
 
-def test_scry_following_an_issue_shows_its_feed(monkeypatch, watching, capsys):
+def test_feed_shows_what_the_session_said(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
     # A following view runs until the session has run its final round, so this
     # one is over before the view opens and the view never waits. A session's
@@ -99,31 +99,52 @@ def test_scry_following_an_issue_shows_its_feed(monkeypatch, watching, capsys):
         ),
     )
 
-    assert main(["scry", "GH13", "--follow"]) == 0
+    assert main(["feed", "GH13"]) == 0
     assert "round 1: dispatched" in capsys.readouterr().out
 
 
-def test_scry_naming_a_round_shows_that_rounds_feed(monkeypatch, watching, capsys):
+def test_feed_naming_a_round_shows_that_rounds_feed(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
 
-    assert main(["scry", "GH13", "--round", "1"]) == 0
+    assert main(["feed", "GH13", "--round", "1"]) == 0
     assert "round 1: dispatched" in capsys.readouterr().out
 
 
-def test_a_feed_view_with_no_issue_to_show_asks_for_one(capsys):
+def test_a_feed_with_no_issue_to_show_asks_for_one(capsys):
     with pytest.raises(SystemExit) as exit_info:
-        main(["scry", "--follow"])
+        main(["feed"])
 
     assert exit_info.value.code == 2
-    assert "need an issue" in capsys.readouterr().err
+    assert "GH<n>" in capsys.readouterr().err
 
 
-def test_a_feed_reads_as_it_arrives_or_as_it_stands_and_never_as_both(capsys):
+def test_a_round_belongs_to_the_feed_and_to_no_other_verb(capsys):
     with pytest.raises(SystemExit) as exit_info:
-        main(["scry", "GH13", "--follow", "--round", "1"])
+        main(["session", "GH13", "--round", "1"])
 
     assert exit_info.value.code == 2
-    assert "not allowed with" in capsys.readouterr().err
+    assert "--round" in capsys.readouterr().err
+
+
+def test_the_board_takes_no_issue(capsys):
+    with pytest.raises(SystemExit) as exit_info:
+        main(["board", "GH13"])
+
+    assert exit_info.value.code == 2
+    assert "GH13" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("verb", ["run", "board", "session", "feed"])
+def test_every_verb_describes_itself_in_its_own_help(verb, capsys):
+    with pytest.raises(SystemExit) as exit_info:
+        main([verb, "--help"])
+
+    # argparse sets the verb's description between the usage line and the
+    # first list of arguments, so a verb that carries none runs the two
+    # together and the reader learns nothing but the arguments.
+    assert exit_info.value.code == 0
+    _, _, described = capsys.readouterr().out.partition("\n\n")
+    assert not described.startswith(("positional arguments:", "options:"))
 
 
 def test_a_bare_invocation_asks_for_a_verb(capsys):

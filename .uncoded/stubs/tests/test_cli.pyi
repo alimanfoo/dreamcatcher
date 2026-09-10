@@ -27,10 +27,10 @@ def test_version_prints_the_installed_version(capsys):
 def test_a_checkout_no_daemon_has_watched_has_nothing_to_show(monkeypatch, tmp_path, capsys):
     ...
 
-def test_scry_shows_the_board(monkeypatch, watching, capsys):
+def test_board_shows_every_session(monkeypatch, watching, capsys):
     ...
 
-def test_scry_naming_an_issue_shows_that_sessions_view(monkeypatch, watching, capsys):
+def test_session_shows_the_newest_session_at_the_issue(monkeypatch, watching, capsys):
     ...
 
 def test_an_issue_reads_however_the_reader_wrote_it(monkeypatch, watching, capsys):
@@ -39,16 +39,22 @@ def test_an_issue_reads_however_the_reader_wrote_it(monkeypatch, watching, capsy
 def test_something_that_is_not_an_issue_reference_is_refused(capsys):
     ...
 
-def test_scry_following_an_issue_shows_its_feed(monkeypatch, watching, capsys):
+def test_feed_shows_what_the_session_said(monkeypatch, watching, capsys):
     ...
 
-def test_scry_naming_a_round_shows_that_rounds_feed(monkeypatch, watching, capsys):
+def test_feed_naming_a_round_shows_that_rounds_feed(monkeypatch, watching, capsys):
     ...
 
-def test_a_feed_view_with_no_issue_to_show_asks_for_one(capsys):
+def test_a_feed_with_no_issue_to_show_asks_for_one(capsys):
     ...
 
-def test_a_feed_reads_as_it_arrives_or_as_it_stands_and_never_as_both(capsys):
+def test_a_round_belongs_to_the_feed_and_to_no_other_verb(capsys):
+    ...
+
+def test_the_board_takes_no_issue(capsys):
+    ...
+
+def test_every_verb_describes_itself_in_its_own_help(verb, capsys):
     ...
 
 def test_a_bare_invocation_asks_for_a_verb(capsys):

@@ -1,7 +1,9 @@
 """Show what the sessions are doing, from what the daemon left on the disk.
 
-`scry` is the watch tower. It reads the state directory and never talks to
-GitHub or to the daemon, so it answers whether the daemon is alive or dead, and
+This is the terminal interface, and the whole of it. It holds the three views
+a reader reaches through a verb of the command line: the board, one session,
+and one session's feed. It reads the state directory and never talks to GitHub
+or to the daemon, so it answers whether the daemon is alive or dead, and
 answers fastest when you most want to look.
 
 What the daemon writes stays plain text, and the colour goes on at the moment of
@@ -60,7 +62,7 @@ INDENT = (0, 0, 0, 2)
 
 
 def open_console() -> Console:
-    """Return the console that scry writes its views to."""
+    """Return the console that the views are written to."""
     return Console()
 
 
@@ -293,34 +295,22 @@ def _show_older_sessions(console: Console, older: list[SessionRow]) -> None:
     _print_section(console, "older sessions", "blue", table)
 
 
-def show_round(
-    state: StateDirectory,
-    issue: int,
-    number: int,
-    console: Console,
-    clock: Callable[[], datetime] = now,
-) -> None:
-    """Show the feed of one round of the issue's newest session.
-
-    The round list of the session view is where a reader finds the number.
-    """
-    session = _find_rows_for_issue(state, issue, clock)[0].session
-    if not 1 <= number <= len(session.rounds):
-        raise ReportableError(
-            f"{session.key} has run {describe_count(len(session.rounds), 'round')}, "
-            f"so it has no round {number}."
-        )
-    _FeedView(console).show_what_arrived(session, [number])
-
-
 def show_feed(
     state: StateDirectory,
     issue: int,
     console: Console,
+    round_number: int | None = None,
     wait: Callable[[float], None] = sleep,
-    clock: Callable[[], datetime] = now,
 ) -> None:
-    """Show every round of the issue's newest session, and follow what arrives.
+    """Show what the issue's newest session said, and follow what arrives.
+
+    Naming a round narrows the view to that one round, as it stands, and
+    everything below is about the view of the whole session, which is what a
+    reader gets when they name no round.
+
+    Neither view reads a clock, unlike the board and the session view, which
+    say how long ago something happened. Every line a feed shows carries the
+    time it was written, so what a feed shows is the same whenever it is read.
 
     Reading a session that is over and watching one that is going are the same
     view in two tenses, so this shows what is there and then keeps showing what
@@ -346,13 +336,16 @@ def show_feed(
     The reader ends a view of a session that is still going by interrupting it,
     which is how they say they have seen enough, so it ends without a word.
     """
+    if round_number is not None:
+        _show_one_round(state, issue, round_number, console)
+        return
     view = _FeedView(console)
     # Nothing was going before the view opened, so a session that has already
     # ended when it opens ends the view on its first look.
     was_over = True
     with suppress(KeyboardInterrupt):
         while True:
-            row = _find_rows_for_issue(state, issue, clock)[0]
+            row = _find_rows_for_issue(state, issue)[0]
             session = row.session
             view.show_what_arrived(session, range(1, len(session.rounds) + 1))
             is_over = row.standing in (SessionStanding.DONE, SessionStanding.STUCK)
@@ -362,8 +355,26 @@ def show_feed(
             wait(PAUSE)
 
 
+def _show_one_round(
+    state: StateDirectory, issue: int, number: int, console: Console
+) -> None:
+    """Show one round of the issue's newest session, as it stands.
+
+    The round list of the session view is where a reader finds the number, so
+    a number no round of the session carries is the reader's mistake, and is
+    the one thing this turns into words for them.
+    """
+    session = _find_rows_for_issue(state, issue)[0].session
+    if not 1 <= number <= len(session.rounds):
+        raise ReportableError(
+            f"{session.key} has run {describe_count(len(session.rounds), 'round')}, "
+            f"so it has no round {number}."
+        )
+    _FeedView(console).show_what_arrived(session, [number])
+
+
 def _find_rows_for_issue(
-    state: StateDirectory, issue: int, clock: Callable[[], datetime]
+    state: StateDirectory, issue: int, clock: Callable[[], datetime] = now
 ) -> list[SessionRow]:
     """Return the rows for the issue, newest session first, or refuse if none.
 
