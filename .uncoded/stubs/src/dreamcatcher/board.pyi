@@ -25,7 +25,7 @@ def _list_queue(tick: LastTick | None, claimed: set[int]) -> list[QueuedIssue]:
 def _describe_place(ahead: int) -> str:
     ...
 
-class Standing(StrEnum):
+class SessionStanding(StrEnum):
     NEEDS_YOU = 'needs you'
     WORKING = 'agent working'
     WAITING = 'waiting'
@@ -34,7 +34,7 @@ class Standing(StrEnum):
 
 class SessionRow:
     session: Session
-    standing: Standing
+    standing: SessionStanding
     detail: str
     last_output: str | None
 
@@ -50,7 +50,7 @@ class Board:
     rows: list[SessionRow]
     queued: list[QueuedIssue]
 
-    def list_standing(self, standing: Standing) -> list[SessionRow]:
+    def list_standing(self, standing: SessionStanding) -> list[SessionRow]:
         ...
 
 class _Look:
@@ -63,10 +63,10 @@ class _Look:
     def _read_row(self, session: Session) -> SessionRow:
         ...
 
-    def _judge_standing(self, session: Session) -> tuple[Standing, str, str | None]:
+    def _judge_standing(self, session: Session) -> tuple[SessionStanding, str, str | None]:
         ...
 
-    def _judge_wait(self, session: Session) -> tuple[Standing, str]:
+    def _judge_wait(self, session: Session) -> tuple[SessionStanding, str]:
         ...
 
     def _describe_live_round(self, session: Session) -> tuple[str, str | None]:

@@ -10,7 +10,7 @@ from rich.console import Console, Group, RenderableType
 from rich.padding import Padding
 from rich.table import Table
 from rich.text import Text
-from dreamcatcher.board import Board, SessionRow, Standing, read_board, read_rows_for_issue
+from dreamcatcher.board import Board, SessionRow, SessionStanding, read_board, read_rows_for_issue
 from dreamcatcher.clock import now
 from dreamcatcher.documents import read_lines_from
 from dreamcatcher.errors import ReportableError
@@ -36,7 +36,7 @@ def show_board(state: StateDirectory, console: Console, clock: Callable[[], date
 def _describe_daemon(board: Board) -> Text:
     ...
 
-def _show_rows(console: Console, board: Board, standing: Standing) -> None:
+def _show_rows(console: Console, board: Board, standing: SessionStanding) -> None:
     ...
 
 def _describe_round(row: SessionRow) -> str:

@@ -31,11 +31,13 @@ from dreamcatcher.state import (
 from dreamcatcher.words import describe_count, describe_span
 
 
-class Standing(StrEnum):
-    """Where a session stands, which is the section of the board it reads in.
+class SessionStanding(StrEnum):
+    """Where a session stands: whether it is anyone's turn, and whose.
 
-    The words are the board's own headings, so the section a reader looks under
-    and the standing a session is in are one thing.
+    The board sets its sections in these words, so the section a reader looks
+    under and the standing a session is in are one thing. A view of one issue
+    reads the standing rather than showing sections, and a following feed reads
+    it to know when the session it is watching has nothing more to say.
 
     A session needs you when the daemon has nothing left to do for it: every
     round it has run finished, its pull request is open, and the agent has
@@ -73,7 +75,7 @@ class SessionRow:
     """
 
     session: Session
-    standing: Standing
+    standing: SessionStanding
     detail: str
     last_output: str | None
 
@@ -106,7 +108,7 @@ class Board:
     rows: list[SessionRow]
     queued: list[QueuedIssue]
 
-    def list_standing(self, standing: Standing) -> list[SessionRow]:
+    def list_standing(self, standing: SessionStanding) -> list[SessionRow]:
         """Return the rows standing there, in the order the board reads them.
 
         Work that is done reads by when its last round started, most recent
@@ -115,7 +117,7 @@ class Board:
         ahead of the older ones.
         """
         found = [one for one in self.rows if one.standing is standing]
-        if standing is Standing.DONE:
+        if standing is SessionStanding.DONE:
             return sorted(
                 found, key=lambda one: one.session.rounds[-1].started, reverse=True
             )
@@ -199,7 +201,9 @@ class _Look:
             last_output=last_output,
         )
 
-    def _judge_standing(self, session: Session) -> tuple[Standing, str, str | None]:
+    def _judge_standing(
+        self, session: Session
+    ) -> tuple[SessionStanding, str, str | None]:
         """Return where the session's own rounds put it, and what its row says.
 
         The records answer first, and they answer whatever the daemon is doing.
@@ -211,14 +215,18 @@ class _Look:
         if unfinished is not None:
             if self.daemon_pid is not None and not session.rounds[-1].is_complete:
                 detail, last_output = self._describe_live_round(session)
-                return Standing.WORKING, detail, last_output
-            return Standing.WAITING, unfinished, None
+                return SessionStanding.WORKING, detail, last_output
+            return SessionStanding.WAITING, unfinished, None
         if session.has_run_final_round:
-            return Standing.DONE, describe_count(len(session.rounds), "round"), None
+            return (
+                SessionStanding.DONE,
+                describe_count(len(session.rounds), "round"),
+                None,
+            )
         standing, detail = self._judge_wait(session)
         return standing, detail, None
 
-    def _judge_wait(self, session: Session) -> tuple[Standing, str]:
+    def _judge_wait(self, session: Session) -> tuple[SessionStanding, str]:
         """Return what the last tick left a session its rounds say nothing about.
 
         Whether a pull request is open, and whether it carries anything new,
@@ -229,11 +237,11 @@ class _Look:
         wait = self.waits.get(session.key)
         if wait is None:
             if not session.rounds:
-                return Standing.STUCK, NO_ROUND_HAS_RUN
-            return Standing.NEEDS_YOU, self._describe_idle(session)
+                return SessionStanding.STUCK, NO_ROUND_HAS_RUN
+            return SessionStanding.NEEDS_YOU, self._describe_idle(session)
         if wait.is_stuck:
-            return Standing.STUCK, self._point_at_feed(session, wait.reason)
-        return Standing.WAITING, wait.reason
+            return SessionStanding.STUCK, self._point_at_feed(session, wait.reason)
+        return SessionStanding.WAITING, wait.reason
 
     def _describe_live_round(self, session: Session) -> tuple[str, str | None]:
         """Return what the running round last said, and how long ago it said it."""

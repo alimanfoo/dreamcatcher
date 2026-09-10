@@ -22,7 +22,7 @@ from rich.text import Text
 from dreamcatcher.board import (
     Board,
     SessionRow,
-    Standing,
+    SessionStanding,
     read_board,
     read_rows_for_issue,
 )
@@ -39,11 +39,11 @@ from dreamcatcher.words import describe_count, describe_span, describe_time
 # What each section of the board is set in, so a reader finds the one they
 # came for without reading the words.
 COLOURS = {
-    Standing.NEEDS_YOU: "yellow",
-    Standing.WORKING: "green",
-    Standing.WAITING: "cyan",
-    Standing.STUCK: "red",
-    Standing.DONE: "dim",
+    SessionStanding.NEEDS_YOU: "yellow",
+    SessionStanding.WORKING: "green",
+    SessionStanding.WAITING: "cyan",
+    SessionStanding.STUCK: "red",
+    SessionStanding.DONE: "dim",
 }
 
 QUEUE = "queued"
@@ -75,12 +75,12 @@ def show_board(
     """
     board = read_board(state, clock)
     console.print(_describe_daemon(board))
-    _show_rows(console, board, Standing.NEEDS_YOU)
-    _show_rows(console, board, Standing.WORKING)
-    _show_rows(console, board, Standing.WAITING)
-    _show_rows(console, board, Standing.STUCK)
+    _show_rows(console, board, SessionStanding.NEEDS_YOU)
+    _show_rows(console, board, SessionStanding.WORKING)
+    _show_rows(console, board, SessionStanding.WAITING)
+    _show_rows(console, board, SessionStanding.STUCK)
     _show_queue(console, board)
-    _show_rows(console, board, Standing.DONE)
+    _show_rows(console, board, SessionStanding.DONE)
     if not board.rows and not board.queued:
         console.print("nothing dispatched yet")
 
@@ -103,7 +103,7 @@ def _describe_daemon(board: Board) -> Text:
     return Text(f"{daemon}, last tick {ticked} ago{held}")
 
 
-def _show_rows(console: Console, board: Board, standing: Standing) -> None:
+def _show_rows(console: Console, board: Board, standing: SessionStanding) -> None:
     """Show the sessions standing there, a row for each."""
     rows = board.list_standing(standing)
     if not rows:
@@ -124,7 +124,7 @@ def _describe_round(row: SessionRow) -> str:
     rounds has one behind it and another to come, and a bare number there reads
     as either.
     """
-    if row.standing is not Standing.WORKING:
+    if row.standing is not SessionStanding.WORKING:
         return ""
     return f"round {len(row.session.rounds)}"
 
@@ -232,7 +232,7 @@ def _show_rounds(console: Console, row: SessionRow) -> None:
         return
     table = _open_table()
     for number, record in enumerate(rounds, start=1):
-        is_running = row.standing is Standing.WORKING and number == len(rounds)
+        is_running = row.standing is SessionStanding.WORKING and number == len(rounds)
         table.add_row(
             Text(str(number)),
             Text(record.cause),
@@ -270,7 +270,7 @@ def _show_hand_resume(console: Console, state: StateDirectory, row: SessionRow) 
     at all has no harness session behind it either, so there is nothing to
     take over there and never will be.
     """
-    if row.standing is Standing.WORKING or not row.session.rounds:
+    if row.standing is SessionStanding.WORKING or not row.session.rounds:
         return
     worktree = state.describe_path(row.session.record.worktree)
     command = " ".join(ADAPTERS[row.session.record.harness].build_hand_resume())
@@ -355,7 +355,7 @@ def show_feed(
             row = _find_rows_for_issue(state, issue, clock)[0]
             session = row.session
             view.show_what_arrived(session, range(1, len(session.rounds) + 1))
-            is_over = row.standing in (Standing.DONE, Standing.STUCK)
+            is_over = row.standing in (SessionStanding.DONE, SessionStanding.STUCK)
             if is_over and was_over:
                 return
             was_over = is_over
