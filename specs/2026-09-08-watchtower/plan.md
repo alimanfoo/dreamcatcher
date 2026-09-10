@@ -24,9 +24,9 @@ Every part is reviewed, so every part serves its reviewer:
   the result rather than deriving it from the code.
 - Two parts are cost changes that must not alter a single byte of output. Say so
   in the pull request, and let the unchanged goldens carry the claim.
-- Say which parts of a diff are generated, so the reviewer can skip them. Git
-  ignores the `.uncoded/` index and the `uncoded-*` skills, so neither reaches a
-  diff.
+- Generated files — the `.uncoded/` index in particular — land in the commit
+  that caused them, since pre-commit regenerates and fails until they are
+  staged. Say which parts of a diff are generated so the reviewer can skip them.
 
 ## Part 1: read only what a view needs
 

@@ -4,16 +4,14 @@ This guide grounds a fresh agent session before it works on this repo.
 
 ## Before you start
 
-Run `uv run uncoded sync` first. Git ignores what it writes, so a fresh clone or
-worktree holds neither the index under `.uncoded/` nor the navigation skills
-under `.claude/skills/`, and every session dreamcatcher dispatches starts in a
-fresh worktree. A harness fixes its list of skills before it reads this guide,
-so read each skill's own file rather than loading it as a skill.
+Run `uv run uncoded sync` first. Git ignores the index it writes under
+`.uncoded/`, so a fresh clone or worktree holds none of it, and both skills
+below read the index.
 
-- Read `.claude/skills/uncoded-code-navigation/SKILL.md` before searching,
-  reading or editing any code.
-- Read `.claude/skills/uncoded-doc-navigation/SKILL.md` before searching,
-  reading or editing any docs.
+- Load the `uncoded-code-navigation` skill before searching, reading or editing
+  any code.
+- Load the `uncoded-doc-navigation` skill before searching, reading or editing
+  any docs.
 
 ## What this is
 
@@ -25,10 +23,14 @@ to review and merge.
 
 The project is spec-first. Each phase of development has a dated folder under
 `specs/`. Before working, find the spec your task belongs to — the task usually
-names it. When the code you're writing has to diverge from the spec, correct the
-spec in the same PR, so it keeps saying what the code really does. Say in the PR
-what you changed and why, so the reviewer reads the divergence rather than
-finding it. The spec is corrected by review, not by drift.
+names it. When the code you're writing has to diverge from that spec, correct it
+in the same PR, so it keeps saying what the code really does. Say in the PR what
+you changed and why, so the reviewer reads the divergence rather than finding
+it. The spec is corrected by review, not by drift.
+
+Leave every other spec as it stands, however far the code has moved since. Each
+one is a historical record of what a completed phase set out to do, so bringing
+it up to date would take that record away.
 
 ## Dev setup
 
@@ -85,13 +87,11 @@ uv run pre-commit run --all-files
 - Run the tests and the checks before every commit. The commit hook runs the
   checks, never the tests.
 - Never commit with `--no-verify`. CI runs the same checks and fails the build.
-- Re-stage and commit again when a hook rewrites a file. The formatters repair
-  what they find, then report the commit as failed, so the repair is already in
-  your working tree.
+- Re-stage and commit again when a hook rewrites a file. The formatters and
+  `uncoded sync` repair what they find, then report the commit as failed, so the
+  repair is already in your working tree.
 - Never edit `.uncoded/` or the `uncoded-*` skills by hand. `uncoded sync`
-  writes them from the source and the docs, and the commit hook runs it every
-  time, so it overwrites what you wrote. Git ignores them, so your edit never
-  reaches a diff either.
+  writes them from the source and the docs, and overwrites them on every commit.
 - Never repair a file under `tests/fixtures/`. Each one is a recording: of what
   a harness streamed, of what gh answered, or of what a view rendered. Tidying
   one makes a golden test assert something that was never produced.

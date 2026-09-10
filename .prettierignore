@@ -1,0 +1,4 @@
+# uncoded owns everything it generates, so nothing else may rewrite it.
+.uncoded/
+.claude/skills/
+.agents/skills/
