@@ -19,10 +19,10 @@ def read_board(state: StateDirectory, clock: Callable[[], datetime]) -> Board:
 def read_rows_for_issue(state: StateDirectory, issue: int, clock: Callable[[], datetime]) -> list[SessionRow]:
     ...
 
-def _list_queue(tick: LastTick | None, claimed: set[int]) -> list[QueuedIssue]:
+def _list_queued_issues(tick: LastTick | None, claimed: set[int]) -> list[QueuedIssue]:
     ...
 
-def _describe_place(ahead: int) -> str:
+def _describe_place_in_queue(ahead: int) -> str:
     ...
 
 class SessionStanding(StrEnum):

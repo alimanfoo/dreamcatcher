@@ -133,7 +133,9 @@ def read_board(state: StateDirectory, clock: Callable[[], datetime] = now) -> Bo
         daemon_pid=look.daemon_pid,
         tick=look.tick,
         rows=look.list_rows(sessions),
-        queued=_list_queue(look.tick, {session.record.issue for session in sessions}),
+        queued=_list_queued_issues(
+            look.tick, {session.record.issue for session in sessions}
+        ),
     )
 
 
@@ -273,7 +275,7 @@ class _Look:
         return f"{reason} ({self.state.describe_path(feed)})"
 
 
-def _list_queue(tick: LastTick | None, claimed: set[int]) -> list[QueuedIssue]:
+def _list_queued_issues(tick: LastTick | None, claimed: set[int]) -> list[QueuedIssue]:
     """Return the labelled issues the last tick weighed, in the order they go.
 
     An issue a session here already claims is not queued: it is that session.
@@ -290,7 +292,7 @@ def _list_queue(tick: LastTick | None, claimed: set[int]) -> list[QueuedIssue]:
             continue
         reason = candidate.reason
         if reason is None:
-            reason = _describe_place(ahead)
+            reason = _describe_place_in_queue(ahead)
             ahead += 1
         queued.append(
             QueuedIssue(issue=candidate.issue, label=candidate.label, reason=reason)
@@ -298,7 +300,7 @@ def _list_queue(tick: LastTick | None, claimed: set[int]) -> list[QueuedIssue]:
     return queued
 
 
-def _describe_place(ahead: int) -> str:
+def _describe_place_in_queue(ahead: int) -> str:
     """Return where an issue with this many issues ahead of it stands."""
     if ahead == 0:
         return "next"

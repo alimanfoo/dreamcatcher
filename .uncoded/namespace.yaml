@@ -60,8 +60,8 @@ src/:
         _point_at_feed:
       read_board:
       read_rows_for_issue:
-      _list_queue:
-      _describe_place:
+      _list_queued_issues:
+      _describe_place_in_queue:
     claude.py:
       ALLOWED_TOOLS:
       TELLING_INPUTS:
