@@ -2,6 +2,7 @@
 
 import json
 import os
+from collections.abc import Sequence
 from contextlib import suppress
 from functools import partial
 from pathlib import Path
@@ -88,7 +89,7 @@ def streamed(**fields: object) -> str:
     return json.dumps(fields)
 
 
-def listing(*issues: tuple[int, str]) -> str:
+def listing(*, issues: Sequence[tuple[int, str]]) -> str:
     """Return what gh answers an issue listing with."""
     return json.dumps(
         [{"number": number, "createdAt": created} for number, created in issues]
@@ -131,12 +132,12 @@ def inline_comment(**fields: object) -> dict:
     } | fields
 
 
-def pull_requests(*listed: tuple[int, str]) -> str:
+def pull_requests(*, listed: Sequence[tuple[int, str]]) -> str:
     """Return what gh answers a pull request listing with."""
     return json.dumps([{"number": number, "state": state} for number, state in listed])
 
 
-def pages(*posts: dict) -> str:
+def pages(*, posts: Sequence[dict]) -> str:
     """Return what gh answers a paginated list with: one page holding these."""
     return json.dumps([list(posts)])
 
@@ -147,9 +148,9 @@ def recorded_posts(source: str) -> str:
     return recording.read_text(encoding="utf-8")
 
 
-def git(*arguments: str, cwd: Path) -> str:
+def git(*, arguments: Sequence[str], cwd: Path) -> str:
     """Run git in cwd and return its output, through the tool's own runner."""
-    return run("git", *arguments, cwd=cwd)
+    return run(program="git", arguments=arguments, cwd=cwd)
 
 
 def gone(pid: int) -> bool:
@@ -163,17 +164,19 @@ def gone(pid: int) -> bool:
 
 def commit(path: Path, message: str) -> None:
     """Commit everything in the checkout at path, under a throwaway identity."""
-    git("add", "--all", cwd=path)
+    git(arguments=["add", "--all"], cwd=path)
     git(
-        "-c",
-        "user.name=A Test",
-        "-c",
-        "user.email=test@example.com",
-        "-c",
-        "commit.gpgsign=false",
-        "commit",
-        "--message",
-        message,
+        arguments=[
+            "-c",
+            "user.name=A Test",
+            "-c",
+            "user.email=test@example.com",
+            "-c",
+            "commit.gpgsign=false",
+            "commit",
+            "--message",
+            message,
+        ],
         cwd=path,
     )
 
@@ -181,7 +184,7 @@ def commit(path: Path, message: str) -> None:
 @pytest.fixture
 def repo(tmp_path):
     """Return a main checkout of a fresh, empty git repository."""
-    git("init", cwd=tmp_path)
+    git(arguments=["init"], cwd=tmp_path)
     return tmp_path
 
 
@@ -189,13 +192,13 @@ def repo(tmp_path):
 def upstream(tmp_path):
     """Return a bare repository holding main, standing in for GitHub."""
     bare = tmp_path / "upstream.git"
-    git("init", "--bare", "--initial-branch=main", str(bare), cwd=tmp_path)
+    git(arguments=["init", "--bare", "--initial-branch=main", str(bare)], cwd=tmp_path)
     seed = tmp_path / "seed"
-    git("init", "--initial-branch=main", str(seed), cwd=tmp_path)
+    git(arguments=["init", "--initial-branch=main", str(seed)], cwd=tmp_path)
     (seed / "README.md").write_text("what the seed holds\n", encoding="utf-8")
     commit(seed, "seed the upstream")
-    git("remote", "add", "origin", str(bare), cwd=seed)
-    git("push", "origin", "main", cwd=seed)
+    git(arguments=["remote", "add", "origin", str(bare)], cwd=seed)
+    git(arguments=["push", "origin", "main"], cwd=seed)
     return bare
 
 
@@ -203,7 +206,7 @@ def upstream(tmp_path):
 def cloned(upstream, tmp_path):
     """Return a main checkout of upstream, with an origin/main to cut from."""
     checkout = tmp_path / "checkout"
-    git("clone", str(upstream), str(checkout), cwd=tmp_path)
+    git(arguments=["clone", str(upstream), str(checkout)], cwd=tmp_path)
     return checkout
 
 
@@ -236,7 +239,7 @@ def gh_with_no_posts(fake):
     """
     stand_in = fake("gh")
     for path in POST_LIST_PATHS.values():
-        stand_in.replies(pages(), to=f"api {path}")
+        stand_in.replies(pages(posts=[]), to=f"api {path}")
     return stand_in
 
 

@@ -26,8 +26,8 @@ def completed(**item) -> str:
 # Each command ends in the word that has Codex read its prompt from stdin.
 def test_a_first_round_runs_where_it_is_launched_under_codexs_own_reviewer():
     assert CODEX.build_first_round(LAUNCH) == Invocation(
-        [
-            "codex",
+        program="codex",
+        arguments=[
             "exec",
             "--json",
             "--approve-for-me",
@@ -36,14 +36,14 @@ def test_a_first_round_runs_where_it_is_launched_under_codexs_own_reviewer():
             "sandbox_workspace_write.network_access=true",
             STDIN,
         ],
-        "$dream:smith GH9",
+        prompt="$dream:smith GH9",
     )
 
 
 def test_a_resume_replays_the_settings_and_the_permissions_codex_forgets():
     assert CODEX.build_resumed_round(LAUNCH) == Invocation(
-        [
-            "codex",
+        program="codex",
+        arguments=[
             "exec",
             "resume",
             "--last",
@@ -59,7 +59,7 @@ def test_a_resume_replays_the_settings_and_the_permissions_codex_forgets():
             'approvals_reviewer="auto_review"',
             STDIN,
         ],
-        "$dream:smith GH9",
+        prompt="$dream:smith GH9",
     )
 
 

@@ -25,7 +25,7 @@ def watching(tmp_path):
     write_text(f"{os.getpid()}\n", state.lock)
     directory = write_session(state, KEY, 13)
     write_round(directory, 1, RoundRecord(started=PINNED, pid=1, cause=Cause.DISPATCH))
-    write_feed(directory, 1, Line(PINNED, "[Bash] pytest"))
+    write_feed(directory=directory, number=1, lines=[Line(PINNED, "[Bash] pytest")])
     return state
 
 

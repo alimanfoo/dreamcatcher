@@ -1,4 +1,5 @@
 import os
+from collections.abc import Sequence
 from datetime import timedelta
 
 import pytest
@@ -58,14 +59,18 @@ def ran(state, number: int, cause: Cause = Cause.DISPATCH, status: int | None = 
     )
 
 
-def said(state, number: int, *texts: str):
+def said(*, state, number: int, texts: Sequence[str]):
     """Write down what the session's numbered round said, a minute after it began.
 
     A round says nothing before it starts, so a feed line written at the
     pinned hour itself would read as one that landed before its own round.
     """
     at = PINNED + timedelta(minutes=number + 1)
-    write_feed(state.sessions / KEY, number, *(Line(at, text) for text in texts))
+    write_feed(
+        directory=state.sessions / KEY,
+        number=number,
+        lines=[Line(at, text) for text in texts],
+    )
 
 
 def looked(state):
@@ -99,7 +104,7 @@ def test_an_issue_no_session_here_has_holds_no_rows(state):
 
 def test_a_look_at_one_issue_leaves_another_session_s_feed_unread(running):
     ran(running, 1, status=None)
-    said(running, 1, "[Bash] pytest")
+    said(state=running, number=1, texts=["[Bash] pytest"])
     other = write_session(running, "GH99-20260819-184158", 99)
     write_round(other, 1, RoundRecord(started=PINNED, pid=1, cause=Cause.DISPATCH))
     # Bytes that are not UTF-8 stand for a feed that a look must not open,
@@ -125,7 +130,7 @@ def test_the_daemon_holding_the_repo_is_the_one_the_lock_names(running):
 
 def test_a_round_a_running_daemon_has_not_ended_is_the_agent_working(running):
     ran(running, 1, status=None)
-    said(running, 1, "[Bash] pytest")
+    said(state=running, number=1, texts=["[Bash] pytest"])
 
     row = only(running)
 
@@ -173,7 +178,7 @@ def test_a_session_done_in_one_round_counts_that_round_as_one(state):
 
 def test_a_session_the_tick_found_nothing_to_do_for_needs_you(state):
     ran(state, 1)
-    said(state, 1, "[Bash] pytest")
+    said(state=state, number=1, texts=["[Bash] pytest"])
     write_tick(state, LastTick(at=PINNED))
 
     assert only(state).standing is SessionStanding.NEEDS_YOU

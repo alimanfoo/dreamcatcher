@@ -2,6 +2,7 @@
 # tests/test_eligibility.py
 
 import json
+from collections.abc import Sequence
 import pytest
 from conftest import FILED, LABEL, LATER, REPOSITORY, listing
 from dreamcatcher.config import Config
@@ -11,7 +12,7 @@ from dreamcatcher.state import CandidateIssue
 
 SETTINGS = {'prompt': '/dream:smith GH{issue}', 'model': 'opus[1m]', 'effort': 'xhigh'}
 
-def mapping(*labels: str) -> Config:
+def mapping(*, labels: Sequence[str]) -> Config:
     ...
 
 def gh(fake):

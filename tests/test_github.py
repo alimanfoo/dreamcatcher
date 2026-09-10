@@ -174,11 +174,13 @@ def test_a_pull_request_nobody_has_posted_on_comes_back_with_no_posts(gh_with_no
 
 def test_the_posts_of_a_pull_request_come_from_all_three_of_its_lists(gh_with_no_posts):
     gh_with_no_posts.replies(
-        pages(COMMENT), to=f"api {POST_LIST_PATHS['conversation']}"
+        pages(posts=[COMMENT]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
-    gh_with_no_posts.replies(pages(REVIEW), to=f"api {POST_LIST_PATHS['reviews']}")
     gh_with_no_posts.replies(
-        pages(INLINE_COMMENT), to=f"api {POST_LIST_PATHS['inline-comments']}"
+        pages(posts=[REVIEW]), to=f"api {POST_LIST_PATHS['reviews']}"
+    )
+    gh_with_no_posts.replies(
+        pages(posts=[INLINE_COMMENT]), to=f"api {POST_LIST_PATHS['inline-comments']}"
     )
 
     assert [(type(post), post.id) for post in posted()] == [

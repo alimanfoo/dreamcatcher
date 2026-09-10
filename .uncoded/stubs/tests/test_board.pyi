@@ -2,6 +2,7 @@
 # tests/test_board.py
 
 import os
+from collections.abc import Sequence
 from datetime import timedelta
 import pytest
 from clocks import PINNED
@@ -24,7 +25,7 @@ def running(state):
 def ran(state, number: int, cause: Cause, status: int | None):
     ...
 
-def said(state, number: int, *texts: str):
+def said(*, state, number: int, texts: Sequence[str]):
     ...
 
 def looked(state):

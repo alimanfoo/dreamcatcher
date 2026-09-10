@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+from collections.abc import Sequence
 from contextlib import suppress
 from io import BytesIO, TextIOWrapper
 
@@ -64,7 +65,11 @@ CONVERSATION = POST_LIST_PATHS["conversation"]
 @pytest.fixture
 def left_running(tmp_path):
     """A process standing in for a round that outlived the daemon that ran it."""
-    child = spawn(sys.executable, "-c", "import time; time.sleep(60)", cwd=tmp_path)
+    child = spawn(
+        program=sys.executable,
+        arguments=["-c", "import time; time.sleep(60)"],
+        cwd=tmp_path,
+    )
     yield child
     # Whatever a test left of it, and never through the tool's own teardown:
     # that signals a process group, which a test may already have emptied.
@@ -82,7 +87,7 @@ def alone(fake, stand_ins, monkeypatch):
     test means to fail. So the PATH holds the stand-ins alone.
     """
 
-    def install(*programs: str) -> None:
+    def install(*, programs: Sequence[str]) -> None:
         for program in programs:
             fake(program)
         monkeypatch.setenv("PATH", str(stand_ins))
@@ -259,7 +264,7 @@ def test_the_state_directory_sits_in_the_checkout(watched):
 def test_a_run_refuses_when_a_harness_it_could_dispatch_to_is_not_installed(
     watched, alone
 ):
-    alone("claude")
+    alone(programs=["claude"])
     daemon, _, _ = idling(watched)
 
     with pytest.raises(ReportableError, match="codex is not on the PATH"):
@@ -268,7 +273,7 @@ def test_a_run_refuses_when_a_harness_it_could_dispatch_to_is_not_installed(
 
 def test_a_run_refuses_when_the_harness_it_was_named_is_not_installed(repo, alone):
     (repo / CONFIG_NAME).write_text(CONFIG_HEAD + SMITH_CLAUDE, encoding="utf-8")
-    alone("claude")
+    alone(programs=["claude"])
 
     with pytest.raises(ReportableError, match="codex is not on the PATH"):
         Daemon(repo, Harness.CODEX, wait=Interrupting(1)).run()
@@ -357,7 +362,7 @@ def gh(fake):
 @pytest.fixture
 def offered(gh):
     """That gh, now offering one labelled issue nothing stands in the way of."""
-    gh.replies(listing((8, FILED)), to="issue list")
+    gh.replies(listing(issues=[(8, FILED)]), to="issue list")
     return gh
 
 
@@ -439,7 +444,7 @@ def test_a_tick_launches_one_round_and_leaves_the_rest_in_the_queue(
     dispatching, offered
 ):
     configure(dispatching, "max_agents = 2\n\n")
-    offered.replies(listing((8, FILED), (9, LATER)), to="issue list")
+    offered.replies(listing(issues=[(8, FILED), (9, LATER)]), to="issue list")
     daemon, _, _ = idling(dispatching, ticks=1)
 
     daemon.run()
@@ -498,7 +503,7 @@ def test_a_tick_at_the_cap_leaves_a_wound_up_session_waiting_on_nothing(
 
 def test_a_tick_at_the_cap_refreshes_the_candidates(dispatching, offered, harnesses):
     harnesses["claude"].streams([Line("still working\n")], delay=STILL_RUNNING)
-    offered.replies(listing((8, FILED), (9, LATER)), to="issue list")
+    offered.replies(listing(issues=[(8, FILED), (9, LATER)]), to="issue list")
     daemon, _, _ = idling(dispatching, ticks=2)
 
     daemon.run()
@@ -536,7 +541,7 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
 
 
 def test_a_tick_with_nothing_eligible_dispatches_nothing(dispatching, offered):
-    offered.replies(pull_requests((7, "open")), to="api")
+    offered.replies(pull_requests(listed=[(7, "open")]), to="api")
     daemon, _, _ = idling(dispatching, ticks=1)
 
     daemon.run()
@@ -701,7 +706,7 @@ def test_a_session_with_an_open_pull_request_and_nothing_new_is_not_waiting(
     resuming, gh
 ):
     ran(resuming, 1, Cause.DISPATCH)
-    gh.replies(pull_requests((PULL_REQUEST, "OPEN")), to="pr list")
+    gh.replies(pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list")
     daemon, _, _ = idling(resuming, ticks=1)
 
     daemon.run()
@@ -750,7 +755,7 @@ def test_a_dispatch_whose_round_will_not_start_leaves_no_session_behind(dispatch
     assert recorded(daemon).candidates == [CandidateIssue(issue=8, label=LABEL)]
     assert not (daemon.state.worktrees / DISPATCHED_KEY).exists()
     branch = f"dreamcatcher-{DISPATCHED_KEY}"
-    assert git("branch", "--list", branch, cwd=dispatching) == ""
+    assert git(arguments=["branch", "--list", branch], cwd=dispatching) == ""
 
 
 def test_a_run_that_cannot_read_a_session_refuses_to_start(dispatching):
@@ -806,8 +811,8 @@ def test_a_carried_on_round_says_that_is_what_woke_it(resuming, left_running):
 
 def test_a_session_the_user_has_posted_on_is_told_what_they_said(resuming, gh):
     ran(resuming, 1, Cause.DISPATCH)
-    gh.replies(pull_requests((PULL_REQUEST, "OPEN")), to="pr list")
-    gh.replies(pages(comment()), to=f"api {POST_LIST_PATHS['conversation']}")
+    gh.replies(pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list")
+    gh.replies(pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}")
     daemon = settling(resuming)
 
     daemon.run()
@@ -824,8 +829,8 @@ def test_a_session_the_user_has_posted_on_is_told_what_they_said(resuming, gh):
 
 def test_a_session_told_about_a_batch_hears_it_only_once(resuming, gh):
     ran(resuming, 1, Cause.DISPATCH)
-    gh.replies(pull_requests((PULL_REQUEST, "OPEN")), to="pr list")
-    gh.replies(pages(comment()), to=f"api {POST_LIST_PATHS['conversation']}")
+    gh.replies(pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list")
+    gh.replies(pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}")
     daemon = settling(resuming, ticks=2)
 
     daemon.run()
@@ -839,8 +844,8 @@ def test_a_session_told_about_a_batch_hears_it_only_once(resuming, gh):
 
 def test_a_batch_no_round_ever_launched_is_read_again_next_tick(resuming, gh):
     ran(resuming, 1, Cause.DISPATCH)
-    gh.replies(pull_requests((PULL_REQUEST, "OPEN")), to="pr list")
-    gh.replies(pages(comment()), to=f"api {POST_LIST_PATHS['conversation']}")
+    gh.replies(pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list")
+    gh.replies(pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}")
     # A file where the round's own directory goes, so no round can ever start.
     occupied = StateDirectory(resuming).sessions / KEY / "rounds" / "2"
     occupied.parent.mkdir(parents=True, exist_ok=True)
@@ -858,7 +863,7 @@ def test_a_batch_no_round_ever_launched_is_read_again_next_tick(resuming, gh):
 @pytest.mark.parametrize("state_name", ["MERGED", "CLOSED"])
 def test_a_pull_request_that_is_finished_gets_one_last_round(resuming, gh, state_name):
     ran(resuming, 1, Cause.DISPATCH)
-    gh.replies(pull_requests((PULL_REQUEST, state_name)), to="pr list")
+    gh.replies(pull_requests(listed=[(PULL_REQUEST, state_name)]), to="pr list")
     daemon = settling(resuming)
 
     daemon.run()
@@ -874,7 +879,7 @@ def test_a_pull_request_that_is_finished_gets_one_last_round(resuming, gh, state
 def test_a_session_that_has_had_its_last_round_gets_no_other(resuming, gh):
     ran(resuming, 1, Cause.DISPATCH)
     ran(resuming, 2, Cause.FINAL)
-    gh.replies(pull_requests((PULL_REQUEST, "MERGED")), to="pr list")
+    gh.replies(pull_requests(listed=[(PULL_REQUEST, "MERGED")]), to="pr list")
     daemon, _, _ = idling(resuming, ticks=1)
 
     daemon.run()
@@ -896,7 +901,7 @@ def test_a_last_round_that_was_interrupted_is_carried_on_as_the_last_round(
             cause=Cause.FINAL,
         ),
     )
-    gh.replies(pull_requests((PULL_REQUEST, "MERGED")), to="pr list")
+    gh.replies(pull_requests(listed=[(PULL_REQUEST, "MERGED")]), to="pr list")
     daemon = settling(resuming, ticks=2)
 
     daemon.run()

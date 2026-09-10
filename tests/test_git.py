@@ -19,7 +19,7 @@ def worktrees(root):
     git prints a path with forward slashes on Windows too, so these come back as
     paths rather than as text. Comparing the text would pass whatever git said.
     """
-    listed = git("worktree", "list", "--porcelain", cwd=root)
+    listed = git(arguments=["worktree", "list", "--porcelain"], cwd=root)
     return [
         Path(line.removeprefix("worktree "))
         for line in listed.splitlines()
@@ -28,11 +28,11 @@ def worktrees(root):
 
 
 def test_a_fetch_brings_origins_main_back(cloned):
-    git("update-ref", "-d", "refs/remotes/origin/main", cwd=cloned)
+    git(arguments=["update-ref", "-d", "refs/remotes/origin/main"], cwd=cloned)
 
     fetch(cloned)
 
-    assert git("rev-parse", "origin/main", cwd=cloned).strip()
+    assert git(arguments=["rev-parse", "origin/main"], cwd=cloned).strip()
 
 
 def test_a_worktree_lands_where_it_is_asked_for_on_its_own_branch(cloned):
@@ -41,7 +41,7 @@ def test_a_worktree_lands_where_it_is_asked_for_on_its_own_branch(cloned):
     add_worktree(cloned, path, BRANCH)
 
     assert (path / "README.md").exists()
-    assert BRANCH in git("branch", "--list", BRANCH, cwd=cloned)
+    assert BRANCH in git(arguments=["branch", "--list", BRANCH], cwd=cloned)
     assert path in worktrees(cloned)
 
 
@@ -80,7 +80,7 @@ def test_a_deleted_branch_leaves_the_branch_list(cloned):
 
     delete_branch(cloned, BRANCH)
 
-    assert git("branch", "--list", BRANCH, cwd=cloned) == ""
+    assert git(arguments=["branch", "--list", BRANCH], cwd=cloned) == ""
 
 
 def test_a_branch_a_worktree_holds_is_not_deleted_quietly(cloned):

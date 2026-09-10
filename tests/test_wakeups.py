@@ -36,7 +36,9 @@ def state(tmp_path):
 @pytest.fixture
 def gh(gh_with_no_posts):
     """A gh answering with one open pull request that nobody has posted on."""
-    gh_with_no_posts.replies(pull_requests((PULL_REQUEST, "OPEN")), to="pr list")
+    gh_with_no_posts.replies(
+        pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list"
+    )
     return gh_with_no_posts
 
 
@@ -104,7 +106,7 @@ def test_a_session_nobody_has_posted_on_needs_nothing(state, gh):
 
 def test_a_session_the_user_has_posted_on_answers_what_they_said(state, gh):
     ran(state, 1, Cause.DISPATCH)
-    gh.replies(pages(comment()), to=f"api {POST_LIST_PATHS['conversation']}")
+    gh.replies(pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}")
 
     resume = found(state)
 
@@ -122,7 +124,7 @@ def test_a_session_the_user_has_posted_on_answers_what_they_said(state, gh):
 def test_a_batch_of_posts_says_how_many_it_holds(state, gh):
     ran(state, 1, Cause.DISPATCH)
     gh.replies(
-        pages(comment(), comment(id=2, created_at="2026-09-03T22:20:55Z")),
+        pages(posts=[comment(), comment(id=2, created_at="2026-09-03T22:20:55Z")]),
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
@@ -134,7 +136,7 @@ def test_a_batch_of_posts_says_how_many_it_holds(state, gh):
 
 def test_a_post_the_session_has_been_told_about_already_wakes_nothing(state, gh):
     ran(state, 1, Cause.DISPATCH)
-    gh.replies(pages(comment()), to=f"api {POST_LIST_PATHS['conversation']}")
+    gh.replies(pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}")
     advance_watermark(read_sessions(state)[0], POSTED_AT)
 
     assert found(state) is None
@@ -144,7 +146,7 @@ def test_the_prompt_of_a_posts_resume_sends_the_session_to_the_next_rounds_inbox
     state, gh
 ):
     ran(state, 1, Cause.DISPATCH)
-    gh.replies(pages(comment()), to=f"api {POST_LIST_PATHS['conversation']}")
+    gh.replies(pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}")
 
     resume = found(state)
 
@@ -160,7 +162,7 @@ def test_a_pull_request_that_is_finished_calls_for_one_last_round(
     state, gh, state_name
 ):
     ran(state, 1, Cause.DISPATCH)
-    gh.replies(pull_requests((PULL_REQUEST, state_name)), to="pr list")
+    gh.replies(pull_requests(listed=[(PULL_REQUEST, state_name)]), to="pr list")
 
     resume = found(state)
 
@@ -173,8 +175,8 @@ def test_a_pull_request_that_is_finished_calls_for_one_last_round(
 
 def test_a_last_round_carries_what_the_user_said_before_the_merge(state, gh):
     ran(state, 1, Cause.DISPATCH)
-    gh.replies(pull_requests((PULL_REQUEST, "MERGED")), to="pr list")
-    gh.replies(pages(comment()), to=f"api {POST_LIST_PATHS['conversation']}")
+    gh.replies(pull_requests(listed=[(PULL_REQUEST, "MERGED")]), to="pr list")
+    gh.replies(pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}")
 
     resume = found(state)
 
@@ -189,7 +191,7 @@ def test_a_last_round_carries_what_the_user_said_before_the_merge(state, gh):
 def test_a_session_whose_last_round_wound_it_up_needs_nothing(state, gh):
     ran(state, 1, Cause.DISPATCH)
     ran(state, 2, Cause.FINAL)
-    gh.replies(pull_requests((PULL_REQUEST, "MERGED")), to="pr list")
+    gh.replies(pull_requests(listed=[(PULL_REQUEST, "MERGED")]), to="pr list")
 
     assert found(state) is None
 
@@ -198,7 +200,7 @@ def test_a_last_round_that_was_carried_on_is_still_the_last_round(state, gh):
     ran(state, 1, Cause.DISPATCH)
     ran(state, 2, Cause.FINAL, status=None)
     ran(state, 3, Cause.CARRY_ON)
-    gh.replies(pull_requests((PULL_REQUEST, "MERGED")), to="pr list")
+    gh.replies(pull_requests(listed=[(PULL_REQUEST, "MERGED")]), to="pr list")
 
     assert found(state) is None
 
@@ -218,10 +220,10 @@ def test_a_session_with_no_pull_request_of_its_own_waits_for_a_person(state, gh)
 def test_an_open_pull_request_outranks_the_ones_that_are_finished(state, gh):
     ran(state, 1, Cause.DISPATCH)
     gh.replies(
-        pull_requests((60, "CLOSED"), (PULL_REQUEST, "OPEN")),
+        pull_requests(listed=[(60, "CLOSED"), (PULL_REQUEST, "OPEN")]),
         to="pr list",
     )
-    gh.replies(pages(comment()), to=f"api {POST_LIST_PATHS['conversation']}")
+    gh.replies(pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}")
 
     resume = found(state)
 
@@ -232,7 +234,7 @@ def test_an_open_pull_request_outranks_the_ones_that_are_finished(state, gh):
 def test_the_newest_of_two_finished_pull_requests_is_the_sessions_own(state, gh):
     ran(state, 1, Cause.DISPATCH)
     gh.replies(
-        pull_requests((PULL_REQUEST, "CLOSED"), (40, "MERGED")),
+        pull_requests(listed=[(PULL_REQUEST, "CLOSED"), (40, "MERGED")]),
         to="pr list",
     )
 

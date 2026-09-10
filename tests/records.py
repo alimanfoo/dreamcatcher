@@ -5,6 +5,7 @@ writes them here, rather than dispatching them. So it reaches the state it is
 about without a GitHub, an origin to cut from, or a harness to run.
 """
 
+from collections.abc import Sequence
 from pathlib import Path
 
 from dreamcatcher import rounds, sessions
@@ -42,7 +43,7 @@ def write_round(
     return record
 
 
-def write_feed(directory: Path, number: int, *lines: Line) -> None:
+def write_feed(*, directory: Path, number: int, lines: Sequence[Line]) -> None:
     """Write the feed of one round of the session at this directory."""
     write_text(
         "".join(line.render() for line in lines), _workspace(directory, number).feed

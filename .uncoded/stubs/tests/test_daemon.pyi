@@ -4,6 +4,7 @@
 import json
 import os
 import sys
+from collections.abc import Sequence
 from contextlib import suppress
 from io import BytesIO, TextIOWrapper
 import psutil

@@ -8,6 +8,7 @@ the daemon's pid are all pinned and every run and every platform renders the
 same text.
 """
 
+from collections.abc import Sequence
 from datetime import timedelta
 from io import StringIO
 
@@ -89,7 +90,7 @@ def daemon(monkeypatch):
     monkeypatch.setattr(psutil, "pid_exists", lambda pid: pid == DAEMON_PID)
 
 
-def written(state, issue: int, *records: RoundRecord):
+def written(*, state, issue: int, records: Sequence[RoundRecord]):
     """Write a session for the issue, with these rounds behind it."""
     directory = write_session(state, f"GH{issue}-{STAMP}", issue)
     for number, record in enumerate(records, start=1):
@@ -126,15 +127,25 @@ def fabricate_nothing(state):
 def fabricate_everything(state):
     """A daemon running, with a session in every standing and a queue behind."""
     holding(state)
-    directory = written(state, 13, ended(1), running(30, cause=Cause.POSTS))
-    write_feed(directory, 1, *SAID)
-    write_feed(directory, 2, Line(PINNED + timedelta(minutes=31), "[Bash] pytest"))
-    write_feed(written(state, 20, ended(1)), 1, Line(PINNED, "[Bash] git push"))
-    written(state, 31, ended(1))
-    written(state, 35, ended(1, status=2))
-    written(state, 9, ended(1))
-    written(state, 12, ended(1), ended(2, cause=Cause.FINAL))
-    written(state, 44)
+    directory = written(
+        state=state, issue=13, records=[ended(1), running(30, cause=Cause.POSTS)]
+    )
+    write_feed(directory=directory, number=1, lines=SAID)
+    write_feed(
+        directory=directory,
+        number=2,
+        lines=[Line(PINNED + timedelta(minutes=31), "[Bash] pytest")],
+    )
+    write_feed(
+        directory=written(state=state, issue=20, records=[ended(1)]),
+        number=1,
+        lines=[Line(PINNED, "[Bash] git push")],
+    )
+    written(state=state, issue=31, records=[ended(1)])
+    written(state=state, issue=35, records=[ended(1, status=2)])
+    written(state=state, issue=9, records=[ended(1)])
+    written(state=state, issue=12, records=[ended(1), ended(2, cause=Cause.FINAL)])
+    written(state=state, issue=44, records=[])
     write_tick(
         state,
         LastTick(
@@ -181,9 +192,13 @@ def fabricate_a_dead_daemon(state):
 def fabricate_the_cap(state):
     """A daemon at its cap, which peeked at nothing and holds every session."""
     holding(state)
-    directory = written(state, 13, running(30))
-    write_feed(directory, 1, Line(PINNED + timedelta(minutes=31), "[Bash] pytest"))
-    written(state, 20, ended(1))
+    directory = written(state=state, issue=13, records=[running(30)])
+    write_feed(
+        directory=directory,
+        number=1,
+        lines=[Line(PINNED + timedelta(minutes=31), "[Bash] pytest")],
+    )
+    written(state=state, issue=20, records=[ended(1)])
     hold = "at cap: 1 of 1 rounds running"
     write_tick(
         state,
@@ -206,9 +221,11 @@ def fabricate_repeat_sessions(state):
         for number, record in enumerate(rounds, start=1):
             write_round(directory, number, record)
         write_feed(
-            directory,
-            len(rounds),
-            Line(PINNED + timedelta(minutes=len(rounds) + 1), "[Bash] git push"),
+            directory=directory,
+            number=len(rounds),
+            lines=[
+                Line(PINNED + timedelta(minutes=len(rounds) + 1), "[Bash] git push")
+            ],
         )
     write_tick(state, LastTick(at=PINNED + timedelta(hours=1, minutes=58)))
 
@@ -220,8 +237,10 @@ def fabricate_a_silent_round(state):
     that the round has said nothing.
     """
     holding(state)
-    directory = written(state, 13, ended(1), running(30, cause=Cause.POSTS))
-    write_feed(directory, 1, Line(PINNED, "[Bash] git push"))
+    directory = written(
+        state=state, issue=13, records=[ended(1), running(30, cause=Cause.POSTS)]
+    )
+    write_feed(directory=directory, number=1, lines=[Line(PINNED, "[Bash] git push")])
     write_tick(
         state,
         LastTick(at=PINNED + timedelta(hours=1, minutes=58), launched=f"GH13-{STAMP}"),
@@ -354,8 +373,12 @@ def test_a_board_a_reader_watches_keeps_up_with_what_the_daemon_writes(
         if len(looks) > 1:
             raise KeyboardInterrupt
         holding(state)
-        directory = written(state, 13, running(30))
-        write_feed(directory, 1, Line(PINNED + timedelta(minutes=31), "[Bash] pytest"))
+        directory = written(state=state, issue=13, records=[running(30)])
+        write_feed(
+            directory=directory,
+            number=1,
+            lines=[Line(PINNED + timedelta(minutes=31), "[Bash] pytest")],
+        )
 
     show_board(
         state, pinned(written_to, is_terminal=True), clock=lambda: LOOKED_AT, wait=wait
@@ -423,15 +446,19 @@ def viewed(state, issue: int, width: int = WIDTH) -> str:
 def test_wrapped_latest_output_keeps_its_indent(tmp_path, daemon):
     state = StateDirectory(tmp_path)
     holding(state)
-    directory = written(state, 13, running(1, cause=Cause.DISPATCH))
+    directory = written(
+        state=state, issue=13, records=[running(1, cause=Cause.DISPATCH)]
+    )
     write_feed(
-        directory,
-        1,
-        Line(
-            PINNED,
-            "The agent is explaining a long change that needs to wrap onto "
-            "another line.",
-        ),
+        directory=directory,
+        number=1,
+        lines=[
+            Line(
+                PINNED,
+                "The agent is explaining a long change that needs to wrap onto "
+                "another line.",
+            )
+        ],
     )
 
     view = viewed(state, 13, width=40)
@@ -623,7 +650,9 @@ def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path, dae
             raise KeyboardInterrupt
         write_round(directory, 2, running(60, cause=Cause.POSTS))
         write_feed(
-            directory, 2, Line(PINNED + timedelta(minutes=61), "[Bash] git commit")
+            directory=directory,
+            number=2,
+            lines=[Line(PINNED + timedelta(minutes=61), "[Bash] git commit")],
         )
 
     feed = followed(state, 20, wait=wait)
@@ -684,11 +713,13 @@ def test_a_following_view_reads_a_round_on_from_where_it_stopped(tmp_path, daemo
         # find. The rewritten line is as long as the one it replaces, so the
         # line after it starts where the view stopped reading.
         write_feed(
-            directory,
-            1,
-            Line(SAID[0].at, "[session] model opus[1m], id 000000"),
-            *SAID[1:],
-            Line(PINNED + timedelta(minutes=7), "[Bash] git push"),
+            directory=directory,
+            number=1,
+            lines=[
+                Line(SAID[0].at, "[session] model opus[1m], id 000000"),
+                *SAID[1:],
+                Line(PINNED + timedelta(minutes=7), "[Bash] git push"),
+            ],
         )
 
     feed = followed(state, 13, wait=wait)

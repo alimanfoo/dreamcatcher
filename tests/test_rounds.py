@@ -62,10 +62,10 @@ class Unrenderable(Adapter):
     program = "harness"
 
     def build_first_round(self, launch: Launch) -> Invocation:
-        return Invocation([self.program], launch.prompt)
+        return Invocation(program=self.program, arguments=[], prompt=launch.prompt)
 
     def build_resumed_round(self, launch: Launch) -> Invocation:
-        return Invocation([self.program], launch.prompt)
+        return Invocation(program=self.program, arguments=[], prompt=launch.prompt)
 
     def build_hand_resume(self) -> list[str]:
         return [self.program]
@@ -124,7 +124,7 @@ def test_a_round_runs_the_command_it_was_given_in_the_worktree(
 
     Round(
         CLAUDE,
-        Invocation(["harness", "--print"], PROMPT),
+        Invocation(program="harness", arguments=["--print"], prompt=PROMPT),
         Workspace(worktree, directory),
         CAUSE,
         clock=pinned,
@@ -140,7 +140,7 @@ def test_a_round_gives_the_harness_its_prompt_to_read(fake, worktree, directory)
 
     running = Round(
         CLAUDE,
-        Invocation(["harness"], PROMPT),
+        Invocation(program="harness", arguments=[], prompt=PROMPT),
         Workspace(worktree, directory),
         CAUSE,
         clock=pinned,
@@ -158,7 +158,7 @@ def test_the_feed_a_round_writes_is_the_feed_its_stream_renders_as(
 
     running = Round(
         CLAUDE,
-        Invocation(["harness"], PROMPT),
+        Invocation(program="harness", arguments=[], prompt=PROMPT),
         Workspace(worktree, directory),
         CAUSE,
         clock=pinned,
@@ -177,7 +177,7 @@ def test_a_round_keeps_the_harnesss_own_stream_as_it_arrived(fake, worktree, dir
 
     running = Round(
         CLAUDE,
-        Invocation(["harness"], PROMPT),
+        Invocation(program="harness", arguments=[], prompt=PROMPT),
         Workspace(worktree, directory),
         CAUSE,
         clock=pinned,
@@ -201,7 +201,7 @@ def test_what_the_harness_says_on_stderr_lands_where_it_happened(
 
     running = Round(
         CLAUDE,
-        Invocation(["harness"], PROMPT),
+        Invocation(program="harness", arguments=[], prompt=PROMPT),
         Workspace(worktree, directory),
         CAUSE,
         clock=pinned,
@@ -221,7 +221,7 @@ def test_a_line_the_feed_cannot_write_costs_that_line_alone(fake, worktree, dire
 
     running = Round(
         Unrenderable(),
-        Invocation(["harness"], PROMPT),
+        Invocation(program="harness", arguments=[], prompt=PROMPT),
         Workspace(worktree, directory),
         CAUSE,
         clock=pinned,
@@ -241,7 +241,7 @@ def test_a_round_says_when_it_started_what_caused_it_and_what_process_it_is(
 
     running = Round(
         CLAUDE,
-        Invocation(["harness"], PROMPT),
+        Invocation(program="harness", arguments=[], prompt=PROMPT),
         Workspace(worktree, directory),
         CAUSE,
         clock=pinned,
@@ -260,7 +260,7 @@ def test_a_round_that_finished_says_how_it_ended(fake, worktree, directory):
 
     running = Round(
         CLAUDE,
-        Invocation(["harness"], PROMPT),
+        Invocation(program="harness", arguments=[], prompt=PROMPT),
         Workspace(worktree, directory),
         CAUSE,
         clock=pinned,
@@ -281,7 +281,7 @@ def test_a_round_somebody_stopped_says_no_ending(fake, worktree, directory):
 
     running = Round(
         CLAUDE,
-        Invocation(["harness"], PROMPT),
+        Invocation(program="harness", arguments=[], prompt=PROMPT),
         Workspace(worktree, directory),
         CAUSE,
         clock=pinned,
@@ -297,7 +297,7 @@ def test_a_round_stopped_after_it_finished_keeps_its_ending(fake, worktree, dire
 
     running = Round(
         CLAUDE,
-        Invocation(["harness"], PROMPT),
+        Invocation(program="harness", arguments=[], prompt=PROMPT),
         Workspace(worktree, directory),
         CAUSE,
         clock=pinned,
@@ -321,7 +321,7 @@ def test_a_round_that_cannot_write_its_feed_stops_rather_than_stalls(
 
     running = Round(
         CLAUDE,
-        Invocation(["harness"], PROMPT),
+        Invocation(program="harness", arguments=[], prompt=PROMPT),
         Workspace(worktree, directory),
         CAUSE,
         clock=pinned,
@@ -341,7 +341,7 @@ def test_a_round_that_cannot_write_its_prompt_never_starts(fake, worktree, tmp_p
     with pytest.raises(ReportableError, match=r"prompt\.txt"):
         Round(
             CLAUDE,
-            Invocation(["harness"], PROMPT),
+            Invocation(program="harness", arguments=[], prompt=PROMPT),
             Workspace(worktree, occupied / "1"),
             CAUSE,
             clock=pinned,
@@ -361,7 +361,7 @@ def test_a_round_that_cannot_record_its_start_does_not_run_on(
     with pytest.raises(ReportableError, match=r"round\.json"):
         Round(
             CLAUDE,
-            Invocation(["harness"], PROMPT),
+            Invocation(program="harness", arguments=[], prompt=PROMPT),
             Workspace(worktree, directory),
             CAUSE,
             clock=pinned,
@@ -373,7 +373,11 @@ def test_a_round_a_straggler_outlives_still_records_an_ending(
 ):
     running = Round(
         CLAUDE,
-        Invocation([sys.executable, "-c", LEAVES_A_STRAGGLER, str(straggler)], PROMPT),
+        Invocation(
+            program=sys.executable,
+            arguments=["-c", LEAVES_A_STRAGGLER, str(straggler)],
+            prompt=PROMPT,
+        ),
         Workspace(worktree, directory),
         CAUSE,
         clock=pinned,
@@ -392,8 +396,9 @@ def test_a_round_a_straggler_outlives_still_stops(worktree, directory, straggler
     running = Round(
         CLAUDE,
         Invocation(
-            [sys.executable, "-c", LEAVES_A_STRAGGLER + AND_WAITS, str(straggler)],
-            PROMPT,
+            program=sys.executable,
+            arguments=["-c", LEAVES_A_STRAGGLER + AND_WAITS, str(straggler)],
+            prompt=PROMPT,
         ),
         Workspace(worktree, directory),
         CAUSE,

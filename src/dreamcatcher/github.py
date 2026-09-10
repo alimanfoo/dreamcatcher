@@ -1,5 +1,6 @@
 """Ask gh what GitHub knows about the repository dreamcatcher watches."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
@@ -278,7 +279,11 @@ def identify_repository(root: Path) -> str | Unknown:
     gh reads the repository from the checkout's own remote, so this asks from
     inside the checkout.
     """
-    answered = _read(REPOSITORY, "repo", "view", "--json", "nameWithOwner", cwd=root)
+    answered = _read(
+        shape=REPOSITORY,
+        arguments=["repo", "view", "--json", "nameWithOwner"],
+        cwd=root,
+    )
     if isinstance(answered, Unknown):
         return answered
     return answered.name_with_owner
@@ -286,7 +291,7 @@ def identify_repository(root: Path) -> str | Unknown:
 
 def identify_account() -> str | Unknown:
     """Return the login of the account gh is signed in as."""
-    answered = _read(ACCOUNT, "api", "user")
+    answered = _read(shape=ACCOUNT, arguments=["api", "user"])
     if isinstance(answered, Unknown):
         return answered
     return answered.login
@@ -295,21 +300,23 @@ def identify_account() -> str | Unknown:
 def list_issues(repository: str, *, label: str, assignee: str) -> list[Issue] | Unknown:
     """Return the repository's open issues carrying label and assigned to assignee."""
     return _read(
-        ISSUES,
-        "issue",
-        "list",
-        "--repo",
-        repository,
-        "--assignee",
-        assignee,
-        "--label",
-        label,
-        "--state",
-        "open",
-        "--limit",
-        LISTING_LIMIT,
-        "--json",
-        "number,createdAt",
+        shape=ISSUES,
+        arguments=[
+            "issue",
+            "list",
+            "--repo",
+            repository,
+            "--assignee",
+            assignee,
+            "--label",
+            label,
+            "--state",
+            "open",
+            "--limit",
+            LISTING_LIMIT,
+            "--json",
+            "number,createdAt",
+        ],
     )
 
 
@@ -320,17 +327,19 @@ def list_pull_requests(repository: str, branch: str) -> list[PullRequest] | Unkn
     several counts is the caller's rule, not this read's.
     """
     return _read(
-        PULL_REQUESTS,
-        "pr",
-        "list",
-        "--repo",
-        repository,
-        "--head",
-        branch,
-        "--state",
-        "all",
-        "--json",
-        "number,state",
+        shape=PULL_REQUESTS,
+        arguments=[
+            "pr",
+            "list",
+            "--repo",
+            repository,
+            "--head",
+            branch,
+            "--state",
+            "all",
+            "--json",
+            "number,state",
+        ],
     )
 
 
@@ -344,14 +353,16 @@ def list_linked_pull_requests(
     in.
     """
     answered = _read(
-        LINKED,
-        "issue",
-        "view",
-        str(issue),
-        "--repo",
-        repository,
-        "--json",
-        "closedByPullRequestsReferences",
+        shape=LINKED,
+        arguments=[
+            "issue",
+            "view",
+            str(issue),
+            "--repo",
+            repository,
+            "--json",
+            "closedByPullRequestsReferences",
+        ],
     )
     if isinstance(answered, Unknown):
         return answered
@@ -365,7 +376,11 @@ def list_blockers(repository: str, issue: int) -> list[Blocker] | Unknown:
     thirty blockers would keep the rest out of view.
     """
     return _read(
-        BLOCKERS, "api", f"repos/{repository}/issues/{issue}/dependencies/blocked_by"
+        shape=BLOCKERS,
+        arguments=[
+            "api",
+            f"repos/{repository}/issues/{issue}/dependencies/blocked_by",
+        ],
     )
 
 
@@ -400,7 +415,8 @@ def _read_pages[PostT: AnyPost](
     read, so the pages join back into one list here.
     """
     answered = _read(
-        shape, "api", f"{path}?per_page={PAGE_SIZE}", "--paginate", "--slurp"
+        shape=shape,
+        arguments=["api", f"{path}?per_page={PAGE_SIZE}", "--paginate", "--slurp"],
     )
     if isinstance(answered, Unknown):
         return answered
@@ -409,7 +425,10 @@ def _read_pages[PostT: AnyPost](
 
 
 def _read[ReadT](
-    shape: TypeAdapter[ReadT], *arguments: str, cwd: Path | None = None
+    *,
+    shape: TypeAdapter[ReadT],
+    arguments: Sequence[str],
+    cwd: Path | None = None,
 ) -> ReadT | Unknown:
     """Return what gh answered, read into shape, or Unknown when the read failed.
 
@@ -417,7 +436,7 @@ def _read[ReadT](
     cannot hold. Both answer Unknown, so neither reaches a caller as data.
     """
     try:
-        answered = run("gh", *arguments, cwd=cwd)
+        answered = run(program="gh", arguments=arguments, cwd=cwd)
     except CommandError as error:
         return Unknown(str(error))
     try:

@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 from conftest import streamed
 
 from dreamcatcher.adapters import Invocation, Launch
@@ -12,7 +14,6 @@ LAUNCH = Launch(
 )
 
 BASE = [
-    "claude",
     "--print",
     "--output-format",
     "stream-json",
@@ -26,7 +27,7 @@ BASE = [
 ]
 
 
-def assistant(*blocks, parent: str | None = None) -> str:
+def assistant(*, blocks: Sequence[dict], parent: str | None = None) -> str:
     return streamed(
         type="assistant",
         message={"content": list(blocks)},
@@ -37,13 +38,17 @@ def assistant(*blocks, parent: str | None = None) -> str:
 # Neither command names the prompt, which is what has Claude read it from stdin.
 def test_a_first_round_names_the_model_and_the_effort_it_was_dispatched_with():
     assert CLAUDE.build_first_round(LAUNCH) == Invocation(
-        [*BASE, "--model", "opus[1m]", "--effort", "xhigh"], "/dream:smith GH9"
+        program="claude",
+        arguments=[*BASE, "--model", "opus[1m]", "--effort", "xhigh"],
+        prompt="/dream:smith GH9",
     )
 
 
 def test_a_resume_continues_the_session_and_replays_no_settings():
     assert CLAUDE.build_resumed_round(LAUNCH) == Invocation(
-        [*BASE, "--continue"], "/dream:smith GH9"
+        program="claude",
+        arguments=[*BASE, "--continue"],
+        prompt="/dream:smith GH9",
     )
 
 
@@ -60,31 +65,39 @@ def test_the_first_event_names_the_model_and_the_session():
 
 
 def test_what_the_agent_says_comes_through_whole():
-    line = assistant({"type": "text", "text": "I read the file.\nIt was empty."})
+    line = assistant(
+        blocks=[{"type": "text", "text": "I read the file.\nIt was empty."}]
+    )
 
     assert CLAUDE.read(line) == [Prose("I read the file.\nIt was empty.")]
 
 
 def test_a_thinking_block_says_only_that_the_agent_thought():
-    line = assistant({"type": "thinking", "thinking": "", "signature": "opaque"})
+    line = assistant(
+        blocks=[{"type": "thinking", "thinking": "", "signature": "opaque"}]
+    )
 
     assert CLAUDE.read(line) == [Note("thinking")]
 
 
 def test_a_tool_call_reports_the_input_that_says_most_about_it():
     line = assistant(
-        {
-            "type": "tool_use",
-            "name": "Bash",
-            "input": {"command": "pytest", "timeout": 5},
-        }
+        blocks=[
+            {
+                "type": "tool_use",
+                "name": "Bash",
+                "input": {"command": "pytest", "timeout": 5},
+            }
+        ]
     )
 
     assert CLAUDE.read(line) == [Note("Bash", "pytest")]
 
 
 def test_a_tool_the_chain_does_not_name_reports_its_whole_input():
-    line = assistant({"type": "tool_use", "name": "Odd", "input": {"where": "here"}})
+    line = assistant(
+        blocks=[{"type": "tool_use", "name": "Odd", "input": {"where": "here"}}]
+    )
 
     assert CLAUDE.read(line) == [Note("Odd", '{"where": "here"}')]
 
@@ -130,20 +143,20 @@ def test_a_tool_result_that_worked_writes_nothing():
 
 
 def test_a_subagents_own_words_are_left_to_its_report():
-    line = assistant({"type": "text", "text": "counting"}, parent="toolu_1")
+    line = assistant(blocks=[{"type": "text", "text": "counting"}], parent="toolu_1")
 
     assert CLAUDE.read(line) == []
 
 
 def test_a_subagent_that_thinks_is_marked_as_one():
-    line = assistant({"type": "thinking", "thinking": ""}, parent="toolu_1")
+    line = assistant(blocks=[{"type": "thinking", "thinking": ""}], parent="toolu_1")
 
     assert CLAUDE.read(line) == [Note("thinking", is_subagent=True)]
 
 
 def test_a_subagents_tool_call_is_marked_as_one():
     line = assistant(
-        {"type": "tool_use", "name": "Bash", "input": {"command": "ls"}},
+        blocks=[{"type": "tool_use", "name": "Bash", "input": {"command": "ls"}}],
         parent="toolu_1",
     )
 
@@ -230,7 +243,7 @@ def test_a_round_that_failed_closes_with_what_went_wrong():
 def test_an_event_the_feed_has_no_line_for_writes_nothing():
     assert CLAUDE.read(streamed(type="rate_limit_event", rate_limit_info={})) == []
     assert CLAUDE.read(streamed(type="system", subtype="hook_started")) == []
-    assert CLAUDE.read(assistant({"type": "image", "source": {}})) == []
+    assert CLAUDE.read(assistant(blocks=[{"type": "image", "source": {}}])) == []
 
 
 def test_a_line_that_is_not_json_comes_through_unchanged():
@@ -250,6 +263,8 @@ def test_an_event_shaped_in_a_way_the_parser_cannot_read_comes_through_unchanged
 
 
 def test_a_tool_input_that_is_not_a_mapping_comes_through_unchanged():
-    line = assistant({"type": "tool_use", "name": "Odd", "input": ["not", "a", "map"]})
+    line = assistant(
+        blocks=[{"type": "tool_use", "name": "Odd", "input": ["not", "a", "map"]}]
+    )
 
     assert CLAUDE.read(line) == [Prose(line)]

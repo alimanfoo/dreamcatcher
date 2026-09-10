@@ -48,7 +48,7 @@ def test_a_session_that_has_seen_nothing_yet_is_told_the_whole_history(
     gh_with_no_posts,
 ):
     gh_with_no_posts.replies(
-        pages(comment()), to=f"api {POST_LIST_PATHS['conversation']}"
+        pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
 
     assert [post.id for post in peeked()] == [1]
@@ -58,7 +58,7 @@ def test_a_post_the_session_has_been_told_about_already_does_not_come_back(
     gh_with_no_posts,
 ):
     gh_with_no_posts.replies(
-        pages(comment()), to=f"api {POST_LIST_PATHS['conversation']}"
+        pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
 
     assert peeked(watermark=POSTED_AT) == []
@@ -68,15 +68,15 @@ def test_the_posts_come_back_oldest_first_whichever_list_each_came_from(
     gh_with_no_posts,
 ):
     gh_with_no_posts.replies(
-        pages(comment(created_at="2026-09-03T23:47:28Z")),
+        pages(posts=[comment(created_at="2026-09-03T23:47:28Z")]),
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
     gh_with_no_posts.replies(
-        pages(review(submitted_at=BEFORE, body="see inline")),
+        pages(posts=[review(submitted_at=BEFORE, body="see inline")]),
         to=f"api {POST_LIST_PATHS['reviews']}",
     )
     gh_with_no_posts.replies(
-        pages(inline_comment()), to=f"api {POST_LIST_PATHS['inline-comments']}"
+        pages(posts=[inline_comment()]), to=f"api {POST_LIST_PATHS['inline-comments']}"
     )
 
     assert [type(post) for post in peeked()] == [Review, InlineComment, Comment]
@@ -86,7 +86,7 @@ def test_a_post_carrying_the_marker_is_the_sessions_own_and_does_not_come_back(
     gh_with_no_posts,
 ):
     gh_with_no_posts.replies(
-        pages(comment(body=f"opened the pull request\n\n{MARKER}")),
+        pages(posts=[comment(body=f"opened the pull request\n\n{MARKER}")]),
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
@@ -95,7 +95,7 @@ def test_a_post_carrying_the_marker_is_the_sessions_own_and_does_not_come_back(
 
 def test_a_post_from_another_account_does_not_come_back(gh_with_no_posts):
     gh_with_no_posts.replies(
-        pages(comment(user={"login": "somebody-else"})),
+        pages(posts=[comment(user={"login": "somebody-else"})]),
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
@@ -106,7 +106,7 @@ def test_a_post_whose_account_github_no_longer_knows_does_not_come_back(
     gh_with_no_posts,
 ):
     gh_with_no_posts.replies(
-        pages(comment(user=None)), to=f"api {POST_LIST_PATHS['conversation']}"
+        pages(posts=[comment(user=None)]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
 
     assert peeked() == []
@@ -115,9 +115,11 @@ def test_a_post_whose_account_github_no_longer_knows_does_not_come_back(
 def test_the_empty_review_github_wrapped_an_inline_reply_in_does_not_come_back(
     gh_with_no_posts,
 ):
-    gh_with_no_posts.replies(pages(review()), to=f"api {POST_LIST_PATHS['reviews']}")
     gh_with_no_posts.replies(
-        pages(inline_comment()), to=f"api {POST_LIST_PATHS['inline-comments']}"
+        pages(posts=[review()]), to=f"api {POST_LIST_PATHS['reviews']}"
+    )
+    gh_with_no_posts.replies(
+        pages(posts=[inline_comment()]), to=f"api {POST_LIST_PATHS['inline-comments']}"
     )
 
     assert [type(post) for post in peeked()] == [InlineComment]
@@ -130,7 +132,7 @@ def test_a_review_that_reached_a_verdict_comes_back_with_an_empty_body(
     gh_with_no_posts, verdict
 ):
     gh_with_no_posts.replies(
-        pages(review(state=verdict)), to=f"api {POST_LIST_PATHS['reviews']}"
+        pages(posts=[review(state=verdict)]), to=f"api {POST_LIST_PATHS['reviews']}"
     )
 
     assert [post.id for post in peeked()] == [2]
@@ -139,7 +141,9 @@ def test_a_review_that_reached_a_verdict_comes_back_with_an_empty_body(
 def test_a_review_nobody_has_submitted_yet_does_not_come_back(gh_with_no_posts):
     unsubmitted = review(state=Verdict.PENDING, body="half a thought")
     del unsubmitted["submitted_at"]
-    gh_with_no_posts.replies(pages(unsubmitted), to=f"api {POST_LIST_PATHS['reviews']}")
+    gh_with_no_posts.replies(
+        pages(posts=[unsubmitted]), to=f"api {POST_LIST_PATHS['reviews']}"
+    )
 
     assert peeked() == []
 
@@ -149,11 +153,13 @@ def test_a_suggestion_over_a_range_comes_back_with_its_lines_and_its_diff(
 ):
     gh_with_no_posts.replies(
         pages(
-            inline_comment(
-                body="```suggestion\nfrom dreamcatcher.github import posts\n```",
-                start_line=1,
-                line=3,
-            )
+            posts=[
+                inline_comment(
+                    body="```suggestion\nfrom dreamcatcher.github import posts\n```",
+                    start_line=1,
+                    line=3,
+                )
+            ]
         ),
         to=f"api {POST_LIST_PATHS['inline-comments']}",
     )
@@ -216,7 +222,9 @@ def test_an_inbox_says_where_the_pull_request_got_to_and_what_each_post_is(
         ("reviews", review(body="have a look")),
         ("inline-comments", inline_comment()),
     ):
-        gh_with_no_posts.replies(pages(post), to=f"api {POST_LIST_PATHS[source]}")
+        gh_with_no_posts.replies(
+            pages(posts=[post]), to=f"api {POST_LIST_PATHS[source]}"
+        )
     written = tmp_path / "inbox.json"
 
     write_json(Inbox(state=PullRequestState.OPEN, posts=peeked()), written)
@@ -244,7 +252,7 @@ def test_a_comment_on_a_whole_file_says_so_rather_than_naming_line_one(
     gh_with_no_posts,
 ):
     gh_with_no_posts.replies(
-        pages(inline_comment(subject_type="file", line=1)),
+        pages(posts=[inline_comment(subject_type="file", line=1)]),
         to=f"api {POST_LIST_PATHS['inline-comments']}",
     )
 
@@ -264,7 +272,7 @@ def test_a_comment_gh_says_nothing_about_the_subject_of_reads_as_one_on_a_line(
     answered = inline_comment()
     del answered["subject_type"]
     gh_with_no_posts.replies(
-        pages(answered), to=f"api {POST_LIST_PATHS['inline-comments']}"
+        pages(posts=[answered]), to=f"api {POST_LIST_PATHS['inline-comments']}"
     )
 
     assert [

@@ -9,7 +9,7 @@ import pytest
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.lock import hold
 
-def refuse(*_: object) -> None:
+def refuse(_: object, /) -> None:
     ...
 
 def dead_pid() -> int:

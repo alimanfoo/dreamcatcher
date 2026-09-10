@@ -235,7 +235,10 @@ class Round:
         self._writing = Lock()
         write_text(invocation.prompt, workspace.prompt)
         self.child = spawn(
-            *invocation.command, cwd=workspace.worktree, stdin=workspace.prompt
+            program=invocation.program,
+            arguments=invocation.arguments,
+            cwd=workspace.worktree,
+            stdin=workspace.prompt,
         )
         try:
             write_json(

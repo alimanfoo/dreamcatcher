@@ -3,6 +3,7 @@
 
 import os
 import subprocess
+from collections.abc import Sequence
 from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path, PurePath
@@ -14,25 +15,25 @@ from dreamcatcher.errors import ReportableError
 BATCH_ENDINGS = ('.cmd', '.bat')
 UNQUOTABLE = {'%': 'a percent sign', '\n': 'a newline', '\r': 'a carriage return'}
 
-def refuse_unquotable(text: str) -> str:
+def refuse_unquotable(text: str, /) -> str:
     ...
 
-def locate(program: str) -> str:
+def locate(*, program: str) -> str:
     ...
 
-def run(program: str, *arguments: str, cwd: Path | None) -> str:
+def run(*, program: str, arguments: Sequence[str], cwd: Path | None) -> str:
     ...
 
-def spawn(program: str, *arguments: str, cwd: Path, stdin: Path | None) -> Child:
+def spawn(*, program: str, arguments: Sequence[str], cwd: Path, stdin: Path | None) -> Child:
     ...
 
-def _open_for_reading(path: Path) -> IO[bytes]:
+def _open_for_reading(*, path: Path) -> IO[bytes]:
     ...
 
-def _build(program: str, arguments: tuple[str, ...]) -> list[str] | str:
+def _build(*, program: str, arguments: Sequence[str]) -> list[str] | str:
     ...
 
-def _quote(part: str) -> str:
+def _quote(*, part: str) -> str:
     ...
 
 class CommandError(ReportableError):

@@ -33,16 +33,21 @@ class Launch:
 
 @dataclass(frozen=True)
 class Invocation:
-    """How one round runs: the command to start, and the prompt it reads.
+    """How one round runs: the program to start, its arguments, and its prompt.
+
+    The program is named apart from its arguments, because that is how
+    `commands.spawn` takes a command, and a list holding both would have
+    whoever spawns it split the two apart again.
 
     A harness reads its prompt from stdin rather than from its command line,
-    so the two travel together and the adapter is what knows which is which.
+    so the three travel together and the adapter is what knows which is which.
     That keeps a prompt off every command line, where cmd.exe would act on a
     percent sign or a line ending in it, and it lets a prompt run to any
     length.
     """
 
-    command: list[str]
+    program: str
+    arguments: list[str]
     prompt: str
 
 

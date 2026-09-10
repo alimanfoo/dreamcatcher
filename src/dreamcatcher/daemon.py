@@ -385,7 +385,7 @@ class Daemon:
         after a failure cannot tell a misconfiguration from a blip.
         """
         for harness in sorted({self.harness, *self.config.mapped_harnesses}):
-            locate(ADAPTERS[harness].program)
+            locate(program=ADAPTERS[harness].program)
 
     def _sweep_orphans(self) -> None:
         """End whatever a daemon that ran before this one left running.

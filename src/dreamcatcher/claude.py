@@ -47,14 +47,15 @@ class Claude(Adapter):
         from stdin.
         """
         return Invocation(
-            [
+            program=self.program,
+            arguments=[
                 *self._base(launch),
                 "--model",
                 launch.model,
                 "--effort",
                 launch.effort,
             ],
-            launch.prompt,
+            prompt=launch.prompt,
         )
 
     def build_resumed_round(self, launch: Launch) -> Invocation:
@@ -63,7 +64,11 @@ class Claude(Adapter):
         Claude recovers the model and the effort itself, so a resume replays
         neither.
         """
-        return Invocation([*self._base(launch), "--continue"], launch.prompt)
+        return Invocation(
+            program=self.program,
+            arguments=[*self._base(launch), "--continue"],
+            prompt=launch.prompt,
+        )
 
     def build_hand_resume(self) -> list[str]:
         """Return how a person carries on the session in this directory.
@@ -88,9 +93,8 @@ class Claude(Adapter):
         return []
 
     def _base(self, launch: Launch) -> list[str]:
-        """Return the part of the command every round shares."""
+        """Return the arguments every round shares."""
         return [
-            self.program,
             "--print",
             "--output-format",
             "stream-json",

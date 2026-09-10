@@ -14,7 +14,8 @@ class Launch:
     prompt: str
 
 class Invocation:
-    command: list[str]
+    program: str
+    arguments: list[str]
     prompt: str
 
 class Adapter(ABC):

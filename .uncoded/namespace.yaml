@@ -16,7 +16,8 @@ src/:
         effort:
         prompt:
       Invocation:
-        command:
+        program:
+        arguments:
         prompt:
       Adapter:
         program:

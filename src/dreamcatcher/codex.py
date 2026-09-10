@@ -1,5 +1,6 @@
 """Run Codex, and read what it streams back."""
 
+from collections.abc import Sequence
 from typing import ClassVar
 
 from dreamcatcher.adapters import Adapter, Invocation, Launch
@@ -39,16 +40,16 @@ class Codex(Adapter):
         it has to run it in the session's worktree.
         """
         return Invocation(
-            [
-                self.program,
+            program=self.program,
+            arguments=[
                 "exec",
                 "--json",
                 "--approve-for-me",
                 *_settings(launch),
-                *_overrides(NETWORK_ACCESS),
+                *_overrides(settings=[NETWORK_ACCESS]),
                 STDIN,
             ],
-            launch.prompt,
+            prompt=launch.prompt,
         )
 
     def build_resumed_round(self, launch: Launch) -> Invocation:
@@ -62,17 +63,17 @@ class Codex(Adapter):
         worktree is what picks the right session.
         """
         return Invocation(
-            [
-                self.program,
+            program=self.program,
+            arguments=[
                 "exec",
                 "resume",
                 "--last",
                 "--json",
                 *_settings(launch),
-                *_overrides(*RESUME_PERMISSIONS),
+                *_overrides(settings=RESUME_PERMISSIONS),
                 STDIN,
             ],
-            launch.prompt,
+            prompt=launch.prompt,
         )
 
     def build_hand_resume(self) -> list[str]:
@@ -115,11 +116,11 @@ def _settings(launch: Launch) -> list[str]:
     return [
         "--model",
         launch.model,
-        *_overrides(f'model_reasoning_effort="{launch.effort}"'),
+        *_overrides(settings=[f'model_reasoning_effort="{launch.effort}"']),
     ]
 
 
-def _overrides(*settings: str) -> list[str]:
+def _overrides(*, settings: Sequence[str]) -> list[str]:
     """Return each setting as the `-c setting` pair Codex expects."""
     return [part for setting in settings for part in ("-c", setting)]
 

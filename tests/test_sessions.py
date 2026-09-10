@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from datetime import timedelta
 
 import pytest
@@ -68,16 +69,16 @@ def test_a_session_cuts_a_branch_of_its_own_from_origins_main_as_it_is_now(
 ):
     # Move origin's main on, then leave the checkout believing what it knew
     # before. Only a fetch of its own brings the creation the newer main.
-    known = git("rev-parse", "origin/main", cwd=state.root).strip()
+    known = git(arguments=["rev-parse", "origin/main"], cwd=state.root).strip()
     (state.root / "later.txt").write_text("main moved on\n", encoding="utf-8")
     commit(state.root, "move main on")
-    git("push", "origin", "main", cwd=state.root)
-    git("update-ref", "refs/remotes/origin/main", known, cwd=state.root)
+    git(arguments=["push", "origin", "main"], cwd=state.root)
+    git(arguments=["update-ref", "refs/remotes/origin/main", known], cwd=state.root)
 
     session = create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
 
     assert session.record.branch == BRANCH
-    assert BRANCH in git("branch", "--list", BRANCH, cwd=state.root)
+    assert BRANCH in git(arguments=["branch", "--list", BRANCH], cwd=state.root)
     assert (session.record.worktree / "later.txt").exists()
 
 
@@ -110,7 +111,7 @@ def test_a_new_session_has_run_no_rounds_and_its_next_is_its_first(state, mappin
     )
 
 
-def standing(state, *rounds):
+def standing(*, state, rounds: Sequence[RoundRecord]):
     """Return the session that these rounds leave behind, read back from disk."""
     directory = write_session(state, KEY, 12)
     for number, record in enumerate(rounds, start=1):
@@ -137,7 +138,7 @@ def running(minute=0):
 
 
 def test_a_round_a_session_has_run_is_found_by_the_number_it_ran_as(fabricated):
-    session = standing(fabricated, ended(0), ended(0, minute=1))
+    session = standing(state=fabricated, rounds=[ended(0), ended(0, minute=1)])
 
     assert session.workspace(2) == Workspace(
         session.record.worktree, fabricated.sessions / KEY / "rounds" / "2"
@@ -145,40 +146,42 @@ def test_a_round_a_session_has_run_is_found_by_the_number_it_ran_as(fabricated):
 
 
 def test_a_session_that_has_run_no_round_has_left_nothing_unfinished(fabricated):
-    session = standing(fabricated)
+    session = standing(state=fabricated, rounds=[])
 
     assert session.describe_unfinished_round() is None
     assert not session.has_run_final_round
 
 
 def test_a_session_whose_last_round_was_interrupted_says_so(fabricated):
-    session = standing(fabricated, running())
+    session = standing(state=fabricated, rounds=[running()])
 
     assert session.describe_unfinished_round() == "the last round was interrupted"
 
 
 def test_a_session_whose_last_round_failed_says_the_status_it_failed_with(fabricated):
-    session = standing(fabricated, ended(2))
+    session = standing(state=fabricated, rounds=[ended(2)])
 
     assert session.describe_unfinished_round() == "the last round failed (exit 2)"
 
 
 def test_a_session_whose_last_round_ended_well_has_left_nothing_unfinished(fabricated):
-    session = standing(fabricated, ended(1), ended(0, minute=1))
+    session = standing(state=fabricated, rounds=[ended(1), ended(0, minute=1)])
 
     assert session.describe_unfinished_round() is None
 
 
 def test_a_session_that_has_run_its_final_round_says_so(fabricated):
     session = standing(
-        fabricated,
-        ended(0),
-        RoundRecord(
-            started=PINNED + timedelta(minutes=1),
-            pid=1,
-            cause=Cause.FINAL,
-            ending=Ending(at=PINNED + timedelta(minutes=1), status=0),
-        ),
+        state=fabricated,
+        rounds=[
+            ended(0),
+            RoundRecord(
+                started=PINNED + timedelta(minutes=1),
+                pid=1,
+                cause=Cause.FINAL,
+                ending=Ending(at=PINNED + timedelta(minutes=1), status=0),
+            ),
+        ],
     )
 
     assert session.has_run_final_round
@@ -251,7 +254,7 @@ def test_a_session_git_cannot_cut_leaves_no_branch_behind(state, mapping):
     with pytest.raises(CommandError):
         create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
 
-    assert git("branch", "--list", BRANCH, cwd=state.root) == ""
+    assert git(arguments=["branch", "--list", BRANCH], cwd=state.root) == ""
 
 
 def test_a_session_that_cannot_record_leaves_no_worktree_and_no_branch(state, mapping):
@@ -262,7 +265,7 @@ def test_a_session_that_cannot_record_leaves_no_worktree_and_no_branch(state, ma
         create_session(state, mapping, Harness.CLAUDE, 12, PINNED)
 
     assert not (state.worktrees / KEY).exists()
-    assert git("branch", "--list", BRANCH, cwd=state.root) == ""
+    assert git(arguments=["branch", "--list", BRANCH], cwd=state.root) == ""
 
 
 def test_a_state_directory_with_no_worktrees_holds_no_sessions(state):

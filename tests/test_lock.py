@@ -9,7 +9,7 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.lock import hold
 
 
-def refuse(*_: object) -> None:
+def refuse(_: object, /) -> None:
     raise PermissionError("the lock cannot be removed")
 
 

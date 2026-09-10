@@ -3,6 +3,7 @@
 
 import json
 import os
+from collections.abc import Sequence
 from contextlib import suppress
 from functools import partial
 from pathlib import Path
@@ -34,7 +35,7 @@ def pytest_configure(config: pytest.Config) -> None:
 def streamed(**fields: object) -> str:
     ...
 
-def listing(*issues: tuple[int, str]) -> str:
+def listing(*, issues: Sequence[tuple[int, str]]) -> str:
     ...
 
 def comment(**fields: object) -> dict:
@@ -46,16 +47,16 @@ def review(**fields: object) -> dict:
 def inline_comment(**fields: object) -> dict:
     ...
 
-def pull_requests(*listed: tuple[int, str]) -> str:
+def pull_requests(*, listed: Sequence[tuple[int, str]]) -> str:
     ...
 
-def pages(*posts: dict) -> str:
+def pages(*, posts: Sequence[dict]) -> str:
     ...
 
 def recorded_posts(source: str) -> str:
     ...
 
-def git(*arguments: str, cwd: Path) -> str:
+def git(*, arguments: Sequence[str], cwd: Path) -> str:
     ...
 
 def gone(pid: int) -> bool:

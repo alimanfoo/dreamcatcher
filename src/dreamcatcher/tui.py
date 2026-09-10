@@ -14,7 +14,7 @@ What the daemon writes stays plain text, and the colour goes on at the moment of
 reading.
 """
 
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -207,18 +207,20 @@ def _render_board(board: Board) -> RenderableType:
     with nothing in it is left out rather than shown empty.
     """
     return _render_parts(
-        _describe_daemon(board),
-        _render_rows(board, SessionStanding.NEEDS_YOU),
-        _render_rows(board, SessionStanding.WORKING),
-        _render_rows(board, SessionStanding.WAITING),
-        _render_rows(board, SessionStanding.STUCK),
-        _render_queue(board),
-        _render_rows(board, SessionStanding.DONE),
-        _describe_nothing_dispatched(board),
+        parts=[
+            _describe_daemon(board),
+            _render_rows(board, SessionStanding.NEEDS_YOU),
+            _render_rows(board, SessionStanding.WORKING),
+            _render_rows(board, SessionStanding.WAITING),
+            _render_rows(board, SessionStanding.STUCK),
+            _render_queue(board),
+            _render_rows(board, SessionStanding.DONE),
+            _describe_nothing_dispatched(board),
+        ]
     )
 
 
-def _render_parts(*parts: RenderableType | None) -> RenderableType:
+def _render_parts(*, parts: Sequence[RenderableType | None]) -> RenderableType:
     """Return the parts of a view that have something to say, as one renderable.
 
     A part with nothing to say answers nothing, so it is left out rather than
@@ -380,17 +382,19 @@ def _render_session(state: StateDirectory, rows: list[SessionRow]) -> Renderable
     """
     newest = rows[0]
     return _render_parts(
-        Text(newest.session.key),
-        _render_detail(
-            newest,
-            prefix=str(newest.standing),
-            continuation_indent=INDENT[3],
-            style=COLOURS[newest.standing],
-        ),
-        _render_vitals(state, newest),
-        _render_rounds(newest),
-        _render_hand_resume(state, newest),
-        _render_older_sessions(rows[1:]),
+        parts=[
+            Text(newest.session.key),
+            _render_detail(
+                newest,
+                prefix=str(newest.standing),
+                continuation_indent=INDENT[3],
+                style=COLOURS[newest.standing],
+            ),
+            _render_vitals(state, newest),
+            _render_rounds(newest),
+            _render_hand_resume(state, newest),
+            _render_older_sessions(rows[1:]),
+        ]
     )
 
 

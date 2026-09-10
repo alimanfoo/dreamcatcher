@@ -11,7 +11,7 @@ def test_bootstrap_creates_a_directory_that_ignores_itself(repo):
     state.bootstrap()
 
     assert (state.path / ".gitignore").read_text(encoding="utf-8") == "*\n"
-    assert git("status", "--porcelain", cwd=repo) == ""
+    assert git(arguments=["status", "--porcelain"], cwd=repo) == ""
 
 
 def test_bootstrap_heals_a_deleted_gitignore(repo):
@@ -21,7 +21,7 @@ def test_bootstrap_heals_a_deleted_gitignore(repo):
 
     state.bootstrap()
 
-    assert git("status", "--porcelain", cwd=repo) == ""
+    assert git(arguments=["status", "--porcelain"], cwd=repo) == ""
 
 
 def test_bootstrap_says_so_when_a_file_sits_where_the_directory_goes(repo):
