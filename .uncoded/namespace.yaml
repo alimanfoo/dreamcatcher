@@ -50,6 +50,7 @@ src/:
         list_rows_for_standing:
       _Look:
         __init__:
+        compose_board:
         list_rows:
         _read_row:
         _judge_standing:
@@ -57,10 +58,10 @@ src/:
         _describe_live_round:
         _describe_idle:
         _read_last_said:
+        _list_queued_issues:
         _point_at_feed:
       read_board:
       read_rows_for_issue:
-      _list_queued_issues:
       _describe_place_in_queue:
     claude.py:
       ALLOWED_TOOLS:

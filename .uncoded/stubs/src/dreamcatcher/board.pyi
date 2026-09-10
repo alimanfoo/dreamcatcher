@@ -19,9 +19,6 @@ def read_board(state: StateDirectory, clock: Callable[[], datetime]) -> Board:
 def read_rows_for_issue(state: StateDirectory, issue: int, clock: Callable[[], datetime]) -> list[SessionRow]:
     ...
 
-def _list_queued_issues(tick: LastTick | None, claimed: set[int]) -> list[QueuedIssue]:
-    ...
-
 def _describe_place_in_queue(ahead: int) -> str:
     ...
 
@@ -57,6 +54,9 @@ class _Look:
     def __init__(self, state: StateDirectory, clock: Callable[[], datetime]) -> None:
         ...
 
+    def compose_board(self, sessions: list[Session]) -> Board:
+        ...
+
     def list_rows(self, sessions: list[Session]) -> list[SessionRow]:
         ...
 
@@ -76,6 +76,9 @@ class _Look:
         ...
 
     def _read_last_said(self, session: Session) -> Line | None:
+        ...
+
+    def _list_queued_issues(self, claimed: set[int]) -> list[QueuedIssue]:
         ...
 
     def _point_at_feed(self, session: Session, reason: str) -> str:

@@ -10,6 +10,14 @@ whatever the daemon had to ask GitHub to learn.
 
 Nothing here renders anything either. A caller that has read the board shows
 it.
+
+Two things live here and they do different jobs. `_Look` reads and judges: it
+takes one look at the directory and says where each session stands. `Board`,
+`SessionRow` and `QueuedIssue` are what it found, and they hold no directory
+and read nothing, so a view renders one and a test writes one down. That is
+why a look is not a board and a board cannot refresh itself: a view that keeps
+up takes a new look, which is one read of the lock and of the last tick and a
+fresh judgement of each session against them.
 """
 
 from collections.abc import Callable
@@ -126,17 +134,7 @@ class Board:
 
 def read_board(state: StateDirectory, clock: Callable[[], datetime] = now) -> Board:
     """Return what the state directory says every session and issue is doing."""
-    look = _Look(state, clock)
-    sessions = read_sessions(state)
-    return Board(
-        at=look.at,
-        daemon_pid=look.daemon_pid,
-        tick=look.tick,
-        rows=look.list_rows(sessions),
-        queued=_list_queued_issues(
-            look.tick, {session.record.issue for session in sessions}
-        ),
-    )
+    return _Look(state, clock).compose_board(read_sessions(state))
 
 
 def read_rows_for_issue(
@@ -160,11 +158,16 @@ def read_rows_for_issue(
 
 
 class _Look:
-    """What one look at the state directory knows before it judges anything.
+    """One look at the state directory, and what it makes of what it read.
 
-    A look is one read of the lock and of the last tick, so the time it reads,
+    A look is one read of the lock and of the last tick, so the time it read,
     the daemon it found and what that tick said travel together rather than
-    down every call.
+    down every call. Everything that judges a session hangs off it, because
+    judging one is what those three answer.
+
+    What a look found is a `Board`, and the look is what composes it. So the
+    facts it read reach a board in one place, and nothing outside takes them
+    out of a look to build one.
     """
 
     def __init__(self, state: StateDirectory, clock: Callable[[], datetime]) -> None:
@@ -177,6 +180,18 @@ class _Look:
         )
         self.waits: dict[str, WaitingSession] = (
             {} if self.tick is None else {one.session: one for one in self.tick.waiting}
+        )
+
+    def compose_board(self, sessions: list[Session]) -> Board:
+        """Return everything this look found, as the board view shows it."""
+        return Board(
+            at=self.at,
+            daemon_pid=self.daemon_pid,
+            tick=self.tick,
+            rows=self.list_rows(sessions),
+            queued=self._list_queued_issues(
+                {session.record.issue for session in sessions}
+            ),
         )
 
     def list_rows(self, sessions: list[Session]) -> list[SessionRow]:
@@ -263,6 +278,30 @@ class _Look:
         """Return the last line the session's last round wrote to its feed."""
         return read_last_feed_line(session.workspace(len(session.rounds)).feed)
 
+    def _list_queued_issues(self, claimed: set[int]) -> list[QueuedIssue]:
+        """Return the labelled issues the last tick weighed, in the order they go.
+
+        An issue a session here already claims is not queued: it is that
+        session. The tick that dispatched it weighed it before it had one, so
+        its own record still calls it eligible, and by the time anyone reads
+        the board it has a row of its own to read instead.
+        """
+        if self.tick is None:
+            return []
+        queued = []
+        ahead = 0
+        for candidate in self.tick.candidates:
+            if candidate.issue in claimed:
+                continue
+            reason = candidate.reason
+            if reason is None:
+                reason = _describe_place_in_queue(ahead)
+                ahead += 1
+            queued.append(
+                QueuedIssue(issue=candidate.issue, label=candidate.label, reason=reason)
+            )
+        return queued
+
     def _point_at_feed(self, session: Session, reason: str) -> str:
         """Return what the session waits on, and where to read what it did.
 
@@ -275,33 +314,12 @@ class _Look:
         return f"{reason} ({self.state.describe_path(feed)})"
 
 
-def _list_queued_issues(tick: LastTick | None, claimed: set[int]) -> list[QueuedIssue]:
-    """Return the labelled issues the last tick weighed, in the order they go.
-
-    An issue a session here already claims is not queued: it is that session.
-    The tick that dispatched it weighed it before it had one, so its own record
-    still calls it eligible, and by the time anyone reads the board it has a
-    row of its own to read instead.
-    """
-    if tick is None:
-        return []
-    queued = []
-    ahead = 0
-    for candidate in tick.candidates:
-        if candidate.issue in claimed:
-            continue
-        reason = candidate.reason
-        if reason is None:
-            reason = _describe_place_in_queue(ahead)
-            ahead += 1
-        queued.append(
-            QueuedIssue(issue=candidate.issue, label=candidate.label, reason=reason)
-        )
-    return queued
-
-
 def _describe_place_in_queue(ahead: int) -> str:
-    """Return where an issue with this many issues ahead of it stands."""
+    """Return where an issue with this many issues ahead of it stands.
+
+    This reads nothing and judges nothing, so it sits outside a look: it is a
+    count turned into the words for it.
+    """
     if ahead == 0:
         return "next"
     return f"behind {describe_count(ahead, 'other')}"
