@@ -9,6 +9,7 @@ from dreamcatcher.clock import now
 from dreamcatcher.documents import read_json
 from dreamcatcher.feed import Line, read_last_feed_line
 from dreamcatcher.lock import read_daemon_pid
+from dreamcatcher.rounds import RoundRecord
 from dreamcatcher.sessions import Session, read_sessions
 from dreamcatcher.state import NO_ROUND_HAS_RUN, LastTick, StateDirectory, WaitingSession
 from dreamcatcher.words import describe_count, describe_span
@@ -69,7 +70,7 @@ class _Look:
     def _judge_wait(self, session: Session) -> tuple[SessionStanding, str]:
         ...
 
-    def _describe_live_round(self, session: Session) -> tuple[str, str | None]:
+    def _describe_live_round(self, session: Session, live_round: RoundRecord) -> tuple[str, str | None]:
         ...
 
     def _describe_idle(self, session: Session) -> str:

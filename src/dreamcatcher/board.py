@@ -29,6 +29,7 @@ from dreamcatcher.clock import now
 from dreamcatcher.documents import read_json
 from dreamcatcher.feed import Line, read_last_feed_line
 from dreamcatcher.lock import read_daemon_pid
+from dreamcatcher.rounds import RoundRecord
 from dreamcatcher.sessions import Session, read_sessions
 from dreamcatcher.state import (
     NO_ROUND_HAS_RUN,
@@ -230,8 +231,9 @@ class _Look:
         """
         unfinished = session.describe_unfinished_round()
         if unfinished is not None:
-            if self.daemon_pid is not None and not session.rounds[-1].is_complete:
-                detail, last_output = self._describe_live_round(session)
+            live_round = session.rounds[-1]
+            if self.daemon_pid is not None and not live_round.is_complete:
+                detail, last_output = self._describe_live_round(session, live_round)
                 return SessionStanding.WORKING, detail, last_output
             return SessionStanding.WAITING, unfinished, None
         if session.has_run_final_round:
@@ -260,19 +262,24 @@ class _Look:
             return SessionStanding.STUCK, self._point_at_feed(session, wait.reason)
         return SessionStanding.WAITING, wait.reason
 
-    def _describe_live_round(self, session: Session) -> tuple[str, str | None]:
+    def _describe_live_round(
+        self, session: Session, live_round: RoundRecord
+    ) -> tuple[str, str | None]:
         """Return how the running round is going, and the last thing it said.
 
         How long the round has been running reads first, because a round that
         has run far longer than its fellows is doing something pathological
         whatever it last said.
+
+        The caller hands over the round it is asking about, so this needs no
+        session that has one.
         """
-        running = f"running {describe_span(self.at - session.rounds[-1].started)}"
+        running = f"running {describe_span(self.at - live_round.started)}"
         line = self._read_last_said(session)
         if line is None:
             return f"{running}, has said nothing yet", None
-        said = f"last output {describe_span(self.at - line.at)} ago"
-        return f"{running}, {said}", line.text.strip()
+        since_last_output = describe_span(self.at - line.at)
+        return f"{running}, last output {since_last_output} ago", line.text.strip()
 
     def _describe_idle(self, session: Session) -> str:
         """Return how long it is since the session last said anything."""

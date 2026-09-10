@@ -51,8 +51,13 @@ def ran(state, number: int, cause: Cause = Cause.DISPATCH, status: int | None = 
 
 
 def said(state, number: int, *texts: str):
-    """Write down what the session's numbered round said, at the pinned time."""
-    write_feed(state.sessions / KEY, number, *(Line(PINNED, text) for text in texts))
+    """Write down what the session's numbered round said, a minute after it began.
+
+    A round says nothing before it starts, so a feed line written at the
+    pinned hour itself would read as one that landed before its own round.
+    """
+    at = PINNED + timedelta(minutes=number + 1)
+    write_feed(state.sessions / KEY, number, *(Line(at, text) for text in texts))
 
 
 def looked(state):
@@ -117,7 +122,7 @@ def test_a_round_a_running_daemon_has_not_ended_is_the_agent_working(running):
     row = only(running)
 
     assert row.standing is SessionStanding.WORKING
-    assert row.detail == "running 1h 59m, last output 2h 0m ago"
+    assert row.detail == "running 1h 59m, last output 1h 58m ago"
     assert row.last_output == "[Bash] pytest"
 
 
@@ -164,7 +169,7 @@ def test_a_session_the_tick_found_nothing_to_do_for_needs_you(state):
     write_tick(state, LastTick(at=PINNED))
 
     assert only(state).standing is SessionStanding.NEEDS_YOU
-    assert only(state).detail == "idle 2h 0m"
+    assert only(state).detail == "idle 1h 58m"
 
 
 def test_a_session_that_wrote_no_feed_at_all_is_idle_for_who_knows_how_long(state):
