@@ -45,9 +45,7 @@ that scheduling happens, but not the scheduling priorities.
 
 ### Scheduling
 
-`scheduler.py` owns all decisions about what work starts and when. It absorbs
-the policy currently spread across the daemon, eligibility checks, and wakeup
-logic.
+`scheduler.py` owns all decisions about what work starts and when.
 
 One scheduler tick:
 
@@ -55,7 +53,7 @@ One scheduler tick:
 2. reconciles newly completed or interrupted rounds;
 3. applies capacity and global-cooldown constraints;
 4. finds the highest-priority existing assignment that requires a recovery,
-   winding-up, user-post response, or first implementation round;
+   wrap-up, user-post response, or first implementation round;
 5. otherwise finds the oldest issue available for assignment;
 6. performs at most one scheduling action; and
 7. records a concise account of what happened for operational reporting.
@@ -71,8 +69,8 @@ assignment and what round an assignment requires next. The status subsystem may
 reuse those functions. The scheduler must never consume a status report or
 presentation model.
 
-There is no persisted queue and no wakeup object. Priority is a scheduling
-decision over current facts.
+Scheduling priority is derived from current facts rather than persisted as a
+queue.
 
 ### Agent assignments
 
@@ -83,7 +81,7 @@ of an agent assignment. It should provide cohesive operations to:
 - read existing assignments;
 - find the open assignment for an issue;
 - update the harness session identifier and relayed-user-post cursor; and
-- recognize completion after a successful winding-up round.
+- recognize completion after a successful wrap-up round.
 
 Assignment creation coordinates lower-level Git, GitHub, configuration, and
 document operations. As one recoverable workflow it:
@@ -123,9 +121,8 @@ The scheduler decides which purpose and recovery flag a new round has. The round
 boundary executes and records that decision; it does not inspect the pull
 request or select later work.
 
-The current exported idea of a round "workspace" should disappear. A round may
-have an internal collection of file paths, but the domain object shared across
-boundaries is the assignment's Git worktree.
+A round may have an internal collection of file paths, but the domain object
+shared across boundaries is the assignment's Git worktree.
 
 ### GitHub
 
@@ -283,7 +280,7 @@ The following are derived rather than persisted as authoritative state:
 - whether an issue is claimed here or elsewhere;
 - whether an issue is blocked, conflicted, or available for assignment;
 - whether an assignment is complete or in fault;
-- which side is due to act;
+- whether an assignment requires an agent round or user feedback;
 - what round purpose is required next; and
 - every issue and assignment status shown in a status report.
 
@@ -316,10 +313,7 @@ The assignment-skill contract is a third enduring design document alongside this
 architecture and the ontology. It should describe the protocol between
 Dreamcatcher and an assignment skill, not implementation history.
 
-The existing root `CONTRACT.md` still reflects the earlier responsibility split
-in which the skill opens the draft pull request. Once the ontology and target
-architecture are accepted, that contract should move into `docs/` and be revised
-so that:
+The contract should establish that:
 
 - Dreamcatcher provides the issue, branch, worktree, and already-open draft pull
   request;
@@ -328,9 +322,5 @@ so that:
 - the agent marks the pull request ready when implementation is ready for
   review;
 - resumed rounds act on relayed user posts; and
-- winding-up rounds distinguish a merged pull request from one closed without
+- wrap-up rounds distinguish a merged pull request from one closed without
   merging.
-
-That contract revision belongs after review of these two documents, not inside
-the migration plan and not as an implicit side effect of this architecture
-draft.

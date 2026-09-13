@@ -82,10 +82,9 @@ docs/:
       Processes:
         Creating an agent assignment:
         Working through an assignment:
-        Passing control between agent and user:
+        Scheduling rounds in response to events:
         Scheduling work:
         Handling errors and global cooldown:
-      Terms deliberately avoided:
 specs/:
   2026-08-17-skeleton/:
     design.md:
