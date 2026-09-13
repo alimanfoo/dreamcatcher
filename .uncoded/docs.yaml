@@ -31,6 +31,39 @@ CONTRACT.md:
       A comment or review from the user:
       A merged or closed pull request:
       An interrupted round:
+docs/:
+  architecture.md:
+    Dreamcatcher target architecture:
+      Architectural aims:
+      Principal boundaries:
+        Daemon lifecycle:
+        Scheduling:
+        Agent assignments:
+        Agent rounds:
+        GitHub:
+        User-post relay:
+        Harness adapters:
+        Status reporting:
+        Configuration and dispatch routes:
+        State and documents:
+        Git, commands, prompts, and feeds:
+      Persistent and derived information:
+      Dependency direction:
+      Agent-facing contract:
+  ontology.md:
+    Dreamcatcher ontology:
+      Repository, issue, and dispatch route:
+      Agent assignment:
+      Pull request:
+      Agent round:
+        Purpose:
+        Recovery and outcome:
+      User posts and feedback:
+      Issue status:
+      Agent assignment status:
+      Scheduler and global cooldown:
+      Status report:
+      Terms deliberately avoided:
 specs/:
   2026-08-17-skeleton/:
     design.md:
