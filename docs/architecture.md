@@ -50,10 +50,12 @@ that scheduling happens, but not the scheduling priorities.
 One scheduler tick:
 
 1. observes the relevant local, process, configuration, and GitHub facts;
-2. reconciles newly completed or interrupted rounds;
+2. reconciles round processes with their recorded outcomes, including
+   recognizing interrupted rounds;
 3. applies capacity and global-cooldown constraints;
-4. finds the highest-priority existing assignment that requires a recovery,
-   wrap-up, user-post response, or first implementation round;
+4. finds the highest-priority existing assignment that requires an agent round,
+   considering recovery need, a terminal pull request, unrelayed user posts, and
+   an assignment with no rounds in that order;
 5. otherwise finds the oldest issue available for an agent assignment;
 6. performs at most one scheduling action; and
 7. records a concise account of what happened for operational reporting.
@@ -62,6 +64,13 @@ The scheduler directs two distinct actions: creating an agent assignment and
 starting an agent round. Creating an assignment does not implicitly start its
 first round. Normally that new assignment becomes the work selected by a later
 tick.
+
+For every new round, the scheduler derives purpose and recovery independently. A
+terminal pull request requires wrap up; otherwise a draft pull request calls for
+implementation and a ready pull request calls for addressing feedback. The
+recovery flag is true when the preceding round was interrupted or exited with an
+error and the assignment does not currently have fault status. A recovery round
+can therefore have any purpose.
 
 Scheduling should expose pure, read-only functions for interpretations that
 status reporting also needs, particularly whether an issue is available for an
@@ -77,27 +86,36 @@ queue.
 `agent_assignments.py` owns the durable representation and lifecycle operations
 of an agent assignment. It should provide cohesive operations to:
 
-- create an assignment;
+- create an assignment while enforcing that its issue has no open local
+  assignment;
 - read existing assignments;
 - find the open assignment for an issue;
-- update the harness session identifier and relayed-user-post cursor; and
+- update the harness session identifier and user-post delivery cursor; and
 - recognize completion after a successful wrap-up round.
 
 Assignment creation coordinates lower-level Git, GitHub, configuration, and
 document operations. As one recoverable workflow it:
 
 1. allocates the agent assignment identifier;
-2. fetches the current main branch;
-3. creates the assignment branch and worktree;
-4. makes an empty commit and pushes the branch;
-5. opens a linked draft pull request;
-6. writes the complete assignment record atomically; and
-7. returns the newly created assignment without starting an agent round.
+2. writes a creation journal before making external changes;
+3. fetches the current main branch;
+4. creates the assignment branch and worktree;
+5. makes an empty commit and pushes the branch;
+6. opens a linked draft pull request;
+7. writes the complete assignment record atomically;
+8. removes the creation journal; and
+9. returns the newly created assignment without starting an agent round.
 
 An interruption can leave external setup artifacts, but not a valid partial
-assignment record. Repeating or recovering creation must recognize artifacts
-belonging to the same assignment identifier and must not create a second branch
-or pull request accidentally.
+assignment record. The creation journal records the workflow, not a partial
+agent assignment. It lets recovery recognize artifacts belonging to the same
+assignment identifier and avoid creating a second branch or pull request. If
+recovery finds that the complete assignment record already exists, it need only
+remove the journal.
+
+The assignment remains open until the module recognizes a successful wrap-up
+round. A merged or closed pull request calls for wrap up but does not by itself
+complete the assignment.
 
 The assignment module coordinates the workflow but does not implement Git
 commands, parse GitHub responses, launch harnesses, or choose when work should
@@ -114,12 +132,19 @@ round process. It should provide operations to:
 - ask a harness adapter to build the invocation;
 - start that invocation in the assignment's worktree;
 - stream and render its output;
-- record a successful or errored ending; and
-- interrupt the process tree safely.
+- record a successful or errored ending;
+- interrupt the process tree safely; and
+- recognize and record an interruption when a previously running process is no
+  longer present without a recorded ending.
 
 The scheduler decides which purpose and recovery flag a new round has. The round
 boundary executes and records that decision; it does not inspect the pull
 request or select later work.
+
+A round is running while it has no terminal outcome and its process is alive.
+Successful, errored, and interrupted are terminal outcomes. Reconciliation
+records interrupted when a round has no recorded ending and its process is no
+longer alive.
 
 A round may have an internal collection of file paths, but the domain object
 shared across boundaries is the assignment's Git worktree.
@@ -130,7 +155,7 @@ shared across boundaries is the assignment's Git worktree.
 GitHub commands. It owns projections and operations for:
 
 - repository and account identity;
-- issue selection and issue dependencies;
+- issue state, assignees, labels, and dependencies;
 - linked pull requests;
 - pull-request identity, draft state, readiness, and terminal state;
 - creating the linked draft pull request; and
@@ -151,9 +176,10 @@ and preparing them as input to an agent round. It compares normalized user posts
 from the GitHub boundary with the assignment's delivery cursor.
 
 Relay does not define a separate inbox domain entity and does not decide when a
-round should run. The scheduler determines that new feedback requires work; the
-relay prepares the user posts, and the assignment records the newest post
-accepted for delivery at the appropriate durable point.
+round should run. The scheduler determines whether unrelayed user posts require
+work; the relay prepares the posts, and the assignment records the newest post
+accepted for delivery at the appropriate durable point. Posts made while a round
+is running remain beyond that cursor and are available to a later round.
 
 ### Harness adapters
 
@@ -184,7 +210,7 @@ Status construction may read:
 
 - assignment and round records;
 - current child-process state;
-- the latest scheduler-tick record;
+- scheduler records, including the active global cooldown and latest tick;
 - configuration, dispatch labels, and routes;
 - current GitHub issue, dependency, and pull-request facts; and
 - the latest rendered feed output needed for a useful summary.
@@ -193,6 +219,15 @@ It may call the scheduler's pure interpretation functions, but it cannot invoke
 a scheduling action, mutate an assignment, relay a user post, or start a
 process. Status values are always derived; they are not written back as domain
 state.
+
+An `IssueStatus` represents claimed here, claimed elsewhere, blocked, and
+routing conflict as independent facts which may each be true, false, or unknown;
+availability is derived from those facts together with whether the issue is
+open, assigned to the instance's user, and carries exactly one dispatch label.
+An `AgentAssignmentStatus` is one summary status from the ontology. The report
+includes every issue considered for a new assignment and every issue with an
+open local assignment, even if later changes to GitHub state or configuration
+would prevent a new assignment for that issue.
 
 `tui.py` renders status reports and feeds with Rich. It owns presentation only.
 It should not rediscover status, scheduling, or lifecycle rules while choosing
@@ -206,21 +241,24 @@ objects. Each recipe supplies the model, effort, and initial prompt used to
 start agent work through that harness. The initial prompt normally invokes an
 assignment skill.
 
-The configuration module validates labels, routes, and recipes and can report
-which dispatch labels an issue carries. It does not silently resolve multiple
-labels by list order. The scheduler interprets exactly one dispatch label as
-routable, more than one as a conflict, and none as outside scope.
+The configuration module validates labels, routes, and recipes and, given an
+issue's observed labels, identifies which are configured dispatch labels. It
+does not silently resolve multiple labels by list order. The scheduler
+interprets exactly one dispatch label as routable, more than one as a routing
+conflict, and none as outside scope.
 
 ### State and documents
 
 `state.py` owns the paths within `.dreamcatcher/` and the mechanics required to
 bootstrap that directory. It should become deliberately small. It must not
-contain candidate issues, waiting assignments, scheduling decisions, or status
-projections.
+contain collections of issues or assignments selected for work, scheduling
+decisions, or status projections.
 
 The on-disk layout follows ownership:
 
 - instance-wide operational records live at the state-directory root;
+- in-progress assignment creations have creation journals separate from valid
+  assignment records;
 - each assignment owns its durable record, delivery cursor, and numbered round
   records;
 - each round owns its prompt, raw output, rendered feed, and any delivered user
@@ -272,22 +310,29 @@ A round record persists:
 - its assignment-scoped number;
 - purpose and recovery flag;
 - start time and process identifier;
-- end time, exit status, and outcome when it ends; and
+- its terminal outcome, when known, and any observed end time and exit status;
+  and
 - the durable files containing its prompt, delivered posts, and output.
+
+An instance-wide scheduler record persists an active global cooldown and the
+time at which the most recent cooldown ended. This allows fault to remain a
+derived status: ending a cooldown changes which round errors count towards fault
+rather than writing an assignment status.
 
 The following are derived rather than persisted as authoritative state:
 
 - whether an issue is claimed here or elsewhere;
-- whether an issue is blocked, conflicted, or available for an agent assignment;
+- whether an issue is blocked, has a routing conflict, or is available for an
+  agent assignment;
 - whether an assignment is complete or in fault;
-- whether an assignment requires an agent round or user feedback;
-- what round purpose is required next; and
+- whether an assignment requires an agent round or needs user feedback;
+- what round purpose and recovery flag are required next; and
 - every issue and assignment status shown in a status report.
 
-Mutable external facts, including issue state, dependencies, pull-request
-draft/readiness/terminal state, and user posts, are read from GitHub. A failed
-read produces an unknown fact and conservative inaction rather than a guessed
-answer.
+Mutable external facts, including issue state, assignees, labels, dependencies,
+linked pull requests, pull-request draft/readiness/terminal state, and user
+posts, are read from GitHub. A failed read produces an unknown fact and
+conservative inaction rather than a guessed answer.
 
 ## Dependency direction
 
