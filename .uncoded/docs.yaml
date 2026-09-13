@@ -52,17 +52,34 @@ docs/:
       Agent-facing contract:
   ontology.md:
     Dreamcatcher ontology:
-      Repository, issue, and dispatch route:
-      Agent assignment:
-      Pull request:
-      Agent round:
-        Purpose:
-        Recovery and outcome:
-      User posts and feedback:
-      Issue status:
-      Agent assignment status:
-      Scheduler and global cooldown:
-      Status report:
+      Definitions:
+        Repository:
+        Dreamcatcher instance and daemon:
+        Issue and issue identifier:
+        Dispatch route:
+        Agent assignment and agent assignment identifier:
+        Pull request:
+        Agent harness and harness session:
+        Agent round:
+        Round purpose:
+        Recovery round and round outcome:
+        User post and feedback:
+        Scheduler:
+        Status report:
+        Global cooldown:
+      Relationships and rules:
+        Agent assignment composition:
+        Completion:
+        Round purpose and recovery:
+        Issue status and availability:
+        Agent assignment status:
+        Status reports do not control work:
+      Processes:
+        Creating an agent assignment:
+        Working through an assignment:
+        Passing control between agent and user:
+        Scheduling work:
+        Handling errors and global cooldown:
       Terms deliberately avoided:
 specs/:
   2026-08-17-skeleton/:

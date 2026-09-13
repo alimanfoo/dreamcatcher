@@ -31,7 +31,7 @@ domain phrase into a class. In particular, it should:
 
 ### Daemon lifecycle
 
-`daemon.py` owns the lifetime of the foreground service:
+`daemon.py` owns the lifetime of the daemon that runs a Dreamcatcher instance:
 
 - acquire and release the repository lock;
 - record the daemon process identifier;
@@ -180,8 +180,8 @@ interface.
 ### Status reporting
 
 `status.py` owns the read-only status model and constructs a `StatusReport`
-containing service facts, `IssueStatus` entries, and `AgentAssignmentStatus`
-entries.
+containing instance and daemon facts, `IssueStatus` entries, and
+`AgentAssignmentStatus` entries.
 
 Status construction may read:
 
@@ -221,7 +221,7 @@ projections.
 
 The on-disk layout follows ownership:
 
-- service-wide operational records live at the state-directory root;
+- instance-wide operational records live at the state-directory root;
 - each assignment owns its durable record, delivery cursor, and numbered round
   records;
 - each round owns its prompt, raw output, rendered feed, and any delivered user
