@@ -44,7 +44,7 @@ docs/:
         User-post relay:
         Harness adapters:
         Status reporting:
-        Configuration and dispatch routes:
+        Configuration, dispatch labels, and routes:
         State and documents:
         Git, commands, prompts, and feeds:
       Persistent and derived information:
@@ -54,12 +54,16 @@ docs/:
     Dreamcatcher ontology:
       Definitions:
         Repository:
+        User:
         Dreamcatcher instance and daemon:
         Issue and issue identifier:
-        Dispatch route:
         Agent assignment and agent assignment identifier:
         Pull request:
         Agent harness and harness session:
+        Assignment skill:
+        Assignment recipe:
+        Dispatch label:
+        Dispatch route:
         Agent round:
         Round purpose:
         Recovery round and round outcome:
@@ -69,6 +73,7 @@ docs/:
         Global cooldown:
       Relationships and rules:
         Agent assignment composition:
+        Dispatch labels and routes:
         Completion:
         Round purpose and recovery:
         Issue status and availability:

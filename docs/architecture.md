@@ -188,7 +188,7 @@ Status construction may read:
 - assignment and round records;
 - current child-process state;
 - the latest scheduler-tick record;
-- configuration and route matches;
+- configuration, dispatch labels, and routes;
 - current GitHub issue, dependency, and pull-request facts; and
 - the latest rendered feed output needed for a useful summary.
 
@@ -201,16 +201,18 @@ state.
 It should not rediscover status, scheduling, or lifecycle rules while choosing
 headings and colors.
 
-### Configuration and dispatch routes
+### Configuration, dispatch labels, and routes
 
-`config.py` owns the strict model for `dreamcatcher.toml`. A configured
-`DispatchRoute` replaces the current dispatch-mapping terminology. The module
-validates route structure and harness settings and can report which routes an
-issue's labels match.
+`config.py` owns the strict model for `dreamcatcher.toml`. A `DispatchRoute`
+maps one dispatch label to one or more harness-specific `AssignmentRecipe`
+objects. Each recipe supplies the model, effort, and initial prompt used to
+start agent work through that harness. The initial prompt normally invokes an
+assignment skill.
 
-Configuration establishes matches; it does not silently resolve multiple matches
-by list order. The scheduler interprets exactly one match as routable, more than
-one as a conflict, and none as outside scope.
+The configuration module validates labels, routes, and recipes and can report
+which dispatch labels an issue carries. It does not silently resolve multiple
+labels by list order. The scheduler interprets exactly one dispatch label as
+routable, more than one as a conflict, and none as outside scope.
 
 ### State and documents
 
@@ -262,7 +264,7 @@ acknowledged work.
 An assignment record persists:
 
 - the issue and assignment identifiers;
-- the frozen dispatch route and harness settings selected at creation;
+- the frozen dispatch route and assignment recipe selected at creation;
 - branch and worktree identity;
 - pull-request identity;
 - harness identity and, once known, its harness session identifier; and
@@ -310,9 +312,9 @@ turning every possible action into an abstract command hierarchy.
 
 ## Agent-facing contract
 
-The dispatchable-skill contract is a third enduring design document alongside
-this architecture and the ontology. It should describe the protocol between
-Dreamcatcher and an agent skill, not implementation history.
+The assignment-skill contract is a third enduring design document alongside this
+architecture and the ontology. It should describe the protocol between
+Dreamcatcher and an assignment skill, not implementation history.
 
 The existing root `CONTRACT.md` still reflects the earlier responsibility split
 in which the skill opens the draft pull request. Once the ontology and target
@@ -321,7 +323,7 @@ so that:
 
 - Dreamcatcher provides the issue, branch, worktree, and already-open draft pull
   request;
-- the skill adopts those resources rather than creating them;
+- the assignment skill adopts those resources rather than creating them;
 - the agent uses the pull request for questions and feedback;
 - the agent marks the pull request ready when implementation is ready for
   review;

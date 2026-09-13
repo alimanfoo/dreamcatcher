@@ -12,13 +12,20 @@ terminology conflicts with this document, this document is authoritative.
 
 ### Repository
 
-A **repository** is a GitHub repository managed by a Dreamcatcher instance.
+A **repository** is a GitHub repository in which a Dreamcatcher instance manages
+agent work.
+
+### User
+
+A **user** is the person on whose behalf a Dreamcatcher instance manages agent
+work. The user provides decisions and reviews work through GitHub.
 
 ### Dreamcatcher instance and daemon
 
-A **Dreamcatcher instance** is one repository-scoped body of configuration and
-local state. It endures while Dreamcatcher is stopped and across successive
-runs.
+A **Dreamcatcher instance** is one local body of configuration and state which
+manages agent work in one repository on behalf of one user. It endures while
+Dreamcatcher is stopped and across successive runs. Several users may each run
+their own Dreamcatcher instance for the same repository.
 
 A **daemon** is the process that runs a Dreamcatcher instance. At most one
 daemon runs an instance at a time.
@@ -27,16 +34,6 @@ daemon runs an instance at a time.
 
 An **issue** is a GitHub issue that may be considered for implementation. Its
 GitHub number is its **issue identifier**, conventionally written as `GH123`.
-
-### Dispatch route
-
-A **dispatch route** connects a configured issue label with the instructions and
-harness settings used to implement issues carrying that label. An issue must
-match exactly one dispatch route before Dreamcatcher can create an agent
-assignment for it. If an issue has no dispatch route then the issue is outside
-Dreamcatcher's scope. More than one dispatch route is a routing conflict. The
-order of routes in the configuration does not give one route precedence over
-another.
 
 ### Agent assignment and agent assignment identifier
 
@@ -61,6 +58,30 @@ Dreamcatcher runs an agent.
 A **harness session** is the continuing conversation maintained by the agent
 harness for one agent assignment. The harness supplies its own **harness session
 identifier**, which is distinct from Dreamcatcher's agent assignment identifier.
+
+### Assignment skill
+
+An **assignment skill** is an agent skill which follows Dreamcatcher's
+agent-facing contract and guides an agent through an agent assignment. It may be
+invoked by an assignment recipe.
+
+### Assignment recipe
+
+An **assignment recipe** specifies how Dreamcatcher starts an agent working on
+an assignment through a particular agent harness. It supplies the model, effort,
+and initial prompt for that harness. The initial prompt normally invokes an
+assignment skill.
+
+### Dispatch label
+
+A **dispatch label** is a GitHub issue label configured to mark issues for
+handling by Dreamcatcher.
+
+### Dispatch route
+
+A **dispatch route** maps one dispatch label to one or more assignment recipes,
+one for each agent harness through which assignments carrying that label can be
+run.
 
 ### Agent round
 
@@ -152,6 +173,16 @@ Dreamcatcher instance can never have more than one open assignment for the same
 issue. An agent assignment remains open until it is complete, including while
 its pull request is being wound up.
 
+### Dispatch labels and routes
+
+An issue with no dispatch label is outside Dreamcatcher's scope. An issue with
+more than one dispatch label has a routing conflict. The order of dispatch
+routes in the configuration does not give one route precedence over another.
+
+Exactly one dispatch label selects exactly one dispatch route. Dreamcatcher then
+selects an assignment recipe for the agent harness through which the assignment
+will run.
+
 ### Completion
 
 An assignment becomes **complete** only when a winding-up agent round exits
@@ -187,7 +218,7 @@ false, or unknown:
   there is a local assignment, its own pull request is excluded from this test;
   without a local assignment, any open linked pull request is an external claim.
 - **Blocked**: an open issue dependency prevents work from starting.
-- **Routing conflict**: the issue matches more than one dispatch route.
+- **Routing conflict**: the issue carries more than one dispatch label.
 
 These facts can coexist. In particular, an issue may be claimed both here and
 elsewhere if somebody opens another pull request after Dreamcatcher creates its
@@ -202,7 +233,7 @@ work; it does not make existing work disappear.
 An issue is **available for assignment** only when:
 
 - it is open and within the configured issue selection;
-- it matches exactly one dispatch route;
+- it carries exactly one dispatch label;
 - claimed here is known to be false;
 - claimed elsewhere is known to be false;
 - blocked is known to be false; and
@@ -259,7 +290,7 @@ consistently.
 Dreamcatcher creates the branch and worktree, makes and pushes an empty commit,
 and opens a linked draft pull request before it asks the agent to do any work.
 These steps are part of creating the assignment, not responsibilities delegated
-to the agent or to the dispatchable skill. Every recorded agent assignment
+to the agent or to the assignment skill. Every recorded agent assignment
 therefore already has a pull request.
 
 Starting the first agent round is a separate action. A newly created assignment
@@ -340,6 +371,8 @@ Some earlier terms blurred distinct concepts:
 - **Installation** is avoided where the enduring repository-scoped concept is a
   Dreamcatcher instance.
 - **Attempt** is not a synonym for agent assignment.
+- **Dispatchable skill** is replaced by assignment skill, which names the
+  skill's role rather than its eligibility for dispatch.
 - **Workspace** is avoided where the concrete object is a Git worktree.
 - **Board** is replaced by status report.
 - **Candidate**, **eligible**, and **queued** are replaced by the precise issue
