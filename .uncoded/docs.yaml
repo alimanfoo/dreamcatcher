@@ -66,7 +66,8 @@ docs/:
         Dispatch route:
         Agent round:
         Round purpose:
-        Recovery round and round outcome:
+        Round outcome:
+        Recovery round:
         User post and feedback:
         Scheduler:
         Status report:
@@ -74,8 +75,8 @@ docs/:
       Relationships and rules:
         Agent assignment composition:
         Dispatch labels and routes:
-        Completion:
-        Round purpose and recovery:
+        Completing an assignment:
+        Describing an agent round:
         Issue status and availability:
         Agent assignment status:
         Status reports do not control work:

@@ -104,11 +104,7 @@ Every agent round has one **round purpose** from this set:
 - **Wrap up**: finish an assignment whose pull request has been merged or
   closed.
 
-### Recovery round and round outcome
-
-A **recovery round** is an agent round run because the preceding round was
-interrupted or exited with an error. Recovery is a true-or-false property of a
-round, independent of its purpose.
+### Round outcome
 
 An agent round may be:
 
@@ -116,6 +112,12 @@ An agent round may be:
 - **successful**, when its harness invocation exits without an error;
 - **errored**, when the invocation exits with an error; or
 - **interrupted**, when it was stopped before recording an ending.
+
+### Recovery round
+
+A **recovery round** is an agent round run because the preceding round was
+interrupted or exited with an error. Recovery is a true-or-false property of a
+round, independent of its purpose.
 
 ### User post and feedback
 
@@ -182,7 +184,7 @@ Exactly one dispatch label selects exactly one dispatch route. Dreamcatcher then
 selects an assignment recipe for the agent harness through which the assignment
 will run.
 
-### Completion
+### Completing an assignment
 
 An assignment becomes **complete** only when a wrap-up round exits successfully.
 A successful implementation or feedback round does not complete the assignment.
@@ -192,19 +194,13 @@ later assignment for it. If the pull request was closed without being merged,
 the issue remains open and may receive another assignment after the previous
 assignment has completed.
 
-### Round purpose and recovery
+### Describing an agent round
 
-A round's purpose says what work the agent should do. Whether it is a recovery
-round says why Dreamcatcher is running it: the preceding round did not finish
-successfully. These are independent properties. A round has one purpose and may
-or may not be a recovery round.
-
-Two or more rounds may have the same purpose. An implementation, feedback, or
-wrap-up round may be a recovery round.
-
-The **first round** is simply round number one. A **wrap-up round** is a round
-whose purpose is to wrap up. An interrupted round requires recovery but does not
-count as an errored round.
+Number, purpose, recovery, and outcome describe different aspects of an agent
+round. The **first round** is round number one. A **wrap-up round** has wrap up
+as its purpose. A **recovery round** follows an interrupted or errored round. An
+implementation, feedback, or wrap-up round may therefore also be a recovery
+round, and two or more rounds may have the same purpose.
 
 ### Issue status and availability
 
@@ -221,14 +217,14 @@ false, or unknown:
 These facts can coexist. In particular, an issue may be claimed both here and
 elsewhere if somebody opens another pull request after Dreamcatcher creates its
 assignment. A claimed issue may also become blocked or develop a routing
-conflict.
+conflict after an assignment has started.
 
 An issue with a local assignment remains present in the status report even if
 its labels, assignee, or route configuration later place it outside the set of
 issues Dreamcatcher would consider for a new assignment. Selection governs new
 work; it does not make existing work disappear.
 
-An issue is **available for assignment** only when:
+An issue is **available for an agent assignment** only when:
 
 - it is open;
 - it is assigned to the user for this Dreamcatcher instance;
@@ -255,8 +251,8 @@ An agent assignment has one of these summary statuses in a status report:
 - **Working**: an agent round is running.
 - **Waiting**: an agent round is required but has not started, for example
   because capacity is full or a global cooldown is active.
-- **Needs feedback**: no agent round is currently required and the assignment
-  awaits a user post, review decision, merge, or closure.
+- **Needs user feedback**: no agent round is currently required and the
+  assignment awaits a user post, review decision, merge, or closure.
 - **Fault**: two consecutive agent rounds for this assignment have exited with
   errors and ordinary recovery has stopped.
 - **Complete**: a wrap-up round has exited successfully.

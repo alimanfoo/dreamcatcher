@@ -54,7 +54,7 @@ One scheduler tick:
 3. applies capacity and global-cooldown constraints;
 4. finds the highest-priority existing assignment that requires a recovery,
    wrap-up, user-post response, or first implementation round;
-5. otherwise finds the oldest issue available for assignment;
+5. otherwise finds the oldest issue available for an agent assignment;
 6. performs at most one scheduling action; and
 7. records a concise account of what happened for operational reporting.
 
@@ -64,10 +64,10 @@ first round. Normally that new assignment becomes the work selected by a later
 tick.
 
 Scheduling should expose pure, read-only functions for interpretations that
-status reporting also needs, particularly whether an issue is available for
-assignment and what round an assignment requires next. The status subsystem may
-reuse those functions. The scheduler must never consume a status report or
-presentation model.
+status reporting also needs, particularly whether an issue is available for an
+agent assignment and what round an assignment requires next. The status
+subsystem may reuse those functions. The scheduler must never consume a status
+report or presentation model.
 
 Scheduling priority is derived from current facts rather than persisted as a
 queue.
@@ -234,7 +234,7 @@ model would add no meaning.
 
 State-directory objects provide paths and document access. They do not answer
 domain questions such as whether an assignment is complete or an issue is
-available.
+available for an agent assignment.
 
 ### Git, commands, prompts, and feeds
 
@@ -278,7 +278,7 @@ A round record persists:
 The following are derived rather than persisted as authoritative state:
 
 - whether an issue is claimed here or elsewhere;
-- whether an issue is blocked, conflicted, or available for assignment;
+- whether an issue is blocked, conflicted, or available for an agent assignment;
 - whether an assignment is complete or in fault;
 - whether an assignment requires an agent round or user feedback;
 - what round purpose is required next; and
