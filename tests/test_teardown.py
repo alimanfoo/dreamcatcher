@@ -17,27 +17,35 @@ AND_WAITS = "time.sleep(60)\n"
 
 
 def test_a_kill_reaches_what_the_child_started(tmp_path):
-    child = spawn(sys.executable, "-c", STARTS_A_CHILD + AND_WAITS, cwd=tmp_path)
+    child = spawn(
+        program=sys.executable,
+        arguments=["-c", STARTS_A_CHILD + AND_WAITS],
+        cwd=tmp_path,
+    )
     grandchild = int(child.out.readline())
 
     child.kill()
     child.wait()
 
-    assert gone(grandchild)
-    assert gone(child.pid)
+    assert gone(pid=grandchild)
+    assert gone(pid=child.pid)
 
 
 def test_a_child_that_ends_by_itself_takes_what_it_started_with_it(tmp_path):
-    child = spawn(sys.executable, "-c", STARTS_A_CHILD, cwd=tmp_path)
+    child = spawn(
+        program=sys.executable, arguments=["-c", STARTS_A_CHILD], cwd=tmp_path
+    )
     grandchild = int(child.out.readline())
 
     assert child.wait() == 0
 
-    assert gone(grandchild)
+    assert gone(pid=grandchild)
 
 
 def test_a_kill_after_the_child_ended_leaves_its_pid_alone(tmp_path):
-    child = spawn(sys.executable, "-c", "print('done')", cwd=tmp_path)
+    child = spawn(
+        program=sys.executable, arguments=["-c", "print('done')"], cwd=tmp_path
+    )
 
     assert child.wait() == 0
 

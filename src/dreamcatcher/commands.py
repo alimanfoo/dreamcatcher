@@ -6,6 +6,7 @@ a command line meets on Windows, since a command line has to survive it.
 
 import os
 import subprocess
+from collections.abc import Sequence
 from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path, PurePath
@@ -57,7 +58,7 @@ class CommandError(ReportableError):
     """A command dreamcatcher ran is not there, or it failed."""
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Child:
     """A program running as a child process, with both its streams on pipes.
 
@@ -96,7 +97,7 @@ class Child:
         ended here too, once the child itself has gone.
         """
         status = self.process.wait()
-        teardown.end(self.pid)
+        teardown.end(pid=self.pid)
         return status
 
     def kill(self) -> None:
@@ -108,10 +109,10 @@ class Child:
         kill can come long afterwards.
         """
         if self.is_running:
-            teardown.end(self.pid)
+            teardown.end(pid=self.pid)
 
 
-def refuse_unquotable(text: str) -> str:
+def refuse_unquotable(text: str, /) -> str:
     """Return text, or raise ValueError naming every character it cannot carry.
 
     Whoever reads text in from outside calls this, so the message can name where
@@ -119,6 +120,9 @@ def refuse_unquotable(text: str) -> str:
 
     The message names every character it found, rather than the first, so the
     repo's owner fixes a setting once instead of once for each.
+
+    pydantic is what calls this, as the validator behind `QuotableText`, and it
+    passes the text positionally, so the parameter is positional-only.
     """
     found = [name for character, name in UNQUOTABLE.items() if character in text]
     if found:
@@ -129,7 +133,7 @@ def refuse_unquotable(text: str) -> str:
     return text
 
 
-def locate(program: str) -> str:
+def locate(*, program: str) -> str:
     """Return the path to program on the PATH, or raise CommandError."""
     # Windows adds only .exe to a bare name, while a lookup takes every
     # extension PATHEXT names. So looking the program up here, rather than
@@ -140,10 +144,10 @@ def locate(program: str) -> str:
     return executable
 
 
-def run(program: str, *arguments: str, cwd: Path | None = None) -> str:
+def run(*, program: str, arguments: Sequence[str], cwd: Path | None = None) -> str:
     """Return what the command wrote to stdout, reading it as UTF-8."""
     finished = subprocess.run(
-        _build(program, arguments),
+        _build(program=program, arguments=arguments),
         capture_output=True,
         check=False,
         cwd=cwd,
@@ -162,7 +166,13 @@ def run(program: str, *arguments: str, cwd: Path | None = None) -> str:
     return finished.stdout
 
 
-def spawn(program: str, *arguments: str, cwd: Path, stdin: Path | None = None) -> Child:
+def spawn(
+    *,
+    program: str,
+    arguments: Sequence[str],
+    cwd: Path,
+    stdin: Path | None = None,
+) -> Child:
     """Start the program in cwd and hand it back while it runs.
 
     The daemon watches a round while it runs rather than waiting for it to
@@ -179,12 +189,12 @@ def spawn(program: str, *arguments: str, cwd: Path, stdin: Path | None = None) -
     """
     with ExitStack() as opening:
         reading = (
-            opening.enter_context(_open_for_reading(stdin))
+            opening.enter_context(_open_for_reading(path=stdin))
             if stdin is not None
             else subprocess.DEVNULL
         )
         started = subprocess.Popen(
-            _build(program, arguments),
+            _build(program=program, arguments=arguments),
             cwd=cwd,
             stdin=reading,
             stdout=subprocess.PIPE,
@@ -195,15 +205,17 @@ def spawn(program: str, *arguments: str, cwd: Path, stdin: Path | None = None) -
             errors="replace",
             start_new_session=teardown.OWN_SESSION,
         )
-    teardown.contain(started.pid)
+    teardown.contain(pid=started.pid)
     # This asked for both pipes above, so both are there. subprocess types them
     # for every caller, including the ones that asked for neither.
     return Child(
-        cast("IO[str]", started.stdout), cast("IO[str]", started.stderr), started
+        out=cast("IO[str]", started.stdout),
+        err=cast("IO[str]", started.stderr),
+        process=started,
     )
 
 
-def _open_for_reading(path: Path) -> IO[bytes]:
+def _open_for_reading(*, path: Path) -> IO[bytes]:
     """Return the file at path, open for a child to read, or raise CommandError.
 
     A file the tool cannot open is not a bug in the tool, and the user can act
@@ -216,7 +228,7 @@ def _open_for_reading(path: Path) -> IO[bytes]:
         raise CommandError(f"cannot read {path}: {error}.") from error
 
 
-def _build(program: str, arguments: tuple[str, ...]) -> list[str] | str:
+def _build(*, program: str, arguments: Sequence[str]) -> list[str] | str:
     """Return the command as subprocess has to be given it.
 
     A list, which subprocess quotes for the program's own reader. A batch file
@@ -224,13 +236,13 @@ def _build(program: str, arguments: tuple[str, ...]) -> list[str] | str:
     under its own rules, and subprocess quotes for the second reader alone. So
     a batch file gets a line that this builds for both readers.
     """
-    executable = locate(program)
+    executable = locate(program=program)
     if PurePath(executable).suffix.lower() in BATCH_ENDINGS:  # pragma: no cover
-        return " ".join(_quote(part) for part in (executable, *arguments))
+        return " ".join(_quote(part=part) for part in (executable, *arguments))
     return [executable, *arguments]
 
 
-def _quote(part: str) -> str:
+def _quote(*, part: str) -> str:
     """Return the part quoted so cmd.exe and then the program read it whole.
 
     The quotes are always there, so a character that cmd.exe acts on — an

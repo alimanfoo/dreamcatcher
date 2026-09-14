@@ -63,9 +63,9 @@ RECORDINGS = ((CLAUDE, "claude"), (CODEX, "codex"))
 )
 def test_a_recorded_stream_renders_as_its_golden_feed(adapter, recording):
     feed = rendered(
-        adapter,
-        recording.read_text(encoding="utf-8").splitlines(),
-        Renderer(RECORDED_IN, clock=Ticking()),
+        adapter=adapter,
+        lines=recording.read_text(encoding="utf-8").splitlines(),
+        renderer=Renderer(worktree=RECORDED_IN, clock=Ticking()),
     )
 
     assert feed == recording.with_suffix(".feed.txt").read_text(encoding="utf-8")

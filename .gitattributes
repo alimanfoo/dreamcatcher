@@ -1,6 +1,5 @@
 # Collapse generated files in a diff, and keep them out of the language
-# statistics. uncoded writes the first three; uv writes the lock.
-.uncoded/** linguist-generated=true
+# statistics. uncoded writes the skills; uv writes the lock.
 .claude/skills/** linguist-generated=true
 .agents/skills/** linguist-generated=true
 uv.lock linguist-generated=true

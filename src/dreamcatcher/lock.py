@@ -12,17 +12,17 @@ from dreamcatcher.errors import ReportableError
 
 
 @contextmanager
-def hold(path: Path) -> Iterator[None]:
+def hold(*, path: Path) -> Iterator[None]:
     """Hold the lock at path, and release it however the caller ends.
 
     Raise ReportableError when a live daemon holds it.
 
     Reclaim a stale lock, one no live daemon holds.
     """
-    running = read_daemon_pid(path)
+    running = read_daemon_pid(path=path)
     if running is not None:
         raise ReportableError(f"dreamcatcher is already running as pid {running}.")
-    write_text(f"{os.getpid()}\n", path)
+    write_text(text=f"{os.getpid()}\n", path=path)
     try:
         yield
     finally:
@@ -33,7 +33,7 @@ def hold(path: Path) -> Iterator[None]:
             path.unlink()
 
 
-def read_daemon_pid(path: Path) -> int | None:
+def read_daemon_pid(*, path: Path) -> int | None:
     """Return the pid of the daemon holding the lock, if one still is.
 
     A lock nobody can read as a live pid is stale. That covers a file that is

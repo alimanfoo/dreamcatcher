@@ -4,6 +4,10 @@ This guide grounds a fresh agent session before it works on this repo.
 
 ## Before you start
 
+Run `uv run uncoded sync` first. Git ignores the index it writes under
+`.uncoded/`, so a fresh clone or worktree holds none of it, and both skills
+below read the index.
+
 - Load the `uncoded-code-navigation` skill before searching, reading or editing
   any code.
 - Load the `uncoded-doc-navigation` skill before searching, reading or editing
@@ -19,10 +23,14 @@ to review and merge.
 
 The project is spec-first. Each phase of development has a dated folder under
 `specs/`. Before working, find the spec your task belongs to — the task usually
-names it. When the code you're writing has to diverge from the spec, correct the
-spec in the same PR, so it keeps saying what the code really does. Say in the PR
-what you changed and why, so the reviewer reads the divergence rather than
-finding it. The spec is corrected by review, not by drift.
+names it. When the code you're writing has to diverge from that spec, correct it
+in the same PR, so it keeps saying what the code really does. Say in the PR what
+you changed and why, so the reviewer reads the divergence rather than finding
+it. The spec is corrected by review, not by drift.
+
+Leave every other spec as it stands, however far the code has moved since. Each
+one is a historical record of what a completed phase set out to do, so bringing
+it up to date would take that record away.
 
 ## Dev setup
 
@@ -128,6 +136,18 @@ uv run pre-commit run --all-files
   `config.QuotableText` does this for the model and the effort a dispatch holds,
   where pydantic turns the `ValueError` into a named error. Anywhere else, catch
   the `ValueError` and raise a `ReportableError`, or the user reads a traceback.
+- Give every function and method keyword-only parameters, so a call says what
+  each argument means and reordering a signature cannot change what a caller
+  already passes. `tools/require_keyword_parameters.py` enforces this on every
+  commit, and its own docstring says what it leaves alone. Where something
+  outside dreamcatcher makes the call, declare the parameter positional-only
+  with `/`, and say in the docstring what makes the call that way.
+- Give a callback parameter a `Protocol` whose `__call__` is keyword-only, where
+  this project implements the callback itself and it takes more than one
+  argument. A `Callable` has no keyword-only form, so a callback typed as one is
+  called by position. A callback that takes nothing has nothing to pass, and one
+  whose value comes from outside has a shape this project does not own, so
+  either of those keeps a `Callable`.
 - Name a method or a function for what it does, with a verb: `render`, `stop`,
   `strip_worktree`. A name like `rendered` or `holder` reads as a value, so a
   reader takes it for a property and not for something that runs.

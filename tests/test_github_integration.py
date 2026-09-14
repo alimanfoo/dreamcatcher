@@ -29,7 +29,7 @@ BLOCKING = 8
 
 
 def test_this_checkout_is_this_repository():
-    assert identify_repository(CHECKOUT) == REPOSITORY
+    assert identify_repository(root=CHECKOUT) == REPOSITORY
 
 
 def test_gh_is_signed_in_as_somebody():
@@ -38,27 +38,34 @@ def test_gh_is_signed_in_as_somebody():
 
 def test_gh_takes_the_whole_issue_listing_command():
     assert isinstance(
-        list_issues(REPOSITORY, label="dream:smith", assignee="@me"), list
+        list_issues(repository=REPOSITORY, label="dream:smith", assignee="@me"), list
     )
 
 
 def test_a_merged_pull_request_comes_back_merged():
-    found = list_pull_requests(REPOSITORY, MERGED_BRANCH)
+    found = list_pull_requests(repository=REPOSITORY, branch=MERGED_BRANCH)
 
     assert isinstance(found, list)
     assert PullRequest(number=MERGED, state=PullRequestState.MERGED) in found
 
 
 def test_a_branch_that_never_existed_comes_back_empty():
-    assert list_pull_requests(REPOSITORY, "dreamcatcher-GH0-19700101-000000") == []
+    assert (
+        list_pull_requests(
+            repository=REPOSITORY, branch="dreamcatcher-GH0-19700101-000000"
+        )
+        == []
+    )
 
 
 def test_gh_takes_the_linked_pull_requests_command():
-    assert isinstance(list_linked_pull_requests(REPOSITORY, BLOCKED), list)
+    assert isinstance(
+        list_linked_pull_requests(repository=REPOSITORY, issue=BLOCKED), list
+    )
 
 
 def test_a_blocked_issue_names_what_blocks_it():
-    found = list_blockers(REPOSITORY, BLOCKED)
+    found = list_blockers(repository=REPOSITORY, issue=BLOCKED)
 
     assert isinstance(found, list)
     assert BLOCKING in [blocker.number for blocker in found]

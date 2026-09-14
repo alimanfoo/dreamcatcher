@@ -216,3 +216,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# uncoded
+#   The commit hook runs `uncoded sync`, which writes the index here. Every
+#   file in it is derived from this repository's own source and docs, and there
+#   are dozens, so committing them would bury the hand-written diff a reviewer
+#   reads. The `uncoded-*` skills that the same command writes are committed,
+#   because they are uncoded's own prose and change only when its version does.
+.uncoded/

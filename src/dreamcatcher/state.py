@@ -93,7 +93,7 @@ class LastTick(Document):
     waiting: list[WaitingSession] = Field(default_factory=list)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class StateDirectory:
     """The directory holding everything dreamcatcher knows about one repo.
 
@@ -148,7 +148,7 @@ class StateDirectory:
         """The directory holding each session's own files, named by its key."""
         return self.path / "sessions"
 
-    def describe_path(self, path: Path) -> str:
+    def describe_path(self, *, path: Path) -> str:
         """Return the path as it reads from the checkout, for a reader to open.
 
         The one way of writing it on every platform, so what a reader is told
@@ -169,4 +169,4 @@ class StateDirectory:
         Writing the .gitignore is what creates the directory. Bootstrap writes
         it on every run, so a directory that was deleted comes back.
         """
-        write_text("*\n", self.path / ".gitignore")
+        write_text(text="*\n", path=self.path / ".gitignore")

@@ -44,7 +44,7 @@ if sys.platform == "win32":  # pragma: no cover
     # inside.
     _jobs: dict[int, object] = {}
 
-    def contain(pid: int) -> None:
+    def contain(*, pid: int) -> None:
         """Put the child at pid, and whatever it starts, in a job of its own."""
         job = win32job.CreateJobObject(None, "")
         limits = win32job.QueryInformationJobObject(
@@ -63,7 +63,7 @@ if sys.platform == "win32":  # pragma: no cover
         child.Close()
         _jobs[pid] = job
 
-    def end(pid: int) -> None:
+    def end(*, pid: int) -> None:
         """End the child at pid and everything it started."""
         job = _jobs.pop(pid, None)
         if job is not None:
@@ -75,10 +75,10 @@ else:  # pragma: no cover
     import signal
     from contextlib import suppress
 
-    def contain(pid: int) -> None:
+    def contain(*, pid: int) -> None:
         """Nothing to do: the child already leads a process group of its own."""
 
-    def end(pid: int) -> None:
+    def end(*, pid: int) -> None:
         """End the child at pid and everything it started.
 
         A group with nothing left in it is a round that has already ended,

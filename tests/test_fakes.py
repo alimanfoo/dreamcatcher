@@ -14,76 +14,86 @@ STREAM = '{"type":"assistant","text":"café"}\n{"type":"result"}\n'
 def recording(tmp_path):
     path = tmp_path / "stream.jsonl"
     path.write_text(STREAM, encoding="utf-8")
-    return recorded(path)
+    return recorded(path=path)
 
 
 def test_a_stand_in_harness_replays_the_recording_it_was_given(fake, recording):
-    harness = fake("harness")
-    harness.streams(recording)
+    harness = fake(program="harness")
+    harness.streams(lines=recording)
 
-    assert run("harness", "--print") == STREAM
+    assert run(program="harness", arguments=["--print"]) == STREAM
     assert harness.calls[0].arguments == ["--print"]
 
 
 def test_a_stand_in_harness_streams_at_the_pace_it_was_given(fake, recording):
-    fake("harness").streams(recording, delay=0.05)
+    fake(program="harness").streams(lines=recording, delay=0.05)
 
     started = perf_counter()
-    run("harness")
+    run(program="harness", arguments=[])
 
     assert perf_counter() - started >= len(recording) * 0.05
 
 
 def test_a_stand_in_harness_writes_each_line_to_the_stream_it_names(fake):
-    fake("harness").streams(
-        [Line("first\n"), Line("an aside\n", Stream.ERR), Line("second\n")]
+    fake(program="harness").streams(
+        lines=[
+            Line(text="first\n"),
+            Line(text="an aside\n", stream=Stream.ERR),
+            Line(text="second\n"),
+        ]
     )
 
-    assert run("harness") == "first\nsecond\n"
+    assert run(program="harness", arguments=[]) == "first\nsecond\n"
 
 
 def test_a_stand_in_harness_can_end_as_a_failed_round_does(fake, recording):
-    fake("harness").streams(recording, status=2)
+    fake(program="harness").streams(lines=recording, status=2)
 
     with pytest.raises(CommandError, match="failed with status 2"):
-        run("harness")
+        run(program="harness", arguments=[])
 
 
 def test_a_stand_in_nobody_scripted_says_so(fake):
-    fake("harness")
+    fake(program="harness")
 
     with pytest.raises(CommandError, match="was not scripted"):
-        run("harness")
+        run(program="harness", arguments=[])
 
 
 def test_a_stand_in_answers_each_call_with_the_rule_that_call_opens(fake):
-    gh = fake("gh")
-    gh.replies("the repository\n", to="repo view")
-    gh.replies("the listing\n", to="issue list")
+    gh = fake(program="gh")
+    gh.replies(stdout="the repository\n", to="repo view")
+    gh.replies(stdout="the listing\n", to="issue list")
 
-    assert run("gh", "repo", "view", "--json", "nameWithOwner") == "the repository\n"
-    assert run("gh", "issue", "list", "--state", "open") == "the listing\n"
+    assert (
+        run(program="gh", arguments=["repo", "view", "--json", "nameWithOwner"])
+        == "the repository\n"
+    )
+    assert (
+        run(program="gh", arguments=["issue", "list", "--state", "open"])
+        == "the listing\n"
+    )
 
 
 def test_a_stand_in_prefers_the_rule_scripted_for_the_particular_call(fake):
-    gh = fake("gh")
-    gh.replies("anything\n")
-    gh.replies("the blockers\n", to="api")
+    gh = fake(program="gh")
+    gh.replies(stdout="anything\n")
+    gh.replies(stdout="the blockers\n", to="api")
 
-    assert run("gh", "api", "user") == "the blockers\n"
-    assert run("gh", "repo", "view") == "anything\n"
+    assert run(program="gh", arguments=["api", "user"]) == "the blockers\n"
+    assert run(program="gh", arguments=["repo", "view"]) == "anything\n"
 
 
 def test_a_call_scripted_twice_answers_with_the_later_of_the_two(fake):
-    gh = fake("gh")
-    gh.replies("what it knew first\n", to="repo view")
-    gh.replies("what it knows now\n", to="repo view")
+    gh = fake(program="gh")
+    gh.replies(stdout="what it knew first\n", to="repo view")
+    gh.replies(stdout="what it knows now\n", to="repo view")
 
-    assert run("gh", "repo", "view") == "what it knows now\n"
+    assert run(program="gh", arguments=["repo", "view"]) == "what it knows now\n"
 
 
 def test_a_call_no_rule_answers_says_the_stand_in_was_not_scripted(fake):
-    fake("gh").replies("the listing\n", to="issue list")
+    fake(program="gh").replies(stdout="the listing\n", to="issue list")
 
     with pytest.raises(CommandError, match="was not scripted"):
-        run("gh", "repo", "view")
+        run(program="gh", arguments=["repo", "view"])
