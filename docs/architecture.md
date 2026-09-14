@@ -46,8 +46,8 @@ that scheduling happens, but not the scheduling priorities.
 One scheduler tick:
 
 1. observes the relevant local, process, configuration, and GitHub facts;
-2. resumes unfinished assignment creation and reconciles round processes with
-   their recorded outcomes, including recognizing interrupted rounds;
+2. reconciles incomplete assignment creation and round processes, including
+   recognizing interrupted rounds;
 3. applies capacity and global-cooldown constraints;
 4. finds the highest-priority existing assignment that requires an agent round,
    considering recovery need, a terminal pull request, and unrelayed user posts
@@ -60,9 +60,10 @@ The scheduler uses two distinct lower-level operations: creating an agent
 assignment and starting an agent round. When it selects an available issue, it
 performs both operations in one scheduling action, starting the first round as
 soon as assignment creation succeeds. Keeping the operations separate preserves
-clear ownership. The creation journal keeps the combined action recoverable if
-it is interrupted between the operations; it does not impose an extra scheduler
-tick between them or create a separate class of normally scheduled work.
+clear ownership. If the combined action is interrupted between the operations,
+the complete assignment record shows that its first round is missing, and the
+scheduler finishes the action before ordinary scheduling. This does not create a
+separate class of normally scheduled work.
 
 For every new round, the scheduler derives purpose and recovery independently. A
 terminal pull request requires wrap up; otherwise a draft pull request calls for
@@ -96,23 +97,22 @@ Assignment creation coordinates lower-level Git, GitHub, configuration, and
 document operations. As one recoverable workflow it:
 
 1. allocates the agent assignment identifier;
-2. writes a creation journal before making external changes;
-3. fetches the current main branch;
-4. creates the assignment branch and worktree;
-5. makes an empty commit and pushes the branch;
-6. opens a linked draft pull request;
-7. writes the complete assignment record atomically;
-8. returns the newly created assignment to the scheduler so it can start the
+2. fetches the current main branch;
+3. creates the assignment branch and worktree;
+4. makes an empty commit and pushes the branch;
+5. opens a linked draft pull request;
+6. writes the complete assignment record atomically;
+7. returns the newly created assignment to the scheduler so it can start the
    first round immediately.
 
 An interruption can leave external setup artifacts, but not a valid partial
-assignment record. The creation journal records the workflow, not a partial
-agent assignment. It lets recovery recognize artifacts belonging to the same
-assignment identifier and avoid creating a second branch or pull request. The
-journal remains until the scheduler has started the first round, when the
-assignment module removes it. If recovery finds that the complete assignment
-record already exists, it continues from that point instead of recreating the
-assignment.
+assignment record. The assignment identifier determines the branch and worktree
+identities, and the pull request identifies that branch as its head. Recovery
+can therefore recognize artifacts belonging to the same assignment. Repeating or
+recovering creation must reuse or remove those artifacts as appropriate and must
+not create a second branch or pull request. If the complete assignment record
+already exists, the scheduler continues to the first round instead of recreating
+the assignment.
 
 The assignment remains open until the module recognizes a successful wrap-up
 round. A merged or closed pull request calls for wrap up but does not by itself
@@ -230,6 +230,8 @@ includes every issue considered for a new assignment and every issue with an
 open local assignment, even if later changes to GitHub state or configuration
 would prevent a new assignment for that issue.
 
+### TUI
+
 `tui.py` renders status reports and feeds with Rich. It owns presentation only.
 It should not rediscover status, scheduling, or lifecycle rules while choosing
 headings and colors.
@@ -258,8 +260,6 @@ decisions, or status projections.
 The on-disk layout follows ownership:
 
 - instance-wide operational records live at the state-directory root;
-- in-progress assignment creations have creation journals separate from valid
-  assignment records;
 - each assignment owns its durable record, delivery cursor, and numbered round
   records;
 - each round owns its prompt, raw output, rendered feed, and any delivered user
