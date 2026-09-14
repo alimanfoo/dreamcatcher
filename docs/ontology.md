@@ -339,7 +339,7 @@ and cooldown, the scheduler considers work in this order:
 
 1. recover an interrupted or first-time errored round;
 2. wrap up an assignment whose pull request has been merged or closed;
-3. start a round to respond to new user posts on an existing assignment;
+3. start a round to address new user posts on an existing assignment;
 4. start the first implementation round of an assignment that has been created
    but has not begun work;
 5. create an assignment for an available issue and immediately start its first
