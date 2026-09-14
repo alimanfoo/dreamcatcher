@@ -288,9 +288,12 @@ These steps are part of creating the assignment, not responsibilities delegated
 to the agent or to the assignment skill. Every recorded agent assignment
 therefore already has a pull request before the agent starts working.
 
-Starting the first agent round is a separate action. A newly created assignment
-with no rounds yet is valid and waits for the scheduler to start its first
-implementation round.
+Creating the durable assignment and starting its first agent round are separate
+operations, but the scheduler performs them as one scheduling action. As soon as
+assignment creation succeeds, it starts the first implementation round without
+waiting for another scheduler tick. If the scheduling action is interrupted
+between those operations, an assignment with no rounds is still valid and the
+scheduler starts its first round at the next opportunity.
 
 ### Working through an assignment
 
@@ -339,7 +342,8 @@ and cooldown, the scheduler considers work in this order:
 3. start a round to respond to new user posts on an existing assignment;
 4. start the first implementation round of an assignment that has been created
    but has not begun work;
-5. create an assignment for an available issue; and
+5. create an assignment for an available issue and immediately start its first
+   implementation round; and
 6. otherwise do nothing.
 
 ### Handling errors and global cooldown

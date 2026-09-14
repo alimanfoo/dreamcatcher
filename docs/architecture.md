@@ -5,10 +5,6 @@ maps the concepts in [the ontology](ontology.md) to code boundaries and states
 the responsibilities, interfaces, and encapsulation those boundaries should
 provide.
 
-It intentionally does not describe how to migrate the current code. Migration
-will be planned only after the ontology and target architecture have been
-reviewed and accepted.
-
 The dated specifications record the design of particular phases. Where an older
 design conflicts with this target, this document is authoritative.
 
@@ -60,10 +56,12 @@ One scheduler tick:
 6. performs at most one scheduling action; and
 7. records a concise account of what happened for operational reporting.
 
-The scheduler directs two distinct actions: creating an agent assignment and
-starting an agent round. Creating an assignment does not implicitly start its
-first round. Normally that new assignment becomes the work selected by a later
-tick.
+The scheduler uses two distinct lower-level operations: creating an agent
+assignment and starting an agent round. When it selects an available issue, it
+performs both operations in one scheduling action, starting the first round as
+soon as assignment creation succeeds. Keeping the operations separate preserves
+clear ownership and allows recovery if the scheduling action is interrupted
+between them; it does not impose an extra scheduler tick between them.
 
 For every new round, the scheduler derives purpose and recovery independently. A
 terminal pull request requires wrap up; otherwise a draft pull request calls for
@@ -104,7 +102,8 @@ document operations. As one recoverable workflow it:
 6. opens a linked draft pull request;
 7. writes the complete assignment record atomically;
 8. removes the creation journal; and
-9. returns the newly created assignment without starting an agent round.
+9. returns the newly created assignment to the scheduler so it can start the
+   first round immediately.
 
 An interruption can leave external setup artifacts, but not a valid partial
 assignment record. The creation journal records the workflow, not a partial
