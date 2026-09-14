@@ -197,10 +197,11 @@ assignment has completed.
 ### Describing an agent round
 
 Number, purpose, recovery, and outcome describe different aspects of an agent
-round. The **first round** is round number one. A **wrap-up round** has wrap up
-as its purpose. A **recovery round** follows an interrupted or errored round. An
-implementation, feedback, or wrap-up round may therefore also be a recovery
-round, and two or more rounds may have the same purpose.
+round. For example, the **first round** is round number one. A **wrap-up round**
+has wrapping up after a pull request is merged or closed as its purpose. A
+**recovery round** follows an interrupted or errored round and resumes the
+assignment's work. An implementation, feedback, or wrap-up round may therefore
+also be a recovery round, and two or more rounds may have the same purpose.
 
 ### Issue status and availability
 
@@ -291,9 +292,7 @@ therefore already has a pull request before the agent starts working.
 Creating the durable assignment and starting its first agent round are separate
 operations, but the scheduler performs them as one scheduling action. As soon as
 assignment creation succeeds, it starts the first implementation round without
-waiting for another scheduler tick. If the scheduling action is interrupted
-between those operations, an assignment with no rounds is still valid and the
-scheduler starts its first round at the next opportunity.
+waiting for another scheduler tick.
 
 ### Working through an assignment
 
@@ -337,11 +336,9 @@ and cooldown, the scheduler considers work in this order:
 1. recover an interrupted or first-time errored round;
 2. wrap up an assignment whose pull request has been merged or closed;
 3. start a round to address new user posts on an existing assignment;
-4. start the first implementation round of an assignment that has been created
-   but has not begun work;
-5. create an assignment for an available issue and immediately start its first
+4. create an assignment for an available issue and immediately start its first
    implementation round; and
-6. otherwise do nothing.
+5. otherwise do nothing.
 
 ### Handling errors and global cooldown
 

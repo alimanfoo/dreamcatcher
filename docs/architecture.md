@@ -46,12 +46,12 @@ that scheduling happens, but not the scheduling priorities.
 One scheduler tick:
 
 1. observes the relevant local, process, configuration, and GitHub facts;
-2. reconciles round processes with their recorded outcomes, including
-   recognizing interrupted rounds;
+2. resumes unfinished assignment creation and reconciles round processes with
+   their recorded outcomes, including recognizing interrupted rounds;
 3. applies capacity and global-cooldown constraints;
 4. finds the highest-priority existing assignment that requires an agent round,
-   considering recovery need, a terminal pull request, unrelayed user posts, and
-   an assignment with no rounds in that order;
+   considering recovery need, a terminal pull request, and unrelayed user posts
+   in that order;
 5. otherwise finds the oldest issue available for an agent assignment;
 6. performs at most one scheduling action; and
 7. records a concise account of what happened for operational reporting.
@@ -60,8 +60,9 @@ The scheduler uses two distinct lower-level operations: creating an agent
 assignment and starting an agent round. When it selects an available issue, it
 performs both operations in one scheduling action, starting the first round as
 soon as assignment creation succeeds. Keeping the operations separate preserves
-clear ownership and allows recovery if the scheduling action is interrupted
-between them; it does not impose an extra scheduler tick between them.
+clear ownership. The creation journal keeps the combined action recoverable if
+it is interrupted between the operations; it does not impose an extra scheduler
+tick between them or create a separate class of normally scheduled work.
 
 For every new round, the scheduler derives purpose and recovery independently. A
 terminal pull request requires wrap up; otherwise a draft pull request calls for
@@ -101,16 +102,17 @@ document operations. As one recoverable workflow it:
 5. makes an empty commit and pushes the branch;
 6. opens a linked draft pull request;
 7. writes the complete assignment record atomically;
-8. removes the creation journal; and
-9. returns the newly created assignment to the scheduler so it can start the
+8. returns the newly created assignment to the scheduler so it can start the
    first round immediately.
 
 An interruption can leave external setup artifacts, but not a valid partial
 assignment record. The creation journal records the workflow, not a partial
 agent assignment. It lets recovery recognize artifacts belonging to the same
-assignment identifier and avoid creating a second branch or pull request. If
-recovery finds that the complete assignment record already exists, it need only
-remove the journal.
+assignment identifier and avoid creating a second branch or pull request. The
+journal remains until the scheduler has started the first round, when the
+assignment module removes it. If recovery finds that the complete assignment
+record already exists, it continues from that point instead of recreating the
+assignment.
 
 The assignment remains open until the module recognizes a successful wrap-up
 round. A merged or closed pull request calls for wrap up but does not by itself
