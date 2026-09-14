@@ -284,9 +284,9 @@ assignment was selected or what GitHub reports about it.
 to run or spawn already-constructed commands; no other module imports the
 subprocess library.
 
-`prompts.py` composes prompts from an explicit round purpose, recovery flag,
-assignment context, and optional user posts. It does not infer why a round is
-being run.
+`prompts.py` owns the construction of the prompts passed to agent harnesses. It
+receives the information required to construct each prompt. It does not infer
+why an agent round is being run or make scheduling decisions.
 
 `feed.py` owns the harness-neutral activity representation and rendering of
 parsed harness events into plain-text records. Rich presentation remains in the
