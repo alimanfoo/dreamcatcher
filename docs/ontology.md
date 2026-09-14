@@ -310,9 +310,6 @@ An assignment normally progresses as follows:
 7. The agent wraps the assignment up.
 8. A successful wrap-up round completes the assignment.
 
-Draft and ready are materially different pull-request states. An open pull
-request must not be represented in a way that loses this distinction.
-
 ### Scheduling rounds in response to events
 
 One or more new user posts cause an agent round to be scheduled. If a user posts
