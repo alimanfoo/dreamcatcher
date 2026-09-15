@@ -4,9 +4,9 @@ from datetime import timedelta
 
 import pytest
 from clocks import PINNED
-from records import write_feed, write_round, write_session, write_tick
+from records import write_agent_assignment, write_feed, write_round, write_tick
 
-from dreamcatcher.board import SessionStanding, read_board, read_rows_for_issue
+from dreamcatcher.board import AgentAssignmentStanding, read_board, read_rows_for_issue
 from dreamcatcher.feed import Line
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.state import (
@@ -14,10 +14,10 @@ from dreamcatcher.state import (
     CandidateIssue,
     LastTick,
     StateDirectory,
-    WaitingSession,
+    WaitingAgentAssignment,
 )
 
-KEY = "GH13-20260819-184158"
+ASSIGNMENT_ID = "GH13-20260819-184158"
 
 # When the board is read: two hours after everything the tests write down.
 LOOKED_AT = PINNED + timedelta(hours=2)
@@ -27,9 +27,9 @@ LABEL = "dream:smith"
 
 @pytest.fixture
 def state(tmp_path):
-    """A state directory holding one session, with no round run yet."""
+    """A state directory holding one assignment, with no round run yet."""
     directory = StateDirectory(root=tmp_path)
-    write_session(state=directory, key=KEY, issue=13)
+    write_agent_assignment(state=directory, identifier=ASSIGNMENT_ID, issue=13)
     return directory
 
 
@@ -41,7 +41,7 @@ def running(state):
 
 
 def ran(*, state, number: int, cause: Cause = Cause.DISPATCH, status: int | None = 0):
-    """Write down a round of the session, ended as the status says.
+    """Write down a round of the assignment, ended as the status says.
 
     A round that ended ran for four minutes, so a line its feed holds landed
     while the round was still going rather than after it had finished.
@@ -53,21 +53,21 @@ def ran(*, state, number: int, cause: Cause = Cause.DISPATCH, status: int | None
         else Ending(at=started + timedelta(minutes=4), status=status)
     )
     write_round(
-        directory=state.sessions / KEY,
+        directory=state.assignments / ASSIGNMENT_ID,
         number=number,
         record=RoundRecord(started=started, pid=1, cause=cause, ending=ending),
     )
 
 
 def said(*, state, number: int, texts: Sequence[str]):
-    """Write down what the session's numbered round said, a minute after it began.
+    """Write down what the assignment's numbered round said, a minute after it began.
 
     A round says nothing before it starts, so a feed line written at the
     pinned hour itself would read as one that landed before its own round.
     """
     at = PINNED + timedelta(minutes=number + 1)
     write_feed(
-        directory=state.sessions / KEY,
+        directory=state.assignments / ASSIGNMENT_ID,
         number=number,
         lines=[Line(at=at, text=text) for text in texts],
     )
@@ -90,28 +90,32 @@ def rows_at(*, state, issue: int):
     return read_rows_for_issue(state=state, issue=issue, clock=lambda: LOOKED_AT)
 
 
-def test_the_rows_for_an_issue_are_its_own_sessions_newest_first(running):
+def test_the_rows_for_an_issue_are_its_own_assignments_newest_first(running):
     ran(state=running, number=1)
-    other = write_session(state=running, key="GH99-20260819-184158", issue=99)
+    other = write_agent_assignment(
+        state=running, identifier="GH99-20260819-184158", issue=99
+    )
     write_round(
         directory=other,
         number=1,
         record=RoundRecord(started=PINNED, pid=1, cause=Cause.DISPATCH),
     )
 
-    assert [row.session.record.issue for row in rows_at(state=running, issue=13)] == [
-        13
-    ]
+    assert [
+        row.assignment.record.issue for row in rows_at(state=running, issue=13)
+    ] == [13]
 
 
-def test_an_issue_no_session_here_has_holds_no_rows(state):
+def test_an_issue_no_assignment_here_has_holds_no_rows(state):
     assert rows_at(state=state, issue=99) == []
 
 
-def test_a_look_at_one_issue_leaves_another_session_s_feed_unread(running):
+def test_a_look_at_one_issue_leaves_another_assignment_s_feed_unread(running):
     ran(state=running, number=1, status=None)
     said(state=running, number=1, texts=["[Bash] pytest"])
-    other = write_session(state=running, key="GH99-20260819-184158", issue=99)
+    other = write_agent_assignment(
+        state=running, identifier="GH99-20260819-184158", issue=99
+    )
     write_round(
         directory=other,
         number=1,
@@ -144,7 +148,7 @@ def test_a_round_a_running_daemon_has_not_ended_is_the_agent_working(running):
 
     row = only(state=running)
 
-    assert row.standing is SessionStanding.WORKING
+    assert row.standing is AgentAssignmentStanding.WORKING
     assert row.detail == "running 1h 59m, last output 1h 58m ago"
     assert row.last_output == "[Bash] pytest"
 
@@ -161,72 +165,74 @@ def test_a_running_round_that_has_said_nothing_yet_says_that(running):
 def test_a_round_with_no_daemon_left_to_run_it_is_waiting(state):
     ran(state=state, number=1, status=None)
 
-    assert only(state=state).standing is SessionStanding.WAITING
+    assert only(state=state).standing is AgentAssignmentStanding.WAITING
     assert only(state=state).detail == "the last round was interrupted"
 
 
 def test_a_round_that_failed_waits_with_the_status_it_failed_with(running):
     ran(state=running, number=1, status=2)
 
-    assert only(state=running).standing is SessionStanding.WAITING
+    assert only(state=running).standing is AgentAssignmentStanding.WAITING
     assert only(state=running).detail == "the last round failed (exit 2)"
 
 
-def test_a_session_whose_final_round_has_run_is_done(state):
+def test_an_assignment_whose_final_round_has_run_is_done(state):
     ran(state=state, number=1)
     ran(state=state, number=2, cause=Cause.FINAL)
 
-    assert only(state=state).standing is SessionStanding.DONE
+    assert only(state=state).standing is AgentAssignmentStanding.DONE
     assert only(state=state).detail == "2 rounds"
 
 
-def test_a_session_done_in_one_round_counts_that_round_as_one(state):
+def test_an_assignment_done_in_one_round_counts_that_round_as_one(state):
     ran(state=state, number=1, cause=Cause.FINAL)
 
     assert only(state=state).detail == "1 round"
 
 
-def test_a_session_the_tick_found_nothing_to_do_for_needs_you(state):
+def test_an_assignment_the_tick_found_nothing_to_do_for_needs_you(state):
     ran(state=state, number=1)
     said(state=state, number=1, texts=["[Bash] pytest"])
     write_tick(state=state, tick=LastTick(at=PINNED))
 
-    assert only(state=state).standing is SessionStanding.NEEDS_YOU
+    assert only(state=state).standing is AgentAssignmentStanding.NEEDS_YOU
     assert only(state=state).detail == "idle 1h 58m"
 
 
-def test_a_session_that_wrote_no_feed_at_all_is_idle_for_who_knows_how_long(state):
+def test_an_assignment_that_wrote_no_feed_at_all_is_idle_for_who_knows_how_long(state):
     ran(state=state, number=1)
 
-    assert only(state=state).standing is SessionStanding.NEEDS_YOU
+    assert only(state=state).standing is AgentAssignmentStanding.NEEDS_YOU
     assert only(state=state).detail == "idle"
 
 
-def test_a_session_the_tick_left_waiting_says_what_it_waits_on(state):
+def test_an_assignment_the_tick_left_waiting_says_what_it_waits_on(state):
     ran(state=state, number=1)
     write_tick(
         state=state,
         tick=LastTick(
             at=PINNED,
             waiting=[
-                WaitingSession(session=KEY, issue=13, reason="1 new post to answer")
+                WaitingAgentAssignment(
+                    assignment=ASSIGNMENT_ID, issue=13, reason="1 new post to answer"
+                )
             ],
         ),
     )
 
-    assert only(state=state).standing is SessionStanding.WAITING
+    assert only(state=state).standing is AgentAssignmentStanding.WAITING
     assert only(state=state).detail == "1 new post to answer"
 
 
-def test_a_stuck_session_says_where_to_read_what_it_did(state):
+def test_a_stuck_assignment_says_where_to_read_what_it_did(state):
     ran(state=state, number=1)
     write_tick(
         state=state,
         tick=LastTick(
             at=PINNED,
             waiting=[
-                WaitingSession(
-                    session=KEY,
+                WaitingAgentAssignment(
+                    assignment=ASSIGNMENT_ID,
                     issue=13,
                     reason="no pull request has been opened on it",
                     is_stuck=True,
@@ -235,21 +241,21 @@ def test_a_stuck_session_says_where_to_read_what_it_did(state):
         ),
     )
 
-    assert only(state=state).standing is SessionStanding.STUCK
+    assert only(state=state).standing is AgentAssignmentStanding.STUCK
     assert only(state=state).detail == (
         "no pull request has been opened on it "
-        f"(.dreamcatcher/sessions/{KEY}/rounds/1/feed.txt)"
+        f"(.dreamcatcher/assignments/{ASSIGNMENT_ID}/rounds/1/feed.txt)"
     )
 
 
-def test_a_stuck_session_that_ran_no_round_has_no_feed_to_point_at(state):
+def test_a_stuck_assignment_that_ran_no_round_has_no_feed_to_point_at(state):
     write_tick(
         state=state,
         tick=LastTick(
             at=PINNED,
             waiting=[
-                WaitingSession(
-                    session=KEY,
+                WaitingAgentAssignment(
+                    assignment=ASSIGNMENT_ID,
                     issue=13,
                     reason=NO_ROUND_HAS_RUN,
                     is_stuck=True,
@@ -258,22 +264,22 @@ def test_a_stuck_session_that_ran_no_round_has_no_feed_to_point_at(state):
         ),
     )
 
-    assert only(state=state).standing is SessionStanding.STUCK
+    assert only(state=state).standing is AgentAssignmentStanding.STUCK
     assert only(state=state).detail == "no round has run yet"
 
 
-def test_a_session_no_tick_has_weighed_and_no_round_has_run_is_stuck(state):
-    assert only(state=state).standing is SessionStanding.STUCK
+def test_an_assignment_no_tick_has_weighed_and_no_round_has_run_is_stuck(state):
+    assert only(state=state).standing is AgentAssignmentStanding.STUCK
     assert only(state=state).detail == NO_ROUND_HAS_RUN
 
 
-def test_the_sessions_at_one_issue_read_as_sessions_newest_first(state):
-    write_session(state=state, key="GH13-20260820-090000", issue=13)
-    write_session(state=state, key="GH9-20260819-184158", issue=9)
+def test_the_assignments_at_one_issue_read_as_assignments_newest_first(state):
+    write_agent_assignment(state=state, identifier="GH13-20260820-090000", issue=13)
+    write_agent_assignment(state=state, identifier="GH9-20260819-184158", issue=9)
 
     rows = looked(state=state).rows
 
-    assert [row.session.key for row in rows] == [
+    assert [row.assignment.identifier for row in rows] == [
         "GH9-20260819-184158",
         "GH13-20260820-090000",
         "GH13-20260819-184158",
@@ -281,10 +287,10 @@ def test_the_sessions_at_one_issue_read_as_sessions_newest_first(state):
 
 
 def test_the_work_that_is_done_reads_most_recent_first(state):
-    write_session(state=state, key="GH9-20260819-184158", issue=9)
+    write_agent_assignment(state=state, identifier="GH9-20260819-184158", issue=9)
     ran(state=state, number=1, cause=Cause.FINAL)
     write_round(
-        directory=state.sessions / "GH9-20260819-184158",
+        directory=state.assignments / "GH9-20260819-184158",
         number=1,
         record=RoundRecord(
             started=PINNED + timedelta(hours=1),
@@ -294,17 +300,21 @@ def test_the_work_that_is_done_reads_most_recent_first(state):
         ),
     )
 
-    done = looked(state=state).list_rows_for_standing(standing=SessionStanding.DONE)
+    done = looked(state=state).list_rows_for_standing(
+        standing=AgentAssignmentStanding.DONE
+    )
 
-    assert [row.session.record.issue for row in done] == [9, 13]
+    assert [row.assignment.record.issue for row in done] == [9, 13]
 
 
-def test_the_sessions_in_one_standing_come_back_in_the_boards_own_order(state):
-    write_session(state=state, key="GH9-20260819-184158", issue=9)
+def test_the_assignments_in_one_standing_come_back_in_the_boards_own_order(state):
+    write_agent_assignment(state=state, identifier="GH9-20260819-184158", issue=9)
 
-    waiting = looked(state=state).list_rows_for_standing(standing=SessionStanding.STUCK)
+    waiting = looked(state=state).list_rows_for_standing(
+        standing=AgentAssignmentStanding.STUCK
+    )
 
-    assert [row.session.record.issue for row in waiting] == [9, 13]
+    assert [row.assignment.record.issue for row in waiting] == [9, 13]
 
 
 def test_the_queue_reads_each_issues_turn_off_its_place(state):
@@ -329,7 +339,7 @@ def test_the_queue_reads_each_issues_turn_off_its_place(state):
     ]
 
 
-def test_an_issue_a_session_here_already_claims_is_not_queued(state):
+def test_an_issue_an_assignment_here_already_claims_is_not_queued(state):
     write_tick(
         state=state,
         tick=LastTick(

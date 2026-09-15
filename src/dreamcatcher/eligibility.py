@@ -8,10 +8,10 @@ An error from GitHub can therefore cost the daemon a tick, but the daemon can
 never dispatch an issue twice, and never dispatch one out of turn.
 
 Two of the checks ask who has a claim on an issue, and they answer different
-questions. The first checks whether a session in this checkout is already working
-on the issue, which covers the time before any pull request exists. A session
+questions. The first checks whether an assignment in this checkout is already working
+on the issue, which covers the time before any pull request exists. An assignment
 outlives the daemon run that cut it, so one an earlier run left behind claims its
-issue just as a session of the running daemon's does. The second
+issue just as an assignment of the running daemon's does. The second
 checks whether the issue has an open linked pull request on GitHub, which covers
 the situation where the issue is being worked on via a worktree somewhere else.
 """
@@ -39,7 +39,7 @@ def judge_issues(
     anything, stands in the way of dispatching it. A candidate with nothing in
     its way can be dispatched.
 
-    The caller passes in `claimed`, the issues that a session in this checkout
+    The caller passes in `claimed`, the issues that an assignment in this checkout
     is already working on. The caller knows about those and GitHub does not.
 
     If the tool could not read the listing, it answers Unknown for the whole
@@ -68,21 +68,21 @@ def judge_issues(
 def _list_issues(
     *, repository: str, config: Config
 ) -> list[tuple[Issue, list[str]]] | Unknown:
-    """Return each listed issue with the mapped labels it carries, oldest first.
+    """Return each listed issue with the dispatch labels it carries, oldest first.
 
     Two issues can be filed in the same second, so the issue's number breaks the
     tie. They then come back in the same order on every tick.
     """
     labels: defaultdict[int, list[str]] = defaultdict(list)
     found: dict[int, Issue] = {}
-    for mapping in config.dispatch:
+    for route in config.dispatch:
         answered = list_issues(
-            repository=repository, label=mapping.label, assignee=config.assignee
+            repository=repository, label=route.label, assignee=config.assignee
         )
         if isinstance(answered, Unknown):
             return answered
         for issue in answered:
-            labels[issue.number].append(mapping.label)
+            labels[issue.number].append(route.label)
             found[issue.number] = issue
     return [
         (issue, labels[issue.number])
@@ -101,9 +101,9 @@ def _find_obstacle(
     label check comes first. It also costs no call to GitHub.
     """
     if len(labels) > 1:
-        return f"carries more than one mapped label: {', '.join(sorted(labels))}"
+        return f"carries more than one dispatch label: {', '.join(sorted(labels))}"
     if issue in claimed:
-        return "a session in this checkout is working on it"
+        return "an assignment in this checkout is working on it"
     return _check_pull_requests(repository=repository, issue=issue) or _check_blockers(
         repository=repository, issue=issue
     )

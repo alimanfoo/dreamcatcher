@@ -16,7 +16,7 @@ import psutil
 import pytest
 from clocks import PINNED
 from conftest import FIXTURES, LABEL
-from records import write_feed, write_round, write_session, write_tick
+from records import write_agent_assignment, write_feed, write_round, write_tick
 from rich.console import Console
 from rich.control import Control
 from rich.text import Text
@@ -30,15 +30,15 @@ from dreamcatcher.state import (
     CandidateIssue,
     LastTick,
     StateDirectory,
-    WaitingSession,
+    WaitingAgentAssignment,
 )
 from dreamcatcher.tui import (
     PAUSE,
     _paint,
     _paint_written,
+    show_assignment,
     show_board,
     show_feed,
-    show_session,
 )
 
 # When a view is rendered: two hours after the last thing on the disk happened.
@@ -64,11 +64,14 @@ DAEMON_PID = 4242
 
 STAMP = "20260819-184158"
 
-# What one round of a session said, as its feed holds it. A subagent's lines
+# What one round of an assignment said, as its feed holds it. A subagent's lines
 # are set in from the rest, and a line that is not a feed line at all is what a
 # harness printed on its stderr.
 SAID = (
-    Line(at=PINNED + timedelta(minutes=1), text="[session] model opus[1m], id 7f3c9a"),
+    Line(
+        at=PINNED + timedelta(minutes=1),
+        text="[harness session] model opus[1m], id 7f3c9a",
+    ),
     Line(at=PINNED + timedelta(minutes=2), text="I will read the issue first."),
     Line(
         at=PINNED + timedelta(minutes=2),
@@ -85,8 +88,8 @@ SAID = (
     Line(at=PINNED + timedelta(minutes=5), text="[result] success"),
 )
 
-# What a tick writes down against an issue carrying two mapped labels.
-DOUBLE_LABELLED = "carries more than one mapped label: dream:less, dream:smith"
+# What a tick writes down against an issue carrying two dispatch labels.
+DOUBLE_LABELLED = "carries more than one dispatch label: dream:less, dream:smith"
 
 
 @pytest.fixture
@@ -96,8 +99,10 @@ def daemon(monkeypatch):
 
 
 def written(*, state, issue: int, records: Sequence[RoundRecord]):
-    """Write a session for the issue, with these rounds behind it."""
-    directory = write_session(state=state, key=f"GH{issue}-{STAMP}", issue=issue)
+    """Write an assignment for the issue, with these rounds behind it."""
+    directory = write_agent_assignment(
+        state=state, identifier=f"GH{issue}-{STAMP}", issue=issue
+    )
     for number, record in enumerate(records, start=1):
         write_round(directory=directory, number=number, record=record)
     return directory
@@ -130,7 +135,7 @@ def fabricate_nothing(*, state):
 
 
 def fabricate_everything(*, state):
-    """A daemon running, with a session in every standing and a queue behind."""
+    """A daemon running, with an assignment in every standing and a queue behind."""
     holding(state=state)
     directory = written(
         state=state,
@@ -169,22 +174,22 @@ def fabricate_everything(*, state):
                 CandidateIssue(issue=53, label=LABEL, reason=DOUBLE_LABELLED),
             ],
             waiting=[
-                WaitingSession(
-                    session=f"GH31-{STAMP}", issue=31, reason="1 new post to answer"
+                WaitingAgentAssignment(
+                    assignment=f"GH31-{STAMP}", issue=31, reason="1 new post to answer"
                 ),
-                WaitingSession(
-                    session=f"GH35-{STAMP}",
+                WaitingAgentAssignment(
+                    assignment=f"GH35-{STAMP}",
                     issue=35,
                     reason="the last round failed (exit 2)",
                 ),
-                WaitingSession(
-                    session=f"GH9-{STAMP}",
+                WaitingAgentAssignment(
+                    assignment=f"GH9-{STAMP}",
                     issue=9,
                     reason="no pull request has been opened on it",
                     is_stuck=True,
                 ),
-                WaitingSession(
-                    session=f"GH44-{STAMP}",
+                WaitingAgentAssignment(
+                    assignment=f"GH44-{STAMP}",
                     issue=44,
                     reason=NO_ROUND_HAS_RUN,
                     is_stuck=True,
@@ -195,13 +200,13 @@ def fabricate_everything(*, state):
 
 
 def fabricate_a_dead_daemon(*, state):
-    """The same sessions, with the daemon that was running them gone."""
+    """The same assignments, with the daemon that was running them gone."""
     fabricate_everything(state=state)
     state.lock.unlink()
 
 
 def fabricate_the_cap(*, state):
-    """A daemon at its cap, which peeked at nothing and holds every session."""
+    """A daemon at its cap, which peeked at nothing and holds every assignment."""
     holding(state=state)
     directory = written(state=state, issue=13, records=[running(minute=30)])
     write_feed(
@@ -216,19 +221,25 @@ def fabricate_the_cap(*, state):
         tick=LastTick(
             at=PINNED + timedelta(hours=1, minutes=58),
             hold=hold,
-            waiting=[WaitingSession(session=f"GH20-{STAMP}", issue=20, reason=hold)],
+            waiting=[
+                WaitingAgentAssignment(
+                    assignment=f"GH20-{STAMP}", issue=20, reason=hold
+                )
+            ],
         ),
     )
 
 
-def fabricate_repeat_sessions(*, state):
-    """Three sessions at one issue, so a repeat dispatch reads as one thing."""
+def fabricate_repeat_assignments(*, state):
+    """Three assignments at one issue, so a repeat dispatch reads as one thing."""
     for stamp, rounds in (
         ("20260817-090000", (ended(minute=1), ended(minute=2, cause=Cause.FINAL))),
         ("20260818-090000", (ended(minute=1), ended(minute=2, cause=Cause.FINAL))),
         ("20260819-184158", (ended(minute=1),)),
     ):
-        directory = write_session(state=state, key=f"GH13-{stamp}", issue=13)
+        directory = write_agent_assignment(
+            state=state, identifier=f"GH13-{stamp}", issue=13
+        )
         for number, record in enumerate(rounds, start=1):
             write_round(directory=directory, number=number, record=record)
         write_feed(
@@ -269,30 +280,30 @@ def fabricate_a_silent_round(*, state):
 
 BOARDS = {
     "nothing": fabricate_nothing,
-    "everything": fabricate_everything,
-    "dead-daemon": fabricate_a_dead_daemon,
+    "dispatch-assignments-everything": fabricate_everything,
+    "dispatch-assignments-dead-daemon": fabricate_a_dead_daemon,
     "at-cap": fabricate_the_cap,
     "silent-round": fabricate_a_silent_round,
-    "repeat-sessions": fabricate_repeat_sessions,
+    "repeat-assignments": fabricate_repeat_assignments,
 }
 
 
 # The feed view each fabricated state directory is worth reading, by the issue
-# whose newest session it shows.
+# whose newest assignment it shows.
 FEEDS = {
-    "feed-working": (fabricate_everything, 13),
-    "feed-older-sessions": (fabricate_repeat_sessions, 13),
+    "feed-assignment-working": (fabricate_everything, 13),
+    "feed-older-assignments": (fabricate_repeat_assignments, 13),
 }
 
 
-# The session view each fabricated state directory is worth reading, by the
-# issue whose newest session it shows.
-SESSIONS = {
-    "session-working": (fabricate_everything, 13),
-    "session-silent-round": (fabricate_a_silent_round, 13),
-    "session-older-sessions": (fabricate_repeat_sessions, 13),
-    "session-stuck": (fabricate_everything, 9),
-    "session-never-started": (fabricate_everything, 44),
+# The assignment view each fabricated state directory is worth reading, by the
+# issue whose newest assignment it shows.
+ASSIGNMENTS = {
+    "newest-assignment-working": (fabricate_everything, 13),
+    "newest-assignment-silent-round": (fabricate_a_silent_round, 13),
+    "newest-assignment-older-assignments": (fabricate_repeat_assignments, 13),
+    "newest-assignment-stuck": (fabricate_everything, 9),
+    "newest-assignment-never-started": (fabricate_everything, 44),
 }
 
 
@@ -325,7 +336,7 @@ def pinned(
 
 
 def interrupting(seconds, /):
-    """A wait the reader interrupts, which is how a view of a live session ends."""
+    """A wait the reader interrupts, which is how a view of a live assignment ends."""
     raise KeyboardInterrupt
 
 
@@ -364,10 +375,10 @@ def test_a_state_directory_renders_as_its_golden_board(name, tmp_path, daemon):
     assert board == (FIXTURES / "board" / f"{name}.txt").read_text(encoding="utf-8")
 
 
-def test_a_key_too_wide_for_the_console_folds_rather_than_being_cut(tmp_path):
-    """Two sessions at one issue differ only in the time their keys carry."""
+def test_an_identifier_too_wide_for_the_console_folds_rather_than_being_cut(tmp_path):
+    """Two assignments at one issue differ only in their identifier times."""
     state = StateDirectory(root=tmp_path)
-    fabricate_repeat_sessions(state=state)
+    fabricate_repeat_assignments(state=state)
 
     board = rendered(state=state, width=24)
 
@@ -418,7 +429,7 @@ def test_a_board_a_reader_watches_keeps_up_with_what_the_daemon_writes(
     )
     board = written_to.getvalue()
 
-    # A board is never over, so it drew again on the session that was dispatched
+    # A board is never over, so it drew again on the assignment that was dispatched
     # while the reader was watching, and ended only when they interrupted it.
     assert looks == [PAUSE, PAUSE]
     assert "nothing dispatched yet" in board
@@ -468,9 +479,9 @@ def test_a_board_on_a_dumb_terminal_is_drawn_once_and_returns(tmp_path, daemon):
 
 
 def viewed(*, state, issue: int, width: int = WIDTH) -> str:
-    """Return the session view that issue renders as, on a pinned console."""
+    """Return the assignment view that issue renders as, on a pinned console."""
     written_to = StringIO()
-    show_session(
+    show_assignment(
         state=state,
         issue=issue,
         console=pinned(written_to=written_to, width=width),
@@ -512,10 +523,10 @@ def test_wrapped_latest_output_keeps_its_indent(tmp_path, daemon):
     assert all(line.startswith("  ") and not line.startswith("   ") for line in output)
 
 
-@pytest.mark.parametrize("name", sorted(SESSIONS))
-def test_a_session_renders_as_its_golden_view(name, tmp_path, daemon):
+@pytest.mark.parametrize("name", sorted(ASSIGNMENTS))
+def test_an_assignment_renders_as_its_golden_view(name, tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
-    fabricate, issue = SESSIONS[name]
+    fabricate, issue = ASSIGNMENTS[name]
     fabricate(state=state)
 
     view = viewed(state=state, issue=issue)
@@ -523,7 +534,9 @@ def test_a_session_renders_as_its_golden_view(name, tmp_path, daemon):
     assert view == (FIXTURES / "board" / f"{name}.txt").read_text(encoding="utf-8")
 
 
-def test_a_session_view_shows_the_round_that_starts_while_it_is_open(tmp_path, daemon):
+def test_an_assignment_view_shows_the_round_that_starts_while_it_is_open(
+    tmp_path, daemon
+):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     written_to = StringIO()
@@ -534,12 +547,12 @@ def test_a_session_view_shows_the_round_that_starts_while_it_is_open(tmp_path, d
         if len(looks) > 1:
             raise KeyboardInterrupt
         write_round(
-            directory=state.sessions / f"GH20-{STAMP}",
+            directory=state.assignments / f"GH20-{STAMP}",
             number=2,
             record=running(minute=60, cause=Cause.POSTS),
         )
 
-    show_session(
+    show_assignment(
         state=state,
         issue=20,
         console=pinned(written_to=written_to, is_terminal=True),
@@ -555,13 +568,15 @@ def test_a_session_view_shows_the_round_that_starts_while_it_is_open(tmp_path, d
 
 
 @pytest.mark.parametrize("issue", [12, 9])
-def test_a_session_view_of_a_session_that_is_over_never_waits(issue, tmp_path, daemon):
+def test_an_assignment_view_of_an_assignment_that_is_over_never_waits(
+    issue, tmp_path, daemon
+):
     """GH12 has run its final round, and GH9 is stuck, so neither has one coming."""
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     written_to = StringIO()
 
-    show_session(
+    show_assignment(
         state=state,
         issue=issue,
         console=pinned(written_to=written_to, is_terminal=True),
@@ -572,7 +587,7 @@ def test_a_session_view_of_a_session_that_is_over_never_waits(issue, tmp_path, d
     assert f"GH{issue}-{STAMP}" in written_to.getvalue()
 
 
-def test_a_session_view_of_a_session_that_is_over_keeps_its_last_picture(
+def test_an_assignment_view_of_an_assignment_that_is_over_keeps_its_last_picture(
     tmp_path, daemon
 ):
     """GH12 has run its final round, so the view ends and its picture stays."""
@@ -580,7 +595,7 @@ def test_a_session_view_of_a_session_that_is_over_keeps_its_last_picture(
     fabricate_everything(state=state)
     written_to = StringIO()
 
-    show_session(
+    show_assignment(
         state=state,
         issue=12,
         console=pinned(written_to=written_to, is_terminal=True),
@@ -590,7 +605,7 @@ def test_a_session_view_of_a_session_that_is_over_keeps_its_last_picture(
     kept = written_to.getvalue().split(SCREEN_HANDED_BACK)[-1]
 
     # Handing the screen back took the picture the view ended on with it, so
-    # the view printed that picture where a reader looking the session up
+    # the view printed that picture where a reader looking the assignment up
     # reads it.
     assert f"GH12-{STAMP}" in kept
 
@@ -613,7 +628,7 @@ def test_a_feed_nobody_is_watching_shows_what_is_there_and_returns(tmp_path, dae
     written_to = StringIO()
 
     # A console that is no terminal is a pipe, a redirect or a log, and a view
-    # that followed for as long as this session runs could be none of those.
+    # that followed for as long as this assignment runs could be none of those.
     show_feed(
         state=state, issue=13, console=pinned(written_to=written_to), wait=refusing
     )
@@ -650,7 +665,7 @@ def test_only_a_feed_lines_stamp_is_dim():
     assert not boundary.get_style_at_offset(console, boundary_text).dim
 
 
-def test_a_following_view_waits_for_the_round_a_session_has_yet_to_run(
+def test_a_following_view_waits_for_the_round_an_assignment_has_yet_to_run(
     tmp_path, daemon
 ):
     state = StateDirectory(root=tmp_path)
@@ -663,7 +678,7 @@ def test_a_following_view_waits_for_the_round_a_session_has_yet_to_run(
 
     followed(state=state, issue=20, wait=wait)
 
-    # The session's pull request is waiting for the reader, so the round that
+    # The assignment's pull request is waiting for the reader, so the round that
     # answers them is still to come and the view waits for it rather than
     # ending between the rounds.
     assert waits == [PAUSE]
@@ -672,7 +687,7 @@ def test_a_following_view_waits_for_the_round_a_session_has_yet_to_run(
 def test_a_following_view_looks_once_more_when_the_last_round_stops(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    directory = state.sessions / f"GH13-{STAMP}"
+    directory = state.assignments / f"GH13-{STAMP}"
     waits = []
 
     def wait(seconds, /):
@@ -691,7 +706,7 @@ def test_a_following_view_looks_once_more_when_the_last_round_stops(tmp_path, da
 def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    directory = state.sessions / f"GH20-{STAMP}"
+    directory = state.assignments / f"GH20-{STAMP}"
     looks = []
 
     def wait(seconds, /):
@@ -717,7 +732,7 @@ def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path, dae
     assert feed.count("round 1: dispatched") == 1
 
 
-def test_a_view_of_a_session_that_is_over_never_waits(tmp_path, daemon):
+def test_a_view_of_an_assignment_that_is_over_never_waits(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -735,17 +750,17 @@ def test_a_following_view_waits_for_the_next_daemon(tmp_path):
 
     followed(state=state, issue=13, wait=wait)
 
-    # The daemon that was running the session has gone, and the next one
+    # The daemon that was running the assignment has gone, and the next one
     # carries its round on from where it stopped, so the view waits for that
     # round rather than end with the daemon.
     assert waits == [PAUSE]
 
 
-def test_a_view_of_a_stuck_session_never_waits(tmp_path, daemon):
+def test_a_view_of_a_stuck_assignment_never_waits(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
-    # Only a person can move a stuck session on, so the view ends rather than
+    # Only a person can move a stuck assignment on, so the view ends rather than
     # wait for a round that is not coming.
     assert followed(state=state, issue=44) == ""
 
@@ -753,7 +768,7 @@ def test_a_view_of_a_stuck_session_never_waits(tmp_path, daemon):
 def test_a_following_view_reads_a_round_on_from_where_it_stopped(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    directory = state.sessions / f"GH13-{STAMP}"
+    directory = state.assignments / f"GH13-{STAMP}"
     looks = []
 
     def wait(seconds, /):
@@ -768,7 +783,10 @@ def test_a_following_view_reads_a_round_on_from_where_it_stopped(tmp_path, daemo
             directory=directory,
             number=1,
             lines=[
-                Line(at=SAID[0].at, text="[session] model opus[1m], id 000000"),
+                Line(
+                    at=SAID[0].at,
+                    text="[harness session] model opus[1m], id 000000",
+                ),
                 *SAID[1:],
                 Line(at=PINNED + timedelta(minutes=7), text="[Bash] git push"),
             ],
@@ -785,7 +803,7 @@ def test_a_write_that_never_landed_waits_for_the_look_that_shows_it_whole(
 ):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    feed = state.sessions / f"GH13-{STAMP}" / "rounds" / "2" / "feed.txt"
+    feed = state.assignments / f"GH13-{STAMP}" / "rounds" / "2" / "feed.txt"
     looks = []
 
     def wait(seconds, /):
@@ -812,7 +830,7 @@ def test_a_line_the_view_cannot_read_reaches_the_reader_as_it_was_written(
     fabricate_everything(state=state)
     write_text(
         text="the harness said something else\n",
-        path=state.sessions / f"GH13-{STAMP}" / "rounds" / "2" / "feed.txt",
+        path=state.assignments / f"GH13-{STAMP}" / "rounds" / "2" / "feed.txt",
     )
 
     feed = followed(state=state, issue=13, wait=interrupting)
@@ -847,7 +865,7 @@ def viewed_round(
     return written_to.getvalue()
 
 
-def test_one_round_of_a_session_reads_on_its_own(tmp_path, daemon):
+def test_one_round_of_an_assignment_reads_on_its_own(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -871,7 +889,7 @@ def test_a_view_of_a_round_that_has_ended_never_waits(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
-    # Round 1 of this session ended, and one named round is all the view shows,
+    # Round 1 of this assignment ended, and one named round is all the view shows,
     # so it ends there rather than wait for what round 2 says next.
     shown = viewed_round(state=state, issue=13, number=1, is_terminal=True)
 
@@ -881,7 +899,7 @@ def test_a_view_of_a_round_that_has_ended_never_waits(tmp_path, daemon):
 def test_a_view_of_a_running_round_ends_when_that_round_does(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    directory = state.sessions / f"GH13-{STAMP}"
+    directory = state.assignments / f"GH13-{STAMP}"
     looks = []
 
     def wait(seconds, /):
@@ -898,7 +916,7 @@ def test_a_view_of_a_running_round_ends_when_that_round_does(tmp_path, daemon):
     assert "[Bash] pytest" in shown
 
 
-def test_a_round_the_session_never_ran_says_how_many_it_did(tmp_path, daemon):
+def test_a_round_the_assignment_never_ran_says_how_many_it_did(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -906,6 +924,6 @@ def test_a_round_the_session_never_ran_says_how_many_it_did(tmp_path, daemon):
         viewed_round(state=state, issue=13, number=7)
 
 
-def test_an_issue_no_session_here_has_says_so(tmp_path):
+def test_an_issue_no_assignment_here_has_says_so(tmp_path):
     with pytest.raises(ReportableError, match="GH99"):
         viewed(state=StateDirectory(root=tmp_path), issue=99)

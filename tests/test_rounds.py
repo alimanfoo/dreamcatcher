@@ -34,7 +34,7 @@ PROMPT = "/dream:smith GH9\nfinish 50% of it"
 # A harness that leaves a process behind holding the round's own streams, and
 # says in the file it is passed which process that is. The streams are handed
 # down by name, because Windows passes a child no handle it was not given. The
-# process it leaves starts a session of its own, so on POSIX it is out of the
+# process it leaves starts an assignment of its own, so on POSIX it is out of the
 # round's group and ending the group cannot reach it, which is the one shape of
 # straggler that gets away. Windows keeps it in the round's job, where ending
 # the job does reach it.
@@ -78,7 +78,7 @@ class Unrenderable(Adapter):
 
 @pytest.fixture
 def worktree(tmp_path):
-    """The directory a round runs in, standing in for a session's worktree."""
+    """The directory a round runs in, standing in for an assignment's worktree."""
     made = tmp_path / "worktree"
     made.mkdir()
     return made

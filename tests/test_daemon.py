@@ -16,7 +16,7 @@ from conftest import (
     gone,
 )
 from fakes import Line
-from records import write_round, write_session
+from records import write_agent_assignment, write_round
 
 from dreamcatcher.config import CONFIG_NAME, Harness
 from dreamcatcher.daemon import Daemon
@@ -28,7 +28,7 @@ from dreamcatcher.state import (
     StateDirectory,
 )
 
-KEY = "GH13-20260819-184158"
+ASSIGNMENT_ID = "GH13-20260819-184158"
 
 # What every round the tests here write down says woke it.
 CAUSE = Cause.DISPATCH
@@ -38,10 +38,10 @@ CAUSE = Cause.DISPATCH
 # give the daemon take no real time, so its ticks are milliseconds apart.
 STILL_RUNNING = 30
 
-# The key of the session that a dispatch at the pinned time cuts for issue 8.
-DISPATCHED_KEY = "GH8-20260819-184158"
+# The identifier of the assignment that a dispatch cuts for issue 8.
+DISPATCHED_ASSIGNMENT_ID = "GH8-20260819-184158"
 
-# Where gh keeps the conversation on the pull request that the session on disk
+# Where gh keeps the conversation on the pull request that the assignment on disk
 # has open.
 CONVERSATION = POST_LIST_PATHS["conversation"]
 
@@ -199,7 +199,7 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
         clock=daemon.clock,
         rounds=daemon.rounds,
     )
-    observed = LastTick(at=PINNED, launched=KEY)
+    observed = LastTick(at=PINNED, launched=ASSIGNMENT_ID)
 
     def launch(*, at):
         assert at == PINNED
@@ -211,7 +211,8 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
 
     assert recorded(daemon=daemon) == observed
     assert (
-        capsys.readouterr().out == f"2026-08-19T18:41:58Z  launched round for {KEY}\n"
+        capsys.readouterr().out
+        == f"2026-08-19T18:41:58Z  launched round for {ASSIGNMENT_ID}\n"
     )
 
 
@@ -283,7 +284,9 @@ def test_a_run_refuses_when_the_harness_it_was_named_is_not_installed(repo, alon
 def test_a_round_the_daemon_before_this_one_left_running_is_ended(
     watched, harnesses, gh, left_running
 ):
-    directory = write_session(state=StateDirectory(root=watched), key=KEY, issue=13)
+    directory = write_agent_assignment(
+        state=StateDirectory(root=watched), identifier=ASSIGNMENT_ID, issue=13
+    )
     write_round(
         directory=directory,
         number=1,
@@ -299,7 +302,9 @@ def test_a_round_the_daemon_before_this_one_left_running_is_ended(
 def test_a_round_that_recorded_an_ending_is_left_running_by_the_sweep(
     watched, harnesses, gh, left_running
 ):
-    directory = write_session(state=StateDirectory(root=watched), key=KEY, issue=13)
+    directory = write_agent_assignment(
+        state=StateDirectory(root=watched), identifier=ASSIGNMENT_ID, issue=13
+    )
     write_round(
         directory=directory,
         number=1,
@@ -400,25 +405,29 @@ def test_the_daemon_ends_the_rounds_it_holds_as_it_goes_down(dispatching, harnes
 
     daemon.run()
 
-    running = daemon.rounds[DISPATCHED_KEY]
+    running = daemon.rounds[DISPATCHED_ASSIGNMENT_ID]
     assert not running.is_alive
     assert gone(pid=running.child.pid)
 
 
-def test_a_run_that_cannot_read_a_session_refuses_to_start(dispatching):
-    directory = write_session(state=StateDirectory(root=dispatching), key=KEY, issue=13)
-    (directory / "session.json").write_text("{}", encoding="utf-8")
+def test_a_run_that_cannot_read_an_assignment_refuses_to_start(dispatching):
+    directory = write_agent_assignment(
+        state=StateDirectory(root=dispatching), identifier=ASSIGNMENT_ID, issue=13
+    )
+    (directory / "assignment.json").write_text("{}", encoding="utf-8")
     daemon, _, _ = idling(root=dispatching, ticks=1)
 
-    with pytest.raises(ReportableError, match=r"session\.json is not valid"):
+    with pytest.raises(ReportableError, match=r"assignment\.json is not valid"):
         daemon.run()
 
 
-def test_a_session_that_goes_bad_under_a_running_daemon_costs_one_tick(dispatching):
-    # The startup sweep read this session, so only a tick meets it broken.
+def test_an_assignment_that_goes_bad_under_a_running_daemon_costs_one_tick(dispatching):
+    # The startup sweep read this assignment, so only a tick meets it broken.
     daemon, _, _ = idling(root=dispatching)
-    directory = write_session(state=daemon.state, key=KEY, issue=13)
-    (directory / "session.json").write_text("{}", encoding="utf-8")
+    directory = write_agent_assignment(
+        state=daemon.state, identifier=ASSIGNMENT_ID, issue=13
+    )
+    (directory / "assignment.json").write_text("{}", encoding="utf-8")
 
     scheduler = Scheduler(
         repository=REPOSITORY,
@@ -431,7 +440,7 @@ def test_a_session_that_goes_bad_under_a_running_daemon_costs_one_tick(dispatchi
     )
     daemon.tick(scheduler=scheduler, at=daemon.clock())
 
-    assert "session.json is not valid" in held(daemon=daemon)
+    assert "assignment.json is not valid" in held(daemon=daemon)
     assert recorded(daemon=daemon).candidates == []
 
 

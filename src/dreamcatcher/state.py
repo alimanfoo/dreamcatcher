@@ -5,7 +5,7 @@ from datetime import datetime
 from functools import cached_property
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 from dreamcatcher.documents import Document, write_text
 from dreamcatcher.rounds import RoundReader
@@ -19,7 +19,7 @@ class CandidateIssue(Document):
     A candidate is an issue under a single label, where the label decides which
     harness runs it and which prompt it starts with.
 
-    An issue that carries two mapped labels becomes a candidate under each of
+    An issue that carries two dispatch labels becomes a candidate under each of
     them, and so cannot be dispatched. The user has to resolve this ambiguity
     first by removing one of the labels.
 
@@ -38,30 +38,34 @@ class CandidateIssue(Document):
         return self.reason is None
 
 
-class WaitingSession(Document):
-    """A session with no round running, waiting for the round that would
+class WaitingAgentAssignment(Document):
+    """An assignment with no round running, waiting for the round that would
     carry it on.
 
-    The reason is a string that says what the session is waiting on, in the
+    The reason is a string that says what the assignment is waiting on, in the
     words the tick found it in. Where the last round did not complete, the
     reason carries the status it ended with, so a run of usage-limit failures
-    is recognisable from this reason string. A session is also waiting when the
+    is recognisable from this reason string. An assignment is also waiting when the
     tick found it a round and had no slot to launch it, when no round has run
     yet, when nobody has opened a pull request on it, and when a read of GitHub
     could not tell.
 
     Most of those waits clear by themselves, and a later tick is all they need.
-    A session that is stuck is one no tick can move on, so it waits for a
+    An assignment that is stuck is one no tick can move on, so it waits for a
     person, and whoever reads this record has to see the difference.
     """
 
-    session: str
+    # The persisted key remains `session`: Stage 2 names the Python interface but
+    # deliberately leaves last-tick.json unchanged.
+    model_config = ConfigDict(validate_by_name=True, serialize_by_alias=True)
+
+    assignment: str = Field(alias="session")
     issue: int
     reason: str
     is_stuck: bool = False
 
 
-# What a session that has run no round at all is waiting on. Its dispatch never
+# What an assignment that has run no round at all is waiting on. Its dispatch never
 # started a first round, so no harness session exists to carry on, and only a
 # person can take it from there. Both the tick that writes a wait and the board
 # that reads one say this, so a reader hears it the one way.
@@ -74,10 +78,10 @@ class LastTick(Document):
     The record carries the tick's own time rather than taking it from the file,
     so copying a state directory cannot make a stale tick look fresh.
 
-    A tick launches at most one round, and the key of that round's session is
-    what it launched. A tick that launched nothing at all says in one line what
+    A tick launches at most one round, and its assignment identifier is what the
+    tick launched. A tick that launched nothing at all says in one line what
     held it. A tick that was held at the cap still tried to weigh the candidate
-    issues, and the cap is what it writes down against every session it is
+    issues, and the cap is what it writes down against every assignment it is
     holding.
 
     The candidates are every labelled issue that the tick weighed, in the order
@@ -90,7 +94,7 @@ class LastTick(Document):
     hold: str | None = None
     launched: str | None = None
     candidates: list[CandidateIssue] = Field(default_factory=list)
-    waiting: list[WaitingSession] = Field(default_factory=list)
+    waiting: list[WaitingAgentAssignment] = Field(default_factory=list)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -107,8 +111,8 @@ class StateDirectory:
     def round_reader(self) -> RoundReader:
         """What this process has read of the round records under here.
 
-        Reading a session reads the records of every round it has run, and a
-        reader keeps the complete ones, so a later read of that session opens
+        Reading an assignment reads the records of every round it has run, and a
+        reader keeps the complete ones, so a later read of that assignment opens
         only the records that are still incomplete.
 
         Whoever holds the directory holds them, and holds them for as long:
@@ -134,7 +138,7 @@ class StateDirectory:
 
     @property
     def worktrees(self) -> Path:
-        """The directory holding a worktree for each session, named by its key.
+        """The directory holding each assignment worktree by identifier.
 
         Every worktree that dreamcatcher makes lives under here, wherever the
         checkout would otherwise put its worktrees. A worktree under here is
@@ -144,9 +148,9 @@ class StateDirectory:
         return self.path / "worktrees"
 
     @property
-    def sessions(self) -> Path:
-        """The directory holding each session's own files, named by its key."""
-        return self.path / "sessions"
+    def assignments(self) -> Path:
+        """The directory holding each assignment's files by identifier."""
+        return self.path / "assignments"
 
     def describe_path(self, *, path: Path) -> str:
         """Return the path as it reads from the checkout, for a reader to open.
@@ -155,7 +159,7 @@ class StateDirectory:
         to open reads the same wherever they are.
 
         A path the checkout does not hold reads whole. The dispatch writes the
-        checkout's own path into the session's record, and a reader can be
+        checkout's own path into the assignment's record, and a reader can be
         standing in that same checkout under another name, a symlink's for
         instance, so the two do not always meet.
         """

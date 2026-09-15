@@ -1,10 +1,10 @@
-"""What each session and each queued issue is doing, read off the disk.
+"""What each assignment and each queued issue is doing, read off the disk.
 
-The board answers "whose turn is it". Every session stands somewhere, and every
+The board answers "whose turn is it". Every assignment stands somewhere, and every
 labelled issue the last tick weighed has a place in the queue.
 
 Nothing here asks GitHub. What the daemon left behind is the whole story: the
-lock says whether a daemon is running, the round records say what each session
+lock says whether a daemon is running, the round records say what each assignment
 has run, and `last-tick.json` says what the records alone cannot, which is
 whatever the daemon had to ask GitHub to learn.
 
@@ -12,11 +12,11 @@ Nothing here renders anything either. A caller that has read the board shows
 it.
 
 Two things live here and they do different jobs. `_Look` reads and judges: it
-takes one look at the directory and says where each session stands. `Board`,
-`SessionRow` and `QueuedIssue` are what it found, and they hold no directory
+takes one look at the directory and says where each assignment stands. `Board`,
+`AgentAssignmentRow` and `QueuedIssue` are what it found, and they hold no directory
 and read nothing, so a view renders one. That is why a look is not a board and
 a board cannot refresh itself: a view that keeps up takes a new look, which is
-one read of the lock and of the last tick and a fresh judgement of each session
+one read of the lock and of the last tick and a fresh judgement of each assignment
 against them.
 """
 
@@ -25,34 +25,38 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 
+from dreamcatcher.agent_assignments import (
+    AgentAssignment,
+    read_agent_assignments,
+    read_agent_assignments_for_issue,
+)
 from dreamcatcher.clock import now
 from dreamcatcher.documents import read_json
 from dreamcatcher.feed import Line, read_last_feed_line
 from dreamcatcher.lock import read_daemon_pid
-from dreamcatcher.sessions import Session, read_sessions
 from dreamcatcher.state import (
     NO_ROUND_HAS_RUN,
     LastTick,
     StateDirectory,
-    WaitingSession,
+    WaitingAgentAssignment,
 )
 from dreamcatcher.words import describe_count, describe_span
 
 
-class SessionStanding(StrEnum):
-    """Where a session stands: whether it is anyone's turn, and whose.
+class AgentAssignmentStanding(StrEnum):
+    """Where an assignment stands: whether it is anyone's turn, and whose.
 
     The board sets its sections in these words, so the section a reader looks
-    under and the standing a session is in are one thing. A view of one issue
+    under and the standing an assignment is in are one thing. A view of one issue
     reads the standing rather than showing sections, and a following feed reads
-    it to know when the session it is watching has nothing more to say.
+    it to know when the assignment it is watching has nothing more to say.
 
-    A session needs you when the daemon has nothing left to do for it: every
+    An assignment needs you when the daemon has nothing left to do for it: every
     round it has run finished, its pull request is open, and the agent has
     answered everything posted on it. The next move is the user's, and that
     move is to read the pull request.
 
-    A session is working while a round of its own is running. It is waiting
+    An assignment is working while a round of its own is running. It is waiting
     when it has a round to run that no daemon has launched yet, and stuck when
     no tick can move it on however long it waits, so that only a person can. It
     is done once it has run the round that winds it up.
@@ -66,24 +70,24 @@ class SessionStanding(StrEnum):
 
 
 @dataclass(frozen=True, kw_only=True)
-class SessionRow:
-    """One session and what one look at the disk found it doing.
+class AgentAssignmentRow:
+    """One assignment and what one look at the disk found it doing.
 
-    The session is what the disk holds. The standing, the detail and the last
+    The assignment is what the disk holds. The standing, the detail and the last
     output are what the look concluded about it, so a view shows them and
-    nothing has to judge a session twice.
+    nothing has to judge an assignment twice.
 
-    The board holds one of these for every session, and a view of one issue
-    holds one for each session at that issue. An issue dispatched three times
-    has three sessions at one thing, and the newest of them reads first.
+    The board holds one of these for every assignment, and a view of one issue
+    holds one for each assignment at that issue. An issue dispatched three times
+    has three assignments at one thing, and the newest of them reads first.
 
     The detail is what the row says beside the standing, in the words the disk
-    put it in. A working session keeps its latest output separate so the view
+    put it in. A working assignment keeps its latest output separate so the view
     can set it apart from that status.
     """
 
-    session: Session
-    standing: SessionStanding
+    assignment: AgentAssignment
+    standing: AgentAssignmentStanding
     detail: str
     last_output: str | None
 
@@ -103,7 +107,7 @@ class QueuedIssue:
 
 @dataclass(frozen=True, kw_only=True)
 class Board:
-    """Every session and every queued issue, as one look at the disk found them.
+    """Every assignment and every queued issue, as one look at the disk found them.
 
     The pid is the daemon holding this repo, and nothing holds it when no
     daemon is running. The tick is the last one a daemon wrote down, and a
@@ -113,51 +117,51 @@ class Board:
     at: datetime
     daemon_pid: int | None
     tick: LastTick | None
-    rows: list[SessionRow]
+    rows: list[AgentAssignmentRow]
     queued: list[QueuedIssue]
 
-    def list_rows_for_standing(self, *, standing: SessionStanding) -> list[SessionRow]:
+    def list_rows_for_standing(
+        self, *, standing: AgentAssignmentStanding
+    ) -> list[AgentAssignmentRow]:
         """Return the rows standing there, in the order the board reads them.
 
         Work that is done reads by when its last round started, most recent
         first, since the last thing to run is the one you were waiting for.
-        Everything else reads by issue, with the newest session at an issue
+        Everything else reads by issue, with the newest assignment at an issue
         ahead of the older ones.
         """
         found = [one for one in self.rows if one.standing is standing]
-        if standing is SessionStanding.DONE:
+        if standing is AgentAssignmentStanding.DONE:
             return sorted(
-                found, key=lambda one: one.session.rounds[-1].started, reverse=True
+                found, key=lambda one: one.assignment.rounds[-1].started, reverse=True
             )
         return found
 
 
 def read_board(*, state: StateDirectory, clock: Callable[[], datetime] = now) -> Board:
-    """Return what the state directory says every session and issue is doing."""
+    """Return what the state directory says every assignment and issue is doing."""
     return _Look(state=state, clock=clock).compose_board(
-        sessions=read_sessions(state=state)
+        assignments=read_agent_assignments(state=state)
     )
 
 
 def read_rows_for_issue(
     *, state: StateDirectory, issue: int, clock: Callable[[], datetime] = now
-) -> list[SessionRow]:
-    """Return a row for each session at the issue, the newest session first.
+) -> list[AgentAssignmentRow]:
+    """Return a row for each assignment at the issue, the newest assignment first.
 
     A view of one issue reads this rather than the whole board. Judging a
-    session reads what its running round last said, so a look at one issue
-    then reads that issue's own feeds and not the feed of every session the
+    assignment reads what its running round last said, so a look at one issue
+    then reads that issue's own feeds and not the feed of every assignment the
     repo has ever run, and a feed it cannot read is one belonging to the issue
     the reader asked about.
 
-    An issue that no session here has reads as no rows at all, which is a
+    An issue that no assignment here has reads as no rows at all, which is a
     thing for whoever asked to say rather than a failure.
     """
     look = _Look(state=state, clock=clock)
     return look.list_rows(
-        sessions=[
-            one for one in read_sessions(state=state) if one.record.issue == issue
-        ]
+        assignments=read_agent_assignments_for_issue(state=state, issue=issue)
     )
 
 
@@ -166,7 +170,7 @@ class _Look:
 
     A look is one read of the lock and of the last tick, so the time it read,
     the daemon it found and what that tick said travel together rather than
-    down every call. Everything that judges a session hangs off it, because
+    down every call. Everything that judges an assignment hangs off it, because
     judging one is what those three answer.
 
     What a look found is a `Board`, and the look is what composes it. So the
@@ -184,94 +188,105 @@ class _Look:
             if state.last_tick.exists()
             else None
         )
-        self.waits: dict[str, WaitingSession] = (
-            {} if self.tick is None else {one.session: one for one in self.tick.waiting}
+        self.waits: dict[str, WaitingAgentAssignment] = (
+            {}
+            if self.tick is None
+            else {one.assignment: one for one in self.tick.waiting}
         )
 
-    def compose_board(self, *, sessions: list[Session]) -> Board:
+    def compose_board(self, *, assignments: list[AgentAssignment]) -> Board:
         """Return everything this look found, as the board view shows it."""
         return Board(
             at=self.at,
             daemon_pid=self.daemon_pid,
             tick=self.tick,
-            rows=self.list_rows(sessions=sessions),
+            rows=self.list_rows(assignments=assignments),
             queued=self._list_queued_issues(
-                claimed={session.record.issue for session in sessions}
+                claimed={assignment.record.issue for assignment in assignments}
             ),
         )
 
-    def list_rows(self, *, sessions: list[Session]) -> list[SessionRow]:
-        """Return a row for every session, the newest session at an issue first.
+    def list_rows(
+        self, *, assignments: list[AgentAssignment]
+    ) -> list[AgentAssignmentRow]:
+        """Return a row for every assignment, the newest assignment at an issue first.
 
-        A session's key closes with the time the session was cut, so sorting by
-        key backwards puts the newest session at an issue ahead of the older
-        ones. Sorting that by issue keeps each issue's sessions in the order it
-        left them, because a sort in Python holds what it does not reorder.
+        An assignment's identifier ends with the time the assignment was cut,
+        so sorting by identifier backwards puts the newest assignment at an
+        issue ahead of the older ones. Sorting that by issue keeps each issue's
+        assignments in the order it left them, because a sort in Python holds
+        what it does not reorder.
         """
-        newest_first = sorted(sessions, key=lambda one: one.key, reverse=True)
+        newest_first = sorted(assignments, key=lambda one: one.identifier, reverse=True)
         return [
-            self._read_row(session=session)
-            for session in sorted(newest_first, key=lambda one: one.record.issue)
+            self._read_row(assignment=assignment)
+            for assignment in sorted(newest_first, key=lambda one: one.record.issue)
         ]
 
-    def _read_row(self, *, session: Session) -> SessionRow:
-        """Return the session as one row of the board, where it stands."""
-        standing, detail, last_output = self._judge_standing(session=session)
-        return SessionRow(
-            session=session,
+    def _read_row(self, *, assignment: AgentAssignment) -> AgentAssignmentRow:
+        """Return the assignment as one row of the board, where it stands."""
+        standing, detail, last_output = self._judge_standing(assignment=assignment)
+        return AgentAssignmentRow(
+            assignment=assignment,
             standing=standing,
             detail=detail,
             last_output=last_output,
         )
 
     def _judge_standing(
-        self, *, session: Session
-    ) -> tuple[SessionStanding, str, str | None]:
-        """Return where the session's own rounds put it, and what its row says.
+        self, *, assignment: AgentAssignment
+    ) -> tuple[AgentAssignmentStanding, str, str | None]:
+        """Return where the assignment's own rounds put it, and what its row says.
 
         The records answer first, and they answer whatever the daemon is doing.
         A round that recorded no ending is running while a daemon is there to
         run it, and interrupted once that daemon has gone, because a round
         cannot outlive its daemon.
         """
-        unfinished = session.describe_unfinished_round()
+        unfinished = assignment.describe_unfinished_round()
         if unfinished is not None:
-            if self.daemon_pid is not None and not session.rounds[-1].is_complete:
-                detail, last_output = self._describe_live_round(session=session)
-                return SessionStanding.WORKING, detail, last_output
-            return SessionStanding.WAITING, unfinished, None
-        if session.has_run_final_round:
+            if self.daemon_pid is not None and not assignment.rounds[-1].is_complete:
+                detail, last_output = self._describe_live_round(assignment=assignment)
+                return AgentAssignmentStanding.WORKING, detail, last_output
+            return AgentAssignmentStanding.WAITING, unfinished, None
+        if assignment.has_run_final_round:
             return (
-                SessionStanding.DONE,
-                describe_count(number=len(session.rounds), noun="round"),
+                AgentAssignmentStanding.DONE,
+                describe_count(number=len(assignment.rounds), noun="round"),
                 None,
             )
-        standing, detail = self._judge_wait(session=session)
+        standing, detail = self._judge_wait(assignment=assignment)
         return standing, detail, None
 
-    def _judge_wait(self, *, session: Session) -> tuple[SessionStanding, str]:
-        """Return what the last tick left a session its rounds say nothing about.
+    def _judge_wait(
+        self, *, assignment: AgentAssignment
+    ) -> tuple[AgentAssignmentStanding, str]:
+        """Return what the last tick left an assignment its rounds say nothing about.
 
         Whether a pull request is open, and whether it carries anything new,
         are what the daemon had to ask GitHub, so the tick's own record is the
-        only place they are written down. A session the tick wrote nothing
+        only place they are written down. An assignment the tick wrote nothing
         about is one it found nothing to do for, which leaves it to the user.
         """
-        wait = self.waits.get(session.key)
+        wait = self.waits.get(assignment.identifier)
         if wait is None:
-            if not session.rounds:
-                return SessionStanding.STUCK, NO_ROUND_HAS_RUN
-            return SessionStanding.NEEDS_YOU, self._describe_idle(session=session)
-        if wait.is_stuck:
-            return SessionStanding.STUCK, self._point_at_feed(
-                session=session, reason=wait.reason
+            if not assignment.rounds:
+                return AgentAssignmentStanding.STUCK, NO_ROUND_HAS_RUN
+            return AgentAssignmentStanding.NEEDS_YOU, self._describe_idle(
+                assignment=assignment
             )
-        return SessionStanding.WAITING, wait.reason
+        if wait.is_stuck:
+            return AgentAssignmentStanding.STUCK, self._point_at_feed(
+                assignment=assignment, reason=wait.reason
+            )
+        return AgentAssignmentStanding.WAITING, wait.reason
 
-    def _describe_live_round(self, *, session: Session) -> tuple[str, str | None]:
+    def _describe_live_round(
+        self, *, assignment: AgentAssignment
+    ) -> tuple[str, str | None]:
         """Return how long the running round has been going, and its last line."""
-        since_started = describe_span(span=self.at - session.rounds[-1].started)
-        line = self._read_last_said(session=session)
+        since_started = describe_span(span=self.at - assignment.rounds[-1].started)
+        line = self._read_last_said(assignment=assignment)
         if line is None:
             return f"running {since_started}, has said nothing yet", None
         since_last_output = describe_span(span=self.at - line.at)
@@ -280,24 +295,24 @@ class _Look:
             line.text.strip(),
         )
 
-    def _describe_idle(self, *, session: Session) -> str:
-        """Return how long it is since the session last said anything."""
-        line = self._read_last_said(session=session)
+    def _describe_idle(self, *, assignment: AgentAssignment) -> str:
+        """Return how long it is since the assignment last said anything."""
+        line = self._read_last_said(assignment=assignment)
         if line is None:
             return "idle"
         return f"idle {describe_span(span=self.at - line.at)}"
 
-    def _read_last_said(self, *, session: Session) -> Line | None:
-        """Return the last line the session's last round wrote to its feed."""
+    def _read_last_said(self, *, assignment: AgentAssignment) -> Line | None:
+        """Return the last line the assignment's last round wrote to its feed."""
         return read_last_feed_line(
-            path=session.workspace(number=len(session.rounds)).feed
+            path=assignment.workspace(number=len(assignment.rounds)).feed
         )
 
     def _list_queued_issues(self, *, claimed: set[int]) -> list[QueuedIssue]:
         """Return the labelled issues the last tick weighed, in the order they go.
 
-        An issue a session here already claims is not queued: it is that
-        session. The tick that dispatched it weighed it before it had one, so
+        An issue an assignment here already claims is not queued: it is that
+        assignment. The tick that dispatched it weighed it before it had one, so
         its own record still calls it eligible, and by the time anyone reads
         the board it has a row of its own to read instead.
         """
@@ -317,15 +332,15 @@ class _Look:
             )
         return queued
 
-    def _point_at_feed(self, *, session: Session, reason: str) -> str:
-        """Return what the session waits on, and where to read what it did.
+    def _point_at_feed(self, *, assignment: AgentAssignment, reason: str) -> str:
+        """Return what the assignment waits on, and where to read what it did.
 
-        A stuck session moves no further until a person reads what happened, so
+        A stuck assignment moves no further until a person reads what happened, so
         its row says where that reading is.
         """
-        if not session.rounds:
+        if not assignment.rounds:
             return reason
-        feed = session.workspace(number=len(session.rounds)).feed
+        feed = assignment.workspace(number=len(assignment.rounds)).feed
         return f"{reason} ({self.state.describe_path(path=feed)})"
 
 

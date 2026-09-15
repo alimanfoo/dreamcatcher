@@ -27,13 +27,13 @@ def test_a_template_holding_other_words_in_braces_keeps_them():
 
 
 @pytest.mark.parametrize("harness", list(Harness))
-def test_the_prompt_that_opens_a_session_is_its_template_then_the_postscript(
+def test_the_prompt_that_opens_an_assignment_is_its_template_then_the_postscript(
     tmp_path, harness
 ):
     (tmp_path / CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
-    settings = read_config(root=tmp_path).dispatch[0].harness_settings[harness]
+    recipe = read_config(root=tmp_path).dispatch[0].assignment_recipes[harness]
 
-    composed = compose_first_round_prompt(template=settings.prompt, issue=12)
+    composed = compose_first_round_prompt(template=recipe.prompt, issue=12)
 
     assert composed == OPENINGS[harness] + POSTSCRIPT
 

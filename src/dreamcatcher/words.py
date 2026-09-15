@@ -37,7 +37,7 @@ def describe_count(*, number: int, noun: str) -> str:
     """Return how many of the noun that is, in words that read for one.
 
     The noun is one that takes an s, which every noun the tool counts is: a
-    round, a post, a session.
+    round, a post, an assignment.
     """
     if number == 1:
         return f"{number} {noun}"

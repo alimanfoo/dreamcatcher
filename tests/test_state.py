@@ -2,7 +2,26 @@ import pytest
 from conftest import git
 
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.state import StateDirectory
+from dreamcatcher.state import LastTick, StateDirectory, WaitingAgentAssignment
+
+
+def test_a_wait_keeps_the_existing_last_tick_shape():
+    tick = LastTick(
+        at="2026-08-19T18:41:58Z",
+        waiting=[
+            WaitingAgentAssignment(
+                assignment="GH13-20260819-184158",
+                issue=13,
+                reason="1 new post to answer",
+            )
+        ],
+    )
+
+    recorded = tick.model_dump_json(indent=2)
+
+    assert '"session": "GH13-20260819-184158"' in recorded
+    assert '"assignment"' not in recorded
+    assert LastTick.model_validate_json(recorded) == tick
 
 
 def test_bootstrap_creates_a_directory_that_ignores_itself(repo):
@@ -39,7 +58,7 @@ def test_the_daemon_files_sit_in_the_state_directory(tmp_path):
     assert state.lock == state.path / "daemon.pid"
     assert state.last_tick == state.path / "last-tick.json"
     assert state.worktrees == state.path / "worktrees"
-    assert state.sessions == state.path / "sessions"
+    assert state.assignments == state.path / "assignments"
 
 
 def test_a_path_the_checkout_holds_reads_from_the_checkout(tmp_path):

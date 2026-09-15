@@ -241,7 +241,7 @@ def test_a_write_lands_where_it_is_asked_for(tmp_path):
 
 def test_a_write_leaves_nothing_of_itself_beside_what_it_wrote(tmp_path):
     # A whole write lands through a file beside the target, and a reader of the
-    # session's rounds globs the directory, so nothing may be left there.
+    # assignment's rounds globs the directory, so nothing may be left there.
     written = tmp_path / "round.json"
 
     write_text(text="what it holds\n", path=written)

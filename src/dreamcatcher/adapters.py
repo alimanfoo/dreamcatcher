@@ -21,11 +21,12 @@ from dreamcatcher.feed import Event, Prose
 class Launch:
     """What one round starts with.
 
-    The dispatch fixes the session's name, its model, and its effort. Every
-    round of that session runs with them. The prompt is this round's own.
+    The dispatch fixes the agent assignment identifier, model, and effort.
+    Every round of that assignment runs with them. The prompt is this round's
+    own.
     """
 
-    session: str
+    assignment_id: str
     model: str
     effort: str
     prompt: str
@@ -62,20 +63,19 @@ class Adapter(ABC):
 
     @abstractmethod
     def build_first_round(self, *, launch: Launch) -> Invocation:
-        """Return how to run a session's first round."""
+        """Return how to run an agent assignment's first round."""
 
     @abstractmethod
     def build_resumed_round(self, *, launch: Launch) -> Invocation:
-        """Return how to resume the session with launch's prompt."""
+        """Return how to resume the harness session with launch's prompt."""
 
     @abstractmethod
     def build_hand_resume(self) -> list[str]:
-        """Return the command a person runs to take the session over themselves.
+        """Return the command that resumes the harness session interactively.
 
-        Whoever runs it runs it in the session's worktree, which is what tells
-        the harness which of its own sessions to carry on. It carries no
-        prompt: unlike every round the daemon runs, this one is interactive,
-        and whoever ran it does the talking.
+        Whoever runs it does so in the assignment's worktree, which tells the
+        harness which harness session to carry on. It carries no prompt: this
+        invocation is interactive, and whoever ran it does the talking.
         """
 
     def read(self, *, line: str) -> list[Event]:

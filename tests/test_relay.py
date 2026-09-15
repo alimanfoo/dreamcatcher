@@ -47,7 +47,7 @@ def test_a_pull_request_nobody_has_posted_on_has_nothing_to_relay(gh_with_no_pos
     assert peeked() == []
 
 
-def test_a_session_that_has_seen_nothing_yet_is_told_the_whole_history(
+def test_an_assignment_that_has_seen_nothing_yet_is_told_the_whole_history(
     gh_with_no_posts,
 ):
     gh_with_no_posts.replies(
@@ -57,7 +57,7 @@ def test_a_session_that_has_seen_nothing_yet_is_told_the_whole_history(
     assert [post.id for post in peeked()] == [1]
 
 
-def test_a_post_the_session_has_been_told_about_already_does_not_come_back(
+def test_a_post_the_assignment_has_been_told_about_already_does_not_come_back(
     gh_with_no_posts,
 ):
     gh_with_no_posts.replies(
@@ -86,7 +86,7 @@ def test_the_posts_come_back_oldest_first_whichever_list_each_came_from(
     assert [type(post) for post in peeked()] == [Review, InlineComment, Comment]
 
 
-def test_a_post_carrying_the_marker_is_the_sessions_own_and_does_not_come_back(
+def test_a_post_carrying_the_marker_is_the_assignments_own_and_does_not_come_back(
     gh_with_no_posts,
 ):
     gh_with_no_posts.replies(

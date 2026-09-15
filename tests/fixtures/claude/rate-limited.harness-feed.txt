@@ -1,0 +1,14 @@
+2026-08-19T18:41:58Z  [harness session] model claude-sonnet-5, id fdb9e948-3b7e-48d3-bd76-447a36ca0a22
+2026-08-19T18:41:59Z  [retry] rate_limit (429), attempt 1 of 10
+2026-08-19T18:42:00Z  [retry] rate_limit (429), attempt 2 of 10
+2026-08-19T18:42:01Z  [retry] rate_limit (429), attempt 3 of 10
+2026-08-19T18:42:02Z  [retry] rate_limit (429), attempt 4 of 10
+2026-08-19T18:42:03Z  [retry] rate_limit (429), attempt 5 of 10
+2026-08-19T18:42:04Z  [retry] rate_limit (429), attempt 6 of 10
+2026-08-19T18:42:05Z  [retry] rate_limit (429), attempt 7 of 10
+2026-08-19T18:42:06Z  [retry] rate_limit (429), attempt 8 of 10
+2026-08-19T18:42:07Z  [retry] rate_limit (429), attempt 9 of 10
+2026-08-19T18:42:08Z  [retry] rate_limit (429), attempt 10 of 10
+2026-08-19T18:42:09Z  API Error: Request rejected (429) · Number of requests has exceeded your rate limit. Please try again later.
+2026-08-19T18:42:10Z  [usage] $0.0000, 0 output, 0 input, 0 cache read, 0 cache write
+2026-08-19T18:42:11Z  [failed] API Error: Request rejected (429) · Number of requests has exceeded your rate limit. Please try again later.

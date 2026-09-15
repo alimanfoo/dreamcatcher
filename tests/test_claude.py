@@ -7,7 +7,7 @@ from dreamcatcher.claude import ALLOWED_TOOLS, CLAUDE
 from dreamcatcher.feed import Note, Prose
 
 LAUNCH = Launch(
-    session="GH9-20260819-184158",
+    assignment_id="GH9-20260819-184158",
     model="opus[1m]",
     effort="xhigh",
     prompt="/dream:smith GH9",
@@ -44,7 +44,7 @@ def test_a_first_round_names_the_model_and_the_effort_it_was_dispatched_with():
     )
 
 
-def test_a_resume_continues_the_session_and_replays_no_settings():
+def test_a_resume_continues_the_harness_session_and_replays_no_settings():
     assert CLAUDE.build_resumed_round(launch=LAUNCH) == Invocation(
         program="claude",
         arguments=[*BASE, "--continue"],
@@ -52,17 +52,17 @@ def test_a_resume_continues_the_session_and_replays_no_settings():
     )
 
 
-def test_a_person_takes_the_session_over_by_continuing_it_where_it_ran():
+def test_a_person_continues_the_harness_session_where_it_ran():
     assert CLAUDE.build_hand_resume() == ["claude", "--continue"]
 
 
-def test_the_first_event_names_the_model_and_the_session():
+def test_the_first_event_names_the_model_and_the_harness_session():
     line = streamed(
         type="system", subtype="init", model="claude-opus-5", session_id="abc-123"
     )
 
     assert CLAUDE.read(line=line) == [
-        Note(label="session", detail="model claude-opus-5, id abc-123")
+        Note(label="harness session", detail="model claude-opus-5, id abc-123")
     ]
 
 

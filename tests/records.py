@@ -1,6 +1,6 @@
 """Write the records a state directory holds, as the daemon would have left them.
 
-A test that starts from a state directory already holding sessions and rounds
+A test that starts from a state directory already holding assignments and rounds
 writes them here, rather than dispatching them. So it reaches the state it is
 about without a GitHub, an origin to cut from, or a harness to run.
 """
@@ -8,29 +8,31 @@ about without a GitHub, an origin to cut from, or a harness to run.
 from collections.abc import Sequence
 from pathlib import Path
 
-from dreamcatcher import rounds, sessions
+from dreamcatcher import agent_assignments, rounds
 from dreamcatcher.config import Harness
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import Line
 from dreamcatcher.state import LastTick, StateDirectory
 
 
-def write_session(*, state: StateDirectory, key: str, issue: int) -> Path:
-    """Write a session's worktree and its record, and return its own directory."""
-    (state.worktrees / key).mkdir(parents=True)
-    directory = state.sessions / key
+def write_agent_assignment(
+    *, state: StateDirectory, identifier: str, issue: int
+) -> Path:
+    """Write an assignment's worktree and its record, and return its own directory."""
+    (state.worktrees / identifier).mkdir(parents=True)
+    directory = state.assignments / identifier
     write_json(
-        document=sessions.SessionRecord(
+        document=agent_assignments.AgentAssignmentRecord(
             issue=issue,
             label="dream:smith",
-            branch=f"{sessions.BRANCH_PREFIX}{key}",
-            worktree=state.worktrees / key,
+            branch=f"{agent_assignments.BRANCH_PREFIX}{identifier}",
+            worktree=state.worktrees / identifier,
             harness=Harness.CLAUDE,
             model="opus[1m]",
             effort="xhigh",
             prompt=f"/dream:smith GH{issue}",
         ),
-        path=directory / sessions.RECORD,
+        path=directory / agent_assignments.RECORD,
     )
     return directory
 
@@ -38,7 +40,7 @@ def write_session(*, state: StateDirectory, key: str, issue: int) -> Path:
 def write_round(
     *, directory: Path, number: int, record: rounds.RoundRecord
 ) -> rounds.RoundRecord:
-    """Write the record of one round of the session at this directory."""
+    """Write the record of one round of the assignment at this directory."""
     write_json(
         document=record, path=_workspace(directory=directory, number=number).record
     )
@@ -46,7 +48,7 @@ def write_round(
 
 
 def write_feed(*, directory: Path, number: int, lines: Sequence[Line]) -> None:
-    """Write the feed of one round of the session at this directory."""
+    """Write the feed of one round of the assignment at this directory."""
     write_text(
         text="".join(line.render() for line in lines),
         path=_workspace(directory=directory, number=number).feed,
@@ -59,7 +61,8 @@ def write_tick(*, state: StateDirectory, tick: LastTick) -> None:
 
 
 def _workspace(*, directory: Path, number: int) -> rounds.Workspace:
-    """Where the numbered round of the session at this directory wrote."""
+    """Where the numbered round of the assignment at this directory wrote."""
     return rounds.Workspace(
-        worktree=directory, directory=directory / sessions.ROUNDS / str(number)
+        worktree=directory,
+        directory=directory / agent_assignments.ROUNDS / str(number),
     )

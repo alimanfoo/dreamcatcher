@@ -1,6 +1,6 @@
-"""Run one round of a session, and leave behind what it did.
+"""Run one round of an assignment, and leave behind what it did.
 
-A round is a harness command running as a child of the daemon, in the session's
+A round is a harness command running as a child of the daemon, in the assignment's
 worktree. It writes into a directory of its own as it goes.
 
 `prompt.txt` holds what the round asked the harness to do, which the harness
@@ -47,9 +47,9 @@ class Cause(StrEnum):
     """What woke a round.
 
     The daemon decides one of these for every round it launches, and the
-    round's record keeps it. A reader of a session's rounds then reads the
+    round's record keeps it. A reader of an assignment's rounds then reads the
     story of why each one ran, and the tick reads what a round was for without
-    reading prose: a session whose final round has run is a session that is
+    reading prose: an assignment whose final round has run is an assignment that is
     done.
 
     The words are what a feed opens a round with, after the round's number.
@@ -82,7 +82,7 @@ class Ending(Document):
 class RoundRecord(Document):
     """What a round says about itself, written at each end of the round.
 
-    The cause is what woke the round: the dispatch that opened the session, or
+    The cause is what woke the round: the dispatch that opened the assignment, or
     whatever a later tick found for it to do.
 
     A record with no ending means the round was still going when something
@@ -116,9 +116,9 @@ class RoundRecord(Document):
 class Workspace:
     """Where one round runs, and the files it writes as it goes.
 
-    Both paths come from the session the round belongs to: the round runs in
-    that session's worktree, and writes into a directory of its own under the
-    session's own files. They travel together because no round ever has one
+    Both paths come from the assignment the round belongs to: the round runs in
+    that assignment's worktree, and writes into a directory of its own under the
+    assignment's own files. They travel together because no round ever has one
     without the other.
 
     The files themselves are named here, beside the directory that holds them,
@@ -156,7 +156,7 @@ class Workspace:
 
 
 class RoundReader:
-    """Read the records of a session's rounds, keeping the complete ones.
+    """Read the records of an assignment's rounds, keeping the complete ones.
 
     A complete record has had both of its writes, and nothing writes it again,
     so a reader that has read one need never open it again.
@@ -167,9 +167,9 @@ class RoundReader:
     same.
 
     So a read costs a listing of the rounds directory, and one small read for
-    each round of the session whose record is incomplete — one while a round of
-    the session is running, and none at all once every round has ended, however
-    many rounds the session has run.
+    each round of the assignment whose record is incomplete — one while a round of
+    the assignment is running, and none at all once every round has ended, however
+    many rounds the assignment has run.
     """
 
     def __init__(self) -> None:
@@ -180,7 +180,7 @@ class RoundReader:
         """Return the records of the rounds written under directory, oldest first.
 
         Each round writes into a directory of its own under this one, so a
-        session passes the directory holding all of them.
+        assignment passes the directory holding all of them.
 
         The order comes from the records themselves, so nothing here has to
         read a directory's name as a number. A directory with no record in it
@@ -204,7 +204,7 @@ class RoundReader:
 
 
 class Round:
-    """One round of a session, running as a child of the daemon.
+    """One round of an assignment, running as a child of the daemon.
 
     Making one starts it. From then on the round runs on its own threads, and
     the daemon reads its state rather than waiting on it.
@@ -310,7 +310,7 @@ class Round:
         writes an ending to its record, and a later tick sees an interrupted
         round and resumes it. A child that has already gone finished by itself
         and keeps the ending `_close` writes for it, so this leaves that record
-        alone rather than sending a session back over a round it has done.
+        alone rather than sending an assignment back over a round it has done.
 
         The mark goes on before the kill, because the kill is what makes
         `_close` return from `child.wait()`. So `_close` reads a mark this
