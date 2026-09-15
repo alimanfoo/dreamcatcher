@@ -32,9 +32,14 @@ def gh(fake):
     return stand_in
 
 
-def weighed(*, config, claimed=frozenset()):
+def weighed(*, config, claimed=frozenset(), recovering=frozenset()):
     """The candidates for that config, given that the listing came through."""
-    judged = judge_issues(repository=REPOSITORY, config=config, claimed=set(claimed))
+    judged = judge_issues(
+        repository=REPOSITORY,
+        config=config,
+        claimed=set(claimed),
+        recovering=set(recovering),
+    )
     assert not isinstance(judged, Unknown)
     return judged
 
@@ -62,6 +67,7 @@ def test_a_listing_the_tool_cannot_read_answers_unknown_for_the_whole_tick(gh):
         repository=REPOSITORY,
         config=config_with_routes(labels=["dream:smith"]),
         claimed=set(),
+        recovering=set(),
     )
 
     assert isinstance(judged, Unknown)
@@ -102,6 +108,17 @@ def test_an_issue_with_a_pull_request_open_on_it_is_left_alone(gh):
     assert weighed(config=config_with_routes(labels=["dream:smith"])) == [
         CandidateIssue(issue=8, label=LABEL, reason="a pull request is open on it: #28")
     ]
+
+
+def test_an_incomplete_local_assignment_can_adopt_its_pull_request(gh):
+    gh.replies(
+        stdout=json.dumps({"closedByPullRequestsReferences": [{"number": 28}]}),
+        to="issue view",
+    )
+
+    assert weighed(
+        config=config_with_routes(labels=["dream:smith"]), recovering={8}
+    ) == [CandidateIssue(issue=8, label=LABEL)]
 
 
 def test_a_pull_request_read_that_failed_reads_as_claimed(gh):

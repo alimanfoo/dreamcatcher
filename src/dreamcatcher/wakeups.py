@@ -110,12 +110,7 @@ def judge_assignment(
     happen when assignment creation succeeded but that round could not start.
     """
     if not assignment.rounds:
-        return Wakeup(
-            assignment=assignment,
-            cause=Cause.DISPATCH,
-            reason=NO_ROUND_HAS_RUN,
-            prompt=assignment.record.prompt,
-        )
+        return compose_dispatch_wakeup(assignment=assignment)
     unfinished = assignment.describe_unfinished_round()
     if unfinished is not None:
         return Wakeup(
@@ -126,6 +121,16 @@ def judge_assignment(
         )
     return _judge_pull_request(
         repository=repository, account=account, assignment=assignment
+    )
+
+
+def compose_dispatch_wakeup(*, assignment: AgentAssignment) -> Wakeup:
+    """Return the first round a complete assignment is waiting to run."""
+    return Wakeup(
+        assignment=assignment,
+        cause=Cause.DISPATCH,
+        reason=NO_ROUND_HAS_RUN,
+        prompt=assignment.record.prompt,
     )
 
 

@@ -61,10 +61,10 @@ class WaitingAgentAssignment(Document):
     is_stuck: bool = False
 
 
-# What an assignment that has run no round at all is waiting on. Its dispatch never
-# started a first round, so no harness session exists to carry on, and only a
-# person can take it from there. Both the tick that writes a wait and the board
-# that reads one say this, so a reader hears it the one way.
+# What an assignment that has run no round at all is waiting on. Its complete
+# setup stays ready for the scheduler to retry its first round before ordinary
+# scheduling continues. Both the tick that writes a wait and the board that
+# reads one say this, so a reader hears it the one way.
 NO_ROUND_HAS_RUN = "no round has run yet"
 
 

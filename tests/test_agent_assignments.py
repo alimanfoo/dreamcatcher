@@ -489,6 +489,44 @@ def test_a_pull_request_listing_failure_keeps_the_setup_for_a_retry(state, route
     assert (state.worktrees / ASSIGNMENT_ID).exists()
 
 
+def test_a_linked_pull_request_read_failure_keeps_the_setup_for_a_retry(
+    state, route, gh
+):
+    gh.fails(stderr="gh: could not connect to github.com", to="issue view")
+
+    with pytest.raises(
+        ReportableError, match="cannot tell whether another pull request claims GH12"
+    ):
+        create_agent_assignment(
+            state=state,
+            route=route,
+            named=Harness.CLAUDE,
+            issue=12,
+            at=PINNED,
+        )
+
+    assert (state.worktrees / ASSIGNMENT_ID).exists()
+
+
+def test_an_unrelated_linked_pull_request_prevents_another_one(state, route, gh):
+    gh.replies(
+        stdout='{"closedByPullRequestsReferences": [{"number": 28}]}',
+        to="issue view",
+    )
+
+    with pytest.raises(ReportableError, match=r"open linked pull request \(#28\)"):
+        create_agent_assignment(
+            state=state,
+            route=route,
+            named=Harness.CLAUDE,
+            issue=12,
+            at=PINNED,
+        )
+
+    created = [call for call in gh.calls if call.arguments[:2] == ["pr", "create"]]
+    assert created == []
+
+
 def test_several_pull_requests_on_an_incomplete_branch_are_reported(state, route, gh):
     gh.replies(
         stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN"), (53, "CLOSED")]),

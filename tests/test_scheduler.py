@@ -11,6 +11,7 @@ from conftest import (
     POST_LIST_PATHS,
     POSTED_AT,
     POSTED_BY,
+    PULL_REQUEST,
     REPOSITORY,
     comment,
     configure,
@@ -439,6 +440,13 @@ def test_a_dispatch_whose_round_will_not_start_retries_the_prepared_assignment(
     assert branch in git(arguments=["branch", "--list", branch], cwd=dispatching)
 
     occupied.unlink()
+    offered.replies(
+        stdout=json.dumps(
+            {"closedByPullRequestsReferences": [{"number": PULL_REQUEST}]}
+        ),
+        to="issue view",
+    )
+    offered.replies(stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list")
     observed = scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
 

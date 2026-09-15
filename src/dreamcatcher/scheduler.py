@@ -21,6 +21,7 @@ from dreamcatcher.agent_assignments import (
     AgentAssignment,
     AgentAssignmentCreator,
     advance_assignment_watermark,
+    list_incomplete_assignment_issues,
     read_agent_assignments,
 )
 from dreamcatcher.config import Config, Harness
@@ -39,6 +40,7 @@ from dreamcatcher.state import (
 from dreamcatcher.wakeups import (
     Finding,
     Wakeup,
+    compose_dispatch_wakeup,
     compose_wait,
     judge_assignment,
     list_waiting,
@@ -117,6 +119,7 @@ class Scheduler:
             repository=self.repository,
             config=self.config,
             claimed={assignment.record.issue for assignment in assignments},
+            recovering=list_incomplete_assignment_issues(state=self.state),
         )
         if isinstance(judged, Unknown):
             candidate_failure = judged.reason
@@ -277,9 +280,5 @@ class Scheduler:
             issue=candidate.issue,
             at=at,
         )
-        self._start_round(
-            assignment=assignment,
-            prompt=assignment.record.prompt,
-            cause=Cause.DISPATCH,
-        )
+        self._launch_wakeup(wakeup=compose_dispatch_wakeup(assignment=assignment))
         return assignment.identifier

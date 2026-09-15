@@ -25,8 +25,8 @@ def add_worktree(*, root: Path, path: Path, branch: str) -> None:
     )
 
 
-def is_worktree(*, path: Path) -> bool:
-    """Return whether the path is a Git worktree."""
+def is_assignment_worktree(*, path: Path) -> bool:
+    """Return whether the path is one of Dreamcatcher's linked worktrees."""
     return (path / ".git").is_file()
 
 

@@ -31,7 +31,7 @@ from dreamcatcher.state import CandidateIssue
 
 
 def judge_issues(
-    *, repository: str, config: Config, claimed: set[int]
+    *, repository: str, config: Config, claimed: set[int], recovering: set[int]
 ) -> list[CandidateIssue] | Unknown:
     """Return every labelled issue assigned to the user, oldest first.
 
@@ -40,7 +40,10 @@ def judge_issues(
     its way can be dispatched.
 
     The caller passes in `claimed`, the issues that an assignment in this checkout
-    is already working on. The caller knows about those and GitHub does not.
+    is already working on, and `recovering`, the issues whose local creation is
+    incomplete. The caller knows about both and GitHub does not. A recovering
+    issue's own linked pull request is evidence of its setup rather than a claim
+    from elsewhere.
 
     If the tool could not read the listing, it answers Unknown for the whole
     tick. Otherwise, an issue that it cannot see might be dispatched a second
@@ -58,6 +61,7 @@ def judge_issues(
                 issue=issue.number,
                 labels=labels,
                 claimed=claimed,
+                is_recovering=issue.number in recovering,
             ),
         )
         for issue, labels in listed
@@ -93,7 +97,12 @@ def _list_issues(
 
 
 def _find_obstacle(
-    *, repository: str, issue: int, labels: list[str], claimed: set[int]
+    *,
+    repository: str,
+    issue: int,
+    labels: list[str],
+    claimed: set[int],
+    is_recovering: bool,
 ) -> str | None:
     """Return what stands in the way of dispatching the issue, or nothing.
 
@@ -104,9 +113,11 @@ def _find_obstacle(
         return f"carries more than one dispatch label: {', '.join(sorted(labels))}"
     if issue in claimed:
         return "an assignment in this checkout is working on it"
-    return _check_pull_requests(repository=repository, issue=issue) or _check_blockers(
-        repository=repository, issue=issue
-    )
+    if not is_recovering:
+        pull_request = _check_pull_requests(repository=repository, issue=issue)
+        if pull_request is not None:
+            return pull_request
+    return _check_blockers(repository=repository, issue=issue)
 
 
 def _check_pull_requests(*, repository: str, issue: int) -> str | None:

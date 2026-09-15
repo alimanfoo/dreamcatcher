@@ -31,12 +31,17 @@ from dreamcatcher.git import (
     delete_branch,
     fetch,
     has_commits_since_main,
-    is_worktree,
+    is_assignment_worktree,
     make_empty_commit,
     push_branch,
     remove_worktree,
 )
-from dreamcatcher.github import Unknown, create_pull_request, list_pull_requests
+from dreamcatcher.github import (
+    Unknown,
+    create_pull_request,
+    list_linked_pull_requests,
+    list_pull_requests,
+)
 from dreamcatcher.rounds import Cause, RoundRecord, Workspace
 from dreamcatcher.state import StateDirectory
 
@@ -204,6 +209,16 @@ def read_agent_assignments_for_issue(
     ]
 
 
+def list_incomplete_assignment_issues(*, state: StateDirectory) -> set[int]:
+    """Return the issues whose assignment setup has not recorded completion."""
+    return {
+        int(path.name.split("-", maxsplit=1)[0].removeprefix("GH"))
+        for path in state.worktrees.glob("GH*-*")
+        if is_assignment_worktree(path=path)
+        and not (state.assignments / path.name / RECORD).exists()
+    }
+
+
 @dataclass(frozen=True, kw_only=True)
 class AgentAssignmentCreator:
     """Create complete assignments in one repository and state directory."""
@@ -251,11 +266,13 @@ class AgentAssignmentCreator:
         )
         branch = f"{BRANCH_PREFIX}{identifier}"
         worktree = self.state.worktrees / identifier
-        if not is_worktree(path=worktree):
+        if not is_assignment_worktree(path=worktree):
             try:
                 add_worktree(root=self.state.root, path=worktree, branch=branch)
             except ReportableError:
-                _discard_worktree(state=self.state, worktree=worktree, branch=branch)
+                _discard_worktree_and_branch(
+                    state=self.state, worktree=worktree, branch=branch
+                )
                 raise
         if not has_commits_since_main(worktree=worktree):
             make_empty_commit(worktree=worktree, message=f"GH{issue}")
@@ -287,7 +304,7 @@ def _find_incomplete_assignment(*, state: StateDirectory, issue: int) -> str | N
     found = [
         path.name
         for path in state.worktrees.glob(f"{prefix}*")
-        if is_worktree(path=path)
+        if is_assignment_worktree(path=path)
         and not (state.assignments / path.name / RECORD).exists()
     ]
     if len(found) > 1:
@@ -309,6 +326,18 @@ def _find_or_create_pull_request(*, repository: str, branch: str, issue: int) ->
         raise ReportableError(f"{branch} has more than one pull request.")
     if found:
         return found[0].number
+    linked = list_linked_pull_requests(repository=repository, issue=issue)
+    if isinstance(linked, Unknown):
+        raise ReportableError(
+            f"cannot tell whether another pull request claims GH{issue}: "
+            f"{linked.reason}"
+        )
+    if linked:
+        named = ", ".join(f"#{pull_request.number}" for pull_request in linked)
+        raise ReportableError(
+            f"cannot create a pull request for {branch}: GH{issue} already has "
+            f"an open linked pull request ({named})."
+        )
     created = create_pull_request(repository=repository, branch=branch, issue=issue)
     if isinstance(created, Unknown):
         raise ReportableError(
@@ -355,7 +384,9 @@ def advance_assignment_watermark(*, assignment: AgentAssignment, newest: str) ->
     write_text(text=newest, path=assignment.directory / WATERMARK)
 
 
-def _discard_worktree(*, state: StateDirectory, worktree: Path, branch: str) -> None:
+def _discard_worktree_and_branch(
+    *, state: StateDirectory, worktree: Path, branch: str
+) -> None:
     """Remove artifacts that a failed worktree creation may have left."""
     with suppress(CommandError):
         remove_worktree(root=state.root, path=worktree)
