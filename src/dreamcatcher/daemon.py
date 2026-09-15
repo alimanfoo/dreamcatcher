@@ -1,65 +1,32 @@
-"""Run the daemon: hold the repo, and tick on the configured interval.
+"""Run the foreground daemon for one Dreamcatcher instance."""
 
-A tick looks once and launches at most one round. It reads the sessions on disk
-and asks GitHub which labelled issues could be dispatched, so every successful
-tick leaves the board a current queue. It then weighs its own live rounds
-against the cap and works out what each session needs next when a slot is free.
-
-Open work goes before new work, and the most open of it first: a round that did
-not finish is carried on, then a merged or closed pull request gets its last
-round, then a session answers what the user posted. Only when no session needs
-anything does an uncapped tick dispatch the oldest candidate that no session
-and no pull request has claimed and no open issue blocks. `eligibility.py` holds
-that rule whole, the labels included.
-
-Whatever it observed and decided goes into `last-tick.json`, so what the daemon
-did not do, and why, is as readable as what it did. A timestamped line on stdout
-summarises each tick as it finishes.
-"""
+from __future__ import annotations
 
 import sys
-from collections.abc import Callable
 from contextlib import suppress
-from datetime import datetime, timedelta
-from pathlib import Path
 from time import sleep
+from typing import TYPE_CHECKING
 
 from dreamcatcher import teardown
-from dreamcatcher.adapters import Launch
 from dreamcatcher.clock import Wait, now
 from dreamcatcher.commands import locate
 from dreamcatcher.config import Harness, read_config
 from dreamcatcher.documents import write_json
-from dreamcatcher.eligibility import judge_issues
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import Unknown, identify_account, identify_repository
 from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.lock import hold
-from dreamcatcher.rounds import Cause, Round
-from dreamcatcher.sessions import (
-    Session,
-    advance_watermark,
-    create_session,
-    discard_session,
-    read_sessions,
-)
-from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, WaitingSession
-from dreamcatcher.wakeups import (
-    Finding,
-    Wakeup,
-    compose_wait,
-    judge_session,
-    list_waiting,
-    sort_wakeups,
-)
+from dreamcatcher.scheduler import Scheduler
+from dreamcatcher.sessions import read_sessions
+from dreamcatcher.state import LastTick, StateDirectory
 from dreamcatcher.words import describe_time
 
-# How long the daemon holds every launch once a round has failed, dispatches
-# and retries alike. There is no cause detection behind this and no schedule:
-# the failure worth spending nothing on is a usage limit, which belongs to the
-# account and so hits every session at once, and a passing blip costs at most
-# this long of an idle daemon.
-COOLDOWN = timedelta(minutes=15)
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from datetime import datetime
+    from pathlib import Path
+
+    from dreamcatcher.rounds import Round
 
 
 def _write_output(*, line: str) -> None:
@@ -128,6 +95,15 @@ class Daemon:
         account = _refuse_unknown(
             named=identify_account(), question="which account gh is signed in as"
         )
+        scheduler = Scheduler(
+            repository=repository,
+            account=account,
+            config=self.config,
+            state=self.state,
+            harness=self.harness,
+            clock=self.clock,
+            rounds=self.rounds,
+        )
         with hold(path=self.state.lock):
             self._sweep_orphans()
             at = self.clock()
@@ -135,7 +111,7 @@ class Daemon:
             try:
                 with suppress(KeyboardInterrupt):
                     while True:
-                        self.tick(repository=repository, account=account, at=at)
+                        self.tick(scheduler=scheduler, at=at)
                         self.wait(self.config.interval)
                         at = self.clock()
             finally:
@@ -146,11 +122,8 @@ class Daemon:
                 for running in self.rounds.values():
                     running.stop()
 
-    def tick(self, *, repository: str, account: str, at: datetime) -> None:
-        """Look once, launch at most one round, and record what happened.
-
-        A round that has ended is forgotten first, so the cap counts what is
-        running now.
+    def tick(self, *, scheduler: Scheduler, at: datetime) -> None:
+        """Run one scheduler tick, then record and report its result.
 
         A tick that failed still leaves the evidence where the user can read
         it, and the next tick tries again, rather than the daemon ending and
@@ -161,13 +134,8 @@ class Daemon:
         failure ends the run with a message the user can act on, and the rounds
         it was holding end with it.
         """
-        self.rounds = {
-            key: running for key, running in self.rounds.items() if running.is_alive
-        }
         try:
-            observed = self._decide_and_launch(
-                repository=repository, account=account, at=at
-            )
+            observed = scheduler.tick(at=at)
         except ReportableError as failure:
             observed = LastTick(at=at, hold=str(failure))
         write_json(document=observed, path=self.state.last_tick)
@@ -178,229 +146,6 @@ class Daemon:
         else:
             outcome = "nothing launched"
         _write_output(line=f"{describe_time(at=observed.at)}  {outcome}")
-
-    def _decide_and_launch(
-        self, *, repository: str, account: str, at: datetime
-    ) -> LastTick:
-        """Launch at most one round, and return what the tick observed.
-
-        Every tick tries to weigh the candidate issues, so the board keeps
-        showing the current queue while the daemon is carrying on open work or
-        waiting for a launch slot. A failed listing holds the tick.
-
-        The cooldown holds every launch, a wakeup and a dispatch alike, but it
-        holds no read. So a tick under it still says what each session is
-        waiting on, rather than going quiet for the whole fifteen minutes.
-        """
-        sessions = read_sessions(state=self.state)
-        judged = judge_issues(
-            repository=repository,
-            config=self.config,
-            claimed={session.record.issue for session in sessions},
-        )
-        if isinstance(judged, Unknown):
-            candidate_failure = judged.reason
-            candidates = []
-        else:
-            candidate_failure = None
-            candidates = judged
-        if len(self.rounds) >= self.config.max_agents:
-            cap = (
-                f"at cap: {len(self.rounds)} of {self.config.max_agents} rounds running"
-            )
-            hold = (
-                cap
-                if candidate_failure is None
-                else f"{cap}; could not refresh queue: {candidate_failure}"
-            )
-            return LastTick(
-                at=at,
-                hold=hold,
-                candidates=candidates,
-                waiting=[
-                    compose_wait(session=session, reason=cap)
-                    for session in sessions
-                    if session.key not in self.rounds
-                    and not session.has_run_final_round
-                ],
-            )
-        found = self._judge_sessions(
-            repository=repository, account=account, sessions=sessions
-        )
-        if candidate_failure is not None:
-            return LastTick(
-                at=at, hold=candidate_failure, waiting=list_waiting(found=found)
-            )
-        cooling = _check_cooldown(sessions=sessions, at=at)
-        if cooling is not None:
-            return LastTick(
-                at=at,
-                hold=cooling,
-                candidates=candidates,
-                waiting=list_waiting(found=found),
-            )
-        ready = sort_wakeups(found=[one for one in found if isinstance(one, Wakeup)])
-        if ready:
-            return self._resume_session(
-                at=at, wakeup=ready[0], found=found, candidates=candidates
-            )
-        return self._dispatch_oldest_issue(
-            at=at, judged=candidates, waiting=list_waiting(found=found)
-        )
-
-    def _judge_sessions(
-        self, *, repository: str, account: str, sessions: list[Session]
-    ) -> list[Finding]:
-        """Return what each session needs next, and what each is waiting on.
-
-        A session the daemon is already running a round for is skipped: it is
-        working, not waiting, so the tick leaves it alone and spends no GitHub
-        call on it. A session that needs nothing is left out of the answer.
-        """
-        found: list[Finding] = []
-        for session in sessions:
-            if session.key in self.rounds:
-                continue
-            needed = judge_session(
-                repository=repository, account=account, session=session
-            )
-            if needed is not None:
-                found.append(needed)
-        return found
-
-    def _resume_session(
-        self,
-        *,
-        at: datetime,
-        wakeup: Wakeup,
-        found: list[Finding],
-        candidates: list[CandidateIssue],
-    ) -> LastTick:
-        """Resume the session with the highest priority this tick.
-
-        Every other session the tick found waits for a later tick, and says
-        what it is waiting on. A launch that went wrong leaves all of them
-        waiting, and the next tick tries the same session again.
-        """
-        try:
-            self._launch_wakeup(wakeup=wakeup)
-        except ReportableError as failure:
-            return LastTick(
-                at=at,
-                hold=str(failure),
-                candidates=candidates,
-                waiting=list_waiting(found=found),
-            )
-        rest = [one for one in found if one is not wakeup]
-        return LastTick(
-            at=at,
-            launched=wakeup.session.key,
-            candidates=candidates,
-            waiting=list_waiting(found=rest),
-        )
-
-    def _launch_wakeup(self, *, wakeup: Wakeup) -> None:
-        """Start the round the wakeup asks for, and keep it in `self.rounds`.
-
-        The inbox lands before the round starts, because the prompt sends the
-        session straight to it.
-
-        The watermark moves once the round is running, and not before. A launch
-        that never happened leaves the session's watermark where it was, so the
-        next tick reads the same posts again rather than losing them. A round
-        that no post woke moves nothing.
-        """
-        session = wakeup.session
-        if wakeup.inbox is not None:
-            write_json(document=wakeup.inbox, path=session.next_workspace.inbox)
-        self._start_round(session=session, prompt=wakeup.prompt, cause=wakeup.cause)
-        if wakeup.newest_post:
-            advance_watermark(session=session, newest=wakeup.newest_post)
-
-    def _start_round(self, *, session: Session, prompt: str, cause: Cause) -> None:
-        """Start a round for the session, and keep it in `self.rounds`.
-
-        Keeping it there is what makes the round one of the daemon's own: the
-        cap counts it while it runs, and the daemon ends it as the daemon goes
-        down.
-
-        The cause says how the harness starts. A dispatch opens a harness
-        session of its own, and every other cause continues the one that the
-        session already has, so no caller has to say which.
-
-        Every round runs with the model and the effort the dispatch settled,
-        which is why they come from the session's record and never from the
-        config.
-        """
-        adapter = ADAPTERS[session.record.harness]
-        launch = Launch(
-            session=session.key,
-            model=session.record.model,
-            effort=session.record.effort,
-            prompt=prompt,
-        )
-        invocation = (
-            adapter.build_first_round(launch=launch)
-            if cause is Cause.DISPATCH
-            else adapter.build_resumed_round(launch=launch)
-        )
-        self.rounds[session.key] = Round(
-            adapter=adapter,
-            invocation=invocation,
-            workspace=session.next_workspace,
-            cause=cause,
-            clock=self.clock,
-        )
-
-    def _dispatch_oldest_issue(
-        self,
-        *,
-        at: datetime,
-        judged: list[CandidateIssue],
-        waiting: list[WaitingSession],
-    ) -> LastTick:
-        """Dispatch the oldest issue that `eligibility.py` judged free to go.
-
-        A tick launches one round, so every other eligible issue waits for a
-        later tick. Every candidate is written down in the order it would go,
-        and that order is the only place its turn is recorded.
-        """
-        eligible = [candidate for candidate in judged if candidate.is_eligible]
-        if not eligible:
-            return LastTick(at=at, candidates=judged, waiting=waiting)
-        try:
-            key = self._launch_session(candidate=eligible[0], at=at)
-        except ReportableError as failure:
-            # The tick looked, and everything it saw is worth keeping. Only the
-            # launch went wrong, and the next tick tries the same issue again.
-            return LastTick(
-                at=at, hold=str(failure), candidates=judged, waiting=waiting
-            )
-        return LastTick(at=at, launched=key, candidates=judged, waiting=waiting)
-
-    def _launch_session(self, *, candidate: CandidateIssue, at: datetime) -> str:
-        """Cut a session for the candidate, run its first round, and hold it.
-
-        A session whose round will not start is taken away again, because a
-        session with no round claims its issue and can never advance by
-        itself. So a dispatch that got part way leaves nothing behind, and the
-        issue is free for the next tick to try again.
-        """
-        session = create_session(
-            state=self.state,
-            mapping=self.config.label_mappings[candidate.label],
-            named=self.harness,
-            issue=candidate.issue,
-            at=at,
-        )
-        try:
-            self._start_round(
-                session=session, prompt=session.record.prompt, cause=Cause.DISPATCH
-            )
-        except ReportableError:
-            discard_session(state=self.state, record=session.record)
-            raise
-        return session.key
 
     def _locate_harnesses(self) -> None:
         """Refuse the run when a harness it could dispatch to is not installed.
@@ -447,28 +192,3 @@ def _refuse_unknown(*, named: str | Unknown, question: str) -> str:
     if isinstance(named, Unknown):
         raise ReportableError(f"dreamcatcher cannot tell {question}: {named.reason}")
     return named
-
-
-def _check_cooldown(*, sessions: list[Session], at: datetime) -> str | None:
-    """Return the hold every launch is under, when a round failed lately enough.
-
-    The words are the evidence the record left and not a diagnosis of it. A
-    usage limit and a passing blip both read as a round that failed, and both
-    cost the same wait, so nothing here has to tell them apart.
-    """
-    failed = [
-        record.ending
-        for session in sessions
-        for record in session.rounds
-        if record.ending is not None and record.ending.is_failed
-    ]
-    if not failed:
-        return None
-    latest = max(failed, key=lambda ending: ending.at)
-    until = latest.at + COOLDOWN
-    if at >= until:
-        return None
-    return (
-        f"the last round failed (exit {latest.status}) "
-        f"— next attempt at {until:%H:%M} UTC"
-    )
