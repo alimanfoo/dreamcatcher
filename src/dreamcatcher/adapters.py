@@ -74,8 +74,8 @@ class Adapter(ABC):
         """Return the command that resumes the harness session interactively.
 
         Whoever runs it does so in the assignment's worktree, which tells the
-        harness which of its own sessions to carry on. It carries no prompt:
-        this invocation is interactive, and whoever ran it does the talking.
+        harness which harness session to carry on. It carries no prompt: this
+        invocation is interactive, and whoever ran it does the talking.
         """
 
     def read(self, *, line: str) -> list[Event]:

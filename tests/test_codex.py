@@ -63,14 +63,16 @@ def test_a_resume_replays_the_settings_and_the_permissions_codex_forgets():
     )
 
 
-def test_a_person_takes_the_session_over_with_codexs_interactive_resume():
+def test_a_person_continues_the_harness_session_with_codexs_interactive_resume():
     assert CODEX.build_hand_resume() == ["codex", "resume", "--last"]
 
 
-def test_the_first_event_names_the_session():
+def test_the_first_event_names_the_harness_session():
     line = streamed(type="thread.started", thread_id="01a0213c-9c67")
 
-    assert CODEX.read(line=line) == [Note(label="session", detail="id 01a0213c-9c67")]
+    assert CODEX.read(line=line) == [
+        Note(label="harness session", detail="id 01a0213c-9c67")
+    ]
 
 
 def test_what_the_agent_says_comes_through_whole():

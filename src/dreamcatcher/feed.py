@@ -50,7 +50,7 @@ def compose_round_boundary(*, number: int, cause: str, at: datetime) -> Line:
     """Return the line that opens a round, saying what caused it.
 
     A feed holds one round, so nothing writes this line as the round runs.
-    Whoever reads a whole session's rounds in order writes it between them,
+    Whoever reads a whole assignment's rounds in order writes it between them,
     stamped with the time that round started.
     """
     return Line(at=at, text=f"round {number}: {cause}")

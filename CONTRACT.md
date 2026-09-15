@@ -61,9 +61,9 @@ input. Nothing answers it, and the round stalls until dreamcatcher stops.
 ## Resumed rounds
 
 dreamcatcher gives an agent a further round whenever there is more for it to do.
-Each such round resumes the harness where the last one left off, so the agent
-still has what the earlier rounds said in front of it, and dreamcatcher's prompt
-says why it was woken.
+Each such round resumes the assignment's harness session where the last one left
+off, so the agent still has what the earlier rounds said in front of it, and
+dreamcatcher's prompt says why it was woken.
 
 ### A comment or review from the user
 

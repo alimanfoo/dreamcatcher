@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "dreamcatcher"
 dynamic = ["version"]
-description = "Carry labelled issues to pull requests with autonomous agent sessions"
+description = "Carry labelled issues to pull requests with autonomous agent assignments"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.12"

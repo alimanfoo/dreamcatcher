@@ -68,7 +68,10 @@ STAMP = "20260819-184158"
 # are set in from the rest, and a line that is not a feed line at all is what a
 # harness printed on its stderr.
 SAID = (
-    Line(at=PINNED + timedelta(minutes=1), text="[session] model opus[1m], id 7f3c9a"),
+    Line(
+        at=PINNED + timedelta(minutes=1),
+        text="[harness session] model opus[1m], id 7f3c9a",
+    ),
     Line(at=PINNED + timedelta(minutes=2), text="I will read the issue first."),
     Line(
         at=PINNED + timedelta(minutes=2),
@@ -281,15 +284,15 @@ BOARDS = {
     "assignments-dead-daemon": fabricate_a_dead_daemon,
     "at-cap": fabricate_the_cap,
     "silent-round": fabricate_a_silent_round,
-    "repeat-sessions": fabricate_repeat_assignments,
+    "repeat-assignments": fabricate_repeat_assignments,
 }
 
 
 # The feed view each fabricated state directory is worth reading, by the issue
 # whose newest assignment it shows.
 FEEDS = {
-    "feed-working": (fabricate_everything, 13),
-    "feed-older-sessions": (fabricate_repeat_assignments, 13),
+    "feed-assignment-working": (fabricate_everything, 13),
+    "feed-older-assignments": (fabricate_repeat_assignments, 13),
 }
 
 

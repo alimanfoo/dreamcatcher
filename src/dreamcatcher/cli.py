@@ -91,9 +91,9 @@ def build_parser() -> argparse.ArgumentParser:
         description=(
             "Show an overview of the newest assignment at the issue: what "
             "its dispatch settled, the rounds it has run, the command that "
-            "takes the harness session over by hand, and the older assignments at the "
-            "same issue. It keeps up for as long as the assignment has another "
-            "round coming. "
+            "resumes the harness session by hand, and the older assignments "
+            "at the same issue. It keeps up for as long as the assignment has "
+            "another round coming. "
             + HELP_WHEN_A_VIEW_ENDS
             + " "
             + HELP_WHEN_A_VIEW_TAKES_THE_SCREEN

@@ -1,7 +1,7 @@
 """Read each recorded stream through the adapter that made it, and the feed.
 
-An agent session recorded every stream here in the same throwaway repository,
-running the command that adapter's `build_first_round` builds.
+An agent harness session recorded every stream here in the same throwaway
+repository, running the command that adapter's `build_first_round` builds.
 
 Claude's recordings sit under `tests/fixtures/claude/`.
 
@@ -13,9 +13,9 @@ Claude's recordings sit under `tests/fixtures/claude/`.
   feed as a subagent's report.
 - `rate-limited.jsonl` is the one Claude recording not made against Claude's own
   API. The CLI ran against a local endpoint answering every request with the 429
-  an exhausted rate limit returns, since a real limit is not something a session
-  can arrange. It records how Claude retries and then gives up: ten retries over
-  about three minutes, then a round that exits non-zero.
+  an exhausted rate limit returns, since a real limit is not something a test can
+  arrange. It records how Claude retries and then gives up: ten retries over about
+  three minutes, then a round that exits non-zero.
 
 Codex's recordings sit under `tests/fixtures/codex/`.
 
@@ -23,7 +23,7 @@ Codex's recordings sit under `tests/fixtures/codex/`.
   there, wrote a file, and searched the web.
 - `resumed-round.jsonl` is the round after it, resumed with `--last`. It deleted
   the file the first round wrote. Both rounds carry the same thread id, so the
-  resume found the session by the directory it ran in.
+  resume found the harness session by the directory it ran in.
 - `failed-round.jsonl` is a round asked for a model that does not exist.
 - `rate-limited.jsonl` came the way Claude's did. The CLI ran against a local
   endpoint answering every request with a 429. Codex spends no retries on it:
@@ -47,7 +47,8 @@ from dreamcatcher.feed import Renderer
 RECORDED_IN = PurePosixPath("/private/tmp/dreamcatcher-recording")
 
 # The directory under FIXTURES holding each adapter's recordings. Every stream in
-# it is that adapter's, and the golden feed sits beside it under the same name.
+# it is that adapter's, and the harness-feed golden sits beside it under the same
+# name.
 # So the directory says which recordings there are, and this needs no list of its
 # own that a new recording could be left out of.
 RECORDINGS = ((CLAUDE, "claude"), (CODEX, "codex"))
@@ -68,4 +69,6 @@ def test_a_recorded_stream_renders_as_its_golden_feed(adapter, recording):
         renderer=Renderer(worktree=RECORDED_IN, clock=Ticking()),
     )
 
-    assert feed == recording.with_suffix(".feed.txt").read_text(encoding="utf-8")
+    assert feed == recording.with_suffix(".harness-feed.txt").read_text(
+        encoding="utf-8"
+    )

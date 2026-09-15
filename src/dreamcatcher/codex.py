@@ -29,15 +29,15 @@ RESUME_PERMISSIONS = (
 
 
 class Codex(Adapter):
-    """Codex as one round of a session runs it."""
+    """Codex as one round of an agent assignment runs it."""
 
     program: ClassVar[str] = "codex"
 
     def build_first_round(self, *, launch: Launch) -> Invocation:
-        """Return how to run a session's first round.
+        """Return how to run an assignment's first round.
 
         The command does not say which directory to work in, so whoever runs
-        it has to run it in the session's worktree.
+        it has to run it in the assignment's worktree.
         """
         return Invocation(
             program=self.program,
@@ -53,14 +53,14 @@ class Codex(Adapter):
         )
 
     def build_resumed_round(self, *, launch: Launch) -> Invocation:
-        """Return how to resume the session in this directory.
+        """Return how to resume the harness session in this directory.
 
         Codex forgets the model and the effort when it resumes, so this sets
         both again.
 
-        `--last` means the newest session, and Codex only counts the sessions
-        it ran in the current directory. So running this in the session's
-        worktree is what picks the right session.
+        `--last` means the newest harness session, and Codex only counts the
+        harness sessions it ran in the current directory. Running this in the
+        assignment's worktree therefore picks the right harness session.
         """
         return Invocation(
             program=self.program,
@@ -77,11 +77,11 @@ class Codex(Adapter):
         )
 
     def build_hand_resume(self) -> list[str]:
-        """Return how a person carries on the session in this directory.
+        """Return how a person carries on the harness session in this directory.
 
         `codex resume` is Codex's interactive resume, where `codex exec resume`
-        is the headless one that every round of a session runs. `--last` means
-        the newest session, out of the ones Codex ran in the current directory.
+        is the headless one that every round of an assignment runs. `--last`
+        means the newest harness session that Codex ran in the current directory.
         """
         return [self.program, "resume", "--last"]
 
@@ -95,7 +95,7 @@ class Codex(Adapter):
         """
         kind = streamed["type"]
         if kind == "thread.started":
-            return [Note(label="session", detail=f"id {streamed['thread_id']}")]
+            return [Note(label="harness session", detail=f"id {streamed['thread_id']}")]
         if kind == "item.completed":
             return _item(item=streamed["item"])
         if kind == "turn.completed":
@@ -112,7 +112,7 @@ CODEX = Codex()
 
 
 def _settings(*, launch: Launch) -> list[str]:
-    """Return the model and effort flags. Every round of a session uses both."""
+    """Return the model and effort flags that every assignment round uses."""
     return [
         "--model",
         launch.model,

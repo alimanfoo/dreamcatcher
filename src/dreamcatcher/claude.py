@@ -35,12 +35,12 @@ TELLING_INPUTS = (
 
 
 class Claude(Adapter):
-    """Claude Code as one round of a session runs it."""
+    """Claude Code as one round of an agent assignment runs it."""
 
     program: ClassVar[str] = "claude"
 
     def build_first_round(self, *, launch: Launch) -> Invocation:
-        """Return how to run a session's first round.
+        """Return how to run an assignment's first round.
 
         The command names no prompt, which is how Claude knows to read one
         from stdin.
@@ -58,7 +58,7 @@ class Claude(Adapter):
         )
 
     def build_resumed_round(self, *, launch: Launch) -> Invocation:
-        """Return how to continue the session in this directory.
+        """Return how to continue the harness session in this directory.
 
         Claude recovers the model and the effort itself, so a resume replays
         neither.
@@ -70,10 +70,9 @@ class Claude(Adapter):
         )
 
     def build_hand_resume(self) -> list[str]:
-        """Return how a person carries on the session in this directory.
+        """Return how a person carries on the harness session in this directory.
 
-        Claude continues the newest conversation of the directory it runs in,
-        which is the session's own.
+        Claude continues the newest harness session in the assignment's worktree.
         """
         return [self.program, "--continue"]
 
@@ -111,12 +110,12 @@ CLAUDE = Claude()
 
 
 def _system(*, streamed: dict) -> list[Event]:
-    """Return what a system event carries: the session, a report, or nothing."""
+    """Return a system event's harness session, report, or nothing."""
     subtype = streamed["subtype"]
     if subtype == "init":
         return [
             Note(
-                label="session",
+                label="harness session",
                 detail=f"model {streamed['model']}, id {streamed['session_id']}",
             )
         ]
