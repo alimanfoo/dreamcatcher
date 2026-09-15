@@ -256,3 +256,38 @@ def gh_with_recorded_posts(fake):
 def harnesses(fake):
     """Both harness CLIs on the PATH, so a run gets past its startup check."""
     return {program: fake(program=program) for program in ("claude", "codex")}
+
+
+def configure(*, root, head: str = CONFIG_HEAD) -> None:
+    """Write a config for that checkout, with this ahead of its one mapping."""
+    (root / CONFIG_NAME).write_text(head + SMITH_CLAUDE + SMITH_CODEX, encoding="utf-8")
+
+
+@pytest.fixture
+def gh(fake):
+    """A gh that identifies the instance and offers no work."""
+    stand_in = fake(program="gh")
+    stand_in.replies(stdout=json.dumps({"nameWithOwner": REPOSITORY}), to="repo view")
+    stand_in.replies(stdout=json.dumps({"login": POSTED_BY}), to="api user")
+    stand_in.replies(stdout="[]", to="issue list")
+    stand_in.replies(
+        stdout=json.dumps({"closedByPullRequestsReferences": []}), to="issue view"
+    )
+    stand_in.replies(stdout="[]", to="pr list")
+    stand_in.replies(stdout="[]", to="api")
+    return stand_in
+
+
+@pytest.fixture
+def offered(gh):
+    """Return gh offering one labelled issue that is free to dispatch."""
+    gh.replies(stdout=listing(issues=[(8, FILED)]), to="issue list")
+    return gh
+
+
+@pytest.fixture
+def dispatching(cloned, offered, harnesses):
+    """Return a checkout that can dispatch a labelled issue."""
+    configure(root=cloned)
+    harnesses["claude"].streams(lines=[fakes.Line(text="what the round said\n")])
+    return cloned
