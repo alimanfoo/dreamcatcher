@@ -5,7 +5,7 @@ from dreamcatcher.codex import CODEX, STDIN
 from dreamcatcher.feed import Note, Prose
 
 LAUNCH = Launch(
-    session="GH9-20260819-184158",
+    assignment_id="GH9-20260819-184158",
     model="gpt-5.6-sol",
     effort="xhigh",
     prompt="$dream:smith GH9",

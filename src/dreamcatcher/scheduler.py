@@ -1,13 +1,13 @@
 """Schedule one round of agent work at a time.
 
-A scheduler tick reads the sessions on disk and asks GitHub which labelled
+A scheduler tick reads the assignments on disk and asks GitHub which labelled
 issues could be dispatched. It weighs the active rounds against the cap, works
-out what each session needs next, and launches at most one round.
+out what each assignment needs next, and launches at most one round.
 
 Open work goes before new work, and the most open of it first: a round that did
 not finish is carried on, then a merged or closed pull request gets its last
-round, then a session answers what the user posted. Only when no session needs
-anything does an uncapped tick dispatch the oldest candidate that no session
+round, then an assignment answers what the user posted. Only when no assignment needs
+anything does an uncapped tick dispatch the oldest candidate that no assignment
 and no pull request has claimed and no open issue blocks.
 """
 
@@ -16,6 +16,13 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from dreamcatcher.adapters import Launch
+from dreamcatcher.agent_assignments import (
+    AgentAssignment,
+    advance_assignment_watermark,
+    create_agent_assignment,
+    discard_agent_assignment,
+    read_agent_assignments,
+)
 from dreamcatcher.config import Config, Harness
 from dreamcatcher.documents import write_json
 from dreamcatcher.eligibility import judge_issues
@@ -23,19 +30,17 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import Unknown
 from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.rounds import Cause, Round
-from dreamcatcher.sessions import (
-    Session,
-    advance_watermark,
-    create_session,
-    discard_session,
-    read_sessions,
+from dreamcatcher.state import (
+    CandidateIssue,
+    LastTick,
+    StateDirectory,
+    WaitingAgentAssignment,
 )
-from dreamcatcher.state import CandidateIssue, LastTick, StateDirectory, WaitingSession
 from dreamcatcher.wakeups import (
     Finding,
     Wakeup,
     compose_wait,
-    judge_session,
+    judge_assignment,
     list_waiting,
     sort_wakeups,
 )
@@ -43,12 +48,12 @@ from dreamcatcher.wakeups import (
 # How long scheduling holds every launch once a round has failed, dispatches
 # and retries alike. There is no cause detection behind this and no schedule:
 # the failure worth spending nothing on is a usage limit, which belongs to the
-# account and so hits every session at once, and a passing blip costs at most
+# account and so hits every assignment at once, and a passing blip costs at most
 # this long of an idle daemon.
 COOLDOWN = timedelta(minutes=15)
 
 
-def _check_cooldown(*, sessions: list[Session], at: datetime) -> str | None:
+def _check_cooldown(*, assignments: list[AgentAssignment], at: datetime) -> str | None:
     """Return the hold every launch is under, when a round failed lately enough.
 
     The words are the evidence the record left and not a diagnosis of it. A
@@ -57,8 +62,8 @@ def _check_cooldown(*, sessions: list[Session], at: datetime) -> str | None:
     """
     failed = [
         record.ending
-        for session in sessions
-        for record in session.rounds
+        for assignment in assignments
+        for record in assignment.rounds
         if record.ending is not None and record.ending.is_failed
     ]
     if not failed:
@@ -97,17 +102,21 @@ class Scheduler:
         waiting for a launch slot. A failed listing holds the tick.
 
         The cooldown holds every launch, a wakeup and a dispatch alike, but it
-        holds no read. So a tick under it still says what each session is
+        holds no read. So a tick under it still says what each assignment is
         waiting on, rather than going quiet for the whole fifteen minutes.
         """
-        ended = [key for key, running in self.rounds.items() if not running.is_alive]
-        for key in ended:
-            del self.rounds[key]
-        sessions = read_sessions(state=self.state)
+        ended = [
+            assignment_id
+            for assignment_id, running in self.rounds.items()
+            if not running.is_alive
+        ]
+        for assignment_id in ended:
+            del self.rounds[assignment_id]
+        assignments = read_agent_assignments(state=self.state)
         judged = judge_issues(
             repository=self.repository,
             config=self.config,
-            claimed={session.record.issue for session in sessions},
+            claimed={assignment.record.issue for assignment in assignments},
         )
         if isinstance(judged, Unknown):
             candidate_failure = judged.reason
@@ -129,18 +138,18 @@ class Scheduler:
                 hold=hold,
                 candidates=candidates,
                 waiting=[
-                    compose_wait(session=session, reason=cap)
-                    for session in sessions
-                    if session.key not in self.rounds
-                    and not session.has_run_final_round
+                    compose_wait(assignment=assignment, reason=cap)
+                    for assignment in assignments
+                    if assignment.identifier not in self.rounds
+                    and not assignment.has_run_final_round
                 ],
             )
-        found = self._judge_sessions(sessions=sessions)
+        found = self._judge_assignments(assignments=assignments)
         if candidate_failure is not None:
             return LastTick(
                 at=at, hold=candidate_failure, waiting=list_waiting(found=found)
             )
-        cooling = _check_cooldown(sessions=sessions, at=at)
+        cooling = _check_cooldown(assignments=assignments, at=at)
         if cooling is not None:
             return LastTick(
                 at=at,
@@ -150,27 +159,29 @@ class Scheduler:
             )
         ready = sort_wakeups(found=[one for one in found if isinstance(one, Wakeup)])
         if ready:
-            return self._resume_session(
+            return self._resume_assignment(
                 at=at, wakeup=ready[0], found=found, candidates=candidates
             )
         return self._dispatch_oldest_issue(
             at=at, judged=candidates, waiting=list_waiting(found=found)
         )
 
-    def _judge_sessions(self, *, sessions: list[Session]) -> list[Finding]:
-        """Return what each session needs next, and what each is waiting on."""
+    def _judge_assignments(
+        self, *, assignments: list[AgentAssignment]
+    ) -> list[Finding]:
+        """Return what each assignment needs next, and what each is waiting on."""
         found: list[Finding] = []
-        for session in sessions:
-            if session.key in self.rounds:
+        for assignment in assignments:
+            if assignment.identifier in self.rounds:
                 continue
-            needed = judge_session(
-                repository=self.repository, account=self.account, session=session
+            needed = judge_assignment(
+                repository=self.repository, account=self.account, assignment=assignment
             )
             if needed is not None:
                 found.append(needed)
         return found
 
-    def _resume_session(
+    def _resume_assignment(
         self,
         *,
         at: datetime,
@@ -178,7 +189,7 @@ class Scheduler:
         found: list[Finding],
         candidates: list[CandidateIssue],
     ) -> LastTick:
-        """Resume the session with the highest priority this tick."""
+        """Resume the assignment with the highest priority this tick."""
         try:
             self._launch_wakeup(wakeup=wakeup)
         except ReportableError as failure:
@@ -191,27 +202,33 @@ class Scheduler:
         rest = [one for one in found if one is not wakeup]
         return LastTick(
             at=at,
-            launched=wakeup.session.key,
+            launched=wakeup.assignment.identifier,
             candidates=candidates,
             waiting=list_waiting(found=rest),
         )
 
     def _launch_wakeup(self, *, wakeup: Wakeup) -> None:
         """Start the round and advance the watermark once it is running."""
-        session = wakeup.session
+        assignment = wakeup.assignment
         if wakeup.inbox is not None:
-            write_json(document=wakeup.inbox, path=session.next_workspace.inbox)
-        self._start_round(session=session, prompt=wakeup.prompt, cause=wakeup.cause)
+            write_json(document=wakeup.inbox, path=assignment.next_workspace.inbox)
+        self._start_round(
+            assignment=assignment, prompt=wakeup.prompt, cause=wakeup.cause
+        )
         if wakeup.newest_post:
-            advance_watermark(session=session, newest=wakeup.newest_post)
+            advance_assignment_watermark(
+                assignment=assignment, newest=wakeup.newest_post
+            )
 
-    def _start_round(self, *, session: Session, prompt: str, cause: Cause) -> None:
+    def _start_round(
+        self, *, assignment: AgentAssignment, prompt: str, cause: Cause
+    ) -> None:
         """Start a round with the recipe that the dispatch settled."""
-        adapter = ADAPTERS[session.record.harness]
+        adapter = ADAPTERS[assignment.record.harness]
         launch = Launch(
-            session=session.key,
-            model=session.record.model,
-            effort=session.record.effort,
+            assignment_id=assignment.identifier,
+            model=assignment.record.model,
+            effort=assignment.record.effort,
             prompt=prompt,
         )
         invocation = (
@@ -219,10 +236,10 @@ class Scheduler:
             if cause is Cause.DISPATCH
             else adapter.build_resumed_round(launch=launch)
         )
-        self.rounds[session.key] = Round(
+        self.rounds[assignment.identifier] = Round(
             adapter=adapter,
             invocation=invocation,
-            workspace=session.next_workspace,
+            workspace=assignment.next_workspace,
             cause=cause,
             clock=self.clock,
         )
@@ -232,23 +249,25 @@ class Scheduler:
         *,
         at: datetime,
         judged: list[CandidateIssue],
-        waiting: list[WaitingSession],
+        waiting: list[WaitingAgentAssignment],
     ) -> LastTick:
         """Dispatch the oldest issue that `eligibility.py` judged free to go."""
         eligible = [candidate for candidate in judged if candidate.is_eligible]
         if not eligible:
             return LastTick(at=at, candidates=judged, waiting=waiting)
         try:
-            key = self._launch_session(candidate=eligible[0], at=at)
+            assignment_id = self._launch_assignment(candidate=eligible[0], at=at)
         except ReportableError as failure:
             return LastTick(
                 at=at, hold=str(failure), candidates=judged, waiting=waiting
             )
-        return LastTick(at=at, launched=key, candidates=judged, waiting=waiting)
+        return LastTick(
+            at=at, launched=assignment_id, candidates=judged, waiting=waiting
+        )
 
-    def _launch_session(self, *, candidate: CandidateIssue, at: datetime) -> str:
-        """Create a session and remove it again if its first round cannot start."""
-        session = create_session(
+    def _launch_assignment(self, *, candidate: CandidateIssue, at: datetime) -> str:
+        """Create an assignment and remove it again if its first round cannot start."""
+        assignment = create_agent_assignment(
             state=self.state,
             route=self.config.dispatch_routes[candidate.label],
             named=self.harness,
@@ -257,9 +276,11 @@ class Scheduler:
         )
         try:
             self._start_round(
-                session=session, prompt=session.record.prompt, cause=Cause.DISPATCH
+                assignment=assignment,
+                prompt=assignment.record.prompt,
+                cause=Cause.DISPATCH,
             )
         except ReportableError:
-            discard_session(state=self.state, record=session.record)
+            discard_agent_assignment(state=self.state, record=assignment.record)
             raise
-        return session.key
+        return assignment.identifier

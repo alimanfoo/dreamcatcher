@@ -8,6 +8,7 @@ from time import sleep
 from typing import TYPE_CHECKING
 
 from dreamcatcher import teardown
+from dreamcatcher.agent_assignments import read_agent_assignments
 from dreamcatcher.clock import Wait, now
 from dreamcatcher.commands import locate
 from dreamcatcher.config import Harness, read_config
@@ -17,7 +18,6 @@ from dreamcatcher.github import Unknown, identify_account, identify_repository
 from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.lock import hold
 from dreamcatcher.scheduler import Scheduler
-from dreamcatcher.sessions import read_sessions
 from dreamcatcher.state import LastTick, StateDirectory
 from dreamcatcher.words import describe_time
 
@@ -65,7 +65,7 @@ class Daemon:
         self.state = StateDirectory(root=root)
         self.clock = clock
         self.wait = wait
-        # The rounds this daemon is running, by the key of the session each
+        # The rounds this daemon is running, by the identifier of the assignment each
         # belongs to. They are what the cap counts, and what the daemon ends as
         # it goes down.
         self.rounds: dict[str, Round] = {}
@@ -75,7 +75,7 @@ class Daemon:
 
         Everything a run cannot do without is settled before the loop: the
         harness CLIs, the state directory, the repository's name, the account
-        gh is signed in as, the lock, and the sessions the sweep reads. A run
+        gh is signed in as, the lock, and the assignments the sweep reads. A run
         refuses when any of those will not answer, rather than starting a loop
         that could never dispatch. Once the loop is going, a tick that fails
         records the failure and the next tick tries again.
@@ -84,7 +84,7 @@ class Daemon:
         can change while the daemon holds the repo, a run that cannot name the
         repository dispatches nothing, and the relay reads every post against
         the account before the marker tells the user's posts from the
-        session's own.
+        assignment's own.
         """
         self._locate_harnesses()
         self.state.bootstrap()
@@ -127,7 +127,7 @@ class Daemon:
 
         A tick that failed still leaves the evidence where the user can read
         it, and the next tick tries again, rather than the daemon ending and
-        leaving the sessions it holds to nobody.
+        leaving the assignments it holds to nobody.
 
         Writing that evidence down is the exception. A daemon that cannot write
         `last-tick.json` has no way left to say anything at all, so that
@@ -181,8 +181,8 @@ class Daemon:
         empties itself when the daemon's last handle on it closes, so no round
         outlives its daemon and there is never anything to end.
         """
-        for session in read_sessions(state=self.state):
-            for record in session.rounds:
+        for assignment in read_agent_assignments(state=self.state):
+            for record in assignment.rounds:
                 if not record.is_complete:
                     teardown.end(pid=record.pid)
 

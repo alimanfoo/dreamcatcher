@@ -4,7 +4,7 @@ from importlib.metadata import version
 
 import pytest
 from clocks import PINNED
-from records import write_feed, write_round, write_session
+from records import write_agent_assignment, write_feed, write_round
 
 from dreamcatcher.cli import main
 from dreamcatcher.config import Harness
@@ -14,16 +14,16 @@ from dreamcatcher.feed import Line
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.state import StateDirectory
 
-KEY = "GH13-20260819-184158"
+ASSIGNMENT_ID = "GH13-20260819-184158"
 
 
 @pytest.fixture
 def watching(tmp_path):
-    """A checkout a daemon has watched, holding one session with a live round."""
+    """A checkout a daemon has watched, holding one assignment with a live round."""
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
     write_text(text=f"{os.getpid()}\n", path=state.lock)
-    directory = write_session(state=state, key=KEY, issue=13)
+    directory = write_agent_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13)
     write_round(
         directory=directory,
         number=1,
@@ -60,44 +60,46 @@ def test_a_checkout_no_daemon_has_watched_has_nothing_to_show(
     assert "nothing to show" in capsys.readouterr().err
 
 
-def test_board_shows_every_session(monkeypatch, watching, capsys):
+def test_board_shows_every_assignment(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
 
     assert main(argv=["board"]) == 0
     assert "agent working" in capsys.readouterr().out
 
 
-def test_session_shows_the_newest_session_at_the_issue(monkeypatch, watching, capsys):
+def test_assignment_shows_the_newest_assignment_at_the_issue(
+    monkeypatch, watching, capsys
+):
     monkeypatch.chdir(watching.root)
 
-    assert main(argv=["session", "GH13"]) == 0
-    assert KEY in capsys.readouterr().out
+    assert main(argv=["assignment", "GH13"]) == 0
+    assert ASSIGNMENT_ID in capsys.readouterr().out
 
 
 def test_an_issue_reads_however_the_reader_wrote_it(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
 
-    assert main(argv=["session", "gh13"]) == 0
-    assert KEY in capsys.readouterr().out
+    assert main(argv=["assignment", "gh13"]) == 0
+    assert ASSIGNMENT_ID in capsys.readouterr().out
 
 
 def test_something_that_is_not_an_issue_reference_is_refused(capsys):
     with pytest.raises(SystemExit) as exit_info:
-        main(argv=["session", "the one about the parser"])
+        main(argv=["assignment", "the one about the parser"])
 
     assert exit_info.value.code == 2
     assert "GH123" in capsys.readouterr().err
 
 
-def test_feed_shows_what_the_session_said(monkeypatch, watching, capsys):
+def test_feed_shows_what_the_assignment_said(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
-    # A following view runs until the session has run its final round, so this
-    # one is over before the view opens and the view never waits. A session's
+    # A following view runs until the assignment has run its final round, so this
+    # one is over before the view opens and the view never waits. An assignment's
     # rounds read back in the order they started, so the final round starts
     # after the first one rather than alongside it.
     later = PINNED + timedelta(minutes=1)
     write_round(
-        directory=watching.sessions / KEY,
+        directory=watching.assignments / ASSIGNMENT_ID,
         number=2,
         record=RoundRecord(
             started=later,
@@ -128,7 +130,7 @@ def test_a_feed_with_no_issue_to_show_asks_for_one(capsys):
 
 def test_a_round_belongs_to_the_feed_and_to_no_other_verb(capsys):
     with pytest.raises(SystemExit) as exit_info:
-        main(argv=["session", "GH13", "--round", "1"])
+        main(argv=["assignment", "GH13", "--round", "1"])
 
     assert exit_info.value.code == 2
     assert "--round" in capsys.readouterr().err
@@ -142,7 +144,7 @@ def test_the_board_takes_no_issue(capsys):
     assert "GH13" in capsys.readouterr().err
 
 
-@pytest.mark.parametrize("verb", ["run", "board", "session", "feed"])
+@pytest.mark.parametrize("verb", ["run", "board", "assignment", "feed"])
 def test_every_verb_describes_itself_in_its_own_help(verb, capsys):
     with pytest.raises(SystemExit) as exit_info:
         main(argv=[verb, "--help"])

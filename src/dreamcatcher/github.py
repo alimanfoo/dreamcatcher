@@ -132,7 +132,7 @@ class Linked(Projection):
 
     GitHub lists only the open pull requests here, and counts both the ones that
     said they close the issue and the ones somebody linked by hand. A declined
-    session drops out, which is what leaves its issue free to go again.
+    assignment drops out, which is what leaves its issue free to go again.
     """
 
     pull_requests: list[LinkedPullRequest] = Field(
@@ -159,7 +159,7 @@ class Post(Projection):
 
     Each of the three kinds below is a class of its own, and no post is read as
     this base alone. Each also names its own kind, because the three reach a
-    session as one list, written to a file where the class no longer says which
+    assignment as one list, written to a file where the class no longer says which
     is which.
     """
 
@@ -193,10 +193,10 @@ class Review(Post):
         """Whether the author said anything in this review.
 
         GitHub wraps every inline comment in a review of its own, and that
-        wrapper has an empty body. So does the wrapper around a session's own
+        wrapper has an empty body. So does the wrapper around an assignment's own
         reply on a line of the diff. A wrapper says nothing, and the comments
         it wrapped come through on their own, so an empty review with nothing
-        but a COMMENTED verdict is worth nothing to the session. An approval or
+        but a COMMENTED verdict is worth nothing to the assignment. An approval or
         a request for changes is worth something on its own, body or no body.
         """
         return super().is_speaking or self.verdict in SPEAKING_VERDICTS
@@ -207,12 +207,12 @@ class InlineComment(Post):
 
     The lines are where the comment was written, and the hunk is the piece of
     the diff those lines sit in. So a comment on a range of lines reaches the
-    session with the lines themselves, and not with their numbers alone, which
+    assignment with the lines themselves, and not with their numbers alone, which
     is what a comment proposing a replacement for them needs.
 
     Somebody can comment on a whole file rather than on any line of it, and
     GitHub says `file` for that one and reports it against line 1 all the
-    same. So the subject is what tells a session that the user picked the file
+    same. So the subject is what tells an assignment that the user picked the file
     and not that line. GitHub says `line` for every other comment, and an old
     comment that says nothing at all named a line, which is what it reads as.
     """
@@ -233,7 +233,7 @@ class InlineComment(Post):
         A commit that lands after the comment can move the code it was written
         against, or take it away. GitHub then answers no line and keeps the
         original, which is the line the comment was written against and the one
-        the session has to be told about.
+        the assignment has to be told about.
 
         Anything that is not a document at all passes straight through, so
         pydantic is what says why it cannot be read.
@@ -392,7 +392,7 @@ def list_posts(*, repository: str, pull_request: int) -> list[AnyPost] | Unknown
 
     The three come back as one list, because somebody reading a pull request
     reads what was written on it and not three lists to reconcile. Nothing is
-    left out: whose post it is, and whether the session has heard it already,
+    left out: whose post it is, and whether the assignment has heard it already,
     is the relay's rule and none of this read's business.
 
     A source the tool could not read answers unknown for the whole pull

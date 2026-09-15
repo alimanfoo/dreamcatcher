@@ -1,4 +1,4 @@
-"""Run the git commands that make and unmake a session's worktree.
+"""Run the git commands that make and unmake an assignment's worktree.
 
 Every one of these raises CommandError when git refuses, carrying git's own
 words, so no caller has to guess what went wrong. What to do about a creation

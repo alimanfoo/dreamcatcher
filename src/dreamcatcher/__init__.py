@@ -1,1 +1,1 @@
-"""Carry labelled issues to pull requests with autonomous agent sessions."""
+"""Carry labelled issues to pull requests with autonomous agent assignments."""

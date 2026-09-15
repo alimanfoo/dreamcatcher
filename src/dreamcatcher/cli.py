@@ -17,11 +17,11 @@ from dreamcatcher.state import StateDirectory
 # How a view names the issue it is about, as the issue itself is written.
 ISSUE = re.compile(r"gh(\d+)\Z", re.IGNORECASE)
 
-# The help that says when a view of one session ends, which the session view
+# The help that says when a view of one assignment ends, which the assignment view
 # and the feed both give, since a reader reads one verb's help and no other.
 HELP_WHEN_A_VIEW_ENDS = (
-    "It ends once the session has run its final round, and on a stuck "
-    "session, which only you can move on. Interrupt it to end it sooner."
+    "It ends once the assignment has run its final round, and on a stuck "
+    "assignment, which only you can move on. Interrupt it to end it sooner."
 )
 
 # The help that says what a view does to the terminal it runs in, which the two
@@ -57,7 +57,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="run the dreamcatcher daemon",
         description=(
             "Watch this repository for labelled issues, dispatch an agent "
-            "session for each, and carry every session on until its pull "
+            "assignment for each, and carry every assignment on until its pull "
             "request is ready for you to review. One daemon watches one "
             "repo, so a second run on this one refuses while the first is "
             "alive."
@@ -74,9 +74,9 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.set_defaults(act=_run)
     board_parser = verbs.add_parser(
         "board",
-        help="show an overview of every session and every queued issue",
+        help="show an overview of every assignment and every queued issue",
         description=(
-            "Show every session and every queued issue, a section per "
+            "Show every assignment and every queued issue, a section per "
             "standing, in the order of whose turn it is. It keeps up until "
             "you interrupt it. "
             + HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
@@ -85,32 +85,32 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     board_parser.set_defaults(act=_show_board)
-    session_parser = verbs.add_parser(
-        "session",
-        help="show one issue's newest session, in detail",
+    assignment_parser = verbs.add_parser(
+        "assignment",
+        help="show one issue's newest assignment, in detail",
         description=(
-            "Show an overview of the newest session at the issue: what "
+            "Show an overview of the newest assignment at the issue: what "
             "its dispatch settled, the rounds it has run, the command that "
-            "takes the session over by hand, and the older sessions at the "
-            "same issue. It keeps up for as long as the session has another "
+            "takes the harness session over by hand, and the older assignments at the "
+            "same issue. It keeps up for as long as the assignment has another "
             "round coming. "
             + HELP_WHEN_A_VIEW_ENDS
             + " "
             + HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
-            + " A session that is over stays on the screen for you to read. "
+            + " An assignment that is over stays on the screen for you to read. "
             "Interrupt one that is still going and nothing is left behind. "
             + HELP_WHEN_NOTHING_WATCHES
         ),
     )
-    _take_an_issue(parser=session_parser)
-    session_parser.set_defaults(act=_show_session)
+    _take_an_issue(parser=assignment_parser)
+    assignment_parser.set_defaults(act=_show_assignment)
     feed_parser = verbs.add_parser(
         "feed",
         help="show what the agent said, as it says it",
         description=(
             "Show the agent's actions and outputs from every round of "
-            "the issue's newest session, and keep showing what arrives for "
-            "as long as the session has another round coming. "
+            "the issue's newest assignment, and keep showing what arrives for "
+            "as long as the assignment has another round coming. "
             + HELP_WHEN_A_VIEW_ENDS
             + " "
             + HELP_WHEN_NOTHING_WATCHES
@@ -123,7 +123,7 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="N",
         help=(
             "show the feed of that round alone, ending when that round "
-            "ends. The session view's round list is where you find the "
+            "ends. The assignment view's round list is where you find the "
             "number"
         ),
     )
@@ -162,9 +162,9 @@ def _show_board(*, args: argparse.Namespace) -> None:
     tui.show_board(state=_find_state(root=Path.cwd()), console=tui.open_console())
 
 
-def _show_session(*, args: argparse.Namespace) -> None:
-    """Show the issue's newest session, from the checkout we are in."""
-    tui.show_session(
+def _show_assignment(*, args: argparse.Namespace) -> None:
+    """Show the issue's newest assignment, from the checkout we are in."""
+    tui.show_assignment(
         state=_find_state(root=Path.cwd()), issue=args.issue, console=tui.open_console()
     )
 

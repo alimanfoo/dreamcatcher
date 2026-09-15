@@ -1,17 +1,17 @@
-"""Compose the prompts that the daemon starts and resumes a session with.
+"""Compose the prompts that the daemon starts and resumes an assignment with.
 
-A session is asked something at each of the four points its life can turn on: a
+An assignment is asked something at each of the four points its life can turn on: a
 dispatch opens it, an unfinished round is carried on, the user posts on the
 pull request, and a merged or closed pull request calls for a last round. Every
-one of those prompts ends with the same postscript, so a session marks its posts
+one of those prompts ends with the same postscript, so an assignment marks its posts
 whichever woke it.
 """
 
 from pathlib import Path
 
-# The line that every post that a session makes on GitHub ends with. The daemon
-# and the session share one GitHub account, so this is what tells the two
-# apart: a post carrying it is the session's own, and the relay leaves it
+# The line that every post that an assignment makes on GitHub ends with. The daemon
+# and the assignment share one GitHub account, so this is what tells the two
+# apart: a post carrying it is the assignment's own, and the relay leaves it
 # alone. It is a fixed literal with nothing in it to vary, and an HTML comment,
 # so a reader of the post never sees it.
 MARKER = "<!-- dreamcatcher -->"
@@ -21,7 +21,7 @@ MARKER = "<!-- dreamcatcher -->"
 ISSUE_PLACEHOLDER = "{issue}"
 
 # What every prompt that the daemon composes ends with, whichever harness runs
-# the session and whatever woke it. The daemon adds this itself, so a skill it
+# the assignment and whatever woke it. The daemon adds this itself, so a skill it
 # dispatches needs no knowledge of the marker.
 POSTSCRIPT = f"""
 
@@ -57,24 +57,24 @@ INBOX_PROMPT = """PR-inbox prompt for pull request #{pull_request}:
   {inbox}
 
 Read that JSON file. Read state before anything else. If state is MERGED or
-CLOSED, finish per your session's rules. Otherwise act on posts per your
-session's rules. End your turn when done."""
+CLOSED, finish per your assignment's rules. Otherwise act on posts per your
+assignment's rules. End your turn when done."""
 
 
 def compose_first_round_prompt(*, template: str, issue: int) -> str:
-    """Return the prompt that opens a session on the issue.
+    """Return the prompt that opens an assignment on the issue.
 
     The template is the label's own, from the config, and the issue's number
     replaces the placeholder in it. Anything else that the template holds in
-    braces reaches the session as it was written.
+    braces reaches the assignment as it was written.
     """
     return template.replace(ISSUE_PLACEHOLDER, str(issue)) + POSTSCRIPT
 
 
 def compose_inbox_prompt(*, pull_request: int, inbox: Path) -> str:
-    """Return the prompt that sends a session to the inbox a round was given.
+    """Return the prompt that sends an assignment to the inbox a round was given.
 
-    The pull request is the session's own, and the inbox is the file that the
+    The pull request is the assignment's own, and the inbox is the file that the
     round writes the batch to before it starts.
     """
     return INBOX_PROMPT.format(pull_request=pull_request, inbox=inbox) + POSTSCRIPT

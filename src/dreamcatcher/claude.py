@@ -103,7 +103,7 @@ class Claude(Adapter):
             "--allowedTools",
             " ".join(ALLOWED_TOOLS),
             "--name",
-            launch.session,
+            launch.assignment_id,
         ]
 
 

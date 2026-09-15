@@ -1,12 +1,12 @@
-"""Show what the sessions are doing, from what the daemon left on the disk.
+"""Show what the assignments are doing, from what the daemon left on the disk.
 
 This is the terminal interface, and the whole of it. It holds the three views
-a reader reaches through a verb of the command line: the board, one session,
-and one session's feed. It reads the state directory and never talks to GitHub
+a reader reaches through a verb of the command line: the board, one assignment,
+and one assignment's feed. It reads the state directory and never talks to GitHub
 or to the daemon, so it answers whether the daemon is alive or dead, and
 answers fastest when you most want to look.
 
-The board and one session are pictures of a state, so each is drawn over the
+The board and one assignment are pictures of a state, so each is drawn over the
 one before it. A feed is a log, so it is printed as it is read, and the reader
 keeps their scrollback.
 
@@ -26,10 +26,11 @@ from rich.padding import Padding
 from rich.table import Table
 from rich.text import Text
 
+from dreamcatcher.agent_assignments import AgentAssignment
 from dreamcatcher.board import (
+    AgentAssignmentRow,
+    AgentAssignmentStanding,
     Board,
-    SessionRow,
-    SessionStanding,
     read_board,
     read_rows_for_issue,
 )
@@ -39,26 +40,28 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import GAP, Line, compose_round_boundary, read_feed_line
 from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.rounds import RoundRecord
-from dreamcatcher.sessions import Session
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.words import describe_count, describe_span, describe_time
 
 # What each section of the board is set in, so a reader finds the one they
 # came for without reading the words.
 COLOURS = {
-    SessionStanding.NEEDS_YOU: "yellow",
-    SessionStanding.WORKING: "green",
-    SessionStanding.WAITING: "cyan",
-    SessionStanding.STUCK: "red",
-    SessionStanding.DONE: "dim",
+    AgentAssignmentStanding.NEEDS_YOU: "yellow",
+    AgentAssignmentStanding.WORKING: "green",
+    AgentAssignmentStanding.WAITING: "cyan",
+    AgentAssignmentStanding.STUCK: "red",
+    AgentAssignmentStanding.DONE: "dim",
 }
 
 QUEUE = "queued"
 
-# The standings at which a view of that session ends. A session standing at
+# The standings at which a view of that assignment ends. An assignment standing at
 # either of them has no round coming, so a view of it has seen the last of what
 # it will ever show.
-STANDINGS_THAT_END_A_VIEW = (SessionStanding.DONE, SessionStanding.STUCK)
+STANDINGS_THAT_END_A_VIEW = (
+    AgentAssignmentStanding.DONE,
+    AgentAssignmentStanding.STUCK,
+)
 
 # How long a following view waits between looks at what the round has written.
 PAUSE = 1.0
@@ -108,7 +111,7 @@ def _repaint(*, console: Console, look: Callable[[], _Picture], wait: Wait) -> N
 
     Handing the screen back brings the shell's own output back and takes the
     last picture with it, so a view whose last look found it over prints that
-    picture where the reader can go on reading it. A session that was already
+    picture where the reader can go on reading it. An assignment that was already
     over when the view opened is drawn once and printed, which is what a
     reader looking one up reads. A view that the reader interrupts while
     something is still coming leaves nothing behind, because interrupting is
@@ -175,7 +178,7 @@ def show_board(
     clock: Callable[[], datetime] = now,
     wait: Wait = sleep,
 ) -> None:
-    """Show every session and every queued issue, and keep on showing them.
+    """Show every assignment and every queued issue, and keep on showing them.
 
     A board always has something more to show: a daemon can start, a tick can
     dispatch, a round can begin. So a board is never over, and a reader
@@ -203,7 +206,7 @@ def _look_at_board(*, state: StateDirectory, clock: Callable[[], datetime]) -> _
 
 
 def _render_board(*, board: Board) -> RenderableType:
-    """Return every session and every queued issue, sorted by whose turn it is.
+    """Return every assignment and every queued issue, sorted by whose turn it is.
 
     The sections run in the order of whose turn it is, so the reader meets the
     work waiting on them first and the work that is finished last. A section
@@ -212,12 +215,12 @@ def _render_board(*, board: Board) -> RenderableType:
     return _render_parts(
         parts=[
             _describe_daemon(board=board),
-            _render_rows(board=board, standing=SessionStanding.NEEDS_YOU),
-            _render_rows(board=board, standing=SessionStanding.WORKING),
-            _render_rows(board=board, standing=SessionStanding.WAITING),
-            _render_rows(board=board, standing=SessionStanding.STUCK),
+            _render_rows(board=board, standing=AgentAssignmentStanding.NEEDS_YOU),
+            _render_rows(board=board, standing=AgentAssignmentStanding.WORKING),
+            _render_rows(board=board, standing=AgentAssignmentStanding.WAITING),
+            _render_rows(board=board, standing=AgentAssignmentStanding.STUCK),
             _render_queue(board=board),
-            _render_rows(board=board, standing=SessionStanding.DONE),
+            _render_rows(board=board, standing=AgentAssignmentStanding.DONE),
             _describe_nothing_dispatched(board=board),
         ]
     )
@@ -227,7 +230,7 @@ def _render_parts(*, parts: Sequence[RenderableType | None]) -> RenderableType:
     """Return the parts of a view that have something to say, as one renderable.
 
     A part with nothing to say answers nothing, so it is left out rather than
-    shown empty. The board and one session both compose themselves through
+    shown empty. The board and one assignment both compose themselves through
     this, so what that means is written down once.
     """
     return Group(*(part for part in parts if part is not None))
@@ -251,35 +254,37 @@ def _describe_daemon(*, board: Board) -> Text:
     return Text(f"{daemon}, last tick {ticked} ago{held}")
 
 
-def _render_rows(*, board: Board, standing: SessionStanding) -> RenderableType | None:
-    """Return the sessions standing there, a row for each, or nothing if none do."""
+def _render_rows(
+    *, board: Board, standing: AgentAssignmentStanding
+) -> RenderableType | None:
+    """Return the assignments standing there, a row for each, or nothing if none do."""
     rows = board.list_rows_for_standing(standing=standing)
     if not rows:
         return None
     table = _open_table()
     for row in rows:
         table.add_row(
-            Text(row.session.key),
+            Text(row.assignment.identifier),
             _render_detail(row=row, prefix=_describe_round(row=row)),
         )
     return _render_section(heading=str(standing), colour=COLOURS[standing], body=table)
 
 
-def _describe_round(*, row: SessionRow) -> str:
+def _describe_round(*, row: AgentAssignmentRow) -> str:
     """Return which round is running, or nothing while none is.
 
-    A number says which round only while a round is running. A session between
+    A number says which round only while a round is running. An assignment between
     rounds has one behind it and another to come, and a bare number there reads
     as either.
     """
-    if row.standing is not SessionStanding.WORKING:
+    if row.standing is not AgentAssignmentStanding.WORKING:
         return ""
-    return f"round {len(row.session.rounds)}"
+    return f"round {len(row.assignment.rounds)}"
 
 
 def _render_detail(
     *,
-    row: SessionRow,
+    row: AgentAssignmentRow,
     prefix: str = "",
     continuation_indent: int = 0,
     style: str = "",
@@ -309,7 +314,7 @@ def _render_queue(*, board: Board) -> RenderableType | None:
 def _describe_nothing_dispatched(*, board: Board) -> Text | None:
     """Return the line for a board with nothing on it, or nothing while it has.
 
-    A board with no session and no queued issue would otherwise be the daemon's
+    A board with no assignment and no queued issue would otherwise be the daemon's
     line and blank space, which reads as a view that failed rather than as a
     repo nothing has been dispatched in.
     """
@@ -321,9 +326,9 @@ def _describe_nothing_dispatched(*, board: Board) -> Text | None:
 def _open_table() -> Table:
     """Return an empty table whose columns fit whatever a section puts in them.
 
-    The first column names a session or an issue, which is what a reader picks
+    The first column names an assignment or an issue, which is what a reader picks
     a row out by, so it folds onto another line rather than being cut short.
-    Two sessions at one issue differ only in the time in their keys, and a cut
+    Two assignments at one issue differ only in the time in their keys, and a cut
     that reached that far would leave the rows reading the same.
     """
     table = Table(box=None, show_header=False, pad_edge=False)
@@ -346,7 +351,7 @@ def _render_section(
     )
 
 
-def show_session(
+def show_assignment(
     *,
     state: StateDirectory,
     issue: int,
@@ -354,47 +359,49 @@ def show_session(
     clock: Callable[[], datetime] = now,
     wait: Wait = sleep,
 ) -> None:
-    """Show the newest session at the issue, and keep on showing it.
+    """Show the newest assignment at the issue, and keep on showing it.
 
-    A session between rounds has another round coming, so the view stays open
-    through the gap and shows that round as it starts. A session that has run
-    its final round, and a stuck session, have no round coming, so either one
+    An assignment between rounds has another round coming, so the view stays open
+    through the gap and shows that round as it starts. An assignment that has run
+    its final round, and a stuck assignment, have no round coming, so either one
     ends the view. A console that is no terminal has nobody watching, so there
-    the session is drawn once and this returns.
+    the assignment is drawn once and this returns.
     """
     _repaint(
         console=console,
-        look=lambda: _look_at_session(state=state, issue=issue, clock=clock),
+        look=lambda: _look_at_assignment(state=state, issue=issue, clock=clock),
         wait=wait,
     )
 
 
-def _look_at_session(
+def _look_at_assignment(
     *, state: StateDirectory, issue: int, clock: Callable[[], datetime]
 ) -> _Picture:
-    """Return the newest session at the issue as it stands, and whether it is over.
+    """Return the newest assignment at the issue as it stands, and whether it is over.
 
     One look reads the issue's rows once, and takes both what it draws and
-    where the session stands from them.
+    where the assignment stands from them.
     """
     rows = _find_rows_for_issue(state=state, issue=issue, clock=clock)
     return _Picture(
-        shown=_render_session(state=state, rows=rows),
+        shown=_render_assignment(state=state, rows=rows),
         is_over=rows[0].standing in STANDINGS_THAT_END_A_VIEW,
     )
 
 
-def _render_session(*, state: StateDirectory, rows: list[SessionRow]) -> RenderableType:
-    """Return the newest of these sessions, with the older ones beneath it.
+def _render_assignment(
+    *, state: StateDirectory, rows: list[AgentAssignmentRow]
+) -> RenderableType:
+    """Return the newest of these assignments, with the older ones beneath it.
 
-    An issue that has been dispatched more than once has a session for each
+    An issue that has been dispatched more than once has an assignment for each
     dispatch. The newest is the one still going, or the one that got furthest,
     so it is the one the view is about.
     """
     newest = rows[0]
     return _render_parts(
         parts=[
-            Text(newest.session.key),
+            Text(newest.assignment.identifier),
             _render_detail(
                 row=newest,
                 prefix=str(newest.standing),
@@ -404,14 +411,14 @@ def _render_session(*, state: StateDirectory, rows: list[SessionRow]) -> Rendera
             _render_vitals(state=state, row=newest),
             _render_rounds(row=newest),
             _render_hand_resume(state=state, row=newest),
-            _render_older_sessions(older=rows[1:]),
+            _render_older_assignments(older=rows[1:]),
         ]
     )
 
 
-def _render_vitals(*, state: StateDirectory, row: SessionRow) -> RenderableType:
-    """Return what the dispatch settled, which every round of the session runs with."""
-    record = row.session.record
+def _render_vitals(*, state: StateDirectory, row: AgentAssignmentRow) -> RenderableType:
+    """Return what the dispatch settled for every round of the assignment."""
+    record = row.assignment.record
     table = _open_table()
     for name, value in (
         ("label", record.label),
@@ -422,24 +429,26 @@ def _render_vitals(*, state: StateDirectory, row: SessionRow) -> RenderableType:
         ("effort", record.effort),
     ):
         table.add_row(Text(name), Text(str(value)))
-    return _render_section(heading="session", colour="blue", body=table)
+    return _render_section(heading="assignment", colour="blue", body=table)
 
 
-def _render_rounds(*, row: SessionRow) -> RenderableType | None:
-    """Return the rounds the session has run, newest first.
+def _render_rounds(*, row: AgentAssignmentRow) -> RenderableType | None:
+    """Return the rounds the assignment has run, newest first.
 
     The newest round is the one a reader came for, so it opens the section,
-    as the newest session opens the view. Each round keeps the number it ran
+    as the newest assignment opens the view. Each round keeps the number it ran
     under, because that is the number `feed --round` takes.
 
-    A session that has run none answers nothing.
+    An assignment that has run none answers nothing.
     """
-    rounds = row.session.rounds
+    rounds = row.assignment.rounds
     if not rounds:
         return None
     table = _open_table()
     for number, record in reversed(list(enumerate(rounds, start=1))):
-        is_running = row.standing is SessionStanding.WORKING and number == len(rounds)
+        is_running = row.standing is AgentAssignmentStanding.WORKING and number == len(
+            rounds
+        )
         table.add_row(
             Text(str(number)),
             Text(record.cause),
@@ -470,19 +479,19 @@ def _describe_ending(*, record: RoundRecord, is_running: bool) -> str:
 
 
 def _render_hand_resume(
-    *, state: StateDirectory, row: SessionRow
+    *, state: StateDirectory, row: AgentAssignmentRow
 ) -> RenderableType | None:
-    """Return how to carry the session on by hand, when there is one to carry on.
+    """Return how to carry the assignment on by hand, when there is one to carry on.
 
     A round of the daemon's own is talking to the harness already, so there is
-    nothing to take over until it has finished. A session that has run no round
+    nothing to take over until it has finished. An assignment that has run no round
     at all has no harness session behind it either, so there is nothing to
     take over there and never will be.
     """
-    if row.standing is SessionStanding.WORKING or not row.session.rounds:
+    if row.standing is AgentAssignmentStanding.WORKING or not row.assignment.rounds:
         return None
-    worktree = state.describe_path(path=row.session.record.worktree)
-    command = " ".join(ADAPTERS[row.session.record.harness].build_hand_resume())
+    worktree = state.describe_path(path=row.assignment.record.worktree)
+    command = " ".join(ADAPTERS[row.assignment.record.harness].build_hand_resume())
     return _render_section(
         heading="take it over yourself",
         colour="blue",
@@ -490,21 +499,23 @@ def _render_hand_resume(
     )
 
 
-def _render_older_sessions(*, older: list[SessionRow]) -> RenderableType | None:
-    """Return the sessions at this issue that came before, newest first.
+def _render_older_assignments(
+    *, older: list[AgentAssignmentRow]
+) -> RenderableType | None:
+    """Return the assignments at this issue that came before, newest first.
 
-    A session that is the only one at its issue has none, and answers nothing.
+    An assignment that is the only one at its issue has none, and answers nothing.
     """
     if not older:
         return None
     table = _open_table()
     for row in older:
         table.add_row(
-            Text(row.session.key),
+            Text(row.assignment.identifier),
             Text(str(row.standing)),
             _render_detail(row=row),
         )
-    return _render_section(heading="older sessions", colour="blue", body=table)
+    return _render_section(heading="older assignments", colour="blue", body=table)
 
 
 def show_feed(
@@ -515,30 +526,30 @@ def show_feed(
     round_number: int | None = None,
     wait: Wait = sleep,
 ) -> None:
-    """Show what the issue's newest session said, and follow what arrives.
+    """Show what the issue's newest assignment said, and follow what arrives.
 
     Naming a round narrows the view to that one round, and everything below is
-    about the view of the whole session, which is what a reader gets when they
+    about the view of the whole assignment, which is what a reader gets when they
     name no round.
 
-    Neither view reads a clock, unlike the board and the session view, which
+    Neither view reads a clock, unlike the board and the assignment view, which
     say how long ago something happened. Every line a feed shows carries the
     time it was written, so what a feed shows is the same whenever it is read.
 
-    Reading a session that is over and watching one that is going are the same
+    Reading an assignment that is over and watching one that is going are the same
     view in two tenses, so this shows what is there and then keeps showing what
-    lands for as long as the session has another round coming.
+    lands for as long as the assignment has another round coming.
 
-    A session between rounds is still going, so the view stays open through the
-    gaps: while the session waits for a round that no daemon has launched yet,
+    An assignment between rounds is still going, so the view stays open through the
+    gaps: while the assignment waits for a round that no daemon has launched yet,
     while its pull request waits for the reader to post on it, and while the
     daemon that was running it is stopped and started again.
 
-    A session that has run its final round has nothing more to say, and a stuck
-    session says nothing more until a person moves it on, so either one ends
+    An assignment that has run its final round has nothing more to say, and a stuck
+    assignment says nothing more until a person moves it on, so either one ends
     the view rather than have it wait for a round that is not coming.
 
-    Every look reads the session again, so a round that starts while the view
+    Every look reads the assignment again, so a round that starts while the view
     is going is shown as it arrives, and not only the rounds it opened with.
 
     A console that is no terminal has nobody watching, so there either view
@@ -552,11 +563,11 @@ def show_feed(
     view = _FeedView(console=console)
 
     def look() -> bool:
-        """Show what the session said since the last look, and say if it is over."""
+        """Show what the assignment said since the last look, and say if it is over."""
         row = _find_rows_for_issue(state=state, issue=issue)[0]
-        session = row.session
+        assignment = row.assignment
         view.show_what_arrived(
-            session=session, round_numbers=range(1, len(session.rounds) + 1)
+            assignment=assignment, round_numbers=range(1, len(assignment.rounds) + 1)
         )
         return row.standing in STANDINGS_THAT_END_A_VIEW
 
@@ -571,50 +582,50 @@ def _show_one_round(
     console: Console,
     wait: Wait,
 ) -> None:
-    """Show one round of the issue's newest session, until that round ends.
+    """Show one round of the issue's newest assignment, until that round ends.
 
     One named round is all this shows, so it ends when that round has, rather
     than stay open for the round after it.
 
-    The round list of the session view is where a reader finds the number, so
-    a number no round of the session carries is the reader's mistake, and is
+    The round list of the assignment view is where a reader finds the number, so
+    a number no round of the assignment carries is the reader's mistake, and is
     the one thing this turns into words for them.
     """
     view = _FeedView(console=console)
 
     def look() -> bool:
         """Show what the round said since the last look, and say if it has ended."""
-        session = _find_rows_for_issue(state=state, issue=issue)[0].session
-        if not 1 <= number <= len(session.rounds):
+        assignment = _find_rows_for_issue(state=state, issue=issue)[0].assignment
+        if not 1 <= number <= len(assignment.rounds):
             raise ReportableError(
-                f"{session.key} has run "
-                f"{describe_count(number=len(session.rounds), noun='round')}, "
+                f"{assignment.identifier} has run "
+                f"{describe_count(number=len(assignment.rounds), noun='round')}, "
                 f"so it has no round {number}."
             )
-        view.show_what_arrived(session=session, round_numbers=[number])
-        return session.rounds[number - 1].is_complete
+        view.show_what_arrived(assignment=assignment, round_numbers=[number])
+        return assignment.rounds[number - 1].is_complete
 
     _keep_looking(console=console, look=look, wait=wait)
 
 
 def _find_rows_for_issue(
     *, state: StateDirectory, issue: int, clock: Callable[[], datetime] = now
-) -> list[SessionRow]:
-    """Return the rows for the issue, newest session first, or refuse if none.
+) -> list[AgentAssignmentRow]:
+    """Return the rows for the issue, newest assignment first, or refuse if none.
 
     A view of one issue reads that issue's rows rather than the whole board,
-    so it never pays for a session it does not show. This is the one place
-    that turns an issue with no session behind it into words for the reader.
+    so it never pays for an assignment it does not show. This is the one place
+    that turns an issue with no assignment behind it into words for the reader.
     """
     rows = read_rows_for_issue(state=state, issue=issue, clock=clock)
     if not rows:
-        raise ReportableError(f"No session here for GH{issue}.")
+        raise ReportableError(f"No assignment here for GH{issue}.")
     return rows
 
 
 @dataclass(frozen=True, kw_only=True)
 class _FeedView:
-    """A session's feed on a console, and how far each round of it has been read.
+    """An assignment's feed on a console, and how far each round of it has been read.
 
     A feed only grows, so a later look at one reads each round on from where
     the last look stopped and shows what arrived. The rounds a position is held
@@ -626,15 +637,19 @@ class _FeedView:
     positions: dict[int, int] = field(default_factory=dict)
 
     def show_what_arrived(
-        self, *, session: Session, round_numbers: Iterable[int]
+        self, *, assignment: AgentAssignment, round_numbers: Iterable[int]
     ) -> None:
-        """Show what these rounds of the session have said since the last look."""
+        """Show what these rounds of the assignment have said since the last look."""
         for round_number in round_numbers:
             if round_number not in self.positions:
-                self._show_round_heading(session=session, round_number=round_number)
-            self._show_new_lines(session=session, round_number=round_number)
+                self._show_round_heading(
+                    assignment=assignment, round_number=round_number
+                )
+            self._show_new_lines(assignment=assignment, round_number=round_number)
 
-    def _show_round_heading(self, *, session: Session, round_number: int) -> None:
+    def _show_round_heading(
+        self, *, assignment: AgentAssignment, round_number: int
+    ) -> None:
         """Show the line that opens a round, saying what caused it.
 
         A feed holds one round, so the stitch between two of them lands in no
@@ -643,16 +658,18 @@ class _FeedView:
         """
         if self.positions:
             self.console.print()
-        record = session.rounds[round_number - 1]
+        record = assignment.rounds[round_number - 1]
         heading = compose_round_boundary(
             number=round_number, cause=record.cause, at=record.started
         )
         self.console.print(_paint(line=heading, said=Text(heading.text, style="bold")))
         self.positions[round_number] = 0
 
-    def _show_new_lines(self, *, session: Session, round_number: int) -> None:
+    def _show_new_lines(
+        self, *, assignment: AgentAssignment, round_number: int
+    ) -> None:
         """Show the lines this round has written since the last look at it."""
-        feed = session.workspace(number=round_number).feed
+        feed = assignment.workspace(number=round_number).feed
         lines, position = read_lines_from(
             path=feed, position=self.positions[round_number]
         )

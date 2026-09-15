@@ -7,7 +7,7 @@ from dreamcatcher.claude import ALLOWED_TOOLS, CLAUDE
 from dreamcatcher.feed import Note, Prose
 
 LAUNCH = Launch(
-    session="GH9-20260819-184158",
+    assignment_id="GH9-20260819-184158",
     model="opus[1m]",
     effort="xhigh",
     prompt="/dream:smith GH9",

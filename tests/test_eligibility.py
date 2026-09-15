@@ -83,10 +83,12 @@ def test_an_issue_carrying_more_than_one_dispatch_label_is_skipped(gh):
     ]
 
 
-def test_an_issue_a_session_of_this_run_is_working_on_is_left_alone(gh):
+def test_an_issue_an_assignment_of_this_run_is_working_on_is_left_alone(gh):
     assert weighed(config=config_with_routes(labels=["dream:smith"]), claimed={8}) == [
         CandidateIssue(
-            issue=8, label=LABEL, reason="a session in this checkout is working on it"
+            issue=8,
+            label=LABEL,
+            reason="an assignment in this checkout is working on it",
         )
     ]
 
