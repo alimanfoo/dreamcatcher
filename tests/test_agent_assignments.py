@@ -12,6 +12,7 @@ from dreamcatcher.agent_assignments import (
     advance_assignment_watermark,
     create_agent_assignment,
     read_agent_assignments,
+    read_agent_assignments_for_issue,
 )
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import CONFIG_NAME, Harness, read_config
@@ -130,6 +131,25 @@ def standing(*, state, rounds: Sequence[RoundRecord]):
     for number, record in enumerate(rounds, start=1):
         write_round(directory=directory, number=number, record=record)
     return read_agent_assignments(state=state)[0]
+
+
+def test_assignments_at_one_issue_are_read_behind_the_assignment_boundary(fabricated):
+    write_agent_assignment(
+        state=fabricated, identifier="GH12-20260818-090000", issue=12
+    )
+    write_agent_assignment(
+        state=fabricated, identifier="GH13-20260819-090000", issue=13
+    )
+    write_agent_assignment(
+        state=fabricated, identifier="GH12-20260820-090000", issue=12
+    )
+
+    assignments = read_agent_assignments_for_issue(state=fabricated, issue=12)
+
+    assert [assignment.identifier for assignment in assignments] == [
+        "GH12-20260818-090000",
+        "GH12-20260820-090000",
+    ]
 
 
 def ended(*, status, minute=0):

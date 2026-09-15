@@ -44,8 +44,8 @@ out:
 
 - `interval` is the seconds between one look at GitHub and the next. It defaults
   to 120.
-- `max_agents` is how many agent assignments may run at once. It defaults to 1,
-  so one issue reaches a pull request before the next one starts.
+- `max_agents` is how many agent rounds may run at once. It defaults to 1, so
+  one issue reaches a pull request before the next one starts.
 - `assignee` is whose issues to pick up, as a GitHub login. It defaults to
   `@me`, the account `gh` is signed in as.
 
@@ -75,7 +75,7 @@ dreamcatcher run --harness claude
 ```
 
 Every `interval` seconds it looks once and launches at most one round. An issue
-is dispatched when it carries exactly one mapped label, is assigned to
+is dispatched when it carries exactly one dispatch label, is assigned to
 `assignee`, has no assignment here already, has no open pull request GitHub
 links to it, and has no open issue blocking it. The oldest such issue goes
 first. A dispatch cuts a branch and a worktree under `.dreamcatcher/`, and runs

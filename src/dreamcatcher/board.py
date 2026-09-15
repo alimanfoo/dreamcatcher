@@ -25,7 +25,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 
-from dreamcatcher.agent_assignments import AgentAssignment, read_agent_assignments
+from dreamcatcher.agent_assignments import (
+    AgentAssignment,
+    read_agent_assignments,
+    read_agent_assignments_for_issue,
+)
 from dreamcatcher.clock import now
 from dreamcatcher.documents import read_json
 from dreamcatcher.feed import Line, read_last_feed_line
@@ -157,11 +161,7 @@ def read_rows_for_issue(
     """
     look = _Look(state=state, clock=clock)
     return look.list_rows(
-        assignments=[
-            one
-            for one in read_agent_assignments(state=state)
-            if one.record.issue == issue
-        ]
+        assignments=read_agent_assignments_for_issue(state=state, issue=issue)
     )
 
 

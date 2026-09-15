@@ -1,0 +1,26 @@
+daemon running as pid 4242, last tick 2m ago
+
+needs you
+  GH20-20260819-184158  idle 2h 0m
+
+agent working
+  GH13-20260819-184158  round 2, running 1h 30m, last output 1h 29m ago
+                        [Bash] pytest                                  
+
+waiting
+  GH31-20260819-184158  1 new post to answer          
+  GH35-20260819-184158  the last round failed (exit 2)
+
+stuck
+  GH9-20260819-184158   no pull request has been opened on it                                       
+                        (.dreamcatcher/assignments/GH9-20260819-184158/rounds/1/feed.txt)           
+  GH44-20260819-184158  no round has run yet                                                        
+
+queued
+  GH50  dream:smith  next                                                         
+  GH51  dream:smith  behind 1 other                                               
+  GH52  dream:smith  blocked by GH50                                              
+  GH53  dream:smith  carries more than one dispatch label: dream:less, dream:smith
+
+done
+  GH12-20260819-184158  2 rounds

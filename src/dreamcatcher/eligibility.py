@@ -68,7 +68,7 @@ def judge_issues(
 def _list_issues(
     *, repository: str, config: Config
 ) -> list[tuple[Issue, list[str]]] | Unknown:
-    """Return each listed issue with the mapped labels it carries, oldest first.
+    """Return each listed issue with the dispatch labels it carries, oldest first.
 
     Two issues can be filed in the same second, so the issue's number breaks the
     tie. They then come back in the same order on every tick.
@@ -101,7 +101,7 @@ def _find_obstacle(
     label check comes first. It also costs no call to GitHub.
     """
     if len(labels) > 1:
-        return f"carries more than one mapped label: {', '.join(sorted(labels))}"
+        return f"carries more than one dispatch label: {', '.join(sorted(labels))}"
     if issue in claimed:
         return "an assignment in this checkout is working on it"
     return _check_pull_requests(repository=repository, issue=issue) or _check_blockers(

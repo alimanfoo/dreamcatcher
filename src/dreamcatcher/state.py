@@ -19,7 +19,7 @@ class CandidateIssue(Document):
     A candidate is an issue under a single label, where the label decides which
     harness runs it and which prompt it starts with.
 
-    An issue that carries two mapped labels becomes a candidate under each of
+    An issue that carries two dispatch labels becomes a candidate under each of
     them, and so cannot be dispatched. The user has to resolve this ambiguity
     first by removing one of the labels.
 

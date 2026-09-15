@@ -183,6 +183,17 @@ def read_agent_assignments(*, state: StateDirectory) -> list[AgentAssignment]:
     ]
 
 
+def read_agent_assignments_for_issue(
+    *, state: StateDirectory, issue: int
+) -> list[AgentAssignment]:
+    """Return the assignments at the issue, by identifier."""
+    return [
+        assignment
+        for assignment in read_agent_assignments(state=state)
+        if assignment.record.issue == issue
+    ]
+
+
 def create_agent_assignment(
     *,
     state: StateDirectory,

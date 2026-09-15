@@ -88,8 +88,8 @@ SAID = (
     Line(at=PINNED + timedelta(minutes=5), text="[result] success"),
 )
 
-# What a tick writes down against an issue carrying two mapped labels.
-DOUBLE_LABELLED = "carries more than one mapped label: dream:less, dream:smith"
+# What a tick writes down against an issue carrying two dispatch labels.
+DOUBLE_LABELLED = "carries more than one dispatch label: dream:less, dream:smith"
 
 
 @pytest.fixture
@@ -280,8 +280,8 @@ def fabricate_a_silent_round(*, state):
 
 BOARDS = {
     "nothing": fabricate_nothing,
-    "assignments-everything": fabricate_everything,
-    "assignments-dead-daemon": fabricate_a_dead_daemon,
+    "dispatch-assignments-everything": fabricate_everything,
+    "dispatch-assignments-dead-daemon": fabricate_a_dead_daemon,
     "at-cap": fabricate_the_cap,
     "silent-round": fabricate_a_silent_round,
     "repeat-assignments": fabricate_repeat_assignments,

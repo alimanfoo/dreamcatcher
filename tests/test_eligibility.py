@@ -73,12 +73,12 @@ def test_an_issue_carrying_more_than_one_dispatch_label_is_skipped(gh):
         CandidateIssue(
             issue=8,
             label=LABEL,
-            reason="carries more than one mapped label: dream:less, dream:smith",
+            reason="carries more than one dispatch label: dream:less, dream:smith",
         ),
         CandidateIssue(
             issue=8,
             label="dream:less",
-            reason="carries more than one mapped label: dream:less, dream:smith",
+            reason="carries more than one dispatch label: dream:less, dream:smith",
         ),
     ]
 
