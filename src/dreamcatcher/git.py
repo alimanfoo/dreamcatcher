@@ -25,6 +25,34 @@ def add_worktree(*, root: Path, path: Path, branch: str) -> None:
     )
 
 
+def has_commits_since_main(*, worktree: Path) -> bool:
+    """Return whether the worktree's branch has moved beyond origin/main."""
+    count = run(
+        program="git",
+        arguments=["rev-list", "--count", "origin/main..HEAD"],
+        cwd=worktree,
+    )
+    return int(count) > 0
+
+
+def make_empty_commit(*, worktree: Path, message: str) -> None:
+    """Make an empty commit on the branch checked out in the worktree."""
+    run(
+        program="git",
+        arguments=["commit", "--allow-empty", "--message", message],
+        cwd=worktree,
+    )
+
+
+def push_branch(*, root: Path, branch: str) -> None:
+    """Push the branch to origin and make that remote branch its upstream."""
+    run(
+        program="git",
+        arguments=["push", "--set-upstream", "origin", branch],
+        cwd=root,
+    )
+
+
 def remove_worktree(*, root: Path, path: Path) -> None:
     """Remove the worktree at path, whatever is left in it."""
     run(

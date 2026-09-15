@@ -18,6 +18,7 @@ from dreamcatcher.github import (
     Review,
     Unknown,
     Verdict,
+    create_pull_request,
     identify_account,
     identify_repository,
     list_blockers,
@@ -25,6 +26,7 @@ from dreamcatcher.github import (
     list_linked_pull_requests,
     list_posts,
     list_pull_requests,
+    read_pull_request,
 )
 
 REPOSITORY = "alimanfoo/dreamcatcher"
@@ -122,6 +124,60 @@ def test_a_branch_with_no_pull_request_comes_back_empty(fake):
     gh.replies(stdout="[]")
 
     assert list_pull_requests(repository=REPOSITORY, branch=BRANCH) == []
+
+
+def test_a_linked_draft_pull_request_is_opened_for_the_assignment_branch(fake):
+    gh = fake(program="gh")
+    gh.replies(
+        stdout="https://github.com/alimanfoo/dreamcatcher/pull/28\n", to="pr create"
+    )
+    gh.replies(stdout=json.dumps({"number": 28, "state": "OPEN"}), to="pr view")
+
+    created = create_pull_request(repository=REPOSITORY, branch=BRANCH, issue=8)
+
+    assert created == PullRequest(number=28, state=PullRequestState.OPEN)
+    assert gh.calls[0].arguments == [
+        "pr",
+        "create",
+        "--repo",
+        REPOSITORY,
+        "--base",
+        "main",
+        "--head",
+        BRANCH,
+        "--draft",
+        "--title",
+        "GH8",
+        "--body",
+        "Closes #8",
+    ]
+    assert gh.calls[1].arguments == [
+        "pr",
+        "view",
+        "https://github.com/alimanfoo/dreamcatcher/pull/28",
+        "--repo",
+        REPOSITORY,
+        "--json",
+        "number,state",
+    ]
+
+
+def test_a_pull_request_is_read_by_its_persisted_identity(fake):
+    gh = fake(program="gh")
+    gh.replies(stdout=json.dumps({"number": 28, "state": "MERGED"}))
+
+    found = read_pull_request(repository=REPOSITORY, pull_request=28)
+
+    assert found == PullRequest(number=28, state=PullRequestState.MERGED)
+    assert gh.calls[0].arguments == [
+        "pr",
+        "view",
+        "28",
+        "--repo",
+        REPOSITORY,
+        "--json",
+        "number,state",
+    ]
 
 
 def test_the_pull_requests_linked_to_an_issue_come_back(fake):

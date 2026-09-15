@@ -259,6 +259,7 @@ REPOSITORY = TypeAdapter(Repository)
 ACCOUNT = TypeAdapter(Account)
 ISSUES = TypeAdapter(list[Issue])
 PULL_REQUESTS = TypeAdapter(list[PullRequest])
+PULL_REQUEST = TypeAdapter(PullRequest)
 BLOCKERS = TypeAdapter(list[Blocker])
 LINKED = TypeAdapter(Linked)
 CONVERSATION = TypeAdapter(list[list[Comment]])
@@ -340,6 +341,52 @@ def list_pull_requests(*, repository: str, branch: str) -> list[PullRequest] | U
             branch,
             "--state",
             "all",
+            "--json",
+            "number,state",
+        ],
+    )
+
+
+def create_pull_request(
+    *, repository: str, branch: str, issue: int
+) -> PullRequest | Unknown:
+    """Open the branch's linked draft pull request and return its identity."""
+    reference = run(
+        program="gh",
+        arguments=[
+            "pr",
+            "create",
+            "--repo",
+            repository,
+            "--base",
+            "main",
+            "--head",
+            branch,
+            "--draft",
+            "--title",
+            f"GH{issue}",
+            "--body",
+            f"Closes #{issue}",
+        ],
+    ).strip()
+    return _read_pull_request(repository=repository, reference=reference)
+
+
+def read_pull_request(*, repository: str, pull_request: int) -> PullRequest | Unknown:
+    """Return the pull request with this persisted identity."""
+    return _read_pull_request(repository=repository, reference=str(pull_request))
+
+
+def _read_pull_request(*, repository: str, reference: str) -> PullRequest | Unknown:
+    """Return one pull request named by a number or URL."""
+    return _read(
+        shape=PULL_REQUEST,
+        arguments=[
+            "pr",
+            "view",
+            reference,
+            "--repo",
+            repository,
             "--json",
             "number,state",
         ],
