@@ -186,6 +186,35 @@ def test_every_tick_records_when_it_ran(watched, harnesses, gh, capsys):
     )
 
 
+def test_a_successful_scheduler_tick_is_recorded_and_reported(
+    watched, capsys, monkeypatch
+):
+    daemon, _, _ = idling(root=watched, ticks=1)
+    scheduler = Scheduler(
+        repository=REPOSITORY,
+        account=POSTED_BY,
+        config=daemon.config,
+        state=daemon.state,
+        harness=daemon.harness,
+        clock=daemon.clock,
+        rounds=daemon.rounds,
+    )
+    observed = LastTick(at=PINNED, launched=KEY)
+
+    def launch(*, at):
+        assert at == PINNED
+        return observed
+
+    monkeypatch.setattr(scheduler, "tick", launch)
+
+    daemon.tick(scheduler=scheduler, at=PINNED)
+
+    assert recorded(daemon=daemon) == observed
+    assert (
+        capsys.readouterr().out == f"2026-08-19T18:41:58Z  launched round for {KEY}\n"
+    )
+
+
 def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(
     watched, harnesses, gh
 ):
