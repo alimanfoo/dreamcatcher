@@ -112,6 +112,7 @@ class PullRequest(Projection):
 
     number: int
     state: PullRequestState
+    is_draft: bool = Field(alias="isDraft")
 
 
 class Blocker(Projection):
@@ -130,9 +131,10 @@ class LinkedPullRequest(Projection):
 class Linked(Projection):
     """What GitHub links to one issue.
 
-    GitHub lists only the open pull requests here, and counts both the ones that
-    said they close the issue and the ones somebody linked by hand. A declined
-    assignment drops out, which is what leaves its issue free to go again.
+    GitHub lists pull requests in every state here, and counts both the ones that
+    said they close the issue and the ones somebody linked by hand. The public
+    read below checks their current state and returns only the open ones, so a
+    declined assignment leaves its issue free to go again.
     """
 
     pull_requests: list[LinkedPullRequest] = Field(
@@ -342,7 +344,7 @@ def list_pull_requests(*, repository: str, branch: str) -> list[PullRequest] | U
             "--state",
             "all",
             "--json",
-            "number,state",
+            "number,state,isDraft",
         ],
     )
 
@@ -388,7 +390,7 @@ def _read_pull_request(*, repository: str, reference: str) -> PullRequest | Unkn
             "--repo",
             repository,
             "--json",
-            "number,state",
+            "number,state,isDraft",
         ],
     )
 
@@ -416,7 +418,16 @@ def list_linked_pull_requests(
     )
     if isinstance(answered, Unknown):
         return answered
-    return answered.pull_requests
+    open_pull_requests = []
+    for linked in answered.pull_requests:
+        pull_request = read_pull_request(
+            repository=repository, pull_request=linked.number
+        )
+        if isinstance(pull_request, Unknown):
+            return pull_request
+        if pull_request.state is PullRequestState.OPEN:
+            open_pull_requests.append(linked)
+    return open_pull_requests
 
 
 def list_blockers(*, repository: str, issue: int) -> list[Blocker] | Unknown:

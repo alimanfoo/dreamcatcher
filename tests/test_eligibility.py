@@ -2,7 +2,15 @@ import json
 from collections.abc import Sequence
 
 import pytest
-from conftest import FILED, LABEL, LATER, REPOSITORY, listing
+from conftest import (
+    FILED,
+    LABEL,
+    LATER,
+    REPOSITORY,
+    listing,
+    pull_request,
+    pull_requests,
+)
 
 from dreamcatcher.config import Config
 from dreamcatcher.eligibility import judge_issues
@@ -11,6 +19,7 @@ from dreamcatcher.state import CandidateIssue
 
 # A block for one harness, so a label the tests write maps to something.
 SETTINGS = {"prompt": "/dream:smith GH{issue}", "model": "opus[1m]", "effort": "xhigh"}
+RECOVERY_BRANCH = "dreamcatcher-GH8-20260820-000456"
 
 
 def config_with_routes(*, labels: Sequence[str]) -> Config:
@@ -28,17 +37,19 @@ def gh(fake):
     stand_in.replies(
         stdout=json.dumps({"closedByPullRequestsReferences": []}), to="issue view"
     )
+    stand_in.replies(stdout=pull_request(state="OPEN", is_draft=True), to="pr view")
+    stand_in.replies(stdout="[]", to="pr list")
     stand_in.replies(stdout=json.dumps([{"number": 7, "state": "closed"}]), to="api")
     return stand_in
 
 
-def weighed(*, config, claimed=frozenset(), recovering=frozenset()):
+def weighed(*, config, claimed=frozenset(), recovering=None):
     """The candidates for that config, given that the listing came through."""
     judged = judge_issues(
         repository=REPOSITORY,
         config=config,
         claimed=set(claimed),
-        recovering=set(recovering),
+        recovering={} if recovering is None else recovering,
     )
     assert not isinstance(judged, Unknown)
     return judged
@@ -67,7 +78,7 @@ def test_a_listing_the_tool_cannot_read_answers_unknown_for_the_whole_tick(gh):
         repository=REPOSITORY,
         config=config_with_routes(labels=["dream:smith"]),
         claimed=set(),
-        recovering=set(),
+        recovering={},
     )
 
     assert isinstance(judged, Unknown)
@@ -116,9 +127,117 @@ def test_an_incomplete_local_assignment_can_adopt_its_pull_request(gh):
         to="issue view",
     )
 
+    gh.replies(stdout=pull_requests(listed=[(28, "OPEN")]), to="pr list")
+
     assert weighed(
-        config=config_with_routes(labels=["dream:smith"]), recovering={8}
+        config=config_with_routes(labels=["dream:smith"]),
+        recovering={8: [RECOVERY_BRANCH]},
     ) == [CandidateIssue(issue=8, label=LABEL)]
+
+
+def test_an_unrelated_pull_request_still_blocks_incomplete_local_setup(gh):
+    gh.replies(
+        stdout=json.dumps({"closedByPullRequestsReferences": [{"number": 28}]}),
+        to="issue view",
+    )
+
+    assert weighed(
+        config=config_with_routes(labels=["dream:smith"]),
+        recovering={8: [RECOVERY_BRANCH]},
+    ) == [
+        CandidateIssue(issue=8, label=LABEL, reason="a pull request is open on it: #28")
+    ]
+
+
+def test_several_incomplete_local_setups_are_not_retried(gh):
+    assert weighed(
+        config=config_with_routes(labels=["dream:smith"]),
+        recovering={8: [RECOVERY_BRANCH, "dreamcatcher-GH8-20260820-010000"]},
+    ) == [
+        CandidateIssue(
+            issue=8,
+            label=LABEL,
+            reason="several incomplete assignment setups are waiting to recover",
+        )
+    ]
+
+
+def test_an_incomplete_branch_listing_failure_prevents_recovery(gh):
+    gh.fails(stderr="gh: could not connect to github.com", to="pr list")
+
+    judged = weighed(
+        config=config_with_routes(labels=["dream:smith"]),
+        recovering={8: [RECOVERY_BRANCH]},
+    )
+
+    assert judged[0].reason is not None
+    assert "cannot reconcile its incomplete setup" in judged[0].reason
+
+
+def test_several_pull_requests_on_an_incomplete_branch_prevent_recovery(gh):
+    gh.replies(
+        stdout=pull_requests(listed=[(28, "OPEN"), (29, "CLOSED")]), to="pr list"
+    )
+
+    judged = weighed(
+        config=config_with_routes(labels=["dream:smith"]),
+        recovering={8: [RECOVERY_BRANCH]},
+    )
+
+    assert judged[0].reason == (
+        f"its incomplete branch {RECOVERY_BRANCH} has more than one pull request"
+    )
+
+
+def test_a_finished_pull_request_on_an_incomplete_branch_prevents_recovery(gh):
+    gh.replies(stdout=pull_requests(listed=[(28, "MERGED")]), to="pr list")
+
+    assert weighed(
+        config=config_with_routes(labels=["dream:smith"]),
+        recovering={8: [RECOVERY_BRANCH]},
+    ) == [
+        CandidateIssue(
+            issue=8,
+            label=LABEL,
+            reason="its incomplete branch's pull request #28 is merged",
+        )
+    ]
+
+
+def test_a_ready_pull_request_on_an_incomplete_branch_prevents_recovery(gh):
+    gh.replies(
+        stdout=json.dumps([{"number": 28, "state": "OPEN", "isDraft": False}]),
+        to="pr list",
+    )
+
+    assert weighed(
+        config=config_with_routes(labels=["dream:smith"]),
+        recovering={8: [RECOVERY_BRANCH]},
+    ) == [
+        CandidateIssue(
+            issue=8,
+            label=LABEL,
+            reason=(
+                "its incomplete branch's pull request #28 is ready for review "
+                "rather than draft"
+            ),
+        )
+    ]
+
+
+def test_an_unlinked_pull_request_on_an_incomplete_branch_prevents_recovery(gh):
+    gh.replies(stdout=pull_requests(listed=[(28, "OPEN")]), to="pr list")
+
+    assert weighed(
+        config=config_with_routes(labels=["dream:smith"]),
+        recovering={8: [RECOVERY_BRANCH]},
+    ) == [
+        CandidateIssue(
+            issue=8,
+            label=LABEL,
+            reason="its incomplete branch has an unlinked pull request: #28",
+        )
+    ]
 
 
 def test_a_pull_request_read_that_failed_reads_as_claimed(gh):

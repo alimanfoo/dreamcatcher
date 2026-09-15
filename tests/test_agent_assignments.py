@@ -1,9 +1,18 @@
+import json
 from collections.abc import Sequence
 from datetime import timedelta
 
 import pytest
 from clocks import PINNED
-from conftest import CONFIG, PULL_REQUEST, REPOSITORY, commit, git, pull_requests
+from conftest import (
+    CONFIG,
+    PULL_REQUEST,
+    REPOSITORY,
+    commit,
+    git,
+    pull_request,
+    pull_requests,
+)
 from records import write_agent_assignment, write_round
 
 from dreamcatcher.agent_assignments import (
@@ -31,6 +40,13 @@ def create_agent_assignment(*, state, route, named, issue, at):
     """Create one assignment through the repository's creation boundary."""
     creator = AgentAssignmentCreator(state=state, repository=REPOSITORY)
     return creator.create(route=route, named=named, issue=issue, at=at)
+
+
+def linked_pull_requests(*, numbers: Sequence[int]) -> str:
+    """Return what gh says when these pull requests are linked to an issue."""
+    return json.dumps(
+        {"closedByPullRequestsReferences": [{"number": one} for one in numbers]}
+    )
 
 
 @pytest.fixture
@@ -361,6 +377,8 @@ def test_an_assignment_that_cannot_record_reuses_its_complete_setup(state, route
 
     (state.assignments / ASSIGNMENT_ID).unlink()
     gh.replies(stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list")
+    gh.replies(stdout=linked_pull_requests(numbers=[PULL_REQUEST]), to="issue view")
+    gh.replies(stdout=pull_request(state="OPEN", is_draft=True), to="pr view")
     recovered = create_agent_assignment(
         state=state,
         route=route,
@@ -392,6 +410,7 @@ def test_an_interrupted_creation_continues_from_its_existing_artifacts(
         push_branch(root=state.root, branch=BRANCH)
     if checkpoint == "pull request":
         gh.replies(stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list")
+        gh.replies(stdout=linked_pull_requests(numbers=[PULL_REQUEST]), to="issue view")
 
     recovered = create_agent_assignment(
         state=state,
@@ -411,7 +430,7 @@ def test_an_interrupted_creation_continues_from_its_existing_artifacts(
     assert len(created) == (0 if checkpoint == "pull request" else 1)
 
 
-def test_an_issue_with_an_open_assignment_cannot_receive_another(state, route):
+def test_an_issue_with_an_open_assignment_cannot_receive_another(state, route, gh):
     create_agent_assignment(
         state=state,
         route=route,
@@ -429,6 +448,19 @@ def test_an_issue_with_an_open_assignment_cannot_receive_another(state, route):
             at=PINNED + timedelta(hours=1),
         )
 
+    assert len(list(state.worktrees.iterdir())) == 1
+    branches = git(
+        arguments=["branch", "--list", "dreamcatcher-GH12-*"], cwd=state.root
+    )
+    assert len(branches.splitlines()) == 1
+    remote = git(
+        arguments=["ls-remote", "--heads", "origin", "dreamcatcher-GH12-*"],
+        cwd=state.root,
+    )
+    assert len(remote.splitlines()) == 1
+    created = [call for call in gh.calls if call.arguments[:2] == ["pr", "create"]]
+    assert len(created) == 1
+
 
 def test_an_issue_whose_assignment_finished_can_receive_another(state, route):
     first = create_agent_assignment(
@@ -441,7 +473,12 @@ def test_an_issue_whose_assignment_finished_can_receive_another(state, route):
     write_round(
         directory=first.directory,
         number=1,
-        record=RoundRecord(started=PINNED, pid=1, cause=Cause.FINAL),
+        record=RoundRecord(
+            started=PINNED,
+            pid=1,
+            cause=Cause.FINAL,
+            ending=Ending(at=PINNED, status=0),
+        ),
     )
 
     second = create_agent_assignment(
@@ -453,6 +490,38 @@ def test_an_issue_whose_assignment_finished_can_receive_another(state, route):
     )
 
     assert second.identifier == "GH12-20260819-194158"
+
+
+@pytest.mark.parametrize("status", [None, 1])
+def test_an_issue_whose_final_work_is_unfinished_cannot_receive_another(
+    state, route, status
+):
+    first = create_agent_assignment(
+        state=state,
+        route=route,
+        named=Harness.CLAUDE,
+        issue=12,
+        at=PINNED,
+    )
+    write_round(
+        directory=first.directory,
+        number=1,
+        record=RoundRecord(
+            started=PINNED,
+            pid=1,
+            cause=Cause.FINAL,
+            ending=None if status is None else Ending(at=PINNED, status=status),
+        ),
+    )
+
+    with pytest.raises(ReportableError, match="already has open assignment"):
+        create_agent_assignment(
+            state=state,
+            route=route,
+            named=Harness.CLAUDE,
+            issue=12,
+            at=PINNED + timedelta(hours=1),
+        )
 
 
 def test_several_incomplete_setups_for_one_issue_are_reported(state, route):
@@ -471,6 +540,93 @@ def test_several_incomplete_setups_for_one_issue_are_reported(state, route):
             named=Harness.CLAUDE,
             issue=12,
             at=PINNED + timedelta(hours=2),
+        )
+
+
+def test_an_incomplete_worktree_on_another_branch_is_reported(state, route):
+    fetch(root=state.root)
+    add_worktree(
+        root=state.root,
+        path=state.worktrees / ASSIGNMENT_ID,
+        branch="some-other-branch",
+    )
+
+    with pytest.raises(ReportableError, match="some-other-branch, not dreamcatcher"):
+        create_agent_assignment(
+            state=state,
+            route=route,
+            named=Harness.CLAUDE,
+            issue=12,
+            at=PINNED,
+        )
+
+
+@pytest.mark.parametrize("state_name", ["CLOSED", "MERGED"])
+def test_a_finished_pull_request_on_the_incomplete_branch_is_not_adopted(
+    state, route, gh, state_name
+):
+    fetch(root=state.root)
+    worktree = state.worktrees / ASSIGNMENT_ID
+    add_worktree(root=state.root, path=worktree, branch=BRANCH)
+    make_empty_commit(worktree=worktree, message="GH12")
+    push_branch(root=state.root, branch=BRANCH)
+    gh.replies(stdout=pull_requests(listed=[(PULL_REQUEST, state_name)]), to="pr list")
+
+    with pytest.raises(ReportableError, match=state_name.lower()):
+        create_agent_assignment(
+            state=state,
+            route=route,
+            named=Harness.CLAUDE,
+            issue=12,
+            at=PINNED,
+        )
+
+    assert not (state.assignments / ASSIGNMENT_ID / "assignment.json").exists()
+
+
+def test_an_unlinked_pull_request_on_the_incomplete_branch_is_not_adopted(
+    state, route, gh
+):
+    fetch(root=state.root)
+    worktree = state.worktrees / ASSIGNMENT_ID
+    add_worktree(root=state.root, path=worktree, branch=BRANCH)
+    make_empty_commit(worktree=worktree, message="GH12")
+    push_branch(root=state.root, branch=BRANCH)
+    gh.replies(stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list")
+
+    with pytest.raises(ReportableError, match="is not linked to GH12"):
+        create_agent_assignment(
+            state=state,
+            route=route,
+            named=Harness.CLAUDE,
+            issue=12,
+            at=PINNED,
+        )
+
+    assert not (state.assignments / ASSIGNMENT_ID / "assignment.json").exists()
+
+
+def test_a_ready_pull_request_on_the_incomplete_branch_is_not_adopted(state, route, gh):
+    fetch(root=state.root)
+    worktree = state.worktrees / ASSIGNMENT_ID
+    add_worktree(root=state.root, path=worktree, branch=BRANCH)
+    make_empty_commit(worktree=worktree, message="GH12")
+    push_branch(root=state.root, branch=BRANCH)
+    gh.replies(
+        stdout=json.dumps(
+            [{"number": PULL_REQUEST, "state": "OPEN", "isDraft": False}]
+        ),
+        to="pr list",
+    )
+    gh.replies(stdout=linked_pull_requests(numbers=[PULL_REQUEST]), to="issue view")
+
+    with pytest.raises(ReportableError, match="ready for review rather than draft"):
+        create_agent_assignment(
+            state=state,
+            route=route,
+            named=Harness.CLAUDE,
+            issue=12,
+            at=PINNED,
         )
 
 
@@ -509,10 +665,7 @@ def test_a_linked_pull_request_read_failure_keeps_the_setup_for_a_retry(
 
 
 def test_an_unrelated_linked_pull_request_prevents_another_one(state, route, gh):
-    gh.replies(
-        stdout='{"closedByPullRequestsReferences": [{"number": 28}]}',
-        to="issue view",
-    )
+    gh.replies(stdout=linked_pull_requests(numbers=[28]), to="issue view")
 
     with pytest.raises(ReportableError, match=r"open linked pull request \(#28\)"):
         create_agent_assignment(
@@ -558,6 +711,8 @@ def test_a_created_pull_request_that_cannot_be_read_is_reconciled_next_time(
         )
 
     gh.replies(stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list")
+    gh.replies(stdout=linked_pull_requests(numbers=[PULL_REQUEST]), to="issue view")
+    gh.replies(stdout=pull_request(state="OPEN", is_draft=True), to="pr view")
     recovered = create_agent_assignment(
         state=state,
         route=route,
@@ -569,6 +724,19 @@ def test_a_created_pull_request_that_cannot_be_read_is_reconciled_next_time(
     assert recovered.identifier == ASSIGNMENT_ID
     created = [call for call in gh.calls if call.arguments[:2] == ["pr", "create"]]
     assert len(created) == 1
+
+
+def test_a_created_pull_request_that_is_not_a_draft_is_reported(state, route, gh):
+    gh.replies(stdout=pull_request(state="OPEN", is_draft=False), to="pr view")
+
+    with pytest.raises(ReportableError, match="was not created as an open draft"):
+        create_agent_assignment(
+            state=state,
+            route=route,
+            named=Harness.CLAUDE,
+            issue=12,
+            at=PINNED,
+        )
 
 
 def test_a_state_directory_with_no_worktrees_holds_no_assignments(state):

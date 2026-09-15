@@ -1,9 +1,10 @@
 """Work out the round that an assignment needs next.
 
 An assignment lies dormant between its rounds, with no agent of its own running,
-and three things wake it. A round that did not finish is carried on. A pull
-request that is merged or closed calls for one last round. And a pull request
-the user has posted on calls for a round that answers what the user said.
+and four things wake it. A complete assignment missing its first round finishes
+its dispatch. A round that did not finish is carried on. A pull request that is
+merged or closed calls for one last round. And a pull request the user has posted
+on calls for a round that answers what the user said.
 
 The most open work comes first, and that order is here. A complete assignment
 whose first round has not started finishes its dispatch before ordinary work.

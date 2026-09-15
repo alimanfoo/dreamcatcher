@@ -46,7 +46,10 @@ def test_a_merged_pull_request_comes_back_merged():
     found = list_pull_requests(repository=REPOSITORY, branch=MERGED_BRANCH)
 
     assert isinstance(found, list)
-    assert PullRequest(number=MERGED, state=PullRequestState.MERGED) in found
+    assert (
+        PullRequest(number=MERGED, state=PullRequestState.MERGED, isDraft=False)
+        in found
+    )
 
 
 def test_a_branch_that_never_existed_comes_back_empty():

@@ -11,6 +11,7 @@ from dreamcatcher.git import (
     has_commits_since_main,
     make_empty_commit,
     push_branch,
+    read_worktree_branch,
     remove_worktree,
 )
 
@@ -51,6 +52,7 @@ def test_a_worktree_lands_where_it_is_asked_for_on_its_own_branch(cloned):
     assert (path / "README.md").exists()
     assert BRANCH in git(arguments=["branch", "--list", BRANCH], cwd=cloned)
     assert path in worktrees(root=cloned)
+    assert read_worktree_branch(worktree=path) == BRANCH
 
 
 def test_a_worktree_git_refuses_says_what_git_said(cloned):
@@ -67,6 +69,7 @@ def test_a_worktree_git_refuses_says_what_git_said(cloned):
 def test_an_empty_commit_moves_the_assignment_branch_beyond_main(cloned):
     path = assignment_worktree(root=cloned)
     add_worktree(root=cloned, path=path, branch=BRANCH)
+    git(arguments=["config", "commit.gpgsign", "true"], cwd=path)
 
     assert not has_commits_since_main(worktree=path)
 

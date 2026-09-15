@@ -25,6 +25,12 @@ from fakes import Line
 from records import write_agent_assignment, write_round
 
 from dreamcatcher.config import Harness, read_config
+from dreamcatcher.git import (
+    add_worktree,
+    fetch,
+    make_empty_commit,
+    push_branch,
+)
 from dreamcatcher.prompts import CARRY_ON_PROMPT
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.scheduler import Scheduler
@@ -458,6 +464,51 @@ def test_a_dispatch_whose_round_will_not_start_retries_the_prepared_assignment(
     assert written.cause is Cause.DISPATCH
     created = [call for call in offered.calls if call.arguments[:2] == ["pr", "create"]]
     assert len(created) == 1
+
+
+@pytest.mark.parametrize("checkpoint", ["worktree", "commit", "push", "pull request"])
+def test_the_next_tick_recovers_each_incomplete_creation_checkpoint(
+    dispatching, offered, checkpoint
+):
+    state = StateDirectory(root=dispatching)
+    branch = f"dreamcatcher-{DISPATCHED_ASSIGNMENT_ID}"
+    worktree = state.worktrees / DISPATCHED_ASSIGNMENT_ID
+    fetch(root=dispatching)
+    add_worktree(root=dispatching, path=worktree, branch=branch)
+    if checkpoint != "worktree":
+        make_empty_commit(worktree=worktree, message="GH8")
+    if checkpoint in {"push", "pull request"}:
+        push_branch(root=dispatching, branch=branch)
+    if checkpoint == "pull request":
+        offered.replies(
+            stdout=json.dumps(
+                {"closedByPullRequestsReferences": [{"number": PULL_REQUEST}]}
+            ),
+            to="issue view",
+        )
+        offered.replies(
+            stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list"
+        )
+    scheduler, clock = create_scheduler(root=dispatching)
+
+    observed = scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
+
+    assert observed.launched == DISPATCHED_ASSIGNMENT_ID
+    round_record = state.assignments / DISPATCHED_ASSIGNMENT_ID / "rounds" / "1"
+    assert (
+        RoundRecord.model_validate_json(
+            (round_record / "round.json").read_text(encoding="utf-8")
+        ).cause
+        is Cause.DISPATCH
+    )
+    assert len(list(state.assignments.iterdir())) == 1
+    commits = git(arguments=["rev-list", "--count", "origin/main..HEAD"], cwd=worktree)
+    assert commits.strip() == "1"
+    remote = git(arguments=["ls-remote", "--heads", "origin", branch], cwd=dispatching)
+    assert f"refs/heads/{branch}" in remote
+    created = [call for call in offered.calls if call.arguments[:2] == ["pr", "create"]]
+    assert len(created) == (0 if checkpoint == "pull request" else 1)
 
 
 def test_an_assignment_whose_last_round_did_not_finish_is_carried_on(

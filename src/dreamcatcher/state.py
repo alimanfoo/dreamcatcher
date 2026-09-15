@@ -47,12 +47,11 @@ class WaitingAgentAssignment(Document):
     reason carries the status it ended with, so a run of usage-limit failures
     is recognisable from this reason string. An assignment is also waiting when the
     tick found it a round and had no slot to launch it, when no round has run
-    yet, when nobody has opened a pull request on it, and when a read of GitHub
-    could not tell.
+    yet, and when a read of GitHub could not tell.
 
-    Most of those waits clear by themselves, and a later tick is all they need.
-    An assignment that is stuck is one no tick can move on, so it waits for a
-    person, and whoever reads this record has to see the difference.
+    Every wait the current scheduler writes can clear by itself, and a later
+    tick is all it needs. The stuck distinction remains in this temporary
+    status model until the later status migration replaces it.
     """
 
     assignment: str

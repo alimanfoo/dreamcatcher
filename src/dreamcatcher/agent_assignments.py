@@ -34,9 +34,13 @@ from dreamcatcher.git import (
     is_assignment_worktree,
     make_empty_commit,
     push_branch,
+    read_worktree_branch,
     remove_worktree,
 )
 from dreamcatcher.github import (
+    LinkedPullRequest,
+    PullRequest,
+    PullRequestState,
     Unknown,
     create_pull_request,
     list_linked_pull_requests,
@@ -119,6 +123,11 @@ class AgentAssignment:
         """
         return any(record.cause is Cause.FINAL for record in self.rounds)
 
+    @property
+    def is_complete(self) -> bool:
+        """Whether the assignment has finished the work of its final round."""
+        return self.has_run_final_round and self.describe_unfinished_round() is None
+
     def describe_unfinished_round(self) -> str | None:
         """Return what the assignment's last round left unfinished, or nothing.
 
@@ -127,9 +136,9 @@ class AgentAssignment:
         accord. Both leave the work part done, so both are carried on from
         where they stopped.
 
-        An assignment that has run no round at all has left nothing unfinished. Its
-        first round never started, which is another matter, and one that only a
-        person can take further.
+        An assignment that has run no round at all has left nothing unfinished.
+        Its first round never started, which is another matter: the scheduler
+        retries that complete assignment before it starts ordinary work.
         """
         if not self.rounds:
             return None
@@ -209,14 +218,20 @@ def read_agent_assignments_for_issue(
     ]
 
 
-def list_incomplete_assignment_issues(*, state: StateDirectory) -> set[int]:
-    """Return the issues whose assignment setup has not recorded completion."""
-    return {
-        int(path.name.split("-", maxsplit=1)[0].removeprefix("GH"))
-        for path in state.worktrees.glob("GH*-*")
-        if is_assignment_worktree(path=path)
-        and not (state.assignments / path.name / RECORD).exists()
-    }
+def find_incomplete_assignment_branches(
+    *, state: StateDirectory
+) -> dict[int, list[str]]:
+    """Return each issue's branches whose setup has no complete record."""
+    found: dict[int, list[str]] = {}
+    for path in state.worktrees.glob("GH*-*"):
+        if (
+            not is_assignment_worktree(path=path)
+            or (state.assignments / path.name / RECORD).exists()
+        ):
+            continue
+        issue = int(path.name.split("-", maxsplit=1)[0].removeprefix("GH"))
+        found.setdefault(issue, []).append(f"{BRANCH_PREFIX}{path.name}")
+    return found
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -251,7 +266,7 @@ class AgentAssignmentCreator:
             for assignment in read_agent_assignments_for_issue(
                 state=self.state, issue=issue
             )
-            if not assignment.has_run_final_round
+            if not assignment.is_complete
         ]
         if open_assignments:
             raise ReportableError(
@@ -266,7 +281,14 @@ class AgentAssignmentCreator:
         )
         branch = f"{BRANCH_PREFIX}{identifier}"
         worktree = self.state.worktrees / identifier
-        if not is_assignment_worktree(path=worktree):
+        if is_assignment_worktree(path=worktree):
+            checked_out = read_worktree_branch(worktree=worktree)
+            if checked_out != branch:
+                raise ReportableError(
+                    f"cannot reconcile {identifier}: its worktree has branch "
+                    f"{checked_out}, not {branch}."
+                )
+        else:
             try:
                 add_worktree(root=self.state.root, path=worktree, branch=branch)
             except ReportableError:
@@ -317,6 +339,20 @@ def _find_incomplete_assignment(*, state: StateDirectory, issue: int) -> str | N
 
 def _find_or_create_pull_request(*, repository: str, branch: str, issue: int) -> int:
     """Return the branch's existing pull request or create its draft."""
+    found = _find_branch_pull_request(repository=repository, branch=branch)
+    linked = _read_linked_pull_requests(repository=repository, issue=issue)
+    if found is not None:
+        return _adopt_pull_request(
+            pull_request=found, linked=linked, branch=branch, issue=issue
+        )
+    _refuse_linked_pull_requests(linked=linked, branch=branch, issue=issue)
+    return _create_assignment_pull_request(
+        repository=repository, branch=branch, issue=issue
+    )
+
+
+def _find_branch_pull_request(*, repository: str, branch: str) -> PullRequest | None:
+    """Return the sole pull request on a recovery branch, when it has one."""
     found = list_pull_requests(repository=repository, branch=branch)
     if isinstance(found, Unknown):
         raise ReportableError(
@@ -324,24 +360,73 @@ def _find_or_create_pull_request(*, repository: str, branch: str, issue: int) ->
         )
     if len(found) > 1:
         raise ReportableError(f"{branch} has more than one pull request.")
-    if found:
-        return found[0].number
+    return found[0] if found else None
+
+
+def _read_linked_pull_requests(
+    *, repository: str, issue: int
+) -> list[LinkedPullRequest]:
+    """Return the issue's open linked pull requests or report why they are unknown."""
     linked = list_linked_pull_requests(repository=repository, issue=issue)
     if isinstance(linked, Unknown):
         raise ReportableError(
             f"cannot tell whether another pull request claims GH{issue}: "
             f"{linked.reason}"
         )
+    return linked
+
+
+def _adopt_pull_request(
+    *,
+    pull_request: PullRequest,
+    linked: list[LinkedPullRequest],
+    branch: str,
+    issue: int,
+) -> int:
+    """Return the branch's linked open draft pull request."""
+    if pull_request.state is not PullRequestState.OPEN:
+        raise ReportableError(
+            f"cannot reconcile {branch}: pull request #{pull_request.number} "
+            f"is {pull_request.state.lower()}."
+        )
+    if not pull_request.is_draft:
+        raise ReportableError(
+            f"cannot reconcile {branch}: pull request #{pull_request.number} "
+            "is ready for review rather than draft."
+        )
+    if pull_request.number not in {one.number for one in linked}:
+        raise ReportableError(
+            f"cannot reconcile {branch}: pull request #{pull_request.number} "
+            f"is not linked to GH{issue}."
+        )
+    unrelated = [one for one in linked if one.number != pull_request.number]
+    _refuse_linked_pull_requests(linked=unrelated, branch=branch, issue=issue)
+    return pull_request.number
+
+
+def _refuse_linked_pull_requests(
+    *, linked: list[LinkedPullRequest], branch: str, issue: int
+) -> None:
+    """Refuse open linked pull requests not owned by the recovery branch."""
     if linked:
         named = ", ".join(f"#{pull_request.number}" for pull_request in linked)
         raise ReportableError(
             f"cannot create a pull request for {branch}: GH{issue} already has "
             f"an open linked pull request ({named})."
         )
+
+
+def _create_assignment_pull_request(*, repository: str, branch: str, issue: int) -> int:
+    """Create and return the assignment branch's open draft pull request."""
     created = create_pull_request(repository=repository, branch=branch, issue=issue)
     if isinstance(created, Unknown):
         raise ReportableError(
             f"cannot read the pull request created for {branch}: {created.reason}"
+        )
+    if created.state is not PullRequestState.OPEN or not created.is_draft:
+        raise ReportableError(
+            f"pull request #{created.number} for {branch} was not created as "
+            "an open draft."
         )
     return created.number
 
