@@ -2,7 +2,8 @@
 
 This roadmap describes how to move the working Dreamcatcher implementation to
 the domain model in [the ontology](../../docs/ontology.md) and the boundaries in
-[the target architecture](../../docs/architecture.md).
+[the target architecture](../../docs/architecture.md). Read both documents in
+full before implementing any stage of this roadmap.
 
 The roadmap is an ordered series of reviewable stages. Each stage will become
 one subissue of GH76 and will be delivered by one pull request. The subissues
@@ -43,7 +44,9 @@ The target design deliberately requires these observable changes:
 - an assignment whose creation was interrupted after its durable record was
   written can still receive its missing first round;
 - a completed assignment no longer claims its issue, so an issue whose pull
-  request closed without merging can receive another assignment;
+  request closed without merging can receive another assignment; the current
+  scheduler treats every stored session as a claim, despite `README.md` saying
+  that a closed-unmerged issue is free to dispatch again;
 - two consecutive errored rounds place an assignment in fault, and faults in two
   assignments start the agreed global cooldown; and
 - the user interface reports issues and agent assignments using the ontology,
