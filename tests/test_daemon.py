@@ -1,7 +1,6 @@
 import os
 import sys
 from collections.abc import Sequence
-from contextlib import suppress
 from io import BytesIO, TextIOWrapper
 
 import psutil
@@ -19,7 +18,6 @@ from conftest import (
 from fakes import Line
 from records import write_round, write_session
 
-from dreamcatcher.commands import spawn
 from dreamcatcher.config import CONFIG_NAME, Harness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.errors import ReportableError
@@ -46,22 +44,6 @@ DISPATCHED_KEY = "GH8-20260819-184158"
 # Where gh keeps the conversation on the pull request that the session on disk
 # has open.
 CONVERSATION = POST_LIST_PATHS["conversation"]
-
-
-@pytest.fixture
-def left_running(tmp_path):
-    """A process standing in for a round that outlived the daemon that ran it."""
-    child = spawn(
-        program=sys.executable,
-        arguments=["-c", "import time; time.sleep(60)"],
-        cwd=tmp_path,
-    )
-    yield child
-    # Whatever a test left of it, and never through the tool's own teardown:
-    # that signals a process group, which a test may already have emptied.
-    with suppress(OSError):
-        child.process.kill()
-    child.process.wait()
 
 
 @pytest.fixture

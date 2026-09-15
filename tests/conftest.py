@@ -2,6 +2,7 @@
 
 import json
 import os
+import sys
 from collections.abc import Sequence
 from contextlib import suppress
 from functools import partial
@@ -11,7 +12,7 @@ import fakes
 import psutil
 import pytest
 
-from dreamcatcher.commands import run
+from dreamcatcher.commands import run, spawn
 from dreamcatcher.config import CONFIG_NAME
 
 ARMING = "PYTHONWARNDEFAULTENCODING"
@@ -228,6 +229,20 @@ def fake(stand_ins, monkeypatch):
     """Return a factory that puts a stand-in for a program first on the PATH."""
     monkeypatch.setenv("PATH", f"{stand_ins}{os.pathsep}{os.environ['PATH']}")
     return partial(fakes.install, directory=stand_ins)
+
+
+@pytest.fixture
+def left_running(tmp_path):
+    """A process standing in for a round left without a recorded ending."""
+    child = spawn(
+        program=sys.executable,
+        arguments=["-c", "import time; time.sleep(60)"],
+        cwd=tmp_path,
+    )
+    yield child
+    with suppress(OSError):
+        child.process.kill()
+    child.process.wait()
 
 
 @pytest.fixture

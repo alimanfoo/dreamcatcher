@@ -91,14 +91,6 @@ class Scheduler:
         A round that has ended is forgotten first, so the cap counts what is
         running now. A failure reaches the daemon, which records and reports it
         before the next tick tries again.
-        """
-        ended = [key for key, running in self.rounds.items() if not running.is_alive]
-        for key in ended:
-            del self.rounds[key]
-        return self._decide_and_launch(at=at)
-
-    def _decide_and_launch(self, *, at: datetime) -> LastTick:
-        """Launch at most one round, and return what the tick observed.
 
         Every tick tries to weigh the candidate issues, so the board keeps
         showing the current queue while the daemon is carrying on open work or
@@ -108,6 +100,9 @@ class Scheduler:
         holds no read. So a tick under it still says what each session is
         waiting on, rather than going quiet for the whole fifteen minutes.
         """
+        ended = [key for key, running in self.rounds.items() if not running.is_alive]
+        for key in ended:
+            del self.rounds[key]
         sessions = read_sessions(state=self.state)
         judged = judge_issues(
             repository=self.repository,
