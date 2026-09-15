@@ -5,7 +5,7 @@ from datetime import datetime
 from functools import cached_property
 from pathlib import Path
 
-from pydantic import ConfigDict, Field
+from pydantic import Field
 
 from dreamcatcher.documents import Document, write_text
 from dreamcatcher.rounds import RoundReader
@@ -55,11 +55,7 @@ class WaitingAgentAssignment(Document):
     person, and whoever reads this record has to see the difference.
     """
 
-    # The persisted key remains `session`: Stage 2 names the Python interface but
-    # deliberately leaves last-tick.json unchanged.
-    model_config = ConfigDict(validate_by_name=True, serialize_by_alias=True)
-
-    assignment: str = Field(alias="session")
+    assignment: str
     issue: int
     reason: str
     is_stuck: bool = False
