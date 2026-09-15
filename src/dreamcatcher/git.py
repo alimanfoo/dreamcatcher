@@ -25,6 +25,11 @@ def add_worktree(*, root: Path, path: Path, branch: str) -> None:
     )
 
 
+def is_worktree(*, path: Path) -> bool:
+    """Return whether the path is a Git worktree."""
+    return (path / ".git").is_file()
+
+
 def has_commits_since_main(*, worktree: Path) -> bool:
     """Return whether the worktree's branch has moved beyond origin/main."""
     count = run(

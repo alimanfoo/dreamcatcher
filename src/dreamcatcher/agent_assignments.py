@@ -5,8 +5,9 @@ the issue number with the time that the assignment started. The identifier names
 its branch, worktree, and file directory. Three worktrees for one issue therefore
 read as three assignments at one thing, each with its own pull request.
 
-Nothing here decides which issue to dispatch, or when. A caller that has decided
-asks for the assignment.
+Creation prepares and publishes the assignment's branch, opens its linked draft
+pull request, then records the complete assignment. Nothing here decides which
+issue to dispatch, or when. A caller that has decided asks for the assignment.
 """
 
 from contextlib import suppress
@@ -25,7 +26,17 @@ from dreamcatcher.documents import (
     write_text,
 )
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.git import add_worktree, delete_branch, fetch, remove_worktree
+from dreamcatcher.git import (
+    add_worktree,
+    delete_branch,
+    fetch,
+    has_commits_since_main,
+    is_worktree,
+    make_empty_commit,
+    push_branch,
+    remove_worktree,
+)
+from dreamcatcher.github import Unknown, create_pull_request, list_pull_requests
 from dreamcatcher.rounds import Cause, RoundRecord, Workspace
 from dreamcatcher.state import StateDirectory
 
@@ -49,16 +60,17 @@ WATERMARK = "watermark"
 class AgentAssignmentRecord(Document):
     """The issue an assignment works on, and the settings it runs its rounds with.
 
-    The dispatch settles all of these, and no later round changes any of
-    them. Every round reads them from here rather than from the config, so
-    editing the config while an assignment is in flight cannot reach that
-    assignment.
+    The dispatch settles all of these, including the pull request identity, and
+    no later round changes any of them. Every round reads them from here rather
+    than from the config, so editing the config while an assignment is in flight
+    cannot reach that assignment. Mutable pull request state stays on GitHub.
     """
 
     issue: int
     label: str
     branch: str
     worktree: Path
+    pull_request: int
     harness: Harness
     model: str
     effort: str
@@ -162,12 +174,10 @@ def read_agent_assignments(*, state: StateDirectory) -> list[AgentAssignment]:
     is not a directory is not a worktree, which is what keeps a file a file
     browser left there from reading as an assignment.
 
-    A worktree whose record is not there is not an assignment either. A creation
-    cuts the worktree and then writes the record, so a daemon that died between
-    the two leaves one, and it stands for an assignment that ran nothing and opened
-    no pull request. Reading it as no assignment leaves its issue free to go
-    again, and leaves the worktree itself for whoever wants the disk back. A
-    record that is there and will not read is another matter, and says so.
+    A worktree whose record is not there is not an assignment either. Assignment
+    creation may leave such a worktree when it is interrupted, and a later
+    creation attempt reconciles it. A record that is there and will not read is
+    another matter, and says so.
     """
     if not state.worktrees.is_dir():
         return []
@@ -194,50 +204,117 @@ def read_agent_assignments_for_issue(
     ]
 
 
-def create_agent_assignment(
-    *,
-    state: StateDirectory,
-    route: DispatchRoute,
-    named: Harness,
-    issue: int,
-    at: datetime,
-) -> AgentAssignment:
-    """Create an assignment for the issue, and return it with no rounds run yet.
+@dataclass(frozen=True, kw_only=True)
+class AgentAssignmentCreator:
+    """Create complete assignments in one repository and state directory."""
 
-    The assignment runs on the harness that this label and the run settle between
-    them, with that harness's own model, effort and prompt template.
+    state: StateDirectory
+    repository: str
 
-    This fetches origin's main first, so the branch starts from main as it is
-    now.
+    def create(
+        self,
+        *,
+        route: DispatchRoute,
+        named: Harness,
+        issue: int,
+        at: datetime,
+    ) -> AgentAssignment:
+        """Create the issue's complete assignment with no rounds run yet.
 
-    Should anything from the worktree onwards fail, the worktree and the
-    branch go away again, so a failed creation leaves neither behind. git
-    makes the branch before it reaches the worktree, so an add that failed
-    has one to take away. The caller hears the failure that stopped the
-    creation, not any failure that removing them hits.
-    """
-    harness = route.choose_harness(named=named)
-    recipe = route.assignment_recipes[harness]
-    identifier = f"GH{issue}-{at:%Y%m%d-%H%M%S}"
-    record = AgentAssignmentRecord(
-        issue=issue,
-        label=route.label,
-        branch=f"{BRANCH_PREFIX}{identifier}",
-        worktree=state.worktrees / identifier,
-        harness=harness,
-        model=recipe.model,
-        effort=recipe.effort,
-        prompt=prompts.compose_first_round_prompt(template=recipe.prompt, issue=issue),
-    )
-    directory = state.assignments / identifier
-    fetch(root=state.root)
-    try:
-        add_worktree(root=state.root, path=record.worktree, branch=record.branch)
+        The assignment runs on the harness that the route and this daemon
+        select, with that harness's model, effort, and prompt template. Creation
+        fetches main, makes the branch and worktree, adds and pushes an empty
+        commit, opens the linked draft pull request, then writes the record.
+
+        A retry reuses an incomplete setup identified by its worktree and
+        branch. Only a failed worktree creation is removed immediately, because
+        later setup steps leave recoverable evidence. An issue that already has
+        an open local assignment cannot receive another.
+        """
+        open_assignments = [
+            assignment
+            for assignment in read_agent_assignments_for_issue(
+                state=self.state, issue=issue
+            )
+            if not assignment.has_run_final_round
+        ]
+        if open_assignments:
+            raise ReportableError(
+                f"GH{issue} already has open assignment "
+                f"{open_assignments[0].identifier}."
+            )
+        harness = route.choose_harness(named=named)
+        recipe = route.assignment_recipes[harness]
+        fetch(root=self.state.root)
+        identifier = _find_incomplete_assignment(state=self.state, issue=issue) or (
+            f"GH{issue}-{at:%Y%m%d-%H%M%S}"
+        )
+        branch = f"{BRANCH_PREFIX}{identifier}"
+        worktree = self.state.worktrees / identifier
+        if not is_worktree(path=worktree):
+            try:
+                add_worktree(root=self.state.root, path=worktree, branch=branch)
+            except ReportableError:
+                _discard_worktree(state=self.state, worktree=worktree, branch=branch)
+                raise
+        if not has_commits_since_main(worktree=worktree):
+            make_empty_commit(worktree=worktree, message=f"GH{issue}")
+        push_branch(root=self.state.root, branch=branch)
+        pull_request = _find_or_create_pull_request(
+            repository=self.repository, branch=branch, issue=issue
+        )
+        record = AgentAssignmentRecord(
+            issue=issue,
+            label=route.label,
+            branch=branch,
+            worktree=worktree,
+            pull_request=pull_request,
+            harness=harness,
+            model=recipe.model,
+            effort=recipe.effort,
+            prompt=prompts.compose_first_round_prompt(
+                template=recipe.prompt, issue=issue
+            ),
+        )
+        directory = self.state.assignments / identifier
         write_json(document=record, path=directory / RECORD)
-    except ReportableError:
-        discard_agent_assignment(state=state, record=record)
-        raise
-    return AgentAssignment(directory=directory, record=record)
+        return AgentAssignment(directory=directory, record=record)
+
+
+def _find_incomplete_assignment(*, state: StateDirectory, issue: int) -> str | None:
+    """Return the identifier of this issue's incomplete assignment setup."""
+    prefix = f"GH{issue}-"
+    found = [
+        path.name
+        for path in state.worktrees.glob(f"{prefix}*")
+        if is_worktree(path=path)
+        and not (state.assignments / path.name / RECORD).exists()
+    ]
+    if len(found) > 1:
+        identifiers = ", ".join(sorted(found))
+        raise ReportableError(
+            f"GH{issue} has several incomplete assignment setups: {identifiers}."
+        )
+    return found[0] if found else None
+
+
+def _find_or_create_pull_request(*, repository: str, branch: str, issue: int) -> int:
+    """Return the branch's existing pull request or create its draft."""
+    found = list_pull_requests(repository=repository, branch=branch)
+    if isinstance(found, Unknown):
+        raise ReportableError(
+            f"cannot reconcile the pull request for {branch}: {found.reason}"
+        )
+    if len(found) > 1:
+        raise ReportableError(f"{branch} has more than one pull request.")
+    if found:
+        return found[0].number
+    created = create_pull_request(repository=repository, branch=branch, issue=issue)
+    if isinstance(created, Unknown):
+        raise ReportableError(
+            f"cannot read the pull request created for {branch}: {created.reason}"
+        )
+    return created.number
 
 
 def _read_assignment(*, state: StateDirectory, directory: Path) -> AgentAssignment:
@@ -278,26 +355,9 @@ def advance_assignment_watermark(*, assignment: AgentAssignment, newest: str) ->
     write_text(text=newest, path=assignment.directory / WATERMARK)
 
 
-def discard_agent_assignment(
-    *, state: StateDirectory, record: AgentAssignmentRecord
-) -> None:
-    """Take away the worktree and the branch that an assignment was given.
-
-    A creation that failed part way calls this, and so does a dispatch whose
-    round would not start. An assignment with no round claims its issue and can
-    never advance by itself, so the dispatch takes it away rather than leave
-    it, and its issue is free to go again.
-
-    The worktree goes first, because git keeps a branch that a worktree has
-    checked out. Either command can fail in its turn, and neither failure
-    travels. The failure that stopped the dispatch is the one worth reporting,
-    and the caller already holds it.
-
-    The record stays where it is. Nothing reads an assignment's record without a
-    worktree beside it, so a record left under `assignments/` costs a reader
-    nothing.
-    """
+def _discard_worktree(*, state: StateDirectory, worktree: Path, branch: str) -> None:
+    """Remove artifacts that a failed worktree creation may have left."""
     with suppress(CommandError):
-        remove_worktree(root=state.root, path=record.worktree)
+        remove_worktree(root=state.root, path=worktree)
     with suppress(CommandError):
-        delete_branch(root=state.root, branch=record.branch)
+        delete_branch(root=state.root, branch=branch)

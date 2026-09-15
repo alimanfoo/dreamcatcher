@@ -271,7 +271,7 @@ class _Look:
         wait = self.waits.get(assignment.identifier)
         if wait is None:
             if not assignment.rounds:
-                return AgentAssignmentStanding.STUCK, NO_ROUND_HAS_RUN
+                return AgentAssignmentStanding.WAITING, NO_ROUND_HAS_RUN
             return AgentAssignmentStanding.NEEDS_YOU, self._describe_idle(
                 assignment=assignment
             )

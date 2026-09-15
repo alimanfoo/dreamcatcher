@@ -27,6 +27,7 @@ def write_agent_assignment(
             label="dream:smith",
             branch=f"{agent_assignments.BRANCH_PREFIX}{identifier}",
             worktree=state.worktrees / identifier,
+            pull_request=52,
             harness=Harness.CLAUDE,
             model="opus[1m]",
             effort="xhigh",

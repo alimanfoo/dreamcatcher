@@ -4,11 +4,12 @@ A scheduler tick reads the assignments on disk and asks GitHub which labelled
 issues could be dispatched. It weighs the active rounds against the cap, works
 out what each assignment needs next, and launches at most one round.
 
-Open work goes before new work, and the most open of it first: a round that did
-not finish is carried on, then a merged or closed pull request gets its last
-round, then an assignment answers what the user posted. Only when no assignment needs
-anything does an uncapped tick dispatch the oldest candidate that no assignment
-and no pull request has claimed and no open issue blocks.
+Open work goes before new work, and the most open of it first: a complete
+assignment missing its first round finishes its dispatch, a round that did not
+finish is carried on, a merged or closed pull request gets its last round, then
+an assignment answers what the user posted. Only when no assignment needs
+anything does an uncapped tick dispatch the oldest unclaimed, unblocked
+candidate.
 """
 
 from collections.abc import Callable
@@ -18,9 +19,8 @@ from datetime import datetime, timedelta
 from dreamcatcher.adapters import Launch
 from dreamcatcher.agent_assignments import (
     AgentAssignment,
+    AgentAssignmentCreator,
     advance_assignment_watermark,
-    create_agent_assignment,
-    discard_agent_assignment,
     read_agent_assignments,
 )
 from dreamcatcher.config import Config, Harness
@@ -266,21 +266,20 @@ class Scheduler:
         )
 
     def _launch_assignment(self, *, candidate: CandidateIssue, at: datetime) -> str:
-        """Create an assignment and remove it again if its first round cannot start."""
-        assignment = create_agent_assignment(
+        """Create an assignment and start its first round."""
+        creator = AgentAssignmentCreator(
             state=self.state,
+            repository=self.repository,
+        )
+        assignment = creator.create(
             route=self.config.dispatch_routes[candidate.label],
             named=self.harness,
             issue=candidate.issue,
             at=at,
         )
-        try:
-            self._start_round(
-                assignment=assignment,
-                prompt=assignment.record.prompt,
-                cause=Cause.DISPATCH,
-            )
-        except ReportableError:
-            discard_agent_assignment(state=self.state, record=assignment.record)
-            raise
+        self._start_round(
+            assignment=assignment,
+            prompt=assignment.record.prompt,
+            cause=Cause.DISPATCH,
+        )
         return assignment.identifier

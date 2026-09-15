@@ -5,9 +5,10 @@ and three things wake it. A round that did not finish is carried on. A pull
 request that is merged or closed calls for one last round. And a pull request
 the user has posted on calls for a round that answers what the user said.
 
-The most open work comes first, and that order is here. An assignment part way
-through a round is carried on before anything else. Then a finished pull
-request, whose assignment has one round left to run. Then the user's own posts.
+The most open work comes first, and that order is here. A complete assignment
+whose first round has not started finishes its dispatch before ordinary work.
+Then an assignment part way through a round is carried on, a finished pull
+request gets its final round, and an assignment answers the user's own posts.
 
 Nothing here launches a round or writes anything down. A caller that has
 decided asks for the wakeup and runs it.
@@ -21,7 +22,7 @@ from dreamcatcher.github import (
     PullRequest,
     PullRequestState,
     Unknown,
-    list_pull_requests,
+    read_pull_request,
 )
 from dreamcatcher.prompts import CARRY_ON_PROMPT, compose_inbox_prompt
 from dreamcatcher.relay import Inbox, peek_new_posts
@@ -67,7 +68,7 @@ type Finding = Wakeup | WaitingAgentAssignment
 
 
 # The order a tick takes wakeups in, the most open work first.
-PRIORITY = (Cause.CARRY_ON, Cause.FINAL, Cause.POSTS)
+PRIORITY = (Cause.DISPATCH, Cause.CARRY_ON, Cause.FINAL, Cause.POSTS)
 
 
 def sort_wakeups(*, found: list[Wakeup]) -> list[Wakeup]:
@@ -105,14 +106,15 @@ def judge_assignment(
     else is even read, so a tick spends no GitHub call on the case that needs
     none.
 
-    An assignment that has run no round at all is waiting rather than waking.
-    Its dispatch cut the assignment and never started the first round, so no
-    harness session exists to carry on, and only a person can take it from
-    here.
+    An assignment that has run no round at all needs its first round. This can
+    happen when assignment creation succeeded but that round could not start.
     """
     if not assignment.rounds:
-        return compose_wait(
-            assignment=assignment, reason=NO_ROUND_HAS_RUN, is_stuck=True
+        return Wakeup(
+            assignment=assignment,
+            cause=Cause.DISPATCH,
+            reason=NO_ROUND_HAS_RUN,
+            prompt=assignment.record.prompt,
         )
     unfinished = assignment.describe_unfinished_round()
     if unfinished is not None:
@@ -141,18 +143,13 @@ def _judge_pull_request(
     An assignment that has already run that last round is done, and is not peeked
     at again.
     """
-    found = list_pull_requests(repository=repository, branch=assignment.record.branch)
-    if isinstance(found, Unknown):
+    pull_request = read_pull_request(
+        repository=repository, pull_request=assignment.record.pull_request
+    )
+    if isinstance(pull_request, Unknown):
         return compose_wait(
             assignment=assignment,
-            reason=f"cannot tell which pull request it has: {found.reason}",
-        )
-    pull_request = _choose_pull_request(found=found)
-    if pull_request is None:
-        return compose_wait(
-            assignment=assignment,
-            reason="no pull request has been opened on it",
-            is_stuck=True,
+            reason=f"cannot read its pull request: {pull_request.reason}",
         )
     is_open = pull_request.state is PullRequestState.OPEN
     if not is_open and assignment.has_run_final_round:
@@ -172,24 +169,6 @@ def _judge_pull_request(
         return None
     return _compose_resume(
         assignment=assignment, pull_request=pull_request, posted=posted
-    )
-
-
-def _choose_pull_request(*, found: list[PullRequest]) -> PullRequest | None:
-    """Return the pull request that says where the assignment's work has got to.
-
-    A branch has one pull request, near enough. Where it has more, an open one
-    is the assignment's live channel and outranks the rest, and the newest of
-    equals is the one whose story is still going.
-    """
-    if not found:
-        return None
-    return max(
-        found,
-        key=lambda pull_request: (
-            pull_request.state is PullRequestState.OPEN,
-            pull_request.number,
-        ),
     )
 
 
@@ -223,10 +202,8 @@ def compose_wait(
 ) -> WaitingAgentAssignment:
     """Return the assignment as one waiting on what this reason says.
 
-    A wait is stuck when no later tick clears it: the dispatch never started
-    the assignment's first round, or a round ended cleanly and opened no pull
-    request. Every other wait clears by itself, so a stuck one is the one that
-    has to reach a person.
+    Every current wait can clear on a later tick. The `is_stuck` field remains
+    for the current status model until that model is replaced.
     """
     return WaitingAgentAssignment(
         assignment=assignment.identifier,

@@ -11,13 +11,13 @@ from conftest import (
     POST_LIST_PATHS,
     POSTED_AT,
     POSTED_BY,
-    PULL_REQUEST,
     REPOSITORY,
     comment,
     configure,
     git,
     listing,
     pages,
+    pull_request,
     pull_requests,
 )
 from fakes import Line
@@ -28,7 +28,6 @@ from dreamcatcher.prompts import CARRY_ON_PROMPT
 from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.scheduler import Scheduler
 from dreamcatcher.state import (
-    NO_ROUND_HAS_RUN,
     CandidateIssue,
     LastTick,
     StateDirectory,
@@ -199,6 +198,7 @@ def test_a_tick_at_the_cap_says_the_cap_is_what_each_assignment_waits_on(
     write_agent_assignment(
         state=StateDirectory(root=dispatching), identifier=ASSIGNMENT_ID, issue=13
     )
+    ran(root=dispatching, number=1, cause=Cause.DISPATCH)
     scheduler, clock = create_scheduler(root=dispatching)
 
     observed = scheduler.tick(at=clock())
@@ -211,7 +211,8 @@ def test_a_tick_at_the_cap_says_the_cap_is_what_each_assignment_waits_on(
             assignment=ASSIGNMENT_ID, issue=13, reason="at cap: 1 of 1 rounds running"
         )
     ]
-    assert not any(call.arguments[:2] == ["pr", "list"] for call in offered.calls)
+    reads = [call for call in offered.calls if call.arguments[:2] == ["pr", "view"]]
+    assert len(reads) == 2
 
 
 def test_a_tick_at_the_cap_leaves_a_wound_up_assignment_waiting_on_nothing(
@@ -223,6 +224,7 @@ def test_a_tick_at_the_cap_leaves_a_wound_up_assignment_waiting_on_nothing(
     write_agent_assignment(
         state=StateDirectory(root=dispatching), identifier=ASSIGNMENT_ID, issue=13
     )
+    ran(root=dispatching, number=1, cause=Cause.DISPATCH)
     ran(root=dispatching, number=1, cause=Cause.FINAL)
     scheduler, clock = create_scheduler(root=dispatching)
 
@@ -262,6 +264,7 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
     write_agent_assignment(
         state=StateDirectory(root=dispatching), identifier=ASSIGNMENT_ID, issue=13
     )
+    ran(root=dispatching, number=1, cause=Cause.DISPATCH)
     scheduler, clock = create_scheduler(root=dispatching)
     scheduler.tick(at=clock())
     offered.fails(stderr="gh: could not connect to github.com", to="issue list")
@@ -389,7 +392,7 @@ def test_an_assignment_with_an_open_pull_request_and_nothing_new_is_not_waiting(
     resuming, gh
 ):
     ran(root=resuming, number=1, cause=Cause.DISPATCH)
-    gh.replies(stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list")
+    gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
     scheduler, clock = create_scheduler(root=resuming)
 
     observed = scheduler.tick(at=clock())
@@ -398,38 +401,25 @@ def test_an_assignment_with_an_open_pull_request_and_nothing_new_is_not_waiting(
     assert observed.waiting == []
 
 
-def test_an_assignment_with_no_pull_request_of_its_own_reads_as_waiting(resuming):
-    ran(root=resuming, number=1, cause=Cause.DISPATCH)
-    scheduler, clock = create_scheduler(root=resuming)
-
-    observed = scheduler.tick(at=clock())
-
-    assert observed.waiting == [
-        WaitingAgentAssignment(
-            assignment=ASSIGNMENT_ID,
-            issue=13,
-            reason="no pull request has been opened on it",
-            is_stuck=True,
-        )
-    ]
-
-
-def test_an_assignment_that_has_run_no_round_at_all_waits_for_its_first(dispatching):
+def test_an_assignment_that_has_run_no_round_at_all_gets_its_first(dispatching):
     write_agent_assignment(
         state=StateDirectory(root=dispatching), identifier=ASSIGNMENT_ID, issue=13
     )
     scheduler, clock = create_scheduler(root=dispatching)
 
     observed = scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
 
-    assert observed.waiting == [
-        WaitingAgentAssignment(
-            assignment=ASSIGNMENT_ID, issue=13, reason=NO_ROUND_HAS_RUN, is_stuck=True
-        )
-    ]
+    assert observed.launched == ASSIGNMENT_ID
+    assert cause_of(scheduler=scheduler, number=1) is Cause.DISPATCH
+    assert written_round(scheduler=scheduler, number=1, name="prompt.txt") == (
+        "/dream:smith GH13"
+    )
 
 
-def test_a_dispatch_whose_round_will_not_start_leaves_no_assignment_behind(dispatching):
+def test_a_dispatch_whose_round_will_not_start_retries_the_prepared_assignment(
+    dispatching, offered
+):
     # A file where the assignment's rounds go, so no round can record its start.
     occupied = (
         StateDirectory(root=dispatching).assignments
@@ -444,9 +434,22 @@ def test_a_dispatch_whose_round_will_not_start_leaves_no_assignment_behind(dispa
 
     assert "cannot write" in held(observed=observed)
     assert observed.candidates == [CandidateIssue(issue=8, label=LABEL)]
-    assert not (scheduler.state.worktrees / DISPATCHED_ASSIGNMENT_ID).exists()
+    assert (scheduler.state.worktrees / DISPATCHED_ASSIGNMENT_ID).exists()
     branch = f"dreamcatcher-{DISPATCHED_ASSIGNMENT_ID}"
-    assert git(arguments=["branch", "--list", branch], cwd=dispatching) == ""
+    assert branch in git(arguments=["branch", "--list", branch], cwd=dispatching)
+
+    occupied.unlink()
+    observed = scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
+
+    assert observed.launched == DISPATCHED_ASSIGNMENT_ID
+    record = scheduler.state.assignments / DISPATCHED_ASSIGNMENT_ID / "rounds" / "1"
+    written = RoundRecord.model_validate_json(
+        (record / "round.json").read_text(encoding="utf-8")
+    )
+    assert written.cause is Cause.DISPATCH
+    created = [call for call in offered.calls if call.arguments[:2] == ["pr", "create"]]
+    assert len(created) == 1
 
 
 def test_an_assignment_whose_last_round_did_not_finish_is_carried_on(
@@ -488,7 +491,7 @@ def test_a_carried_on_round_says_that_is_what_woke_it(resuming, left_running):
 
 def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, gh):
     ran(root=resuming, number=1, cause=Cause.DISPATCH)
-    gh.replies(stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list")
+    gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
     gh.replies(
         stdout=pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
@@ -509,7 +512,7 @@ def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, g
 
 def test_an_assignment_told_about_a_batch_hears_it_only_once(resuming, gh):
     ran(root=resuming, number=1, cause=Cause.DISPATCH)
-    gh.replies(stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list")
+    gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
     gh.replies(
         stdout=pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
@@ -529,7 +532,7 @@ def test_an_assignment_told_about_a_batch_hears_it_only_once(resuming, gh):
 
 def test_a_batch_no_round_ever_launched_is_read_again_next_tick(resuming, gh):
     ran(root=resuming, number=1, cause=Cause.DISPATCH)
-    gh.replies(stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list")
+    gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
     gh.replies(
         stdout=pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
@@ -553,7 +556,7 @@ def test_a_batch_no_round_ever_launched_is_read_again_next_tick(resuming, gh):
 @pytest.mark.parametrize("state_name", ["MERGED", "CLOSED"])
 def test_a_pull_request_that_is_finished_gets_one_last_round(resuming, gh, state_name):
     ran(root=resuming, number=1, cause=Cause.DISPATCH)
-    gh.replies(stdout=pull_requests(listed=[(PULL_REQUEST, state_name)]), to="pr list")
+    gh.replies(stdout=pull_request(state=state_name), to="pr view")
     scheduler, clock = create_scheduler(root=resuming)
 
     observed = scheduler.tick(at=clock())
@@ -572,7 +575,7 @@ def test_a_pull_request_that_is_finished_gets_one_last_round(resuming, gh, state
 def test_an_assignment_that_has_had_its_last_round_gets_no_other(resuming, gh):
     ran(root=resuming, number=1, cause=Cause.DISPATCH)
     ran(root=resuming, number=2, cause=Cause.FINAL)
-    gh.replies(stdout=pull_requests(listed=[(PULL_REQUEST, "MERGED")]), to="pr list")
+    gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
     scheduler, clock = create_scheduler(root=resuming)
 
     observed = scheduler.tick(at=clock())
@@ -594,7 +597,7 @@ def test_a_last_round_that_was_interrupted_is_carried_on_as_the_last_round(
             cause=Cause.FINAL,
         ),
     )
-    gh.replies(stdout=pull_requests(listed=[(PULL_REQUEST, "MERGED")]), to="pr list")
+    gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
     scheduler, clock = create_scheduler(root=resuming)
 
     scheduler.tick(at=clock())
