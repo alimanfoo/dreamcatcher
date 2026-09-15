@@ -3,15 +3,15 @@ from pathlib import Path
 import pytest
 from conftest import CONFIG, CONFIG_HEAD, SMITH_CLAUDE, SMITH_CODEX
 
-from dreamcatcher.config import CONFIG_NAME, Harness, HarnessSettings, read_config
+from dreamcatcher.config import CONFIG_NAME, AssignmentRecipe, Harness, read_config
 from dreamcatcher.errors import ReportableError
 
 WITHOUT_CODEX = CONFIG_HEAD + SMITH_CLAUDE
 
-CLAUDE_SETTINGS = HarnessSettings(
+CLAUDE_RECIPE = AssignmentRecipe(
     prompt="/dream:smith GH{issue}", model="opus[1m]", effort="xhigh"
 )
-CODEX_SETTINGS = HarnessSettings(
+CODEX_RECIPE = AssignmentRecipe(
     prompt="$dream:smith GH{issue}", model="gpt-5.6-sol", effort="xhigh"
 )
 
@@ -27,10 +27,10 @@ def test_a_valid_config_reads_back(tmp_path):
     config = read_config(root=tmp_path)
 
     assert config.interval == 300
-    assert [mapping.label for mapping in config.dispatch] == ["dream:smith"]
-    assert config.dispatch[0].harness_settings == {
-        Harness.CLAUDE: CLAUDE_SETTINGS,
-        Harness.CODEX: CODEX_SETTINGS,
+    assert [route.label for route in config.dispatch] == ["dream:smith"]
+    assert config.dispatch[0].assignment_recipes == {
+        Harness.CLAUDE: CLAUDE_RECIPE,
+        Harness.CODEX: CODEX_RECIPE,
     }
 
 
@@ -58,26 +58,26 @@ def test_a_setting_the_config_names_beats_its_default(tmp_path):
 def test_a_label_one_harness_can_run_carries_that_block_alone(tmp_path):
     write_config(root=tmp_path, text=WITHOUT_CODEX)
 
-    mapping = read_config(root=tmp_path).dispatch[0]
+    route = read_config(root=tmp_path).dispatch[0]
 
-    assert mapping.harness_settings == {Harness.CLAUDE: CLAUDE_SETTINGS}
+    assert route.assignment_recipes == {Harness.CLAUDE: CLAUDE_RECIPE}
 
 
 def test_a_label_either_harness_can_run_runs_on_the_one_the_run_named(tmp_path):
     write_config(root=tmp_path, text=CONFIG)
 
-    mapping = read_config(root=tmp_path).dispatch[0]
+    route = read_config(root=tmp_path).dispatch[0]
 
-    assert mapping.choose_harness(named=Harness.CLAUDE) == Harness.CLAUDE
-    assert mapping.choose_harness(named=Harness.CODEX) == Harness.CODEX
+    assert route.choose_harness(named=Harness.CLAUDE) == Harness.CLAUDE
+    assert route.choose_harness(named=Harness.CODEX) == Harness.CODEX
 
 
 def test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named(tmp_path):
     write_config(root=tmp_path, text=WITHOUT_CODEX)
 
-    mapping = read_config(root=tmp_path).dispatch[0]
+    route = read_config(root=tmp_path).dispatch[0]
 
-    assert mapping.choose_harness(named=Harness.CODEX) == Harness.CLAUDE
+    assert route.choose_harness(named=Harness.CODEX) == Harness.CLAUDE
 
 
 @pytest.mark.parametrize(
@@ -99,7 +99,7 @@ def test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named(tmp
             "interval: Input should be greater than 0",
         ),
         (
-            "no dispatch mappings",
+            "no dispatch routes",
             "interval = 300\ndispatch = []\n",
             "dispatch: List should have at least 1 item after validation, not 0",
         ),
@@ -114,13 +114,13 @@ def test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named(tmp
             "dispatch.0.gemini: Input should be 'claude' or 'codex'",
         ),
         (
-            "a settings block that is not a block",
+            "a recipe block that is not a block",
             CONFIG_HEAD + '[[dispatch]]\nlabel = "dream:smith"\nclaude = "opus"\n',
             "dispatch.0.claude: Input should be a valid dictionary or instance of "
-            "HarnessSettings",
+            "AssignmentRecipe",
         ),
         (
-            "one label mapped twice",
+            "one label routed twice",
             CONFIG + SMITH_CLAUDE + SMITH_CODEX,
             "Value error, more than one dispatch entry uses the label dream:smith",
         ),
@@ -162,9 +162,9 @@ def test_a_prompt_may_hold_what_no_command_line_could_carry(tmp_path):
         root=tmp_path, text=CONFIG.replace("/dream:smith GH{issue}", written, 1)
     )
 
-    mapping = read_config(root=tmp_path).dispatch[0]
+    route = read_config(root=tmp_path).dispatch[0]
 
-    assert mapping.harness_settings[Harness.CLAUDE].prompt == (
+    assert route.assignment_recipes[Harness.CLAUDE].prompt == (
         "/dream:smith GH{issue}\nfinish 50% of it"
     )
 

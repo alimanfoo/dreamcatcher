@@ -75,14 +75,14 @@ def _list_issues(
     """
     labels: defaultdict[int, list[str]] = defaultdict(list)
     found: dict[int, Issue] = {}
-    for mapping in config.dispatch:
+    for route in config.dispatch:
         answered = list_issues(
-            repository=repository, label=mapping.label, assignee=config.assignee
+            repository=repository, label=route.label, assignee=config.assignee
         )
         if isinstance(answered, Unknown):
             return answered
         for issue in answered:
-            labels[issue.number].append(mapping.label)
+            labels[issue.number].append(route.label)
             found[issue.number] = issue
     return [
         (issue, labels[issue.number])

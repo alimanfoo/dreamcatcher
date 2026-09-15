@@ -29,34 +29,34 @@ class Harness(StrEnum):
     CODEX = "codex"
 
 
-class HarnessSettings(Document):
-    """How one harness runs a round for one label."""
+class AssignmentRecipe(Document):
+    """How one harness runs an assignment for one dispatch label."""
 
     prompt: str
     model: QuotableText
     effort: QuotableText
 
 
-class DispatchMapping(Document):
-    """A label, and the settings that each harness needs to run it.
+class DispatchRoute(Document):
+    """A dispatch label and the recipe that each harness uses for it.
 
-    The label is the mapping's identity, so no two mappings carry the same one.
+    The label is the route's identity, so no two routes carry the same one.
 
     A harness block sits beside the label rather than under a key of its own,
     as `[dispatch.claude]` does, so pydantic meets it as an extra key. Those
     extra keys carry a declared type, Harness, so the set of harnesses stays in
-    one home. A key that names no harness is then a named error, so the mapping
+    one home. A key that names no harness is then a named error, so the route
     keeps the guarantee that every document makes.
     """
 
     model_config = ConfigDict(extra="allow")
-    __pydantic_extra__: dict[Harness, HarnessSettings]
+    __pydantic_extra__: dict[Harness, AssignmentRecipe]
 
     label: str
 
     @property
-    def harness_settings(self) -> dict[Harness, HarnessSettings]:
-        """The settings block of each harness that can run the label."""
+    def assignment_recipes(self) -> dict[Harness, AssignmentRecipe]:
+        """The recipe of each harness that can run this route."""
         return self.__pydantic_extra__
 
     def choose_harness(self, *, named: Harness) -> Harness:
@@ -68,13 +68,13 @@ class DispatchMapping(Document):
         So which harnesses can run a label is already in the blocks that the
         label carries, and the config needs no pin of its own.
         """
-        settings = self.harness_settings
-        return named if named in settings else next(iter(settings))
+        recipes = self.assignment_recipes
+        return named if named in recipes else next(iter(recipes))
 
     @model_validator(mode="after")
     def _carries_a_block(self) -> Self:
         """Refuse a label with no harness able to run it."""
-        if not self.harness_settings:
+        if not self.assignment_recipes:
             raise ValueError(f"label {self.label} has no harness block")
         return self
 
@@ -85,33 +85,33 @@ class Config(Document):
     interval: PositiveInt = 120
     max_agents: PositiveInt = 1
     assignee: str = "@me"
-    dispatch: list[DispatchMapping] = Field(min_length=1)
+    dispatch: list[DispatchRoute] = Field(min_length=1)
 
     @property
-    def label_mappings(self) -> dict[str, DispatchMapping]:
-        """Each mapped label's own dispatch mapping.
+    def dispatch_routes(self) -> dict[str, DispatchRoute]:
+        """The dispatch route for each configured label.
 
-        The label is a mapping's identity, and no two mappings carry the same
-        one, so a label names one mapping here.
+        The label is a route's identity, and no two routes carry the same one,
+        so a label names one route here.
         """
-        return {mapping.label: mapping for mapping in self.dispatch}
+        return {route.label: route for route in self.dispatch}
 
     @property
-    def mapped_harnesses(self) -> set[Harness]:
-        """Every harness that a mapping here could settle one of its labels on.
+    def routed_harnesses(self) -> set[Harness]:
+        """Every harness that a route here could settle one of its labels on.
 
         A label carrying one harness block runs on that harness whatever a run
         named, so this is wider than the harness the run gave, and a run has to
         reach every one of them.
         """
         return {
-            harness for mapping in self.dispatch for harness in mapping.harness_settings
+            harness for route in self.dispatch for harness in route.assignment_recipes
         }
 
     @model_validator(mode="after")
-    def _each_label_maps_once(self) -> Self:
-        """Refuse two mappings for one label, since the label is the identity."""
-        labels = [mapping.label for mapping in self.dispatch]
+    def _each_label_has_one_route(self) -> Self:
+        """Refuse two routes for one label, since the label is the identity."""
+        labels = [route.label for route in self.dispatch]
         repeated = sorted({label for label in labels if labels.count(label) > 1})
         if repeated:
             named = ", ".join(repeated)

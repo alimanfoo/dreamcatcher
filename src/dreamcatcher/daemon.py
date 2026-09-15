@@ -150,13 +150,13 @@ class Daemon:
     def _locate_harnesses(self) -> None:
         """Refuse the run when a harness it could dispatch to is not installed.
 
-        Every harness a mapping can settle a label on is looked up, not just
+        Every harness a route can settle a label on is looked up, not just
         the one the run named, because a label carrying one harness block runs
         on that harness whatever the run named. Without this a missing CLI
         would read as a round that fails every fifteen minutes, since the hold
         after a failure cannot tell a misconfiguration from a blip.
         """
-        for harness in sorted({self.harness, *self.config.mapped_harnesses}):
+        for harness in sorted({self.harness, *self.config.routed_harnesses}):
             locate(program=ADAPTERS[harness].program)
 
     def _sweep_orphans(self) -> None:

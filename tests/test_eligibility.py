@@ -13,8 +13,8 @@ from dreamcatcher.state import CandidateIssue
 SETTINGS = {"prompt": "/dream:smith GH{issue}", "model": "opus[1m]", "effort": "xhigh"}
 
 
-def mapping(*, labels: Sequence[str]) -> Config:
-    """A config mapping each of these labels to the same harness block."""
+def config_with_routes(*, labels: Sequence[str]) -> Config:
+    """A config that routes each label to the same harness recipe."""
     return Config.model_validate(
         {"dispatch": [{"label": label, "claude": SETTINGS} for label in labels]}
     )
@@ -40,7 +40,7 @@ def weighed(*, config, claimed=frozenset()):
 
 
 def test_an_issue_nothing_stands_in_the_way_of_can_be_dispatched(gh):
-    judged = weighed(config=mapping(labels=["dream:smith"]))
+    judged = weighed(config=config_with_routes(labels=["dream:smith"]))
 
     assert judged == [CandidateIssue(issue=8, label=LABEL)]
     assert judged[0].is_eligible
@@ -50,7 +50,8 @@ def test_the_issues_come_back_oldest_first(gh):
     gh.replies(stdout=listing(issues=[(8, LATER), (3, FILED)]), to="issue list")
 
     assert [
-        candidate.issue for candidate in weighed(config=mapping(labels=["dream:smith"]))
+        candidate.issue
+        for candidate in weighed(config=config_with_routes(labels=["dream:smith"]))
     ] == [3, 8]
 
 
@@ -58,15 +59,17 @@ def test_a_listing_the_tool_cannot_read_answers_unknown_for_the_whole_tick(gh):
     gh.fails(stderr="gh: could not connect to github.com", to="issue list")
 
     judged = judge_issues(
-        repository=REPOSITORY, config=mapping(labels=["dream:smith"]), claimed=set()
+        repository=REPOSITORY,
+        config=config_with_routes(labels=["dream:smith"]),
+        claimed=set(),
     )
 
     assert isinstance(judged, Unknown)
     assert "could not connect" in judged.reason
 
 
-def test_an_issue_carrying_more_than_one_mapped_label_is_skipped(gh):
-    assert weighed(config=mapping(labels=["dream:smith", "dream:less"])) == [
+def test_an_issue_carrying_more_than_one_dispatch_label_is_skipped(gh):
+    assert weighed(config=config_with_routes(labels=["dream:smith", "dream:less"])) == [
         CandidateIssue(
             issue=8,
             label=LABEL,
@@ -81,7 +84,7 @@ def test_an_issue_carrying_more_than_one_mapped_label_is_skipped(gh):
 
 
 def test_an_issue_a_session_of_this_run_is_working_on_is_left_alone(gh):
-    assert weighed(config=mapping(labels=["dream:smith"]), claimed={8}) == [
+    assert weighed(config=config_with_routes(labels=["dream:smith"]), claimed={8}) == [
         CandidateIssue(
             issue=8, label=LABEL, reason="a session in this checkout is working on it"
         )
@@ -94,7 +97,7 @@ def test_an_issue_with_a_pull_request_open_on_it_is_left_alone(gh):
         to="issue view",
     )
 
-    assert weighed(config=mapping(labels=["dream:smith"])) == [
+    assert weighed(config=config_with_routes(labels=["dream:smith"])) == [
         CandidateIssue(issue=8, label=LABEL, reason="a pull request is open on it: #28")
     ]
 
@@ -102,7 +105,7 @@ def test_an_issue_with_a_pull_request_open_on_it_is_left_alone(gh):
 def test_a_pull_request_read_that_failed_reads_as_claimed(gh):
     gh.fails(stderr="gh: the issue is not there", to="issue view")
 
-    assert weighed(config=mapping(labels=["dream:smith"])) == [
+    assert weighed(config=config_with_routes(labels=["dream:smith"])) == [
         CandidateIssue(
             issue=8,
             label=LABEL,
@@ -124,7 +127,7 @@ def test_an_issue_an_open_issue_blocks_names_what_blocks_it(gh):
         to="api",
     )
 
-    assert weighed(config=mapping(labels=["dream:smith"])) == [
+    assert weighed(config=config_with_routes(labels=["dream:smith"])) == [
         CandidateIssue(issue=8, label=LABEL, reason="blocked by GH9")
     ]
 
@@ -132,7 +135,7 @@ def test_an_issue_an_open_issue_blocks_names_what_blocks_it(gh):
 def test_a_blocker_read_that_failed_reads_as_blocked(gh):
     gh.fails(stderr="gh: could not connect to github.com", to="api")
 
-    assert weighed(config=mapping(labels=["dream:smith"])) == [
+    assert weighed(config=config_with_routes(labels=["dream:smith"])) == [
         CandidateIssue(
             issue=8,
             label=LABEL,

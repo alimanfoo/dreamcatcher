@@ -45,8 +45,8 @@ def fabricated(tmp_path):
 
 
 @pytest.fixture
-def mapping(checkout):
-    """The dispatch mapping of the one label that the config maps."""
+def route(checkout):
+    """The dispatch route of the one label that the config maps."""
     return read_config(root=checkout).dispatch[0]
 
 
@@ -56,9 +56,9 @@ def written(*, state):
     return SessionRecord.model_validate_json(record.read_text(encoding="utf-8"))
 
 
-def test_a_session_cuts_a_worktree_of_its_own_under_the_state_directory(state, mapping):
+def test_a_session_cuts_a_worktree_of_its_own_under_the_state_directory(state, route):
     session = create_session(
-        state=state, mapping=mapping, named=Harness.CLAUDE, issue=12, at=PINNED
+        state=state, route=route, named=Harness.CLAUDE, issue=12, at=PINNED
     )
 
     assert session.key == KEY
@@ -67,7 +67,7 @@ def test_a_session_cuts_a_worktree_of_its_own_under_the_state_directory(state, m
 
 
 def test_a_session_cuts_a_branch_of_its_own_from_origins_main_as_it_is_now(
-    state, mapping
+    state, route
 ):
     # Move origin's main on, then leave the checkout believing what it knew
     # before. Only a fetch of its own brings the creation the newer main.
@@ -78,7 +78,7 @@ def test_a_session_cuts_a_branch_of_its_own_from_origins_main_as_it_is_now(
     git(arguments=["update-ref", "refs/remotes/origin/main", known], cwd=state.root)
 
     session = create_session(
-        state=state, mapping=mapping, named=Harness.CLAUDE, issue=12, at=PINNED
+        state=state, route=route, named=Harness.CLAUDE, issue=12, at=PINNED
     )
 
     assert session.record.branch == BRANCH
@@ -86,9 +86,9 @@ def test_a_session_cuts_a_branch_of_its_own_from_origins_main_as_it_is_now(
     assert (session.record.worktree / "later.txt").exists()
 
 
-def test_a_session_records_what_it_was_dispatched_with(state, mapping):
+def test_a_session_records_what_it_was_dispatched_with(state, route):
     session = create_session(
-        state=state, mapping=mapping, named=Harness.CLAUDE, issue=12, at=PINNED
+        state=state, route=route, named=Harness.CLAUDE, issue=12, at=PINNED
     )
 
     assert written(state=state) == session.record
@@ -100,9 +100,9 @@ def test_a_session_records_what_it_was_dispatched_with(state, mapping):
     assert session.record.prompt.startswith("/dream:smith GH12\n")
 
 
-def test_a_session_runs_on_the_harness_the_run_named(state, mapping):
+def test_a_session_runs_on_the_harness_the_run_named(state, route):
     session = create_session(
-        state=state, mapping=mapping, named=Harness.CODEX, issue=12, at=PINNED
+        state=state, route=route, named=Harness.CODEX, issue=12, at=PINNED
     )
 
     assert session.record.harness == Harness.CODEX
@@ -110,9 +110,9 @@ def test_a_session_runs_on_the_harness_the_run_named(state, mapping):
     assert session.record.prompt.startswith("$dream:smith GH12\n")
 
 
-def test_a_new_session_has_run_no_rounds_and_its_next_is_its_first(state, mapping):
+def test_a_new_session_has_run_no_rounds_and_its_next_is_its_first(state, route):
     session = create_session(
-        state=state, mapping=mapping, named=Harness.CLAUDE, issue=12, at=PINNED
+        state=state, route=route, named=Harness.CLAUDE, issue=12, at=PINNED
     )
 
     assert session.rounds == []
@@ -259,7 +259,7 @@ def test_a_round_that_ended_as_a_later_round_started_reads_back_ended(fabricated
     assert endings(state=fabricated) == [ended(status=0).ending, None]
 
 
-def test_a_session_git_cannot_cut_leaves_no_branch_behind(state, mapping):
+def test_a_session_git_cannot_cut_leaves_no_branch_behind(state, route):
     # git makes the branch, then finds something already in the worktree's
     # place and stops. The worktree it never made cannot be removed, so the
     # back-out takes what git did leave.
@@ -269,19 +269,19 @@ def test_a_session_git_cannot_cut_leaves_no_branch_behind(state, mapping):
 
     with pytest.raises(CommandError):
         create_session(
-            state=state, mapping=mapping, named=Harness.CLAUDE, issue=12, at=PINNED
+            state=state, route=route, named=Harness.CLAUDE, issue=12, at=PINNED
         )
 
     assert git(arguments=["branch", "--list", BRANCH], cwd=state.root) == ""
 
 
-def test_a_session_that_cannot_record_leaves_no_worktree_and_no_branch(state, mapping):
+def test_a_session_that_cannot_record_leaves_no_worktree_and_no_branch(state, route):
     state.sessions.mkdir(parents=True)
     (state.sessions / KEY).write_text("something else is here\n", encoding="utf-8")
 
     with pytest.raises(ReportableError, match="cannot write"):
         create_session(
-            state=state, mapping=mapping, named=Harness.CLAUDE, issue=12, at=PINNED
+            state=state, route=route, named=Harness.CLAUDE, issue=12, at=PINNED
         )
 
     assert not (state.worktrees / KEY).exists()
@@ -292,36 +292,32 @@ def test_a_state_directory_with_no_worktrees_holds_no_sessions(state):
     assert read_sessions(state=state) == []
 
 
-def test_a_session_reads_back_as_it_was_dispatched(state, mapping):
+def test_a_session_reads_back_as_it_was_dispatched(state, route):
     created = create_session(
-        state=state, mapping=mapping, named=Harness.CLAUDE, issue=12, at=PINNED
+        state=state, route=route, named=Harness.CLAUDE, issue=12, at=PINNED
     )
 
     assert read_sessions(state=state) == [created]
 
 
-def test_a_session_no_round_has_told_anything_yet_has_seen_no_post(state, mapping):
-    create_session(
-        state=state, mapping=mapping, named=Harness.CLAUDE, issue=12, at=PINNED
-    )
+def test_a_session_no_round_has_told_anything_yet_has_seen_no_post(state, route):
+    create_session(state=state, route=route, named=Harness.CLAUDE, issue=12, at=PINNED)
 
     assert read_sessions(state=state)[0].watermark == ""
 
 
-def test_a_session_reads_back_the_newest_post_it_has_been_told_about(state, mapping):
-    create_session(
-        state=state, mapping=mapping, named=Harness.CLAUDE, issue=12, at=PINNED
-    )
+def test_a_session_reads_back_the_newest_post_it_has_been_told_about(state, route):
+    create_session(state=state, route=route, named=Harness.CLAUDE, issue=12, at=PINNED)
     write_text(text="2026-09-03T22:31:51Z\n", path=state.sessions / KEY / WATERMARK)
 
     assert read_sessions(state=state)[0].watermark == "2026-09-03T22:31:51Z"
 
 
 def test_a_session_told_about_a_batch_of_posts_reads_the_newest_of_them_back(
-    state, mapping
+    state, route
 ):
     created = create_session(
-        state=state, mapping=mapping, named=Harness.CLAUDE, issue=12, at=PINNED
+        state=state, route=route, named=Harness.CLAUDE, issue=12, at=PINNED
     )
 
     advance_watermark(session=created, newest="2026-09-03T22:31:51Z")
@@ -329,10 +325,8 @@ def test_a_session_told_about_a_batch_of_posts_reads_the_newest_of_them_back(
     assert read_sessions(state=state)[0].watermark == "2026-09-03T22:31:51Z"
 
 
-def test_a_sessions_rounds_read_back_in_the_order_they_ran(state, mapping):
-    create_session(
-        state=state, mapping=mapping, named=Harness.CLAUDE, issue=12, at=PINNED
-    )
+def test_a_sessions_rounds_read_back_in_the_order_they_ran(state, route):
+    create_session(state=state, route=route, named=Harness.CLAUDE, issue=12, at=PINNED)
     later = PINNED.replace(minute=50)
     directory = state.sessions / KEY
     write_round(
@@ -357,13 +351,9 @@ def test_a_sessions_rounds_read_back_in_the_order_they_ran(state, mapping):
     assert read.next_workspace.directory == state.sessions / KEY / "rounds" / "3"
 
 
-def test_every_session_of_the_repo_reads_back_by_key(state, mapping):
-    create_session(
-        state=state, mapping=mapping, named=Harness.CLAUDE, issue=12, at=PINNED
-    )
-    create_session(
-        state=state, mapping=mapping, named=Harness.CLAUDE, issue=3, at=PINNED
-    )
+def test_every_session_of_the_repo_reads_back_by_key(state, route):
+    create_session(state=state, route=route, named=Harness.CLAUDE, issue=12, at=PINNED)
+    create_session(state=state, route=route, named=Harness.CLAUDE, issue=3, at=PINNED)
 
     assert [session.key for session in read_sessions(state=state)] == [
         "GH12-20260819-184158",
@@ -371,28 +361,26 @@ def test_every_session_of_the_repo_reads_back_by_key(state, mapping):
     ]
 
 
-def test_a_file_left_among_the_worktrees_is_not_a_session(state, mapping):
+def test_a_file_left_among_the_worktrees_is_not_a_session(state, route):
     created = create_session(
-        state=state, mapping=mapping, named=Harness.CLAUDE, issue=12, at=PINNED
+        state=state, route=route, named=Harness.CLAUDE, issue=12, at=PINNED
     )
     (state.worktrees / ".DS_Store").write_text("a file browser\n", encoding="utf-8")
 
     assert read_sessions(state=state) == [created]
 
 
-def test_a_worktree_with_no_record_beside_it_is_not_a_session(state, mapping):
+def test_a_worktree_with_no_record_beside_it_is_not_a_session(state, route):
     created = create_session(
-        state=state, mapping=mapping, named=Harness.CLAUDE, issue=12, at=PINNED
+        state=state, route=route, named=Harness.CLAUDE, issue=12, at=PINNED
     )
     (state.worktrees / "GH3-20260819-184158").mkdir()
 
     assert read_sessions(state=state) == [created]
 
 
-def test_a_session_record_that_will_not_read_names_the_file(state, mapping):
-    create_session(
-        state=state, mapping=mapping, named=Harness.CLAUDE, issue=12, at=PINNED
-    )
+def test_a_session_record_that_will_not_read_names_the_file(state, route):
+    create_session(state=state, route=route, named=Harness.CLAUDE, issue=12, at=PINNED)
     (state.sessions / KEY / "session.json").write_text("{}", encoding="utf-8")
 
     with pytest.raises(ReportableError, match=r"session\.json is not valid"):

@@ -274,7 +274,7 @@ def harnesses(fake):
 
 
 def configure(*, root, head: str = CONFIG_HEAD) -> None:
-    """Write a config for that checkout, with this ahead of its one mapping."""
+    """Write a config for that checkout, with this ahead of its one route."""
     (root / CONFIG_NAME).write_text(head + SMITH_CLAUDE + SMITH_CODEX, encoding="utf-8")
 
 

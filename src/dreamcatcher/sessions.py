@@ -16,7 +16,7 @@ from pathlib import Path
 
 from dreamcatcher import prompts
 from dreamcatcher.commands import CommandError
-from dreamcatcher.config import DispatchMapping, Harness
+from dreamcatcher.config import DispatchRoute, Harness
 from dreamcatcher.documents import (
     Document,
     read_json,
@@ -186,7 +186,7 @@ def read_sessions(*, state: StateDirectory) -> list[Session]:
 def create_session(
     *,
     state: StateDirectory,
-    mapping: DispatchMapping,
+    route: DispatchRoute,
     named: Harness,
     issue: int,
     at: datetime,
@@ -205,20 +205,18 @@ def create_session(
     has one to take away. The caller hears the failure that stopped the
     creation, not any failure that removing them hits.
     """
-    harness = mapping.choose_harness(named=named)
-    settings = mapping.harness_settings[harness]
+    harness = route.choose_harness(named=named)
+    recipe = route.assignment_recipes[harness]
     key = f"GH{issue}-{at:%Y%m%d-%H%M%S}"
     record = SessionRecord(
         issue=issue,
-        label=mapping.label,
+        label=route.label,
         branch=f"{BRANCH_PREFIX}{key}",
         worktree=state.worktrees / key,
         harness=harness,
-        model=settings.model,
-        effort=settings.effort,
-        prompt=prompts.compose_first_round_prompt(
-            template=settings.prompt, issue=issue
-        ),
+        model=recipe.model,
+        effort=recipe.effort,
+        prompt=prompts.compose_first_round_prompt(template=recipe.prompt, issue=issue),
     )
     directory = state.sessions / key
     fetch(root=state.root)

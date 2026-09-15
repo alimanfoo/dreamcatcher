@@ -206,7 +206,7 @@ class Scheduler:
             advance_watermark(session=session, newest=wakeup.newest_post)
 
     def _start_round(self, *, session: Session, prompt: str, cause: Cause) -> None:
-        """Start a round with the settings that the dispatch settled."""
+        """Start a round with the recipe that the dispatch settled."""
         adapter = ADAPTERS[session.record.harness]
         launch = Launch(
             session=session.key,
@@ -250,7 +250,7 @@ class Scheduler:
         """Create a session and remove it again if its first round cannot start."""
         session = create_session(
             state=self.state,
-            mapping=self.config.label_mappings[candidate.label],
+            route=self.config.dispatch_routes[candidate.label],
             named=self.harness,
             issue=candidate.issue,
             at=at,
