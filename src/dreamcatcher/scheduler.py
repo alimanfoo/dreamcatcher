@@ -159,7 +159,7 @@ class Scheduler:
             )
         ready = sort_wakeups(found=[one for one in found if isinstance(one, Wakeup)])
         if ready:
-            return self._resume_assignment(
+            return self._launch_assignment_round(
                 at=at, wakeup=ready[0], found=found, candidates=candidates
             )
         return self._dispatch_oldest_issue(
@@ -181,7 +181,7 @@ class Scheduler:
                 found.append(needed)
         return found
 
-    def _resume_assignment(
+    def _launch_assignment_round(
         self,
         *,
         at: datetime,
@@ -189,7 +189,7 @@ class Scheduler:
         found: list[Finding],
         candidates: list[CandidateIssue],
     ) -> LastTick:
-        """Resume the assignment with the highest priority this tick."""
+        """Launch the next round for the highest-priority assignment."""
         try:
             self._launch_wakeup(wakeup=wakeup)
         except ReportableError as failure:

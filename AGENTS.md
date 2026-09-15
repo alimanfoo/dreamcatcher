@@ -16,8 +16,8 @@ below read the index.
 ## What this is
 
 dreamcatcher watches a repository for labelled issues, dispatches an autonomous
-coding session for each, and carries each issue to a pull request for the user
-to review and merge.
+coding assignment for each, and carries each issue to a pull request for the
+user to review and merge.
 
 ## Specs
 
@@ -154,18 +154,18 @@ uv run pre-commit run --all-files
 - Name a boolean for the question it answers: `is_alive`, `is_subagent`, not
   `alive` or `subagent`. `if round.is_alive:` then reads as English.
 - Name a class or a function that a module exports so that it still says what it
-  is when another module imports it bare: `create_session`, not `create`;
-  `compose_first_round_prompt`, not `first_round`. The module name qualifies it
-  where it is defined and nowhere else, so a name that leans on the module reads
-  as nothing at the call site. A method needs no such help, because its receiver
-  says what it belongs to.
+  is when another module imports it bare: `create_agent_assignment`, not
+  `create`; `compose_first_round_prompt`, not `first_round`. The module name
+  qualifies it where it is defined and nowhere else, so a name that leans on the
+  module reads as nothing at the call site. A method needs no such help, because
+  its receiver says what it belongs to.
 - Keep changes lean. Add nothing a requirement or the design doesn't call for;
   prefer deleting over adding. One way to do each thing, always.
 - Give every issue you file its type label, `bug`, `enhancement` or
   `maintenance`, and no other label. Leave it unassigned. Which skill picks an
   issue up, and who works on it, are the user's to say, and a label or an
-  assignee you add takes that choice away: a dispatch label sends a session at
-  the issue before the user has read it.
+  assignee you add takes that choice away: a dispatch label sends an assignment
+  at the issue before the user has read it.
 - Ask of every issue you file whether an issue that is already open has to wait
   for it. When one does, mark that issue as blocked by the new one, so a
   dispatcher working through unblocked issues takes them in the right order.

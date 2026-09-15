@@ -376,7 +376,7 @@ def test_a_state_directory_renders_as_its_golden_board(name, tmp_path, daemon):
 
 
 def test_an_identifier_too_wide_for_the_console_folds_rather_than_being_cut(tmp_path):
-    """Two assignments at one issue differ only in the time their keys carry."""
+    """Two assignments at one issue differ only in their identifier times."""
     state = StateDirectory(root=tmp_path)
     fabricate_repeat_assignments(state=state)
 
@@ -783,7 +783,10 @@ def test_a_following_view_reads_a_round_on_from_where_it_stopped(tmp_path, daemo
             directory=directory,
             number=1,
             lines=[
-                Line(at=SAID[0].at, text="[assignment] model opus[1m], id 000000"),
+                Line(
+                    at=SAID[0].at,
+                    text="[harness session] model opus[1m], id 000000",
+                ),
                 *SAID[1:],
                 Line(at=PINNED + timedelta(minutes=7), text="[Bash] git push"),
             ],

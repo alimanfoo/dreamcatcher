@@ -328,8 +328,8 @@ def _open_table() -> Table:
 
     The first column names an assignment or an issue, which is what a reader picks
     a row out by, so it folds onto another line rather than being cut short.
-    Two assignments at one issue differ only in the time in their keys, and a cut
-    that reached that far would leave the rows reading the same.
+    Two assignments at one issue differ only in the time in their identifiers,
+    and a cut that reached that far would leave the rows reading the same.
     """
     table = Table(box=None, show_header=False, pad_edge=False)
     table.add_column(style="bold", overflow="fold")
