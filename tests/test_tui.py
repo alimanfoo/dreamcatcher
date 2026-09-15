@@ -299,11 +299,11 @@ FEEDS = {
 # The assignment view each fabricated state directory is worth reading, by the
 # issue whose newest assignment it shows.
 ASSIGNMENTS = {
-    "assignment-working": (fabricate_everything, 13),
-    "assignment-silent-round": (fabricate_a_silent_round, 13),
-    "assignment-older-assignments": (fabricate_repeat_assignments, 13),
-    "assignment-stuck": (fabricate_everything, 9),
-    "assignment-never-started": (fabricate_everything, 44),
+    "newest-assignment-working": (fabricate_everything, 13),
+    "newest-assignment-silent-round": (fabricate_a_silent_round, 13),
+    "newest-assignment-older-assignments": (fabricate_repeat_assignments, 13),
+    "newest-assignment-stuck": (fabricate_everything, 9),
+    "newest-assignment-never-started": (fabricate_everything, 44),
 }
 
 

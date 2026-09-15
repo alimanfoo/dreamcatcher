@@ -401,7 +401,7 @@ def _render_assignment(
     newest = rows[0]
     return _render_parts(
         parts=[
-            Text(newest.assignment.identifier),
+            Text(f"newest assignment {newest.assignment.identifier}"),
             _render_detail(
                 row=newest,
                 prefix=str(newest.standing),
@@ -410,7 +410,7 @@ def _render_assignment(
             ),
             _render_vitals(state=state, row=newest),
             _render_rounds(row=newest),
-            _render_hand_resume(state=state, row=newest),
+            _render_harness_resume(state=state, row=newest),
             _render_older_assignments(older=rows[1:]),
         ]
     )
@@ -478,22 +478,22 @@ def _describe_ending(*, record: RoundRecord, is_running: bool) -> str:
     return "running" if is_running else "interrupted"
 
 
-def _render_hand_resume(
+def _render_harness_resume(
     *, state: StateDirectory, row: AgentAssignmentRow
 ) -> RenderableType | None:
-    """Return how to carry the assignment on by hand, when there is one to carry on.
+    """Return how to resume the harness session by hand, when one exists.
 
     A round of the daemon's own is talking to the harness already, so there is
-    nothing to take over until it has finished. An assignment that has run no round
-    at all has no harness session behind it either, so there is nothing to
-    take over there and never will be.
+    nothing to resume until it has finished. An assignment that has run no round
+    at all has no harness session behind it either, so there is nothing to resume
+    there and never will be.
     """
     if row.standing is AgentAssignmentStanding.WORKING or not row.assignment.rounds:
         return None
     worktree = state.describe_path(path=row.assignment.record.worktree)
     command = " ".join(ADAPTERS[row.assignment.record.harness].build_hand_resume())
     return _render_section(
-        heading="take it over yourself",
+        heading="resume harness session yourself",
         colour="blue",
         body=Text(f"cd {worktree}\n{command}"),
     )
