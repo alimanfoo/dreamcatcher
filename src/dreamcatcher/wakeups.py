@@ -170,7 +170,7 @@ def _judge_pull_request(
             reason=f"cannot read its pull request: {pull_request.reason}",
         )
     is_open = pull_request.state is PullRequestState.OPEN
-    if recovery_reason is not None:
+    if recovery_reason is not None and is_open:
         return Wakeup(
             assignment=assignment,
             purpose=_round_purpose(pull_request=pull_request),
@@ -192,12 +192,19 @@ def _judge_pull_request(
     if is_open and not posted:
         return None
     return _compose_resume(
-        assignment=assignment, pull_request=pull_request, posted=posted
+        assignment=assignment,
+        pull_request=pull_request,
+        posted=posted,
+        recovery_reason=recovery_reason,
     )
 
 
 def _compose_resume(
-    *, assignment: AgentAssignment, pull_request: PullRequest, posted: list[AnyPost]
+    *,
+    assignment: AgentAssignment,
+    pull_request: PullRequest,
+    posted: list[AnyPost],
+    recovery_reason: str | None,
 ) -> Wakeup:
     """Return the round that the pull request and the user's posts call for.
 
@@ -209,11 +216,14 @@ def _compose_resume(
     return Wakeup(
         assignment=assignment,
         purpose=_round_purpose(pull_request=pull_request),
-        is_recovery=False,
+        is_recovery=recovery_reason is not None,
         reason=(
-            f"{describe_count(number=len(posted), noun='new post')} to answer"
-            if is_open
-            else f"the pull request is {pull_request.state.lower()}"
+            recovery_reason
+            or (
+                f"{describe_count(number=len(posted), noun='new post')} to answer"
+                if is_open
+                else f"the pull request is {pull_request.state.lower()}"
+            )
         ),
         prompt=compose_inbox_prompt(
             pull_request=pull_request.number,

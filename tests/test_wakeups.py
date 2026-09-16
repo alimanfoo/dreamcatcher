@@ -136,13 +136,21 @@ def test_a_terminal_pull_request_makes_an_interrupted_round_a_recovery_wrap_up(
         status=None,
     )
     gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
+    gh.replies(
+        stdout=pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+    )
 
     resume = found(state=state)
 
     assert isinstance(resume, Wakeup)
     assert resume.purpose is RoundPurpose.WRAP_UP
     assert resume.is_recovery
-    assert resume.inbox is None
+    assert resume.inbox is not None
+    assert resume.inbox.state is PullRequestState.MERGED
+    assert [post.body for post in resume.inbox.posts] == [
+        "have another look at the filter"
+    ]
+    assert f"pull request #{PULL_REQUEST}" in resume.prompt
 
     ran(
         state=state,
