@@ -6,7 +6,11 @@ import pytest
 from clocks import PINNED
 from records import write_agent_assignment, write_feed, write_round, write_tick
 
-from dreamcatcher.agent_rounds import AgentRoundEnding, AgentRoundRecord, Cause
+from dreamcatcher.agent_rounds import (
+    AgentRoundRecord,
+    RoundPurpose,
+    compose_agent_round_ending,
+)
 from dreamcatcher.board import AgentAssignmentStanding, read_board, read_rows_for_issue
 from dreamcatcher.feed import Line
 from dreamcatcher.state import (
@@ -40,7 +44,13 @@ def running(state):
     return state
 
 
-def ran(*, state, number: int, cause: Cause = Cause.DISPATCH, status: int | None = 0):
+def ran(
+    *,
+    state,
+    number: int,
+    purpose: RoundPurpose = RoundPurpose.IMPLEMENT,
+    status: int | None = 0,
+):
     """Write down a round of the assignment, ended as the status says.
 
     A round that ended ran for four minutes, so a line its feed holds landed
@@ -50,12 +60,20 @@ def ran(*, state, number: int, cause: Cause = Cause.DISPATCH, status: int | None
     ending = (
         None
         if status is None
-        else AgentRoundEnding(at=started + timedelta(minutes=4), status=status)
+        else compose_agent_round_ending(
+            at=started + timedelta(minutes=4), status=status
+        )
     )
     write_round(
         directory=state.assignments / ASSIGNMENT_ID,
         number=number,
-        record=AgentRoundRecord(started=started, pid=1, cause=cause, ending=ending),
+        record=AgentRoundRecord(
+            number=number,
+            purpose=purpose,
+            started=started,
+            pid=1,
+            ending=ending,
+        ),
     )
 
 
@@ -98,7 +116,9 @@ def test_the_rows_for_an_issue_are_its_own_assignments_newest_first(running):
     write_round(
         directory=other,
         number=1,
-        record=AgentRoundRecord(started=PINNED, pid=1, cause=Cause.DISPATCH),
+        record=AgentRoundRecord(
+            number=1, started=PINNED, pid=1, purpose=RoundPurpose.IMPLEMENT
+        ),
     )
 
     assert [
@@ -119,7 +139,9 @@ def test_a_look_at_one_issue_leaves_another_assignment_s_feed_unread(running):
     write_round(
         directory=other,
         number=1,
-        record=AgentRoundRecord(started=PINNED, pid=1, cause=Cause.DISPATCH),
+        record=AgentRoundRecord(
+            number=1, started=PINNED, pid=1, purpose=RoundPurpose.IMPLEMENT
+        ),
     )
     # Bytes that are not UTF-8 stand for a feed that a look must not open,
     # since reading this one would report it rather than answer.
@@ -178,14 +200,14 @@ def test_a_round_that_failed_waits_with_the_status_it_failed_with(running):
 
 def test_an_assignment_whose_final_round_has_run_is_done(state):
     ran(state=state, number=1)
-    ran(state=state, number=2, cause=Cause.FINAL)
+    ran(state=state, number=2, purpose=RoundPurpose.WRAP_UP)
 
     assert only(state=state).standing is AgentAssignmentStanding.DONE
     assert only(state=state).detail == "2 rounds"
 
 
 def test_an_assignment_done_in_one_round_counts_that_round_as_one(state):
-    ran(state=state, number=1, cause=Cause.FINAL)
+    ran(state=state, number=1, purpose=RoundPurpose.WRAP_UP)
 
     assert only(state=state).detail == "1 round"
 
@@ -288,15 +310,16 @@ def test_the_assignments_at_one_issue_read_as_assignments_newest_first(state):
 
 def test_the_work_that_is_done_reads_most_recent_first(state):
     write_agent_assignment(state=state, identifier="GH9-20260819-184158", issue=9)
-    ran(state=state, number=1, cause=Cause.FINAL)
+    ran(state=state, number=1, purpose=RoundPurpose.WRAP_UP)
     write_round(
         directory=state.assignments / "GH9-20260819-184158",
         number=1,
         record=AgentRoundRecord(
+            number=1,
             started=PINNED + timedelta(hours=1),
             pid=1,
-            cause=Cause.FINAL,
-            ending=AgentRoundEnding(at=PINNED + timedelta(hours=1), status=0),
+            purpose=RoundPurpose.WRAP_UP,
+            ending=compose_agent_round_ending(at=PINNED + timedelta(hours=1), status=0),
         ),
     )
 

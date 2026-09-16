@@ -183,7 +183,7 @@ class Daemon:
         """
         for assignment in read_agent_assignments(state=self.state):
             for record in assignment.rounds:
-                if not record.is_complete:
+                if record.ending is None:
                     teardown.end(pid=record.pid)
 
 

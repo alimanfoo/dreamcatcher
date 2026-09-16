@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import PurePosixPath, PureWindowsPath
 
+import pytest
 from clocks import PINNED, Ticking
 
 from dreamcatcher.feed import (
@@ -95,10 +96,28 @@ def test_a_subagents_lines_are_indented_under_the_timestamp():
     )
 
 
-def test_a_round_opens_with_its_number_and_its_cause():
-    boundary = compose_round_boundary(number=3, cause="new posts", at=PINNED)
+@pytest.mark.parametrize(
+    ("number", "purpose", "is_recovery", "description"),
+    [
+        (1, "implement", False, "dispatched"),
+        (2, "implement", True, "carried on"),
+        (2, "wrap up", False, "final round"),
+        (2, "address feedback", False, "new posts"),
+    ],
+)
+def test_a_round_boundary_derives_the_temporary_views_existing_words(
+    number, purpose, is_recovery, description
+):
+    boundary = compose_round_boundary(
+        number=number,
+        purpose=purpose,
+        is_recovery=is_recovery,
+        at=PINNED,
+    )
 
-    assert boundary.render() == "2026-08-19T18:41:58Z  round 3: new posts\n"
+    assert boundary.render() == (
+        f"2026-08-19T18:41:58Z  round {number}: {description}\n"
+    )
 
 
 def test_a_written_line_reads_back_as_what_it_says_and_when():

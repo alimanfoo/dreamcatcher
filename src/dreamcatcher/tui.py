@@ -27,7 +27,11 @@ from rich.table import Table
 from rich.text import Text
 
 from dreamcatcher.agent_assignments import AgentAssignment
-from dreamcatcher.agent_rounds import AgentRoundRecord
+from dreamcatcher.agent_rounds import (
+    AgentRoundRecord,
+    ErroredAgentRoundEnding,
+    InterruptedAgentRoundEnding,
+)
 from dreamcatcher.board import (
     AgentAssignmentRow,
     AgentAssignmentStanding,
@@ -38,7 +42,13 @@ from dreamcatcher.board import (
 from dreamcatcher.clock import Wait, now
 from dreamcatcher.documents import read_lines_from
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.feed import GAP, Line, compose_round_boundary, read_feed_line
+from dreamcatcher.feed import (
+    GAP,
+    Line,
+    compose_round_boundary,
+    describe_agent_round_start,
+    read_feed_line,
+)
 from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.words import describe_count, describe_span, describe_time
@@ -445,13 +455,20 @@ def _render_rounds(*, row: AgentAssignmentRow) -> RenderableType | None:
     if not rounds:
         return None
     table = _open_table()
-    for number, record in reversed(list(enumerate(rounds, start=1))):
-        is_running = row.standing is AgentAssignmentStanding.WORKING and number == len(
-            rounds
+    for record in reversed(rounds):
+        is_running = (
+            row.standing is AgentAssignmentStanding.WORKING
+            and record.number == len(rounds)
         )
         table.add_row(
-            Text(str(number)),
-            Text(record.cause),
+            Text(str(record.number)),
+            Text(
+                describe_agent_round_start(
+                    number=record.number,
+                    purpose=record.purpose,
+                    is_recovery=record.is_recovery,
+                )
+            ),
             Text(describe_time(at=record.started)),
             Text(_describe_run(record=record)),
             Text(_describe_ending(record=record, is_running=is_running)),
@@ -461,7 +478,7 @@ def _render_rounds(*, row: AgentAssignmentRow) -> RenderableType | None:
 
 def _describe_run(*, record: AgentRoundRecord) -> str:
     """Return how long the round ran, or nothing while it is still running."""
-    if record.ending is None:
+    if record.ending is None or isinstance(record.ending, InterruptedAgentRoundEnding):
         return ""
     return f"ran {describe_span(span=record.ending.at - record.started)}"
 
@@ -473,6 +490,10 @@ def _describe_ending(*, record: AgentRoundRecord, is_running: bool) -> str:
     is still there to run it, and interrupted once that daemon has gone, since
     a round cannot outlive its daemon.
     """
+    if isinstance(record.ending, ErroredAgentRoundEnding):
+        return f"exit {record.ending.status}"
+    if isinstance(record.ending, InterruptedAgentRoundEnding):
+        return "interrupted"
     if record.ending is not None:
         return f"exit {record.ending.status}"
     return "running" if is_running else "interrupted"
@@ -603,7 +624,7 @@ def _show_one_round(
                 f"so it has no round {number}."
             )
         view.show_what_arrived(assignment=assignment, round_numbers=[number])
-        return assignment.rounds[number - 1].is_complete
+        return assignment.rounds[number - 1].ending is not None
 
     _keep_looking(console=console, look=look, wait=wait)
 
@@ -660,7 +681,10 @@ class _FeedView:
             self.console.print()
         record = assignment.rounds[round_number - 1]
         heading = compose_round_boundary(
-            number=round_number, cause=record.cause, at=record.started
+            number=record.number,
+            purpose=record.purpose,
+            is_recovery=record.is_recovery,
+            at=record.started,
         )
         self.console.print(_paint(line=heading, said=Text(heading.text, style="bold")))
         self.positions[round_number] = 0

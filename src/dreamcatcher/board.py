@@ -245,7 +245,7 @@ class _Look:
         """
         unfinished = assignment.describe_unfinished_round()
         if unfinished is not None:
-            if self.daemon_pid is not None and not assignment.rounds[-1].is_complete:
+            if self.daemon_pid is not None and assignment.rounds[-1].ending is None:
                 detail, last_output = self._describe_live_round(assignment=assignment)
                 return AgentAssignmentStanding.WORKING, detail, last_output
             return AgentAssignmentStanding.WAITING, unfinished, None

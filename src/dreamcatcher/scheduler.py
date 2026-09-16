@@ -24,7 +24,12 @@ from dreamcatcher.agent_assignments import (
     inspect_incomplete_assignment_setups,
     read_agent_assignments,
 )
-from dreamcatcher.agent_rounds import AgentRound, Cause
+from dreamcatcher.agent_rounds import (
+    AgentRound,
+    AgentRoundPlan,
+    ErroredAgentRoundEnding,
+    RoundPurpose,
+)
 from dreamcatcher.config import Config, Harness
 from dreamcatcher.documents import write_json
 from dreamcatcher.eligibility import judge_issues
@@ -66,7 +71,7 @@ def _check_cooldown(*, assignments: list[AgentAssignment], at: datetime) -> str 
         record.ending
         for assignment in assignments
         for record in assignment.rounds
-        if record.ending is not None and record.ending.is_failed
+        if isinstance(record.ending, ErroredAgentRoundEnding)
     ]
     if not failed:
         return None
@@ -218,7 +223,10 @@ class Scheduler:
         if wakeup.inbox is not None:
             write_json(document=wakeup.inbox, path=assignment.next_workspace.inbox)
         self._start_round(
-            assignment=assignment, prompt=wakeup.prompt, cause=wakeup.cause
+            assignment=assignment,
+            prompt=wakeup.prompt,
+            purpose=wakeup.purpose,
+            is_recovery=wakeup.is_recovery,
         )
         if wakeup.newest_post:
             advance_assignment_watermark(
@@ -226,7 +234,12 @@ class Scheduler:
             )
 
     def _start_round(
-        self, *, assignment: AgentAssignment, prompt: str, cause: Cause
+        self,
+        *,
+        assignment: AgentAssignment,
+        prompt: str,
+        purpose: RoundPurpose,
+        is_recovery: bool,
     ) -> None:
         """Start a round with the recipe that the dispatch settled."""
         adapter = ADAPTERS[assignment.record.harness]
@@ -238,14 +251,18 @@ class Scheduler:
         )
         invocation = (
             adapter.build_first_round(launch=launch)
-            if cause is Cause.DISPATCH
+            if not assignment.rounds
             else adapter.build_resumed_round(launch=launch)
         )
         self.rounds[assignment.identifier] = AgentRound(
             adapter=adapter,
             invocation=invocation,
             workspace=assignment.next_workspace,
-            cause=cause,
+            plan=AgentRoundPlan(
+                number=len(assignment.rounds) + 1,
+                purpose=purpose,
+                is_recovery=is_recovery,
+            ),
             clock=self.clock,
         )
 

@@ -46,14 +46,30 @@ class Line:
         return f"{describe_time(at=self.at)}{GAP}{self.text}\n"
 
 
-def compose_round_boundary(*, number: int, cause: str, at: datetime) -> Line:
-    """Return the line that opens a round, saying what caused it.
+def compose_round_boundary(
+    *, number: int, purpose: str, is_recovery: bool, at: datetime
+) -> Line:
+    """Return the line that opens a round, saying what work it advances.
 
     A feed holds one round, so nothing writes this line as the round runs.
     Whoever reads a whole assignment's rounds in order writes it between them,
     stamped with the time that round started.
     """
-    return Line(at=at, text=f"round {number}: {cause}")
+    description = describe_agent_round_start(
+        number=number, purpose=purpose, is_recovery=is_recovery
+    )
+    return Line(at=at, text=f"round {number}: {description}")
+
+
+def describe_agent_round_start(*, number: int, purpose: str, is_recovery: bool) -> str:
+    """Describe the new model in the temporary board's existing words."""
+    if is_recovery:
+        return "carried on"
+    if number == 1:
+        return "dispatched"
+    if purpose == "wrap up":
+        return "final round"
+    return "new posts"
 
 
 def read_feed_line(*, written: str) -> Line | None:

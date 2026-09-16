@@ -16,7 +16,13 @@ from datetime import datetime
 from pathlib import Path
 
 from dreamcatcher import prompts
-from dreamcatcher.agent_rounds import AgentRoundPaths, AgentRoundRecord, Cause
+from dreamcatcher.agent_rounds import (
+    AgentRoundPaths,
+    AgentRoundRecord,
+    ErroredAgentRoundEnding,
+    InterruptedAgentRoundEnding,
+    RoundPurpose,
+)
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import DispatchRoute, Harness
 from dreamcatcher.documents import (
@@ -121,7 +127,7 @@ class AgentAssignment:
         question is put the work the final round stood for is done however many
         rounds it took.
         """
-        return any(record.cause is Cause.FINAL for record in self.rounds)
+        return any(record.purpose is RoundPurpose.WRAP_UP for record in self.rounds)
 
     @property
     def is_complete(self) -> bool:
@@ -143,9 +149,9 @@ class AgentAssignment:
         if not self.rounds:
             return None
         ending = self.rounds[-1].ending
-        if ending is None:
+        if ending is None or isinstance(ending, InterruptedAgentRoundEnding):
             return "the last round was interrupted"
-        if ending.is_failed:
+        if isinstance(ending, ErroredAgentRoundEnding):
             return f"the last round failed (exit {ending.status})"
         return None
 

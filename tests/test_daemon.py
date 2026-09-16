@@ -18,7 +18,11 @@ from conftest import (
 from fakes import Line
 from records import write_agent_assignment, write_round
 
-from dreamcatcher.agent_rounds import AgentRoundEnding, AgentRoundRecord, Cause
+from dreamcatcher.agent_rounds import (
+    AgentRoundRecord,
+    RoundPurpose,
+    compose_agent_round_ending,
+)
 from dreamcatcher.config import CONFIG_NAME, Harness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.errors import ReportableError
@@ -31,7 +35,7 @@ from dreamcatcher.state import (
 ASSIGNMENT_ID = "GH13-20260819-184158"
 
 # What every round the tests here write down says woke it.
-CAUSE = Cause.DISPATCH
+PURPOSE = RoundPurpose.IMPLEMENT
 
 # How long a scripted harness waits after its first line, so a round the daemon
 # launched is certainly still running at the next tick. The waits these tests
@@ -290,7 +294,9 @@ def test_a_round_the_daemon_before_this_one_left_running_is_ended(
     write_round(
         directory=directory,
         number=1,
-        record=AgentRoundRecord(started=PINNED, pid=left_running.pid, cause=CAUSE),
+        record=AgentRoundRecord(
+            number=1, started=PINNED, pid=left_running.pid, purpose=PURPOSE
+        ),
     )
     daemon, _, _ = idling(root=watched)
 
@@ -309,10 +315,11 @@ def test_a_round_that_recorded_an_ending_is_left_running_by_the_sweep(
         directory=directory,
         number=1,
         record=AgentRoundRecord(
+            number=1,
             started=PINNED,
             pid=left_running.pid,
-            cause=CAUSE,
-            ending=AgentRoundEnding(at=PINNED, status=0),
+            purpose=PURPOSE,
+            ending=compose_agent_round_ending(at=PINNED, status=0),
         ),
     )
     daemon, _, _ = idling(root=watched)

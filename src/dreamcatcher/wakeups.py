@@ -18,7 +18,7 @@ decided asks for the wakeup and runs it.
 from dataclasses import dataclass
 
 from dreamcatcher.agent_assignments import AgentAssignment
-from dreamcatcher.agent_rounds import Cause
+from dreamcatcher.agent_rounds import RoundPurpose
 from dreamcatcher.github import (
     AnyPost,
     PullRequest,
@@ -36,16 +36,17 @@ from dreamcatcher.words import describe_count
 class Wakeup:
     """The round that would wake a dormant assignment, ready to run.
 
-    The cause is what the round's own record keeps. The reason is the same
-    thing in words and with the evidence, which a tick that could not launch
-    this round writes down instead.
+    Purpose and recovery are the independent decisions that the round's own
+    record keeps. The reason carries the evidence that a tick which could not
+    launch this round writes down instead.
 
     The inbox is the batch the round is woken with. A carry-on has none: the
     transcript that the harness resumes carries that work already.
     """
 
     assignment: AgentAssignment
-    cause: Cause
+    purpose: RoundPurpose
+    is_recovery: bool
     reason: str
     prompt: str
     inbox: Inbox | None = None
@@ -69,16 +70,24 @@ type Finding = Wakeup | WaitingAgentAssignment
 
 
 # The order a tick takes wakeups in, the most open work first.
-PRIORITY = (Cause.DISPATCH, Cause.CARRY_ON, Cause.FINAL, Cause.POSTS)
-
-
 def sort_wakeups(*, found: list[Wakeup]) -> list[Wakeup]:
     """Return the wakeups with the most open work first.
 
     Two wakeups of one kind keep the order their assignments came in, which is
     by identifier, so a tick takes the same one every time it looks.
     """
-    return sorted(found, key=lambda resume: PRIORITY.index(resume.cause))
+    return sorted(found, key=_wakeup_priority)
+
+
+def _wakeup_priority(wakeup: Wakeup, /) -> int:
+    """Return the existing scheduling priority of one required round."""
+    if not wakeup.assignment.rounds:
+        return 0
+    if wakeup.is_recovery:
+        return 1
+    if wakeup.purpose is RoundPurpose.WRAP_UP:
+        return 2
+    return 3
 
 
 def list_waiting(*, found: list[Finding]) -> list[WaitingAgentAssignment]:
@@ -113,15 +122,11 @@ def judge_assignment(
     if not assignment.rounds:
         return compose_dispatch_wakeup(assignment=assignment)
     unfinished = assignment.describe_unfinished_round()
-    if unfinished is not None:
-        return Wakeup(
-            assignment=assignment,
-            cause=Cause.CARRY_ON,
-            reason=unfinished,
-            prompt=CARRY_ON_PROMPT,
-        )
     return _judge_pull_request(
-        repository=repository, account=account, assignment=assignment
+        repository=repository,
+        account=account,
+        assignment=assignment,
+        recovery_reason=unfinished,
     )
 
 
@@ -129,14 +134,19 @@ def compose_dispatch_wakeup(*, assignment: AgentAssignment) -> Wakeup:
     """Return the first round a complete assignment is waiting to run."""
     return Wakeup(
         assignment=assignment,
-        cause=Cause.DISPATCH,
+        purpose=RoundPurpose.IMPLEMENT,
+        is_recovery=False,
         reason=NO_ROUND_HAS_RUN,
         prompt=assignment.record.prompt,
     )
 
 
 def _judge_pull_request(
-    *, repository: str, account: str, assignment: AgentAssignment
+    *,
+    repository: str,
+    account: str,
+    assignment: AgentAssignment,
+    recovery_reason: str | None,
 ) -> Finding | None:
     """Return what the assignment's pull request asks of it, if anything.
 
@@ -158,8 +168,16 @@ def _judge_pull_request(
             reason=f"cannot read its pull request: {pull_request.reason}",
         )
     is_open = pull_request.state is PullRequestState.OPEN
-    if not is_open and assignment.has_run_final_round:
+    if not is_open and assignment.has_run_final_round and recovery_reason is None:
         return None
+    if recovery_reason is not None:
+        return Wakeup(
+            assignment=assignment,
+            purpose=_round_purpose(pull_request=pull_request),
+            is_recovery=True,
+            reason=recovery_reason,
+            prompt=CARRY_ON_PROMPT,
+        )
     posted = peek_new_posts(
         repository=repository,
         pull_request=pull_request.number,
@@ -190,7 +208,8 @@ def _compose_resume(
     is_open = pull_request.state is PullRequestState.OPEN
     return Wakeup(
         assignment=assignment,
-        cause=Cause.POSTS if is_open else Cause.FINAL,
+        purpose=_round_purpose(pull_request=pull_request),
+        is_recovery=False,
         reason=(
             f"{describe_count(number=len(posted), noun='new post')} to answer"
             if is_open
@@ -201,6 +220,15 @@ def _compose_resume(
         ),
         inbox=Inbox(state=pull_request.state, posts=posted),
     )
+
+
+def _round_purpose(*, pull_request: PullRequest) -> RoundPurpose:
+    """Return the work that the pull request currently asks a round to advance."""
+    if pull_request.state is not PullRequestState.OPEN:
+        return RoundPurpose.WRAP_UP
+    if pull_request.is_draft:
+        return RoundPurpose.IMPLEMENT
+    return RoundPurpose.ADDRESS_FEEDBACK
 
 
 def compose_wait(*, assignment: AgentAssignment, reason: str) -> WaitingAgentAssignment:
