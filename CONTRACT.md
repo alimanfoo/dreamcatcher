@@ -79,7 +79,7 @@ never sends that post again.
 
 ### A merged or closed pull request
 
-dreamcatcher gives the agent a last round when the user merges or closes the
+dreamcatcher gives the agent a wrap-up round when the user merges or closes the
 pull request, with the same prompt naming the same file. `state` then reads
 `MERGED` or `CLOSED`, and `posts` still holds anything the user said before
 merging or closing.

@@ -1,15 +1,15 @@
 """Work out the round that an assignment needs next.
 
 An assignment lies dormant between its rounds, with no agent of its own running,
-and four things wake it. A complete assignment missing its first round finishes
-its dispatch. A round that did not finish is carried on. A pull request that is
-merged or closed calls for one last round. And a pull request the user has posted
-on calls for a round that answers what the user said.
+and four things wake it. A recorded assignment missing its first round finishes
+its dispatch. A round that did not finish is recovered. A pull request that is
+merged or closed calls for a wrap-up round. And a pull request the user has
+posted on calls for a round that answers what the user said.
 
-The most open work comes first, and that order is here. A complete assignment
+The most open work comes first, and that order is here. A recorded assignment
 whose first round has not started finishes its dispatch before ordinary work.
-Then an assignment part way through a round is carried on, a finished pull
-request gets its final round, and an assignment answers the user's own posts.
+Then an assignment part way through a round is recovered, a finished pull
+request gets a wrap-up round, and an assignment answers the user's own posts.
 
 Nothing here launches a round or writes anything down. A caller that has
 decided asks for the wakeup and runs it.
@@ -133,7 +133,7 @@ def judge_assignment(
 
 
 def compose_dispatch_wakeup(*, assignment: AgentAssignment) -> Wakeup:
-    """Return the first round a complete assignment is waiting to run."""
+    """Return the first round a recorded assignment is waiting to run."""
     return Wakeup(
         assignment=assignment,
         purpose=RoundPurpose.IMPLEMENT,
@@ -156,10 +156,10 @@ def _judge_pull_request(
     leaves the assignment waiting with what the read said, and the next tick asks
     again.
 
-    The peek runs whatever state the pull request is in, so the last round of a
+    The peek runs whatever state the pull request is in, so the wrap-up round of a
     merged pull request still carries whatever the user said before merging it.
-    An assignment that has already run that last round is done, and is not peeked
-    at again.
+    An assignment that has completed that wrap-up successfully is done, and is not
+    peeked at again.
     """
     pull_request = read_pull_request(
         repository=repository, pull_request=assignment.record.pull_request

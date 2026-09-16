@@ -55,21 +55,13 @@ def compose_round_boundary(
     Whoever reads a whole assignment's rounds in order writes it between them,
     stamped with the time that round started.
     """
-    description = describe_agent_round_start(
-        number=number, purpose=purpose, is_recovery=is_recovery
-    )
+    description = describe_agent_round_start(purpose=purpose, is_recovery=is_recovery)
     return Line(at=at, text=f"round {number}: {description}")
 
 
-def describe_agent_round_start(*, number: int, purpose: str, is_recovery: bool) -> str:
-    """Describe the new model in the temporary board's existing words."""
-    if is_recovery:
-        return "carried on"
-    if number == 1:
-        return "dispatched"
-    if purpose == "wrap up":
-        return "final round"
-    return "new posts"
+def describe_agent_round_start(*, purpose: str, is_recovery: bool) -> str:
+    """Describe the work a round advances and whether it recovers another."""
+    return f"{purpose} (recovery)" if is_recovery else purpose
 
 
 def read_feed_line(*, written: str) -> Line | None:

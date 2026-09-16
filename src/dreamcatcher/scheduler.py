@@ -4,12 +4,11 @@ A scheduler tick reads the assignments on disk and asks GitHub which labelled
 issues could be dispatched. It weighs the active rounds against the cap, works
 out what each assignment needs next, and launches at most one round.
 
-Open work goes before new work, and the most open of it first: a complete
+Open work goes before new work, and the most open of it first: a recorded
 assignment missing its first round finishes its dispatch, a round that did not
-finish is carried on, a merged or closed pull request gets its last round, then
+finish is recovered, a merged or closed pull request gets a wrap-up round, then
 an assignment answers what the user posted. Only when no assignment needs
-anything does an uncapped tick dispatch the oldest unclaimed, unblocked
-candidate.
+anything does an uncapped tick dispatch the oldest unclaimed, unblocked candidate.
 """
 
 from collections.abc import Callable

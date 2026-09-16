@@ -139,6 +139,7 @@ def running(
     minute: int,
     number: int = 1,
     purpose: RoundPurpose = RoundPurpose.IMPLEMENT,
+    is_recovery: bool = False,
 ):
     """A round that started that minute past the pinned hour and is still going."""
     return AgentRoundRecord(
@@ -146,13 +147,15 @@ def running(
         started=PINNED + timedelta(minutes=minute),
         pid=1,
         purpose=purpose,
+        is_recovery=is_recovery,
     )
 
 
 @pytest.mark.parametrize(
     ("ending", "description"),
     [
-        (compose_agent_round_ending(at=PINNED, status=2), "exit 2"),
+        (compose_agent_round_ending(at=PINNED, status=0), "successful"),
+        (compose_agent_round_ending(at=PINNED, status=2), "errored (exit 2)"),
         (InterruptedAgentRoundEnding(), "interrupted"),
     ],
 )
@@ -166,6 +169,23 @@ def test_a_terminal_round_describes_its_explicit_outcome(ending, description):
     )
 
     assert _describe_ending(record=record, is_running=False) == description
+
+
+@pytest.mark.parametrize(
+    ("is_running", "description"),
+    [(True, "running"), (False, "interrupted")],
+)
+def test_a_round_without_an_ending_describes_what_its_process_says(
+    is_running, description
+):
+    record = AgentRoundRecord(
+        number=1,
+        purpose=RoundPurpose.IMPLEMENT,
+        started=PINNED,
+        pid=1,
+    )
+
+    assert _describe_ending(record=record, is_running=is_running) == description
 
 
 def holding(*, state):
@@ -186,7 +206,12 @@ def fabricate_everything(*, state):
         issue=13,
         records=[
             ended(minute=1),
-            running(minute=30, number=2, purpose=RoundPurpose.ADDRESS_FEEDBACK),
+            running(
+                minute=30,
+                number=2,
+                purpose=RoundPurpose.ADDRESS_FEEDBACK,
+                is_recovery=True,
+            ),
         ],
     )
     write_feed(directory=directory, number=1, lines=SAID)
@@ -625,14 +650,14 @@ def test_an_assignment_view_shows_the_round_that_starts_while_it_is_open(
     # reader, so the view stayed open through the gap and drew the round that
     # answered what they posted.
     assert looks == [PAUSE, PAUSE]
-    assert "new posts" in written_to.getvalue()
+    assert "address feedback" in written_to.getvalue()
 
 
 @pytest.mark.parametrize("issue", [12, 9])
 def test_an_assignment_view_of_an_assignment_that_is_over_never_waits(
     issue, tmp_path, daemon
 ):
-    """GH12 has run its final round, and GH9 is stuck, so neither has one coming."""
+    """GH12 completed its wrap-up, and GH9 is stuck, so neither has one coming."""
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     written_to = StringIO()
@@ -651,7 +676,7 @@ def test_an_assignment_view_of_an_assignment_that_is_over_never_waits(
 def test_an_assignment_view_of_an_assignment_that_is_over_keeps_its_last_picture(
     tmp_path, daemon
 ):
-    """GH12 has run its final round, so the view ends and its picture stays."""
+    """GH12 completed its wrap-up, so the view ends and its picture stays."""
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     written_to = StringIO()
@@ -761,7 +786,7 @@ def test_a_following_view_looks_once_more_when_the_last_round_stops(tmp_path, da
 
     followed(state=state, issue=13, wait=wait)
 
-    # The final round ended while the view was waiting, so the view looked once
+    # The wrap-up round ended while the view was waiting, so the view looked once
     # more for whatever that round was still writing as it stopped.
     assert waits == [PAUSE, PAUSE]
 
@@ -792,16 +817,16 @@ def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path, dae
     # The pull request was waiting for the reader when the view opened, and the
     # round that answers what they posted started while the view was going, so
     # the reader reads its feed while it is still running.
-    assert "round 2: new posts" in feed
+    assert "round 2: address feedback" in feed
     assert "[Bash] git commit" in feed
-    assert feed.count("round 1: dispatched") == 1
+    assert feed.count("round 1: implement") == 1
 
 
 def test_a_view_of_an_assignment_that_is_over_never_waits(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
-    assert "round 2: final round" in followed(state=state, issue=12)
+    assert "round 2: wrap up" in followed(state=state, issue=12)
 
 
 def test_a_following_view_waits_for_the_next_daemon(tmp_path):
@@ -935,7 +960,7 @@ def test_one_round_of_an_assignment_reads_on_its_own(tmp_path, daemon):
     fabricate_everything(state=state)
 
     assert viewed_round(state=state, issue=13, number=2) == (
-        "2026-08-19T19:11:58Z  round 2: new posts\n"
+        "2026-08-19T19:11:58Z  round 2: address feedback (recovery)\n"
         "2026-08-19T19:12:58Z  [Bash] pytest\n"
     )
 
@@ -946,7 +971,7 @@ def test_a_round_that_wrote_no_feed_shows_the_line_that_opens_it(tmp_path, daemo
 
     assert (
         viewed_round(state=state, issue=12, number=1)
-        == "2026-08-19T18:42:58Z  round 1: dispatched\n"
+        == "2026-08-19T18:42:58Z  round 1: implement\n"
     )
 
 
@@ -958,7 +983,7 @@ def test_a_view_of_a_round_that_has_ended_never_waits(tmp_path, daemon):
     # so it ends there rather than wait for what round 2 says next.
     shown = viewed_round(state=state, issue=13, number=1, is_terminal=True)
 
-    assert "round 1: dispatched" in shown
+    assert "round 1: implement" in shown
 
 
 def test_a_view_of_a_running_round_ends_when_that_round_does(tmp_path, daemon):

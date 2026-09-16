@@ -1,9 +1,9 @@
 """Compose the prompts that the daemon starts and resumes an assignment with.
 
 An assignment is asked something at each of the four points its life can turn on: a
-dispatch opens it, an unfinished round is carried on, the user posts on the
-pull request, and a merged or closed pull request calls for a last round. Every
-one of those prompts ends with the same postscript, so an assignment marks its posts
+dispatch opens it, an unfinished round is recovered, the user posts on the pull
+request, and a merged or closed pull request calls for a wrap-up round. Every one
+of those prompts ends with the same postscript, so an assignment marks its posts
 whichever woke it.
 """
 

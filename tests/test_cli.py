@@ -99,9 +99,9 @@ def test_something_that_is_not_an_issue_reference_is_refused(capsys):
 
 def test_feed_shows_what_the_assignment_said(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
-    # A following view runs until the assignment has run its final round, so this
+    # A following view runs until the assignment has completed its wrap-up, so this
     # one is over before the view opens and the view never waits. An assignment's
-    # rounds read back in the order they started, so the final round starts
+    # rounds read back in the order they started, so the wrap-up round starts
     # after the first one rather than alongside it.
     later = PINNED + timedelta(minutes=1)
     write_round(
@@ -117,14 +117,14 @@ def test_feed_shows_what_the_assignment_said(monkeypatch, watching, capsys):
     )
 
     assert main(argv=["feed", "GH13"]) == 0
-    assert "round 1: dispatched" in capsys.readouterr().out
+    assert "round 1: implement" in capsys.readouterr().out
 
 
 def test_feed_naming_a_round_shows_that_rounds_feed(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
 
     assert main(argv=["feed", "GH13", "--round", "1"]) == 0
-    assert "round 1: dispatched" in capsys.readouterr().out
+    assert "round 1: implement" in capsys.readouterr().out
 
 
 def test_a_feed_with_no_issue_to_show_asks_for_one(capsys):

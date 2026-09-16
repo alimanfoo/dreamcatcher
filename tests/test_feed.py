@@ -99,13 +99,13 @@ def test_a_subagents_lines_are_indented_under_the_timestamp():
 @pytest.mark.parametrize(
     ("number", "purpose", "is_recovery", "description"),
     [
-        (1, "implement", False, "dispatched"),
-        (2, "implement", True, "carried on"),
-        (2, "wrap up", False, "final round"),
-        (2, "address feedback", False, "new posts"),
+        (1, "implement", False, "implement"),
+        (2, "implement", True, "implement (recovery)"),
+        (2, "wrap up", False, "wrap up"),
+        (2, "address feedback", False, "address feedback"),
     ],
 )
-def test_a_round_boundary_derives_the_temporary_views_existing_words(
+def test_a_round_boundary_names_its_purpose_and_recovery_independently(
     number, purpose, is_recovery, description
 ):
     boundary = compose_round_boundary(

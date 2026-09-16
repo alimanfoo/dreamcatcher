@@ -373,7 +373,7 @@ def show_assignment(
 
     An assignment between rounds has another round coming, so the view stays open
     through the gap and shows that round as it starts. An assignment that has run
-    its final round, and a stuck assignment, have no round coming, so either one
+    a successful wrap-up round, and a stuck assignment, have no round coming, so
     ends the view. A console that is no terminal has nobody watching, so there
     the assignment is drawn once and this returns.
     """
@@ -464,7 +464,6 @@ def _render_rounds(*, row: AgentAssignmentRow) -> RenderableType | None:
             Text(str(record.number)),
             Text(
                 describe_agent_round_start(
-                    number=record.number,
                     purpose=record.purpose,
                     is_recovery=record.is_recovery,
                 )
@@ -491,11 +490,11 @@ def _describe_ending(*, record: AgentRoundRecord, is_running: bool) -> str:
     a round cannot outlive its daemon.
     """
     if isinstance(record.ending, ErroredAgentRoundEnding):
-        return f"exit {record.ending.status}"
+        return f"errored (exit {record.ending.status})"
     if isinstance(record.ending, InterruptedAgentRoundEnding):
         return "interrupted"
     if record.ending is not None:
-        return f"exit {record.ending.status}"
+        return "successful"
     return "running" if is_running else "interrupted"
 
 
@@ -566,7 +565,7 @@ def show_feed(
     while its pull request waits for the reader to post on it, and while the
     daemon that was running it is stopped and started again.
 
-    An assignment that has run its final round has nothing more to say, and a stuck
+    An assignment with a successful wrap-up round has nothing more to say, and a stuck
     assignment says nothing more until a person moves it on, so either one ends
     the view rather than have it wait for a round that is not coming.
 

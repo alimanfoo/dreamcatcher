@@ -86,7 +86,7 @@ Assignment setup is recoverable. If Dreamcatcher stops after making the
 worktree, commit, remote branch, or pull request, the next dispatch attempt
 reuses those artifacts and finishes the same assignment instead of opening
 another pull request. If setup completes but the first round cannot start, the
-complete assignment keeps its branch and pull request, and the next tick tries
+recorded assignment keeps its branch and pull request, and the next tick tries
 that first round again before it schedules ordinary work.
 
 Everything the daemon owns lives under `.dreamcatcher/` in the checkout, which
@@ -95,19 +95,29 @@ recent look observed and decided, including what the daemon did not do and why.
 
 Open work goes before new work. Before it dispatches anything, the daemon reads
 each assignment it already has and gives it whatever it needs next: a round that
-did not finish is carried on, a merged or closed pull request gets one last
-round, and a pull request you have posted on gets a round that answers what you
-said. Only when no assignment needs anything does the daemon dispatch a new
+did not finish is recovered, a merged or closed pull request gets a wrap-up
+round, and a pull request you have posted on gets a round that addresses your
+feedback. Only when no assignment needs anything does the daemon dispatch a new
 issue.
 
-Rounds die with the daemon, so a `run` you stop takes its assignments' rounds
-with it. The next `run` carries each of those rounds on from where it stopped.
-After any round fails, the daemon holds every launch for fifteen minutes, so a
-usage limit that lasts for hours costs a few failed rounds rather than a fresh
-worktree every couple of minutes.
+Every round records its number, purpose (`implement`, `address feedback` or
+`wrap up`), whether it is recovering an earlier round, and its outcome
+(`running`, `successful`, `errored` or `interrupted`). Purpose and recovery are
+independent: for example, a failed wrap-up is followed by a recovery round whose
+purpose is still `wrap up`.
 
-Removing the label is how you say stop. An issue whose pull request closes
-unmerged is free to dispatch again while the label is still on it.
+Rounds die with the daemon. When `run` starts, it records any round orphaned by
+an earlier daemon as interrupted; the next round recovers that work from where
+it stopped. After any round fails, the daemon holds every launch for fifteen
+minutes, so a usage limit that lasts for hours costs a few failed rounds rather
+than a fresh worktree every couple of minutes.
+
+Only a successful wrap-up completes an assignment. A failed or interrupted
+wrap-up remains open for recovery. Once the wrap-up succeeds, the assignment no
+longer claims its issue, so an issue whose pull request closed unmerged is free
+to dispatch again while the label is still on it.
+
+Removing the label is how you say stop.
 
 One daemon watches one repo. A second `run` on the same repo refuses while the
 first is alive.
@@ -131,11 +141,10 @@ round of it arrive. They wait through every gap between one round and the next,
 including a gap where you have stopped the daemon and not started it again yet.
 
 Two things end them, because after either one no round is coming. One is the
-assignment running its final round, which winds it up. The other is an
-assignment that the latest scheduler record explicitly marks as stuck, which
-means that no tick can move it on without a person. An interrupted creation or
-missing first round is not stuck: Dreamcatcher reconciles the creation and
-retries the round.
+assignment completing a wrap-up round successfully. The other is an assignment
+that the latest scheduler record explicitly marks as stuck, which means that no
+tick can move it on without a person. An interrupted creation or missing first
+round is not stuck: Dreamcatcher reconciles the creation and retries the round.
 
 Interrupt any view to end it sooner.
 
@@ -159,15 +168,16 @@ in the order of whose turn it is:
   happened.
 - `queued` is the labelled issues not dispatched yet, each with the reason it
   has not gone.
-- `done` is the assignments that have run their last round.
+- `done` is the assignments whose wrap-up round succeeded.
 
 Three assignments at one issue read as three assignments at one thing, so a
 label you forgot to remove shows as what it is rather than as three unrelated
 rows.
 
 `assignment` shows one issue's newest assignment: what its dispatch settled, the
-rounds it has run newest first, the command that resumes its harness session by
-hand, and the older assignments at the same issue.
+rounds it has run newest first with each purpose, recovery flag and outcome, the
+command that resumes its harness session by hand, and the older assignments at
+the same issue.
 
 ```sh
 dreamcatcher assignment GH123
