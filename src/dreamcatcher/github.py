@@ -152,9 +152,9 @@ class _UserPostProjection(Projection):
 
     The time is the ISO-8601 string GitHub sent, kept as a string. Every such
     string ends in a Z, so one sorts against another as text, and the relay
-    compares a post against its watermark without any date arithmetic. A review
+    compares a post against its delivery cursor without any date arithmetic. A review
     nobody has submitted yet records no time at all, which reads here as the
-    beginning of time, so it is never newer than a watermark.
+    beginning of time, so it is never newer than a delivery cursor.
 
     A post whose author GitHub no longer knows, one from a deleted account, is
     likewise authored by nobody, and so is nobody's to relay.

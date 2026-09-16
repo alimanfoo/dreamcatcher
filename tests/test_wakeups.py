@@ -15,7 +15,7 @@ from conftest import (
 from records import write_agent_assignment, write_round
 
 from dreamcatcher.agent_assignments import (
-    advance_assignment_watermark,
+    advance_user_post_delivery_cursor,
     read_agent_assignments,
 )
 from dreamcatcher.agent_rounds import (
@@ -222,12 +222,12 @@ def test_a_batch_of_posts_says_how_many_it_holds(state, gh):
     assert resume.reason == "2 new posts to answer"
 
 
-def test_a_post_the_assignment_has_been_told_about_already_wakes_nothing(state, gh):
+def test_a_post_at_the_assignment_delivery_cursor_wakes_nothing(state, gh):
     ran(state=state, number=1, purpose=RoundPurpose.IMPLEMENT)
     gh.replies(
         stdout=pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
-    advance_assignment_watermark(
+    advance_user_post_delivery_cursor(
         assignment=read_agent_assignments(state=state)[0], newest=POSTED_AT
     )
 

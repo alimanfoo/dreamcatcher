@@ -19,7 +19,7 @@ from dreamcatcher.adapters import Launch
 from dreamcatcher.agent_assignments import (
     AgentAssignment,
     AgentAssignmentCreator,
-    advance_assignment_watermark,
+    advance_user_post_delivery_cursor,
     inspect_incomplete_assignment_setups,
     read_agent_assignments,
 )
@@ -221,7 +221,7 @@ class Scheduler:
         )
 
     def _launch_wakeup(self, *, wakeup: Wakeup) -> None:
-        """Start the round and advance the watermark once it is running."""
+        """Start the round and advance the delivery cursor once it is running."""
         assignment = wakeup.assignment
         if wakeup.inbox is not None:
             write_json(
@@ -235,7 +235,7 @@ class Scheduler:
             is_recovery=wakeup.is_recovery,
         )
         if wakeup.newest_post:
-            advance_assignment_watermark(
+            advance_user_post_delivery_cursor(
                 assignment=assignment, newest=wakeup.newest_post
             )
 

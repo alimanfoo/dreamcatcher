@@ -27,7 +27,7 @@ from dreamcatcher.github import (
     read_pull_request,
 )
 from dreamcatcher.prompts import CARRY_ON_PROMPT, compose_inbox_prompt
-from dreamcatcher.relay import Inbox, peek_new_posts
+from dreamcatcher.relay import Inbox, list_undelivered_user_posts
 from dreamcatcher.state import NO_ROUND_HAS_RUN, WaitingAgentAssignment
 from dreamcatcher.words import describe_count
 
@@ -57,7 +57,7 @@ class Wakeup:
 
         A round woken by nothing the user said has no such post, and answers
         with the beginning of time, so a launch knows to leave the assignment's
-        watermark where it is.
+        delivery cursor where it is.
         """
         if self.inbox is None or not self.inbox.posts:
             return ""
@@ -178,11 +178,11 @@ def _judge_pull_request(
             reason=recovery_reason,
             prompt=CARRY_ON_PROMPT,
         )
-    posted = peek_new_posts(
+    posted = list_undelivered_user_posts(
         repository=repository,
         pull_request=pull_request.number,
         account=account,
-        watermark=assignment.watermark,
+        delivery_cursor=assignment.user_post_delivery_cursor,
     )
     if isinstance(posted, Unknown):
         return compose_wait(
