@@ -120,10 +120,12 @@ class AgentAssignment:
     @property
     def is_complete(self) -> bool:
         """Whether a wrap-up round has exited successfully."""
-        return any(
-            record.purpose is RoundPurpose.WRAP_UP
-            and record.outcome is RoundOutcome.SUCCESSFUL
-            for record in self.rounds
+        if not self.rounds:
+            return False
+        round = self.rounds[-1]
+        return (
+            round.purpose is RoundPurpose.WRAP_UP
+            and round.outcome is RoundOutcome.SUCCESSFUL
         )
 
     def describe_unfinished_round(self) -> str | None:

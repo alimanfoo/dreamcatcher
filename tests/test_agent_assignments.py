@@ -292,6 +292,24 @@ def test_a_successful_wrap_up_completes_an_assignment(fabricated):
     assert assignment.is_complete
 
 
+def test_only_the_final_round_can_complete_an_assignment(fabricated):
+    assignment = standing(
+        state=fabricated,
+        rounds=[
+            AgentRoundRecord(
+                number=1,
+                started=PINNED,
+                pid=1,
+                purpose=RoundPurpose.WRAP_UP,
+                ending=compose_agent_round_ending(at=PINNED, status=0),
+            ),
+            ended(status=0, minute=1, number=2),
+        ],
+    )
+
+    assert not assignment.is_complete
+
+
 @pytest.mark.parametrize(
     "record",
     [
