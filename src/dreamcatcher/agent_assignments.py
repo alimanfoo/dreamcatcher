@@ -68,8 +68,7 @@ RECORD = "assignment.json"
 # The directory in an assignment's directory holding a directory per round.
 ROUNDS = "rounds"
 
-# The file in an assignment's directory holding the newest user post delivered to it.
-USER_POST_DELIVERY_CURSOR = "user-post-delivery-cursor"
+USER_POST_DELIVERY_CURSOR = "watermark"
 
 
 class AgentAssignmentRecord(Document):

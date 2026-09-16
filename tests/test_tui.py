@@ -281,7 +281,7 @@ def fabricate_a_dead_daemon(*, state):
 
 
 def fabricate_the_cap(*, state):
-    """A daemon at its cap, which peeked at nothing and holds every assignment."""
+    """A daemon at its cap, which holds every assignment."""
     holding(state=state)
     directory = written(state=state, issue=13, records=[running(minute=30)])
     write_feed(

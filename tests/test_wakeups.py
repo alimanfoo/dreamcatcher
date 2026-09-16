@@ -20,6 +20,7 @@ from dreamcatcher.agent_assignments import (
 )
 from dreamcatcher.agent_rounds import (
     AgentRoundInput,
+    AgentRoundPlan,
     AgentRoundRecord,
     InterruptedAgentRoundEnding,
     RoundPurpose,
@@ -94,8 +95,8 @@ def test_an_assignment_that_has_run_no_round_at_all_needs_its_first(state):
     first = found(state=state)
 
     assert isinstance(first, Wakeup)
-    assert first.purpose is RoundPurpose.IMPLEMENT
-    assert not first.is_recovery
+    assert first.plan.purpose is RoundPurpose.IMPLEMENT
+    assert not first.plan.is_recovery
     assert first.reason == NO_ROUND_HAS_RUN
     assert first.prompt == "/dream:smith GH13"
 
@@ -106,11 +107,11 @@ def test_an_assignment_whose_last_round_was_interrupted_is_a_recovery(state, gh)
     resume = found(state=state)
 
     assert isinstance(resume, Wakeup)
-    assert resume.purpose is RoundPurpose.ADDRESS_FEEDBACK
-    assert resume.is_recovery
+    assert resume.plan.purpose is RoundPurpose.ADDRESS_FEEDBACK
+    assert resume.plan.is_recovery
     assert resume.reason == "the last round was interrupted"
     assert resume.prompt == CARRY_ON_PROMPT
-    assert resume.round_input is None
+    assert resume.plan.input is None
     assert gh.calls[0].arguments[:3] == ["pr", "view", str(PULL_REQUEST)]
 
 
@@ -120,8 +121,8 @@ def test_an_assignment_whose_last_round_failed_is_carried_on_with_its_status(sta
     resume = found(state=state)
 
     assert isinstance(resume, Wakeup)
-    assert resume.purpose is RoundPurpose.ADDRESS_FEEDBACK
-    assert resume.is_recovery
+    assert resume.plan.purpose is RoundPurpose.ADDRESS_FEEDBACK
+    assert resume.plan.is_recovery
     assert resume.reason == "the last round failed (exit 2)"
     assert gh.calls[0].arguments[:3] == ["pr", "view", str(PULL_REQUEST)]
 
@@ -143,11 +144,11 @@ def test_a_terminal_pull_request_makes_an_interrupted_round_a_recovery_wrap_up(
     resume = found(state=state)
 
     assert isinstance(resume, Wakeup)
-    assert resume.purpose is RoundPurpose.WRAP_UP
-    assert resume.is_recovery
-    assert resume.round_input is not None
-    assert resume.round_input.state is PullRequestState.MERGED
-    assert [post.body for post in resume.round_input.posts] == [
+    assert resume.plan.purpose is RoundPurpose.WRAP_UP
+    assert resume.plan.is_recovery
+    assert resume.plan.input is not None
+    assert resume.plan.input.state is PullRequestState.MERGED
+    assert [post.body for post in resume.plan.input.posts] == [
         "have another look at the filter"
     ]
     assert f"pull request #{PULL_REQUEST}" in resume.prompt
@@ -155,7 +156,7 @@ def test_a_terminal_pull_request_makes_an_interrupted_round_a_recovery_wrap_up(
     ran(
         state=state,
         number=2,
-        purpose=resume.purpose,
+        purpose=resume.plan.purpose,
         is_recovery=True,
     )
 
@@ -178,15 +179,14 @@ def test_an_assignment_the_user_has_posted_on_answers_what_they_said(state, gh):
     resume = found(state=state)
 
     assert isinstance(resume, Wakeup)
-    assert resume.purpose is RoundPurpose.ADDRESS_FEEDBACK
-    assert not resume.is_recovery
+    assert resume.plan.purpose is RoundPurpose.ADDRESS_FEEDBACK
+    assert not resume.plan.is_recovery
     assert resume.reason == "1 new post to answer"
-    assert resume.round_input is not None
-    assert resume.round_input.state is PullRequestState.OPEN
-    assert [post.body for post in resume.round_input.posts] == [
+    assert resume.plan.input is not None
+    assert resume.plan.input.state is PullRequestState.OPEN
+    assert [post.body for post in resume.plan.input.posts] == [
         "have another look at the filter"
     ]
-    assert resume.newest_post == POSTED_AT
 
 
 def test_a_draft_pull_request_keeps_implementation_as_its_purpose(
@@ -203,8 +203,8 @@ def test_a_draft_pull_request_keeps_implementation_as_its_purpose(
     resume = found(state=state)
 
     assert isinstance(resume, Wakeup)
-    assert resume.purpose is RoundPurpose.IMPLEMENT
-    assert not resume.is_recovery
+    assert resume.plan.purpose is RoundPurpose.IMPLEMENT
+    assert not resume.plan.is_recovery
 
 
 def test_a_batch_of_posts_says_how_many_it_holds(state, gh):
@@ -262,10 +262,9 @@ def test_a_pull_request_that_is_finished_calls_for_one_last_round(
     resume = found(state=state)
 
     assert isinstance(resume, Wakeup)
-    assert resume.purpose is RoundPurpose.WRAP_UP
+    assert resume.plan.purpose is RoundPurpose.WRAP_UP
     assert resume.reason == f"the pull request is {state_name.lower()}"
-    assert resume.round_input == AgentRoundInput(state=state_name, posts=[])
-    assert resume.newest_post == ""
+    assert resume.plan.input == AgentRoundInput(state=state_name, posts=[])
 
 
 def test_a_last_round_carries_what_the_user_said_before_the_merge(state, gh):
@@ -278,9 +277,9 @@ def test_a_last_round_carries_what_the_user_said_before_the_merge(state, gh):
     resume = found(state=state)
 
     assert isinstance(resume, Wakeup)
-    assert resume.purpose is RoundPurpose.WRAP_UP
-    assert resume.round_input is not None
-    assert [post.body for post in resume.round_input.posts] == [
+    assert resume.plan.purpose is RoundPurpose.WRAP_UP
+    assert resume.plan.input is not None
+    assert [post.body for post in resume.plan.input.posts] == [
         "have another look at the filter"
     ]
 
@@ -319,7 +318,7 @@ def test_a_pull_request_read_that_failed_leaves_the_assignment_waiting(state, gh
     assert not waiting.is_stuck
 
 
-def test_a_peek_that_failed_leaves_the_assignment_waiting(state, gh):
+def test_a_relay_read_that_failed_leaves_the_assignment_waiting(state, gh):
     ran(state=state, number=1, purpose=RoundPurpose.IMPLEMENT)
     gh.fails(
         stderr="gh: could not connect to github.com",
@@ -342,8 +341,7 @@ def test_the_most_open_work_comes_first(state):
     ) -> Wakeup:
         return Wakeup(
             assignment=assignment,
-            purpose=purpose,
-            is_recovery=is_recovery,
+            plan=AgentRoundPlan(purpose=purpose, is_recovery=is_recovery),
             reason="",
             prompt="",
         )
@@ -365,7 +363,7 @@ def test_the_most_open_work_comes_first(state):
     )
 
     assert [
-        (not found.assignment.rounds, found.is_recovery, found.purpose)
+        (not found.assignment.rounds, found.plan.is_recovery, found.plan.purpose)
         for found in ordered
     ] == [
         (True, False, RoundPurpose.IMPLEMENT),

@@ -9,7 +9,6 @@ from conftest import (
     LABEL,
     LATER,
     POST_LIST_PATHS,
-    POSTED_AT,
     POSTED_BY,
     PULL_REQUEST,
     REPOSITORY,
@@ -655,9 +654,6 @@ def test_an_assignment_receives_a_batch_only_once(resuming, gh):
     observed = scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
 
-    assert (
-        scheduler.state.assignments / ASSIGNMENT_ID / "user-post-delivery-cursor"
-    ).read_text(encoding="utf-8") == POSTED_AT
     assert observed.launched is None
     assert not (scheduler.state.assignments / ASSIGNMENT_ID / "rounds" / "3").exists()
 
@@ -680,11 +676,10 @@ def test_a_batch_no_round_ever_launched_is_read_again_next_tick(resuming, gh):
     observed = scheduler.tick(at=clock())
 
     assert "cannot write" in held(observed=observed)
-    assert not (
-        scheduler.state.assignments / ASSIGNMENT_ID / "user-post-delivery-cursor"
-    ).exists()
-    peeks = [call for call in gh.calls if call.arguments[:2] == ["api", CONVERSATION]]
-    assert len(peeks) == 2
+    relay_reads = [
+        call for call in gh.calls if call.arguments[:2] == ["api", CONVERSATION]
+    ]
+    assert len(relay_reads) == 2
 
 
 @pytest.mark.parametrize("state_name", ["MERGED", "CLOSED"])

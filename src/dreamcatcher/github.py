@@ -447,9 +447,8 @@ def list_posts(*, repository: str, pull_request: int) -> list[UserPost] | Unknow
     """Return everything anybody posted on the pull request, from all three places.
 
     The three come back as one list, because somebody reading a pull request
-    reads what was written on it and not three lists to reconcile. Nothing is
-    left out: whose post it is, and whether the assignment has heard it already,
-    is the relay's rule and none of this read's business.
+    reads what was written on it and not three lists to reconcile. The relay
+    decides which posts to deliver.
 
     A source the tool could not read answers unknown for the whole pull
     request, since the source it cannot see is the one that might hold the post
