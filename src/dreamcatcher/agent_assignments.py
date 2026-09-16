@@ -516,9 +516,9 @@ def advance_user_post_delivery_cursor(
 ) -> None:
     """Write the time of the newest user post delivered to the assignment.
 
-    A round launching with a batch of posts performs this write. Until it lands,
-    the assignment has received nothing, so a daemon that died before the round
-    started reads those same posts again on its next tick rather than losing them.
+    A round launching with a batch of posts performs this write after it starts.
+    Until the write lands, a daemon that dies reads those same posts again on its
+    next tick rather than losing them.
     """
     write_text(text=newest, path=assignment.directory / USER_POST_DELIVERY_CURSOR)
 

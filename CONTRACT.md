@@ -75,7 +75,8 @@ user's feedback.
 A dispatchable skill must instruct the agent to read `state` before anything
 else, and, when `state` reads `OPEN`, to act on every user post and reply on the
 pull request. dreamcatcher advances the assignment's user-post delivery cursor
-after the round starts, so it never delivers that post again.
+after the round starts. Once that write lands, later ticks do not deliver that
+post again.
 
 ### A merged or closed pull request
 

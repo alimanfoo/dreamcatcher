@@ -658,7 +658,9 @@ def test_an_assignment_receives_a_batch_only_once(resuming, gh):
     assert not (scheduler.state.assignments / ASSIGNMENT_ID / "rounds" / "3").exists()
 
 
-def test_a_batch_no_round_ever_launched_is_read_again_next_tick(resuming, gh):
+def test_a_batch_no_round_ever_launched_is_read_again_next_tick(
+    resuming, gh, harnesses
+):
     ran(root=resuming, number=1, purpose=RoundPurpose.IMPLEMENT)
     gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
     gh.replies(
@@ -680,6 +682,7 @@ def test_a_batch_no_round_ever_launched_is_read_again_next_tick(resuming, gh):
         call for call in gh.calls if call.arguments[:2] == ["api", CONVERSATION]
     ]
     assert len(relay_reads) == 2
+    assert harnesses["claude"].calls == []
 
 
 @pytest.mark.parametrize("state_name", ["MERGED", "CLOSED"])

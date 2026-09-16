@@ -4,9 +4,9 @@ The relay reads the pull request's posts, keeps the undelivered ones in which th
 user said something, and hands them back. It writes nothing.
 
 An assignment keeps a user-post delivery cursor, which identifies the newest post
-delivered to it. Advancing the cursor is the write, and it happens when a round
-launches with a batch of posts as its input. A daemon that dies before that launch
-therefore reads the same posts again on its next tick.
+delivered to it. Advancing the cursor is the write, and it happens after a round
+starts with a batch of posts as its input. A daemon that dies before the cursor
+advances therefore reads the same posts again on its next tick.
 
 The user and the assignment post through one GitHub account, because that is the
 account the harness CLI is signed in as. So the account alone cannot tell the
