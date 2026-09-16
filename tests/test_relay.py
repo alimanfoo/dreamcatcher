@@ -16,12 +16,12 @@ from conftest import (
 
 from dreamcatcher.documents import write_json
 from dreamcatcher.github import (
-    AnyPost,
     Comment,
     InlineComment,
     PullRequestState,
     Review,
     Unknown,
+    UserPost,
     Verdict,
 )
 from dreamcatcher.prompts import MARKER
@@ -31,7 +31,7 @@ from dreamcatcher.relay import Inbox, peek_new_posts
 BEFORE = "2026-09-03T16:49:35Z"
 
 
-def peeked(*, watermark: str = "") -> list[AnyPost]:
+def peeked(*, watermark: str = "") -> list[UserPost]:
     """What the user newly posted, given that gh answered every post list."""
     found = peek_new_posts(
         repository=REPOSITORY,

@@ -20,10 +20,10 @@ from dataclasses import dataclass
 from dreamcatcher.agent_assignments import AgentAssignment
 from dreamcatcher.agent_rounds import RoundPurpose
 from dreamcatcher.github import (
-    AnyPost,
     PullRequest,
     PullRequestState,
     Unknown,
+    UserPost,
     read_pull_request,
 )
 from dreamcatcher.prompts import CARRY_ON_PROMPT, compose_inbox_prompt
@@ -203,7 +203,7 @@ def _compose_resume(
     *,
     assignment: AgentAssignment,
     pull_request: PullRequest,
-    posted: list[AnyPost],
+    posted: list[UserPost],
     recovery_reason: str | None,
 ) -> Wakeup:
     """Return the round that the pull request and the user's posts call for.

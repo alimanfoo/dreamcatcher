@@ -16,7 +16,7 @@ is what does.
 """
 
 from dreamcatcher.documents import Document
-from dreamcatcher.github import AnyPost, PullRequestState, Unknown, list_posts
+from dreamcatcher.github import PullRequestState, Unknown, UserPost, list_posts
 from dreamcatcher.prompts import MARKER
 
 
@@ -37,12 +37,12 @@ class Inbox(Document):
     """
 
     state: PullRequestState
-    posts: list[AnyPost]
+    posts: list[UserPost]
 
 
 def peek_new_posts(
     *, repository: str, pull_request: int, account: str, watermark: str
-) -> list[AnyPost] | Unknown:
+) -> list[UserPost] | Unknown:
     """Return what the user posted since the watermark, oldest first.
 
     The account is the one gh is signed in as, which is the user's own.
@@ -67,7 +67,7 @@ def peek_new_posts(
     )
 
 
-def _is_new_from_user(*, post: AnyPost, account: str, watermark: str) -> bool:
+def _is_new_from_user(*, post: UserPost, account: str, watermark: str) -> bool:
     """Whether the peek returns this post.
 
     The post has to be newer than the watermark, or the assignment has already
