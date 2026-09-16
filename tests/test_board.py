@@ -268,8 +268,8 @@ def test_a_stuck_assignment_that_ran_no_round_has_no_feed_to_point_at(state):
     assert only(state=state).detail == "no round has run yet"
 
 
-def test_an_assignment_no_tick_has_weighed_and_no_round_has_run_is_stuck(state):
-    assert only(state=state).standing is AgentAssignmentStanding.STUCK
+def test_an_assignment_no_tick_has_weighed_and_no_round_has_run_is_waiting(state):
+    assert only(state=state).standing is AgentAssignmentStanding.WAITING
     assert only(state=state).detail == NO_ROUND_HAS_RUN
 
 
@@ -311,7 +311,7 @@ def test_the_assignments_in_one_standing_come_back_in_the_boards_own_order(state
     write_agent_assignment(state=state, identifier="GH9-20260819-184158", issue=9)
 
     waiting = looked(state=state).list_rows_for_standing(
-        standing=AgentAssignmentStanding.STUCK
+        standing=AgentAssignmentStanding.WAITING
     )
 
     assert [row.assignment.record.issue for row in waiting] == [9, 13]

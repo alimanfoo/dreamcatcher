@@ -2,7 +2,14 @@ import json
 from collections.abc import Sequence
 
 import pytest
-from conftest import FILED, LABEL, LATER, REPOSITORY, listing
+from conftest import (
+    FILED,
+    LABEL,
+    LATER,
+    REPOSITORY,
+    listing,
+    pull_request,
+)
 
 from dreamcatcher.config import Config
 from dreamcatcher.eligibility import judge_issues
@@ -28,13 +35,20 @@ def gh(fake):
     stand_in.replies(
         stdout=json.dumps({"closedByPullRequestsReferences": []}), to="issue view"
     )
+    stand_in.replies(stdout=pull_request(state="OPEN", is_draft=True), to="pr view")
+    stand_in.replies(stdout="[]", to="pr list")
     stand_in.replies(stdout=json.dumps([{"number": 7, "state": "closed"}]), to="api")
     return stand_in
 
 
-def weighed(*, config, claimed=frozenset()):
+def weighed(*, config, claimed=frozenset(), recovery_obstacles=None):
     """The candidates for that config, given that the listing came through."""
-    judged = judge_issues(repository=REPOSITORY, config=config, claimed=set(claimed))
+    judged = judge_issues(
+        repository=REPOSITORY,
+        config=config,
+        claimed=set(claimed),
+        recovery_obstacles=({} if recovery_obstacles is None else recovery_obstacles),
+    )
     assert not isinstance(judged, Unknown)
     return judged
 
@@ -62,6 +76,7 @@ def test_a_listing_the_tool_cannot_read_answers_unknown_for_the_whole_tick(gh):
         repository=REPOSITORY,
         config=config_with_routes(labels=["dream:smith"]),
         claimed=set(),
+        recovery_obstacles={},
     )
 
     assert isinstance(judged, Unknown)
@@ -101,6 +116,26 @@ def test_an_issue_with_a_pull_request_open_on_it_is_left_alone(gh):
 
     assert weighed(config=config_with_routes(labels=["dream:smith"])) == [
         CandidateIssue(issue=8, label=LABEL, reason="a pull request is open on it: #28")
+    ]
+
+
+def test_a_recoverable_local_assignment_is_not_treated_as_an_external_claim(gh):
+    assert weighed(
+        config=config_with_routes(labels=["dream:smith"]),
+        recovery_obstacles={8: None},
+    ) == [CandidateIssue(issue=8, label=LABEL)]
+
+
+def test_an_obstacle_to_local_assignment_recovery_is_reported(gh):
+    assert weighed(
+        config=config_with_routes(labels=["dream:smith"]),
+        recovery_obstacles={8: "cannot reconcile its incomplete setup"},
+    ) == [
+        CandidateIssue(
+            issue=8,
+            label=LABEL,
+            reason="cannot reconcile its incomplete setup",
+        )
     ]
 
 

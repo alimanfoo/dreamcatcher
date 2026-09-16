@@ -135,7 +135,19 @@ def inline_comment(**fields: object) -> dict:
 
 def pull_requests(*, listed: Sequence[tuple[int, str]]) -> str:
     """Return what gh answers a pull request listing with."""
-    return json.dumps([{"number": number, "state": state} for number, state in listed])
+    return json.dumps(
+        [
+            {"number": number, "state": state, "isDraft": state == "OPEN"}
+            for number, state in listed
+        ]
+    )
+
+
+def pull_request(
+    *, state: str, number: int = PULL_REQUEST, is_draft: bool = False
+) -> str:
+    """Return what gh answers when reading one pull request."""
+    return json.dumps({"number": number, "state": state, "isDraft": is_draft})
 
 
 def pages(*, posts: Sequence[dict]) -> str:
@@ -289,6 +301,11 @@ def gh(fake):
         stdout=json.dumps({"closedByPullRequestsReferences": []}), to="issue view"
     )
     stand_in.replies(stdout="[]", to="pr list")
+    stand_in.replies(
+        stdout=f"https://github.com/alimanfoo/dreamcatcher/pull/{PULL_REQUEST}\n",
+        to="pr create",
+    )
+    stand_in.replies(stdout=pull_request(state="OPEN", is_draft=True), to="pr view")
     stand_in.replies(stdout="[]", to="api")
     return stand_in
 

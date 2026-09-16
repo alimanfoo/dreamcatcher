@@ -5,7 +5,7 @@ from datetime import datetime
 from functools import cached_property
 from pathlib import Path
 
-from pydantic import ConfigDict, Field
+from pydantic import Field
 
 from dreamcatcher.documents import Document, write_text
 from dreamcatcher.rounds import RoundReader
@@ -47,28 +47,22 @@ class WaitingAgentAssignment(Document):
     reason carries the status it ended with, so a run of usage-limit failures
     is recognisable from this reason string. An assignment is also waiting when the
     tick found it a round and had no slot to launch it, when no round has run
-    yet, when nobody has opened a pull request on it, and when a read of GitHub
-    could not tell.
+    yet, and when a read of GitHub could not tell.
 
-    Most of those waits clear by themselves, and a later tick is all they need.
-    An assignment that is stuck is one no tick can move on, so it waits for a
-    person, and whoever reads this record has to see the difference.
+    A wait marked stuck requires a person to clear it. Every other wait can
+    clear on a later tick.
     """
 
-    # The persisted key remains `session`: Stage 2 names the Python interface but
-    # deliberately leaves last-tick.json unchanged.
-    model_config = ConfigDict(validate_by_name=True, serialize_by_alias=True)
-
-    assignment: str = Field(alias="session")
+    assignment: str
     issue: int
     reason: str
     is_stuck: bool = False
 
 
-# What an assignment that has run no round at all is waiting on. Its dispatch never
-# started a first round, so no harness session exists to carry on, and only a
-# person can take it from there. Both the tick that writes a wait and the board
-# that reads one say this, so a reader hears it the one way.
+# What an assignment that has run no round at all is waiting on. Its complete
+# setup stays ready for the scheduler to retry its first round before ordinary
+# scheduling continues. Both the tick that writes a wait and the board that
+# reads one say this, so a reader hears it the one way.
 NO_ROUND_HAS_RUN = "no round has run yet"
 
 

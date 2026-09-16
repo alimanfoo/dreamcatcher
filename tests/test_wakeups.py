@@ -10,7 +10,7 @@ from conftest import (
     REPOSITORY,
     comment,
     pages,
-    pull_requests,
+    pull_request,
 )
 from records import write_agent_assignment, write_round
 
@@ -39,9 +39,7 @@ def state(tmp_path):
 @pytest.fixture
 def gh(gh_with_no_posts):
     """A gh answering with one open pull request that nobody has posted on."""
-    gh_with_no_posts.replies(
-        stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list"
-    )
+    gh_with_no_posts.replies(stdout=pull_request(state="OPEN"), to="pr view")
     return gh_with_no_posts
 
 
@@ -69,10 +67,13 @@ def found(*, state) -> Wakeup | WaitingAgentAssignment | None:
     )
 
 
-def test_an_assignment_that_has_run_no_round_at_all_waits_for_a_person(state):
-    assert found(state=state) == WaitingAgentAssignment(
-        assignment=ASSIGNMENT_ID, issue=13, reason=NO_ROUND_HAS_RUN, is_stuck=True
-    )
+def test_an_assignment_that_has_run_no_round_at_all_needs_its_first(state):
+    first = found(state=state)
+
+    assert isinstance(first, Wakeup)
+    assert first.cause is Cause.DISPATCH
+    assert first.reason == NO_ROUND_HAS_RUN
+    assert first.prompt == "/dream:smith GH13"
 
 
 def test_an_assignment_whose_last_round_was_interrupted_is_carried_on(state):
@@ -109,6 +110,7 @@ def test_an_assignment_nobody_has_posted_on_needs_nothing(state, gh):
     ran(state=state, number=1, cause=Cause.DISPATCH)
 
     assert found(state=state) is None
+    assert gh.calls[0].arguments[:3] == ["pr", "view", str(PULL_REQUEST)]
 
 
 def test_an_assignment_the_user_has_posted_on_answers_what_they_said(state, gh):
@@ -179,7 +181,7 @@ def test_a_pull_request_that_is_finished_calls_for_one_last_round(
     state, gh, state_name
 ):
     ran(state=state, number=1, cause=Cause.DISPATCH)
-    gh.replies(stdout=pull_requests(listed=[(PULL_REQUEST, state_name)]), to="pr list")
+    gh.replies(stdout=pull_request(state=state_name), to="pr view")
 
     resume = found(state=state)
 
@@ -192,7 +194,7 @@ def test_a_pull_request_that_is_finished_calls_for_one_last_round(
 
 def test_a_last_round_carries_what_the_user_said_before_the_merge(state, gh):
     ran(state=state, number=1, cause=Cause.DISPATCH)
-    gh.replies(stdout=pull_requests(listed=[(PULL_REQUEST, "MERGED")]), to="pr list")
+    gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
     gh.replies(
         stdout=pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
@@ -210,7 +212,7 @@ def test_a_last_round_carries_what_the_user_said_before_the_merge(state, gh):
 def test_an_assignment_whose_last_round_wound_it_up_needs_nothing(state, gh):
     ran(state=state, number=1, cause=Cause.DISPATCH)
     ran(state=state, number=2, cause=Cause.FINAL)
-    gh.replies(stdout=pull_requests(listed=[(PULL_REQUEST, "MERGED")]), to="pr list")
+    gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
 
     assert found(state=state) is None
 
@@ -219,60 +221,19 @@ def test_a_last_round_that_was_carried_on_is_still_the_last_round(state, gh):
     ran(state=state, number=1, cause=Cause.DISPATCH)
     ran(state=state, number=2, cause=Cause.FINAL, status=None)
     ran(state=state, number=3, cause=Cause.CARRY_ON)
-    gh.replies(stdout=pull_requests(listed=[(PULL_REQUEST, "MERGED")]), to="pr list")
+    gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
 
     assert found(state=state) is None
 
 
-def test_an_assignment_with_no_pull_request_of_its_own_waits_for_a_person(state, gh):
-    ran(state=state, number=1, cause=Cause.DISPATCH)
-    gh.replies(stdout="[]", to="pr list")
-
-    assert found(state=state) == WaitingAgentAssignment(
-        assignment=ASSIGNMENT_ID,
-        issue=13,
-        reason="no pull request has been opened on it",
-        is_stuck=True,
-    )
-
-
-def test_an_open_pull_request_outranks_the_ones_that_are_finished(state, gh):
-    ran(state=state, number=1, cause=Cause.DISPATCH)
-    gh.replies(
-        stdout=pull_requests(listed=[(60, "CLOSED"), (PULL_REQUEST, "OPEN")]),
-        to="pr list",
-    )
-    gh.replies(
-        stdout=pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
-    )
-
-    resume = found(state=state)
-
-    assert isinstance(resume, Wakeup)
-    assert f"pull request #{PULL_REQUEST}" in resume.prompt
-
-
-def test_the_newest_of_two_finished_pull_requests_is_the_assignments_own(state, gh):
-    ran(state=state, number=1, cause=Cause.DISPATCH)
-    gh.replies(
-        stdout=pull_requests(listed=[(PULL_REQUEST, "CLOSED"), (40, "MERGED")]),
-        to="pr list",
-    )
-
-    resume = found(state=state)
-
-    assert isinstance(resume, Wakeup)
-    assert f"pull request #{PULL_REQUEST}" in resume.prompt
-
-
 def test_a_pull_request_read_that_failed_leaves_the_assignment_waiting(state, gh):
     ran(state=state, number=1, cause=Cause.DISPATCH)
-    gh.fails(stderr="gh: could not connect to github.com", to="pr list")
+    gh.fails(stderr="gh: could not connect to github.com", to="pr view")
 
     waiting = found(state=state)
 
     assert isinstance(waiting, WaitingAgentAssignment)
-    assert waiting.reason.startswith("cannot tell which pull request it has")
+    assert waiting.reason.startswith("cannot read its pull request")
     # A read that could not tell is asked again next tick, so nobody has to act.
     assert not waiting.is_stuck
 
@@ -301,10 +262,12 @@ def test_the_most_open_work_comes_first(state):
             resume(cause=Cause.POSTS),
             resume(cause=Cause.FINAL),
             resume(cause=Cause.CARRY_ON),
+            resume(cause=Cause.DISPATCH),
         ]
     )
 
     assert [found.cause for found in ordered] == [
+        Cause.DISPATCH,
         Cause.CARRY_ON,
         Cause.FINAL,
         Cause.POSTS,

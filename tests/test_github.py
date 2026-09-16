@@ -18,6 +18,7 @@ from dreamcatcher.github import (
     Review,
     Unknown,
     Verdict,
+    create_pull_request,
     identify_account,
     identify_repository,
     list_blockers,
@@ -25,6 +26,7 @@ from dreamcatcher.github import (
     list_linked_pull_requests,
     list_posts,
     list_pull_requests,
+    read_pull_request,
 )
 
 REPOSITORY = "alimanfoo/dreamcatcher"
@@ -95,13 +97,16 @@ def test_the_pull_requests_of_a_branch_come_back_with_their_states(fake):
     gh = fake(program="gh")
     gh.replies(
         stdout=json.dumps(
-            [{"number": 28, "state": "OPEN"}, {"number": 25, "state": "MERGED"}]
+            [
+                {"number": 28, "state": "OPEN", "isDraft": True},
+                {"number": 25, "state": "MERGED", "isDraft": False},
+            ]
         )
     )
 
     assert list_pull_requests(repository=REPOSITORY, branch=BRANCH) == [
-        PullRequest(number=28, state=PullRequestState.OPEN),
-        PullRequest(number=25, state=PullRequestState.MERGED),
+        PullRequest(number=28, state=PullRequestState.OPEN, isDraft=True),
+        PullRequest(number=25, state=PullRequestState.MERGED, isDraft=False),
     ]
     assert gh.calls[0].arguments == [
         "pr",
@@ -113,7 +118,7 @@ def test_the_pull_requests_of_a_branch_come_back_with_their_states(fake):
         "--state",
         "all",
         "--json",
-        "number,state",
+        "number,state,isDraft",
     ]
 
 
@@ -124,9 +129,73 @@ def test_a_branch_with_no_pull_request_comes_back_empty(fake):
     assert list_pull_requests(repository=REPOSITORY, branch=BRANCH) == []
 
 
+def test_a_linked_draft_pull_request_is_opened_for_the_assignment_branch(fake):
+    gh = fake(program="gh")
+    gh.replies(
+        stdout="https://github.com/alimanfoo/dreamcatcher/pull/28\n", to="pr create"
+    )
+    gh.replies(
+        stdout=json.dumps({"number": 28, "state": "OPEN", "isDraft": True}),
+        to="pr view",
+    )
+
+    created = create_pull_request(repository=REPOSITORY, branch=BRANCH, issue=8)
+
+    assert created == PullRequest(number=28, state=PullRequestState.OPEN, isDraft=True)
+    assert gh.calls[0].arguments == [
+        "pr",
+        "create",
+        "--repo",
+        REPOSITORY,
+        "--base",
+        "main",
+        "--head",
+        BRANCH,
+        "--draft",
+        "--title",
+        "GH8",
+        "--body",
+        "Closes #8",
+    ]
+    assert gh.calls[1].arguments == [
+        "pr",
+        "view",
+        "https://github.com/alimanfoo/dreamcatcher/pull/28",
+        "--repo",
+        REPOSITORY,
+        "--json",
+        "number,state,isDraft",
+    ]
+
+
+def test_a_pull_request_is_read_by_its_persisted_identity(fake):
+    gh = fake(program="gh")
+    gh.replies(stdout=json.dumps({"number": 28, "state": "MERGED", "isDraft": False}))
+
+    found = read_pull_request(repository=REPOSITORY, pull_request=28)
+
+    assert found == PullRequest(number=28, state=PullRequestState.MERGED, isDraft=False)
+    assert gh.calls[0].arguments == [
+        "pr",
+        "view",
+        "28",
+        "--repo",
+        REPOSITORY,
+        "--json",
+        "number,state,isDraft",
+    ]
+
+
 def test_the_pull_requests_linked_to_an_issue_come_back(fake):
     gh = fake(program="gh")
-    gh.replies(stdout=json.dumps({"closedByPullRequestsReferences": [{"number": 28}]}))
+    gh.replies(
+        stdout=json.dumps({"closedByPullRequestsReferences": [{"number": 28}]}),
+        to="issue view",
+    )
+    gh.replies(
+        stdout=json.dumps({"number": 28, "state": "OPEN", "isDraft": True}),
+        to="pr view",
+    )
 
     assert list_linked_pull_requests(repository=REPOSITORY, issue=8) == [
         LinkedPullRequest(number=28)
@@ -140,6 +209,43 @@ def test_the_pull_requests_linked_to_an_issue_come_back(fake):
         "--json",
         "closedByPullRequestsReferences",
     ]
+    assert gh.calls[1].arguments == [
+        "pr",
+        "view",
+        "28",
+        "--repo",
+        REPOSITORY,
+        "--json",
+        "number,state,isDraft",
+    ]
+
+
+def test_a_finished_linked_pull_request_does_not_claim_the_issue(fake):
+    gh = fake(program="gh")
+    gh.replies(
+        stdout=json.dumps({"closedByPullRequestsReferences": [{"number": 28}]}),
+        to="issue view",
+    )
+    gh.replies(
+        stdout=json.dumps({"number": 28, "state": "MERGED", "isDraft": False}),
+        to="pr view",
+    )
+
+    assert list_linked_pull_requests(repository=REPOSITORY, issue=8) == []
+
+
+def test_a_linked_pull_request_whose_state_cannot_be_read_is_unknown(fake):
+    gh = fake(program="gh")
+    gh.replies(
+        stdout=json.dumps({"closedByPullRequestsReferences": [{"number": 28}]}),
+        to="issue view",
+    )
+    gh.fails(stderr="gh: could not connect to github.com", to="pr view")
+
+    answered = list_linked_pull_requests(repository=REPOSITORY, issue=8)
+
+    assert isinstance(answered, Unknown)
+    assert "could not connect" in answered.reason
 
 
 def test_an_issue_nobody_has_claimed_has_no_linked_pull_request(fake):

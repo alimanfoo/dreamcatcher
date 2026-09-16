@@ -26,25 +26,25 @@ number 123.
 ## Branch adoption
 
 Before dreamcatcher dispatches an agent, it fetches origin's main, cuts a branch
-from it, and adds a worktree on that branch. The agent runs in that worktree, so
-the branch is checked out and the working tree is clean.
+from it, adds a worktree on that branch, makes and pushes an empty commit, and
+opens a linked draft pull request. The agent runs in that worktree, so the
+published branch is checked out and the working tree is clean.
 
-A dispatchable skill must instruct the agent to adopt the current branch, work
-in the worktree where it is checked out, and open the pull request from that
-branch.
+A dispatchable skill must instruct the agent to adopt the current branch and
+worktree. It must also adopt the draft pull request that dreamcatcher has
+already opened rather than opening another one.
 
 ## Opening a pull request
 
-A dispatchable skill should open a draft pull request as soon as possible,
-before it changes any code. This pull request then provides the primary channel
-of communication between the agent and the user.
+A dispatchable skill must use the draft pull request that is already open as its
+primary channel of communication with the user. It must mark the pull request
+ready when the implementation is ready for review.
 
 ## Linking the pull request to the issue
 
-The pull request's description must include `closes #123` or an equivalent
-keyword, naming the issue given as the skill's argument. GitHub then links the
-issue to the pull request, and that link is how dreamcatcher knows somebody is
-working on the issue.
+Dreamcatcher opens the draft pull request with `Closes #123` in its description,
+using the issue given to the assignment. A dispatchable skill must preserve that
+link when it replaces the description with its final account of the work.
 
 ## Ending a turn
 

@@ -112,6 +112,7 @@ class PullRequest(Projection):
 
     number: int
     state: PullRequestState
+    is_draft: bool = Field(alias="isDraft")
 
 
 class Blocker(Projection):
@@ -130,9 +131,10 @@ class LinkedPullRequest(Projection):
 class Linked(Projection):
     """What GitHub links to one issue.
 
-    GitHub lists only the open pull requests here, and counts both the ones that
-    said they close the issue and the ones somebody linked by hand. A declined
-    assignment drops out, which is what leaves its issue free to go again.
+    GitHub lists pull requests in every state here, and counts both the ones that
+    said they close the issue and the ones somebody linked by hand. The public
+    read below checks their current state and returns only the open ones, so a
+    declined assignment leaves its issue free to go again.
     """
 
     pull_requests: list[LinkedPullRequest] = Field(
@@ -259,6 +261,7 @@ REPOSITORY = TypeAdapter(Repository)
 ACCOUNT = TypeAdapter(Account)
 ISSUES = TypeAdapter(list[Issue])
 PULL_REQUESTS = TypeAdapter(list[PullRequest])
+PULL_REQUEST = TypeAdapter(PullRequest)
 BLOCKERS = TypeAdapter(list[Blocker])
 LINKED = TypeAdapter(Linked)
 CONVERSATION = TypeAdapter(list[list[Comment]])
@@ -341,7 +344,53 @@ def list_pull_requests(*, repository: str, branch: str) -> list[PullRequest] | U
             "--state",
             "all",
             "--json",
-            "number,state",
+            "number,state,isDraft",
+        ],
+    )
+
+
+def create_pull_request(
+    *, repository: str, branch: str, issue: int
+) -> PullRequest | Unknown:
+    """Open the branch's linked draft pull request and return its identity."""
+    reference = run(
+        program="gh",
+        arguments=[
+            "pr",
+            "create",
+            "--repo",
+            repository,
+            "--base",
+            "main",
+            "--head",
+            branch,
+            "--draft",
+            "--title",
+            f"GH{issue}",
+            "--body",
+            f"Closes #{issue}",
+        ],
+    ).strip()
+    return _read_pull_request(repository=repository, reference=reference)
+
+
+def read_pull_request(*, repository: str, pull_request: int) -> PullRequest | Unknown:
+    """Return the pull request with this persisted identity."""
+    return _read_pull_request(repository=repository, reference=str(pull_request))
+
+
+def _read_pull_request(*, repository: str, reference: str) -> PullRequest | Unknown:
+    """Return one pull request named by a number or URL."""
+    return _read(
+        shape=PULL_REQUEST,
+        arguments=[
+            "pr",
+            "view",
+            reference,
+            "--repo",
+            repository,
+            "--json",
+            "number,state,isDraft",
         ],
     )
 
@@ -369,7 +418,16 @@ def list_linked_pull_requests(
     )
     if isinstance(answered, Unknown):
         return answered
-    return answered.pull_requests
+    open_pull_requests = []
+    for linked in answered.pull_requests:
+        pull_request = read_pull_request(
+            repository=repository, pull_request=linked.number
+        )
+        if isinstance(pull_request, Unknown):
+            return pull_request
+        if pull_request.state is PullRequestState.OPEN:
+            open_pull_requests.append(linked)
+    return open_pull_requests
 
 
 def list_blockers(*, repository: str, issue: int) -> list[Blocker] | Unknown:

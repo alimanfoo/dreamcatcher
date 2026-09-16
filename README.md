@@ -78,8 +78,16 @@ Every `interval` seconds it looks once and launches at most one round. An issue
 is dispatched when it carries exactly one dispatch label, is assigned to
 `assignee`, has no assignment here already, has no open pull request GitHub
 links to it, and has no open issue blocking it. The oldest such issue goes
-first. A dispatch cuts a branch and a worktree under `.dreamcatcher/`, and runs
-the assignment's first round there.
+first. A dispatch cuts a branch and a worktree under `.dreamcatcher/`, makes and
+pushes an empty commit, and opens a linked draft pull request before it runs the
+assignment's first round there.
+
+Assignment setup is recoverable. If Dreamcatcher stops after making the
+worktree, commit, remote branch, or pull request, the next dispatch attempt
+reuses those artifacts and finishes the same assignment instead of opening
+another pull request. If setup completes but the first round cannot start, the
+complete assignment keeps its branch and pull request, and the next tick tries
+that first round again before it schedules ordinary work.
 
 Everything the daemon owns lives under `.dreamcatcher/` in the checkout, which
 ignores itself, so git never sees it. `last-tick.json` there says what the most
@@ -123,11 +131,11 @@ round of it arrive. They wait through every gap between one round and the next,
 including a gap where you have stopped the daemon and not started it again yet.
 
 Two things end them, because after either one no round is coming. One is the
-assignment running its final round, which winds it up. The other is the
-assignment getting stuck, which means no tick can move it on however long it
-waits: either its dispatch never ran a first round, or its rounds ran and no
-pull request was ever opened on its branch. Only you can take a stuck assignment
-from there, so a view left open on one would wait for ever.
+assignment running its final round, which winds it up. The other is an
+assignment that the latest scheduler record explicitly marks as stuck, which
+means that no tick can move it on without a person. An interrupted creation or
+missing first round is not stuck: Dreamcatcher reconciles the creation and
+retries the round.
 
 Interrupt any view to end it sooner.
 

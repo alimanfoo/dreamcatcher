@@ -4,7 +4,16 @@ import pytest
 from conftest import git
 
 from dreamcatcher.commands import CommandError
-from dreamcatcher.git import add_worktree, delete_branch, fetch, remove_worktree
+from dreamcatcher.git import (
+    add_worktree,
+    delete_branch,
+    fetch,
+    has_commits_since_main,
+    make_empty_commit,
+    push_branch,
+    read_worktree_branch,
+    remove_worktree,
+)
 
 BRANCH = "dreamcatcher-GH8-20260820-000456"
 
@@ -43,6 +52,7 @@ def test_a_worktree_lands_where_it_is_asked_for_on_its_own_branch(cloned):
     assert (path / "README.md").exists()
     assert BRANCH in git(arguments=["branch", "--list", BRANCH], cwd=cloned)
     assert path in worktrees(root=cloned)
+    assert read_worktree_branch(worktree=path) == BRANCH
 
 
 def test_a_worktree_git_refuses_says_what_git_said(cloned):
@@ -54,6 +64,34 @@ def test_a_worktree_git_refuses_says_what_git_said(cloned):
 
     assert "git worktree add" in str(error.value)
     assert BRANCH in str(error.value)
+
+
+def test_an_empty_commit_moves_the_assignment_branch_beyond_main(cloned):
+    path = assignment_worktree(root=cloned)
+    add_worktree(root=cloned, path=path, branch=BRANCH)
+    git(arguments=["config", "user.name", ""], cwd=path)
+    git(arguments=["config", "user.email", ""], cwd=path)
+    git(arguments=["config", "commit.gpgsign", "true"], cwd=path)
+
+    assert not has_commits_since_main(worktree=path)
+
+    make_empty_commit(worktree=path, message="GH8")
+
+    assert has_commits_since_main(worktree=path)
+    assert git(arguments=["log", "-1", "--format=%an <%ae>"], cwd=path).strip() == (
+        "dreamcatcher <noreply@github.com>"
+    )
+
+
+def test_a_pushed_assignment_branch_is_visible_at_origin(cloned):
+    path = assignment_worktree(root=cloned)
+    add_worktree(root=cloned, path=path, branch=BRANCH)
+    make_empty_commit(worktree=path, message="GH8")
+
+    push_branch(root=cloned, branch=BRANCH)
+
+    remote = git(arguments=["ls-remote", "--heads", "origin", BRANCH], cwd=cloned)
+    assert f"refs/heads/{BRANCH}" in remote
 
 
 def test_a_removed_worktree_leaves_the_disk_and_the_list(cloned):

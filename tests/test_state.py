@@ -5,7 +5,7 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.state import LastTick, StateDirectory, WaitingAgentAssignment
 
 
-def test_a_wait_keeps_the_existing_last_tick_shape():
+def test_a_wait_records_the_assignment_identifier_by_its_current_name():
     tick = LastTick(
         at="2026-08-19T18:41:58Z",
         waiting=[
@@ -19,8 +19,8 @@ def test_a_wait_keeps_the_existing_last_tick_shape():
 
     recorded = tick.model_dump_json(indent=2)
 
-    assert '"session": "GH13-20260819-184158"' in recorded
-    assert '"assignment"' not in recorded
+    assert '"assignment": "GH13-20260819-184158"' in recorded
+    assert '"session"' not in recorded
     assert LastTick.model_validate_json(recorded) == tick
 
 
