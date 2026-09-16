@@ -20,6 +20,7 @@ from records import write_agent_assignment, write_round
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
+    RoundOutcome,
     RoundPurpose,
     compose_agent_round_ending,
 )
@@ -303,6 +304,10 @@ def test_a_round_the_daemon_before_this_one_left_running_is_ended(
     daemon.run()
 
     assert gone(pid=left_running.pid)
+    record = AgentRoundRecord.model_validate_json(
+        (directory / "rounds" / "1" / "round.json").read_text(encoding="utf-8")
+    )
+    assert record.outcome is RoundOutcome.INTERRUPTED
 
 
 def test_a_round_that_recorded_an_ending_is_left_running_by_the_sweep(

@@ -19,9 +19,11 @@ from dreamcatcher.agent_rounds import (
     AgentRoundPlan,
     AgentRoundRecord,
     ErroredAgentRoundEnding,
+    InterruptedAgentRoundEnding,
     RoundOutcome,
     RoundPurpose,
     compose_agent_round_ending,
+    record_agent_round_interruption,
 )
 from dreamcatcher.claude import CLAUDE
 from dreamcatcher.errors import ReportableError
@@ -309,7 +311,7 @@ def test_an_errored_ending_refuses_a_success_status():
         ErroredAgentRoundEnding(at=PINNED, status=0)
 
 
-def test_a_round_somebody_stopped_says_no_ending(fake, worktree, directory):
+def test_a_round_somebody_stopped_records_interruption(fake, worktree, directory):
     fake(program="harness").streams(
         lines=[Line(text="working\n"), Line(text="still working\n")], delay=5
     )
@@ -324,7 +326,7 @@ def test_a_round_somebody_stopped_says_no_ending(fake, worktree, directory):
     running.stop()
 
     assert not running.is_alive
-    assert written(path=running.workspace.record).ending is None
+    assert written(path=running.workspace.record).outcome is RoundOutcome.INTERRUPTED
 
 
 def test_a_round_stopped_after_it_finished_keeps_its_ending(fake, worktree, directory):
@@ -368,7 +370,7 @@ def test_a_round_that_cannot_write_its_feed_stops_rather_than_stalls(
     running.wait()
 
     assert not running.is_alive
-    assert written(path=running.workspace.record).ending is None
+    assert written(path=running.workspace.record).outcome is RoundOutcome.INTERRUPTED
 
 
 def test_a_round_that_cannot_write_its_prompt_never_starts(fake, worktree, tmp_path):
@@ -455,4 +457,20 @@ def test_a_round_a_straggler_outlives_still_stops(worktree, directory, straggler
 
     assert not stopping.is_alive()
     assert not running.is_alive
-    assert written(path=running.workspace.record).ending is None
+    assert written(path=running.workspace.record).outcome is RoundOutcome.INTERRUPTED
+
+
+def test_recording_interruption_again_keeps_a_terminal_record(tmp_path):
+    record = AgentRoundRecord(
+        number=1,
+        purpose=PURPOSE,
+        started=PINNED,
+        pid=1,
+        ending=InterruptedAgentRoundEnding(),
+    )
+    path = tmp_path / "round.json"
+
+    reconciled = record_agent_round_interruption(record=record, path=path)
+
+    assert reconciled is record
+    assert not path.exists()

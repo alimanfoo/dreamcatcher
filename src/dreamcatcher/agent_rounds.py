@@ -8,9 +8,8 @@ reads as its stdin. `raw.jsonl` keeps the harness's own stdout as it arrived, so
 that whoever works on a parser can read what the harness really sent. `feed.txt`
 is that same stream read through the harness's adapter and rendered as lines a
 person can read, with whatever the harness said on stderr among them, where it
-happened. `round.json`
-says when the round started, what process it ran as, what caused it, and how it
-ended.
+happened. `round.json` says the round's number, purpose, recovery flag, process,
+and outcome.
 
 The daemon watches a round rather than waiting for it, so a round reads its own
 streams on threads of its own, and records its own ending on another.
@@ -122,6 +121,30 @@ class AgentRoundRecord(Document):
         if self.ending is None:
             return RoundOutcome.RUNNING
         return self.ending.outcome
+
+
+def record_agent_round_interruption(
+    *, record: AgentRoundRecord, path: Path
+) -> AgentRoundRecord:
+    """Record interruption when a formerly running round has stopped.
+
+    A terminal record is already reconciled, so repeating the operation keeps
+    that record unchanged.
+    """
+    if record.ending is not None:
+        return record
+    return _record_agent_round_ending(
+        record=record, ending=InterruptedAgentRoundEnding(), path=path
+    )
+
+
+def _record_agent_round_ending(
+    *, record: AgentRoundRecord, ending: AgentRoundEnding, path: Path
+) -> AgentRoundRecord:
+    """Write and return a record with its terminal outcome."""
+    ended = record.model_copy(update={"ending": ending})
+    write_json(document=ended, path=path)
+    return ended
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -266,16 +289,14 @@ class AgentRound:
             stdin=workspace.prompt,
         )
         try:
-            write_json(
-                document=AgentRoundRecord(
-                    number=plan.number,
-                    purpose=plan.purpose,
-                    is_recovery=plan.is_recovery,
-                    started=self.started,
-                    pid=self.child.pid,
-                ),
-                path=self.workspace.record,
+            self.record = AgentRoundRecord(
+                number=plan.number,
+                purpose=plan.purpose,
+                is_recovery=plan.is_recovery,
+                started=self.started,
+                pid=self.child.pid,
             )
+            write_json(document=self.record, path=self.workspace.record)
         except ReportableError:
             # A round nothing recorded is a round nothing will watch or find
             # again, so it does not run on.
@@ -329,13 +350,11 @@ class AgentRound:
         self._ended.wait()
 
     def _interrupt(self) -> None:
-        """End the round while it is still running, so it reads as unfinished.
+        """End the round while it is still running, so it reads as interrupted.
 
-        A round nobody let finish has nothing to show for itself, so nothing
-        writes an ending to its record, and a later tick sees an interrupted
-        round and resumes it. A child that has already gone finished by itself
-        and keeps the ending `_close` writes for it, so this leaves that record
-        alone rather than sending an assignment back over a round it has done.
+        A child that has already gone finished by itself keeps the observed
+        ending that `_close` writes for it, so this leaves that record alone
+        rather than sending an assignment back over a round it has done.
 
         The mark goes on before the kill, because the kill is what makes
         `_close` return from `child.wait()`. So `_close` reads a mark this
@@ -392,18 +411,14 @@ class AgentRound:
         """
         try:
             status = self.child.wait()
-            if not self.is_interrupted:
-                write_json(
-                    document=AgentRoundRecord(
-                        number=self.plan.number,
-                        purpose=self.plan.purpose,
-                        is_recovery=self.plan.is_recovery,
-                        started=self.started,
-                        pid=self.child.pid,
-                        ending=compose_agent_round_ending(
-                            at=self.clock(), status=status
-                        ),
-                    ),
+            if self.is_interrupted:
+                self.record = record_agent_round_interruption(
+                    record=self.record, path=self.workspace.record
+                )
+            else:
+                self.record = _record_agent_round_ending(
+                    record=self.record,
+                    ending=compose_agent_round_ending(at=self.clock(), status=status),
                     path=self.workspace.record,
                 )
         finally:

@@ -20,6 +20,7 @@ from dreamcatcher.agent_assignments import (
 )
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
+    InterruptedAgentRoundEnding,
     RoundPurpose,
     compose_agent_round_ending,
 )
@@ -62,7 +63,7 @@ def ran(
     """
     started = PINNED + timedelta(minutes=number)
     ending = (
-        None
+        InterruptedAgentRoundEnding()
         if status is None
         else compose_agent_round_ending(at=started, status=status)
     )
