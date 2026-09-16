@@ -69,6 +69,8 @@ def test_a_worktree_git_refuses_says_what_git_said(cloned):
 def test_an_empty_commit_moves_the_assignment_branch_beyond_main(cloned):
     path = assignment_worktree(root=cloned)
     add_worktree(root=cloned, path=path, branch=BRANCH)
+    git(arguments=["config", "user.name", ""], cwd=path)
+    git(arguments=["config", "user.email", ""], cwd=path)
     git(arguments=["config", "commit.gpgsign", "true"], cwd=path)
 
     assert not has_commits_since_main(worktree=path)
@@ -76,6 +78,9 @@ def test_an_empty_commit_moves_the_assignment_branch_beyond_main(cloned):
     make_empty_commit(worktree=path, message="GH8")
 
     assert has_commits_since_main(worktree=path)
+    assert git(arguments=["log", "-1", "--format=%an <%ae>"], cwd=path).strip() == (
+        "dreamcatcher <noreply@github.com>"
+    )
 
 
 def test_a_pushed_assignment_branch_is_visible_at_origin(cloned):

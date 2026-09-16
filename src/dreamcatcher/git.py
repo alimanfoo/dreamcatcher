@@ -53,6 +53,10 @@ def make_empty_commit(*, worktree: Path, message: str) -> None:
         program="git",
         arguments=[
             "-c",
+            "user.name=dreamcatcher",
+            "-c",
+            "user.email=noreply@github.com",
+            "-c",
             "commit.gpgsign=false",
             "commit",
             "--allow-empty",
