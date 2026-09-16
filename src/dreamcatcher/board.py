@@ -202,7 +202,11 @@ class _Look:
             tick=self.tick,
             rows=self.list_rows(assignments=assignments),
             queued=self._list_queued_issues(
-                claimed={assignment.record.issue for assignment in assignments}
+                claimed={
+                    assignment.record.issue
+                    for assignment in assignments
+                    if not assignment.is_complete
+                }
             ),
         )
 
@@ -249,7 +253,7 @@ class _Look:
                 detail, last_output = self._describe_live_round(assignment=assignment)
                 return AgentAssignmentStanding.WORKING, detail, last_output
             return AgentAssignmentStanding.WAITING, unfinished, None
-        if assignment.has_run_final_round:
+        if assignment.is_complete:
             return (
                 AgentAssignmentStanding.DONE,
                 describe_count(number=len(assignment.rounds), noun="round"),

@@ -121,6 +121,8 @@ def judge_assignment(
     """
     if not assignment.rounds:
         return compose_dispatch_wakeup(assignment=assignment)
+    if assignment.is_complete:
+        return None
     unfinished = assignment.describe_unfinished_round()
     return _judge_pull_request(
         repository=repository,
@@ -168,8 +170,6 @@ def _judge_pull_request(
             reason=f"cannot read its pull request: {pull_request.reason}",
         )
     is_open = pull_request.state is PullRequestState.OPEN
-    if not is_open and assignment.has_run_final_round and recovery_reason is None:
-        return None
     if recovery_reason is not None:
         return Wakeup(
             assignment=assignment,

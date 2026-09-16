@@ -27,6 +27,7 @@ from dreamcatcher.agent_assignments import (
 from dreamcatcher.agent_rounds import (
     AgentRoundPaths,
     AgentRoundRecord,
+    InterruptedAgentRoundEnding,
     RoundPurpose,
     compose_agent_round_ending,
 )
@@ -240,7 +241,7 @@ def test_an_assignment_that_has_run_no_round_has_left_nothing_unfinished(fabrica
     assignment = standing(state=fabricated, rounds=[])
 
     assert assignment.describe_unfinished_round() is None
-    assert not assignment.has_run_final_round
+    assert not assignment.is_complete
 
 
 def test_an_assignment_whose_last_round_was_interrupted_says_so(fabricated):
@@ -268,7 +269,7 @@ def test_an_assignment_whose_last_round_ended_well_has_left_nothing_unfinished(
     assert assignment.describe_unfinished_round() is None
 
 
-def test_an_assignment_that_has_run_its_final_round_says_so(fabricated):
+def test_a_successful_wrap_up_completes_an_assignment(fabricated):
     assignment = standing(
         state=fabricated,
         rounds=[
@@ -278,6 +279,7 @@ def test_an_assignment_that_has_run_its_final_round_says_so(fabricated):
                 started=PINNED + timedelta(minutes=1),
                 pid=1,
                 purpose=RoundPurpose.WRAP_UP,
+                is_recovery=True,
                 ending=compose_agent_round_ending(
                     at=PINNED + timedelta(minutes=1), status=0
                 ),
@@ -285,7 +287,41 @@ def test_an_assignment_that_has_run_its_final_round_says_so(fabricated):
         ],
     )
 
-    assert assignment.has_run_final_round
+    assert assignment.is_complete
+
+
+@pytest.mark.parametrize(
+    "record",
+    [
+        AgentRoundRecord(
+            number=1,
+            started=PINNED,
+            pid=1,
+            purpose=RoundPurpose.IMPLEMENT,
+            ending=compose_agent_round_ending(at=PINNED, status=0),
+        ),
+        AgentRoundRecord(
+            number=1,
+            started=PINNED,
+            pid=1,
+            purpose=RoundPurpose.WRAP_UP,
+            ending=compose_agent_round_ending(at=PINNED, status=1),
+        ),
+        AgentRoundRecord(
+            number=1,
+            started=PINNED,
+            pid=1,
+            purpose=RoundPurpose.WRAP_UP,
+            ending=InterruptedAgentRoundEnding(),
+        ),
+    ],
+)
+def test_anything_other_than_a_successful_wrap_up_leaves_an_assignment_open(
+    fabricated, record
+):
+    assignment = standing(state=fabricated, rounds=[record])
+
+    assert not assignment.is_complete
 
 
 def endings(*, state):
@@ -508,9 +544,16 @@ def test_an_issue_whose_assignment_finished_can_receive_another(state, route):
     assert second.identifier == "GH12-20260819-194158"
 
 
-@pytest.mark.parametrize("status", [None, 1])
+@pytest.mark.parametrize(
+    "ending",
+    [
+        None,
+        InterruptedAgentRoundEnding(),
+        compose_agent_round_ending(at=PINNED, status=1),
+    ],
+)
 def test_an_issue_whose_final_work_is_unfinished_cannot_receive_another(
-    state, route, status
+    state, route, ending
 ):
     first = create_agent_assignment(
         state=state,
@@ -527,9 +570,7 @@ def test_an_issue_whose_final_work_is_unfinished_cannot_receive_another(
             started=PINNED,
             pid=1,
             purpose=RoundPurpose.WRAP_UP,
-            ending=None
-            if status is None
-            else compose_agent_round_ending(at=PINNED, status=status),
+            ending=ending,
         ),
     )
 

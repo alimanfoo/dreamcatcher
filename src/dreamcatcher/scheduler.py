@@ -123,7 +123,11 @@ class Scheduler:
         judged = judge_issues(
             repository=self.repository,
             config=self.config,
-            claimed={assignment.record.issue for assignment in assignments},
+            claimed={
+                assignment.record.issue
+                for assignment in assignments
+                if not assignment.is_complete
+            },
             recovery_obstacles=inspect_incomplete_assignment_setups(
                 state=self.state, repository=self.repository
             ),
@@ -151,7 +155,7 @@ class Scheduler:
                     compose_wait(assignment=assignment, reason=cap)
                     for assignment in assignments
                     if assignment.identifier not in self.rounds
-                    and not assignment.has_run_final_round
+                    and not assignment.is_complete
                 ],
             )
         found = self._judge_assignments(assignments=assignments)

@@ -223,6 +223,33 @@ def test_a_second_tick_judges_a_dispatched_issue_handled(dispatching):
     ]
 
 
+def test_a_completed_assignment_releases_its_issue(dispatching):
+    state = StateDirectory(root=dispatching)
+    assignment = write_agent_assignment(
+        state=state,
+        identifier="GH8-20260818-184158",
+        issue=8,
+    )
+    write_round(
+        directory=assignment,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            purpose=RoundPurpose.WRAP_UP,
+            is_recovery=False,
+            started=PINNED,
+            pid=1,
+            ending=compose_agent_round_ending(at=PINNED, status=0),
+        ),
+    )
+    scheduler, clock = create_scheduler(root=dispatching)
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.candidates == [CandidateIssue(issue=8, label=LABEL)]
+    assert observed.launched == DISPATCHED_ASSIGNMENT_ID
+
+
 def test_a_tick_at_the_cap_says_the_cap_is_what_each_assignment_waits_on(
     dispatching, offered, harnesses
 ):

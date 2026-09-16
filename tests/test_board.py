@@ -198,12 +198,24 @@ def test_a_round_that_failed_waits_with_the_status_it_failed_with(running):
     assert only(state=running).detail == "the last round failed (exit 2)"
 
 
-def test_an_assignment_whose_final_round_has_run_is_done(state):
+def test_an_assignment_whose_wrap_up_succeeded_is_done(state):
     ran(state=state, number=1)
     ran(state=state, number=2, purpose=RoundPurpose.WRAP_UP)
 
     assert only(state=state).standing is AgentAssignmentStanding.DONE
     assert only(state=state).detail == "2 rounds"
+
+
+def test_an_assignment_whose_wrap_up_failed_is_waiting_to_recover(running):
+    ran(
+        state=running,
+        number=1,
+        purpose=RoundPurpose.WRAP_UP,
+        status=2,
+    )
+
+    assert only(state=running).standing is AgentAssignmentStanding.WAITING
+    assert only(state=running).detail == "the last round failed (exit 2)"
 
 
 def test_an_assignment_done_in_one_round_counts_that_round_as_one(state):
@@ -376,4 +388,23 @@ def test_an_issue_an_assignment_here_already_claims_is_not_queued(state):
 
     assert [(one.issue, one.reason) for one in looked(state=state).queued] == [
         (20, "next")
+    ]
+
+
+def test_a_completed_assignment_no_longer_claims_its_issue_on_the_board(state):
+    ran(state=state, number=1, purpose=RoundPurpose.WRAP_UP)
+    write_tick(
+        state=state,
+        tick=LastTick(
+            at=PINNED,
+            candidates=[
+                CandidateIssue(issue=13, label=LABEL),
+                CandidateIssue(issue=20, label=LABEL),
+            ],
+        ),
+    )
+
+    assert [(one.issue, one.reason) for one in looked(state=state).queued] == [
+        (13, "next"),
+        (20, "behind 1 other"),
     ]

@@ -21,6 +21,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     ErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
+    RoundOutcome,
     RoundPurpose,
 )
 from dreamcatcher.commands import CommandError
@@ -117,30 +118,20 @@ class AgentAssignment:
         return self.directory.name
 
     @property
-    def has_run_final_round(self) -> bool:
-        """Whether the assignment has already run the round that winds it up.
-
-        Any round of the assignment having been the final round is what this
-        reads, and no record's ending comes into it. An assignment whose last round
-        did not finish is carried on before this is ever asked, and that
-        carry-on finishes what the final round started, so by the time the
-        question is put the work the final round stood for is done however many
-        rounds it took.
-        """
-        return any(record.purpose is RoundPurpose.WRAP_UP for record in self.rounds)
-
-    @property
     def is_complete(self) -> bool:
-        """Whether the assignment has finished the work of its final round."""
-        return self.has_run_final_round and self.describe_unfinished_round() is None
+        """Whether a wrap-up round has exited successfully."""
+        return any(
+            record.purpose is RoundPurpose.WRAP_UP
+            and record.outcome is RoundOutcome.SUCCESSFUL
+            for record in self.rounds
+        )
 
     def describe_unfinished_round(self) -> str | None:
         """Return what the assignment's last round left unfinished, or nothing.
 
-        A record with no ending is a round the daemon stopped or outlived, and
-        a round that ended with a failing status stopped short of its own
-        accord. Both leave the work part done, so both are carried on from
-        where they stopped.
+        A record with no ending is a round the daemon has not reconciled yet,
+        and an interrupted or errored ending says that the work stopped short.
+        Each is carried on from where it stopped.
 
         An assignment that has run no round at all has left nothing unfinished.
         Its first round never started, which is another matter: the scheduler
