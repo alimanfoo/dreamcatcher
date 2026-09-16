@@ -1,5 +1,3 @@
-import json
-
 import pytest
 from conftest import (
     HUNK,
@@ -14,18 +12,16 @@ from conftest import (
     review,
 )
 
-from dreamcatcher.documents import write_json
 from dreamcatcher.github import (
     Comment,
     InlineComment,
-    PullRequestState,
     Review,
     Unknown,
     UserPost,
     Verdict,
 )
 from dreamcatcher.prompts import MARKER
-from dreamcatcher.relay import Inbox, list_undelivered_user_posts
+from dreamcatcher.relay import list_undelivered_user_posts
 
 # A time before anything the tests say the user posted.
 BEFORE = "2026-09-03T16:49:35Z"
@@ -223,42 +219,6 @@ def test_every_post_the_user_said_something_in_on_a_real_pull_request_comes_back
         Comment,
         Comment,
     ]
-
-
-def test_an_inbox_says_where_the_pull_request_got_to_and_what_each_post_is(
-    gh_with_no_posts, tmp_path
-):
-    for source, post in (
-        ("conversation", comment()),
-        ("reviews", review(body="have a look")),
-        ("inline-comments", inline_comment()),
-    ):
-        gh_with_no_posts.replies(
-            stdout=pages(posts=[post]), to=f"api {POST_LIST_PATHS[source]}"
-        )
-    written = tmp_path / "inbox.json"
-
-    write_json(
-        document=Inbox(state=PullRequestState.OPEN, posts=undelivered()), path=written
-    )
-
-    read_back = json.loads(written.read_text(encoding="utf-8"))
-    assert read_back["state"] == "OPEN"
-    assert [post["kind"] for post in read_back["posts"]] == [
-        "comment",
-        "review",
-        "inlineComment",
-    ]
-    assert read_back["posts"][2]["diff_hunk"] == HUNK
-
-
-def test_an_inbox_a_merged_pull_request_woke_carries_no_post(tmp_path):
-    written = tmp_path / "inbox.json"
-
-    write_json(document=Inbox(state=PullRequestState.MERGED, posts=[]), path=written)
-
-    read_back = json.loads(written.read_text(encoding="utf-8"))
-    assert read_back == {"state": "MERGED", "posts": []}
 
 
 def test_a_comment_on_a_whole_file_says_so_rather_than_naming_line_one(

@@ -4,12 +4,13 @@ A round is a harness command running as a child of the daemon, in the assignment
 worktree. It writes into a directory of its own as it goes.
 
 `prompt.txt` holds what the round asked the harness to do, which the harness
-reads as its stdin. `raw.jsonl` keeps the harness's own stdout as it arrived, so
-that whoever works on a parser can read what the harness really sent. `feed.txt`
-is that same stream read through the harness's adapter and rendered as lines a
-person can read, with whatever the harness said on stderr among them, where it
-happened. `round.json` says the round's number, purpose, recovery flag, process,
-and outcome.
+reads as its stdin. A resumed round's `inbox.json` holds the pull-request state
+and user posts delivered to it. `raw.jsonl` keeps the harness's own stdout as it
+arrived, so that whoever works on a parser can read what the harness really sent.
+`feed.txt` is that same stream read through the harness's adapter and rendered as
+lines a person can read, with whatever the harness said on stderr among them,
+where it happened. `round.json` says the round's number, purpose, recovery flag,
+process, and outcome.
 
 The daemon watches a round rather than waiting for it, so a round reads its own
 streams on threads of its own, and records its own ending on another.
@@ -38,6 +39,7 @@ from dreamcatcher.documents import (
 )
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Event, Prose, Renderer
+from dreamcatcher.github import PullRequestState, UserPost
 
 # The file in a round's own directory saying what the round did.
 RECORD = "round.json"
@@ -147,12 +149,20 @@ def _record_agent_round_ending(
     return ended
 
 
+class AgentRoundInput(Document):
+    """The pull-request state and user posts delivered to one agent round."""
+
+    state: PullRequestState
+    posts: list[UserPost]
+
+
 @dataclass(frozen=True, kw_only=True)
 class AgentRoundPlan:
-    """The purpose and recovery decision that a new round executes."""
+    """The decisions and input that a new round executes."""
 
     purpose: RoundPurpose
     is_recovery: bool
+    input: AgentRoundInput | None = None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -275,12 +285,11 @@ class AgentRound:
     ) -> None:
         """Run the invocation as a round at the paths it was given.
 
-        The prompt goes to a file of the round's own, and the harness reads
-        that file as its stdin. So a prompt reaches the harness as it was
-        written however long it is and whatever it holds, and a reader can see
-        afterwards what the round was asked to do. A harness with nothing to
-        read would sit and wait, so a prompt the round cannot write stops the
-        round before it starts.
+        The input and prompt go to files of the round's own before its process
+        starts, and the harness reads the prompt as its stdin. A prompt therefore
+        reaches the harness as it was written however long it is and whatever it
+        holds, and a reader can see afterwards what the round received. A failure
+        to write either file stops the round before it starts.
         """
         self.adapter = adapter
         self.paths = paths
@@ -290,6 +299,8 @@ class AgentRound:
         self.is_interrupted = False
         self._ended = Flag()
         self._writing = Lock()
+        if plan.input is not None:
+            write_json(document=plan.input, path=paths.inbox)
         write_text(text=invocation.prompt, path=paths.prompt)
         self.child = spawn(
             program=invocation.program,

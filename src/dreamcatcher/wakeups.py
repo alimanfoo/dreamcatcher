@@ -18,7 +18,7 @@ decided asks for the wakeup and runs it.
 from dataclasses import dataclass
 
 from dreamcatcher.agent_assignments import AgentAssignment
-from dreamcatcher.agent_rounds import RoundPurpose
+from dreamcatcher.agent_rounds import AgentRoundInput, RoundPurpose
 from dreamcatcher.github import (
     PullRequest,
     PullRequestState,
@@ -27,7 +27,7 @@ from dreamcatcher.github import (
     read_pull_request,
 )
 from dreamcatcher.prompts import CARRY_ON_PROMPT, compose_inbox_prompt
-from dreamcatcher.relay import Inbox, list_undelivered_user_posts
+from dreamcatcher.relay import list_undelivered_user_posts
 from dreamcatcher.state import NO_ROUND_HAS_RUN, WaitingAgentAssignment
 from dreamcatcher.words import describe_count
 
@@ -40,7 +40,7 @@ class Wakeup:
     record keeps. The reason carries the evidence that a tick which could not
     launch this round writes down instead.
 
-    The inbox is the batch the round is woken with. A recovery has none: the
+    The round input is the batch the round is woken with. A recovery has none: the
     transcript that the harness resumes carries that work already.
     """
 
@@ -49,7 +49,7 @@ class Wakeup:
     is_recovery: bool
     reason: str
     prompt: str
-    inbox: Inbox | None = None
+    round_input: AgentRoundInput | None = None
 
     @property
     def newest_post(self) -> str:
@@ -59,9 +59,9 @@ class Wakeup:
         with the beginning of time, so a launch knows to leave the assignment's
         delivery cursor where it is.
         """
-        if self.inbox is None or not self.inbox.posts:
+        if self.round_input is None or not self.round_input.posts:
             return ""
-        return self.inbox.posts[-1].written_at
+        return self.round_input.posts[-1].written_at
 
 
 # What a tick found about one assignment: the wakeup it needs, or what it is
@@ -208,9 +208,9 @@ def _compose_resume(
 ) -> Wakeup:
     """Return the round that the pull request and the user's posts call for.
 
-    The prompt names the file the launch writes the inbox to, and the state in
-    that file is what tells the assignment whether to answer the user or to wind
-    the assignment up. So both rounds ask for the same thing in the same words.
+    The prompt names the file to which the round writes its input, and the state
+    in that file tells the assignment whether to answer the user or to wind the
+    assignment up. Both rounds therefore ask for the same thing in the same words.
     """
     is_open = pull_request.state is PullRequestState.OPEN
     return Wakeup(
@@ -229,7 +229,7 @@ def _compose_resume(
             pull_request=pull_request.number,
             inbox=assignment.round_paths(number=assignment.next_round_number).inbox,
         ),
-        inbox=Inbox(state=pull_request.state, posts=posted),
+        round_input=AgentRoundInput(state=pull_request.state, posts=posted),
     )
 
 

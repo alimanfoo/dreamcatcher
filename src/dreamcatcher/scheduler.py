@@ -25,12 +25,12 @@ from dreamcatcher.agent_assignments import (
 )
 from dreamcatcher.agent_rounds import (
     AgentRound,
+    AgentRoundInput,
     AgentRoundPlan,
     ErroredAgentRoundEnding,
     RoundPurpose,
 )
 from dreamcatcher.config import Config, Harness
-from dreamcatcher.documents import write_json
 from dreamcatcher.eligibility import judge_issues
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import Unknown
@@ -223,16 +223,12 @@ class Scheduler:
     def _launch_wakeup(self, *, wakeup: Wakeup) -> None:
         """Start the round and advance the delivery cursor once it is running."""
         assignment = wakeup.assignment
-        if wakeup.inbox is not None:
-            write_json(
-                document=wakeup.inbox,
-                path=assignment.round_paths(number=assignment.next_round_number).inbox,
-            )
         self._start_round(
             assignment=assignment,
             prompt=wakeup.prompt,
             purpose=wakeup.purpose,
             is_recovery=wakeup.is_recovery,
+            round_input=wakeup.round_input,
         )
         if wakeup.newest_post:
             advance_user_post_delivery_cursor(
@@ -246,6 +242,7 @@ class Scheduler:
         prompt: str,
         purpose: RoundPurpose,
         is_recovery: bool,
+        round_input: AgentRoundInput | None = None,
     ) -> None:
         """Start a round with the recipe that the dispatch settled."""
         adapter = ADAPTERS[assignment.record.harness]
@@ -264,7 +261,11 @@ class Scheduler:
             adapter=adapter,
             invocation=invocation,
             paths=assignment.round_paths(number=assignment.next_round_number),
-            plan=AgentRoundPlan(purpose=purpose, is_recovery=is_recovery),
+            plan=AgentRoundPlan(
+                purpose=purpose,
+                is_recovery=is_recovery,
+                input=round_input,
+            ),
             clock=self.clock,
         )
 

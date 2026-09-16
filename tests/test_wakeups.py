@@ -19,6 +19,7 @@ from dreamcatcher.agent_assignments import (
     read_agent_assignments,
 )
 from dreamcatcher.agent_rounds import (
+    AgentRoundInput,
     AgentRoundRecord,
     InterruptedAgentRoundEnding,
     RoundPurpose,
@@ -26,7 +27,6 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.github import PullRequestState
 from dreamcatcher.prompts import CARRY_ON_PROMPT, MARKER
-from dreamcatcher.relay import Inbox
 from dreamcatcher.state import NO_ROUND_HAS_RUN, StateDirectory, WaitingAgentAssignment
 from dreamcatcher.wakeups import Wakeup, judge_assignment, sort_wakeups
 
@@ -110,7 +110,7 @@ def test_an_assignment_whose_last_round_was_interrupted_is_a_recovery(state, gh)
     assert resume.is_recovery
     assert resume.reason == "the last round was interrupted"
     assert resume.prompt == CARRY_ON_PROMPT
-    assert resume.inbox is None
+    assert resume.round_input is None
     assert gh.calls[0].arguments[:3] == ["pr", "view", str(PULL_REQUEST)]
 
 
@@ -145,9 +145,9 @@ def test_a_terminal_pull_request_makes_an_interrupted_round_a_recovery_wrap_up(
     assert isinstance(resume, Wakeup)
     assert resume.purpose is RoundPurpose.WRAP_UP
     assert resume.is_recovery
-    assert resume.inbox is not None
-    assert resume.inbox.state is PullRequestState.MERGED
-    assert [post.body for post in resume.inbox.posts] == [
+    assert resume.round_input is not None
+    assert resume.round_input.state is PullRequestState.MERGED
+    assert [post.body for post in resume.round_input.posts] == [
         "have another look at the filter"
     ]
     assert f"pull request #{PULL_REQUEST}" in resume.prompt
@@ -181,9 +181,9 @@ def test_an_assignment_the_user_has_posted_on_answers_what_they_said(state, gh):
     assert resume.purpose is RoundPurpose.ADDRESS_FEEDBACK
     assert not resume.is_recovery
     assert resume.reason == "1 new post to answer"
-    assert resume.inbox is not None
-    assert resume.inbox.state is PullRequestState.OPEN
-    assert [post.body for post in resume.inbox.posts] == [
+    assert resume.round_input is not None
+    assert resume.round_input.state is PullRequestState.OPEN
+    assert [post.body for post in resume.round_input.posts] == [
         "have another look at the filter"
     ]
     assert resume.newest_post == POSTED_AT
@@ -264,7 +264,7 @@ def test_a_pull_request_that_is_finished_calls_for_one_last_round(
     assert isinstance(resume, Wakeup)
     assert resume.purpose is RoundPurpose.WRAP_UP
     assert resume.reason == f"the pull request is {state_name.lower()}"
-    assert resume.inbox == Inbox(state=state_name, posts=[])
+    assert resume.round_input == AgentRoundInput(state=state_name, posts=[])
     assert resume.newest_post == ""
 
 
@@ -279,8 +279,8 @@ def test_a_last_round_carries_what_the_user_said_before_the_merge(state, gh):
 
     assert isinstance(resume, Wakeup)
     assert resume.purpose is RoundPurpose.WRAP_UP
-    assert resume.inbox is not None
-    assert [post.body for post in resume.inbox.posts] == [
+    assert resume.round_input is not None
+    assert [post.body for post in resume.round_input.posts] == [
         "have another look at the filter"
     ]
 

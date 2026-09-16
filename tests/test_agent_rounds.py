@@ -1,3 +1,4 @@
+import json
 import sys
 from contextlib import suppress
 from threading import Thread
@@ -7,7 +8,14 @@ from typing import cast
 import psutil
 import pytest
 from clocks import PINNED
-from conftest import FIXTURES
+from conftest import (
+    FIXTURES,
+    HUNK,
+    POSTED_BY,
+    comment,
+    inline_comment,
+    review,
+)
 from fakes import Line, Stream, recorded
 from recordings import rendered
 
@@ -15,6 +23,7 @@ from dreamcatcher.adapters import Adapter, Invocation, Launch
 from dreamcatcher.agent_rounds import (
     RECORD,
     AgentRound,
+    AgentRoundInput,
     AgentRoundPaths,
     AgentRoundPlan,
     AgentRoundRecord,
@@ -28,6 +37,7 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.claude import CLAUDE
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Event, Note, Renderer
+from dreamcatcher.github import Comment, InlineComment, PullRequestState, Review
 
 # A round that listed a directory, read a file that was not there, and sent a
 # subagent to count the files. Its golden feed is asserted in test_recordings.
@@ -170,6 +180,40 @@ def test_a_round_gives_the_harness_its_prompt_to_read(fake, worktree, directory)
 
     assert harness.calls[0].prompt == PROMPT
     assert running.paths.prompt.read_text(encoding="utf-8") == PROMPT
+
+
+def test_a_round_writes_the_pull_request_state_and_user_posts_it_was_given(
+    fake, worktree, directory
+):
+    harness = fake(program="harness")
+    harness.replies(stdout="")
+    posts = [
+        Comment.model_validate(comment()),
+        Review.model_validate(review(body="have a look", user={"login": POSTED_BY})),
+        InlineComment.model_validate(inline_comment()),
+    ]
+
+    running = AgentRound(
+        adapter=CLAUDE,
+        invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
+        paths=round_paths(worktree=worktree, directory=directory),
+        plan=AgentRoundPlan(
+            purpose=PURPOSE,
+            is_recovery=False,
+            input=AgentRoundInput(state=PullRequestState.OPEN, posts=posts),
+        ),
+        clock=pinned,
+    )
+    running.wait()
+
+    read_back = json.loads(running.paths.inbox.read_text(encoding="utf-8"))
+    assert read_back["state"] == "OPEN"
+    assert [post["kind"] for post in read_back["posts"]] == [
+        "comment",
+        "review",
+        "inlineComment",
+    ]
+    assert read_back["posts"][2]["diff_hunk"] == HUNK
 
 
 def test_the_feed_a_round_writes_is_the_feed_its_stream_renders_as(

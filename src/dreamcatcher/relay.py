@@ -14,29 +14,8 @@ two apart, and the marker every prompt asks the assignment to end its posts with
 is what does.
 """
 
-from dreamcatcher.documents import Document
-from dreamcatcher.github import PullRequestState, Unknown, UserPost, list_posts
+from dreamcatcher.github import Unknown, UserPost, list_posts
 from dreamcatcher.prompts import MARKER
-
-
-class Inbox(Document):
-    """The batch of posts that a round is woken with, as the assignment reads it.
-
-    The state is where the pull request had got to when the tick looked at it.
-    It is what tells an assignment whether to answer the user or to wrap the
-    assignment up, so one prompt serves both kinds of round.
-
-    The posts are what the user newly said, oldest first. A round that a merged
-    or closed pull request woke carries whatever the user said last, and often
-    nothing at all.
-
-    A round writes this into its own directory before it starts, and it stays
-    there, so whoever reads the assignment afterwards reads what each round was
-    given.
-    """
-
-    state: PullRequestState
-    posts: list[UserPost]
 
 
 def list_undelivered_user_posts(
