@@ -24,13 +24,13 @@ from dreamcatcher.agent_assignments import (
     inspect_incomplete_assignment_setups,
     read_agent_assignments,
 )
+from dreamcatcher.agent_rounds import AgentRound, Cause
 from dreamcatcher.config import Config, Harness
 from dreamcatcher.documents import write_json
 from dreamcatcher.eligibility import judge_issues
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import Unknown
 from dreamcatcher.harnesses import ADAPTERS
-from dreamcatcher.rounds import Cause, Round
 from dreamcatcher.state import (
     CandidateIssue,
     LastTick,
@@ -90,7 +90,7 @@ class Scheduler:
     state: StateDirectory
     harness: Harness
     clock: Callable[[], datetime]
-    rounds: dict[str, Round]
+    rounds: dict[str, AgentRound]
 
     def tick(self, *, at: datetime) -> LastTick:
         """Look once and launch at most one round.
@@ -241,7 +241,7 @@ class Scheduler:
             if cause is Cause.DISPATCH
             else adapter.build_resumed_round(launch=launch)
         )
-        self.rounds[assignment.identifier] = Round(
+        self.rounds[assignment.identifier] = AgentRound(
             adapter=adapter,
             invocation=invocation,
             workspace=assignment.next_workspace,

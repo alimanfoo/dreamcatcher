@@ -27,6 +27,7 @@ from rich.table import Table
 from rich.text import Text
 
 from dreamcatcher.agent_assignments import AgentAssignment
+from dreamcatcher.agent_rounds import AgentRoundRecord
 from dreamcatcher.board import (
     AgentAssignmentRow,
     AgentAssignmentStanding,
@@ -39,7 +40,6 @@ from dreamcatcher.documents import read_lines_from
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import GAP, Line, compose_round_boundary, read_feed_line
 from dreamcatcher.harnesses import ADAPTERS
-from dreamcatcher.rounds import RoundRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.words import describe_count, describe_span, describe_time
 
@@ -459,14 +459,14 @@ def _render_rounds(*, row: AgentAssignmentRow) -> RenderableType | None:
     return _render_section(heading="rounds", colour="blue", body=table)
 
 
-def _describe_run(*, record: RoundRecord) -> str:
+def _describe_run(*, record: AgentRoundRecord) -> str:
     """Return how long the round ran, or nothing while it is still running."""
     if record.ending is None:
         return ""
     return f"ran {describe_span(span=record.ending.at - record.started)}"
 
 
-def _describe_ending(*, record: RoundRecord, is_running: bool) -> str:
+def _describe_ending(*, record: AgentRoundRecord, is_running: bool) -> str:
     """Return how the round ended, or what it is doing instead.
 
     A round that recorded no ending never finished. It is running when a daemon

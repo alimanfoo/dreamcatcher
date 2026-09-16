@@ -21,10 +21,10 @@ from rich.console import Console
 from rich.control import Control
 from rich.text import Text
 
+from dreamcatcher.agent_rounds import AgentRoundEnding, AgentRoundRecord, Cause
 from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Line
-from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.state import (
     NO_ROUND_HAS_RUN,
     CandidateIssue,
@@ -98,7 +98,7 @@ def daemon(monkeypatch):
     monkeypatch.setattr(psutil, "pid_exists", lambda pid: pid == DAEMON_PID)
 
 
-def written(*, state, issue: int, records: Sequence[RoundRecord]):
+def written(*, state, issue: int, records: Sequence[AgentRoundRecord]):
     """Write an assignment for the issue, with these rounds behind it."""
     directory = write_agent_assignment(
         state=state, identifier=f"GH{issue}-{STAMP}", issue=issue
@@ -111,17 +111,19 @@ def written(*, state, issue: int, records: Sequence[RoundRecord]):
 def ended(*, minute: int, status: int = 0, cause: Cause = Cause.DISPATCH):
     """A round that started that minute past the pinned hour and ran for four."""
     started = PINNED + timedelta(minutes=minute)
-    return RoundRecord(
+    return AgentRoundRecord(
         started=started,
         pid=1,
         cause=cause,
-        ending=Ending(at=started + timedelta(minutes=4), status=status),
+        ending=AgentRoundEnding(at=started + timedelta(minutes=4), status=status),
     )
 
 
 def running(*, minute: int, cause: Cause = Cause.DISPATCH):
     """A round that started that minute past the pinned hour and is still going."""
-    return RoundRecord(started=PINNED + timedelta(minutes=minute), pid=1, cause=cause)
+    return AgentRoundRecord(
+        started=PINNED + timedelta(minutes=minute), pid=1, cause=cause
+    )
 
 
 def holding(*, state):

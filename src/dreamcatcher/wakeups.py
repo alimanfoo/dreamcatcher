@@ -18,6 +18,7 @@ decided asks for the wakeup and runs it.
 from dataclasses import dataclass
 
 from dreamcatcher.agent_assignments import AgentAssignment
+from dreamcatcher.agent_rounds import Cause
 from dreamcatcher.github import (
     AnyPost,
     PullRequest,
@@ -27,7 +28,6 @@ from dreamcatcher.github import (
 )
 from dreamcatcher.prompts import CARRY_ON_PROMPT, compose_inbox_prompt
 from dreamcatcher.relay import Inbox, peek_new_posts
-from dreamcatcher.rounds import Cause
 from dreamcatcher.state import NO_ROUND_HAS_RUN, WaitingAgentAssignment
 from dreamcatcher.words import describe_count
 

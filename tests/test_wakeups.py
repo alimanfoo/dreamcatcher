@@ -18,10 +18,10 @@ from dreamcatcher.agent_assignments import (
     advance_assignment_watermark,
     read_agent_assignments,
 )
+from dreamcatcher.agent_rounds import AgentRoundEnding, AgentRoundRecord, Cause
 from dreamcatcher.github import PullRequestState
 from dreamcatcher.prompts import CARRY_ON_PROMPT, MARKER
 from dreamcatcher.relay import Inbox
-from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.state import NO_ROUND_HAS_RUN, StateDirectory, WaitingAgentAssignment
 from dreamcatcher.wakeups import Wakeup, judge_assignment, sort_wakeups
 
@@ -50,11 +50,11 @@ def ran(*, state, number: int, cause: Cause, status: int | None = 0) -> None:
     they read back in.
     """
     started = PINNED + timedelta(minutes=number)
-    ending = None if status is None else Ending(at=started, status=status)
+    ending = None if status is None else AgentRoundEnding(at=started, status=status)
     write_round(
         directory=state.assignments / ASSIGNMENT_ID,
         number=number,
-        record=RoundRecord(started=started, pid=1, cause=cause, ending=ending),
+        record=AgentRoundRecord(started=started, pid=1, cause=cause, ending=ending),
     )
 
 

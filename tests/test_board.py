@@ -6,9 +6,9 @@ import pytest
 from clocks import PINNED
 from records import write_agent_assignment, write_feed, write_round, write_tick
 
+from dreamcatcher.agent_rounds import AgentRoundEnding, AgentRoundRecord, Cause
 from dreamcatcher.board import AgentAssignmentStanding, read_board, read_rows_for_issue
 from dreamcatcher.feed import Line
-from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.state import (
     NO_ROUND_HAS_RUN,
     CandidateIssue,
@@ -50,12 +50,12 @@ def ran(*, state, number: int, cause: Cause = Cause.DISPATCH, status: int | None
     ending = (
         None
         if status is None
-        else Ending(at=started + timedelta(minutes=4), status=status)
+        else AgentRoundEnding(at=started + timedelta(minutes=4), status=status)
     )
     write_round(
         directory=state.assignments / ASSIGNMENT_ID,
         number=number,
-        record=RoundRecord(started=started, pid=1, cause=cause, ending=ending),
+        record=AgentRoundRecord(started=started, pid=1, cause=cause, ending=ending),
     )
 
 
@@ -98,7 +98,7 @@ def test_the_rows_for_an_issue_are_its_own_assignments_newest_first(running):
     write_round(
         directory=other,
         number=1,
-        record=RoundRecord(started=PINNED, pid=1, cause=Cause.DISPATCH),
+        record=AgentRoundRecord(started=PINNED, pid=1, cause=Cause.DISPATCH),
     )
 
     assert [
@@ -119,7 +119,7 @@ def test_a_look_at_one_issue_leaves_another_assignment_s_feed_unread(running):
     write_round(
         directory=other,
         number=1,
-        record=RoundRecord(started=PINNED, pid=1, cause=Cause.DISPATCH),
+        record=AgentRoundRecord(started=PINNED, pid=1, cause=Cause.DISPATCH),
     )
     # Bytes that are not UTF-8 stand for a feed that a look must not open,
     # since reading this one would report it rather than answer.
@@ -292,11 +292,11 @@ def test_the_work_that_is_done_reads_most_recent_first(state):
     write_round(
         directory=state.assignments / "GH9-20260819-184158",
         number=1,
-        record=RoundRecord(
+        record=AgentRoundRecord(
             started=PINNED + timedelta(hours=1),
             pid=1,
             cause=Cause.FINAL,
-            ending=Ending(at=PINNED + timedelta(hours=1), status=0),
+            ending=AgentRoundEnding(at=PINNED + timedelta(hours=1), status=0),
         ),
     )
 

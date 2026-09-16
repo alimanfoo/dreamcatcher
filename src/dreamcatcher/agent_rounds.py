@@ -1,4 +1,4 @@
-"""Run one round of an assignment, and leave behind what it did.
+"""Run one agent round, and leave behind what it did.
 
 A round is a harness command running as a child of the daemon, in the assignment's
 worktree. It writes into a directory of its own as it goes.
@@ -63,7 +63,7 @@ class Cause(StrEnum):
     FINAL = "final round"
 
 
-class Ending(Document):
+class AgentRoundEnding(Document):
     """How a round ended: when it ended, and the status it ended with.
 
     The time and the status are one value because a round knows both at once
@@ -79,7 +79,7 @@ class Ending(Document):
         return self.status != 0
 
 
-class RoundRecord(Document):
+class AgentRoundRecord(Document):
     """What a round says about itself, written at each end of the round.
 
     The cause is what woke the round: the dispatch that opened the assignment, or
@@ -94,7 +94,7 @@ class RoundRecord(Document):
     started: datetime
     pid: PositiveInt
     cause: Cause
-    ending: Ending | None = None
+    ending: AgentRoundEnding | None = None
 
     @property
     def is_complete(self) -> bool:
@@ -113,7 +113,7 @@ class RoundRecord(Document):
 
 
 @dataclass(frozen=True, kw_only=True)
-class Workspace:
+class AgentRoundPaths:
     """Where one round runs, and the files it writes as it goes.
 
     Both paths come from the assignment the round belongs to: the round runs in
@@ -155,7 +155,7 @@ class Workspace:
         return self.directory / "inbox.json"
 
 
-class RoundReader:
+class AgentRoundReader:
     """Read the records of an assignment's rounds, keeping the complete ones.
 
     A complete record has had both of its writes, and nothing writes it again,
@@ -174,9 +174,9 @@ class RoundReader:
 
     def __init__(self) -> None:
         """Set up a reader that has read nothing yet."""
-        self._cache: dict[Path, RoundRecord] = {}
+        self._cache: dict[Path, AgentRoundRecord] = {}
 
-    def read_records(self, *, directory: Path) -> list[RoundRecord]:
+    def read_records(self, *, directory: Path) -> list[AgentRoundRecord]:
         """Return the records of the rounds written under directory, oldest first.
 
         Each round writes into a directory of its own under this one, so a
@@ -192,18 +192,18 @@ class RoundReader:
         ]
         return sorted(records, key=lambda record: record.started)
 
-    def _read_record(self, *, path: Path) -> RoundRecord:
+    def _read_record(self, *, path: Path) -> AgentRoundRecord:
         """Return what the record at path says, and cache it once it is complete."""
         cached = self._cache.get(path)
         if cached is not None:
             return cached
-        record = read_json(model=RoundRecord, path=path)
+        record = read_json(model=AgentRoundRecord, path=path)
         if record.is_complete:
             self._cache[path] = record
         return record
 
 
-class Round:
+class AgentRound:
     """One round of an assignment, running as a child of the daemon.
 
     Making one starts it. From then on the round runs on its own threads, and
@@ -215,7 +215,7 @@ class Round:
         *,
         adapter: Adapter,
         invocation: Invocation,
-        workspace: Workspace,
+        workspace: AgentRoundPaths,
         cause: Cause,
         clock: Callable[[], datetime] = now,
     ) -> None:
@@ -246,7 +246,7 @@ class Round:
         )
         try:
             write_json(
-                document=RoundRecord(
+                document=AgentRoundRecord(
                     started=self.started, pid=self.child.pid, cause=cause
                 ),
                 path=self.workspace.record,
@@ -369,11 +369,11 @@ class Round:
             status = self.child.wait()
             if not self.is_interrupted:
                 write_json(
-                    document=RoundRecord(
+                    document=AgentRoundRecord(
                         started=self.started,
                         pid=self.child.pid,
                         cause=self.cause,
-                        ending=Ending(at=self.clock(), status=status),
+                        ending=AgentRoundEnding(at=self.clock(), status=status),
                     ),
                     path=self.workspace.record,
                 )

@@ -18,10 +18,10 @@ from conftest import (
 from fakes import Line
 from records import write_agent_assignment, write_round
 
+from dreamcatcher.agent_rounds import AgentRoundEnding, AgentRoundRecord, Cause
 from dreamcatcher.config import CONFIG_NAME, Harness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.scheduler import Scheduler
 from dreamcatcher.state import (
     LastTick,
@@ -290,7 +290,7 @@ def test_a_round_the_daemon_before_this_one_left_running_is_ended(
     write_round(
         directory=directory,
         number=1,
-        record=RoundRecord(started=PINNED, pid=left_running.pid, cause=CAUSE),
+        record=AgentRoundRecord(started=PINNED, pid=left_running.pid, cause=CAUSE),
     )
     daemon, _, _ = idling(root=watched)
 
@@ -308,11 +308,11 @@ def test_a_round_that_recorded_an_ending_is_left_running_by_the_sweep(
     write_round(
         directory=directory,
         number=1,
-        record=RoundRecord(
+        record=AgentRoundRecord(
             started=PINNED,
             pid=left_running.pid,
             cause=CAUSE,
-            ending=Ending(at=PINNED, status=0),
+            ending=AgentRoundEnding(at=PINNED, status=0),
         ),
     )
     daemon, _, _ = idling(root=watched)

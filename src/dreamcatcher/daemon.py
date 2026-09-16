@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from datetime import datetime
     from pathlib import Path
 
-    from dreamcatcher.rounds import Round
+    from dreamcatcher.agent_rounds import AgentRound
 
 
 def _write_output(*, line: str) -> None:
@@ -68,7 +68,7 @@ class Daemon:
         # The rounds this daemon is running, by the identifier of the assignment each
         # belongs to. They are what the cap counts, and what the daemon ends as
         # it goes down.
-        self.rounds: dict[str, Round] = {}
+        self.rounds: dict[str, AgentRound] = {}
 
     def run(self) -> None:
         """Hold the repo and tick until the user interrupts.

@@ -24,12 +24,17 @@ from dreamcatcher.agent_assignments import (
     read_agent_assignments,
     read_agent_assignments_for_issue,
 )
+from dreamcatcher.agent_rounds import (
+    AgentRoundEnding,
+    AgentRoundPaths,
+    AgentRoundRecord,
+    Cause,
+)
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import CONFIG_NAME, Harness, read_config
 from dreamcatcher.documents import write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import add_worktree, fetch, make_empty_commit, push_branch
-from dreamcatcher.rounds import Cause, Ending, RoundRecord, Workspace
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH12-20260819-184158"
@@ -164,13 +169,13 @@ def test_a_new_assignment_has_run_no_rounds_and_its_next_is_its_first(state, rou
     )
 
     assert assignment.rounds == []
-    assert assignment.next_workspace == Workspace(
+    assert assignment.next_workspace == AgentRoundPaths(
         worktree=assignment.record.worktree,
         directory=state.assignments / ASSIGNMENT_ID / "rounds" / "1",
     )
 
 
-def standing(*, state, rounds: Sequence[RoundRecord]):
+def standing(*, state, rounds: Sequence[AgentRoundRecord]):
     """Return the assignment that these rounds leave behind, read back from disk."""
     directory = write_agent_assignment(state=state, identifier=ASSIGNMENT_ID, issue=12)
     for number, record in enumerate(rounds, start=1):
@@ -200,17 +205,17 @@ def test_assignments_at_one_issue_are_read_behind_the_assignment_boundary(fabric
 def ended(*, status, minute=0):
     """Return a round that started that minute past the hour and ended."""
     started = PINNED + timedelta(minutes=minute)
-    return RoundRecord(
+    return AgentRoundRecord(
         started=started,
         pid=1,
         cause=Cause.DISPATCH,
-        ending=Ending(at=started, status=status),
+        ending=AgentRoundEnding(at=started, status=status),
     )
 
 
 def running(*, minute=0):
     """Return a round that started that minute past the hour and is still going."""
-    return RoundRecord(
+    return AgentRoundRecord(
         started=PINNED + timedelta(minutes=minute), pid=1, cause=Cause.DISPATCH
     )
 
@@ -220,7 +225,7 @@ def test_a_round_an_assignment_has_run_is_found_by_the_number_it_ran_as(fabricat
         state=fabricated, rounds=[ended(status=0), ended(status=0, minute=1)]
     )
 
-    assert assignment.workspace(number=2) == Workspace(
+    assert assignment.workspace(number=2) == AgentRoundPaths(
         worktree=assignment.record.worktree,
         directory=fabricated.assignments / ASSIGNMENT_ID / "rounds" / "2",
     )
@@ -262,11 +267,11 @@ def test_an_assignment_that_has_run_its_final_round_says_so(fabricated):
         state=fabricated,
         rounds=[
             ended(status=0),
-            RoundRecord(
+            AgentRoundRecord(
                 started=PINNED + timedelta(minutes=1),
                 pid=1,
                 cause=Cause.FINAL,
-                ending=Ending(at=PINNED + timedelta(minutes=1), status=0),
+                ending=AgentRoundEnding(at=PINNED + timedelta(minutes=1), status=0),
             ),
         ],
     )
@@ -474,11 +479,11 @@ def test_an_issue_whose_assignment_finished_can_receive_another(state, route):
     write_round(
         directory=first.directory,
         number=1,
-        record=RoundRecord(
+        record=AgentRoundRecord(
             started=PINNED,
             pid=1,
             cause=Cause.FINAL,
-            ending=Ending(at=PINNED, status=0),
+            ending=AgentRoundEnding(at=PINNED, status=0),
         ),
     )
 
@@ -507,11 +512,13 @@ def test_an_issue_whose_final_work_is_unfinished_cannot_receive_another(
     write_round(
         directory=first.directory,
         number=1,
-        record=RoundRecord(
+        record=AgentRoundRecord(
             started=PINNED,
             pid=1,
             cause=Cause.FINAL,
-            ending=None if status is None else Ending(at=PINNED, status=status),
+            ending=None
+            if status is None
+            else AgentRoundEnding(at=PINNED, status=status),
         ),
     )
 
@@ -852,16 +859,16 @@ def test_an_assignments_rounds_read_back_in_the_order_they_ran(state, route):
     write_round(
         directory=directory,
         number=2,
-        record=RoundRecord(started=later, pid=1, cause=Cause.DISPATCH),
+        record=AgentRoundRecord(started=later, pid=1, cause=Cause.DISPATCH),
     )
     write_round(
         directory=directory,
         number=1,
-        record=RoundRecord(
+        record=AgentRoundRecord(
             started=PINNED,
             pid=1,
             cause=Cause.DISPATCH,
-            ending=Ending(at=later, status=0),
+            ending=AgentRoundEnding(at=later, status=0),
         ),
     )
 

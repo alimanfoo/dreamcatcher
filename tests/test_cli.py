@@ -6,12 +6,12 @@ import pytest
 from clocks import PINNED
 from records import write_agent_assignment, write_feed, write_round
 
+from dreamcatcher.agent_rounds import AgentRoundEnding, AgentRoundRecord, Cause
 from dreamcatcher.cli import main
 from dreamcatcher.config import Harness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.documents import write_text
 from dreamcatcher.feed import Line
-from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158"
@@ -27,7 +27,7 @@ def watching(tmp_path):
     write_round(
         directory=directory,
         number=1,
-        record=RoundRecord(started=PINNED, pid=1, cause=Cause.DISPATCH),
+        record=AgentRoundRecord(started=PINNED, pid=1, cause=Cause.DISPATCH),
     )
     write_feed(
         directory=directory, number=1, lines=[Line(at=PINNED, text="[Bash] pytest")]
@@ -101,11 +101,11 @@ def test_feed_shows_what_the_assignment_said(monkeypatch, watching, capsys):
     write_round(
         directory=watching.assignments / ASSIGNMENT_ID,
         number=2,
-        record=RoundRecord(
+        record=AgentRoundRecord(
             started=later,
             pid=1,
             cause=Cause.FINAL,
-            ending=Ending(at=later, status=0),
+            ending=AgentRoundEnding(at=later, status=0),
         ),
     )
 

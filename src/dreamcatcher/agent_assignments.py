@@ -16,6 +16,7 @@ from datetime import datetime
 from pathlib import Path
 
 from dreamcatcher import prompts
+from dreamcatcher.agent_rounds import AgentRoundPaths, AgentRoundRecord, Cause
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import DispatchRoute, Harness
 from dreamcatcher.documents import (
@@ -46,7 +47,6 @@ from dreamcatcher.github import (
     list_linked_pull_requests,
     list_pull_requests,
 )
-from dreamcatcher.rounds import Cause, RoundRecord, Workspace
 from dreamcatcher.state import StateDirectory
 
 # What an assignment's branch is called, before its identifier. The prefix keeps
@@ -102,7 +102,7 @@ class AgentAssignment:
 
     directory: Path
     record: AgentAssignmentRecord
-    rounds: list[RoundRecord] = field(default_factory=list)
+    rounds: list[AgentRoundRecord] = field(default_factory=list)
     watermark: str = ""
 
     @property
@@ -149,7 +149,7 @@ class AgentAssignment:
             return f"the last round failed (exit {ending.status})"
         return None
 
-    def workspace(self, *, number: int) -> Workspace:
+    def workspace(self, *, number: int) -> AgentRoundPaths:
         """Where the assignment's numbered round ran, and where it wrote.
 
         Every round runs in the assignment's worktree, and writes into a
@@ -161,13 +161,13 @@ class AgentAssignment:
         the number of the round it records, which is how a reader of the round
         list finds each round's own files.
         """
-        return Workspace(
+        return AgentRoundPaths(
             worktree=self.record.worktree,
             directory=self.directory / ROUNDS / str(number),
         )
 
     @property
-    def next_workspace(self) -> Workspace:
+    def next_workspace(self) -> AgentRoundPaths:
         """Where the assignment's next round runs, and where it writes."""
         return self.workspace(number=len(self.rounds) + 1)
 

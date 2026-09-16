@@ -24,6 +24,7 @@ from conftest import (
 from fakes import Line
 from records import write_agent_assignment, write_round
 
+from dreamcatcher.agent_rounds import AgentRoundEnding, AgentRoundRecord, Cause
 from dreamcatcher.config import Harness, read_config
 from dreamcatcher.git import (
     add_worktree,
@@ -32,7 +33,6 @@ from dreamcatcher.git import (
     push_branch,
 )
 from dreamcatcher.prompts import CARRY_ON_PROMPT
-from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.scheduler import Scheduler
 from dreamcatcher.state import (
     CandidateIssue,
@@ -91,7 +91,7 @@ def held(*, observed: LastTick) -> str:
 
 def cause_of(*, scheduler: Scheduler, number: int) -> Cause:
     """What the assignment's round of that number says woke it."""
-    return RoundRecord.model_validate_json(
+    return AgentRoundRecord.model_validate_json(
         written_round(scheduler=scheduler, number=number, name="round.json")
     ).cause
 
@@ -114,11 +114,11 @@ def ran(*, root, number: int, cause: Cause, status: int | None = 0) -> None:
     that failed is long enough ago to hold nothing.
     """
     started = PINNED.replace(hour=17, minute=number)
-    ending = None if status is None else Ending(at=started, status=status)
+    ending = None if status is None else AgentRoundEnding(at=started, status=status)
     write_round(
         directory=StateDirectory(root=root).assignments / ASSIGNMENT_ID,
         number=number,
-        record=RoundRecord(started=started, pid=1, cause=cause, ending=ending),
+        record=AgentRoundRecord(started=started, pid=1, cause=cause, ending=ending),
     )
 
 
@@ -154,7 +154,7 @@ def test_a_dispatched_round_records_what_caused_it_and_what_it_said(dispatching)
 
     written = scheduler.state.assignments / DISPATCHED_ASSIGNMENT_ID / "rounds" / "1"
     assert (
-        RoundRecord.model_validate_json(
+        AgentRoundRecord.model_validate_json(
             (written / "round.json").read_text(encoding="utf-8")
         ).cause
         is Cause.DISPATCH
@@ -308,11 +308,11 @@ def test_a_round_that_failed_lately_holds_every_launch(dispatching):
     write_round(
         directory=directory,
         number=1,
-        record=RoundRecord(
+        record=AgentRoundRecord(
             started=PINNED,
             pid=1,
             cause=CAUSE,
-            ending=Ending(at=PINNED.replace(minute=35), status=1),
+            ending=AgentRoundEnding(at=PINNED.replace(minute=35), status=1),
         ),
     )
     scheduler, clock = create_scheduler(root=dispatching)
@@ -333,11 +333,11 @@ def test_a_round_that_failed_long_enough_ago_holds_nothing(dispatching):
     write_round(
         directory=directory,
         number=1,
-        record=RoundRecord(
+        record=AgentRoundRecord(
             started=PINNED,
             pid=1,
             cause=CAUSE,
-            ending=Ending(at=PINNED.replace(hour=18, minute=0), status=1),
+            ending=AgentRoundEnding(at=PINNED.replace(hour=18, minute=0), status=1),
         ),
     )
     scheduler, clock = create_scheduler(root=dispatching)
@@ -356,8 +356,11 @@ def test_a_round_that_ended_well_holds_nothing(dispatching):
     write_round(
         directory=directory,
         number=1,
-        record=RoundRecord(
-            started=PINNED, pid=1, cause=CAUSE, ending=Ending(at=PINNED, status=0)
+        record=AgentRoundRecord(
+            started=PINNED,
+            pid=1,
+            cause=CAUSE,
+            ending=AgentRoundEnding(at=PINNED, status=0),
         ),
     )
     scheduler, clock = create_scheduler(root=dispatching)
@@ -389,7 +392,7 @@ def test_an_assignment_the_scheduler_is_running_a_round_for_is_not_waiting(
         / "round.json"
     )
     assert (
-        RoundRecord.model_validate_json(written.read_text(encoding="utf-8")).ending
+        AgentRoundRecord.model_validate_json(written.read_text(encoding="utf-8")).ending
         is None
     )
     assert observed.waiting == []
@@ -458,7 +461,7 @@ def test_a_dispatch_whose_round_will_not_start_retries_the_prepared_assignment(
 
     assert observed.launched == DISPATCHED_ASSIGNMENT_ID
     record = scheduler.state.assignments / DISPATCHED_ASSIGNMENT_ID / "rounds" / "1"
-    written = RoundRecord.model_validate_json(
+    written = AgentRoundRecord.model_validate_json(
         (record / "round.json").read_text(encoding="utf-8")
     )
     assert written.cause is Cause.DISPATCH
@@ -497,7 +500,7 @@ def test_the_next_tick_recovers_each_incomplete_creation_checkpoint(
     assert observed.launched == DISPATCHED_ASSIGNMENT_ID
     round_record = state.assignments / DISPATCHED_ASSIGNMENT_ID / "rounds" / "1"
     assert (
-        RoundRecord.model_validate_json(
+        AgentRoundRecord.model_validate_json(
             (round_record / "round.json").read_text(encoding="utf-8")
         ).cause
         is Cause.DISPATCH
@@ -517,7 +520,7 @@ def test_an_assignment_whose_last_round_did_not_finish_is_carried_on(
     write_round(
         directory=StateDirectory(root=resuming).assignments / ASSIGNMENT_ID,
         number=1,
-        record=RoundRecord(started=PINNED, pid=left_running.pid, cause=CAUSE),
+        record=AgentRoundRecord(started=PINNED, pid=left_running.pid, cause=CAUSE),
     )
     scheduler, clock = create_scheduler(root=resuming)
 
@@ -538,7 +541,7 @@ def test_a_carried_on_round_says_that_is_what_woke_it(resuming, left_running):
     write_round(
         directory=StateDirectory(root=resuming).assignments / ASSIGNMENT_ID,
         number=1,
-        record=RoundRecord(started=PINNED, pid=left_running.pid, cause=CAUSE),
+        record=AgentRoundRecord(started=PINNED, pid=left_running.pid, cause=CAUSE),
     )
     scheduler, clock = create_scheduler(root=resuming)
 
@@ -650,7 +653,7 @@ def test_a_last_round_that_was_interrupted_is_carried_on_as_the_last_round(
     write_round(
         directory=StateDirectory(root=resuming).assignments / ASSIGNMENT_ID,
         number=2,
-        record=RoundRecord(
+        record=AgentRoundRecord(
             started=PINNED.replace(hour=17, minute=2),
             pid=left_running.pid,
             cause=Cause.FINAL,
@@ -675,7 +678,7 @@ def test_open_work_is_carried_on_before_a_new_issue_is_dispatched(
     write_round(
         directory=StateDirectory(root=resuming).assignments / ASSIGNMENT_ID,
         number=1,
-        record=RoundRecord(started=PINNED, pid=left_running.pid, cause=CAUSE),
+        record=AgentRoundRecord(started=PINNED, pid=left_running.pid, cause=CAUSE),
     )
     scheduler, clock = create_scheduler(root=resuming)
 
@@ -692,7 +695,7 @@ def test_a_failed_issue_listing_leaves_open_work_for_a_later_tick(
     write_round(
         directory=StateDirectory(root=resuming).assignments / ASSIGNMENT_ID,
         number=1,
-        record=RoundRecord(started=PINNED, pid=left_running.pid, cause=CAUSE),
+        record=AgentRoundRecord(started=PINNED, pid=left_running.pid, cause=CAUSE),
     )
     gh.fails(stderr="gh: could not connect to github.com", to="issue list")
     scheduler, clock = create_scheduler(root=resuming)
@@ -711,11 +714,11 @@ def test_a_cooling_tick_still_says_what_each_assignment_is_waiting_on(
     write_round(
         directory=directory,
         number=1,
-        record=RoundRecord(
+        record=AgentRoundRecord(
             started=PINNED,
             pid=1,
             cause=CAUSE,
-            ending=Ending(at=PINNED.replace(minute=35), status=1),
+            ending=AgentRoundEnding(at=PINNED.replace(minute=35), status=1),
         ),
     )
     scheduler, clock = create_scheduler(root=resuming)
