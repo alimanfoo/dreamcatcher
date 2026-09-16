@@ -23,14 +23,10 @@ from dreamcatcher.config import Config
 from dreamcatcher.github import (
     BlockerState,
     Issue,
-    LinkedPullRequest,
-    PullRequest,
-    PullRequestState,
     Unknown,
     list_blockers,
     list_issues,
     list_linked_pull_requests,
-    list_pull_requests,
 )
 from dreamcatcher.state import CandidateIssue
 
@@ -40,7 +36,7 @@ def judge_issues(
     repository: str,
     config: Config,
     claimed: set[int],
-    recovering: dict[int, list[str]],
+    recovery_obstacles: dict[int, str | None],
 ) -> list[CandidateIssue] | Unknown:
     """Return every labelled issue assigned to the user, oldest first.
 
@@ -49,10 +45,10 @@ def judge_issues(
     its way can be dispatched.
 
     The caller passes in `claimed`, the issues that an assignment in this checkout
-    is already working on, and `recovering`, the issues whose local creation is
-    incomplete. The caller knows about both and GitHub does not. A recovering
-    issue's own linked pull request is evidence of its setup rather than a claim
-    from elsewhere.
+    is already working on, and `recovery_obstacles`, the issues whose local
+    creation is incomplete together with anything preventing their recovery.
+    The caller knows about both and GitHub does not. A recoverable setup owns
+    its linked pull request, so that pull request is not somebody else's claim.
 
     If the tool could not read the listing, it answers Unknown for the whole
     tick. Otherwise, an issue that it cannot see might be dispatched a second
@@ -70,7 +66,7 @@ def judge_issues(
                 issue=issue.number,
                 labels=labels,
                 claimed=claimed,
-                recovery_branches=recovering.get(issue.number, []),
+                recovery_obstacles=recovery_obstacles,
             ),
         )
         for issue, labels in listed
@@ -111,7 +107,7 @@ def _find_obstacle(
     issue: int,
     labels: list[str],
     claimed: set[int],
-    recovery_branches: list[str],
+    recovery_obstacles: dict[int, str | None],
 ) -> str | None:
     """Return what stands in the way of dispatching the issue, or nothing.
 
@@ -122,84 +118,30 @@ def _find_obstacle(
         return f"carries more than one dispatch label: {', '.join(sorted(labels))}"
     if issue in claimed:
         return "an assignment in this checkout is working on it"
-    pull_request = _check_pull_requests(
-        repository=repository, issue=issue, recovery_branches=recovery_branches
-    )
-    if pull_request is not None:
-        return pull_request
+    if issue in recovery_obstacles:
+        recovery_obstacle = recovery_obstacles[issue]
+        if recovery_obstacle is not None:
+            return recovery_obstacle
+    else:
+        pull_request = _check_pull_requests(repository=repository, issue=issue)
+        if pull_request is not None:
+            return pull_request
     return _check_blockers(repository=repository, issue=issue)
 
 
-def _check_pull_requests(
-    *, repository: str, issue: int, recovery_branches: list[str]
-) -> str | None:
+def _check_pull_requests(*, repository: str, issue: int) -> str | None:
     """Return what says somebody has a pull request open on the issue.
 
     GitHub lists only open pull requests here. A pull request that was closed
     without merging therefore drops out of the listing, and its issue is free to
     be dispatched again. To stop that, the user can remove the label.
     """
-    if len(recovery_branches) > 1:
-        return "several incomplete assignment setups are waiting to recover"
     linked = list_linked_pull_requests(repository=repository, issue=issue)
     if isinstance(linked, Unknown):
         return f"cannot tell whether a pull request claims it: {linked.reason}"
-    recovered, obstacle = _find_recovery_pull_request(
-        repository=repository, branches=recovery_branches
-    )
-    if obstacle is not None:
-        return obstacle
-    external = [
-        one for one in linked if recovered is None or one.number != recovered.number
-    ]
-    if external:
-        return _describe_pull_request_claims(pull_requests=external)
-    if recovered is not None and recovered.number not in {one.number for one in linked}:
-        return (
-            f"its incomplete branch has an unlinked pull request: #{recovered.number}"
-        )
-    return None
-
-
-def _find_recovery_pull_request(
-    *, repository: str, branches: list[str]
-) -> tuple[PullRequest | None, str | None]:
-    """Return the recovery branch's reusable pull request or its obstacle."""
-    if not branches:
-        return None, None
-    branch = branches[0]
-    found = list_pull_requests(repository=repository, branch=branch)
-    if isinstance(found, Unknown):
-        return None, f"cannot reconcile its incomplete setup: {found.reason}"
-    if len(found) > 1:
-        return None, f"its incomplete branch {branch} has more than one pull request"
-    if not found:
-        return None, None
-    pull_request = found[0]
-    obstacle = _describe_unusable_recovery_pull_request(pull_request=pull_request)
-    return (None, obstacle) if obstacle is not None else (pull_request, None)
-
-
-def _describe_unusable_recovery_pull_request(
-    *, pull_request: PullRequest
-) -> str | None:
-    """Return why this recovery pull request cannot be adopted, if anything."""
-    if pull_request.state is not PullRequestState.OPEN:
-        return (
-            f"its incomplete branch's pull request #{pull_request.number} is "
-            f"{pull_request.state.lower()}"
-        )
-    if not pull_request.is_draft:
-        return (
-            f"its incomplete branch's pull request #{pull_request.number} "
-            "is ready for review rather than draft"
-        )
-    return None
-
-
-def _describe_pull_request_claims(*, pull_requests: list[LinkedPullRequest]) -> str:
-    """Return the obstacle made by these open linked pull requests."""
-    named = ", ".join(f"#{pull_request.number}" for pull_request in pull_requests)
+    if not linked:
+        return None
+    named = ", ".join(f"#{pull_request.number}" for pull_request in linked)
     return f"a pull request is open on it: {named}"
 
 

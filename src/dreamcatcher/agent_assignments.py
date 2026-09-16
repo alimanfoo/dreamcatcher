@@ -218,10 +218,32 @@ def read_agent_assignments_for_issue(
     ]
 
 
-def find_incomplete_assignment_branches(
+def inspect_incomplete_assignment_setups(
+    *, state: StateDirectory, repository: str
+) -> dict[int, str | None]:
+    """Return each incomplete setup's recovery obstacle, when it has one.
+
+    A setup with no obstacle is safe for assignment creation to resume. This
+    boundary owns that decision, so eligibility only has to distinguish a
+    recoverable local setup from a pull request owned elsewhere.
+    """
+    return {
+        issue: _inspect_incomplete_assignment_setup(
+            state=state,
+            repository=repository,
+            issue=issue,
+            identifiers=identifiers,
+        )
+        for issue, identifiers in _find_incomplete_assignment_identifiers(
+            state=state
+        ).items()
+    }
+
+
+def _find_incomplete_assignment_identifiers(
     *, state: StateDirectory
 ) -> dict[int, list[str]]:
-    """Return each issue's branches whose setup has no complete record."""
+    """Return each issue's setup identifiers whose record is absent."""
     found: dict[int, list[str]] = {}
     for path in state.worktrees.glob("GH*-*"):
         if (
@@ -230,8 +252,39 @@ def find_incomplete_assignment_branches(
         ):
             continue
         issue = int(path.name.split("-", maxsplit=1)[0].removeprefix("GH"))
-        found.setdefault(issue, []).append(f"{BRANCH_PREFIX}{path.name}")
+        found.setdefault(issue, []).append(path.name)
     return found
+
+
+def _inspect_incomplete_assignment_setup(
+    *,
+    state: StateDirectory,
+    repository: str,
+    issue: int,
+    identifiers: list[str],
+) -> str | None:
+    """Return what prevents this issue's incomplete setup from recovery."""
+    if len(identifiers) > 1:
+        named = ", ".join(sorted(identifiers))
+        return f"GH{issue} has several incomplete assignment setups: {named}."
+    identifier = identifiers[0]
+    branch = f"{BRANCH_PREFIX}{identifier}"
+    try:
+        _check_worktree_branch(state=state, identifier=identifier, branch=branch)
+        found = _find_branch_pull_request(repository=repository, branch=branch)
+        linked = _read_linked_pull_requests(repository=repository, issue=issue)
+        if found is None:
+            _refuse_linked_pull_requests(linked=linked, branch=branch, issue=issue)
+        else:
+            _adopt_pull_request(
+                pull_request=found,
+                linked=linked,
+                branch=branch,
+                issue=issue,
+            )
+    except ReportableError as error:
+        return str(error)
+    return None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -282,12 +335,9 @@ class AgentAssignmentCreator:
         branch = f"{BRANCH_PREFIX}{identifier}"
         worktree = self.state.worktrees / identifier
         if is_assignment_worktree(path=worktree):
-            checked_out = read_worktree_branch(worktree=worktree)
-            if checked_out != branch:
-                raise ReportableError(
-                    f"cannot reconcile {identifier}: its worktree has branch "
-                    f"{checked_out}, not {branch}."
-                )
+            _check_worktree_branch(
+                state=self.state, identifier=identifier, branch=branch
+            )
         else:
             try:
                 add_worktree(root=self.state.root, path=worktree, branch=branch)
@@ -322,19 +372,25 @@ class AgentAssignmentCreator:
 
 def _find_incomplete_assignment(*, state: StateDirectory, issue: int) -> str | None:
     """Return the identifier of this issue's incomplete assignment setup."""
-    prefix = f"GH{issue}-"
-    found = [
-        path.name
-        for path in state.worktrees.glob(f"{prefix}*")
-        if is_assignment_worktree(path=path)
-        and not (state.assignments / path.name / RECORD).exists()
-    ]
+    found = _find_incomplete_assignment_identifiers(state=state).get(issue, [])
     if len(found) > 1:
         identifiers = ", ".join(sorted(found))
         raise ReportableError(
             f"GH{issue} has several incomplete assignment setups: {identifiers}."
         )
     return found[0] if found else None
+
+
+def _check_worktree_branch(
+    *, state: StateDirectory, identifier: str, branch: str
+) -> None:
+    """Require an incomplete setup's worktree to have its assignment branch."""
+    checked_out = read_worktree_branch(worktree=state.worktrees / identifier)
+    if checked_out != branch:
+        raise ReportableError(
+            f"cannot reconcile {identifier}: its worktree has branch "
+            f"{checked_out}, not {branch}."
+        )
 
 
 def _find_or_create_pull_request(*, repository: str, branch: str, issue: int) -> int:

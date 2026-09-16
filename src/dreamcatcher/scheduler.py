@@ -21,7 +21,7 @@ from dreamcatcher.agent_assignments import (
     AgentAssignment,
     AgentAssignmentCreator,
     advance_assignment_watermark,
-    find_incomplete_assignment_branches,
+    inspect_incomplete_assignment_setups,
     read_agent_assignments,
 )
 from dreamcatcher.config import Config, Harness
@@ -119,7 +119,9 @@ class Scheduler:
             repository=self.repository,
             config=self.config,
             claimed={assignment.record.issue for assignment in assignments},
-            recovering=find_incomplete_assignment_branches(state=self.state),
+            recovery_obstacles=inspect_incomplete_assignment_setups(
+                state=self.state, repository=self.repository
+            ),
         )
         if isinstance(judged, Unknown):
             candidate_failure = judged.reason

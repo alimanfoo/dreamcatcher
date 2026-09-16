@@ -203,17 +203,10 @@ def _compose_resume(
     )
 
 
-def compose_wait(
-    *, assignment: AgentAssignment, reason: str, is_stuck: bool = False
-) -> WaitingAgentAssignment:
-    """Return the assignment as one waiting on what this reason says.
-
-    Every current wait can clear on a later tick. The `is_stuck` field remains
-    for the current status model until that model is replaced.
-    """
+def compose_wait(*, assignment: AgentAssignment, reason: str) -> WaitingAgentAssignment:
+    """Return the assignment as waiting for a later tick to clear the reason."""
     return WaitingAgentAssignment(
         assignment=assignment.identifier,
         issue=assignment.record.issue,
         reason=reason,
-        is_stuck=is_stuck,
     )

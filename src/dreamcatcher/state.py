@@ -49,9 +49,8 @@ class WaitingAgentAssignment(Document):
     tick found it a round and had no slot to launch it, when no round has run
     yet, and when a read of GitHub could not tell.
 
-    Every wait the current scheduler writes can clear by itself, and a later
-    tick is all it needs. The stuck distinction remains in this temporary
-    status model until the later status migration replaces it.
+    A wait marked stuck requires a person to clear it. Every other wait can
+    clear on a later tick.
     """
 
     assignment: str

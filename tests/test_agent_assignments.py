@@ -20,6 +20,7 @@ from dreamcatcher.agent_assignments import (
     AgentAssignmentCreator,
     AgentAssignmentRecord,
     advance_assignment_watermark,
+    inspect_incomplete_assignment_setups,
     read_agent_assignments,
     read_agent_assignments_for_issue,
 )
@@ -542,6 +543,40 @@ def test_several_incomplete_setups_for_one_issue_are_reported(state, route):
             at=PINNED + timedelta(hours=2),
         )
 
+    obstacles = inspect_incomplete_assignment_setups(state=state, repository=REPOSITORY)
+
+    obstacle = obstacles[12]
+    assert obstacle is not None
+    assert obstacle.startswith("GH12 has several incomplete assignment setups: GH12-")
+
+
+def test_an_incomplete_setup_without_a_pull_request_is_recoverable(state, gh):
+    fetch(root=state.root)
+    add_worktree(
+        root=state.root,
+        path=state.worktrees / ASSIGNMENT_ID,
+        branch=BRANCH,
+    )
+
+    assert inspect_incomplete_assignment_setups(state=state, repository=REPOSITORY) == {
+        12: None
+    }
+
+
+def test_an_incomplete_setup_with_its_linked_draft_is_recoverable(state, gh):
+    fetch(root=state.root)
+    add_worktree(
+        root=state.root,
+        path=state.worktrees / ASSIGNMENT_ID,
+        branch=BRANCH,
+    )
+    gh.replies(stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list")
+    gh.replies(stdout=linked_pull_requests(numbers=[PULL_REQUEST]), to="issue view")
+
+    assert inspect_incomplete_assignment_setups(state=state, repository=REPOSITORY) == {
+        12: None
+    }
+
 
 def test_an_incomplete_worktree_on_another_branch_is_reported(state, route):
     fetch(root=state.root)
@@ -559,6 +594,11 @@ def test_an_incomplete_worktree_on_another_branch_is_reported(state, route):
             issue=12,
             at=PINNED,
         )
+
+    obstacles = inspect_incomplete_assignment_setups(state=state, repository=REPOSITORY)
+
+    assert obstacles[12] is not None
+    assert "some-other-branch, not dreamcatcher" in obstacles[12]
 
 
 @pytest.mark.parametrize("state_name", ["CLOSED", "MERGED"])
