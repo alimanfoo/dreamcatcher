@@ -955,6 +955,25 @@ def viewed_round(
     return written_to.getvalue()
 
 
+def test_a_round_view_uses_the_number_persisted_by_the_round(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    directory = state.assignments / f"GH12-{STAMP}"
+    write_round(directory=directory, number=4, record=ended(minute=40, number=4))
+    write_feed(
+        directory=directory,
+        number=4,
+        lines=[Line(at=PINNED + timedelta(minutes=41), text="[Bash] git status")],
+    )
+
+    shown = viewed_round(state=state, issue=12, number=4)
+
+    assert "round 4: implement" in shown
+    assert "[Bash] git status" in shown
+    with pytest.raises(ReportableError, match="has no round 3"):
+        viewed_round(state=state, issue=12, number=3)
+
+
 def test_one_round_of_an_assignment_reads_on_its_own(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)

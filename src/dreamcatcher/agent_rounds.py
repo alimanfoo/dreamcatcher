@@ -247,6 +247,11 @@ class AgentRoundReader:
         if cached is not None:
             return cached
         record = read_json(model=AgentRoundRecord, path=path)
+        if path.parent.name != str(record.number):
+            raise ReportableError(
+                f"{path} says it is round {record.number}, "
+                f"but its directory names round {path.parent.name}."
+            )
         if record.outcome is not RoundOutcome.RUNNING:
             self._cache[path] = record
         return record

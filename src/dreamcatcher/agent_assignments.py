@@ -164,6 +164,11 @@ class AgentAssignment:
             number=number,
         )
 
+    @property
+    def next_round_number(self) -> int:
+        """The number the assignment's next round will carry."""
+        return self.rounds[-1].number + 1 if self.rounds else 1
+
 
 def read_agent_assignments(*, state: StateDirectory) -> list[AgentAssignment]:
     """Return every assignment the state directory holds, by identifier.

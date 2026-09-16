@@ -226,7 +226,7 @@ class Scheduler:
         if wakeup.inbox is not None:
             write_json(
                 document=wakeup.inbox,
-                path=assignment.round_paths(number=len(assignment.rounds) + 1).inbox,
+                path=assignment.round_paths(number=assignment.next_round_number).inbox,
             )
         self._start_round(
             assignment=assignment,
@@ -263,7 +263,7 @@ class Scheduler:
         self.rounds[assignment.identifier] = AgentRound(
             adapter=adapter,
             invocation=invocation,
-            paths=assignment.round_paths(number=len(assignment.rounds) + 1),
+            paths=assignment.round_paths(number=assignment.next_round_number),
             plan=AgentRoundPlan(purpose=purpose, is_recovery=is_recovery),
             clock=self.clock,
         )

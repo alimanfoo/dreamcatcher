@@ -912,9 +912,9 @@ def test_an_assignments_rounds_read_back_in_number_order(state, route):
     directory = state.assignments / ASSIGNMENT_ID
     write_round(
         directory=directory,
-        number=2,
+        number=3,
         record=AgentRoundRecord(
-            number=2, started=PINNED, pid=1, purpose=RoundPurpose.IMPLEMENT
+            number=3, started=PINNED, pid=1, purpose=RoundPurpose.IMPLEMENT
         ),
     )
     write_round(
@@ -931,12 +931,36 @@ def test_an_assignments_rounds_read_back_in_number_order(state, route):
 
     read = read_agent_assignments(state=state)[0]
 
-    assert [record.number for record in read.rounds] == [1, 2]
+    assert [record.number for record in read.rounds] == [1, 3]
     assert [record.started for record in read.rounds] == [later, PINNED]
+    assert read.next_round_number == 4
     assert (
-        read.round_paths(number=len(read.rounds) + 1).directory
-        == state.assignments / ASSIGNMENT_ID / "rounds" / "3"
+        read.round_paths(number=read.next_round_number).directory
+        == state.assignments / ASSIGNMENT_ID / "rounds" / "4"
     )
+
+
+def test_a_round_record_must_carry_the_number_of_its_directory(state, route):
+    create_agent_assignment(
+        state=state,
+        route=route,
+        named=Harness.CLAUDE,
+        issue=12,
+        at=PINNED,
+    )
+    write_round(
+        directory=state.assignments / ASSIGNMENT_ID,
+        number=2,
+        record=AgentRoundRecord(
+            number=3,
+            started=PINNED,
+            pid=1,
+            purpose=RoundPurpose.IMPLEMENT,
+        ),
+    )
+
+    with pytest.raises(ReportableError, match="says it is round 3"):
+        read_agent_assignments(state=state)
 
 
 def test_every_assignment_of_the_repo_reads_back_by_identifier(state, route):

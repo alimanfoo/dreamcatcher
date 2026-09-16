@@ -309,7 +309,7 @@ class _Look:
     def _read_last_said(self, *, assignment: AgentAssignment) -> Line | None:
         """Return the last line the assignment's last round wrote to its feed."""
         return read_last_feed_line(
-            path=assignment.round_paths(number=len(assignment.rounds)).feed
+            path=assignment.round_paths(number=assignment.rounds[-1].number).feed
         )
 
     def _list_queued_issues(self, *, claimed: set[int]) -> list[QueuedIssue]:
@@ -344,7 +344,7 @@ class _Look:
         """
         if not assignment.rounds:
             return reason
-        feed = assignment.round_paths(number=len(assignment.rounds)).feed
+        feed = assignment.round_paths(number=assignment.rounds[-1].number).feed
         return f"{reason} ({self.state.describe_path(path=feed)})"
 
 

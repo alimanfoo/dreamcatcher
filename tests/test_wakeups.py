@@ -100,18 +100,18 @@ def test_an_assignment_that_has_run_no_round_at_all_needs_its_first(state):
     assert first.prompt == "/dream:smith GH13"
 
 
-def test_an_assignment_whose_last_round_was_interrupted_recovers_its_purpose(state, gh):
+def test_an_assignment_whose_last_round_was_interrupted_is_a_recovery(state, gh):
     ran(state=state, number=1, purpose=RoundPurpose.IMPLEMENT, status=None)
 
     resume = found(state=state)
 
     assert isinstance(resume, Wakeup)
-    assert resume.purpose is RoundPurpose.IMPLEMENT
+    assert resume.purpose is RoundPurpose.ADDRESS_FEEDBACK
     assert resume.is_recovery
     assert resume.reason == "the last round was interrupted"
     assert resume.prompt == CARRY_ON_PROMPT
     assert resume.inbox is None
-    assert gh.calls == []
+    assert gh.calls[0].arguments[:3] == ["pr", "view", str(PULL_REQUEST)]
 
 
 def test_an_assignment_whose_last_round_failed_is_carried_on_with_its_status(state, gh):
@@ -120,26 +120,29 @@ def test_an_assignment_whose_last_round_failed_is_carried_on_with_its_status(sta
     resume = found(state=state)
 
     assert isinstance(resume, Wakeup)
-    assert resume.purpose is RoundPurpose.IMPLEMENT
+    assert resume.purpose is RoundPurpose.ADDRESS_FEEDBACK
     assert resume.is_recovery
     assert resume.reason == "the last round failed (exit 2)"
-    assert gh.calls == []
+    assert gh.calls[0].arguments[:3] == ["pr", "view", str(PULL_REQUEST)]
 
 
-def test_a_recovery_finishes_before_a_terminal_pull_request_gets_its_wrap_up(state, gh):
+def test_a_terminal_pull_request_makes_an_interrupted_round_a_recovery_wrap_up(
+    state, gh
+):
     ran(
         state=state,
         number=1,
         purpose=RoundPurpose.ADDRESS_FEEDBACK,
         status=None,
     )
+    gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
 
     resume = found(state=state)
 
     assert isinstance(resume, Wakeup)
-    assert resume.purpose is RoundPurpose.ADDRESS_FEEDBACK
+    assert resume.purpose is RoundPurpose.WRAP_UP
     assert resume.is_recovery
-    assert gh.calls == []
+    assert resume.inbox is None
 
     ran(
         state=state,
@@ -147,14 +150,8 @@ def test_a_recovery_finishes_before_a_terminal_pull_request_gets_its_wrap_up(sta
         purpose=resume.purpose,
         is_recovery=True,
     )
-    gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
 
-    wrap_up = found(state=state)
-
-    assert isinstance(wrap_up, Wakeup)
-    assert wrap_up.purpose is RoundPurpose.WRAP_UP
-    assert not wrap_up.is_recovery
-    assert wrap_up.inbox == Inbox(state="MERGED", posts=[])
+    assert found(state=state) is None
 
 
 def test_an_assignment_nobody_has_posted_on_needs_nothing(state, gh):
@@ -241,7 +238,7 @@ def test_the_prompt_of_a_posts_resume_sends_the_assignment_to_the_next_rounds_in
 
     assert isinstance(resume, Wakeup)
     assert f"pull request #{PULL_REQUEST}" in resume.prompt
-    paths = resume.assignment.round_paths(number=len(resume.assignment.rounds) + 1)
+    paths = resume.assignment.round_paths(number=resume.assignment.next_round_number)
     assert str(paths.inbox) in resume.prompt
     assert paths.directory.name == "2"
     assert MARKER in resume.prompt

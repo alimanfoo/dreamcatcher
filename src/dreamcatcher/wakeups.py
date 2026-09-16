@@ -124,18 +124,11 @@ def judge_assignment(
     if assignment.is_complete:
         return None
     unfinished = assignment.describe_unfinished_round()
-    if unfinished is not None:
-        return Wakeup(
-            assignment=assignment,
-            purpose=assignment.rounds[-1].purpose,
-            is_recovery=True,
-            reason=unfinished,
-            prompt=CARRY_ON_PROMPT,
-        )
     return _judge_pull_request(
         repository=repository,
         account=account,
         assignment=assignment,
+        recovery_reason=unfinished,
     )
 
 
@@ -155,6 +148,7 @@ def _judge_pull_request(
     repository: str,
     account: str,
     assignment: AgentAssignment,
+    recovery_reason: str | None,
 ) -> Finding | None:
     """Return what the assignment's pull request asks of it, if anything.
 
@@ -176,6 +170,14 @@ def _judge_pull_request(
             reason=f"cannot read its pull request: {pull_request.reason}",
         )
     is_open = pull_request.state is PullRequestState.OPEN
+    if recovery_reason is not None:
+        return Wakeup(
+            assignment=assignment,
+            purpose=_round_purpose(pull_request=pull_request),
+            is_recovery=True,
+            reason=recovery_reason,
+            prompt=CARRY_ON_PROMPT,
+        )
     posted = peek_new_posts(
         repository=repository,
         pull_request=pull_request.number,
@@ -215,7 +217,7 @@ def _compose_resume(
         ),
         prompt=compose_inbox_prompt(
             pull_request=pull_request.number,
-            inbox=assignment.round_paths(number=len(assignment.rounds) + 1).inbox,
+            inbox=assignment.round_paths(number=assignment.next_round_number).inbox,
         ),
         inbox=Inbox(state=pull_request.state, posts=posted),
     )

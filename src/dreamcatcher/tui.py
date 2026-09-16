@@ -458,7 +458,7 @@ def _render_rounds(*, row: AgentAssignmentRow) -> RenderableType | None:
     for record in reversed(rounds):
         is_running = (
             row.standing is AgentAssignmentStanding.WORKING
-            and record.number == len(rounds)
+            and record.number == rounds[-1].number
         )
         table.add_row(
             Text(str(record.number)),
@@ -586,9 +586,7 @@ def show_feed(
         """Show what the assignment said since the last look, and say if it is over."""
         row = _find_rows_for_issue(state=state, issue=issue)[0]
         assignment = row.assignment
-        view.show_what_arrived(
-            assignment=assignment, round_numbers=range(1, len(assignment.rounds) + 1)
-        )
+        view.show_what_arrived(assignment=assignment, records=assignment.rounds)
         return row.standing in STANDINGS_THAT_END_A_VIEW
 
     _keep_looking(console=console, look=look, wait=wait)
@@ -616,14 +614,17 @@ def _show_one_round(
     def look() -> bool:
         """Show what the round said since the last look, and say if it has ended."""
         assignment = _find_rows_for_issue(state=state, issue=issue)[0].assignment
-        if not 1 <= number <= len(assignment.rounds):
+        record = next(
+            (record for record in assignment.rounds if record.number == number), None
+        )
+        if record is None:
             raise ReportableError(
                 f"{assignment.identifier} has run "
                 f"{describe_count(number=len(assignment.rounds), noun='round')}, "
                 f"so it has no round {number}."
             )
-        view.show_what_arrived(assignment=assignment, round_numbers=[number])
-        return assignment.rounds[number - 1].ending is not None
+        view.show_what_arrived(assignment=assignment, records=[record])
+        return record.ending is not None
 
     _keep_looking(console=console, look=look, wait=wait)
 
@@ -657,19 +658,15 @@ class _FeedView:
     positions: dict[int, int] = field(default_factory=dict)
 
     def show_what_arrived(
-        self, *, assignment: AgentAssignment, round_numbers: Iterable[int]
+        self, *, assignment: AgentAssignment, records: Iterable[AgentRoundRecord]
     ) -> None:
         """Show what these rounds of the assignment have said since the last look."""
-        for round_number in round_numbers:
-            if round_number not in self.positions:
-                self._show_round_heading(
-                    assignment=assignment, round_number=round_number
-                )
-            self._show_new_lines(assignment=assignment, round_number=round_number)
+        for record in records:
+            if record.number not in self.positions:
+                self._show_round_heading(record=record)
+            self._show_new_lines(assignment=assignment, round_number=record.number)
 
-    def _show_round_heading(
-        self, *, assignment: AgentAssignment, round_number: int
-    ) -> None:
+    def _show_round_heading(self, *, record: AgentRoundRecord) -> None:
         """Show the line that opens a round, saying what caused it.
 
         A feed holds one round, so the stitch between two of them lands in no
@@ -678,7 +675,6 @@ class _FeedView:
         """
         if self.positions:
             self.console.print()
-        record = assignment.rounds[round_number - 1]
         heading = compose_round_boundary(
             number=record.number,
             purpose=record.purpose,
@@ -686,7 +682,7 @@ class _FeedView:
             at=record.started,
         )
         self.console.print(_paint(line=heading, said=Text(heading.text, style="bold")))
-        self.positions[round_number] = 0
+        self.positions[record.number] = 0
 
     def _show_new_lines(
         self, *, assignment: AgentAssignment, round_number: int
