@@ -4,12 +4,11 @@ A scheduler tick reads the assignments on disk and asks GitHub which labelled
 issues could be dispatched. It weighs the active rounds against the cap, works
 out what each assignment needs next, and launches at most one round.
 
-Open work goes before new work, and the most open of it first: a complete
+Open work goes before new work, and the most open of it first: a recorded
 assignment missing its first round finishes its dispatch, a round that did not
-finish is carried on, a merged or closed pull request gets its last round, then
+finish is recovered, a merged or closed pull request gets a wrap-up round, then
 an assignment answers what the user posted. Only when no assignment needs
-anything does an uncapped tick dispatch the oldest unclaimed, unblocked
-candidate.
+anything does an uncapped tick dispatch the oldest unclaimed, unblocked candidate.
 """
 
 from collections.abc import Callable
@@ -24,13 +23,18 @@ from dreamcatcher.agent_assignments import (
     inspect_incomplete_assignment_setups,
     read_agent_assignments,
 )
+from dreamcatcher.agent_rounds import (
+    AgentRound,
+    AgentRoundPlan,
+    ErroredAgentRoundEnding,
+    RoundPurpose,
+)
 from dreamcatcher.config import Config, Harness
 from dreamcatcher.documents import write_json
 from dreamcatcher.eligibility import judge_issues
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import Unknown
 from dreamcatcher.harnesses import ADAPTERS
-from dreamcatcher.rounds import Cause, Round
 from dreamcatcher.state import (
     CandidateIssue,
     LastTick,
@@ -66,7 +70,7 @@ def _check_cooldown(*, assignments: list[AgentAssignment], at: datetime) -> str 
         record.ending
         for assignment in assignments
         for record in assignment.rounds
-        if record.ending is not None and record.ending.is_failed
+        if isinstance(record.ending, ErroredAgentRoundEnding)
     ]
     if not failed:
         return None
@@ -90,7 +94,7 @@ class Scheduler:
     state: StateDirectory
     harness: Harness
     clock: Callable[[], datetime]
-    rounds: dict[str, Round]
+    rounds: dict[str, AgentRound]
 
     def tick(self, *, at: datetime) -> LastTick:
         """Look once and launch at most one round.
@@ -118,7 +122,11 @@ class Scheduler:
         judged = judge_issues(
             repository=self.repository,
             config=self.config,
-            claimed={assignment.record.issue for assignment in assignments},
+            claimed={
+                assignment.record.issue
+                for assignment in assignments
+                if not assignment.is_complete
+            },
             recovery_obstacles=inspect_incomplete_assignment_setups(
                 state=self.state, repository=self.repository
             ),
@@ -146,7 +154,7 @@ class Scheduler:
                     compose_wait(assignment=assignment, reason=cap)
                     for assignment in assignments
                     if assignment.identifier not in self.rounds
-                    and not assignment.has_run_final_round
+                    and not assignment.is_complete
                 ],
             )
         found = self._judge_assignments(assignments=assignments)
@@ -216,9 +224,15 @@ class Scheduler:
         """Start the round and advance the watermark once it is running."""
         assignment = wakeup.assignment
         if wakeup.inbox is not None:
-            write_json(document=wakeup.inbox, path=assignment.next_workspace.inbox)
+            write_json(
+                document=wakeup.inbox,
+                path=assignment.round_paths(number=assignment.next_round_number).inbox,
+            )
         self._start_round(
-            assignment=assignment, prompt=wakeup.prompt, cause=wakeup.cause
+            assignment=assignment,
+            prompt=wakeup.prompt,
+            purpose=wakeup.purpose,
+            is_recovery=wakeup.is_recovery,
         )
         if wakeup.newest_post:
             advance_assignment_watermark(
@@ -226,7 +240,12 @@ class Scheduler:
             )
 
     def _start_round(
-        self, *, assignment: AgentAssignment, prompt: str, cause: Cause
+        self,
+        *,
+        assignment: AgentAssignment,
+        prompt: str,
+        purpose: RoundPurpose,
+        is_recovery: bool,
     ) -> None:
         """Start a round with the recipe that the dispatch settled."""
         adapter = ADAPTERS[assignment.record.harness]
@@ -238,14 +257,14 @@ class Scheduler:
         )
         invocation = (
             adapter.build_first_round(launch=launch)
-            if cause is Cause.DISPATCH
+            if not assignment.rounds
             else adapter.build_resumed_round(launch=launch)
         )
-        self.rounds[assignment.identifier] = Round(
+        self.rounds[assignment.identifier] = AgentRound(
             adapter=adapter,
             invocation=invocation,
-            workspace=assignment.next_workspace,
-            cause=cause,
+            paths=assignment.round_paths(number=assignment.next_round_number),
+            plan=AgentRoundPlan(purpose=purpose, is_recovery=is_recovery),
             clock=self.clock,
         )
 

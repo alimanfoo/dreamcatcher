@@ -7,8 +7,8 @@ from pathlib import Path
 
 from pydantic import Field
 
+from dreamcatcher.agent_rounds import AgentRoundReader
 from dreamcatcher.documents import Document, write_text
-from dreamcatcher.rounds import RoundReader
 
 STATE_DIRECTORY = ".dreamcatcher"
 
@@ -102,7 +102,7 @@ class StateDirectory:
     root: Path
 
     @cached_property
-    def round_reader(self) -> RoundReader:
+    def round_reader(self) -> AgentRoundReader:
         """What this process has read of the round records under here.
 
         Reading an assignment reads the records of every round it has run, and a
@@ -113,7 +113,7 @@ class StateDirectory:
         the daemon holds one for its whole run, a view holds one for as long as
         it runs, and a process that looks once lets both go together.
         """
-        return RoundReader()
+        return AgentRoundReader()
 
     @property
     def path(self) -> Path:

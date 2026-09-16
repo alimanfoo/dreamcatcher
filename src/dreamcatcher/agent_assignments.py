@@ -6,7 +6,7 @@ its branch, worktree, and file directory. Three worktrees for one issue therefor
 read as three assignments at one thing, each with its own pull request.
 
 Creation prepares and publishes the assignment's branch, opens its linked draft
-pull request, then records the complete assignment. Nothing here decides which
+pull request, then records the assignment. Nothing here decides which
 issue to dispatch, or when. A caller that has decided asks for the assignment.
 """
 
@@ -16,6 +16,14 @@ from datetime import datetime
 from pathlib import Path
 
 from dreamcatcher import prompts
+from dreamcatcher.agent_rounds import (
+    AgentRoundPaths,
+    AgentRoundRecord,
+    ErroredAgentRoundEnding,
+    InterruptedAgentRoundEnding,
+    RoundOutcome,
+    RoundPurpose,
+)
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import DispatchRoute, Harness
 from dreamcatcher.documents import (
@@ -46,7 +54,6 @@ from dreamcatcher.github import (
     list_linked_pull_requests,
     list_pull_requests,
 )
-from dreamcatcher.rounds import Cause, RoundRecord, Workspace
 from dreamcatcher.state import StateDirectory
 
 # What an assignment's branch is called, before its identifier. The prefix keeps
@@ -102,7 +109,7 @@ class AgentAssignment:
 
     directory: Path
     record: AgentAssignmentRecord
-    rounds: list[RoundRecord] = field(default_factory=list)
+    rounds: list[AgentRoundRecord] = field(default_factory=list)
     watermark: str = ""
 
     @property
@@ -111,45 +118,37 @@ class AgentAssignment:
         return self.directory.name
 
     @property
-    def has_run_final_round(self) -> bool:
-        """Whether the assignment has already run the round that winds it up.
-
-        Any round of the assignment having been the final round is what this
-        reads, and no record's ending comes into it. An assignment whose last round
-        did not finish is carried on before this is ever asked, and that
-        carry-on finishes what the final round started, so by the time the
-        question is put the work the final round stood for is done however many
-        rounds it took.
-        """
-        return any(record.cause is Cause.FINAL for record in self.rounds)
-
-    @property
     def is_complete(self) -> bool:
-        """Whether the assignment has finished the work of its final round."""
-        return self.has_run_final_round and self.describe_unfinished_round() is None
+        """Whether a wrap-up round has exited successfully."""
+        if not self.rounds:
+            return False
+        round = self.rounds[-1]
+        return (
+            round.purpose is RoundPurpose.WRAP_UP
+            and round.outcome is RoundOutcome.SUCCESSFUL
+        )
 
     def describe_unfinished_round(self) -> str | None:
         """Return what the assignment's last round left unfinished, or nothing.
 
-        A record with no ending is a round the daemon stopped or outlived, and
-        a round that ended with a failing status stopped short of its own
-        accord. Both leave the work part done, so both are carried on from
-        where they stopped.
+        A record with no ending is a round the daemon has not reconciled yet,
+        and an interrupted or errored ending says that the work stopped short.
+        Each is recovered from where it stopped.
 
         An assignment that has run no round at all has left nothing unfinished.
         Its first round never started, which is another matter: the scheduler
-        retries that complete assignment before it starts ordinary work.
+        retries that recorded assignment before it starts ordinary work.
         """
         if not self.rounds:
             return None
         ending = self.rounds[-1].ending
-        if ending is None:
+        if ending is None or isinstance(ending, InterruptedAgentRoundEnding):
             return "the last round was interrupted"
-        if ending.is_failed:
+        if isinstance(ending, ErroredAgentRoundEnding):
             return f"the last round failed (exit {ending.status})"
         return None
 
-    def workspace(self, *, number: int) -> Workspace:
+    def round_paths(self, *, number: int) -> AgentRoundPaths:
         """Where the assignment's numbered round ran, and where it wrote.
 
         Every round runs in the assignment's worktree, and writes into a
@@ -161,15 +160,16 @@ class AgentAssignment:
         the number of the round it records, which is how a reader of the round
         list finds each round's own files.
         """
-        return Workspace(
+        return AgentRoundPaths(
             worktree=self.record.worktree,
-            directory=self.directory / ROUNDS / str(number),
+            rounds_directory=self.directory / ROUNDS,
+            number=number,
         )
 
     @property
-    def next_workspace(self) -> Workspace:
-        """Where the assignment's next round runs, and where it writes."""
-        return self.workspace(number=len(self.rounds) + 1)
+    def next_round_number(self) -> int:
+        """The number the assignment's next round will carry."""
+        return self.rounds[-1].number + 1 if self.rounds else 1
 
 
 def read_agent_assignments(*, state: StateDirectory) -> list[AgentAssignment]:
@@ -289,7 +289,7 @@ def _inspect_incomplete_assignment_setup(
 
 @dataclass(frozen=True, kw_only=True)
 class AgentAssignmentCreator:
-    """Create complete assignments in one repository and state directory."""
+    """Create assignment records in one repository and state directory."""
 
     state: StateDirectory
     repository: str
@@ -302,7 +302,7 @@ class AgentAssignmentCreator:
         issue: int,
         at: datetime,
     ) -> AgentAssignment:
-        """Create the issue's complete assignment with no rounds run yet.
+        """Create the issue's durable assignment with no rounds run yet.
 
         The assignment runs on the harness that the route and this daemon
         select, with that harness's model, effort, and prompt template. Creation

@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 from dreamcatcher import teardown
 from dreamcatcher.agent_assignments import read_agent_assignments
+from dreamcatcher.agent_rounds import record_agent_round_interruption
 from dreamcatcher.clock import Wait, now
 from dreamcatcher.commands import locate
 from dreamcatcher.config import Harness, read_config
@@ -26,7 +27,7 @@ if TYPE_CHECKING:
     from datetime import datetime
     from pathlib import Path
 
-    from dreamcatcher.rounds import Round
+    from dreamcatcher.agent_rounds import AgentRound
 
 
 def _write_output(*, line: str) -> None:
@@ -68,7 +69,7 @@ class Daemon:
         # The rounds this daemon is running, by the identifier of the assignment each
         # belongs to. They are what the cap counts, and what the daemon ends as
         # it goes down.
-        self.rounds: dict[str, Round] = {}
+        self.rounds: dict[str, AgentRound] = {}
 
     def run(self) -> None:
         """Hold the repo and tick until the user interrupts.
@@ -167,8 +168,8 @@ class Daemon:
         which a crash or a kill does. A round whose record says how it ended is
         over and is left alone. Every other round is ended, and ending a round
         that has already gone does nothing, so nothing here has to ask whether
-        one has. Its record keeps no ending either way, and a round with no
-        ending reads as interrupted, which a later tick carries on.
+        one has. Its record is then reconciled as interrupted, which a later
+        tick recovers.
 
         The pid is the one the record kept, and the operating system was free
         to give it to somebody else once the daemon that recorded it died.
@@ -183,8 +184,12 @@ class Daemon:
         """
         for assignment in read_agent_assignments(state=self.state):
             for record in assignment.rounds:
-                if not record.is_complete:
+                if record.ending is None:
                     teardown.end(pid=record.pid)
+                    record_agent_round_interruption(
+                        record=record,
+                        path=assignment.round_paths(number=record.number).record,
+                    )
 
 
 def _refuse_unknown(*, named: str | Unknown, question: str) -> str:

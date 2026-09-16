@@ -6,12 +6,16 @@ import pytest
 from clocks import PINNED
 from records import write_agent_assignment, write_feed, write_round
 
+from dreamcatcher.agent_rounds import (
+    AgentRoundRecord,
+    RoundPurpose,
+    compose_agent_round_ending,
+)
 from dreamcatcher.cli import main
 from dreamcatcher.config import Harness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.documents import write_text
 from dreamcatcher.feed import Line
-from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158"
@@ -27,7 +31,9 @@ def watching(tmp_path):
     write_round(
         directory=directory,
         number=1,
-        record=RoundRecord(started=PINNED, pid=1, cause=Cause.DISPATCH),
+        record=AgentRoundRecord(
+            number=1, started=PINNED, pid=1, purpose=RoundPurpose.IMPLEMENT
+        ),
     )
     write_feed(
         directory=directory, number=1, lines=[Line(at=PINNED, text="[Bash] pytest")]
@@ -93,31 +99,32 @@ def test_something_that_is_not_an_issue_reference_is_refused(capsys):
 
 def test_feed_shows_what_the_assignment_said(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
-    # A following view runs until the assignment has run its final round, so this
+    # A following view runs until the assignment has completed its wrap-up, so this
     # one is over before the view opens and the view never waits. An assignment's
-    # rounds read back in the order they started, so the final round starts
+    # rounds read back in the order they started, so the wrap-up round starts
     # after the first one rather than alongside it.
     later = PINNED + timedelta(minutes=1)
     write_round(
         directory=watching.assignments / ASSIGNMENT_ID,
         number=2,
-        record=RoundRecord(
+        record=AgentRoundRecord(
+            number=2,
             started=later,
             pid=1,
-            cause=Cause.FINAL,
-            ending=Ending(at=later, status=0),
+            purpose=RoundPurpose.WRAP_UP,
+            ending=compose_agent_round_ending(at=later, status=0),
         ),
     )
 
     assert main(argv=["feed", "GH13"]) == 0
-    assert "round 1: dispatched" in capsys.readouterr().out
+    assert "round 1: implement" in capsys.readouterr().out
 
 
 def test_feed_naming_a_round_shows_that_rounds_feed(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
 
     assert main(argv=["feed", "GH13", "--round", "1"]) == 0
-    assert "round 1: dispatched" in capsys.readouterr().out
+    assert "round 1: implement" in capsys.readouterr().out
 
 
 def test_a_feed_with_no_issue_to_show_asks_for_one(capsys):

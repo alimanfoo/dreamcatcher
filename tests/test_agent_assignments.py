@@ -24,12 +24,18 @@ from dreamcatcher.agent_assignments import (
     read_agent_assignments,
     read_agent_assignments_for_issue,
 )
+from dreamcatcher.agent_rounds import (
+    AgentRoundPaths,
+    AgentRoundRecord,
+    InterruptedAgentRoundEnding,
+    RoundPurpose,
+    compose_agent_round_ending,
+)
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import CONFIG_NAME, Harness, read_config
 from dreamcatcher.documents import write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import add_worktree, fetch, make_empty_commit, push_branch
-from dreamcatcher.rounds import Cause, Ending, RoundRecord, Workspace
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH12-20260819-184158"
@@ -164,13 +170,14 @@ def test_a_new_assignment_has_run_no_rounds_and_its_next_is_its_first(state, rou
     )
 
     assert assignment.rounds == []
-    assert assignment.next_workspace == Workspace(
+    assert assignment.round_paths(number=1) == AgentRoundPaths(
         worktree=assignment.record.worktree,
-        directory=state.assignments / ASSIGNMENT_ID / "rounds" / "1",
+        rounds_directory=state.assignments / ASSIGNMENT_ID / "rounds",
+        number=1,
     )
 
 
-def standing(*, state, rounds: Sequence[RoundRecord]):
+def standing(*, state, rounds: Sequence[AgentRoundRecord]):
     """Return the assignment that these rounds leave behind, read back from disk."""
     directory = write_agent_assignment(state=state, identifier=ASSIGNMENT_ID, issue=12)
     for number, record in enumerate(rounds, start=1):
@@ -197,32 +204,38 @@ def test_assignments_at_one_issue_are_read_behind_the_assignment_boundary(fabric
     ]
 
 
-def ended(*, status, minute=0):
+def ended(*, status, minute=0, number: int = 1):
     """Return a round that started that minute past the hour and ended."""
     started = PINNED + timedelta(minutes=minute)
-    return RoundRecord(
+    return AgentRoundRecord(
+        number=number,
         started=started,
         pid=1,
-        cause=Cause.DISPATCH,
-        ending=Ending(at=started, status=status),
+        purpose=RoundPurpose.IMPLEMENT,
+        ending=compose_agent_round_ending(at=started, status=status),
     )
 
 
-def running(*, minute=0):
+def running(*, minute=0, number: int = 1):
     """Return a round that started that minute past the hour and is still going."""
-    return RoundRecord(
-        started=PINNED + timedelta(minutes=minute), pid=1, cause=Cause.DISPATCH
+    return AgentRoundRecord(
+        number=number,
+        started=PINNED + timedelta(minutes=minute),
+        pid=1,
+        purpose=RoundPurpose.IMPLEMENT,
     )
 
 
 def test_a_round_an_assignment_has_run_is_found_by_the_number_it_ran_as(fabricated):
     assignment = standing(
-        state=fabricated, rounds=[ended(status=0), ended(status=0, minute=1)]
+        state=fabricated,
+        rounds=[ended(status=0), ended(status=0, minute=1, number=2)],
     )
 
-    assert assignment.workspace(number=2) == Workspace(
+    assert assignment.round_paths(number=2) == AgentRoundPaths(
         worktree=assignment.record.worktree,
-        directory=fabricated.assignments / ASSIGNMENT_ID / "rounds" / "2",
+        rounds_directory=fabricated.assignments / ASSIGNMENT_ID / "rounds",
+        number=2,
     )
 
 
@@ -230,7 +243,7 @@ def test_an_assignment_that_has_run_no_round_has_left_nothing_unfinished(fabrica
     assignment = standing(state=fabricated, rounds=[])
 
     assert assignment.describe_unfinished_round() is None
-    assert not assignment.has_run_final_round
+    assert not assignment.is_complete
 
 
 def test_an_assignment_whose_last_round_was_interrupted_says_so(fabricated):
@@ -251,27 +264,84 @@ def test_an_assignment_whose_last_round_ended_well_has_left_nothing_unfinished(
     fabricated,
 ):
     assignment = standing(
-        state=fabricated, rounds=[ended(status=1), ended(status=0, minute=1)]
+        state=fabricated,
+        rounds=[ended(status=1), ended(status=0, minute=1, number=2)],
     )
 
     assert assignment.describe_unfinished_round() is None
 
 
-def test_an_assignment_that_has_run_its_final_round_says_so(fabricated):
+def test_a_successful_wrap_up_completes_an_assignment(fabricated):
     assignment = standing(
         state=fabricated,
         rounds=[
             ended(status=0),
-            RoundRecord(
+            AgentRoundRecord(
+                number=2,
                 started=PINNED + timedelta(minutes=1),
                 pid=1,
-                cause=Cause.FINAL,
-                ending=Ending(at=PINNED + timedelta(minutes=1), status=0),
+                purpose=RoundPurpose.WRAP_UP,
+                is_recovery=True,
+                ending=compose_agent_round_ending(
+                    at=PINNED + timedelta(minutes=1), status=0
+                ),
             ),
         ],
     )
 
-    assert assignment.has_run_final_round
+    assert assignment.is_complete
+
+
+def test_only_the_final_round_can_complete_an_assignment(fabricated):
+    assignment = standing(
+        state=fabricated,
+        rounds=[
+            AgentRoundRecord(
+                number=1,
+                started=PINNED,
+                pid=1,
+                purpose=RoundPurpose.WRAP_UP,
+                ending=compose_agent_round_ending(at=PINNED, status=0),
+            ),
+            ended(status=0, minute=1, number=2),
+        ],
+    )
+
+    assert not assignment.is_complete
+
+
+@pytest.mark.parametrize(
+    "record",
+    [
+        AgentRoundRecord(
+            number=1,
+            started=PINNED,
+            pid=1,
+            purpose=RoundPurpose.IMPLEMENT,
+            ending=compose_agent_round_ending(at=PINNED, status=0),
+        ),
+        AgentRoundRecord(
+            number=1,
+            started=PINNED,
+            pid=1,
+            purpose=RoundPurpose.WRAP_UP,
+            ending=compose_agent_round_ending(at=PINNED, status=1),
+        ),
+        AgentRoundRecord(
+            number=1,
+            started=PINNED,
+            pid=1,
+            purpose=RoundPurpose.WRAP_UP,
+            ending=InterruptedAgentRoundEnding(),
+        ),
+    ],
+)
+def test_anything_other_than_a_successful_wrap_up_leaves_an_assignment_open(
+    fabricated, record
+):
+    assignment = standing(state=fabricated, rounds=[record])
+
+    assert not assignment.is_complete
 
 
 def endings(*, state):
@@ -284,7 +354,7 @@ def test_a_second_read_does_not_open_a_round_record_it_has_already_read(fabricat
         state=fabricated, identifier=ASSIGNMENT_ID, issue=12
     )
     write_round(directory=directory, number=1, record=ended(status=0))
-    write_round(directory=directory, number=2, record=running(minute=1))
+    write_round(directory=directory, number=2, record=running(minute=1, number=2))
     read_agent_assignments(state=fabricated)
 
     # Rewriting the first round's record puts something there that only a read
@@ -313,7 +383,7 @@ def test_a_second_read_finds_a_round_that_has_started_since_the_first(fabricated
     write_round(directory=directory, number=1, record=ended(status=0))
     read_agent_assignments(state=fabricated)
 
-    write_round(directory=directory, number=2, record=running(minute=1))
+    write_round(directory=directory, number=2, record=running(minute=1, number=2))
 
     read = read_agent_assignments(state=fabricated)[0]
 
@@ -333,7 +403,7 @@ def test_a_round_that_ended_as_a_later_round_started_reads_back_ended(fabricated
     # The first round ended, and the round that carried its work on started,
     # so the record that ended is no longer the assignment's newest.
     write_round(directory=directory, number=1, record=ended(status=0))
-    write_round(directory=directory, number=2, record=running(minute=1))
+    write_round(directory=directory, number=2, record=running(minute=1, number=2))
 
     assert endings(state=fabricated) == [ended(status=0).ending, None]
 
@@ -474,11 +544,12 @@ def test_an_issue_whose_assignment_finished_can_receive_another(state, route):
     write_round(
         directory=first.directory,
         number=1,
-        record=RoundRecord(
+        record=AgentRoundRecord(
+            number=1,
             started=PINNED,
             pid=1,
-            cause=Cause.FINAL,
-            ending=Ending(at=PINNED, status=0),
+            purpose=RoundPurpose.WRAP_UP,
+            ending=compose_agent_round_ending(at=PINNED, status=0),
         ),
     )
 
@@ -493,9 +564,16 @@ def test_an_issue_whose_assignment_finished_can_receive_another(state, route):
     assert second.identifier == "GH12-20260819-194158"
 
 
-@pytest.mark.parametrize("status", [None, 1])
+@pytest.mark.parametrize(
+    "ending",
+    [
+        None,
+        InterruptedAgentRoundEnding(),
+        compose_agent_round_ending(at=PINNED, status=1),
+    ],
+)
 def test_an_issue_whose_final_work_is_unfinished_cannot_receive_another(
-    state, route, status
+    state, route, ending
 ):
     first = create_agent_assignment(
         state=state,
@@ -507,11 +585,12 @@ def test_an_issue_whose_final_work_is_unfinished_cannot_receive_another(
     write_round(
         directory=first.directory,
         number=1,
-        record=RoundRecord(
+        record=AgentRoundRecord(
+            number=1,
             started=PINNED,
             pid=1,
-            cause=Cause.FINAL,
-            ending=None if status is None else Ending(at=PINNED, status=status),
+            purpose=RoundPurpose.WRAP_UP,
+            ending=ending,
         ),
     )
 
@@ -839,7 +918,7 @@ def test_an_assignment_told_about_a_batch_of_posts_reads_the_newest_of_them_back
     assert read_agent_assignments(state=state)[0].watermark == "2026-09-03T22:31:51Z"
 
 
-def test_an_assignments_rounds_read_back_in_the_order_they_ran(state, route):
+def test_an_assignments_rounds_read_back_in_number_order(state, route):
     create_agent_assignment(
         state=state,
         route=route,
@@ -851,27 +930,55 @@ def test_an_assignments_rounds_read_back_in_the_order_they_ran(state, route):
     directory = state.assignments / ASSIGNMENT_ID
     write_round(
         directory=directory,
-        number=2,
-        record=RoundRecord(started=later, pid=1, cause=Cause.DISPATCH),
+        number=3,
+        record=AgentRoundRecord(
+            number=3, started=PINNED, pid=1, purpose=RoundPurpose.IMPLEMENT
+        ),
     )
     write_round(
         directory=directory,
         number=1,
-        record=RoundRecord(
-            started=PINNED,
+        record=AgentRoundRecord(
+            number=1,
+            started=later,
             pid=1,
-            cause=Cause.DISPATCH,
-            ending=Ending(at=later, status=0),
+            purpose=RoundPurpose.IMPLEMENT,
+            ending=compose_agent_round_ending(at=later, status=0),
         ),
     )
 
     read = read_agent_assignments(state=state)[0]
 
-    assert [record.started for record in read.rounds] == [PINNED, later]
+    assert [record.number for record in read.rounds] == [1, 3]
+    assert [record.started for record in read.rounds] == [later, PINNED]
+    assert read.next_round_number == 4
     assert (
-        read.next_workspace.directory
-        == state.assignments / ASSIGNMENT_ID / "rounds" / "3"
+        read.round_paths(number=read.next_round_number).directory
+        == state.assignments / ASSIGNMENT_ID / "rounds" / "4"
     )
+
+
+def test_a_round_record_must_carry_the_number_of_its_directory(state, route):
+    create_agent_assignment(
+        state=state,
+        route=route,
+        named=Harness.CLAUDE,
+        issue=12,
+        at=PINNED,
+    )
+    write_round(
+        directory=state.assignments / ASSIGNMENT_ID,
+        number=2,
+        record=AgentRoundRecord(
+            number=3,
+            started=PINNED,
+            pid=1,
+            purpose=RoundPurpose.IMPLEMENT,
+        ),
+    )
+
+    with pytest.raises(ReportableError, match="says it is round 3"):
+        read_agent_assignments(state=state)
 
 
 def test_every_assignment_of_the_repo_reads_back_by_identifier(state, route):

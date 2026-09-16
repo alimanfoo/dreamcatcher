@@ -1,9 +1,9 @@
 """Compose the prompts that the daemon starts and resumes an assignment with.
 
 An assignment is asked something at each of the four points its life can turn on: a
-dispatch opens it, an unfinished round is carried on, the user posts on the
-pull request, and a merged or closed pull request calls for a last round. Every
-one of those prompts ends with the same postscript, so an assignment marks its posts
+dispatch opens it, an unfinished round is recovered, the user posts on the pull
+request, and a merged or closed pull request calls for a wrap-up round. Every one
+of those prompts ends with the same postscript, so an assignment marks its posts
 whichever woke it.
 """
 
@@ -38,7 +38,7 @@ description, a comment, a reply on a line of the diff, and an issue you file."""
 # What a round that carries on from an unfinished one asks for. The transcript
 # that the harness resumes carries the work itself, so the words say only that
 # the round before this one stopped short. A round somebody interrupted and a
-# round that failed both read that way, and either is carried on from where it
+# round that failed both read that way, and either is recovered from where it
 # stopped.
 CARRY_ON_PROMPT = (
     """Your previous round did not finish. Carry on from where it stopped, and

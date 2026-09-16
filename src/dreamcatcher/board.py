@@ -202,7 +202,11 @@ class _Look:
             tick=self.tick,
             rows=self.list_rows(assignments=assignments),
             queued=self._list_queued_issues(
-                claimed={assignment.record.issue for assignment in assignments}
+                claimed={
+                    assignment.record.issue
+                    for assignment in assignments
+                    if not assignment.is_complete
+                }
             ),
         )
 
@@ -245,11 +249,11 @@ class _Look:
         """
         unfinished = assignment.describe_unfinished_round()
         if unfinished is not None:
-            if self.daemon_pid is not None and not assignment.rounds[-1].is_complete:
+            if self.daemon_pid is not None and assignment.rounds[-1].ending is None:
                 detail, last_output = self._describe_live_round(assignment=assignment)
                 return AgentAssignmentStanding.WORKING, detail, last_output
             return AgentAssignmentStanding.WAITING, unfinished, None
-        if assignment.has_run_final_round:
+        if assignment.is_complete:
             return (
                 AgentAssignmentStanding.DONE,
                 describe_count(number=len(assignment.rounds), noun="round"),
@@ -305,7 +309,7 @@ class _Look:
     def _read_last_said(self, *, assignment: AgentAssignment) -> Line | None:
         """Return the last line the assignment's last round wrote to its feed."""
         return read_last_feed_line(
-            path=assignment.workspace(number=len(assignment.rounds)).feed
+            path=assignment.round_paths(number=assignment.rounds[-1].number).feed
         )
 
     def _list_queued_issues(self, *, claimed: set[int]) -> list[QueuedIssue]:
@@ -340,7 +344,7 @@ class _Look:
         """
         if not assignment.rounds:
             return reason
-        feed = assignment.workspace(number=len(assignment.rounds)).feed
+        feed = assignment.round_paths(number=assignment.rounds[-1].number).feed
         return f"{reason} ({self.state.describe_path(path=feed)})"
 
 

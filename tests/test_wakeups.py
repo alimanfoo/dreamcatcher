@@ -18,10 +18,15 @@ from dreamcatcher.agent_assignments import (
     advance_assignment_watermark,
     read_agent_assignments,
 )
+from dreamcatcher.agent_rounds import (
+    AgentRoundRecord,
+    InterruptedAgentRoundEnding,
+    RoundPurpose,
+    compose_agent_round_ending,
+)
 from dreamcatcher.github import PullRequestState
 from dreamcatcher.prompts import CARRY_ON_PROMPT, MARKER
 from dreamcatcher.relay import Inbox
-from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.state import NO_ROUND_HAS_RUN, StateDirectory, WaitingAgentAssignment
 from dreamcatcher.wakeups import Wakeup, judge_assignment, sort_wakeups
 
@@ -43,18 +48,36 @@ def gh(gh_with_no_posts):
     return gh_with_no_posts
 
 
-def ran(*, state, number: int, cause: Cause, status: int | None = 0) -> None:
+def ran(
+    *,
+    state,
+    number: int,
+    purpose: RoundPurpose,
+    status: int | None = 0,
+    is_recovery: bool = False,
+) -> None:
     """Write down a round of that assignment, ended as the status says.
 
     Each round starts a minute after the one before it, which is the order
     they read back in.
     """
     started = PINNED + timedelta(minutes=number)
-    ending = None if status is None else Ending(at=started, status=status)
+    ending = (
+        InterruptedAgentRoundEnding()
+        if status is None
+        else compose_agent_round_ending(at=started, status=status)
+    )
     write_round(
         directory=state.assignments / ASSIGNMENT_ID,
         number=number,
-        record=RoundRecord(started=started, pid=1, cause=cause, ending=ending),
+        record=AgentRoundRecord(
+            number=number,
+            purpose=purpose,
+            is_recovery=is_recovery,
+            started=started,
+            pid=1,
+            ending=ending,
+        ),
     )
 
 
@@ -71,50 +94,48 @@ def test_an_assignment_that_has_run_no_round_at_all_needs_its_first(state):
     first = found(state=state)
 
     assert isinstance(first, Wakeup)
-    assert first.cause is Cause.DISPATCH
+    assert first.purpose is RoundPurpose.IMPLEMENT
+    assert not first.is_recovery
     assert first.reason == NO_ROUND_HAS_RUN
     assert first.prompt == "/dream:smith GH13"
 
 
-def test_an_assignment_whose_last_round_was_interrupted_is_carried_on(state):
-    ran(state=state, number=1, cause=Cause.DISPATCH, status=None)
+def test_an_assignment_whose_last_round_was_interrupted_is_a_recovery(state, gh):
+    ran(state=state, number=1, purpose=RoundPurpose.IMPLEMENT, status=None)
 
     resume = found(state=state)
 
     assert isinstance(resume, Wakeup)
-    assert resume.cause is Cause.CARRY_ON
+    assert resume.purpose is RoundPurpose.ADDRESS_FEEDBACK
+    assert resume.is_recovery
     assert resume.reason == "the last round was interrupted"
     assert resume.prompt == CARRY_ON_PROMPT
     assert resume.inbox is None
+    assert gh.calls[0].arguments[:3] == ["pr", "view", str(PULL_REQUEST)]
 
 
-def test_an_assignment_whose_last_round_failed_is_carried_on_with_its_status(state):
-    ran(state=state, number=1, cause=Cause.DISPATCH, status=2)
+def test_an_assignment_whose_last_round_failed_is_carried_on_with_its_status(state, gh):
+    ran(state=state, number=1, purpose=RoundPurpose.IMPLEMENT, status=2)
 
     resume = found(state=state)
 
     assert isinstance(resume, Wakeup)
-    assert resume.cause is Cause.CARRY_ON
+    assert resume.purpose is RoundPurpose.ADDRESS_FEEDBACK
+    assert resume.is_recovery
     assert resume.reason == "the last round failed (exit 2)"
-
-
-def test_a_round_that_did_not_finish_is_carried_on_before_github_is_asked(state, gh):
-    ran(state=state, number=1, cause=Cause.DISPATCH, status=None)
-
-    found(state=state)
-
-    assert gh.calls == []
-
-
-def test_an_assignment_nobody_has_posted_on_needs_nothing(state, gh):
-    ran(state=state, number=1, cause=Cause.DISPATCH)
-
-    assert found(state=state) is None
     assert gh.calls[0].arguments[:3] == ["pr", "view", str(PULL_REQUEST)]
 
 
-def test_an_assignment_the_user_has_posted_on_answers_what_they_said(state, gh):
-    ran(state=state, number=1, cause=Cause.DISPATCH)
+def test_a_terminal_pull_request_makes_an_interrupted_round_a_recovery_wrap_up(
+    state, gh
+):
+    ran(
+        state=state,
+        number=1,
+        purpose=RoundPurpose.ADDRESS_FEEDBACK,
+        status=None,
+    )
+    gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
     gh.replies(
         stdout=pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
@@ -122,7 +143,43 @@ def test_an_assignment_the_user_has_posted_on_answers_what_they_said(state, gh):
     resume = found(state=state)
 
     assert isinstance(resume, Wakeup)
-    assert resume.cause is Cause.POSTS
+    assert resume.purpose is RoundPurpose.WRAP_UP
+    assert resume.is_recovery
+    assert resume.inbox is not None
+    assert resume.inbox.state is PullRequestState.MERGED
+    assert [post.body for post in resume.inbox.posts] == [
+        "have another look at the filter"
+    ]
+    assert f"pull request #{PULL_REQUEST}" in resume.prompt
+
+    ran(
+        state=state,
+        number=2,
+        purpose=resume.purpose,
+        is_recovery=True,
+    )
+
+    assert found(state=state) is None
+
+
+def test_an_assignment_nobody_has_posted_on_needs_nothing(state, gh):
+    ran(state=state, number=1, purpose=RoundPurpose.IMPLEMENT)
+
+    assert found(state=state) is None
+    assert gh.calls[0].arguments[:3] == ["pr", "view", str(PULL_REQUEST)]
+
+
+def test_an_assignment_the_user_has_posted_on_answers_what_they_said(state, gh):
+    ran(state=state, number=1, purpose=RoundPurpose.IMPLEMENT)
+    gh.replies(
+        stdout=pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+    )
+
+    resume = found(state=state)
+
+    assert isinstance(resume, Wakeup)
+    assert resume.purpose is RoundPurpose.ADDRESS_FEEDBACK
+    assert not resume.is_recovery
     assert resume.reason == "1 new post to answer"
     assert resume.inbox is not None
     assert resume.inbox.state is PullRequestState.OPEN
@@ -132,8 +189,26 @@ def test_an_assignment_the_user_has_posted_on_answers_what_they_said(state, gh):
     assert resume.newest_post == POSTED_AT
 
 
+def test_a_draft_pull_request_keeps_implementation_as_its_purpose(
+    state, gh_with_no_posts
+):
+    ran(state=state, number=1, purpose=RoundPurpose.IMPLEMENT)
+    gh_with_no_posts.replies(
+        stdout=pull_request(state="OPEN", is_draft=True), to="pr view"
+    )
+    gh_with_no_posts.replies(
+        stdout=pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+    )
+
+    resume = found(state=state)
+
+    assert isinstance(resume, Wakeup)
+    assert resume.purpose is RoundPurpose.IMPLEMENT
+    assert not resume.is_recovery
+
+
 def test_a_batch_of_posts_says_how_many_it_holds(state, gh):
-    ran(state=state, number=1, cause=Cause.DISPATCH)
+    ran(state=state, number=1, purpose=RoundPurpose.IMPLEMENT)
     gh.replies(
         stdout=pages(
             posts=[comment(), comment(id=2, created_at="2026-09-03T22:20:55Z")]
@@ -148,7 +223,7 @@ def test_a_batch_of_posts_says_how_many_it_holds(state, gh):
 
 
 def test_a_post_the_assignment_has_been_told_about_already_wakes_nothing(state, gh):
-    ran(state=state, number=1, cause=Cause.DISPATCH)
+    ran(state=state, number=1, purpose=RoundPurpose.IMPLEMENT)
     gh.replies(
         stdout=pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
@@ -162,7 +237,7 @@ def test_a_post_the_assignment_has_been_told_about_already_wakes_nothing(state, 
 def test_the_prompt_of_a_posts_resume_sends_the_assignment_to_the_next_rounds_inbox(
     state, gh
 ):
-    ran(state=state, number=1, cause=Cause.DISPATCH)
+    ran(state=state, number=1, purpose=RoundPurpose.IMPLEMENT)
     gh.replies(
         stdout=pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
@@ -171,8 +246,9 @@ def test_the_prompt_of_a_posts_resume_sends_the_assignment_to_the_next_rounds_in
 
     assert isinstance(resume, Wakeup)
     assert f"pull request #{PULL_REQUEST}" in resume.prompt
-    assert str(resume.assignment.next_workspace.inbox) in resume.prompt
-    assert resume.assignment.next_workspace.directory.name == "2"
+    paths = resume.assignment.round_paths(number=resume.assignment.next_round_number)
+    assert str(paths.inbox) in resume.prompt
+    assert paths.directory.name == "2"
     assert MARKER in resume.prompt
 
 
@@ -180,20 +256,20 @@ def test_the_prompt_of_a_posts_resume_sends_the_assignment_to_the_next_rounds_in
 def test_a_pull_request_that_is_finished_calls_for_one_last_round(
     state, gh, state_name
 ):
-    ran(state=state, number=1, cause=Cause.DISPATCH)
+    ran(state=state, number=1, purpose=RoundPurpose.IMPLEMENT)
     gh.replies(stdout=pull_request(state=state_name), to="pr view")
 
     resume = found(state=state)
 
     assert isinstance(resume, Wakeup)
-    assert resume.cause is Cause.FINAL
+    assert resume.purpose is RoundPurpose.WRAP_UP
     assert resume.reason == f"the pull request is {state_name.lower()}"
     assert resume.inbox == Inbox(state=state_name, posts=[])
     assert resume.newest_post == ""
 
 
 def test_a_last_round_carries_what_the_user_said_before_the_merge(state, gh):
-    ran(state=state, number=1, cause=Cause.DISPATCH)
+    ran(state=state, number=1, purpose=RoundPurpose.IMPLEMENT)
     gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
     gh.replies(
         stdout=pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
@@ -202,7 +278,7 @@ def test_a_last_round_carries_what_the_user_said_before_the_merge(state, gh):
     resume = found(state=state)
 
     assert isinstance(resume, Wakeup)
-    assert resume.cause is Cause.FINAL
+    assert resume.purpose is RoundPurpose.WRAP_UP
     assert resume.inbox is not None
     assert [post.body for post in resume.inbox.posts] == [
         "have another look at the filter"
@@ -210,24 +286,29 @@ def test_a_last_round_carries_what_the_user_said_before_the_merge(state, gh):
 
 
 def test_an_assignment_whose_last_round_wound_it_up_needs_nothing(state, gh):
-    ran(state=state, number=1, cause=Cause.DISPATCH)
-    ran(state=state, number=2, cause=Cause.FINAL)
+    ran(state=state, number=1, purpose=RoundPurpose.IMPLEMENT)
+    ran(state=state, number=2, purpose=RoundPurpose.WRAP_UP)
     gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
 
     assert found(state=state) is None
 
 
 def test_a_last_round_that_was_carried_on_is_still_the_last_round(state, gh):
-    ran(state=state, number=1, cause=Cause.DISPATCH)
-    ran(state=state, number=2, cause=Cause.FINAL, status=None)
-    ran(state=state, number=3, cause=Cause.CARRY_ON)
+    ran(state=state, number=1, purpose=RoundPurpose.IMPLEMENT)
+    ran(state=state, number=2, purpose=RoundPurpose.WRAP_UP, status=None)
+    ran(
+        state=state,
+        number=3,
+        purpose=RoundPurpose.WRAP_UP,
+        is_recovery=True,
+    )
     gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
 
     assert found(state=state) is None
 
 
 def test_a_pull_request_read_that_failed_leaves_the_assignment_waiting(state, gh):
-    ran(state=state, number=1, cause=Cause.DISPATCH)
+    ran(state=state, number=1, purpose=RoundPurpose.IMPLEMENT)
     gh.fails(stderr="gh: could not connect to github.com", to="pr view")
 
     waiting = found(state=state)
@@ -239,7 +320,7 @@ def test_a_pull_request_read_that_failed_leaves_the_assignment_waiting(state, gh
 
 
 def test_a_peek_that_failed_leaves_the_assignment_waiting(state, gh):
-    ran(state=state, number=1, cause=Cause.DISPATCH)
+    ran(state=state, number=1, purpose=RoundPurpose.IMPLEMENT)
     gh.fails(
         stderr="gh: could not connect to github.com",
         to=f"api {POST_LIST_PATHS['conversation']}",
@@ -252,23 +333,43 @@ def test_a_peek_that_failed_leaves_the_assignment_waiting(state, gh):
 
 
 def test_the_most_open_work_comes_first(state):
-    assignment = read_agent_assignments(state=state)[0]
+    first_assignment = read_agent_assignments(state=state)[0]
+    ran(state=state, number=1, purpose=RoundPurpose.IMPLEMENT)
+    continued_assignment = read_agent_assignments(state=state)[0]
 
-    def resume(*, cause: Cause) -> Wakeup:
-        return Wakeup(assignment=assignment, cause=cause, reason="", prompt="")
+    def resume(
+        *, assignment, purpose: RoundPurpose, is_recovery: bool = False
+    ) -> Wakeup:
+        return Wakeup(
+            assignment=assignment,
+            purpose=purpose,
+            is_recovery=is_recovery,
+            reason="",
+            prompt="",
+        )
 
     ordered = sort_wakeups(
         found=[
-            resume(cause=Cause.POSTS),
-            resume(cause=Cause.FINAL),
-            resume(cause=Cause.CARRY_ON),
-            resume(cause=Cause.DISPATCH),
+            resume(
+                assignment=continued_assignment,
+                purpose=RoundPurpose.ADDRESS_FEEDBACK,
+            ),
+            resume(assignment=continued_assignment, purpose=RoundPurpose.WRAP_UP),
+            resume(
+                assignment=continued_assignment,
+                purpose=RoundPurpose.IMPLEMENT,
+                is_recovery=True,
+            ),
+            resume(assignment=first_assignment, purpose=RoundPurpose.IMPLEMENT),
         ]
     )
 
-    assert [found.cause for found in ordered] == [
-        Cause.DISPATCH,
-        Cause.CARRY_ON,
-        Cause.FINAL,
-        Cause.POSTS,
+    assert [
+        (not found.assignment.rounds, found.is_recovery, found.purpose)
+        for found in ordered
+    ] == [
+        (True, False, RoundPurpose.IMPLEMENT),
+        (False, True, RoundPurpose.IMPLEMENT),
+        (False, False, RoundPurpose.WRAP_UP),
+        (False, False, RoundPurpose.ADDRESS_FEEDBACK),
     ]

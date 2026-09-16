@@ -21,10 +21,15 @@ from rich.console import Console
 from rich.control import Control
 from rich.text import Text
 
+from dreamcatcher.agent_rounds import (
+    AgentRoundRecord,
+    InterruptedAgentRoundEnding,
+    RoundPurpose,
+    compose_agent_round_ending,
+)
 from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Line
-from dreamcatcher.rounds import Cause, Ending, RoundRecord
 from dreamcatcher.state import (
     NO_ROUND_HAS_RUN,
     CandidateIssue,
@@ -34,6 +39,7 @@ from dreamcatcher.state import (
 )
 from dreamcatcher.tui import (
     PAUSE,
+    _describe_ending,
     _paint,
     _paint_written,
     show_assignment,
@@ -98,7 +104,7 @@ def daemon(monkeypatch):
     monkeypatch.setattr(psutil, "pid_exists", lambda pid: pid == DAEMON_PID)
 
 
-def written(*, state, issue: int, records: Sequence[RoundRecord]):
+def written(*, state, issue: int, records: Sequence[AgentRoundRecord]):
     """Write an assignment for the issue, with these rounds behind it."""
     directory = write_agent_assignment(
         state=state, identifier=f"GH{issue}-{STAMP}", issue=issue
@@ -108,20 +114,78 @@ def written(*, state, issue: int, records: Sequence[RoundRecord]):
     return directory
 
 
-def ended(*, minute: int, status: int = 0, cause: Cause = Cause.DISPATCH):
+def ended(
+    *,
+    minute: int,
+    number: int = 1,
+    status: int = 0,
+    purpose: RoundPurpose = RoundPurpose.IMPLEMENT,
+):
     """A round that started that minute past the pinned hour and ran for four."""
     started = PINNED + timedelta(minutes=minute)
-    return RoundRecord(
+    return AgentRoundRecord(
+        number=number,
         started=started,
         pid=1,
-        cause=cause,
-        ending=Ending(at=started + timedelta(minutes=4), status=status),
+        purpose=purpose,
+        ending=compose_agent_round_ending(
+            at=started + timedelta(minutes=4), status=status
+        ),
     )
 
 
-def running(*, minute: int, cause: Cause = Cause.DISPATCH):
+def running(
+    *,
+    minute: int,
+    number: int = 1,
+    purpose: RoundPurpose = RoundPurpose.IMPLEMENT,
+    is_recovery: bool = False,
+):
     """A round that started that minute past the pinned hour and is still going."""
-    return RoundRecord(started=PINNED + timedelta(minutes=minute), pid=1, cause=cause)
+    return AgentRoundRecord(
+        number=number,
+        started=PINNED + timedelta(minutes=minute),
+        pid=1,
+        purpose=purpose,
+        is_recovery=is_recovery,
+    )
+
+
+@pytest.mark.parametrize(
+    ("ending", "description"),
+    [
+        (compose_agent_round_ending(at=PINNED, status=0), "successful"),
+        (compose_agent_round_ending(at=PINNED, status=2), "errored (exit 2)"),
+        (InterruptedAgentRoundEnding(), "interrupted"),
+    ],
+)
+def test_a_terminal_round_describes_its_explicit_outcome(ending, description):
+    record = AgentRoundRecord(
+        number=1,
+        purpose=RoundPurpose.IMPLEMENT,
+        started=PINNED,
+        pid=1,
+        ending=ending,
+    )
+
+    assert _describe_ending(record=record, is_running=False) == description
+
+
+@pytest.mark.parametrize(
+    ("is_running", "description"),
+    [(True, "running"), (False, "interrupted")],
+)
+def test_a_round_without_an_ending_describes_what_its_process_says(
+    is_running, description
+):
+    record = AgentRoundRecord(
+        number=1,
+        purpose=RoundPurpose.IMPLEMENT,
+        started=PINNED,
+        pid=1,
+    )
+
+    assert _describe_ending(record=record, is_running=is_running) == description
 
 
 def holding(*, state):
@@ -140,7 +204,15 @@ def fabricate_everything(*, state):
     directory = written(
         state=state,
         issue=13,
-        records=[ended(minute=1), running(minute=30, cause=Cause.POSTS)],
+        records=[
+            ended(minute=1),
+            running(
+                minute=30,
+                number=2,
+                purpose=RoundPurpose.ADDRESS_FEEDBACK,
+                is_recovery=True,
+            ),
+        ],
     )
     write_feed(directory=directory, number=1, lines=SAID)
     write_feed(
@@ -159,7 +231,10 @@ def fabricate_everything(*, state):
     written(
         state=state,
         issue=12,
-        records=[ended(minute=1), ended(minute=2, cause=Cause.FINAL)],
+        records=[
+            ended(minute=1),
+            ended(minute=2, number=2, purpose=RoundPurpose.WRAP_UP),
+        ],
     )
     written(state=state, issue=44, records=[])
     write_tick(
@@ -233,8 +308,14 @@ def fabricate_the_cap(*, state):
 def fabricate_repeat_assignments(*, state):
     """Three assignments at one issue, so a repeat dispatch reads as one thing."""
     for stamp, rounds in (
-        ("20260817-090000", (ended(minute=1), ended(minute=2, cause=Cause.FINAL))),
-        ("20260818-090000", (ended(minute=1), ended(minute=2, cause=Cause.FINAL))),
+        (
+            "20260817-090000",
+            (ended(minute=1), ended(minute=2, number=2, purpose=RoundPurpose.WRAP_UP)),
+        ),
+        (
+            "20260818-090000",
+            (ended(minute=1), ended(minute=2, number=2, purpose=RoundPurpose.WRAP_UP)),
+        ),
         ("20260819-184158", (ended(minute=1),)),
     ):
         directory = write_agent_assignment(
@@ -265,7 +346,10 @@ def fabricate_a_silent_round(*, state):
     directory = written(
         state=state,
         issue=13,
-        records=[ended(minute=1), running(minute=30, cause=Cause.POSTS)],
+        records=[
+            ended(minute=1),
+            running(minute=30, number=2, purpose=RoundPurpose.ADDRESS_FEEDBACK),
+        ],
     )
     write_feed(
         directory=directory, number=1, lines=[Line(at=PINNED, text="[Bash] git push")]
@@ -495,7 +579,9 @@ def test_wrapped_latest_output_keeps_its_indent(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     holding(state=state)
     directory = written(
-        state=state, issue=13, records=[running(minute=1, cause=Cause.DISPATCH)]
+        state=state,
+        issue=13,
+        records=[running(minute=1, purpose=RoundPurpose.IMPLEMENT)],
     )
     write_feed(
         directory=directory,
@@ -549,7 +635,7 @@ def test_an_assignment_view_shows_the_round_that_starts_while_it_is_open(
         write_round(
             directory=state.assignments / f"GH20-{STAMP}",
             number=2,
-            record=running(minute=60, cause=Cause.POSTS),
+            record=running(minute=60, number=2, purpose=RoundPurpose.ADDRESS_FEEDBACK),
         )
 
     show_assignment(
@@ -564,14 +650,14 @@ def test_an_assignment_view_shows_the_round_that_starts_while_it_is_open(
     # reader, so the view stayed open through the gap and drew the round that
     # answered what they posted.
     assert looks == [PAUSE, PAUSE]
-    assert "new posts" in written_to.getvalue()
+    assert "address feedback" in written_to.getvalue()
 
 
 @pytest.mark.parametrize("issue", [12, 9])
 def test_an_assignment_view_of_an_assignment_that_is_over_never_waits(
     issue, tmp_path, daemon
 ):
-    """GH12 has run its final round, and GH9 is stuck, so neither has one coming."""
+    """GH12 completed its wrap-up, and GH9 is stuck, so neither has one coming."""
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     written_to = StringIO()
@@ -590,7 +676,7 @@ def test_an_assignment_view_of_an_assignment_that_is_over_never_waits(
 def test_an_assignment_view_of_an_assignment_that_is_over_keeps_its_last_picture(
     tmp_path, daemon
 ):
-    """GH12 has run its final round, so the view ends and its picture stays."""
+    """GH12 completed its wrap-up, so the view ends and its picture stays."""
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     written_to = StringIO()
@@ -693,12 +779,14 @@ def test_a_following_view_looks_once_more_when_the_last_round_stops(tmp_path, da
     def wait(seconds, /):
         waits.append(seconds)
         write_round(
-            directory=directory, number=2, record=ended(minute=30, cause=Cause.FINAL)
+            directory=directory,
+            number=2,
+            record=ended(minute=30, number=2, purpose=RoundPurpose.WRAP_UP),
         )
 
     followed(state=state, issue=13, wait=wait)
 
-    # The final round ended while the view was waiting, so the view looked once
+    # The wrap-up round ended while the view was waiting, so the view looked once
     # more for whatever that round was still writing as it stopped.
     assert waits == [PAUSE, PAUSE]
 
@@ -714,7 +802,9 @@ def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path, dae
         if len(looks) > 1:
             raise KeyboardInterrupt
         write_round(
-            directory=directory, number=2, record=running(minute=60, cause=Cause.POSTS)
+            directory=directory,
+            number=2,
+            record=running(minute=60, number=2, purpose=RoundPurpose.ADDRESS_FEEDBACK),
         )
         write_feed(
             directory=directory,
@@ -727,16 +817,16 @@ def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path, dae
     # The pull request was waiting for the reader when the view opened, and the
     # round that answers what they posted started while the view was going, so
     # the reader reads its feed while it is still running.
-    assert "round 2: new posts" in feed
+    assert "round 2: address feedback" in feed
     assert "[Bash] git commit" in feed
-    assert feed.count("round 1: dispatched") == 1
+    assert feed.count("round 1: implement") == 1
 
 
 def test_a_view_of_an_assignment_that_is_over_never_waits(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
-    assert "round 2: final round" in followed(state=state, issue=12)
+    assert "round 2: wrap up" in followed(state=state, issue=12)
 
 
 def test_a_following_view_waits_for_the_next_daemon(tmp_path):
@@ -865,12 +955,31 @@ def viewed_round(
     return written_to.getvalue()
 
 
+def test_a_round_view_uses_the_number_persisted_by_the_round(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    directory = state.assignments / f"GH12-{STAMP}"
+    write_round(directory=directory, number=4, record=ended(minute=40, number=4))
+    write_feed(
+        directory=directory,
+        number=4,
+        lines=[Line(at=PINNED + timedelta(minutes=41), text="[Bash] git status")],
+    )
+
+    shown = viewed_round(state=state, issue=12, number=4)
+
+    assert "round 4: implement" in shown
+    assert "[Bash] git status" in shown
+    with pytest.raises(ReportableError, match="has no round 3"):
+        viewed_round(state=state, issue=12, number=3)
+
+
 def test_one_round_of_an_assignment_reads_on_its_own(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
     assert viewed_round(state=state, issue=13, number=2) == (
-        "2026-08-19T19:11:58Z  round 2: new posts\n"
+        "2026-08-19T19:11:58Z  round 2: address feedback (recovery)\n"
         "2026-08-19T19:12:58Z  [Bash] pytest\n"
     )
 
@@ -881,7 +990,7 @@ def test_a_round_that_wrote_no_feed_shows_the_line_that_opens_it(tmp_path, daemo
 
     assert (
         viewed_round(state=state, issue=12, number=1)
-        == "2026-08-19T18:42:58Z  round 1: dispatched\n"
+        == "2026-08-19T18:42:58Z  round 1: implement\n"
     )
 
 
@@ -893,7 +1002,7 @@ def test_a_view_of_a_round_that_has_ended_never_waits(tmp_path, daemon):
     # so it ends there rather than wait for what round 2 says next.
     shown = viewed_round(state=state, issue=13, number=1, is_terminal=True)
 
-    assert "round 1: dispatched" in shown
+    assert "round 1: implement" in shown
 
 
 def test_a_view_of_a_running_round_ends_when_that_round_does(tmp_path, daemon):
@@ -906,7 +1015,7 @@ def test_a_view_of_a_running_round_ends_when_that_round_does(tmp_path, daemon):
         looks.append(seconds)
         if len(looks) > 2:
             raise AssertionError("the view outlived the round it was showing")
-        write_round(directory=directory, number=2, record=ended(minute=30))
+        write_round(directory=directory, number=2, record=ended(minute=30, number=2))
 
     shown = viewed_round(state=state, issue=13, number=2, wait=wait, is_terminal=True)
 

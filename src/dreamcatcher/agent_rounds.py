@@ -1,4 +1,4 @@
-"""Run one round of an assignment, and leave behind what it did.
+"""Run one agent round, and leave behind what it did.
 
 A round is a harness command running as a child of the daemon, in the assignment's
 worktree. It writes into a directory of its own as it goes.
@@ -8,9 +8,8 @@ reads as its stdin. `raw.jsonl` keeps the harness's own stdout as it arrived, so
 that whoever works on a parser can read what the harness really sent. `feed.txt`
 is that same stream read through the harness's adapter and rendered as lines a
 person can read, with whatever the harness said on stderr among them, where it
-happened. `round.json`
-says when the round started, what process it ran as, what caused it, and how it
-ended.
+happened. `round.json` says the round's number, purpose, recovery flag, process,
+and outcome.
 
 The daemon watches a round rather than waiting for it, so a round reads its own
 streams on threads of its own, and records its own ending on another.
@@ -23,8 +22,9 @@ from enum import StrEnum
 from pathlib import Path
 from threading import Event as Flag
 from threading import Lock, Thread
+from typing import Annotated, Literal
 
-from pydantic import PositiveInt
+from pydantic import Field, PositiveInt, field_validator
 
 from dreamcatcher.adapters import Adapter, Invocation
 from dreamcatcher.clock import now
@@ -43,91 +43,140 @@ from dreamcatcher.feed import Event, Prose, Renderer
 RECORD = "round.json"
 
 
-class Cause(StrEnum):
-    """What woke a round.
+class RoundPurpose(StrEnum):
+    """What work an agent round advances."""
 
-    The daemon decides one of these for every round it launches, and the
-    round's record keeps it. A reader of an assignment's rounds then reads the
-    story of why each one ran, and the tick reads what a round was for without
-    reading prose: an assignment whose final round has run is an assignment that is
-    done.
-
-    The words are what a feed opens a round with, after the round's number.
-    The batch that woke a round is not in them: an inbox resume and a final
-    round each keep theirs in the `inbox.json` beside the record.
-    """
-
-    DISPATCH = "dispatched"
-    CARRY_ON = "carried on"
-    POSTS = "new posts"
-    FINAL = "final round"
+    IMPLEMENT = "implement"
+    ADDRESS_FEEDBACK = "address feedback"
+    WRAP_UP = "wrap up"
 
 
-class Ending(Document):
-    """How a round ended: when it ended, and the status it ended with.
+class RoundOutcome(StrEnum):
+    """How far an agent round has got."""
 
-    The time and the status are one value because a round knows both at once
-    and neither without the other, so nothing has to ask whether they agree.
-    """
+    RUNNING = "running"
+    SUCCESSFUL = "successful"
+    ERRORED = "errored"
+    INTERRUPTED = "interrupted"
 
+
+class SuccessfulAgentRoundEnding(Document):
+    """An agent round that exited successfully."""
+
+    outcome: Literal[RoundOutcome.SUCCESSFUL] = RoundOutcome.SUCCESSFUL
+    at: datetime
+    status: Literal[0] = 0
+
+
+class ErroredAgentRoundEnding(Document):
+    """An agent round that exited with an error."""
+
+    outcome: Literal[RoundOutcome.ERRORED] = RoundOutcome.ERRORED
     at: datetime
     status: int
 
-    @property
-    def is_failed(self) -> bool:
-        """Whether the round ended with a status that says it failed."""
-        return self.status != 0
+    @field_validator("status")
+    @classmethod
+    def _refuse_success(cls, status: int, /) -> int:
+        """Keep a successful exit out of an errored ending."""
+        if status == 0:
+            raise ValueError("an errored round cannot have exit status 0")
+        return status
 
 
-class RoundRecord(Document):
-    """What a round says about itself, written at each end of the round.
+class InterruptedAgentRoundEnding(Document):
+    """An agent round stopped without an observed exit."""
 
-    The cause is what woke the round: the dispatch that opened the assignment, or
-    whatever a later tick found for it to do.
+    outcome: Literal[RoundOutcome.INTERRUPTED] = RoundOutcome.INTERRUPTED
 
-    A record with no ending means the round was still going when something
-    ended it. Either the daemon went down and stopped it, or the round could
-    not write its own files. Both leave work half done, so a later tick resumes
-    the round rather than starting a new one.
-    """
 
+type AgentRoundEnding = Annotated[
+    SuccessfulAgentRoundEnding | ErroredAgentRoundEnding | InterruptedAgentRoundEnding,
+    Field(discriminator="outcome"),
+]
+
+
+def compose_agent_round_ending(
+    *, at: datetime, status: int
+) -> SuccessfulAgentRoundEnding | ErroredAgentRoundEnding:
+    """Return the terminal outcome observed when a harness exited."""
+    if status == 0:
+        return SuccessfulAgentRoundEnding(at=at)
+    return ErroredAgentRoundEnding(at=at, status=status)
+
+
+class AgentRoundRecord(Document):
+    """The independent identity, purpose, recovery, and outcome of one round."""
+
+    number: PositiveInt
+    purpose: RoundPurpose
+    is_recovery: bool = False
     started: datetime
     pid: PositiveInt
-    cause: Cause
-    ending: Ending | None = None
+    ending: AgentRoundEnding | None = None
 
     @property
-    def is_complete(self) -> bool:
-        """Whether the round recorded how it ended.
+    def outcome(self) -> RoundOutcome:
+        """How far the round has got."""
+        if self.ending is None:
+            return RoundOutcome.RUNNING
+        return self.ending.outcome
 
-        A round records itself twice and no more: once as it starts, and once
-        as it ends, carrying its ending. So a record that has an ending has had
-        both of its writes and is complete, and nothing writes it again.
 
-        A round that nothing let finish records no ending, so its record is
-        never complete, however long ago the round stopped. What the round
-        ended with is another matter. A round that failed recorded that it
-        failed, which completes its record and leaves its work unfinished.
-        """
-        return self.ending is not None
+def record_agent_round_interruption(
+    *, record: AgentRoundRecord, path: Path
+) -> AgentRoundRecord:
+    """Record interruption when a formerly running round has stopped.
+
+    A terminal record is already reconciled, so repeating the operation keeps
+    that record unchanged.
+    """
+    if record.ending is not None:
+        return record
+    return _record_agent_round_ending(
+        record=record, ending=InterruptedAgentRoundEnding(), path=path
+    )
+
+
+def _record_agent_round_ending(
+    *, record: AgentRoundRecord, ending: AgentRoundEnding, path: Path
+) -> AgentRoundRecord:
+    """Write and return a record with its terminal outcome."""
+    ended = record.model_copy(update={"ending": ending})
+    write_json(document=ended, path=path)
+    return ended
 
 
 @dataclass(frozen=True, kw_only=True)
-class Workspace:
-    """Where one round runs, and the files it writes as it goes.
+class AgentRoundPlan:
+    """The purpose and recovery decision that a new round executes."""
 
-    Both paths come from the assignment the round belongs to: the round runs in
-    that assignment's worktree, and writes into a directory of its own under the
-    assignment's own files. They travel together because no round ever has one
-    without the other.
+    purpose: RoundPurpose
+    is_recovery: bool
+
+
+@dataclass(frozen=True, kw_only=True)
+class AgentRoundPaths:
+    """A numbered round's worktree and files.
+
+    The round runs in its assignment's worktree and writes into the directory
+    its number selects under the assignment's rounds directory. Keeping the
+    number beside that parent makes one value authoritative for both the path
+    and the record the round writes.
 
     The files themselves are named here, beside the directory that holds them,
-    so whoever has a workspace can name a file of the round before the round
-    that writes it exists.
+    so whoever has the paths can name a file before the round that writes it
+    exists.
     """
 
     worktree: Path
-    directory: Path
+    rounds_directory: Path
+    number: PositiveInt
+
+    @property
+    def directory(self) -> Path:
+        """The directory holding this numbered round's files."""
+        return self.rounds_directory / str(self.number)
 
     @property
     def prompt(self) -> Path:
@@ -155,28 +204,28 @@ class Workspace:
         return self.directory / "inbox.json"
 
 
-class RoundReader:
-    """Read the records of an assignment's rounds, keeping the complete ones.
+class AgentRoundReader:
+    """Read the records of an assignment's rounds, keeping the terminal ones.
 
-    A complete record has had both of its writes, and nothing writes it again,
+    A terminal record has had both of its writes, and nothing writes it again,
     so a reader that has read one need never open it again.
 
-    An incomplete record is opened again on every read, because the record does
+    A running record is opened again on every read, because the record does
     not say whether its ending is still to come. A round that is running will
     record one, a round that nothing let finish never will, and both read the
     same.
 
     So a read costs a listing of the rounds directory, and one small read for
-    each round of the assignment whose record is incomplete — one while a round of
-    the assignment is running, and none at all once every round has ended, however
-    many rounds the assignment has run.
+    each round of the assignment whose record has no terminal outcome — one while
+    a round of the assignment is running, and none at all once every round has
+    ended, however many rounds the assignment has run.
     """
 
     def __init__(self) -> None:
         """Set up a reader that has read nothing yet."""
-        self._cache: dict[Path, RoundRecord] = {}
+        self._cache: dict[Path, AgentRoundRecord] = {}
 
-    def read_records(self, *, directory: Path) -> list[RoundRecord]:
+    def read_records(self, *, directory: Path) -> list[AgentRoundRecord]:
         """Return the records of the rounds written under directory, oldest first.
 
         Each round writes into a directory of its own under this one, so a
@@ -190,20 +239,25 @@ class RoundReader:
         records = [
             self._read_record(path=found) for found in directory.glob(f"*/{RECORD}")
         ]
-        return sorted(records, key=lambda record: record.started)
+        return sorted(records, key=lambda record: record.number)
 
-    def _read_record(self, *, path: Path) -> RoundRecord:
-        """Return what the record at path says, and cache it once it is complete."""
+    def _read_record(self, *, path: Path) -> AgentRoundRecord:
+        """Return what the record at path says, and cache it once it is terminal."""
         cached = self._cache.get(path)
         if cached is not None:
             return cached
-        record = read_json(model=RoundRecord, path=path)
-        if record.is_complete:
+        record = read_json(model=AgentRoundRecord, path=path)
+        if path.parent.name != str(record.number):
+            raise ReportableError(
+                f"{path} says it is round {record.number}, "
+                f"but its directory names round {path.parent.name}."
+            )
+        if record.outcome is not RoundOutcome.RUNNING:
             self._cache[path] = record
         return record
 
 
-class Round:
+class AgentRound:
     """One round of an assignment, running as a child of the daemon.
 
     Making one starts it. From then on the round runs on its own threads, and
@@ -215,11 +269,11 @@ class Round:
         *,
         adapter: Adapter,
         invocation: Invocation,
-        workspace: Workspace,
-        cause: Cause,
+        paths: AgentRoundPaths,
+        plan: AgentRoundPlan,
         clock: Callable[[], datetime] = now,
     ) -> None:
-        """Run the invocation as a round in the workspace it was given.
+        """Run the invocation as a round at the paths it was given.
 
         The prompt goes to a file of the round's own, and the harness reads
         that file as its stdin. So a prompt reaches the harness as it was
@@ -229,28 +283,29 @@ class Round:
         round before it starts.
         """
         self.adapter = adapter
-        self.workspace = workspace
-        self.cause = cause
+        self.paths = paths
         self.clock = clock
-        self.renderer = Renderer(worktree=workspace.worktree, clock=clock)
+        self.renderer = Renderer(worktree=paths.worktree, clock=clock)
         self.started = clock()
         self.is_interrupted = False
         self._ended = Flag()
         self._writing = Lock()
-        write_text(text=invocation.prompt, path=workspace.prompt)
+        write_text(text=invocation.prompt, path=paths.prompt)
         self.child = spawn(
             program=invocation.program,
             arguments=invocation.arguments,
-            cwd=workspace.worktree,
-            stdin=workspace.prompt,
+            cwd=paths.worktree,
+            stdin=paths.prompt,
         )
         try:
-            write_json(
-                document=RoundRecord(
-                    started=self.started, pid=self.child.pid, cause=cause
-                ),
-                path=self.workspace.record,
+            self.record = AgentRoundRecord(
+                number=paths.number,
+                purpose=plan.purpose,
+                is_recovery=plan.is_recovery,
+                started=self.started,
+                pid=self.child.pid,
             )
+            write_json(document=self.record, path=self.paths.record)
         except ReportableError:
             # A round nothing recorded is a round nothing will watch or find
             # again, so it does not run on.
@@ -304,13 +359,11 @@ class Round:
         self._ended.wait()
 
     def _interrupt(self) -> None:
-        """End the round while it is still running, so it reads as unfinished.
+        """End the round while it is still running, so it reads as interrupted.
 
-        A round nobody let finish has nothing to show for itself, so nothing
-        writes an ending to its record, and a later tick sees an interrupted
-        round and resumes it. A child that has already gone finished by itself
-        and keeps the ending `_close` writes for it, so this leaves that record
-        alone rather than sending an assignment back over a round it has done.
+        A child that has already gone finished by itself keeps the observed
+        ending that `_close` writes for it, so this leaves that record alone
+        rather than sending an assignment back over a round it has done.
 
         The mark goes on before the kill, because the kill is what makes
         `_close` return from `child.wait()`. So `_close` reads a mark this
@@ -347,7 +400,7 @@ class Round:
     def _read_stdout(self) -> None:
         """Keep each line that the harness streams, and write what it says."""
         for line in self.child.out:
-            append_text(text=line, path=self.workspace.raw)
+            append_text(text=line, path=self.paths.raw)
             self._append(line=line, events=self.adapter.read(line=line))
 
     def _read_stderr(self) -> None:
@@ -367,15 +420,15 @@ class Round:
         """
         try:
             status = self.child.wait()
-            if not self.is_interrupted:
-                write_json(
-                    document=RoundRecord(
-                        started=self.started,
-                        pid=self.child.pid,
-                        cause=self.cause,
-                        ending=Ending(at=self.clock(), status=status),
-                    ),
-                    path=self.workspace.record,
+            if self.is_interrupted:
+                self.record = record_agent_round_interruption(
+                    record=self.record, path=self.paths.record
+                )
+            else:
+                self.record = _record_agent_round_ending(
+                    record=self.record,
+                    ending=compose_agent_round_ending(at=self.clock(), status=status),
+                    path=self.paths.record,
                 )
         finally:
             # However the close went, the round has ended, so whoever is
@@ -402,4 +455,4 @@ class Round:
             except Exception:
                 written = self.renderer.render(event=Prose(text=line))
             if written:
-                append_text(text=written, path=self.workspace.feed)
+                append_text(text=written, path=self.paths.feed)

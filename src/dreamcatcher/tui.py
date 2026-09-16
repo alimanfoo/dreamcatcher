@@ -27,6 +27,11 @@ from rich.table import Table
 from rich.text import Text
 
 from dreamcatcher.agent_assignments import AgentAssignment
+from dreamcatcher.agent_rounds import (
+    AgentRoundRecord,
+    ErroredAgentRoundEnding,
+    InterruptedAgentRoundEnding,
+)
 from dreamcatcher.board import (
     AgentAssignmentRow,
     AgentAssignmentStanding,
@@ -37,9 +42,14 @@ from dreamcatcher.board import (
 from dreamcatcher.clock import Wait, now
 from dreamcatcher.documents import read_lines_from
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.feed import GAP, Line, compose_round_boundary, read_feed_line
+from dreamcatcher.feed import (
+    GAP,
+    Line,
+    compose_round_boundary,
+    describe_agent_round_start,
+    read_feed_line,
+)
 from dreamcatcher.harnesses import ADAPTERS
-from dreamcatcher.rounds import RoundRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.words import describe_count, describe_span, describe_time
 
@@ -363,7 +373,7 @@ def show_assignment(
 
     An assignment between rounds has another round coming, so the view stays open
     through the gap and shows that round as it starts. An assignment that has run
-    its final round, and a stuck assignment, have no round coming, so either one
+    a successful wrap-up round, and a stuck assignment, have no round coming, so
     ends the view. A console that is no terminal has nobody watching, so there
     the assignment is drawn once and this returns.
     """
@@ -445,13 +455,19 @@ def _render_rounds(*, row: AgentAssignmentRow) -> RenderableType | None:
     if not rounds:
         return None
     table = _open_table()
-    for number, record in reversed(list(enumerate(rounds, start=1))):
-        is_running = row.standing is AgentAssignmentStanding.WORKING and number == len(
-            rounds
+    for record in reversed(rounds):
+        is_running = (
+            row.standing is AgentAssignmentStanding.WORKING
+            and record.number == rounds[-1].number
         )
         table.add_row(
-            Text(str(number)),
-            Text(record.cause),
+            Text(str(record.number)),
+            Text(
+                describe_agent_round_start(
+                    purpose=record.purpose,
+                    is_recovery=record.is_recovery,
+                )
+            ),
             Text(describe_time(at=record.started)),
             Text(_describe_run(record=record)),
             Text(_describe_ending(record=record, is_running=is_running)),
@@ -459,22 +475,26 @@ def _render_rounds(*, row: AgentAssignmentRow) -> RenderableType | None:
     return _render_section(heading="rounds", colour="blue", body=table)
 
 
-def _describe_run(*, record: RoundRecord) -> str:
+def _describe_run(*, record: AgentRoundRecord) -> str:
     """Return how long the round ran, or nothing while it is still running."""
-    if record.ending is None:
+    if record.ending is None or isinstance(record.ending, InterruptedAgentRoundEnding):
         return ""
     return f"ran {describe_span(span=record.ending.at - record.started)}"
 
 
-def _describe_ending(*, record: RoundRecord, is_running: bool) -> str:
+def _describe_ending(*, record: AgentRoundRecord, is_running: bool) -> str:
     """Return how the round ended, or what it is doing instead.
 
     A round that recorded no ending never finished. It is running when a daemon
     is still there to run it, and interrupted once that daemon has gone, since
     a round cannot outlive its daemon.
     """
+    if isinstance(record.ending, ErroredAgentRoundEnding):
+        return f"errored (exit {record.ending.status})"
+    if isinstance(record.ending, InterruptedAgentRoundEnding):
+        return "interrupted"
     if record.ending is not None:
-        return f"exit {record.ending.status}"
+        return "successful"
     return "running" if is_running else "interrupted"
 
 
@@ -545,7 +565,7 @@ def show_feed(
     while its pull request waits for the reader to post on it, and while the
     daemon that was running it is stopped and started again.
 
-    An assignment that has run its final round has nothing more to say, and a stuck
+    An assignment with a successful wrap-up round has nothing more to say, and a stuck
     assignment says nothing more until a person moves it on, so either one ends
     the view rather than have it wait for a round that is not coming.
 
@@ -566,9 +586,7 @@ def show_feed(
         """Show what the assignment said since the last look, and say if it is over."""
         row = _find_rows_for_issue(state=state, issue=issue)[0]
         assignment = row.assignment
-        view.show_what_arrived(
-            assignment=assignment, round_numbers=range(1, len(assignment.rounds) + 1)
-        )
+        view.show_what_arrived(assignment=assignment, records=assignment.rounds)
         return row.standing in STANDINGS_THAT_END_A_VIEW
 
     _keep_looking(console=console, look=look, wait=wait)
@@ -596,14 +614,17 @@ def _show_one_round(
     def look() -> bool:
         """Show what the round said since the last look, and say if it has ended."""
         assignment = _find_rows_for_issue(state=state, issue=issue)[0].assignment
-        if not 1 <= number <= len(assignment.rounds):
+        record = next(
+            (record for record in assignment.rounds if record.number == number), None
+        )
+        if record is None:
             raise ReportableError(
                 f"{assignment.identifier} has run "
                 f"{describe_count(number=len(assignment.rounds), noun='round')}, "
                 f"so it has no round {number}."
             )
-        view.show_what_arrived(assignment=assignment, round_numbers=[number])
-        return assignment.rounds[number - 1].is_complete
+        view.show_what_arrived(assignment=assignment, records=[record])
+        return record.ending is not None
 
     _keep_looking(console=console, look=look, wait=wait)
 
@@ -637,19 +658,15 @@ class _FeedView:
     positions: dict[int, int] = field(default_factory=dict)
 
     def show_what_arrived(
-        self, *, assignment: AgentAssignment, round_numbers: Iterable[int]
+        self, *, assignment: AgentAssignment, records: Iterable[AgentRoundRecord]
     ) -> None:
         """Show what these rounds of the assignment have said since the last look."""
-        for round_number in round_numbers:
-            if round_number not in self.positions:
-                self._show_round_heading(
-                    assignment=assignment, round_number=round_number
-                )
-            self._show_new_lines(assignment=assignment, round_number=round_number)
+        for record in records:
+            if record.number not in self.positions:
+                self._show_round_heading(record=record)
+            self._show_new_lines(assignment=assignment, round_number=record.number)
 
-    def _show_round_heading(
-        self, *, assignment: AgentAssignment, round_number: int
-    ) -> None:
+    def _show_round_heading(self, *, record: AgentRoundRecord) -> None:
         """Show the line that opens a round, saying what caused it.
 
         A feed holds one round, so the stitch between two of them lands in no
@@ -658,18 +675,20 @@ class _FeedView:
         """
         if self.positions:
             self.console.print()
-        record = assignment.rounds[round_number - 1]
         heading = compose_round_boundary(
-            number=round_number, cause=record.cause, at=record.started
+            number=record.number,
+            purpose=record.purpose,
+            is_recovery=record.is_recovery,
+            at=record.started,
         )
         self.console.print(_paint(line=heading, said=Text(heading.text, style="bold")))
-        self.positions[round_number] = 0
+        self.positions[record.number] = 0
 
     def _show_new_lines(
         self, *, assignment: AgentAssignment, round_number: int
     ) -> None:
         """Show the lines this round has written since the last look at it."""
-        feed = assignment.workspace(number=round_number).feed
+        feed = assignment.round_paths(number=round_number).feed
         lines, position = read_lines_from(
             path=feed, position=self.positions[round_number]
         )
