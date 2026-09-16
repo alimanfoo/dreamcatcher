@@ -100,17 +100,18 @@ def test_an_assignment_that_has_run_no_round_at_all_needs_its_first(state):
     assert first.prompt == "/dream:smith GH13"
 
 
-def test_an_assignment_whose_last_round_was_interrupted_is_carried_on(state, gh):
+def test_an_assignment_whose_last_round_was_interrupted_recovers_its_purpose(state, gh):
     ran(state=state, number=1, purpose=RoundPurpose.IMPLEMENT, status=None)
 
     resume = found(state=state)
 
     assert isinstance(resume, Wakeup)
-    assert resume.purpose is RoundPurpose.ADDRESS_FEEDBACK
+    assert resume.purpose is RoundPurpose.IMPLEMENT
     assert resume.is_recovery
     assert resume.reason == "the last round was interrupted"
     assert resume.prompt == CARRY_ON_PROMPT
     assert resume.inbox is None
+    assert gh.calls == []
 
 
 def test_an_assignment_whose_last_round_failed_is_carried_on_with_its_status(state, gh):
@@ -119,34 +120,41 @@ def test_an_assignment_whose_last_round_failed_is_carried_on_with_its_status(sta
     resume = found(state=state)
 
     assert isinstance(resume, Wakeup)
-    assert resume.purpose is RoundPurpose.ADDRESS_FEEDBACK
+    assert resume.purpose is RoundPurpose.IMPLEMENT
     assert resume.is_recovery
     assert resume.reason == "the last round failed (exit 2)"
+    assert gh.calls == []
 
 
-def test_a_recovery_round_reads_its_current_pull_request_purpose(state, gh):
-    ran(state=state, number=1, purpose=RoundPurpose.IMPLEMENT, status=None)
-
-    resume = found(state=state)
-
-    assert isinstance(resume, Wakeup)
-    assert resume.purpose is RoundPurpose.ADDRESS_FEEDBACK
-    assert gh.calls[0].arguments[:3] == ["pr", "view", str(PULL_REQUEST)]
-
-
-def test_a_draft_pull_request_calls_for_implementation_on_recovery(
-    state, gh_with_no_posts
-):
-    ran(state=state, number=1, purpose=RoundPurpose.IMPLEMENT, status=None)
-    gh_with_no_posts.replies(
-        stdout=pull_request(state="OPEN", is_draft=True), to="pr view"
+def test_a_recovery_finishes_before_a_terminal_pull_request_gets_its_wrap_up(state, gh):
+    ran(
+        state=state,
+        number=1,
+        purpose=RoundPurpose.ADDRESS_FEEDBACK,
+        status=None,
     )
 
     resume = found(state=state)
 
     assert isinstance(resume, Wakeup)
-    assert resume.purpose is RoundPurpose.IMPLEMENT
+    assert resume.purpose is RoundPurpose.ADDRESS_FEEDBACK
     assert resume.is_recovery
+    assert gh.calls == []
+
+    ran(
+        state=state,
+        number=2,
+        purpose=resume.purpose,
+        is_recovery=True,
+    )
+    gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
+
+    wrap_up = found(state=state)
+
+    assert isinstance(wrap_up, Wakeup)
+    assert wrap_up.purpose is RoundPurpose.WRAP_UP
+    assert not wrap_up.is_recovery
+    assert wrap_up.inbox == Inbox(state="MERGED", posts=[])
 
 
 def test_an_assignment_nobody_has_posted_on_needs_nothing(state, gh):
@@ -174,6 +182,24 @@ def test_an_assignment_the_user_has_posted_on_answers_what_they_said(state, gh):
         "have another look at the filter"
     ]
     assert resume.newest_post == POSTED_AT
+
+
+def test_a_draft_pull_request_keeps_implementation_as_its_purpose(
+    state, gh_with_no_posts
+):
+    ran(state=state, number=1, purpose=RoundPurpose.IMPLEMENT)
+    gh_with_no_posts.replies(
+        stdout=pull_request(state="OPEN", is_draft=True), to="pr view"
+    )
+    gh_with_no_posts.replies(
+        stdout=pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+    )
+
+    resume = found(state=state)
+
+    assert isinstance(resume, Wakeup)
+    assert resume.purpose is RoundPurpose.IMPLEMENT
+    assert not resume.is_recovery
 
 
 def test_a_batch_of_posts_says_how_many_it_holds(state, gh):
@@ -215,8 +241,9 @@ def test_the_prompt_of_a_posts_resume_sends_the_assignment_to_the_next_rounds_in
 
     assert isinstance(resume, Wakeup)
     assert f"pull request #{PULL_REQUEST}" in resume.prompt
-    assert str(resume.assignment.next_workspace.inbox) in resume.prompt
-    assert resume.assignment.next_workspace.directory.name == "2"
+    paths = resume.assignment.round_paths(number=len(resume.assignment.rounds) + 1)
+    assert str(paths.inbox) in resume.prompt
+    assert paths.directory.name == "2"
     assert MARKER in resume.prompt
 
 

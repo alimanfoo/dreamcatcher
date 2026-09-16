@@ -120,6 +120,15 @@ def written(*, path):
     return AgentRoundRecord.model_validate_json(path.read_text(encoding="utf-8"))
 
 
+def round_paths(*, worktree, directory) -> AgentRoundPaths:
+    """Name the files of the numbered round at directory."""
+    return AgentRoundPaths(
+        worktree=worktree,
+        rounds_directory=directory.parent,
+        number=int(directory.name),
+    )
+
+
 def within(*, seconds, holds):
     """Wait up to seconds for holds to answer true, and say whether it did."""
     deadline = monotonic() + seconds
@@ -137,8 +146,8 @@ def test_a_round_runs_the_command_it_was_given_in_the_worktree(
     AgentRound(
         adapter=CLAUDE,
         invocation=Invocation(program="harness", arguments=["--print"], prompt=PROMPT),
-        workspace=AgentRoundPaths(worktree=worktree, directory=directory),
-        plan=AgentRoundPlan(number=1, purpose=PURPOSE, is_recovery=False),
+        paths=round_paths(worktree=worktree, directory=directory),
+        plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
         clock=pinned,
     ).wait()
 
@@ -153,14 +162,14 @@ def test_a_round_gives_the_harness_its_prompt_to_read(fake, worktree, directory)
     running = AgentRound(
         adapter=CLAUDE,
         invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
-        workspace=AgentRoundPaths(worktree=worktree, directory=directory),
-        plan=AgentRoundPlan(number=1, purpose=PURPOSE, is_recovery=False),
+        paths=round_paths(worktree=worktree, directory=directory),
+        plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
         clock=pinned,
     )
     running.wait()
 
     assert harness.calls[0].prompt == PROMPT
-    assert running.workspace.prompt.read_text(encoding="utf-8") == PROMPT
+    assert running.paths.prompt.read_text(encoding="utf-8") == PROMPT
 
 
 def test_the_feed_a_round_writes_is_the_feed_its_stream_renders_as(
@@ -171,13 +180,13 @@ def test_the_feed_a_round_writes_is_the_feed_its_stream_renders_as(
     running = AgentRound(
         adapter=CLAUDE,
         invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
-        workspace=AgentRoundPaths(worktree=worktree, directory=directory),
-        plan=AgentRoundPlan(number=1, purpose=PURPOSE, is_recovery=False),
+        paths=round_paths(worktree=worktree, directory=directory),
+        plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
         clock=pinned,
     )
     running.wait()
 
-    assert running.workspace.feed.read_text(encoding="utf-8") == rendered(
+    assert running.paths.feed.read_text(encoding="utf-8") == rendered(
         adapter=CLAUDE,
         lines=RECORDING.read_text(encoding="utf-8").splitlines(),
         renderer=Renderer(worktree=worktree, clock=pinned),
@@ -190,13 +199,13 @@ def test_a_round_keeps_the_harnesss_own_stream_as_it_arrived(fake, worktree, dir
     running = AgentRound(
         adapter=CLAUDE,
         invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
-        workspace=AgentRoundPaths(worktree=worktree, directory=directory),
-        plan=AgentRoundPlan(number=1, purpose=PURPOSE, is_recovery=False),
+        paths=round_paths(worktree=worktree, directory=directory),
+        plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
         clock=pinned,
     )
     running.wait()
 
-    assert running.workspace.raw.read_text(encoding="utf-8") == RECORDING.read_text(
+    assert running.paths.raw.read_text(encoding="utf-8") == RECORDING.read_text(
         encoding="utf-8"
     )
 
@@ -218,18 +227,18 @@ def test_what_the_harness_says_on_stderr_lands_where_it_happened(
     running = AgentRound(
         adapter=CLAUDE,
         invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
-        workspace=AgentRoundPaths(worktree=worktree, directory=directory),
-        plan=AgentRoundPlan(number=1, purpose=PURPOSE, is_recovery=False),
+        paths=round_paths(worktree=worktree, directory=directory),
+        plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
         clock=pinned,
     )
     running.wait()
 
-    assert running.workspace.feed.read_text(encoding="utf-8").splitlines() == [
+    assert running.paths.feed.read_text(encoding="utf-8").splitlines() == [
         f"{STAMP}  first",
         f"{STAMP}  an aside",
         f"{STAMP}  second",
     ]
-    assert running.workspace.raw.read_text(encoding="utf-8") == "first\nsecond\n"
+    assert running.paths.raw.read_text(encoding="utf-8") == "first\nsecond\n"
 
 
 def test_a_line_the_feed_cannot_write_costs_that_line_alone(fake, worktree, directory):
@@ -240,13 +249,13 @@ def test_a_line_the_feed_cannot_write_costs_that_line_alone(fake, worktree, dire
     running = AgentRound(
         adapter=Unrenderable(),
         invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
-        workspace=AgentRoundPaths(worktree=worktree, directory=directory),
-        plan=AgentRoundPlan(number=1, purpose=PURPOSE, is_recovery=False),
+        paths=round_paths(worktree=worktree, directory=directory),
+        plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
         clock=pinned,
     )
     running.wait()
 
-    assert running.workspace.feed.read_text(encoding="utf-8").splitlines() == [
+    assert running.paths.feed.read_text(encoding="utf-8").splitlines() == [
         f'{STAMP}  {{"said": "hello"}}',
         f"{STAMP}  plain",
     ]
@@ -262,13 +271,13 @@ def test_a_round_records_its_number_purpose_recovery_and_process(
     running = AgentRound(
         adapter=CLAUDE,
         invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
-        workspace=AgentRoundPaths(worktree=worktree, directory=directory),
-        plan=AgentRoundPlan(number=1, purpose=PURPOSE, is_recovery=False),
+        paths=round_paths(worktree=worktree, directory=directory),
+        plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
         clock=pinned,
     )
 
     assert running.is_alive
-    record = written(path=running.workspace.record)
+    record = written(path=running.paths.record)
     assert record == AgentRoundRecord(
         number=1,
         purpose=PURPOSE,
@@ -287,14 +296,14 @@ def test_a_round_that_finished_says_how_it_ended(fake, worktree, directory):
     running = AgentRound(
         adapter=CLAUDE,
         invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
-        workspace=AgentRoundPaths(worktree=worktree, directory=directory),
-        plan=AgentRoundPlan(number=1, purpose=PURPOSE, is_recovery=True),
+        paths=round_paths(worktree=worktree, directory=directory),
+        plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=True),
         clock=pinned,
     )
     running.wait()
 
     assert not running.is_alive
-    record = written(path=running.workspace.record)
+    record = written(path=running.paths.record)
     assert record == AgentRoundRecord(
         started=PINNED,
         pid=running.child.pid,
@@ -319,14 +328,14 @@ def test_a_round_somebody_stopped_records_interruption(fake, worktree, directory
     running = AgentRound(
         adapter=CLAUDE,
         invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
-        workspace=AgentRoundPaths(worktree=worktree, directory=directory),
-        plan=AgentRoundPlan(number=1, purpose=PURPOSE, is_recovery=False),
+        paths=round_paths(worktree=worktree, directory=directory),
+        plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
         clock=pinned,
     )
     running.stop()
 
     assert not running.is_alive
-    assert written(path=running.workspace.record).outcome is RoundOutcome.INTERRUPTED
+    assert written(path=running.paths.record).outcome is RoundOutcome.INTERRUPTED
 
 
 def test_a_round_stopped_after_it_finished_keeps_its_ending(fake, worktree, directory):
@@ -335,8 +344,8 @@ def test_a_round_stopped_after_it_finished_keeps_its_ending(fake, worktree, dire
     running = AgentRound(
         adapter=CLAUDE,
         invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
-        workspace=AgentRoundPaths(worktree=worktree, directory=directory),
-        plan=AgentRoundPlan(number=1, purpose=PURPOSE, is_recovery=False),
+        paths=round_paths(worktree=worktree, directory=directory),
+        plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
         clock=pinned,
     )
     running.wait()
@@ -346,7 +355,7 @@ def test_a_round_stopped_after_it_finished_keeps_its_ending(fake, worktree, dire
     running.stop()
 
     assert not running.is_interrupted
-    record = written(path=running.workspace.record)
+    record = written(path=running.paths.record)
     assert record.ending == compose_agent_round_ending(at=PINNED, status=0)
     assert record.outcome is RoundOutcome.SUCCESSFUL
 
@@ -363,14 +372,14 @@ def test_a_round_that_cannot_write_its_feed_stops_rather_than_stalls(
     running = AgentRound(
         adapter=CLAUDE,
         invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
-        workspace=AgentRoundPaths(worktree=worktree, directory=directory),
-        plan=AgentRoundPlan(number=1, purpose=PURPOSE, is_recovery=False),
+        paths=round_paths(worktree=worktree, directory=directory),
+        plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
         clock=pinned,
     )
     running.wait()
 
     assert not running.is_alive
-    assert written(path=running.workspace.record).outcome is RoundOutcome.INTERRUPTED
+    assert written(path=running.paths.record).outcome is RoundOutcome.INTERRUPTED
 
 
 def test_a_round_that_cannot_write_its_prompt_never_starts(fake, worktree, tmp_path):
@@ -383,8 +392,8 @@ def test_a_round_that_cannot_write_its_prompt_never_starts(fake, worktree, tmp_p
         AgentRound(
             adapter=CLAUDE,
             invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
-            workspace=AgentRoundPaths(worktree=worktree, directory=occupied / "1"),
-            plan=AgentRoundPlan(number=1, purpose=PURPOSE, is_recovery=False),
+            paths=round_paths(worktree=worktree, directory=occupied / "1"),
+            plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
             clock=pinned,
         )
 
@@ -403,8 +412,8 @@ def test_a_round_that_cannot_record_its_start_does_not_run_on(
         AgentRound(
             adapter=CLAUDE,
             invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
-            workspace=AgentRoundPaths(worktree=worktree, directory=directory),
-            plan=AgentRoundPlan(number=1, purpose=PURPOSE, is_recovery=False),
+            paths=round_paths(worktree=worktree, directory=directory),
+            plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
             clock=pinned,
         )
 
@@ -419,13 +428,13 @@ def test_a_round_a_straggler_outlives_still_records_an_ending(
             arguments=["-c", LEAVES_A_STRAGGLER, str(straggler)],
             prompt=PROMPT,
         ),
-        workspace=AgentRoundPaths(worktree=worktree, directory=directory),
-        plan=AgentRoundPlan(number=1, purpose=PURPOSE, is_recovery=False),
+        paths=round_paths(worktree=worktree, directory=directory),
+        plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
         clock=pinned,
     )
 
     assert within(seconds=30, holds=lambda: not running.is_alive)
-    assert written(path=running.workspace.record) == AgentRoundRecord(
+    assert written(path=running.paths.record) == AgentRoundRecord(
         started=PINNED,
         pid=running.child.pid,
         number=1,
@@ -443,8 +452,8 @@ def test_a_round_a_straggler_outlives_still_stops(worktree, directory, straggler
             arguments=["-c", LEAVES_A_STRAGGLER + AND_WAITS, str(straggler)],
             prompt=PROMPT,
         ),
-        workspace=AgentRoundPaths(worktree=worktree, directory=directory),
-        plan=AgentRoundPlan(number=1, purpose=PURPOSE, is_recovery=False),
+        paths=round_paths(worktree=worktree, directory=directory),
+        plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
         clock=pinned,
     )
     assert within(seconds=30, holds=straggler.exists)
@@ -457,7 +466,7 @@ def test_a_round_a_straggler_outlives_still_stops(worktree, directory, straggler
 
     assert not stopping.is_alive()
     assert not running.is_alive
-    assert written(path=running.workspace.record).outcome is RoundOutcome.INTERRUPTED
+    assert written(path=running.paths.record).outcome is RoundOutcome.INTERRUPTED
 
 
 def test_recording_interruption_again_keeps_a_terminal_record(tmp_path):

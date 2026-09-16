@@ -169,7 +169,7 @@ class Daemon:
         over and is left alone. Every other round is ended, and ending a round
         that has already gone does nothing, so nothing here has to ask whether
         one has. Its record is then reconciled as interrupted, which a later
-        tick carries on.
+        tick recovers.
 
         The pid is the one the record kept, and the operating system was free
         to give it to somebody else once the daemon that recorded it died.
@@ -188,7 +188,7 @@ class Daemon:
                     teardown.end(pid=record.pid)
                     record_agent_round_interruption(
                         record=record,
-                        path=assignment.workspace(number=record.number).record,
+                        path=assignment.round_paths(number=record.number).record,
                     )
 
 

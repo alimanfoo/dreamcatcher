@@ -40,7 +40,7 @@ class Wakeup:
     record keeps. The reason carries the evidence that a tick which could not
     launch this round writes down instead.
 
-    The inbox is the batch the round is woken with. A carry-on has none: the
+    The inbox is the batch the round is woken with. A recovery has none: the
     transcript that the harness resumes carries that work already.
     """
 
@@ -112,7 +112,7 @@ def judge_assignment(
     An assignment that needs a round comes back as the wakeup that runs it, and one
     that needs something this tick cannot give comes back as the wait it is in.
 
-    An assignment whose last round did not finish is carried on before anything
+    An assignment whose last round did not finish is recovered before anything
     else is even read, so a tick spends no GitHub call on the case that needs
     none.
 
@@ -124,11 +124,18 @@ def judge_assignment(
     if assignment.is_complete:
         return None
     unfinished = assignment.describe_unfinished_round()
+    if unfinished is not None:
+        return Wakeup(
+            assignment=assignment,
+            purpose=assignment.rounds[-1].purpose,
+            is_recovery=True,
+            reason=unfinished,
+            prompt=CARRY_ON_PROMPT,
+        )
     return _judge_pull_request(
         repository=repository,
         account=account,
         assignment=assignment,
-        recovery_reason=unfinished,
     )
 
 
@@ -148,7 +155,6 @@ def _judge_pull_request(
     repository: str,
     account: str,
     assignment: AgentAssignment,
-    recovery_reason: str | None,
 ) -> Finding | None:
     """Return what the assignment's pull request asks of it, if anything.
 
@@ -170,14 +176,6 @@ def _judge_pull_request(
             reason=f"cannot read its pull request: {pull_request.reason}",
         )
     is_open = pull_request.state is PullRequestState.OPEN
-    if recovery_reason is not None:
-        return Wakeup(
-            assignment=assignment,
-            purpose=_round_purpose(pull_request=pull_request),
-            is_recovery=True,
-            reason=recovery_reason,
-            prompt=CARRY_ON_PROMPT,
-        )
     posted = peek_new_posts(
         repository=repository,
         pull_request=pull_request.number,
@@ -216,7 +214,8 @@ def _compose_resume(
             else f"the pull request is {pull_request.state.lower()}"
         ),
         prompt=compose_inbox_prompt(
-            pull_request=pull_request.number, inbox=assignment.next_workspace.inbox
+            pull_request=pull_request.number,
+            inbox=assignment.round_paths(number=len(assignment.rounds) + 1).inbox,
         ),
         inbox=Inbox(state=pull_request.state, posts=posted),
     )

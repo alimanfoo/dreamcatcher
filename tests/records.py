@@ -43,7 +43,7 @@ def write_round(
 ) -> agent_rounds.AgentRoundRecord:
     """Write the record of one round of the assignment at this directory."""
     write_json(
-        document=record, path=_workspace(directory=directory, number=number).record
+        document=record, path=_round_paths(directory=directory, number=number).record
     )
     return record
 
@@ -52,7 +52,7 @@ def write_feed(*, directory: Path, number: int, lines: Sequence[Line]) -> None:
     """Write the feed of one round of the assignment at this directory."""
     write_text(
         text="".join(line.render() for line in lines),
-        path=_workspace(directory=directory, number=number).feed,
+        path=_round_paths(directory=directory, number=number).feed,
     )
 
 
@@ -61,9 +61,10 @@ def write_tick(*, state: StateDirectory, tick: LastTick) -> None:
     write_json(document=tick, path=state.last_tick)
 
 
-def _workspace(*, directory: Path, number: int) -> agent_rounds.AgentRoundPaths:
+def _round_paths(*, directory: Path, number: int) -> agent_rounds.AgentRoundPaths:
     """Where the numbered round of the assignment at this directory wrote."""
     return agent_rounds.AgentRoundPaths(
         worktree=directory,
-        directory=directory / agent_assignments.ROUNDS / str(number),
+        rounds_directory=directory / agent_assignments.ROUNDS,
+        number=number,
     )

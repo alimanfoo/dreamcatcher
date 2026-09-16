@@ -170,9 +170,10 @@ def test_a_new_assignment_has_run_no_rounds_and_its_next_is_its_first(state, rou
     )
 
     assert assignment.rounds == []
-    assert assignment.next_workspace == AgentRoundPaths(
+    assert assignment.round_paths(number=1) == AgentRoundPaths(
         worktree=assignment.record.worktree,
-        directory=state.assignments / ASSIGNMENT_ID / "rounds" / "1",
+        rounds_directory=state.assignments / ASSIGNMENT_ID / "rounds",
+        number=1,
     )
 
 
@@ -231,9 +232,10 @@ def test_a_round_an_assignment_has_run_is_found_by_the_number_it_ran_as(fabricat
         rounds=[ended(status=0), ended(status=0, minute=1, number=2)],
     )
 
-    assert assignment.workspace(number=2) == AgentRoundPaths(
+    assert assignment.round_paths(number=2) == AgentRoundPaths(
         worktree=assignment.record.worktree,
-        directory=fabricated.assignments / ASSIGNMENT_ID / "rounds" / "2",
+        rounds_directory=fabricated.assignments / ASSIGNMENT_ID / "rounds",
+        number=2,
     )
 
 
@@ -932,7 +934,7 @@ def test_an_assignments_rounds_read_back_in_number_order(state, route):
     assert [record.number for record in read.rounds] == [1, 2]
     assert [record.started for record in read.rounds] == [later, PINNED]
     assert (
-        read.next_workspace.directory
+        read.round_paths(number=len(read.rounds) + 1).directory
         == state.assignments / ASSIGNMENT_ID / "rounds" / "3"
     )
 

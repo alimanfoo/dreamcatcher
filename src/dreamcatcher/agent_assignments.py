@@ -6,7 +6,7 @@ its branch, worktree, and file directory. Three worktrees for one issue therefor
 read as three assignments at one thing, each with its own pull request.
 
 Creation prepares and publishes the assignment's branch, opens its linked draft
-pull request, then records the complete assignment. Nothing here decides which
+pull request, then records the assignment. Nothing here decides which
 issue to dispatch, or when. A caller that has decided asks for the assignment.
 """
 
@@ -131,11 +131,11 @@ class AgentAssignment:
 
         A record with no ending is a round the daemon has not reconciled yet,
         and an interrupted or errored ending says that the work stopped short.
-        Each is carried on from where it stopped.
+        Each is recovered from where it stopped.
 
         An assignment that has run no round at all has left nothing unfinished.
         Its first round never started, which is another matter: the scheduler
-        retries that complete assignment before it starts ordinary work.
+        retries that recorded assignment before it starts ordinary work.
         """
         if not self.rounds:
             return None
@@ -146,7 +146,7 @@ class AgentAssignment:
             return f"the last round failed (exit {ending.status})"
         return None
 
-    def workspace(self, *, number: int) -> AgentRoundPaths:
+    def round_paths(self, *, number: int) -> AgentRoundPaths:
         """Where the assignment's numbered round ran, and where it wrote.
 
         Every round runs in the assignment's worktree, and writes into a
@@ -160,13 +160,9 @@ class AgentAssignment:
         """
         return AgentRoundPaths(
             worktree=self.record.worktree,
-            directory=self.directory / ROUNDS / str(number),
+            rounds_directory=self.directory / ROUNDS,
+            number=number,
         )
-
-    @property
-    def next_workspace(self) -> AgentRoundPaths:
-        """Where the assignment's next round runs, and where it writes."""
-        return self.workspace(number=len(self.rounds) + 1)
 
 
 def read_agent_assignments(*, state: StateDirectory) -> list[AgentAssignment]:
@@ -286,7 +282,7 @@ def _inspect_incomplete_assignment_setup(
 
 @dataclass(frozen=True, kw_only=True)
 class AgentAssignmentCreator:
-    """Create complete assignments in one repository and state directory."""
+    """Create assignment records in one repository and state directory."""
 
     state: StateDirectory
     repository: str
@@ -299,7 +295,7 @@ class AgentAssignmentCreator:
         issue: int,
         at: datetime,
     ) -> AgentAssignment:
-        """Create the issue's complete assignment with no rounds run yet.
+        """Create the issue's durable assignment with no rounds run yet.
 
         The assignment runs on the harness that the route and this daemon
         select, with that harness's model, effort, and prompt template. Creation

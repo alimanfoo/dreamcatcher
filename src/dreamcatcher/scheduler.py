@@ -224,7 +224,10 @@ class Scheduler:
         """Start the round and advance the watermark once it is running."""
         assignment = wakeup.assignment
         if wakeup.inbox is not None:
-            write_json(document=wakeup.inbox, path=assignment.next_workspace.inbox)
+            write_json(
+                document=wakeup.inbox,
+                path=assignment.round_paths(number=len(assignment.rounds) + 1).inbox,
+            )
         self._start_round(
             assignment=assignment,
             prompt=wakeup.prompt,
@@ -260,12 +263,8 @@ class Scheduler:
         self.rounds[assignment.identifier] = AgentRound(
             adapter=adapter,
             invocation=invocation,
-            workspace=assignment.next_workspace,
-            plan=AgentRoundPlan(
-                number=len(assignment.rounds) + 1,
-                purpose=purpose,
-                is_recovery=is_recovery,
-            ),
+            paths=assignment.round_paths(number=len(assignment.rounds) + 1),
+            plan=AgentRoundPlan(purpose=purpose, is_recovery=is_recovery),
             clock=self.clock,
         )
 

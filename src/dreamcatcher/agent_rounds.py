@@ -149,29 +149,34 @@ def _record_agent_round_ending(
 
 @dataclass(frozen=True, kw_only=True)
 class AgentRoundPlan:
-    """The numbered work and recovery decision that a new round executes."""
+    """The purpose and recovery decision that a new round executes."""
 
-    number: int
     purpose: RoundPurpose
     is_recovery: bool
 
 
 @dataclass(frozen=True, kw_only=True)
 class AgentRoundPaths:
-    """Where one round runs, and the files it writes as it goes.
+    """A numbered round's worktree and files.
 
-    Both paths come from the assignment the round belongs to: the round runs in
-    that assignment's worktree, and writes into a directory of its own under the
-    assignment's own files. They travel together because no round ever has one
-    without the other.
+    The round runs in its assignment's worktree and writes into the directory
+    its number selects under the assignment's rounds directory. Keeping the
+    number beside that parent makes one value authoritative for both the path
+    and the record the round writes.
 
     The files themselves are named here, beside the directory that holds them,
-    so whoever has a workspace can name a file of the round before the round
-    that writes it exists.
+    so whoever has the paths can name a file before the round that writes it
+    exists.
     """
 
     worktree: Path
-    directory: Path
+    rounds_directory: Path
+    number: PositiveInt
+
+    @property
+    def directory(self) -> Path:
+        """The directory holding this numbered round's files."""
+        return self.rounds_directory / str(self.number)
 
     @property
     def prompt(self) -> Path:
@@ -211,9 +216,9 @@ class AgentRoundReader:
     same.
 
     So a read costs a listing of the rounds directory, and one small read for
-    each round of the assignment whose record is incomplete — one while a round of
-    the assignment is running, and none at all once every round has ended, however
-    many rounds the assignment has run.
+    each round of the assignment whose record has no terminal outcome — one while
+    a round of the assignment is running, and none at all once every round has
+    ended, however many rounds the assignment has run.
     """
 
     def __init__(self) -> None:
@@ -259,11 +264,11 @@ class AgentRound:
         *,
         adapter: Adapter,
         invocation: Invocation,
-        workspace: AgentRoundPaths,
+        paths: AgentRoundPaths,
         plan: AgentRoundPlan,
         clock: Callable[[], datetime] = now,
     ) -> None:
-        """Run the invocation as a round in the workspace it was given.
+        """Run the invocation as a round at the paths it was given.
 
         The prompt goes to a file of the round's own, and the harness reads
         that file as its stdin. So a prompt reaches the harness as it was
@@ -273,30 +278,29 @@ class AgentRound:
         round before it starts.
         """
         self.adapter = adapter
-        self.workspace = workspace
-        self.plan = plan
+        self.paths = paths
         self.clock = clock
-        self.renderer = Renderer(worktree=workspace.worktree, clock=clock)
+        self.renderer = Renderer(worktree=paths.worktree, clock=clock)
         self.started = clock()
         self.is_interrupted = False
         self._ended = Flag()
         self._writing = Lock()
-        write_text(text=invocation.prompt, path=workspace.prompt)
+        write_text(text=invocation.prompt, path=paths.prompt)
         self.child = spawn(
             program=invocation.program,
             arguments=invocation.arguments,
-            cwd=workspace.worktree,
-            stdin=workspace.prompt,
+            cwd=paths.worktree,
+            stdin=paths.prompt,
         )
         try:
             self.record = AgentRoundRecord(
-                number=plan.number,
+                number=paths.number,
                 purpose=plan.purpose,
                 is_recovery=plan.is_recovery,
                 started=self.started,
                 pid=self.child.pid,
             )
-            write_json(document=self.record, path=self.workspace.record)
+            write_json(document=self.record, path=self.paths.record)
         except ReportableError:
             # A round nothing recorded is a round nothing will watch or find
             # again, so it does not run on.
@@ -391,7 +395,7 @@ class AgentRound:
     def _read_stdout(self) -> None:
         """Keep each line that the harness streams, and write what it says."""
         for line in self.child.out:
-            append_text(text=line, path=self.workspace.raw)
+            append_text(text=line, path=self.paths.raw)
             self._append(line=line, events=self.adapter.read(line=line))
 
     def _read_stderr(self) -> None:
@@ -413,13 +417,13 @@ class AgentRound:
             status = self.child.wait()
             if self.is_interrupted:
                 self.record = record_agent_round_interruption(
-                    record=self.record, path=self.workspace.record
+                    record=self.record, path=self.paths.record
                 )
             else:
                 self.record = _record_agent_round_ending(
                     record=self.record,
                     ending=compose_agent_round_ending(at=self.clock(), status=status),
-                    path=self.workspace.record,
+                    path=self.paths.record,
                 )
         finally:
             # However the close went, the round has ended, so whoever is
@@ -446,4 +450,4 @@ class AgentRound:
             except Exception:
                 written = self.renderer.render(event=Prose(text=line))
             if written:
-                append_text(text=written, path=self.workspace.feed)
+                append_text(text=written, path=self.paths.feed)

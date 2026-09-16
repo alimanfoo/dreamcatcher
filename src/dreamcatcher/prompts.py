@@ -38,7 +38,7 @@ description, a comment, a reply on a line of the diff, and an issue you file."""
 # What a round that carries on from an unfinished one asks for. The transcript
 # that the harness resumes carries the work itself, so the words say only that
 # the round before this one stopped short. A round somebody interrupted and a
-# round that failed both read that way, and either is carried on from where it
+# round that failed both read that way, and either is recovered from where it
 # stopped.
 CARRY_ON_PROMPT = (
     """Your previous round did not finish. Carry on from where it stopped, and

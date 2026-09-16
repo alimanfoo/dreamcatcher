@@ -8,7 +8,7 @@ An error from GitHub can therefore cost the daemon a tick, but the daemon can
 never dispatch an issue twice, and never dispatch one out of turn.
 
 Two of the checks ask who has a claim on an issue, and they answer different
-questions. The first checks whether a complete assignment in this checkout is
+questions. The first checks whether an open assignment in this checkout is
 already working on the issue. An assignment outlives the daemon run that cut it,
 so one an earlier run left behind claims its issue just as an assignment of the
 running daemon's does. The second checks whether the issue has an open linked
