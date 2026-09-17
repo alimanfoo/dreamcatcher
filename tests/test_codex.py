@@ -79,13 +79,13 @@ def test_the_first_event_names_the_harness_session():
     assert CODEX.read(line=line) == [
         Note(label="harness session", detail="id 01a0213c-9c67")
     ]
-    assert CODEX.read_harness_session_identifier(line=line) == "01a0213c-9c67"
+    assert CODEX.read_output(line=line).harness_session_identifier == "01a0213c-9c67"
 
 
 def test_another_event_names_no_harness_session():
     line = streamed(type="turn.started")
 
-    assert CODEX.read_harness_session_identifier(line=line) is None
+    assert CODEX.read_output(line=line).harness_session_identifier is None
 
 
 def test_what_the_agent_says_comes_through_whole():

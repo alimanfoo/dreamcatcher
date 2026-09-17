@@ -16,20 +16,20 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from functools import partial
 
-from dreamcatcher.adapters import Adapter, Launch
+from dreamcatcher.adapters import Launch
 from dreamcatcher.agent_assignments import (
     AgentAssignment,
     AgentAssignmentCreator,
     advance_user_post_delivery_cursor,
+    find_harness_session_identifier,
     inspect_incomplete_assignment_setups,
     read_agent_assignments,
     record_harness_session_identifier,
 )
 from dreamcatcher.agent_rounds import (
     AgentRound,
-    AgentRoundHarness,
+    AgentRoundOutputReader,
     ErroredAgentRoundEnding,
-    recover_harness_session_identifier,
 )
 from dreamcatcher.config import Config, Harness
 from dreamcatcher.eligibility import judge_issues
@@ -232,8 +232,16 @@ class Scheduler:
             prompt=wakeup.prompt,
         )
         if assignment.rounds:
-            harness_session_identifier = self._ensure_harness_session_identifier(
+            harness_session_identifier = find_harness_session_identifier(
                 assignment=assignment, adapter=adapter
+            )
+            if harness_session_identifier is None:
+                raise ReportableError(
+                    f"Could not resume {assignment.identifier}: its first round did "
+                    "not report a harness session identifier."
+                )
+            record_harness_session_identifier(
+                assignment=assignment, identifier=harness_session_identifier
             )
             invocation = adapter.build_resumed_round(
                 launch=launch,
@@ -242,7 +250,7 @@ class Scheduler:
         else:
             invocation = adapter.build_first_round(launch=launch)
         self.rounds[assignment.identifier] = AgentRound(
-            harness=AgentRoundHarness(
+            output_reader=AgentRoundOutputReader(
                 adapter=adapter,
                 record_harness_session_identifier=partial(
                     record_harness_session_identifier, assignment=assignment
@@ -259,24 +267,6 @@ class Scheduler:
                 assignment=assignment,
                 newest=round_input.posts[-1].written_at,
             )
-
-    def _ensure_harness_session_identifier(
-        self, *, assignment: AgentAssignment, adapter: Adapter
-    ) -> str:
-        """Return and record the harness session that a later round must resume."""
-        identifier = assignment.record.harness_session_identifier
-        if identifier is not None:
-            return identifier
-        identifier = recover_harness_session_identifier(
-            adapter=adapter, paths=assignment.round_paths(number=1)
-        )
-        if identifier is None:
-            raise ReportableError(
-                f"Could not resume {assignment.identifier}: its first round did not "
-                "report a harness session identifier."
-            )
-        record_harness_session_identifier(assignment=assignment, identifier=identifier)
-        return identifier
 
     def _dispatch_oldest_issue(
         self,

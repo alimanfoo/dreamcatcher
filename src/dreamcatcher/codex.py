@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from typing import ClassVar
 
-from dreamcatcher.adapters import Adapter, Invocation, Launch
+from dreamcatcher.adapters import Adapter, HarnessOutput, Invocation, Launch
 from dreamcatcher.feed import Event, Note, Prose
 
 # Let the round reach the network from inside its sandbox, so it can talk to
@@ -82,8 +82,8 @@ class Codex(Adapter):
         """
         return [self.program, "resume", harness_session_identifier]
 
-    def _events(self, *, streamed: dict) -> list[Event]:
-        """Return the feed events one Codex event turns into.
+    def _read(self, *, streamed: dict) -> HarnessOutput:
+        """Return what one parsed Codex event says.
 
         An event this does not handle gets no feed line. The feed writes its own
         opening line for a round, so it does not need the event that says a turn
@@ -92,23 +92,23 @@ class Codex(Adapter):
         """
         kind = streamed["type"]
         if kind == "thread.started":
-            return [Note(label="harness session", detail=f"id {streamed['thread_id']}")]
+            identifier = str(streamed["thread_id"])
+            return HarnessOutput(
+                events=[Note(label="harness session", detail=f"id {identifier}")],
+                harness_session_identifier=identifier,
+            )
         if kind == "item.completed":
-            return _item(item=streamed["item"])
+            return HarnessOutput(events=_item(item=streamed["item"]))
         if kind == "turn.completed":
-            return [_usage(counts=streamed["usage"])]
+            return HarnessOutput(events=[_usage(counts=streamed["usage"])])
         # When a turn fails, Codex sends the error twice: once on its own, then
         # again as the reason the turn failed. Keeping only this second one means
         # the reader sees the failure once.
         if kind == "turn.failed":
-            return [Note(label="failed", detail=streamed["error"]["message"])]
-        return []
-
-    def _harness_session_identifier(self, *, streamed: dict) -> str | None:
-        """Return the identifier from Codex's harness-session event, if any."""
-        if streamed.get("type") != "thread.started":
-            return None
-        return str(streamed["thread_id"])
+            return HarnessOutput(
+                events=[Note(label="failed", detail=streamed["error"]["message"])]
+            )
+        return HarnessOutput(events=[])
 
 
 CODEX = Codex()

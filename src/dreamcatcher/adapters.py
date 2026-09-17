@@ -52,6 +52,14 @@ class Invocation:
     prompt: str
 
 
+@dataclass(frozen=True, kw_only=True)
+class HarnessOutput:
+    """What one line of harness output says to Dreamcatcher."""
+
+    events: list[Event]
+    harness_session_identifier: str | None = None
+
+
 class Adapter(ABC):
     """One harness, as everything outside its own module sees it.
 
@@ -80,7 +88,11 @@ class Adapter(ABC):
         """
 
     def read(self, *, line: str) -> list[Event]:
-        """Return the feed events from one line of the harness's stream.
+        """Return the feed events from one line of the harness's stream."""
+        return self.read_output(line=line).events
+
+    def read_output(self, *, line: str) -> HarnessOutput:
+        """Return what one line of the harness's stream says.
 
         Not every line is an event. A CLI prints a warning now and then, and an
         event can arrive in a shape the adapter does not expect. In both cases
@@ -90,27 +102,13 @@ class Adapter(ABC):
         try:
             streamed = json.loads(line)
             return (
-                self._events(streamed=streamed)
+                self._read(streamed=streamed)
                 if isinstance(streamed, dict)
-                else [Prose(text=line)]
+                else HarnessOutput(events=[Prose(text=line)])
             )
         except Exception:
-            return [Prose(text=line)]
-
-    def read_harness_session_identifier(self, *, line: str) -> str | None:
-        """Return the harness session identifier from one streamed line, if any."""
-        try:
-            streamed = json.loads(line)
-            if not isinstance(streamed, dict):
-                return None
-            return self._harness_session_identifier(streamed=streamed)
-        except Exception:
-            return None
+            return HarnessOutput(events=[Prose(text=line)])
 
     @abstractmethod
-    def _events(self, *, streamed: dict) -> list[Event]:
-        """Return the feed events one event of this harness's stream turns into."""
-
-    @abstractmethod
-    def _harness_session_identifier(self, *, streamed: dict) -> str | None:
-        """Return the harness session identifier reported by one event, if any."""
+    def _read(self, *, streamed: dict) -> HarnessOutput:
+        """Return what one parsed event of this harness's stream says."""

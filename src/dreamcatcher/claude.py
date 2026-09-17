@@ -3,7 +3,7 @@
 import json
 from typing import ClassVar, Protocol
 
-from dreamcatcher.adapters import Adapter, Invocation, Launch
+from dreamcatcher.adapters import Adapter, HarnessOutput, Invocation, Launch
 from dreamcatcher.feed import Event, Note, Prose
 
 # What an unattended round may do without being asked, and nothing else. The
@@ -79,25 +79,21 @@ class Claude(Adapter):
         """Return how a person carries on the identified harness session."""
         return [self.program, "--resume", harness_session_identifier]
 
-    def _events(self, *, streamed: dict) -> list[Event]:
-        """Return the feed events one Claude event turns into."""
+    def _read(self, *, streamed: dict) -> HarnessOutput:
+        """Return what one parsed Claude event says."""
         is_subagent = streamed.get("parent_tool_use_id") is not None
         kind = streamed["type"]
         if kind == "system":
             return _system(streamed=streamed)
         if kind == "assistant":
-            return _blocks(streamed=streamed, read=_spoken, is_subagent=is_subagent)
+            events = _blocks(streamed=streamed, read=_spoken, is_subagent=is_subagent)
+            return HarnessOutput(events=events)
         if kind == "user":
-            return _blocks(streamed=streamed, read=_failure, is_subagent=is_subagent)
+            events = _blocks(streamed=streamed, read=_failure, is_subagent=is_subagent)
+            return HarnessOutput(events=events)
         if kind == "result":
-            return _closing(streamed=streamed)
-        return []
-
-    def _harness_session_identifier(self, *, streamed: dict) -> str | None:
-        """Return the identifier from Claude's harness-session event, if any."""
-        if streamed.get("type") != "system" or streamed.get("subtype") != "init":
-            return None
-        return str(streamed["session_id"])
+            return HarnessOutput(events=_closing(streamed=streamed))
+        return HarnessOutput(events=[])
 
     def _base(self, *, launch: Launch) -> list[str]:
         """Return the arguments every round shares."""
@@ -118,34 +114,42 @@ class Claude(Adapter):
 CLAUDE = Claude()
 
 
-def _system(*, streamed: dict) -> list[Event]:
+def _system(*, streamed: dict) -> HarnessOutput:
     """Return a system event's harness session, report, or nothing."""
     subtype = streamed["subtype"]
     if subtype == "init":
-        return [
-            Note(
-                label="harness session",
-                detail=f"model {streamed['model']}, id {streamed['session_id']}",
-            )
-        ]
+        identifier = str(streamed["session_id"])
+        return HarnessOutput(
+            events=[
+                Note(
+                    label="harness session",
+                    detail=f"model {streamed['model']}, id {identifier}",
+                )
+            ],
+            harness_session_identifier=identifier,
+        )
     # A subagent reports its token usage as it finishes, and a background
     # command does not, so the usage is what tells the two events apart.
     if subtype == "task_notification" and streamed.get("usage") is not None:
-        return [
-            Note(label="report", detail=streamed["status"], is_subagent=True),
-            Prose(text=streamed["summary"], is_subagent=True),
-        ]
+        return HarnessOutput(
+            events=[
+                Note(label="report", detail=streamed["status"], is_subagent=True),
+                Prose(text=streamed["summary"], is_subagent=True),
+            ]
+        )
     # A retried round says nothing else while it waits, and ten retries of a
     # rate limit take about three minutes, so the feed says what it waits on.
     if subtype == "api_retry":
-        return [
-            Note(
-                label="retry",
-                detail=f"{streamed['error']} ({streamed['error_status']}), "
-                f"attempt {streamed['attempt']} of {streamed['max_retries']}",
-            )
-        ]
-    return []
+        return HarnessOutput(
+            events=[
+                Note(
+                    label="retry",
+                    detail=f"{streamed['error']} ({streamed['error_status']}), "
+                    f"attempt {streamed['attempt']} of {streamed['max_retries']}",
+                )
+            ]
+        )
+    return HarnessOutput(events=[])
 
 
 class _ReadsBlock(Protocol):

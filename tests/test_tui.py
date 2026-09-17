@@ -624,6 +624,47 @@ def test_an_assignment_renders_as_its_golden_view(name, tmp_path, daemon):
     assert view == (FIXTURES / "board" / f"{name}.txt").read_text(encoding="utf-8")
 
 
+def test_a_manual_resume_recovers_the_harness_session_from_the_raw_stream(
+    tmp_path, daemon
+):
+    state = StateDirectory(root=tmp_path)
+    holding(state=state)
+    directory = write_agent_assignment(
+        state=state,
+        identifier=f"GH20-{STAMP}",
+        issue=20,
+        harness_session_identifier=None,
+    )
+    write_round(directory=directory, number=1, record=ended(minute=1))
+    write_text(
+        text=(
+            '{"type":"system","subtype":"init","model":"claude-opus-5",'
+            f'"session_id":"{HARNESS_SESSION_IDENTIFIER}"}}\n'
+        ),
+        path=directory / "rounds" / "1" / "raw.jsonl",
+    )
+
+    view = viewed(state=state, issue=20)
+
+    assert f"claude --resume {HARNESS_SESSION_IDENTIFIER}" in view
+
+
+def test_an_assignment_without_a_harness_session_has_no_manual_resume(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    holding(state=state)
+    directory = write_agent_assignment(
+        state=state,
+        identifier=f"GH20-{STAMP}",
+        issue=20,
+        harness_session_identifier=None,
+    )
+    write_round(directory=directory, number=1, record=ended(minute=1))
+
+    view = viewed(state=state, issue=20)
+
+    assert "resume harness session yourself" not in view
+
+
 def test_an_assignment_view_shows_the_round_that_starts_while_it_is_open(
     tmp_path, daemon
 ):

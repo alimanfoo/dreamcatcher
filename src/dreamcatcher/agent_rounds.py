@@ -34,7 +34,6 @@ from dreamcatcher.documents import (
     Document,
     append_text,
     read_json,
-    read_lines_from,
     write_json,
     write_text,
 )
@@ -54,18 +53,19 @@ class RecordsHarnessSessionIdentifier(Protocol):
 
 
 @dataclass(frozen=True, kw_only=True)
-class AgentRoundHarness:
-    """The harness operations that one agent round uses as output arrives."""
+class AgentRoundOutputReader:
+    """Read harness output and record the session identifier it reports."""
 
     adapter: Adapter
     record_harness_session_identifier: RecordsHarnessSessionIdentifier
 
     def read(self, *, line: str) -> list[Event]:
         """Record the session identifier and return one line's feed events."""
-        identifier = self.adapter.read_harness_session_identifier(line=line)
+        output = self.adapter.read_output(line=line)
+        identifier = output.harness_session_identifier
         if identifier is not None:
             self.record_harness_session_identifier(identifier=identifier)
-        return self.adapter.read(line=line)
+        return output.events
 
 
 class RoundPurpose(StrEnum):
@@ -237,18 +237,6 @@ class AgentRoundPaths:
         return self.directory / "inbox.json"
 
 
-def recover_harness_session_identifier(
-    *, adapter: Adapter, paths: AgentRoundPaths
-) -> str | None:
-    """Return the harness session identifier in a round's durable raw stream."""
-    lines, _ = read_lines_from(path=paths.raw, position=0)
-    for line in lines:
-        identifier = adapter.read_harness_session_identifier(line=line)
-        if identifier is not None:
-            return identifier
-    return None
-
-
 class AgentRoundReader:
     """Read the records of an assignment's rounds, keeping the terminal ones.
 
@@ -312,7 +300,7 @@ class AgentRound:
     def __init__(
         self,
         *,
-        harness: AgentRoundHarness,
+        output_reader: AgentRoundOutputReader,
         invocation: Invocation,
         paths: AgentRoundPaths,
         plan: AgentRoundPlan,
@@ -326,7 +314,7 @@ class AgentRound:
         holds, and a reader can see afterwards what the round received. A failure
         to write either file stops the round before it starts.
         """
-        self.harness = harness
+        self.output_reader = output_reader
         self.paths = paths
         self.clock = clock
         self.renderer = Renderer(worktree=paths.worktree, clock=clock)
@@ -447,7 +435,7 @@ class AgentRound:
         """Keep each line that the harness streams, and write what it says."""
         for line in self.child.out:
             append_text(text=line, path=self.paths.raw)
-            self._append(line=line, events=self.harness.read(line=line))
+            self._append(line=line, events=self.output_reader.read(line=line))
 
     def _read_stderr(self) -> None:
         """Write what the harness says on stderr, among the lines around it."""
