@@ -68,9 +68,7 @@ RECORD = "assignment.json"
 # The directory in an assignment's directory holding a directory per round.
 ROUNDS = "rounds"
 
-# The file in an assignment's directory holding the newest post the assignment has
-# been told about.
-WATERMARK = "watermark"
+USER_POST_DELIVERY_CURSOR = "watermark"
 
 
 class AgentAssignmentRecord(Document):
@@ -102,15 +100,15 @@ class AgentAssignment:
     says what the dispatch settled, and the rounds are what the assignment has run
     so far, oldest first.
 
-    The watermark is the newest post the assignment has been told about. An assignment
-    that has been told about none has the beginning of time, so the first peek
-    at its pull request returns the whole history.
+    The user-post delivery cursor is the newest post delivered to the assignment.
+    An assignment that has received none has the beginning of time, so the first
+    relay from its pull request returns the whole history.
     """
 
     directory: Path
     record: AgentAssignmentRecord
     rounds: list[AgentRoundRecord] = field(default_factory=list)
-    watermark: str = ""
+    user_post_delivery_cursor: str = ""
 
     @property
     def identifier(self) -> str:
@@ -493,36 +491,36 @@ def _read_assignment(*, state: StateDirectory, directory: Path) -> AgentAssignme
         directory=directory,
         record=read_json(model=AgentAssignmentRecord, path=directory / RECORD),
         rounds=state.round_reader.read_records(directory=directory / ROUNDS),
-        watermark=_read_watermark(directory=directory),
+        user_post_delivery_cursor=_read_user_post_delivery_cursor(directory=directory),
     )
 
 
-def _read_watermark(*, directory: Path) -> str:
-    """Return the newest post this assignment has been told about.
+def _read_user_post_delivery_cursor(*, directory: Path) -> str:
+    """Return the newest user post delivered to this assignment.
 
-    An assignment is told about a batch of posts when a round launches with that
-    batch, and that launch is what writes this file. So an assignment no round has
-    yet carried the user's words to has no file here, and the beginning of time
-    is what it has seen.
+    A batch is delivered when a round launches with it, and that launch writes
+    this file. An assignment that no round has carried the user's words to has no
+    file here, so its cursor is the beginning of time.
 
     Whatever wrote the file may have left a line ending after the timestamp, so
     the surrounding space goes: an ISO-8601 time is the whole value.
     """
-    path = directory / WATERMARK
+    path = directory / USER_POST_DELIVERY_CURSOR
     if not path.exists():
         return ""
     return read_text(path=path).strip()
 
 
-def advance_assignment_watermark(*, assignment: AgentAssignment, newest: str) -> None:
-    """Write the time of the newest post the assignment has now been told about.
+def advance_user_post_delivery_cursor(
+    *, assignment: AgentAssignment, newest: str
+) -> None:
+    """Write the time of the newest user post delivered to the assignment.
 
-    A round launching with a batch of posts as its inbox is what tells the
-    assignment about them, and this is that launch's own write. Until it lands the
-    assignment has heard nothing, so a daemon that died before the round started
-    reads those same posts again on its next tick rather than losing them.
+    A round launching with a batch of posts performs this write after it starts.
+    Until the write lands, a daemon that dies reads those same posts again on its
+    next tick rather than losing them.
     """
-    write_text(text=newest, path=assignment.directory / WATERMARK)
+    write_text(text=newest, path=assignment.directory / USER_POST_DELIVERY_CURSOR)
 
 
 def _discard_worktree_and_branch(

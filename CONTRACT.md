@@ -65,24 +65,25 @@ Each such round resumes the assignment's harness session where the last one left
 off, so the agent still has what the earlier rounds said in front of it, and
 dreamcatcher's prompt says why it was woken.
 
-### A comment or review from the user
+### User posts and feedback
 
 dreamcatcher's prompt names a JSON file and asks the agent to read it. `state`
 in that file says where the pull request has got to, and `posts` holds every
-comment and review the user has left since the last round that was given one,
-oldest first.
+user post not delivered to an earlier round, oldest first. These posts are the
+user's feedback.
 
 A dispatchable skill must instruct the agent to read `state` before anything
-else, and, when `state` reads `OPEN`, to act on every post and reply on the pull
-request. dreamcatcher counts a post as delivered once the round starts, so it
-never sends that post again.
+else, and, when `state` reads `OPEN`, to act on every user post and reply on the
+pull request. dreamcatcher advances the assignment's user-post delivery cursor
+after the round starts. Once that write lands, later ticks do not deliver that
+post again.
 
 ### A merged or closed pull request
 
 dreamcatcher gives the agent a wrap-up round when the user merges or closes the
 pull request, with the same prompt naming the same file. `state` then reads
-`MERGED` or `CLOSED`, and `posts` still holds anything the user said before
-merging or closing.
+`MERGED` or `CLOSED`, and `posts` still holds any feedback that the user posted
+before merging or closing.
 
 A dispatchable skill must instruct the agent to wind the work up when `state`
 reads anything but `OPEN`.

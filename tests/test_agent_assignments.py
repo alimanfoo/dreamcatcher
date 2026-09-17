@@ -16,10 +16,10 @@ from conftest import (
 from records import write_agent_assignment, write_round
 
 from dreamcatcher.agent_assignments import (
-    WATERMARK,
+    USER_POST_DELIVERY_CURSOR,
     AgentAssignmentCreator,
     AgentAssignmentRecord,
-    advance_assignment_watermark,
+    advance_user_post_delivery_cursor,
     inspect_incomplete_assignment_setups,
     read_agent_assignments,
     read_agent_assignments_for_issue,
@@ -874,7 +874,9 @@ def test_an_assignment_reads_back_as_it_was_dispatched(state, route):
     assert read_agent_assignments(state=state) == [created]
 
 
-def test_an_assignment_no_round_has_told_anything_yet_has_seen_no_post(state, route):
+def test_an_assignment_no_round_has_delivered_a_user_post_has_an_empty_cursor(
+    state, route
+):
     create_agent_assignment(
         state=state,
         route=route,
@@ -883,10 +885,10 @@ def test_an_assignment_no_round_has_told_anything_yet_has_seen_no_post(state, ro
         at=PINNED,
     )
 
-    assert read_agent_assignments(state=state)[0].watermark == ""
+    assert read_agent_assignments(state=state)[0].user_post_delivery_cursor == ""
 
 
-def test_an_assignment_reads_back_the_newest_post_it_has_been_told_about(state, route):
+def test_an_assignment_reads_back_its_user_post_delivery_cursor(state, route):
     create_agent_assignment(
         state=state,
         route=route,
@@ -896,13 +898,16 @@ def test_an_assignment_reads_back_the_newest_post_it_has_been_told_about(state, 
     )
     write_text(
         text="2026-09-03T22:31:51Z\n",
-        path=state.assignments / ASSIGNMENT_ID / WATERMARK,
+        path=state.assignments / ASSIGNMENT_ID / USER_POST_DELIVERY_CURSOR,
     )
 
-    assert read_agent_assignments(state=state)[0].watermark == "2026-09-03T22:31:51Z"
+    assert (
+        read_agent_assignments(state=state)[0].user_post_delivery_cursor
+        == "2026-09-03T22:31:51Z"
+    )
 
 
-def test_an_assignment_told_about_a_batch_of_posts_reads_the_newest_of_them_back(
+def test_advancing_the_user_post_delivery_cursor_reads_the_newest_post_back(
     state, route
 ):
     created = create_agent_assignment(
@@ -913,9 +918,12 @@ def test_an_assignment_told_about_a_batch_of_posts_reads_the_newest_of_them_back
         at=PINNED,
     )
 
-    advance_assignment_watermark(assignment=created, newest="2026-09-03T22:31:51Z")
+    advance_user_post_delivery_cursor(assignment=created, newest="2026-09-03T22:31:51Z")
 
-    assert read_agent_assignments(state=state)[0].watermark == "2026-09-03T22:31:51Z"
+    assert (
+        read_agent_assignments(state=state)[0].user_post_delivery_cursor
+        == "2026-09-03T22:31:51Z"
+    )
 
 
 def test_an_assignments_rounds_read_back_in_number_order(state, route):

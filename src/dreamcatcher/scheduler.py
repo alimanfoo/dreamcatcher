@@ -19,18 +19,15 @@ from dreamcatcher.adapters import Launch
 from dreamcatcher.agent_assignments import (
     AgentAssignment,
     AgentAssignmentCreator,
-    advance_assignment_watermark,
+    advance_user_post_delivery_cursor,
     inspect_incomplete_assignment_setups,
     read_agent_assignments,
 )
 from dreamcatcher.agent_rounds import (
     AgentRound,
-    AgentRoundPlan,
     ErroredAgentRoundEnding,
-    RoundPurpose,
 )
 from dreamcatcher.config import Config, Harness
-from dreamcatcher.documents import write_json
 from dreamcatcher.eligibility import judge_issues
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import Unknown
@@ -221,39 +218,14 @@ class Scheduler:
         )
 
     def _launch_wakeup(self, *, wakeup: Wakeup) -> None:
-        """Start the round and advance the watermark once it is running."""
+        """Start the round and advance the delivery cursor once it is running."""
         assignment = wakeup.assignment
-        if wakeup.inbox is not None:
-            write_json(
-                document=wakeup.inbox,
-                path=assignment.round_paths(number=assignment.next_round_number).inbox,
-            )
-        self._start_round(
-            assignment=assignment,
-            prompt=wakeup.prompt,
-            purpose=wakeup.purpose,
-            is_recovery=wakeup.is_recovery,
-        )
-        if wakeup.newest_post:
-            advance_assignment_watermark(
-                assignment=assignment, newest=wakeup.newest_post
-            )
-
-    def _start_round(
-        self,
-        *,
-        assignment: AgentAssignment,
-        prompt: str,
-        purpose: RoundPurpose,
-        is_recovery: bool,
-    ) -> None:
-        """Start a round with the recipe that the dispatch settled."""
         adapter = ADAPTERS[assignment.record.harness]
         launch = Launch(
             assignment_id=assignment.identifier,
             model=assignment.record.model,
             effort=assignment.record.effort,
-            prompt=prompt,
+            prompt=wakeup.prompt,
         )
         invocation = (
             adapter.build_first_round(launch=launch)
@@ -264,9 +236,15 @@ class Scheduler:
             adapter=adapter,
             invocation=invocation,
             paths=assignment.round_paths(number=assignment.next_round_number),
-            plan=AgentRoundPlan(purpose=purpose, is_recovery=is_recovery),
+            plan=wakeup.plan,
             clock=self.clock,
         )
+        round_input = wakeup.plan.input
+        if round_input is not None and round_input.posts:
+            advance_user_post_delivery_cursor(
+                assignment=assignment,
+                newest=round_input.posts[-1].written_at,
+            )
 
     def _dispatch_oldest_issue(
         self,

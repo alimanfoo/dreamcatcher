@@ -18,16 +18,16 @@ decided asks for the wakeup and runs it.
 from dataclasses import dataclass
 
 from dreamcatcher.agent_assignments import AgentAssignment
-from dreamcatcher.agent_rounds import RoundPurpose
+from dreamcatcher.agent_rounds import AgentRoundInput, AgentRoundPlan, RoundPurpose
 from dreamcatcher.github import (
-    AnyPost,
     PullRequest,
     PullRequestState,
     Unknown,
+    UserPost,
     read_pull_request,
 )
 from dreamcatcher.prompts import CARRY_ON_PROMPT, compose_inbox_prompt
-from dreamcatcher.relay import Inbox, peek_new_posts
+from dreamcatcher.relay import list_undelivered_user_posts
 from dreamcatcher.state import NO_ROUND_HAS_RUN, WaitingAgentAssignment
 from dreamcatcher.words import describe_count
 
@@ -36,32 +36,15 @@ from dreamcatcher.words import describe_count
 class Wakeup:
     """The round that would wake a dormant assignment, ready to run.
 
-    Purpose and recovery are the independent decisions that the round's own
-    record keeps. The reason carries the evidence that a tick which could not
-    launch this round writes down instead.
-
-    The inbox is the batch the round is woken with. A recovery has none: the
-    transcript that the harness resumes carries that work already.
+    The plan carries the decisions and input that the round executes. The reason
+    carries the evidence that a tick which could not launch this round writes
+    down instead.
     """
 
     assignment: AgentAssignment
-    purpose: RoundPurpose
-    is_recovery: bool
+    plan: AgentRoundPlan
     reason: str
     prompt: str
-    inbox: Inbox | None = None
-
-    @property
-    def newest_post(self) -> str:
-        """When the newest post this round is woken with was written.
-
-        A round woken by nothing the user said has no such post, and answers
-        with the beginning of time, so a launch knows to leave the assignment's
-        watermark where it is.
-        """
-        if self.inbox is None or not self.inbox.posts:
-            return ""
-        return self.inbox.posts[-1].written_at
 
 
 # What a tick found about one assignment: the wakeup it needs, or what it is
@@ -83,9 +66,9 @@ def _wakeup_priority(wakeup: Wakeup, /) -> int:
     """Return the existing scheduling priority of one required round."""
     if not wakeup.assignment.rounds:
         return 0
-    if wakeup.is_recovery:
+    if wakeup.plan.is_recovery:
         return 1
-    if wakeup.purpose is RoundPurpose.WRAP_UP:
+    if wakeup.plan.purpose is RoundPurpose.WRAP_UP:
         return 2
     return 3
 
@@ -136,8 +119,7 @@ def compose_dispatch_wakeup(*, assignment: AgentAssignment) -> Wakeup:
     """Return the first round a recorded assignment is waiting to run."""
     return Wakeup(
         assignment=assignment,
-        purpose=RoundPurpose.IMPLEMENT,
-        is_recovery=False,
+        plan=AgentRoundPlan(purpose=RoundPurpose.IMPLEMENT, is_recovery=False),
         reason=NO_ROUND_HAS_RUN,
         prompt=assignment.record.prompt,
     )
@@ -156,10 +138,8 @@ def _judge_pull_request(
     leaves the assignment waiting with what the read said, and the next tick asks
     again.
 
-    The peek runs whatever state the pull request is in, so the wrap-up round of a
-    merged pull request still carries whatever the user said before merging it.
-    An assignment that has completed that wrap-up successfully is done, and is not
-    peeked at again.
+    A wrap-up round still carries whatever the user said before merging or closing
+    the pull request.
     """
     pull_request = read_pull_request(
         repository=repository, pull_request=assignment.record.pull_request
@@ -173,16 +153,18 @@ def _judge_pull_request(
     if recovery_reason is not None and is_open:
         return Wakeup(
             assignment=assignment,
-            purpose=_round_purpose(pull_request=pull_request),
-            is_recovery=True,
+            plan=AgentRoundPlan(
+                purpose=_round_purpose(pull_request=pull_request),
+                is_recovery=True,
+            ),
             reason=recovery_reason,
             prompt=CARRY_ON_PROMPT,
         )
-    posted = peek_new_posts(
+    posted = list_undelivered_user_posts(
         repository=repository,
         pull_request=pull_request.number,
         account=account,
-        watermark=assignment.watermark,
+        delivery_cursor=assignment.user_post_delivery_cursor,
     )
     if isinstance(posted, Unknown):
         return compose_wait(
@@ -203,20 +185,23 @@ def _compose_resume(
     *,
     assignment: AgentAssignment,
     pull_request: PullRequest,
-    posted: list[AnyPost],
+    posted: list[UserPost],
     recovery_reason: str | None,
 ) -> Wakeup:
     """Return the round that the pull request and the user's posts call for.
 
-    The prompt names the file the launch writes the inbox to, and the state in
-    that file is what tells the assignment whether to answer the user or to wind
-    the assignment up. So both rounds ask for the same thing in the same words.
+    The prompt names the file to which the round writes its input, and the state
+    in that file tells the assignment whether to answer the user or to wind the
+    assignment up. Both rounds therefore ask for the same thing in the same words.
     """
     is_open = pull_request.state is PullRequestState.OPEN
     return Wakeup(
         assignment=assignment,
-        purpose=_round_purpose(pull_request=pull_request),
-        is_recovery=recovery_reason is not None,
+        plan=AgentRoundPlan(
+            purpose=_round_purpose(pull_request=pull_request),
+            is_recovery=recovery_reason is not None,
+            input=AgentRoundInput(state=pull_request.state, posts=posted),
+        ),
         reason=(
             recovery_reason
             or (
@@ -229,7 +214,6 @@ def _compose_resume(
             pull_request=pull_request.number,
             inbox=assignment.round_paths(number=assignment.next_round_number).inbox,
         ),
-        inbox=Inbox(state=pull_request.state, posts=posted),
     )
 
 

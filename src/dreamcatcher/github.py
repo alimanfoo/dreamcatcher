@@ -142,7 +142,7 @@ class Linked(Projection):
     )
 
 
-class Post(Projection):
+class _UserPostProjection(Projection):
     """Something somebody wrote on a pull request, whichever way they wrote it.
 
     A comment on the conversation, a review, and a comment on a line of the
@@ -152,9 +152,9 @@ class Post(Projection):
 
     The time is the ISO-8601 string GitHub sent, kept as a string. Every such
     string ends in a Z, so one sorts against another as text, and the relay
-    compares a post against its watermark without any date arithmetic. A review
+    compares a post against its delivery cursor without any date arithmetic. A review
     nobody has submitted yet records no time at all, which reads here as the
-    beginning of time, so it is never newer than a watermark.
+    beginning of time, so it is never newer than a delivery cursor.
 
     A post whose author GitHub no longer knows, one from a deleted account, is
     likewise authored by nobody, and so is nobody's to relay.
@@ -178,13 +178,13 @@ class Post(Projection):
         return bool(self.body)
 
 
-class Comment(Post):
+class Comment(_UserPostProjection):
     """A comment on the pull request's own conversation."""
 
     kind: Literal["comment"] = "comment"
 
 
-class Review(Post):
+class Review(_UserPostProjection):
     """A review somebody submitted, and the verdict that it carried."""
 
     kind: Literal["review"] = "review"
@@ -204,7 +204,7 @@ class Review(Post):
         return super().is_speaking or self.verdict in SPEAKING_VERDICTS
 
 
-class InlineComment(Post):
+class InlineComment(_UserPostProjection):
     """A comment somebody left on a line of the pull request's diff.
 
     The lines are where the comment was written, and the hunk is the piece of
@@ -252,9 +252,7 @@ class InlineComment(Post):
         }
 
 
-# Every kind of post a pull request carries. The three read back as themselves,
-# so a batch written to a round's inbox keeps what each one is.
-type AnyPost = Comment | Review | InlineComment
+type UserPost = Comment | Review | InlineComment
 
 
 REPOSITORY = TypeAdapter(Repository)
@@ -445,19 +443,18 @@ def list_blockers(*, repository: str, issue: int) -> list[Blocker] | Unknown:
     )
 
 
-def list_posts(*, repository: str, pull_request: int) -> list[AnyPost] | Unknown:
+def list_posts(*, repository: str, pull_request: int) -> list[UserPost] | Unknown:
     """Return everything anybody posted on the pull request, from all three places.
 
     The three come back as one list, because somebody reading a pull request
-    reads what was written on it and not three lists to reconcile. Nothing is
-    left out: whose post it is, and whether the assignment has heard it already,
-    is the relay's rule and none of this read's business.
+    reads what was written on it and not three lists to reconcile. The relay
+    decides which posts to deliver.
 
     A source the tool could not read answers unknown for the whole pull
     request, since the source it cannot see is the one that might hold the post
     the user is waiting for an answer to.
     """
-    found: list[AnyPost] = []
+    found: list[UserPost] = []
     for shape, under, listed in POST_LISTS:
         path = f"repos/{repository}/{under}/{pull_request}/{listed}"
         answered = _read_pages(shape=shape, path=path)
@@ -467,9 +464,9 @@ def list_posts(*, repository: str, pull_request: int) -> list[AnyPost] | Unknown
     return found
 
 
-def _read_pages[PostT: AnyPost](
+def _read_pages[PostT: UserPost](
     *, shape: TypeAdapter[list[list[PostT]]], path: str
-) -> list[AnyPost] | Unknown:
+) -> list[UserPost] | Unknown:
     """Return every post the paginated list at path holds, or Unknown.
 
     gh reads every page for us, and answers with one array for each page it
@@ -481,7 +478,7 @@ def _read_pages[PostT: AnyPost](
     )
     if isinstance(answered, Unknown):
         return answered
-    found: list[AnyPost] = list(chain.from_iterable(answered))
+    found: list[UserPost] = list(chain.from_iterable(answered))
     return found
 
 

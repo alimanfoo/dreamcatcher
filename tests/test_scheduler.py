@@ -9,7 +9,6 @@ from conftest import (
     LABEL,
     LATER,
     POST_LIST_PATHS,
-    POSTED_AT,
     POSTED_BY,
     PULL_REQUEST,
     REPOSITORY,
@@ -642,7 +641,7 @@ def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, g
     ) in (written_round(scheduler=scheduler, number=2, name="prompt.txt"))
 
 
-def test_an_assignment_told_about_a_batch_hears_it_only_once(resuming, gh):
+def test_an_assignment_receives_a_batch_only_once(resuming, gh):
     ran(root=resuming, number=1, purpose=RoundPurpose.IMPLEMENT)
     gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
     gh.replies(
@@ -655,14 +654,13 @@ def test_an_assignment_told_about_a_batch_hears_it_only_once(resuming, gh):
     observed = scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
 
-    assert (scheduler.state.assignments / ASSIGNMENT_ID / "watermark").read_text(
-        encoding="utf-8"
-    ) == POSTED_AT
     assert observed.launched is None
     assert not (scheduler.state.assignments / ASSIGNMENT_ID / "rounds" / "3").exists()
 
 
-def test_a_batch_no_round_ever_launched_is_read_again_next_tick(resuming, gh):
+def test_a_batch_no_round_ever_launched_is_read_again_next_tick(
+    resuming, gh, harnesses
+):
     ran(root=resuming, number=1, purpose=RoundPurpose.IMPLEMENT)
     gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
     gh.replies(
@@ -680,9 +678,11 @@ def test_a_batch_no_round_ever_launched_is_read_again_next_tick(resuming, gh):
     observed = scheduler.tick(at=clock())
 
     assert "cannot write" in held(observed=observed)
-    assert not (scheduler.state.assignments / ASSIGNMENT_ID / "watermark").exists()
-    peeks = [call for call in gh.calls if call.arguments[:2] == ["api", CONVERSATION]]
-    assert len(peeks) == 2
+    relay_reads = [
+        call for call in gh.calls if call.arguments[:2] == ["api", CONVERSATION]
+    ]
+    assert len(relay_reads) == 2
+    assert harnesses["claude"].calls == []
 
 
 @pytest.mark.parametrize("state_name", ["MERGED", "CLOSED"])
