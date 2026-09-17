@@ -80,10 +80,11 @@ USER_POST_DELIVERY_CURSOR = "watermark"
 class AgentAssignmentRecord(Document):
     """The issue an assignment works on, and the settings it runs its rounds with.
 
-    The dispatch settles all of these, including the pull request identity, and
-    no later round changes any of them. Every round reads them from here rather
-    than from the config, so editing the config while an assignment is in flight
-    cannot reach that assignment. Mutable pull request state stays on GitHub.
+    The dispatch settles all of these except the harness session identifier,
+    which the first round adds when the harness reports it. No later round
+    changes them. Every round reads them from here rather than from the config,
+    so editing the config while an assignment is in flight cannot reach that
+    assignment. Mutable pull request state stays on GitHub.
     """
 
     issue: int
@@ -104,8 +105,8 @@ class AgentAssignment:
 
     The directory is where the assignment keeps its own files, and its own name is
     the assignment's identifier, which is how a reader of the disk finds one. The record
-    says what the dispatch settled, and the rounds are what the assignment has run
-    so far, oldest first.
+    says what the dispatch settled and which harness session the first round
+    created, and the rounds are what the assignment has run so far, oldest first.
 
     The user-post delivery cursor is the newest post delivered to the assignment.
     An assignment that has received none has the beginning of time, so the first
