@@ -33,7 +33,6 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.config import Config, Harness
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
-    BlockerState,
     Issue,
     IssueState,
     Unknown,
@@ -296,7 +295,7 @@ def _observe_blocking_issues(*, repository: str, issue: int) -> IssueFact:
     if isinstance(blocking, Unknown):
         return _unknown_fact(evidence=f"cannot tell what blocks it: {blocking.reason}")
     open_blockers = [
-        blocker.number for blocker in blocking if blocker.state is BlockerState.OPEN
+        blocker.number for blocker in blocking if blocker.state is IssueState.OPEN
     ]
     named = ", ".join(f"GH{number}" for number in open_blockers)
     return _known_fact(

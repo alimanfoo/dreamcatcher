@@ -230,8 +230,7 @@ def inspect_incomplete_assignment_setups(
     """Return each incomplete setup's recovery obstacle, when it has one.
 
     A setup with no obstacle is safe for assignment creation to resume. This
-    boundary owns that decision, so eligibility only has to distinguish a
-    recoverable local setup from a pull request owned elsewhere.
+    boundary owns that decision.
     """
     return {
         issue: _inspect_incomplete_assignment_setup(

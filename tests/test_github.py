@@ -6,12 +6,11 @@ import pytest
 from conftest import POST_LIST_PATHS, POSTED_BY, PULL_REQUEST, pages
 
 from dreamcatcher.github import (
+    Account,
     Blocker,
-    BlockerState,
     Comment,
     InlineComment,
     Issue,
-    IssueAssignee,
     IssueLabel,
     IssueState,
     LinkedPullRequest,
@@ -88,7 +87,7 @@ def test_a_listing_carries_each_issue_and_when_it_was_filed(fake):
             number=8,
             created_at=datetime(2026, 8, 19, 18, 41, 58, tzinfo=UTC),
             state=IssueState.OPEN,
-            assignees=[IssueAssignee(login="alimanfoo")],
+            assignees=[Account(login="alimanfoo")],
             labels=[IssueLabel(name="dream:smith")],
         )
     ]
@@ -312,8 +311,8 @@ def test_the_blockers_of_an_issue_come_back_with_their_states(fake):
     )
 
     assert list_blockers(repository=REPOSITORY, issue=9) == [
-        Blocker(number=7, state=BlockerState.CLOSED),
-        Blocker(number=8, state=BlockerState.OPEN),
+        Blocker(number=7, state=IssueState.CLOSED),
+        Blocker(number=8, state=IssueState.OPEN),
     ]
     assert gh.calls[0].arguments == [
         "api",

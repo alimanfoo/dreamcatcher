@@ -318,9 +318,7 @@ class _Look:
         """Return the labelled issues the last tick weighed, in the order they go.
 
         An issue an assignment here already claims is not queued: it is that
-        assignment. The tick that dispatched it weighed it before it had one, so
-        its own record still calls it eligible, and by the time anyone reads
-        the board it has a row of its own to read instead.
+        assignment, and the board has a row of its own to read instead.
         """
         if self.tick is None:
             return []

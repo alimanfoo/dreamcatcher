@@ -16,6 +16,7 @@ from pydantic import (
     Field,
     TypeAdapter,
     ValidationError,
+    field_validator,
     model_validator,
 )
 
@@ -66,17 +67,10 @@ class PullRequestState(StrEnum):
 
 
 class IssueState(StrEnum):
-    """Whether an issue is open or closed. gh names these in capitals."""
+    """Whether an issue is open or closed, across GitHub transports."""
 
     OPEN = "OPEN"
     CLOSED = "CLOSED"
-
-
-class BlockerState(StrEnum):
-    """Whether a blocking issue is still open. The REST API uses lower case."""
-
-    OPEN = "open"
-    CLOSED = "closed"
 
 
 class Verdict(StrEnum):
@@ -107,12 +101,6 @@ class Account(Projection):
     login: str
 
 
-class IssueAssignee(Projection):
-    """An account assigned to an issue."""
-
-    login: str
-
-
 class IssueLabel(Projection):
     """A label carried by an issue."""
 
@@ -125,7 +113,7 @@ class Issue(Projection):
     number: int
     created_at: datetime = Field(alias="createdAt")
     state: IssueState
-    assignees: list[IssueAssignee]
+    assignees: list[Account]
     labels: list[IssueLabel]
 
 
@@ -141,7 +129,13 @@ class Blocker(Projection):
     """An issue that blocks another, and whether it is still open."""
 
     number: int
-    state: BlockerState
+    state: IssueState
+
+    @field_validator("state", mode="before")
+    @classmethod
+    def _normalize_rest_state(cls, value: object, /) -> str:
+        """Normalize the REST API's lower-case spelling at its boundary."""
+        return str(value).upper()
 
 
 class LinkedPullRequest(Projection):
