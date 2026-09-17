@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body{margin:0;background:#050806;color:#D6FFE0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:1.5}
+    a{color:#33FF66}a:hover{color:#D6FFE0}
+    ::selection{background:#33FF66;color:#050806}
+    *:focus-visible{outline:1px solid #33FF66;outline-offset:2px}
+    details>summary{list-style:none}details>summary::-webkit-details-marker{display:none}
+    @keyframes dcCaret{0%,49%{opacity:1}50%,100%{opacity:0}}
+    @keyframes dcPulse{0%,100%{opacity:1}50%{opacity:.25}}
+  </style>
+</helmet>
+<div style="position:fixed;inset:0;pointer-events:none;z-index:5;background:repeating-linear-gradient(0deg,rgba(0,0,0,0.24) 0 1px,transparent 1px 3px),radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,0.6) 100%)"></div>
+<div style="min-height:100vh;display:flex;flex-direction:column">
+  <header style="display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;padding:12px 28px;border-bottom:1px solid rgba(51,255,102,0.28)">
+    <div style="display:flex;align-items:center;gap:14px;min-width:0;flex-wrap:wrap">
+      <img src="assets/dreamcatcher-mark-phosphor.png" alt="Dreamcatcher" style="width:30px;height:30px;flex:none;align-self:center;opacity:0.8">
+      <span style="color:rgba(51,255,102,0.55)">{{ inst.repo }}</span>
+      <span style="color:rgba(51,255,102,0.55)">{{ inst.user }}</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;color:rgba(51,255,102,0.55)">
+      <span>daemon <span style="color:#33FF66">{{ inst.daemonLabel }}</span> pid {{ inst.pid }}</span>
+      <span>{{ inst.harnessSummary }}</span>
+    </div>
+  </header>
+
+  <sc-if value="{{ isOverview }}" hint-placeholder-val="{{ true }}">
+  <main style="flex:1;width:100%;max-width:1320px;box-sizing:border-box;margin:0 auto;padding:22px 28px 56px;display:flex;flex-direction:column;gap:26px">
+
+    <sc-if value="{{ inst.cooldownActive }}" hint-placeholder-val="{{ false }}">
+      <div style="border:1px solid #FFB000;padding:10px 14px;color:#FFB000;display:flex;gap:14px;flex-wrap:wrap"><span style="font-weight:700">!! GLOBAL COOLDOWN until {{ inst.cooldownUntil }}</span><span style="color:rgba(255,176,0,0.75)">{{ inst.cooldownReason }} No new rounds start until it ends; faults clear afterwards.</span></div>
+    </sc-if>
+
+    <section style="display:flex;align-items:center;gap:0;flex-wrap:wrap;color:rgba(51,255,102,0.55);row-gap:4px">
+      <sc-for list="{{ facts }}" as="f" hint-placeholder-count="5">
+        <span style="display:inline-flex;align-items:center;gap:8px;padding-right:12px;margin-right:12px;border-right:1px solid rgba(51,255,102,0.28);white-space:nowrap;flex:none"><span>{{ f.label }}</span><span style="color:{{ f.color }};font-weight:600">{{ f.value }}</span></span>
+      </sc-for>
+    </section>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(460px,1fr));gap:28px;align-items:start">
+    <section style="position:relative;border:1px solid rgba(51,255,102,0.28);padding:22px 16px 16px;display:flex;flex-direction:column;gap:12px;min-width:0">
+      <span style="position:absolute;top:-10px;left:12px;background:#050806;padding:0 8px;color:#33FF66;letter-spacing:0.14em;font-weight:700;text-shadow:0 0 8px rgba(51,255,102,0.45)">AGENTS <span style="color:rgba(51,255,102,0.55);font-weight:400">{{ openCount }}</span></span>
+      <sc-for list="{{ openAssignments }}" as="a" hint-placeholder-count="4">
+        <div style="border:1px solid {{ a.cardBorder }};padding:10px 14px;display:flex;flex-direction:column;gap:6px;background:{{ a.rowBg }}">
+          <div style="display:flex;align-items:flex-start;gap:12px;min-width:0">
+            <div style="flex:1 1 auto;min-width:0;color:#D6FFE0;font-weight:600;text-wrap:pretty"><a href="{{ a.issueUrl }}" style="color:#33FF66;text-decoration:none;margin-right:8px" style-hover="text-decoration:underline">{{ a.issueLabel }}</a>{{ a.title }}</div>
+            <span style="flex:none;padding:0 6px;background:{{ a.bg }};color:{{ a.fg }};font-weight:700;letter-spacing:0.06em;white-space:nowrap;text-shadow:{{ a.glow }}">[{{ a.statusLabel }}]</span>
+          </div>
+          <div style="color:rgba(51,255,102,0.55);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span style="color:#D6FFE0">{{ a.roundLine }}</span> · {{ a.activity }} · {{ a.harness }}</div>
+          <sc-if value="{{ a.isRunning }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:baseline;gap:8px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span style="color:{{ a.lastKindFg }};font-weight:700">[{{ a.lastKind }}]</span><span style="color:#D6FFE0;min-width:0;overflow:hidden;text-overflow:ellipsis">{{ a.lastLine }}</span>{{ caret }}</div>
+          </sc-if>
+          <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap">
+            <a href="{{ a.prUrl }}" style="display:inline-flex;align-items:center;gap:8px;padding:2px 10px;text-decoration:none;white-space:nowrap;background:{{ a.prBg }};color:{{ a.prFg }};border:1px solid {{ a.prBorder }};font-weight:700" style-hover="background:{{ a.prHoverBg }};color:{{ a.prHoverFg }}"><span>PR #{{ a.pr }}</span><span style="font-weight:400;opacity:0.8">{{ a.prState }}</span></a>
+            <button onClick="{{ a.open }}" aria-label="Open feed" style="font:inherit;font-weight:700;color:#33FF66;background:transparent;border:1px solid rgba(51,255,102,0.28);padding:2px 10px;cursor:pointer" style-hover="background:rgba(51,255,102,0.1)">&gt;</button>
+          </div>
+        </div>
+      </sc-for>
+      <sc-if value="{{ noOpen }}" hint-placeholder-val="{{ false }}"><div style="color:rgba(51,255,102,0.55);padding:4px 2px">-- no open assignments --</div></sc-if>
+      <sc-if value="{{ hasComplete }}" hint-placeholder-val="{{ true }}">
+      <details>
+        <summary style="color:rgba(51,255,102,0.55);cursor:pointer;display:inline-flex;gap:8px" style-hover="color:#33FF66"><span>+</span>{{ completeLine }}</summary>
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:12px">
+        <sc-for list="{{ completeAssignments }}" as="a" hint-placeholder-count="1">
+          <div style="border:1px solid {{ a.cardBorder }};padding:10px 14px;display:flex;flex-direction:column;gap:6px;background:{{ a.rowBg }}">
+            <div style="display:flex;align-items:flex-start;gap:12px;min-width:0">
+              <div style="flex:1 1 auto;min-width:0;color:#D6FFE0;font-weight:600;text-wrap:pretty"><a href="{{ a.issueUrl }}" style="color:#33FF66;text-decoration:none;margin-right:8px" style-hover="text-decoration:underline">{{ a.issueLabel }}</a>{{ a.title }}</div>
+              <span style="flex:none;padding:0 6px;background:{{ a.bg }};color:{{ a.fg }};font-weight:700;letter-spacing:0.06em;white-space:nowrap">[{{ a.statusLabel }}]</span>
+            </div>
+            <div style="color:rgba(51,255,102,0.55);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span style="color:#D6FFE0">{{ a.roundLine }}</span> · {{ a.activity }} · {{ a.harness }}</div>
+            <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap">
+              <a href="{{ a.prUrl }}" style="display:inline-flex;align-items:center;gap:8px;padding:2px 10px;text-decoration:none;white-space:nowrap;background:{{ a.prBg }};color:{{ a.prFg }};border:1px solid {{ a.prBorder }};font-weight:700" style-hover="background:{{ a.prHoverBg }};color:{{ a.prHoverFg }}"><span>PR #{{ a.pr }}</span><span style="font-weight:400;opacity:0.8">{{ a.prState }}</span></a>
+              <button onClick="{{ a.open }}" aria-label="Open feed" style="font:inherit;font-weight:700;color:#33FF66;background:transparent;border:1px solid rgba(51,255,102,0.28);padding:2px 10px;cursor:pointer" style-hover="background:rgba(51,255,102,0.1)">&gt;</button>
+            </div>
+          </div>
+        </sc-for>
+        </div>
+      </details>
+      </sc-if>
+    </section>
+
+    <sc-if value="{{ showIssues }}" hint-placeholder-val="{{ true }}">
+    <section style="position:relative;border:1px solid rgba(51,255,102,0.28);padding:22px 16px 16px;display:flex;flex-direction:column;gap:12px;min-width:0">
+      <span style="position:absolute;top:-10px;left:12px;background:#050806;padding:0 8px;color:#33FF66;letter-spacing:0.14em;font-weight:700;text-shadow:0 0 8px rgba(51,255,102,0.45)">BACKLOG <span style="color:rgba(51,255,102,0.55);font-weight:400">{{ backlogCount }}</span></span>
+      <sc-for list="{{ backlog }}" as="i" hint-placeholder-count="4">
+        <div style="border:1px solid rgba(51,255,102,0.18);padding:10px 14px;display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:flex-start;gap:12px;min-width:0">
+            <div style="flex:1 1 auto;min-width:0;color:#D6FFE0;font-weight:600;text-wrap:pretty"><a href="{{ i.url }}" style="color:#33FF66;text-decoration:none;margin-right:8px" style-hover="text-decoration:underline">{{ i.label }}</a>{{ i.title }}</div>
+            <span style="flex:none;padding:0 6px;background:{{ i.avBg }};color:{{ i.avFg }};font-weight:700;letter-spacing:0.06em;white-space:nowrap">[{{ i.availLabel }}]</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:rgba(51,255,102,0.55)">
+            <sc-for list="{{ i.labels }}" as="l" hint-placeholder-count="1"><span style="color:rgba(51,255,102,0.75)">{{ l }}</span></sc-for>
+            <sc-if value="{{ i.hasElsewherePr }}" hint-placeholder-val="{{ false }}"><a href="{{ i.elsewherePrUrl }}" style="display:inline-flex;gap:8px;padding:0 8px;border:1px solid rgba(51,255,102,0.28);color:#33FF66;text-decoration:none;white-space:nowrap" style-hover="background:rgba(51,255,102,0.1)"><span>PR #{{ i.elsewherePrN }}</span><span style="opacity:0.8">{{ i.elsewherePrState }}</span></a></sc-if>
+            <sc-if value="{{ i.hasBlockers }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;gap:6px">blocked by<sc-for list="{{ i.blockers }}" as="b" hint-placeholder-count="1"><a href="{{ b.url }}" style="color:#33FF66;text-decoration:none" style-hover="text-decoration:underline">{{ b.label }}</a></sc-for></span></sc-if>
+          </div>
+        </div>
+      </sc-for>
+      <sc-if value="{{ noBacklog }}" hint-placeholder-val="{{ false }}"><div style="color:rgba(51,255,102,0.55);padding:4px 2px">-- no labelled issues without an assignment --</div></sc-if>
+    </section>
+    </sc-if>
+    </div>
+  </main>
+  </sc-if>
+
+  <sc-if value="{{ isDetail }}" hint-placeholder-val="{{ false }}">
+  <main style="flex:1;width:100%;max-width:1320px;box-sizing:border-box;margin:0 auto;padding:18px 28px 56px;display:flex;flex-direction:column;gap:20px">
+    <button onClick="{{ back }}" style="align-self:flex-start;background:transparent;border:0;padding:0;font:inherit;font-weight:700;color:#33FF66;cursor:pointer;letter-spacing:0.06em" style-hover="color:#D6FFE0">&lt; HOME</button>
+
+    <section style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;align-items:baseline;gap:8px 14px;flex-wrap:wrap;row-gap:8px">
+        <h1 style="font-size:18px;font-weight:700;line-height:1.3;color:#D6FFE0;margin:0;text-wrap:balance;min-width:0;flex:1 1 320px"><a href="{{ sel.issueUrl }}" style="color:#33FF66;text-decoration:none;margin-right:10px" style-hover="text-decoration:underline">{{ sel.issueLabel }}</a>{{ sel.title }}</h1>
+        <span style="padding:0 6px;background:{{ sel.bg }};color:{{ sel.fg }};font-weight:700;letter-spacing:0.06em;white-space:nowrap;text-shadow:{{ sel.glow }}">[{{ sel.statusLabel }}]</span>
+        <a href="{{ sel.prUrl }}" style="display:inline-flex;align-items:center;gap:8px;padding:2px 10px;text-decoration:none;white-space:nowrap;background:{{ sel.prBg }};color:{{ sel.prFg }};border:1px solid {{ sel.prBorder }};font-weight:700" style-hover="background:{{ sel.prHoverBg }};color:{{ sel.prHoverFg }}"><span>PR #{{ sel.pr }}</span><span style="font-weight:400;opacity:0.8">{{ sel.prState }}</span></a>
+      </div>
+      <div style="display:flex;align-items:center;gap:0;flex-wrap:wrap;color:rgba(51,255,102,0.55);row-gap:4px">
+        <sc-for list="{{ sel.meta }}" as="m" hint-placeholder-count="5">
+          <span style="display:inline-flex;align-items:center;gap:8px;padding-right:12px;margin-right:12px;border-right:1px solid rgba(51,255,102,0.28);white-space:nowrap;flex:none"><span>{{ m.label }}</span><span style="color:#D6FFE0">{{ m.value }}</span></span>
+        </sc-for>
+      </div>
+    </section>
+
+    <section style="display:grid;grid-template-columns:minmax(240px,320px) minmax(0,1fr);gap:24px;align-items:start">
+      <aside style="position:sticky;top:16px;display:flex;flex-direction:column;gap:14px">
+        <div style="position:relative;border:1px solid rgba(51,255,102,0.28);padding:18px 0 6px;display:flex;flex-direction:column">
+          <span style="position:absolute;top:-10px;left:12px;background:#050806;padding:0 8px;color:#33FF66;letter-spacing:0.14em;font-weight:700">ROUNDS</span>
+          <sc-for list="{{ rounds }}" as="r" hint-placeholder-count="3">
+            <div role="button" tabindex="0" onClick="{{ r.select }}" onKeyDown="{{ r.key }}" style="display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;padding:8px 14px;cursor:pointer;background:{{ r.rowBg }};border-left:2px solid {{ r.edge }}" style-hover="background:rgba(51,255,102,0.08)">
+              <div style="color:{{ r.numFg }};font-weight:700">{{ r.nLabel }}</div>
+              <div style="display:flex;flex-direction:column;gap:2px;min-width:0">
+                <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><span style="color:#D6FFE0;font-weight:600">{{ r.purpose }}</span><sc-if value="{{ r.recovery }}" hint-placeholder-val="{{ false }}"><span style="color:rgba(51,255,102,0.55)">(recovery)</span></sc-if></div>
+                <div><span style="padding:0 6px;background:{{ r.oc.bg }};color:{{ r.oc.fg }};font-weight:700;letter-spacing:0.06em;white-space:nowrap">[{{ r.outcomeLabel }}]</span></div>
+                <div style="color:rgba(51,255,102,0.55)">{{ r.when }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <sc-if value="{{ sel.nextRound }}" hint-placeholder-val="{{ false }}">
+          <div style="border:1px dashed rgba(51,255,102,0.28);padding:8px 12px;color:rgba(51,255,102,0.75)"><span style="color:#33FF66;font-weight:700">next&gt; </span>{{ sel.nextRound }}</div>
+        </sc-if>
+      </aside>
+
+      <div style="position:relative;border:1px solid rgba(51,255,102,0.28);min-width:0;display:flex;flex-direction:column">
+        <span style="position:absolute;top:-10px;left:12px;background:#050806;padding:0 8px;color:#33FF66;letter-spacing:0.14em;font-weight:700;display:inline-flex;gap:12px;align-items:baseline;z-index:2">FEED<sc-if value="{{ curRound.running }}" hint-placeholder-val="{{ false }}"><span style="color:#33FF66;font-weight:400;display:inline-flex;gap:6px;align-items:center">{{ liveDot }} LIVE</span></sc-if></span>
+        <div ref="{{ feedRef }}" onScroll="{{ onFeedScroll }}" style="height:72vh;min-height:380px;overflow:auto;position:relative;padding:14px 18px 18px;display:flex;flex-direction:column;gap:2px">
+          <sc-for list="{{ feedRounds }}" as="fr" hint-placeholder-count="2">
+            <div ref="{{ fr.ref }}" style="display:flex;flex-direction:column;gap:2px;padding-top:10px">
+              <div style="position:sticky;top:-14px;background:#050806;padding:8px 0 6px;color:rgba(51,255,102,0.55);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:1">── <span style="color:#33FF66;font-weight:700">ROUND {{ fr.n }}</span> · {{ fr.purposeUpper }} · {{ fr.when }} ────────────────────────────────────────────────────────────────────────────</div>
+              <sc-for list="{{ fr.rows }}" as="e" hint-placeholder-count="4">
+                <div style="display:grid;grid-template-columns:auto 15ch minmax(0,1fr);gap:0 12px;align-items:baseline">
+                  <span style="color:rgba(51,255,102,0.45);white-space:nowrap">{{ e.time }}</span>
+                  <span style="color:{{ e.tagFg }};background:{{ e.tagBg }};font-weight:700;white-space:nowrap;padding:0 4px;justify-self:start">{{ e.tag }}</span>
+                  <span style="color:{{ e.fg }};white-space:pre-wrap;overflow-wrap:anywhere">{{ e.text }}{{ e.cursor }}</span>
+                  <sc-if value="{{ e.detail }}" hint-placeholder-val="{{ false }}"><pre style="grid-column:3;margin:2px 0 6px;font:inherit;color:rgba(51,255,102,0.75);white-space:pre-wrap;overflow-wrap:anywhere;border-left:1px solid rgba(51,255,102,0.28);padding-left:10px">{{ e.detail }}</pre></sc-if>
+                </div>
+              </sc-for>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </section>
+  </main>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;scenario&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;realistic&quot;,&quot;quiet&quot;,&quot;cooldown&quot;],&quot;default&quot;:&quot;realistic&quot;,&quot;tsType&quot;:&quot;'realistic'|'quiet'|'cooldown'&quot;,&quot;section&quot;:&quot;Sample data&quot;},&quot;showIssues&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Overview&quot;}}">
+const REPO = 'https://github.com/eit-org/dreamcatcher';
+
+const ev = (kind, time, body, head, detail) => ({kind, time, body, head: head || '', detail: detail || ''});
+const A = (kind, t, b, h, d) => ev(kind, t, b, h, d);
+
+const ASSIGNMENTS = [
+  {id:'GH142-20260916-1804', issue:'GH142', title:'Add retry with backoff to the GitHub client', status:'Working',
+   statusNote:'Round 2 is running. The pull request is still a draft.', harness:'Claude Code', model:'claude-opus-4', effort:'high', route:'agent:implement',
+   pr:151, prState:'draft', branch:'dreamcatcher/GH142-20260916-1804', session:'sess_7f3a9c2e', activity:'Started 14 min ago', roundLine:'Round 2 · Implement',
+   rounds:[
+     {n:1, purpose:'Implement', recovery:false, outcome:'successful', when:'18:04 – 18:26 · 22 min', events:[
+       A('system','18:04:12','Begin implementation of #142 on branch dreamcatcher/GH142-20260916-1804. A draft pull request (#151) is already open; adopt it for questions and for marking the work ready.', 'Prompt · new harness session'),
+       A('agent','18:04:31','Reading the GitHub boundary first. All requests go through github.py, so the retry wrapper belongs there rather than in callers.'),
+       A('tool','18:04:40','Read','src/dreamcatcher/github.py'),
+       A('tool','18:05:02','Read','tests/test_github.py'),
+       A('agent','18:06:15','Plan: a small with_retry helper taking the command, a maximum of four attempts, and exponential backoff starting at 500 ms. Retry only on transport errors and HTTP 5xx; a 4xx is a real answer and must surface as an unknown fact, not be retried.'),
+       A('tool','18:07:48','Edit','src/dreamcatcher/github.py','+31 −2'),
+       A('tool','18:09:10','Edit','tests/test_github.py','+44 −0'),
+       A('tool','18:09:30','Bash','pytest tests/test_github.py -q','.............. 14 passed in 1.92s'),
+       A('agent','18:25:50','Retry helper is in place for issue and pull-request reads. Pausing here: the write paths (creating the draft pull request) need a decision on idempotency before they can retry safely. I have asked on the pull request.'),
+       A('end','18:26:04','Harness exited with status 0.'),
+     ]},
+     {n:2, purpose:'Implement', recovery:false, outcome:'running', when:'Started 18:05 · 14 min so far', events:[
+       A('system','18:05:07','Resume harness session sess_7f3a9c2e. One new user post is relayed below. Continue the implementation; the pull request remains a draft.', 'Prompt · resume'),
+       A('user','18:05:07','Do not retry pull-request creation. If the create call fails, let assignment creation fail and rely on the existing recovery path, which already recognises the branch as belonging to the same assignment.', 'Relayed post · conversation comment · 17:58'),
+       A('agent','18:05:40','Understood. Only reads and the ready-for-review toggle will retry. Creation stays single-shot so recovery can reconcile artefacts by branch name.'),
+       A('tool','18:06:02','Edit','src/dreamcatcher/github.py','+9 −6'),
+       A('agent','18:11:18','Adding jitter of up to 250 ms so several assignments hitting a rate limit at once do not retry in lockstep.'),
+       A('tool','18:11:44','Edit','src/dreamcatcher/github.py','+7 −1'),
+       A('tool','18:12:30','Bash','pytest -q','..................................... 61 passed in 6.41s'),
+       A('agent','18:17:55','Updating the docstring in the GitHub boundary to state which operations retry, then marking the pull request ready.'),
+       A('tool','18:18:20','Edit','src/dreamcatcher/github.py','+5 −1'),
+       A('tool','18:19:02','Bash','gh pr ready 151'),
+     ]},
+   ]},
+  {id:'GH137-20260916-1520', issue:'GH137', title:'Normalise inline review comments into user posts', status:'Working',
+   statusNote:'Round 4 is addressing feedback left on the ready pull request.', harness:'Codex', model:'gpt-5-codex', effort:'medium', route:'agent:implement',
+   pr:148, prState:'ready', branch:'dreamcatcher/GH137-20260916-1520', session:'thr_01J8Q2', activity:'Started 6 min ago', roundLine:'Round 4 · Address feedback',
+   rounds:[
+     {n:1, purpose:'Implement', recovery:false, outcome:'successful', when:'15:20 – 15:58 · 38 min'},
+     {n:2, purpose:'Implement', recovery:false, outcome:'successful', when:'16:10 – 16:31 · 21 min'},
+     {n:3, purpose:'Address feedback', recovery:false, outcome:'successful', when:'17:02 – 17:19 · 17 min'},
+     {n:4, purpose:'Address feedback', recovery:false, outcome:'running', when:'Started 18:13 · 6 min so far', events:[
+       A('system','18:13:02','Resume harness session thr_01J8Q2. Two new user posts are relayed below. The pull request is ready for review; address the feedback and leave it ready.', 'Prompt · resume'),
+       A('user','18:13:02','Review verdict: changes requested.', 'Relayed post · review verdict · 18:09'),
+       A('user','18:13:02','relay.py L41 — the cursor should compare on the post identifier, not the timestamp. Two inline comments can share a timestamp.', 'Relayed post · inline review comment · 18:09'),
+       A('agent','18:13:39','Agreed, timestamps are not unique across GitHub post types. Switching the cursor to the normalised post identifier and ordering by (created_at, id) for determinism.'),
+       A('tool','18:14:10','Edit','src/dreamcatcher/relay.py','+12 −8'),
+       A('tool','18:15:22','Edit','tests/test_relay.py','+27 −3'),
+       A('tool','18:15:50','Bash','pytest tests/test_relay.py -q','.......... 10 passed in 0.88s'),
+       A('agent','18:18:41','Replying to the inline thread and re-requesting review.'),
+     ]},
+   ]},
+  {id:'GH129-20260915-0912', issue:'GH129', title:'Scheduler: recover interrupted assignment creation', status:'Needs feedback',
+   statusNote:'No round is required. The pull request is ready and awaits your review.', harness:'Claude Code', model:'claude-opus-4', effort:'high', route:'agent:implement',
+   pr:144, prState:'ready', branch:'dreamcatcher/GH129-20260915-0912', session:'sess_2b91d0aa', activity:'Ready since yesterday 11:40', roundLine:'Round 3 · Address feedback',
+   rounds:[
+     {n:1, purpose:'Implement', recovery:false, outcome:'successful', when:'Yesterday 09:12 – 09:51 · 39 min'},
+     {n:2, purpose:'Implement', recovery:false, outcome:'successful', when:'Yesterday 10:20 – 10:44 · 24 min'},
+     {n:3, purpose:'Address feedback', recovery:false, outcome:'successful', when:'Yesterday 11:15 – 11:40 · 25 min', events:[
+       A('system','11:15:00','Resume harness session sess_2b91d0aa. One new user post is relayed below.', 'Prompt · resume'),
+       A('user','11:15:00','Please make sure a half-created assignment never produces a second pull request when creation is retried.', 'Relayed post · review body · 11:02'),
+       A('agent','11:15:36','Recovery now looks up an existing pull request by head branch before opening one. If found, it is adopted and the record is completed from it.'),
+       A('tool','11:17:02','Edit','src/dreamcatcher/agent_assignments.py','+38 −11'),
+       A('tool','11:22:15','Edit','tests/test_agent_assignments.py','+52 −0'),
+       A('tool','11:22:40','Bash','pytest -q','..................................... 58 passed in 6.02s'),
+       A('agent','11:39:30','Addressed. The pull request is ready for another look.'),
+       A('end','11:40:12','Harness exited with status 0.'),
+     ]},
+   ]},
+  {id:'GH131-20260916-1701', issue:'GH131', title:'Render the feed as plain-text records', status:'Queued',
+   statusNote:'A recovery round is required but capacity is full.', harness:'Codex', model:'gpt-5-codex', effort:'medium', route:'agent:implement',
+   pr:150, prState:'draft', branch:'dreamcatcher/GH131-20260916-1701', session:'thr_01J8QK', activity:'Interrupted 17:52 · queued behind capacity', roundLine:'Round 2 required · Recovery',
+   nextRound:'Implement, marked as recovery, once a slot frees. Round 1 was interrupted when the daemon restarted.',
+   rounds:[
+     {n:1, purpose:'Implement', recovery:false, outcome:'interrupted', when:'17:01 – 17:52 · no recorded ending', events:[
+       A('system','17:01:10','Begin implementation of #131 on branch dreamcatcher/GH131-20260916-1701. Draft pull request #150 is open.', 'Prompt · new harness session'),
+       A('agent','17:01:48','feed.py should own a harness-neutral record type. Starting with a small dataclass and a renderer that the TUI can consume without knowing about harness event shapes.'),
+       A('tool','17:03:20','Edit','src/dreamcatcher/feed.py','+64 −0'),
+       A('tool','17:20:05','Edit','src/dreamcatcher/adapters.py','+19 −4'),
+       A('tool','17:41:12','Bash','pytest tests/test_feed.py -q','...... 6 passed in 0.41s'),
+       A('end','17:52:30','Process no longer present at reconciliation; recorded as interrupted.'),
+     ]},
+   ]},
+  {id:'GH118-20260914-1130', issue:'GH118', title:'Strict TOML validation for dispatch routes', status:'Fault',
+   statusNote:'Two consecutive rounds errored. Ordinary recovery has stopped until a cooldown clears the fault or you intervene.', harness:'Claude Code', model:'claude-sonnet-4', effort:'medium', route:'agent:implement',
+   pr:139, prState:'draft', branch:'dreamcatcher/GH118-20260914-1130', session:'sess_9ac0e17b', activity:'Errored 16:48 and 17:05', roundLine:'Rounds 3 & 4 errored',
+   rounds:[
+     {n:1, purpose:'Implement', recovery:false, outcome:'successful', when:'14 Sep 11:30 – 12:02 · 32 min'},
+     {n:2, purpose:'Implement', recovery:false, outcome:'successful', when:'15 Sep 09:40 – 10:05 · 25 min'},
+     {n:3, purpose:'Implement', recovery:false, outcome:'errored', when:'16:40 – 16:48 · exit 1'},
+     {n:4, purpose:'Implement', recovery:true, outcome:'errored', when:'16:58 – 17:05 · exit 1', events:[
+       A('system','16:58:00','Resume harness session sess_9ac0e17b. This is a recovery round; the previous round exited with an error. No new user posts.', 'Prompt · resume · recovery'),
+       A('agent','16:58:44','Resuming the validator work. Re-running the failing test to see the current state.'),
+       A('tool','16:59:10','Bash','pytest tests/test_config.py -q','FAILED tests/test_config.py::test_duplicate_label_rejected\n  tomllib.TOMLDecodeError: Cannot overwrite a value (at line 12, column 3)'),
+       A('tool','17:04:52','Bash','pytest tests/test_config.py -q','FAILED tests/test_config.py::test_duplicate_label_rejected'),
+       A('end','17:05:18','Harness exited with status 1: context limit reached while reading fixtures.'),
+     ]},
+   ]},
+  {id:'GH112-20260913-0940', issue:'GH112', title:'Document atomic replacement writes in documents.py', status:'Complete',
+   statusNote:'The pull request was merged and the wrap-up round exited successfully.', harness:'Claude Code', model:'claude-sonnet-4', effort:'low', route:'agent:docs',
+   pr:133, prState:'merged', branch:'dreamcatcher/GH112-20260913-0940', session:'sess_44d1c9f0', activity:'Completed today 09:15', roundLine:'Round 3 · Wrap up',
+   rounds:[
+     {n:1, purpose:'Implement', recovery:false, outcome:'successful', when:'13 Sep 09:40 – 09:58 · 18 min'},
+     {n:2, purpose:'Address feedback', recovery:false, outcome:'successful', when:'15 Sep 14:10 – 14:22 · 12 min'},
+     {n:3, purpose:'Wrap up', recovery:false, outcome:'successful', when:'Today 09:11 – 09:15 · 4 min', events:[
+       A('system','09:11:00','Resume harness session sess_44d1c9f0. Pull request #133 has been merged. Wrap up the assignment: confirm nothing is left uncommitted and leave a closing note.', 'Prompt · resume · wrap up'),
+       A('tool','09:11:20','Bash','git status --porcelain',''),
+       A('agent','09:14:30','The worktree is clean and the merge commit is on main. Closing note posted to the pull request.'),
+       A('end','09:15:02','Harness exited with status 0. Assignment complete.'),
+     ]},
+   ]},
+];
+
+const ISSUES = [
+  {id:'GH142', title:'Add retry with backoff to the GitHub client', labels:['agent:implement'], here:true, elsewhere:false, blocked:false, conflict:false},
+  {id:'GH137', title:'Normalise inline review comments into user posts', labels:['agent:implement'], here:true, elsewhere:false, blocked:false, conflict:false},
+  {id:'GH129', title:'Scheduler: recover interrupted assignment creation', labels:['agent:implement'], here:true, elsewhere:false, blocked:false, conflict:false},
+  {id:'GH131', title:'Render the feed as plain-text records', labels:['agent:implement'], here:true, elsewhere:false, blocked:false, conflict:false},
+  {id:'GH118', title:'Strict TOML validation for dispatch routes', labels:['agent:implement'], here:true, elsewhere:false, blocked:false, conflict:false},
+  {id:'GH145', title:'Expose the status report as JSON', labels:['agent:implement'], here:false, elsewhere:false, blocked:false, conflict:false},
+  {id:'GH146', title:'Web frontend for the status report', labels:['agent:implement'], here:false, elsewhere:false, blocked:true, blockedBy:['GH145'], conflict:false},
+  {id:'GH140', title:'Harness adapter for Gemini CLI', labels:['agent:implement','agent:docs'], here:false, elsewhere:false, blocked:false, conflict:true},
+  {id:'GH138', title:'Prompt templates for wrap-up rounds', labels:['agent:docs'], here:false, elsewhere:true, elsewherePr:{n:149, state:'draft'}, blocked:false, conflict:false},
+  {id:'GH147', title:'Persist the time the last cooldown ended', labels:['agent:implement'], here:false, elsewhere:false, blocked:null, conflict:false},
+];
+
+// Records that a running round emits over time (revealed one per tick to simulate the live feed).
+const LIVE = {
+  'GH142-20260916-1804': [
+    A('tool','18:19:31','Bash','gh pr view 151 --json isDraft','{"isDraft": false}'),
+    A('agent','18:19:58','Pull request #151 is now ready for review. Summary of the change posted as a comment; retry covers reads and the ready toggle only, per the relayed decision.'),
+    A('tool','18:20:12','Bash','gh pr comment 151 --body-file .dreamcatcher/tmp/summary.md'),
+    A('agent','18:20:40','Running the full suite once more with the jitter change before wrapping up, and checking that no caller still catches the transport error itself.'),
+    A('tool','18:21:05','Grep','except (ConnectionError, TimeoutError)','3 matches in 2 files'),
+    A('agent','18:21:30','Two callers in scheduler.py still catch transport errors locally; removing those handlers so the retry wrapper is the single place this is decided.'),
+    A('tool','18:22:10','Edit','src/dreamcatcher/scheduler.py','+2 −11'),
+    A('tool','18:22:40','Bash','pytest -q','..................................... 61 passed in 6.38s'),
+  ],
+  'GH137-20260916-1520': [
+    A('tool','18:19:20','Bash','gh api repos/eit-org/dreamcatcher/pulls/148/comments/2211 -X POST -f body=@reply.md'),
+    A('agent','18:19:52','Checking the remaining review threads before re-requesting review.'),
+    A('tool','18:20:05','Bash','gh pr view 148 --json reviewThreads','2 threads · 1 unresolved'),
+    A('agent','18:20:30','The remaining thread concerns naming in relay.py; renaming delivered_through to delivery_cursor for consistency with the ontology.'),
+    A('tool','18:21:02','Edit','src/dreamcatcher/relay.py','+4 −4'),
+    A('tool','18:21:25','Bash','pytest -q','..................................... 61 passed in 6.10s'),
+  ],
+};
+const KIND_LABEL = {system:'Dreamcatcher', agent:'Agent', tool:'Tool', user:'User post', end:'Ended'};
+const KIND_FG = {system:'#9E6544', agent:'#494747', tool:'#3F7388', user:'#9E6544', end:'#6E6A66'};
+function lastLineOf(e) {
+  if (!e) return {kind:'', fg:'#6E6A66', text:'No records yet'};
+  const text = e.kind === 'tool' ? e.body + ' ' + e.head : e.kind === 'user' ? (e.head || 'Relayed') : e.body;
+  return {kind: KIND_LABEL[e.kind], fg: KIND_FG[e.kind], text};
+}
+
+function fallbackEvents(r, a) {
+  return [
+    A('system', r.when.slice(0,5) + ':00', 'Round ' + r.n + ' · ' + r.purpose + (r.recovery ? ' (recovery)' : '') + ' for #' + a.issue.slice(2) + '.', 'Prompt'),
+    A('agent', '', 'Rendered feed for this round is stored in the round directory; only a summary is shown here.'),
+    A('end', '', 'Round ended: ' + r.outcome + '.'),
+  ];
+}
+
+const P = '#33FF66', BRIGHT = '#D6FFE0', DIM = 'rgba(51,255,102,0.55)', RULE = 'rgba(51,255,102,0.28)', BG = '#050806', AMBER = '#FFB000';
+const GLOW = '0 0 8px rgba(51,255,102,0.55)';
+const STATUS = {
+  'Working':        {bg:'transparent', fg:P, label:'WORKING', glow:GLOW},
+  'Queued':         {bg:'transparent', fg:DIM, label:'QUEUED', glow:'none'},
+  'Needs feedback': {bg:P, fg:BG, label:'NEEDS FEEDBACK', glow:'none'},
+  'Fault':          {bg:AMBER, fg:BG, label:'FAULT', glow:'none'},
+  'Complete':       {bg:'transparent', fg:DIM, label:'COMPLETE', glow:'none'},
+  'Unknown':        {bg:'transparent', fg:DIM, label:'UNKNOWN?', glow:'none'},
+};
+const OUTCOME = {
+  running:     {bg:'transparent', fg:P},
+  successful:  {bg:'transparent', fg:DIM},
+  errored:     {bg:AMBER, fg:BG},
+  interrupted: {bg:'transparent', fg:AMBER},
+};
+const TAG = {
+  system: {tag:'[DREAMCATCHER]', tagFg:P, tagBg:'transparent', fg:'rgba(51,255,102,0.8)'},
+  agent:  {tag:'[AGENT]', tagFg:BRIGHT, tagBg:'transparent', fg:BRIGHT},
+  tool:   {tag:'[TOOL]', tagFg:DIM, tagBg:'transparent', fg:'rgba(51,255,102,0.8)'},
+  user:   {tag:'[USER]', tagFg:BG, tagBg:P, fg:BRIGHT},
+  end:    {tag:'[END]', tagFg:DIM, tagBg:'transparent', fg:DIM},
+};
+
+class Component extends DCLogic {
+  state = { view: 'overview', selId: null, round: null, tick: 0, typed: 9999 };
+  _feedRef = React.createRef();
+  _follow = true;
+  componentDidMount() { this._t = setInterval(() => this.setState(s => ({tick: s.tick + 1, typed: 0})), 4000); }
+  componentWillUnmount() { clearInterval(this._t); clearInterval(this._ty); }
+  componentDidUpdate(_, prev) {
+    if (prev.tick !== this.state.tick) {
+      clearInterval(this._ty);
+      this._ty = setInterval(() => this.setState(s => s.typed > 400 ? (clearInterval(this._ty), null) : {typed: s.typed + 3}), 16);
+    }
+    const el = this._feedRef.current;
+    if (!el) return;
+    if (this._scrollTo) {
+      const r = this._roundRefs && this._roundRefs[this._scrollTo];
+      this._scrollTo = null;
+      if (r && r.current) el.scrollTop = r.current.offsetTop;
+      return;
+    }
+    const opened = prev.view !== this.state.view || prev.selId !== this.state.selId;
+    if (opened) this._follow = true;
+    if (this._follow) el.scrollTop = el.scrollHeight;
+  }
+  onFeedScroll = e => { const el = e.currentTarget; this._follow = el.scrollHeight - el.scrollTop - el.clientHeight < 24; };
+
+  roundEvents(a, r) {
+    const base = r.events || fallbackEvents(r, a);
+    if (r.outcome !== 'running') return {events: base, liveTail: false};
+    const extra = (LIVE[a.id] || []).slice(0, this.state.tick);
+    return {events: base.concat(extra), liveTail: extra.length > 0};
+  }
+  typed(text) { return this.state.typed >= text.length ? text : text.slice(0, this.state.typed); }
+
+  scenario() {
+    const s = this.props.scenario ?? 'realistic';
+    let list = ASSIGNMENTS, issues = ISSUES;
+    let inst = {repo:'eit-org/dreamcatcher', user:'@abarnert', daemonState:'running', pid:'48213', lastTickAgo:'12 s ago',
+      tickAccount:'Started round 4 for GH137-20260916-1520', capacity:2, running:2, cooldownActive:false, cooldownUntil:'', cooldownReason:''};
+    if (s === 'quiet') {
+      list = list.filter(a => ['GH129-20260915-0912','GH112-20260913-0940'].includes(a.id));
+      issues = issues.filter(i => ['GH129','GH145','GH146'].includes(i.id));
+      inst = {...inst, running:0, tickAccount:'Nothing to do'};
+    } else if (s === 'cooldown') {
+      list = list.map(a => a.id === 'GH131-20260916-1701' ? {...a, status:'Fault', roundLine:'Rounds 1 & 2 errored', activity:'Errored 17:52 and 18:03', nextRound:''} : a.status === 'Working' ? {...a, status:'Queued', activity:'Held by cooldown', rounds:a.rounds.map(r => r.outcome==='running' ? {...r, outcome:'interrupted', when:r.when.replace('Started','Interrupted')} : r)} : a);
+      issues = issues.map(i => i.id === 'GH147' ? i : {...i, blocked: i.blocked === null ? false : i.blocked});
+      inst = {...inst, running:0, cooldownActive:true, cooldownUntil:'19:10', cooldownReason:'Two assignments entered fault within one hour, which Dreamcatcher treats as evidence of a shared harness problem.', tickAccount:'Cooldown active; no action taken'};
+    }
+    inst.daemonLabel = inst.daemonState.toUpperCase();
+    const hs = [...new Set(list.map(a => a.harness))];
+    inst.harnessSummary = hs.length ? hs.join(' · ') : 'no harnesses active';
+    return {list, issues, inst};
+  }
+
+  renderVals() {
+    const {list, issues, inst} = this.scenario();
+    const sel = list.find(a => a.id === this.state.selId);
+    const isDetail = this.state.view === 'detail' && !!sel;
+    const keyOf = fn => e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(); } };
+    const caret = React.createElement('span', {style:{display:'inline-block', width:'0.6em', height:'1em', background:P, verticalAlign:'-0.15em', marginLeft:2, animation:'dcCaret 1s steps(1) infinite', boxShadow:GLOW}});
+    const liveDot = React.createElement('span', {style:{display:'inline-block', width:7, height:7, background:P, boxShadow:GLOW, animation:'dcPulse 1.6s ease-in-out infinite'}});
+
+    const rank = {'Needs feedback':0, 'Fault':1, 'Working':2, 'Queued':3, 'Unknown':4, 'Complete':5};
+    const assignments = [...list].sort((a, b) => rank[a.status] - rank[b.status]).map(a => {
+      const st = STATUS[a.status];
+      const open = () => this.setState({view:'detail', selId:a.id, round:null});
+      const review = a.status === 'Needs feedback';
+      const last = a.rounds[a.rounds.length - 1];
+      const {events, liveTail} = this.roundEvents(a, last);
+      const ll = lastLineOf(events[events.length - 1]);
+      const roundLine = 'round ' + last.n + ' · ' + last.purpose.toLowerCase() + (last.recovery ? ' (recovery)' : '') + ' · ' + last.outcome;
+      return {...a, bg: st.bg, fg: st.fg, glow: st.glow, statusLabel: st.label, prUrl: REPO + '/pull/' + a.pr, issueUrl: REPO + '/issues/' + a.issue.slice(2), issueLabel: '#' + a.issue.slice(2), open, key: keyOf(open),
+        roundLine, isRunning: last.outcome === 'running', lastKind: ll.kind.toUpperCase().replace('USER POST','USER'), lastKindFg: TAG[events[events.length - 1] ? events[events.length - 1].kind : 'agent'].tagFg, lastLine: liveTail ? this.typed(ll.text) : ll.text,
+        rowBg: review ? 'rgba(51,255,102,0.06)' : 'transparent', cardBorder: review ? P : RULE,
+        prBg: review ? P : 'transparent', prFg: review ? BG : P, prBorder: review ? P : RULE, prHoverBg: review ? BRIGHT : 'rgba(51,255,102,0.1)', prHoverFg: review ? BG : BRIGHT};
+    });
+
+    const working = list.filter(a => a.status === 'Working').length;
+    const faults = list.filter(a => a.status === 'Fault').length;
+    const avail = issues.filter(i => i.here === false && i.elsewhere === false && i.blocked === false && i.conflict === false).length;
+    const facts = [
+      {label:'cap', value: working + '/' + inst.capacity, color:BRIGHT},
+      {label:'cooldown', value: inst.cooldownActive ? 'until ' + inst.cooldownUntil : 'none', color: inst.cooldownActive ? AMBER : BRIGHT},
+      {label:'fault', value: String(faults), color: faults ? AMBER : BRIGHT},
+      {label:'avail', value: String(avail), color:BRIGHT},
+      {label:'tick', value: inst.lastTickAgo + ' · ' + inst.tickAccount, color:BRIGHT},
+    ];
+
+    const issueRows = issues.map(i => {
+      const known = [i.here, i.elsewhere, i.blocked, i.conflict];
+      const av = known.some(v => v === true) ? 'No' : known.some(v => v === null) ? 'Unknown' : 'Yes';
+      const reason = i.here ? 'CLAIMED HERE' : i.elsewhere ? 'CLAIMED ELSEWHERE' : i.blocked ? 'BLOCKED' : i.conflict ? 'ROUTING CONFLICT' : av === 'Unknown' ? 'UNKNOWN?' : 'AVAILABLE';
+      const style = av === 'Yes' ? {avBg:P, avFg:BG} : {avBg:'transparent', avFg:DIM};
+      return {...i, url: REPO + '/issues/' + i.id.slice(2), label: '#' + i.id.slice(2), availLabel: reason, isAvailable: av === 'Yes', ...style,
+        blockers: (i.blockedBy || []).map(b => ({label:'#' + b.slice(2), url: REPO + '/issues/' + b.slice(2)})), hasBlockers: !!(i.blockedBy && i.blockedBy.length),
+        hasElsewherePr: !!i.elsewherePr, elsewherePrUrl: i.elsewherePr ? REPO + '/pull/' + i.elsewherePr.n : '', elsewherePrN: i.elsewherePr ? i.elsewherePr.n : '', elsewherePrState: i.elsewherePr ? i.elsewherePr.state : ''};
+    });
+    const openAssignments = assignments.filter(a => a.status !== 'Complete');
+    const completeAssignments = assignments.filter(a => a.status === 'Complete');
+    const backlog = issueRows.filter(i => !i.here).sort((a, b) => (a.isAvailable ? 0 : 1) - (b.isAvailable ? 0 : 1));
+
+    let selVals = {}, rounds = [], curRound = {}, feedRounds = [];
+    if (isDetail) {
+      const st = STATUS[sel.status];
+      const roundN = this.state.round ?? sel.rounds[sel.rounds.length - 1].n;
+      const cr = sel.rounds.find(r => r.n === roundN) || sel.rounds[sel.rounds.length - 1];
+      rounds = sel.rounds.map(r => {
+        const active = r.n === cr.n;
+        const select = () => { this._scrollTo = sel.id + ':' + r.n; this._follow = false; this.setState({round:r.n}); };
+        return {...r, select, key:keyOf(select), rowBg: active ? 'rgba(51,255,102,0.08)' : 'transparent', edge: active ? P : 'transparent',
+          numFg: active ? P : DIM, nLabel: String(r.n).padStart(2, '0'), oc: OUTCOME[r.outcome], outcomeLabel: r.outcome.toUpperCase()};
+      });
+      curRound = {n: cr.n, running: cr.outcome === 'running'};
+      const today = new Date(2026, 8, 16);
+      const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const dateOf = r => {
+        let d = new Date(+sel.id.slice(6,10), +sel.id.slice(10,12) - 1, +sel.id.slice(12,14));
+        const w = r.when || '';
+        if (/^Today/.test(w) || /^Started/.test(w)) d = today;
+        else if (/^Yesterday/.test(w)) d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+        else { const m = w.match(/^(\d{1,2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/); if (m) d = new Date(today.getFullYear(), MON.indexOf(m[2]), +m[1]); }
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      };
+      this._roundRefs = this._roundRefs || {};
+      feedRounds = sel.rounds.map(r => {
+        const date = dateOf(r);
+        const {events, liveTail} = this.roundEvents(sel, r);
+        const rows = events.map((e, idx) => {
+          const t = TAG[e.kind];
+          const isLast = idx === events.length - 1;
+          let text = e.kind === 'tool' ? e.body + ' ' + e.head : (e.head ? e.head + ' — ' : '') + e.body;
+          if (isLast && liveTail) text = this.typed(text);
+          return {time: e.time ? date + ' ' + e.time : '', ...t, text, detail: e.detail || false, cursor: isLast && r.outcome === 'running' ? caret : null};
+        });
+        const key = sel.id + ':' + r.n;
+        this._roundRefs[key] = this._roundRefs[key] || React.createRef();
+        return {n: r.n, purposeUpper: (r.purpose + (r.recovery ? ' (RECOVERY)' : '')).toUpperCase(), when: r.when, rows, ref: this._roundRefs[key]};
+      });
+      const review = sel.status === 'Needs feedback';
+      selVals = {...sel, bg: st.bg, fg: st.fg, glow: st.glow, statusLabel: st.label, prUrl: REPO + '/pull/' + sel.pr, issueUrl: REPO + '/issues/' + sel.issue.slice(2), issueLabel: '#' + sel.issue.slice(2), nextRound: sel.nextRound || false,
+        prBg: review ? P : 'transparent', prFg: review ? BG : P, prBorder: review ? P : RULE, prHoverBg: review ? BRIGHT : 'rgba(51,255,102,0.1)', prHoverFg: review ? BG : BRIGHT,
+        meta: [
+          {label:'assignment', value:sel.id},
+          {label:'branch', value:sel.branch},
+          {label:'harness', value:sel.harness},
+          {label:'session', value:sel.session},
+          {label:'recipe', value:sel.model + ' · ' + sel.effort},
+          {label:'route', value:sel.route},
+        ]};
+    }
+
+    return {
+      inst, facts, assignments, showIssues: this.props.showIssues ?? true,
+      backlog, noBacklog: backlog.length === 0, backlogCount: String(backlog.length).padStart(2, '0'),
+      openAssignments, completeAssignments, noOpen: openAssignments.length === 0, hasComplete: completeAssignments.length > 0,
+      openCount: String(openAssignments.length).padStart(2, '0'), completeLine: completeAssignments.length + ' complete',
+      isOverview: !isDetail, isDetail, sel: selVals, rounds, curRound, feedRounds, feedRef: this._feedRef, onFeedScroll: this.onFeedScroll,
+      back: () => this.setState({view:'overview'}),
+      caret, liveDot,
+    };
+  }
+}
+</script>
+</body>
+</html>
