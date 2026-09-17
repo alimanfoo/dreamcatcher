@@ -375,7 +375,15 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
     hold = held(observed=observed)
     assert hold.startswith("at cap: 1 of 1 rounds running; could not refresh issues: ")
     assert "could not connect" in hold
-    assert observed.issue_observations == []
+    assert observed_issues(tick=observed) == [8, 13]
+    assert all(
+        observation.claimed_here.value is IssueFactValue.TRUE
+        for observation in observed.issue_observations
+    )
+    assert all(
+        observation.is_open.value is IssueFactValue.UNKNOWN
+        for observation in observed.issue_observations
+    )
     assert observed.waiting == [
         WaitingAgentAssignment(
             assignment=ASSIGNMENT_ID, issue=13, reason="at cap: 1 of 1 rounds running"

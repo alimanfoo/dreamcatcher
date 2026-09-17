@@ -72,7 +72,7 @@ def test_the_config_identifies_dispatch_labels_without_giving_one_precedence(tmp
     config = read_config(root=tmp_path)
 
     assert config.identify_dispatch_labels(
-        labels=["maintenance", "dream:less", "dream:smith"]
+        labels=["maintenance", "DREAM:LESS", "dream:smith"]
     ) == ["dream:less", "dream:smith"]
 
 
@@ -135,6 +135,11 @@ def test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named(tmp
         (
             "one label routed twice",
             CONFIG + SMITH_CLAUDE + SMITH_CODEX,
+            "Value error, more than one dispatch entry uses the label dream:smith",
+        ),
+        (
+            "one label routed twice with different case",
+            CONFIG + SMITH_CLAUDE.replace("dream:smith", "DREAM:SMITH"),
             "Value error, more than one dispatch entry uses the label dream:smith",
         ),
     ],

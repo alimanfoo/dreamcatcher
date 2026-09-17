@@ -80,6 +80,14 @@ class _IssueObservationContext:
     recovery_obstacles: dict[int, str | None]
 
 
+@dataclass(frozen=True, kw_only=True)
+class IssueObservationResult:
+    """The issue facts one tick observed and any failed listing behind them."""
+
+    observations: list[IssueObservation]
+    failure: str | None = None
+
+
 def derive_issue_availability(*, observation: IssueObservation) -> IssueFact:
     """Derive whether an issue is available from its independent facts."""
     preventing = _find_preventing_issue_fact(observation=observation)
@@ -139,11 +147,9 @@ def observe_issues(
     config: Config,
     assignments: list[AgentAssignment],
     recovery_obstacles: dict[int, str | None],
-) -> list[IssueObservation] | Unknown:
+) -> IssueObservationResult:
     """Observe every issue considered for dispatch or claimed by this instance."""
     listed = _list_considered_issues(repository=repository, config=config)
-    if isinstance(listed, Unknown):
-        return listed
     open_assignments = {
         assignment.record.issue: assignment
         for assignment in assignments
@@ -156,8 +162,15 @@ def observe_issues(
         assignments=open_assignments,
         recovery_obstacles=recovery_obstacles,
     )
-    observed: dict[int, Issue | Unknown] = {issue.number: issue for issue in listed}
-    for issue in open_assignments.keys() - observed.keys():
+    observed: dict[int, Issue | Unknown]
+    if isinstance(listed, Unknown):
+        observed = {}
+        failure = listed.reason
+    else:
+        observed = {issue.number: issue for issue in listed}
+        failure = None
+    local_issues = open_assignments.keys() | recovery_obstacles.keys()
+    for issue in local_issues - observed.keys():
         observed[issue] = read_issue(repository=repository, issue=issue)
     issue_observations = [
         _observe_issue(
@@ -167,13 +180,16 @@ def observe_issues(
         )
         for issue, answer in observed.items()
     ]
-    return sorted(
-        issue_observations,
-        key=lambda observation: (
-            observation.created_at is None,
-            observation.created_at,
-            observation.issue,
+    return IssueObservationResult(
+        observations=sorted(
+            issue_observations,
+            key=lambda observation: (
+                observation.created_at is None,
+                observation.created_at,
+                observation.issue,
+            ),
         ),
+        failure=failure,
     )
 
 
@@ -217,8 +233,8 @@ def _observe_issue(
             if context.config.assignee == "@me"
             else context.config.assignee
         )
-        is_assigned_to_user = watched_account in {
-            assignee.login for assignee in answer.assignees
+        is_assigned_to_user = watched_account.casefold() in {
+            assignee.login.casefold() for assignee in answer.assignees
         }
         is_assigned = _known_fact(
             value=is_assigned_to_user,
@@ -269,13 +285,14 @@ def _observe_external_claim(
     issue: int,
 ) -> IssueFact:
     """Observe whether an open linked pull request claims the issue elsewhere."""
-    if issue in context.recovery_obstacles:
-        obstacle = context.recovery_obstacles[issue]
-        if obstacle is None:
-            return _known_fact(value=False)
-        return _unknown_fact(evidence=obstacle)
+    has_recovery_setup = issue in context.recovery_obstacles
+    obstacle = context.recovery_obstacles.get(issue)
+    if has_recovery_setup and obstacle is None:
+        return _known_fact(value=False)
     linked = list_linked_pull_requests(repository=context.repository, issue=issue)
     if isinstance(linked, Unknown):
+        if obstacle is not None:
+            return _unknown_fact(evidence=obstacle)
         return _unknown_fact(
             evidence=f"cannot tell whether a pull request claims it: {linked.reason}"
         )
@@ -283,10 +300,13 @@ def _observe_external_claim(
     owned = None if assignment is None else assignment.record.pull_request
     external = [pull_request for pull_request in linked if pull_request.number != owned]
     named = ", ".join(f"#{pull_request.number}" for pull_request in external)
-    return _known_fact(
-        value=bool(external),
-        evidence=(None if not named else f"a pull request is open on it: {named}"),
-    )
+    if external:
+        return _known_fact(
+            value=True, evidence=f"a pull request is open on it: {named}"
+        )
+    if obstacle is not None:
+        return _unknown_fact(evidence=obstacle)
+    return _known_fact(value=False)
 
 
 def _observe_blocking_issues(*, repository: str, issue: int) -> IssueFact:
@@ -386,12 +406,8 @@ class Scheduler:
                 state=self.state, repository=self.repository
             ),
         )
-        if isinstance(observed, Unknown):
-            issue_failure = observed.reason
-            issue_observations = []
-        else:
-            issue_failure = None
-            issue_observations = observed
+        issue_failure = observed.failure
+        issue_observations = observed.observations
         if len(self.rounds) >= self.config.max_agents:
             cap = (
                 f"at cap: {len(self.rounds)} of {self.config.max_agents} rounds running"
@@ -415,7 +431,10 @@ class Scheduler:
         found = self._judge_assignments(assignments=assignments)
         if issue_failure is not None:
             return LastTick(
-                at=at, hold=issue_failure, waiting=list_waiting(found=found)
+                at=at,
+                hold=issue_failure,
+                issue_observations=issue_observations,
+                waiting=list_waiting(found=found),
             )
         cooling = _check_cooldown(assignments=assignments, at=at)
         if cooling is not None:

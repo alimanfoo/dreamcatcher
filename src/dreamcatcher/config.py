@@ -110,14 +110,24 @@ class Config(Document):
 
     def identify_dispatch_labels(self, *, labels: list[str]) -> list[str]:
         """Return the configured dispatch labels among the observed labels."""
-        configured = self.dispatch_routes.keys()
-        return sorted(set(labels).intersection(configured))
+        configured = {label.casefold(): label for label in self.dispatch_routes}
+        return sorted(
+            {
+                configured[label.casefold()]
+                for label in labels
+                if label.casefold() in configured
+            },
+            key=str.casefold,
+        )
 
     @model_validator(mode="after")
     def _each_label_has_one_route(self) -> Self:
         """Refuse two routes for one label, since the label is the identity."""
         labels = [route.label for route in self.dispatch]
-        repeated = sorted({label for label in labels if labels.count(label) > 1})
+        identities = [label.casefold() for label in labels]
+        repeated = sorted(
+            {identity for identity in identities if identities.count(identity) > 1}
+        )
         if repeated:
             named = ", ".join(repeated)
             raise ValueError(f"more than one dispatch entry uses the label {named}")

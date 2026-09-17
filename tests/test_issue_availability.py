@@ -9,7 +9,6 @@ from records import write_agent_assignment
 
 from dreamcatcher.agent_assignments import AgentAssignment, read_agent_assignments
 from dreamcatcher.config import Config
-from dreamcatcher.github import Unknown
 from dreamcatcher.scheduler import derive_issue_availability, observe_issues
 from dreamcatcher.state import IssueFactValue, StateDirectory
 
@@ -22,10 +21,13 @@ INDEPENDENT_FACTS = (
 )
 
 
-def config_with_routes(*, labels: Sequence[str]) -> Config:
+def config_with_routes(*, labels: Sequence[str], assignee: str = "@me") -> Config:
     """Return a config that routes each label to the same harness recipe."""
     return Config.model_validate(
-        {"dispatch": [{"label": label, "claude": SETTINGS} for label in labels]}
+        {
+            "assignee": assignee,
+            "dispatch": [{"label": label, "claude": SETTINGS} for label in labels],
+        }
     )
 
 
@@ -55,8 +57,8 @@ def observe(
         assignments=list(assignments),
         recovery_obstacles=({} if recovery_obstacles is None else recovery_obstacles),
     )
-    assert not isinstance(found, Unknown)
-    return found
+    assert found.failure is None
+    return found.observations
 
 
 @pytest.mark.parametrize(
@@ -88,6 +90,27 @@ def test_availability_follows_the_independent_fact_truth_table(values):
         ({"is_open": IssueFactValue.UNKNOWN}, IssueFactValue.UNKNOWN),
         ({"is_assigned_to_user": IssueFactValue.UNKNOWN}, IssueFactValue.UNKNOWN),
         ({"dispatch_labels": None}, IssueFactValue.UNKNOWN),
+        (
+            {
+                "is_open": IssueFactValue.FALSE,
+                "claimed_elsewhere": IssueFactValue.UNKNOWN,
+            },
+            IssueFactValue.FALSE,
+        ),
+        (
+            {
+                "is_assigned_to_user": IssueFactValue.FALSE,
+                "blocked": IssueFactValue.UNKNOWN,
+            },
+            IssueFactValue.FALSE,
+        ),
+        (
+            {
+                "dispatch_labels": (),
+                "routing_conflict": IssueFactValue.UNKNOWN,
+            },
+            IssueFactValue.FALSE,
+        ),
     ],
 )
 def test_availability_also_requires_an_open_assigned_routed_issue(change, expected):
@@ -128,8 +151,17 @@ def test_a_listing_failure_makes_the_whole_observation_unknown(gh):
         recovery_obstacles={},
     )
 
-    assert isinstance(found, Unknown)
-    assert "could not connect" in found.reason
+    assert found.observations == []
+    assert found.failure is not None
+    assert "could not connect" in found.failure
+
+
+def test_an_explicit_assignee_is_matched_without_case_sensitivity(gh):
+    found = observe(
+        config=config_with_routes(labels=[LABEL], assignee=POSTED_BY.upper())
+    )[0]
+
+    assert found.is_assigned_to_user.value is IssueFactValue.TRUE
 
 
 def test_routing_conflict_is_independent_of_external_claims_and_blockers(gh):
@@ -190,6 +222,39 @@ def test_a_setup_that_cannot_be_recovered_leaves_the_claim_unknown(gh):
 
     assert found.claimed_elsewhere.value is IssueFactValue.UNKNOWN
     assert found.claimed_elsewhere.evidence == "cannot reconcile its incomplete setup"
+
+
+def test_a_setup_obstacle_survives_a_failed_linked_pull_request_read(gh):
+    gh.fails(stderr="gh: could not connect to github.com", to="issue view")
+
+    found = observe(
+        config=config_with_routes(labels=[LABEL]),
+        recovery_obstacles={8: "cannot reconcile its incomplete setup"},
+    )[0]
+
+    assert found.claimed_elsewhere.value is IssueFactValue.UNKNOWN
+    assert found.claimed_elsewhere.evidence == "cannot reconcile its incomplete setup"
+
+
+def test_a_setup_obstacle_keeps_a_proven_external_claim(gh):
+    gh.replies(
+        stdout=json.dumps(
+            {"closedByPullRequestsReferences": [{"number": PULL_REQUEST}]}
+        ),
+        to="issue view",
+    )
+    gh.replies(
+        stdout=json.dumps({"number": PULL_REQUEST, "state": "OPEN", "isDraft": True}),
+        to="pr view",
+    )
+
+    found = observe(
+        config=config_with_routes(labels=[LABEL]),
+        recovery_obstacles={8: "cannot reconcile its incomplete setup"},
+    )[0]
+
+    assert found.claimed_elsewhere.value is IssueFactValue.TRUE
+    assert found.claimed_elsewhere.evidence == "a pull request is open on it: #52"
 
 
 def test_a_failed_linked_pull_request_read_preserves_unknown_evidence(gh):
@@ -261,3 +326,65 @@ def test_an_open_local_assignment_is_observed_outside_the_listing(gh, tmp_path):
     assert found[0].is_assigned_to_user.evidence == "is not assigned to alimanfoo"
     assert found[0].dispatch_labels == []
     assert found[0].claimed_here.value is IssueFactValue.TRUE
+
+
+def test_a_local_assignment_remains_observed_when_the_listing_and_issue_read_fail(
+    gh, tmp_path
+):
+    state = StateDirectory(root=tmp_path)
+    write_agent_assignment(state=state, identifier="GH13-20260819-184158", issue=13)
+    gh.fails(stderr="gh: could not connect to github.com", to="issue list")
+    gh.fails(
+        stderr="gh: could not connect to github.com",
+        to=(
+            f"issue view 13 --repo {REPOSITORY} --json "
+            "number,createdAt,state,assignees,labels"
+        ),
+    )
+
+    found = observe_issues(
+        repository=REPOSITORY,
+        account=POSTED_BY,
+        config=config_with_routes(labels=[LABEL]),
+        assignments=read_agent_assignments(state=state),
+        recovery_obstacles={},
+    )
+
+    assert found.failure is not None
+    assert "could not connect" in found.failure
+    assert [observation.issue for observation in found.observations] == [13]
+    observation = found.observations[0]
+    assert observation.is_open.value is IssueFactValue.UNKNOWN
+    assert observation.is_assigned_to_user.value is IssueFactValue.UNKNOWN
+    assert observation.routing_conflict.value is IssueFactValue.UNKNOWN
+    assert observation.claimed_here.value is IssueFactValue.TRUE
+
+
+def test_an_incomplete_setup_is_observed_outside_the_listing(gh):
+    gh.replies(stdout="[]", to="issue list")
+    gh.replies(
+        stdout=json.dumps(
+            {
+                "number": 13,
+                "createdAt": LATER,
+                "state": "CLOSED",
+                "assignees": [],
+                "labels": [],
+            }
+        ),
+        to=(
+            f"issue view 13 --repo {REPOSITORY} --json "
+            "number,createdAt,state,assignees,labels"
+        ),
+    )
+
+    found = observe(
+        config=config_with_routes(labels=[LABEL]),
+        recovery_obstacles={13: "cannot reconcile its incomplete setup"},
+    )
+
+    assert [observation.issue for observation in found] == [13]
+    assert found[0].claimed_elsewhere.value is IssueFactValue.UNKNOWN
+    assert (
+        found[0].claimed_elsewhere.evidence == "cannot reconcile its incomplete setup"
+    )
