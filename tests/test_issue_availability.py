@@ -156,6 +156,30 @@ def test_a_listing_failure_makes_the_whole_observation_unknown(gh):
     assert "could not connect" in found.failure
 
 
+def test_a_later_route_failure_preserves_earlier_issue_observations(gh):
+    gh.replies(
+        stdout=listing(issues=[(8, FILED)]),
+        to=f"issue list --repo {REPOSITORY} --assignee @me --label {LABEL}",
+    )
+    gh.fails(
+        stderr="gh: could not connect to github.com",
+        to=f"issue list --repo {REPOSITORY} --assignee @me --label dream:less",
+    )
+
+    found = observe_issues(
+        repository=REPOSITORY,
+        account=POSTED_BY,
+        config=config_with_routes(labels=[LABEL, "dream:less"]),
+        assignments=[],
+        recovery_obstacles={},
+    )
+
+    assert found.failure is not None
+    assert "could not connect" in found.failure
+    assert [observation.issue for observation in found.observations] == [8]
+    assert found.observations[0].is_open.value is IssueFactValue.TRUE
+
+
 def test_an_explicit_assignee_is_matched_without_case_sensitivity(gh):
     found = observe(
         config=config_with_routes(labels=[LABEL], assignee=POSTED_BY.upper())

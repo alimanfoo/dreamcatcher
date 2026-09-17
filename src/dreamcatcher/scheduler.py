@@ -88,6 +88,14 @@ class IssueObservationResult:
     failure: str | None = None
 
 
+@dataclass(frozen=True, kw_only=True)
+class _ConsideredIssues:
+    """The issues listed successfully and any route listing that failed."""
+
+    issues: list[Issue]
+    failure: str | None = None
+
+
 def derive_issue_availability(*, observation: IssueObservation) -> IssueFact:
     """Derive whether an issue is available from its independent facts."""
     preventing = _find_preventing_issue_fact(observation=observation)
@@ -162,13 +170,9 @@ def observe_issues(
         assignments=open_assignments,
         recovery_obstacles=recovery_obstacles,
     )
-    observed: dict[int, Issue | Unknown]
-    if isinstance(listed, Unknown):
-        observed = {}
-        failure = listed.reason
-    else:
-        observed = {issue.number: issue for issue in listed}
-        failure = None
+    observed: dict[int, Issue | Unknown] = {
+        issue.number: issue for issue in listed.issues
+    }
     local_issues = open_assignments.keys() | recovery_obstacles.keys()
     for issue in local_issues - observed.keys():
         observed[issue] = read_issue(repository=repository, issue=issue)
@@ -189,13 +193,11 @@ def observe_issues(
                 observation.issue,
             ),
         ),
-        failure=failure,
+        failure=listed.failure,
     )
 
 
-def _list_considered_issues(
-    *, repository: str, config: Config
-) -> list[Issue] | Unknown:
+def _list_considered_issues(*, repository: str, config: Config) -> _ConsideredIssues:
     """List open assigned issues that carry any configured dispatch label."""
     found: dict[int, Issue] = {}
     for route in config.dispatch:
@@ -203,9 +205,12 @@ def _list_considered_issues(
             repository=repository, label=route.label, assignee=config.assignee
         )
         if isinstance(answered, Unknown):
-            return answered
+            return _ConsideredIssues(
+                issues=list(found.values()),
+                failure=answered.reason,
+            )
         found.update((issue.number, issue) for issue in answered)
-    return list(found.values())
+    return _ConsideredIssues(issues=list(found.values()))
 
 
 def _observe_issue(
