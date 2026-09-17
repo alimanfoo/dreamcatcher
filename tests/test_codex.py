@@ -1,10 +1,10 @@
 from conftest import streamed
 
-from dreamcatcher.adapters import Invocation, Launch
 from dreamcatcher.codex import CODEX, STDIN
 from dreamcatcher.feed import Note, Prose
+from dreamcatcher.harness_adapters import AgentRoundLaunch, HarnessInvocation
 
-LAUNCH = Launch(
+LAUNCH = AgentRoundLaunch(
     assignment_id="GH9-20260819-184158",
     model="gpt-5.6-sol",
     effort="xhigh",
@@ -25,7 +25,7 @@ def completed(**item) -> str:
 
 # Each command ends in the word that has Codex read its prompt from stdin.
 def test_a_first_round_runs_where_it_is_launched_under_codexs_own_reviewer():
-    assert CODEX.build_first_round(launch=LAUNCH) == Invocation(
+    assert CODEX.build_first_round(launch=LAUNCH) == HarnessInvocation(
         program="codex",
         arguments=[
             "exec",
@@ -41,12 +41,13 @@ def test_a_first_round_runs_where_it_is_launched_under_codexs_own_reviewer():
 
 
 def test_a_resume_replays_the_settings_and_the_permissions_codex_forgets():
-    assert CODEX.build_resumed_round(launch=LAUNCH) == Invocation(
+    assert CODEX.build_resumed_round(
+        launch=LAUNCH, harness_session_identifier="01a0213c-9c67"
+    ) == HarnessInvocation(
         program="codex",
         arguments=[
             "exec",
             "resume",
-            "--last",
             "--json",
             *SETTINGS,
             "-c",
@@ -57,6 +58,7 @@ def test_a_resume_replays_the_settings_and_the_permissions_codex_forgets():
             'approval_policy="on-request"',
             "-c",
             'approvals_reviewer="auto_review"',
+            "01a0213c-9c67",
             STDIN,
         ],
         prompt="$dream:smith GH9",
@@ -64,7 +66,11 @@ def test_a_resume_replays_the_settings_and_the_permissions_codex_forgets():
 
 
 def test_a_person_continues_the_harness_session_with_codexs_interactive_resume():
-    assert CODEX.build_hand_resume() == ["codex", "resume", "--last"]
+    assert CODEX.build_hand_resume(harness_session_identifier="01a0213c-9c67") == [
+        "codex",
+        "resume",
+        "01a0213c-9c67",
+    ]
 
 
 def test_the_first_event_names_the_harness_session():
@@ -73,6 +79,22 @@ def test_the_first_event_names_the_harness_session():
     assert CODEX.read(line=line) == [
         Note(label="harness session", detail="id 01a0213c-9c67")
     ]
+    assert CODEX.read_output(line=line).harness_session_identifier == "01a0213c-9c67"
+
+
+def test_another_event_names_no_harness_session():
+    line = streamed(type="turn.started")
+
+    assert CODEX.read_output(line=line).harness_session_identifier is None
+
+
+def test_a_non_text_harness_session_identifier_is_left_raw():
+    line = streamed(type="thread.started", thread_id=None)
+
+    output = CODEX.read_output(line=line)
+
+    assert output.harness_session_identifier is None
+    assert output.events == [Prose(text=line)]
 
 
 def test_what_the_agent_says_comes_through_whole():

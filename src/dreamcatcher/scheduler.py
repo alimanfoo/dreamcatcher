@@ -14,24 +14,28 @@ anything does an uncapped tick dispatch the oldest unclaimed, unblocked candidat
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from functools import partial
 
-from dreamcatcher.adapters import Launch
 from dreamcatcher.agent_assignments import (
     AgentAssignment,
     AgentAssignmentCreator,
     advance_user_post_delivery_cursor,
+    find_harness_session_identifier,
     inspect_incomplete_assignment_setups,
     read_agent_assignments,
+    record_harness_session_identifier,
 )
 from dreamcatcher.agent_rounds import (
     AgentRound,
+    AgentRoundOutputReader,
     ErroredAgentRoundEnding,
 )
 from dreamcatcher.config import Config, Harness
 from dreamcatcher.eligibility import judge_issues
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import Unknown
-from dreamcatcher.harnesses import ADAPTERS
+from dreamcatcher.harness_adapters import AgentRoundLaunch
+from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.state import (
     CandidateIssue,
     LastTick,
@@ -220,20 +224,38 @@ class Scheduler:
     def _launch_wakeup(self, *, wakeup: Wakeup) -> None:
         """Start the round and advance the delivery cursor once it is running."""
         assignment = wakeup.assignment
-        adapter = ADAPTERS[assignment.record.harness]
-        launch = Launch(
+        harness_adapter = HARNESS_ADAPTERS[assignment.record.harness]
+        launch = AgentRoundLaunch(
             assignment_id=assignment.identifier,
             model=assignment.record.model,
             effort=assignment.record.effort,
             prompt=wakeup.prompt,
         )
-        invocation = (
-            adapter.build_first_round(launch=launch)
-            if not assignment.rounds
-            else adapter.build_resumed_round(launch=launch)
-        )
+        if assignment.rounds:
+            harness_session_identifier = find_harness_session_identifier(
+                assignment=assignment, harness_adapter=harness_adapter
+            )
+            if harness_session_identifier is None:
+                raise ReportableError(
+                    f"Could not resume {assignment.identifier}: its first round did "
+                    "not report a harness session identifier."
+                )
+            record_harness_session_identifier(
+                assignment=assignment, identifier=harness_session_identifier
+            )
+            invocation = harness_adapter.build_resumed_round(
+                launch=launch,
+                harness_session_identifier=harness_session_identifier,
+            )
+        else:
+            invocation = harness_adapter.build_first_round(launch=launch)
         self.rounds[assignment.identifier] = AgentRound(
-            adapter=adapter,
+            output_reader=AgentRoundOutputReader(
+                harness_adapter=harness_adapter,
+                record_harness_session_identifier=partial(
+                    record_harness_session_identifier, assignment=assignment
+                ),
+            ),
             invocation=invocation,
             paths=assignment.round_paths(number=assignment.next_round_number),
             plan=wakeup.plan,

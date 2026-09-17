@@ -23,12 +23,14 @@ from conftest import (
 from fakes import Line
 from records import write_agent_assignment, write_round
 
+from dreamcatcher.agent_assignments import read_agent_assignments
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     RoundPurpose,
     compose_agent_round_ending,
 )
 from dreamcatcher.config import Harness, read_config
+from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.git import (
     add_worktree,
     fetch,
@@ -49,6 +51,7 @@ PURPOSE = RoundPurpose.IMPLEMENT
 STILL_RUNNING = 30
 DISPATCHED_ASSIGNMENT_ID = "GH8-20260819-184158"
 CONVERSATION = POST_LIST_PATHS["conversation"]
+HARNESS_SESSION_IDENTIFIER = "abc-123"
 
 
 CREATED_SCHEDULERS: list[Scheduler] = []
@@ -108,9 +111,27 @@ def purpose_of(*, scheduler: Scheduler, number: int) -> RoundPurpose:
 def resuming(cloned, gh, harnesses):
     """A checkout holding one assignment, with no labelled issue up for dispatch."""
     configure(root=cloned)
-    harnesses["claude"].streams(lines=[Line(text="what the round said\n")])
+    harnesses["claude"].streams(
+        lines=[
+            Line(
+                text=json.dumps(
+                    {
+                        "type": "system",
+                        "subtype": "init",
+                        "model": "claude-opus-5",
+                        "session_id": HARNESS_SESSION_IDENTIFIER,
+                    }
+                )
+                + "\n"
+            ),
+            Line(text="what the round said\n"),
+        ]
+    )
     write_agent_assignment(
-        state=StateDirectory(root=cloned), identifier=ASSIGNMENT_ID, issue=13
+        state=StateDirectory(root=cloned),
+        identifier=ASSIGNMENT_ID,
+        issue=13,
+        harness_session_identifier=HARNESS_SESSION_IDENTIFIER,
     )
     return cloned
 
@@ -154,6 +175,18 @@ def written_round(*, scheduler: Scheduler, number: int, name: str) -> str:
     return (directory / name).read_text(encoding="utf-8")
 
 
+def forget_harness_session_identifier(*, root) -> None:
+    """Remove the harness session identifier from the assignment's record."""
+    state = StateDirectory(root=root)
+    assignment = read_agent_assignments(state=state)[0]
+    write_json(
+        document=assignment.record.model_copy(
+            update={"harness_session_identifier": None}
+        ),
+        path=assignment.directory / "assignment.json",
+    )
+
+
 def test_a_tick_dispatches_the_oldest_issue_nothing_stands_in_the_way_of(
     dispatching, harnesses
 ):
@@ -186,6 +219,8 @@ def test_a_dispatched_round_records_what_caused_it_and_what_it_said(dispatching)
         is RoundPurpose.IMPLEMENT
     )
     assert "what the round said" in (written / "feed.txt").read_text(encoding="utf-8")
+    assignment = read_agent_assignments(state=scheduler.state)[0]
+    assert assignment.record.harness_session_identifier == "abc-123"
 
 
 def test_a_tick_launches_one_round_and_leaves_the_rest_in_the_queue(
@@ -576,7 +611,7 @@ def test_the_next_tick_recovers_each_incomplete_creation_checkpoint(
 
 
 def test_an_assignment_whose_last_round_did_not_finish_is_carried_on(
-    resuming, left_running
+    resuming, left_running, harnesses
 ):
     write_round(
         directory=StateDirectory(root=resuming).assignments / ASSIGNMENT_ID,
@@ -598,6 +633,67 @@ def test_an_assignment_whose_last_round_did_not_finish_is_carried_on(
     assert not (
         scheduler.state.assignments / ASSIGNMENT_ID / "rounds" / "2" / "inbox.json"
     ).exists()
+    assert harnesses["claude"].calls[-1].arguments[-2:] == [
+        "--resume",
+        HARNESS_SESSION_IDENTIFIER,
+    ]
+
+
+def test_a_resume_recovers_the_harness_session_from_the_first_rounds_raw_stream(
+    resuming, harnesses
+):
+    ran(root=resuming, number=1, purpose=PURPOSE, status=1)
+    forget_harness_session_identifier(root=resuming)
+    raw = (
+        StateDirectory(root=resuming).assignments
+        / ASSIGNMENT_ID
+        / "rounds"
+        / "1"
+        / "raw.jsonl"
+    )
+    write_text(
+        text=(
+            "a warning before the event\n"
+            + json.dumps(
+                {
+                    "type": "system",
+                    "subtype": "init",
+                    "model": "claude-opus-5",
+                    "session_id": HARNESS_SESSION_IDENTIFIER,
+                }
+            )
+            + "\n"
+        ),
+        path=raw,
+    )
+    scheduler, clock = create_scheduler(root=resuming)
+
+    observed = scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
+
+    assert observed.launched == ASSIGNMENT_ID
+    assignment = read_agent_assignments(state=scheduler.state)[0]
+    assert assignment.record.harness_session_identifier == HARNESS_SESSION_IDENTIFIER
+    assert harnesses["claude"].calls[-1].arguments[-2:] == [
+        "--resume",
+        HARNESS_SESSION_IDENTIFIER,
+    ]
+
+
+def test_a_resume_with_no_harness_session_identifier_reports_why_it_cannot_start(
+    resuming, harnesses
+):
+    ran(root=resuming, number=1, purpose=PURPOSE, status=1)
+    forget_harness_session_identifier(root=resuming)
+    scheduler, clock = create_scheduler(root=resuming)
+
+    observed = scheduler.tick(at=clock())
+
+    assert held(observed=observed) == (
+        f"Could not resume {ASSIGNMENT_ID}: its first round did not report a "
+        "harness session identifier."
+    )
+    assert harnesses["claude"].calls == []
 
 
 def test_a_carried_on_round_records_recovery_independently(resuming, left_running):

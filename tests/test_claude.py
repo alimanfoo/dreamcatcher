@@ -1,12 +1,13 @@
 from collections.abc import Sequence
 
+import pytest
 from conftest import streamed
 
-from dreamcatcher.adapters import Invocation, Launch
 from dreamcatcher.claude import ALLOWED_TOOLS, CLAUDE
 from dreamcatcher.feed import Note, Prose
+from dreamcatcher.harness_adapters import AgentRoundLaunch, HarnessInvocation
 
-LAUNCH = Launch(
+LAUNCH = AgentRoundLaunch(
     assignment_id="GH9-20260819-184158",
     model="opus[1m]",
     effort="xhigh",
@@ -37,7 +38,7 @@ def assistant(*, blocks: Sequence[dict], parent: str | None = None) -> str:
 
 # Neither command names the prompt, which is what has Claude read it from stdin.
 def test_a_first_round_names_the_model_and_the_effort_it_was_dispatched_with():
-    assert CLAUDE.build_first_round(launch=LAUNCH) == Invocation(
+    assert CLAUDE.build_first_round(launch=LAUNCH) == HarnessInvocation(
         program="claude",
         arguments=[*BASE, "--model", "opus[1m]", "--effort", "xhigh"],
         prompt="/dream:smith GH9",
@@ -45,15 +46,21 @@ def test_a_first_round_names_the_model_and_the_effort_it_was_dispatched_with():
 
 
 def test_a_resume_continues_the_harness_session_and_replays_no_settings():
-    assert CLAUDE.build_resumed_round(launch=LAUNCH) == Invocation(
+    assert CLAUDE.build_resumed_round(
+        launch=LAUNCH, harness_session_identifier="abc-123"
+    ) == HarnessInvocation(
         program="claude",
-        arguments=[*BASE, "--continue"],
+        arguments=[*BASE, "--resume", "abc-123"],
         prompt="/dream:smith GH9",
     )
 
 
 def test_a_person_continues_the_harness_session_where_it_ran():
-    assert CLAUDE.build_hand_resume() == ["claude", "--continue"]
+    assert CLAUDE.build_hand_resume(harness_session_identifier="abc-123") == [
+        "claude",
+        "--resume",
+        "abc-123",
+    ]
 
 
 def test_the_first_event_names_the_model_and_the_harness_session():
@@ -64,6 +71,31 @@ def test_the_first_event_names_the_model_and_the_harness_session():
     assert CLAUDE.read(line=line) == [
         Note(label="harness session", detail="model claude-opus-5, id abc-123")
     ]
+    assert CLAUDE.read_output(line=line).harness_session_identifier == "abc-123"
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "not json",
+        "[]",
+        streamed(type="assistant"),
+        streamed(type="system", subtype="api_retry"),
+    ],
+)
+def test_anything_but_the_first_event_names_no_harness_session(line):
+    assert CLAUDE.read_output(line=line).harness_session_identifier is None
+
+
+def test_a_non_text_harness_session_identifier_is_left_raw():
+    line = streamed(
+        type="system", subtype="init", model="claude-opus-5", session_id=None
+    )
+
+    output = CLAUDE.read_output(line=line)
+
+    assert output.harness_session_identifier is None
+    assert output.events == [Prose(text=line)]
 
 
 def test_what_the_agent_says_comes_through_whole():

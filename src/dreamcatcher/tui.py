@@ -26,7 +26,10 @@ from rich.padding import Padding
 from rich.table import Table
 from rich.text import Text
 
-from dreamcatcher.agent_assignments import AgentAssignment
+from dreamcatcher.agent_assignments import (
+    AgentAssignment,
+    find_harness_session_identifier,
+)
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     ErroredAgentRoundEnding,
@@ -49,7 +52,7 @@ from dreamcatcher.feed import (
     describe_agent_round_start,
     read_feed_line,
 )
-from dreamcatcher.harnesses import ADAPTERS
+from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.words import describe_count, describe_span, describe_time
 
@@ -510,8 +513,16 @@ def _render_harness_resume(
     """
     if row.standing is AgentAssignmentStanding.WORKING or not row.assignment.rounds:
         return None
+    harness_adapter = HARNESS_ADAPTERS[row.assignment.record.harness]
+    identifier = find_harness_session_identifier(
+        assignment=row.assignment, harness_adapter=harness_adapter
+    )
+    if identifier is None:
+        return None
     worktree = state.describe_path(path=row.assignment.record.worktree)
-    command = " ".join(ADAPTERS[row.assignment.record.harness].build_hand_resume())
+    command = " ".join(
+        harness_adapter.build_hand_resume(harness_session_identifier=identifier)
+    )
     return _render_section(
         heading="resume harness session yourself",
         colour="blue",

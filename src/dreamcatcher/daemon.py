@@ -16,7 +16,7 @@ from dreamcatcher.config import Harness, read_config
 from dreamcatcher.documents import write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import Unknown, identify_account, identify_repository
-from dreamcatcher.harnesses import ADAPTERS
+from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.lock import hold
 from dreamcatcher.scheduler import Scheduler
 from dreamcatcher.state import LastTick, StateDirectory
@@ -158,7 +158,7 @@ class Daemon:
         after a failure cannot tell a misconfiguration from a blip.
         """
         for harness in sorted({self.harness, *self.config.routed_harnesses}):
-            locate(program=ADAPTERS[harness].program)
+            locate(program=HARNESS_ADAPTERS[harness].program)
 
     def _sweep_orphans(self) -> None:
         """End whatever a daemon that ran before this one left running.

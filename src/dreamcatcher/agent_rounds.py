@@ -23,11 +23,10 @@ from enum import StrEnum
 from pathlib import Path
 from threading import Event as Flag
 from threading import Lock, Thread
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Protocol
 
 from pydantic import Field, PositiveInt, field_validator
 
-from dreamcatcher.adapters import Adapter, Invocation
 from dreamcatcher.clock import now
 from dreamcatcher.commands import spawn
 from dreamcatcher.documents import (
@@ -40,9 +39,33 @@ from dreamcatcher.documents import (
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Event, Prose, Renderer
 from dreamcatcher.github import PullRequestState, UserPost
+from dreamcatcher.harness_adapters import HarnessAdapter, HarnessInvocation
 
 # The file in a round's own directory saying what the round did.
 RECORD = "round.json"
+
+
+class RecordsHarnessSessionIdentifier(Protocol):
+    """Record the harness session identifier that an agent round observes."""
+
+    def __call__(self, *, identifier: str) -> None:
+        """Record the identifier."""
+
+
+@dataclass(frozen=True, kw_only=True)
+class AgentRoundOutputReader:
+    """Read harness output and record the session identifier it reports."""
+
+    harness_adapter: HarnessAdapter
+    record_harness_session_identifier: RecordsHarnessSessionIdentifier
+
+    def read(self, *, line: str) -> list[Event]:
+        """Record the session identifier and return one line's feed events."""
+        output = self.harness_adapter.read_output(line=line)
+        identifier = output.harness_session_identifier
+        if identifier is not None:
+            self.record_harness_session_identifier(identifier=identifier)
+        return output.events
 
 
 class RoundPurpose(StrEnum):
@@ -277,8 +300,8 @@ class AgentRound:
     def __init__(
         self,
         *,
-        adapter: Adapter,
-        invocation: Invocation,
+        output_reader: AgentRoundOutputReader,
+        invocation: HarnessInvocation,
         paths: AgentRoundPaths,
         plan: AgentRoundPlan,
         clock: Callable[[], datetime] = now,
@@ -291,7 +314,7 @@ class AgentRound:
         holds, and a reader can see afterwards what the round received. A failure
         to write either file stops the round before it starts.
         """
-        self.adapter = adapter
+        self.output_reader = output_reader
         self.paths = paths
         self.clock = clock
         self.renderer = Renderer(worktree=paths.worktree, clock=clock)
@@ -412,7 +435,7 @@ class AgentRound:
         """Keep each line that the harness streams, and write what it says."""
         for line in self.child.out:
             append_text(text=line, path=self.paths.raw)
-            self._append(line=line, events=self.adapter.read(line=line))
+            self._append(line=line, events=self.output_reader.read(line=line))
 
     def _read_stderr(self) -> None:
         """Write what the harness says on stderr, among the lines around it."""

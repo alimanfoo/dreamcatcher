@@ -184,7 +184,8 @@ is running remain beyond that cursor and are available to a later round.
 
 ### Harness adapters
 
-`adapters.py` and `harnesses.py` form the harness boundary. An adapter knows:
+`harness_adapters.py` and `harnesses.py` form the harness boundary. A harness
+adapter knows:
 
 - how to start a new harness session;
 - how to resume an identified harness session;

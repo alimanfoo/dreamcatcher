@@ -3,8 +3,14 @@
 import json
 from typing import ClassVar, Protocol
 
-from dreamcatcher.adapters import Adapter, Invocation, Launch
 from dreamcatcher.feed import Event, Note, Prose
+from dreamcatcher.harness_adapters import (
+    AgentRoundLaunch,
+    HarnessAdapter,
+    HarnessInvocation,
+    HarnessOutput,
+    HarnessSessionIdentifier,
+)
 
 # What an unattended round may do without being asked, and nothing else. The
 # round runs under `--permission-mode auto`, so this list is Claude's whole
@@ -34,18 +40,18 @@ TELLING_INPUTS = (
 )
 
 
-class Claude(Adapter):
+class Claude(HarnessAdapter):
     """Claude Code as one round of an agent assignment runs it."""
 
     program: ClassVar[str] = "claude"
 
-    def build_first_round(self, *, launch: Launch) -> Invocation:
+    def build_first_round(self, *, launch: AgentRoundLaunch) -> HarnessInvocation:
         """Return how to run an assignment's first round.
 
         The command names no prompt, which is how Claude knows to read one
         from stdin.
         """
-        return Invocation(
+        return HarnessInvocation(
             program=self.program,
             arguments=[
                 *self._base(launch=launch),
@@ -57,40 +63,50 @@ class Claude(Adapter):
             prompt=launch.prompt,
         )
 
-    def build_resumed_round(self, *, launch: Launch) -> Invocation:
-        """Return how to continue the harness session in this directory.
+    def build_resumed_round(
+        self,
+        *,
+        launch: AgentRoundLaunch,
+        harness_session_identifier: HarnessSessionIdentifier,
+    ) -> HarnessInvocation:
+        """Return how to continue the identified harness session.
 
         Claude recovers the model and the effort itself, so a resume replays
         neither.
         """
-        return Invocation(
+        return HarnessInvocation(
             program=self.program,
-            arguments=[*self._base(launch=launch), "--continue"],
+            arguments=[
+                *self._base(launch=launch),
+                "--resume",
+                harness_session_identifier,
+            ],
             prompt=launch.prompt,
         )
 
-    def build_hand_resume(self) -> list[str]:
-        """Return how a person carries on the harness session in this directory.
+    def build_hand_resume(
+        self, *, harness_session_identifier: HarnessSessionIdentifier
+    ) -> list[str]:
+        """Return how a person carries on the identified harness session."""
+        return [self.program, "--resume", harness_session_identifier]
 
-        Claude continues the newest harness session in the assignment's worktree.
-        """
-        return [self.program, "--continue"]
-
-    def _events(self, *, streamed: dict) -> list[Event]:
-        """Return the feed events one Claude event turns into."""
+    def _read(self, *, streamed: dict) -> HarnessOutput:
+        """Return what one parsed Claude event says."""
         is_subagent = streamed.get("parent_tool_use_id") is not None
         kind = streamed["type"]
         if kind == "system":
             return _system(streamed=streamed)
         if kind == "assistant":
-            return _blocks(streamed=streamed, read=_spoken, is_subagent=is_subagent)
+            events = _blocks(streamed=streamed, read=_spoken, is_subagent=is_subagent)
+            return HarnessOutput(events=events)
         if kind == "user":
-            return _blocks(streamed=streamed, read=_failure, is_subagent=is_subagent)
+            events = _blocks(streamed=streamed, read=_failure, is_subagent=is_subagent)
+            return HarnessOutput(events=events)
         if kind == "result":
-            return _closing(streamed=streamed)
-        return []
+            return HarnessOutput(events=_closing(streamed=streamed))
+        return HarnessOutput(events=[])
 
-    def _base(self, *, launch: Launch) -> list[str]:
+    def _base(self, *, launch: AgentRoundLaunch) -> list[str]:
         """Return the arguments every round shares."""
         return [
             "--print",
@@ -109,34 +125,44 @@ class Claude(Adapter):
 CLAUDE = Claude()
 
 
-def _system(*, streamed: dict) -> list[Event]:
+def _system(*, streamed: dict) -> HarnessOutput:
     """Return a system event's harness session, report, or nothing."""
     subtype = streamed["subtype"]
     if subtype == "init":
-        return [
-            Note(
-                label="harness session",
-                detail=f"model {streamed['model']}, id {streamed['session_id']}",
-            )
-        ]
+        identifier = streamed["session_id"]
+        if not isinstance(identifier, str):
+            raise TypeError("Claude reported a non-text harness session identifier")
+        return HarnessOutput(
+            events=[
+                Note(
+                    label="harness session",
+                    detail=f"model {streamed['model']}, id {identifier}",
+                )
+            ],
+            harness_session_identifier=identifier,
+        )
     # A subagent reports its token usage as it finishes, and a background
     # command does not, so the usage is what tells the two events apart.
     if subtype == "task_notification" and streamed.get("usage") is not None:
-        return [
-            Note(label="report", detail=streamed["status"], is_subagent=True),
-            Prose(text=streamed["summary"], is_subagent=True),
-        ]
+        return HarnessOutput(
+            events=[
+                Note(label="report", detail=streamed["status"], is_subagent=True),
+                Prose(text=streamed["summary"], is_subagent=True),
+            ]
+        )
     # A retried round says nothing else while it waits, and ten retries of a
     # rate limit take about three minutes, so the feed says what it waits on.
     if subtype == "api_retry":
-        return [
-            Note(
-                label="retry",
-                detail=f"{streamed['error']} ({streamed['error_status']}), "
-                f"attempt {streamed['attempt']} of {streamed['max_retries']}",
-            )
-        ]
-    return []
+        return HarnessOutput(
+            events=[
+                Note(
+                    label="retry",
+                    detail=f"{streamed['error']} ({streamed['error_status']}), "
+                    f"attempt {streamed['attempt']} of {streamed['max_retries']}",
+                )
+            ]
+        )
+    return HarnessOutput(events=[])
 
 
 class _ReadsBlock(Protocol):

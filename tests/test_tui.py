@@ -69,6 +69,7 @@ SCREEN_HANDED_BACK = Control.alt_screen(False).segment.text
 DAEMON_PID = 4242
 
 STAMP = "20260819-184158"
+HARNESS_SESSION_IDENTIFIER = "abc-123"
 
 # What one round of an assignment said, as its feed holds it. A subagent's lines
 # are set in from the rest, and a line that is not a feed line at all is what a
@@ -107,7 +108,10 @@ def daemon(monkeypatch):
 def written(*, state, issue: int, records: Sequence[AgentRoundRecord]):
     """Write an assignment for the issue, with these rounds behind it."""
     directory = write_agent_assignment(
-        state=state, identifier=f"GH{issue}-{STAMP}", issue=issue
+        state=state,
+        identifier=f"GH{issue}-{STAMP}",
+        issue=issue,
+        harness_session_identifier=(HARNESS_SESSION_IDENTIFIER if records else None),
     )
     for number, record in enumerate(records, start=1):
         write_round(directory=directory, number=number, record=record)
@@ -618,6 +622,47 @@ def test_an_assignment_renders_as_its_golden_view(name, tmp_path, daemon):
     view = viewed(state=state, issue=issue)
 
     assert view == (FIXTURES / "board" / f"{name}.txt").read_text(encoding="utf-8")
+
+
+def test_a_manual_resume_recovers_the_harness_session_from_the_raw_stream(
+    tmp_path, daemon
+):
+    state = StateDirectory(root=tmp_path)
+    holding(state=state)
+    directory = write_agent_assignment(
+        state=state,
+        identifier=f"GH20-{STAMP}",
+        issue=20,
+        harness_session_identifier=None,
+    )
+    write_round(directory=directory, number=1, record=ended(minute=1))
+    write_text(
+        text=(
+            '{"type":"system","subtype":"init","model":"claude-opus-5",'
+            f'"session_id":"{HARNESS_SESSION_IDENTIFIER}"}}\n'
+        ),
+        path=directory / "rounds" / "1" / "raw.jsonl",
+    )
+
+    view = viewed(state=state, issue=20)
+
+    assert f"claude --resume {HARNESS_SESSION_IDENTIFIER}" in view
+
+
+def test_an_assignment_without_a_harness_session_has_no_manual_resume(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    holding(state=state)
+    directory = write_agent_assignment(
+        state=state,
+        identifier=f"GH20-{STAMP}",
+        issue=20,
+        harness_session_identifier=None,
+    )
+    write_round(directory=directory, number=1, record=ended(minute=1))
+
+    view = viewed(state=state, issue=20)
+
+    assert "resume harness session yourself" not in view
 
 
 def test_an_assignment_view_shows_the_round_that_starts_while_it_is_open(

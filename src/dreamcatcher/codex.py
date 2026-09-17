@@ -3,8 +3,14 @@
 from collections.abc import Sequence
 from typing import ClassVar
 
-from dreamcatcher.adapters import Adapter, Invocation, Launch
 from dreamcatcher.feed import Event, Note, Prose
+from dreamcatcher.harness_adapters import (
+    AgentRoundLaunch,
+    HarnessAdapter,
+    HarnessInvocation,
+    HarnessOutput,
+    HarnessSessionIdentifier,
+)
 
 # Let the round reach the network from inside its sandbox, so it can talk to
 # GitHub.
@@ -28,18 +34,18 @@ RESUME_PERMISSIONS = (
 )
 
 
-class Codex(Adapter):
+class Codex(HarnessAdapter):
     """Codex as one round of an agent assignment runs it."""
 
     program: ClassVar[str] = "codex"
 
-    def build_first_round(self, *, launch: Launch) -> Invocation:
+    def build_first_round(self, *, launch: AgentRoundLaunch) -> HarnessInvocation:
         """Return how to run an assignment's first round.
 
         The command does not say which directory to work in, so whoever runs
         it has to run it in the assignment's worktree.
         """
-        return Invocation(
+        return HarnessInvocation(
             program=self.program,
             arguments=[
                 "exec",
@@ -52,41 +58,43 @@ class Codex(Adapter):
             prompt=launch.prompt,
         )
 
-    def build_resumed_round(self, *, launch: Launch) -> Invocation:
-        """Return how to resume the harness session in this directory.
+    def build_resumed_round(
+        self,
+        *,
+        launch: AgentRoundLaunch,
+        harness_session_identifier: HarnessSessionIdentifier,
+    ) -> HarnessInvocation:
+        """Return how to resume the identified harness session.
 
         Codex forgets the model and the effort when it resumes, so this sets
         both again.
-
-        `--last` means the newest harness session, and Codex only counts the
-        harness sessions it ran in the current directory. Running this in the
-        assignment's worktree therefore picks the right harness session.
         """
-        return Invocation(
+        return HarnessInvocation(
             program=self.program,
             arguments=[
                 "exec",
                 "resume",
-                "--last",
                 "--json",
                 *_settings(launch=launch),
                 *_overrides(settings=RESUME_PERMISSIONS),
+                harness_session_identifier,
                 STDIN,
             ],
             prompt=launch.prompt,
         )
 
-    def build_hand_resume(self) -> list[str]:
-        """Return how a person carries on the harness session in this directory.
+    def build_hand_resume(
+        self, *, harness_session_identifier: HarnessSessionIdentifier
+    ) -> list[str]:
+        """Return how a person carries on the identified harness session.
 
         `codex resume` is Codex's interactive resume, where `codex exec resume`
-        is the headless one that every round of an assignment runs. `--last`
-        means the newest harness session that Codex ran in the current directory.
+        is the headless one that every round of an assignment runs.
         """
-        return [self.program, "resume", "--last"]
+        return [self.program, "resume", harness_session_identifier]
 
-    def _events(self, *, streamed: dict) -> list[Event]:
-        """Return the feed events one Codex event turns into.
+    def _read(self, *, streamed: dict) -> HarnessOutput:
+        """Return what one parsed Codex event says.
 
         An event this does not handle gets no feed line. The feed writes its own
         opening line for a round, so it does not need the event that says a turn
@@ -95,23 +103,31 @@ class Codex(Adapter):
         """
         kind = streamed["type"]
         if kind == "thread.started":
-            return [Note(label="harness session", detail=f"id {streamed['thread_id']}")]
+            identifier = streamed["thread_id"]
+            if not isinstance(identifier, str):
+                raise TypeError("Codex reported a non-text harness session identifier")
+            return HarnessOutput(
+                events=[Note(label="harness session", detail=f"id {identifier}")],
+                harness_session_identifier=identifier,
+            )
         if kind == "item.completed":
-            return _item(item=streamed["item"])
+            return HarnessOutput(events=_item(item=streamed["item"]))
         if kind == "turn.completed":
-            return [_usage(counts=streamed["usage"])]
+            return HarnessOutput(events=[_usage(counts=streamed["usage"])])
         # When a turn fails, Codex sends the error twice: once on its own, then
         # again as the reason the turn failed. Keeping only this second one means
         # the reader sees the failure once.
         if kind == "turn.failed":
-            return [Note(label="failed", detail=streamed["error"]["message"])]
-        return []
+            return HarnessOutput(
+                events=[Note(label="failed", detail=streamed["error"]["message"])]
+            )
+        return HarnessOutput(events=[])
 
 
 CODEX = Codex()
 
 
-def _settings(*, launch: Launch) -> list[str]:
+def _settings(*, launch: AgentRoundLaunch) -> list[str]:
     """Return the model and effort flags that every assignment round uses."""
     return [
         "--model",

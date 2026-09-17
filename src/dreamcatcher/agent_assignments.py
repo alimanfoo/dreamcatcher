@@ -29,6 +29,7 @@ from dreamcatcher.config import DispatchRoute, Harness
 from dreamcatcher.documents import (
     Document,
     read_json,
+    read_lines_from,
     read_text,
     write_json,
     write_text,
@@ -54,6 +55,11 @@ from dreamcatcher.github import (
     list_linked_pull_requests,
     list_pull_requests,
 )
+from dreamcatcher.harness_adapters import (
+    HarnessAdapter,
+    HarnessSessionIdentifier,
+    refuse_invalid_harness_session_identifier,
+)
 from dreamcatcher.state import StateDirectory
 
 # What an assignment's branch is called, before its identifier. The prefix keeps
@@ -74,10 +80,11 @@ USER_POST_DELIVERY_CURSOR = "watermark"
 class AgentAssignmentRecord(Document):
     """The issue an assignment works on, and the settings it runs its rounds with.
 
-    The dispatch settles all of these, including the pull request identity, and
-    no later round changes any of them. Every round reads them from here rather
-    than from the config, so editing the config while an assignment is in flight
-    cannot reach that assignment. Mutable pull request state stays on GitHub.
+    The dispatch settles all of these except the harness session identifier,
+    which the first round adds when the harness reports it. No later round
+    changes them. Every round reads them from here rather than from the config,
+    so editing the config while an assignment is in flight cannot reach that
+    assignment. Mutable pull request state stays on GitHub.
     """
 
     issue: int
@@ -86,6 +93,7 @@ class AgentAssignmentRecord(Document):
     worktree: Path
     pull_request: int
     harness: Harness
+    harness_session_identifier: HarnessSessionIdentifier | None = None
     model: str
     effort: str
     prompt: str
@@ -97,8 +105,8 @@ class AgentAssignment:
 
     The directory is where the assignment keeps its own files, and its own name is
     the assignment's identifier, which is how a reader of the disk finds one. The record
-    says what the dispatch settled, and the rounds are what the assignment has run
-    so far, oldest first.
+    says what the dispatch settled and which harness session the first round
+    created, and the rounds are what the assignment has run so far, oldest first.
 
     The user-post delivery cursor is the newest post delivered to the assignment.
     An assignment that has received none has the beginning of time, so the first
@@ -521,6 +529,63 @@ def advance_user_post_delivery_cursor(
     next tick rather than losing them.
     """
     write_text(text=newest, path=assignment.directory / USER_POST_DELIVERY_CURSOR)
+
+
+def find_harness_session_identifier(
+    *, assignment: AgentAssignment, harness_adapter: HarnessAdapter
+) -> HarnessSessionIdentifier | None:
+    """Return the recorded or recoverable harness session identifier."""
+    if assignment.record.harness_session_identifier is not None:
+        return assignment.record.harness_session_identifier
+    lines, _ = read_lines_from(path=assignment.round_paths(number=1).raw, position=0)
+    for line in lines:
+        identifier = harness_adapter.read_output(line=line).harness_session_identifier
+        if identifier is not None:
+            return _refuse_harness_session_identifier(
+                assignment=assignment, identifier=identifier
+            )
+    return None
+
+
+def record_harness_session_identifier(
+    *, assignment: AgentAssignment, identifier: str
+) -> None:
+    """Record the harness session that every round of the assignment continues."""
+    safe_identifier = _refuse_harness_session_identifier(
+        assignment=assignment, identifier=identifier
+    )
+    path = assignment.directory / RECORD
+    record = read_json(model=AgentAssignmentRecord, path=path)
+    current = record.harness_session_identifier
+    if current is not None and current != safe_identifier:
+        raise ReportableError(
+            f"{assignment.identifier} reported harness session {safe_identifier}, "
+            f"but its record names {current}."
+        )
+    if current == safe_identifier:
+        return
+    write_json(
+        document=record.model_copy(
+            update={"harness_session_identifier": safe_identifier}
+        ),
+        path=path,
+    )
+
+
+def _refuse_harness_session_identifier(
+    *, assignment: AgentAssignment, identifier: str
+) -> str:
+    """Return an identifier safe for a harness command line, or report why not."""
+    if not identifier:
+        raise ReportableError(
+            f"{assignment.identifier}'s harness session identifier is empty."
+        )
+    try:
+        return refuse_invalid_harness_session_identifier(identifier)
+    except ValueError as error:
+        raise ReportableError(
+            f"{assignment.identifier}'s harness session identifier {error}."
+        ) from error
 
 
 def _discard_worktree_and_branch(
