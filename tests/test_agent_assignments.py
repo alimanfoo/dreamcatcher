@@ -911,6 +911,8 @@ def test_an_assignment_refuses_a_different_harness_session(fabricated):
     [
         ("", "identifier is empty"),
         ("bad%identifier", "cannot hold a percent sign"),
+        ("--last", "must begin with a letter or digit"),
+        ("abc; touch another-file", "contain only ASCII letters"),
     ],
 )
 def test_an_assignment_refuses_an_invalid_harness_session_identifier(

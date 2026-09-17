@@ -3,7 +3,13 @@
 from collections.abc import Sequence
 from typing import ClassVar
 
-from dreamcatcher.adapters import Adapter, HarnessOutput, Invocation, Launch
+from dreamcatcher.adapters import (
+    Adapter,
+    HarnessOutput,
+    HarnessSessionIdentifier,
+    Invocation,
+    Launch,
+)
 from dreamcatcher.feed import Event, Note, Prose
 
 # Let the round reach the network from inside its sandbox, so it can talk to
@@ -53,7 +59,7 @@ class Codex(Adapter):
         )
 
     def build_resumed_round(
-        self, *, launch: Launch, harness_session_identifier: str
+        self, *, launch: Launch, harness_session_identifier: HarnessSessionIdentifier
     ) -> Invocation:
         """Return how to resume the identified harness session.
 
@@ -74,7 +80,9 @@ class Codex(Adapter):
             prompt=launch.prompt,
         )
 
-    def build_hand_resume(self, *, harness_session_identifier: str) -> list[str]:
+    def build_hand_resume(
+        self, *, harness_session_identifier: HarnessSessionIdentifier
+    ) -> list[str]:
         """Return how a person carries on the identified harness session.
 
         `codex resume` is Codex's interactive resume, where `codex exec resume`
@@ -92,7 +100,9 @@ class Codex(Adapter):
         """
         kind = streamed["type"]
         if kind == "thread.started":
-            identifier = str(streamed["thread_id"])
+            identifier = streamed["thread_id"]
+            if not isinstance(identifier, str):
+                raise TypeError("Codex reported a non-text harness session identifier")
             return HarnessOutput(
                 events=[Note(label="harness session", detail=f"id {identifier}")],
                 harness_session_identifier=identifier,

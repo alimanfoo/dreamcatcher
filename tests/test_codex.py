@@ -88,6 +88,15 @@ def test_another_event_names_no_harness_session():
     assert CODEX.read_output(line=line).harness_session_identifier is None
 
 
+def test_a_non_text_harness_session_identifier_is_left_raw():
+    line = streamed(type="thread.started", thread_id=None)
+
+    output = CODEX.read_output(line=line)
+
+    assert output.harness_session_identifier is None
+    assert output.events == [Prose(text=line)]
+
+
 def test_what_the_agent_says_comes_through_whole():
     line = completed(type="agent_message", text="I read the file.\nIt was empty.")
 

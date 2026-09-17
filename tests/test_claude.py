@@ -87,6 +87,17 @@ def test_anything_but_the_first_event_names_no_harness_session(line):
     assert CLAUDE.read_output(line=line).harness_session_identifier is None
 
 
+def test_a_non_text_harness_session_identifier_is_left_raw():
+    line = streamed(
+        type="system", subtype="init", model="claude-opus-5", session_id=None
+    )
+
+    output = CLAUDE.read_output(line=line)
+
+    assert output.harness_session_identifier is None
+    assert output.events == [Prose(text=line)]
+
+
 def test_what_the_agent_says_comes_through_whole():
     line = assistant(
         blocks=[{"type": "text", "text": "I read the file.\nIt was empty."}]

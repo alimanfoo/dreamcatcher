@@ -16,7 +16,11 @@ from datetime import datetime
 from pathlib import Path
 
 from dreamcatcher import prompts
-from dreamcatcher.adapters import Adapter
+from dreamcatcher.adapters import (
+    Adapter,
+    HarnessSessionIdentifier,
+    refuse_invalid_harness_session_identifier,
+)
 from dreamcatcher.agent_rounds import (
     AgentRoundPaths,
     AgentRoundRecord,
@@ -25,8 +29,8 @@ from dreamcatcher.agent_rounds import (
     RoundOutcome,
     RoundPurpose,
 )
-from dreamcatcher.commands import CommandError, refuse_unquotable
-from dreamcatcher.config import DispatchRoute, Harness, QuotableText
+from dreamcatcher.commands import CommandError
+from dreamcatcher.config import DispatchRoute, Harness
 from dreamcatcher.documents import (
     Document,
     read_json,
@@ -88,7 +92,7 @@ class AgentAssignmentRecord(Document):
     worktree: Path
     pull_request: int
     harness: Harness
-    harness_session_identifier: QuotableText | None = None
+    harness_session_identifier: HarnessSessionIdentifier | None = None
     model: str
     effort: str
     prompt: str
@@ -528,7 +532,7 @@ def advance_user_post_delivery_cursor(
 
 def find_harness_session_identifier(
     *, assignment: AgentAssignment, adapter: Adapter
-) -> str | None:
+) -> HarnessSessionIdentifier | None:
     """Return the recorded or recoverable harness session identifier."""
     if assignment.record.harness_session_identifier is not None:
         return assignment.record.harness_session_identifier
@@ -576,7 +580,7 @@ def _refuse_harness_session_identifier(
             f"{assignment.identifier}'s harness session identifier is empty."
         )
     try:
-        return refuse_unquotable(identifier)
+        return refuse_invalid_harness_session_identifier(identifier)
     except ValueError as error:
         raise ReportableError(
             f"{assignment.identifier}'s harness session identifier {error}."

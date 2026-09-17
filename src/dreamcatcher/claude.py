@@ -3,7 +3,13 @@
 import json
 from typing import ClassVar, Protocol
 
-from dreamcatcher.adapters import Adapter, HarnessOutput, Invocation, Launch
+from dreamcatcher.adapters import (
+    Adapter,
+    HarnessOutput,
+    HarnessSessionIdentifier,
+    Invocation,
+    Launch,
+)
 from dreamcatcher.feed import Event, Note, Prose
 
 # What an unattended round may do without being asked, and nothing else. The
@@ -58,7 +64,7 @@ class Claude(Adapter):
         )
 
     def build_resumed_round(
-        self, *, launch: Launch, harness_session_identifier: str
+        self, *, launch: Launch, harness_session_identifier: HarnessSessionIdentifier
     ) -> Invocation:
         """Return how to continue the identified harness session.
 
@@ -75,7 +81,9 @@ class Claude(Adapter):
             prompt=launch.prompt,
         )
 
-    def build_hand_resume(self, *, harness_session_identifier: str) -> list[str]:
+    def build_hand_resume(
+        self, *, harness_session_identifier: HarnessSessionIdentifier
+    ) -> list[str]:
         """Return how a person carries on the identified harness session."""
         return [self.program, "--resume", harness_session_identifier]
 
@@ -118,7 +126,9 @@ def _system(*, streamed: dict) -> HarnessOutput:
     """Return a system event's harness session, report, or nothing."""
     subtype = streamed["subtype"]
     if subtype == "init":
-        identifier = str(streamed["session_id"])
+        identifier = streamed["session_id"]
+        if not isinstance(identifier, str):
+            raise TypeError("Claude reported a non-text harness session identifier")
         return HarnessOutput(
             events=[
                 Note(

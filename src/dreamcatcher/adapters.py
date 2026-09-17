@@ -10,11 +10,31 @@ line that will not parse. Each adapter says what its own events mean.
 """
 
 import json
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import Annotated, ClassVar
 
+from pydantic import AfterValidator
+
+from dreamcatcher.commands import refuse_unquotable
 from dreamcatcher.feed import Event, Prose
+
+
+def refuse_invalid_harness_session_identifier(identifier: str, /) -> str:
+    """Return an identifier safe and unambiguous on a harness command line."""
+    safe_identifier = refuse_unquotable(identifier)
+    if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", safe_identifier) is None:
+        raise ValueError(
+            "must begin with a letter or digit and contain only ASCII letters, "
+            "digits, hyphens, or underscores"
+        )
+    return safe_identifier
+
+
+HarnessSessionIdentifier = Annotated[
+    str, AfterValidator(refuse_invalid_harness_session_identifier)
+]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -75,12 +95,14 @@ class Adapter(ABC):
 
     @abstractmethod
     def build_resumed_round(
-        self, *, launch: Launch, harness_session_identifier: str
+        self, *, launch: Launch, harness_session_identifier: HarnessSessionIdentifier
     ) -> Invocation:
         """Return how to resume the harness session with launch's prompt."""
 
     @abstractmethod
-    def build_hand_resume(self, *, harness_session_identifier: str) -> list[str]:
+    def build_hand_resume(
+        self, *, harness_session_identifier: HarnessSessionIdentifier
+    ) -> list[str]:
         """Return the command that resumes the harness session interactively.
 
         It carries no prompt: this invocation is interactive, and whoever ran
