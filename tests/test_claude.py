@@ -46,15 +46,21 @@ def test_a_first_round_names_the_model_and_the_effort_it_was_dispatched_with():
 
 
 def test_a_resume_continues_the_harness_session_and_replays_no_settings():
-    assert CLAUDE.build_resumed_round(launch=LAUNCH) == Invocation(
+    assert CLAUDE.build_resumed_round(
+        launch=LAUNCH, harness_session_identifier="abc-123"
+    ) == Invocation(
         program="claude",
-        arguments=[*BASE, "--continue"],
+        arguments=[*BASE, "--resume", "abc-123"],
         prompt="/dream:smith GH9",
     )
 
 
 def test_a_person_continues_the_harness_session_where_it_ran():
-    assert CLAUDE.build_hand_resume() == ["claude", "--continue"]
+    assert CLAUDE.build_hand_resume(harness_session_identifier="abc-123") == [
+        "claude",
+        "--resume",
+        "abc-123",
+    ]
 
 
 def test_the_first_event_names_the_model_and_the_harness_session():

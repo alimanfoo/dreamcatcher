@@ -15,4 +15,4 @@ rounds
 
 resume harness session yourself
   cd .dreamcatcher/worktrees/GH9-20260819-184158
-  claude --continue                             
+  claude --resume abc-123                       

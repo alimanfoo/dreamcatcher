@@ -41,12 +41,13 @@ def test_a_first_round_runs_where_it_is_launched_under_codexs_own_reviewer():
 
 
 def test_a_resume_replays_the_settings_and_the_permissions_codex_forgets():
-    assert CODEX.build_resumed_round(launch=LAUNCH) == Invocation(
+    assert CODEX.build_resumed_round(
+        launch=LAUNCH, harness_session_identifier="01a0213c-9c67"
+    ) == Invocation(
         program="codex",
         arguments=[
             "exec",
             "resume",
-            "--last",
             "--json",
             *SETTINGS,
             "-c",
@@ -57,6 +58,7 @@ def test_a_resume_replays_the_settings_and_the_permissions_codex_forgets():
             'approval_policy="on-request"',
             "-c",
             'approvals_reviewer="auto_review"',
+            "01a0213c-9c67",
             STDIN,
         ],
         prompt="$dream:smith GH9",
@@ -64,7 +66,11 @@ def test_a_resume_replays_the_settings_and_the_permissions_codex_forgets():
 
 
 def test_a_person_continues_the_harness_session_with_codexs_interactive_resume():
-    assert CODEX.build_hand_resume() == ["codex", "resume", "--last"]
+    assert CODEX.build_hand_resume(harness_session_identifier="01a0213c-9c67") == [
+        "codex",
+        "resume",
+        "01a0213c-9c67",
+    ]
 
 
 def test_the_first_event_names_the_harness_session():

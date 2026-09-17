@@ -14,18 +14,22 @@ anything does an uncapped tick dispatch the oldest unclaimed, unblocked candidat
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from functools import partial
 
-from dreamcatcher.adapters import Launch
+from dreamcatcher.adapters import Adapter, Launch
 from dreamcatcher.agent_assignments import (
     AgentAssignment,
     AgentAssignmentCreator,
     advance_user_post_delivery_cursor,
     inspect_incomplete_assignment_setups,
     read_agent_assignments,
+    record_harness_session_identifier,
 )
 from dreamcatcher.agent_rounds import (
     AgentRound,
+    AgentRoundHarness,
     ErroredAgentRoundEnding,
+    recover_harness_session_identifier,
 )
 from dreamcatcher.config import Config, Harness
 from dreamcatcher.eligibility import judge_issues
@@ -227,13 +231,23 @@ class Scheduler:
             effort=assignment.record.effort,
             prompt=wakeup.prompt,
         )
-        invocation = (
-            adapter.build_first_round(launch=launch)
-            if not assignment.rounds
-            else adapter.build_resumed_round(launch=launch)
-        )
+        if assignment.rounds:
+            harness_session_identifier = self._ensure_harness_session_identifier(
+                assignment=assignment, adapter=adapter
+            )
+            invocation = adapter.build_resumed_round(
+                launch=launch,
+                harness_session_identifier=harness_session_identifier,
+            )
+        else:
+            invocation = adapter.build_first_round(launch=launch)
         self.rounds[assignment.identifier] = AgentRound(
-            adapter=adapter,
+            harness=AgentRoundHarness(
+                adapter=adapter,
+                record_harness_session_identifier=partial(
+                    record_harness_session_identifier, assignment=assignment
+                ),
+            ),
             invocation=invocation,
             paths=assignment.round_paths(number=assignment.next_round_number),
             plan=wakeup.plan,
@@ -245,6 +259,24 @@ class Scheduler:
                 assignment=assignment,
                 newest=round_input.posts[-1].written_at,
             )
+
+    def _ensure_harness_session_identifier(
+        self, *, assignment: AgentAssignment, adapter: Adapter
+    ) -> str:
+        """Return and record the harness session that a later round must resume."""
+        identifier = assignment.record.harness_session_identifier
+        if identifier is not None:
+            return identifier
+        identifier = recover_harness_session_identifier(
+            adapter=adapter, paths=assignment.round_paths(number=1)
+        )
+        if identifier is None:
+            raise ReportableError(
+                f"Could not resume {assignment.identifier}: its first round did not "
+                "report a harness session identifier."
+            )
+        record_harness_session_identifier(assignment=assignment, identifier=identifier)
+        return identifier
 
     def _dispatch_oldest_issue(
         self,

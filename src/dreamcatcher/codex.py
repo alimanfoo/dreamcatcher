@@ -52,38 +52,35 @@ class Codex(Adapter):
             prompt=launch.prompt,
         )
 
-    def build_resumed_round(self, *, launch: Launch) -> Invocation:
-        """Return how to resume the harness session in this directory.
+    def build_resumed_round(
+        self, *, launch: Launch, harness_session_identifier: str
+    ) -> Invocation:
+        """Return how to resume the identified harness session.
 
         Codex forgets the model and the effort when it resumes, so this sets
         both again.
-
-        `--last` means the newest harness session, and Codex only counts the
-        harness sessions it ran in the current directory. Running this in the
-        assignment's worktree therefore picks the right harness session.
         """
         return Invocation(
             program=self.program,
             arguments=[
                 "exec",
                 "resume",
-                "--last",
                 "--json",
                 *_settings(launch=launch),
                 *_overrides(settings=RESUME_PERMISSIONS),
+                harness_session_identifier,
                 STDIN,
             ],
             prompt=launch.prompt,
         )
 
-    def build_hand_resume(self) -> list[str]:
-        """Return how a person carries on the harness session in this directory.
+    def build_hand_resume(self, *, harness_session_identifier: str) -> list[str]:
+        """Return how a person carries on the identified harness session.
 
         `codex resume` is Codex's interactive resume, where `codex exec resume`
-        is the headless one that every round of an assignment runs. `--last`
-        means the newest harness session that Codex ran in the current directory.
+        is the headless one that every round of an assignment runs.
         """
-        return [self.program, "resume", "--last"]
+        return [self.program, "resume", harness_session_identifier]
 
     def _events(self, *, streamed: dict) -> list[Event]:
         """Return the feed events one Codex event turns into.

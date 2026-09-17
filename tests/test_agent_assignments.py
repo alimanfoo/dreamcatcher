@@ -23,6 +23,7 @@ from dreamcatcher.agent_assignments import (
     inspect_incomplete_assignment_setups,
     read_agent_assignments,
     read_agent_assignments_for_issue,
+    record_harness_session_identifier,
 )
 from dreamcatcher.agent_rounds import (
     AgentRoundPaths,
@@ -872,6 +873,54 @@ def test_an_assignment_reads_back_as_it_was_dispatched(state, route):
     )
 
     assert read_agent_assignments(state=state) == [created]
+
+
+def test_an_assignment_records_the_harness_session_its_first_round_reports(fabricated):
+    write_agent_assignment(
+        state=fabricated,
+        identifier=ASSIGNMENT_ID,
+        issue=12,
+        harness_session_identifier=None,
+    )
+    assignment = read_agent_assignments(state=fabricated)[0]
+
+    record_harness_session_identifier(assignment=assignment, identifier="abc-123")
+    record_harness_session_identifier(assignment=assignment, identifier="abc-123")
+
+    recorded = read_agent_assignments(state=fabricated)[0]
+    assert recorded.record.harness_session_identifier == "abc-123"
+
+
+def test_an_assignment_refuses_a_different_harness_session(fabricated):
+    write_agent_assignment(
+        state=fabricated,
+        identifier=ASSIGNMENT_ID,
+        issue=12,
+        harness_session_identifier="abc-123",
+    )
+    assignment = read_agent_assignments(state=fabricated)[0]
+
+    with pytest.raises(ReportableError, match="but its record names abc-123"):
+        record_harness_session_identifier(
+            assignment=assignment, identifier="another-session"
+        )
+
+
+@pytest.mark.parametrize(
+    ("identifier", "message"),
+    [
+        ("", "identifier is empty"),
+        ("bad%identifier", "cannot hold a percent sign"),
+    ],
+)
+def test_an_assignment_refuses_an_invalid_harness_session_identifier(
+    fabricated, identifier, message
+):
+    write_agent_assignment(state=fabricated, identifier=ASSIGNMENT_ID, issue=12)
+    assignment = read_agent_assignments(state=fabricated)[0]
+
+    with pytest.raises(ReportableError, match=message):
+        record_harness_session_identifier(assignment=assignment, identifier=identifier)
 
 
 def test_an_assignment_no_round_has_delivered_a_user_post_has_an_empty_cursor(

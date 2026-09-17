@@ -16,7 +16,11 @@ from dreamcatcher.state import LastTick, StateDirectory
 
 
 def write_agent_assignment(
-    *, state: StateDirectory, identifier: str, issue: int
+    *,
+    state: StateDirectory,
+    identifier: str,
+    issue: int,
+    harness_session_identifier: str | None = "abc-123",
 ) -> Path:
     """Write an assignment's worktree and its record, and return its own directory."""
     (state.worktrees / identifier).mkdir(parents=True)
@@ -29,6 +33,7 @@ def write_agent_assignment(
             worktree=state.worktrees / identifier,
             pull_request=52,
             harness=Harness.CLAUDE,
+            harness_session_identifier=harness_session_identifier,
             model="opus[1m]",
             effort="xhigh",
             prompt=f"/dream:smith GH{issue}",

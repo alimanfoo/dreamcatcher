@@ -24,8 +24,8 @@ from dreamcatcher.agent_rounds import (
     RoundOutcome,
     RoundPurpose,
 )
-from dreamcatcher.commands import CommandError
-from dreamcatcher.config import DispatchRoute, Harness
+from dreamcatcher.commands import CommandError, refuse_unquotable
+from dreamcatcher.config import DispatchRoute, Harness, QuotableText
 from dreamcatcher.documents import (
     Document,
     read_json,
@@ -86,6 +86,7 @@ class AgentAssignmentRecord(Document):
     worktree: Path
     pull_request: int
     harness: Harness
+    harness_session_identifier: QuotableText | None = None
     model: str
     effort: str
     prompt: str
@@ -521,6 +522,38 @@ def advance_user_post_delivery_cursor(
     next tick rather than losing them.
     """
     write_text(text=newest, path=assignment.directory / USER_POST_DELIVERY_CURSOR)
+
+
+def record_harness_session_identifier(
+    *, assignment: AgentAssignment, identifier: str
+) -> None:
+    """Record the harness session that every round of the assignment continues."""
+    if not identifier:
+        raise ReportableError(
+            f"{assignment.identifier}'s harness session identifier is empty."
+        )
+    try:
+        safe_identifier = refuse_unquotable(identifier)
+    except ValueError as error:
+        raise ReportableError(
+            f"{assignment.identifier}'s harness session identifier {error}."
+        ) from error
+    path = assignment.directory / RECORD
+    record = read_json(model=AgentAssignmentRecord, path=path)
+    current = record.harness_session_identifier
+    if current is not None and current != safe_identifier:
+        raise ReportableError(
+            f"{assignment.identifier} reported harness session {safe_identifier}, "
+            f"but its record names {current}."
+        )
+    if current == safe_identifier:
+        return
+    write_json(
+        document=record.model_copy(
+            update={"harness_session_identifier": safe_identifier}
+        ),
+        path=path,
+    )
 
 
 def _discard_worktree_and_branch(

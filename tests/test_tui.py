@@ -69,6 +69,7 @@ SCREEN_HANDED_BACK = Control.alt_screen(False).segment.text
 DAEMON_PID = 4242
 
 STAMP = "20260819-184158"
+HARNESS_SESSION_IDENTIFIER = "abc-123"
 
 # What one round of an assignment said, as its feed holds it. A subagent's lines
 # are set in from the rest, and a line that is not a feed line at all is what a
@@ -107,7 +108,10 @@ def daemon(monkeypatch):
 def written(*, state, issue: int, records: Sequence[AgentRoundRecord]):
     """Write an assignment for the issue, with these rounds behind it."""
     directory = write_agent_assignment(
-        state=state, identifier=f"GH{issue}-{STAMP}", issue=issue
+        state=state,
+        identifier=f"GH{issue}-{STAMP}",
+        issue=issue,
+        harness_session_identifier=(HARNESS_SESSION_IDENTIFIER if records else None),
     )
     for number, record in enumerate(records, start=1):
         write_round(directory=directory, number=number, record=record)

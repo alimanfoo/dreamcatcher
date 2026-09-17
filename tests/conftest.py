@@ -321,5 +321,18 @@ def offered(gh):
 def dispatching(cloned, offered, harnesses):
     """Return a checkout that can dispatch a labelled issue."""
     configure(root=cloned)
-    harnesses["claude"].streams(lines=[fakes.Line(text="what the round said\n")])
+    harnesses["claude"].streams(
+        lines=[
+            fakes.Line(
+                text=streamed(
+                    type="system",
+                    subtype="init",
+                    model="claude-opus-5",
+                    session_id="abc-123",
+                )
+                + "\n"
+            ),
+            fakes.Line(text="what the round said\n"),
+        ]
+    )
     return cloned

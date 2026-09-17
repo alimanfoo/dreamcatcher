@@ -66,16 +66,17 @@ class Adapter(ABC):
         """Return how to run an agent assignment's first round."""
 
     @abstractmethod
-    def build_resumed_round(self, *, launch: Launch) -> Invocation:
+    def build_resumed_round(
+        self, *, launch: Launch, harness_session_identifier: str
+    ) -> Invocation:
         """Return how to resume the harness session with launch's prompt."""
 
     @abstractmethod
-    def build_hand_resume(self) -> list[str]:
+    def build_hand_resume(self, *, harness_session_identifier: str) -> list[str]:
         """Return the command that resumes the harness session interactively.
 
-        Whoever runs it does so in the assignment's worktree, which tells the
-        harness which harness session to carry on. It carries no prompt: this
-        invocation is interactive, and whoever ran it does the talking.
+        It carries no prompt: this invocation is interactive, and whoever ran
+        it does the talking.
         """
 
     def read(self, *, line: str) -> list[Event]:

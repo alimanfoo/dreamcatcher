@@ -57,24 +57,27 @@ class Claude(Adapter):
             prompt=launch.prompt,
         )
 
-    def build_resumed_round(self, *, launch: Launch) -> Invocation:
-        """Return how to continue the harness session in this directory.
+    def build_resumed_round(
+        self, *, launch: Launch, harness_session_identifier: str
+    ) -> Invocation:
+        """Return how to continue the identified harness session.
 
         Claude recovers the model and the effort itself, so a resume replays
         neither.
         """
         return Invocation(
             program=self.program,
-            arguments=[*self._base(launch=launch), "--continue"],
+            arguments=[
+                *self._base(launch=launch),
+                "--resume",
+                harness_session_identifier,
+            ],
             prompt=launch.prompt,
         )
 
-    def build_hand_resume(self) -> list[str]:
-        """Return how a person carries on the harness session in this directory.
-
-        Claude continues the newest harness session in the assignment's worktree.
-        """
-        return [self.program, "--continue"]
+    def build_hand_resume(self, *, harness_session_identifier: str) -> list[str]:
+        """Return how a person carries on the identified harness session."""
+        return [self.program, "--resume", harness_session_identifier]
 
     def _events(self, *, streamed: dict) -> list[Event]:
         """Return the feed events one Claude event turns into."""

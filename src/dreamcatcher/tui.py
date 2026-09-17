@@ -508,10 +508,19 @@ def _render_harness_resume(
     at all has no harness session behind it either, so there is nothing to resume
     there and never will be.
     """
-    if row.standing is AgentAssignmentStanding.WORKING or not row.assignment.rounds:
+    identifier = row.assignment.record.harness_session_identifier
+    if (
+        row.standing is AgentAssignmentStanding.WORKING
+        or not row.assignment.rounds
+        or identifier is None
+    ):
         return None
     worktree = state.describe_path(path=row.assignment.record.worktree)
-    command = " ".join(ADAPTERS[row.assignment.record.harness].build_hand_resume())
+    command = " ".join(
+        ADAPTERS[row.assignment.record.harness].build_hand_resume(
+            harness_session_identifier=identifier
+        )
+    )
     return _render_section(
         heading="resume harness session yourself",
         colour="blue",
