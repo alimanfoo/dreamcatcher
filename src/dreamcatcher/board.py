@@ -317,8 +317,8 @@ class _Look:
     def _list_queued_issues(self, *, claimed: set[int]) -> list[QueuedIssue]:
         """Return the labelled issues the last tick weighed, in the order they go.
 
-        An issue an assignment here already claims is not queued: it is that
-        assignment, and the board has a row of its own to read instead.
+        An issue with an open assignment already has its own board row, so the
+        queue does not repeat it.
         """
         if self.tick is None:
             return []
