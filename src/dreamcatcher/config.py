@@ -108,6 +108,11 @@ class Config(Document):
             harness for route in self.dispatch for harness in route.assignment_recipes
         }
 
+    def identify_dispatch_labels(self, *, labels: list[str]) -> list[str]:
+        """Return the configured dispatch labels among the observed labels."""
+        configured = self.dispatch_routes.keys()
+        return sorted(set(labels).intersection(configured))
+
     @model_validator(mode="after")
     def _each_label_has_one_route(self) -> Self:
         """Refuse two routes for one label, since the label is the identity."""

@@ -65,6 +65,13 @@ class PullRequestState(StrEnum):
     MERGED = "MERGED"
 
 
+class IssueState(StrEnum):
+    """Whether an issue is open or closed. gh names these in capitals."""
+
+    OPEN = "OPEN"
+    CLOSED = "CLOSED"
+
+
 class BlockerState(StrEnum):
     """Whether a blocking issue is still open. The REST API uses lower case."""
 
@@ -100,11 +107,26 @@ class Account(Projection):
     login: str
 
 
+class IssueAssignee(Projection):
+    """An account assigned to an issue."""
+
+    login: str
+
+
+class IssueLabel(Projection):
+    """A label carried by an issue."""
+
+    name: str
+
+
 class Issue(Projection):
-    """An open issue gh listed, and when it was filed."""
+    """The GitHub facts that scheduling observes about one issue."""
 
     number: int
     created_at: datetime = Field(alias="createdAt")
+    state: IssueState
+    assignees: list[IssueAssignee]
+    labels: list[IssueLabel]
 
 
 class PullRequest(Projection):
@@ -257,6 +279,7 @@ type UserPost = Comment | Review | InlineComment
 
 REPOSITORY = TypeAdapter(Repository)
 ACCOUNT = TypeAdapter(Account)
+ISSUE = TypeAdapter(Issue)
 ISSUES = TypeAdapter(list[Issue])
 PULL_REQUESTS = TypeAdapter(list[PullRequest])
 PULL_REQUEST = TypeAdapter(PullRequest)
@@ -319,7 +342,23 @@ def list_issues(*, repository: str, label: str, assignee: str) -> list[Issue] | 
             "--limit",
             LISTING_LIMIT,
             "--json",
-            "number,createdAt",
+            "number,createdAt,state,assignees,labels",
+        ],
+    )
+
+
+def read_issue(*, repository: str, issue: int) -> Issue | Unknown:
+    """Return the current GitHub facts for one issue."""
+    return _read(
+        shape=ISSUE,
+        arguments=[
+            "issue",
+            "view",
+            str(issue),
+            "--repo",
+            repository,
+            "--json",
+            "number,createdAt,state,assignees,labels",
         ],
     )
 

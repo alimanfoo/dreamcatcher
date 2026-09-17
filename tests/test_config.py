@@ -63,6 +63,19 @@ def test_a_label_one_harness_can_run_carries_that_block_alone(tmp_path):
     assert route.assignment_recipes == {Harness.CLAUDE: CLAUDE_RECIPE}
 
 
+def test_the_config_identifies_dispatch_labels_without_giving_one_precedence(tmp_path):
+    write_config(
+        root=tmp_path,
+        text=CONFIG + SMITH_CLAUDE.replace("dream:smith", "dream:less"),
+    )
+
+    config = read_config(root=tmp_path)
+
+    assert config.identify_dispatch_labels(
+        labels=["maintenance", "dream:less", "dream:smith"]
+    ) == ["dream:less", "dream:smith"]
+
+
 def test_a_label_either_harness_can_run_runs_on_the_one_the_run_named(tmp_path):
     write_config(root=tmp_path, text=CONFIG)
 
