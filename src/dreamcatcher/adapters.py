@@ -96,6 +96,20 @@ class Adapter(ABC):
         except Exception:
             return [Prose(text=line)]
 
+    def read_harness_session_identifier(self, *, line: str) -> str | None:
+        """Return the harness session identifier from one streamed line, if any."""
+        try:
+            streamed = json.loads(line)
+            if not isinstance(streamed, dict):
+                return None
+            return self._harness_session_identifier(streamed=streamed)
+        except Exception:
+            return None
+
     @abstractmethod
     def _events(self, *, streamed: dict) -> list[Event]:
         """Return the feed events one event of this harness's stream turns into."""
+
+    @abstractmethod
+    def _harness_session_identifier(self, *, streamed: dict) -> str | None:
+        """Return the harness session identifier reported by one event, if any."""

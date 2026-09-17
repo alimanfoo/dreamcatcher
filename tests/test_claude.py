@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 
+import pytest
 from conftest import streamed
 
 from dreamcatcher.adapters import Invocation, Launch
@@ -64,6 +65,20 @@ def test_the_first_event_names_the_model_and_the_harness_session():
     assert CLAUDE.read(line=line) == [
         Note(label="harness session", detail="model claude-opus-5, id abc-123")
     ]
+    assert CLAUDE.read_harness_session_identifier(line=line) == "abc-123"
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "not json",
+        "[]",
+        streamed(type="assistant"),
+        streamed(type="system", subtype="api_retry"),
+    ],
+)
+def test_anything_but_the_first_event_names_no_harness_session(line):
+    assert CLAUDE.read_harness_session_identifier(line=line) is None
 
 
 def test_what_the_agent_says_comes_through_whole():

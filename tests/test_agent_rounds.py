@@ -97,6 +97,9 @@ class Unrenderable(Adapter):
         # text, and the renderer cannot write an event that holds one.
         return [Note(label="read", detail=cast("str", streamed))]
 
+    def _harness_session_identifier(self, *, streamed: dict) -> str | None:
+        return None
+
 
 @pytest.fixture
 def worktree(tmp_path):

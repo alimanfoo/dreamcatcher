@@ -107,6 +107,12 @@ class Codex(Adapter):
             return [Note(label="failed", detail=streamed["error"]["message"])]
         return []
 
+    def _harness_session_identifier(self, *, streamed: dict) -> str | None:
+        """Return the identifier from Codex's harness-session event, if any."""
+        if streamed.get("type") != "thread.started":
+            return None
+        return str(streamed["thread_id"])
+
 
 CODEX = Codex()
 

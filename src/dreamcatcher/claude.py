@@ -90,6 +90,12 @@ class Claude(Adapter):
             return _closing(streamed=streamed)
         return []
 
+    def _harness_session_identifier(self, *, streamed: dict) -> str | None:
+        """Return the identifier from Claude's harness-session event, if any."""
+        if streamed.get("type") != "system" or streamed.get("subtype") != "init":
+            return None
+        return str(streamed["session_id"])
+
     def _base(self, *, launch: Launch) -> list[str]:
         """Return the arguments every round shares."""
         return [
