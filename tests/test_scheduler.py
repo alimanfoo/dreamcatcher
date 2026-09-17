@@ -6,7 +6,6 @@ import pytest
 from clocks import PINNED, Ticking
 from conftest import (
     FILED,
-    LABEL,
     LATER,
     POST_LIST_PATHS,
     POSTED_BY,
@@ -38,9 +37,9 @@ from dreamcatcher.git import (
     push_branch,
 )
 from dreamcatcher.prompts import CARRY_ON_PROMPT
-from dreamcatcher.scheduler import Scheduler
+from dreamcatcher.scheduler import Scheduler, derive_issue_availability
 from dreamcatcher.state import (
-    CandidateIssue,
+    IssueFactValue,
     LastTick,
     StateDirectory,
     WaitingAgentAssignment,
@@ -93,6 +92,19 @@ def held(*, observed: LastTick) -> str:
     """Return why the scheduler launched nothing in one tick."""
     assert observed.hold is not None
     return observed.hold
+
+
+def observed_issues(*, tick: LastTick) -> list[int]:
+    """Return the issue numbers that one tick observed in dispatch order."""
+    return [observation.issue for observation in tick.issue_observations]
+
+
+def availability_values(*, tick: LastTick) -> list[IssueFactValue]:
+    """Return each observed issue's derived availability in dispatch order."""
+    return [
+        derive_issue_availability(observation=observation).value
+        for observation in tick.issue_observations
+    ]
 
 
 def record_of(*, scheduler: Scheduler, number: int) -> AgentRoundRecord:
@@ -232,9 +244,10 @@ def test_a_tick_launches_one_round_and_leaves_the_rest_in_the_queue(
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.candidates == [
-        CandidateIssue(issue=8, label=LABEL),
-        CandidateIssue(issue=9, label=LABEL),
+    assert observed_issues(tick=observed) == [8, 9]
+    assert availability_values(tick=observed) == [
+        IssueFactValue.TRUE,
+        IssueFactValue.TRUE,
     ]
     assert observed.launched == DISPATCHED_ASSIGNMENT_ID
     assert not (scheduler.state.worktrees / "GH9-20260819-184158").exists()
@@ -248,13 +261,9 @@ def test_a_second_tick_judges_a_dispatched_issue_handled(dispatching):
     observed = scheduler.tick(at=clock())
 
     assert observed.launched is None
-    assert observed.candidates == [
-        CandidateIssue(
-            issue=8,
-            label=LABEL,
-            reason="an assignment in this checkout is working on it",
-        )
-    ]
+    assert observed_issues(tick=observed) == [8]
+    assert observed.issue_observations[0].claimed_here.value is IssueFactValue.TRUE
+    assert availability_values(tick=observed) == [IssueFactValue.FALSE]
 
 
 def test_a_completed_assignment_releases_its_issue(dispatching):
@@ -280,7 +289,8 @@ def test_a_completed_assignment_releases_its_issue(dispatching):
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.candidates == [CandidateIssue(issue=8, label=LABEL)]
+    assert observed_issues(tick=observed) == [8]
+    assert availability_values(tick=observed) == [IssueFactValue.TRUE]
     assert observed.launched == DISPATCHED_ASSIGNMENT_ID
 
 
@@ -340,13 +350,10 @@ def test_a_tick_at_the_cap_refreshes_the_candidates(dispatching, offered, harnes
     observed = scheduler.tick(at=clock())
 
     assert observed.hold == "at cap: 1 of 1 rounds running"
-    assert observed.candidates == [
-        CandidateIssue(
-            issue=8,
-            label=LABEL,
-            reason="an assignment in this checkout is working on it",
-        ),
-        CandidateIssue(issue=9, label=LABEL),
+    assert observed_issues(tick=observed) == [8, 9]
+    assert availability_values(tick=observed) == [
+        IssueFactValue.FALSE,
+        IssueFactValue.TRUE,
     ]
 
 
@@ -366,9 +373,9 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
     observed = scheduler.tick(at=clock())
 
     hold = held(observed=observed)
-    assert hold.startswith("at cap: 1 of 1 rounds running; could not refresh queue: ")
+    assert hold.startswith("at cap: 1 of 1 rounds running; could not refresh issues: ")
     assert "could not connect" in hold
-    assert observed.candidates == []
+    assert observed.issue_observations == []
     assert observed.waiting == [
         WaitingAgentAssignment(
             assignment=ASSIGNMENT_ID, issue=13, reason="at cap: 1 of 1 rounds running"
@@ -383,9 +390,9 @@ def test_a_tick_with_nothing_eligible_dispatches_nothing(dispatching, offered):
     observed = scheduler.tick(at=clock())
 
     assert observed.launched is None
-    assert observed.candidates == [
-        CandidateIssue(issue=8, label=LABEL, reason="blocked by GH7")
-    ]
+    assert observed_issues(tick=observed) == [8]
+    assert observed.issue_observations[0].blocked.value is IssueFactValue.TRUE
+    assert availability_values(tick=observed) == [IssueFactValue.FALSE]
     assert not scheduler.state.worktrees.exists()
 
 
@@ -539,7 +546,8 @@ def test_a_dispatch_whose_round_will_not_start_retries_the_prepared_assignment(
     observed = scheduler.tick(at=clock())
 
     assert "cannot write" in held(observed=observed)
-    assert observed.candidates == [CandidateIssue(issue=8, label=LABEL)]
+    assert observed_issues(tick=observed) == [8]
+    assert availability_values(tick=observed) == [IssueFactValue.TRUE]
     assert (scheduler.state.worktrees / DISPATCHED_ASSIGNMENT_ID).exists()
     branch = f"dreamcatcher-{DISPATCHED_ASSIGNMENT_ID}"
     assert branch in git(arguments=["branch", "--list", branch], cwd=dispatching)
@@ -859,7 +867,8 @@ def test_open_work_is_carried_on_before_a_new_issue_is_dispatched(
 
     assert observed.launched == ASSIGNMENT_ID
     assert not (scheduler.state.worktrees / DISPATCHED_ASSIGNMENT_ID).exists()
-    assert observed.candidates == [CandidateIssue(issue=8, label=LABEL)]
+    assert observed_issues(tick=observed) == [8, 13]
+    assert observed.issue_observations[1].claimed_here.value is IssueFactValue.TRUE
 
 
 def test_a_failed_issue_listing_leaves_open_work_for_a_later_tick(
@@ -907,4 +916,5 @@ def test_a_cooling_tick_still_says_what_each_assignment_is_waiting_on(
             assignment=ASSIGNMENT_ID, issue=13, reason="the last round failed (exit 1)"
         )
     ]
-    assert observed.candidates == [CandidateIssue(issue=8, label=LABEL)]
+    assert observed_issues(tick=observed) == [8, 13]
+    assert observed.issue_observations[1].claimed_here.value is IssueFactValue.TRUE

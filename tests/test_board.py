@@ -4,6 +4,7 @@ from datetime import timedelta
 
 import pytest
 from clocks import PINNED
+from observations import observed_issue
 from records import write_agent_assignment, write_feed, write_round, write_tick
 
 from dreamcatcher.agent_rounds import (
@@ -15,7 +16,7 @@ from dreamcatcher.board import AgentAssignmentStanding, read_board, read_rows_fo
 from dreamcatcher.feed import Line
 from dreamcatcher.state import (
     NO_ROUND_HAS_RUN,
-    CandidateIssue,
+    IssueFactValue,
     LastTick,
     StateDirectory,
     WaitingAgentAssignment,
@@ -357,11 +358,16 @@ def test_the_queue_reads_each_issues_turn_off_its_place(state):
         state=state,
         tick=LastTick(
             at=PINNED,
-            candidates=[
-                CandidateIssue(issue=20, label=LABEL),
-                CandidateIssue(issue=21, label=LABEL),
-                CandidateIssue(issue=22, label=LABEL),
-                CandidateIssue(issue=23, label=LABEL, reason="blocked by GH20"),
+            issue_observations=[
+                observed_issue(issue=20),
+                observed_issue(issue=21),
+                observed_issue(issue=22),
+                observed_issue(
+                    issue=23,
+                    values={"blocked": IssueFactValue.TRUE},
+                    evidence={"blocked": "blocked by GH20"},
+                ),
+                observed_issue(issue=24, dispatch_labels=()),
             ],
         ),
     )
@@ -379,9 +385,9 @@ def test_an_issue_an_assignment_here_already_claims_is_not_queued(state):
         state=state,
         tick=LastTick(
             at=PINNED,
-            candidates=[
-                CandidateIssue(issue=13, label=LABEL),
-                CandidateIssue(issue=20, label=LABEL),
+            issue_observations=[
+                observed_issue(issue=13),
+                observed_issue(issue=20),
             ],
         ),
     )
@@ -397,9 +403,9 @@ def test_a_completed_assignment_no_longer_claims_its_issue_on_the_board(state):
         state=state,
         tick=LastTick(
             at=PINNED,
-            candidates=[
-                CandidateIssue(issue=13, label=LABEL),
-                CandidateIssue(issue=20, label=LABEL),
+            issue_observations=[
+                observed_issue(issue=13),
+                observed_issue(issue=20),
             ],
         ),
     )
