@@ -16,7 +16,6 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from functools import partial
 
-from dreamcatcher.adapters import Launch
 from dreamcatcher.agent_assignments import (
     AgentAssignment,
     AgentAssignmentCreator,
@@ -35,7 +34,8 @@ from dreamcatcher.config import Config, Harness
 from dreamcatcher.eligibility import judge_issues
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import Unknown
-from dreamcatcher.harnesses import ADAPTERS
+from dreamcatcher.harness_adapters import AgentRoundLaunch
+from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.state import (
     CandidateIssue,
     LastTick,
@@ -224,8 +224,8 @@ class Scheduler:
     def _launch_wakeup(self, *, wakeup: Wakeup) -> None:
         """Start the round and advance the delivery cursor once it is running."""
         assignment = wakeup.assignment
-        adapter = ADAPTERS[assignment.record.harness]
-        launch = Launch(
+        harness_adapter = HARNESS_ADAPTERS[assignment.record.harness]
+        launch = AgentRoundLaunch(
             assignment_id=assignment.identifier,
             model=assignment.record.model,
             effort=assignment.record.effort,
@@ -233,7 +233,7 @@ class Scheduler:
         )
         if assignment.rounds:
             harness_session_identifier = find_harness_session_identifier(
-                assignment=assignment, adapter=adapter
+                assignment=assignment, harness_adapter=harness_adapter
             )
             if harness_session_identifier is None:
                 raise ReportableError(
@@ -243,15 +243,15 @@ class Scheduler:
             record_harness_session_identifier(
                 assignment=assignment, identifier=harness_session_identifier
             )
-            invocation = adapter.build_resumed_round(
+            invocation = harness_adapter.build_resumed_round(
                 launch=launch,
                 harness_session_identifier=harness_session_identifier,
             )
         else:
-            invocation = adapter.build_first_round(launch=launch)
+            invocation = harness_adapter.build_first_round(launch=launch)
         self.rounds[assignment.identifier] = AgentRound(
             output_reader=AgentRoundOutputReader(
-                adapter=adapter,
+                harness_adapter=harness_adapter,
                 record_harness_session_identifier=partial(
                     record_harness_session_identifier, assignment=assignment
                 ),

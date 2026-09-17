@@ -38,7 +38,7 @@ HarnessSessionIdentifier = Annotated[
 
 
 @dataclass(frozen=True, kw_only=True)
-class Launch:
+class AgentRoundLaunch:
     """What one round starts with.
 
     The dispatch fixes the agent assignment identifier, model, and effort.
@@ -53,7 +53,7 @@ class Launch:
 
 
 @dataclass(frozen=True, kw_only=True)
-class Invocation:
+class HarnessInvocation:
     """How one round runs: the program to start, its arguments, and its prompt.
 
     `commands.spawn` takes the program apart from its arguments, and a list
@@ -80,7 +80,7 @@ class HarnessOutput:
     harness_session_identifier: str | None = None
 
 
-class Adapter(ABC):
+class HarnessAdapter(ABC):
     """One harness, as everything outside its own module sees it.
 
     The program is the name of the harness's CLI. Asking the adapter for it is
@@ -90,13 +90,16 @@ class Adapter(ABC):
     program: ClassVar[str]
 
     @abstractmethod
-    def build_first_round(self, *, launch: Launch) -> Invocation:
+    def build_first_round(self, *, launch: AgentRoundLaunch) -> HarnessInvocation:
         """Return how to run an agent assignment's first round."""
 
     @abstractmethod
     def build_resumed_round(
-        self, *, launch: Launch, harness_session_identifier: HarnessSessionIdentifier
-    ) -> Invocation:
+        self,
+        *,
+        launch: AgentRoundLaunch,
+        harness_session_identifier: HarnessSessionIdentifier,
+    ) -> HarnessInvocation:
         """Return how to resume the harness session with launch's prompt."""
 
     @abstractmethod

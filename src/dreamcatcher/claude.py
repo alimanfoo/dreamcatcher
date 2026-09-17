@@ -3,14 +3,14 @@
 import json
 from typing import ClassVar, Protocol
 
-from dreamcatcher.adapters import (
-    Adapter,
+from dreamcatcher.feed import Event, Note, Prose
+from dreamcatcher.harness_adapters import (
+    AgentRoundLaunch,
+    HarnessAdapter,
+    HarnessInvocation,
     HarnessOutput,
     HarnessSessionIdentifier,
-    Invocation,
-    Launch,
 )
-from dreamcatcher.feed import Event, Note, Prose
 
 # What an unattended round may do without being asked, and nothing else. The
 # round runs under `--permission-mode auto`, so this list is Claude's whole
@@ -40,18 +40,18 @@ TELLING_INPUTS = (
 )
 
 
-class Claude(Adapter):
+class Claude(HarnessAdapter):
     """Claude Code as one round of an agent assignment runs it."""
 
     program: ClassVar[str] = "claude"
 
-    def build_first_round(self, *, launch: Launch) -> Invocation:
+    def build_first_round(self, *, launch: AgentRoundLaunch) -> HarnessInvocation:
         """Return how to run an assignment's first round.
 
         The command names no prompt, which is how Claude knows to read one
         from stdin.
         """
-        return Invocation(
+        return HarnessInvocation(
             program=self.program,
             arguments=[
                 *self._base(launch=launch),
@@ -64,14 +64,17 @@ class Claude(Adapter):
         )
 
     def build_resumed_round(
-        self, *, launch: Launch, harness_session_identifier: HarnessSessionIdentifier
-    ) -> Invocation:
+        self,
+        *,
+        launch: AgentRoundLaunch,
+        harness_session_identifier: HarnessSessionIdentifier,
+    ) -> HarnessInvocation:
         """Return how to continue the identified harness session.
 
         Claude recovers the model and the effort itself, so a resume replays
         neither.
         """
-        return Invocation(
+        return HarnessInvocation(
             program=self.program,
             arguments=[
                 *self._base(launch=launch),
@@ -103,7 +106,7 @@ class Claude(Adapter):
             return HarnessOutput(events=_closing(streamed=streamed))
         return HarnessOutput(events=[])
 
-    def _base(self, *, launch: Launch) -> list[str]:
+    def _base(self, *, launch: AgentRoundLaunch) -> list[str]:
         """Return the arguments every round shares."""
         return [
             "--print",

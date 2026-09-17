@@ -52,7 +52,7 @@ from dreamcatcher.feed import (
     describe_agent_round_start,
     read_feed_line,
 )
-from dreamcatcher.harnesses import ADAPTERS
+from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.words import describe_count, describe_span, describe_time
 
@@ -513,14 +513,16 @@ def _render_harness_resume(
     """
     if row.standing is AgentAssignmentStanding.WORKING or not row.assignment.rounds:
         return None
-    adapter = ADAPTERS[row.assignment.record.harness]
+    harness_adapter = HARNESS_ADAPTERS[row.assignment.record.harness]
     identifier = find_harness_session_identifier(
-        assignment=row.assignment, adapter=adapter
+        assignment=row.assignment, harness_adapter=harness_adapter
     )
     if identifier is None:
         return None
     worktree = state.describe_path(path=row.assignment.record.worktree)
-    command = " ".join(adapter.build_hand_resume(harness_session_identifier=identifier))
+    command = " ".join(
+        harness_adapter.build_hand_resume(harness_session_identifier=identifier)
+    )
     return _render_section(
         heading="resume harness session yourself",
         colour="blue",

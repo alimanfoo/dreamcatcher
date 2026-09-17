@@ -27,7 +27,6 @@ from typing import Annotated, Literal, Protocol
 
 from pydantic import Field, PositiveInt, field_validator
 
-from dreamcatcher.adapters import Adapter, Invocation
 from dreamcatcher.clock import now
 from dreamcatcher.commands import spawn
 from dreamcatcher.documents import (
@@ -40,6 +39,7 @@ from dreamcatcher.documents import (
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Event, Prose, Renderer
 from dreamcatcher.github import PullRequestState, UserPost
+from dreamcatcher.harness_adapters import HarnessAdapter, HarnessInvocation
 
 # The file in a round's own directory saying what the round did.
 RECORD = "round.json"
@@ -56,12 +56,12 @@ class RecordsHarnessSessionIdentifier(Protocol):
 class AgentRoundOutputReader:
     """Read harness output and record the session identifier it reports."""
 
-    adapter: Adapter
+    harness_adapter: HarnessAdapter
     record_harness_session_identifier: RecordsHarnessSessionIdentifier
 
     def read(self, *, line: str) -> list[Event]:
         """Record the session identifier and return one line's feed events."""
-        output = self.adapter.read_output(line=line)
+        output = self.harness_adapter.read_output(line=line)
         identifier = output.harness_session_identifier
         if identifier is not None:
             self.record_harness_session_identifier(identifier=identifier)
@@ -301,7 +301,7 @@ class AgentRound:
         self,
         *,
         output_reader: AgentRoundOutputReader,
-        invocation: Invocation,
+        invocation: HarnessInvocation,
         paths: AgentRoundPaths,
         plan: AgentRoundPlan,
         clock: Callable[[], datetime] = now,

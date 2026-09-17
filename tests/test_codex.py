@@ -1,10 +1,10 @@
 from conftest import streamed
 
-from dreamcatcher.adapters import Invocation, Launch
 from dreamcatcher.codex import CODEX, STDIN
 from dreamcatcher.feed import Note, Prose
+from dreamcatcher.harness_adapters import AgentRoundLaunch, HarnessInvocation
 
-LAUNCH = Launch(
+LAUNCH = AgentRoundLaunch(
     assignment_id="GH9-20260819-184158",
     model="gpt-5.6-sol",
     effort="xhigh",
@@ -25,7 +25,7 @@ def completed(**item) -> str:
 
 # Each command ends in the word that has Codex read its prompt from stdin.
 def test_a_first_round_runs_where_it_is_launched_under_codexs_own_reviewer():
-    assert CODEX.build_first_round(launch=LAUNCH) == Invocation(
+    assert CODEX.build_first_round(launch=LAUNCH) == HarnessInvocation(
         program="codex",
         arguments=[
             "exec",
@@ -43,7 +43,7 @@ def test_a_first_round_runs_where_it_is_launched_under_codexs_own_reviewer():
 def test_a_resume_replays_the_settings_and_the_permissions_codex_forgets():
     assert CODEX.build_resumed_round(
         launch=LAUNCH, harness_session_identifier="01a0213c-9c67"
-    ) == Invocation(
+    ) == HarnessInvocation(
         program="codex",
         arguments=[
             "exec",

@@ -3,11 +3,11 @@ from collections.abc import Sequence
 import pytest
 from conftest import streamed
 
-from dreamcatcher.adapters import Invocation, Launch
 from dreamcatcher.claude import ALLOWED_TOOLS, CLAUDE
 from dreamcatcher.feed import Note, Prose
+from dreamcatcher.harness_adapters import AgentRoundLaunch, HarnessInvocation
 
-LAUNCH = Launch(
+LAUNCH = AgentRoundLaunch(
     assignment_id="GH9-20260819-184158",
     model="opus[1m]",
     effort="xhigh",
@@ -38,7 +38,7 @@ def assistant(*, blocks: Sequence[dict], parent: str | None = None) -> str:
 
 # Neither command names the prompt, which is what has Claude read it from stdin.
 def test_a_first_round_names_the_model_and_the_effort_it_was_dispatched_with():
-    assert CLAUDE.build_first_round(launch=LAUNCH) == Invocation(
+    assert CLAUDE.build_first_round(launch=LAUNCH) == HarnessInvocation(
         program="claude",
         arguments=[*BASE, "--model", "opus[1m]", "--effort", "xhigh"],
         prompt="/dream:smith GH9",
@@ -48,7 +48,7 @@ def test_a_first_round_names_the_model_and_the_effort_it_was_dispatched_with():
 def test_a_resume_continues_the_harness_session_and_replays_no_settings():
     assert CLAUDE.build_resumed_round(
         launch=LAUNCH, harness_session_identifier="abc-123"
-    ) == Invocation(
+    ) == HarnessInvocation(
         program="claude",
         arguments=[*BASE, "--resume", "abc-123"],
         prompt="/dream:smith GH9",

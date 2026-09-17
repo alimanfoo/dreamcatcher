@@ -16,11 +16,6 @@ from datetime import datetime
 from pathlib import Path
 
 from dreamcatcher import prompts
-from dreamcatcher.adapters import (
-    Adapter,
-    HarnessSessionIdentifier,
-    refuse_invalid_harness_session_identifier,
-)
 from dreamcatcher.agent_rounds import (
     AgentRoundPaths,
     AgentRoundRecord,
@@ -59,6 +54,11 @@ from dreamcatcher.github import (
     create_pull_request,
     list_linked_pull_requests,
     list_pull_requests,
+)
+from dreamcatcher.harness_adapters import (
+    HarnessAdapter,
+    HarnessSessionIdentifier,
+    refuse_invalid_harness_session_identifier,
 )
 from dreamcatcher.state import StateDirectory
 
@@ -532,14 +532,14 @@ def advance_user_post_delivery_cursor(
 
 
 def find_harness_session_identifier(
-    *, assignment: AgentAssignment, adapter: Adapter
+    *, assignment: AgentAssignment, harness_adapter: HarnessAdapter
 ) -> HarnessSessionIdentifier | None:
     """Return the recorded or recoverable harness session identifier."""
     if assignment.record.harness_session_identifier is not None:
         return assignment.record.harness_session_identifier
     lines, _ = read_lines_from(path=assignment.round_paths(number=1).raw, position=0)
     for line in lines:
-        identifier = adapter.read_output(line=line).harness_session_identifier
+        identifier = harness_adapter.read_output(line=line).harness_session_identifier
         if identifier is not None:
             return _refuse_harness_session_identifier(
                 assignment=assignment, identifier=identifier

@@ -3,14 +3,14 @@
 from collections.abc import Sequence
 from typing import ClassVar
 
-from dreamcatcher.adapters import (
-    Adapter,
+from dreamcatcher.feed import Event, Note, Prose
+from dreamcatcher.harness_adapters import (
+    AgentRoundLaunch,
+    HarnessAdapter,
+    HarnessInvocation,
     HarnessOutput,
     HarnessSessionIdentifier,
-    Invocation,
-    Launch,
 )
-from dreamcatcher.feed import Event, Note, Prose
 
 # Let the round reach the network from inside its sandbox, so it can talk to
 # GitHub.
@@ -34,18 +34,18 @@ RESUME_PERMISSIONS = (
 )
 
 
-class Codex(Adapter):
+class Codex(HarnessAdapter):
     """Codex as one round of an agent assignment runs it."""
 
     program: ClassVar[str] = "codex"
 
-    def build_first_round(self, *, launch: Launch) -> Invocation:
+    def build_first_round(self, *, launch: AgentRoundLaunch) -> HarnessInvocation:
         """Return how to run an assignment's first round.
 
         The command does not say which directory to work in, so whoever runs
         it has to run it in the assignment's worktree.
         """
-        return Invocation(
+        return HarnessInvocation(
             program=self.program,
             arguments=[
                 "exec",
@@ -59,14 +59,17 @@ class Codex(Adapter):
         )
 
     def build_resumed_round(
-        self, *, launch: Launch, harness_session_identifier: HarnessSessionIdentifier
-    ) -> Invocation:
+        self,
+        *,
+        launch: AgentRoundLaunch,
+        harness_session_identifier: HarnessSessionIdentifier,
+    ) -> HarnessInvocation:
         """Return how to resume the identified harness session.
 
         Codex forgets the model and the effort when it resumes, so this sets
         both again.
         """
-        return Invocation(
+        return HarnessInvocation(
             program=self.program,
             arguments=[
                 "exec",
@@ -124,7 +127,7 @@ class Codex(Adapter):
 CODEX = Codex()
 
 
-def _settings(*, launch: Launch) -> list[str]:
+def _settings(*, launch: AgentRoundLaunch) -> list[str]:
     """Return the model and effort flags that every assignment round uses."""
     return [
         "--model",
