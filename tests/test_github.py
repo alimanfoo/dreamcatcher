@@ -6,7 +6,6 @@ import pytest
 from conftest import POST_LIST_PATHS, POSTED_BY, PULL_REQUEST, pages
 
 from dreamcatcher.github import (
-    Account,
     Blocker,
     Comment,
     InlineComment,
@@ -18,6 +17,7 @@ from dreamcatcher.github import (
     PullRequestState,
     Review,
     Unknown,
+    UserAccount,
     UserPost,
     Verdict,
     create_pull_request,
@@ -87,7 +87,7 @@ def test_a_listing_carries_each_issue_and_when_it_was_filed(fake):
             number=8,
             created_at=datetime(2026, 8, 19, 18, 41, 58, tzinfo=UTC),
             state=IssueState.OPEN,
-            assignees=[Account(login="alimanfoo")],
+            assignees=[UserAccount(login="alimanfoo")],
             labels=[IssueLabel(name="dream:smith")],
         )
     ]

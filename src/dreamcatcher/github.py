@@ -95,8 +95,8 @@ class Repository(Projection):
     name_with_owner: str = Field(alias="nameWithOwner")
 
 
-class Account(Projection):
-    """The account gh is signed in as."""
+class UserAccount(Projection):
+    """A GitHub user account."""
 
     login: str
 
@@ -113,7 +113,7 @@ class Issue(Projection):
     number: int
     created_at: datetime = Field(alias="createdAt")
     state: IssueState
-    assignees: list[Account]
+    assignees: list[UserAccount]
     labels: list[IssueLabel]
 
 
@@ -272,7 +272,7 @@ type UserPost = Comment | Review | InlineComment
 
 
 REPOSITORY = TypeAdapter(Repository)
-ACCOUNT = TypeAdapter(Account)
+ACCOUNT = TypeAdapter(UserAccount)
 ISSUE = TypeAdapter(Issue)
 ISSUES = TypeAdapter(list[Issue])
 PULL_REQUESTS = TypeAdapter(list[PullRequest])
