@@ -487,6 +487,9 @@ control work.
 - Persist the active cooldown and the time the most recent cooldown ended in an
   instance-wide scheduler record. Once the cooldown ends, ignore earlier errors
   when deriving fault and permit the affected assignments to recover.
+- Let the user request a retry after resolving an assignment-specific fault.
+  Persist that request on the assignment, ignore earlier errors when deriving
+  fault, and retain every failed round as diagnostic history.
 - Do not attempt to classify a harness failure as globally shared without a
   reliable signal. The ontology permits an immediately recognized global error,
   but defining such signals is not part of this migration.
@@ -510,11 +513,12 @@ cooldown.
 
 The daemon remains able to dispatch new work while one assignment is in fault,
 stops all launches when two assignments fault, and resumes recovery after the
-cooldown. Tests cover interrupted rounds, one and two consecutive errors,
+cooldown. The user can also retry a single faulted assignment after fixing its
+problem. Tests cover interrupted rounds, one and two consecutive errors,
 successful rounds which break an error sequence, faults on different
 assignments, cooldown persistence across daemon restarts, and fault clearing at
-the cooldown boundary. Existing priority, capacity, pull-request, and user-post
-scenarios continue to pass.
+both cooldown and user-retry boundaries. Existing priority, capacity,
+pull-request, and user-post scenarios continue to pass.
 
 ## Stage 9: Replace the board with status reporting
 

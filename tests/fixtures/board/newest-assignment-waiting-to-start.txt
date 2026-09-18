@@ -1,0 +1,10 @@
+newest assignment GH44-20260819-184158
+waiting, no round has run yet
+
+assignment
+  label     dream:smith                                 
+  branch    dreamcatcher-GH44-20260819-184158           
+  worktree  .dreamcatcher/worktrees/GH44-20260819-184158
+  harness   claude                                      
+  model     opus[1m]                                    
+  effort    xhigh                                       

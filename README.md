@@ -90,8 +90,11 @@ recorded assignment keeps its branch and pull request, and the next tick tries
 that first round again before it schedules ordinary work.
 
 Everything the daemon owns lives under `.dreamcatcher/` in the checkout, which
-ignores itself, so git never sees it. `last-tick.json` there says what the most
-recent look observed and decided, including what the daemon did not do and why.
+ignores itself, so git never sees it. `scheduler.json` there says what the most
+recent completed look observed and decided, including what the daemon did not do
+and why. It also preserves any active global cooldown and the end of the most
+recent one. A look that cannot complete reports its failure in the daemon output
+and leaves that last complete record in place.
 
 Open work goes before new work. Before it dispatches anything, the daemon reads
 each assignment it already has and gives it whatever it needs next: a round that
@@ -108,9 +111,25 @@ purpose is still `wrap up`.
 
 Rounds die with the daemon. When `run` starts, it records any round orphaned by
 an earlier daemon as interrupted; the next round recovers that work from where
-it stopped. After any round fails, the daemon holds every launch for fifteen
-minutes, so a usage limit that lasts for hours costs a few failed rounds rather
-than a fresh worktree every couple of minutes.
+it stopped. One errored round receives an ordinary recovery opportunity and does
+not stop unrelated work. Two consecutive errored rounds put that assignment in
+fault; an interrupted or successful round breaks the sequence.
+
+When two assignments are in fault, the scheduler starts a fifteen-minute global
+cooldown and starts no agent work during it. The scheduler keeps observing and
+reporting while it waits. The cooldown survives a daemon restart, and its end
+clears the faults so that recovery can continue.
+
+If one assignment remains in fault because of a problem specific to that work,
+fix the problem and request another recovery attempt:
+
+```sh
+dreamcatcher retry GH123
+```
+
+This keeps the failed round records for diagnosis, clears the current fault, and
+makes the assignment eligible for recovery on the next scheduler tick outside a
+global cooldown. If its next two rounds both fail, it enters fault again.
 
 Only a successful wrap-up completes an assignment. A failed or interrupted
 wrap-up remains open for recovery. Once the wrap-up succeeds, the assignment no
@@ -140,11 +159,12 @@ round coming, so you can leave one running for a whole assignment and see every
 round of it arrive. They wait through every gap between one round and the next,
 including a gap where you have stopped the daemon and not started it again yet.
 
-Two things end them, because after either one no round is coming. One is the
-assignment completing a wrap-up round successfully. The other is an assignment
-that the latest scheduler record explicitly marks as stuck, which means that no
-tick can move it on without a person. An interrupted creation or missing first
-round is not stuck: Dreamcatcher reconciles the creation and retries the round.
+Two states end them because neither currently has another round scheduled. One
+is the assignment completing a wrap-up round successfully. The other is an
+assignment in fault, which the current board presents as `stuck`. A later global
+cooldown can clear that fault and permit recovery. An interrupted creation or
+missing first round is not stuck: Dreamcatcher reconciles the creation and
+retries the round.
 
 Interrupt any view to end it sooner.
 
@@ -164,8 +184,8 @@ in the order of whose turn it is:
   thing it said and how long ago.
 - `waiting` is an assignment the next tick will pick up, with what it is waiting
   on.
-- `stuck` is an assignment no tick can move on, with where to read what
-  happened.
+- `stuck` is the board's temporary presentation of an assignment in fault after
+  two consecutive errored rounds, with where to read what happened.
 - `queued` is the labelled issues not dispatched yet, each with the reason it
   has not gone.
 - `done` is the assignments whose wrap-up round succeeded.

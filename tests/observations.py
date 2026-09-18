@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 
 from conftest import LABEL
 
-from dreamcatcher.state import IssueFact, IssueFactValue, IssueObservation
+from dreamcatcher.scheduler import IssueFact, IssueFactValue, IssueObservation
 
 OBSERVED_AT = datetime(2026, 8, 19, 18, 41, 58, tzinfo=UTC)
 

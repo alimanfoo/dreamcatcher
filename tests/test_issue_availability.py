@@ -9,8 +9,12 @@ from records import write_agent_assignment
 
 from dreamcatcher.agent_assignments import AgentAssignment, read_agent_assignments
 from dreamcatcher.config import Config
-from dreamcatcher.scheduler import derive_issue_availability, observe_issues
-from dreamcatcher.state import IssueFactValue, StateDirectory
+from dreamcatcher.scheduler import (
+    IssueFactValue,
+    derive_issue_availability,
+    observe_issues,
+)
+from dreamcatcher.state import StateDirectory
 
 SETTINGS = {"prompt": "/dream:smith GH{issue}", "model": "opus[1m]", "effort": "xhigh"}
 INDEPENDENT_FACTS = (

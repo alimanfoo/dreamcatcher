@@ -18,8 +18,8 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import Unknown, identify_account, identify_repository
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.lock import hold
-from dreamcatcher.scheduler import Scheduler
-from dreamcatcher.state import LastTick, StateDirectory
+from dreamcatcher.scheduler import InvalidSchedulerRecordError, Scheduler
+from dreamcatcher.state import StateDirectory
 from dreamcatcher.words import describe_time
 
 if TYPE_CHECKING:
@@ -79,7 +79,8 @@ class Daemon:
         gh is signed in as, the lock, and the assignments the sweep reads. A run
         refuses when any of those will not answer, rather than starting a loop
         that could never dispatch. Once the loop is going, a tick that fails
-        records the failure and the next tick tries again.
+        reports the failure and the next tick tries again. An invalid scheduler
+        record ends the run because retrying cannot change the document it reads.
 
         The repository and the account are read here and nowhere else. Neither
         can change while the daemon holds the repo, a run that cannot name the
@@ -126,20 +127,24 @@ class Daemon:
     def tick(self, *, scheduler: Scheduler, at: datetime) -> None:
         """Run one scheduler tick, then record and report its result.
 
-        A tick that failed still leaves the evidence where the user can read
-        it, and the next tick tries again, rather than the daemon ending and
-        leaving the assignments it holds to nobody.
+        A tick that failed reports the evidence and the next tick tries again,
+        rather than the daemon ending and leaving the assignments it holds to
+        nobody. The last complete scheduler record stays in place.
 
         Writing that evidence down is the exception. A daemon that cannot write
-        `last-tick.json` has no way left to say anything at all, so that
+        `scheduler.json` has no way left to say anything at all, so that
         failure ends the run with a message the user can act on, and the rounds
         it was holding end with it.
         """
         try:
             observed = scheduler.tick(at=at)
+        except InvalidSchedulerRecordError:
+            raise
         except ReportableError as failure:
-            observed = LastTick(at=at, hold=str(failure))
-        write_json(document=observed, path=self.state.last_tick)
+            reason = " ".join(str(failure).split())
+            _write_output(line=f"{describe_time(at=at)}  held: {reason}")
+            return
+        write_json(document=observed, path=self.state.scheduler_record)
         if observed.launched is not None:
             outcome = f"launched round for {observed.launched}"
         elif observed.hold is not None:
@@ -153,9 +158,7 @@ class Daemon:
 
         Every harness a route can settle a label on is looked up, not just
         the one the run named, because a label carrying one harness block runs
-        on that harness whatever the run named. Without this a missing CLI
-        would read as a round that fails every fifteen minutes, since the hold
-        after a failure cannot tell a misconfiguration from a blip.
+        on that harness whatever the run named.
         """
         for harness in sorted({self.harness, *self.config.routed_harnesses}):
             locate(program=HARNESS_ADAPTERS[harness].program)

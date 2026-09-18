@@ -260,10 +260,14 @@ def _describe_daemon(*, board: Board) -> Text:
         if board.daemon_pid is None
         else f"daemon running as pid {board.daemon_pid}"
     )
-    if board.tick is None:
+    if board.scheduler_record is None:
         return Text(f"{daemon}, no tick recorded")
-    ticked = describe_span(span=board.at - board.tick.at)
-    held = "" if board.tick.hold is None else f", {board.tick.hold}"
+    ticked = describe_span(span=board.at - board.scheduler_record.at)
+    held = (
+        ""
+        if board.scheduler_record.hold is None
+        else f", {board.scheduler_record.hold}"
+    )
     return Text(f"{daemon}, last tick {ticked} ago{held}")
 
 
@@ -376,9 +380,9 @@ def show_assignment(
 
     An assignment between rounds has another round coming, so the view stays open
     through the gap and shows that round as it starts. An assignment that has run
-    a successful wrap-up round, and a stuck assignment, have no round coming, so
-    ends the view. A console that is no terminal has nobody watching, so there
-    the assignment is drawn once and this returns.
+    a successful wrap-up round, and an assignment currently in fault, have no
+    round coming, so either one ends the view. A console that is no terminal has
+    nobody watching, so there the assignment is drawn once and this returns.
     """
     _repaint(
         console=console,
@@ -576,9 +580,10 @@ def show_feed(
     while its pull request waits for the reader to post on it, and while the
     daemon that was running it is stopped and started again.
 
-    An assignment with a successful wrap-up round has nothing more to say, and a stuck
-    assignment says nothing more until a person moves it on, so either one ends
-    the view rather than have it wait for a round that is not coming.
+    An assignment with a successful wrap-up round has nothing more to say. An
+    assignment currently in fault has no ordinary recovery round coming, so
+    either state ends the view rather than have it wait indefinitely. A later
+    global cooldown can clear the fault, after which a new view follows recovery.
 
     Every look reads the assignment again, so a round that starts while the view
     is going is shown as it arrives, and not only the rounds it opened with.

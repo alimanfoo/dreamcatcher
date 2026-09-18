@@ -68,7 +68,7 @@ class AgentRoundOutputReader:
         return output.events
 
 
-class RoundPurpose(StrEnum):
+class AgentRoundPurpose(StrEnum):
     """What work an agent round advances."""
 
     IMPLEMENT = "implement"
@@ -134,7 +134,7 @@ class AgentRoundRecord(Document):
     """The independent identity, purpose, recovery, and outcome of one round."""
 
     number: PositiveInt
-    purpose: RoundPurpose
+    purpose: AgentRoundPurpose
     is_recovery: bool = False
     started: datetime
     pid: PositiveInt
@@ -183,7 +183,7 @@ class AgentRoundInput(Document):
 class AgentRoundPlan:
     """The decisions and input that a new round executes."""
 
-    purpose: RoundPurpose
+    purpose: AgentRoundPurpose
     is_recovery: bool
     input: AgentRoundInput | None = None
 

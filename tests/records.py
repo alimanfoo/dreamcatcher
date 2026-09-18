@@ -12,7 +12,8 @@ from dreamcatcher import agent_assignments, agent_rounds
 from dreamcatcher.config import Harness
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import Line
-from dreamcatcher.state import LastTick, StateDirectory
+from dreamcatcher.scheduler import SchedulerRecord
+from dreamcatcher.state import StateDirectory
 
 
 def write_agent_assignment(
@@ -61,9 +62,9 @@ def write_feed(*, directory: Path, number: int, lines: Sequence[Line]) -> None:
     )
 
 
-def write_tick(*, state: StateDirectory, tick: LastTick) -> None:
+def write_tick(*, state: StateDirectory, tick: SchedulerRecord) -> None:
     """Write what the daemon's most recent tick saw."""
-    write_json(document=tick, path=state.last_tick)
+    write_json(document=tick, path=state.scheduler_record)
 
 
 def _round_paths(*, directory: Path, number: int) -> agent_rounds.AgentRoundPaths:

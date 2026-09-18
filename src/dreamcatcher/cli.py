@@ -9,9 +9,15 @@ from pathlib import Path
 
 import dreamcatcher
 from dreamcatcher import tui
+from dreamcatcher.agent_assignments import (
+    read_agent_assignments_for_issue,
+    request_agent_assignment_retry,
+)
+from dreamcatcher.clock import now
 from dreamcatcher.config import Harness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.errors import ReportableError
+from dreamcatcher.scheduler import derive_assignment_fault, read_scheduler_record
 from dreamcatcher.state import StateDirectory
 
 # How a view names the issue it is about, as the issue itself is written.
@@ -21,8 +27,8 @@ ISSUE = re.compile(r"gh(\d+)\Z", re.IGNORECASE)
 # and the feed both give, since a reader reads one verb's help and no other.
 HELP_WHEN_A_VIEW_ENDS = (
     "It ends once the assignment has completed a wrap-up round successfully, "
-    "and on a stuck assignment, which only you can move on. Interrupt it to end "
-    "it sooner."
+    "and while an assignment is in fault, which the board calls stuck. "
+    "Interrupt it to end it sooner."
 )
 
 # The help that says what a view does to the terminal it runs in, which the two
@@ -73,6 +79,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="the harness to run this repo's rounds with",
     )
     run_parser.set_defaults(act=_run)
+    retry_parser = verbs.add_parser(
+        "retry",
+        help="retry a faulted assignment after fixing its problem",
+        description=(
+            "Clear the newest assignment's fault after you have fixed what "
+            "caused its rounds to fail. The daemon may recover it on the next "
+            "scheduler tick outside a global cooldown."
+        ),
+    )
+    _take_an_issue(parser=retry_parser)
+    retry_parser.set_defaults(act=_retry_assignment)
     board_parser = verbs.add_parser(
         "board",
         help="show an overview of every assignment and every queued issue",
@@ -138,7 +155,7 @@ def _take_an_issue(*, parser: argparse.ArgumentParser) -> None:
         "issue",
         type=_read_issue,
         metavar="GH<n>",
-        help="the issue to show",
+        help="the issue to use",
     )
 
 
@@ -156,6 +173,28 @@ def main(*, argv: Sequence[str] | None = None) -> int:
 def _run(*, args: argparse.Namespace) -> None:
     """Run a daemon on the checkout we are in."""
     Daemon(root=Path.cwd(), harness=Harness(args.harness)).run()
+
+
+def _retry_assignment(*, args: argparse.Namespace) -> None:
+    """Clear the newest assignment's fault so the daemon may recover it."""
+    state = _find_state(root=Path.cwd())
+    assignments = read_agent_assignments_for_issue(state=state, issue=args.issue)
+    if not assignments:
+        raise ReportableError(f"GH{args.issue} has no assignment to retry.")
+    assignment = assignments[-1]
+    scheduler_record = read_scheduler_record(state=state)
+    cooldown_ended = (
+        None
+        if scheduler_record is None
+        else scheduler_record.most_recent_cooldown_ended
+    )
+    if not derive_assignment_fault(
+        assignment=assignment,
+        most_recent_cooldown_ended=cooldown_ended,
+    ):
+        raise ReportableError(f"{assignment.identifier} is not in fault.")
+    request_agent_assignment_retry(assignment=assignment, at=now())
+    print(f"{assignment.identifier} can recover on the next scheduler tick.")
 
 
 def _show_board(*, args: argparse.Namespace) -> None:

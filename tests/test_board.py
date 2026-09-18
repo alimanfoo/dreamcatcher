@@ -8,19 +8,20 @@ from observations import observed_issue
 from records import write_agent_assignment, write_feed, write_round, write_tick
 
 from dreamcatcher.agent_rounds import (
+    AgentRoundPurpose,
     AgentRoundRecord,
-    RoundPurpose,
     compose_agent_round_ending,
 )
 from dreamcatcher.board import AgentAssignmentStanding, read_board, read_rows_for_issue
 from dreamcatcher.feed import Line
-from dreamcatcher.state import (
+from dreamcatcher.scheduler import (
     NO_ROUND_HAS_RUN,
+    AgentAssignmentObservation,
+    GlobalCooldown,
     IssueFactValue,
-    LastTick,
-    StateDirectory,
-    WaitingAgentAssignment,
+    SchedulerRecord,
 )
+from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158"
 
@@ -49,7 +50,7 @@ def ran(
     *,
     state,
     number: int,
-    purpose: RoundPurpose = RoundPurpose.IMPLEMENT,
+    purpose: AgentRoundPurpose = AgentRoundPurpose.IMPLEMENT,
     status: int | None = 0,
 ):
     """Write down a round of the assignment, ended as the status says.
@@ -118,7 +119,7 @@ def test_the_rows_for_an_issue_are_its_own_assignments_newest_first(running):
         directory=other,
         number=1,
         record=AgentRoundRecord(
-            number=1, started=PINNED, pid=1, purpose=RoundPurpose.IMPLEMENT
+            number=1, started=PINNED, pid=1, purpose=AgentRoundPurpose.IMPLEMENT
         ),
     )
 
@@ -141,7 +142,7 @@ def test_a_look_at_one_issue_leaves_another_assignment_s_feed_unread(running):
         directory=other,
         number=1,
         record=AgentRoundRecord(
-            number=1, started=PINNED, pid=1, purpose=RoundPurpose.IMPLEMENT
+            number=1, started=PINNED, pid=1, purpose=AgentRoundPurpose.IMPLEMENT
         ),
     )
     # Bytes that are not UTF-8 stand for a feed that a look must not open,
@@ -156,7 +157,7 @@ def test_a_state_directory_nothing_has_run_in_yet_holds_an_empty_board(tmp_path)
 
     assert board.at == LOOKED_AT
     assert board.daemon_pid is None
-    assert board.tick is None
+    assert board.scheduler_record is None
     assert board.rows == []
     assert board.queued == []
 
@@ -201,7 +202,7 @@ def test_a_round_that_failed_waits_with_the_status_it_failed_with(running):
 
 def test_an_assignment_whose_wrap_up_succeeded_is_done(state):
     ran(state=state, number=1)
-    ran(state=state, number=2, purpose=RoundPurpose.WRAP_UP)
+    ran(state=state, number=2, purpose=AgentRoundPurpose.WRAP_UP)
 
     assert only(state=state).standing is AgentAssignmentStanding.DONE
     assert only(state=state).detail == "2 rounds"
@@ -211,7 +212,7 @@ def test_an_assignment_whose_wrap_up_failed_is_waiting_to_recover(running):
     ran(
         state=running,
         number=1,
-        purpose=RoundPurpose.WRAP_UP,
+        purpose=AgentRoundPurpose.WRAP_UP,
         status=2,
     )
 
@@ -220,7 +221,7 @@ def test_an_assignment_whose_wrap_up_failed_is_waiting_to_recover(running):
 
 
 def test_an_assignment_done_in_one_round_counts_that_round_as_one(state):
-    ran(state=state, number=1, purpose=RoundPurpose.WRAP_UP)
+    ran(state=state, number=1, purpose=AgentRoundPurpose.WRAP_UP)
 
     assert only(state=state).detail == "1 round"
 
@@ -228,7 +229,7 @@ def test_an_assignment_done_in_one_round_counts_that_round_as_one(state):
 def test_an_assignment_the_tick_found_nothing_to_do_for_needs_you(state):
     ran(state=state, number=1)
     said(state=state, number=1, texts=["[Bash] pytest"])
-    write_tick(state=state, tick=LastTick(at=PINNED))
+    write_tick(state=state, tick=SchedulerRecord(at=PINNED))
 
     assert only(state=state).standing is AgentAssignmentStanding.NEEDS_YOU
     assert only(state=state).detail == "idle 1h 58m"
@@ -245,10 +246,10 @@ def test_an_assignment_the_tick_left_waiting_says_what_it_waits_on(state):
     ran(state=state, number=1)
     write_tick(
         state=state,
-        tick=LastTick(
+        tick=SchedulerRecord(
             at=PINNED,
-            waiting=[
-                WaitingAgentAssignment(
+            assignment_observations=[
+                AgentAssignmentObservation(
                     assignment=ASSIGNMENT_ID, issue=13, reason="1 new post to answer"
                 )
             ],
@@ -259,48 +260,38 @@ def test_an_assignment_the_tick_left_waiting_says_what_it_waits_on(state):
     assert only(state=state).detail == "1 new post to answer"
 
 
-def test_a_stuck_assignment_says_where_to_read_what_it_did(state):
-    ran(state=state, number=1)
-    write_tick(
-        state=state,
-        tick=LastTick(
-            at=PINNED,
-            waiting=[
-                WaitingAgentAssignment(
-                    assignment=ASSIGNMENT_ID,
-                    issue=13,
-                    reason="no pull request has been opened on it",
-                    is_stuck=True,
-                )
-            ],
-        ),
-    )
+def test_a_faulted_assignment_says_where_to_read_what_it_did(state):
+    ran(state=state, number=1, status=1)
+    ran(state=state, number=2, status=2)
 
     assert only(state=state).standing is AgentAssignmentStanding.STUCK
     assert only(state=state).detail == (
-        "no pull request has been opened on it "
-        f"(.dreamcatcher/assignments/{ASSIGNMENT_ID}/rounds/1/feed.txt)"
+        "two consecutive rounds failed "
+        f"(.dreamcatcher/assignments/{ASSIGNMENT_ID}/rounds/2/feed.txt)"
     )
 
 
-def test_a_stuck_assignment_that_ran_no_round_has_no_feed_to_point_at(state):
+def test_an_elapsed_cooldown_clears_fault_and_hold_before_the_next_tick(state):
+    ran(state=state, number=1, status=1)
+    ran(state=state, number=2, status=2)
+    ended = PINNED + timedelta(minutes=15)
     write_tick(
         state=state,
-        tick=LastTick(
+        tick=SchedulerRecord(
             at=PINNED,
-            waiting=[
-                WaitingAgentAssignment(
-                    assignment=ASSIGNMENT_ID,
-                    issue=13,
-                    reason=NO_ROUND_HAS_RUN,
-                    is_stuck=True,
-                )
-            ],
+            hold="global cooldown",
+            cooldown=GlobalCooldown(started=PINNED, ends=ended),
         ),
     )
 
-    assert only(state=state).standing is AgentAssignmentStanding.STUCK
-    assert only(state=state).detail == "no round has run yet"
+    board = read_board(state=state, clock=lambda: LOOKED_AT)
+
+    assert board.rows[0].standing is AgentAssignmentStanding.WAITING
+    assert board.rows[0].detail == "the last round failed (exit 2)"
+    assert board.scheduler_record is not None
+    assert board.scheduler_record.hold is None
+    assert board.scheduler_record.cooldown is None
+    assert board.scheduler_record.most_recent_cooldown_ended == ended
 
 
 def test_an_assignment_no_tick_has_weighed_and_no_round_has_run_is_waiting(state):
@@ -323,7 +314,7 @@ def test_the_assignments_at_one_issue_read_as_assignments_newest_first(state):
 
 def test_the_work_that_is_done_reads_most_recent_first(state):
     write_agent_assignment(state=state, identifier="GH9-20260819-184158", issue=9)
-    ran(state=state, number=1, purpose=RoundPurpose.WRAP_UP)
+    ran(state=state, number=1, purpose=AgentRoundPurpose.WRAP_UP)
     write_round(
         directory=state.assignments / "GH9-20260819-184158",
         number=1,
@@ -331,7 +322,7 @@ def test_the_work_that_is_done_reads_most_recent_first(state):
             number=1,
             started=PINNED + timedelta(hours=1),
             pid=1,
-            purpose=RoundPurpose.WRAP_UP,
+            purpose=AgentRoundPurpose.WRAP_UP,
             ending=compose_agent_round_ending(at=PINNED + timedelta(hours=1), status=0),
         ),
     )
@@ -356,7 +347,7 @@ def test_the_assignments_in_one_standing_come_back_in_the_boards_own_order(state
 def test_the_queue_reads_each_issues_turn_off_its_place(state):
     write_tick(
         state=state,
-        tick=LastTick(
+        tick=SchedulerRecord(
             at=PINNED,
             issue_observations=[
                 observed_issue(issue=20),
@@ -383,7 +374,7 @@ def test_the_queue_reads_each_issues_turn_off_its_place(state):
 def test_an_issue_an_assignment_here_already_claims_is_not_queued(state):
     write_tick(
         state=state,
-        tick=LastTick(
+        tick=SchedulerRecord(
             at=PINNED,
             issue_observations=[
                 observed_issue(issue=13),
@@ -398,10 +389,10 @@ def test_an_issue_an_assignment_here_already_claims_is_not_queued(state):
 
 
 def test_a_completed_assignment_no_longer_claims_its_issue_on_the_board(state):
-    ran(state=state, number=1, purpose=RoundPurpose.WRAP_UP)
+    ran(state=state, number=1, purpose=AgentRoundPurpose.WRAP_UP)
     write_tick(
         state=state,
-        tick=LastTick(
+        tick=SchedulerRecord(
             at=PINNED,
             issue_observations=[
                 observed_issue(issue=13),

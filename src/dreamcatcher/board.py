@@ -5,7 +5,7 @@ labelled issue the last tick weighed has a place in the queue.
 
 Nothing here asks GitHub. What the daemon left behind is the whole story: the
 lock says whether a daemon is running, the round records say what each assignment
-has run, and `last-tick.json` says what the records alone cannot, which is
+has run, and `scheduler.json` says what the records alone cannot, which is
 whatever the daemon had to ask GitHub to learn.
 
 Nothing here renders anything either. A caller that has read the board shows
@@ -34,13 +34,17 @@ from dreamcatcher.clock import now
 from dreamcatcher.documents import read_json
 from dreamcatcher.feed import Line, read_last_feed_line
 from dreamcatcher.lock import read_daemon_pid
-from dreamcatcher.scheduler import derive_issue_availability
-from dreamcatcher.state import (
+from dreamcatcher.scheduler import (
     NO_ROUND_HAS_RUN,
+    AgentAssignmentObservation,
     IssueFactValue,
-    LastTick,
+    SchedulerRecord,
+    advance_scheduler_record,
+    derive_assignment_fault,
+    derive_issue_availability,
+)
+from dreamcatcher.state import (
     StateDirectory,
-    WaitingAgentAssignment,
 )
 from dreamcatcher.words import describe_count, describe_span
 
@@ -59,8 +63,9 @@ class AgentAssignmentStanding(StrEnum):
     move is to read the pull request.
 
     An assignment is working while a round of its own is running. It is waiting
-    when it has a round to run that no daemon has launched yet, and stuck when
-    no tick can move it on however long it waits, so that only a person can. It
+    when it has a round to run that no daemon has launched yet. The board uses
+    stuck as its temporary presentation of a fault after two consecutive
+    errored rounds. A later global cooldown can clear that fault. An assignment
     is done once it has run the round that winds it up.
     """
 
@@ -118,7 +123,7 @@ class Board:
 
     at: datetime
     daemon_pid: int | None
-    tick: LastTick | None
+    scheduler_record: SchedulerRecord | None
     rows: list[AgentAssignmentRow]
     queued: list[QueuedIssue]
 
@@ -185,15 +190,19 @@ class _Look:
         self.state = state
         self.at = clock()
         self.daemon_pid = read_daemon_pid(path=state.lock)
-        self.tick = (
-            read_json(model=LastTick, path=state.last_tick)
-            if state.last_tick.exists()
+        recorded = (
+            read_json(model=SchedulerRecord, path=state.scheduler_record)
+            if state.scheduler_record.exists()
             else None
         )
-        self.waits: dict[str, WaitingAgentAssignment] = (
+        self.scheduler_record = advance_scheduler_record(previous=recorded, at=self.at)
+        self.assignment_observations: dict[str, AgentAssignmentObservation] = (
             {}
-            if self.tick is None
-            else {one.assignment: one for one in self.tick.waiting}
+            if self.scheduler_record is None
+            else {
+                one.assignment: one
+                for one in self.scheduler_record.assignment_observations
+            }
         )
 
     def compose_board(self, *, assignments: list[AgentAssignment]) -> Board:
@@ -201,7 +210,7 @@ class _Look:
         return Board(
             at=self.at,
             daemon_pid=self.daemon_pid,
-            tick=self.tick,
+            scheduler_record=self.scheduler_record,
             rows=self.list_rows(assignments=assignments),
             queued=self._list_queued_issues(
                 claimed={
@@ -249,6 +258,22 @@ class _Look:
         run it, and interrupted once that daemon has gone, because a round
         cannot outlive its daemon.
         """
+        most_recent_cooldown_ended = (
+            None
+            if self.scheduler_record is None
+            else self.scheduler_record.most_recent_cooldown_ended
+        )
+        if derive_assignment_fault(
+            assignment=assignment,
+            most_recent_cooldown_ended=most_recent_cooldown_ended,
+        ):
+            return (
+                AgentAssignmentStanding.STUCK,
+                self._point_at_feed(
+                    assignment=assignment, reason="two consecutive rounds failed"
+                ),
+                None,
+            )
         unfinished = assignment.describe_unfinished_round()
         if unfinished is not None:
             if self.daemon_pid is not None and assignment.rounds[-1].ending is None:
@@ -274,18 +299,14 @@ class _Look:
         only place they are written down. An assignment the tick wrote nothing
         about is one it found nothing to do for, which leaves it to the user.
         """
-        wait = self.waits.get(assignment.identifier)
-        if wait is None:
+        observation = self.assignment_observations.get(assignment.identifier)
+        if observation is None:
             if not assignment.rounds:
                 return AgentAssignmentStanding.WAITING, NO_ROUND_HAS_RUN
             return AgentAssignmentStanding.NEEDS_YOU, self._describe_idle(
                 assignment=assignment
             )
-        if wait.is_stuck:
-            return AgentAssignmentStanding.STUCK, self._point_at_feed(
-                assignment=assignment, reason=wait.reason
-            )
-        return AgentAssignmentStanding.WAITING, wait.reason
+        return AgentAssignmentStanding.WAITING, observation.reason
 
     def _describe_live_round(
         self, *, assignment: AgentAssignment
@@ -320,11 +341,11 @@ class _Look:
         An issue with an open assignment already has its own board row, so the
         queue does not repeat it.
         """
-        if self.tick is None:
+        if self.scheduler_record is None:
             return []
         queued = []
         ahead = 0
-        for observation in self.tick.issue_observations:
+        for observation in self.scheduler_record.issue_observations:
             if observation.issue in claimed:
                 continue
             availability = derive_issue_availability(observation=observation)
@@ -347,11 +368,9 @@ class _Look:
     def _point_at_feed(self, *, assignment: AgentAssignment, reason: str) -> str:
         """Return what the assignment waits on, and where to read what it did.
 
-        A stuck assignment moves no further until a person reads what happened, so
-        its row says where that reading is.
+        A fault stops ordinary recovery, so its row says where to read the
+        rounds that produced it.
         """
-        if not assignment.rounds:
-            return reason
         feed = assignment.round_paths(number=assignment.rounds[-1].number).feed
         return f"{reason} ({self.state.describe_path(path=feed)})"
 

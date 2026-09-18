@@ -26,11 +26,11 @@ from dreamcatcher.agent_rounds import (
     AgentRoundOutputReader,
     AgentRoundPaths,
     AgentRoundPlan,
+    AgentRoundPurpose,
     AgentRoundRecord,
     ErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
     RoundOutcome,
-    RoundPurpose,
     compose_agent_round_ending,
     record_agent_round_interruption,
 )
@@ -52,7 +52,7 @@ RECORDING = FIXTURES / "claude" / "round.jsonl"
 STAMP = "2026-08-19T18:41:58Z"
 
 # What the tests here say woke every round they run.
-PURPOSE = RoundPurpose.IMPLEMENT
+PURPOSE = AgentRoundPurpose.IMPLEMENT
 
 # What every round here asks the harness to do. It holds a percent sign and runs
 # over two lines, neither of which a command line could carry to a batch file,

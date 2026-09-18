@@ -23,21 +23,21 @@ from rich.control import Control
 from rich.text import Text
 
 from dreamcatcher.agent_rounds import (
+    AgentRoundPurpose,
     AgentRoundRecord,
     InterruptedAgentRoundEnding,
-    RoundPurpose,
     compose_agent_round_ending,
 )
 from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Line
-from dreamcatcher.state import (
+from dreamcatcher.scheduler import (
     NO_ROUND_HAS_RUN,
+    AgentAssignmentObservation,
     IssueFactValue,
-    LastTick,
-    StateDirectory,
-    WaitingAgentAssignment,
+    SchedulerRecord,
 )
+from dreamcatcher.state import StateDirectory
 from dreamcatcher.tui import (
     PAUSE,
     _describe_ending,
@@ -124,7 +124,7 @@ def ended(
     minute: int,
     number: int = 1,
     status: int = 0,
-    purpose: RoundPurpose = RoundPurpose.IMPLEMENT,
+    purpose: AgentRoundPurpose = AgentRoundPurpose.IMPLEMENT,
 ):
     """A round that started that minute past the pinned hour and ran for four."""
     started = PINNED + timedelta(minutes=minute)
@@ -143,7 +143,7 @@ def running(
     *,
     minute: int,
     number: int = 1,
-    purpose: RoundPurpose = RoundPurpose.IMPLEMENT,
+    purpose: AgentRoundPurpose = AgentRoundPurpose.IMPLEMENT,
     is_recovery: bool = False,
 ):
     """A round that started that minute past the pinned hour and is still going."""
@@ -167,7 +167,7 @@ def running(
 def test_a_terminal_round_describes_its_explicit_outcome(ending, description):
     record = AgentRoundRecord(
         number=1,
-        purpose=RoundPurpose.IMPLEMENT,
+        purpose=AgentRoundPurpose.IMPLEMENT,
         started=PINNED,
         pid=1,
         ending=ending,
@@ -185,7 +185,7 @@ def test_a_round_without_an_ending_describes_what_its_process_says(
 ):
     record = AgentRoundRecord(
         number=1,
-        purpose=RoundPurpose.IMPLEMENT,
+        purpose=AgentRoundPurpose.IMPLEMENT,
         started=PINNED,
         pid=1,
     )
@@ -214,7 +214,7 @@ def fabricate_everything(*, state):
             running(
                 minute=30,
                 number=2,
-                purpose=RoundPurpose.ADDRESS_FEEDBACK,
+                purpose=AgentRoundPurpose.ADDRESS_FEEDBACK,
                 is_recovery=True,
             ),
         ],
@@ -232,19 +232,23 @@ def fabricate_everything(*, state):
     )
     written(state=state, issue=31, records=[ended(minute=1)])
     written(state=state, issue=35, records=[ended(minute=1, status=2)])
-    written(state=state, issue=9, records=[ended(minute=1)])
+    written(
+        state=state,
+        issue=9,
+        records=[ended(minute=1, status=1), ended(minute=2, number=2, status=2)],
+    )
     written(
         state=state,
         issue=12,
         records=[
             ended(minute=1),
-            ended(minute=2, number=2, purpose=RoundPurpose.WRAP_UP),
+            ended(minute=2, number=2, purpose=AgentRoundPurpose.WRAP_UP),
         ],
     )
     written(state=state, issue=44, records=[])
     write_tick(
         state=state,
-        tick=LastTick(
+        tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
             launched=f"GH13-{STAMP}",
             issue_observations=[
@@ -262,26 +266,24 @@ def fabricate_everything(*, state):
                     evidence={"routing_conflict": DOUBLE_LABELLED},
                 ),
             ],
-            waiting=[
-                WaitingAgentAssignment(
+            assignment_observations=[
+                AgentAssignmentObservation(
                     assignment=f"GH31-{STAMP}", issue=31, reason="1 new post to answer"
                 ),
-                WaitingAgentAssignment(
+                AgentAssignmentObservation(
                     assignment=f"GH35-{STAMP}",
                     issue=35,
                     reason="the last round failed (exit 2)",
                 ),
-                WaitingAgentAssignment(
+                AgentAssignmentObservation(
                     assignment=f"GH9-{STAMP}",
                     issue=9,
-                    reason="no pull request has been opened on it",
-                    is_stuck=True,
+                    reason="two consecutive rounds failed",
                 ),
-                WaitingAgentAssignment(
+                AgentAssignmentObservation(
                     assignment=f"GH44-{STAMP}",
                     issue=44,
                     reason=NO_ROUND_HAS_RUN,
-                    is_stuck=True,
                 ),
             ],
         ),
@@ -307,11 +309,11 @@ def fabricate_the_cap(*, state):
     hold = "at cap: 1 of 1 rounds running"
     write_tick(
         state=state,
-        tick=LastTick(
+        tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
             hold=hold,
-            waiting=[
-                WaitingAgentAssignment(
+            assignment_observations=[
+                AgentAssignmentObservation(
                     assignment=f"GH20-{STAMP}", issue=20, reason=hold
                 )
             ],
@@ -324,11 +326,17 @@ def fabricate_repeat_assignments(*, state):
     for stamp, rounds in (
         (
             "20260817-090000",
-            (ended(minute=1), ended(minute=2, number=2, purpose=RoundPurpose.WRAP_UP)),
+            (
+                ended(minute=1),
+                ended(minute=2, number=2, purpose=AgentRoundPurpose.WRAP_UP),
+            ),
         ),
         (
             "20260818-090000",
-            (ended(minute=1), ended(minute=2, number=2, purpose=RoundPurpose.WRAP_UP)),
+            (
+                ended(minute=1),
+                ended(minute=2, number=2, purpose=AgentRoundPurpose.WRAP_UP),
+            ),
         ),
         ("20260819-184158", (ended(minute=1),)),
     ):
@@ -347,7 +355,10 @@ def fabricate_repeat_assignments(*, state):
                 )
             ],
         )
-    write_tick(state=state, tick=LastTick(at=PINNED + timedelta(hours=1, minutes=58)))
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(at=PINNED + timedelta(hours=1, minutes=58)),
+    )
 
 
 def fabricate_a_silent_round(*, state):
@@ -362,7 +373,7 @@ def fabricate_a_silent_round(*, state):
         issue=13,
         records=[
             ended(minute=1),
-            running(minute=30, number=2, purpose=RoundPurpose.ADDRESS_FEEDBACK),
+            running(minute=30, number=2, purpose=AgentRoundPurpose.ADDRESS_FEEDBACK),
         ],
     )
     write_feed(
@@ -370,7 +381,7 @@ def fabricate_a_silent_round(*, state):
     )
     write_tick(
         state=state,
-        tick=LastTick(
+        tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58), launched=f"GH13-{STAMP}"
         ),
     )
@@ -378,8 +389,8 @@ def fabricate_a_silent_round(*, state):
 
 BOARDS = {
     "nothing": fabricate_nothing,
-    "dispatch-assignments-everything": fabricate_everything,
-    "dispatch-assignments-dead-daemon": fabricate_a_dead_daemon,
+    "dispatch-assignments-faults-from-rounds": fabricate_everything,
+    "dispatch-assignments-dead-daemon-faults-from-rounds": fabricate_a_dead_daemon,
     "at-cap": fabricate_the_cap,
     "silent-round": fabricate_a_silent_round,
     "repeat-assignments": fabricate_repeat_assignments,
@@ -400,8 +411,8 @@ ASSIGNMENTS = {
     "newest-assignment-working": (fabricate_everything, 13),
     "newest-assignment-silent-round": (fabricate_a_silent_round, 13),
     "newest-assignment-older-assignments": (fabricate_repeat_assignments, 13),
-    "newest-assignment-stuck": (fabricate_everything, 9),
-    "newest-assignment-never-started": (fabricate_everything, 44),
+    "newest-assignment-faulted": (fabricate_everything, 9),
+    "newest-assignment-waiting-to-start": (fabricate_everything, 44),
 }
 
 
@@ -595,7 +606,7 @@ def test_wrapped_latest_output_keeps_its_indent(tmp_path, daemon):
     directory = written(
         state=state,
         issue=13,
-        records=[running(minute=1, purpose=RoundPurpose.IMPLEMENT)],
+        records=[running(minute=1, purpose=AgentRoundPurpose.IMPLEMENT)],
     )
     write_feed(
         directory=directory,
@@ -690,7 +701,9 @@ def test_an_assignment_view_shows_the_round_that_starts_while_it_is_open(
         write_round(
             directory=state.assignments / f"GH20-{STAMP}",
             number=2,
-            record=running(minute=60, number=2, purpose=RoundPurpose.ADDRESS_FEEDBACK),
+            record=running(
+                minute=60, number=2, purpose=AgentRoundPurpose.ADDRESS_FEEDBACK
+            ),
         )
 
     show_assignment(
@@ -836,7 +849,7 @@ def test_a_following_view_looks_once_more_when_the_last_round_stops(tmp_path, da
         write_round(
             directory=directory,
             number=2,
-            record=ended(minute=30, number=2, purpose=RoundPurpose.WRAP_UP),
+            record=ended(minute=30, number=2, purpose=AgentRoundPurpose.WRAP_UP),
         )
 
     followed(state=state, issue=13, wait=wait)
@@ -859,7 +872,9 @@ def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path, dae
         write_round(
             directory=directory,
             number=2,
-            record=running(minute=60, number=2, purpose=RoundPurpose.ADDRESS_FEEDBACK),
+            record=running(
+                minute=60, number=2, purpose=AgentRoundPurpose.ADDRESS_FEEDBACK
+            ),
         )
         write_feed(
             directory=directory,
@@ -905,9 +920,7 @@ def test_a_view_of_a_stuck_assignment_never_waits(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
-    # Only a person can move a stuck assignment on, so the view ends rather than
-    # wait for a round that is not coming.
-    assert followed(state=state, issue=44) == ""
+    assert "round 2: implement" in followed(state=state, issue=9)
 
 
 def test_a_following_view_reads_a_round_on_from_where_it_stopped(tmp_path, daemon):
