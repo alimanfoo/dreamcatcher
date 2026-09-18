@@ -1,7 +1,7 @@
 """Scheduling decisions and launch operations."""
 
 import json
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 from clocks import PINNED, Ticking
@@ -21,6 +21,7 @@ from conftest import (
     pull_requests,
 )
 from fakes import Line
+from pydantic import ValidationError
 from records import write_agent_assignment, write_round
 
 from dreamcatcher.agent_assignments import read_agent_assignments
@@ -910,7 +911,7 @@ def test_two_faulted_assignments_start_a_global_cooldown(dispatching):
     assert observed.cooldown == GlobalCooldown(
         started=PINNED, ends=PINNED + timedelta(minutes=15)
     )
-    assert "next attempt at 18:56 UTC" in held(observed=observed)
+    assert "next attempt at 18:56:58 UTC" in held(observed=observed)
     assert [one.assignment for one in observed.assignment_observations] == [
         ASSIGNMENT_ID,
         SECOND_ASSIGNMENT_ID,
@@ -932,6 +933,21 @@ def test_an_active_global_cooldown_survives_a_scheduler_restart(dispatching):
 
     assert observed.cooldown == started.cooldown
     assert observed.launched is None
+
+
+def test_a_cooldown_reports_an_issue_listing_failure(dispatching, offered):
+    write_faulted_assignment(root=dispatching, identifier=ASSIGNMENT_ID, issue=13)
+    write_faulted_assignment(
+        root=dispatching, identifier=SECOND_ASSIGNMENT_ID, issue=14
+    )
+    offered.fails(stderr="gh: could not connect to github.com", to="issue list")
+    scheduler, clock = create_scheduler(root=dispatching)
+
+    observed = scheduler.tick(at=clock())
+
+    assert "global cooldown" in held(observed=observed)
+    assert "could not refresh issues" in held(observed=observed)
+    assert "could not connect" in held(observed=observed)
 
 
 def test_the_cooldown_boundary_clears_faults_and_permits_recovery(dispatching):
@@ -963,3 +979,42 @@ def test_the_cooldown_boundary_clears_faults_and_permits_recovery(dispatching):
             reason="the last round failed (exit 2)",
         )
     ]
+
+    finish_rounds(scheduler=scheduler)
+    write_json(document=observed, path=state.scheduler_record)
+    restarted, restarted_clock = create_scheduler(root=dispatching)
+
+    following = restarted.tick(at=restarted_clock())
+
+    assert following.most_recent_cooldown_ended == PINNED
+    assert following.launched == SECOND_ASSIGNMENT_ID
+
+
+def test_a_cooldown_normalizes_aware_datetimes_to_utc():
+    offset = timezone(timedelta(hours=2))
+
+    cooldown = GlobalCooldown(
+        started=datetime(2026, 8, 19, 20, 41, 58, tzinfo=offset),
+        ends=datetime(2026, 8, 19, 20, 56, 58, tzinfo=offset),
+    )
+
+    assert cooldown.started == PINNED
+    assert cooldown.started.tzinfo is UTC
+    assert cooldown.ends == PINNED + timedelta(minutes=15)
+    assert cooldown.ends.tzinfo is UTC
+
+
+@pytest.mark.parametrize(
+    ("started", "ends", "message"),
+    [
+        (
+            datetime(2026, 8, 19, 18, 41, 58),
+            datetime(2026, 8, 19, 18, 56, 58),
+            "timezone info",
+        ),
+        (PINNED, PINNED, "cooldown end must follow its start"),
+    ],
+)
+def test_a_cooldown_refuses_invalid_datetimes(started, ends, message):
+    with pytest.raises(ValidationError, match=message):
+        GlobalCooldown(started=started, ends=ends)

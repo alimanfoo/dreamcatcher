@@ -54,7 +54,12 @@ One scheduler tick:
    in that order;
 5. otherwise finds the oldest issue available for an agent assignment;
 6. performs at most one scheduling action; and
-7. records a concise account of what happened for operational reporting.
+7. when the look completes, records a concise account of what happened for
+   operational reporting.
+
+A look that fails before producing that account is reported in daemon output and
+leaves the last complete scheduler record in place. An invalid scheduler record
+ends the daemon because retrying cannot repair the document.
 
 The scheduler uses two distinct lower-level operations: creating an agent
 assignment and starting an agent round. When it selects an available issue, it

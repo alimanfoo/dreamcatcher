@@ -27,7 +27,7 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.config import CONFIG_NAME, Harness
 from dreamcatcher.daemon import Daemon
-from dreamcatcher.documents import write_json
+from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.scheduler import GlobalCooldown, Scheduler, SchedulerRecord
 from dreamcatcher.state import StateDirectory
@@ -460,6 +460,15 @@ def test_a_failed_tick_preserves_the_last_scheduler_record(dispatching, capsys):
     output = capsys.readouterr().out
     assert "held:" in output
     assert "assignment.json is not valid" in output
+
+
+def test_an_invalid_scheduler_record_ends_the_run(watched, harnesses, gh):
+    daemon, _, _ = idling(root=watched)
+    daemon.state.bootstrap()
+    write_text(text="{}", path=daemon.state.scheduler_record)
+
+    with pytest.raises(ReportableError, match=r"scheduler\.json is not valid"):
+        daemon.run()
 
 
 def test_a_run_that_cannot_be_told_which_account_gh_is_signed_in_as_refuses(

@@ -17,6 +17,7 @@ from dreamcatcher.feed import Line
 from dreamcatcher.scheduler import (
     NO_ROUND_HAS_RUN,
     AgentAssignmentObservation,
+    GlobalCooldown,
     IssueFactValue,
     SchedulerRecord,
 )
@@ -268,6 +269,29 @@ def test_a_faulted_assignment_says_where_to_read_what_it_did(state):
         "two consecutive rounds failed "
         f"(.dreamcatcher/assignments/{ASSIGNMENT_ID}/rounds/2/feed.txt)"
     )
+
+
+def test_an_elapsed_cooldown_clears_fault_and_hold_before_the_next_tick(state):
+    ran(state=state, number=1, status=1)
+    ran(state=state, number=2, status=2)
+    ended = PINNED + timedelta(minutes=15)
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            hold="global cooldown",
+            cooldown=GlobalCooldown(started=PINNED, ends=ended),
+        ),
+    )
+
+    board = read_board(state=state, clock=lambda: LOOKED_AT)
+
+    assert board.rows[0].standing is AgentAssignmentStanding.WAITING
+    assert board.rows[0].detail == "the last round failed (exit 2)"
+    assert board.scheduler_record is not None
+    assert board.scheduler_record.hold is None
+    assert board.scheduler_record.cooldown is None
+    assert board.scheduler_record.most_recent_cooldown_ended == ended
 
 
 def test_an_assignment_no_tick_has_weighed_and_no_round_has_run_is_waiting(state):

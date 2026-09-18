@@ -39,6 +39,7 @@ from dreamcatcher.scheduler import (
     AgentAssignmentObservation,
     IssueFactValue,
     SchedulerRecord,
+    advance_scheduler_record,
     derive_assignment_fault,
     derive_issue_availability,
 )
@@ -189,11 +190,12 @@ class _Look:
         self.state = state
         self.at = clock()
         self.daemon_pid = read_daemon_pid(path=state.lock)
-        self.scheduler_record = (
+        recorded = (
             read_json(model=SchedulerRecord, path=state.scheduler_record)
             if state.scheduler_record.exists()
             else None
         )
+        self.scheduler_record = advance_scheduler_record(previous=recorded, at=self.at)
         self.assignment_observations: dict[str, AgentAssignmentObservation] = (
             {}
             if self.scheduler_record is None

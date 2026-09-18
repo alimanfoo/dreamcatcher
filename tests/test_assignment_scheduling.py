@@ -126,6 +126,17 @@ def test_an_assignment_whose_last_round_was_interrupted_is_a_recovery(state, gh)
     assert gh.calls[0].arguments[:3] == ["pr", "view", str(PULL_REQUEST)]
 
 
+def test_an_interruption_breaks_an_error_sequence(state, gh):
+    ran(state=state, number=1, purpose=RoundPurpose.IMPLEMENT, status=2)
+    ran(state=state, number=2, purpose=RoundPurpose.IMPLEMENT, status=None)
+
+    resume = found(state=state)
+
+    assert isinstance(resume, RequiredAgentRound)
+    assert resume.plan.is_recovery
+    assert resume.reason == "the last round was interrupted"
+
+
 def test_an_assignment_whose_last_round_failed_is_carried_on_with_its_status(state, gh):
     ran(state=state, number=1, purpose=RoundPurpose.IMPLEMENT, status=2)
 

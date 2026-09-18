@@ -91,8 +91,10 @@ that first round again before it schedules ordinary work.
 
 Everything the daemon owns lives under `.dreamcatcher/` in the checkout, which
 ignores itself, so git never sees it. `scheduler.json` there says what the most
-recent look observed and decided, including what the daemon did not do and why.
-It also preserves any active global cooldown and the end of the most recent one.
+recent completed look observed and decided, including what the daemon did not do
+and why. It also preserves any active global cooldown and the end of the most
+recent one. A look that cannot complete reports its failure in the daemon output
+and leaves that last complete record in place.
 
 Open work goes before new work. Before it dispatches anything, the daemon reads
 each assignment it already has and gives it whatever it needs next: a round that

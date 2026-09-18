@@ -13,11 +13,12 @@ anything does an uncapped tick dispatch the oldest available issue.
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from functools import partial
+from typing import Annotated, Self
 
-from pydantic import Field
+from pydantic import AfterValidator, AwareDatetime, Field, model_validator
 
 from dreamcatcher.agent_assignments import (
     AgentAssignment,
@@ -63,6 +64,14 @@ COOLDOWN = timedelta(minutes=15)
 NO_ROUND_HAS_RUN = "no round has run yet"
 
 
+def _normalize_utc(at: datetime, /) -> datetime:
+    """Return an aware datetime expressed in UTC; pydantic calls this validator."""
+    return at.astimezone(UTC)
+
+
+UtcDateTime = Annotated[AwareDatetime, AfterValidator(_normalize_utc)]
+
+
 class IssueFactValue(StrEnum):
     """A known true or false issue fact, or one that could not be observed."""
 
@@ -103,14 +112,21 @@ class AgentAssignmentObservation(Document):
 class GlobalCooldown(Document):
     """The interval during which the scheduler starts no agent work."""
 
-    started: datetime
-    ends: datetime
+    started: UtcDateTime
+    ends: UtcDateTime
+
+    @model_validator(mode="after")
+    def _ends_after_it_starts(self) -> Self:
+        """Refuse an empty or backwards cooldown interval."""
+        if self.ends <= self.started:
+            raise ValueError("cooldown end must follow its start")
+        return self
 
 
 class SchedulerRecord(Document):
     """What the scheduler's most recent tick observed and decided."""
 
-    at: datetime
+    at: UtcDateTime
     hold: str | None = None
     launched: str | None = None
     issue_observations: list[IssueObservation] = Field(default_factory=list)
@@ -118,7 +134,7 @@ class SchedulerRecord(Document):
         default_factory=list
     )
     cooldown: GlobalCooldown | None = None
-    most_recent_cooldown_ended: datetime | None = None
+    most_recent_cooldown_ended: UtcDateTime | None = None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -435,20 +451,32 @@ def _read_scheduler_record(*, state: StateDirectory) -> SchedulerRecord | None:
     """Read the scheduler record when a preceding tick has written one."""
     if not state.scheduler_record.exists():
         return None
-    return read_json(model=SchedulerRecord, path=state.scheduler_record)
+    try:
+        return read_json(model=SchedulerRecord, path=state.scheduler_record)
+    except ReportableError as failure:
+        raise InvalidSchedulerRecordError(str(failure)) from failure
 
 
-def _advance_cooldown_boundary(
+class InvalidSchedulerRecordError(ReportableError):
+    """A scheduler record the daemon cannot safely replace by retrying."""
+
+
+def advance_scheduler_record(
     *, previous: SchedulerRecord | None, at: datetime
-) -> tuple[GlobalCooldown | None, datetime | None]:
-    """Return the active cooldown and the latest completed boundary."""
+) -> SchedulerRecord | None:
+    """Advance an elapsed cooldown to the record's completed boundary."""
     if previous is None:
-        return None, None
+        return None
     cooldown = previous.cooldown
-    ended = previous.most_recent_cooldown_ended
     if cooldown is not None and at >= cooldown.ends:
-        return None, cooldown.ends
-    return cooldown, ended
+        return previous.model_copy(
+            update={
+                "hold": None,
+                "cooldown": None,
+                "most_recent_cooldown_ended": cooldown.ends,
+            }
+        )
+    return previous
 
 
 def _start_cooldown_if_required(
@@ -468,7 +496,7 @@ def _start_cooldown_if_required(
 
 def _describe_cooldown(*, cooldown: GlobalCooldown) -> str:
     """Describe when the active global cooldown permits another launch."""
-    return f"global cooldown — next attempt at {cooldown.ends:%H:%M} UTC"
+    return f"global cooldown — next attempt at {cooldown.ends:%H:%M:%S} UTC"
 
 
 def prioritize_required_rounds(
@@ -662,9 +690,12 @@ class Scheduler:
         holds no read. So a tick under it still says what each assignment is
         waiting on, rather than going quiet for the whole fifteen minutes.
         """
-        previous = _read_scheduler_record(state=self.state)
-        cooldown, most_recent_cooldown_ended = _advance_cooldown_boundary(
-            previous=previous, at=at
+        previous = advance_scheduler_record(
+            previous=_read_scheduler_record(state=self.state), at=at
+        )
+        cooldown = None if previous is None else previous.cooldown
+        most_recent_cooldown_ended = (
+            None if previous is None else previous.most_recent_cooldown_ended
         )
         ended = [
             assignment_id
@@ -698,9 +729,10 @@ class Scheduler:
             assignment_observations=assignment_observations,
         )
         if cooldown is not None:
-            return record.model_copy(
-                update={"hold": _describe_cooldown(cooldown=cooldown)}
-            )
+            hold = _describe_cooldown(cooldown=cooldown)
+            if issue_failure is not None:
+                hold = f"{hold}; could not refresh issues: {issue_failure}"
+            return record.model_copy(update={"hold": hold})
         if len(self.rounds) >= self.config.max_agents:
             cap = (
                 f"at cap: {len(self.rounds)} of {self.config.max_agents} rounds running"
