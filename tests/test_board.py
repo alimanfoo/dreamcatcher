@@ -259,27 +259,14 @@ def test_an_assignment_the_tick_left_waiting_says_what_it_waits_on(state):
     assert only(state=state).detail == "1 new post to answer"
 
 
-def test_a_stuck_assignment_says_where_to_read_what_it_did(state):
-    ran(state=state, number=1)
-    write_tick(
-        state=state,
-        tick=SchedulerRecord(
-            at=PINNED,
-            assignment_observations=[
-                AgentAssignmentObservation(
-                    assignment=ASSIGNMENT_ID,
-                    issue=13,
-                    reason="no pull request has been opened on it",
-                    is_fault=True,
-                )
-            ],
-        ),
-    )
+def test_a_faulted_assignment_says_where_to_read_what_it_did(state):
+    ran(state=state, number=1, status=1)
+    ran(state=state, number=2, status=2)
 
     assert only(state=state).standing is AgentAssignmentStanding.STUCK
     assert only(state=state).detail == (
-        "no pull request has been opened on it "
-        f"(.dreamcatcher/assignments/{ASSIGNMENT_ID}/rounds/1/feed.txt)"
+        "two consecutive rounds failed "
+        f"(.dreamcatcher/assignments/{ASSIGNMENT_ID}/rounds/2/feed.txt)"
     )
 
 

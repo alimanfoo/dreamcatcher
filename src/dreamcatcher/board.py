@@ -39,6 +39,7 @@ from dreamcatcher.scheduler import (
     AgentAssignmentObservation,
     IssueFactValue,
     SchedulerRecord,
+    derive_assignment_fault,
     derive_issue_availability,
 )
 from dreamcatcher.state import (
@@ -254,6 +255,19 @@ class _Look:
         run it, and interrupted once that daemon has gone, because a round
         cannot outlive its daemon.
         """
+        after = (
+            None
+            if self.scheduler_record is None
+            else self.scheduler_record.most_recent_cooldown_ended
+        )
+        if derive_assignment_fault(assignment=assignment, after=after):
+            return (
+                AgentAssignmentStanding.STUCK,
+                self._point_at_feed(
+                    assignment=assignment, reason="two consecutive rounds failed"
+                ),
+                None,
+            )
         unfinished = assignment.describe_unfinished_round()
         if unfinished is not None:
             if self.daemon_pid is not None and assignment.rounds[-1].ending is None:

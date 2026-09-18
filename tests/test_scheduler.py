@@ -1,6 +1,7 @@
 """Scheduling decisions and launch operations."""
 
 import json
+from datetime import timedelta
 
 import pytest
 from clocks import PINNED, Ticking
@@ -39,6 +40,7 @@ from dreamcatcher.git import (
 from dreamcatcher.prompts import CARRY_ON_PROMPT
 from dreamcatcher.scheduler import (
     AgentAssignmentObservation,
+    GlobalCooldown,
     IssueFactValue,
     Scheduler,
     SchedulerRecord,
@@ -47,6 +49,7 @@ from dreamcatcher.scheduler import (
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158"
+SECOND_ASSIGNMENT_ID = "GH14-20260819-184158"
 PURPOSE = RoundPurpose.IMPLEMENT
 STILL_RUNNING = 30
 DISPATCHED_ASSIGNMENT_ID = "GH8-20260819-184158"
@@ -159,8 +162,8 @@ def ran(
 ) -> None:
     """Write down a round of the assignment on disk, ended as the status says.
 
-    Every one of them ran the hour before the pinned clock reads, so a round
-    that failed is long enough ago to hold nothing.
+    Every one of them runs the hour before the pinned clock reads unless the
+    test needs an explicit ending time.
     """
     started = PINNED.replace(hour=17, minute=number)
     ending = (
@@ -180,6 +183,28 @@ def ran(
             ending=ending,
         ),
     )
+
+
+def write_faulted_assignment(*, root, identifier: str, issue: int) -> None:
+    """Write an assignment whose two latest rounds both exited with errors."""
+    write_agent_assignment(
+        state=StateDirectory(root=root), identifier=identifier, issue=issue
+    )
+    directory = StateDirectory(root=root).assignments / identifier
+    for number, status in ((1, 1), (2, 2)):
+        started = PINNED.replace(hour=17, minute=number)
+        write_round(
+            directory=directory,
+            number=number,
+            record=AgentRoundRecord(
+                number=number,
+                purpose=PURPOSE,
+                is_recovery=number == 2,
+                started=started,
+                pid=1,
+                ending=compose_agent_round_ending(at=started, status=status),
+            ),
+        )
 
 
 def written_round(*, scheduler: Scheduler, number: int, name: str) -> str:
@@ -318,7 +343,8 @@ def test_a_tick_at_the_cap_says_the_cap_is_what_each_assignment_waits_on(
         )
     ]
     reads = [call for call in offered.calls if call.arguments[:2] == ["pr", "view"]]
-    assert len(reads) == 2
+    # The capped tick still observes the idle assignment before it applies the cap.
+    assert len(reads) == 3
 
 
 def test_a_tick_at_the_cap_leaves_a_wound_up_assignment_waiting_on_nothing(
@@ -405,78 +431,53 @@ def test_a_tick_with_nothing_eligible_dispatches_nothing(dispatching, offered):
     assert not scheduler.state.worktrees.exists()
 
 
-def test_a_round_that_failed_lately_holds_every_launch(dispatching):
-    directory = write_agent_assignment(
+def test_one_errored_round_receives_an_ordinary_recovery(dispatching):
+    write_agent_assignment(
         state=StateDirectory(root=dispatching), identifier=ASSIGNMENT_ID, issue=13
     )
-    write_round(
-        directory=directory,
-        number=1,
-        record=AgentRoundRecord(
-            number=1,
-            started=PINNED,
-            pid=1,
-            purpose=PURPOSE,
-            ending=compose_agent_round_ending(at=PINNED.replace(minute=35), status=1),
-        ),
-    )
+    ran(root=dispatching, number=1, purpose=PURPOSE, status=1)
     scheduler, clock = create_scheduler(root=dispatching)
 
     observed = scheduler.tick(at=clock())
 
-    assert held(observed=observed) == (
-        "the last round failed (exit 1) — next attempt at 18:50 UTC"
-    )
-    assert observed.launched is None
+    assert observed.launched == ASSIGNMENT_ID
+    assert observed.cooldown is None
     assert not (scheduler.state.worktrees / DISPATCHED_ASSIGNMENT_ID).exists()
 
 
-def test_a_round_that_failed_long_enough_ago_holds_nothing(dispatching):
-    directory = write_agent_assignment(
+def test_one_faulted_assignment_does_not_block_unrelated_work(dispatching):
+    write_agent_assignment(
         state=StateDirectory(root=dispatching), identifier=ASSIGNMENT_ID, issue=13
     )
-    write_round(
-        directory=directory,
-        number=1,
-        record=AgentRoundRecord(
-            number=1,
-            started=PINNED,
-            pid=1,
-            purpose=PURPOSE,
-            ending=compose_agent_round_ending(
-                at=PINNED.replace(hour=18, minute=0), status=1
-            ),
-        ),
-    )
-    scheduler, clock = create_scheduler(root=dispatching)
-
-    observed = scheduler.tick(at=clock())
-
-    # That round is the most open work there is, so the launch the cooldown
-    # was holding is its carry-on and not the dispatch.
-    assert observed.launched == ASSIGNMENT_ID
-
-
-def test_a_round_that_ended_well_holds_nothing(dispatching):
-    directory = write_agent_assignment(
-        state=StateDirectory(root=dispatching), identifier=ASSIGNMENT_ID, issue=13
-    )
-    write_round(
-        directory=directory,
-        number=1,
-        record=AgentRoundRecord(
-            number=1,
-            started=PINNED,
-            pid=1,
-            purpose=PURPOSE,
-            ending=compose_agent_round_ending(at=PINNED, status=0),
-        ),
-    )
+    ran(root=dispatching, number=1, purpose=PURPOSE, status=1)
+    ran(root=dispatching, number=2, purpose=PURPOSE, status=1, is_recovery=True)
     scheduler, clock = create_scheduler(root=dispatching)
 
     observed = scheduler.tick(at=clock())
 
     assert observed.launched == DISPATCHED_ASSIGNMENT_ID
+    assert observed.assignment_observations == [
+        AgentAssignmentObservation(
+            assignment=ASSIGNMENT_ID,
+            issue=13,
+            reason="two consecutive rounds failed",
+            is_fault=True,
+        )
+    ]
+
+
+def test_a_successful_round_breaks_the_error_sequence(dispatching):
+    write_agent_assignment(
+        state=StateDirectory(root=dispatching), identifier=ASSIGNMENT_ID, issue=13
+    )
+    ran(root=dispatching, number=1, purpose=PURPOSE, status=1)
+    ran(root=dispatching, number=2, purpose=PURPOSE)
+    ran(root=dispatching, number=3, purpose=PURPOSE, status=1)
+    scheduler, clock = create_scheduler(root=dispatching)
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.launched == ASSIGNMENT_ID
 
 
 def test_an_assignment_the_scheduler_is_running_a_round_for_is_not_waiting(
@@ -900,30 +901,70 @@ def test_a_failed_issue_listing_leaves_open_work_for_a_later_tick(
     assert not (scheduler.state.assignments / ASSIGNMENT_ID / "rounds" / "2").exists()
 
 
-def test_a_cooling_tick_still_says_what_each_assignment_is_waiting_on(
-    resuming, offered
-):
-    directory = StateDirectory(root=resuming).assignments / ASSIGNMENT_ID
-    write_round(
-        directory=directory,
-        number=1,
-        record=AgentRoundRecord(
-            number=1,
-            started=PINNED,
-            pid=1,
-            purpose=PURPOSE,
-            ending=compose_agent_round_ending(at=PINNED.replace(minute=35), status=1),
-        ),
+def test_two_faulted_assignments_start_a_global_cooldown(dispatching):
+    write_faulted_assignment(root=dispatching, identifier=ASSIGNMENT_ID, issue=13)
+    write_faulted_assignment(
+        root=dispatching, identifier=SECOND_ASSIGNMENT_ID, issue=14
     )
-    scheduler, clock = create_scheduler(root=resuming)
+    scheduler, clock = create_scheduler(root=dispatching)
 
     observed = scheduler.tick(at=clock())
 
-    assert "next attempt at 18:50 UTC" in held(observed=observed)
+    assert observed.launched is None
+    assert observed.cooldown == GlobalCooldown(
+        started=PINNED, ends=PINNED + timedelta(minutes=15)
+    )
+    assert "next attempt at 18:56 UTC" in held(observed=observed)
+    assert [one.assignment for one in observed.assignment_observations] == [
+        ASSIGNMENT_ID,
+        SECOND_ASSIGNMENT_ID,
+    ]
+    assert all(one.is_fault for one in observed.assignment_observations)
+
+
+def test_an_active_global_cooldown_survives_a_scheduler_restart(dispatching):
+    write_faulted_assignment(root=dispatching, identifier=ASSIGNMENT_ID, issue=13)
+    write_faulted_assignment(
+        root=dispatching, identifier=SECOND_ASSIGNMENT_ID, issue=14
+    )
+    first, first_clock = create_scheduler(root=dispatching)
+    state = StateDirectory(root=dispatching)
+    started = first.tick(at=first_clock())
+    write_json(document=started, path=state.scheduler_record)
+    restarted, restarted_clock = create_scheduler(root=dispatching)
+
+    observed = restarted.tick(at=restarted_clock())
+
+    assert observed.cooldown == started.cooldown
+    assert observed.launched is None
+
+
+def test_the_cooldown_boundary_clears_faults_and_permits_recovery(dispatching):
+    write_faulted_assignment(root=dispatching, identifier=ASSIGNMENT_ID, issue=13)
+    write_faulted_assignment(
+        root=dispatching, identifier=SECOND_ASSIGNMENT_ID, issue=14
+    )
+    state = StateDirectory(root=dispatching)
+    write_json(
+        document=SchedulerRecord(
+            at=PINNED - timedelta(minutes=15),
+            cooldown=GlobalCooldown(
+                started=PINNED - timedelta(minutes=15), ends=PINNED
+            ),
+        ),
+        path=state.scheduler_record,
+    )
+    scheduler, clock = create_scheduler(root=dispatching)
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.cooldown is None
+    assert observed.most_recent_cooldown_ended == PINNED
+    assert observed.launched == ASSIGNMENT_ID
     assert observed.assignment_observations == [
         AgentAssignmentObservation(
-            assignment=ASSIGNMENT_ID, issue=13, reason="the last round failed (exit 1)"
+            assignment=SECOND_ASSIGNMENT_ID,
+            issue=14,
+            reason="the last round failed (exit 2)",
         )
     ]
-    assert observed_issues(tick=observed) == [8, 13]
-    assert observed.issue_observations[1].claimed_here.value is IssueFactValue.TRUE

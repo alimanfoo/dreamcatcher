@@ -139,7 +139,8 @@ class AgentAssignment:
 
         A record with no ending is a round the daemon has not reconciled yet,
         and an interrupted or errored ending says that the work stopped short.
-        Each is recovered from where it stopped.
+        Each can be recovered from where it stopped. The scheduler decides
+        whether a current fault or global cooldown delays that recovery.
 
         An assignment that has run no round at all has left nothing unfinished.
         Its first round never started, which is another matter: the scheduler

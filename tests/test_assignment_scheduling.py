@@ -31,8 +31,10 @@ from dreamcatcher.prompts import CARRY_ON_PROMPT, MARKER
 from dreamcatcher.scheduler import (
     NO_ROUND_HAS_RUN,
     AgentAssignmentObservation,
+    FaultedAgentAssignment,
     RequiredAgentRound,
     derive_assignment_finding,
+    observe_agent_assignment,
     prioritize_required_rounds,
 )
 from dreamcatcher.state import StateDirectory
@@ -88,12 +90,20 @@ def ran(
     )
 
 
-def found(*, state) -> RequiredAgentRound | AgentAssignmentObservation | None:
+def found(
+    *, state
+) -> RequiredAgentRound | FaultedAgentAssignment | AgentAssignmentObservation | None:
     """What the one assignment in that state directory needs next."""
+    assignment = read_agent_assignments(state=state)[0]
     return derive_assignment_finding(
-        repository=REPOSITORY,
-        account=POSTED_BY,
-        assignment=read_agent_assignments(state=state)[0],
+        assignment=assignment,
+        after=None,
+        observed=observe_agent_assignment(
+            repository=REPOSITORY,
+            account=POSTED_BY,
+            assignment=assignment,
+            after=None,
+        ),
     )
 
 
