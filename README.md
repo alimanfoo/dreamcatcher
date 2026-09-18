@@ -120,6 +120,17 @@ cooldown and starts no agent work during it. The scheduler keeps observing and
 reporting while it waits. The cooldown survives a daemon restart, and its end
 clears the faults so that recovery can continue.
 
+If one assignment remains in fault because of a problem specific to that work,
+fix the problem and request another recovery attempt:
+
+```sh
+dreamcatcher retry GH123
+```
+
+This keeps the failed round records for diagnosis, clears the current fault, and
+makes the assignment eligible for recovery on the next scheduler tick outside a
+global cooldown. If its next two rounds both fail, it enters fault again.
+
 Only a successful wrap-up completes an assignment. A failed or interrupted
 wrap-up remains open for recovery. Once the wrap-up succeeds, the assignment no
 longer claims its issue, so an issue whose pull request closed unmerged is free

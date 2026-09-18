@@ -15,14 +15,16 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
+from pydantic import AwareDatetime
+
 from dreamcatcher import prompts
 from dreamcatcher.agent_rounds import (
     AgentRoundPaths,
+    AgentRoundPurpose,
     AgentRoundRecord,
     ErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
     RoundOutcome,
-    RoundPurpose,
 )
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import DispatchRoute, Harness
@@ -80,11 +82,12 @@ USER_POST_DELIVERY_CURSOR = "watermark"
 class AgentAssignmentRecord(Document):
     """The issue an assignment works on, and the settings it runs its rounds with.
 
-    The dispatch settles all of these except the harness session identifier,
-    which the first round adds when the harness reports it. No later round
-    changes them. Every round reads them from here rather than from the config,
-    so editing the config while an assignment is in flight cannot reach that
-    assignment. Mutable pull request state stays on GitHub.
+    The dispatch settles the assignment recipe and identities. The first round
+    adds the harness session identifier when the harness reports it, and a user
+    may later request a retry after resolving the cause of a fault. Every round
+    reads its settled recipe from here rather than from the config, so editing
+    the config while an assignment is in flight cannot reach that assignment.
+    Mutable pull request state stays on GitHub.
     """
 
     issue: int
@@ -94,6 +97,7 @@ class AgentAssignmentRecord(Document):
     pull_request: int
     harness: Harness
     harness_session_identifier: HarnessSessionIdentifier | None = None
+    retry_requested_at: AwareDatetime | None = None
     model: str
     effort: str
     prompt: str
@@ -130,7 +134,7 @@ class AgentAssignment:
             return False
         round = self.rounds[-1]
         return (
-            round.purpose is RoundPurpose.WRAP_UP
+            round.purpose is AgentRoundPurpose.WRAP_UP
             and round.outcome is RoundOutcome.SUCCESSFUL
         )
 
@@ -223,6 +227,18 @@ def read_agent_assignments_for_issue(
         for assignment in read_agent_assignments(state=state)
         if assignment.record.issue == issue
     ]
+
+
+def request_agent_assignment_retry(
+    *, assignment: AgentAssignment, at: datetime
+) -> None:
+    """Record when the user asked a faulted assignment to recover again."""
+    path = assignment.directory / RECORD
+    record = read_json(model=AgentAssignmentRecord, path=path)
+    write_json(
+        document=record.model_copy(update={"retry_requested_at": at}),
+        path=path,
+    )
 
 
 def inspect_incomplete_assignment_setups(

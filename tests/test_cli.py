@@ -6,16 +6,18 @@ import pytest
 from clocks import PINNED
 from records import write_agent_assignment, write_feed, write_round
 
+from dreamcatcher.agent_assignments import read_agent_assignments_for_issue
 from dreamcatcher.agent_rounds import (
+    AgentRoundPurpose,
     AgentRoundRecord,
-    RoundPurpose,
     compose_agent_round_ending,
 )
 from dreamcatcher.cli import main
 from dreamcatcher.config import Harness
 from dreamcatcher.daemon import Daemon
-from dreamcatcher.documents import write_text
+from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import Line
+from dreamcatcher.scheduler import SchedulerRecord, derive_assignment_fault
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158"
@@ -32,7 +34,7 @@ def watching(tmp_path):
         directory=directory,
         number=1,
         record=AgentRoundRecord(
-            number=1, started=PINNED, pid=1, purpose=RoundPurpose.IMPLEMENT
+            number=1, started=PINNED, pid=1, purpose=AgentRoundPurpose.IMPLEMENT
         ),
     )
     write_feed(
@@ -47,6 +49,28 @@ def started(monkeypatch):
     daemons = []
     monkeypatch.setattr(Daemon, "run", lambda daemon: daemons.append(daemon))
     return daemons
+
+
+@pytest.fixture
+def faulted(tmp_path):
+    """A watched checkout whose only assignment has failed twice."""
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    directory = write_agent_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13)
+    for number in (1, 2):
+        ended = PINNED + timedelta(minutes=number)
+        write_round(
+            directory=directory,
+            number=number,
+            record=AgentRoundRecord(
+                number=number,
+                started=ended,
+                pid=1,
+                purpose=AgentRoundPurpose.IMPLEMENT,
+                ending=compose_agent_round_ending(at=ended, status=number),
+            ),
+        )
+    return state
 
 
 def test_version_prints_the_installed_version(capsys):
@@ -97,6 +121,47 @@ def test_something_that_is_not_an_issue_reference_is_refused(capsys):
     assert "GH123" in capsys.readouterr().err
 
 
+def test_retry_clears_the_newest_assignments_fault(monkeypatch, faulted, capsys):
+    requested = PINNED + timedelta(minutes=3)
+    write_json(
+        document=SchedulerRecord(
+            at=PINNED,
+            most_recent_cooldown_ended=PINNED - timedelta(minutes=1),
+        ),
+        path=faulted.scheduler_record,
+    )
+    monkeypatch.chdir(faulted.root)
+    monkeypatch.setattr("dreamcatcher.cli.now", lambda: requested)
+
+    assert main(argv=["retry", "GH13"]) == 0
+
+    assignment = read_agent_assignments_for_issue(state=faulted, issue=13)[-1]
+    assert assignment.record.retry_requested_at == requested
+    assert not derive_assignment_fault(
+        assignment=assignment,
+        most_recent_cooldown_ended=PINNED - timedelta(minutes=1),
+    )
+    assert "next scheduler tick" in capsys.readouterr().out
+
+
+def test_retry_refuses_an_issue_with_no_assignment(monkeypatch, tmp_path, capsys):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    monkeypatch.chdir(tmp_path)
+
+    assert main(argv=["retry", "GH13"]) == 1
+    assert "no assignment" in capsys.readouterr().err
+
+
+def test_retry_refuses_an_assignment_that_is_not_in_fault(
+    monkeypatch, watching, capsys
+):
+    monkeypatch.chdir(watching.root)
+
+    assert main(argv=["retry", "GH13"]) == 1
+    assert "not in fault" in capsys.readouterr().err
+
+
 def test_feed_shows_what_the_assignment_said(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
     # A following view runs until the assignment has completed its wrap-up, so this
@@ -111,7 +176,7 @@ def test_feed_shows_what_the_assignment_said(monkeypatch, watching, capsys):
             number=2,
             started=later,
             pid=1,
-            purpose=RoundPurpose.WRAP_UP,
+            purpose=AgentRoundPurpose.WRAP_UP,
             ending=compose_agent_round_ending(at=later, status=0),
         ),
     )
@@ -151,7 +216,7 @@ def test_the_board_takes_no_issue(capsys):
     assert "GH13" in capsys.readouterr().err
 
 
-@pytest.mark.parametrize("verb", ["run", "board", "assignment", "feed"])
+@pytest.mark.parametrize("verb", ["run", "retry", "board", "assignment", "feed"])
 def test_every_verb_describes_itself_in_its_own_help(verb, capsys):
     with pytest.raises(SystemExit) as exit_info:
         main(argv=[verb, "--help"])

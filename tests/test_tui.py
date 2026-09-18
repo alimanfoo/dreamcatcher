@@ -23,9 +23,9 @@ from rich.control import Control
 from rich.text import Text
 
 from dreamcatcher.agent_rounds import (
+    AgentRoundPurpose,
     AgentRoundRecord,
     InterruptedAgentRoundEnding,
-    RoundPurpose,
     compose_agent_round_ending,
 )
 from dreamcatcher.documents import append_text, write_text
@@ -124,7 +124,7 @@ def ended(
     minute: int,
     number: int = 1,
     status: int = 0,
-    purpose: RoundPurpose = RoundPurpose.IMPLEMENT,
+    purpose: AgentRoundPurpose = AgentRoundPurpose.IMPLEMENT,
 ):
     """A round that started that minute past the pinned hour and ran for four."""
     started = PINNED + timedelta(minutes=minute)
@@ -143,7 +143,7 @@ def running(
     *,
     minute: int,
     number: int = 1,
-    purpose: RoundPurpose = RoundPurpose.IMPLEMENT,
+    purpose: AgentRoundPurpose = AgentRoundPurpose.IMPLEMENT,
     is_recovery: bool = False,
 ):
     """A round that started that minute past the pinned hour and is still going."""
@@ -167,7 +167,7 @@ def running(
 def test_a_terminal_round_describes_its_explicit_outcome(ending, description):
     record = AgentRoundRecord(
         number=1,
-        purpose=RoundPurpose.IMPLEMENT,
+        purpose=AgentRoundPurpose.IMPLEMENT,
         started=PINNED,
         pid=1,
         ending=ending,
@@ -185,7 +185,7 @@ def test_a_round_without_an_ending_describes_what_its_process_says(
 ):
     record = AgentRoundRecord(
         number=1,
-        purpose=RoundPurpose.IMPLEMENT,
+        purpose=AgentRoundPurpose.IMPLEMENT,
         started=PINNED,
         pid=1,
     )
@@ -214,7 +214,7 @@ def fabricate_everything(*, state):
             running(
                 minute=30,
                 number=2,
-                purpose=RoundPurpose.ADDRESS_FEEDBACK,
+                purpose=AgentRoundPurpose.ADDRESS_FEEDBACK,
                 is_recovery=True,
             ),
         ],
@@ -242,7 +242,7 @@ def fabricate_everything(*, state):
         issue=12,
         records=[
             ended(minute=1),
-            ended(minute=2, number=2, purpose=RoundPurpose.WRAP_UP),
+            ended(minute=2, number=2, purpose=AgentRoundPurpose.WRAP_UP),
         ],
     )
     written(state=state, issue=44, records=[])
@@ -326,11 +326,17 @@ def fabricate_repeat_assignments(*, state):
     for stamp, rounds in (
         (
             "20260817-090000",
-            (ended(minute=1), ended(minute=2, number=2, purpose=RoundPurpose.WRAP_UP)),
+            (
+                ended(minute=1),
+                ended(minute=2, number=2, purpose=AgentRoundPurpose.WRAP_UP),
+            ),
         ),
         (
             "20260818-090000",
-            (ended(minute=1), ended(minute=2, number=2, purpose=RoundPurpose.WRAP_UP)),
+            (
+                ended(minute=1),
+                ended(minute=2, number=2, purpose=AgentRoundPurpose.WRAP_UP),
+            ),
         ),
         ("20260819-184158", (ended(minute=1),)),
     ):
@@ -367,7 +373,7 @@ def fabricate_a_silent_round(*, state):
         issue=13,
         records=[
             ended(minute=1),
-            running(minute=30, number=2, purpose=RoundPurpose.ADDRESS_FEEDBACK),
+            running(minute=30, number=2, purpose=AgentRoundPurpose.ADDRESS_FEEDBACK),
         ],
     )
     write_feed(
@@ -600,7 +606,7 @@ def test_wrapped_latest_output_keeps_its_indent(tmp_path, daemon):
     directory = written(
         state=state,
         issue=13,
-        records=[running(minute=1, purpose=RoundPurpose.IMPLEMENT)],
+        records=[running(minute=1, purpose=AgentRoundPurpose.IMPLEMENT)],
     )
     write_feed(
         directory=directory,
@@ -695,7 +701,9 @@ def test_an_assignment_view_shows_the_round_that_starts_while_it_is_open(
         write_round(
             directory=state.assignments / f"GH20-{STAMP}",
             number=2,
-            record=running(minute=60, number=2, purpose=RoundPurpose.ADDRESS_FEEDBACK),
+            record=running(
+                minute=60, number=2, purpose=AgentRoundPurpose.ADDRESS_FEEDBACK
+            ),
         )
 
     show_assignment(
@@ -841,7 +849,7 @@ def test_a_following_view_looks_once_more_when_the_last_round_stops(tmp_path, da
         write_round(
             directory=directory,
             number=2,
-            record=ended(minute=30, number=2, purpose=RoundPurpose.WRAP_UP),
+            record=ended(minute=30, number=2, purpose=AgentRoundPurpose.WRAP_UP),
         )
 
     followed(state=state, issue=13, wait=wait)
@@ -864,7 +872,9 @@ def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path, dae
         write_round(
             directory=directory,
             number=2,
-            record=running(minute=60, number=2, purpose=RoundPurpose.ADDRESS_FEEDBACK),
+            record=running(
+                minute=60, number=2, purpose=AgentRoundPurpose.ADDRESS_FEEDBACK
+            ),
         )
         write_feed(
             directory=directory,

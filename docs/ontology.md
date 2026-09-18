@@ -350,3 +350,9 @@ If two assignments enter fault, that is evidence of a shared problem and starts
 a global cooldown. When the cooldown ends, Dreamcatcher clears those faults and
 permits recovery. This deliberately simple policy prevents one
 assignment-specific failure from blocking all other work.
+
+After resolving an assignment-specific problem, the user may request a retry.
+That request clears the assignment's current fault without erasing its errored
+rounds, and the scheduler may start a recovery round on its next tick. Only
+errors at or after the later of the latest retry request and the latest
+completed global cooldown count towards a new fault.

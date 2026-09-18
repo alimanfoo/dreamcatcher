@@ -34,8 +34,8 @@ from dreamcatcher.agent_rounds import (
     AgentRoundInput,
     AgentRoundOutputReader,
     AgentRoundPlan,
+    AgentRoundPurpose,
     ErroredAgentRoundEnding,
-    RoundPurpose,
 )
 from dreamcatcher.config import Config, Harness
 from dreamcatcher.documents import Document, read_json
@@ -439,18 +439,27 @@ def derive_assignment_fault(
     """Derive whether an assignment has two current consecutive errors."""
     if len(assignment.rounds) < 2:
         return False
+    boundaries = [
+        boundary
+        for boundary in (
+            most_recent_cooldown_ended,
+            assignment.record.retry_requested_at,
+        )
+        if boundary is not None
+    ]
+    most_recent_fault_boundary = max(boundaries, default=None)
     latest = [record.ending for record in assignment.rounds[-2:]]
     return all(
         isinstance(ending, ErroredAgentRoundEnding)
         and (
-            most_recent_cooldown_ended is None
-            or ending.at >= most_recent_cooldown_ended
+            most_recent_fault_boundary is None
+            or ending.at >= most_recent_fault_boundary
         )
         for ending in latest
     )
 
 
-def _read_scheduler_record(*, state: StateDirectory) -> SchedulerRecord | None:
+def read_scheduler_record(*, state: StateDirectory) -> SchedulerRecord | None:
     """Read the scheduler record when a preceding tick has written one."""
     if not state.scheduler_record.exists():
         return None
@@ -515,7 +524,7 @@ def _required_round_priority(required: RequiredAgentRound, /) -> int:
         return 0
     if required.plan.is_recovery:
         return 1
-    if required.plan.purpose is RoundPurpose.WRAP_UP:
+    if required.plan.purpose is AgentRoundPurpose.WRAP_UP:
         return 2
     return 3
 
@@ -612,7 +621,7 @@ def compose_initial_round_requirement(
     """Return the first round that a recorded assignment requires."""
     return RequiredAgentRound(
         assignment=assignment,
-        plan=AgentRoundPlan(purpose=RoundPurpose.IMPLEMENT, is_recovery=False),
+        plan=AgentRoundPlan(purpose=AgentRoundPurpose.IMPLEMENT, is_recovery=False),
         reason=NO_ROUND_HAS_RUN,
         prompt=assignment.record.prompt,
     )
@@ -649,13 +658,13 @@ def _compose_resumed_round_requirement(
     )
 
 
-def _derive_round_purpose(*, pull_request: PullRequest) -> RoundPurpose:
+def _derive_round_purpose(*, pull_request: PullRequest) -> AgentRoundPurpose:
     """Return the purpose that the pull request currently requires."""
     if pull_request.state is not PullRequestState.OPEN:
-        return RoundPurpose.WRAP_UP
+        return AgentRoundPurpose.WRAP_UP
     if pull_request.is_draft:
-        return RoundPurpose.IMPLEMENT
-    return RoundPurpose.ADDRESS_FEEDBACK
+        return AgentRoundPurpose.IMPLEMENT
+    return AgentRoundPurpose.ADDRESS_FEEDBACK
 
 
 def compose_assignment_observation(
@@ -697,7 +706,7 @@ class Scheduler:
         waiting on, rather than going quiet for the whole fifteen minutes.
         """
         previous = advance_scheduler_record(
-            previous=_read_scheduler_record(state=self.state), at=at
+            previous=read_scheduler_record(state=self.state), at=at
         )
         cooldown = None if previous is None else previous.cooldown
         most_recent_cooldown_ended = (

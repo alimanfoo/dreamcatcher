@@ -27,9 +27,9 @@ from dreamcatcher.agent_assignments import (
 )
 from dreamcatcher.agent_rounds import (
     AgentRoundPaths,
+    AgentRoundPurpose,
     AgentRoundRecord,
     InterruptedAgentRoundEnding,
-    RoundPurpose,
     compose_agent_round_ending,
 )
 from dreamcatcher.commands import CommandError
@@ -212,7 +212,7 @@ def ended(*, status, minute=0, number: int = 1):
         number=number,
         started=started,
         pid=1,
-        purpose=RoundPurpose.IMPLEMENT,
+        purpose=AgentRoundPurpose.IMPLEMENT,
         ending=compose_agent_round_ending(at=started, status=status),
     )
 
@@ -223,7 +223,7 @@ def running(*, minute=0, number: int = 1):
         number=number,
         started=PINNED + timedelta(minutes=minute),
         pid=1,
-        purpose=RoundPurpose.IMPLEMENT,
+        purpose=AgentRoundPurpose.IMPLEMENT,
     )
 
 
@@ -281,7 +281,7 @@ def test_a_successful_wrap_up_completes_an_assignment(fabricated):
                 number=2,
                 started=PINNED + timedelta(minutes=1),
                 pid=1,
-                purpose=RoundPurpose.WRAP_UP,
+                purpose=AgentRoundPurpose.WRAP_UP,
                 is_recovery=True,
                 ending=compose_agent_round_ending(
                     at=PINNED + timedelta(minutes=1), status=0
@@ -301,7 +301,7 @@ def test_only_the_final_round_can_complete_an_assignment(fabricated):
                 number=1,
                 started=PINNED,
                 pid=1,
-                purpose=RoundPurpose.WRAP_UP,
+                purpose=AgentRoundPurpose.WRAP_UP,
                 ending=compose_agent_round_ending(at=PINNED, status=0),
             ),
             ended(status=0, minute=1, number=2),
@@ -318,21 +318,21 @@ def test_only_the_final_round_can_complete_an_assignment(fabricated):
             number=1,
             started=PINNED,
             pid=1,
-            purpose=RoundPurpose.IMPLEMENT,
+            purpose=AgentRoundPurpose.IMPLEMENT,
             ending=compose_agent_round_ending(at=PINNED, status=0),
         ),
         AgentRoundRecord(
             number=1,
             started=PINNED,
             pid=1,
-            purpose=RoundPurpose.WRAP_UP,
+            purpose=AgentRoundPurpose.WRAP_UP,
             ending=compose_agent_round_ending(at=PINNED, status=1),
         ),
         AgentRoundRecord(
             number=1,
             started=PINNED,
             pid=1,
-            purpose=RoundPurpose.WRAP_UP,
+            purpose=AgentRoundPurpose.WRAP_UP,
             ending=InterruptedAgentRoundEnding(),
         ),
     ],
@@ -549,7 +549,7 @@ def test_an_issue_whose_assignment_finished_can_receive_another(state, route):
             number=1,
             started=PINNED,
             pid=1,
-            purpose=RoundPurpose.WRAP_UP,
+            purpose=AgentRoundPurpose.WRAP_UP,
             ending=compose_agent_round_ending(at=PINNED, status=0),
         ),
     )
@@ -590,7 +590,7 @@ def test_an_issue_whose_final_work_is_unfinished_cannot_receive_another(
             number=1,
             started=PINNED,
             pid=1,
-            purpose=RoundPurpose.WRAP_UP,
+            purpose=AgentRoundPurpose.WRAP_UP,
             ending=ending,
         ),
     )
@@ -991,7 +991,7 @@ def test_an_assignments_rounds_read_back_in_number_order(state, route):
         directory=directory,
         number=3,
         record=AgentRoundRecord(
-            number=3, started=PINNED, pid=1, purpose=RoundPurpose.IMPLEMENT
+            number=3, started=PINNED, pid=1, purpose=AgentRoundPurpose.IMPLEMENT
         ),
     )
     write_round(
@@ -1001,7 +1001,7 @@ def test_an_assignments_rounds_read_back_in_number_order(state, route):
             number=1,
             started=later,
             pid=1,
-            purpose=RoundPurpose.IMPLEMENT,
+            purpose=AgentRoundPurpose.IMPLEMENT,
             ending=compose_agent_round_ending(at=later, status=0),
         ),
     )
@@ -1032,7 +1032,7 @@ def test_a_round_record_must_carry_the_number_of_its_directory(state, route):
             number=3,
             started=PINNED,
             pid=1,
-            purpose=RoundPurpose.IMPLEMENT,
+            purpose=AgentRoundPurpose.IMPLEMENT,
         ),
     )
 

@@ -54,12 +54,12 @@ One scheduler tick:
    in that order;
 5. otherwise finds the oldest issue available for an agent assignment;
 6. performs at most one scheduling action; and
-7. when the look completes, records a concise account of what happened for
-   operational reporting.
+7. when the scheduler tick completes, records a concise account of what happened
+   for operational reporting.
 
-A look that fails before producing that account is reported in daemon output and
-leaves the last complete scheduler record in place. An invalid scheduler record
-ends the daemon because retrying cannot repair the document.
+A scheduler tick that fails before producing that account is reported in daemon
+output and leaves the last complete scheduler record in place. An invalid
+scheduler record ends the daemon because retrying cannot repair the document.
 
 The scheduler uses two distinct lower-level operations: creating an agent
 assignment and starting an agent round. When it selects an available issue, it
@@ -95,7 +95,9 @@ of an agent assignment. It should provide cohesive operations to:
   assignment;
 - read existing assignments;
 - find the open assignment for an issue;
-- update the harness session identifier and user-post delivery cursor; and
+- update the harness session identifier and user-post delivery cursor;
+- record when the user requests another recovery attempt after resolving a
+  fault; and
 - recognize completion after a successful wrap-up round.
 
 Assignment creation coordinates lower-level Git, GitHub, configuration, and
@@ -309,7 +311,8 @@ An assignment record persists:
 - the frozen dispatch route and assignment recipe selected at creation;
 - branch and worktree identity;
 - pull-request identity;
-- harness identity and, once known, its harness session identifier; and
+- harness identity and, once known, its harness session identifier;
+- the time of the user's latest retry request, when one has been made; and
 - the cursor identifying the latest user post accepted for delivery.
 
 A round record persists:
@@ -322,9 +325,10 @@ A round record persists:
 - the durable files containing its prompt, delivered posts, and output.
 
 An instance-wide scheduler record persists an active global cooldown and the
-time at which the most recent cooldown ended. This allows fault to remain a
-derived status: ending a cooldown changes which round errors count towards fault
-rather than writing an assignment status.
+time at which the most recent cooldown ended. An assignment record persists the
+time of its latest user retry request. These boundaries allow fault to remain a
+derived status: ending a cooldown or requesting a retry changes which round
+errors count towards fault rather than writing an assignment status.
 
 The following are derived rather than persisted as authoritative state:
 

@@ -24,10 +24,13 @@ from fakes import Line
 from pydantic import ValidationError
 from records import write_agent_assignment, write_round
 
-from dreamcatcher.agent_assignments import read_agent_assignments
+from dreamcatcher.agent_assignments import (
+    read_agent_assignments,
+    request_agent_assignment_retry,
+)
 from dreamcatcher.agent_rounds import (
+    AgentRoundPurpose,
     AgentRoundRecord,
-    RoundPurpose,
     compose_agent_round_ending,
 )
 from dreamcatcher.config import Harness, read_config
@@ -51,7 +54,7 @@ from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158"
 SECOND_ASSIGNMENT_ID = "GH14-20260819-184158"
-PURPOSE = RoundPurpose.IMPLEMENT
+PURPOSE = AgentRoundPurpose.IMPLEMENT
 STILL_RUNNING = 30
 DISPATCHED_ASSIGNMENT_ID = "GH8-20260819-184158"
 CONVERSATION = POST_LIST_PATHS["conversation"]
@@ -119,7 +122,7 @@ def record_of(*, scheduler: Scheduler, number: int) -> AgentRoundRecord:
     )
 
 
-def purpose_of(*, scheduler: Scheduler, number: int) -> RoundPurpose:
+def purpose_of(*, scheduler: Scheduler, number: int) -> AgentRoundPurpose:
     """What work the assignment's numbered round advances."""
     return record_of(scheduler=scheduler, number=number).purpose
 
@@ -157,7 +160,7 @@ def ran(
     *,
     root,
     number: int,
-    purpose: RoundPurpose,
+    purpose: AgentRoundPurpose,
     status: int | None = 0,
     is_recovery: bool = False,
 ) -> None:
@@ -255,7 +258,7 @@ def test_a_dispatched_round_records_what_caused_it_and_what_it_said(dispatching)
         AgentRoundRecord.model_validate_json(
             (written / "round.json").read_text(encoding="utf-8")
         ).purpose
-        is RoundPurpose.IMPLEMENT
+        is AgentRoundPurpose.IMPLEMENT
     )
     assert "what the round said" in (written / "feed.txt").read_text(encoding="utf-8")
     assignment = read_agent_assignments(state=scheduler.state)[0]
@@ -305,7 +308,7 @@ def test_a_completed_assignment_releases_its_issue(dispatching):
         number=1,
         record=AgentRoundRecord(
             number=1,
-            purpose=RoundPurpose.WRAP_UP,
+            purpose=AgentRoundPurpose.WRAP_UP,
             is_recovery=False,
             started=PINNED,
             pid=1,
@@ -330,7 +333,7 @@ def test_a_tick_at_the_cap_says_the_cap_is_what_each_assignment_waits_on(
     write_agent_assignment(
         state=StateDirectory(root=dispatching), identifier=ASSIGNMENT_ID, issue=13
     )
-    ran(root=dispatching, number=1, purpose=RoundPurpose.IMPLEMENT)
+    ran(root=dispatching, number=1, purpose=AgentRoundPurpose.IMPLEMENT)
     scheduler, clock = create_scheduler(root=dispatching)
 
     observed = scheduler.tick(at=clock())
@@ -354,8 +357,8 @@ def test_a_tick_at_the_cap_leaves_a_wound_up_assignment_waiting_on_nothing(
     write_agent_assignment(
         state=StateDirectory(root=dispatching), identifier=ASSIGNMENT_ID, issue=13
     )
-    ran(root=dispatching, number=1, purpose=RoundPurpose.IMPLEMENT)
-    ran(root=dispatching, number=1, purpose=RoundPurpose.WRAP_UP)
+    ran(root=dispatching, number=1, purpose=AgentRoundPurpose.IMPLEMENT)
+    ran(root=dispatching, number=1, purpose=AgentRoundPurpose.WRAP_UP)
     scheduler, clock = create_scheduler(root=dispatching)
 
     observed = scheduler.tick(at=clock())
@@ -391,7 +394,7 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
     write_agent_assignment(
         state=StateDirectory(root=dispatching), identifier=ASSIGNMENT_ID, issue=13
     )
-    ran(root=dispatching, number=1, purpose=RoundPurpose.IMPLEMENT)
+    ran(root=dispatching, number=1, purpose=AgentRoundPurpose.IMPLEMENT)
     scheduler, clock = create_scheduler(root=dispatching)
     scheduler.tick(at=clock())
     offered.fails(stderr="gh: could not connect to github.com", to="issue list")
@@ -463,6 +466,19 @@ def test_one_faulted_assignment_does_not_block_unrelated_work(dispatching):
     ]
 
 
+def test_a_user_retry_clears_one_fault_and_starts_recovery(dispatching):
+    write_faulted_assignment(root=dispatching, identifier=ASSIGNMENT_ID, issue=13)
+    state = StateDirectory(root=dispatching)
+    assignment = read_agent_assignments(state=state)[0]
+    request_agent_assignment_retry(assignment=assignment, at=PINNED)
+    scheduler, clock = create_scheduler(root=dispatching)
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.launched == ASSIGNMENT_ID
+    assert observed.assignment_observations == []
+
+
 def test_a_successful_round_breaks_the_error_sequence(dispatching):
     write_agent_assignment(
         state=StateDirectory(root=dispatching), identifier=ASSIGNMENT_ID, issue=13
@@ -508,7 +524,7 @@ def test_an_assignment_the_scheduler_is_running_a_round_for_is_not_waiting(
 def test_an_assignment_with_an_open_pull_request_and_nothing_new_is_not_waiting(
     resuming, gh
 ):
-    ran(root=resuming, number=1, purpose=RoundPurpose.IMPLEMENT)
+    ran(root=resuming, number=1, purpose=AgentRoundPurpose.IMPLEMENT)
     gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
     scheduler, clock = create_scheduler(root=resuming)
 
@@ -530,7 +546,7 @@ def test_an_assignment_that_has_run_no_round_at_all_gets_its_first(dispatching):
     assert observed.launched == ASSIGNMENT_ID
     first = record_of(scheduler=scheduler, number=1)
     assert first.number == 1
-    assert first.purpose is RoundPurpose.IMPLEMENT
+    assert first.purpose is AgentRoundPurpose.IMPLEMENT
     assert not first.is_recovery
     assert written_round(scheduler=scheduler, number=1, name="prompt.txt") == (
         "/dream:smith GH13"
@@ -575,7 +591,7 @@ def test_a_dispatch_whose_round_will_not_start_retries_the_prepared_assignment(
     written = AgentRoundRecord.model_validate_json(
         (record / "round.json").read_text(encoding="utf-8")
     )
-    assert written.purpose is RoundPurpose.IMPLEMENT
+    assert written.purpose is AgentRoundPurpose.IMPLEMENT
     created = [call for call in offered.calls if call.arguments[:2] == ["pr", "create"]]
     assert len(created) == 1
 
@@ -614,7 +630,7 @@ def test_the_next_tick_recovers_each_incomplete_creation_checkpoint(
         AgentRoundRecord.model_validate_json(
             (round_record / "round.json").read_text(encoding="utf-8")
         ).purpose
-        is RoundPurpose.IMPLEMENT
+        is AgentRoundPurpose.IMPLEMENT
     )
     assert len(list(state.assignments.iterdir())) == 1
     commits = git(arguments=["rev-list", "--count", "origin/main..HEAD"], cwd=worktree)
@@ -725,12 +741,12 @@ def test_a_carried_on_round_records_recovery_independently(resuming, left_runnin
     finish_rounds(scheduler=scheduler)
 
     recovered = record_of(scheduler=scheduler, number=2)
-    assert recovered.purpose is RoundPurpose.IMPLEMENT
+    assert recovered.purpose is AgentRoundPurpose.IMPLEMENT
     assert recovered.is_recovery
 
 
 def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, gh):
-    ran(root=resuming, number=1, purpose=RoundPurpose.IMPLEMENT)
+    ran(root=resuming, number=1, purpose=AgentRoundPurpose.IMPLEMENT)
     gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
     gh.replies(
         stdout=pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
@@ -742,7 +758,7 @@ def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, g
 
     assert observed.launched == ASSIGNMENT_ID
     feedback = record_of(scheduler=scheduler, number=2)
-    assert feedback.purpose is RoundPurpose.ADDRESS_FEEDBACK
+    assert feedback.purpose is AgentRoundPurpose.ADDRESS_FEEDBACK
     assert not feedback.is_recovery
     inbox = json.loads(written_round(scheduler=scheduler, number=2, name="inbox.json"))
     assert inbox["state"] == "OPEN"
@@ -753,7 +769,7 @@ def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, g
 
 
 def test_an_assignment_receives_a_batch_only_once(resuming, gh):
-    ran(root=resuming, number=1, purpose=RoundPurpose.IMPLEMENT)
+    ran(root=resuming, number=1, purpose=AgentRoundPurpose.IMPLEMENT)
     gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
     gh.replies(
         stdout=pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
@@ -772,7 +788,7 @@ def test_an_assignment_receives_a_batch_only_once(resuming, gh):
 def test_a_batch_no_round_ever_launched_is_read_again_next_tick(
     resuming, gh, harnesses
 ):
-    ran(root=resuming, number=1, purpose=RoundPurpose.IMPLEMENT)
+    ran(root=resuming, number=1, purpose=AgentRoundPurpose.IMPLEMENT)
     gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
     gh.replies(
         stdout=pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
@@ -798,7 +814,7 @@ def test_a_batch_no_round_ever_launched_is_read_again_next_tick(
 
 @pytest.mark.parametrize("state_name", ["MERGED", "CLOSED"])
 def test_a_pull_request_that_is_finished_gets_one_last_round(resuming, gh, state_name):
-    ran(root=resuming, number=1, purpose=RoundPurpose.IMPLEMENT)
+    ran(root=resuming, number=1, purpose=AgentRoundPurpose.IMPLEMENT)
     gh.replies(stdout=pull_request(state=state_name), to="pr view")
     scheduler, clock = create_scheduler(root=resuming)
 
@@ -807,7 +823,7 @@ def test_a_pull_request_that_is_finished_gets_one_last_round(resuming, gh, state
 
     assert observed.launched == ASSIGNMENT_ID
     wrap_up = record_of(scheduler=scheduler, number=2)
-    assert wrap_up.purpose is RoundPurpose.WRAP_UP
+    assert wrap_up.purpose is AgentRoundPurpose.WRAP_UP
     assert not wrap_up.is_recovery
     assert json.loads(
         written_round(scheduler=scheduler, number=2, name="inbox.json")
@@ -818,8 +834,8 @@ def test_a_pull_request_that_is_finished_gets_one_last_round(resuming, gh, state
 
 
 def test_an_assignment_that_has_had_its_last_round_gets_no_other(resuming, gh):
-    ran(root=resuming, number=1, purpose=RoundPurpose.IMPLEMENT)
-    ran(root=resuming, number=2, purpose=RoundPurpose.WRAP_UP)
+    ran(root=resuming, number=1, purpose=AgentRoundPurpose.IMPLEMENT)
+    ran(root=resuming, number=2, purpose=AgentRoundPurpose.WRAP_UP)
     gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
     scheduler, clock = create_scheduler(root=resuming)
 
@@ -832,7 +848,7 @@ def test_an_assignment_that_has_had_its_last_round_gets_no_other(resuming, gh):
 def test_a_last_round_that_was_interrupted_is_carried_on_as_the_last_round(
     resuming, gh, left_running
 ):
-    ran(root=resuming, number=1, purpose=RoundPurpose.IMPLEMENT)
+    ran(root=resuming, number=1, purpose=AgentRoundPurpose.IMPLEMENT)
     write_round(
         directory=StateDirectory(root=resuming).assignments / ASSIGNMENT_ID,
         number=2,
@@ -840,7 +856,7 @@ def test_a_last_round_that_was_interrupted_is_carried_on_as_the_last_round(
             number=2,
             started=PINNED.replace(hour=17, minute=2),
             pid=left_running.pid,
-            purpose=RoundPurpose.WRAP_UP,
+            purpose=AgentRoundPurpose.WRAP_UP,
         ),
     )
     gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
@@ -853,7 +869,7 @@ def test_a_last_round_that_was_interrupted_is_carried_on_as_the_last_round(
 
     # The carry-on finished what the last round started, so no second one runs.
     recovered = record_of(scheduler=scheduler, number=3)
-    assert recovered.purpose is RoundPurpose.WRAP_UP
+    assert recovered.purpose is AgentRoundPurpose.WRAP_UP
     assert recovered.is_recovery
     assert not (scheduler.state.assignments / ASSIGNMENT_ID / "rounds" / "4").exists()
 

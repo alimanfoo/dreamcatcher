@@ -20,9 +20,9 @@ from fakes import Line
 from records import write_agent_assignment, write_round
 
 from dreamcatcher.agent_rounds import (
+    AgentRoundPurpose,
     AgentRoundRecord,
     RoundOutcome,
-    RoundPurpose,
     compose_agent_round_ending,
 )
 from dreamcatcher.config import CONFIG_NAME, Harness
@@ -35,7 +35,7 @@ from dreamcatcher.state import StateDirectory
 ASSIGNMENT_ID = "GH13-20260819-184158"
 
 # What every round the tests here write down says woke it.
-PURPOSE = RoundPurpose.IMPLEMENT
+PURPOSE = AgentRoundPurpose.IMPLEMENT
 
 # How long a scripted harness waits after its first line, so a round the daemon
 # launched is certainly still running at the next tick. The waits these tests
