@@ -260,10 +260,14 @@ def _describe_daemon(*, board: Board) -> Text:
         if board.daemon_pid is None
         else f"daemon running as pid {board.daemon_pid}"
     )
-    if board.tick is None:
+    if board.scheduler_record is None:
         return Text(f"{daemon}, no tick recorded")
-    ticked = describe_span(span=board.at - board.tick.at)
-    held = "" if board.tick.hold is None else f", {board.tick.hold}"
+    ticked = describe_span(span=board.at - board.scheduler_record.at)
+    held = (
+        ""
+        if board.scheduler_record.hold is None
+        else f", {board.scheduler_record.hold}"
+    )
     return Text(f"{daemon}, last tick {ticked} ago{held}")
 
 

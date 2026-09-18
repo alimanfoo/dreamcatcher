@@ -18,8 +18,8 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import Unknown, identify_account, identify_repository
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.lock import hold
-from dreamcatcher.scheduler import Scheduler
-from dreamcatcher.state import LastTick, StateDirectory
+from dreamcatcher.scheduler import Scheduler, SchedulerRecord
+from dreamcatcher.state import StateDirectory
 from dreamcatcher.words import describe_time
 
 if TYPE_CHECKING:
@@ -131,15 +131,15 @@ class Daemon:
         leaving the assignments it holds to nobody.
 
         Writing that evidence down is the exception. A daemon that cannot write
-        `last-tick.json` has no way left to say anything at all, so that
+        `scheduler.json` has no way left to say anything at all, so that
         failure ends the run with a message the user can act on, and the rounds
         it was holding end with it.
         """
         try:
             observed = scheduler.tick(at=at)
         except ReportableError as failure:
-            observed = LastTick(at=at, hold=str(failure))
-        write_json(document=observed, path=self.state.last_tick)
+            observed = SchedulerRecord(at=at, hold=str(failure))
+        write_json(document=observed, path=self.state.scheduler_record)
         if observed.launched is not None:
             outcome = f"launched round for {observed.launched}"
         elif observed.hold is not None:

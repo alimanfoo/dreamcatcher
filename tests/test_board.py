@@ -14,13 +14,13 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.board import AgentAssignmentStanding, read_board, read_rows_for_issue
 from dreamcatcher.feed import Line
-from dreamcatcher.state import (
+from dreamcatcher.scheduler import (
     NO_ROUND_HAS_RUN,
+    AgentAssignmentObservation,
     IssueFactValue,
-    LastTick,
-    StateDirectory,
-    WaitingAgentAssignment,
+    SchedulerRecord,
 )
+from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158"
 
@@ -156,7 +156,7 @@ def test_a_state_directory_nothing_has_run_in_yet_holds_an_empty_board(tmp_path)
 
     assert board.at == LOOKED_AT
     assert board.daemon_pid is None
-    assert board.tick is None
+    assert board.scheduler_record is None
     assert board.rows == []
     assert board.queued == []
 
@@ -228,7 +228,7 @@ def test_an_assignment_done_in_one_round_counts_that_round_as_one(state):
 def test_an_assignment_the_tick_found_nothing_to_do_for_needs_you(state):
     ran(state=state, number=1)
     said(state=state, number=1, texts=["[Bash] pytest"])
-    write_tick(state=state, tick=LastTick(at=PINNED))
+    write_tick(state=state, tick=SchedulerRecord(at=PINNED))
 
     assert only(state=state).standing is AgentAssignmentStanding.NEEDS_YOU
     assert only(state=state).detail == "idle 1h 58m"
@@ -245,10 +245,10 @@ def test_an_assignment_the_tick_left_waiting_says_what_it_waits_on(state):
     ran(state=state, number=1)
     write_tick(
         state=state,
-        tick=LastTick(
+        tick=SchedulerRecord(
             at=PINNED,
-            waiting=[
-                WaitingAgentAssignment(
+            assignment_observations=[
+                AgentAssignmentObservation(
                     assignment=ASSIGNMENT_ID, issue=13, reason="1 new post to answer"
                 )
             ],
@@ -263,14 +263,14 @@ def test_a_stuck_assignment_says_where_to_read_what_it_did(state):
     ran(state=state, number=1)
     write_tick(
         state=state,
-        tick=LastTick(
+        tick=SchedulerRecord(
             at=PINNED,
-            waiting=[
-                WaitingAgentAssignment(
+            assignment_observations=[
+                AgentAssignmentObservation(
                     assignment=ASSIGNMENT_ID,
                     issue=13,
                     reason="no pull request has been opened on it",
-                    is_stuck=True,
+                    is_fault=True,
                 )
             ],
         ),
@@ -286,14 +286,14 @@ def test_a_stuck_assignment_says_where_to_read_what_it_did(state):
 def test_a_stuck_assignment_that_ran_no_round_has_no_feed_to_point_at(state):
     write_tick(
         state=state,
-        tick=LastTick(
+        tick=SchedulerRecord(
             at=PINNED,
-            waiting=[
-                WaitingAgentAssignment(
+            assignment_observations=[
+                AgentAssignmentObservation(
                     assignment=ASSIGNMENT_ID,
                     issue=13,
                     reason=NO_ROUND_HAS_RUN,
-                    is_stuck=True,
+                    is_fault=True,
                 )
             ],
         ),
@@ -356,7 +356,7 @@ def test_the_assignments_in_one_standing_come_back_in_the_boards_own_order(state
 def test_the_queue_reads_each_issues_turn_off_its_place(state):
     write_tick(
         state=state,
-        tick=LastTick(
+        tick=SchedulerRecord(
             at=PINNED,
             issue_observations=[
                 observed_issue(issue=20),
@@ -383,7 +383,7 @@ def test_the_queue_reads_each_issues_turn_off_its_place(state):
 def test_an_issue_an_assignment_here_already_claims_is_not_queued(state):
     write_tick(
         state=state,
-        tick=LastTick(
+        tick=SchedulerRecord(
             at=PINNED,
             issue_observations=[
                 observed_issue(issue=13),
@@ -401,7 +401,7 @@ def test_a_completed_assignment_no_longer_claims_its_issue_on_the_board(state):
     ran(state=state, number=1, purpose=RoundPurpose.WRAP_UP)
     write_tick(
         state=state,
-        tick=LastTick(
+        tick=SchedulerRecord(
             at=PINNED,
             issue_observations=[
                 observed_issue(issue=13),

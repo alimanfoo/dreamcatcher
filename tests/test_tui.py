@@ -31,13 +31,13 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Line
-from dreamcatcher.state import (
+from dreamcatcher.scheduler import (
     NO_ROUND_HAS_RUN,
+    AgentAssignmentObservation,
     IssueFactValue,
-    LastTick,
-    StateDirectory,
-    WaitingAgentAssignment,
+    SchedulerRecord,
 )
+from dreamcatcher.state import StateDirectory
 from dreamcatcher.tui import (
     PAUSE,
     _describe_ending,
@@ -244,7 +244,7 @@ def fabricate_everything(*, state):
     written(state=state, issue=44, records=[])
     write_tick(
         state=state,
-        tick=LastTick(
+        tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
             launched=f"GH13-{STAMP}",
             issue_observations=[
@@ -262,26 +262,26 @@ def fabricate_everything(*, state):
                     evidence={"routing_conflict": DOUBLE_LABELLED},
                 ),
             ],
-            waiting=[
-                WaitingAgentAssignment(
+            assignment_observations=[
+                AgentAssignmentObservation(
                     assignment=f"GH31-{STAMP}", issue=31, reason="1 new post to answer"
                 ),
-                WaitingAgentAssignment(
+                AgentAssignmentObservation(
                     assignment=f"GH35-{STAMP}",
                     issue=35,
                     reason="the last round failed (exit 2)",
                 ),
-                WaitingAgentAssignment(
+                AgentAssignmentObservation(
                     assignment=f"GH9-{STAMP}",
                     issue=9,
                     reason="no pull request has been opened on it",
-                    is_stuck=True,
+                    is_fault=True,
                 ),
-                WaitingAgentAssignment(
+                AgentAssignmentObservation(
                     assignment=f"GH44-{STAMP}",
                     issue=44,
                     reason=NO_ROUND_HAS_RUN,
-                    is_stuck=True,
+                    is_fault=True,
                 ),
             ],
         ),
@@ -307,11 +307,11 @@ def fabricate_the_cap(*, state):
     hold = "at cap: 1 of 1 rounds running"
     write_tick(
         state=state,
-        tick=LastTick(
+        tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
             hold=hold,
-            waiting=[
-                WaitingAgentAssignment(
+            assignment_observations=[
+                AgentAssignmentObservation(
                     assignment=f"GH20-{STAMP}", issue=20, reason=hold
                 )
             ],
@@ -347,7 +347,10 @@ def fabricate_repeat_assignments(*, state):
                 )
             ],
         )
-    write_tick(state=state, tick=LastTick(at=PINNED + timedelta(hours=1, minutes=58)))
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(at=PINNED + timedelta(hours=1, minutes=58)),
+    )
 
 
 def fabricate_a_silent_round(*, state):
@@ -370,7 +373,7 @@ def fabricate_a_silent_round(*, state):
     )
     write_tick(
         state=state,
-        tick=LastTick(
+        tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58), launched=f"GH13-{STAMP}"
         ),
     )

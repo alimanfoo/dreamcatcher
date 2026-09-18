@@ -14,7 +14,10 @@ anything does an uncapped tick dispatch the oldest available issue.
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from enum import StrEnum
 from functools import partial
+
+from pydantic import Field
 
 from dreamcatcher.agent_assignments import (
     AgentAssignment,
@@ -27,39 +30,34 @@ from dreamcatcher.agent_assignments import (
 )
 from dreamcatcher.agent_rounds import (
     AgentRound,
+    AgentRoundInput,
     AgentRoundOutputReader,
+    AgentRoundPlan,
     ErroredAgentRoundEnding,
+    RoundPurpose,
 )
 from dreamcatcher.config import Config, Harness
+from dreamcatcher.documents import Document
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
     Issue,
     IssueState,
+    PullRequest,
+    PullRequestState,
     Unknown,
+    UserPost,
     list_blockers,
     list_issues,
     list_linked_pull_requests,
     read_issue,
+    read_pull_request,
 )
 from dreamcatcher.harness_adapters import AgentRoundLaunch
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
-from dreamcatcher.state import (
-    IssueFact,
-    IssueFactValue,
-    IssueObservation,
-    LastTick,
-    StateDirectory,
-    WaitingAgentAssignment,
-)
-from dreamcatcher.wakeups import (
-    Finding,
-    Wakeup,
-    compose_dispatch_wakeup,
-    compose_wait,
-    judge_assignment,
-    list_waiting,
-    sort_wakeups,
-)
+from dreamcatcher.prompts import CARRY_ON_PROMPT, compose_inbox_prompt
+from dreamcatcher.relay import list_undelivered_user_posts
+from dreamcatcher.state import StateDirectory
+from dreamcatcher.words import describe_count
 
 # How long scheduling holds every launch once a round has failed, dispatches
 # and retries alike. There is no cause detection behind this and no schedule:
@@ -67,6 +65,70 @@ from dreamcatcher.wakeups import (
 # account and so hits every assignment at once, and a passing blip costs at most
 # this long of an idle daemon.
 COOLDOWN = timedelta(minutes=15)
+NO_ROUND_HAS_RUN = "no round has run yet"
+
+
+class IssueFactValue(StrEnum):
+    """A known true or false issue fact, or one that could not be observed."""
+
+    TRUE = "true"
+    FALSE = "false"
+    UNKNOWN = "unknown"
+
+
+class IssueFact(Document):
+    """One independently observed issue fact and its diagnostic evidence."""
+
+    value: IssueFactValue
+    evidence: str | None = None
+
+
+class IssueObservation(Document):
+    """The independent facts that one scheduler tick observed about an issue."""
+
+    issue: int
+    created_at: datetime | None = None
+    is_open: IssueFact
+    is_assigned_to_user: IssueFact
+    dispatch_labels: list[str] | None = None
+    claimed_here: IssueFact
+    claimed_elsewhere: IssueFact
+    blocked: IssueFact
+    routing_conflict: IssueFact
+
+
+class AgentAssignmentObservation(Document):
+    """What prevents one idle assignment from starting its required round."""
+
+    assignment: str
+    issue: int
+    reason: str
+    is_fault: bool = False
+
+
+class SchedulerRecord(Document):
+    """What the scheduler's most recent tick observed and decided."""
+
+    at: datetime
+    hold: str | None = None
+    launched: str | None = None
+    issue_observations: list[IssueObservation] = Field(default_factory=list)
+    assignment_observations: list[AgentAssignmentObservation] = Field(
+        default_factory=list
+    )
+
+
+@dataclass(frozen=True, kw_only=True)
+class RequiredAgentRound:
+    """The next round that an assignment requires, ready for the scheduler."""
+
+    assignment: AgentAssignment
+    plan: AgentRoundPlan
+    reason: str
+    prompt: str
+
+
+type AssignmentFinding = RequiredAgentRound | AgentAssignmentObservation
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -367,6 +429,165 @@ def _check_cooldown(*, assignments: list[AgentAssignment], at: datetime) -> str 
     )
 
 
+def prioritize_required_rounds(
+    *, found: list[RequiredAgentRound]
+) -> list[RequiredAgentRound]:
+    """Return required rounds with the most open work first."""
+    return sorted(found, key=_required_round_priority)
+
+
+def _required_round_priority(required: RequiredAgentRound, /) -> int:
+    """Return the existing scheduling priority of one required round."""
+    if not required.assignment.rounds:
+        return 0
+    if required.plan.is_recovery:
+        return 1
+    if required.plan.purpose is RoundPurpose.WRAP_UP:
+        return 2
+    return 3
+
+
+def list_assignment_observations(
+    *, found: list[AssignmentFinding]
+) -> list[AgentAssignmentObservation]:
+    """Return the operational observation for every unlaunched finding."""
+    return [
+        one
+        if isinstance(one, AgentAssignmentObservation)
+        else compose_assignment_observation(
+            assignment=one.assignment, reason=one.reason
+        )
+        for one in found
+    ]
+
+
+def derive_assignment_finding(
+    *, repository: str, account: str, assignment: AgentAssignment
+) -> AssignmentFinding | None:
+    """Return the round an assignment requires or why it cannot be derived."""
+    if not assignment.rounds:
+        return compose_initial_round_requirement(assignment=assignment)
+    if assignment.is_complete:
+        return None
+    return _derive_pull_request_requirement(
+        repository=repository,
+        account=account,
+        assignment=assignment,
+        recovery_reason=assignment.describe_unfinished_round(),
+    )
+
+
+def compose_initial_round_requirement(
+    *, assignment: AgentAssignment
+) -> RequiredAgentRound:
+    """Return the first round that a recorded assignment requires."""
+    return RequiredAgentRound(
+        assignment=assignment,
+        plan=AgentRoundPlan(purpose=RoundPurpose.IMPLEMENT, is_recovery=False),
+        reason=NO_ROUND_HAS_RUN,
+        prompt=assignment.record.prompt,
+    )
+
+
+def _derive_pull_request_requirement(
+    *,
+    repository: str,
+    account: str,
+    assignment: AgentAssignment,
+    recovery_reason: str | None,
+) -> AssignmentFinding | None:
+    """Return what the assignment's pull request requires next."""
+    pull_request = read_pull_request(
+        repository=repository, pull_request=assignment.record.pull_request
+    )
+    if isinstance(pull_request, Unknown):
+        return compose_assignment_observation(
+            assignment=assignment,
+            reason=f"cannot read its pull request: {pull_request.reason}",
+        )
+    is_open = pull_request.state is PullRequestState.OPEN
+    if recovery_reason is not None and is_open:
+        return RequiredAgentRound(
+            assignment=assignment,
+            plan=AgentRoundPlan(
+                purpose=_derive_round_purpose(pull_request=pull_request),
+                is_recovery=True,
+            ),
+            reason=recovery_reason,
+            prompt=CARRY_ON_PROMPT,
+        )
+    posted = list_undelivered_user_posts(
+        repository=repository,
+        pull_request=pull_request.number,
+        account=account,
+        delivery_cursor=assignment.user_post_delivery_cursor,
+    )
+    if isinstance(posted, Unknown):
+        return compose_assignment_observation(
+            assignment=assignment,
+            reason=f"cannot tell what the user posted: {posted.reason}",
+        )
+    if is_open and not posted:
+        return None
+    return _compose_resumed_round_requirement(
+        assignment=assignment,
+        pull_request=pull_request,
+        posted=posted,
+        recovery_reason=recovery_reason,
+    )
+
+
+def _compose_resumed_round_requirement(
+    *,
+    assignment: AgentAssignment,
+    pull_request: PullRequest,
+    posted: list[UserPost],
+    recovery_reason: str | None,
+) -> RequiredAgentRound:
+    """Return the round that a pull request and its user posts require."""
+    is_open = pull_request.state is PullRequestState.OPEN
+    return RequiredAgentRound(
+        assignment=assignment,
+        plan=AgentRoundPlan(
+            purpose=_derive_round_purpose(pull_request=pull_request),
+            is_recovery=recovery_reason is not None,
+            input=AgentRoundInput(state=pull_request.state, posts=posted),
+        ),
+        reason=(
+            recovery_reason
+            or (
+                f"{describe_count(number=len(posted), noun='new post')} to answer"
+                if is_open
+                else f"the pull request is {pull_request.state.lower()}"
+            )
+        ),
+        prompt=compose_inbox_prompt(
+            pull_request=pull_request.number,
+            inbox=assignment.round_paths(number=assignment.next_round_number).inbox,
+        ),
+    )
+
+
+def _derive_round_purpose(*, pull_request: PullRequest) -> RoundPurpose:
+    """Return the purpose that the pull request currently requires."""
+    if pull_request.state is not PullRequestState.OPEN:
+        return RoundPurpose.WRAP_UP
+    if pull_request.is_draft:
+        return RoundPurpose.IMPLEMENT
+    return RoundPurpose.ADDRESS_FEEDBACK
+
+
+def compose_assignment_observation(
+    *, assignment: AgentAssignment, reason: str
+) -> AgentAssignmentObservation:
+    """Return why an idle assignment has not started another round."""
+    return AgentAssignmentObservation(
+        assignment=assignment.identifier,
+        issue=assignment.record.issue,
+        reason=reason,
+    )
+
+
 @dataclass(kw_only=True)
 class Scheduler:
     """Choose and start the work for one Dreamcatcher instance."""
@@ -379,7 +600,7 @@ class Scheduler:
     clock: Callable[[], datetime]
     rounds: dict[str, AgentRound]
 
-    def tick(self, *, at: datetime) -> LastTick:
+    def tick(self, *, at: datetime) -> SchedulerRecord:
         """Look once and launch at most one round.
 
         A round that has ended is forgotten first, so the cap counts what is
@@ -390,7 +611,7 @@ class Scheduler:
         current queue while the daemon is carrying on open work or waiting for
         a launch slot. A failed listing holds the tick.
 
-        The cooldown holds every launch, a wakeup and a dispatch alike, but it
+        The cooldown holds every required round and dispatch alike, but it
         holds no read. So a tick under it still says what each assignment is
         waiting on, rather than going quiet for the whole fifteen minutes.
         """
@@ -422,12 +643,12 @@ class Scheduler:
                 if issue_failure is None
                 else f"{cap}; could not refresh issues: {issue_failure}"
             )
-            return LastTick(
+            return SchedulerRecord(
                 at=at,
                 hold=hold,
                 issue_observations=issue_observations,
-                waiting=[
-                    compose_wait(assignment=assignment, reason=cap)
+                assignment_observations=[
+                    compose_assignment_observation(assignment=assignment, reason=cap)
                     for assignment in assignments
                     if assignment.identifier not in self.rounds
                     and not assignment.is_complete
@@ -435,43 +656,45 @@ class Scheduler:
             )
         found = self._judge_assignments(assignments=assignments)
         if issue_failure is not None:
-            return LastTick(
+            return SchedulerRecord(
                 at=at,
                 hold=issue_failure,
                 issue_observations=issue_observations,
-                waiting=list_waiting(found=found),
+                assignment_observations=list_assignment_observations(found=found),
             )
         cooling = _check_cooldown(assignments=assignments, at=at)
         if cooling is not None:
-            return LastTick(
+            return SchedulerRecord(
                 at=at,
                 hold=cooling,
                 issue_observations=issue_observations,
-                waiting=list_waiting(found=found),
+                assignment_observations=list_assignment_observations(found=found),
             )
-        ready = sort_wakeups(found=[one for one in found if isinstance(one, Wakeup)])
+        ready = prioritize_required_rounds(
+            found=[one for one in found if isinstance(one, RequiredAgentRound)]
+        )
         if ready:
             return self._launch_assignment_round(
                 at=at,
-                wakeup=ready[0],
+                required=ready[0],
                 found=found,
                 issue_observations=issue_observations,
             )
         return self._dispatch_oldest_issue(
             at=at,
             observed=issue_observations,
-            waiting=list_waiting(found=found),
+            assignment_observations=list_assignment_observations(found=found),
         )
 
     def _judge_assignments(
         self, *, assignments: list[AgentAssignment]
-    ) -> list[Finding]:
+    ) -> list[AssignmentFinding]:
         """Return what each assignment needs next, and what each is waiting on."""
-        found: list[Finding] = []
+        found: list[AssignmentFinding] = []
         for assignment in assignments:
             if assignment.identifier in self.rounds:
                 continue
-            needed = judge_assignment(
+            needed = derive_assignment_finding(
                 repository=self.repository, account=self.account, assignment=assignment
             )
             if needed is not None:
@@ -482,37 +705,37 @@ class Scheduler:
         self,
         *,
         at: datetime,
-        wakeup: Wakeup,
-        found: list[Finding],
+        required: RequiredAgentRound,
+        found: list[AssignmentFinding],
         issue_observations: list[IssueObservation],
-    ) -> LastTick:
+    ) -> SchedulerRecord:
         """Launch the next round for the highest-priority assignment."""
         try:
-            self._launch_wakeup(wakeup=wakeup)
+            self._launch_required_round(required=required)
         except ReportableError as failure:
-            return LastTick(
+            return SchedulerRecord(
                 at=at,
                 hold=str(failure),
                 issue_observations=issue_observations,
-                waiting=list_waiting(found=found),
+                assignment_observations=list_assignment_observations(found=found),
             )
-        rest = [one for one in found if one is not wakeup]
-        return LastTick(
+        rest = [one for one in found if one is not required]
+        return SchedulerRecord(
             at=at,
-            launched=wakeup.assignment.identifier,
+            launched=required.assignment.identifier,
             issue_observations=issue_observations,
-            waiting=list_waiting(found=rest),
+            assignment_observations=list_assignment_observations(found=rest),
         )
 
-    def _launch_wakeup(self, *, wakeup: Wakeup) -> None:
+    def _launch_required_round(self, *, required: RequiredAgentRound) -> None:
         """Start the round and advance the delivery cursor once it is running."""
-        assignment = wakeup.assignment
+        assignment = required.assignment
         harness_adapter = HARNESS_ADAPTERS[assignment.record.harness]
         launch = AgentRoundLaunch(
             assignment_id=assignment.identifier,
             model=assignment.record.model,
             effort=assignment.record.effort,
-            prompt=wakeup.prompt,
+            prompt=required.prompt,
         )
         if assignment.rounds:
             harness_session_identifier = find_harness_session_identifier(
@@ -541,10 +764,10 @@ class Scheduler:
             ),
             invocation=invocation,
             paths=assignment.round_paths(number=assignment.next_round_number),
-            plan=wakeup.plan,
+            plan=required.plan,
             clock=self.clock,
         )
-        round_input = wakeup.plan.input
+        round_input = required.plan.input
         if round_input is not None and round_input.posts:
             advance_user_post_delivery_cursor(
                 assignment=assignment,
@@ -556,8 +779,8 @@ class Scheduler:
         *,
         at: datetime,
         observed: list[IssueObservation],
-        waiting: list[WaitingAgentAssignment],
-    ) -> LastTick:
+        assignment_observations: list[AgentAssignmentObservation],
+    ) -> SchedulerRecord:
         """Dispatch the oldest issue whose independent facts make it available."""
         eligible = [
             observation
@@ -566,7 +789,11 @@ class Scheduler:
             is IssueFactValue.TRUE
         ]
         if not eligible:
-            return LastTick(at=at, issue_observations=observed, waiting=waiting)
+            return SchedulerRecord(
+                at=at,
+                issue_observations=observed,
+                assignment_observations=assignment_observations,
+            )
         oldest = eligible[0]
         labels = oldest.dispatch_labels or []
         try:
@@ -574,17 +801,17 @@ class Scheduler:
                 issue=oldest.issue, label=labels[0], at=at
             )
         except ReportableError as failure:
-            return LastTick(
+            return SchedulerRecord(
                 at=at,
                 hold=str(failure),
                 issue_observations=observed,
-                waiting=waiting,
+                assignment_observations=assignment_observations,
             )
-        return LastTick(
+        return SchedulerRecord(
             at=at,
             launched=assignment_id,
             issue_observations=observed,
-            waiting=waiting,
+            assignment_observations=assignment_observations,
         )
 
     def _launch_assignment(self, *, issue: int, label: str, at: datetime) -> str:
@@ -599,5 +826,7 @@ class Scheduler:
             issue=issue,
             at=at,
         )
-        self._launch_wakeup(wakeup=compose_dispatch_wakeup(assignment=assignment))
+        self._launch_required_round(
+            required=compose_initial_round_requirement(assignment=assignment)
+        )
         return assignment.identifier

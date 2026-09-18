@@ -37,13 +37,14 @@ from dreamcatcher.git import (
     push_branch,
 )
 from dreamcatcher.prompts import CARRY_ON_PROMPT
-from dreamcatcher.scheduler import Scheduler, derive_issue_availability
-from dreamcatcher.state import (
+from dreamcatcher.scheduler import (
+    AgentAssignmentObservation,
     IssueFactValue,
-    LastTick,
-    StateDirectory,
-    WaitingAgentAssignment,
+    Scheduler,
+    SchedulerRecord,
+    derive_issue_availability,
 )
+from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158"
 PURPOSE = RoundPurpose.IMPLEMENT
@@ -88,18 +89,18 @@ def finish_rounds(*, scheduler) -> None:
         running.wait()
 
 
-def held(*, observed: LastTick) -> str:
+def held(*, observed: SchedulerRecord) -> str:
     """Return why the scheduler launched nothing in one tick."""
     assert observed.hold is not None
     return observed.hold
 
 
-def observed_issues(*, tick: LastTick) -> list[int]:
+def observed_issues(*, tick: SchedulerRecord) -> list[int]:
     """Return the issue numbers that one tick observed in dispatch order."""
     return [observation.issue for observation in tick.issue_observations]
 
 
-def availability_values(*, tick: LastTick) -> list[IssueFactValue]:
+def availability_values(*, tick: SchedulerRecord) -> list[IssueFactValue]:
     """Return each observed issue's derived availability in dispatch order."""
     return [
         derive_issue_availability(observation=observation).value
@@ -311,8 +312,8 @@ def test_a_tick_at_the_cap_says_the_cap_is_what_each_assignment_waits_on(
 
     # The first tick dispatched issue 8, and its round is what fills the cap,
     # so the assignment already on disk is the one the cap holds.
-    assert observed.waiting == [
-        WaitingAgentAssignment(
+    assert observed.assignment_observations == [
+        AgentAssignmentObservation(
             assignment=ASSIGNMENT_ID, issue=13, reason="at cap: 1 of 1 rounds running"
         )
     ]
@@ -336,7 +337,7 @@ def test_a_tick_at_the_cap_leaves_a_wound_up_assignment_waiting_on_nothing(
     observed = scheduler.tick(at=clock())
     observed = scheduler.tick(at=clock())
 
-    assert observed.waiting == []
+    assert observed.assignment_observations == []
 
 
 def test_a_tick_at_the_cap_refreshes_the_candidates(dispatching, offered, harnesses):
@@ -384,8 +385,8 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
         observation.is_open.value is IssueFactValue.UNKNOWN
         for observation in observed.issue_observations
     )
-    assert observed.waiting == [
-        WaitingAgentAssignment(
+    assert observed.assignment_observations == [
+        AgentAssignmentObservation(
             assignment=ASSIGNMENT_ID, issue=13, reason="at cap: 1 of 1 rounds running"
         )
     ]
@@ -503,7 +504,7 @@ def test_an_assignment_the_scheduler_is_running_a_round_for_is_not_waiting(
         AgentRoundRecord.model_validate_json(written.read_text(encoding="utf-8")).ending
         is None
     )
-    assert observed.waiting == []
+    assert observed.assignment_observations == []
 
 
 def test_an_assignment_with_an_open_pull_request_and_nothing_new_is_not_waiting(
@@ -516,7 +517,7 @@ def test_an_assignment_with_an_open_pull_request_and_nothing_new_is_not_waiting(
     observed = scheduler.tick(at=clock())
 
     assert observed.launched is None
-    assert observed.waiting == []
+    assert observed.assignment_observations == []
 
 
 def test_an_assignment_that_has_run_no_round_at_all_gets_its_first(dispatching):
@@ -919,8 +920,8 @@ def test_a_cooling_tick_still_says_what_each_assignment_is_waiting_on(
     observed = scheduler.tick(at=clock())
 
     assert "next attempt at 18:50 UTC" in held(observed=observed)
-    assert observed.waiting == [
-        WaitingAgentAssignment(
+    assert observed.assignment_observations == [
+        AgentAssignmentObservation(
             assignment=ASSIGNMENT_ID, issue=13, reason="the last round failed (exit 1)"
         )
     ]

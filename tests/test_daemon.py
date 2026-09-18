@@ -27,11 +27,8 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.config import CONFIG_NAME, Harness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.scheduler import Scheduler
-from dreamcatcher.state import (
-    LastTick,
-    StateDirectory,
-)
+from dreamcatcher.scheduler import Scheduler, SchedulerRecord
+from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158"
 
@@ -173,7 +170,7 @@ def test_a_tick_output_the_daemon_cannot_write_is_a_named_failure(
     with pytest.raises(ReportableError, match="Could not write daemon output"):
         daemon.run()
 
-    assert daemon.state.last_tick.exists()
+    assert daemon.state.scheduler_record.exists()
 
 
 def test_every_tick_records_when_it_ran(watched, harnesses, gh, capsys):
@@ -181,9 +178,9 @@ def test_every_tick_records_when_it_ran(watched, harnesses, gh, capsys):
 
     daemon.run()
 
-    recorded = daemon.state.last_tick.read_text(encoding="utf-8")
+    recorded = daemon.state.scheduler_record.read_text(encoding="utf-8")
     assert len(ticking.readings) == 2
-    assert LastTick.model_validate_json(recorded).at == ticking.readings[-1]
+    assert SchedulerRecord.model_validate_json(recorded).at == ticking.readings[-1]
     assert capsys.readouterr().out == (
         "2026-08-19T18:41:58Z  dreamcatcher is running\n"
         "2026-08-19T18:41:58Z  nothing launched\n"
@@ -204,7 +201,7 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
         clock=daemon.clock,
         rounds=daemon.rounds,
     )
-    observed = LastTick(at=PINNED, launched=ASSIGNMENT_ID)
+    observed = SchedulerRecord(at=PINNED, launched=ASSIGNMENT_ID)
 
     def launch(*, at):
         assert at == PINNED
@@ -341,10 +338,10 @@ def held(*, daemon) -> str:
     return hold
 
 
-def recorded(*, daemon) -> LastTick:
+def recorded(*, daemon) -> SchedulerRecord:
     """What the daemon's most recent tick wrote down."""
-    return LastTick.model_validate_json(
-        daemon.state.last_tick.read_text(encoding="utf-8")
+    return SchedulerRecord.model_validate_json(
+        daemon.state.scheduler_record.read_text(encoding="utf-8")
     )
 
 

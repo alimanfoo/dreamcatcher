@@ -28,8 +28,14 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.github import PullRequestState
 from dreamcatcher.prompts import CARRY_ON_PROMPT, MARKER
-from dreamcatcher.state import NO_ROUND_HAS_RUN, StateDirectory, WaitingAgentAssignment
-from dreamcatcher.wakeups import Wakeup, judge_assignment, sort_wakeups
+from dreamcatcher.scheduler import (
+    NO_ROUND_HAS_RUN,
+    AgentAssignmentObservation,
+    RequiredAgentRound,
+    derive_assignment_finding,
+    prioritize_required_rounds,
+)
+from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158"
 
@@ -82,9 +88,9 @@ def ran(
     )
 
 
-def found(*, state) -> Wakeup | WaitingAgentAssignment | None:
+def found(*, state) -> RequiredAgentRound | AgentAssignmentObservation | None:
     """What the one assignment in that state directory needs next."""
-    return judge_assignment(
+    return derive_assignment_finding(
         repository=REPOSITORY,
         account=POSTED_BY,
         assignment=read_agent_assignments(state=state)[0],
@@ -94,7 +100,7 @@ def found(*, state) -> Wakeup | WaitingAgentAssignment | None:
 def test_an_assignment_that_has_run_no_round_at_all_needs_its_first(state):
     first = found(state=state)
 
-    assert isinstance(first, Wakeup)
+    assert isinstance(first, RequiredAgentRound)
     assert first.plan.purpose is RoundPurpose.IMPLEMENT
     assert not first.plan.is_recovery
     assert first.reason == NO_ROUND_HAS_RUN
@@ -106,7 +112,7 @@ def test_an_assignment_whose_last_round_was_interrupted_is_a_recovery(state, gh)
 
     resume = found(state=state)
 
-    assert isinstance(resume, Wakeup)
+    assert isinstance(resume, RequiredAgentRound)
     assert resume.plan.purpose is RoundPurpose.ADDRESS_FEEDBACK
     assert resume.plan.is_recovery
     assert resume.reason == "the last round was interrupted"
@@ -120,7 +126,7 @@ def test_an_assignment_whose_last_round_failed_is_carried_on_with_its_status(sta
 
     resume = found(state=state)
 
-    assert isinstance(resume, Wakeup)
+    assert isinstance(resume, RequiredAgentRound)
     assert resume.plan.purpose is RoundPurpose.ADDRESS_FEEDBACK
     assert resume.plan.is_recovery
     assert resume.reason == "the last round failed (exit 2)"
@@ -143,7 +149,7 @@ def test_a_terminal_pull_request_makes_an_interrupted_round_a_recovery_wrap_up(
 
     resume = found(state=state)
 
-    assert isinstance(resume, Wakeup)
+    assert isinstance(resume, RequiredAgentRound)
     assert resume.plan.purpose is RoundPurpose.WRAP_UP
     assert resume.plan.is_recovery
     assert resume.plan.input is not None
@@ -178,7 +184,7 @@ def test_an_assignment_the_user_has_posted_on_answers_what_they_said(state, gh):
 
     resume = found(state=state)
 
-    assert isinstance(resume, Wakeup)
+    assert isinstance(resume, RequiredAgentRound)
     assert resume.plan.purpose is RoundPurpose.ADDRESS_FEEDBACK
     assert not resume.plan.is_recovery
     assert resume.reason == "1 new post to answer"
@@ -202,7 +208,7 @@ def test_a_draft_pull_request_keeps_implementation_as_its_purpose(
 
     resume = found(state=state)
 
-    assert isinstance(resume, Wakeup)
+    assert isinstance(resume, RequiredAgentRound)
     assert resume.plan.purpose is RoundPurpose.IMPLEMENT
     assert not resume.plan.is_recovery
 
@@ -218,7 +224,7 @@ def test_a_batch_of_posts_says_how_many_it_holds(state, gh):
 
     resume = found(state=state)
 
-    assert isinstance(resume, Wakeup)
+    assert isinstance(resume, RequiredAgentRound)
     assert resume.reason == "2 new posts to answer"
 
 
@@ -244,7 +250,7 @@ def test_the_prompt_of_a_posts_resume_sends_the_assignment_to_the_next_rounds_in
 
     resume = found(state=state)
 
-    assert isinstance(resume, Wakeup)
+    assert isinstance(resume, RequiredAgentRound)
     assert f"pull request #{PULL_REQUEST}" in resume.prompt
     paths = resume.assignment.round_paths(number=resume.assignment.next_round_number)
     assert str(paths.inbox) in resume.prompt
@@ -261,7 +267,7 @@ def test_a_pull_request_that_is_finished_calls_for_one_last_round(
 
     resume = found(state=state)
 
-    assert isinstance(resume, Wakeup)
+    assert isinstance(resume, RequiredAgentRound)
     assert resume.plan.purpose is RoundPurpose.WRAP_UP
     assert resume.reason == f"the pull request is {state_name.lower()}"
     assert resume.plan.input == AgentRoundInput(state=state_name, posts=[])
@@ -276,7 +282,7 @@ def test_a_last_round_carries_what_the_user_said_before_the_merge(state, gh):
 
     resume = found(state=state)
 
-    assert isinstance(resume, Wakeup)
+    assert isinstance(resume, RequiredAgentRound)
     assert resume.plan.purpose is RoundPurpose.WRAP_UP
     assert resume.plan.input is not None
     assert [post.body for post in resume.plan.input.posts] == [
@@ -312,10 +318,10 @@ def test_a_pull_request_read_that_failed_leaves_the_assignment_waiting(state, gh
 
     waiting = found(state=state)
 
-    assert isinstance(waiting, WaitingAgentAssignment)
+    assert isinstance(waiting, AgentAssignmentObservation)
     assert waiting.reason.startswith("cannot read its pull request")
     # A read that could not tell is asked again next tick, so nobody has to act.
-    assert not waiting.is_stuck
+    assert not waiting.is_fault
 
 
 def test_a_relay_read_that_failed_leaves_the_assignment_waiting(state, gh):
@@ -327,7 +333,7 @@ def test_a_relay_read_that_failed_leaves_the_assignment_waiting(state, gh):
 
     waiting = found(state=state)
 
-    assert isinstance(waiting, WaitingAgentAssignment)
+    assert isinstance(waiting, AgentAssignmentObservation)
     assert waiting.reason.startswith("cannot tell what the user posted")
 
 
@@ -338,15 +344,15 @@ def test_the_most_open_work_comes_first(state):
 
     def resume(
         *, assignment, purpose: RoundPurpose, is_recovery: bool = False
-    ) -> Wakeup:
-        return Wakeup(
+    ) -> RequiredAgentRound:
+        return RequiredAgentRound(
             assignment=assignment,
             plan=AgentRoundPlan(purpose=purpose, is_recovery=is_recovery),
             reason="",
             prompt="",
         )
 
-    ordered = sort_wakeups(
+    ordered = prioritize_required_rounds(
         found=[
             resume(
                 assignment=continued_assignment,
