@@ -359,7 +359,7 @@ def test_a_tick_whose_listing_failed_records_what_it_could_not_read(
     daemon.run()
 
     assert "could not connect" in held(daemon=daemon)
-    assert recorded(daemon=daemon).candidates == []
+    assert recorded(daemon=daemon).issue_observations == []
     output = capsys.readouterr().out
     assert output.startswith(
         "2026-08-19T18:41:58Z  dreamcatcher is running\n2026-08-19T18:41:58Z  held: "
@@ -453,7 +453,7 @@ def test_an_assignment_that_goes_bad_under_a_running_daemon_costs_one_tick(dispa
     daemon.tick(scheduler=scheduler, at=daemon.clock())
 
     assert "assignment.json is not valid" in held(daemon=daemon)
-    assert recorded(daemon=daemon).candidates == []
+    assert recorded(daemon=daemon).issue_observations == []
 
 
 def test_a_run_that_cannot_be_told_which_account_gh_is_signed_in_as_refuses(

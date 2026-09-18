@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime
+from enum import StrEnum
 from functools import cached_property
 from pathlib import Path
 
@@ -13,29 +14,33 @@ from dreamcatcher.documents import Document, write_text
 STATE_DIRECTORY = ".dreamcatcher"
 
 
-class CandidateIssue(Document):
-    """A labelled issue that is a candidate for dispatch.
+class IssueFactValue(StrEnum):
+    """A known true or false issue fact, or one that could not be observed."""
 
-    A candidate is an issue under a single label, where the label decides which
-    harness runs it and which prompt it starts with.
+    TRUE = "true"
+    FALSE = "false"
+    UNKNOWN = "unknown"
 
-    An issue that carries two dispatch labels becomes a candidate under each of
-    them, and so cannot be dispatched. The user has to resolve this ambiguity
-    first by removing one of the labels.
 
-    If a candidate could not be dispatched, the `reason` attribute describes
-    why. `reason` is `None` when the tick found nothing preventing dispatch,
-    and that is what `is_eligible` reports.
-    """
+class IssueFact(Document):
+    """One independently observed issue fact and its diagnostic evidence."""
+
+    value: IssueFactValue
+    evidence: str | None = None
+
+
+class IssueObservation(Document):
+    """The independent facts that one scheduler tick observed about an issue."""
 
     issue: int
-    label: str
-    reason: str | None = None
-
-    @property
-    def is_eligible(self) -> bool:
-        """Whether nothing stands in the way of dispatching this issue."""
-        return self.reason is None
+    created_at: datetime | None = None
+    is_open: IssueFact
+    is_assigned_to_user: IssueFact
+    dispatch_labels: list[str] | None = None
+    claimed_here: IssueFact
+    claimed_elsewhere: IssueFact
+    blocked: IssueFact
+    routing_conflict: IssueFact
 
 
 class WaitingAgentAssignment(Document):
@@ -74,20 +79,17 @@ class LastTick(Document):
 
     A tick launches at most one round, and its assignment identifier is what the
     tick launched. A tick that launched nothing at all says in one line what
-    held it. A tick that was held at the cap still tried to weigh the candidate
-    issues, and the cap is what it writes down against every assignment it is
-    holding.
+    held it. A tick that was held at the cap still observed the relevant issues,
+    and the cap is what it writes down against every assignment it is holding.
 
-    The candidates are every labelled issue that the tick weighed, in the order
-    they would be dispatched. A candidate with nothing in its way that the tick
-    did not dispatch is waiting for a later tick, and its place in the list is
-    its turn.
+    The issue observations preserve each independent fact for later reporting.
+    Their order is the order in which available issues would be dispatched.
     """
 
     at: datetime
     hold: str | None = None
     launched: str | None = None
-    candidates: list[CandidateIssue] = Field(default_factory=list)
+    issue_observations: list[IssueObservation] = Field(default_factory=list)
     waiting: list[WaitingAgentAssignment] = Field(default_factory=list)
 
 

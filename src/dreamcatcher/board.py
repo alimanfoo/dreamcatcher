@@ -34,8 +34,10 @@ from dreamcatcher.clock import now
 from dreamcatcher.documents import read_json
 from dreamcatcher.feed import Line, read_last_feed_line
 from dreamcatcher.lock import read_daemon_pid
+from dreamcatcher.scheduler import derive_issue_availability
 from dreamcatcher.state import (
     NO_ROUND_HAS_RUN,
+    IssueFactValue,
     LastTick,
     StateDirectory,
     WaitingAgentAssignment,
@@ -315,25 +317,31 @@ class _Look:
     def _list_queued_issues(self, *, claimed: set[int]) -> list[QueuedIssue]:
         """Return the labelled issues the last tick weighed, in the order they go.
 
-        An issue an assignment here already claims is not queued: it is that
-        assignment. The tick that dispatched it weighed it before it had one, so
-        its own record still calls it eligible, and by the time anyone reads
-        the board it has a row of its own to read instead.
+        An issue with an open assignment already has its own board row, so the
+        queue does not repeat it.
         """
         if self.tick is None:
             return []
         queued = []
         ahead = 0
-        for candidate in self.tick.candidates:
-            if candidate.issue in claimed:
+        for observation in self.tick.issue_observations:
+            if observation.issue in claimed:
                 continue
-            reason = candidate.reason
-            if reason is None:
+            availability = derive_issue_availability(observation=observation)
+            if availability.value is IssueFactValue.TRUE:
                 reason = _describe_place_in_queue(ahead=ahead)
                 ahead += 1
-            queued.append(
-                QueuedIssue(issue=candidate.issue, label=candidate.label, reason=reason)
-            )
+            else:
+                reason = availability.evidence or "availability is unknown"
+            labels = observation.dispatch_labels or []
+            if labels:
+                queued.append(
+                    QueuedIssue(
+                        issue=observation.issue,
+                        label=labels[0],
+                        reason=reason,
+                    )
+                )
         return queued
 
     def _point_at_feed(self, *, assignment: AgentAssignment, reason: str) -> str:

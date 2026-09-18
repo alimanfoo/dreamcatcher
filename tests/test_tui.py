@@ -16,6 +16,7 @@ import psutil
 import pytest
 from clocks import PINNED
 from conftest import FIXTURES, LABEL
+from observations import observed_issue
 from records import write_agent_assignment, write_feed, write_round, write_tick
 from rich.console import Console
 from rich.control import Control
@@ -32,7 +33,7 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Line
 from dreamcatcher.state import (
     NO_ROUND_HAS_RUN,
-    CandidateIssue,
+    IssueFactValue,
     LastTick,
     StateDirectory,
     WaitingAgentAssignment,
@@ -246,11 +247,20 @@ def fabricate_everything(*, state):
         tick=LastTick(
             at=PINNED + timedelta(hours=1, minutes=58),
             launched=f"GH13-{STAMP}",
-            candidates=[
-                CandidateIssue(issue=50, label=LABEL),
-                CandidateIssue(issue=51, label=LABEL),
-                CandidateIssue(issue=52, label=LABEL, reason="blocked by GH50"),
-                CandidateIssue(issue=53, label=LABEL, reason=DOUBLE_LABELLED),
+            issue_observations=[
+                observed_issue(issue=50),
+                observed_issue(issue=51),
+                observed_issue(
+                    issue=52,
+                    values={"blocked": IssueFactValue.TRUE},
+                    evidence={"blocked": "blocked by GH50"},
+                ),
+                observed_issue(
+                    issue=53,
+                    dispatch_labels=(LABEL, "dream:less"),
+                    values={"routing_conflict": IssueFactValue.TRUE},
+                    evidence={"routing_conflict": DOUBLE_LABELLED},
+                ),
             ],
             waiting=[
                 WaitingAgentAssignment(

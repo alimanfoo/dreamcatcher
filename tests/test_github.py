@@ -7,15 +7,17 @@ from conftest import POST_LIST_PATHS, POSTED_BY, PULL_REQUEST, pages
 
 from dreamcatcher.github import (
     Blocker,
-    BlockerState,
     Comment,
     InlineComment,
     Issue,
+    IssueLabel,
+    IssueState,
     LinkedPullRequest,
     PullRequest,
     PullRequestState,
     Review,
     Unknown,
+    UserAccount,
     UserPost,
     Verdict,
     create_pull_request,
@@ -26,6 +28,7 @@ from dreamcatcher.github import (
     list_linked_pull_requests,
     list_posts,
     list_pull_requests,
+    read_issue,
     read_pull_request,
 )
 
@@ -68,12 +71,25 @@ def test_the_signed_in_account_is_the_one_gh_names(fake):
 
 def test_a_listing_carries_each_issue_and_when_it_was_filed(fake):
     gh = fake(program="gh")
-    gh.replies(stdout=json.dumps([{"number": 8, "createdAt": "2026-08-19T18:41:58Z"}]))
+    issue = {
+        "number": 8,
+        "createdAt": "2026-08-19T18:41:58Z",
+        "state": "OPEN",
+        "assignees": [{"login": "alimanfoo"}],
+        "labels": [{"name": "dream:smith"}],
+    }
+    gh.replies(stdout=json.dumps([issue]))
 
     found = list_issues(repository=REPOSITORY, label="dream:smith", assignee="@me")
 
     assert found == [
-        Issue(number=8, created_at=datetime(2026, 8, 19, 18, 41, 58, tzinfo=UTC))
+        Issue(
+            number=8,
+            created_at=datetime(2026, 8, 19, 18, 41, 58, tzinfo=UTC),
+            state=IssueState.OPEN,
+            assignees=[UserAccount(login="alimanfoo")],
+            labels=[IssueLabel(name="dream:smith")],
+        )
     ]
     assert gh.calls[0].arguments == [
         "issue",
@@ -89,7 +105,38 @@ def test_a_listing_carries_each_issue_and_when_it_was_filed(fake):
         "--limit",
         "500",
         "--json",
-        "number,createdAt",
+        "number,createdAt,state,assignees,labels",
+    ]
+
+
+def test_one_issue_carries_its_state_assignees_and_labels(fake):
+    gh = fake(program="gh")
+    issue = {
+        "number": 8,
+        "createdAt": "2026-08-19T18:41:58Z",
+        "state": "CLOSED",
+        "assignees": [],
+        "labels": [{"name": "maintenance"}],
+    }
+    gh.replies(stdout=json.dumps(issue))
+
+    found = read_issue(repository=REPOSITORY, issue=8)
+
+    assert found == Issue(
+        number=8,
+        created_at=datetime(2026, 8, 19, 18, 41, 58, tzinfo=UTC),
+        state=IssueState.CLOSED,
+        assignees=[],
+        labels=[IssueLabel(name="maintenance")],
+    )
+    assert gh.calls[0].arguments == [
+        "issue",
+        "view",
+        "8",
+        "--repo",
+        REPOSITORY,
+        "--json",
+        "number,createdAt,state,assignees,labels",
     ]
 
 
@@ -264,8 +311,8 @@ def test_the_blockers_of_an_issue_come_back_with_their_states(fake):
     )
 
     assert list_blockers(repository=REPOSITORY, issue=9) == [
-        Blocker(number=7, state=BlockerState.CLOSED),
-        Blocker(number=8, state=BlockerState.OPEN),
+        Blocker(number=7, state=IssueState.CLOSED),
+        Blocker(number=8, state=IssueState.OPEN),
     ]
     assert gh.calls[0].arguments == [
         "api",
@@ -404,6 +451,7 @@ def test_a_recorded_inline_comment_carries_the_diff_it_was_written_against(
             ),
             id="a listing",
         ),
+        pytest.param(lambda: read_issue(repository=REPOSITORY, issue=9), id="an issue"),
         pytest.param(
             lambda: list_pull_requests(repository=REPOSITORY, branch=BRANCH),
             id="the pull requests",

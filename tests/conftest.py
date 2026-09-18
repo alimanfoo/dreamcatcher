@@ -93,7 +93,16 @@ def streamed(**fields: object) -> str:
 def listing(*, issues: Sequence[tuple[int, str]]) -> str:
     """Return what gh answers an issue listing with."""
     return json.dumps(
-        [{"number": number, "createdAt": created} for number, created in issues]
+        [
+            {
+                "number": number,
+                "createdAt": created,
+                "state": "OPEN",
+                "assignees": [{"login": POSTED_BY}],
+                "labels": [{"name": LABEL}],
+            }
+            for number, created in issues
+        ]
     )
 
 

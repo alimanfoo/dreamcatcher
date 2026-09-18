@@ -16,6 +16,7 @@ from pydantic import (
     Field,
     TypeAdapter,
     ValidationError,
+    field_validator,
     model_validator,
 )
 
@@ -65,11 +66,11 @@ class PullRequestState(StrEnum):
     MERGED = "MERGED"
 
 
-class BlockerState(StrEnum):
-    """Whether a blocking issue is still open. The REST API uses lower case."""
+class IssueState(StrEnum):
+    """Whether an issue is open or closed, across GitHub transports."""
 
-    OPEN = "open"
-    CLOSED = "closed"
+    OPEN = "OPEN"
+    CLOSED = "CLOSED"
 
 
 class Verdict(StrEnum):
@@ -94,17 +95,26 @@ class Repository(Projection):
     name_with_owner: str = Field(alias="nameWithOwner")
 
 
-class Account(Projection):
-    """The account gh is signed in as."""
+class UserAccount(Projection):
+    """A GitHub user account."""
 
     login: str
 
 
+class IssueLabel(Projection):
+    """A label carried by an issue."""
+
+    name: str
+
+
 class Issue(Projection):
-    """An open issue gh listed, and when it was filed."""
+    """The GitHub facts that scheduling observes about one issue."""
 
     number: int
     created_at: datetime = Field(alias="createdAt")
+    state: IssueState
+    assignees: list[UserAccount]
+    labels: list[IssueLabel]
 
 
 class PullRequest(Projection):
@@ -119,7 +129,13 @@ class Blocker(Projection):
     """An issue that blocks another, and whether it is still open."""
 
     number: int
-    state: BlockerState
+    state: IssueState
+
+    @field_validator("state", mode="before")
+    @classmethod
+    def _normalize_rest_state(cls, value: object, /) -> str:
+        """Normalize the REST API's lower-case spelling at its boundary."""
+        return str(value).upper()
 
 
 class LinkedPullRequest(Projection):
@@ -256,7 +272,8 @@ type UserPost = Comment | Review | InlineComment
 
 
 REPOSITORY = TypeAdapter(Repository)
-ACCOUNT = TypeAdapter(Account)
+ACCOUNT = TypeAdapter(UserAccount)
+ISSUE = TypeAdapter(Issue)
 ISSUES = TypeAdapter(list[Issue])
 PULL_REQUESTS = TypeAdapter(list[PullRequest])
 PULL_REQUEST = TypeAdapter(PullRequest)
@@ -319,7 +336,23 @@ def list_issues(*, repository: str, label: str, assignee: str) -> list[Issue] | 
             "--limit",
             LISTING_LIMIT,
             "--json",
-            "number,createdAt",
+            "number,createdAt,state,assignees,labels",
+        ],
+    )
+
+
+def read_issue(*, repository: str, issue: int) -> Issue | Unknown:
+    """Return the current GitHub facts for one issue."""
+    return _read(
+        shape=ISSUE,
+        arguments=[
+            "issue",
+            "view",
+            str(issue),
+            "--repo",
+            repository,
+            "--json",
+            "number,createdAt,state,assignees,labels",
         ],
     )
 
