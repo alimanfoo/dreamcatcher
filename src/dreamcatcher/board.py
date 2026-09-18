@@ -62,8 +62,9 @@ class AgentAssignmentStanding(StrEnum):
     move is to read the pull request.
 
     An assignment is working while a round of its own is running. It is waiting
-    when it has a round to run that no daemon has launched yet, and stuck when
-    no tick can move it on however long it waits, so that only a person can. It
+    when it has a round to run that no daemon has launched yet. The board uses
+    stuck as its temporary presentation of a fault after two consecutive
+    errored rounds. A later global cooldown can clear that fault. An assignment
     is done once it has run the round that winds it up.
     """
 
@@ -366,8 +367,8 @@ class _Look:
     def _point_at_feed(self, *, assignment: AgentAssignment, reason: str) -> str:
         """Return what the assignment waits on, and where to read what it did.
 
-        A stuck assignment moves no further until a person reads what happened, so
-        its row says where that reading is.
+        A fault stops ordinary recovery, so its row says where to read the
+        rounds that produced it.
         """
         if not assignment.rounds:
             return reason

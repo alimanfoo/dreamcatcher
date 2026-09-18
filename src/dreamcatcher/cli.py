@@ -21,8 +21,8 @@ ISSUE = re.compile(r"gh(\d+)\Z", re.IGNORECASE)
 # and the feed both give, since a reader reads one verb's help and no other.
 HELP_WHEN_A_VIEW_ENDS = (
     "It ends once the assignment has completed a wrap-up round successfully, "
-    "and on a stuck assignment, which only you can move on. Interrupt it to end "
-    "it sooner."
+    "and while an assignment is in fault, which the board calls stuck. "
+    "Interrupt it to end it sooner."
 )
 
 # The help that says what a view does to the terminal it runs in, which the two
