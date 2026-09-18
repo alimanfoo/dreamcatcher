@@ -16,7 +16,6 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import StrEnum
 from functools import partial
-from typing import cast
 
 from pydantic import Field
 
@@ -60,11 +59,6 @@ from dreamcatcher.relay import list_undelivered_user_posts
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.words import describe_count
 
-# How long scheduling holds every launch once a round has failed, dispatches
-# and retries alike. There is no cause detection behind this and no schedule:
-# the failure worth spending nothing on is a usage limit, which belongs to the
-# account and so hits every assignment at once, and a passing blip costs at most
-# this long of an idle daemon.
 COOLDOWN = timedelta(minutes=15)
 NO_ROUND_HAS_RUN = "no round has run yet"
 
@@ -104,7 +98,6 @@ class AgentAssignmentObservation(Document):
     assignment: str
     issue: int
     reason: str
-    is_fault: bool = False
 
 
 class GlobalCooldown(Document):
@@ -129,16 +122,6 @@ class SchedulerRecord(Document):
 
 
 @dataclass(frozen=True, kw_only=True)
-class _SchedulerRecordContext:
-    """The facts shared by every outcome of one scheduler tick."""
-
-    at: datetime
-    cooldown: GlobalCooldown | None
-    most_recent_cooldown_ended: datetime | None
-    issue_observations: list[IssueObservation]
-
-
-@dataclass(frozen=True, kw_only=True)
 class RequiredAgentRound:
     """The next round that an assignment requires, ready for the scheduler."""
 
@@ -156,33 +139,6 @@ class FaultedAgentAssignment:
     reason: str
 
 
-@dataclass(frozen=True, kw_only=True)
-class ObservedAgentAssignment:
-    """The mutable pull-request facts observed for one assignment."""
-
-    pull_request: PullRequest
-    user_posts: list[UserPost]
-
-
-@dataclass(frozen=True, kw_only=True)
-class ObservedRecoveryAgentAssignment:
-    """An open pull request whose interrupted work needs no post read."""
-
-    pull_request: PullRequest
-
-
-@dataclass(frozen=True, kw_only=True)
-class UnreadableAgentAssignment:
-    """The external fact that could not be observed for one assignment."""
-
-    reason: str
-
-
-type AgentAssignmentExternalObservation = (
-    ObservedAgentAssignment
-    | ObservedRecoveryAgentAssignment
-    | UnreadableAgentAssignment
-)
 type AssignmentFinding = (
     RequiredAgentRound | FaultedAgentAssignment | AgentAssignmentObservation
 )
@@ -515,25 +471,6 @@ def _describe_cooldown(*, cooldown: GlobalCooldown) -> str:
     return f"global cooldown — next attempt at {cooldown.ends:%H:%M} UTC"
 
 
-def _compose_scheduler_record(
-    *,
-    context: _SchedulerRecordContext,
-    assignment_observations: list[AgentAssignmentObservation],
-    hold: str | None = None,
-    launched: str | None = None,
-) -> SchedulerRecord:
-    """Compose one tick record while preserving the cooldown state."""
-    return SchedulerRecord(
-        at=context.at,
-        hold=hold,
-        launched=launched,
-        issue_observations=context.issue_observations,
-        assignment_observations=assignment_observations,
-        cooldown=context.cooldown,
-        most_recent_cooldown_ended=context.most_recent_cooldown_ended,
-    )
-
-
 def prioritize_required_rounds(
     *, found: list[RequiredAgentRound]
 ) -> list[RequiredAgentRound]:
@@ -562,19 +499,19 @@ def list_assignment_observations(
         else compose_assignment_observation(
             assignment=one.assignment,
             reason=one.reason,
-            is_fault=isinstance(one, FaultedAgentAssignment),
         )
         for one in found
     ]
 
 
-def derive_assignment_finding(
+def inspect_agent_assignment(
     *,
+    repository: str,
+    account: str,
     assignment: AgentAssignment,
     after: datetime | None,
-    observed: AgentAssignmentExternalObservation | None,
 ) -> AssignmentFinding | None:
-    """Purely derive the next round from local and observed external facts."""
+    """Return what one assignment needs after reading any external facts."""
     if not assignment.rounds:
         return compose_initial_round_requirement(assignment=assignment)
     if assignment.is_complete:
@@ -584,31 +521,47 @@ def derive_assignment_finding(
             assignment=assignment,
             reason="two consecutive rounds failed",
         )
-    external = cast("AgentAssignmentExternalObservation", observed)
-    return _derive_external_assignment_finding(assignment=assignment, observed=external)
+    return _inspect_assignment_pull_request(
+        repository=repository,
+        account=account,
+        assignment=assignment,
+    )
 
 
-def _derive_external_assignment_finding(
-    *, assignment: AgentAssignment, observed: AgentAssignmentExternalObservation
+def _inspect_assignment_pull_request(
+    *, repository: str, account: str, assignment: AgentAssignment
 ) -> AssignmentFinding | None:
-    """Derive required work from the external facts that were observed."""
-    if isinstance(observed, UnreadableAgentAssignment):
+    """Return what an assignment needs from its pull request and posts."""
+    pull_request = read_pull_request(
+        repository=repository, pull_request=assignment.record.pull_request
+    )
+    if isinstance(pull_request, Unknown):
         return compose_assignment_observation(
-            assignment=assignment, reason=observed.reason
+            assignment=assignment,
+            reason=f"cannot read its pull request: {pull_request.reason}",
         )
     recovery_reason = assignment.describe_unfinished_round()
-    if isinstance(observed, ObservedRecoveryAgentAssignment):
+    if recovery_reason is not None and pull_request.state is PullRequestState.OPEN:
         return RequiredAgentRound(
             assignment=assignment,
             plan=AgentRoundPlan(
-                purpose=_derive_round_purpose(pull_request=observed.pull_request),
+                purpose=_derive_round_purpose(pull_request=pull_request),
                 is_recovery=True,
             ),
-            reason=cast("str", recovery_reason),
+            reason=recovery_reason,
             prompt=CARRY_ON_PROMPT,
         )
-    pull_request = observed.pull_request
-    posted = observed.user_posts
+    posted = list_undelivered_user_posts(
+        repository=repository,
+        pull_request=pull_request.number,
+        account=account,
+        delivery_cursor=assignment.user_post_delivery_cursor,
+    )
+    if isinstance(posted, Unknown):
+        return compose_assignment_observation(
+            assignment=assignment,
+            reason=f"cannot tell what the user posted: {posted.reason}",
+        )
     if pull_request.state is PullRequestState.OPEN and not posted:
         return None
     return _compose_resumed_round_requirement(
@@ -628,47 +581,6 @@ def compose_initial_round_requirement(
         plan=AgentRoundPlan(purpose=RoundPurpose.IMPLEMENT, is_recovery=False),
         reason=NO_ROUND_HAS_RUN,
         prompt=assignment.record.prompt,
-    )
-
-
-def observe_agent_assignment(
-    *,
-    repository: str,
-    account: str,
-    assignment: AgentAssignment,
-    after: datetime | None,
-) -> AgentAssignmentExternalObservation | None:
-    """Read the external facts needed to interpret one assignment."""
-    if (
-        not assignment.rounds
-        or assignment.is_complete
-        or derive_assignment_fault(assignment=assignment, after=after)
-    ):
-        return None
-    pull_request = read_pull_request(
-        repository=repository, pull_request=assignment.record.pull_request
-    )
-    if isinstance(pull_request, Unknown):
-        return UnreadableAgentAssignment(
-            reason=f"cannot read its pull request: {pull_request.reason}",
-        )
-    recovery_reason = assignment.describe_unfinished_round()
-    is_open = pull_request.state is PullRequestState.OPEN
-    if recovery_reason is not None and is_open:
-        return ObservedRecoveryAgentAssignment(pull_request=pull_request)
-    posted = list_undelivered_user_posts(
-        repository=repository,
-        pull_request=pull_request.number,
-        account=account,
-        delivery_cursor=assignment.user_post_delivery_cursor,
-    )
-    if isinstance(posted, Unknown):
-        return UnreadableAgentAssignment(
-            reason=f"cannot tell what the user posted: {posted.reason}",
-        )
-    return ObservedAgentAssignment(
-        pull_request=pull_request,
-        user_posts=posted,
     )
 
 
@@ -713,14 +625,13 @@ def _derive_round_purpose(*, pull_request: PullRequest) -> RoundPurpose:
 
 
 def compose_assignment_observation(
-    *, assignment: AgentAssignment, reason: str, is_fault: bool = False
+    *, assignment: AgentAssignment, reason: str
 ) -> AgentAssignmentObservation:
     """Return why an idle assignment has not started another round."""
     return AgentAssignmentObservation(
         assignment=assignment.identifier,
         issue=assignment.record.issue,
         reason=reason,
-        is_fault=is_fault,
     )
 
 
@@ -779,17 +690,16 @@ class Scheduler:
         )
         cooldown = _start_cooldown_if_required(active=cooldown, found=found, at=at)
         assignment_observations = list_assignment_observations(found=found)
-        context = _SchedulerRecordContext(
+        record = SchedulerRecord(
             at=at,
             cooldown=cooldown,
             most_recent_cooldown_ended=most_recent_cooldown_ended,
             issue_observations=issue_observations,
+            assignment_observations=assignment_observations,
         )
         if cooldown is not None:
-            return _compose_scheduler_record(
-                context=context,
-                hold=_describe_cooldown(cooldown=cooldown),
-                assignment_observations=assignment_observations,
+            return record.model_copy(
+                update={"hold": _describe_cooldown(cooldown=cooldown)}
             )
         if len(self.rounds) >= self.config.max_agents:
             cap = (
@@ -800,42 +710,32 @@ class Scheduler:
                 if issue_failure is None
                 else f"{cap}; could not refresh issues: {issue_failure}"
             )
-            faults_by_assignment = {
-                one.assignment: one for one in assignment_observations if one.is_fault
-            }
-            return _compose_scheduler_record(
-                context=context,
-                hold=hold,
-                assignment_observations=[
-                    faults_by_assignment.get(
-                        assignment.identifier,
+            return record.model_copy(
+                update={
+                    "hold": hold,
+                    "assignment_observations": [
                         compose_assignment_observation(
                             assignment=assignment, reason=cap
-                        ),
-                    )
-                    for assignment in assignments
-                    if assignment.identifier not in self.rounds
-                    and not assignment.is_complete
-                ],
+                        )
+                        for assignment in assignments
+                        if assignment.identifier not in self.rounds
+                        and not assignment.is_complete
+                    ],
+                }
             )
         if issue_failure is not None:
-            return _compose_scheduler_record(
-                context=context,
-                hold=issue_failure,
-                assignment_observations=assignment_observations,
-            )
+            return record.model_copy(update={"hold": issue_failure})
         ready = prioritize_required_rounds(
             found=[one for one in found if isinstance(one, RequiredAgentRound)]
         )
         if ready:
             return self._launch_assignment_round(
-                context=context,
+                record=record,
                 required=ready[0],
                 found=found,
             )
         return self._dispatch_oldest_issue(
-            context=context,
-            assignment_observations=assignment_observations,
+            record=record,
         )
 
     def _judge_assignments(
@@ -846,16 +746,11 @@ class Scheduler:
         for assignment in assignments:
             if assignment.identifier in self.rounds:
                 continue
-            observed = observe_agent_assignment(
+            needed = inspect_agent_assignment(
                 repository=self.repository,
                 account=self.account,
                 assignment=assignment,
                 after=after,
-            )
-            needed = derive_assignment_finding(
-                assignment=assignment,
-                after=after,
-                observed=observed,
             )
             if needed is not None:
                 found.append(needed)
@@ -864,7 +759,7 @@ class Scheduler:
     def _launch_assignment_round(
         self,
         *,
-        context: _SchedulerRecordContext,
+        record: SchedulerRecord,
         required: RequiredAgentRound,
         found: list[AssignmentFinding],
     ) -> SchedulerRecord:
@@ -872,16 +767,20 @@ class Scheduler:
         try:
             self._launch_required_round(required=required)
         except ReportableError as failure:
-            return _compose_scheduler_record(
-                context=context,
-                hold=str(failure),
-                assignment_observations=list_assignment_observations(found=found),
+            return record.model_copy(
+                update={
+                    "hold": str(failure),
+                    "assignment_observations": list_assignment_observations(
+                        found=found
+                    ),
+                }
             )
         rest = [one for one in found if one is not required]
-        return _compose_scheduler_record(
-            context=context,
-            launched=required.assignment.identifier,
-            assignment_observations=list_assignment_observations(found=rest),
+        return record.model_copy(
+            update={
+                "launched": required.assignment.identifier,
+                "assignment_observations": list_assignment_observations(found=rest),
+            }
         )
 
     def _launch_required_round(self, *, required: RequiredAgentRound) -> None:
@@ -934,38 +833,26 @@ class Scheduler:
     def _dispatch_oldest_issue(
         self,
         *,
-        context: _SchedulerRecordContext,
-        assignment_observations: list[AgentAssignmentObservation],
+        record: SchedulerRecord,
     ) -> SchedulerRecord:
         """Dispatch the oldest issue whose independent facts make it available."""
         eligible = [
             observation
-            for observation in context.issue_observations
+            for observation in record.issue_observations
             if derive_issue_availability(observation=observation).value
             is IssueFactValue.TRUE
         ]
         if not eligible:
-            return _compose_scheduler_record(
-                context=context,
-                assignment_observations=assignment_observations,
-            )
+            return record
         oldest = eligible[0]
         labels = oldest.dispatch_labels or []
         try:
             assignment_id = self._launch_assignment(
-                issue=oldest.issue, label=labels[0], at=context.at
+                issue=oldest.issue, label=labels[0], at=record.at
             )
         except ReportableError as failure:
-            return _compose_scheduler_record(
-                context=context,
-                hold=str(failure),
-                assignment_observations=assignment_observations,
-            )
-        return _compose_scheduler_record(
-            context=context,
-            launched=assignment_id,
-            assignment_observations=assignment_observations,
-        )
+            return record.model_copy(update={"hold": str(failure)})
+        return record.model_copy(update={"launched": assignment_id})
 
     def _launch_assignment(self, *, issue: int, label: str, at: datetime) -> str:
         """Create an assignment and start its first round."""

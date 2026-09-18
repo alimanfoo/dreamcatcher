@@ -232,7 +232,11 @@ def fabricate_everything(*, state):
     )
     written(state=state, issue=31, records=[ended(minute=1)])
     written(state=state, issue=35, records=[ended(minute=1, status=2)])
-    written(state=state, issue=9, records=[ended(minute=1)])
+    written(
+        state=state,
+        issue=9,
+        records=[ended(minute=1, status=1), ended(minute=2, number=2, status=2)],
+    )
     written(
         state=state,
         issue=12,
@@ -274,14 +278,12 @@ def fabricate_everything(*, state):
                 AgentAssignmentObservation(
                     assignment=f"GH9-{STAMP}",
                     issue=9,
-                    reason="no pull request has been opened on it",
-                    is_fault=True,
+                    reason="two consecutive rounds failed",
                 ),
                 AgentAssignmentObservation(
                     assignment=f"GH44-{STAMP}",
                     issue=44,
                     reason=NO_ROUND_HAS_RUN,
-                    is_fault=True,
                 ),
             ],
         ),
@@ -381,8 +383,8 @@ def fabricate_a_silent_round(*, state):
 
 BOARDS = {
     "nothing": fabricate_nothing,
-    "dispatch-assignments-everything": fabricate_everything,
-    "dispatch-assignments-dead-daemon": fabricate_a_dead_daemon,
+    "dispatch-assignments-faults-from-rounds": fabricate_everything,
+    "dispatch-assignments-dead-daemon-faults-from-rounds": fabricate_a_dead_daemon,
     "at-cap": fabricate_the_cap,
     "silent-round": fabricate_a_silent_round,
     "repeat-assignments": fabricate_repeat_assignments,
@@ -403,8 +405,8 @@ ASSIGNMENTS = {
     "newest-assignment-working": (fabricate_everything, 13),
     "newest-assignment-silent-round": (fabricate_a_silent_round, 13),
     "newest-assignment-older-assignments": (fabricate_repeat_assignments, 13),
-    "newest-assignment-stuck": (fabricate_everything, 9),
-    "newest-assignment-never-started": (fabricate_everything, 44),
+    "newest-assignment-faulted": (fabricate_everything, 9),
+    "newest-assignment-waiting-to-start": (fabricate_everything, 44),
 }
 
 
@@ -908,9 +910,7 @@ def test_a_view_of_a_stuck_assignment_never_waits(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
-    # Only a person can move a stuck assignment on, so the view ends rather than
-    # wait for a round that is not coming.
-    assert followed(state=state, issue=44) == ""
+    assert "round 2: implement" in followed(state=state, issue=9)
 
 
 def test_a_following_view_reads_a_round_on_from_where_it_stopped(tmp_path, daemon):

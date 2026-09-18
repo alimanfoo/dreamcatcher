@@ -301,10 +301,6 @@ class _Look:
             return AgentAssignmentStanding.NEEDS_YOU, self._describe_idle(
                 assignment=assignment
             )
-        if observation.is_fault:
-            return AgentAssignmentStanding.STUCK, self._point_at_feed(
-                assignment=assignment, reason=observation.reason
-            )
         return AgentAssignmentStanding.WAITING, observation.reason
 
     def _describe_live_round(
@@ -370,8 +366,6 @@ class _Look:
         A fault stops ordinary recovery, so its row says where to read the
         rounds that produced it.
         """
-        if not assignment.rounds:
-            return reason
         feed = assignment.round_paths(number=assignment.rounds[-1].number).feed
         return f"{reason} ({self.state.describe_path(path=feed)})"
 

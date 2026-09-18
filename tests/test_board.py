@@ -270,26 +270,6 @@ def test_a_faulted_assignment_says_where_to_read_what_it_did(state):
     )
 
 
-def test_a_stuck_assignment_that_ran_no_round_has_no_feed_to_point_at(state):
-    write_tick(
-        state=state,
-        tick=SchedulerRecord(
-            at=PINNED,
-            assignment_observations=[
-                AgentAssignmentObservation(
-                    assignment=ASSIGNMENT_ID,
-                    issue=13,
-                    reason=NO_ROUND_HAS_RUN,
-                    is_fault=True,
-                )
-            ],
-        ),
-    )
-
-    assert only(state=state).standing is AgentAssignmentStanding.STUCK
-    assert only(state=state).detail == "no round has run yet"
-
-
 def test_an_assignment_no_tick_has_weighed_and_no_round_has_run_is_waiting(state):
     assert only(state=state).standing is AgentAssignmentStanding.WAITING
     assert only(state=state).detail == NO_ROUND_HAS_RUN

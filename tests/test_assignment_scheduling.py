@@ -33,8 +33,7 @@ from dreamcatcher.scheduler import (
     AgentAssignmentObservation,
     FaultedAgentAssignment,
     RequiredAgentRound,
-    derive_assignment_finding,
-    observe_agent_assignment,
+    inspect_agent_assignment,
     prioritize_required_rounds,
 )
 from dreamcatcher.state import StateDirectory
@@ -95,15 +94,11 @@ def found(
 ) -> RequiredAgentRound | FaultedAgentAssignment | AgentAssignmentObservation | None:
     """What the one assignment in that state directory needs next."""
     assignment = read_agent_assignments(state=state)[0]
-    return derive_assignment_finding(
+    return inspect_agent_assignment(
+        repository=REPOSITORY,
+        account=POSTED_BY,
         assignment=assignment,
         after=None,
-        observed=observe_agent_assignment(
-            repository=REPOSITORY,
-            account=POSTED_BY,
-            assignment=assignment,
-            after=None,
-        ),
     )
 
 
@@ -330,8 +325,6 @@ def test_a_pull_request_read_that_failed_leaves_the_assignment_waiting(state, gh
 
     assert isinstance(waiting, AgentAssignmentObservation)
     assert waiting.reason.startswith("cannot read its pull request")
-    # A read that could not tell is asked again next tick, so nobody has to act.
-    assert not waiting.is_fault
 
 
 def test_a_relay_read_that_failed_leaves_the_assignment_waiting(state, gh):

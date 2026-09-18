@@ -321,7 +321,7 @@ def test_a_completed_assignment_releases_its_issue(dispatching):
 
 
 def test_a_tick_at_the_cap_says_the_cap_is_what_each_assignment_waits_on(
-    dispatching, offered, harnesses
+    dispatching, harnesses
 ):
     harnesses["claude"].streams(
         lines=[Line(text="still working\n")], delay=STILL_RUNNING
@@ -342,9 +342,6 @@ def test_a_tick_at_the_cap_says_the_cap_is_what_each_assignment_waits_on(
             assignment=ASSIGNMENT_ID, issue=13, reason="at cap: 1 of 1 rounds running"
         )
     ]
-    reads = [call for call in offered.calls if call.arguments[:2] == ["pr", "view"]]
-    # The capped tick still observes the idle assignment before it applies the cap.
-    assert len(reads) == 3
 
 
 def test_a_tick_at_the_cap_leaves_a_wound_up_assignment_waiting_on_nothing(
@@ -461,7 +458,6 @@ def test_one_faulted_assignment_does_not_block_unrelated_work(dispatching):
             assignment=ASSIGNMENT_ID,
             issue=13,
             reason="two consecutive rounds failed",
-            is_fault=True,
         )
     ]
 
@@ -919,7 +915,6 @@ def test_two_faulted_assignments_start_a_global_cooldown(dispatching):
         ASSIGNMENT_ID,
         SECOND_ASSIGNMENT_ID,
     ]
-    assert all(one.is_fault for one in observed.assignment_observations)
 
 
 def test_an_active_global_cooldown_survives_a_scheduler_restart(dispatching):

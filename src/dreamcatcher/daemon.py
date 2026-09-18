@@ -18,7 +18,7 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import Unknown, identify_account, identify_repository
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.lock import hold
-from dreamcatcher.scheduler import Scheduler, SchedulerRecord
+from dreamcatcher.scheduler import Scheduler
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.words import describe_time
 
@@ -138,7 +138,9 @@ class Daemon:
         try:
             observed = scheduler.tick(at=at)
         except ReportableError as failure:
-            observed = SchedulerRecord(at=at, hold=str(failure))
+            reason = " ".join(str(failure).split())
+            _write_output(line=f"{describe_time(at=at)}  held: {reason}")
+            return
         write_json(document=observed, path=self.state.scheduler_record)
         if observed.launched is not None:
             outcome = f"launched round for {observed.launched}"
@@ -153,9 +155,7 @@ class Daemon:
 
         Every harness a route can settle a label on is looked up, not just
         the one the run named, because a label carrying one harness block runs
-        on that harness whatever the run named. Without this a missing CLI
-        would read as a round that fails every fifteen minutes, since the hold
-        after a failure cannot tell a misconfiguration from a blip.
+        on that harness whatever the run named.
         """
         for harness in sorted({self.harness, *self.config.routed_harnesses}):
             locate(program=HARNESS_ADAPTERS[harness].program)
