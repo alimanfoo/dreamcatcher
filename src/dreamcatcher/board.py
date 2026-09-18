@@ -258,12 +258,15 @@ class _Look:
         run it, and interrupted once that daemon has gone, because a round
         cannot outlive its daemon.
         """
-        after = (
+        most_recent_cooldown_ended = (
             None
             if self.scheduler_record is None
             else self.scheduler_record.most_recent_cooldown_ended
         )
-        if derive_assignment_fault(assignment=assignment, after=after):
+        if derive_assignment_fault(
+            assignment=assignment,
+            most_recent_cooldown_ended=most_recent_cooldown_ended,
+        ):
             return (
                 AgentAssignmentStanding.STUCK,
                 self._point_at_feed(

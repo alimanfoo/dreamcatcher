@@ -434,7 +434,7 @@ def _unknown_fact(*, evidence: str) -> IssueFact:
 
 
 def derive_assignment_fault(
-    *, assignment: AgentAssignment, after: datetime | None
+    *, assignment: AgentAssignment, most_recent_cooldown_ended: datetime | None
 ) -> bool:
     """Derive whether an assignment has two current consecutive errors."""
     if len(assignment.rounds) < 2:
@@ -442,7 +442,10 @@ def derive_assignment_fault(
     latest = [record.ending for record in assignment.rounds[-2:]]
     return all(
         isinstance(ending, ErroredAgentRoundEnding)
-        and (after is None or ending.at >= after)
+        and (
+            most_recent_cooldown_ended is None
+            or ending.at >= most_recent_cooldown_ended
+        )
         for ending in latest
     )
 
@@ -537,14 +540,17 @@ def inspect_agent_assignment(
     repository: str,
     account: str,
     assignment: AgentAssignment,
-    after: datetime | None,
+    most_recent_cooldown_ended: datetime | None,
 ) -> AssignmentFinding | None:
     """Return what one assignment needs after reading any external facts."""
     if not assignment.rounds:
         return compose_initial_round_requirement(assignment=assignment)
     if assignment.is_complete:
         return None
-    if derive_assignment_fault(assignment=assignment, after=after):
+    if derive_assignment_fault(
+        assignment=assignment,
+        most_recent_cooldown_ended=most_recent_cooldown_ended,
+    ):
         return FaultedAgentAssignment(
             assignment=assignment,
             reason="two consecutive rounds failed",
@@ -679,8 +685,8 @@ class Scheduler:
         """Look once and launch at most one round.
 
         A round that has ended is forgotten first, so the cap counts what is
-        running now. A failure reaches the daemon, which records and reports it
-        before the next tick tries again.
+        running now. A failure reaches the daemon, which reports it before the
+        next tick tries again.
 
         Every tick observes the relevant issues, so the board keeps showing the
         current queue while the daemon is carrying on open work or waiting for
@@ -717,7 +723,8 @@ class Scheduler:
         issue_failure = observed.failure
         issue_observations = observed.observations
         found = self._judge_assignments(
-            assignments=assignments, after=most_recent_cooldown_ended
+            assignments=assignments,
+            most_recent_cooldown_ended=most_recent_cooldown_ended,
         )
         cooldown = _start_cooldown_if_required(active=cooldown, found=found, at=at)
         assignment_observations = list_assignment_observations(found=found)
@@ -771,7 +778,10 @@ class Scheduler:
         )
 
     def _judge_assignments(
-        self, *, assignments: list[AgentAssignment], after: datetime | None
+        self,
+        *,
+        assignments: list[AgentAssignment],
+        most_recent_cooldown_ended: datetime | None,
     ) -> list[AssignmentFinding]:
         """Return what each assignment needs next, and what each is waiting on."""
         found: list[AssignmentFinding] = []
@@ -782,7 +792,7 @@ class Scheduler:
                 repository=self.repository,
                 account=self.account,
                 assignment=assignment,
-                after=after,
+                most_recent_cooldown_ended=most_recent_cooldown_ended,
             )
             if needed is not None:
                 found.append(needed)

@@ -98,7 +98,7 @@ def found(
         repository=REPOSITORY,
         account=POSTED_BY,
         assignment=assignment,
-        after=None,
+        most_recent_cooldown_ended=None,
     )
 
 
