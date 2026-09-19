@@ -53,7 +53,7 @@ from dreamcatcher.github import (
     read_issue,
     read_pull_request,
 )
-from dreamcatcher.harness_adapters import AgentRoundLaunch
+from dreamcatcher.harness_adapters import AgentRoundLaunchRequest
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.prompts import RECOVERY_PROMPT, compose_user_posts_prompt
 from dreamcatcher.relay import list_undelivered_user_posts
@@ -869,8 +869,8 @@ class Scheduler:
         """Start the round and advance the delivery cursor once it is running."""
         assignment = required.assignment
         harness_adapter = HARNESS_ADAPTERS[assignment.record.harness]
-        launch = AgentRoundLaunch(
-            assignment_id=assignment.identifier,
+        launch_request = AgentRoundLaunchRequest(
+            agent_assignment_identifier=assignment.identifier,
             model=assignment.record.model,
             effort=assignment.record.effort,
             prompt=required.prompt,
@@ -888,11 +888,11 @@ class Scheduler:
                 assignment=assignment, identifier=harness_session_identifier
             )
             invocation = harness_adapter.build_resumed_round(
-                launch=launch,
+                request=launch_request,
                 harness_session_identifier=harness_session_identifier,
             )
         else:
-            invocation = harness_adapter.build_first_round(launch=launch)
+            invocation = harness_adapter.build_first_round(request=launch_request)
         self.rounds[assignment.identifier] = AgentRound(
             output_reader=AgentRoundOutputReader(
                 harness_adapter=harness_adapter,

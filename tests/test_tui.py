@@ -30,7 +30,7 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.feed import Line
+from dreamcatcher.feed import FeedLine
 from dreamcatcher.scheduler import (
     NO_ROUND_HAS_RUN,
     AgentAssignmentObservation,
@@ -76,24 +76,26 @@ HARNESS_SESSION_IDENTIFIER = "abc-123"
 # are set in from the rest, and a line that is not a feed line at all is what a
 # harness printed on its stderr.
 SAID = (
-    Line(
+    FeedLine(
         at=PINNED + timedelta(minutes=1),
         text="[harness session] model opus[1m], id 7f3c9a",
     ),
-    Line(at=PINNED + timedelta(minutes=2), text="I will read the issue first."),
-    Line(
+    FeedLine(at=PINNED + timedelta(minutes=2), text="I will read the issue first."),
+    FeedLine(
         at=PINNED + timedelta(minutes=2),
         text="[Read] specs/2026-08-17-skeleton/plan.md",
     ),
-    Line(at=PINNED + timedelta(minutes=3), text="  [Bash] ls"),
-    Line(at=PINNED + timedelta(minutes=3), text="[failed] no such file or directory"),
-    Line(
+    FeedLine(at=PINNED + timedelta(minutes=3), text="  [Bash] ls"),
+    FeedLine(
+        at=PINNED + timedelta(minutes=3), text="[failed] no such file or directory"
+    ),
+    FeedLine(
         at=PINNED + timedelta(minutes=5),
         text=(
             "[usage] $0.1772, 455 output, 8 input, 123529 cache read, 8606 cache write"
         ),
     ),
-    Line(at=PINNED + timedelta(minutes=5), text="[result] success"),
+    FeedLine(at=PINNED + timedelta(minutes=5), text="[result] success"),
 )
 
 # What a tick writes down against an issue carrying two dispatch labels.
@@ -226,12 +228,12 @@ def fabricate_everything(*, state):
     write_feed(
         directory=directory,
         number=2,
-        lines=[Line(at=PINNED + timedelta(minutes=31), text="[Bash] pytest")],
+        lines=[FeedLine(at=PINNED + timedelta(minutes=31), text="[Bash] pytest")],
     )
     write_feed(
         directory=written(state=state, issue=20, records=[ended(minute=1)]),
         number=1,
-        lines=[Line(at=PINNED, text="[Bash] git push")],
+        lines=[FeedLine(at=PINNED, text="[Bash] git push")],
     )
     written(state=state, issue=31, records=[ended(minute=1)])
     written(state=state, issue=35, records=[ended(minute=1, status=2)])
@@ -314,7 +316,7 @@ def fabricate_the_cap(*, state):
     write_feed(
         directory=directory,
         number=1,
-        lines=[Line(at=PINNED + timedelta(minutes=31), text="[Bash] pytest")],
+        lines=[FeedLine(at=PINNED + timedelta(minutes=31), text="[Bash] pytest")],
     )
     written(state=state, issue=20, records=[ended(minute=1)])
     hold = "at cap: 1 of 1 rounds running"
@@ -362,7 +364,7 @@ def fabricate_repeat_assignments(*, state):
             directory=directory,
             number=len(rounds),
             lines=[
-                Line(
+                FeedLine(
                     at=PINNED + timedelta(minutes=len(rounds) + 1),
                     text="[Bash] git push",
                 )
@@ -400,7 +402,9 @@ def fabricate_a_silent_round(*, state):
         ],
     )
     write_feed(
-        directory=directory, number=1, lines=[Line(at=PINNED, text="[Bash] git push")]
+        directory=directory,
+        number=1,
+        lines=[FeedLine(at=PINNED, text="[Bash] git push")],
     )
     write_tick(
         state=state,
@@ -550,7 +554,7 @@ def test_status_a_reader_watches_keeps_up_with_what_the_daemon_writes(tmp_path, 
         write_feed(
             directory=directory,
             number=1,
-            lines=[Line(at=PINNED + timedelta(minutes=31), text="[Bash] pytest")],
+            lines=[FeedLine(at=PINNED + timedelta(minutes=31), text="[Bash] pytest")],
         )
 
     show_status(
@@ -635,7 +639,7 @@ def test_wrapped_latest_output_keeps_its_indent(tmp_path, daemon):
         directory=directory,
         number=1,
         lines=[
-            Line(
+            FeedLine(
                 at=PINNED,
                 text="The agent is explaining a long change that needs to wrap onto "
                 "another line.",
@@ -902,7 +906,9 @@ def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path, dae
         write_feed(
             directory=directory,
             number=2,
-            lines=[Line(at=PINNED + timedelta(minutes=61), text="[Bash] git commit")],
+            lines=[
+                FeedLine(at=PINNED + timedelta(minutes=61), text="[Bash] git commit")
+            ],
         )
 
     feed = followed(state=state, issue=20, wait=wait)
@@ -964,12 +970,12 @@ def test_a_following_view_reads_a_round_on_from_where_it_stopped(tmp_path, daemo
             directory=directory,
             number=1,
             lines=[
-                Line(
+                FeedLine(
                     at=SAID[0].at,
                     text="[harness session] model opus[1m], id 000000",
                 ),
                 *SAID[1:],
-                Line(at=PINNED + timedelta(minutes=7), text="[Bash] git push"),
+                FeedLine(at=PINNED + timedelta(minutes=7), text="[Bash] git push"),
             ],
         )
 
@@ -1058,7 +1064,7 @@ def test_a_round_view_uses_the_number_persisted_by_the_round(tmp_path, daemon):
     write_feed(
         directory=directory,
         number=4,
-        lines=[Line(at=PINNED + timedelta(minutes=41), text="[Bash] git status")],
+        lines=[FeedLine(at=PINNED + timedelta(minutes=41), text="[Bash] git status")],
     )
 
     shown = viewed_round(state=state, issue=12, number=4)

@@ -39,9 +39,9 @@ from dreamcatcher.clock import WaitForSeconds, read_current_time
 from dreamcatcher.documents import read_lines_from
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import (
-    GAP,
-    Line,
-    compose_round_boundary,
+    FEED_TIMESTAMP_GAP,
+    FeedLine,
+    compose_agent_round_boundary,
     describe_agent_round_start,
     read_feed_line,
 )
@@ -734,7 +734,7 @@ class _FeedView:
         """
         if self.positions:
             self.console.print()
-        heading = compose_round_boundary(
+        heading = compose_agent_round_boundary(
             number=record.number,
             purpose=record.purpose,
             is_recovery=record.is_recovery,
@@ -770,6 +770,6 @@ def _paint_written(*, written: str) -> Text:
     return _paint(line=line, said=said)
 
 
-def _paint(*, line: Line, said: Text) -> Text:
+def _paint(*, line: FeedLine, said: Text) -> Text:
     """Return the line with its stamp set back, so the words stand out."""
-    return Text.assemble((describe_time(at=line.at), "dim"), GAP, said)
+    return Text.assemble((describe_time(at=line.at), "dim"), FEED_TIMESTAMP_GAP, said)

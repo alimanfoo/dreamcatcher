@@ -17,7 +17,7 @@ from dreamcatcher.cli import main
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.documents import write_json, write_text
-from dreamcatcher.feed import Line
+from dreamcatcher.feed import FeedLine
 from dreamcatcher.scheduler import SchedulerRecord, derive_assignment_fault
 from dreamcatcher.state import StateDirectory
 
@@ -40,7 +40,7 @@ def watching(tmp_path):
         ),
     )
     write_feed(
-        directory=directory, number=1, lines=[Line(at=PINNED, text="[Bash] pytest")]
+        directory=directory, number=1, lines=[FeedLine(at=PINNED, text="[Bash] pytest")]
     )
     return state
 

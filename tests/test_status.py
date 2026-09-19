@@ -17,7 +17,7 @@ from dreamcatcher.agent_rounds import (
     compose_agent_round_ending,
 )
 from dreamcatcher.documents import write_text
-from dreamcatcher.feed import Line
+from dreamcatcher.feed import FeedLine
 from dreamcatcher.scheduler import (
     NO_ROUND_HAS_RUN,
     AgentAssignmentObservation,
@@ -86,7 +86,7 @@ def said(*, state: StateDirectory, number: int, texts: Sequence[str]) -> None:
     write_feed(
         directory=state.assignments / ASSIGNMENT_ID,
         number=number,
-        lines=[Line(at=at, text=text) for text in texts],
+        lines=[FeedLine(at=at, text=text) for text in texts],
     )
 
 

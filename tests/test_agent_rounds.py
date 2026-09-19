@@ -34,9 +34,9 @@ from dreamcatcher.agent_rounds import (
     compose_agent_round_ending,
     record_agent_round_interruption,
 )
-from dreamcatcher.claude import CLAUDE
+from dreamcatcher.claude import CLAUDE_ADAPTER
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.feed import Note, Renderer
+from dreamcatcher.feed import FeedNote, FeedRenderer
 from dreamcatcher.github import (
     ConversationComment,
     InlineReviewComment,
@@ -44,7 +44,7 @@ from dreamcatcher.github import (
     PullRequestState,
 )
 from dreamcatcher.harness_adapters import (
-    AgentRoundLaunch,
+    AgentRoundLaunchRequest,
     HarnessAdapter,
     HarnessInvocation,
     HarnessOutput,
@@ -95,7 +95,7 @@ def ignore_harness_session_identifier(*, identifier: str) -> None:
 
 def round_harness(
     *,
-    harness_adapter: HarnessAdapter = CLAUDE,
+    harness_adapter: HarnessAdapter = CLAUDE_ADAPTER,
     record=ignore_harness_session_identifier,
 ) -> AgentRoundOutputReader:
     """Return the harness boundary used by one round test."""
@@ -110,25 +110,29 @@ class Unrenderable(HarnessAdapter):
 
     program = "harness"
 
-    def build_first_round(self, *, launch: AgentRoundLaunch) -> HarnessInvocation:
+    def build_first_round(
+        self, *, request: AgentRoundLaunchRequest
+    ) -> HarnessInvocation:
         return HarnessInvocation(
-            program=self.program, arguments=[], prompt=launch.prompt
+            program=self.program, arguments=[], prompt=request.prompt
         )
 
     def build_resumed_round(
-        self, *, launch: AgentRoundLaunch, harness_session_identifier: str
+        self, *, request: AgentRoundLaunchRequest, harness_session_identifier: str
     ) -> HarnessInvocation:
         return HarnessInvocation(
-            program=self.program, arguments=[], prompt=launch.prompt
+            program=self.program, arguments=[], prompt=request.prompt
         )
 
     def build_hand_resume(self, *, harness_session_identifier: str) -> list[str]:
         return [self.program]
 
-    def _read(self, *, streamed: dict) -> HarnessOutput:
+    def _read(self, *, harness_event: dict) -> HarnessOutput:
         # A real harness can send a path or a command as something other than
         # text, and the renderer cannot write an event that holds one.
-        return HarnessOutput(events=[Note(label="read", detail=cast("str", streamed))])
+        return HarnessOutput(
+            events=[FeedNote(label="read", detail=cast("str", harness_event))]
+        )
 
 
 @pytest.fixture
@@ -268,9 +272,9 @@ def test_the_feed_a_round_writes_is_the_feed_its_stream_renders_as(
     running.wait()
 
     assert running.paths.feed.read_text(encoding="utf-8") == rendered(
-        adapter=CLAUDE,
+        adapter=CLAUDE_ADAPTER,
         lines=RECORDING.read_text(encoding="utf-8").splitlines(),
-        renderer=Renderer(worktree=worktree, clock=pinned),
+        renderer=FeedRenderer(worktree=worktree, clock=pinned),
     )
 
 

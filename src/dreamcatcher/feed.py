@@ -1,7 +1,7 @@
 """One feed for every harness: what a line can say, and how it reads.
 
 A feed holds a line for each thing that happened, stamped with the time it
-happened. `Line` is that line, both as `feed.txt` holds it and as a reader
+happened. `FeedLine` is that line, both as `feed.txt` holds it and as a reader
 of `feed.txt` reads it back.
 
 A harness adapter turns what its CLI streams into the events here, and the
@@ -20,18 +20,18 @@ from dreamcatcher.words import TIMESTAMP_FORMAT, describe_time
 
 # A note's detail can be as long as a whole file, so the line is clipped. The
 # figure is the port's, wide enough for a command or a path.
-WIDTH = 200
+FEED_LINE_WIDTH = 200
 
 # What a subagent's lines are set in from, so the main thread stays easy to
 # follow. It sits after the timestamp, which keeps the timestamps in a column.
-INDENT = "  "
+SUBAGENT_INDENT = "  "
 
 # What sits between a line's stamp and what the line says.
-GAP = "  "
+FEED_TIMESTAMP_GAP = "  "
 
 
 @dataclass(frozen=True, kw_only=True)
-class Line:
+class FeedLine:
     """One line of a feed: when it was written, and what it says.
 
     The text is everything the line holds after its stamp, so a subagent's
@@ -43,12 +43,12 @@ class Line:
 
     def render(self) -> str:
         """Return the line as a feed holds it, the line ending included."""
-        return f"{describe_time(at=self.at)}{GAP}{self.text}\n"
+        return f"{describe_time(at=self.at)}{FEED_TIMESTAMP_GAP}{self.text}\n"
 
 
-def compose_round_boundary(
+def compose_agent_round_boundary(
     *, number: int, purpose: str, is_recovery: bool, at: datetime
-) -> Line:
+) -> FeedLine:
     """Return the line that opens a round, saying what work it advances.
 
     A feed holds one round, so nothing writes this line as the round runs.
@@ -56,7 +56,7 @@ def compose_round_boundary(
     stamped with the time that round started.
     """
     description = describe_agent_round_start(purpose=purpose, is_recovery=is_recovery)
-    return Line(at=at, text=f"round {number}: {description}")
+    return FeedLine(at=at, text=f"round {number}: {description}")
 
 
 def describe_agent_round_start(*, purpose: str, is_recovery: bool) -> str:
@@ -64,23 +64,23 @@ def describe_agent_round_start(*, purpose: str, is_recovery: bool) -> str:
     return f"{purpose} (recovery)" if is_recovery else purpose
 
 
-def read_feed_line(*, written: str) -> Line | None:
+def read_feed_line(*, written: str) -> FeedLine | None:
     """Return what one written line says, or nothing when it is not a line.
 
     Every line a feed holds opens with its stamp, so anything else is the end
     of a write that never landed whole.
     """
-    stamp, gap, text = written.partition(GAP)
+    stamp, gap, text = written.partition(FEED_TIMESTAMP_GAP)
     if not gap:
         return None
     try:
         at = datetime.strptime(stamp, TIMESTAMP_FORMAT).replace(tzinfo=UTC)
     except ValueError:
         return None
-    return Line(at=at, text=text)
+    return FeedLine(at=at, text=text)
 
 
-def read_last_feed_line(*, path: Path) -> Line | None:
+def read_last_feed_line(*, path: Path) -> FeedLine | None:
     """Return the last line the feed at path holds, or nothing when it holds none."""
     written = read_last_line(path=path)
     if written is None:
@@ -89,7 +89,7 @@ def read_last_feed_line(*, path: Path) -> Line | None:
 
 
 @dataclass(frozen=True, kw_only=True)
-class Note:
+class FeedNote:
     """One line saying what happened: a tool call, a failure, a mark.
 
     A note with no detail says that something happened and nothing more.
@@ -101,22 +101,22 @@ class Note:
 
 
 @dataclass(frozen=True, kw_only=True)
-class Prose:
+class FeedProse:
     """Text the feed keeps whole: what the agent said, or a line as it came.
 
     A note is clipped because its detail is a summary of something structured.
-    Prose is not, because the words are the point.
+    FeedProse is not, because the words are the point.
     """
 
     text: str
     is_subagent: bool = False
 
 
-type Event = Note | Prose
+type FeedEvent = FeedNote | FeedProse
 
 
 @dataclass(frozen=True, kw_only=True)
-class Renderer:
+class FeedRenderer:
     """Turns the events of one round into the lines a reader reads.
 
     Every line opens with the time it was written. That is what makes silence
@@ -127,9 +127,9 @@ class Renderer:
     worktree: PurePath
     clock: Callable[[], datetime] = read_current_time
 
-    def render(self, *, event: Event) -> str:
+    def render(self, *, event: FeedEvent) -> str:
         """Return the feed lines the event becomes, or nothing when it has none."""
-        if isinstance(event, Note):
+        if isinstance(event, FeedNote):
             return self._stamp(
                 contents=[self._render_note(note=event)], is_subagent=event.is_subagent
             )
@@ -138,7 +138,7 @@ class Renderer:
             is_subagent=event.is_subagent,
         )
 
-    def _render_note(self, *, note: Note) -> str:
+    def _render_note(self, *, note: FeedNote) -> str:
         """Return the one line a note becomes."""
         detail = self._shorten(detail=note.detail)
         return f"[{note.label}] {detail}" if detail else f"[{note.label}]"
@@ -146,8 +146,8 @@ class Renderer:
     def _shorten(self, *, detail: str) -> str:
         """Return the detail as one clipped line, without the worktree's path."""
         one_line = " ".join(self._strip_worktree(detail=detail).split())
-        if len(one_line) > WIDTH:
-            return f"{one_line[:WIDTH]} ..."
+        if len(one_line) > FEED_LINE_WIDTH:
+            return f"{one_line[:FEED_LINE_WIDTH]} ..."
         return one_line
 
     def _strip_worktree(self, *, detail: str) -> str:
@@ -165,8 +165,8 @@ class Renderer:
 
     def _stamp(self, *, contents: list[str], is_subagent: bool) -> str:
         """Return the contents as timestamped lines, indented for a subagent."""
-        indent = INDENT if is_subagent else ""
+        indent = SUBAGENT_INDENT if is_subagent else ""
         at = self.clock()
         return "".join(
-            Line(at=at, text=f"{indent}{content}").render() for content in contents
+            FeedLine(at=at, text=f"{indent}{content}").render() for content in contents
         )

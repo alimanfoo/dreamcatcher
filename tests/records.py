@@ -11,7 +11,7 @@ from pathlib import Path
 from dreamcatcher import agent_assignments, agent_rounds
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.documents import write_json, write_text
-from dreamcatcher.feed import Line
+from dreamcatcher.feed import FeedLine
 from dreamcatcher.scheduler import SchedulerRecord
 from dreamcatcher.state import StateDirectory
 
@@ -54,7 +54,7 @@ def write_round(
     return record
 
 
-def write_feed(*, directory: Path, number: int, lines: Sequence[Line]) -> None:
+def write_feed(*, directory: Path, number: int, lines: Sequence[FeedLine]) -> None:
     """Write the feed of one round of the assignment at this directory."""
     write_text(
         text="".join(line.render() for line in lines),

@@ -37,7 +37,7 @@ from dreamcatcher.documents import (
     write_text,
 )
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.feed import Event, Prose, Renderer
+from dreamcatcher.feed import FeedEvent, FeedProse, FeedRenderer
 from dreamcatcher.github import PullRequestState, UserPost
 from dreamcatcher.harness_adapters import HarnessAdapter, HarnessInvocation
 
@@ -59,7 +59,7 @@ class AgentRoundOutputReader:
     harness_adapter: HarnessAdapter
     record_harness_session_identifier: RecordsHarnessSessionIdentifier
 
-    def read(self, *, line: str) -> list[Event]:
+    def read(self, *, line: str) -> list[FeedEvent]:
         """Record the session identifier and return one line's feed events."""
         output = self.harness_adapter.read_output(line=line)
         identifier = output.harness_session_identifier
@@ -317,7 +317,7 @@ class AgentRound:
         self.output_reader = output_reader
         self.paths = paths
         self.clock = clock
-        self.renderer = Renderer(worktree=paths.worktree, clock=clock)
+        self.renderer = FeedRenderer(worktree=paths.worktree, clock=clock)
         self.started = clock()
         self.is_interrupted = False
         self._ended = Flag()
@@ -440,7 +440,7 @@ class AgentRound:
     def _read_stderr(self) -> None:
         """Write what the harness says on stderr, among the lines around it."""
         for line in self.child.err:
-            self._append(line=line, events=[Prose(text=line)])
+            self._append(line=line, events=[FeedProse(text=line)])
 
     def _close(self) -> None:
         """Record how the round ended as soon as its child has gone.
@@ -472,7 +472,7 @@ class AgentRound:
             for pump in self._pumps:
                 pump.join()
 
-    def _append(self, *, line: str, events: list[Event]) -> None:
+    def _append(self, *, line: str, events: list[FeedEvent]) -> None:
         """Add what one line says to the feed, letting one stream write at a time.
 
         Rendering happens under the same lock as the write. A line is stamped
@@ -487,6 +487,6 @@ class AgentRound:
             try:
                 written = "".join(self.renderer.render(event=event) for event in events)
             except Exception:
-                written = self.renderer.render(event=Prose(text=line))
+                written = self.renderer.render(event=FeedProse(text=line))
             if written:
                 append_text(text=written, path=self.paths.feed)

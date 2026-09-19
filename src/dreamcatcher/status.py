@@ -13,7 +13,7 @@ from dreamcatcher.agent_assignments import (
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.config import read_dreamcatcher_config
 from dreamcatcher.documents import read_text
-from dreamcatcher.feed import Line, read_last_feed_line
+from dreamcatcher.feed import FeedLine, read_last_feed_line
 from dreamcatcher.lock import read_daemon_pid
 from dreamcatcher.scheduler import (
     NO_ROUND_HAS_RUN,
@@ -320,7 +320,7 @@ class _StatusReading:
             return "idle"
         return f"idle {describe_span(span=self.at - line.at)}"
 
-    def _read_last_output(self, *, assignment: AgentAssignment) -> Line | None:
+    def _read_last_output(self, *, assignment: AgentAssignment) -> FeedLine | None:
         """Read the last complete line from the assignment's latest feed."""
         return read_last_feed_line(
             path=assignment.round_paths(number=assignment.rounds[-1].number).feed

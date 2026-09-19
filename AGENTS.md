@@ -128,10 +128,10 @@ uv run pre-commit run --all-files
   code can never reach a file. `pyproject.toml` waives no rule for this, so any
   other module that imports rich is a mistake a reviewer has to catch.
 - Give a harness its prompt as a file to read, never as an argument. A round
-  writes `prompt.txt` and `commands.spawn` hands it over as the child's stdin,
-  so a prompt can run to any length and hold anything. On Windows cmd.exe acts
-  on a percent sign or a line ending in a command line rather than passing it to
-  the harness, and quoting carries neither.
+  writes `prompt.txt` and `commands.spawn_command` hands it over as the child's
+  stdin, so a prompt can run to any length and hold anything. On Windows cmd.exe
+  acts on a percent sign or a line ending in a command line rather than passing
+  it to the harness, and quoting carries neither.
 - Pass any other text the tool puts on a harness's own command line through
   `commands.refuse_unquotable` first, for that same reason.
   `config.QuotableText` does this for the model and the effort a dispatch holds,
