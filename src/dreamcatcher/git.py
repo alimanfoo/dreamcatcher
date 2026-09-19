@@ -1,4 +1,4 @@
-"""Run the git commands that make and unmake an assignment's worktree.
+"""Run the Git commands that create and remove assignment worktrees.
 
 Every one of these raises CommandError when git refuses, carrying git's own
 words, so no caller has to guess what went wrong. What to do about a creation
@@ -26,7 +26,7 @@ def add_worktree(*, root: Path, path: Path, branch: str) -> None:
 
 
 def is_assignment_worktree(*, path: Path) -> bool:
-    """Return whether the path is one of Dreamcatcher's linked worktrees."""
+    """Return whether the path is a linked worktree."""
     return (path / ".git").is_file()
 
 
@@ -88,7 +88,7 @@ def remove_worktree(*, root: Path, path: Path) -> None:
 def delete_branch(*, root: Path, branch: str) -> None:
     """Delete the branch, merged or not.
 
-    git keeps a branch a worktree has checked out, so remove that worktree
+    Git keeps a branch that a worktree has checked out, so remove that worktree
     first.
     """
     run_command(

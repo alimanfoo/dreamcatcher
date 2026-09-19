@@ -1,11 +1,10 @@
-"""The failures that dreamcatcher reports to the user."""
+"""Define failures that Dreamcatcher reports without a traceback."""
 
 
 class ReportableError(Exception):
-    """A failure that the user needs to read, so the command reports it.
+    """Mark a failure that the user can act on.
 
     Every failure the tool raises for the user to act on derives from this. The
-    command line then reports them all the same way, and none reaches the user
-    as a traceback. So a failure that is not a ReportableError is a bug in the
-    tool, and the user sees the traceback.
+    The command line catches these failures and prints their messages. Other
+    exceptions reach the user as tracebacks because they indicate bugs.
     """

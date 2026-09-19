@@ -1,4 +1,4 @@
-"""Keep one daemon per repo, with a pid file the daemon holds while it runs."""
+"""Enforce one running daemon per repository with a PID file."""
 
 import os
 from collections.abc import Iterator
@@ -13,7 +13,7 @@ from dreamcatcher.errors import ReportableError
 
 @contextmanager
 def hold_daemon_lock(*, path: Path) -> Iterator[None]:
-    """Hold the lock at path, and release it however the caller ends.
+    """Hold the daemon lock and release it when the caller exits.
 
     Raise ReportableError when a live daemon holds it.
 
@@ -34,7 +34,7 @@ def hold_daemon_lock(*, path: Path) -> Iterator[None]:
 
 
 def read_daemon_pid(*, path: Path) -> int | None:
-    """Return the pid of the daemon holding the lock, if one still is.
+    """Return the live daemon PID, or None when the lock is stale.
 
     A lock nobody can read as a live pid is stale. That covers a file that is
     not there, one holding something other than a pid, and one holding a number

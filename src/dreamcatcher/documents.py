@@ -21,7 +21,7 @@ BACKWARD_READ_SIZE = 4096
 
 
 class DreamcatcherDocument(BaseModel):
-    """A document that dreamcatcher reads or writes.
+    """Model a document that Dreamcatcher owns.
 
     Every document refuses a key that it does not expect. A typo is then a
     named error, not a setting that the tool quietly ignores.
@@ -49,7 +49,7 @@ def read_toml[DocumentT: DreamcatcherDocument](
 def read_json[DocumentT: DreamcatcherDocument](
     *, model: type[DocumentT], path: Path
 ) -> DocumentT:
-    """Return the document the JSON file holds, or raise ReportableError.
+    """Return the JSON document, or raise ReportableError.
 
     Every document the tool writes for itself is JSON, so this is how the tool
     reads its own records back. pydantic reads the JSON and checks the model in
@@ -66,9 +66,6 @@ def read_json[DocumentT: DreamcatcherDocument](
 
 def read_text(*, path: Path) -> str:
     """Return the text the file at path holds, read as UTF-8.
-
-    `read_toml` and `read_json` both read through this, and so does a file that
-    holds one value and needs no model of its own.
 
     The line endings come as the file holds them, which is how `_write` leaves
     them. Left to itself Python turns each of them into a newline, and then a
@@ -87,8 +84,7 @@ def read_text(*, path: Path) -> str:
 
 
 def read_lines_from(*, path: Path, position: int) -> tuple[list[str], int]:
-    """Return the lines the file at path holds whole past this position in it,
-    and where the last of them ends.
+    """Return complete lines after a byte position and the next byte position.
 
     A file that something appends to grows a line at a time, and the last line
     of it carries no ending until the append that writes it lands. A line with
@@ -101,7 +97,7 @@ def read_lines_from(*, path: Path, position: int) -> tuple[list[str], int]:
     has finished a line of yet, so each reads as nothing rather than as a
     failure.
 
-    The position is a count of bytes, for the reason `_open_bytes` gives.
+    The returned position counts bytes so that it remains valid across platforms.
 
     Raise ReportableError when the read fails, for the reason read_text does.
     """
@@ -116,7 +112,7 @@ def read_lines_from(*, path: Path, position: int) -> tuple[list[str], int]:
 
 
 def read_last_line(*, path: Path) -> str | None:
-    """Return the last line the file at path holds whole, without its ending.
+    """Return the last complete line without its line ending.
 
     A line with no ending is not one the file holds, for the reason
     `read_lines_from` gives, so the line before it is the last that the file
@@ -147,9 +143,8 @@ def write_text(*, text: str, path: Path) -> None:
 
     The write lands whole. The text goes to a file beside the target and then
     takes the target's place in one step, so a reader of the target reads the
-    document that was there or the one that replaced it, and never half of
-    one. A reader really does arrive mid-write: a round records how it ended
-    on a thread of its own, while a tick is reading every round's record.
+    document that was there or the one that replaced it, and never a partial
+    document.
 
     Raise ReportableError when the write fails. A full disk or a read-only
     directory is not a bug in the tool, and the user can act on either, so it
@@ -164,14 +159,11 @@ def write_text(*, text: str, path: Path) -> None:
 
 
 def append_text(*, text: str, path: Path) -> None:
-    """Add text to the end of the file at path, as UTF-8.
+    """Append UTF-8 text without translating line endings.
 
     Raise ReportableError when the write fails, for the reason write_text does.
 
-    A round's feed and its raw stream each grow by a line at a time while the
-    round runs, so the round adds to them rather than rewriting them. Whoever
-    reads one reads the lines that have landed, so an append needs no step of
-    its own to land whole.
+    Feeds and raw harness streams grow one complete line at a time.
     """
     _write(text=text, path=path, mode="a")
 
@@ -183,7 +175,7 @@ def write_json(*, document: DreamcatcherDocument, path: Path) -> None:
 
 @contextmanager
 def _open_bytes(*, path: Path) -> Iterator[IO[bytes]]:
-    """Open the file at path for reading bytes, and close it however it ends.
+    """Open the file for byte reads, or provide an empty stream if it is absent.
 
     Finding one part of a file takes more than one read of it, so whoever
     reads holds the file open across them.
@@ -192,9 +184,6 @@ def _open_bytes(*, path: Path) -> Iterator[IO[bytes]]:
     A text-mode read turns each line ending into a newline, and then a
     position that a reader kept and the position the file itself agrees with
     are different numbers.
-
-    A file that is not there opens as one holding nothing, so a reader of a
-    round that has said nothing yet reads no lines rather than a failure.
 
     Raise ReportableError when the read fails, for the reason read_text does.
     """
@@ -223,11 +212,7 @@ def _find_line_ending(*, opened: IO[bytes], before: int) -> int | None:
 
 
 def _decode(*, contents: bytes, path: Path) -> str:
-    """Return these bytes of the file at path as the UTF-8 text they hold.
-
-    Every file the tool reads is UTF-8, whether it reads the whole of one or a
-    part of one, so this is the one place that says what a file that is not
-    UTF-8 is.
+    """Decode file contents as UTF-8 or raise ReportableError.
 
     Raise ReportableError when the bytes are not UTF-8, for the reason
     read_text does.
@@ -239,10 +224,7 @@ def _decode(*, contents: bytes, path: Path) -> str:
 
 
 def _write(*, text: str, path: Path, mode: str) -> None:
-    """Write text to path as UTF-8, making the directory that holds it.
-
-    Making the directory here is what lets a caller write a file without
-    creating the directory first.
+    """Write UTF-8 text with fixed line endings, creating parent directories.
 
     The line endings are the caller's. Left to itself Python turns every line
     ending into the one the platform prefers, which would put a carriage return

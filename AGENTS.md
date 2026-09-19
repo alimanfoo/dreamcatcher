@@ -164,7 +164,8 @@ uv run pre-commit run --all-files
   docstring. Give a private object a docstring only when its name, signature,
   types and immediate context do not make its contract or intent clear. Follow
   PEP 257: begin with an imperative summary sentence, then put any further
-  contract information in paragraphs after a blank line. Document side effects,
+  contract information in paragraphs after a blank line. A property's summary
+  describes the value instead, as pydocstyle requires. Document side effects,
   invariants, ordering, selection rules, important failure conditions and
   constraints that a caller cannot safely infer from the signature. Do not
   narrate the implementation or repeat names, types, defaults and obvious return

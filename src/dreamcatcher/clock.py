@@ -1,4 +1,4 @@
-"""Read the time and wait on it, in one place, so everything here agrees."""
+"""Provide the shared clock and wait types."""
 
 from collections.abc import Callable
 from datetime import UTC, datetime
