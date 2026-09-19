@@ -92,6 +92,7 @@ class IssueObservation(Document):
 
     issue: int
     created_at: datetime | None = None
+    observed_at: UtcDateTime | None = None
     is_open: IssueFact
     is_assigned_to_user: IssueFact
     dispatch_labels: list[str] | None = None
@@ -100,13 +101,20 @@ class IssueObservation(Document):
     blocked: IssueFact
     routing_conflict: IssueFact
 
+    @property
+    def availability(self) -> IssueFact:
+        """Whether the observed facts make the issue available for assignment."""
+        return derive_issue_availability(observation=self)
+
 
 class AgentAssignmentObservation(Document):
-    """What prevents one idle assignment from starting its required round."""
+    """What the scheduler found when it inspected one idle assignment."""
 
     assignment: str
     issue: int
     reason: str
+    is_known: bool = True
+    is_round_required: bool = True
 
 
 class GlobalCooldown(Document):
@@ -530,7 +538,7 @@ def _required_round_priority(required: RequiredAgentRound, /) -> int:
 
 
 def list_assignment_observations(
-    *, found: list[AssignmentFinding]
+    *, found: list[AssignmentFinding], required_reason: str | None = None
 ) -> list[AgentAssignmentObservation]:
     """Return the operational observation for every unlaunched finding."""
     return [
@@ -538,7 +546,11 @@ def list_assignment_observations(
         if isinstance(one, AgentAssignmentObservation)
         else compose_assignment_observation(
             assignment=one.assignment,
-            reason=one.reason,
+            reason=(
+                required_reason
+                if required_reason is not None and isinstance(one, RequiredAgentRound)
+                else one.reason
+            ),
         )
         for one in found
     ]
@@ -582,6 +594,7 @@ def _inspect_assignment_pull_request(
         return compose_assignment_observation(
             assignment=assignment,
             reason=f"cannot read its pull request: {pull_request.reason}",
+            is_known=False,
         )
     recovery_reason = assignment.describe_unfinished_round()
     if recovery_reason is not None and pull_request.state is PullRequestState.OPEN:
@@ -604,6 +617,7 @@ def _inspect_assignment_pull_request(
         return compose_assignment_observation(
             assignment=assignment,
             reason=f"cannot tell what the user posted: {posted.reason}",
+            is_known=False,
         )
     if pull_request.state is PullRequestState.OPEN and not posted:
         return None
@@ -668,13 +682,19 @@ def _derive_round_purpose(*, pull_request: PullRequest) -> AgentRoundPurpose:
 
 
 def compose_assignment_observation(
-    *, assignment: AgentAssignment, reason: str
+    *,
+    assignment: AgentAssignment,
+    reason: str,
+    is_known: bool = True,
+    is_round_required: bool = True,
 ) -> AgentAssignmentObservation:
-    """Return why an idle assignment has not started another round."""
+    """Return what the scheduler found for one idle assignment."""
     return AgentAssignmentObservation(
         assignment=assignment.identifier,
         issue=assignment.record.issue,
         reason=reason,
+        is_known=is_known,
+        is_round_required=is_round_required,
     )
 
 
@@ -697,9 +717,9 @@ class Scheduler:
         running now. A failure reaches the daemon, which reports it before the
         next tick tries again.
 
-        Every tick observes the relevant issues, so the board keeps showing the
-        current queue while the daemon is carrying on open work or waiting for
-        a launch slot. A failed listing holds the tick.
+        Every tick observes the relevant issues, so status reporting stays
+        current while the daemon is carrying on open work or waiting for a
+        launch slot. A failed listing holds the tick.
 
         The cooldown holds every required round and dispatch alike, but it
         holds no read. So a tick under it still says what each assignment is
@@ -730,7 +750,10 @@ class Scheduler:
             ),
         )
         issue_failure = observed.failure
-        issue_observations = observed.observations
+        issue_observations = [
+            observation.model_copy(update={"observed_at": at})
+            for observation in observed.observations
+        ]
         found = self._judge_assignments(
             assignments=assignments,
             most_recent_cooldown_ended=most_recent_cooldown_ended,
@@ -761,14 +784,10 @@ class Scheduler:
             return record.model_copy(
                 update={
                     "hold": hold,
-                    "assignment_observations": [
-                        compose_assignment_observation(
-                            assignment=assignment, reason=cap
-                        )
-                        for assignment in assignments
-                        if assignment.identifier not in self.rounds
-                        and not assignment.is_complete
-                    ],
+                    "assignment_observations": list_assignment_observations(
+                        found=found,
+                        required_reason=cap,
+                    ),
                 }
             )
         if issue_failure is not None:
@@ -805,6 +824,14 @@ class Scheduler:
             )
             if needed is not None:
                 found.append(needed)
+            elif not assignment.is_complete:
+                found.append(
+                    compose_assignment_observation(
+                        assignment=assignment,
+                        reason="no round required",
+                        is_round_required=False,
+                    )
+                )
         return found
 
     def _launch_assignment_round(
@@ -890,8 +917,7 @@ class Scheduler:
         eligible = [
             observation
             for observation in record.issue_observations
-            if derive_issue_availability(observation=observation).value
-            is IssueFactValue.TRUE
+            if observation.availability.value is IssueFactValue.TRUE
         ]
         if not eligible:
             return record

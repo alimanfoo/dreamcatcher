@@ -336,6 +336,7 @@ def test_a_pull_request_read_that_failed_leaves_the_assignment_waiting(state, gh
 
     assert isinstance(waiting, AgentAssignmentObservation)
     assert waiting.reason.startswith("cannot read its pull request")
+    assert not waiting.is_known
 
 
 def test_a_relay_read_that_failed_leaves_the_assignment_waiting(state, gh):
@@ -349,6 +350,7 @@ def test_a_relay_read_that_failed_leaves_the_assignment_waiting(state, gh):
 
     assert isinstance(waiting, AgentAssignmentObservation)
     assert waiting.reason.startswith("cannot tell what the user posted")
+    assert not waiting.is_known
 
 
 def test_the_most_open_work_comes_first(state):

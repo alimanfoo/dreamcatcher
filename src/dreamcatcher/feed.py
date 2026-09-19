@@ -120,7 +120,7 @@ class Renderer:
     """Turns the events of one round into the lines a reader reads.
 
     Every line opens with the time it was written. That is what makes silence
-    legible: a reader, and later the board, can tell a round that is thinking
+    legible: a reader, and later the status report, can tell a round that is thinking
     from one that has hung.
     """
 

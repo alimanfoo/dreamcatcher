@@ -1,0 +1,12 @@
+alimanfoo/dreamcatcher
+
+instance
+  daemon                 not running  
+  latest scheduler tick  2m ago       
+  agent-round capacity   0 of 1 in use
+  global cooldown        none         
+
+agent assignments
+  GH13-20260819-184158  needs user feedback  idle 1h 58m
+  GH13-20260818-090000  complete             2 rounds   
+  GH13-20260817-090000  complete             2 rounds   

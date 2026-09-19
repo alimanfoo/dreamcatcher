@@ -141,63 +141,26 @@ Removing the label is how you say stop.
 One daemon watches one repo. A second `run` on the same repo refuses while the
 first is alive.
 
-The watch tower is a command per view: `board`, `assignment` and `feed`. Each
-one reads what the daemon left under `.dreamcatcher/` and asks GitHub nothing,
-so each answers whether the daemon is running or long dead. Run them from the
-same checkout.
+The CLI has three read-only views: `status`, `assignment` and `feed`. Each view
+reads the local `.dreamcatcher/` directory and never contacts GitHub.
 
-Every view keeps up with what the daemon writes while you watch it, so there is
-nothing to wrap it in.
-
-`board` and `assignment` take the whole terminal while they are going, and give
-it back when they end.
-
-`board` is never over, so it stays until you interrupt it.
-
-`assignment` and `feed` stay open for as long as the assignment has another
-round coming, so you can leave one running for a whole assignment and see every
-round of it arrive. They wait through every gap between one round and the next,
-including a gap where you have stopped the daemon and not started it again yet.
-
-Two states end them because neither currently has another round scheduled. One
-is the assignment completing a wrap-up round successfully. The other is an
-assignment in fault, which the current board presents as `stuck`. A later global
-cooldown can clear that fault and permit recovery. An interrupted creation or
-missing first round is not stuck: Dreamcatcher reconciles the creation and
-retries the round.
-
-Interrupt any view to end it sooner.
-
-A view whose output is not a terminal, because you piped it, redirected it or
-captured it, shows what is there once and returns. You need no flag either way.
+Every view refreshes automatically in a terminal. `status` runs until you
+interrupt it. `assignment` and `feed` run until the assignment completes or
+enters fault, and you can interrupt either one sooner. If you pipe, redirect or
+capture a view, it shows the current state once and returns.
 
 ```sh
-dreamcatcher board
+dreamcatcher status
 ```
 
-That shows the board. The board is a section per standing, and the sections run
-in the order of whose turn it is:
+`status` starts with the repository name, then shows the instance, its agent
+assignments and the available issues in dispatch order.
 
-- `needs you` is an assignment with a pull request open that the agent has
-  nothing left to do on, so it is ready for you to review.
-- `agent working` is a live round, with how long it has been running, the last
-  thing it said and how long ago.
-- `waiting` is an assignment the next tick will pick up, with what it is waiting
-  on.
-- `stuck` is the board's temporary presentation of an assignment in fault after
-  two consecutive errored rounds, with where to read what happened.
-- `queued` is the labelled issues not dispatched yet, each with the reason it
-  has not gone.
-- `done` is the assignments whose wrap-up round succeeded.
-
-Three assignments at one issue read as three assignments at one thing, so a
-label you forgot to remove shows as what it is rather than as three unrelated
-rows.
-
-`assignment` shows one issue's newest assignment: what its dispatch settled, the
-rounds it has run newest first with each purpose, recovery flag and outcome, the
-command that resumes its harness session by hand, and the older assignments at
-the same issue.
+`assignment` shows one issue's newest assignment: its issue identifier, agent
+assignment identifier, harness session identifier, what its dispatch settled,
+the rounds it has run newest first with each purpose, recovery flag and outcome,
+the command that resumes its harness session by hand, and the older assignments
+at the same issue.
 
 ```sh
 dreamcatcher assignment GH123

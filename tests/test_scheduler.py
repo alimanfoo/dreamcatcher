@@ -240,6 +240,7 @@ def test_a_tick_dispatches_the_oldest_issue_nothing_stands_in_the_way_of(
     assignment = scheduler.state.assignments / DISPATCHED_ASSIGNMENT_ID
     assert (scheduler.state.worktrees / DISPATCHED_ASSIGNMENT_ID / "README.md").exists()
     assert (assignment / "assignment.json").exists()
+    assert observed.issue_observations[0].observed_at == observed.at
     assert observed.launched == DISPATCHED_ASSIGNMENT_ID
     assert (
         harnesses["claude"].calls[0].directory
@@ -330,13 +331,18 @@ def test_a_tick_at_the_cap_says_the_cap_is_what_each_assignment_waits_on(
     harnesses["claude"].streams(
         lines=[Line(text="still working\n")], delay=STILL_RUNNING
     )
+    scheduler, clock = create_scheduler(root=dispatching)
+
+    scheduler.tick(at=clock())
     write_agent_assignment(
         state=StateDirectory(root=dispatching), identifier=ASSIGNMENT_ID, issue=13
     )
-    ran(root=dispatching, number=1, purpose=AgentRoundPurpose.IMPLEMENT)
-    scheduler, clock = create_scheduler(root=dispatching)
-
-    observed = scheduler.tick(at=clock())
+    ran(
+        root=dispatching,
+        number=1,
+        purpose=AgentRoundPurpose.IMPLEMENT,
+        status=1,
+    )
     observed = scheduler.tick(at=clock())
 
     # The first tick dispatched issue 8, and its round is what fills the cap,
@@ -414,7 +420,10 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
     )
     assert observed.assignment_observations == [
         AgentAssignmentObservation(
-            assignment=ASSIGNMENT_ID, issue=13, reason="at cap: 1 of 1 rounds running"
+            assignment=ASSIGNMENT_ID,
+            issue=13,
+            reason="no round required",
+            is_round_required=False,
         )
     ]
 
@@ -531,7 +540,14 @@ def test_an_assignment_with_an_open_pull_request_and_nothing_new_is_not_waiting(
     observed = scheduler.tick(at=clock())
 
     assert observed.launched is None
-    assert observed.assignment_observations == []
+    assert observed.assignment_observations == [
+        AgentAssignmentObservation(
+            assignment=ASSIGNMENT_ID,
+            issue=13,
+            reason="no round required",
+            is_round_required=False,
+        )
+    ]
 
 
 def test_an_assignment_that_has_run_no_round_at_all_gets_its_first(dispatching):

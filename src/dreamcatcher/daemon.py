@@ -13,7 +13,7 @@ from dreamcatcher.agent_rounds import record_agent_round_interruption
 from dreamcatcher.clock import Wait, now
 from dreamcatcher.commands import locate
 from dreamcatcher.config import Harness, read_config
-from dreamcatcher.documents import write_json
+from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import Unknown, identify_account, identify_repository
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
@@ -94,6 +94,7 @@ class Daemon:
             named=identify_repository(root=self.state.root),
             question="which repository this is",
         )
+        write_text(text=f"{repository}\n", path=self.state.repository)
         account = _refuse_unknown(
             named=identify_account(), question="which account gh is signed in as"
         )

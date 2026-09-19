@@ -1,4 +1,4 @@
-"""Render every board a state directory can hold, and read back the goldens.
+"""Render status, assignment, and feed views, and read back the goldens.
 
 The goldens are the review surface: read one as the person running the view
 would read it, and judge the view by it rather than by the code that wrote it.
@@ -15,7 +15,7 @@ from io import StringIO
 import psutil
 import pytest
 from clocks import PINNED
-from conftest import FIXTURES, LABEL
+from conftest import FIXTURES, LABEL, REPOSITORY, configure
 from observations import observed_issue
 from records import write_agent_assignment, write_feed, write_round, write_tick
 from rich.console import Console
@@ -44,8 +44,8 @@ from dreamcatcher.tui import (
     _paint,
     _paint_written,
     show_assignment,
-    show_board,
     show_feed,
+    show_status,
 )
 
 # When a view is rendered: two hours after the last thing on the disk happened.
@@ -194,17 +194,20 @@ def test_a_round_without_an_ending_describes_what_its_process_says(
 
 
 def holding(*, state):
-    """Write the lock, so the board reads a daemon as holding this repo."""
+    """Configure the instance and write the lock that its daemon holds."""
+    configure(root=state.root)
+    write_text(text=f"{REPOSITORY}\n", path=state.repository)
     write_text(text=f"{DAEMON_PID}\n", path=state.lock)
 
 
 def fabricate_nothing(*, state):
     """A state directory a daemon has bootstrapped and nothing else."""
+    configure(root=state.root)
     state.bootstrap()
 
 
 def fabricate_everything(*, state):
-    """A daemon running, with an assignment in every standing and a queue behind."""
+    """A running daemon with varied issue and agent-assignment statuses."""
     holding(state=state)
     directory = written(
         state=state,
@@ -271,6 +274,12 @@ def fabricate_everything(*, state):
                     assignment=f"GH31-{STAMP}", issue=31, reason="1 new post to answer"
                 ),
                 AgentAssignmentObservation(
+                    assignment=f"GH20-{STAMP}",
+                    issue=20,
+                    reason="no round required",
+                    is_round_required=False,
+                ),
+                AgentAssignmentObservation(
                     assignment=f"GH35-{STAMP}",
                     issue=35,
                     reason="the last round failed (exit 2)",
@@ -323,6 +332,8 @@ def fabricate_the_cap(*, state):
 
 def fabricate_repeat_assignments(*, state):
     """Three assignments at one issue, so a repeat dispatch reads as one thing."""
+    configure(root=state.root)
+    write_text(text=f"{REPOSITORY}\n", path=state.repository)
     for stamp, rounds in (
         (
             "20260817-090000",
@@ -357,7 +368,17 @@ def fabricate_repeat_assignments(*, state):
         )
     write_tick(
         state=state,
-        tick=SchedulerRecord(at=PINNED + timedelta(hours=1, minutes=58)),
+        tick=SchedulerRecord(
+            at=PINNED + timedelta(hours=1, minutes=58),
+            assignment_observations=[
+                AgentAssignmentObservation(
+                    assignment=f"GH13-{STAMP}",
+                    issue=13,
+                    reason="no round required",
+                    is_round_required=False,
+                )
+            ],
+        ),
     )
 
 
@@ -382,15 +403,16 @@ def fabricate_a_silent_round(*, state):
     write_tick(
         state=state,
         tick=SchedulerRecord(
-            at=PINNED + timedelta(hours=1, minutes=58), launched=f"GH13-{STAMP}"
+            at=PINNED + timedelta(hours=1, minutes=58),
+            launched=f"GH13-{STAMP}",
         ),
     )
 
 
-BOARDS = {
+STATUS_REPORTS = {
     "nothing": fabricate_nothing,
-    "dispatch-assignments-faults-from-rounds": fabricate_everything,
-    "dispatch-assignments-dead-daemon-faults-from-rounds": fabricate_a_dead_daemon,
+    "everything": fabricate_everything,
+    "dead-daemon": fabricate_a_dead_daemon,
     "at-cap": fabricate_the_cap,
     "silent-round": fabricate_a_silent_round,
     "repeat-assignments": fabricate_repeat_assignments,
@@ -400,19 +422,19 @@ BOARDS = {
 # The feed view each fabricated state directory is worth reading, by the issue
 # whose newest assignment it shows.
 FEEDS = {
-    "feed-assignment-working": (fabricate_everything, 13),
-    "feed-older-assignments": (fabricate_repeat_assignments, 13),
+    "working": (fabricate_everything, 13),
+    "older-assignments": (fabricate_repeat_assignments, 13),
 }
 
 
 # The assignment view each fabricated state directory is worth reading, by the
 # issue whose newest assignment it shows.
 ASSIGNMENTS = {
-    "newest-assignment-working": (fabricate_everything, 13),
-    "newest-assignment-silent-round": (fabricate_a_silent_round, 13),
-    "newest-assignment-older-assignments": (fabricate_repeat_assignments, 13),
-    "newest-assignment-faulted": (fabricate_everything, 9),
-    "newest-assignment-waiting-to-start": (fabricate_everything, 44),
+    "working": (fabricate_everything, 13),
+    "silent-round": (fabricate_a_silent_round, 13),
+    "older-assignments": (fabricate_repeat_assignments, 13),
+    "fault": (fabricate_everything, 9),
+    "waiting-to-start": (fabricate_everything, 44),
 }
 
 
@@ -459,13 +481,13 @@ def refusing(seconds, /):
 
 
 def rendered(*, state, width: int = WIDTH) -> str:
-    """Return the board that state directory renders as, on a pinned console.
+    """Return the status report that the state renders on a pinned console.
 
-    Nobody is watching a console that is no terminal, so the board is drawn
-    once and the view returns, which is the board a reader reads.
+    Nobody is watching a console that is no terminal, so the report is drawn
+    once and the view returns.
     """
     written_to = StringIO()
-    show_board(
+    show_status(
         state=state,
         console=pinned(written_to=written_to, width=width),
         clock=lambda: LOOKED_AT,
@@ -474,45 +496,44 @@ def rendered(*, state, width: int = WIDTH) -> str:
     return written_to.getvalue()
 
 
-@pytest.mark.parametrize("name", sorted(BOARDS))
-def test_a_state_directory_renders_as_its_golden_board(name, tmp_path, daemon):
+@pytest.mark.parametrize("name", sorted(STATUS_REPORTS))
+def test_a_state_directory_renders_as_its_golden_status(name, tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
-    BOARDS[name](state=state)
+    STATUS_REPORTS[name](state=state)
 
-    board = rendered(state=state)
+    status = rendered(state=state)
 
-    assert board == (FIXTURES / "board" / f"{name}.txt").read_text(encoding="utf-8")
+    assert status == (FIXTURES / "status" / f"{name}.txt").read_text(encoding="utf-8")
 
 
-def test_an_identifier_too_wide_for_the_console_folds_rather_than_being_cut(tmp_path):
+def test_identifiers_remain_whole_when_the_assignment_table_folds(tmp_path):
     """Two assignments at one issue differ only in their identifier times."""
     state = StateDirectory(root=tmp_path)
     fabricate_repeat_assignments(state=state)
 
-    board = rendered(state=state, width=24)
+    status = rendered(state=state, width=55)
 
-    assert "8-090000" in board
-    assert "7-090000" in board
+    compact = "".join(status.split())
+    assert "GH13-20260818-090000" in compact
+    assert "GH13-20260817-090000" in compact
 
 
-def test_a_board_nobody_is_watching_is_drawn_once_and_returns(tmp_path, daemon):
+def test_status_nobody_is_watching_is_drawn_once_and_returns(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     written_to = StringIO()
 
-    show_board(
+    show_status(
         state=state,
         console=pinned(written_to=written_to),
         clock=lambda: LOOKED_AT,
         wait=refusing,
     )
 
-    assert "daemon running" in written_to.getvalue()
+    assert "running as pid 4242" in written_to.getvalue()
 
 
-def test_a_board_a_reader_watches_keeps_up_with_what_the_daemon_writes(
-    tmp_path, daemon
-):
+def test_status_a_reader_watches_keeps_up_with_what_the_daemon_writes(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_nothing(state=state)
     written_to = StringIO()
@@ -530,61 +551,61 @@ def test_a_board_a_reader_watches_keeps_up_with_what_the_daemon_writes(
             lines=[Line(at=PINNED + timedelta(minutes=31), text="[Bash] pytest")],
         )
 
-    show_board(
+    show_status(
         state=state,
         console=pinned(written_to=written_to, is_terminal=True),
         clock=lambda: LOOKED_AT,
         wait=wait,
     )
-    board = written_to.getvalue()
+    status = written_to.getvalue()
 
-    # A board is never over, so it drew again on the assignment that was dispatched
+    # Status is never over, so it drew again on the assignment that was dispatched
     # while the reader was watching, and ended only when they interrupted it.
     assert looks == [PAUSE, PAUSE]
-    assert "nothing dispatched yet" in board
-    assert f"GH13-{STAMP}" in board
+    assert "no issues or agent assignments recorded yet" in status
+    assert f"GH13-{STAMP}" in status
 
 
-def test_a_board_a_reader_watches_takes_the_screen_and_hands_it_back(tmp_path, daemon):
+def test_status_a_reader_watches_takes_the_screen_and_hands_it_back(tmp_path, daemon):
     """The reader gets the terminal back as it was, and their scrollback with it."""
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     written_to = StringIO()
 
-    show_board(
+    show_status(
         state=state,
         console=pinned(written_to=written_to, is_terminal=True),
         clock=lambda: LOOKED_AT,
         wait=interrupting,
     )
-    board = written_to.getvalue()
+    status = written_to.getvalue()
 
     # The screen was taken before anything was drawn into it, so nothing the
     # shell had printed was ever drawn over, and handing it back was the last
-    # thing the view did, so a board the reader has seen enough of leaves
+    # thing the view did, so status that the reader has seen enough of leaves
     # nothing behind.
-    assert board.index(SCREEN_TAKEN) < board.index("daemon running")
-    assert board.endswith(SCREEN_HANDED_BACK)
+    assert status.index(SCREEN_TAKEN) < status.index("daemon")
+    assert status.endswith(SCREEN_HANDED_BACK)
 
 
-def test_a_board_on_a_dumb_terminal_is_drawn_once_and_returns(tmp_path, daemon):
+def test_status_on_a_dumb_terminal_is_drawn_once_and_returns(tmp_path, daemon):
     """A dumb terminal takes no control code, so rich draws no picture into one."""
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     written_to = StringIO()
 
-    show_board(
+    show_status(
         state=state,
         console=pinned(written_to=written_to, is_terminal=True, term="dumb"),
         clock=lambda: LOOKED_AT,
         wait=refusing,
     )
-    board = written_to.getvalue()
+    status = written_to.getvalue()
 
-    # Nothing was drawn over anything, so the reader reads the board itself
+    # Nothing was drawn over anything, so the reader reads the report itself
     # rather than the nothing that rich writes into a screen it cannot take.
-    assert "daemon running" in board
-    assert SCREEN_TAKEN not in board
+    assert "daemon" in status
+    assert SCREEN_TAKEN not in status
 
 
 def viewed(*, state, issue: int, width: int = WIDTH) -> str:
@@ -642,7 +663,7 @@ def test_an_assignment_renders_as_its_golden_view(name, tmp_path, daemon):
 
     view = viewed(state=state, issue=issue)
 
-    assert view == (FIXTURES / "board" / f"{name}.txt").read_text(encoding="utf-8")
+    assert view == (FIXTURES / "assignment" / f"{name}.txt").read_text(encoding="utf-8")
 
 
 def test_a_manual_resume_recovers_the_harness_session_from_the_raw_stream(
@@ -725,7 +746,7 @@ def test_an_assignment_view_shows_the_round_that_starts_while_it_is_open(
 def test_an_assignment_view_of_an_assignment_that_is_over_never_waits(
     issue, tmp_path, daemon
 ):
-    """GH12 completed its wrap-up, and GH9 is stuck, so neither has one coming."""
+    """GH12 completed its wrap-up, and GH9 is in fault, so neither has one coming."""
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     written_to = StringIO()
@@ -798,7 +819,7 @@ def test_a_feed_renders_as_its_golden_view(name, tmp_path, daemon):
 
     feed = followed(state=state, issue=issue, wait=interrupting)
 
-    assert feed == (FIXTURES / "board" / f"{name}.txt").read_text(encoding="utf-8")
+    assert feed == (FIXTURES / "feed" / f"{name}.txt").read_text(encoding="utf-8")
 
 
 def test_only_a_feed_lines_stamp_is_dim():
@@ -916,7 +937,7 @@ def test_a_following_view_waits_for_the_next_daemon(tmp_path):
     assert waits == [PAUSE]
 
 
-def test_a_view_of_a_stuck_assignment_never_waits(tmp_path, daemon):
+def test_a_view_of_a_faulted_assignment_never_waits(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 

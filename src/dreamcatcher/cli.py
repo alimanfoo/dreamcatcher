@@ -27,7 +27,7 @@ ISSUE = re.compile(r"gh(\d+)\Z", re.IGNORECASE)
 # and the feed both give, since a reader reads one verb's help and no other.
 HELP_WHEN_A_VIEW_ENDS = (
     "It ends once the assignment has completed a wrap-up round successfully, "
-    "and while an assignment is in fault, which the board calls stuck. "
+    "and while an assignment is in fault. "
     "Interrupt it to end it sooner."
 )
 
@@ -90,19 +90,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _take_an_issue(parser=retry_parser)
     retry_parser.set_defaults(act=_retry_assignment)
-    board_parser = verbs.add_parser(
-        "board",
-        help="show an overview of every assignment and every queued issue",
+    status_parser = verbs.add_parser(
+        "status",
+        help="show the instance, issue, and agent-assignment status",
         description=(
-            "Show every assignment and every queued issue, a section per "
-            "standing, in the order of whose turn it is. It keeps up until "
-            "you interrupt it. "
+            "Show instance and daemon facts, each agent assignment's status, "
+            "and available issues in dispatch order. It refreshes "
+            "automatically until you interrupt it. "
             + HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
             + " "
             + HELP_WHEN_NOTHING_WATCHES
         ),
     )
-    board_parser.set_defaults(act=_show_board)
+    status_parser.set_defaults(act=_show_status)
     assignment_parser = verbs.add_parser(
         "assignment",
         help="show one issue's newest assignment, in detail",
@@ -197,9 +197,9 @@ def _retry_assignment(*, args: argparse.Namespace) -> None:
     print(f"{assignment.identifier} can recover on the next scheduler tick.")
 
 
-def _show_board(*, args: argparse.Namespace) -> None:
-    """Show the board of the checkout we are in."""
-    tui.show_board(state=_find_state(root=Path.cwd()), console=tui.open_console())
+def _show_status(*, args: argparse.Namespace) -> None:
+    """Show the status of the instance in this checkout."""
+    tui.show_status(state=_find_state(root=Path.cwd()), console=tui.open_console())
 
 
 def _show_assignment(*, args: argparse.Namespace) -> None:

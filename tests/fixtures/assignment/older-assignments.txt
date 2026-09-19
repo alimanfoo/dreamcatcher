@@ -1,0 +1,25 @@
+newest agent assignment GH13-20260819-184158
+needs user feedback, idle 1h 58m
+
+assignment
+  issue identifier             GH13                                        
+  agent assignment identifier  GH13-20260819-184158                        
+  pull request                 #52                                         
+  dispatch label               dream:smith                                 
+  branch                       dreamcatcher-GH13-20260819-184158           
+  worktree                     .dreamcatcher/worktrees/GH13-20260819-184158
+  agent harness                claude                                      
+  harness session identifier   abc-123                                     
+  model                        opus[1m]                                    
+  effort                       xhigh                                       
+
+rounds
+  1  implement  2026-08-19T18:42:58Z  ran 4m  successful
+
+resume harness session yourself
+  cd .dreamcatcher/worktrees/GH13-20260819-184158
+  claude --resume abc-123                        
+
+older assignments
+  agent assignment GH13-20260818-090000  complete  2 rounds
+  agent assignment GH13-20260817-090000  complete  2 rounds

@@ -1,0 +1,10 @@
+alimanfoo/dreamcatcher
+
+instance
+  daemon                 running as pid 4242
+  latest scheduler tick  2m ago             
+  agent-round capacity   1 of 1 in use      
+  global cooldown        none               
+
+agent assignments
+  GH13-20260819-184158  working  round 2, running 1h 30m, has said nothing yet
