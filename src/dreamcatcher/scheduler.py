@@ -142,6 +142,7 @@ class SchedulerRecord(Document):
     """What the scheduler's most recent tick observed and decided."""
 
     at: UtcDateTime
+    repository: str | None = None
     hold: str | None = None
     launched: str | None = None
     issue_observations: list[IssueObservation] = Field(default_factory=list)
@@ -766,6 +767,7 @@ class Scheduler:
         assignment_observations = list_assignment_observations(found=found)
         record = SchedulerRecord(
             at=at,
+            repository=self.repository,
             cooldown=cooldown,
             most_recent_cooldown_ended=most_recent_cooldown_ended,
             issue_observations=issue_observations,

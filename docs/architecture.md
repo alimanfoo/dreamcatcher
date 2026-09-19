@@ -212,14 +212,15 @@ interface.
 ### Status reporting
 
 `status.py` owns the read-only status model and constructs a `StatusReport`
-containing instance and daemon facts, `IssueStatus` entries, and
-`AgentAssignmentStatus` entries.
+containing the repository identity, instance and daemon facts, `IssueStatus`
+entries, and `AgentAssignmentStatus` entries.
 
 Status construction may read:
 
 - assignment and round records;
 - current child-process state;
-- scheduler records, including the active global cooldown and latest tick;
+- scheduler records, including the repository identity, active global cooldown,
+  and latest tick;
 - configuration, dispatch labels, and routes;
 - current GitHub issue, dependency, and pull-request facts; and
 - the latest rendered feed output needed for a useful summary.

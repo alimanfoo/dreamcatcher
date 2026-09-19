@@ -214,9 +214,10 @@ def _look_at_status(
 
 
 def _render_status(*, report: StatusReport) -> RenderableType:
-    """Render instance facts, issue statuses, and assignment statuses."""
+    """Render the repository, instance facts, issues, and assignments."""
     return _render_parts(
         parts=[
+            Text(report.repository or "repository unknown", style="bold"),
             _render_instance(report=report),
             _render_issues(issues=report.issues),
             _render_assignments(assignments=report.assignments),

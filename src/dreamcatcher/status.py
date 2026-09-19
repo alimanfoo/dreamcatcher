@@ -74,6 +74,7 @@ class StatusReport:
     """A read-only account of one Dreamcatcher instance."""
 
     at: datetime
+    repository: str | None
     daemon_pid: int | None
     latest_scheduler_tick: datetime | None
     scheduler_hold: str | None
@@ -94,6 +95,7 @@ def read_status_report(
     scheduler_record = reading.scheduler_record
     return StatusReport(
         at=reading.at,
+        repository=(None if scheduler_record is None else scheduler_record.repository),
         daemon_pid=reading.daemon_pid,
         latest_scheduler_tick=(
             None if scheduler_record is None else scheduler_record.at

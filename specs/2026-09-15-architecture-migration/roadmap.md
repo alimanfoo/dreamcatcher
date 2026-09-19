@@ -524,18 +524,19 @@ pull-request, and user-post scenarios continue to pass.
 
 ### Stage 9 Outcome
 
-`status.py` constructs a read-only `StatusReport` containing instance and daemon
-facts, an `IssueStatus` for each relevant issue, and an `AgentAssignmentStatus`
-for each assignment. `tui.py` renders those models and feeds without deriving
-lifecycle or scheduling decisions.
+`status.py` constructs a read-only `StatusReport` containing the repository
+identity, instance and daemon facts, an `IssueStatus` for each relevant issue,
+and an `AgentAssignmentStatus` for each assignment. `tui.py` renders those
+models and feeds without deriving lifecycle or scheduling decisions.
 
 ### Stage 9 Work
 
 - Replace `board.py`, `Board`, `QueuedIssue`, `SessionRow`, and
   `SessionStanding` with the status-report model and constructor described by
   the target architecture.
-- Include instance-wide facts such as daemon state, latest scheduler tick,
-  capacity, and active global cooldown.
+- Put the repository identity at the top of the report, then include
+  instance-wide facts such as daemon state, latest scheduler tick, capacity, and
+  active global cooldown.
 - Give each issue status independent claimed-here, claimed-elsewhere, blocked,
   and routing-conflict facts and a derived availability value. Include every
   issue considered for new work and every issue with an open local assignment,

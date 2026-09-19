@@ -270,10 +270,10 @@ assignment can have any assignment status except complete.
 
 ### Status reports do not control work
 
-A status report may include operational facts such as whether the daemon is
-running, when the last scheduler tick occurred, current capacity, and whether a
-global cooldown is active. Its issue statuses and agent assignment statuses are
-projections derived for a person to read.
+A status report may include operational facts such as the repository identity,
+whether the daemon is running, when the last scheduler tick occurred, current
+capacity, and whether a global cooldown is active. Its issue statuses and agent
+assignment statuses are projections derived for a person to read.
 
 The status report never schedules work and is never an input to scheduling.
 Scheduling and reporting must nevertheless interpret the same underlying facts

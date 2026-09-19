@@ -5,7 +5,7 @@ from datetime import timedelta
 
 import pytest
 from clocks import PINNED
-from conftest import configure
+from conftest import REPOSITORY, configure
 from observations import observed_issue
 from records import write_agent_assignment, write_feed, write_round, write_tick
 
@@ -120,6 +120,7 @@ def test_an_empty_instance_reports_its_configuration_and_no_work(tmp_path):
     )
 
     assert found.at == LOOKED_AT
+    assert found.repository is None
     assert found.daemon_pid is None
     assert found.latest_scheduler_tick is None
     assert found.scheduler_hold is None
@@ -128,6 +129,15 @@ def test_an_empty_instance_reports_its_configuration_and_no_work(tmp_path):
     assert found.active_global_cooldown is None
     assert found.issues == []
     assert found.assignments == []
+
+
+def test_a_scheduler_tick_names_the_repository(state):
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(at=PINNED, repository=REPOSITORY),
+    )
+
+    assert report(state=state).repository == REPOSITORY
 
 
 def test_a_live_round_reports_work_and_its_latest_output(running):

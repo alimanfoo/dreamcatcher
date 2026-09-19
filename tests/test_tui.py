@@ -15,7 +15,7 @@ from io import StringIO
 import psutil
 import pytest
 from clocks import PINNED
-from conftest import FIXTURES, LABEL, configure
+from conftest import FIXTURES, LABEL, REPOSITORY, configure
 from observations import observed_issue
 from records import write_agent_assignment, write_feed, write_round, write_tick
 from rich.console import Console
@@ -252,6 +252,7 @@ def fabricate_everything(*, state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
+            repository=REPOSITORY,
             launched=f"GH13-{STAMP}",
             issue_observations=[
                 observed_issue(issue=50),
@@ -319,6 +320,7 @@ def fabricate_the_cap(*, state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
+            repository=REPOSITORY,
             hold=hold,
             assignment_observations=[
                 AgentAssignmentObservation(
@@ -368,6 +370,7 @@ def fabricate_repeat_assignments(*, state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
+            repository=REPOSITORY,
             assignment_observations=[
                 AgentAssignmentObservation(
                     assignment=f"GH13-{STAMP}",
@@ -401,7 +404,9 @@ def fabricate_a_silent_round(*, state):
     write_tick(
         state=state,
         tick=SchedulerRecord(
-            at=PINNED + timedelta(hours=1, minutes=58), launched=f"GH13-{STAMP}"
+            at=PINNED + timedelta(hours=1, minutes=58),
+            repository=REPOSITORY,
+            launched=f"GH13-{STAMP}",
         ),
     )
 

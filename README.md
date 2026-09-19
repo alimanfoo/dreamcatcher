@@ -174,10 +174,10 @@ captured it, shows what is there once and returns. You need no flag either way.
 dreamcatcher status
 ```
 
-That shows a read-only status report with separate sections for the instance,
-issues and agent assignments. The instance section shows whether the daemon is
-running, the latest scheduler tick, the agent-round capacity, any scheduler hold
-and any active global cooldown.
+That shows a read-only status report with the repository name first, followed by
+separate sections for the instance, issues and agent assignments. The instance
+section shows whether the daemon is running, the latest scheduler tick, the
+agent-round capacity, any scheduler hold and any active global cooldown.
 
 Each issue status shows its dispatch labels and whether it is available for a
 new assignment. It also shows the independent `claimed here`,
