@@ -91,7 +91,7 @@ def create_scheduler(*, root) -> tuple[AgentWorkScheduler, Ticking]:
 
 
 def finish_rounds(*, scheduler) -> None:
-    """WaitForSeconds for every round that the scheduler has started."""
+    """Wait for every round that the scheduler has started."""
     for running in list(scheduler.rounds.values()):
         running.wait()
 

@@ -54,7 +54,7 @@ from dreamcatcher.harness_adapters import (
 # subagent to count the files. Its golden feed is asserted in test_recordings.
 RECORDING = FIXTURES / "claude" / "round.jsonl"
 
-UTC_TIMESTAMP_FORMAT = "2026-08-19T18:41:58Z"
+FEED_TIMESTAMP = "2026-08-19T18:41:58Z"
 
 # What the tests here say woke every round they run.
 PURPOSE = AgentRoundPurpose.IMPLEMENT
@@ -177,7 +177,7 @@ def compose_round_paths(*, worktree, directory) -> AgentRoundPaths:
 
 
 def within(*, seconds, holds):
-    """WaitForSeconds up to seconds for holds to answer true, and say whether it did."""
+    """Wait up to seconds for holds to answer true, and say whether it did."""
     deadline = monotonic() + seconds
     while not holds() and monotonic() < deadline:
         sleep(0.05)
@@ -352,9 +352,9 @@ def test_what_the_harness_says_on_stderr_lands_where_it_happened(
     running.wait()
 
     assert running.paths.feed.read_text(encoding="utf-8").splitlines() == [
-        f"{UTC_TIMESTAMP_FORMAT}  first",
-        f"{UTC_TIMESTAMP_FORMAT}  an aside",
-        f"{UTC_TIMESTAMP_FORMAT}  second",
+        f"{FEED_TIMESTAMP}  first",
+        f"{FEED_TIMESTAMP}  an aside",
+        f"{FEED_TIMESTAMP}  second",
     ]
     assert running.paths.raw_output.read_text(encoding="utf-8") == "first\nsecond\n"
 
@@ -374,8 +374,8 @@ def test_a_line_the_feed_cannot_write_costs_that_line_alone(fake, worktree, dire
     running.wait()
 
     assert running.paths.feed.read_text(encoding="utf-8").splitlines() == [
-        f'{UTC_TIMESTAMP_FORMAT}  {{"said": "hello"}}',
-        f"{UTC_TIMESTAMP_FORMAT}  plain",
+        f'{FEED_TIMESTAMP}  {{"said": "hello"}}',
+        f"{FEED_TIMESTAMP}  plain",
     ]
 
 

@@ -247,8 +247,8 @@ headings and colors.
 ### Configuration, dispatch labels, and routes
 
 `config.py` owns the strict model for `dreamcatcher.toml`. A `DispatchRoute`
-maps one dispatch label to one or more harness-specific `AssignmentRecipe`
-objects. Each recipe supplies the model, effort, and initial prompt used to
+maps one dispatch label to one or more harness-specific `AgentAssignmentRecipe`
+objects, each of which supplies the model, effort, and initial prompt used to
 start agent work through that harness. The initial prompt normally invokes an
 assignment skill.
 

@@ -176,7 +176,7 @@ def git(*, arguments: Sequence[str], cwd: Path) -> str:
 
 
 def gone(*, pid: int) -> bool:
-    """WaitForSeconds a while for the process at pid to end, and say whether it did."""
+    """Wait a while for the process at pid to end, and say whether it did."""
     # A process that outstays the wait is a process that is still there, which
     # is the answer, not a failure.
     with suppress(psutil.NoSuchProcess, psutil.TimeoutExpired):
