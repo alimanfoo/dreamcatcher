@@ -141,7 +141,7 @@ Removing the label is how you say stop.
 One daemon watches one repo. A second `run` on the same repo refuses while the
 first is alive.
 
-The watch tower is a command per view: `board`, `assignment` and `feed`. Each
+The watch tower is a command per view: `status`, `assignment` and `feed`. Each
 one reads what the daemon left under `.dreamcatcher/` and asks GitHub nothing,
 so each answers whether the daemon is running or long dead. Run them from the
 same checkout.
@@ -149,22 +149,21 @@ same checkout.
 Every view keeps up with what the daemon writes while you watch it, so there is
 nothing to wrap it in.
 
-`board` and `assignment` take the whole terminal while they are going, and give
+`status` and `assignment` take the whole terminal while they are going, and give
 it back when they end.
 
-`board` is never over, so it stays until you interrupt it.
+`status` is never over, so it stays until you interrupt it.
 
 `assignment` and `feed` stay open for as long as the assignment has another
 round coming, so you can leave one running for a whole assignment and see every
 round of it arrive. They wait through every gap between one round and the next,
 including a gap where you have stopped the daemon and not started it again yet.
 
-Two states end them because neither currently has another round scheduled. One
-is the assignment completing a wrap-up round successfully. The other is an
-assignment in fault, which the current board presents as `stuck`. A later global
-cooldown can clear that fault and permit recovery. An interrupted creation or
-missing first round is not stuck: Dreamcatcher reconciles the creation and
-retries the round.
+Two statuses end them because neither currently has another round scheduled. One
+is `complete`, after a wrap-up round succeeds. The other is `fault`, after two
+consecutive rounds error. A later retry or global cooldown can permit a faulted
+assignment to recover. Dreamcatcher reconciles an interrupted creation or a
+missing first round and retries the work.
 
 Interrupt any view to end it sooner.
 
@@ -172,32 +171,42 @@ A view whose output is not a terminal, because you piped it, redirected it or
 captured it, shows what is there once and returns. You need no flag either way.
 
 ```sh
-dreamcatcher board
+dreamcatcher status
 ```
 
-That shows the board. The board is a section per standing, and the sections run
-in the order of whose turn it is:
+That shows a read-only status report with separate sections for the instance,
+issues and agent assignments. The instance section shows whether the daemon is
+running, the latest scheduler tick, the agent-round capacity, any scheduler hold
+and any active global cooldown.
 
-- `needs you` is an assignment with a pull request open that the agent has
-  nothing left to do on, so it is ready for you to review.
-- `agent working` is a live round, with how long it has been running, the last
-  thing it said and how long ago.
-- `waiting` is an assignment the next tick will pick up, with what it is waiting
-  on.
-- `stuck` is the board's temporary presentation of an assignment in fault after
-  two consecutive errored rounds, with where to read what happened.
-- `queued` is the labelled issues not dispatched yet, each with the reason it
-  has not gone.
-- `done` is the assignments whose wrap-up round succeeded.
+Each issue status shows its dispatch labels and whether it is available for a
+new assignment. It also shows the independent `claimed here`,
+`claimed elsewhere`, `blocked` and `routing conflict` facts. Each fact can be
+`true`, `false` or `unknown`. The report includes every issue that the scheduler
+considered and every issue with an open local assignment, even if a later label,
+assignee or route change would exclude it from new work. Issues have no queue
+position.
 
-Three assignments at one issue read as three assignments at one thing, so a
-label you forgot to remove shows as what it is rather than as three unrelated
-rows.
+Each agent assignment has one summary status:
 
-`assignment` shows one issue's newest assignment: what its dispatch settled, the
-rounds it has run newest first with each purpose, recovery flag and outcome, the
-command that resumes its harness session by hand, and the older assignments at
-the same issue.
+- `working` means that an agent round is running.
+- `waiting` means that a required round has not started yet.
+- `needs user feedback` means that no round is required and the assignment is
+  waiting for a post, review decision, merge or closure.
+- `fault` means that two consecutive rounds errored and ordinary recovery has
+  stopped.
+- `complete` means that a wrap-up round succeeded.
+- `unknown` means that the latest local observations cannot settle the status.
+
+An agent-assignment row includes the detail behind its summary and the latest
+output from a running round. Three assignments for one issue remain three agent
+assignments with distinct identifiers.
+
+`assignment` shows one issue's newest assignment: its issue identifier, agent
+assignment identifier, harness session identifier, what its dispatch settled,
+the rounds it has run newest first with each purpose, recovery flag and outcome,
+the command that resumes its harness session by hand, and the older assignments
+at the same issue.
 
 ```sh
 dreamcatcher assignment GH123
