@@ -12,15 +12,15 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 from dreamcatcher.errors import ReportableError
 
 # What a whole write is written to before it takes its target's place.
-WRITING = ".writing"
+ATOMIC_WRITE_SUFFIX = ".writing"
 
 # How much of the end of a file each read of a backward search takes. A last
 # line longer than this takes another read to find, and nothing else turns on
 # the size.
-BACKWARD_WINDOW = 4096
+BACKWARD_READ_SIZE = 4096
 
 
-class Document(BaseModel):
+class DreamcatcherDocument(BaseModel):
     """A document that dreamcatcher reads or writes.
 
     Every document refuses a key that it does not expect. A typo is then a
@@ -30,7 +30,9 @@ class Document(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
 
-def read_toml[DocumentT: Document](*, model: type[DocumentT], path: Path) -> DocumentT:
+def read_toml[DocumentT: DreamcatcherDocument](
+    *, model: type[DocumentT], path: Path
+) -> DocumentT:
     """Return the document the TOML file holds, or raise ReportableError."""
     try:
         data = tomllib.loads(read_text(path=path))
@@ -39,10 +41,14 @@ def read_toml[DocumentT: Document](*, model: type[DocumentT], path: Path) -> Doc
     try:
         return model.model_validate(data)
     except ValidationError as error:
-        raise ReportableError(_report(path=path, error=error)) from error
+        raise ReportableError(
+            _describe_validation_error(path=path, error=error)
+        ) from error
 
 
-def read_json[DocumentT: Document](*, model: type[DocumentT], path: Path) -> DocumentT:
+def read_json[DocumentT: DreamcatcherDocument](
+    *, model: type[DocumentT], path: Path
+) -> DocumentT:
     """Return the document the JSON file holds, or raise ReportableError.
 
     Every document the tool writes for itself is JSON, so this is how the tool
@@ -53,7 +59,9 @@ def read_json[DocumentT: Document](*, model: type[DocumentT], path: Path) -> Doc
     try:
         return model.model_validate_json(read_text(path=path))
     except ValidationError as error:
-        raise ReportableError(_report(path=path, error=error)) from error
+        raise ReportableError(
+            _describe_validation_error(path=path, error=error)
+        ) from error
 
 
 def read_text(*, path: Path) -> str:
@@ -147,7 +155,7 @@ def write_text(*, text: str, path: Path) -> None:
     directory is not a bug in the tool, and the user can act on either, so it
     reads as a message.
     """
-    beside = path.with_name(f"{path.name}{WRITING}")
+    beside = path.with_name(f"{path.name}{ATOMIC_WRITE_SUFFIX}")
     _write(text=text, path=beside, mode="w")
     try:
         beside.replace(path)
@@ -168,7 +176,7 @@ def append_text(*, text: str, path: Path) -> None:
     _write(text=text, path=path, mode="a")
 
 
-def write_json(*, document: Document, path: Path) -> None:
+def write_json(*, document: DreamcatcherDocument, path: Path) -> None:
     """Write the document to path as JSON."""
     write_text(text=document.model_dump_json(indent=2) + "\n", path=path)
 
@@ -205,7 +213,7 @@ def _find_line_ending(*, opened: IO[bytes], before: int) -> int | None:
     """
     end = before
     while end > 0:
-        start = max(0, end - BACKWARD_WINDOW)
+        start = max(0, end - BACKWARD_READ_SIZE)
         opened.seek(start)
         found = opened.read(end - start).rfind(b"\n")
         if found >= 0:
@@ -248,7 +256,7 @@ def _write(*, text: str, path: Path, mode: str) -> None:
         raise ReportableError(f"cannot write {path}: {error}.") from error
 
 
-def _report(*, path: Path, error: ValidationError) -> str:
+def _describe_validation_error(*, path: Path, error: ValidationError) -> str:
     """Return the validation failures as one message, a line for each.
 
     Each line is the path to the setting, as the document nests it, and

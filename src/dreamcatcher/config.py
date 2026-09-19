@@ -7,7 +7,7 @@ from typing import Annotated, Self
 from pydantic import AfterValidator, ConfigDict, Field, PositiveInt, model_validator
 
 from dreamcatcher.commands import refuse_unquotable
-from dreamcatcher.documents import Document, read_toml
+from dreamcatcher.documents import DreamcatcherDocument, read_toml
 
 CONFIG_NAME = "dreamcatcher.toml"
 
@@ -22,14 +22,14 @@ CONFIG_NAME = "dreamcatcher.toml"
 QuotableText = Annotated[str, AfterValidator(refuse_unquotable)]
 
 
-class Harness(StrEnum):
+class AgentHarness(StrEnum):
     """A coding agent dreamcatcher can run a round with."""
 
     CLAUDE = "claude"
     CODEX = "codex"
 
 
-class AssignmentRecipe(Document):
+class AgentAssignmentRecipe(DreamcatcherDocument):
     """How one harness runs an assignment for one dispatch label."""
 
     prompt: str
@@ -37,29 +37,29 @@ class AssignmentRecipe(Document):
     effort: QuotableText
 
 
-class DispatchRoute(Document):
+class DispatchRoute(DreamcatcherDocument):
     """A dispatch label and the recipe that each harness uses for it.
 
     The label is the route's identity, so no two routes carry the same one.
 
     A harness block sits beside the label rather than under a key of its own,
     as `[dispatch.claude]` does, so pydantic meets it as an extra key. Those
-    extra keys carry a declared type, Harness, so the set of harnesses stays in
+    extra keys carry a declared type, AgentHarness, so the set of harnesses stays in
     one home. A key that names no harness is then a named error, so the route
     keeps the guarantee that every document makes.
     """
 
     model_config = ConfigDict(extra="allow")
-    __pydantic_extra__: dict[Harness, AssignmentRecipe]
+    __pydantic_extra__: dict[AgentHarness, AgentAssignmentRecipe]
 
     label: str
 
     @property
-    def assignment_recipes(self) -> dict[Harness, AssignmentRecipe]:
+    def assignment_recipes(self) -> dict[AgentHarness, AgentAssignmentRecipe]:
         """The recipe of each harness that can run this route."""
         return self.__pydantic_extra__
 
-    def choose_harness(self, *, named: Harness) -> Harness:
+    def choose_harness(self, *, named: AgentHarness) -> AgentHarness:
         """Return the harness that runs this label, given what the run named.
 
         A label carrying a block for the named harness runs on that one. There
@@ -72,14 +72,14 @@ class DispatchRoute(Document):
         return named if named in recipes else next(iter(recipes))
 
     @model_validator(mode="after")
-    def _carries_a_block(self) -> Self:
+    def _require_assignment_recipe(self) -> Self:
         """Refuse a label with no harness able to run it."""
         if not self.assignment_recipes:
             raise ValueError(f"label {self.label} has no harness block")
         return self
 
 
-class Config(Document):
+class DreamcatcherConfig(DreamcatcherDocument):
     """What the repo agrees on about dispatching its labelled issues."""
 
     interval: PositiveInt = 120
@@ -97,7 +97,7 @@ class Config(Document):
         return {route.label: route for route in self.dispatch}
 
     @property
-    def routed_harnesses(self) -> set[Harness]:
+    def routed_harnesses(self) -> set[AgentHarness]:
         """Every harness that a route here could settle one of its labels on.
 
         A label carrying one harness block runs on that harness whatever a run
@@ -121,7 +121,7 @@ class Config(Document):
         )
 
     @model_validator(mode="after")
-    def _each_label_has_one_route(self) -> Self:
+    def _require_one_route_per_label(self) -> Self:
         """Refuse two routes for one label, since the label is the identity."""
         labels = [route.label for route in self.dispatch]
         identities = [label.casefold() for label in labels]
@@ -134,6 +134,6 @@ class Config(Document):
         return self
 
 
-def read_config(*, root: Path) -> Config:
+def read_dreamcatcher_config(*, root: Path) -> DreamcatcherConfig:
     """Return the configuration the repo at root holds."""
-    return read_toml(model=Config, path=root / CONFIG_NAME)
+    return read_toml(model=DreamcatcherConfig, path=root / CONFIG_NAME)

@@ -37,7 +37,12 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.claude import CLAUDE
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import Note, Renderer
-from dreamcatcher.github import Comment, InlineComment, PullRequestState, Review
+from dreamcatcher.github import (
+    ConversationComment,
+    InlineReviewComment,
+    PullRequestReview,
+    PullRequestState,
+)
 from dreamcatcher.harness_adapters import (
     AgentRoundLaunch,
     HarnessAdapter,
@@ -49,7 +54,7 @@ from dreamcatcher.harness_adapters import (
 # subagent to count the files. Its golden feed is asserted in test_recordings.
 RECORDING = FIXTURES / "claude" / "round.jsonl"
 
-STAMP = "2026-08-19T18:41:58Z"
+TIMESTAMP_FORMAT = "2026-08-19T18:41:58Z"
 
 # What the tests here say woke every round they run.
 PURPOSE = AgentRoundPurpose.IMPLEMENT
@@ -168,7 +173,7 @@ def round_paths(*, worktree, directory) -> AgentRoundPaths:
 
 
 def within(*, seconds, holds):
-    """Wait up to seconds for holds to answer true, and say whether it did."""
+    """WaitForSeconds up to seconds for holds to answer true, and say whether it did."""
     deadline = monotonic() + seconds
     while not holds() and monotonic() < deadline:
         sleep(0.05)
@@ -218,9 +223,11 @@ def test_a_round_writes_the_pull_request_state_and_user_posts_it_was_given(
     harness = fake(program="harness")
     harness.replies(stdout="")
     posts = [
-        Comment.model_validate(comment()),
-        Review.model_validate(review(body="have a look", user={"login": POSTED_BY})),
-        InlineComment.model_validate(inline_comment()),
+        ConversationComment.model_validate(comment()),
+        PullRequestReview.model_validate(
+            review(body="have a look", user={"login": POSTED_BY})
+        ),
+        InlineReviewComment.model_validate(inline_comment()),
     ]
 
     running = AgentRound(
@@ -341,9 +348,9 @@ def test_what_the_harness_says_on_stderr_lands_where_it_happened(
     running.wait()
 
     assert running.paths.feed.read_text(encoding="utf-8").splitlines() == [
-        f"{STAMP}  first",
-        f"{STAMP}  an aside",
-        f"{STAMP}  second",
+        f"{TIMESTAMP_FORMAT}  first",
+        f"{TIMESTAMP_FORMAT}  an aside",
+        f"{TIMESTAMP_FORMAT}  second",
     ]
     assert running.paths.raw.read_text(encoding="utf-8") == "first\nsecond\n"
 
@@ -363,8 +370,8 @@ def test_a_line_the_feed_cannot_write_costs_that_line_alone(fake, worktree, dire
     running.wait()
 
     assert running.paths.feed.read_text(encoding="utf-8").splitlines() == [
-        f'{STAMP}  {{"said": "hello"}}',
-        f"{STAMP}  plain",
+        f'{TIMESTAMP_FORMAT}  {{"said": "hello"}}',
+        f"{TIMESTAMP_FORMAT}  plain",
     ]
 
 

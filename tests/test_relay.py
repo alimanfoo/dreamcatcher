@@ -13,14 +13,14 @@ from conftest import (
 )
 
 from dreamcatcher.github import (
-    Comment,
-    InlineComment,
-    Review,
-    Unknown,
+    ConversationComment,
+    InlineReviewComment,
+    PullRequestReview,
+    PullRequestReviewVerdict,
+    UnknownGitHubResponse,
     UserPost,
-    Verdict,
 )
-from dreamcatcher.prompts import MARKER
+from dreamcatcher.prompts import AGENT_POST_MARKER
 from dreamcatcher.relay import list_undelivered_user_posts
 
 # A time before anything the tests say the user posted.
@@ -35,7 +35,7 @@ def undelivered(*, delivery_cursor: str = "") -> list[UserPost]:
         account=POSTED_BY,
         delivery_cursor=delivery_cursor,
     )
-    assert not isinstance(found, Unknown)
+    assert not isinstance(found, UnknownGitHubResponse)
     return found
 
 
@@ -79,14 +79,20 @@ def test_the_posts_come_back_oldest_first_whichever_list_each_came_from(
         to=f"api {POST_LIST_PATHS['inline-comments']}",
     )
 
-    assert [type(post) for post in undelivered()] == [Review, InlineComment, Comment]
+    assert [type(post) for post in undelivered()] == [
+        PullRequestReview,
+        InlineReviewComment,
+        ConversationComment,
+    ]
 
 
 def test_a_post_carrying_the_marker_is_the_assignments_own_and_does_not_come_back(
     gh_with_no_posts,
 ):
     gh_with_no_posts.replies(
-        stdout=pages(posts=[comment(body=f"opened the pull request\n\n{MARKER}")]),
+        stdout=pages(
+            posts=[comment(body=f"opened the pull request\n\n{AGENT_POST_MARKER}")]
+        ),
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
@@ -124,11 +130,13 @@ def test_the_empty_review_github_wrapped_an_inline_reply_in_does_not_come_back(
         to=f"api {POST_LIST_PATHS['inline-comments']}",
     )
 
-    assert [type(post) for post in undelivered()] == [InlineComment]
+    assert [type(post) for post in undelivered()] == [InlineReviewComment]
 
 
 @pytest.mark.parametrize(
-    "verdict", [Verdict.APPROVED, Verdict.CHANGES_REQUESTED], ids=str
+    "verdict",
+    [PullRequestReviewVerdict.APPROVED, PullRequestReviewVerdict.CHANGES_REQUESTED],
+    ids=str,
 )
 def test_a_review_that_reached_a_verdict_comes_back_with_an_empty_body(
     gh_with_no_posts, verdict
@@ -142,7 +150,7 @@ def test_a_review_that_reached_a_verdict_comes_back_with_an_empty_body(
 
 
 def test_a_review_nobody_has_submitted_yet_does_not_come_back(gh_with_no_posts):
-    unsubmitted = review(state=Verdict.PENDING, body="half a thought")
+    unsubmitted = review(state=PullRequestReviewVerdict.PENDING, body="half a thought")
     del unsubmitted["submitted_at"]
     gh_with_no_posts.replies(
         stdout=pages(posts=[unsubmitted]), to=f"api {POST_LIST_PATHS['reviews']}"
@@ -169,7 +177,7 @@ def test_a_suggestion_over_a_range_comes_back_with_its_lines_and_its_diff(
 
     suggestion = undelivered()[0]
 
-    assert isinstance(suggestion, InlineComment)
+    assert isinstance(suggestion, InlineReviewComment)
     assert (suggestion.start_line, suggestion.line) == (1, 3)
     assert suggestion.path == "src/dreamcatcher/relay.py"
     assert suggestion.side == "RIGHT"
@@ -191,7 +199,7 @@ def test_a_read_that_failed_says_so_rather_than_reading_as_nothing_posted(
         delivery_cursor=POSTED_AT,
     )
 
-    assert isinstance(found, Unknown)
+    assert isinstance(found, UnknownGitHubResponse)
     assert "could not connect" in found.reason
 
 
@@ -202,22 +210,22 @@ def test_every_post_the_user_said_something_in_on_a_real_pull_request_comes_back
     # three empty reviews GitHub wrapped the last three inline comments in are
     # gone, while those inline comments come through on their own.
     assert [type(post) for post in undelivered()] == [
-        Comment,
-        Comment,
-        Comment,
-        Comment,
-        Comment,
-        Comment,
-        InlineComment,
-        InlineComment,
-        InlineComment,
-        Review,
-        Comment,
-        InlineComment,
-        InlineComment,
-        InlineComment,
-        Comment,
-        Comment,
+        ConversationComment,
+        ConversationComment,
+        ConversationComment,
+        ConversationComment,
+        ConversationComment,
+        ConversationComment,
+        InlineReviewComment,
+        InlineReviewComment,
+        InlineReviewComment,
+        PullRequestReview,
+        ConversationComment,
+        InlineReviewComment,
+        InlineReviewComment,
+        InlineReviewComment,
+        ConversationComment,
+        ConversationComment,
     ]
 
 
@@ -231,11 +239,11 @@ def test_a_comment_on_a_whole_file_says_so_rather_than_naming_line_one(
 
     written = undelivered()
 
-    assert [type(post) for post in written] == [InlineComment]
+    assert [type(post) for post in written] == [InlineReviewComment]
     assert [
         (post.subject_type, post.line)
         for post in written
-        if isinstance(post, InlineComment)
+        if isinstance(post, InlineReviewComment)
     ] == [("file", 1)]
 
 
@@ -249,5 +257,7 @@ def test_a_comment_gh_says_nothing_about_the_subject_of_reads_as_one_on_a_line(
     )
 
     assert [
-        post.subject_type for post in undelivered() if isinstance(post, InlineComment)
+        post.subject_type
+        for post in undelivered()
+        if isinstance(post, InlineReviewComment)
     ] == ["line"]

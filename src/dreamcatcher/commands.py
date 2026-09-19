@@ -31,7 +31,7 @@ os.environ["NODEFAULTCURRENTDIRECTORYINEXEPATH"] = "1"
 # What npm calls the harness CLIs that it installs on Windows. Windows runs a file
 # with one of these endings through cmd.exe, so its command line meets a second
 # reader. git and gh are real executables, so neither ever meets that.
-BATCH_ENDINGS = (".cmd", ".bat")
+WINDOWS_BATCH_SUFFIXES = (".cmd", ".bat")
 
 # What cmd.exe acts on wherever it sits, and what to call each one in a message.
 # cmd.exe expands %NAME% on the line that it parses, inside double quotes as well
@@ -47,7 +47,7 @@ BATCH_ENDINGS = (".cmd", ".bat")
 # A carriage return on its own is refused as the newline is. Reading a file turns
 # every line ending into a newline, so this meets one only where a document wrote
 # it as an escape, and one line of a prompt is what the author wrote either way.
-UNQUOTABLE = {
+UNQUOTABLE_CHARACTERS = {
     "%": "a percent sign",
     "\n": "a newline",
     "\r": "a carriage return",
@@ -59,7 +59,7 @@ class CommandError(ReportableError):
 
 
 @dataclass(frozen=True, kw_only=True)
-class Child:
+class ChildProcess:
     """A program running as a child process, with both its streams on pipes.
 
     subprocess gives a child only the streams that the caller asked it for, so
@@ -124,7 +124,9 @@ def refuse_unquotable(text: str, /) -> str:
     pydantic is what calls this, as the validator behind `QuotableText`, and it
     passes the text positionally, so the parameter is positional-only.
     """
-    found = [name for character, name in UNQUOTABLE.items() if character in text]
+    found = [
+        name for character, name in UNQUOTABLE_CHARACTERS.items() if character in text
+    ]
     if found:
         raise ValueError(
             f"cannot hold {' or '.join(found)}, because on Windows cmd.exe acts "
@@ -133,7 +135,7 @@ def refuse_unquotable(text: str, /) -> str:
     return text
 
 
-def locate(*, program: str) -> str:
+def locate_program(*, program: str) -> str:
     """Return the path to program on the PATH, or raise CommandError."""
     # Windows adds only .exe to a bare name, while a lookup takes every
     # extension PATHEXT names. So looking the program up here, rather than
@@ -144,10 +146,12 @@ def locate(*, program: str) -> str:
     return executable
 
 
-def run(*, program: str, arguments: Sequence[str], cwd: Path | None = None) -> str:
+def run_command(
+    *, program: str, arguments: Sequence[str], cwd: Path | None = None
+) -> str:
     """Return what the command wrote to stdout, reading it as UTF-8."""
     finished = subprocess.run(
-        _build(program=program, arguments=arguments),
+        _build_subprocess_command(program=program, arguments=arguments),
         capture_output=True,
         check=False,
         cwd=cwd,
@@ -166,13 +170,13 @@ def run(*, program: str, arguments: Sequence[str], cwd: Path | None = None) -> s
     return finished.stdout
 
 
-def spawn(
+def spawn_command(
     *,
     program: str,
     arguments: Sequence[str],
     cwd: Path,
     stdin: Path | None = None,
-) -> Child:
+) -> ChildProcess:
     """Start the program in cwd and hand it back while it runs.
 
     The daemon watches a round while it runs rather than waiting for it to
@@ -194,7 +198,7 @@ def spawn(
             else subprocess.DEVNULL
         )
         started = subprocess.Popen(
-            _build(program=program, arguments=arguments),
+            _build_subprocess_command(program=program, arguments=arguments),
             cwd=cwd,
             stdin=reading,
             stdout=subprocess.PIPE,
@@ -203,12 +207,12 @@ def spawn(
             # A stray byte that is not UTF-8, in a path or a message, comes
             # through as the replacement character rather than as a traceback.
             errors="replace",
-            start_new_session=teardown.OWN_SESSION,
+            start_new_session=teardown.SHOULD_START_NEW_PROCESS_SESSION,
         )
     teardown.contain(pid=started.pid)
     # This asked for both pipes above, so both are there. subprocess types them
     # for every caller, including the ones that asked for neither.
-    return Child(
+    return ChildProcess(
         out=cast("IO[str]", started.stdout),
         err=cast("IO[str]", started.stderr),
         process=started,
@@ -228,7 +232,9 @@ def _open_for_reading(*, path: Path) -> IO[bytes]:
         raise CommandError(f"cannot read {path}: {error}.") from error
 
 
-def _build(*, program: str, arguments: Sequence[str]) -> list[str] | str:
+def _build_subprocess_command(
+    *, program: str, arguments: Sequence[str]
+) -> list[str] | str:
     """Return the command as subprocess has to be given it.
 
     A list, which subprocess quotes for the program's own reader. A batch file
@@ -236,13 +242,17 @@ def _build(*, program: str, arguments: Sequence[str]) -> list[str] | str:
     under its own rules, and subprocess quotes for the second reader alone. So
     a batch file gets a line that this builds for both readers.
     """
-    executable = locate(program=program)
-    if PurePath(executable).suffix.lower() in BATCH_ENDINGS:  # pragma: no cover
-        return " ".join(_quote(part=part) for part in (executable, *arguments))
+    executable = locate_program(program=program)
+    if (
+        PurePath(executable).suffix.lower() in WINDOWS_BATCH_SUFFIXES
+    ):  # pragma: no cover
+        return " ".join(
+            _quote_windows_argument(part=part) for part in (executable, *arguments)
+        )
     return [executable, *arguments]
 
 
-def _quote(*, part: str) -> str:
+def _quote_windows_argument(*, part: str) -> str:
     """Return the part quoted so cmd.exe and then the program read it whole.
 
     The quotes are always there, so a character that cmd.exe acts on — an

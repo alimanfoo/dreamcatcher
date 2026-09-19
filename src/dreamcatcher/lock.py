@@ -12,7 +12,7 @@ from dreamcatcher.errors import ReportableError
 
 
 @contextmanager
-def hold(*, path: Path) -> Iterator[None]:
+def hold_daemon_lock(*, path: Path) -> Iterator[None]:
     """Hold the lock at path, and release it however the caller ends.
 
     Raise ReportableError when a live daemon holds it.

@@ -27,10 +27,10 @@ from typing import Annotated, Literal, Protocol
 
 from pydantic import Field, PositiveInt, field_validator
 
-from dreamcatcher.clock import now
-from dreamcatcher.commands import spawn
+from dreamcatcher.clock import read_current_time
+from dreamcatcher.commands import spawn_command
 from dreamcatcher.documents import (
-    Document,
+    DreamcatcherDocument,
     append_text,
     read_json,
     write_json,
@@ -85,7 +85,7 @@ class RoundOutcome(StrEnum):
     INTERRUPTED = "interrupted"
 
 
-class SuccessfulAgentRoundEnding(Document):
+class SuccessfulAgentRoundEnding(DreamcatcherDocument):
     """An agent round that exited successfully."""
 
     outcome: Literal[RoundOutcome.SUCCESSFUL] = RoundOutcome.SUCCESSFUL
@@ -93,7 +93,7 @@ class SuccessfulAgentRoundEnding(Document):
     status: Literal[0] = 0
 
 
-class ErroredAgentRoundEnding(Document):
+class ErroredAgentRoundEnding(DreamcatcherDocument):
     """An agent round that exited with an error."""
 
     outcome: Literal[RoundOutcome.ERRORED] = RoundOutcome.ERRORED
@@ -109,7 +109,7 @@ class ErroredAgentRoundEnding(Document):
         return status
 
 
-class InterruptedAgentRoundEnding(Document):
+class InterruptedAgentRoundEnding(DreamcatcherDocument):
     """An agent round stopped without an observed exit."""
 
     outcome: Literal[RoundOutcome.INTERRUPTED] = RoundOutcome.INTERRUPTED
@@ -130,7 +130,7 @@ def compose_agent_round_ending(
     return ErroredAgentRoundEnding(at=at, status=status)
 
 
-class AgentRoundRecord(Document):
+class AgentRoundRecord(DreamcatcherDocument):
     """The independent identity, purpose, recovery, and outcome of one round."""
 
     number: PositiveInt
@@ -172,7 +172,7 @@ def _record_agent_round_ending(
     return ended
 
 
-class AgentRoundInput(Document):
+class AgentRoundInput(DreamcatcherDocument):
     """The pull-request state and user posts delivered to one agent round."""
 
     state: PullRequestState
@@ -304,7 +304,7 @@ class AgentRound:
         invocation: HarnessInvocation,
         paths: AgentRoundPaths,
         plan: AgentRoundPlan,
-        clock: Callable[[], datetime] = now,
+        clock: Callable[[], datetime] = read_current_time,
     ) -> None:
         """Run the invocation as a round at the paths it was given.
 
@@ -325,7 +325,7 @@ class AgentRound:
         if plan.input is not None:
             write_json(document=plan.input, path=paths.inbox)
         write_text(text=invocation.prompt, path=paths.prompt)
-        self.child = spawn(
+        self.child = spawn_command(
             program=invocation.program,
             arguments=invocation.arguments,
             cwd=paths.worktree,

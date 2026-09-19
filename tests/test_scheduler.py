@@ -33,15 +33,15 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     compose_agent_round_ending,
 )
-from dreamcatcher.config import Harness, read_config
+from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.git import (
     add_worktree,
-    fetch,
+    fetch_main,
     make_empty_commit,
     push_branch,
 )
-from dreamcatcher.prompts import CARRY_ON_PROMPT
+from dreamcatcher.prompts import RECOVERY_PROMPT
 from dreamcatcher.scheduler import (
     AgentAssignmentObservation,
     GlobalCooldown,
@@ -80,9 +80,9 @@ def create_scheduler(*, root) -> tuple[Scheduler, Ticking]:
     scheduler = Scheduler(
         repository=REPOSITORY,
         account=POSTED_BY,
-        config=read_config(root=root),
+        config=read_dreamcatcher_config(root=root),
         state=StateDirectory(root=root),
-        harness=Harness.CLAUDE,
+        harness=AgentHarness.CLAUDE,
         clock=clock,
         rounds={},
     )
@@ -91,7 +91,7 @@ def create_scheduler(*, root) -> tuple[Scheduler, Ticking]:
 
 
 def finish_rounds(*, scheduler) -> None:
-    """Wait for every round that the scheduler has started."""
+    """WaitForSeconds for every round that the scheduler has started."""
     for running in list(scheduler.rounds.values()):
         running.wait()
 
@@ -619,7 +619,7 @@ def test_the_next_tick_recovers_each_incomplete_creation_checkpoint(
     state = StateDirectory(root=dispatching)
     branch = f"dreamcatcher-{DISPATCHED_ASSIGNMENT_ID}"
     worktree = state.worktrees / DISPATCHED_ASSIGNMENT_ID
-    fetch(root=dispatching)
+    fetch_main(root=dispatching)
     add_worktree(root=dispatching, path=worktree, branch=branch)
     if checkpoint != "worktree":
         make_empty_commit(worktree=worktree, message="GH8")
@@ -675,7 +675,7 @@ def test_an_assignment_whose_last_round_did_not_finish_is_carried_on(
     assert observed.launched == ASSIGNMENT_ID
     assert (
         written_round(scheduler=scheduler, number=2, name="prompt.txt")
-        == CARRY_ON_PROMPT
+        == RECOVERY_PROMPT
     )
     assert not (
         scheduler.state.assignments / ASSIGNMENT_ID / "rounds" / "2" / "inbox.json"

@@ -27,7 +27,7 @@ from dreamcatcher.agent_rounds import (
     compose_agent_round_ending,
 )
 from dreamcatcher.github import PullRequestState
-from dreamcatcher.prompts import CARRY_ON_PROMPT, MARKER
+from dreamcatcher.prompts import AGENT_POST_MARKER, RECOVERY_PROMPT
 from dreamcatcher.scheduler import (
     NO_ROUND_HAS_RUN,
     AgentAssignmentObservation,
@@ -121,7 +121,7 @@ def test_an_assignment_whose_last_round_was_interrupted_is_a_recovery(state, gh)
     assert resume.plan.purpose is AgentRoundPurpose.ADDRESS_FEEDBACK
     assert resume.plan.is_recovery
     assert resume.reason == "the last round was interrupted"
-    assert resume.prompt == CARRY_ON_PROMPT
+    assert resume.prompt == RECOVERY_PROMPT
     assert resume.plan.input is None
     assert gh.calls[0].arguments[:3] == ["pr", "view", str(PULL_REQUEST)]
 
@@ -271,7 +271,7 @@ def test_the_prompt_of_a_posts_resume_sends_the_assignment_to_the_next_rounds_in
     paths = resume.assignment.round_paths(number=resume.assignment.next_round_number)
     assert str(paths.inbox) in resume.prompt
     assert paths.directory.name == "2"
-    assert MARKER in resume.prompt
+    assert AGENT_POST_MARKER in resume.prompt
 
 
 @pytest.mark.parametrize("state_name", ["MERGED", "CLOSED"])

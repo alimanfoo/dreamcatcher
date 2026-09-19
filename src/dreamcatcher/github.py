@@ -20,22 +20,22 @@ from pydantic import (
     model_validator,
 )
 
-from dreamcatcher.commands import CommandError, run
+from dreamcatcher.commands import CommandError, run_command
 
 # gh lists thirty of anything unless you tell it otherwise, and thirty issues is
 # a number a busy repository passes. Asking for five hundred keeps the tool from
 # dropping work it can see. Only the issue listing needs it: a branch has one
 # pull request, near enough, and thirty is beyond any real count of blockers.
-LISTING_LIMIT = "500"
+ISSUE_LISTING_LIMIT = "500"
 
 # How many of a paginated list to ask GitHub for at a time. gh reads every page
 # whatever the size, so the largest page GitHub allows is the fewest calls for
 # the same answer.
-PAGE_SIZE = "100"
+GITHUB_PAGE_SIZE = "100"
 
 
 @dataclass(frozen=True, kw_only=True)
-class Unknown:
+class UnknownGitHubResponse:
     """What a read answers when it could not tell.
 
     Every read biases the daemon toward doing nothing. A caller that gets this
@@ -47,12 +47,12 @@ class Unknown:
     reason: str
 
 
-class Projection(BaseModel):
+class GitHubResponseProjection(BaseModel):
     """The fields dreamcatcher reads out of a document GitHub owns.
 
     GitHub owns the document, so a key we do not declare passes without
-    complaint. That is the opposite of a Document, which refuses a key that it
-    does not expect.
+    complaint. That is the opposite of a DreamcatcherDocument, which refuses a
+    key that it does not expect.
     """
 
     model_config = ConfigDict(frozen=True, populate_by_name=True)
@@ -73,7 +73,7 @@ class IssueState(StrEnum):
     CLOSED = "CLOSED"
 
 
-class Verdict(StrEnum):
+class PullRequestReviewVerdict(StrEnum):
     """What a review said. GitHub names these in capitals."""
 
     APPROVED = "APPROVED"
@@ -86,38 +86,43 @@ class Verdict(StrEnum):
 # The verdicts that say something on their own. A review carrying one of these
 # is worth reading even with an empty body, and every other verdict leaves the
 # body to do the talking.
-SPEAKING_VERDICTS = frozenset({Verdict.APPROVED, Verdict.CHANGES_REQUESTED})
+SPEAKING_REVIEW_VERDICTS = frozenset(
+    {
+        PullRequestReviewVerdict.APPROVED,
+        PullRequestReviewVerdict.CHANGES_REQUESTED,
+    }
+)
 
 
-class Repository(Projection):
+class GitHubRepository(GitHubResponseProjection):
     """The repository a checkout belongs to, as GitHub names it."""
 
     name_with_owner: str = Field(alias="nameWithOwner")
 
 
-class UserAccount(Projection):
+class GitHubUserAccount(GitHubResponseProjection):
     """A GitHub user account."""
 
     login: str
 
 
-class IssueLabel(Projection):
+class GitHubIssueLabel(GitHubResponseProjection):
     """A label carried by an issue."""
 
     name: str
 
 
-class Issue(Projection):
+class Issue(GitHubResponseProjection):
     """The GitHub facts that scheduling observes about one issue."""
 
     number: int
     created_at: datetime = Field(alias="createdAt")
     state: IssueState
-    assignees: list[UserAccount]
-    labels: list[IssueLabel]
+    assignees: list[GitHubUserAccount]
+    labels: list[GitHubIssueLabel]
 
 
-class PullRequest(Projection):
+class PullRequest(GitHubResponseProjection):
     """A pull request gh listed, and where it has got to."""
 
     number: int
@@ -125,7 +130,7 @@ class PullRequest(Projection):
     is_draft: bool = Field(alias="isDraft")
 
 
-class Blocker(Projection):
+class BlockingIssue(GitHubResponseProjection):
     """An issue that blocks another, and whether it is still open."""
 
     number: int
@@ -138,13 +143,13 @@ class Blocker(Projection):
         return str(value).upper()
 
 
-class LinkedPullRequest(Projection):
+class LinkedPullRequest(GitHubResponseProjection):
     """A pull request GitHub links to an issue."""
 
     number: int
 
 
-class Linked(Projection):
+class LinkedPullRequestsResponse(GitHubResponseProjection):
     """What GitHub links to one issue.
 
     GitHub lists pull requests in every state here, and counts both the ones that
@@ -158,7 +163,7 @@ class Linked(Projection):
     )
 
 
-class _UserPostProjection(Projection):
+class _UserPostProjection(GitHubResponseProjection):
     """Something somebody wrote on a pull request, whichever way they wrote it.
 
     A comment on the conversation, a review, and a comment on a line of the
@@ -194,17 +199,17 @@ class _UserPostProjection(Projection):
         return bool(self.body)
 
 
-class Comment(_UserPostProjection):
+class ConversationComment(_UserPostProjection):
     """A comment on the pull request's own conversation."""
 
     kind: Literal["comment"] = "comment"
 
 
-class Review(_UserPostProjection):
+class PullRequestReview(_UserPostProjection):
     """A review somebody submitted, and the verdict that it carried."""
 
     kind: Literal["review"] = "review"
-    verdict: Verdict = Field(alias="state")
+    verdict: PullRequestReviewVerdict = Field(alias="state")
 
     @property
     def is_speaking(self) -> bool:
@@ -217,10 +222,10 @@ class Review(_UserPostProjection):
         but a COMMENTED verdict is worth nothing to the assignment. An approval or
         a request for changes is worth something on its own, body or no body.
         """
-        return super().is_speaking or self.verdict in SPEAKING_VERDICTS
+        return super().is_speaking or self.verdict in SPEAKING_REVIEW_VERDICTS
 
 
-class InlineComment(_UserPostProjection):
+class InlineReviewComment(_UserPostProjection):
     """A comment somebody left on a line of the pull request's diff.
 
     The lines are where the comment was written, and the hunk is the piece of
@@ -268,60 +273,62 @@ class InlineComment(_UserPostProjection):
         }
 
 
-type UserPost = Comment | Review | InlineComment
+type UserPost = ConversationComment | PullRequestReview | InlineReviewComment
 
 
-REPOSITORY = TypeAdapter(Repository)
-ACCOUNT = TypeAdapter(UserAccount)
-ISSUE = TypeAdapter(Issue)
-ISSUES = TypeAdapter(list[Issue])
-PULL_REQUESTS = TypeAdapter(list[PullRequest])
-PULL_REQUEST = TypeAdapter(PullRequest)
-BLOCKERS = TypeAdapter(list[Blocker])
-LINKED = TypeAdapter(Linked)
-CONVERSATION = TypeAdapter(list[list[Comment]])
-REVIEWS = TypeAdapter(list[list[Review]])
-INLINE_COMMENTS = TypeAdapter(list[list[InlineComment]])
+REPOSITORY_RESPONSE = TypeAdapter(GitHubRepository)
+ACCOUNT_RESPONSE = TypeAdapter(GitHubUserAccount)
+ISSUE_RESPONSE = TypeAdapter(Issue)
+ISSUE_LIST_RESPONSE = TypeAdapter(list[Issue])
+PULL_REQUEST_LIST_RESPONSE = TypeAdapter(list[PullRequest])
+PULL_REQUEST_RESPONSE = TypeAdapter(PullRequest)
+BLOCKING_ISSUE_LIST_RESPONSE = TypeAdapter(list[BlockingIssue])
+LINKED_PULL_REQUESTS_RESPONSE = TypeAdapter(LinkedPullRequestsResponse)
+CONVERSATION_COMMENT_PAGES = TypeAdapter(list[list[ConversationComment]])
+PULL_REQUEST_REVIEW_PAGES = TypeAdapter(list[list[PullRequestReview]])
+INLINE_REVIEW_COMMENT_PAGES = TypeAdapter(list[list[InlineReviewComment]])
 
 # The three lists a pull request's posts arrive in: what each holds, the kind of
 # thing GitHub keeps it under, and what it is called there. A pull request's own
 # conversation is the conversation of the issue that shares its number, which is
 # why that one is kept under the issues.
-POST_LISTS = (
-    (CONVERSATION, "issues", "comments"),
-    (REVIEWS, "pulls", "reviews"),
-    (INLINE_COMMENTS, "pulls", "comments"),
+USER_POST_LISTS = (
+    (CONVERSATION_COMMENT_PAGES, "issues", "comments"),
+    (PULL_REQUEST_REVIEW_PAGES, "pulls", "reviews"),
+    (INLINE_REVIEW_COMMENT_PAGES, "pulls", "comments"),
 )
 
 
-def identify_repository(*, root: Path) -> str | Unknown:
+def identify_github_repository(*, root: Path) -> str | UnknownGitHubResponse:
     """Return the repository the checkout at root belongs to, as owner/name.
 
     gh reads the repository from the checkout's own remote, so this asks from
     inside the checkout.
     """
     answered = _read(
-        shape=REPOSITORY,
+        shape=REPOSITORY_RESPONSE,
         arguments=["repo", "view", "--json", "nameWithOwner"],
         cwd=root,
     )
-    if isinstance(answered, Unknown):
+    if isinstance(answered, UnknownGitHubResponse):
         return answered
     return answered.name_with_owner
 
 
-def identify_account() -> str | Unknown:
+def identify_github_account() -> str | UnknownGitHubResponse:
     """Return the login of the account gh is signed in as."""
-    answered = _read(shape=ACCOUNT, arguments=["api", "user"])
-    if isinstance(answered, Unknown):
+    answered = _read(shape=ACCOUNT_RESPONSE, arguments=["api", "user"])
+    if isinstance(answered, UnknownGitHubResponse):
         return answered
     return answered.login
 
 
-def list_issues(*, repository: str, label: str, assignee: str) -> list[Issue] | Unknown:
+def list_issues(
+    *, repository: str, label: str, assignee: str
+) -> list[Issue] | UnknownGitHubResponse:
     """Return the repository's open issues carrying label and assigned to assignee."""
     return _read(
-        shape=ISSUES,
+        shape=ISSUE_LIST_RESPONSE,
         arguments=[
             "issue",
             "list",
@@ -334,17 +341,17 @@ def list_issues(*, repository: str, label: str, assignee: str) -> list[Issue] | 
             "--state",
             "open",
             "--limit",
-            LISTING_LIMIT,
+            ISSUE_LISTING_LIMIT,
             "--json",
             "number,createdAt,state,assignees,labels",
         ],
     )
 
 
-def read_issue(*, repository: str, issue: int) -> Issue | Unknown:
+def read_issue(*, repository: str, issue: int) -> Issue | UnknownGitHubResponse:
     """Return the current GitHub facts for one issue."""
     return _read(
-        shape=ISSUE,
+        shape=ISSUE_RESPONSE,
         arguments=[
             "issue",
             "view",
@@ -357,14 +364,16 @@ def read_issue(*, repository: str, issue: int) -> Issue | Unknown:
     )
 
 
-def list_pull_requests(*, repository: str, branch: str) -> list[PullRequest] | Unknown:
+def list_pull_requests(
+    *, repository: str, branch: str
+) -> list[PullRequest] | UnknownGitHubResponse:
     """Return the pull requests branch is the head of, whatever state each is in.
 
     A branch usually has one, and an empty list means it has none. Which of
     several counts is the caller's rule, not this read's.
     """
     return _read(
-        shape=PULL_REQUESTS,
+        shape=PULL_REQUEST_LIST_RESPONSE,
         arguments=[
             "pr",
             "list",
@@ -382,9 +391,9 @@ def list_pull_requests(*, repository: str, branch: str) -> list[PullRequest] | U
 
 def create_pull_request(
     *, repository: str, branch: str, issue: int
-) -> PullRequest | Unknown:
+) -> PullRequest | UnknownGitHubResponse:
     """Open the branch's linked draft pull request and return its identity."""
-    reference = run(
+    reference = run_command(
         program="gh",
         arguments=[
             "pr",
@@ -405,15 +414,19 @@ def create_pull_request(
     return _read_pull_request(repository=repository, reference=reference)
 
 
-def read_pull_request(*, repository: str, pull_request: int) -> PullRequest | Unknown:
+def read_pull_request(
+    *, repository: str, pull_request: int
+) -> PullRequest | UnknownGitHubResponse:
     """Return the pull request with this persisted identity."""
     return _read_pull_request(repository=repository, reference=str(pull_request))
 
 
-def _read_pull_request(*, repository: str, reference: str) -> PullRequest | Unknown:
+def _read_pull_request(
+    *, repository: str, reference: str
+) -> PullRequest | UnknownGitHubResponse:
     """Return one pull request named by a number or URL."""
     return _read(
-        shape=PULL_REQUEST,
+        shape=PULL_REQUEST_RESPONSE,
         arguments=[
             "pr",
             "view",
@@ -428,7 +441,7 @@ def _read_pull_request(*, repository: str, reference: str) -> PullRequest | Unkn
 
 def list_linked_pull_requests(
     *, repository: str, issue: int
-) -> list[LinkedPullRequest] | Unknown:
+) -> list[LinkedPullRequest] | UnknownGitHubResponse:
     """Return the open pull requests GitHub links to this issue.
 
     This is how the tool knows an issue is claimed when no worktree here says
@@ -436,7 +449,7 @@ def list_linked_pull_requests(
     in.
     """
     answered = _read(
-        shape=LINKED,
+        shape=LINKED_PULL_REQUESTS_RESPONSE,
         arguments=[
             "issue",
             "view",
@@ -447,28 +460,30 @@ def list_linked_pull_requests(
             "closedByPullRequestsReferences",
         ],
     )
-    if isinstance(answered, Unknown):
+    if isinstance(answered, UnknownGitHubResponse):
         return answered
     open_pull_requests = []
     for linked in answered.pull_requests:
         pull_request = read_pull_request(
             repository=repository, pull_request=linked.number
         )
-        if isinstance(pull_request, Unknown):
+        if isinstance(pull_request, UnknownGitHubResponse):
             return pull_request
         if pull_request.state is PullRequestState.OPEN:
             open_pull_requests.append(linked)
     return open_pull_requests
 
 
-def list_blockers(*, repository: str, issue: int) -> list[Blocker] | Unknown:
+def list_blocking_issues(
+    *, repository: str, issue: int
+) -> list[BlockingIssue] | UnknownGitHubResponse:
     """Return the issues blocking this one, each with its own state.
 
     This reads the one page GitHub answers with, so an issue with more than
     thirty blockers would keep the rest out of view.
     """
     return _read(
-        shape=BLOCKERS,
+        shape=BLOCKING_ISSUE_LIST_RESPONSE,
         arguments=[
             "api",
             f"repos/{repository}/issues/{issue}/dependencies/blocked_by",
@@ -476,7 +491,9 @@ def list_blockers(*, repository: str, issue: int) -> list[Blocker] | Unknown:
     )
 
 
-def list_posts(*, repository: str, pull_request: int) -> list[UserPost] | Unknown:
+def list_user_posts(
+    *, repository: str, pull_request: int
+) -> list[UserPost] | UnknownGitHubResponse:
     """Return everything anybody posted on the pull request, from all three places.
 
     The three come back as one list, because somebody reading a pull request
@@ -488,10 +505,10 @@ def list_posts(*, repository: str, pull_request: int) -> list[UserPost] | Unknow
     the user is waiting for an answer to.
     """
     found: list[UserPost] = []
-    for shape, under, listed in POST_LISTS:
+    for shape, under, listed in USER_POST_LISTS:
         path = f"repos/{repository}/{under}/{pull_request}/{listed}"
         answered = _read_pages(shape=shape, path=path)
-        if isinstance(answered, Unknown):
+        if isinstance(answered, UnknownGitHubResponse):
             return answered
         found.extend(answered)
     return found
@@ -499,17 +516,22 @@ def list_posts(*, repository: str, pull_request: int) -> list[UserPost] | Unknow
 
 def _read_pages[PostT: UserPost](
     *, shape: TypeAdapter[list[list[PostT]]], path: str
-) -> list[UserPost] | Unknown:
-    """Return every post the paginated list at path holds, or Unknown.
+) -> list[UserPost] | UnknownGitHubResponse:
+    """Return every post the paginated list at path holds, or UnknownGitHubResponse.
 
     gh reads every page for us, and answers with one array for each page it
     read, so the pages join back into one list here.
     """
     answered = _read(
         shape=shape,
-        arguments=["api", f"{path}?per_page={PAGE_SIZE}", "--paginate", "--slurp"],
+        arguments=[
+            "api",
+            f"{path}?per_page={GITHUB_PAGE_SIZE}",
+            "--paginate",
+            "--slurp",
+        ],
     )
-    if isinstance(answered, Unknown):
+    if isinstance(answered, UnknownGitHubResponse):
         return answered
     found: list[UserPost] = list(chain.from_iterable(answered))
     return found
@@ -520,17 +542,19 @@ def _read[ReadT](
     shape: TypeAdapter[ReadT],
     arguments: Sequence[str],
     cwd: Path | None = None,
-) -> ReadT | Unknown:
-    """Return what gh answered, read into shape, or Unknown when the read failed.
+) -> ReadT | UnknownGitHubResponse:
+    """Return what gh answered, or an unknown response when the read failed.
 
     A read fails in two ways: gh itself fails, or it answers something the shape
-    cannot hold. Both answer Unknown, so neither reaches a caller as data.
+    cannot hold. Both answer UnknownGitHubResponse, so neither reaches a caller as data.
     """
     try:
-        answered = run(program="gh", arguments=arguments, cwd=cwd)
+        answered = run_command(program="gh", arguments=arguments, cwd=cwd)
     except CommandError as error:
-        return Unknown(reason=str(error))
+        return UnknownGitHubResponse(reason=str(error))
     try:
         return shape.validate_json(answered)
     except ValidationError as error:
-        return Unknown(reason=f"gh answered what dreamcatcher cannot read: {error}")
+        return UnknownGitHubResponse(
+            reason=f"gh answered what dreamcatcher cannot read: {error}"
+        )

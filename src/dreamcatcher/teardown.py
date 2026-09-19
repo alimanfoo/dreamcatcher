@@ -27,7 +27,7 @@ import sys
 # Whether to ask for the child to lead a session, and so a process group, of its
 # own. That is what POSIX teardown signals. Windows holds a child in a Job
 # Object instead, where asking for a session of its own would say nothing.
-OWN_SESSION = sys.platform != "win32"
+SHOULD_START_NEW_PROCESS_SESSION = sys.platform != "win32"
 
 if sys.platform == "win32":  # pragma: no cover
     import win32api

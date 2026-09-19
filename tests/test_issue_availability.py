@@ -8,7 +8,7 @@ from observations import observed_issue
 from records import write_agent_assignment
 
 from dreamcatcher.agent_assignments import AgentAssignment, read_agent_assignments
-from dreamcatcher.config import Config
+from dreamcatcher.config import DreamcatcherConfig
 from dreamcatcher.scheduler import (
     IssueFactValue,
     derive_issue_availability,
@@ -25,9 +25,11 @@ INDEPENDENT_FACTS = (
 )
 
 
-def config_with_routes(*, labels: Sequence[str], assignee: str = "@me") -> Config:
+def config_with_routes(
+    *, labels: Sequence[str], assignee: str = "@me"
+) -> DreamcatcherConfig:
     """Return a config that routes each label to the same harness recipe."""
-    return Config.model_validate(
+    return DreamcatcherConfig.model_validate(
         {
             "assignee": assignee,
             "dispatch": [{"label": label, "claude": SETTINGS} for label in labels],
@@ -49,7 +51,7 @@ def gh(fake):
 
 def observe(
     *,
-    config: Config,
+    config: DreamcatcherConfig,
     assignments: Sequence[AgentAssignment] = (),
     recovery_obstacles: dict[int, str | None] | None = None,
 ):

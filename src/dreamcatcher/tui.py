@@ -35,7 +35,7 @@ from dreamcatcher.agent_rounds import (
     ErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
 )
-from dreamcatcher.clock import Wait, now
+from dreamcatcher.clock import WaitForSeconds, read_current_time
 from dreamcatcher.documents import read_lines_from
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import (
@@ -107,7 +107,9 @@ class _Picture:
     is_over: bool
 
 
-def _repaint(*, console: Console, look: Callable[[], _Picture], wait: Wait) -> None:
+def _repaint(
+    *, console: Console, look: Callable[[], _Picture], wait: WaitForSeconds
+) -> None:
     """Draw what each look finds over the one before, until the view is over.
 
     A picture of a state has a current value rather than a history, so every
@@ -150,7 +152,9 @@ def _repaint(*, console: Console, look: Callable[[], _Picture], wait: Wait) -> N
         console.print(last_picture.shown)
 
 
-def _keep_looking(*, console: Console, look: Callable[[], bool], wait: Wait) -> None:
+def _keep_looking(
+    *, console: Console, look: Callable[[], bool], wait: WaitForSeconds
+) -> None:
     """Look again and again, until the view has seen the last of what it shows.
 
     A look shows where the view stands now and answers whether the view is
@@ -184,8 +188,8 @@ def show_status(
     *,
     state: StateDirectory,
     console: Console,
-    clock: Callable[[], datetime] = now,
-    wait: Wait = sleep,
+    clock: Callable[[], datetime] = read_current_time,
+    wait: WaitForSeconds = sleep,
 ) -> None:
     """Show the instance, issue, and assignment status, and keep it current.
 
@@ -369,8 +373,8 @@ def show_assignment(
     state: StateDirectory,
     issue: int,
     console: Console,
-    clock: Callable[[], datetime] = now,
-    wait: Wait = sleep,
+    clock: Callable[[], datetime] = read_current_time,
+    wait: WaitForSeconds = sleep,
 ) -> None:
     """Show the newest assignment at the issue, and keep on showing it.
 
@@ -588,7 +592,7 @@ def show_feed(
     issue: int,
     console: Console,
     round_number: int | None = None,
-    wait: Wait = sleep,
+    wait: WaitForSeconds = sleep,
 ) -> None:
     """Show what the issue's newest assignment said, and follow what arrives.
 
@@ -643,7 +647,7 @@ def _show_one_round(
     issue: int,
     number: int,
     console: Console,
-    wait: Wait,
+    wait: WaitForSeconds,
 ) -> None:
     """Show one round of the issue's newest assignment, until that round ends.
 
@@ -678,7 +682,10 @@ def _show_one_round(
 
 
 def _find_assignment_statuses_for_issue(
-    *, state: StateDirectory, issue: int, clock: Callable[[], datetime] = now
+    *,
+    state: StateDirectory,
+    issue: int,
+    clock: Callable[[], datetime] = read_current_time,
 ) -> list[AgentAssignmentStatus]:
     """Return the issue's agent-assignment statuses, or refuse if none.
 

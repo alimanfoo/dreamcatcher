@@ -8,17 +8,17 @@ got.
 
 from pathlib import Path
 
-from dreamcatcher.commands import run
+from dreamcatcher.commands import run_command
 
 
-def fetch(*, root: Path) -> None:
+def fetch_main(*, root: Path) -> None:
     """Bring origin's main branch up to date in the checkout at root."""
-    run(program="git", arguments=["fetch", "origin", "main"], cwd=root)
+    run_command(program="git", arguments=["fetch", "origin", "main"], cwd=root)
 
 
 def add_worktree(*, root: Path, path: Path, branch: str) -> None:
     """Create a worktree at path, on a new branch cut from origin/main."""
-    run(
+    run_command(
         program="git",
         arguments=["worktree", "add", "-b", branch, str(path), "origin/main"],
         cwd=root,
@@ -32,14 +32,14 @@ def is_assignment_worktree(*, path: Path) -> bool:
 
 def read_worktree_branch(*, worktree: Path) -> str:
     """Return the branch checked out in an assignment worktree."""
-    return run(
+    return run_command(
         program="git", arguments=["branch", "--show-current"], cwd=worktree
     ).strip()
 
 
 def has_commits_since_main(*, worktree: Path) -> bool:
     """Return whether the worktree's branch has moved beyond origin/main."""
-    count = run(
+    count = run_command(
         program="git",
         arguments=["rev-list", "--count", "origin/main..HEAD"],
         cwd=worktree,
@@ -49,7 +49,7 @@ def has_commits_since_main(*, worktree: Path) -> bool:
 
 def make_empty_commit(*, worktree: Path, message: str) -> None:
     """Make an empty commit on the branch checked out in the worktree."""
-    run(
+    run_command(
         program="git",
         arguments=[
             "-c",
@@ -69,7 +69,7 @@ def make_empty_commit(*, worktree: Path, message: str) -> None:
 
 def push_branch(*, root: Path, branch: str) -> None:
     """Push the branch to origin and make that remote branch its upstream."""
-    run(
+    run_command(
         program="git",
         arguments=["push", "--set-upstream", "origin", branch],
         cwd=root,
@@ -78,7 +78,7 @@ def push_branch(*, root: Path, branch: str) -> None:
 
 def remove_worktree(*, root: Path, path: Path) -> None:
     """Remove the worktree at path, whatever is left in it."""
-    run(
+    run_command(
         program="git",
         arguments=["worktree", "remove", "--force", str(path)],
         cwd=root,
@@ -91,7 +91,7 @@ def delete_branch(*, root: Path, branch: str) -> None:
     git keeps a branch a worktree has checked out, so remove that worktree
     first.
     """
-    run(
+    run_command(
         program="git",
         arguments=["branch", "--delete", "--force", branch],
         cwd=root,

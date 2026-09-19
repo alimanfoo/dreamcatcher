@@ -7,7 +7,7 @@ from pathlib import Path
 from dreamcatcher.agent_rounds import AgentRoundReader
 from dreamcatcher.documents import write_text
 
-STATE_DIRECTORY = ".dreamcatcher"
+STATE_DIRECTORY_NAME = ".dreamcatcher"
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -37,7 +37,7 @@ class StateDirectory:
     @property
     def path(self) -> Path:
         """The directory itself."""
-        return self.root / STATE_DIRECTORY
+        return self.root / STATE_DIRECTORY_NAME
 
     @property
     def lock(self) -> Path:

@@ -13,8 +13,8 @@ from dreamcatcher.agent_assignments import (
     read_agent_assignments_for_issue,
     request_agent_assignment_retry,
 )
-from dreamcatcher.clock import now
-from dreamcatcher.config import Harness
+from dreamcatcher.clock import read_current_time
+from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.scheduler import derive_assignment_fault, read_scheduler_record
@@ -74,8 +74,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--harness",
         required=True,
         # The names, not the members. Some Python versions render a rejected
-        # choice with repr(), which turns a member into <Harness.CLAUDE: ...>.
-        choices=[harness.value for harness in Harness],
+        # choice with repr(), which turns a member into <AgentHarness.CLAUDE: ...>.
+        choices=[harness.value for harness in AgentHarness],
         help="the harness to run this repo's rounds with",
     )
     run_parser.set_defaults(act=_run)
@@ -172,7 +172,7 @@ def main(*, argv: Sequence[str] | None = None) -> int:
 
 def _run(*, args: argparse.Namespace) -> None:
     """Run a daemon on the checkout we are in."""
-    Daemon(root=Path.cwd(), harness=Harness(args.harness)).run()
+    Daemon(root=Path.cwd(), harness=AgentHarness(args.harness)).run()
 
 
 def _retry_assignment(*, args: argparse.Namespace) -> None:
@@ -193,7 +193,7 @@ def _retry_assignment(*, args: argparse.Namespace) -> None:
         most_recent_cooldown_ended=cooldown_ended,
     ):
         raise ReportableError(f"{assignment.identifier} is not in fault.")
-    request_agent_assignment_retry(assignment=assignment, at=now())
+    request_agent_assignment_retry(assignment=assignment, at=read_current_time())
     print(f"{assignment.identifier} can recover on the next scheduler tick.")
 
 

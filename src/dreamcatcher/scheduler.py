@@ -37,17 +37,17 @@ from dreamcatcher.agent_rounds import (
     AgentRoundPurpose,
     ErroredAgentRoundEnding,
 )
-from dreamcatcher.config import Config, Harness
-from dreamcatcher.documents import Document, read_json
+from dreamcatcher.config import AgentHarness, DreamcatcherConfig
+from dreamcatcher.documents import DreamcatcherDocument, read_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
     Issue,
     IssueState,
     PullRequest,
     PullRequestState,
-    Unknown,
+    UnknownGitHubResponse,
     UserPost,
-    list_blockers,
+    list_blocking_issues,
     list_issues,
     list_linked_pull_requests,
     read_issue,
@@ -55,7 +55,7 @@ from dreamcatcher.github import (
 )
 from dreamcatcher.harness_adapters import AgentRoundLaunch
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
-from dreamcatcher.prompts import CARRY_ON_PROMPT, compose_inbox_prompt
+from dreamcatcher.prompts import RECOVERY_PROMPT, compose_user_posts_prompt
 from dreamcatcher.relay import list_undelivered_user_posts
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.words import describe_count
@@ -80,14 +80,14 @@ class IssueFactValue(StrEnum):
     UNKNOWN = "unknown"
 
 
-class IssueFact(Document):
+class IssueFact(DreamcatcherDocument):
     """One independently observed issue fact and its diagnostic evidence."""
 
     value: IssueFactValue
     evidence: str | None = None
 
 
-class IssueObservation(Document):
+class IssueObservation(DreamcatcherDocument):
     """The independent facts that one scheduler tick observed about an issue."""
 
     issue: int
@@ -107,7 +107,7 @@ class IssueObservation(Document):
         return derive_issue_availability(observation=self)
 
 
-class AgentAssignmentObservation(Document):
+class AgentAssignmentObservation(DreamcatcherDocument):
     """What the scheduler found when it inspected one idle assignment."""
 
     assignment: str
@@ -117,7 +117,7 @@ class AgentAssignmentObservation(Document):
     is_round_required: bool = True
 
 
-class GlobalCooldown(Document):
+class GlobalCooldown(DreamcatcherDocument):
     """The interval during which the scheduler starts no agent work."""
 
     started: UtcDateTime
@@ -131,7 +131,7 @@ class GlobalCooldown(Document):
         return self
 
 
-class SchedulerRecord(Document):
+class SchedulerRecord(DreamcatcherDocument):
     """What the scheduler's most recent tick observed and decided."""
 
     at: UtcDateTime
@@ -174,7 +174,7 @@ class _IssueObservationContext:
 
     repository: str
     account: str
-    config: Config
+    config: DreamcatcherConfig
     assignments: dict[int, AgentAssignment]
     recovery_obstacles: dict[int, str | None]
 
@@ -251,7 +251,7 @@ def observe_issues(
     *,
     repository: str,
     account: str,
-    config: Config,
+    config: DreamcatcherConfig,
     assignments: list[AgentAssignment],
     recovery_obstacles: dict[int, str | None],
 ) -> IssueObservationResult:
@@ -269,7 +269,7 @@ def observe_issues(
         assignments=open_assignments,
         recovery_obstacles=recovery_obstacles,
     )
-    observed: dict[int, Issue | Unknown] = {
+    observed: dict[int, Issue | UnknownGitHubResponse] = {
         issue.number: issue for issue in listed.issues
     }
     local_issues = open_assignments.keys() | recovery_obstacles.keys()
@@ -296,14 +296,16 @@ def observe_issues(
     )
 
 
-def _list_considered_issues(*, repository: str, config: Config) -> _ConsideredIssues:
+def _list_considered_issues(
+    *, repository: str, config: DreamcatcherConfig
+) -> _ConsideredIssues:
     """List open assigned issues that carry any configured dispatch label."""
     found: dict[int, Issue] = {}
     for route in config.dispatch:
         answered = list_issues(
             repository=repository, label=route.label, assignee=config.assignee
         )
-        if isinstance(answered, Unknown):
+        if isinstance(answered, UnknownGitHubResponse):
             return _ConsideredIssues(
                 issues=list(found.values()),
                 failure=answered.reason,
@@ -316,10 +318,10 @@ def _observe_issue(
     *,
     context: _IssueObservationContext,
     issue: int,
-    answer: Issue | Unknown,
+    answer: Issue | UnknownGitHubResponse,
 ) -> IssueObservation:
     """Observe the independent scheduling facts for one issue."""
-    if isinstance(answer, Unknown):
+    if isinstance(answer, UnknownGitHubResponse):
         external_reason = f"cannot read issue: {answer.reason}"
         created_at = None
         is_open = _unknown_fact(evidence=external_reason)
@@ -394,7 +396,7 @@ def _observe_external_claim(
     if has_recovery_setup and obstacle is None:
         return _known_fact(value=False)
     linked = list_linked_pull_requests(repository=context.repository, issue=issue)
-    if isinstance(linked, Unknown):
+    if isinstance(linked, UnknownGitHubResponse):
         if obstacle is not None:
             return _unknown_fact(evidence=obstacle)
         return _unknown_fact(
@@ -415,8 +417,8 @@ def _observe_external_claim(
 
 def _observe_blocking_issues(*, repository: str, issue: int) -> IssueFact:
     """Observe whether an open issue dependency blocks the issue."""
-    blocking = list_blockers(repository=repository, issue=issue)
-    if isinstance(blocking, Unknown):
+    blocking = list_blocking_issues(repository=repository, issue=issue)
+    if isinstance(blocking, UnknownGitHubResponse):
         return _unknown_fact(evidence=f"cannot tell what blocks it: {blocking.reason}")
     open_blockers = [
         blocker.number for blocker in blocking if blocker.state is IssueState.OPEN
@@ -590,7 +592,7 @@ def _inspect_assignment_pull_request(
     pull_request = read_pull_request(
         repository=repository, pull_request=assignment.record.pull_request
     )
-    if isinstance(pull_request, Unknown):
+    if isinstance(pull_request, UnknownGitHubResponse):
         return compose_assignment_observation(
             assignment=assignment,
             reason=f"cannot read its pull request: {pull_request.reason}",
@@ -605,7 +607,7 @@ def _inspect_assignment_pull_request(
                 is_recovery=True,
             ),
             reason=recovery_reason,
-            prompt=CARRY_ON_PROMPT,
+            prompt=RECOVERY_PROMPT,
         )
     posted = list_undelivered_user_posts(
         repository=repository,
@@ -613,7 +615,7 @@ def _inspect_assignment_pull_request(
         account=account,
         delivery_cursor=assignment.user_post_delivery_cursor,
     )
-    if isinstance(posted, Unknown):
+    if isinstance(posted, UnknownGitHubResponse):
         return compose_assignment_observation(
             assignment=assignment,
             reason=f"cannot tell what the user posted: {posted.reason}",
@@ -665,9 +667,11 @@ def _compose_resumed_round_requirement(
                 else f"the pull request is {pull_request.state.lower()}"
             )
         ),
-        prompt=compose_inbox_prompt(
+        prompt=compose_user_posts_prompt(
             pull_request=pull_request.number,
-            inbox=assignment.round_paths(number=assignment.next_round_number).inbox,
+            round_input=assignment.round_paths(
+                number=assignment.next_round_number
+            ).inbox,
         ),
     )
 
@@ -704,9 +708,9 @@ class Scheduler:
 
     repository: str
     account: str
-    config: Config
+    config: DreamcatcherConfig
     state: StateDirectory
-    harness: Harness
+    harness: AgentHarness
     clock: Callable[[], datetime]
     rounds: dict[str, AgentRound]
 

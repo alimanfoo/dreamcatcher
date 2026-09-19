@@ -14,9 +14,9 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path, PurePath
 
-from dreamcatcher.clock import now
+from dreamcatcher.clock import read_current_time
 from dreamcatcher.documents import read_last_line
-from dreamcatcher.words import STAMP, describe_time
+from dreamcatcher.words import TIMESTAMP_FORMAT, describe_time
 
 # A note's detail can be as long as a whole file, so the line is clipped. The
 # figure is the port's, wide enough for a command or a path.
@@ -74,7 +74,7 @@ def read_feed_line(*, written: str) -> Line | None:
     if not gap:
         return None
     try:
-        at = datetime.strptime(stamp, STAMP).replace(tzinfo=UTC)
+        at = datetime.strptime(stamp, TIMESTAMP_FORMAT).replace(tzinfo=UTC)
     except ValueError:
         return None
     return Line(at=at, text=text)
@@ -125,7 +125,7 @@ class Renderer:
     """
 
     worktree: PurePath
-    clock: Callable[[], datetime] = now
+    clock: Callable[[], datetime] = read_current_time
 
     def render(self, *, event: Event) -> str:
         """Return the feed lines the event becomes, or nothing when it has none."""

@@ -9,7 +9,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from dreamcatcher import agent_assignments, agent_rounds
-from dreamcatcher.config import Harness
+from dreamcatcher.config import AgentHarness
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import Line
 from dreamcatcher.scheduler import SchedulerRecord
@@ -33,7 +33,7 @@ def write_agent_assignment(
             branch=f"{agent_assignments.BRANCH_PREFIX}{identifier}",
             worktree=state.worktrees / identifier,
             pull_request=52,
-            harness=Harness.CLAUDE,
+            harness=AgentHarness.CLAUDE,
             harness_session_identifier=harness_session_identifier,
             model="opus[1m]",
             effort="xhigh",

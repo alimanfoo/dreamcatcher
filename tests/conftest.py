@@ -12,7 +12,7 @@ import fakes
 import psutil
 import pytest
 
-from dreamcatcher.commands import run, spawn
+from dreamcatcher.commands import run_command, spawn_command
 from dreamcatcher.config import CONFIG_NAME
 
 ARMING = "PYTHONWARNDEFAULTENCODING"
@@ -172,11 +172,11 @@ def recorded_posts(*, source: str) -> str:
 
 def git(*, arguments: Sequence[str], cwd: Path) -> str:
     """Run git in cwd and return its output, through the tool's own runner."""
-    return run(program="git", arguments=arguments, cwd=cwd)
+    return run_command(program="git", arguments=arguments, cwd=cwd)
 
 
 def gone(*, pid: int) -> bool:
-    """Wait a while for the process at pid to end, and say whether it did."""
+    """WaitForSeconds a while for the process at pid to end, and say whether it did."""
     # A process that outstays the wait is a process that is still there, which
     # is the answer, not a failure.
     with suppress(psutil.NoSuchProcess, psutil.TimeoutExpired):
@@ -255,7 +255,7 @@ def fake(stand_ins, monkeypatch):
 @pytest.fixture
 def left_running(tmp_path):
     """A process standing in for a round left without a recorded ending."""
-    child = spawn(
+    child = spawn_command(
         program=sys.executable,
         arguments=["-c", "import time; time.sleep(60)"],
         cwd=tmp_path,

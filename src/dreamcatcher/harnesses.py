@@ -10,10 +10,10 @@ imports `harness_adapters.py` itself.
 
 from dreamcatcher.claude import CLAUDE
 from dreamcatcher.codex import CODEX
-from dreamcatcher.config import Harness
+from dreamcatcher.config import AgentHarness
 from dreamcatcher.harness_adapters import HarnessAdapter
 
-HARNESS_ADAPTERS: dict[Harness, HarnessAdapter] = {
-    Harness.CLAUDE: CLAUDE,
-    Harness.CODEX: CODEX,
+HARNESS_ADAPTERS: dict[AgentHarness, HarnessAdapter] = {
+    AgentHarness.CLAUDE: CLAUDE,
+    AgentHarness.CODEX: CODEX,
 }

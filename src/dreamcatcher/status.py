@@ -10,8 +10,8 @@ from dreamcatcher.agent_assignments import (
     read_agent_assignments,
     read_agent_assignments_for_issue,
 )
-from dreamcatcher.clock import now
-from dreamcatcher.config import read_config
+from dreamcatcher.clock import read_current_time
+from dreamcatcher.config import read_dreamcatcher_config
 from dreamcatcher.documents import read_text
 from dreamcatcher.feed import Line, read_last_feed_line
 from dreamcatcher.lock import read_daemon_pid
@@ -69,7 +69,7 @@ class StatusReport:
 
 
 def read_status_report(
-    *, state: StateDirectory, clock: Callable[[], datetime] = now
+    *, state: StateDirectory, clock: Callable[[], datetime] = read_current_time
 ) -> StatusReport:
     """Read a status report from the instance's local configuration and state."""
     reading = _StatusReading(state=state, clock=clock)
@@ -88,7 +88,7 @@ def read_status_report(
             if scheduler_record is None or reading.daemon_pid is None
             else scheduler_record.hold
         ),
-        max_agent_rounds=read_config(root=state.root).max_agents,
+        max_agent_rounds=read_dreamcatcher_config(root=state.root).max_agents,
         running_agent_rounds=sum(
             status.value is AgentAssignmentStatusValue.WORKING for status in statuses
         ),
@@ -108,7 +108,10 @@ def _read_repository(*, state: StateDirectory) -> str | None:
 
 
 def read_agent_assignment_statuses_for_issue(
-    *, state: StateDirectory, issue: int, clock: Callable[[], datetime] = now
+    *,
+    state: StateDirectory,
+    issue: int,
+    clock: Callable[[], datetime] = read_current_time,
 ) -> list[AgentAssignmentStatus]:
     """Read the statuses at one issue, newest agent assignment first."""
     reading = _StatusReading(state=state, clock=clock)

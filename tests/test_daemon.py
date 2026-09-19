@@ -25,7 +25,7 @@ from dreamcatcher.agent_rounds import (
     RoundOutcome,
     compose_agent_round_ending,
 )
-from dreamcatcher.config import CONFIG_NAME, Harness
+from dreamcatcher.config import CONFIG_NAME, AgentHarness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
@@ -90,7 +90,7 @@ def idling(*, root, ticks: int = 2) -> tuple[Daemon, Interrupting, Ticking]:
     waiting = Interrupting(ticks=ticks)
     ticking = Ticking(step=300)
     return (
-        Daemon(root=root, harness=Harness.CLAUDE, clock=ticking, wait=waiting),
+        Daemon(root=root, harness=AgentHarness.CLAUDE, clock=ticking, wait=waiting),
         waiting,
         ticking,
     )
@@ -242,28 +242,30 @@ def test_a_second_daemon_refuses_while_the_first_holds_the_repo(watched, harness
 
 
 def test_the_daemon_runs_the_harness_it_was_given(watched):
-    assert Daemon(root=watched, harness=Harness.CODEX).harness is Harness.CODEX
+    assert (
+        Daemon(root=watched, harness=AgentHarness.CODEX).harness is AgentHarness.CODEX
+    )
 
 
 def test_a_checkout_with_no_config_names_the_file_it_needs(repo):
     with pytest.raises(ReportableError, match=CONFIG_NAME):
-        Daemon(root=repo, harness=Harness.CLAUDE)
+        Daemon(root=repo, harness=AgentHarness.CLAUDE)
 
 
 def test_a_directory_that_is_not_a_repository_is_refused(tmp_path):
     with pytest.raises(ReportableError, match="main checkout"):
-        Daemon(root=tmp_path, harness=Harness.CLAUDE)
+        Daemon(root=tmp_path, harness=AgentHarness.CLAUDE)
 
 
 def test_a_linked_worktree_is_refused(tmp_path):
     (tmp_path / ".git").write_text("gitdir: elsewhere\n", encoding="utf-8")
 
     with pytest.raises(ReportableError, match="main checkout"):
-        Daemon(root=tmp_path, harness=Harness.CLAUDE)
+        Daemon(root=tmp_path, harness=AgentHarness.CLAUDE)
 
 
 def test_the_state_directory_sits_in_the_checkout(watched):
-    daemon = Daemon(root=watched, harness=Harness.CLAUDE)
+    daemon = Daemon(root=watched, harness=AgentHarness.CLAUDE)
 
     assert daemon.state == StateDirectory(root=watched)
 
@@ -283,7 +285,7 @@ def test_a_run_refuses_when_the_harness_it_was_named_is_not_installed(repo, alon
     alone(programs=["claude"])
 
     with pytest.raises(ReportableError, match="codex is not on the PATH"):
-        Daemon(root=repo, harness=Harness.CODEX, wait=Interrupting(ticks=1)).run()
+        Daemon(root=repo, harness=AgentHarness.CODEX, wait=Interrupting(ticks=1)).run()
 
 
 def test_a_round_the_daemon_before_this_one_left_running_is_ended(
@@ -406,7 +408,9 @@ def test_a_run_that_cannot_be_told_which_repository_this_is_refuses(
     gh.fails(stderr="gh: no such remote", to="repo view")
 
     with pytest.raises(ReportableError, match="cannot tell which repository"):
-        Daemon(root=cloned, harness=Harness.CLAUDE, wait=Interrupting(ticks=1)).run()
+        Daemon(
+            root=cloned, harness=AgentHarness.CLAUDE, wait=Interrupting(ticks=1)
+        ).run()
 
 
 def test_the_daemon_ends_the_rounds_it_holds_as_it_goes_down(dispatching, harnesses):
@@ -479,4 +483,6 @@ def test_a_run_that_cannot_be_told_which_account_gh_is_signed_in_as_refuses(
     gh.fails(stderr="gh: you are not logged in", to="api user")
 
     with pytest.raises(ReportableError, match="cannot tell which account"):
-        Daemon(root=cloned, harness=Harness.CLAUDE, wait=Interrupting(ticks=1)).run()
+        Daemon(
+            root=cloned, harness=AgentHarness.CLAUDE, wait=Interrupting(ticks=1)
+        ).run()

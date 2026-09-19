@@ -10,14 +10,18 @@ from typing import TYPE_CHECKING
 from dreamcatcher import teardown
 from dreamcatcher.agent_assignments import read_agent_assignments
 from dreamcatcher.agent_rounds import record_agent_round_interruption
-from dreamcatcher.clock import Wait, now
-from dreamcatcher.commands import locate
-from dreamcatcher.config import Harness, read_config
+from dreamcatcher.clock import WaitForSeconds, read_current_time
+from dreamcatcher.commands import locate_program
+from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.github import Unknown, identify_account, identify_repository
+from dreamcatcher.github import (
+    UnknownGitHubResponse,
+    identify_github_account,
+    identify_github_repository,
+)
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
-from dreamcatcher.lock import hold
+from dreamcatcher.lock import hold_daemon_lock
 from dreamcatcher.scheduler import InvalidSchedulerRecordError, Scheduler
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.words import describe_time
@@ -51,9 +55,9 @@ class Daemon:
         self,
         *,
         root: Path,
-        harness: Harness,
-        clock: Callable[[], datetime] = now,
-        wait: Wait = sleep,
+        harness: AgentHarness,
+        clock: Callable[[], datetime] = read_current_time,
+        wait: WaitForSeconds = sleep,
     ) -> None:
         """Set the daemon up for the repo checked out at root."""
         if not (root / ".git").is_dir():
@@ -62,7 +66,7 @@ class Daemon:
                 f"{root} is not one."
             )
         self.harness = harness
-        self.config = read_config(root=root)
+        self.config = read_dreamcatcher_config(root=root)
         self.state = StateDirectory(root=root)
         self.clock = clock
         self.wait = wait
@@ -91,12 +95,12 @@ class Daemon:
         self._locate_harnesses()
         self.state.bootstrap()
         repository = _refuse_unknown(
-            named=identify_repository(root=self.state.root),
+            named=identify_github_repository(root=self.state.root),
             question="which repository this is",
         )
         write_text(text=f"{repository}\n", path=self.state.repository)
         account = _refuse_unknown(
-            named=identify_account(), question="which account gh is signed in as"
+            named=identify_github_account(), question="which account gh is signed in as"
         )
         scheduler = Scheduler(
             repository=repository,
@@ -107,7 +111,7 @@ class Daemon:
             clock=self.clock,
             rounds=self.rounds,
         )
-        with hold(path=self.state.lock):
+        with hold_daemon_lock(path=self.state.lock):
             self._sweep_orphans()
             at = self.clock()
             _write_output(line=f"{describe_time(at=at)}  dreamcatcher is running")
@@ -162,7 +166,7 @@ class Daemon:
         on that harness whatever the run named.
         """
         for harness in sorted({self.harness, *self.config.routed_harnesses}):
-            locate(program=HARNESS_ADAPTERS[harness].program)
+            locate_program(program=HARNESS_ADAPTERS[harness].program)
 
     def _sweep_orphans(self) -> None:
         """End whatever a daemon that ran before this one left running.
@@ -196,8 +200,8 @@ class Daemon:
                     )
 
 
-def _refuse_unknown(*, named: str | Unknown, question: str) -> str:
+def _refuse_unknown(*, named: str | UnknownGitHubResponse, question: str) -> str:
     """Return what gh named, or refuse the run saying what it could not tell."""
-    if isinstance(named, Unknown):
+    if isinstance(named, UnknownGitHubResponse):
         raise ReportableError(f"dreamcatcher cannot tell {question}: {named.reason}")
     return named

@@ -27,9 +27,9 @@ from dreamcatcher.agent_rounds import (
     RoundOutcome,
 )
 from dreamcatcher.commands import CommandError
-from dreamcatcher.config import DispatchRoute, Harness
+from dreamcatcher.config import AgentHarness, DispatchRoute
 from dreamcatcher.documents import (
-    Document,
+    DreamcatcherDocument,
     read_json,
     read_lines_from,
     read_text,
@@ -40,7 +40,7 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import (
     add_worktree,
     delete_branch,
-    fetch,
+    fetch_main,
     has_commits_since_main,
     is_assignment_worktree,
     make_empty_commit,
@@ -52,7 +52,7 @@ from dreamcatcher.github import (
     LinkedPullRequest,
     PullRequest,
     PullRequestState,
-    Unknown,
+    UnknownGitHubResponse,
     create_pull_request,
     list_linked_pull_requests,
     list_pull_requests,
@@ -79,7 +79,7 @@ ROUNDS = "rounds"
 USER_POST_DELIVERY_CURSOR = "watermark"
 
 
-class AgentAssignmentRecord(Document):
+class AgentAssignmentRecord(DreamcatcherDocument):
     """The issue an assignment works on, and the settings it runs its rounds with.
 
     The dispatch settles the assignment recipe and identities. The first round
@@ -95,7 +95,7 @@ class AgentAssignmentRecord(Document):
     branch: str
     worktree: Path
     pull_request: int
-    harness: Harness
+    harness: AgentHarness
     harness_session_identifier: HarnessSessionIdentifier | None = None
     retry_requested_at: AwareDatetime | None = None
     model: str
@@ -320,7 +320,7 @@ class AgentAssignmentCreator:
         self,
         *,
         route: DispatchRoute,
-        named: Harness,
+        named: AgentHarness,
         issue: int,
         at: datetime,
     ) -> AgentAssignment:
@@ -350,7 +350,7 @@ class AgentAssignmentCreator:
             )
         harness = route.choose_harness(named=named)
         recipe = route.assignment_recipes[harness]
-        fetch(root=self.state.root)
+        fetch_main(root=self.state.root)
         identifier = _find_incomplete_assignment(state=self.state, issue=issue) or (
             f"GH{issue}-{at:%Y%m%d-%H%M%S}"
         )
@@ -432,7 +432,7 @@ def _find_or_create_pull_request(*, repository: str, branch: str, issue: int) ->
 def _find_branch_pull_request(*, repository: str, branch: str) -> PullRequest | None:
     """Return the sole pull request on a recovery branch, when it has one."""
     found = list_pull_requests(repository=repository, branch=branch)
-    if isinstance(found, Unknown):
+    if isinstance(found, UnknownGitHubResponse):
         raise ReportableError(
             f"cannot reconcile the pull request for {branch}: {found.reason}"
         )
@@ -446,7 +446,7 @@ def _read_linked_pull_requests(
 ) -> list[LinkedPullRequest]:
     """Return the issue's open linked pull requests or report why they are unknown."""
     linked = list_linked_pull_requests(repository=repository, issue=issue)
-    if isinstance(linked, Unknown):
+    if isinstance(linked, UnknownGitHubResponse):
         raise ReportableError(
             f"cannot tell whether another pull request claims GH{issue}: "
             f"{linked.reason}"
@@ -497,7 +497,7 @@ def _refuse_linked_pull_requests(
 def _create_assignment_pull_request(*, repository: str, branch: str, issue: int) -> int:
     """Create and return the assignment branch's open draft pull request."""
     created = create_pull_request(repository=repository, branch=branch, issue=issue)
-    if isinstance(created, Unknown):
+    if isinstance(created, UnknownGitHubResponse):
         raise ReportableError(
             f"cannot read the pull request created for {branch}: {created.reason}"
         )
