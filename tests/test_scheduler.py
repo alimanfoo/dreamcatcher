@@ -330,13 +330,18 @@ def test_a_tick_at_the_cap_says_the_cap_is_what_each_assignment_waits_on(
     harnesses["claude"].streams(
         lines=[Line(text="still working\n")], delay=STILL_RUNNING
     )
+    scheduler, clock = create_scheduler(root=dispatching)
+
+    scheduler.tick(at=clock())
     write_agent_assignment(
         state=StateDirectory(root=dispatching), identifier=ASSIGNMENT_ID, issue=13
     )
-    ran(root=dispatching, number=1, purpose=AgentRoundPurpose.IMPLEMENT)
-    scheduler, clock = create_scheduler(root=dispatching)
-
-    observed = scheduler.tick(at=clock())
+    ran(
+        root=dispatching,
+        number=1,
+        purpose=AgentRoundPurpose.IMPLEMENT,
+        status=1,
+    )
     observed = scheduler.tick(at=clock())
 
     # The first tick dispatched issue 8, and its round is what fills the cap,
@@ -412,11 +417,7 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
         observation.is_open.value is IssueFactValue.UNKNOWN
         for observation in observed.issue_observations
     )
-    assert observed.assignment_observations == [
-        AgentAssignmentObservation(
-            assignment=ASSIGNMENT_ID, issue=13, reason="at cap: 1 of 1 rounds running"
-        )
-    ]
+    assert observed.assignment_observations == []
 
 
 def test_a_tick_with_nothing_eligible_dispatches_nothing(dispatching, offered):

@@ -107,6 +107,7 @@ class AgentAssignmentObservation(Document):
     assignment: str
     issue: int
     reason: str
+    is_known: bool = True
 
 
 class GlobalCooldown(Document):
@@ -530,7 +531,7 @@ def _required_round_priority(required: RequiredAgentRound, /) -> int:
 
 
 def list_assignment_observations(
-    *, found: list[AssignmentFinding]
+    *, found: list[AssignmentFinding], required_reason: str | None = None
 ) -> list[AgentAssignmentObservation]:
     """Return the operational observation for every unlaunched finding."""
     return [
@@ -538,7 +539,11 @@ def list_assignment_observations(
         if isinstance(one, AgentAssignmentObservation)
         else compose_assignment_observation(
             assignment=one.assignment,
-            reason=one.reason,
+            reason=(
+                required_reason
+                if required_reason is not None and isinstance(one, RequiredAgentRound)
+                else one.reason
+            ),
         )
         for one in found
     ]
@@ -582,6 +587,7 @@ def _inspect_assignment_pull_request(
         return compose_assignment_observation(
             assignment=assignment,
             reason=f"cannot read its pull request: {pull_request.reason}",
+            is_known=False,
         )
     recovery_reason = assignment.describe_unfinished_round()
     if recovery_reason is not None and pull_request.state is PullRequestState.OPEN:
@@ -604,6 +610,7 @@ def _inspect_assignment_pull_request(
         return compose_assignment_observation(
             assignment=assignment,
             reason=f"cannot tell what the user posted: {posted.reason}",
+            is_known=False,
         )
     if pull_request.state is PullRequestState.OPEN and not posted:
         return None
@@ -668,13 +675,14 @@ def _derive_round_purpose(*, pull_request: PullRequest) -> AgentRoundPurpose:
 
 
 def compose_assignment_observation(
-    *, assignment: AgentAssignment, reason: str
+    *, assignment: AgentAssignment, reason: str, is_known: bool = True
 ) -> AgentAssignmentObservation:
     """Return why an idle assignment has not started another round."""
     return AgentAssignmentObservation(
         assignment=assignment.identifier,
         issue=assignment.record.issue,
         reason=reason,
+        is_known=is_known,
     )
 
 
@@ -761,14 +769,10 @@ class Scheduler:
             return record.model_copy(
                 update={
                     "hold": hold,
-                    "assignment_observations": [
-                        compose_assignment_observation(
-                            assignment=assignment, reason=cap
-                        )
-                        for assignment in assignments
-                        if assignment.identifier not in self.rounds
-                        and not assignment.is_complete
-                    ],
+                    "assignment_observations": list_assignment_observations(
+                        found=found,
+                        required_reason=cap,
+                    ),
                 }
             )
         if issue_failure is not None:
