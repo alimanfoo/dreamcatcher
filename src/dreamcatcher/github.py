@@ -209,7 +209,7 @@ class PullRequestReview(_UserPostProjection):
     """A review somebody submitted, and the verdict that it carried."""
 
     kind: Literal["review"] = "review"
-    verdict: PullRequestReviewVerdict = Field(alias="state")
+    verdict: PullRequestReviewVerdict = Field(validation_alias="state")
 
     @property
     def is_speaking(self) -> bool:

@@ -256,6 +256,8 @@ def test_a_round_writes_the_pull_request_state_and_user_posts_it_was_given(
         "review",
         "inlineComment",
     ]
+    assert read_back["posts"][1]["verdict"] == "COMMENTED"
+    assert "state" not in read_back["posts"][1]
     assert read_back["posts"][2]["diff_hunk"] == HUNK
 
 
