@@ -7,6 +7,7 @@ from enum import StrEnum
 
 from dreamcatcher.agent_assignments import (
     AgentAssignment,
+    find_harness_session_identifier,
     read_agent_assignments,
     read_agent_assignments_for_issue,
 )
@@ -14,6 +15,8 @@ from dreamcatcher.agent_rounds import SuccessfulAgentRoundEnding
 from dreamcatcher.clock import now
 from dreamcatcher.config import read_config
 from dreamcatcher.feed import Line, read_last_feed_line
+from dreamcatcher.harness_adapters import HarnessSessionIdentifier
+from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.lock import read_daemon_pid
 from dreamcatcher.scheduler import (
     NO_ROUND_HAS_RUN,
@@ -68,6 +71,16 @@ class AgentAssignmentStatus:
     detail: str
     latest_output: str | None
     observed_at: datetime | None
+    harness_session_identifier: HarnessSessionIdentifier | None
+    harness_resume_command: tuple[str, ...] | None
+
+    @property
+    def is_terminal(self) -> bool:
+        """Whether no ordinary later round can follow this status."""
+        return self.value in (
+            AgentAssignmentStatusValue.FAULT,
+            AgentAssignmentStatusValue.COMPLETE,
+        )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -298,7 +311,7 @@ class _StatusReading:
         if unfinished is not None:
             if self.daemon_pid is not None and assignment.rounds[-1].ending is None:
                 detail, latest_output = self._describe_running(assignment=assignment)
-                return AgentAssignmentStatus(
+                return self._status(
                     assignment=assignment,
                     value=AgentAssignmentStatusValue.WORKING,
                     detail=detail,
@@ -346,14 +359,32 @@ class _StatusReading:
         value: AgentAssignmentStatusValue,
         detail: str,
         observed_at: datetime | None,
+        latest_output: str | None = None,
     ) -> AgentAssignmentStatus:
-        """Return a status with no latest output."""
+        """Return a status with the assignment's harness session identity."""
+        harness_adapter = HARNESS_ADAPTERS[assignment.record.harness]
+        harness_session_identifier = find_harness_session_identifier(
+            assignment=assignment,
+            harness_adapter=harness_adapter,
+        )
+        harness_resume_command = (
+            None
+            if value is AgentAssignmentStatusValue.WORKING
+            or harness_session_identifier is None
+            else tuple(
+                harness_adapter.build_hand_resume(
+                    harness_session_identifier=harness_session_identifier
+                )
+            )
+        )
         return AgentAssignmentStatus(
             assignment=assignment,
             value=value,
             detail=detail,
-            latest_output=None,
+            latest_output=latest_output,
             observed_at=observed_at,
+            harness_session_identifier=harness_session_identifier,
+            harness_resume_command=harness_resume_command,
         )
 
     def _describe_running(

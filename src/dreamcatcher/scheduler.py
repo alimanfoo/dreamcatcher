@@ -705,9 +705,9 @@ class Scheduler:
         running now. A failure reaches the daemon, which reports it before the
         next tick tries again.
 
-        Every tick observes the relevant issues, so the board keeps showing the
-        current queue while the daemon is carrying on open work or waiting for
-        a launch slot. A failed listing holds the tick.
+        Every tick observes the relevant issues, so status reporting stays
+        current while the daemon is carrying on open work or waiting for a
+        launch slot. A failed listing holds the tick.
 
         The cooldown holds every required round and dispatch alike, but it
         holds no read. So a tick under it still says what each assignment is

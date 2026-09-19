@@ -1,0 +1,24 @@
+
+instance
+  daemon                 running as pid 4242          
+  latest scheduler tick  2m ago                       
+  agent-round capacity   1 of 1 in use                
+  global cooldown        none                         
+  scheduler hold         at cap: 1 of 1 rounds running
+
+issues
+  issue GH13  dispatch labels: unknown  available: false                                         
+                                        claimed here: true                                       
+                                        claimed elsewhere: unknown (no scheduler observation yet)
+                                        blocked: unknown (no scheduler observation yet)          
+                                        routing conflict: unknown (no scheduler observation yet) 
+  issue GH20  dispatch labels: unknown  available: false                                         
+                                        claimed here: true                                       
+                                        claimed elsewhere: unknown (no scheduler observation yet)
+                                        blocked: unknown (no scheduler observation yet)          
+                                        routing conflict: unknown (no scheduler observation yet) 
+
+agent assignments
+  agent assignment GH13-20260819-184158  working  round 1, running 1h 30m, last output 1h 29m ago
+                                                  [Bash] pytest                                  
+  agent assignment GH20-20260819-184158  waiting  at cap: 1 of 1 rounds running                  

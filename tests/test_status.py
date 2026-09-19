@@ -1,3 +1,4 @@
+import inspect
 import os
 from collections.abc import Sequence
 from datetime import timedelta
@@ -8,6 +9,8 @@ from conftest import configure
 from observations import observed_issue
 from records import write_agent_assignment, write_feed, write_round, write_tick
 
+import dreamcatcher.scheduler as scheduler_module
+import dreamcatcher.tui as tui_module
 from dreamcatcher.agent_rounds import (
     AgentRoundPurpose,
     AgentRoundRecord,
@@ -439,3 +442,11 @@ def test_an_observed_issue_with_no_local_assignment_keeps_its_claim_fact(state):
 
     assert issue.claimed_here.value is IssueFactValue.UNKNOWN
     assert issue.claimed_here.evidence == "setup is incomplete"
+
+
+def test_scheduling_does_not_consume_status_reports():
+    assert "dreamcatcher.status" not in inspect.getsource(scheduler_module)
+
+
+def test_the_tui_does_not_import_scheduling_policy():
+    assert "dreamcatcher.scheduler" not in inspect.getsource(tui_module)

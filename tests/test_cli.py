@@ -4,6 +4,7 @@ from importlib.metadata import version
 
 import pytest
 from clocks import PINNED
+from conftest import configure
 from records import write_agent_assignment, write_feed, write_round
 
 from dreamcatcher.agent_assignments import read_agent_assignments_for_issue
@@ -26,6 +27,7 @@ ASSIGNMENT_ID = "GH13-20260819-184158"
 @pytest.fixture
 def watching(tmp_path):
     """A checkout a daemon has watched, holding one assignment with a live round."""
+    configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
     write_text(text=f"{os.getpid()}\n", path=state.lock)
@@ -86,15 +88,15 @@ def test_a_checkout_no_daemon_has_watched_has_nothing_to_show(
 ):
     monkeypatch.chdir(tmp_path)
 
-    assert main(argv=["board"]) == 1
+    assert main(argv=["status"]) == 1
     assert "nothing to show" in capsys.readouterr().err
 
 
-def test_board_shows_every_assignment(monkeypatch, watching, capsys):
+def test_status_shows_every_assignment(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
 
-    assert main(argv=["board"]) == 0
-    assert "agent working" in capsys.readouterr().out
+    assert main(argv=["status"]) == 0
+    assert "working" in capsys.readouterr().out
 
 
 def test_assignment_shows_the_newest_assignment_at_the_issue(
@@ -208,15 +210,15 @@ def test_a_round_belongs_to_the_feed_and_to_no_other_verb(capsys):
     assert "--round" in capsys.readouterr().err
 
 
-def test_the_board_takes_no_issue(capsys):
+def test_status_takes_no_issue(capsys):
     with pytest.raises(SystemExit) as exit_info:
-        main(argv=["board", "GH13"])
+        main(argv=["status", "GH13"])
 
     assert exit_info.value.code == 2
     assert "GH13" in capsys.readouterr().err
 
 
-@pytest.mark.parametrize("verb", ["run", "retry", "board", "assignment", "feed"])
+@pytest.mark.parametrize("verb", ["run", "retry", "status", "assignment", "feed"])
 def test_every_verb_describes_itself_in_its_own_help(verb, capsys):
     with pytest.raises(SystemExit) as exit_info:
         main(argv=[verb, "--help"])
