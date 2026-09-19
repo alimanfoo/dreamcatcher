@@ -101,6 +101,16 @@ def only_assignment(*, state: StateDirectory):
     return assignments[0]
 
 
+def idle_observation() -> AgentAssignmentObservation:
+    """Return the scheduler's explicit observation that no round is required."""
+    return AgentAssignmentObservation(
+        assignment=ASSIGNMENT_ID,
+        issue=13,
+        reason="no round required",
+        is_round_required=False,
+    )
+
+
 def test_an_empty_instance_reports_its_configuration_and_no_work(tmp_path):
     configure(root=tmp_path, head="interval = 300\nmax_agents = 3\n\n")
 
@@ -232,17 +242,39 @@ def test_an_assignment_with_no_scheduler_observation_is_unknown(state):
     assert status.detail == "no current scheduler observation"
 
 
-def test_a_tick_before_the_latest_round_ending_is_not_current(state):
+def test_a_tick_without_an_observation_of_the_latest_ending_is_not_current(state):
     ran(state=state, number=1, ended_at=LOOKED_AT + timedelta(minutes=1))
     write_tick(state=state, tick=SchedulerRecord(at=LOOKED_AT))
 
     assert only_assignment(state=state).value is AgentAssignmentStatusValue.UNKNOWN
 
 
+def test_an_observation_is_current_when_a_round_ends_after_the_tick_begins(state):
+    ran(state=state, number=1, ended_at=LOOKED_AT + timedelta(minutes=1))
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=LOOKED_AT,
+            assignment_observations=[idle_observation()],
+        ),
+    )
+
+    assert (
+        only_assignment(state=state).value
+        is AgentAssignmentStatusValue.NEEDS_USER_FEEDBACK
+    )
+
+
 def test_a_current_tick_with_no_required_round_needs_user_feedback(state):
     ran(state=state, number=1)
     said(state=state, number=1, texts=["Ready for review"])
-    write_tick(state=state, tick=SchedulerRecord(at=LOOKED_AT))
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=LOOKED_AT,
+            assignment_observations=[idle_observation()],
+        ),
+    )
 
     status = only_assignment(state=state)
 
@@ -252,7 +284,13 @@ def test_a_current_tick_with_no_required_round_needs_user_feedback(state):
 
 def test_a_current_idle_assignment_with_no_feed_is_idle(state):
     ran(state=state, number=1)
-    write_tick(state=state, tick=SchedulerRecord(at=LOOKED_AT))
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=LOOKED_AT,
+            assignment_observations=[idle_observation()],
+        ),
+    )
 
     assert only_assignment(state=state).detail == "idle"
 
@@ -290,10 +328,10 @@ def test_an_elapsed_cooldown_clears_the_fault_and_active_hold(state):
     assert found.active_global_cooldown is None
 
 
-def test_an_active_cooldown_and_hold_are_instance_facts(state):
+def test_an_active_cooldown_and_hold_are_instance_facts(running):
     cooldown = GlobalCooldown(started=PINNED, ends=LOOKED_AT + timedelta(minutes=1))
     write_tick(
-        state=state,
+        state=running,
         tick=SchedulerRecord(
             at=PINNED,
             hold="global cooldown",
@@ -301,11 +339,20 @@ def test_an_active_cooldown_and_hold_are_instance_facts(state):
         ),
     )
 
-    found = report(state=state)
+    found = report(state=running)
 
     assert found.latest_scheduler_tick == PINNED
     assert found.scheduler_hold == "global cooldown"
     assert found.active_global_cooldown == cooldown
+
+
+def test_a_stopped_daemon_has_no_current_scheduler_hold(state):
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(at=PINNED, hold="at cap: 1 of 1 rounds running"),
+    )
+
+    assert report(state=state).scheduler_hold is None
 
 
 def test_issue_status_reuses_the_scheduler_availability_interpretation(state):

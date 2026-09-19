@@ -273,6 +273,12 @@ def fabricate_everything(*, state):
                     assignment=f"GH31-{STAMP}", issue=31, reason="1 new post to answer"
                 ),
                 AgentAssignmentObservation(
+                    assignment=f"GH20-{STAMP}",
+                    issue=20,
+                    reason="no round required",
+                    is_round_required=False,
+                ),
+                AgentAssignmentObservation(
                     assignment=f"GH35-{STAMP}",
                     issue=35,
                     reason="the last round failed (exit 2)",
@@ -360,7 +366,17 @@ def fabricate_repeat_assignments(*, state):
         )
     write_tick(
         state=state,
-        tick=SchedulerRecord(at=PINNED + timedelta(hours=1, minutes=58)),
+        tick=SchedulerRecord(
+            at=PINNED + timedelta(hours=1, minutes=58),
+            assignment_observations=[
+                AgentAssignmentObservation(
+                    assignment=f"GH13-{STAMP}",
+                    issue=13,
+                    reason="no round required",
+                    is_round_required=False,
+                )
+            ],
+        ),
     )
 
 

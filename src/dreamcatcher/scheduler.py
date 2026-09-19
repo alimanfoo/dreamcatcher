@@ -102,12 +102,26 @@ class IssueObservation(Document):
 
 
 class AgentAssignmentObservation(Document):
-    """What prevents one idle assignment from starting its required round."""
+    """What the scheduler found when it inspected one idle assignment."""
 
     assignment: str
     issue: int
     reason: str
     is_known: bool = True
+    is_round_required: bool = True
+
+    @model_validator(mode="before")
+    @classmethod
+    def _recognize_legacy_unknown_observation(cls, data: object, /) -> object:
+        """Recover old uncertainty; pydantic passes validator input by position."""
+        if not isinstance(data, dict) or "is_known" in data:
+            return data
+        reason = data.get("reason")
+        if isinstance(reason, str) and reason.startswith(
+            ("cannot read its pull request:", "cannot tell what the user posted:")
+        ):
+            return {**data, "is_known": False}
+        return data
 
 
 class GlobalCooldown(Document):
@@ -675,14 +689,19 @@ def _derive_round_purpose(*, pull_request: PullRequest) -> AgentRoundPurpose:
 
 
 def compose_assignment_observation(
-    *, assignment: AgentAssignment, reason: str, is_known: bool = True
+    *,
+    assignment: AgentAssignment,
+    reason: str,
+    is_known: bool = True,
+    is_round_required: bool = True,
 ) -> AgentAssignmentObservation:
-    """Return why an idle assignment has not started another round."""
+    """Return what the scheduler found for one idle assignment."""
     return AgentAssignmentObservation(
         assignment=assignment.identifier,
         issue=assignment.record.issue,
         reason=reason,
         is_known=is_known,
+        is_round_required=is_round_required,
     )
 
 
@@ -809,6 +828,14 @@ class Scheduler:
             )
             if needed is not None:
                 found.append(needed)
+            elif not assignment.is_complete:
+                found.append(
+                    compose_assignment_observation(
+                        assignment=assignment,
+                        reason="no round required",
+                        is_round_required=False,
+                    )
+                )
         return found
 
     def _launch_assignment_round(

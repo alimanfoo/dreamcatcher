@@ -115,6 +115,22 @@ def availability_values(*, tick: SchedulerRecord) -> list[IssueFactValue]:
     ]
 
 
+@pytest.mark.parametrize(
+    ("reason", "is_known"),
+    [
+        ("at cap: 1 of 1 rounds running", True),
+        ("cannot read its pull request: unavailable", False),
+        ("cannot tell what the user posted: unavailable", False),
+    ],
+)
+def test_an_old_assignment_observation_recovers_its_certainty(reason, is_known):
+    observation = AgentAssignmentObservation.model_validate(
+        {"assignment": ASSIGNMENT_ID, "issue": 13, "reason": reason}
+    )
+
+    assert observation.is_known is is_known
+
+
 def record_of(*, scheduler: Scheduler, number: int) -> AgentRoundRecord:
     """Return what the assignment's numbered round recorded."""
     return AgentRoundRecord.model_validate_json(
@@ -417,7 +433,14 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
         observation.is_open.value is IssueFactValue.UNKNOWN
         for observation in observed.issue_observations
     )
-    assert observed.assignment_observations == []
+    assert observed.assignment_observations == [
+        AgentAssignmentObservation(
+            assignment=ASSIGNMENT_ID,
+            issue=13,
+            reason="no round required",
+            is_round_required=False,
+        )
+    ]
 
 
 def test_a_tick_with_nothing_eligible_dispatches_nothing(dispatching, offered):
@@ -532,7 +555,14 @@ def test_an_assignment_with_an_open_pull_request_and_nothing_new_is_not_waiting(
     observed = scheduler.tick(at=clock())
 
     assert observed.launched is None
-    assert observed.assignment_observations == []
+    assert observed.assignment_observations == [
+        AgentAssignmentObservation(
+            assignment=ASSIGNMENT_ID,
+            issue=13,
+            reason="no round required",
+            is_round_required=False,
+        )
+    ]
 
 
 def test_an_assignment_that_has_run_no_round_at_all_gets_its_first(dispatching):

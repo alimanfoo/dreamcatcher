@@ -10,7 +10,6 @@ from dreamcatcher.agent_assignments import (
     read_agent_assignments,
     read_agent_assignments_for_issue,
 )
-from dreamcatcher.agent_rounds import SuccessfulAgentRoundEnding
 from dreamcatcher.clock import now
 from dreamcatcher.config import read_config
 from dreamcatcher.feed import Line, read_last_feed_line
@@ -99,7 +98,11 @@ def read_status_report(
         latest_scheduler_tick=(
             None if scheduler_record is None else scheduler_record.at
         ),
-        scheduler_hold=None if scheduler_record is None else scheduler_record.hold,
+        scheduler_hold=(
+            None
+            if scheduler_record is None or reading.daemon_pid is None
+            else scheduler_record.hold
+        ),
         max_agent_rounds=read_config(root=state.root).max_agents,
         running_agent_rounds=sum(
             status.value is AgentAssignmentStatusValue.WORKING for status in statuses
@@ -237,18 +240,20 @@ class _StatusReading:
         local = self._read_local_assignment_status(assignment=assignment)
         if local is not None:
             return local
-        ending = assignment.rounds[-1].ending
-        if self.scheduler_record is None or (
-            isinstance(ending, SuccessfulAgentRoundEnding)
-            and ending.at > self.scheduler_record.at
-        ):
+        observation = self.assignment_observations.get(assignment.identifier)
+        if observation is None:
             return self._status(
                 assignment=assignment,
                 value=AgentAssignmentStatusValue.UNKNOWN,
                 detail="no current scheduler observation",
             )
-        observation = self.assignment_observations.get(assignment.identifier)
-        if observation is None:
+        if not observation.is_known:
+            return self._status(
+                assignment=assignment,
+                value=AgentAssignmentStatusValue.UNKNOWN,
+                detail=observation.reason,
+            )
+        if not observation.is_round_required:
             return self._status(
                 assignment=assignment,
                 value=AgentAssignmentStatusValue.NEEDS_USER_FEEDBACK,
@@ -256,11 +261,7 @@ class _StatusReading:
             )
         return self._status(
             assignment=assignment,
-            value=(
-                AgentAssignmentStatusValue.WAITING
-                if observation.is_known
-                else AgentAssignmentStatusValue.UNKNOWN
-            ),
+            value=AgentAssignmentStatusValue.WAITING,
             detail=observation.reason,
         )
 
