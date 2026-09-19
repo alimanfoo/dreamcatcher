@@ -115,22 +115,6 @@ def availability_values(*, tick: SchedulerRecord) -> list[IssueFactValue]:
     ]
 
 
-@pytest.mark.parametrize(
-    ("reason", "is_known"),
-    [
-        ("at cap: 1 of 1 rounds running", True),
-        ("cannot read its pull request: unavailable", False),
-        ("cannot tell what the user posted: unavailable", False),
-    ],
-)
-def test_an_old_assignment_observation_recovers_its_certainty(reason, is_known):
-    observation = AgentAssignmentObservation.model_validate(
-        {"assignment": ASSIGNMENT_ID, "issue": 13, "reason": reason}
-    )
-
-    assert observation.is_known is is_known
-
-
 def record_of(*, scheduler: Scheduler, number: int) -> AgentRoundRecord:
     """Return what the assignment's numbered round recorded."""
     return AgentRoundRecord.model_validate_json(

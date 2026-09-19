@@ -116,19 +116,6 @@ class AgentAssignmentObservation(Document):
     is_known: bool = True
     is_round_required: bool = True
 
-    @model_validator(mode="before")
-    @classmethod
-    def _recognize_legacy_unknown_observation(cls, data: object, /) -> object:
-        """Keep failed reads unknown in records written before `is_known`."""
-        if not isinstance(data, dict) or "is_known" in data:
-            return data
-        reason = data.get("reason")
-        if isinstance(reason, str) and reason.startswith(
-            ("cannot read its pull request:", "cannot tell what the user posted:")
-        ):
-            return {**data, "is_known": False}
-        return data
-
 
 class GlobalCooldown(Document):
     """The interval during which the scheduler starts no agent work."""
