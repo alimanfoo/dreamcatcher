@@ -26,7 +26,10 @@ from rich.padding import Padding
 from rich.table import Table
 from rich.text import Text
 
-from dreamcatcher.agent_assignments import AgentAssignment
+from dreamcatcher.agent_assignments import (
+    AgentAssignment,
+    find_harness_session_identifier,
+)
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     ErroredAgentRoundEnding,
@@ -42,6 +45,8 @@ from dreamcatcher.feed import (
     describe_agent_round_start,
     read_feed_line,
 )
+from dreamcatcher.harness_adapters import HarnessSessionIdentifier
+from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AgentAssignmentStatus,
@@ -62,6 +67,11 @@ COLOURS = {
     AgentAssignmentStatusValue.COMPLETE: "dim",
     AgentAssignmentStatusValue.UNKNOWN: "magenta",
 }
+
+STATUSES_THAT_END_A_VIEW = (
+    AgentAssignmentStatusValue.FAULT,
+    AgentAssignmentStatusValue.COMPLETE,
+)
 
 # How long a following view waits between looks at what the round has written.
 PAUSE = 1.0
@@ -255,7 +265,7 @@ def _render_instance(*, report: StatusReport) -> RenderableType:
     ):
         if value is not None:
             table.add_row(Text(name), Text(value))
-    return _render_section(heading="instance", colour="blue", body=table)
+    return _render_section(heading="instance", body=table)
 
 
 def _render_issues(*, issues: Sequence[IssueStatus]) -> RenderableType | None:
@@ -303,7 +313,7 @@ def _render_issues(*, issues: Sequence[IssueStatus]) -> RenderableType | None:
             Text(f"dispatch labels: {labels}"),
             Text(facts),
         )
-    return _render_section(heading="issues", colour="blue", body=table)
+    return _render_section(heading="issues", body=table)
 
 
 def _describe_issue_fact(*, name: str, value: str, evidence: str | None) -> str:
@@ -328,7 +338,7 @@ def _render_assignments(
                 prefix=_describe_round(status=status),
             ),
         )
-    return _render_section(heading="agent assignments", colour="blue", body=table)
+    return _render_section(heading="agent assignments", body=table)
 
 
 def _describe_round(*, status: AgentAssignmentStatus) -> str:
@@ -381,9 +391,7 @@ def _open_table(*, columns: int) -> Table:
     return table
 
 
-def _render_section(
-    *, heading: str, colour: str, body: RenderableType
-) -> RenderableType:
+def _render_section(*, heading: str, body: RenderableType) -> RenderableType:
     """Return one section of a view, set in under its own heading.
 
     A blank line opens the section, which sets it apart from the section above
@@ -391,7 +399,7 @@ def _render_section(
     """
     return Group(
         Text(),
-        Text(heading, style=f"bold {colour}"),
+        Text(heading, style="bold blue"),
         Padding(body, INDENT, expand=False),
     )
 
@@ -434,7 +442,7 @@ def _look_at_assignment(
     )
     return _Picture(
         shown=_render_assignment(state=state, statuses=statuses),
-        is_over=statuses[0].is_terminal,
+        is_over=statuses[0].value in STATUSES_THAT_END_A_VIEW,
     )
 
 
@@ -448,6 +456,12 @@ def _render_assignment(
     so it is the one the view is about.
     """
     newest = statuses[0]
+    assignment = newest.assignment
+    harness_adapter = HARNESS_ADAPTERS[assignment.record.harness]
+    harness_session_identifier = find_harness_session_identifier(
+        assignment=assignment,
+        harness_adapter=harness_adapter,
+    )
     return _render_parts(
         parts=[
             Text(f"newest agent assignment {newest.assignment.identifier}"),
@@ -457,16 +471,27 @@ def _render_assignment(
                 continuation_indent=INDENT[3],
                 style=COLOURS[newest.value],
             ),
-            _render_vitals(state=state, status=newest),
+            _render_vitals(
+                state=state,
+                status=newest,
+                harness_session_identifier=harness_session_identifier,
+            ),
             _render_rounds(status=newest),
-            _render_harness_resume(state=state, status=newest),
+            _render_harness_resume(
+                state=state,
+                status=newest,
+                harness_session_identifier=harness_session_identifier,
+            ),
             _render_older_assignments(older=statuses[1:]),
         ]
     )
 
 
 def _render_vitals(
-    *, state: StateDirectory, status: AgentAssignmentStatus
+    *,
+    state: StateDirectory,
+    status: AgentAssignmentStatus,
+    harness_session_identifier: HarnessSessionIdentifier | None,
 ) -> RenderableType:
     """Return what the dispatch settled for every round of the assignment."""
     assignment = status.assignment
@@ -482,13 +507,13 @@ def _render_vitals(
         ("agent harness", record.harness),
         (
             "harness session identifier",
-            status.harness_session_identifier or "not recorded",
+            harness_session_identifier or "not recorded",
         ),
         ("model", record.model),
         ("effort", record.effort),
     ):
         table.add_row(Text(name), Text(str(value)))
-    return _render_section(heading="assignment", colour="blue", body=table)
+    return _render_section(heading="assignment", body=table)
 
 
 def _render_rounds(*, status: AgentAssignmentStatus) -> RenderableType | None:
@@ -521,7 +546,7 @@ def _render_rounds(*, status: AgentAssignmentStatus) -> RenderableType | None:
             Text(_describe_run(record=record)),
             Text(_describe_ending(record=record, is_running=is_running)),
         )
-    return _render_section(heading="rounds", colour="blue", body=table)
+    return _render_section(heading="rounds", body=table)
 
 
 def _describe_run(*, record: AgentRoundRecord) -> str:
@@ -548,7 +573,10 @@ def _describe_ending(*, record: AgentRoundRecord, is_running: bool) -> str:
 
 
 def _render_harness_resume(
-    *, state: StateDirectory, status: AgentAssignmentStatus
+    *,
+    state: StateDirectory,
+    status: AgentAssignmentStatus,
+    harness_session_identifier: HarnessSessionIdentifier | None,
 ) -> RenderableType | None:
     """Return how to resume the harness session by hand, when one exists.
 
@@ -557,13 +585,20 @@ def _render_harness_resume(
     at all has no harness session behind it either, so there is nothing to resume
     there and never will be.
     """
-    if status.harness_resume_command is None:
+    if (
+        status.value is AgentAssignmentStatusValue.WORKING
+        or harness_session_identifier is None
+    ):
         return None
+    harness_adapter = HARNESS_ADAPTERS[status.assignment.record.harness]
     worktree = state.describe_path(path=status.assignment.record.worktree)
-    command = " ".join(status.harness_resume_command)
+    command = " ".join(
+        harness_adapter.build_hand_resume(
+            harness_session_identifier=harness_session_identifier
+        )
+    )
     return _render_section(
         heading="resume harness session yourself",
-        colour="blue",
         body=Text(f"cd {worktree}\n{command}"),
     )
 
@@ -584,7 +619,7 @@ def _render_older_assignments(
             Text(str(status.value), style=COLOURS[status.value]),
             _render_assignment_detail(status=status),
         )
-    return _render_section(heading="older assignments", colour="blue", body=table)
+    return _render_section(heading="older assignments", body=table)
 
 
 def show_feed(
@@ -637,7 +672,7 @@ def show_feed(
         status = _find_assignment_statuses_for_issue(state=state, issue=issue)[0]
         assignment = status.assignment
         view.show_what_arrived(assignment=assignment, records=assignment.rounds)
-        return status.is_terminal
+        return status.value in STATUSES_THAT_END_A_VIEW
 
     _keep_looking(console=console, look=look, wait=wait)
 

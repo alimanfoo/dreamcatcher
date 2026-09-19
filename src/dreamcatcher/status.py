@@ -7,7 +7,6 @@ from enum import StrEnum
 
 from dreamcatcher.agent_assignments import (
     AgentAssignment,
-    find_harness_session_identifier,
     read_agent_assignments,
     read_agent_assignments_for_issue,
 )
@@ -15,8 +14,6 @@ from dreamcatcher.agent_rounds import SuccessfulAgentRoundEnding
 from dreamcatcher.clock import now
 from dreamcatcher.config import read_config
 from dreamcatcher.feed import Line, read_last_feed_line
-from dreamcatcher.harness_adapters import HarnessSessionIdentifier
-from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.lock import read_daemon_pid
 from dreamcatcher.scheduler import (
     NO_ROUND_HAS_RUN,
@@ -71,16 +68,6 @@ class AgentAssignmentStatus:
     detail: str
     latest_output: str | None
     observed_at: datetime | None
-    harness_session_identifier: HarnessSessionIdentifier | None
-    harness_resume_command: tuple[str, ...] | None
-
-    @property
-    def is_terminal(self) -> bool:
-        """Whether no ordinary later round can follow this status."""
-        return self.value in (
-            AgentAssignmentStatusValue.FAULT,
-            AgentAssignmentStatusValue.COMPLETE,
-        )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -247,21 +234,18 @@ class _StatusReading:
         self, *, assignment: AgentAssignment
     ) -> AgentAssignmentStatus:
         """Derive one assignment's summary from local facts and its last observation."""
-        observed_at = (
-            None if self.scheduler_record is None else self.scheduler_record.at
-        )
-        local = self._read_local_assignment_status(
-            assignment=assignment,
-            observed_at=observed_at,
-        )
+        local = self._read_local_assignment_status(assignment=assignment)
         if local is not None:
             return local
-        if self._has_no_current_external_observation(assignment=assignment):
+        ending = assignment.rounds[-1].ending
+        if self.scheduler_record is None or (
+            isinstance(ending, SuccessfulAgentRoundEnding)
+            and ending.at > self.scheduler_record.at
+        ):
             return self._status(
                 assignment=assignment,
                 value=AgentAssignmentStatusValue.UNKNOWN,
                 detail="no current scheduler observation",
-                observed_at=observed_at,
             )
         observation = self.assignment_observations.get(assignment.identifier)
         if observation is None:
@@ -269,7 +253,6 @@ class _StatusReading:
                 assignment=assignment,
                 value=AgentAssignmentStatusValue.NEEDS_USER_FEEDBACK,
                 detail=self._describe_idle(assignment=assignment),
-                observed_at=observed_at,
             )
         return self._status(
             assignment=assignment,
@@ -279,14 +262,10 @@ class _StatusReading:
                 else AgentAssignmentStatusValue.UNKNOWN
             ),
             detail=observation.reason,
-            observed_at=observed_at,
         )
 
     def _read_local_assignment_status(
-        self,
-        *,
-        assignment: AgentAssignment,
-        observed_at: datetime | None,
+        self, *, assignment: AgentAssignment
     ) -> AgentAssignmentStatus | None:
         """Derive a status from local facts alone, when they settle it."""
         most_recent_cooldown_ended = (
@@ -305,7 +284,6 @@ class _StatusReading:
                     assignment=assignment,
                     reason="two consecutive rounds failed",
                 ),
-                observed_at=observed_at,
             )
         unfinished = assignment.describe_unfinished_round()
         if unfinished is not None:
@@ -316,41 +294,25 @@ class _StatusReading:
                     value=AgentAssignmentStatusValue.WORKING,
                     detail=detail,
                     latest_output=latest_output,
-                    observed_at=observed_at,
                 )
             return self._status(
                 assignment=assignment,
                 value=AgentAssignmentStatusValue.WAITING,
                 detail=unfinished,
-                observed_at=observed_at,
             )
         if assignment.is_complete:
             return self._status(
                 assignment=assignment,
                 value=AgentAssignmentStatusValue.COMPLETE,
                 detail=describe_count(number=len(assignment.rounds), noun="round"),
-                observed_at=observed_at,
             )
         if not assignment.rounds:
             return self._status(
                 assignment=assignment,
                 value=AgentAssignmentStatusValue.WAITING,
                 detail=NO_ROUND_HAS_RUN,
-                observed_at=observed_at,
             )
         return None
-
-    def _has_no_current_external_observation(
-        self, *, assignment: AgentAssignment
-    ) -> bool:
-        """Return whether no tick has observed the assignment's latest ending."""
-        if self.scheduler_record is None:
-            return True
-        ending = assignment.rounds[-1].ending
-        return (
-            isinstance(ending, SuccessfulAgentRoundEnding)
-            and ending.at > self.scheduler_record.at
-        )
 
     def _status(
         self,
@@ -358,33 +320,17 @@ class _StatusReading:
         assignment: AgentAssignment,
         value: AgentAssignmentStatusValue,
         detail: str,
-        observed_at: datetime | None,
         latest_output: str | None = None,
     ) -> AgentAssignmentStatus:
-        """Return a status with the assignment's harness session identity."""
-        harness_adapter = HARNESS_ADAPTERS[assignment.record.harness]
-        harness_session_identifier = find_harness_session_identifier(
-            assignment=assignment,
-            harness_adapter=harness_adapter,
-        )
-        harness_resume_command = (
-            None
-            if value is AgentAssignmentStatusValue.WORKING
-            or harness_session_identifier is None
-            else tuple(
-                harness_adapter.build_hand_resume(
-                    harness_session_identifier=harness_session_identifier
-                )
-            )
-        )
+        """Return a summary status from the assignment's current facts."""
         return AgentAssignmentStatus(
             assignment=assignment,
             value=value,
             detail=detail,
             latest_output=latest_output,
-            observed_at=observed_at,
-            harness_session_identifier=harness_session_identifier,
-            harness_resume_command=harness_resume_command,
+            observed_at=(
+                None if self.scheduler_record is None else self.scheduler_record.at
+            ),
         )
 
     def _describe_running(
