@@ -8,6 +8,6 @@ instance
   scheduler hold         at cap: 1 of 1 rounds running
 
 agent assignments
-  agent assignment GH13-20260819-184158  working  round 1, running 1h 30m, last output 1h 29m ago
-                                                  [Bash] pytest                                  
-  agent assignment GH20-20260819-184158  waiting  at cap: 1 of 1 rounds running                  
+  GH13-20260819-184158  working  round 1, running 1h 30m, last output 1h 29m ago
+                                 [Bash] pytest                                  
+  GH20-20260819-184158  waiting  at cap: 1 of 1 rounds running                  

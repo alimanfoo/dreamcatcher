@@ -7,4 +7,4 @@ instance
   global cooldown        none               
 
 agent assignments
-  agent assignment GH13-20260819-184158  working  round 2, running 1h 30m, has said nothing yet
+  GH13-20260819-184158  working  round 2, running 1h 30m, has said nothing yet

@@ -276,7 +276,7 @@ def _render_issues(*, issues: Sequence[IssueObservation]) -> RenderableType | No
     table = _open_table(columns=2)
     for issue in issues:
         table.add_row(
-            Text(f"issue GH{issue.issue}"),
+            Text(f"GH{issue.issue}"),
             Text(f"dispatch label: {', '.join(issue.dispatch_labels or [])}"),
         )
     return _render_section(heading="available issues", body=table)
@@ -291,7 +291,7 @@ def _render_assignments(
     table = _open_table(columns=3)
     for status in assignments:
         table.add_row(
-            Text(f"agent assignment {status.assignment.identifier}"),
+            Text(status.assignment.identifier),
             Text(str(status.value), style=COLOURS[status.value]),
             _render_assignment_detail(
                 status=status,

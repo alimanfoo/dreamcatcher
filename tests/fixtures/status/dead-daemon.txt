@@ -7,16 +7,16 @@ instance
   global cooldown        none         
 
 agent assignments
-  agent assignment GH9-20260819-184158   fault                two consecutive rounds failed         
-                                                              (.dreamcatcher/assignments/GH9-2026081
-                                                              9-184158/rounds/2/feed.txt)           
-  agent assignment GH12-20260819-184158  complete             2 rounds                              
-  agent assignment GH13-20260819-184158  waiting              the last round was interrupted        
-  agent assignment GH20-20260819-184158  needs user feedback  idle 2h 0m                            
-  agent assignment GH31-20260819-184158  waiting              1 new post to answer                  
-  agent assignment GH35-20260819-184158  waiting              the last round failed (exit 2)        
-  agent assignment GH44-20260819-184158  waiting              no round has run yet                  
+  GH9-20260819-184158   fault                two consecutive rounds failed                          
+                                             (.dreamcatcher/assignments/GH9-20260819-184158/rounds/2
+                                             /feed.txt)                                             
+  GH12-20260819-184158  complete             2 rounds                                               
+  GH13-20260819-184158  waiting              the last round was interrupted                         
+  GH20-20260819-184158  needs user feedback  idle 2h 0m                                             
+  GH31-20260819-184158  waiting              1 new post to answer                                   
+  GH35-20260819-184158  waiting              the last round failed (exit 2)                         
+  GH44-20260819-184158  waiting              no round has run yet                                   
 
 available issues
-  issue GH50  dispatch label: dream:smith
-  issue GH51  dispatch label: dream:smith
+  GH50  dispatch label: dream:smith
+  GH51  dispatch label: dream:smith

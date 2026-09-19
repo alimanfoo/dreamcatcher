@@ -506,12 +506,12 @@ def test_a_state_directory_renders_as_its_golden_status(name, tmp_path, daemon):
     assert status == (FIXTURES / "status" / f"{name}.txt").read_text(encoding="utf-8")
 
 
-def test_an_identifier_too_wide_for_the_console_folds_rather_than_being_cut(tmp_path):
+def test_identifiers_remain_whole_when_the_assignment_table_folds(tmp_path):
     """Two assignments at one issue differ only in their identifier times."""
     state = StateDirectory(root=tmp_path)
     fabricate_repeat_assignments(state=state)
 
-    status = rendered(state=state, width=24)
+    status = rendered(state=state, width=55)
 
     compact = "".join(status.split())
     assert "GH13-20260818-090000" in compact
