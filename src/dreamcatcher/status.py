@@ -187,7 +187,7 @@ class _StatusReading:
         else:
             claimed_here = observation.claimed_here
         current = observation.model_copy(update={"claimed_here": claimed_here})
-        return _issue_status_from_observation(
+        return _compose_issue_status_from_observation(
             observation=current,
             observed_at=(
                 None if self.scheduler_record is None else self.scheduler_record.at
@@ -210,7 +210,7 @@ class _StatusReading:
             blocked=unknown,
             routing_conflict=unknown,
         )
-        return _issue_status_from_observation(
+        return _compose_issue_status_from_observation(
             observation=observation,
             observed_at=None,
         )
@@ -242,24 +242,24 @@ class _StatusReading:
             return local
         observation = self.assignment_observations.get(assignment.identifier)
         if observation is None:
-            return self._status(
+            return self._compose_agent_assignment_status(
                 assignment=assignment,
                 value=AgentAssignmentStatusValue.UNKNOWN,
                 detail="no current scheduler observation",
             )
         if not observation.is_known:
-            return self._status(
+            return self._compose_agent_assignment_status(
                 assignment=assignment,
                 value=AgentAssignmentStatusValue.UNKNOWN,
                 detail=observation.reason,
             )
         if not observation.is_round_required:
-            return self._status(
+            return self._compose_agent_assignment_status(
                 assignment=assignment,
                 value=AgentAssignmentStatusValue.NEEDS_USER_FEEDBACK,
                 detail=self._describe_idle(assignment=assignment),
             )
-        return self._status(
+        return self._compose_agent_assignment_status(
             assignment=assignment,
             value=AgentAssignmentStatusValue.WAITING,
             detail=observation.reason,
@@ -278,7 +278,7 @@ class _StatusReading:
             assignment=assignment,
             most_recent_cooldown_ended=most_recent_cooldown_ended,
         ):
-            return self._status(
+            return self._compose_agent_assignment_status(
                 assignment=assignment,
                 value=AgentAssignmentStatusValue.FAULT,
                 detail=self._point_at_feed(
@@ -290,32 +290,32 @@ class _StatusReading:
         if unfinished is not None:
             if self.daemon_pid is not None and assignment.rounds[-1].ending is None:
                 detail, latest_output = self._describe_running(assignment=assignment)
-                return self._status(
+                return self._compose_agent_assignment_status(
                     assignment=assignment,
                     value=AgentAssignmentStatusValue.WORKING,
                     detail=detail,
                     latest_output=latest_output,
                 )
-            return self._status(
+            return self._compose_agent_assignment_status(
                 assignment=assignment,
                 value=AgentAssignmentStatusValue.WAITING,
                 detail=unfinished,
             )
         if assignment.is_complete:
-            return self._status(
+            return self._compose_agent_assignment_status(
                 assignment=assignment,
                 value=AgentAssignmentStatusValue.COMPLETE,
                 detail=describe_count(number=len(assignment.rounds), noun="round"),
             )
         if not assignment.rounds:
-            return self._status(
+            return self._compose_agent_assignment_status(
                 assignment=assignment,
                 value=AgentAssignmentStatusValue.WAITING,
                 detail=NO_ROUND_HAS_RUN,
             )
         return None
 
-    def _status(
+    def _compose_agent_assignment_status(
         self,
         *,
         assignment: AgentAssignment,
@@ -367,7 +367,7 @@ class _StatusReading:
         return f"{reason} ({self.state.describe_path(path=feed)})"
 
 
-def _issue_status_from_observation(
+def _compose_issue_status_from_observation(
     *, observation: IssueObservation, observed_at: datetime | None
 ) -> IssueStatus:
     """Build an issue status from an observation and its observation time."""

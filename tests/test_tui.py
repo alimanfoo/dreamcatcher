@@ -934,7 +934,7 @@ def test_a_following_view_waits_for_the_next_daemon(tmp_path):
     assert waits == [PAUSE]
 
 
-def test_a_view_of_a_stuck_assignment_never_waits(tmp_path, daemon):
+def test_a_view_of_a_faulted_assignment_never_waits(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
