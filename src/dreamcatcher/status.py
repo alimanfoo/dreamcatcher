@@ -53,7 +53,7 @@ class AgentAssignmentStatus:
 
 
 @dataclass(frozen=True, kw_only=True)
-class StatusReport:
+class DreamcatcherStatusReport:
     """A read-only account of one Dreamcatcher instance."""
 
     at: datetime
@@ -70,33 +70,34 @@ class StatusReport:
 
 def read_status_report(
     *, state: StateDirectory, clock: Callable[[], datetime] = read_current_time
-) -> StatusReport:
+) -> DreamcatcherStatusReport:
     """Read a status report from the instance's local configuration and state."""
-    reading = _StatusReading(state=state, clock=clock)
+    reader = _StatusReportReader(state=state, clock=clock)
     assignments = read_agent_assignments(state=state)
-    statuses = reading.list_assignment_statuses(assignments=assignments)
-    scheduler_record = reading.scheduler_record
-    return StatusReport(
-        at=reading.at,
+    assignment_statuses = reader.list_assignment_statuses(assignments=assignments)
+    scheduler_record = reader.scheduler_record
+    return DreamcatcherStatusReport(
+        at=reader.at,
         repository=_read_repository(state=state),
-        daemon_pid=reading.daemon_pid,
+        daemon_pid=reader.daemon_pid,
         latest_scheduler_tick=(
             None if scheduler_record is None else scheduler_record.at
         ),
         scheduler_hold=(
             None
-            if scheduler_record is None or reading.daemon_pid is None
+            if scheduler_record is None or reader.daemon_pid is None
             else scheduler_record.hold
         ),
         max_agent_rounds=read_dreamcatcher_config(root=state.root).max_agents,
         running_agent_rounds=sum(
-            status.value is AgentAssignmentStatusValue.WORKING for status in statuses
+            status.value is AgentAssignmentStatusValue.WORKING
+            for status in assignment_statuses
         ),
         active_global_cooldown=(
             None if scheduler_record is None else scheduler_record.cooldown
         ),
-        issues=reading.list_available_issues(assignments=assignments),
-        assignments=statuses,
+        issues=reader.list_available_issues(assignments=assignments),
+        assignments=assignment_statuses,
     )
 
 
@@ -114,13 +115,13 @@ def read_agent_assignment_statuses_for_issue(
     clock: Callable[[], datetime] = read_current_time,
 ) -> list[AgentAssignmentStatus]:
     """Read the statuses at one issue, newest agent assignment first."""
-    reading = _StatusReading(state=state, clock=clock)
-    return reading.list_assignment_statuses(
+    reader = _StatusReportReader(state=state, clock=clock)
+    return reader.list_assignment_statuses(
         assignments=read_agent_assignments_for_issue(state=state, issue=issue)
     )
 
 
-class _StatusReading:
+class _StatusReportReader:
     """The local facts read together for one status report."""
 
     def __init__(self, *, state: StateDirectory, clock: Callable[[], datetime]) -> None:
@@ -147,19 +148,21 @@ class _StatusReading:
         """Return available issue observations in scheduler order."""
         if self.scheduler_record is None:
             return []
-        by_issue: dict[int, list[AgentAssignment]] = {}
+        assignments_by_issue: dict[int, list[AgentAssignment]] = {}
         for assignment in assignments:
-            by_issue.setdefault(assignment.record.issue, []).append(assignment)
-        available = []
+            assignments_by_issue.setdefault(assignment.record.issue, []).append(
+                assignment
+            )
+        available_issues = []
         for observation in self.scheduler_record.issue_observations:
-            current = self._refresh_issue_observation(
+            refreshed_observation = self._refresh_issue_observation(
                 observation=observation,
-                assignments=by_issue.get(observation.issue, []),
+                assignments=assignments_by_issue.get(observation.issue, []),
                 recorded_at=self.scheduler_record.at,
             )
-            if current.availability.value is IssueFactValue.TRUE:
-                available.append(current)
-        return available
+            if refreshed_observation.availability.value is IssueFactValue.TRUE:
+                available_issues.append(refreshed_observation)
+        return available_issues
 
     def _refresh_issue_observation(
         self,
@@ -175,10 +178,10 @@ class _StatusReading:
             claimed_here = IssueFact(value=IssueFactValue.FALSE)
         else:
             claimed_here = observation.claimed_here
-        current = observation.model_copy(update={"claimed_here": claimed_here})
-        if current.observed_at is None:
-            return current.model_copy(update={"observed_at": recorded_at})
-        return current
+        refreshed = observation.model_copy(update={"claimed_here": claimed_here})
+        if refreshed.observed_at is None:
+            return refreshed.model_copy(update={"observed_at": recorded_at})
+        return refreshed
 
     def list_assignment_statuses(
         self, *, assignments: list[AgentAssignment]
@@ -202,9 +205,9 @@ class _StatusReading:
         self, *, assignment: AgentAssignment
     ) -> AgentAssignmentStatus:
         """Derive one assignment's summary from local facts and its last observation."""
-        local = self._read_local_assignment_status(assignment=assignment)
-        if local is not None:
-            return local
+        local_status = self._read_local_assignment_status(assignment=assignment)
+        if local_status is not None:
+            return local_status
         observation = self.assignment_observations.get(assignment.identifier)
         if observation is None:
             return self._compose_agent_assignment_status(
@@ -222,7 +225,7 @@ class _StatusReading:
             return self._compose_agent_assignment_status(
                 assignment=assignment,
                 value=AgentAssignmentStatusValue.NEEDS_USER_FEEDBACK,
-                detail=self._describe_idle(assignment=assignment),
+                detail=self._describe_idle_assignment(assignment=assignment),
             )
         return self._compose_agent_assignment_status(
             assignment=assignment,
@@ -246,15 +249,17 @@ class _StatusReading:
             return self._compose_agent_assignment_status(
                 assignment=assignment,
                 value=AgentAssignmentStatusValue.FAULT,
-                detail=self._point_at_feed(
+                detail=self._describe_fault_with_feed(
                     assignment=assignment,
                     reason="two consecutive rounds failed",
                 ),
             )
-        unfinished = assignment.describe_unfinished_round()
-        if unfinished is not None:
+        unfinished_round = assignment.describe_unfinished_round()
+        if unfinished_round is not None:
             if self.daemon_pid is not None and assignment.rounds[-1].ending is None:
-                detail, latest_output = self._describe_running(assignment=assignment)
+                detail, latest_output = self._describe_running_assignment(
+                    assignment=assignment
+                )
                 return self._compose_agent_assignment_status(
                     assignment=assignment,
                     value=AgentAssignmentStatusValue.WORKING,
@@ -264,7 +269,7 @@ class _StatusReading:
             return self._compose_agent_assignment_status(
                 assignment=assignment,
                 value=AgentAssignmentStatusValue.WAITING,
-                detail=unfinished,
+                detail=unfinished_round,
             )
         if assignment.is_complete:
             return self._compose_agent_assignment_status(
@@ -299,7 +304,7 @@ class _StatusReading:
             ),
         )
 
-    def _describe_running(
+    def _describe_running_assignment(
         self, *, assignment: AgentAssignment
     ) -> tuple[str, str | None]:
         """Describe the live round and return its latest feed output."""
@@ -313,7 +318,7 @@ class _StatusReading:
             line.text.strip(),
         )
 
-    def _describe_idle(self, *, assignment: AgentAssignment) -> str:
+    def _describe_idle_assignment(self, *, assignment: AgentAssignment) -> str:
         """Describe how long the assignment has awaited user feedback."""
         line = self._read_last_output(assignment=assignment)
         if line is None:
@@ -328,7 +333,9 @@ class _StatusReading:
             ).feed
         )
 
-    def _point_at_feed(self, *, assignment: AgentAssignment, reason: str) -> str:
+    def _describe_fault_with_feed(
+        self, *, assignment: AgentAssignment, reason: str
+    ) -> str:
         """Describe a fault and the feed that holds its latest output."""
         feed = assignment.compose_round_paths(number=assignment.rounds[-1].number).feed
         return f"{reason} ({self.state.describe_path(path=feed)})"

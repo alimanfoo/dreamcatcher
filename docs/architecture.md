@@ -211,9 +211,10 @@ interface.
 
 ### Status reporting
 
-`status.py` owns the read-only status model and constructs a `StatusReport`
-containing the repository identity, instance and daemon facts, available
-`IssueObservation` entries, and `AgentAssignmentStatus` entries.
+`status.py` owns the read-only status model and constructs a
+`DreamcatcherStatusReport` containing the repository identity, instance and
+daemon facts, available `IssueObservation` entries, and `AgentAssignmentStatus`
+entries.
 
 Status construction may read:
 

@@ -15,13 +15,13 @@ from dreamcatcher.agent_assignments import (
 )
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.config import AgentHarness
-from dreamcatcher.daemon import Daemon
+from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.scheduler import derive_assignment_fault, read_scheduler_record
 from dreamcatcher.state import StateDirectory
 
 # How a view names the issue it is about, as the issue itself is written.
-ISSUE = re.compile(r"gh(\d+)\Z", re.IGNORECASE)
+ISSUE_REFERENCE_PATTERN = re.compile(r"gh(\d+)\Z", re.IGNORECASE)
 
 # The help that says when a view of one assignment ends, which the assignment view
 # and the feed both give, since a reader reads one verb's help and no other.
@@ -44,7 +44,7 @@ HELP_WHEN_NOTHING_WATCHES = (
 )
 
 
-def build_parser() -> argparse.ArgumentParser:
+def build_cli_parser() -> argparse.ArgumentParser:
     """Return the parser for the dreamcatcher command line.
 
     Each verb shows one view, or runs the daemon, and every argument belongs
@@ -58,8 +58,8 @@ def build_parser() -> argparse.ArgumentParser:
         prog="dreamcatcher", description=dreamcatcher.__doc__
     )
     parser.add_argument("--version", action="version", version=version("dreamcatcher"))
-    verbs = parser.add_subparsers(title="verbs", dest="verb", required=True)
-    run_parser = verbs.add_parser(
+    subcommands = parser.add_subparsers(title="verbs", dest="verb", required=True)
+    run_parser = subcommands.add_parser(
         "run",
         help="run the dreamcatcher daemon",
         description=(
@@ -78,8 +78,8 @@ def build_parser() -> argparse.ArgumentParser:
         choices=[harness.value for harness in AgentHarness],
         help="the harness to run this repo's rounds with",
     )
-    run_parser.set_defaults(act=_run)
-    retry_parser = verbs.add_parser(
+    run_parser.set_defaults(act=_run_daemon)
+    retry_parser = subcommands.add_parser(
         "retry",
         help="retry a faulted assignment after fixing its problem",
         description=(
@@ -88,9 +88,9 @@ def build_parser() -> argparse.ArgumentParser:
             "scheduler tick outside a global cooldown."
         ),
     )
-    _take_an_issue(parser=retry_parser)
+    _add_issue_argument(parser=retry_parser)
     retry_parser.set_defaults(act=_retry_assignment)
-    status_parser = verbs.add_parser(
+    status_parser = subcommands.add_parser(
         "status",
         help="show the instance, issue, and agent-assignment status",
         description=(
@@ -103,7 +103,7 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     status_parser.set_defaults(act=_show_status)
-    assignment_parser = verbs.add_parser(
+    assignment_parser = subcommands.add_parser(
         "assignment",
         help="show one issue's newest assignment, in detail",
         description=(
@@ -120,9 +120,9 @@ def build_parser() -> argparse.ArgumentParser:
             + HELP_WHEN_NOTHING_WATCHES
         ),
     )
-    _take_an_issue(parser=assignment_parser)
+    _add_issue_argument(parser=assignment_parser)
     assignment_parser.set_defaults(act=_show_assignment)
-    feed_parser = verbs.add_parser(
+    feed_parser = subcommands.add_parser(
         "feed",
         help="show what the agent said, as it says it",
         description=(
@@ -134,7 +134,7 @@ def build_parser() -> argparse.ArgumentParser:
             + HELP_WHEN_NOTHING_WATCHES
         ),
     )
-    _take_an_issue(parser=feed_parser)
+    _add_issue_argument(parser=feed_parser)
     feed_parser.add_argument(
         "--round",
         type=int,
@@ -149,11 +149,11 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _take_an_issue(*, parser: argparse.ArgumentParser) -> None:
+def _add_issue_argument(*, parser: argparse.ArgumentParser) -> None:
     """Give the verb the issue it shows, written as the issue itself is."""
     parser.add_argument(
         "issue",
-        type=_read_issue,
+        type=_parse_issue_reference,
         metavar="GH<n>",
         help="the issue to use",
     )
@@ -161,87 +161,95 @@ def _take_an_issue(*, parser: argparse.ArgumentParser) -> None:
 
 def main(*, argv: Sequence[str] | None = None) -> int:
     """Run the verb that the arguments name, and return the exit status."""
-    args = build_parser().parse_args(argv)
+    arguments = build_cli_parser().parse_args(argv)
     try:
-        args.act(args=args)
+        arguments.act(arguments=arguments)
     except ReportableError as error:
         print(error, file=sys.stderr)
         return 1
     return 0
 
 
-def _run(*, args: argparse.Namespace) -> None:
+def _run_daemon(*, arguments: argparse.Namespace) -> None:
     """Run a daemon on the checkout we are in."""
-    Daemon(root=Path.cwd(), harness=AgentHarness(args.harness)).run()
+    DreamcatcherDaemon(root=Path.cwd(), harness=AgentHarness(arguments.harness)).run()
 
 
-def _retry_assignment(*, args: argparse.Namespace) -> None:
+def _retry_assignment(*, arguments: argparse.Namespace) -> None:
     """Clear the newest assignment's fault so the daemon may recover it."""
-    state = _find_state(root=Path.cwd())
-    assignments = read_agent_assignments_for_issue(state=state, issue=args.issue)
-    if not assignments:
-        raise ReportableError(f"GH{args.issue} has no assignment to retry.")
-    assignment = assignments[-1]
+    state = _find_state_directory(root=Path.cwd())
+    issue_assignments = read_agent_assignments_for_issue(
+        state=state, issue=arguments.issue
+    )
+    if not issue_assignments:
+        raise ReportableError(f"GH{arguments.issue} has no assignment to retry.")
+    assignment = issue_assignments[-1]
     scheduler_record = read_scheduler_record(state=state)
-    cooldown_ended = (
+    most_recent_cooldown_ended = (
         None
         if scheduler_record is None
         else scheduler_record.most_recent_cooldown_ended
     )
     if not derive_assignment_fault(
         assignment=assignment,
-        most_recent_cooldown_ended=cooldown_ended,
+        most_recent_cooldown_ended=most_recent_cooldown_ended,
     ):
         raise ReportableError(f"{assignment.identifier} is not in fault.")
     request_agent_assignment_retry(assignment=assignment, at=read_current_time())
     print(f"{assignment.identifier} can recover on the next scheduler tick.")
 
 
-def _show_status(*, args: argparse.Namespace) -> None:
+def _show_status(*, arguments: argparse.Namespace) -> None:
     """Show the status of the instance in this checkout."""
-    tui.show_status(state=_find_state(root=Path.cwd()), console=tui.open_console())
+    tui.show_status_view(
+        state=_find_state_directory(root=Path.cwd()), console=tui.open_tui_console()
+    )
 
 
-def _show_assignment(*, args: argparse.Namespace) -> None:
+def _show_assignment(*, arguments: argparse.Namespace) -> None:
     """Show the issue's newest assignment, from the checkout we are in."""
-    tui.show_assignment(
-        state=_find_state(root=Path.cwd()), issue=args.issue, console=tui.open_console()
+    tui.show_assignment_view(
+        state=_find_state_directory(root=Path.cwd()),
+        issue=arguments.issue,
+        console=tui.open_tui_console(),
     )
 
 
-def _show_feed(*, args: argparse.Namespace) -> None:
+def _show_feed(*, arguments: argparse.Namespace) -> None:
     """Show the issue's feed, from the checkout we are in."""
-    tui.show_feed(
-        state=_find_state(root=Path.cwd()),
-        issue=args.issue,
-        console=tui.open_console(),
-        round_number=args.round,
+    tui.show_feed_view(
+        state=_find_state_directory(root=Path.cwd()),
+        issue=arguments.issue,
+        console=tui.open_tui_console(),
+        round_number=arguments.round,
     )
 
 
-def _find_state(*, root: Path) -> StateDirectory:
+def _find_state_directory(*, root: Path) -> StateDirectory:
     """Return the state directory here, or say there is nothing here to show.
 
     A view reads what a daemon left on the disk, and a daemon leaves it in the
     checkout it watches. So a directory with no state directory in it is one
     the reader did not mean to be in.
     """
-    state = StateDirectory(root=root)
-    if not state.path.is_dir():
+    state_directory = StateDirectory(root=root)
+    if not state_directory.path.is_dir():
         raise ReportableError(
             f"dreamcatcher has nothing to show in {root}. Run this from the "
             f"checkout that dreamcatcher run watches."
         )
-    return state
+    return state_directory
 
 
-def _read_issue(given: str, /) -> int:
+def _parse_issue_reference(issue_reference: str, /) -> int:
     """Return the issue number the argument names, as GH123 names issue 123.
 
     argparse is what calls this, as the type behind the issue argument, and it
     passes the text positionally, so the parameter is positional-only.
     """
-    found = ISSUE.match(given)
-    if found is None:
-        raise argparse.ArgumentTypeError(f"name an issue as GH123, not as {given}")
-    return int(found.group(1))
+    reference_match = ISSUE_REFERENCE_PATTERN.match(issue_reference)
+    if reference_match is None:
+        raise argparse.ArgumentTypeError(
+            f"name an issue as GH123, not as {issue_reference}"
+        )
+    return int(reference_match.group(1))

@@ -52,7 +52,7 @@ POST_LIST_PATHS = {
 }
 
 # The label that the dispatch blocks below map, as the tests name it.
-LABEL = "dream:smith"
+DISPATCH_LABEL = "dream:smith"
 
 # When the tests say an issue was filed, and a time after it.
 FILED = "2026-08-19T18:41:58Z"
@@ -99,7 +99,7 @@ def listing(*, issues: Sequence[tuple[int, str]]) -> str:
                 "createdAt": created,
                 "state": "OPEN",
                 "assignees": [{"login": POSTED_BY}],
-                "labels": [{"name": LABEL}],
+                "labels": [{"name": DISPATCH_LABEL}],
             }
             for number, created in issues
         ]

@@ -26,7 +26,7 @@ from dreamcatcher.agent_rounds import (
     compose_agent_round_ending,
 )
 from dreamcatcher.config import CONFIG_NAME, AgentHarness
-from dreamcatcher.daemon import Daemon
+from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.scheduler import AgentWorkScheduler, GlobalCooldown, SchedulerRecord
@@ -86,17 +86,19 @@ class Interrupting:
             raise KeyboardInterrupt
 
 
-def idling(*, root, ticks: int = 2) -> tuple[Daemon, Interrupting, Ticking]:
+def idling(*, root, ticks: int = 2) -> tuple[DreamcatcherDaemon, Interrupting, Ticking]:
     waiting = Interrupting(ticks=ticks)
     ticking = Ticking(step=300)
     return (
-        Daemon(root=root, harness=AgentHarness.CLAUDE, clock=ticking, wait=waiting),
+        DreamcatcherDaemon(
+            root=root, harness=AgentHarness.CLAUDE, clock=ticking, wait=waiting
+        ),
         waiting,
         ticking,
     )
 
 
-def settling(*, root, ticks: int = 1) -> Daemon:
+def settling(*, root, ticks: int = 1) -> DreamcatcherDaemon:
     """A daemon that lets each round it launches finish before the next tick.
 
     A round the daemon still holds is ended as the run goes down, so a test
@@ -106,8 +108,8 @@ def settling(*, root, ticks: int = 1) -> Daemon:
     daemon, _, _ = idling(root=root, ticks=ticks)
 
     def settle() -> None:
-        for running in list(daemon.rounds.values()):
-            running.wait()
+        for agent_round in list(daemon.rounds.values()):
+            agent_round.wait()
 
     daemon.wait = Interrupting(ticks=ticks, settle=settle)
     return daemon
@@ -134,7 +136,7 @@ def test_the_daemon_reports_when_it_has_started_before_its_first_tick(
         )
         raise KeyboardInterrupt
 
-    monkeypatch.setattr(daemon, "tick", verify_report)
+    monkeypatch.setattr(daemon, "run_scheduler_cycle", verify_report)
     daemon.run()
 
 
@@ -203,17 +205,17 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
         clock=daemon.clock,
         rounds=daemon.rounds,
     )
-    observed = SchedulerRecord(at=PINNED, launched=ASSIGNMENT_ID)
+    scheduler_record = SchedulerRecord(at=PINNED, launched=ASSIGNMENT_ID)
 
     def launch(*, at):
         assert at == PINNED
-        return observed
+        return scheduler_record
 
     monkeypatch.setattr(scheduler, "tick", launch)
 
-    daemon.tick(scheduler=scheduler, at=PINNED)
+    daemon.run_scheduler_cycle(scheduler=scheduler, at=PINNED)
 
-    assert recorded(daemon=daemon) == observed
+    assert recorded(daemon=daemon) == scheduler_record
     assert (
         capsys.readouterr().out
         == f"2026-08-19T18:41:58Z  launched round for {ASSIGNMENT_ID}\n"
@@ -243,29 +245,30 @@ def test_a_second_daemon_refuses_while_the_first_holds_the_repo(watched, harness
 
 def test_the_daemon_runs_the_harness_it_was_given(watched):
     assert (
-        Daemon(root=watched, harness=AgentHarness.CODEX).harness is AgentHarness.CODEX
+        DreamcatcherDaemon(root=watched, harness=AgentHarness.CODEX).harness
+        is AgentHarness.CODEX
     )
 
 
 def test_a_checkout_with_no_config_names_the_file_it_needs(repo):
     with pytest.raises(ReportableError, match=CONFIG_NAME):
-        Daemon(root=repo, harness=AgentHarness.CLAUDE)
+        DreamcatcherDaemon(root=repo, harness=AgentHarness.CLAUDE)
 
 
 def test_a_directory_that_is_not_a_repository_is_refused(tmp_path):
     with pytest.raises(ReportableError, match="main checkout"):
-        Daemon(root=tmp_path, harness=AgentHarness.CLAUDE)
+        DreamcatcherDaemon(root=tmp_path, harness=AgentHarness.CLAUDE)
 
 
 def test_a_linked_worktree_is_refused(tmp_path):
     (tmp_path / ".git").write_text("gitdir: elsewhere\n", encoding="utf-8")
 
     with pytest.raises(ReportableError, match="main checkout"):
-        Daemon(root=tmp_path, harness=AgentHarness.CLAUDE)
+        DreamcatcherDaemon(root=tmp_path, harness=AgentHarness.CLAUDE)
 
 
 def test_the_state_directory_sits_in_the_checkout(watched):
-    daemon = Daemon(root=watched, harness=AgentHarness.CLAUDE)
+    daemon = DreamcatcherDaemon(root=watched, harness=AgentHarness.CLAUDE)
 
     assert daemon.state == StateDirectory(root=watched)
 
@@ -285,7 +288,9 @@ def test_a_run_refuses_when_the_harness_it_was_named_is_not_installed(repo, alon
     alone(programs=["claude"])
 
     with pytest.raises(ReportableError, match="codex is not on the PATH"):
-        Daemon(root=repo, harness=AgentHarness.CODEX, wait=Interrupting(ticks=1)).run()
+        DreamcatcherDaemon(
+            root=repo, harness=AgentHarness.CODEX, wait=Interrupting(ticks=1)
+        ).run()
 
 
 def test_a_round_the_daemon_before_this_one_left_running_is_ended(
@@ -408,7 +413,7 @@ def test_a_run_that_cannot_be_told_which_repository_this_is_refuses(
     gh.fails(stderr="gh: no such remote", to="repo view")
 
     with pytest.raises(ReportableError, match="cannot tell which repository"):
-        Daemon(
+        DreamcatcherDaemon(
             root=cloned, harness=AgentHarness.CLAUDE, wait=Interrupting(ticks=1)
         ).run()
 
@@ -421,9 +426,9 @@ def test_the_daemon_ends_the_rounds_it_holds_as_it_goes_down(dispatching, harnes
 
     daemon.run()
 
-    running = daemon.rounds[DISPATCHED_ASSIGNMENT_ID]
-    assert not running.is_alive
-    assert gone(pid=running.harness_process.pid)
+    agent_round = daemon.rounds[DISPATCHED_ASSIGNMENT_ID]
+    assert not agent_round.is_alive
+    assert gone(pid=agent_round.harness_process.pid)
 
 
 def test_a_run_that_cannot_read_an_assignment_refuses_to_start(dispatching):
@@ -459,7 +464,7 @@ def test_a_failed_tick_preserves_the_last_scheduler_record(dispatching, capsys):
         clock=daemon.clock,
         rounds=daemon.rounds,
     )
-    daemon.tick(scheduler=scheduler, at=daemon.clock())
+    daemon.run_scheduler_cycle(scheduler=scheduler, at=daemon.clock())
 
     assert recorded(daemon=daemon) == previous
     output = capsys.readouterr().out
@@ -483,6 +488,6 @@ def test_a_run_that_cannot_be_told_which_account_gh_is_signed_in_as_refuses(
     gh.fails(stderr="gh: you are not logged in", to="api user")
 
     with pytest.raises(ReportableError, match="cannot tell which account"):
-        Daemon(
+        DreamcatcherDaemon(
             root=cloned, harness=AgentHarness.CLAUDE, wait=Interrupting(ticks=1)
         ).run()

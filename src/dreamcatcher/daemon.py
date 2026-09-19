@@ -44,7 +44,7 @@ def _write_output(*, line: str) -> None:
         raise ReportableError("Could not write daemon output.") from error
 
 
-class Daemon:
+class DreamcatcherDaemon:
     """The foreground process watching one repo.
 
     The clock and the wait are the daemon's own, so a test can pin the time and
@@ -94,13 +94,14 @@ class Daemon:
         """
         self._locate_harnesses()
         self.state.bootstrap()
-        repository = _refuse_unknown(
-            named=identify_github_repository(root=self.state.root),
+        repository = _require_known_github_value(
+            value=identify_github_repository(root=self.state.root),
             question="which repository this is",
         )
         write_text(text=f"{repository}\n", path=self.state.repository)
-        account = _refuse_unknown(
-            named=identify_github_account(), question="which account gh is signed in as"
+        account = _require_known_github_value(
+            value=identify_github_account(),
+            question="which account gh is signed in as",
         )
         scheduler = AgentWorkScheduler(
             repository=repository,
@@ -118,7 +119,7 @@ class Daemon:
             try:
                 with suppress(KeyboardInterrupt):
                     while True:
-                        self.tick(scheduler=scheduler, at=at)
+                        self.run_scheduler_cycle(scheduler=scheduler, at=at)
                         self.wait(self.config.interval)
                         at = self.clock()
             finally:
@@ -126,10 +127,12 @@ class Daemon:
                 # the run ends: on the user's interrupt, and on a failure the
                 # daemon could not carry on from. A round that already ended
                 # keeps the ending it recorded for itself.
-                for running in self.rounds.values():
-                    running.stop()
+                for agent_round in self.rounds.values():
+                    agent_round.stop()
 
-    def tick(self, *, scheduler: AgentWorkScheduler, at: datetime) -> None:
+    def run_scheduler_cycle(
+        self, *, scheduler: AgentWorkScheduler, at: datetime
+    ) -> None:
         """Run one scheduler tick, then record and report its result.
 
         A tick that failed reports the evidence and the next tick tries again,
@@ -142,21 +145,23 @@ class Daemon:
         it was holding end with it.
         """
         try:
-            observed = scheduler.tick(at=at)
+            scheduler_record = scheduler.tick(at=at)
         except InvalidSchedulerRecordError:
             raise
         except ReportableError as failure:
             reason = " ".join(str(failure).split())
             _write_output(line=f"{describe_time(at=at)}  held: {reason}")
             return
-        write_json(document=observed, path=self.state.scheduler_record)
-        if observed.launched is not None:
-            outcome = f"launched round for {observed.launched}"
-        elif observed.hold is not None:
-            outcome = f"held: {' '.join(observed.hold.split())}"
+        write_json(document=scheduler_record, path=self.state.scheduler_record)
+        if scheduler_record.launched is not None:
+            outcome_description = f"launched round for {scheduler_record.launched}"
+        elif scheduler_record.hold is not None:
+            outcome_description = f"held: {' '.join(scheduler_record.hold.split())}"
         else:
-            outcome = "nothing launched"
-        _write_output(line=f"{describe_time(at=observed.at)}  {outcome}")
+            outcome_description = "nothing launched"
+        _write_output(
+            line=(f"{describe_time(at=scheduler_record.at)}  {outcome_description}")
+        )
 
     def _locate_harnesses(self) -> None:
         """Refuse the run when a harness it could dispatch to is not installed.
@@ -202,8 +207,10 @@ class Daemon:
                     )
 
 
-def _refuse_unknown(*, named: str | UnknownGitHubResponse, question: str) -> str:
+def _require_known_github_value(
+    *, value: str | UnknownGitHubResponse, question: str
+) -> str:
     """Return what gh named, or refuse the run saying what it could not tell."""
-    if isinstance(named, UnknownGitHubResponse):
-        raise ReportableError(f"dreamcatcher cannot tell {question}: {named.reason}")
-    return named
+    if isinstance(value, UnknownGitHubResponse):
+        raise ReportableError(f"dreamcatcher cannot tell {question}: {value.reason}")
+    return value

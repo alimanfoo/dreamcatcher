@@ -15,7 +15,7 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.cli import main
 from dreamcatcher.config import AgentHarness
-from dreamcatcher.daemon import Daemon
+from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.scheduler import SchedulerRecord, derive_assignment_fault
@@ -49,7 +49,9 @@ def watching(tmp_path):
 def started(monkeypatch):
     """Return the daemons a run started, with the tick loop held back."""
     daemons = []
-    monkeypatch.setattr(Daemon, "run", lambda daemon: daemons.append(daemon))
+    monkeypatch.setattr(
+        DreamcatcherDaemon, "run", lambda daemon: daemons.append(daemon)
+    )
     return daemons
 
 
