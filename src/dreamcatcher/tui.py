@@ -780,7 +780,7 @@ def _render_written_feed_line(*, written_line: str) -> Text:
     A line the reader cannot parse reaches the reader as it was written, since
     showing what the feed holds is the whole point of showing it.
     """
-    line = read_feed_line(written=written_line)
+    line = read_feed_line(written_line=written_line)
     if line is None:
         return Text(written_line)
     content = Text(line.text)

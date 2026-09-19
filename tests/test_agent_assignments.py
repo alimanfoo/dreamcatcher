@@ -33,7 +33,11 @@ from dreamcatcher.agent_rounds import (
     compose_agent_round_ending,
 )
 from dreamcatcher.commands import CommandError
-from dreamcatcher.config import CONFIG_NAME, AgentHarness, read_dreamcatcher_config
+from dreamcatcher.config import (
+    DREAMCATCHER_CONFIG_NAME,
+    AgentHarness,
+    read_dreamcatcher_config,
+)
 from dreamcatcher.documents import write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import add_worktree, fetch_main, make_empty_commit, push_branch
@@ -62,7 +66,7 @@ def linked_pull_requests(*, numbers: Sequence[int]) -> str:
 @pytest.fixture
 def checkout(cloned):
     """A main checkout with an origin to cut from and a config to dispatch by."""
-    (cloned / CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
+    (cloned / DREAMCATCHER_CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
     return cloned
 
 

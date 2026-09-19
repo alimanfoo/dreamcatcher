@@ -32,13 +32,13 @@ def list_undelivered_user_posts(
     Reading the posts can fail, and the failure travels, so a caller can say
     in one line why it relayed nothing.
     """
-    found = list_user_posts(repository=repository, pull_request=pull_request)
-    if isinstance(found, UnknownGitHubResponse):
-        return found
+    user_posts = list_user_posts(repository=repository, pull_request=pull_request)
+    if isinstance(user_posts, UnknownGitHubResponse):
+        return user_posts
     return sorted(
         (
             post
-            for post in found
+            for post in user_posts
             if _is_undelivered_user_post(
                 post=post, account=account, delivery_cursor=delivery_cursor
             )

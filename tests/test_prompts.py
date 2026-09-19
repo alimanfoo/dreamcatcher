@@ -3,7 +3,11 @@ from pathlib import Path
 import pytest
 from conftest import CONFIG
 
-from dreamcatcher.config import CONFIG_NAME, AgentHarness, read_dreamcatcher_config
+from dreamcatcher.config import (
+    DREAMCATCHER_CONFIG_NAME,
+    AgentHarness,
+    read_dreamcatcher_config,
+)
 from dreamcatcher.prompts import (
     AGENT_POST_INSTRUCTIONS,
     AGENT_POST_MARKER,
@@ -30,7 +34,7 @@ def test_a_template_holding_other_words_in_braces_keeps_them():
 def test_the_prompt_that_opens_an_assignment_is_its_template_then_the_postscript(
     tmp_path, harness
 ):
-    (tmp_path / CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
+    (tmp_path / DREAMCATCHER_CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
     recipe = (
         read_dreamcatcher_config(root=tmp_path).dispatch[0].assignment_recipes[harness]
     )

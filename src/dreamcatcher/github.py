@@ -276,26 +276,28 @@ class InlineReviewComment(_UserPostProjection):
 type UserPost = ConversationComment | PullRequestReview | InlineReviewComment
 
 
-REPOSITORY_RESPONSE = TypeAdapter(GitHubRepository)
-ACCOUNT_RESPONSE = TypeAdapter(GitHubUserAccount)
-ISSUE_RESPONSE = TypeAdapter(Issue)
-ISSUE_LIST_RESPONSE = TypeAdapter(list[Issue])
-PULL_REQUEST_LIST_RESPONSE = TypeAdapter(list[PullRequest])
-PULL_REQUEST_RESPONSE = TypeAdapter(PullRequest)
-BLOCKING_ISSUE_LIST_RESPONSE = TypeAdapter(list[BlockingIssue])
-LINKED_PULL_REQUESTS_RESPONSE = TypeAdapter(LinkedPullRequestsResponse)
-CONVERSATION_COMMENT_PAGES = TypeAdapter(list[list[ConversationComment]])
-PULL_REQUEST_REVIEW_PAGES = TypeAdapter(list[list[PullRequestReview]])
-INLINE_REVIEW_COMMENT_PAGES = TypeAdapter(list[list[InlineReviewComment]])
+GITHUB_REPOSITORY_RESPONSE_ADAPTER = TypeAdapter(GitHubRepository)
+GITHUB_ACCOUNT_RESPONSE_ADAPTER = TypeAdapter(GitHubUserAccount)
+GITHUB_ISSUE_RESPONSE_ADAPTER = TypeAdapter(Issue)
+GITHUB_ISSUE_LIST_RESPONSE_ADAPTER = TypeAdapter(list[Issue])
+GITHUB_PULL_REQUEST_LIST_RESPONSE_ADAPTER = TypeAdapter(list[PullRequest])
+GITHUB_PULL_REQUEST_RESPONSE_ADAPTER = TypeAdapter(PullRequest)
+GITHUB_BLOCKING_ISSUE_LIST_RESPONSE_ADAPTER = TypeAdapter(list[BlockingIssue])
+GITHUB_LINKED_PULL_REQUESTS_RESPONSE_ADAPTER = TypeAdapter(LinkedPullRequestsResponse)
+GITHUB_CONVERSATION_COMMENT_PAGES_ADAPTER = TypeAdapter(list[list[ConversationComment]])
+GITHUB_PULL_REQUEST_REVIEW_PAGES_ADAPTER = TypeAdapter(list[list[PullRequestReview]])
+GITHUB_INLINE_REVIEW_COMMENT_PAGES_ADAPTER = TypeAdapter(
+    list[list[InlineReviewComment]]
+)
 
 # The three lists a pull request's posts arrive in: what each holds, the kind of
 # thing GitHub keeps it under, and what it is called there. A pull request's own
 # conversation is the conversation of the issue that shares its number, which is
 # why that one is kept under the issues.
-USER_POST_LISTS = (
-    (CONVERSATION_COMMENT_PAGES, "issues", "comments"),
-    (PULL_REQUEST_REVIEW_PAGES, "pulls", "reviews"),
-    (INLINE_REVIEW_COMMENT_PAGES, "pulls", "comments"),
+GITHUB_USER_POST_ENDPOINTS = (
+    (GITHUB_CONVERSATION_COMMENT_PAGES_ADAPTER, "issues", "comments"),
+    (GITHUB_PULL_REQUEST_REVIEW_PAGES_ADAPTER, "pulls", "reviews"),
+    (GITHUB_INLINE_REVIEW_COMMENT_PAGES_ADAPTER, "pulls", "comments"),
 )
 
 
@@ -305,30 +307,33 @@ def identify_github_repository(*, root: Path) -> str | UnknownGitHubResponse:
     gh reads the repository from the checkout's own remote, so this asks from
     inside the checkout.
     """
-    answered = _read(
-        shape=REPOSITORY_RESPONSE,
+    repository_response = _read_github_response(
+        response_adapter=GITHUB_REPOSITORY_RESPONSE_ADAPTER,
         arguments=["repo", "view", "--json", "nameWithOwner"],
         cwd=root,
     )
-    if isinstance(answered, UnknownGitHubResponse):
-        return answered
-    return answered.name_with_owner
+    if isinstance(repository_response, UnknownGitHubResponse):
+        return repository_response
+    return repository_response.name_with_owner
 
 
 def identify_github_account() -> str | UnknownGitHubResponse:
     """Return the login of the account gh is signed in as."""
-    answered = _read(shape=ACCOUNT_RESPONSE, arguments=["api", "user"])
-    if isinstance(answered, UnknownGitHubResponse):
-        return answered
-    return answered.login
+    account_response = _read_github_response(
+        response_adapter=GITHUB_ACCOUNT_RESPONSE_ADAPTER,
+        arguments=["api", "user"],
+    )
+    if isinstance(account_response, UnknownGitHubResponse):
+        return account_response
+    return account_response.login
 
 
 def list_issues(
     *, repository: str, label: str, assignee: str
 ) -> list[Issue] | UnknownGitHubResponse:
     """Return the repository's open issues carrying label and assigned to assignee."""
-    return _read(
-        shape=ISSUE_LIST_RESPONSE,
+    return _read_github_response(
+        response_adapter=GITHUB_ISSUE_LIST_RESPONSE_ADAPTER,
         arguments=[
             "issue",
             "list",
@@ -350,8 +355,8 @@ def list_issues(
 
 def read_issue(*, repository: str, issue: int) -> Issue | UnknownGitHubResponse:
     """Return the current GitHub facts for one issue."""
-    return _read(
-        shape=ISSUE_RESPONSE,
+    return _read_github_response(
+        response_adapter=GITHUB_ISSUE_RESPONSE_ADAPTER,
         arguments=[
             "issue",
             "view",
@@ -372,8 +377,8 @@ def list_pull_requests(
     A branch usually has one, and an empty list means it has none. Which of
     several counts is the caller's rule, not this read's.
     """
-    return _read(
-        shape=PULL_REQUEST_LIST_RESPONSE,
+    return _read_github_response(
+        response_adapter=GITHUB_PULL_REQUEST_LIST_RESPONSE_ADAPTER,
         arguments=[
             "pr",
             "list",
@@ -425,8 +430,8 @@ def _read_pull_request(
     *, repository: str, reference: str
 ) -> PullRequest | UnknownGitHubResponse:
     """Return one pull request named by a number or URL."""
-    return _read(
-        shape=PULL_REQUEST_RESPONSE,
+    return _read_github_response(
+        response_adapter=GITHUB_PULL_REQUEST_RESPONSE_ADAPTER,
         arguments=[
             "pr",
             "view",
@@ -448,8 +453,8 @@ def list_linked_pull_requests(
     so, which is the state a second checkout of the same repository is always
     in.
     """
-    answered = _read(
-        shape=LINKED_PULL_REQUESTS_RESPONSE,
+    linked_response = _read_github_response(
+        response_adapter=GITHUB_LINKED_PULL_REQUESTS_RESPONSE_ADAPTER,
         arguments=[
             "issue",
             "view",
@@ -460,17 +465,17 @@ def list_linked_pull_requests(
             "closedByPullRequestsReferences",
         ],
     )
-    if isinstance(answered, UnknownGitHubResponse):
-        return answered
+    if isinstance(linked_response, UnknownGitHubResponse):
+        return linked_response
     open_pull_requests = []
-    for linked in answered.pull_requests:
+    for linked_pull_request in linked_response.pull_requests:
         pull_request = read_pull_request(
-            repository=repository, pull_request=linked.number
+            repository=repository, pull_request=linked_pull_request.number
         )
         if isinstance(pull_request, UnknownGitHubResponse):
             return pull_request
         if pull_request.state is PullRequestState.OPEN:
-            open_pull_requests.append(linked)
+            open_pull_requests.append(linked_pull_request)
     return open_pull_requests
 
 
@@ -482,8 +487,8 @@ def list_blocking_issues(
     This reads the one page GitHub answers with, so an issue with more than
     thirty blockers would keep the rest out of view.
     """
-    return _read(
-        shape=BLOCKING_ISSUE_LIST_RESPONSE,
+    return _read_github_response(
+        response_adapter=GITHUB_BLOCKING_ISSUE_LIST_RESPONSE_ADAPTER,
         arguments=[
             "api",
             f"repos/{repository}/issues/{issue}/dependencies/blocked_by",
@@ -504,56 +509,60 @@ def list_user_posts(
     request, since the source it cannot see is the one that might hold the post
     the user is waiting for an answer to.
     """
-    found: list[UserPost] = []
-    for shape, under, listed in USER_POST_LISTS:
-        path = f"repos/{repository}/{under}/{pull_request}/{listed}"
-        answered = _read_pages(shape=shape, path=path)
-        if isinstance(answered, UnknownGitHubResponse):
-            return answered
-        found.extend(answered)
-    return found
+    user_posts: list[UserPost] = []
+    for response_adapter, resource_kind, collection_name in GITHUB_USER_POST_ENDPOINTS:
+        endpoint = (
+            f"repos/{repository}/{resource_kind}/{pull_request}/{collection_name}"
+        )
+        page_response = _read_github_pages(
+            response_adapter=response_adapter, endpoint=endpoint
+        )
+        if isinstance(page_response, UnknownGitHubResponse):
+            return page_response
+        user_posts.extend(page_response)
+    return user_posts
 
 
-def _read_pages[PostT: UserPost](
-    *, shape: TypeAdapter[list[list[PostT]]], path: str
+def _read_github_pages[PostT: UserPost](
+    *, response_adapter: TypeAdapter[list[list[PostT]]], endpoint: str
 ) -> list[UserPost] | UnknownGitHubResponse:
     """Return every post the paginated list at path holds, or UnknownGitHubResponse.
 
     gh reads every page for us, and answers with one array for each page it
     read, so the pages join back into one list here.
     """
-    answered = _read(
-        shape=shape,
+    page_response = _read_github_response(
+        response_adapter=response_adapter,
         arguments=[
             "api",
-            f"{path}?per_page={GITHUB_PAGE_SIZE}",
+            f"{endpoint}?per_page={GITHUB_PAGE_SIZE}",
             "--paginate",
             "--slurp",
         ],
     )
-    if isinstance(answered, UnknownGitHubResponse):
-        return answered
-    found: list[UserPost] = list(chain.from_iterable(answered))
-    return found
+    if isinstance(page_response, UnknownGitHubResponse):
+        return page_response
+    return list(chain.from_iterable(page_response))
 
 
-def _read[ReadT](
+def _read_github_response[ReadT](
     *,
-    shape: TypeAdapter[ReadT],
+    response_adapter: TypeAdapter[ReadT],
     arguments: Sequence[str],
     cwd: Path | None = None,
 ) -> ReadT | UnknownGitHubResponse:
     """Return what gh answered, or an unknown response when the read failed.
 
-    A read fails in two ways: gh itself fails, or it answers something the shape
-    cannot hold. Both answer UnknownGitHubResponse, so neither reaches a caller as data.
+    A read fails in two ways: gh itself fails, or it answers something the
+    response adapter cannot hold. Both answer UnknownGitHubResponse, so neither
+    reaches a caller as data.
     """
     try:
-        answered = run_command(program="gh", arguments=arguments, cwd=cwd)
+        raw_response = run_command(program="gh", arguments=arguments, cwd=cwd)
     except CommandError as error:
         return UnknownGitHubResponse(reason=str(error))
     try:
-        return shape.validate_json(answered)
+        return response_adapter.validate_json(raw_response)
     except ValidationError as error:
         return UnknownGitHubResponse(
             reason=f"gh answered what dreamcatcher cannot read: {error}"

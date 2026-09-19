@@ -16,7 +16,7 @@ from pathlib import Path, PurePath
 
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.documents import read_last_line
-from dreamcatcher.words import TIMESTAMP_FORMAT, describe_time
+from dreamcatcher.words import UTC_TIMESTAMP_FORMAT, describe_time
 
 # A note's detail can be as long as a whole file, so the line is clipped. The
 # figure is the port's, wide enough for a command or a path.
@@ -64,17 +64,17 @@ def describe_agent_round_start(*, purpose: str, is_recovery: bool) -> str:
     return f"{purpose} (recovery)" if is_recovery else purpose
 
 
-def read_feed_line(*, written: str) -> FeedLine | None:
+def read_feed_line(*, written_line: str) -> FeedLine | None:
     """Return what one written line says, or nothing when it is not a line.
 
     Every line a feed holds opens with its stamp, so anything else is the end
     of a write that never landed whole.
     """
-    stamp, gap, text = written.partition(FEED_TIMESTAMP_GAP)
+    timestamp, gap, text = written_line.partition(FEED_TIMESTAMP_GAP)
     if not gap:
         return None
     try:
-        at = datetime.strptime(stamp, TIMESTAMP_FORMAT).replace(tzinfo=UTC)
+        at = datetime.strptime(timestamp, UTC_TIMESTAMP_FORMAT).replace(tzinfo=UTC)
     except ValueError:
         return None
     return FeedLine(at=at, text=text)
@@ -82,10 +82,10 @@ def read_feed_line(*, written: str) -> FeedLine | None:
 
 def read_last_feed_line(*, path: Path) -> FeedLine | None:
     """Return the last line the feed at path holds, or nothing when it holds none."""
-    written = read_last_line(path=path)
-    if written is None:
+    written_line = read_last_line(path=path)
+    if written_line is None:
         return None
-    return read_feed_line(written=written)
+    return read_feed_line(written_line=written_line)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -130,27 +130,27 @@ class FeedRenderer:
     def render(self, *, event: FeedEvent) -> str:
         """Return the feed lines the event becomes, or nothing when it has none."""
         if isinstance(event, FeedNote):
-            return self._stamp(
+            return self._render_timestamped_lines(
                 contents=[self._render_note(note=event)], is_subagent=event.is_subagent
             )
-        return self._stamp(
+        return self._render_timestamped_lines(
             contents=[line for line in event.text.splitlines() if line.strip()],
             is_subagent=event.is_subagent,
         )
 
     def _render_note(self, *, note: FeedNote) -> str:
         """Return the one line a note becomes."""
-        detail = self._shorten(detail=note.detail)
+        detail = self._shorten_note_detail(detail=note.detail)
         return f"[{note.label}] {detail}" if detail else f"[{note.label}]"
 
-    def _shorten(self, *, detail: str) -> str:
+    def _shorten_note_detail(self, *, detail: str) -> str:
         """Return the detail as one clipped line, without the worktree's path."""
-        one_line = " ".join(self._strip_worktree(detail=detail).split())
+        one_line = " ".join(self._strip_worktree_path(detail=detail).split())
         if len(one_line) > FEED_LINE_WIDTH:
             return f"{one_line[:FEED_LINE_WIDTH]} ..."
         return one_line
 
-    def _strip_worktree(self, *, detail: str) -> str:
+    def _strip_worktree_path(self, *, detail: str) -> str:
         """Return the detail with the path of the round's worktree off its front.
 
         The separator has to be there, so a sibling directory whose name starts
@@ -163,10 +163,13 @@ class FeedRenderer:
                 return detail[len(start) :]
         return detail
 
-    def _stamp(self, *, contents: list[str], is_subagent: bool) -> str:
+    def _render_timestamped_lines(
+        self, *, contents: list[str], is_subagent: bool
+    ) -> str:
         """Return the contents as timestamped lines, indented for a subagent."""
         indent = SUBAGENT_INDENT if is_subagent else ""
-        at = self.clock()
+        written_at = self.clock()
         return "".join(
-            FeedLine(at=at, text=f"{indent}{content}").render() for content in contents
+            FeedLine(at=written_at, text=f"{indent}{content}").render()
+            for content in contents
         )

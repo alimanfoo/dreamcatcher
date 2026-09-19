@@ -4,7 +4,7 @@ import pytest
 from conftest import CONFIG, CONFIG_HEAD, SMITH_CLAUDE, SMITH_CODEX
 
 from dreamcatcher.config import (
-    CONFIG_NAME,
+    DREAMCATCHER_CONFIG_NAME,
     AgentAssignmentRecipe,
     AgentHarness,
     read_dreamcatcher_config,
@@ -23,7 +23,7 @@ CODEX_RECIPE = AgentAssignmentRecipe(
 
 def write_config(*, root: Path, text: str) -> None:
     """Put a config in the repo root."""
-    (root / CONFIG_NAME).write_text(text, encoding="utf-8")
+    (root / DREAMCATCHER_CONFIG_NAME).write_text(text, encoding="utf-8")
 
 
 def test_a_valid_config_reads_back(tmp_path):
@@ -165,7 +165,10 @@ def test_a_config_mistake_names_the_setting_and_the_fault(
     with pytest.raises(ReportableError) as error:
         read_dreamcatcher_config(root=tmp_path)
 
-    assert str(error.value) == f"{tmp_path / CONFIG_NAME} is not valid:\n  {fault}"
+    assert (
+        str(error.value)
+        == f"{tmp_path / DREAMCATCHER_CONFIG_NAME} is not valid:\n  {fault}"
+    )
 
 
 # A prompt is left out, because a round writes it to a file for the harness to
@@ -180,7 +183,7 @@ def test_a_setting_a_harness_cannot_be_given_names_itself(tmp_path, setting):
         read_dreamcatcher_config(root=tmp_path)
 
     assert str(error.value) == (
-        f"{tmp_path / CONFIG_NAME} is not valid:\n"
+        f"{tmp_path / DREAMCATCHER_CONFIG_NAME} is not valid:\n"
         f"  dispatch.0.claude.{setting}: Value error, cannot hold a percent "
         "sign, because on Windows cmd.exe acts on the text rather than passing "
         "it to the harness"
@@ -201,5 +204,5 @@ def test_a_prompt_may_hold_what_no_command_line_could_carry(tmp_path):
 
 
 def test_a_repo_with_no_config_says_which_file_is_missing(tmp_path):
-    with pytest.raises(ReportableError, match=CONFIG_NAME):
+    with pytest.raises(ReportableError, match=DREAMCATCHER_CONFIG_NAME):
         read_dreamcatcher_config(root=tmp_path)

@@ -36,7 +36,7 @@ if sys.platform == "win32":  # pragma: no cover
 
     # What everything left in a terminated job reports as the status it ended
     # with.
-    KILLED = 1
+    WINDOWS_TERMINATED_PROCESS_STATUS = 1
 
     # Nothing puts a child in a group that Windows can signal, so a job stands
     # for each running child. The job is held here until the child's tree is
@@ -44,7 +44,7 @@ if sys.platform == "win32":  # pragma: no cover
     # inside.
     _jobs: dict[int, object] = {}
 
-    def contain(*, pid: int) -> None:
+    def contain_process_tree(*, pid: int) -> None:
         """Put the child at pid, and whatever it starts, in a job of its own."""
         job = win32job.CreateJobObject(None, "")
         limits = win32job.QueryInformationJobObject(
@@ -63,11 +63,11 @@ if sys.platform == "win32":  # pragma: no cover
         child.Close()
         _jobs[pid] = job
 
-    def end(*, pid: int) -> None:
+    def end_process_tree(*, pid: int) -> None:
         """End the child at pid and everything it started."""
         job = _jobs.pop(pid, None)
         if job is not None:
-            win32job.TerminateJobObject(job, KILLED)
+            win32job.TerminateJobObject(job, WINDOWS_TERMINATED_PROCESS_STATUS)
             job.Close()
 
 else:  # pragma: no cover
@@ -75,10 +75,10 @@ else:  # pragma: no cover
     import signal
     from contextlib import suppress
 
-    def contain(*, pid: int) -> None:
+    def contain_process_tree(*, pid: int) -> None:
         """Nothing to do: the child already leads a process group of its own."""
 
-    def end(*, pid: int) -> None:
+    def end_process_tree(*, pid: int) -> None:
         """End the child at pid and everything it started.
 
         A group with nothing left in it is a round that has already ended,

@@ -60,7 +60,7 @@ from dreamcatcher.relay import list_undelivered_user_posts
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.words import describe_count
 
-COOLDOWN = timedelta(minutes=15)
+GLOBAL_COOLDOWN_DURATION = timedelta(minutes=15)
 NO_ROUND_HAS_RUN = "no round has run yet"
 
 
@@ -188,7 +188,7 @@ class IssueObservationResult:
 
 
 @dataclass(frozen=True, kw_only=True)
-class _ConsideredIssues:
+class _ConsideredIssueResult:
     """The issues listed successfully and any route listing that failed."""
 
     issues: list[Issue]
@@ -256,7 +256,7 @@ def observe_issues(
     recovery_obstacles: dict[int, str | None],
 ) -> IssueObservationResult:
     """Observe every issue considered for dispatch or claimed by this instance."""
-    listed = _list_considered_issues(repository=repository, config=config)
+    considered_issues = _list_considered_issues(repository=repository, config=config)
     open_assignments = {
         assignment.record.issue: assignment
         for assignment in assignments
@@ -269,19 +269,21 @@ def observe_issues(
         assignments=open_assignments,
         recovery_obstacles=recovery_obstacles,
     )
-    observed: dict[int, Issue | UnknownGitHubResponse] = {
-        issue.number: issue for issue in listed.issues
+    issue_responses_by_number: dict[int, Issue | UnknownGitHubResponse] = {
+        issue.number: issue for issue in considered_issues.issues
     }
-    local_issues = open_assignments.keys() | recovery_obstacles.keys()
-    for issue in local_issues - observed.keys():
-        observed[issue] = read_issue(repository=repository, issue=issue)
+    local_issue_numbers = open_assignments.keys() | recovery_obstacles.keys()
+    for issue in local_issue_numbers - issue_responses_by_number.keys():
+        issue_responses_by_number[issue] = read_issue(
+            repository=repository, issue=issue
+        )
     issue_observations = [
         _observe_issue(
             context=context,
             issue=issue,
-            answer=answer,
+            issue_response=issue_response,
         )
-        for issue, answer in observed.items()
+        for issue, issue_response in issue_responses_by_number.items()
     ]
     return IssueObservationResult(
         observations=sorted(
@@ -292,47 +294,49 @@ def observe_issues(
                 observation.issue,
             ),
         ),
-        failure=listed.failure,
+        failure=considered_issues.failure,
     )
 
 
 def _list_considered_issues(
     *, repository: str, config: DreamcatcherConfig
-) -> _ConsideredIssues:
+) -> _ConsideredIssueResult:
     """List open assigned issues that carry any configured dispatch label."""
     issues_by_number: dict[int, Issue] = {}
     for route in config.dispatch:
-        answered = list_issues(
+        issue_response = list_issues(
             repository=repository, label=route.label, assignee=config.assignee
         )
-        if isinstance(answered, UnknownGitHubResponse):
-            return _ConsideredIssues(
+        if isinstance(issue_response, UnknownGitHubResponse):
+            return _ConsideredIssueResult(
                 issues=list(issues_by_number.values()),
-                failure=answered.reason,
+                failure=issue_response.reason,
             )
-        issues_by_number.update((issue.number, issue) for issue in answered)
-    return _ConsideredIssues(issues=list(issues_by_number.values()))
+        issues_by_number.update((issue.number, issue) for issue in issue_response)
+    return _ConsideredIssueResult(issues=list(issues_by_number.values()))
 
 
 def _observe_issue(
     *,
     context: _IssueObservationContext,
     issue: int,
-    answer: Issue | UnknownGitHubResponse,
+    issue_response: Issue | UnknownGitHubResponse,
 ) -> IssueObservation:
     """Observe the independent scheduling facts for one issue."""
-    if isinstance(answer, UnknownGitHubResponse):
-        external_reason = f"cannot read issue: {answer.reason}"
+    if isinstance(issue_response, UnknownGitHubResponse):
+        external_reason = f"cannot read issue: {issue_response.reason}"
         created_at = None
         is_open = _compose_unknown_issue_fact(evidence=external_reason)
         is_assigned = _compose_unknown_issue_fact(evidence=external_reason)
         dispatch_labels = None
         routing_conflict = _compose_unknown_issue_fact(evidence=external_reason)
     else:
-        created_at = answer.created_at
+        created_at = issue_response.created_at
         is_open = _compose_known_issue_fact(
-            value=answer.state is IssueState.OPEN,
-            evidence=(None if answer.state is IssueState.OPEN else "issue is closed"),
+            value=issue_response.state is IssueState.OPEN,
+            evidence=(
+                None if issue_response.state is IssueState.OPEN else "issue is closed"
+            ),
         )
         watched_account = (
             context.account
@@ -340,7 +344,7 @@ def _observe_issue(
             else context.config.assignee
         )
         is_assigned_to_user = watched_account.casefold() in {
-            assignee.login.casefold() for assignee in answer.assignees
+            assignee.login.casefold() for assignee in issue_response.assignees
         }
         is_assigned = _compose_known_issue_fact(
             value=is_assigned_to_user,
@@ -349,7 +353,7 @@ def _observe_issue(
             ),
         )
         dispatch_labels = context.config.identify_dispatch_labels(
-            labels=[label.name for label in answer.labels]
+            labels=[label.name for label in issue_response.labels]
         )
         has_routing_conflict = len(dispatch_labels) > 1
         routing_conflict = _compose_known_issue_fact(
@@ -522,7 +526,7 @@ def _start_cooldown_if_required(
     ]
     if len(faults) < 2:
         return None
-    return GlobalCooldown(started=at, ends=at + COOLDOWN)
+    return GlobalCooldown(started=at, ends=at + GLOBAL_COOLDOWN_DURATION)
 
 
 def _describe_cooldown(*, cooldown: GlobalCooldown) -> str:

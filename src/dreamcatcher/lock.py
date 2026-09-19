@@ -19,9 +19,9 @@ def hold_daemon_lock(*, path: Path) -> Iterator[None]:
 
     Reclaim a stale lock, one no live daemon holds.
     """
-    running = read_daemon_pid(path=path)
-    if running is not None:
-        raise ReportableError(f"dreamcatcher is already running as pid {running}.")
+    daemon_pid = read_daemon_pid(path=path)
+    if daemon_pid is not None:
+        raise ReportableError(f"dreamcatcher is already running as pid {daemon_pid}.")
     write_text(text=f"{os.getpid()}\n", path=path)
     try:
         yield
@@ -42,7 +42,7 @@ def read_daemon_pid(*, path: Path) -> int | None:
     """
     try:
         pid = int(path.read_text(encoding="utf-8").strip())
-        alive = pid > 0 and psutil.pid_exists(pid)
+        is_alive = pid > 0 and psutil.pid_exists(pid)
     except (OSError, ValueError, OverflowError):
         return None
-    return pid if alive else None
+    return pid if is_alive else None

@@ -215,9 +215,9 @@ def _find_line_ending(*, opened: IO[bytes], before: int) -> int | None:
     while end > 0:
         start = max(0, end - BACKWARD_READ_SIZE)
         opened.seek(start)
-        found = opened.read(end - start).rfind(b"\n")
-        if found >= 0:
-            return start + found
+        ending_position = opened.read(end - start).rfind(b"\n")
+        if ending_position >= 0:
+            return start + ending_position
         end = start
     return None
 

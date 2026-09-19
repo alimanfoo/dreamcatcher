@@ -9,7 +9,7 @@ from pydantic import AfterValidator, ConfigDict, Field, PositiveInt, model_valid
 from dreamcatcher.commands import refuse_unquotable
 from dreamcatcher.documents import DreamcatcherDocument, read_toml
 
-CONFIG_NAME = "dreamcatcher.toml"
+DREAMCATCHER_CONFIG_NAME = "dreamcatcher.toml"
 
 # Text that quoting can carry to a harness's own command line. Windows runs a
 # harness that npm installed as a batch file, so the text meets cmd.exe on the
@@ -131,11 +131,13 @@ class DreamcatcherConfig(DreamcatcherDocument):
             {identity for identity in identities if identities.count(identity) > 1}
         )
         if repeated:
-            named = ", ".join(repeated)
-            raise ValueError(f"more than one dispatch entry uses the label {named}")
+            repeated_label_names = ", ".join(repeated)
+            raise ValueError(
+                f"more than one dispatch entry uses the label {repeated_label_names}"
+            )
         return self
 
 
 def read_dreamcatcher_config(*, root: Path) -> DreamcatcherConfig:
     """Return the configuration the repo at root holds."""
-    return read_toml(model=DreamcatcherConfig, path=root / CONFIG_NAME)
+    return read_toml(model=DreamcatcherConfig, path=root / DREAMCATCHER_CONFIG_NAME)

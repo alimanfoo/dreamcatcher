@@ -3,7 +3,7 @@
 from datetime import UTC, datetime, timedelta
 
 # How a time is written wherever the tool writes one.
-TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+UTC_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 SECONDS_PER_MINUTE = 60
 MINUTES_PER_HOUR = 60
@@ -12,7 +12,7 @@ HOURS_PER_DAY = 24
 
 def describe_time(*, at: datetime) -> str:
     """Return the time as the tool writes one, in UTC whatever it was read in."""
-    return f"{at.astimezone(UTC):{TIMESTAMP_FORMAT}}"
+    return f"{at.astimezone(UTC):{UTC_TIMESTAMP_FORMAT}}"
 
 
 def describe_span(*, span: timedelta) -> str:

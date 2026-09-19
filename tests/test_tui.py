@@ -69,7 +69,7 @@ SCREEN_HANDED_BACK = Control.alt_screen(False).segment.text
 # alive. A real pid would differ from run to run and no golden could hold it.
 DAEMON_PID = 4242
 
-TIMESTAMP_FORMAT = "20260819-184158"
+UTC_TIMESTAMP_FORMAT = "20260819-184158"
 HARNESS_SESSION_IDENTIFIER = "abc-123"
 
 # What one round of an assignment said, as its feed holds it. A subagent's lines
@@ -112,7 +112,7 @@ def written(*, state, issue: int, records: Sequence[AgentRoundRecord]):
     """Write an assignment for the issue, with these rounds behind it."""
     directory = write_agent_assignment(
         state=state,
-        identifier=f"GH{issue}-{TIMESTAMP_FORMAT}",
+        identifier=f"GH{issue}-{UTC_TIMESTAMP_FORMAT}",
         issue=issue,
         harness_session_identifier=(HARNESS_SESSION_IDENTIFIER if records else None),
     )
@@ -255,7 +255,7 @@ def fabricate_everything(*, state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
-            launched=f"GH13-{TIMESTAMP_FORMAT}",
+            launched=f"GH13-{UTC_TIMESTAMP_FORMAT}",
             issue_observations=[
                 observed_issue(issue=50),
                 observed_issue(issue=51),
@@ -273,28 +273,28 @@ def fabricate_everything(*, state):
             ],
             assignment_observations=[
                 AgentAssignmentObservation(
-                    assignment=f"GH31-{TIMESTAMP_FORMAT}",
+                    assignment=f"GH31-{UTC_TIMESTAMP_FORMAT}",
                     issue=31,
                     reason="1 new post to answer",
                 ),
                 AgentAssignmentObservation(
-                    assignment=f"GH20-{TIMESTAMP_FORMAT}",
+                    assignment=f"GH20-{UTC_TIMESTAMP_FORMAT}",
                     issue=20,
                     reason="no round required",
                     is_round_required=False,
                 ),
                 AgentAssignmentObservation(
-                    assignment=f"GH35-{TIMESTAMP_FORMAT}",
+                    assignment=f"GH35-{UTC_TIMESTAMP_FORMAT}",
                     issue=35,
                     reason="the last round failed (exit 2)",
                 ),
                 AgentAssignmentObservation(
-                    assignment=f"GH9-{TIMESTAMP_FORMAT}",
+                    assignment=f"GH9-{UTC_TIMESTAMP_FORMAT}",
                     issue=9,
                     reason="two consecutive rounds failed",
                 ),
                 AgentAssignmentObservation(
-                    assignment=f"GH44-{TIMESTAMP_FORMAT}",
+                    assignment=f"GH44-{UTC_TIMESTAMP_FORMAT}",
                     issue=44,
                     reason=NO_ROUND_HAS_RUN,
                 ),
@@ -327,7 +327,7 @@ def fabricate_the_cap(*, state):
             hold=hold,
             assignment_observations=[
                 AgentAssignmentObservation(
-                    assignment=f"GH20-{TIMESTAMP_FORMAT}", issue=20, reason=hold
+                    assignment=f"GH20-{UTC_TIMESTAMP_FORMAT}", issue=20, reason=hold
                 )
             ],
         ),
@@ -376,7 +376,7 @@ def fabricate_repeat_assignments(*, state):
             at=PINNED + timedelta(hours=1, minutes=58),
             assignment_observations=[
                 AgentAssignmentObservation(
-                    assignment=f"GH13-{TIMESTAMP_FORMAT}",
+                    assignment=f"GH13-{UTC_TIMESTAMP_FORMAT}",
                     issue=13,
                     reason="no round required",
                     is_round_required=False,
@@ -410,7 +410,7 @@ def fabricate_a_silent_round(*, state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
-            launched=f"GH13-{TIMESTAMP_FORMAT}",
+            launched=f"GH13-{UTC_TIMESTAMP_FORMAT}",
         ),
     )
 
@@ -569,7 +569,7 @@ def test_status_a_reader_watches_keeps_up_with_what_the_daemon_writes(tmp_path, 
     # while the reader was watching, and ended only when they interrupted it.
     assert looks == [VIEW_REFRESH_INTERVAL, VIEW_REFRESH_INTERVAL]
     assert "no issues or agent assignments recorded yet" in status
-    assert f"GH13-{TIMESTAMP_FORMAT}" in status
+    assert f"GH13-{UTC_TIMESTAMP_FORMAT}" in status
 
 
 def test_status_a_reader_watches_takes_the_screen_and_hands_it_back(tmp_path, daemon):
@@ -679,7 +679,7 @@ def test_a_manual_resume_recovers_the_harness_session_from_the_raw_stream(
     holding(state=state)
     directory = write_agent_assignment(
         state=state,
-        identifier=f"GH20-{TIMESTAMP_FORMAT}",
+        identifier=f"GH20-{UTC_TIMESTAMP_FORMAT}",
         issue=20,
         harness_session_identifier=None,
     )
@@ -702,7 +702,7 @@ def test_an_assignment_without_a_harness_session_has_no_manual_resume(tmp_path, 
     holding(state=state)
     directory = write_agent_assignment(
         state=state,
-        identifier=f"GH20-{TIMESTAMP_FORMAT}",
+        identifier=f"GH20-{UTC_TIMESTAMP_FORMAT}",
         issue=20,
         harness_session_identifier=None,
     )
@@ -726,7 +726,7 @@ def test_an_assignment_view_shows_the_round_that_starts_while_it_is_open(
         if len(looks) > 1:
             raise KeyboardInterrupt
         write_round(
-            directory=state.assignments / f"GH20-{TIMESTAMP_FORMAT}",
+            directory=state.assignments / f"GH20-{UTC_TIMESTAMP_FORMAT}",
             number=2,
             record=running(
                 minute=60, number=2, purpose=AgentRoundPurpose.ADDRESS_FEEDBACK
@@ -765,7 +765,7 @@ def test_an_assignment_view_of_an_assignment_that_is_over_never_waits(
         wait=refusing,
     )
 
-    assert f"GH{issue}-{TIMESTAMP_FORMAT}" in written_to.getvalue()
+    assert f"GH{issue}-{UTC_TIMESTAMP_FORMAT}" in written_to.getvalue()
 
 
 def test_an_assignment_view_of_an_assignment_that_is_over_keeps_its_last_picture(
@@ -788,7 +788,7 @@ def test_an_assignment_view_of_an_assignment_that_is_over_keeps_its_last_picture
     # Handing the screen back took the picture the view ended on with it, so
     # the view printed that picture where a reader looking the assignment up
     # reads it.
-    assert f"GH12-{TIMESTAMP_FORMAT}" in kept
+    assert f"GH12-{UTC_TIMESTAMP_FORMAT}" in kept
 
 
 def followed(*, state, issue: int, wait=refusing) -> str:
@@ -868,7 +868,7 @@ def test_a_following_view_waits_for_the_round_an_assignment_has_yet_to_run(
 def test_a_following_view_looks_once_more_when_the_last_round_stops(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    directory = state.assignments / f"GH13-{TIMESTAMP_FORMAT}"
+    directory = state.assignments / f"GH13-{UTC_TIMESTAMP_FORMAT}"
     waits = []
 
     def wait(seconds, /):
@@ -889,7 +889,7 @@ def test_a_following_view_looks_once_more_when_the_last_round_stops(tmp_path, da
 def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    directory = state.assignments / f"GH20-{TIMESTAMP_FORMAT}"
+    directory = state.assignments / f"GH20-{UTC_TIMESTAMP_FORMAT}"
     looks = []
 
     def wait(seconds, /):
@@ -955,7 +955,7 @@ def test_a_view_of_a_faulted_assignment_never_waits(tmp_path, daemon):
 def test_a_following_view_reads_a_round_on_from_where_it_stopped(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    directory = state.assignments / f"GH13-{TIMESTAMP_FORMAT}"
+    directory = state.assignments / f"GH13-{UTC_TIMESTAMP_FORMAT}"
     looks = []
 
     def wait(seconds, /):
@@ -990,7 +990,9 @@ def test_a_write_that_never_landed_waits_for_the_look_that_shows_it_whole(
 ):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    feed = state.assignments / f"GH13-{TIMESTAMP_FORMAT}" / "rounds" / "2" / "feed.txt"
+    feed = (
+        state.assignments / f"GH13-{UTC_TIMESTAMP_FORMAT}" / "rounds" / "2" / "feed.txt"
+    )
     looks = []
 
     def wait(seconds, /):
@@ -1018,7 +1020,7 @@ def test_a_line_the_view_cannot_read_reaches_the_reader_as_it_was_written(
     write_text(
         text="the harness said something else\n",
         path=state.assignments
-        / f"GH13-{TIMESTAMP_FORMAT}"
+        / f"GH13-{UTC_TIMESTAMP_FORMAT}"
         / "rounds"
         / "2"
         / "feed.txt",
@@ -1059,7 +1061,7 @@ def viewed_round(
 def test_a_round_view_uses_the_number_persisted_by_the_round(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    directory = state.assignments / f"GH12-{TIMESTAMP_FORMAT}"
+    directory = state.assignments / f"GH12-{UTC_TIMESTAMP_FORMAT}"
     write_round(directory=directory, number=4, record=ended(minute=40, number=4))
     write_feed(
         directory=directory,
@@ -1109,7 +1111,7 @@ def test_a_view_of_a_round_that_has_ended_never_waits(tmp_path, daemon):
 def test_a_view_of_a_running_round_ends_when_that_round_does(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    directory = state.assignments / f"GH13-{TIMESTAMP_FORMAT}"
+    directory = state.assignments / f"GH13-{UTC_TIMESTAMP_FORMAT}"
     looks = []
 
     def wait(seconds, /):

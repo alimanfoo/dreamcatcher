@@ -121,9 +121,9 @@ def test_a_round_boundary_names_its_purpose_and_recovery_independently(
 
 
 def test_a_written_line_reads_back_as_what_it_says_and_when():
-    assert read_feed_line(written="2026-08-19T18:41:58Z  [Bash] pytest") == FeedLine(
-        at=PINNED, text="[Bash] pytest"
-    )
+    assert read_feed_line(
+        written_line="2026-08-19T18:41:58Z  [Bash] pytest"
+    ) == FeedLine(at=PINNED, text="[Bash] pytest")
 
 
 def test_a_subagents_line_reads_back_with_the_indent_that_sets_it_in():
@@ -131,17 +131,17 @@ def test_a_subagents_line_reads_back_with_the_indent_that_sets_it_in():
         event=FeedNote(label="Bash", detail="pytest", is_subagent=True)
     )
 
-    assert read_feed_line(written=written.rstrip("\n")) == FeedLine(
+    assert read_feed_line(written_line=written.rstrip("\n")) == FeedLine(
         at=PINNED, text="  [Bash] pytest"
     )
 
 
 def test_a_line_with_no_stamp_on_it_is_not_a_feed_line():
-    assert read_feed_line(written="half a line") is None
+    assert read_feed_line(written_line="half a line") is None
 
 
 def test_a_line_whose_stamp_is_not_a_time_is_not_a_feed_line():
-    assert read_feed_line(written="the other day  [Bash] pytest") is None
+    assert read_feed_line(written_line="the other day  [Bash] pytest") is None
 
 
 def test_the_last_line_of_a_feed_is_what_the_feed_last_said(tmp_path):

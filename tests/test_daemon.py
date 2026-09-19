@@ -25,7 +25,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     compose_agent_round_ending,
 )
-from dreamcatcher.config import CONFIG_NAME, AgentHarness
+from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME, AgentHarness
 from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
@@ -251,7 +251,7 @@ def test_the_daemon_runs_the_harness_it_was_given(watched):
 
 
 def test_a_checkout_with_no_config_names_the_file_it_needs(repo):
-    with pytest.raises(ReportableError, match=CONFIG_NAME):
+    with pytest.raises(ReportableError, match=DREAMCATCHER_CONFIG_NAME):
         DreamcatcherDaemon(root=repo, harness=AgentHarness.CLAUDE)
 
 
@@ -284,7 +284,9 @@ def test_a_run_refuses_when_a_harness_it_could_dispatch_to_is_not_installed(
 
 
 def test_a_run_refuses_when_the_harness_it_was_named_is_not_installed(repo, alone):
-    (repo / CONFIG_NAME).write_text(CONFIG_HEAD + SMITH_CLAUDE, encoding="utf-8")
+    (repo / DREAMCATCHER_CONFIG_NAME).write_text(
+        CONFIG_HEAD + SMITH_CLAUDE, encoding="utf-8"
+    )
     alone(programs=["claude"])
 
     with pytest.raises(ReportableError, match="codex is not on the PATH"):

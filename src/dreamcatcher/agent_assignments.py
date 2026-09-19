@@ -607,13 +607,13 @@ def record_harness_session_identifier(
     )
     path = assignment.directory / AGENT_ASSIGNMENT_RECORD_NAME
     record = read_json(model=AgentAssignmentRecord, path=path)
-    current = record.harness_session_identifier
-    if current is not None and current != safe_identifier:
+    recorded_identifier = record.harness_session_identifier
+    if recorded_identifier is not None and recorded_identifier != safe_identifier:
         raise ReportableError(
             f"{assignment.identifier} reported harness session {safe_identifier}, "
-            f"but its record names {current}."
+            f"but its record names {recorded_identifier}."
         )
-    if current == safe_identifier:
+    if recorded_identifier == safe_identifier:
         return
     write_json(
         document=record.model_copy(

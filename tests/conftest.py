@@ -13,7 +13,7 @@ import psutil
 import pytest
 
 from dreamcatcher.commands import run_command, spawn_command
-from dreamcatcher.config import CONFIG_NAME
+from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME
 
 ARMING = "PYTHONWARNDEFAULTENCODING"
 
@@ -235,7 +235,7 @@ def cloned(upstream, tmp_path):
 @pytest.fixture
 def watched(repo):
     """Return a main checkout carrying a valid dreamcatcher.toml."""
-    (repo / CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
+    (repo / DREAMCATCHER_CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
     return repo
 
 
@@ -296,7 +296,9 @@ def harnesses(fake):
 
 def configure(*, root, head: str = CONFIG_HEAD) -> None:
     """Write a config for that checkout, with this ahead of its one route."""
-    (root / CONFIG_NAME).write_text(head + SMITH_CLAUDE + SMITH_CODEX, encoding="utf-8")
+    (root / DREAMCATCHER_CONFIG_NAME).write_text(
+        head + SMITH_CLAUDE + SMITH_CODEX, encoding="utf-8"
+    )
 
 
 @pytest.fixture

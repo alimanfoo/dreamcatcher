@@ -198,7 +198,7 @@ class DreamcatcherDaemon:
         for assignment in read_agent_assignments(state=self.state):
             for record in assignment.rounds:
                 if record.ending is None:
-                    teardown.end(pid=record.pid)
+                    teardown.end_process_tree(pid=record.pid)
                     record_agent_round_interruption(
                         record=record,
                         path=assignment.compose_round_paths(

@@ -97,7 +97,7 @@ class ChildProcess:
         ended here too, once the child itself has gone.
         """
         status = self.process.wait()
-        teardown.end(pid=self.pid)
+        teardown.end_process_tree(pid=self.pid)
         return status
 
     def kill(self) -> None:
@@ -109,7 +109,7 @@ class ChildProcess:
         kill can come long afterwards.
         """
         if self.is_running:
-            teardown.end(pid=self.pid)
+            teardown.end_process_tree(pid=self.pid)
 
 
 def refuse_unquotable(text: str, /) -> str:
@@ -124,12 +124,13 @@ def refuse_unquotable(text: str, /) -> str:
     pydantic is what calls this, as the validator behind `QuotableText`, and it
     passes the text positionally, so the parameter is positional-only.
     """
-    found = [
+    unquotable_character_names = [
         name for character, name in UNQUOTABLE_CHARACTERS.items() if character in text
     ]
-    if found:
+    if unquotable_character_names:
         raise ValueError(
-            f"cannot hold {' or '.join(found)}, because on Windows cmd.exe acts "
+            f"cannot hold {' or '.join(unquotable_character_names)}, because on "
+            "Windows cmd.exe acts "
             "on the text rather than passing it to the harness"
         )
     return text
@@ -150,7 +151,7 @@ def run_command(
     *, program: str, arguments: Sequence[str], cwd: Path | None = None
 ) -> str:
     """Return what the command wrote to stdout, reading it as UTF-8."""
-    finished = subprocess.run(
+    completed_process = subprocess.run(
         _build_subprocess_command(program=program, arguments=arguments),
         capture_output=True,
         check=False,
@@ -160,14 +161,15 @@ def run_command(
         # as the replacement character rather than as a traceback.
         errors="replace",
     )
-    if finished.returncode != 0:
+    if completed_process.returncode != 0:
         command = " ".join([program, *arguments])
-        stderr = finished.stderr.strip()
-        ending = f": {stderr}" if stderr else "."
+        stderr = completed_process.stderr.strip()
+        failure_suffix = f": {stderr}" if stderr else "."
         raise CommandError(
-            f"{command} failed with status {finished.returncode}{ending}"
+            f"{command} failed with status {completed_process.returncode}"
+            f"{failure_suffix}"
         )
-    return finished.stdout
+    return completed_process.stdout
 
 
 def spawn_command(
@@ -192,15 +194,15 @@ def spawn_command(
     waiting for the rest of a prompt waits no longer than that.
     """
     with ExitStack() as opening:
-        reading = (
+        stdin_stream = (
             opening.enter_context(_open_for_reading(path=stdin))
             if stdin is not None
             else subprocess.DEVNULL
         )
-        started = subprocess.Popen(
+        process = subprocess.Popen(
             _build_subprocess_command(program=program, arguments=arguments),
             cwd=cwd,
-            stdin=reading,
+            stdin=stdin_stream,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             encoding="utf-8",
@@ -209,13 +211,13 @@ def spawn_command(
             errors="replace",
             start_new_session=teardown.SHOULD_START_NEW_PROCESS_SESSION,
         )
-    teardown.contain(pid=started.pid)
+    teardown.contain_process_tree(pid=process.pid)
     # This asked for both pipes above, so both are there. subprocess types them
     # for every caller, including the ones that asked for neither.
     return ChildProcess(
-        out=cast("IO[str]", started.stdout),
-        err=cast("IO[str]", started.stderr),
-        process=started,
+        out=cast("IO[str]", process.stdout),
+        err=cast("IO[str]", process.stderr),
+        process=process,
     )
 
 
