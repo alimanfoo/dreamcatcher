@@ -323,10 +323,12 @@ class _StatusReading:
     def _read_last_output(self, *, assignment: AgentAssignment) -> FeedLine | None:
         """Read the last complete line from the assignment's latest feed."""
         return read_last_feed_line(
-            path=assignment.round_paths(number=assignment.rounds[-1].number).feed
+            path=assignment.compose_round_paths(
+                number=assignment.rounds[-1].number
+            ).feed
         )
 
     def _point_at_feed(self, *, assignment: AgentAssignment, reason: str) -> str:
         """Describe a fault and the feed that holds its latest output."""
-        feed = assignment.round_paths(number=assignment.rounds[-1].number).feed
+        feed = assignment.compose_round_paths(number=assignment.rounds[-1].number).feed
         return f"{reason} ({self.state.describe_path(path=feed)})"

@@ -59,7 +59,7 @@ class DispatchRoute(DreamcatcherDocument):
         """The recipe of each harness that can run this route."""
         return self.__pydantic_extra__
 
-    def choose_harness(self, *, named: AgentHarness) -> AgentHarness:
+    def choose_harness(self, *, requested_harness: AgentHarness) -> AgentHarness:
         """Return the harness that runs this label, given what the run named.
 
         A label carrying a block for the named harness runs on that one. There
@@ -69,7 +69,9 @@ class DispatchRoute(DreamcatcherDocument):
         label carries, and the config needs no pin of its own.
         """
         recipes = self.assignment_recipes
-        return named if named in recipes else next(iter(recipes))
+        return (
+            requested_harness if requested_harness in recipes else next(iter(recipes))
+        )
 
     @model_validator(mode="after")
     def _require_assignment_recipe(self) -> Self:

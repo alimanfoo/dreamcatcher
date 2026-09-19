@@ -30,7 +30,7 @@ def write_agent_assignment(
         document=agent_assignments.AgentAssignmentRecord(
             issue=issue,
             label="dream:smith",
-            branch=f"{agent_assignments.BRANCH_PREFIX}{identifier}",
+            branch=f"{agent_assignments.AGENT_ASSIGNMENT_BRANCH_PREFIX}{identifier}",
             worktree=state.worktrees / identifier,
             pull_request=52,
             harness=AgentHarness.CLAUDE,
@@ -39,7 +39,7 @@ def write_agent_assignment(
             effort="xhigh",
             prompt=f"/dream:smith GH{issue}",
         ),
-        path=directory / agent_assignments.RECORD,
+        path=directory / agent_assignments.AGENT_ASSIGNMENT_RECORD_NAME,
     )
     return directory
 
@@ -71,6 +71,6 @@ def _round_paths(*, directory: Path, number: int) -> agent_rounds.AgentRoundPath
     """Where the numbered round of the assignment at this directory wrote."""
     return agent_rounds.AgentRoundPaths(
         worktree=directory,
-        rounds_directory=directory / agent_assignments.ROUNDS,
+        rounds_directory=directory / agent_assignments.AGENT_ROUNDS_DIRECTORY_NAME,
         number=number,
     )

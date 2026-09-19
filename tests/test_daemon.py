@@ -20,16 +20,16 @@ from fakes import Line
 from records import write_agent_assignment, write_round
 
 from dreamcatcher.agent_rounds import (
+    AgentRoundOutcome,
     AgentRoundPurpose,
     AgentRoundRecord,
-    RoundOutcome,
     compose_agent_round_ending,
 )
 from dreamcatcher.config import CONFIG_NAME, AgentHarness
 from dreamcatcher.daemon import Daemon
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.scheduler import GlobalCooldown, Scheduler, SchedulerRecord
+from dreamcatcher.scheduler import AgentWorkScheduler, GlobalCooldown, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158"
@@ -194,7 +194,7 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
     watched, capsys, monkeypatch
 ):
     daemon, _, _ = idling(root=watched, ticks=1)
-    scheduler = Scheduler(
+    scheduler = AgentWorkScheduler(
         repository=REPOSITORY,
         account=POSTED_BY,
         config=daemon.config,
@@ -309,7 +309,7 @@ def test_a_round_the_daemon_before_this_one_left_running_is_ended(
     record = AgentRoundRecord.model_validate_json(
         (directory / "rounds" / "1" / "round.json").read_text(encoding="utf-8")
     )
-    assert record.outcome is RoundOutcome.INTERRUPTED
+    assert record.outcome is AgentRoundOutcome.INTERRUPTED
 
 
 def test_a_round_that_recorded_an_ending_is_left_running_by_the_sweep(
@@ -423,7 +423,7 @@ def test_the_daemon_ends_the_rounds_it_holds_as_it_goes_down(dispatching, harnes
 
     running = daemon.rounds[DISPATCHED_ASSIGNMENT_ID]
     assert not running.is_alive
-    assert gone(pid=running.child.pid)
+    assert gone(pid=running.harness_process.pid)
 
 
 def test_a_run_that_cannot_read_an_assignment_refuses_to_start(dispatching):
@@ -450,7 +450,7 @@ def test_a_failed_tick_preserves_the_last_scheduler_record(dispatching, capsys):
     )
     (directory / "assignment.json").write_text("{}", encoding="utf-8")
 
-    scheduler = Scheduler(
+    scheduler = AgentWorkScheduler(
         repository=REPOSITORY,
         account=POSTED_BY,
         config=daemon.config,

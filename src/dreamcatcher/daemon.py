@@ -22,7 +22,7 @@ from dreamcatcher.github import (
 )
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.lock import hold_daemon_lock
-from dreamcatcher.scheduler import InvalidSchedulerRecordError, Scheduler
+from dreamcatcher.scheduler import AgentWorkScheduler, InvalidSchedulerRecordError
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.words import describe_time
 
@@ -102,7 +102,7 @@ class Daemon:
         account = _refuse_unknown(
             named=identify_github_account(), question="which account gh is signed in as"
         )
-        scheduler = Scheduler(
+        scheduler = AgentWorkScheduler(
             repository=repository,
             account=account,
             config=self.config,
@@ -129,7 +129,7 @@ class Daemon:
                 for running in self.rounds.values():
                     running.stop()
 
-    def tick(self, *, scheduler: Scheduler, at: datetime) -> None:
+    def tick(self, *, scheduler: AgentWorkScheduler, at: datetime) -> None:
         """Run one scheduler tick, then record and report its result.
 
         A tick that failed reports the evidence and the next tick tries again,
@@ -196,7 +196,9 @@ class Daemon:
                     teardown.end(pid=record.pid)
                     record_agent_round_interruption(
                         record=record,
-                        path=assignment.round_paths(number=record.number).record,
+                        path=assignment.compose_round_paths(
+                            number=record.number
+                        ).record,
                     )
 
 

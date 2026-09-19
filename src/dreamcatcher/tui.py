@@ -747,7 +747,7 @@ class _FeedView:
         self, *, assignment: AgentAssignment, round_number: int
     ) -> None:
         """Show the lines this round has written since the last look at it."""
-        feed = assignment.round_paths(number=round_number).feed
+        feed = assignment.compose_round_paths(number=round_number).feed
         lines, position = read_lines_from(
             path=feed, position=self.positions[round_number]
         )

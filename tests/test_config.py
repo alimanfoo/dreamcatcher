@@ -86,8 +86,13 @@ def test_a_label_either_harness_can_run_runs_on_the_one_the_run_named(tmp_path):
 
     route = read_dreamcatcher_config(root=tmp_path).dispatch[0]
 
-    assert route.choose_harness(named=AgentHarness.CLAUDE) == AgentHarness.CLAUDE
-    assert route.choose_harness(named=AgentHarness.CODEX) == AgentHarness.CODEX
+    assert (
+        route.choose_harness(requested_harness=AgentHarness.CLAUDE)
+        == AgentHarness.CLAUDE
+    )
+    assert (
+        route.choose_harness(requested_harness=AgentHarness.CODEX) == AgentHarness.CODEX
+    )
 
 
 def test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named(tmp_path):
@@ -95,7 +100,10 @@ def test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named(tmp
 
     route = read_dreamcatcher_config(root=tmp_path).dispatch[0]
 
-    assert route.choose_harness(named=AgentHarness.CODEX) == AgentHarness.CLAUDE
+    assert (
+        route.choose_harness(requested_harness=AgentHarness.CODEX)
+        == AgentHarness.CLAUDE
+    )
 
 
 @pytest.mark.parametrize(

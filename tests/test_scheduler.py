@@ -44,9 +44,9 @@ from dreamcatcher.git import (
 from dreamcatcher.prompts import RECOVERY_PROMPT
 from dreamcatcher.scheduler import (
     AgentAssignmentObservation,
+    AgentWorkScheduler,
     GlobalCooldown,
     IssueFactValue,
-    Scheduler,
     SchedulerRecord,
     derive_issue_availability,
 )
@@ -61,7 +61,7 @@ CONVERSATION = POST_LIST_PATHS["conversation"]
 HARNESS_SESSION_IDENTIFIER = "abc-123"
 
 
-CREATED_SCHEDULERS: list[Scheduler] = []
+CREATED_SCHEDULERS: list[AgentWorkScheduler] = []
 
 
 @pytest.fixture(autouse=True)
@@ -74,10 +74,10 @@ def stop_scheduler_rounds():
     CREATED_SCHEDULERS.clear()
 
 
-def create_scheduler(*, root) -> tuple[Scheduler, Ticking]:
+def create_scheduler(*, root) -> tuple[AgentWorkScheduler, Ticking]:
     """Create a scheduler and a clock that advances between explicit ticks."""
     clock = Ticking(step=300)
-    scheduler = Scheduler(
+    scheduler = AgentWorkScheduler(
         repository=REPOSITORY,
         account=POSTED_BY,
         config=read_dreamcatcher_config(root=root),
@@ -115,14 +115,14 @@ def availability_values(*, tick: SchedulerRecord) -> list[IssueFactValue]:
     ]
 
 
-def record_of(*, scheduler: Scheduler, number: int) -> AgentRoundRecord:
+def record_of(*, scheduler: AgentWorkScheduler, number: int) -> AgentRoundRecord:
     """Return what the assignment's numbered round recorded."""
     return AgentRoundRecord.model_validate_json(
         written_round(scheduler=scheduler, number=number, name="round.json")
     )
 
 
-def purpose_of(*, scheduler: Scheduler, number: int) -> AgentRoundPurpose:
+def purpose_of(*, scheduler: AgentWorkScheduler, number: int) -> AgentRoundPurpose:
     """What work the assignment's numbered round advances."""
     return record_of(scheduler=scheduler, number=number).purpose
 
@@ -211,7 +211,7 @@ def write_faulted_assignment(*, root, identifier: str, issue: int) -> None:
         )
 
 
-def written_round(*, scheduler: Scheduler, number: int, name: str) -> str:
+def written_round(*, scheduler: AgentWorkScheduler, number: int, name: str) -> str:
     """What the assignment's round wrote into the file of that name."""
     directory = scheduler.state.assignments / ASSIGNMENT_ID / "rounds" / str(number)
     return (directory / name).read_text(encoding="utf-8")

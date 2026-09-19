@@ -268,7 +268,9 @@ def test_the_prompt_of_a_posts_resume_sends_the_assignment_to_the_next_rounds_in
 
     assert isinstance(resume, RequiredAgentRound)
     assert f"pull request #{PULL_REQUEST}" in resume.prompt
-    paths = resume.assignment.round_paths(number=resume.assignment.next_round_number)
+    paths = resume.assignment.compose_round_paths(
+        number=resume.assignment.next_round_number
+    )
     assert str(paths.inbox) in resume.prompt
     assert paths.directory.name == "2"
     assert AGENT_POST_MARKER in resume.prompt
@@ -369,7 +371,7 @@ def test_the_most_open_work_comes_first(state):
         )
 
     ordered = prioritize_required_rounds(
-        found=[
+        required_rounds=[
             resume(
                 assignment=continued_assignment,
                 purpose=AgentRoundPurpose.ADDRESS_FEEDBACK,
