@@ -10,15 +10,19 @@ from typing import TYPE_CHECKING
 from dreamcatcher import teardown
 from dreamcatcher.agent_assignments import read_agent_assignments
 from dreamcatcher.agent_rounds import record_agent_round_interruption
-from dreamcatcher.clock import Wait, now
-from dreamcatcher.commands import locate
-from dreamcatcher.config import Harness, read_config
+from dreamcatcher.clock import WaitForSeconds, read_current_time
+from dreamcatcher.commands import locate_program
+from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.github import Unknown, identify_account, identify_repository
+from dreamcatcher.github import (
+    UnknownGitHubResponse,
+    identify_github_account,
+    identify_github_repository,
+)
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
-from dreamcatcher.lock import hold
-from dreamcatcher.scheduler import InvalidSchedulerRecordError, Scheduler
+from dreamcatcher.lock import hold_daemon_lock
+from dreamcatcher.scheduler import AgentWorkScheduler, InvalidSchedulerRecordError
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.words import describe_time
 
@@ -40,7 +44,7 @@ def _write_output(*, line: str) -> None:
         raise ReportableError("Could not write daemon output.") from error
 
 
-class Daemon:
+class DreamcatcherDaemon:
     """The foreground process watching one repo.
 
     The clock and the wait are the daemon's own, so a test can pin the time and
@@ -51,9 +55,9 @@ class Daemon:
         self,
         *,
         root: Path,
-        harness: Harness,
-        clock: Callable[[], datetime] = now,
-        wait: Wait = sleep,
+        harness: AgentHarness,
+        clock: Callable[[], datetime] = read_current_time,
+        wait: WaitForSeconds = sleep,
     ) -> None:
         """Set the daemon up for the repo checked out at root."""
         if not (root / ".git").is_dir():
@@ -62,7 +66,7 @@ class Daemon:
                 f"{root} is not one."
             )
         self.harness = harness
-        self.config = read_config(root=root)
+        self.config = read_dreamcatcher_config(root=root)
         self.state = StateDirectory(root=root)
         self.clock = clock
         self.wait = wait
@@ -90,15 +94,16 @@ class Daemon:
         """
         self._locate_harnesses()
         self.state.bootstrap()
-        repository = _refuse_unknown(
-            named=identify_repository(root=self.state.root),
+        repository = _require_known_github_value(
+            value=identify_github_repository(root=self.state.root),
             question="which repository this is",
         )
         write_text(text=f"{repository}\n", path=self.state.repository)
-        account = _refuse_unknown(
-            named=identify_account(), question="which account gh is signed in as"
+        account = _require_known_github_value(
+            value=identify_github_account(),
+            question="which account gh is signed in as",
         )
-        scheduler = Scheduler(
+        scheduler = AgentWorkScheduler(
             repository=repository,
             account=account,
             config=self.config,
@@ -107,14 +112,14 @@ class Daemon:
             clock=self.clock,
             rounds=self.rounds,
         )
-        with hold(path=self.state.lock):
+        with hold_daemon_lock(path=self.state.lock):
             self._sweep_orphans()
             at = self.clock()
             _write_output(line=f"{describe_time(at=at)}  dreamcatcher is running")
             try:
                 with suppress(KeyboardInterrupt):
                     while True:
-                        self.tick(scheduler=scheduler, at=at)
+                        self.run_scheduler_cycle(scheduler=scheduler, at=at)
                         self.wait(self.config.interval)
                         at = self.clock()
             finally:
@@ -122,10 +127,12 @@ class Daemon:
                 # the run ends: on the user's interrupt, and on a failure the
                 # daemon could not carry on from. A round that already ended
                 # keeps the ending it recorded for itself.
-                for running in self.rounds.values():
-                    running.stop()
+                for agent_round in self.rounds.values():
+                    agent_round.stop()
 
-    def tick(self, *, scheduler: Scheduler, at: datetime) -> None:
+    def run_scheduler_cycle(
+        self, *, scheduler: AgentWorkScheduler, at: datetime
+    ) -> None:
         """Run one scheduler tick, then record and report its result.
 
         A tick that failed reports the evidence and the next tick tries again,
@@ -138,21 +145,25 @@ class Daemon:
         it was holding end with it.
         """
         try:
-            observed = scheduler.tick(at=at)
+            scheduler_record = scheduler.tick(at=at)
         except InvalidSchedulerRecordError:
             raise
         except ReportableError as failure:
             reason = " ".join(str(failure).split())
             _write_output(line=f"{describe_time(at=at)}  held: {reason}")
             return
-        write_json(document=observed, path=self.state.scheduler_record)
-        if observed.launched is not None:
-            outcome = f"launched round for {observed.launched}"
-        elif observed.hold is not None:
-            outcome = f"held: {' '.join(observed.hold.split())}"
+        write_json(document=scheduler_record, path=self.state.scheduler_record)
+        if scheduler_record.launched_assignment_identifier is not None:
+            outcome_description = (
+                f"launched round for {scheduler_record.launched_assignment_identifier}"
+            )
+        elif scheduler_record.hold is not None:
+            outcome_description = f"held: {' '.join(scheduler_record.hold.split())}"
         else:
-            outcome = "nothing launched"
-        _write_output(line=f"{describe_time(at=observed.at)}  {outcome}")
+            outcome_description = "nothing launched"
+        _write_output(
+            line=(f"{describe_time(at=scheduler_record.at)}  {outcome_description}")
+        )
 
     def _locate_harnesses(self) -> None:
         """Refuse the run when a harness it could dispatch to is not installed.
@@ -162,7 +173,7 @@ class Daemon:
         on that harness whatever the run named.
         """
         for harness in sorted({self.harness, *self.config.routed_harnesses}):
-            locate(program=HARNESS_ADAPTERS[harness].program)
+            locate_program(program=HARNESS_ADAPTERS[harness].program)
 
     def _sweep_orphans(self) -> None:
         """End whatever a daemon that ran before this one left running.
@@ -189,15 +200,19 @@ class Daemon:
         for assignment in read_agent_assignments(state=self.state):
             for record in assignment.rounds:
                 if record.ending is None:
-                    teardown.end(pid=record.pid)
+                    teardown.end_process_tree(pid=record.pid)
                     record_agent_round_interruption(
                         record=record,
-                        path=assignment.round_paths(number=record.number).record,
+                        path=assignment.compose_round_paths(
+                            number=record.number
+                        ).record,
                     )
 
 
-def _refuse_unknown(*, named: str | Unknown, question: str) -> str:
+def _require_known_github_value(
+    *, value: str | UnknownGitHubResponse, question: str
+) -> str:
     """Return what gh named, or refuse the run saying what it could not tell."""
-    if isinstance(named, Unknown):
-        raise ReportableError(f"dreamcatcher cannot tell {question}: {named.reason}")
-    return named
+    if isinstance(value, UnknownGitHubResponse):
+        raise ReportableError(f"dreamcatcher cannot tell {question}: {value.reason}")
+    return value

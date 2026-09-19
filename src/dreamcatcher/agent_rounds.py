@@ -27,25 +27,25 @@ from typing import Annotated, Literal, Protocol
 
 from pydantic import Field, PositiveInt, field_validator
 
-from dreamcatcher.clock import now
-from dreamcatcher.commands import spawn
+from dreamcatcher.clock import read_current_time
+from dreamcatcher.commands import spawn_command
 from dreamcatcher.documents import (
-    Document,
+    DreamcatcherDocument,
     append_text,
     read_json,
     write_json,
     write_text,
 )
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.feed import Event, Prose, Renderer
+from dreamcatcher.feed import FeedEvent, FeedProse, FeedRenderer
 from dreamcatcher.github import PullRequestState, UserPost
 from dreamcatcher.harness_adapters import HarnessAdapter, HarnessInvocation
 
 # The file in a round's own directory saying what the round did.
-RECORD = "round.json"
+AGENT_ROUND_RECORD_NAME = "round.json"
 
 
-class RecordsHarnessSessionIdentifier(Protocol):
+class HarnessSessionIdentifierRecorder(Protocol):
     """Record the harness session identifier that an agent round observes."""
 
     def __call__(self, *, identifier: str) -> None:
@@ -57,9 +57,9 @@ class AgentRoundOutputReader:
     """Read harness output and record the session identifier it reports."""
 
     harness_adapter: HarnessAdapter
-    record_harness_session_identifier: RecordsHarnessSessionIdentifier
+    record_harness_session_identifier: HarnessSessionIdentifierRecorder
 
-    def read(self, *, line: str) -> list[Event]:
+    def read(self, *, line: str) -> list[FeedEvent]:
         """Record the session identifier and return one line's feed events."""
         output = self.harness_adapter.read_output(line=line)
         identifier = output.harness_session_identifier
@@ -76,7 +76,7 @@ class AgentRoundPurpose(StrEnum):
     WRAP_UP = "wrap up"
 
 
-class RoundOutcome(StrEnum):
+class AgentRoundOutcome(StrEnum):
     """How far an agent round has got."""
 
     RUNNING = "running"
@@ -85,18 +85,18 @@ class RoundOutcome(StrEnum):
     INTERRUPTED = "interrupted"
 
 
-class SuccessfulAgentRoundEnding(Document):
+class SuccessfulAgentRoundEnding(DreamcatcherDocument):
     """An agent round that exited successfully."""
 
-    outcome: Literal[RoundOutcome.SUCCESSFUL] = RoundOutcome.SUCCESSFUL
+    outcome: Literal[AgentRoundOutcome.SUCCESSFUL] = AgentRoundOutcome.SUCCESSFUL
     at: datetime
     status: Literal[0] = 0
 
 
-class ErroredAgentRoundEnding(Document):
+class ErroredAgentRoundEnding(DreamcatcherDocument):
     """An agent round that exited with an error."""
 
-    outcome: Literal[RoundOutcome.ERRORED] = RoundOutcome.ERRORED
+    outcome: Literal[AgentRoundOutcome.ERRORED] = AgentRoundOutcome.ERRORED
     at: datetime
     status: int
 
@@ -109,10 +109,10 @@ class ErroredAgentRoundEnding(Document):
         return status
 
 
-class InterruptedAgentRoundEnding(Document):
+class InterruptedAgentRoundEnding(DreamcatcherDocument):
     """An agent round stopped without an observed exit."""
 
-    outcome: Literal[RoundOutcome.INTERRUPTED] = RoundOutcome.INTERRUPTED
+    outcome: Literal[AgentRoundOutcome.INTERRUPTED] = AgentRoundOutcome.INTERRUPTED
 
 
 type AgentRoundEnding = Annotated[
@@ -130,7 +130,7 @@ def compose_agent_round_ending(
     return ErroredAgentRoundEnding(at=at, status=status)
 
 
-class AgentRoundRecord(Document):
+class AgentRoundRecord(DreamcatcherDocument):
     """The independent identity, purpose, recovery, and outcome of one round."""
 
     number: PositiveInt
@@ -141,10 +141,10 @@ class AgentRoundRecord(Document):
     ending: AgentRoundEnding | None = None
 
     @property
-    def outcome(self) -> RoundOutcome:
+    def outcome(self) -> AgentRoundOutcome:
         """How far the round has got."""
         if self.ending is None:
-            return RoundOutcome.RUNNING
+            return AgentRoundOutcome.RUNNING
         return self.ending.outcome
 
 
@@ -167,16 +167,16 @@ def _record_agent_round_ending(
     *, record: AgentRoundRecord, ending: AgentRoundEnding, path: Path
 ) -> AgentRoundRecord:
     """Write and return a record with its terminal outcome."""
-    ended = record.model_copy(update={"ending": ending})
-    write_json(document=ended, path=path)
-    return ended
+    ended_record = record.model_copy(update={"ending": ending})
+    write_json(document=ended_record, path=path)
+    return ended_record
 
 
-class AgentRoundInput(Document):
+class AgentRoundInput(DreamcatcherDocument):
     """The pull-request state and user posts delivered to one agent round."""
 
-    state: PullRequestState
-    posts: list[UserPost]
+    pull_request_state: PullRequestState = Field(alias="state")
+    user_posts: list[UserPost] = Field(alias="posts")
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -219,7 +219,7 @@ class AgentRoundPaths:
     @property
     def record(self) -> Path:
         """The file saying when the round started, and how it ended."""
-        return self.directory / RECORD
+        return self.directory / AGENT_ROUND_RECORD_NAME
 
     @property
     def feed(self) -> Path:
@@ -227,12 +227,12 @@ class AgentRoundPaths:
         return self.directory / "feed.txt"
 
     @property
-    def raw(self) -> Path:
+    def raw_output(self) -> Path:
         """The file holding the harness's own stdout, as it arrived."""
         return self.directory / "raw.jsonl"
 
     @property
-    def inbox(self) -> Path:
+    def round_input(self) -> Path:
         """The file holding the batch that the round was woken with."""
         return self.directory / "inbox.json"
 
@@ -270,7 +270,8 @@ class AgentRoundReader:
         nothing rather than as a failure.
         """
         records = [
-            self._read_record(path=found) for found in directory.glob(f"*/{RECORD}")
+            self._read_record(path=record_path)
+            for record_path in directory.glob(f"*/{AGENT_ROUND_RECORD_NAME}")
         ]
         return sorted(records, key=lambda record: record.number)
 
@@ -285,7 +286,7 @@ class AgentRoundReader:
                 f"{path} says it is round {record.number}, "
                 f"but its directory names round {path.parent.name}."
             )
-        if record.outcome is not RoundOutcome.RUNNING:
+        if record.outcome is not AgentRoundOutcome.RUNNING:
             self._cache[path] = record
         return record
 
@@ -304,7 +305,7 @@ class AgentRound:
         invocation: HarnessInvocation,
         paths: AgentRoundPaths,
         plan: AgentRoundPlan,
-        clock: Callable[[], datetime] = now,
+        clock: Callable[[], datetime] = read_current_time,
     ) -> None:
         """Run the invocation as a round at the paths it was given.
 
@@ -317,15 +318,15 @@ class AgentRound:
         self.output_reader = output_reader
         self.paths = paths
         self.clock = clock
-        self.renderer = Renderer(worktree=paths.worktree, clock=clock)
-        self.started = clock()
+        self.feed_renderer = FeedRenderer(worktree=paths.worktree, clock=clock)
+        self.started_at = clock()
         self.is_interrupted = False
-        self._ended = Flag()
-        self._writing = Lock()
+        self._round_ended = Flag()
+        self._feed_write_lock = Lock()
         if plan.input is not None:
-            write_json(document=plan.input, path=paths.inbox)
+            write_json(document=plan.input, path=paths.round_input)
         write_text(text=invocation.prompt, path=paths.prompt)
-        self.child = spawn(
+        self.harness_process = spawn_command(
             program=invocation.program,
             arguments=invocation.arguments,
             cwd=paths.worktree,
@@ -336,32 +337,34 @@ class AgentRound:
                 number=paths.number,
                 purpose=plan.purpose,
                 is_recovery=plan.is_recovery,
-                started=self.started,
-                pid=self.child.pid,
+                started=self.started_at,
+                pid=self.harness_process.pid,
             )
             write_json(document=self.record, path=self.paths.record)
         except ReportableError:
             # A round nothing recorded is a round nothing will watch or find
             # again, so it does not run on.
-            self.child.kill()
-            self.child.wait()
+            self.harness_process.kill()
+            self.harness_process.wait()
             raise
-        self._pumps = [
+        self._stream_readers = [
             Thread(
-                target=self._pump,
-                kwargs={"read": self._read_stdout},
+                target=self._read_stream_until_finished,
+                kwargs={"read_stream": self._read_stdout},
                 daemon=True,
             ),
             Thread(
-                target=self._pump,
-                kwargs={"read": self._read_stderr},
+                target=self._read_stream_until_finished,
+                kwargs={"read_stream": self._read_stderr},
                 daemon=True,
             ),
         ]
-        for pump in self._pumps:
-            pump.start()
-        self._closing = Thread(target=self._close, daemon=True)
-        self._closing.start()
+        for stream_reader in self._stream_readers:
+            stream_reader.start()
+        self._ending_recorder = Thread(
+            target=self._record_ending_and_join_streams, daemon=True
+        )
+        self._ending_recorder.start()
 
     @property
     def is_alive(self) -> bool:
@@ -370,7 +373,7 @@ class AgentRound:
         A round that reads as finished has its record on disk. Its feed may
         still be growing, because the streams it reads can outlast the child.
         """
-        return not self._ended.is_set()
+        return not self._round_ended.is_set()
 
     def wait(self) -> None:
         """Wait for the round to end and for everything it wrote to land.
@@ -380,7 +383,7 @@ class AgentRound:
         it likes, so this can wait for ever. Nothing the daemon does waits like
         this: `is_alive` and `stop` read and wait for the record alone.
         """
-        self._closing.join()
+        self._ending_recorder.join()
 
     def stop(self) -> None:
         """End the round now, and everything it started.
@@ -390,34 +393,36 @@ class AgentRound:
         the daemon.
         """
         self._interrupt()
-        self._ended.wait()
+        self._round_ended.wait()
 
     def _interrupt(self) -> None:
         """End the round while it is still running, so it reads as interrupted.
 
         A child that has already gone finished by itself keeps the observed
-        ending that `_close` writes for it, so this leaves that record alone
+        ending that `_record_ending_and_join_streams` writes for it, so this
+        leaves that record alone
         rather than sending an assignment back over a round it has done.
 
         The mark goes on before the kill, because the kill is what makes
-        `_close` return from `child.wait()`. So `_close` reads a mark this
-        made, and reordering the two would let it write an ending for a round
-        the daemon interrupted.
+        `_record_ending_and_join_streams` return from
+        `harness_process.wait()`. So the ending recorder reads a mark this made,
+        and reordering the two would let it write an ending for a round the
+        daemon interrupted.
 
         One window stays open. The child can go after `child.is_running` has
         answered and before the mark goes on, and a round that has just
         finished then reads as interrupted. Reading the exit status would not
         settle it, because on Windows a killed child leaves the status a
         harness that failed would leave, for the reason `teardown` gives. A
-        lock is no help either: `_close` would have to hold it across
-        `child.wait()`, and then a stop would wait for the child to finish by
-        itself, which is what a stop is there to avoid.
+        lock is no help either: `_record_ending_and_join_streams` would have to
+        hold it across `harness_process.wait()`, and then a stop would wait for
+        the child to finish by itself, which is what a stop is there to avoid.
         """
-        if self.child.is_running:
+        if self.harness_process.is_running:
             self.is_interrupted = True
-            self.child.kill()
+            self.harness_process.kill()
 
-    def _pump(self, *, read: Callable[[], None]) -> None:
+    def _read_stream_until_finished(self, *, read_stream: Callable[[], None]) -> None:
         """Read one of the round's streams, and end the round if that fails.
 
         A round that cannot write its own files has nothing to show for itself.
@@ -427,22 +432,24 @@ class AgentRound:
         by itself and keeps its ending, however short the feed came out.
         """
         try:
-            read()
+            read_stream()
         except ReportableError:
             self._interrupt()
 
     def _read_stdout(self) -> None:
         """Keep each line that the harness streams, and write what it says."""
-        for line in self.child.out:
-            append_text(text=line, path=self.paths.raw)
-            self._append(line=line, events=self.output_reader.read(line=line))
+        for line in self.harness_process.out:
+            append_text(text=line, path=self.paths.raw_output)
+            self._append_feed_events(
+                line=line, events=self.output_reader.read(line=line)
+            )
 
     def _read_stderr(self) -> None:
         """Write what the harness says on stderr, among the lines around it."""
-        for line in self.child.err:
-            self._append(line=line, events=[Prose(text=line)])
+        for line in self.harness_process.err:
+            self._append_feed_events(line=line, events=[FeedProse(text=line)])
 
-    def _close(self) -> None:
+    def _record_ending_and_join_streams(self) -> None:
         """Record how the round ended as soon as its child has gone.
 
         The pumps are left to catch up afterwards. A pipe reaches its end only
@@ -453,7 +460,7 @@ class AgentRound:
         feed catches up.
         """
         try:
-            status = self.child.wait()
+            status = self.harness_process.wait()
             if self.is_interrupted:
                 self.record = record_agent_round_interruption(
                     record=self.record, path=self.paths.record
@@ -468,11 +475,11 @@ class AgentRound:
             # However the close went, the round has ended, so whoever is
             # waiting on it waits no longer, and whatever the pumps still have
             # to write is still written.
-            self._ended.set()
-            for pump in self._pumps:
-                pump.join()
+            self._round_ended.set()
+            for stream_reader in self._stream_readers:
+                stream_reader.join()
 
-    def _append(self, *, line: str, events: list[Event]) -> None:
+    def _append_feed_events(self, *, line: str, events: list[FeedEvent]) -> None:
         """Add what one line says to the feed, letting one stream write at a time.
 
         Rendering happens under the same lock as the write. A line is stamped
@@ -483,10 +490,12 @@ class AgentRound:
         text. A line the feed cannot render is written out as the harness sent
         it, so one bad line costs one line.
         """
-        with self._writing:
+        with self._feed_write_lock:
             try:
-                written = "".join(self.renderer.render(event=event) for event in events)
+                written = "".join(
+                    self.feed_renderer.render(event=event) for event in events
+                )
             except Exception:
-                written = self.renderer.render(event=Prose(text=line))
+                written = self.feed_renderer.render(event=FeedProse(text=line))
             if written:
                 append_text(text=written, path=self.paths.feed)

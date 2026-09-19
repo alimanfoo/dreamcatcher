@@ -14,13 +14,13 @@ two apart, and the marker every prompt asks the assignment to end its posts with
 is what does.
 """
 
-from dreamcatcher.github import Unknown, UserPost, list_posts
-from dreamcatcher.prompts import MARKER
+from dreamcatcher.github import UnknownGitHubResponse, UserPost, list_user_posts
+from dreamcatcher.prompts import AGENT_POST_MARKER
 
 
 def list_undelivered_user_posts(
     *, repository: str, pull_request: int, account: str, delivery_cursor: str
-) -> list[UserPost] | Unknown:
+) -> list[UserPost] | UnknownGitHubResponse:
     """Return what the user posted after the delivery cursor, oldest first.
 
     The account is the one gh is signed in as, which is the user's own.
@@ -32,13 +32,13 @@ def list_undelivered_user_posts(
     Reading the posts can fail, and the failure travels, so a caller can say
     in one line why it relayed nothing.
     """
-    found = list_posts(repository=repository, pull_request=pull_request)
-    if isinstance(found, Unknown):
-        return found
+    user_posts = list_user_posts(repository=repository, pull_request=pull_request)
+    if isinstance(user_posts, UnknownGitHubResponse):
+        return user_posts
     return sorted(
         (
             post
-            for post in found
+            for post in user_posts
             if _is_undelivered_user_post(
                 post=post, account=account, delivery_cursor=delivery_cursor
             )
@@ -65,6 +65,6 @@ def _is_undelivered_user_post(
     return (
         post.written_at > delivery_cursor
         and post.author == account
-        and MARKER not in post.body
+        and AGENT_POST_MARKER not in post.body
         and post.is_speaking
     )

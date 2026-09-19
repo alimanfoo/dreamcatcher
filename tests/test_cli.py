@@ -14,10 +14,10 @@ from dreamcatcher.agent_rounds import (
     compose_agent_round_ending,
 )
 from dreamcatcher.cli import main
-from dreamcatcher.config import Harness
-from dreamcatcher.daemon import Daemon
+from dreamcatcher.config import AgentHarness
+from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.documents import write_json, write_text
-from dreamcatcher.feed import Line
+from dreamcatcher.feed import FeedLine
 from dreamcatcher.scheduler import SchedulerRecord, derive_assignment_fault
 from dreamcatcher.state import StateDirectory
 
@@ -40,7 +40,7 @@ def watching(tmp_path):
         ),
     )
     write_feed(
-        directory=directory, number=1, lines=[Line(at=PINNED, text="[Bash] pytest")]
+        directory=directory, number=1, lines=[FeedLine(at=PINNED, text="[Bash] pytest")]
     )
     return state
 
@@ -49,7 +49,9 @@ def watching(tmp_path):
 def started(monkeypatch):
     """Return the daemons a run started, with the tick loop held back."""
     daemons = []
-    monkeypatch.setattr(Daemon, "run", lambda daemon: daemons.append(daemon))
+    monkeypatch.setattr(
+        DreamcatcherDaemon, "run", lambda daemon: daemons.append(daemon)
+    )
     return daemons
 
 
@@ -133,7 +135,7 @@ def test_retry_clears_the_newest_assignments_fault(monkeypatch, faulted, capsys)
         path=faulted.scheduler_record,
     )
     monkeypatch.chdir(faulted.root)
-    monkeypatch.setattr("dreamcatcher.cli.now", lambda: requested)
+    monkeypatch.setattr("dreamcatcher.cli.read_current_time", lambda: requested)
 
     assert main(argv=["retry", "GH13"]) == 0
 
@@ -244,14 +246,14 @@ def test_run_starts_a_daemon_on_the_current_directory(monkeypatch, watched, star
 
     assert main(argv=["run", "--harness", "claude"]) == 0
     assert started[0].state.root == watched
-    assert started[0].harness is Harness.CLAUDE
+    assert started[0].harness is AgentHarness.CLAUDE
 
 
 def test_the_harness_flag_says_what_to_run_rounds_with(monkeypatch, watched, started):
     monkeypatch.chdir(watched)
 
     assert main(argv=["run", "--harness", "codex"]) == 0
-    assert started[0].harness is Harness.CODEX
+    assert started[0].harness is AgentHarness.CODEX
 
 
 def test_a_run_with_no_harness_asks_for_one(capsys):
@@ -269,7 +271,7 @@ def test_a_harness_that_does_not_exist_is_refused(capsys):
     assert exit_info.value.code == 2
     complaint = capsys.readouterr().err
     assert "cloud" in complaint
-    assert all(harness in complaint for harness in Harness)
+    assert all(harness in complaint for harness in AgentHarness)
 
 
 def test_a_failure_the_user_must_read_is_a_message_not_a_traceback(

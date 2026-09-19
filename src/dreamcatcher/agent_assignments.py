@@ -15,21 +15,21 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-from pydantic import AwareDatetime
+from pydantic import AwareDatetime, Field
 
 from dreamcatcher import prompts
 from dreamcatcher.agent_rounds import (
+    AgentRoundOutcome,
     AgentRoundPaths,
     AgentRoundPurpose,
     AgentRoundRecord,
     ErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
-    RoundOutcome,
 )
 from dreamcatcher.commands import CommandError
-from dreamcatcher.config import DispatchRoute, Harness
+from dreamcatcher.config import AgentHarness, DispatchRoute
 from dreamcatcher.documents import (
-    Document,
+    DreamcatcherDocument,
     read_json,
     read_lines_from,
     read_text,
@@ -40,7 +40,7 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import (
     add_worktree,
     delete_branch,
-    fetch,
+    fetch_main,
     has_commits_since_main,
     is_assignment_worktree,
     make_empty_commit,
@@ -52,7 +52,7 @@ from dreamcatcher.github import (
     LinkedPullRequest,
     PullRequest,
     PullRequestState,
-    Unknown,
+    UnknownGitHubResponse,
     create_pull_request,
     list_linked_pull_requests,
     list_pull_requests,
@@ -67,19 +67,19 @@ from dreamcatcher.state import StateDirectory
 # What an assignment's branch is called, before its identifier. The prefix keeps
 # dreamcatcher's own branches apart from everyone else's, and from the branches
 # that the catcher it replaces left behind.
-BRANCH_PREFIX = "dreamcatcher-"
+AGENT_ASSIGNMENT_BRANCH_PREFIX = "dreamcatcher-"
 
 # The file in an assignment's directory saying what the assignment was dispatched
 # with.
-RECORD = "assignment.json"
+AGENT_ASSIGNMENT_RECORD_NAME = "assignment.json"
 
 # The directory in an assignment's directory holding a directory per round.
-ROUNDS = "rounds"
+AGENT_ROUNDS_DIRECTORY_NAME = "rounds"
 
-USER_POST_DELIVERY_CURSOR = "watermark"
+USER_POST_DELIVERY_CURSOR_NAME = "watermark"
 
 
-class AgentAssignmentRecord(Document):
+class AgentAssignmentRecord(DreamcatcherDocument):
     """The issue an assignment works on, and the settings it runs its rounds with.
 
     The dispatch settles the assignment recipe and identities. The first round
@@ -91,11 +91,11 @@ class AgentAssignmentRecord(Document):
     """
 
     issue: int
-    label: str
+    dispatch_label: str = Field(alias="label")
     branch: str
     worktree: Path
     pull_request: int
-    harness: Harness
+    harness: AgentHarness
     harness_session_identifier: HarnessSessionIdentifier | None = None
     retry_requested_at: AwareDatetime | None = None
     model: str
@@ -135,7 +135,7 @@ class AgentAssignment:
         round = self.rounds[-1]
         return (
             round.purpose is AgentRoundPurpose.WRAP_UP
-            and round.outcome is RoundOutcome.SUCCESSFUL
+            and round.outcome is AgentRoundOutcome.SUCCESSFUL
         )
 
     def describe_unfinished_round(self) -> str | None:
@@ -159,7 +159,7 @@ class AgentAssignment:
             return f"the last round failed (exit {ending.status})"
         return None
 
-    def round_paths(self, *, number: int) -> AgentRoundPaths:
+    def compose_round_paths(self, *, number: int) -> AgentRoundPaths:
         """Where the assignment's numbered round ran, and where it wrote.
 
         Every round runs in the assignment's worktree, and writes into a
@@ -173,7 +173,7 @@ class AgentAssignment:
         """
         return AgentRoundPaths(
             worktree=self.record.worktree,
-            rounds_directory=self.directory / ROUNDS,
+            rounds_directory=self.directory / AGENT_ROUNDS_DIRECTORY_NAME,
             number=number,
         )
 
@@ -214,7 +214,7 @@ def read_agent_assignments(*, state: StateDirectory) -> list[AgentAssignment]:
     return [
         _read_assignment(state=state, directory=directory)
         for directory in directories
-        if (directory / RECORD).exists()
+        if (directory / AGENT_ASSIGNMENT_RECORD_NAME).exists()
     ]
 
 
@@ -233,7 +233,7 @@ def request_agent_assignment_retry(
     *, assignment: AgentAssignment, at: datetime
 ) -> None:
     """Record when the user asked a faulted assignment to recover again."""
-    path = assignment.directory / RECORD
+    path = assignment.directory / AGENT_ASSIGNMENT_RECORD_NAME
     record = read_json(model=AgentAssignmentRecord, path=path)
     write_json(
         document=record.model_copy(update={"retry_requested_at": at}),
@@ -266,16 +266,16 @@ def _find_incomplete_assignment_identifiers(
     *, state: StateDirectory
 ) -> dict[int, list[str]]:
     """Return each issue's setup identifiers whose record is absent."""
-    found: dict[int, list[str]] = {}
+    identifiers_by_issue: dict[int, list[str]] = {}
     for path in state.worktrees.glob("GH*-*"):
         if (
             not is_assignment_worktree(path=path)
-            or (state.assignments / path.name / RECORD).exists()
+            or (state.assignments / path.name / AGENT_ASSIGNMENT_RECORD_NAME).exists()
         ):
             continue
         issue = int(path.name.split("-", maxsplit=1)[0].removeprefix("GH"))
-        found.setdefault(issue, []).append(path.name)
-    return found
+        identifiers_by_issue.setdefault(issue, []).append(path.name)
+    return identifiers_by_issue
 
 
 def _inspect_incomplete_assignment_setup(
@@ -287,20 +287,28 @@ def _inspect_incomplete_assignment_setup(
 ) -> str | None:
     """Return what prevents this issue's incomplete setup from recovery."""
     if len(identifiers) > 1:
-        named = ", ".join(sorted(identifiers))
-        return f"GH{issue} has several incomplete assignment setups: {named}."
+        identifier_names = ", ".join(sorted(identifiers))
+        return (
+            f"GH{issue} has several incomplete assignment setups: {identifier_names}."
+        )
     identifier = identifiers[0]
-    branch = f"{BRANCH_PREFIX}{identifier}"
+    branch = f"{AGENT_ASSIGNMENT_BRANCH_PREFIX}{identifier}"
     try:
         _check_worktree_branch(state=state, identifier=identifier, branch=branch)
-        found = _find_branch_pull_request(repository=repository, branch=branch)
-        linked = _read_linked_pull_requests(repository=repository, issue=issue)
-        if found is None:
-            _refuse_linked_pull_requests(linked=linked, branch=branch, issue=issue)
+        branch_pull_request = _find_branch_pull_request(
+            repository=repository, branch=branch
+        )
+        linked_pull_requests = _read_linked_pull_requests(
+            repository=repository, issue=issue
+        )
+        if branch_pull_request is None:
+            _refuse_linked_pull_requests(
+                linked=linked_pull_requests, branch=branch, issue=issue
+            )
         else:
             _adopt_pull_request(
-                pull_request=found,
-                linked=linked,
+                pull_request=branch_pull_request,
+                linked=linked_pull_requests,
                 branch=branch,
                 issue=issue,
             )
@@ -320,7 +328,7 @@ class AgentAssignmentCreator:
         self,
         *,
         route: DispatchRoute,
-        named: Harness,
+        requested_harness: AgentHarness,
         issue: int,
         at: datetime,
     ) -> AgentAssignment:
@@ -348,13 +356,13 @@ class AgentAssignmentCreator:
                 f"GH{issue} already has open assignment "
                 f"{open_assignments[0].identifier}."
             )
-        harness = route.choose_harness(named=named)
-        recipe = route.assignment_recipes[harness]
-        fetch(root=self.state.root)
+        selected_harness = route.choose_harness(requested_harness=requested_harness)
+        recipe = route.assignment_recipes[selected_harness]
+        fetch_main(root=self.state.root)
         identifier = _find_incomplete_assignment(state=self.state, issue=issue) or (
             f"GH{issue}-{at:%Y%m%d-%H%M%S}"
         )
-        branch = f"{BRANCH_PREFIX}{identifier}"
+        branch = f"{AGENT_ASSIGNMENT_BRANCH_PREFIX}{identifier}"
         worktree = self.state.worktrees / identifier
         if is_assignment_worktree(path=worktree):
             _check_worktree_branch(
@@ -376,11 +384,11 @@ class AgentAssignmentCreator:
         )
         record = AgentAssignmentRecord(
             issue=issue,
-            label=route.label,
+            dispatch_label=route.label,
             branch=branch,
             worktree=worktree,
             pull_request=pull_request,
-            harness=harness,
+            harness=selected_harness,
             model=recipe.model,
             effort=recipe.effort,
             prompt=prompts.compose_first_round_prompt(
@@ -388,42 +396,51 @@ class AgentAssignmentCreator:
             ),
         )
         directory = self.state.assignments / identifier
-        write_json(document=record, path=directory / RECORD)
+        write_json(document=record, path=directory / AGENT_ASSIGNMENT_RECORD_NAME)
         return AgentAssignment(directory=directory, record=record)
 
 
 def _find_incomplete_assignment(*, state: StateDirectory, issue: int) -> str | None:
     """Return the identifier of this issue's incomplete assignment setup."""
-    found = _find_incomplete_assignment_identifiers(state=state).get(issue, [])
-    if len(found) > 1:
-        identifiers = ", ".join(sorted(found))
+    identifiers = _find_incomplete_assignment_identifiers(state=state).get(issue, [])
+    if len(identifiers) > 1:
+        identifier_names = ", ".join(sorted(identifiers))
         raise ReportableError(
-            f"GH{issue} has several incomplete assignment setups: {identifiers}."
+            f"GH{issue} has several incomplete assignment setups: {identifier_names}."
         )
-    return found[0] if found else None
+    return identifiers[0] if identifiers else None
 
 
 def _check_worktree_branch(
     *, state: StateDirectory, identifier: str, branch: str
 ) -> None:
     """Require an incomplete setup's worktree to have its assignment branch."""
-    checked_out = read_worktree_branch(worktree=state.worktrees / identifier)
-    if checked_out != branch:
+    checked_out_branch = read_worktree_branch(worktree=state.worktrees / identifier)
+    if checked_out_branch != branch:
         raise ReportableError(
             f"cannot reconcile {identifier}: its worktree has branch "
-            f"{checked_out}, not {branch}."
+            f"{checked_out_branch}, not {branch}."
         )
 
 
 def _find_or_create_pull_request(*, repository: str, branch: str, issue: int) -> int:
     """Return the branch's existing pull request or create its draft."""
-    found = _find_branch_pull_request(repository=repository, branch=branch)
-    linked = _read_linked_pull_requests(repository=repository, issue=issue)
-    if found is not None:
+    branch_pull_request = _find_branch_pull_request(
+        repository=repository, branch=branch
+    )
+    linked_pull_requests = _read_linked_pull_requests(
+        repository=repository, issue=issue
+    )
+    if branch_pull_request is not None:
         return _adopt_pull_request(
-            pull_request=found, linked=linked, branch=branch, issue=issue
+            pull_request=branch_pull_request,
+            linked=linked_pull_requests,
+            branch=branch,
+            issue=issue,
         )
-    _refuse_linked_pull_requests(linked=linked, branch=branch, issue=issue)
+    _refuse_linked_pull_requests(
+        linked=linked_pull_requests, branch=branch, issue=issue
+    )
     return _create_assignment_pull_request(
         repository=repository, branch=branch, issue=issue
     )
@@ -431,14 +448,14 @@ def _find_or_create_pull_request(*, repository: str, branch: str, issue: int) ->
 
 def _find_branch_pull_request(*, repository: str, branch: str) -> PullRequest | None:
     """Return the sole pull request on a recovery branch, when it has one."""
-    found = list_pull_requests(repository=repository, branch=branch)
-    if isinstance(found, Unknown):
+    pull_requests = list_pull_requests(repository=repository, branch=branch)
+    if isinstance(pull_requests, UnknownGitHubResponse):
         raise ReportableError(
-            f"cannot reconcile the pull request for {branch}: {found.reason}"
+            f"cannot reconcile the pull request for {branch}: {pull_requests.reason}"
         )
-    if len(found) > 1:
+    if len(pull_requests) > 1:
         raise ReportableError(f"{branch} has more than one pull request.")
-    return found[0] if found else None
+    return pull_requests[0] if pull_requests else None
 
 
 def _read_linked_pull_requests(
@@ -446,7 +463,7 @@ def _read_linked_pull_requests(
 ) -> list[LinkedPullRequest]:
     """Return the issue's open linked pull requests or report why they are unknown."""
     linked = list_linked_pull_requests(repository=repository, issue=issue)
-    if isinstance(linked, Unknown):
+    if isinstance(linked, UnknownGitHubResponse):
         raise ReportableError(
             f"cannot tell whether another pull request claims GH{issue}: "
             f"{linked.reason}"
@@ -472,13 +489,21 @@ def _adopt_pull_request(
             f"cannot reconcile {branch}: pull request #{pull_request.number} "
             "is ready for review rather than draft."
         )
-    if pull_request.number not in {one.number for one in linked}:
+    if pull_request.number not in {
+        linked_pull_request.number for linked_pull_request in linked
+    }:
         raise ReportableError(
             f"cannot reconcile {branch}: pull request #{pull_request.number} "
             f"is not linked to GH{issue}."
         )
-    unrelated = [one for one in linked if one.number != pull_request.number]
-    _refuse_linked_pull_requests(linked=unrelated, branch=branch, issue=issue)
+    unrelated_pull_requests = [
+        linked_pull_request
+        for linked_pull_request in linked
+        if linked_pull_request.number != pull_request.number
+    ]
+    _refuse_linked_pull_requests(
+        linked=unrelated_pull_requests, branch=branch, issue=issue
+    )
     return pull_request.number
 
 
@@ -487,34 +512,42 @@ def _refuse_linked_pull_requests(
 ) -> None:
     """Refuse open linked pull requests not owned by the recovery branch."""
     if linked:
-        named = ", ".join(f"#{pull_request.number}" for pull_request in linked)
+        pull_request_names = ", ".join(
+            f"#{pull_request.number}" for pull_request in linked
+        )
         raise ReportableError(
             f"cannot create a pull request for {branch}: GH{issue} already has "
-            f"an open linked pull request ({named})."
+            f"an open linked pull request ({pull_request_names})."
         )
 
 
 def _create_assignment_pull_request(*, repository: str, branch: str, issue: int) -> int:
     """Create and return the assignment branch's open draft pull request."""
-    created = create_pull_request(repository=repository, branch=branch, issue=issue)
-    if isinstance(created, Unknown):
+    pull_request = create_pull_request(
+        repository=repository, branch=branch, issue=issue
+    )
+    if isinstance(pull_request, UnknownGitHubResponse):
         raise ReportableError(
-            f"cannot read the pull request created for {branch}: {created.reason}"
+            f"cannot read the pull request created for {branch}: {pull_request.reason}"
         )
-    if created.state is not PullRequestState.OPEN or not created.is_draft:
+    if pull_request.state is not PullRequestState.OPEN or not pull_request.is_draft:
         raise ReportableError(
-            f"pull request #{created.number} for {branch} was not created as "
+            f"pull request #{pull_request.number} for {branch} was not created as "
             "an open draft."
         )
-    return created.number
+    return pull_request.number
 
 
 def _read_assignment(*, state: StateDirectory, directory: Path) -> AgentAssignment:
     """Return the assignment whose own files sit in this directory."""
     return AgentAssignment(
         directory=directory,
-        record=read_json(model=AgentAssignmentRecord, path=directory / RECORD),
-        rounds=state.round_reader.read_records(directory=directory / ROUNDS),
+        record=read_json(
+            model=AgentAssignmentRecord, path=directory / AGENT_ASSIGNMENT_RECORD_NAME
+        ),
+        rounds=state.round_reader.read_records(
+            directory=directory / AGENT_ROUNDS_DIRECTORY_NAME
+        ),
         user_post_delivery_cursor=_read_user_post_delivery_cursor(directory=directory),
     )
 
@@ -529,7 +562,7 @@ def _read_user_post_delivery_cursor(*, directory: Path) -> str:
     Whatever wrote the file may have left a line ending after the timestamp, so
     the surrounding space goes: an ISO-8601 time is the whole value.
     """
-    path = directory / USER_POST_DELIVERY_CURSOR
+    path = directory / USER_POST_DELIVERY_CURSOR_NAME
     if not path.exists():
         return ""
     return read_text(path=path).strip()
@@ -544,7 +577,7 @@ def advance_user_post_delivery_cursor(
     Until the write lands, a daemon that dies reads those same posts again on its
     next tick rather than losing them.
     """
-    write_text(text=newest, path=assignment.directory / USER_POST_DELIVERY_CURSOR)
+    write_text(text=newest, path=assignment.directory / USER_POST_DELIVERY_CURSOR_NAME)
 
 
 def find_harness_session_identifier(
@@ -553,7 +586,9 @@ def find_harness_session_identifier(
     """Return the recorded or recoverable harness session identifier."""
     if assignment.record.harness_session_identifier is not None:
         return assignment.record.harness_session_identifier
-    lines, _ = read_lines_from(path=assignment.round_paths(number=1).raw, position=0)
+    lines, _ = read_lines_from(
+        path=assignment.compose_round_paths(number=1).raw_output, position=0
+    )
     for line in lines:
         identifier = harness_adapter.read_output(line=line).harness_session_identifier
         if identifier is not None:
@@ -570,15 +605,15 @@ def record_harness_session_identifier(
     safe_identifier = _refuse_harness_session_identifier(
         assignment=assignment, identifier=identifier
     )
-    path = assignment.directory / RECORD
+    path = assignment.directory / AGENT_ASSIGNMENT_RECORD_NAME
     record = read_json(model=AgentAssignmentRecord, path=path)
-    current = record.harness_session_identifier
-    if current is not None and current != safe_identifier:
+    recorded_identifier = record.harness_session_identifier
+    if recorded_identifier is not None and recorded_identifier != safe_identifier:
         raise ReportableError(
             f"{assignment.identifier} reported harness session {safe_identifier}, "
-            f"but its record names {current}."
+            f"but its record names {recorded_identifier}."
         )
-    if current == safe_identifier:
+    if recorded_identifier == safe_identifier:
         return
     write_json(
         document=record.model_copy(

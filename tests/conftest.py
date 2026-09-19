@@ -12,8 +12,8 @@ import fakes
 import psutil
 import pytest
 
-from dreamcatcher.commands import run, spawn
-from dreamcatcher.config import CONFIG_NAME
+from dreamcatcher.commands import run_command, spawn_command
+from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME
 
 ARMING = "PYTHONWARNDEFAULTENCODING"
 
@@ -52,7 +52,7 @@ POST_LIST_PATHS = {
 }
 
 # The label that the dispatch blocks below map, as the tests name it.
-LABEL = "dream:smith"
+DISPATCH_LABEL = "dream:smith"
 
 # When the tests say an issue was filed, and a time after it.
 FILED = "2026-08-19T18:41:58Z"
@@ -99,7 +99,7 @@ def listing(*, issues: Sequence[tuple[int, str]]) -> str:
                 "createdAt": created,
                 "state": "OPEN",
                 "assignees": [{"login": POSTED_BY}],
-                "labels": [{"name": LABEL}],
+                "labels": [{"name": DISPATCH_LABEL}],
             }
             for number, created in issues
         ]
@@ -172,7 +172,7 @@ def recorded_posts(*, source: str) -> str:
 
 def git(*, arguments: Sequence[str], cwd: Path) -> str:
     """Run git in cwd and return its output, through the tool's own runner."""
-    return run(program="git", arguments=arguments, cwd=cwd)
+    return run_command(program="git", arguments=arguments, cwd=cwd)
 
 
 def gone(*, pid: int) -> bool:
@@ -235,7 +235,7 @@ def cloned(upstream, tmp_path):
 @pytest.fixture
 def watched(repo):
     """Return a main checkout carrying a valid dreamcatcher.toml."""
-    (repo / CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
+    (repo / DREAMCATCHER_CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
     return repo
 
 
@@ -255,7 +255,7 @@ def fake(stand_ins, monkeypatch):
 @pytest.fixture
 def left_running(tmp_path):
     """A process standing in for a round left without a recorded ending."""
-    child = spawn(
+    child = spawn_command(
         program=sys.executable,
         arguments=["-c", "import time; time.sleep(60)"],
         cwd=tmp_path,
@@ -296,7 +296,9 @@ def harnesses(fake):
 
 def configure(*, root, head: str = CONFIG_HEAD) -> None:
     """Write a config for that checkout, with this ahead of its one route."""
-    (root / CONFIG_NAME).write_text(head + SMITH_CLAUDE + SMITH_CODEX, encoding="utf-8")
+    (root / DREAMCATCHER_CONFIG_NAME).write_text(
+        head + SMITH_CLAUDE + SMITH_CODEX, encoding="utf-8"
+    )
 
 
 @pytest.fixture

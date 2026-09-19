@@ -38,11 +38,11 @@ from pathlib import PurePosixPath
 import pytest
 from clocks import Ticking
 from conftest import FIXTURES
-from recordings import rendered
+from recordings import render_harness_recording
 
-from dreamcatcher.claude import CLAUDE
-from dreamcatcher.codex import CODEX
-from dreamcatcher.feed import Renderer
+from dreamcatcher.claude import CLAUDE_ADAPTER
+from dreamcatcher.codex import CODEX_ADAPTER
+from dreamcatcher.feed import FeedRenderer
 
 RECORDED_IN = PurePosixPath("/private/tmp/dreamcatcher-recording")
 
@@ -51,7 +51,7 @@ RECORDED_IN = PurePosixPath("/private/tmp/dreamcatcher-recording")
 # name.
 # So the directory says which recordings there are, and this needs no list of its
 # own that a new recording could be left out of.
-RECORDINGS = ((CLAUDE, "claude"), (CODEX, "codex"))
+RECORDINGS = ((CLAUDE_ADAPTER, "claude"), (CODEX_ADAPTER, "codex"))
 
 
 @pytest.mark.parametrize(
@@ -63,10 +63,10 @@ RECORDINGS = ((CLAUDE, "claude"), (CODEX, "codex"))
     ],
 )
 def test_a_recorded_stream_renders_as_its_golden_feed(adapter, recording):
-    feed = rendered(
+    feed = render_harness_recording(
         adapter=adapter,
         lines=recording.read_text(encoding="utf-8").splitlines(),
-        renderer=Renderer(worktree=RECORDED_IN, clock=Ticking()),
+        renderer=FeedRenderer(worktree=RECORDED_IN, clock=Ticking()),
     )
 
     assert feed == recording.with_suffix(".harness-feed.txt").read_text(

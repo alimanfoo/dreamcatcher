@@ -9,9 +9,9 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from dreamcatcher import agent_assignments, agent_rounds
-from dreamcatcher.config import Harness
+from dreamcatcher.config import AgentHarness
 from dreamcatcher.documents import write_json, write_text
-from dreamcatcher.feed import Line
+from dreamcatcher.feed import FeedLine
 from dreamcatcher.scheduler import SchedulerRecord
 from dreamcatcher.state import StateDirectory
 
@@ -29,17 +29,17 @@ def write_agent_assignment(
     write_json(
         document=agent_assignments.AgentAssignmentRecord(
             issue=issue,
-            label="dream:smith",
-            branch=f"{agent_assignments.BRANCH_PREFIX}{identifier}",
+            dispatch_label="dream:smith",
+            branch=f"{agent_assignments.AGENT_ASSIGNMENT_BRANCH_PREFIX}{identifier}",
             worktree=state.worktrees / identifier,
             pull_request=52,
-            harness=Harness.CLAUDE,
+            harness=AgentHarness.CLAUDE,
             harness_session_identifier=harness_session_identifier,
             model="opus[1m]",
             effort="xhigh",
             prompt=f"/dream:smith GH{issue}",
         ),
-        path=directory / agent_assignments.RECORD,
+        path=directory / agent_assignments.AGENT_ASSIGNMENT_RECORD_NAME,
     )
     return directory
 
@@ -54,7 +54,7 @@ def write_round(
     return record
 
 
-def write_feed(*, directory: Path, number: int, lines: Sequence[Line]) -> None:
+def write_feed(*, directory: Path, number: int, lines: Sequence[FeedLine]) -> None:
     """Write the feed of one round of the assignment at this directory."""
     write_text(
         text="".join(line.render() for line in lines),
@@ -71,6 +71,6 @@ def _round_paths(*, directory: Path, number: int) -> agent_rounds.AgentRoundPath
     """Where the numbered round of the assignment at this directory wrote."""
     return agent_rounds.AgentRoundPaths(
         worktree=directory,
-        rounds_directory=directory / agent_assignments.ROUNDS,
+        rounds_directory=directory / agent_assignments.AGENT_ROUNDS_DIRECTORY_NAME,
         number=number,
     )

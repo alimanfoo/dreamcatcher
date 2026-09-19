@@ -15,7 +15,7 @@ from io import StringIO
 import psutil
 import pytest
 from clocks import PINNED
-from conftest import FIXTURES, LABEL, REPOSITORY, configure
+from conftest import DISPATCH_LABEL, FIXTURES, REPOSITORY, configure
 from observations import observed_issue
 from records import write_agent_assignment, write_feed, write_round, write_tick
 from rich.console import Console
@@ -30,7 +30,7 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.feed import Line
+from dreamcatcher.feed import FeedLine
 from dreamcatcher.scheduler import (
     NO_ROUND_HAS_RUN,
     AgentAssignmentObservation,
@@ -39,13 +39,13 @@ from dreamcatcher.scheduler import (
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.tui import (
-    PAUSE,
-    _describe_ending,
-    _paint,
-    _paint_written,
-    show_assignment,
-    show_feed,
-    show_status,
+    VIEW_REFRESH_INTERVAL,
+    _describe_round_outcome,
+    _render_feed_line,
+    _render_written_feed_line,
+    show_assignment_view,
+    show_feed_view,
+    show_status_view,
 )
 
 # When a view is rendered: two hours after the last thing on the disk happened.
@@ -69,31 +69,33 @@ SCREEN_HANDED_BACK = Control.alt_screen(False).segment.text
 # alive. A real pid would differ from run to run and no golden could hold it.
 DAEMON_PID = 4242
 
-STAMP = "20260819-184158"
+ASSIGNMENT_TIMESTAMP = "20260819-184158"
 HARNESS_SESSION_IDENTIFIER = "abc-123"
 
 # What one round of an assignment said, as its feed holds it. A subagent's lines
 # are set in from the rest, and a line that is not a feed line at all is what a
 # harness printed on its stderr.
 SAID = (
-    Line(
+    FeedLine(
         at=PINNED + timedelta(minutes=1),
         text="[harness session] model opus[1m], id 7f3c9a",
     ),
-    Line(at=PINNED + timedelta(minutes=2), text="I will read the issue first."),
-    Line(
+    FeedLine(at=PINNED + timedelta(minutes=2), text="I will read the issue first."),
+    FeedLine(
         at=PINNED + timedelta(minutes=2),
         text="[Read] specs/2026-08-17-skeleton/plan.md",
     ),
-    Line(at=PINNED + timedelta(minutes=3), text="  [Bash] ls"),
-    Line(at=PINNED + timedelta(minutes=3), text="[failed] no such file or directory"),
-    Line(
+    FeedLine(at=PINNED + timedelta(minutes=3), text="  [Bash] ls"),
+    FeedLine(
+        at=PINNED + timedelta(minutes=3), text="[failed] no such file or directory"
+    ),
+    FeedLine(
         at=PINNED + timedelta(minutes=5),
         text=(
             "[usage] $0.1772, 455 output, 8 input, 123529 cache read, 8606 cache write"
         ),
     ),
-    Line(at=PINNED + timedelta(minutes=5), text="[result] success"),
+    FeedLine(at=PINNED + timedelta(minutes=5), text="[result] success"),
 )
 
 # What a tick writes down against an issue carrying two dispatch labels.
@@ -110,7 +112,7 @@ def written(*, state, issue: int, records: Sequence[AgentRoundRecord]):
     """Write an assignment for the issue, with these rounds behind it."""
     directory = write_agent_assignment(
         state=state,
-        identifier=f"GH{issue}-{STAMP}",
+        identifier=f"GH{issue}-{ASSIGNMENT_TIMESTAMP}",
         issue=issue,
         harness_session_identifier=(HARNESS_SESSION_IDENTIFIER if records else None),
     )
@@ -173,7 +175,7 @@ def test_a_terminal_round_describes_its_explicit_outcome(ending, description):
         ending=ending,
     )
 
-    assert _describe_ending(record=record, is_running=False) == description
+    assert _describe_round_outcome(record=record, is_running=False) == description
 
 
 @pytest.mark.parametrize(
@@ -190,7 +192,7 @@ def test_a_round_without_an_ending_describes_what_its_process_says(
         pid=1,
     )
 
-    assert _describe_ending(record=record, is_running=is_running) == description
+    assert _describe_round_outcome(record=record, is_running=is_running) == description
 
 
 def holding(*, state):
@@ -226,12 +228,12 @@ def fabricate_everything(*, state):
     write_feed(
         directory=directory,
         number=2,
-        lines=[Line(at=PINNED + timedelta(minutes=31), text="[Bash] pytest")],
+        lines=[FeedLine(at=PINNED + timedelta(minutes=31), text="[Bash] pytest")],
     )
     write_feed(
         directory=written(state=state, issue=20, records=[ended(minute=1)]),
         number=1,
-        lines=[Line(at=PINNED, text="[Bash] git push")],
+        lines=[FeedLine(at=PINNED, text="[Bash] git push")],
     )
     written(state=state, issue=31, records=[ended(minute=1)])
     written(state=state, issue=35, records=[ended(minute=1, status=2)])
@@ -253,7 +255,7 @@ def fabricate_everything(*, state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
-            launched=f"GH13-{STAMP}",
+            launched_assignment_identifier=f"GH13-{ASSIGNMENT_TIMESTAMP}",
             issue_observations=[
                 observed_issue(issue=50),
                 observed_issue(issue=51),
@@ -264,33 +266,35 @@ def fabricate_everything(*, state):
                 ),
                 observed_issue(
                     issue=53,
-                    dispatch_labels=(LABEL, "dream:less"),
+                    dispatch_labels=(DISPATCH_LABEL, "dream:less"),
                     values={"routing_conflict": IssueFactValue.TRUE},
                     evidence={"routing_conflict": DOUBLE_LABELLED},
                 ),
             ],
             assignment_observations=[
                 AgentAssignmentObservation(
-                    assignment=f"GH31-{STAMP}", issue=31, reason="1 new post to answer"
+                    assignment_identifier=f"GH31-{ASSIGNMENT_TIMESTAMP}",
+                    issue=31,
+                    reason="1 new post to answer",
                 ),
                 AgentAssignmentObservation(
-                    assignment=f"GH20-{STAMP}",
+                    assignment_identifier=f"GH20-{ASSIGNMENT_TIMESTAMP}",
                     issue=20,
                     reason="no round required",
                     is_round_required=False,
                 ),
                 AgentAssignmentObservation(
-                    assignment=f"GH35-{STAMP}",
+                    assignment_identifier=f"GH35-{ASSIGNMENT_TIMESTAMP}",
                     issue=35,
                     reason="the last round failed (exit 2)",
                 ),
                 AgentAssignmentObservation(
-                    assignment=f"GH9-{STAMP}",
+                    assignment_identifier=f"GH9-{ASSIGNMENT_TIMESTAMP}",
                     issue=9,
                     reason="two consecutive rounds failed",
                 ),
                 AgentAssignmentObservation(
-                    assignment=f"GH44-{STAMP}",
+                    assignment_identifier=f"GH44-{ASSIGNMENT_TIMESTAMP}",
                     issue=44,
                     reason=NO_ROUND_HAS_RUN,
                 ),
@@ -312,7 +316,7 @@ def fabricate_the_cap(*, state):
     write_feed(
         directory=directory,
         number=1,
-        lines=[Line(at=PINNED + timedelta(minutes=31), text="[Bash] pytest")],
+        lines=[FeedLine(at=PINNED + timedelta(minutes=31), text="[Bash] pytest")],
     )
     written(state=state, issue=20, records=[ended(minute=1)])
     hold = "at cap: 1 of 1 rounds running"
@@ -323,7 +327,9 @@ def fabricate_the_cap(*, state):
             hold=hold,
             assignment_observations=[
                 AgentAssignmentObservation(
-                    assignment=f"GH20-{STAMP}", issue=20, reason=hold
+                    assignment_identifier=f"GH20-{ASSIGNMENT_TIMESTAMP}",
+                    issue=20,
+                    reason=hold,
                 )
             ],
         ),
@@ -360,7 +366,7 @@ def fabricate_repeat_assignments(*, state):
             directory=directory,
             number=len(rounds),
             lines=[
-                Line(
+                FeedLine(
                     at=PINNED + timedelta(minutes=len(rounds) + 1),
                     text="[Bash] git push",
                 )
@@ -372,7 +378,7 @@ def fabricate_repeat_assignments(*, state):
             at=PINNED + timedelta(hours=1, minutes=58),
             assignment_observations=[
                 AgentAssignmentObservation(
-                    assignment=f"GH13-{STAMP}",
+                    assignment_identifier=f"GH13-{ASSIGNMENT_TIMESTAMP}",
                     issue=13,
                     reason="no round required",
                     is_round_required=False,
@@ -398,13 +404,15 @@ def fabricate_a_silent_round(*, state):
         ],
     )
     write_feed(
-        directory=directory, number=1, lines=[Line(at=PINNED, text="[Bash] git push")]
+        directory=directory,
+        number=1,
+        lines=[FeedLine(at=PINNED, text="[Bash] git push")],
     )
     write_tick(
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
-            launched=f"GH13-{STAMP}",
+            launched_assignment_identifier=f"GH13-{ASSIGNMENT_TIMESTAMP}",
         ),
     )
 
@@ -480,14 +488,14 @@ def refusing(seconds, /):
     raise AssertionError("the view waited for something that was not coming")
 
 
-def rendered(*, state, width: int = WIDTH) -> str:
+def render_status_view(*, state, width: int = WIDTH) -> str:
     """Return the status report that the state renders on a pinned console.
 
     Nobody is watching a console that is no terminal, so the report is drawn
     once and the view returns.
     """
     written_to = StringIO()
-    show_status(
+    show_status_view(
         state=state,
         console=pinned(written_to=written_to, width=width),
         clock=lambda: LOOKED_AT,
@@ -501,7 +509,7 @@ def test_a_state_directory_renders_as_its_golden_status(name, tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     STATUS_REPORTS[name](state=state)
 
-    status = rendered(state=state)
+    status = render_status_view(state=state)
 
     assert status == (FIXTURES / "status" / f"{name}.txt").read_text(encoding="utf-8")
 
@@ -511,7 +519,7 @@ def test_identifiers_remain_whole_when_the_assignment_table_folds(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_repeat_assignments(state=state)
 
-    status = rendered(state=state, width=55)
+    status = render_status_view(state=state, width=55)
 
     compact = "".join(status.split())
     assert "GH13-20260818-090000" in compact
@@ -523,7 +531,7 @@ def test_status_nobody_is_watching_is_drawn_once_and_returns(tmp_path, daemon):
     fabricate_everything(state=state)
     written_to = StringIO()
 
-    show_status(
+    show_status_view(
         state=state,
         console=pinned(written_to=written_to),
         clock=lambda: LOOKED_AT,
@@ -548,10 +556,10 @@ def test_status_a_reader_watches_keeps_up_with_what_the_daemon_writes(tmp_path, 
         write_feed(
             directory=directory,
             number=1,
-            lines=[Line(at=PINNED + timedelta(minutes=31), text="[Bash] pytest")],
+            lines=[FeedLine(at=PINNED + timedelta(minutes=31), text="[Bash] pytest")],
         )
 
-    show_status(
+    show_status_view(
         state=state,
         console=pinned(written_to=written_to, is_terminal=True),
         clock=lambda: LOOKED_AT,
@@ -561,9 +569,9 @@ def test_status_a_reader_watches_keeps_up_with_what_the_daemon_writes(tmp_path, 
 
     # Status is never over, so it drew again on the assignment that was dispatched
     # while the reader was watching, and ended only when they interrupted it.
-    assert looks == [PAUSE, PAUSE]
+    assert looks == [VIEW_REFRESH_INTERVAL, VIEW_REFRESH_INTERVAL]
     assert "no issues or agent assignments recorded yet" in status
-    assert f"GH13-{STAMP}" in status
+    assert f"GH13-{ASSIGNMENT_TIMESTAMP}" in status
 
 
 def test_status_a_reader_watches_takes_the_screen_and_hands_it_back(tmp_path, daemon):
@@ -572,7 +580,7 @@ def test_status_a_reader_watches_takes_the_screen_and_hands_it_back(tmp_path, da
     fabricate_everything(state=state)
     written_to = StringIO()
 
-    show_status(
+    show_status_view(
         state=state,
         console=pinned(written_to=written_to, is_terminal=True),
         clock=lambda: LOOKED_AT,
@@ -594,7 +602,7 @@ def test_status_on_a_dumb_terminal_is_drawn_once_and_returns(tmp_path, daemon):
     fabricate_everything(state=state)
     written_to = StringIO()
 
-    show_status(
+    show_status_view(
         state=state,
         console=pinned(written_to=written_to, is_terminal=True, term="dumb"),
         clock=lambda: LOOKED_AT,
@@ -611,7 +619,7 @@ def test_status_on_a_dumb_terminal_is_drawn_once_and_returns(tmp_path, daemon):
 def viewed(*, state, issue: int, width: int = WIDTH) -> str:
     """Return the assignment view that issue renders as, on a pinned console."""
     written_to = StringIO()
-    show_assignment(
+    show_assignment_view(
         state=state,
         issue=issue,
         console=pinned(written_to=written_to, width=width),
@@ -633,7 +641,7 @@ def test_wrapped_latest_output_keeps_its_indent(tmp_path, daemon):
         directory=directory,
         number=1,
         lines=[
-            Line(
+            FeedLine(
                 at=PINNED,
                 text="The agent is explaining a long change that needs to wrap onto "
                 "another line.",
@@ -673,7 +681,7 @@ def test_a_manual_resume_recovers_the_harness_session_from_the_raw_stream(
     holding(state=state)
     directory = write_agent_assignment(
         state=state,
-        identifier=f"GH20-{STAMP}",
+        identifier=f"GH20-{ASSIGNMENT_TIMESTAMP}",
         issue=20,
         harness_session_identifier=None,
     )
@@ -696,7 +704,7 @@ def test_an_assignment_without_a_harness_session_has_no_manual_resume(tmp_path, 
     holding(state=state)
     directory = write_agent_assignment(
         state=state,
-        identifier=f"GH20-{STAMP}",
+        identifier=f"GH20-{ASSIGNMENT_TIMESTAMP}",
         issue=20,
         harness_session_identifier=None,
     )
@@ -720,14 +728,14 @@ def test_an_assignment_view_shows_the_round_that_starts_while_it_is_open(
         if len(looks) > 1:
             raise KeyboardInterrupt
         write_round(
-            directory=state.assignments / f"GH20-{STAMP}",
+            directory=state.assignments / f"GH20-{ASSIGNMENT_TIMESTAMP}",
             number=2,
             record=running(
                 minute=60, number=2, purpose=AgentRoundPurpose.ADDRESS_FEEDBACK
             ),
         )
 
-    show_assignment(
+    show_assignment_view(
         state=state,
         issue=20,
         console=pinned(written_to=written_to, is_terminal=True),
@@ -738,7 +746,7 @@ def test_an_assignment_view_shows_the_round_that_starts_while_it_is_open(
     # The round GH20 had run was over and its pull request was waiting for the
     # reader, so the view stayed open through the gap and drew the round that
     # answered what they posted.
-    assert looks == [PAUSE, PAUSE]
+    assert looks == [VIEW_REFRESH_INTERVAL, VIEW_REFRESH_INTERVAL]
     assert "address feedback" in written_to.getvalue()
 
 
@@ -751,7 +759,7 @@ def test_an_assignment_view_of_an_assignment_that_is_over_never_waits(
     fabricate_everything(state=state)
     written_to = StringIO()
 
-    show_assignment(
+    show_assignment_view(
         state=state,
         issue=issue,
         console=pinned(written_to=written_to, is_terminal=True),
@@ -759,7 +767,7 @@ def test_an_assignment_view_of_an_assignment_that_is_over_never_waits(
         wait=refusing,
     )
 
-    assert f"GH{issue}-{STAMP}" in written_to.getvalue()
+    assert f"GH{issue}-{ASSIGNMENT_TIMESTAMP}" in written_to.getvalue()
 
 
 def test_an_assignment_view_of_an_assignment_that_is_over_keeps_its_last_picture(
@@ -770,7 +778,7 @@ def test_an_assignment_view_of_an_assignment_that_is_over_keeps_its_last_picture
     fabricate_everything(state=state)
     written_to = StringIO()
 
-    show_assignment(
+    show_assignment_view(
         state=state,
         issue=12,
         console=pinned(written_to=written_to, is_terminal=True),
@@ -782,13 +790,13 @@ def test_an_assignment_view_of_an_assignment_that_is_over_keeps_its_last_picture
     # Handing the screen back took the picture the view ended on with it, so
     # the view printed that picture where a reader looking the assignment up
     # reads it.
-    assert f"GH12-{STAMP}" in kept
+    assert f"GH12-{ASSIGNMENT_TIMESTAMP}" in kept
 
 
 def followed(*, state, issue: int, wait=refusing) -> str:
     """Return the feed view that issue renders as, on a console being watched."""
     written_to = StringIO()
-    show_feed(
+    show_feed_view(
         state=state,
         issue=issue,
         console=pinned(written_to=written_to, is_terminal=True),
@@ -804,7 +812,7 @@ def test_a_feed_nobody_is_watching_shows_what_is_there_and_returns(tmp_path, dae
 
     # A console that is no terminal is a pipe, a redirect or a log, and a view
     # that followed for as long as this assignment runs could be none of those.
-    show_feed(
+    show_feed_view(
         state=state, issue=13, console=pinned(written_to=written_to), wait=refusing
     )
 
@@ -824,10 +832,10 @@ def test_a_feed_renders_as_its_golden_view(name, tmp_path, daemon):
 
 def test_only_a_feed_lines_stamp_is_dim():
     console = Console(color_system="standard")
-    action = _paint_written(written=SAID[2].render())
+    action = _render_written_feed_line(written_line=SAID[2].render())
     label = action.plain.index("[")
     detail = action.plain.index("specs")
-    boundary = _paint(line=SAID[1], said=Text(SAID[1].text, style="bold"))
+    boundary = _render_feed_line(line=SAID[1], content=Text(SAID[1].text, style="bold"))
     boundary_text = boundary.plain.index(SAID[1].text)
     label_colour = action.get_style_at_offset(console, label).color
 
@@ -856,13 +864,13 @@ def test_a_following_view_waits_for_the_round_an_assignment_has_yet_to_run(
     # The assignment's pull request is waiting for the reader, so the round that
     # answers them is still to come and the view waits for it rather than
     # ending between the rounds.
-    assert waits == [PAUSE]
+    assert waits == [VIEW_REFRESH_INTERVAL]
 
 
 def test_a_following_view_looks_once_more_when_the_last_round_stops(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    directory = state.assignments / f"GH13-{STAMP}"
+    directory = state.assignments / f"GH13-{ASSIGNMENT_TIMESTAMP}"
     waits = []
 
     def wait(seconds, /):
@@ -877,13 +885,13 @@ def test_a_following_view_looks_once_more_when_the_last_round_stops(tmp_path, da
 
     # The wrap-up round ended while the view was waiting, so the view looked once
     # more for whatever that round was still writing as it stopped.
-    assert waits == [PAUSE, PAUSE]
+    assert waits == [VIEW_REFRESH_INTERVAL, VIEW_REFRESH_INTERVAL]
 
 
 def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    directory = state.assignments / f"GH20-{STAMP}"
+    directory = state.assignments / f"GH20-{ASSIGNMENT_TIMESTAMP}"
     looks = []
 
     def wait(seconds, /):
@@ -900,7 +908,9 @@ def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path, dae
         write_feed(
             directory=directory,
             number=2,
-            lines=[Line(at=PINNED + timedelta(minutes=61), text="[Bash] git commit")],
+            lines=[
+                FeedLine(at=PINNED + timedelta(minutes=61), text="[Bash] git commit")
+            ],
         )
 
     feed = followed(state=state, issue=20, wait=wait)
@@ -934,7 +944,7 @@ def test_a_following_view_waits_for_the_next_daemon(tmp_path):
     # The daemon that was running the assignment has gone, and the next one
     # carries its round on from where it stopped, so the view waits for that
     # round rather than end with the daemon.
-    assert waits == [PAUSE]
+    assert waits == [VIEW_REFRESH_INTERVAL]
 
 
 def test_a_view_of_a_faulted_assignment_never_waits(tmp_path, daemon):
@@ -947,7 +957,7 @@ def test_a_view_of_a_faulted_assignment_never_waits(tmp_path, daemon):
 def test_a_following_view_reads_a_round_on_from_where_it_stopped(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    directory = state.assignments / f"GH13-{STAMP}"
+    directory = state.assignments / f"GH13-{ASSIGNMENT_TIMESTAMP}"
     looks = []
 
     def wait(seconds, /):
@@ -962,12 +972,12 @@ def test_a_following_view_reads_a_round_on_from_where_it_stopped(tmp_path, daemo
             directory=directory,
             number=1,
             lines=[
-                Line(
+                FeedLine(
                     at=SAID[0].at,
                     text="[harness session] model opus[1m], id 000000",
                 ),
                 *SAID[1:],
-                Line(at=PINNED + timedelta(minutes=7), text="[Bash] git push"),
+                FeedLine(at=PINNED + timedelta(minutes=7), text="[Bash] git push"),
             ],
         )
 
@@ -982,7 +992,9 @@ def test_a_write_that_never_landed_waits_for_the_look_that_shows_it_whole(
 ):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    feed = state.assignments / f"GH13-{STAMP}" / "rounds" / "2" / "feed.txt"
+    feed = (
+        state.assignments / f"GH13-{ASSIGNMENT_TIMESTAMP}" / "rounds" / "2" / "feed.txt"
+    )
     looks = []
 
     def wait(seconds, /):
@@ -1009,7 +1021,11 @@ def test_a_line_the_view_cannot_read_reaches_the_reader_as_it_was_written(
     fabricate_everything(state=state)
     write_text(
         text="the harness said something else\n",
-        path=state.assignments / f"GH13-{STAMP}" / "rounds" / "2" / "feed.txt",
+        path=state.assignments
+        / f"GH13-{ASSIGNMENT_TIMESTAMP}"
+        / "rounds"
+        / "2"
+        / "feed.txt",
     )
 
     feed = followed(state=state, issue=13, wait=interrupting)
@@ -1034,7 +1050,7 @@ def viewed_round(
 ) -> str:
     """Return the view of one round of that issue, on a pinned console."""
     written_to = StringIO()
-    show_feed(
+    show_feed_view(
         state=state,
         issue=issue,
         console=pinned(written_to=written_to, is_terminal=is_terminal),
@@ -1047,12 +1063,12 @@ def viewed_round(
 def test_a_round_view_uses_the_number_persisted_by_the_round(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    directory = state.assignments / f"GH12-{STAMP}"
+    directory = state.assignments / f"GH12-{ASSIGNMENT_TIMESTAMP}"
     write_round(directory=directory, number=4, record=ended(minute=40, number=4))
     write_feed(
         directory=directory,
         number=4,
-        lines=[Line(at=PINNED + timedelta(minutes=41), text="[Bash] git status")],
+        lines=[FeedLine(at=PINNED + timedelta(minutes=41), text="[Bash] git status")],
     )
 
     shown = viewed_round(state=state, issue=12, number=4)
@@ -1097,7 +1113,7 @@ def test_a_view_of_a_round_that_has_ended_never_waits(tmp_path, daemon):
 def test_a_view_of_a_running_round_ends_when_that_round_does(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    directory = state.assignments / f"GH13-{STAMP}"
+    directory = state.assignments / f"GH13-{ASSIGNMENT_TIMESTAMP}"
     looks = []
 
     def wait(seconds, /):
@@ -1110,7 +1126,7 @@ def test_a_view_of_a_running_round_ends_when_that_round_does(tmp_path, daemon):
 
     # The round ended while the view was waiting, so the view looked once more
     # for whatever that round was still writing as it stopped, and ended.
-    assert looks == [PAUSE, PAUSE]
+    assert looks == [VIEW_REFRESH_INTERVAL, VIEW_REFRESH_INTERVAL]
     assert "[Bash] pytest" in shown
 
 

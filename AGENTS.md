@@ -107,18 +107,19 @@ uv run pre-commit run --all-files
   is never a bug, so write every file through `documents.py`, whose
   `write_text`, `append_text` and `write_json` each raise a `ReportableError`
   when the write fails. An error class earns its place only when some code
-  catches it by name and does something other than report it, as `github._read`
-  catches `CommandError` to answer "unknown".
+  catches it by name and does something other than report it, as the GitHub
+  command fallbacks catch `CommandError` to answer "unknown".
 - Give every document the tool reads or writes a pydantic model, and read and
   write it through `documents.py`. That covers `dreamcatcher.toml` and the
   records under `.dreamcatcher/`. A mistake in a document then reads as a named
   error in plain words, not as a setting the tool quietly ignores. A one-value
   file like `daemon.pid` needs no model, though `lock.py` still writes it
   through `documents.write_text`.
-- Read what GitHub answers through a `Projection` in `github.py`. It keeps the
-  fields we declare and lets every other key pass, because GitHub owns that
-  document and adds to it as it pleases. A `Document` refuses a key that it
-  doesn't expect, which is right only for a document the tool owns itself.
+- Read what GitHub answers through a `GitHubResponseProjection` in `github.py`.
+  It keeps the fields we declare and lets every other key pass, because GitHub
+  owns that document and adds to it as it pleases. A `DreamcatcherDocument`
+  refuses a key that it doesn't expect, which is right only for a document the
+  tool owns itself.
 - Shell out from `commands.py` alone. `pyproject.toml` waives ruff's subprocess
   rules for that one module, so any other module that imports `subprocess` fails
   the check.
@@ -127,10 +128,10 @@ uv run pre-commit run --all-files
   code can never reach a file. `pyproject.toml` waives no rule for this, so any
   other module that imports rich is a mistake a reviewer has to catch.
 - Give a harness its prompt as a file to read, never as an argument. A round
-  writes `prompt.txt` and `commands.spawn` hands it over as the child's stdin,
-  so a prompt can run to any length and hold anything. On Windows cmd.exe acts
-  on a percent sign or a line ending in a command line rather than passing it to
-  the harness, and quoting carries neither.
+  writes `prompt.txt` and `commands.spawn_command` hands it over as the child's
+  stdin, so a prompt can run to any length and hold anything. On Windows cmd.exe
+  acts on a percent sign or a line ending in a command line rather than passing
+  it to the harness, and quoting carries neither.
 - Pass any other text the tool puts on a harness's own command line through
   `commands.refuse_unquotable` first, for that same reason.
   `config.QuotableText` does this for the model and the effort a dispatch holds,
@@ -149,8 +150,8 @@ uv run pre-commit run --all-files
   whose value comes from outside has a shape this project does not own, so
   either of those keeps a `Callable`.
 - Name a method or a function for what it does, with a verb: `render`, `stop`,
-  `strip_worktree`. A name like `rendered` or `holder` reads as a value, so a
-  reader takes it for a property and not for something that runs.
+  `strip_worktree_path`. A name like `rendered` or `holder` reads as a value, so
+  a reader takes it for a property and not for something that runs.
 - Name a boolean for the question it answers: `is_alive`, `is_subagent`, not
   `alive` or `subagent`. `if round.is_alive:` then reads as English.
 - Name a class or a function that a module exports so that it still says what it

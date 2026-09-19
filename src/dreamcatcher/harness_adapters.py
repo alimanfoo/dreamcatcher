@@ -18,7 +18,7 @@ from typing import Annotated, ClassVar
 from pydantic import AfterValidator
 
 from dreamcatcher.commands import refuse_unquotable
-from dreamcatcher.feed import Event, Prose
+from dreamcatcher.feed import FeedEvent, FeedProse
 
 
 def refuse_invalid_harness_session_identifier(identifier: str, /) -> str:
@@ -38,7 +38,7 @@ HarnessSessionIdentifier = Annotated[
 
 
 @dataclass(frozen=True, kw_only=True)
-class AgentRoundLaunch:
+class AgentRoundLaunchRequest:
     """What one round starts with.
 
     The dispatch fixes the agent assignment identifier, model, and effort.
@@ -46,7 +46,7 @@ class AgentRoundLaunch:
     own.
     """
 
-    assignment_id: str
+    agent_assignment_identifier: str
     model: str
     effort: str
     prompt: str
@@ -56,7 +56,7 @@ class AgentRoundLaunch:
 class HarnessInvocation:
     """How one round runs: the program to start, its arguments, and its prompt.
 
-    `commands.spawn` takes the program apart from its arguments, and a list
+    `commands.spawn_command` takes the program apart from its arguments, and a list
     holding both would have whoever spawns it split the two apart again. So the
     program is named apart from its arguments here as well.
 
@@ -76,7 +76,7 @@ class HarnessInvocation:
 class HarnessOutput:
     """What one line of harness output says to Dreamcatcher."""
 
-    events: list[Event]
+    events: list[FeedEvent]
     harness_session_identifier: str | None = None
 
 
@@ -90,17 +90,19 @@ class HarnessAdapter(ABC):
     program: ClassVar[str]
 
     @abstractmethod
-    def build_first_round(self, *, launch: AgentRoundLaunch) -> HarnessInvocation:
+    def build_first_round(
+        self, *, request: AgentRoundLaunchRequest
+    ) -> HarnessInvocation:
         """Return how to run an agent assignment's first round."""
 
     @abstractmethod
     def build_resumed_round(
         self,
         *,
-        launch: AgentRoundLaunch,
+        request: AgentRoundLaunchRequest,
         harness_session_identifier: HarnessSessionIdentifier,
     ) -> HarnessInvocation:
-        """Return how to resume the harness session with launch's prompt."""
+        """Return how to resume the harness session with request's prompt."""
 
     @abstractmethod
     def build_hand_resume(
@@ -112,7 +114,7 @@ class HarnessAdapter(ABC):
         it does the talking.
         """
 
-    def read(self, *, line: str) -> list[Event]:
+    def read(self, *, line: str) -> list[FeedEvent]:
         """Return the feed events from one line of the harness's stream."""
         return self.read_output(line=line).events
 
@@ -125,15 +127,15 @@ class HarnessAdapter(ABC):
         raw line where a tidy one would normally be, and loses nothing.
         """
         try:
-            streamed = json.loads(line)
+            harness_event = json.loads(line)
             return (
-                self._read(streamed=streamed)
-                if isinstance(streamed, dict)
-                else HarnessOutput(events=[Prose(text=line)])
+                self._read(harness_event=harness_event)
+                if isinstance(harness_event, dict)
+                else HarnessOutput(events=[FeedProse(text=line)])
             )
         except Exception:
-            return HarnessOutput(events=[Prose(text=line)])
+            return HarnessOutput(events=[FeedProse(text=line)])
 
     @abstractmethod
-    def _read(self, *, streamed: dict) -> HarnessOutput:
+    def _read(self, *, harness_event: dict) -> HarnessOutput:
         """Return what one parsed event of this harness's stream says."""

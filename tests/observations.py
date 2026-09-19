@@ -3,7 +3,7 @@
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 
-from conftest import LABEL
+from conftest import DISPATCH_LABEL
 
 from dreamcatcher.scheduler import IssueFact, IssueFactValue, IssueObservation
 
@@ -14,7 +14,7 @@ def observed_issue(
     *,
     issue: int,
     created_at: datetime | None = OBSERVED_AT,
-    dispatch_labels: Sequence[str] | None = (LABEL,),
+    dispatch_labels: Sequence[str] | None = (DISPATCH_LABEL,),
     values: Mapping[str, IssueFactValue] | None = None,
     evidence: Mapping[str, str] | None = None,
 ) -> IssueObservation:

@@ -37,30 +37,30 @@ from dreamcatcher.agent_rounds import (
     AgentRoundPurpose,
     ErroredAgentRoundEnding,
 )
-from dreamcatcher.config import Config, Harness
-from dreamcatcher.documents import Document, read_json
+from dreamcatcher.config import AgentHarness, DreamcatcherConfig
+from dreamcatcher.documents import DreamcatcherDocument, read_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
     Issue,
     IssueState,
     PullRequest,
     PullRequestState,
-    Unknown,
+    UnknownGitHubResponse,
     UserPost,
-    list_blockers,
+    list_blocking_issues,
     list_issues,
     list_linked_pull_requests,
     read_issue,
     read_pull_request,
 )
-from dreamcatcher.harness_adapters import AgentRoundLaunch
+from dreamcatcher.harness_adapters import AgentRoundLaunchRequest
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
-from dreamcatcher.prompts import CARRY_ON_PROMPT, compose_inbox_prompt
+from dreamcatcher.prompts import RECOVERY_PROMPT, compose_user_posts_prompt
 from dreamcatcher.relay import list_undelivered_user_posts
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.words import describe_count
 
-COOLDOWN = timedelta(minutes=15)
+GLOBAL_COOLDOWN_DURATION = timedelta(minutes=15)
 NO_ROUND_HAS_RUN = "no round has run yet"
 
 
@@ -80,14 +80,14 @@ class IssueFactValue(StrEnum):
     UNKNOWN = "unknown"
 
 
-class IssueFact(Document):
+class IssueFact(DreamcatcherDocument):
     """One independently observed issue fact and its diagnostic evidence."""
 
     value: IssueFactValue
     evidence: str | None = None
 
 
-class IssueObservation(Document):
+class IssueObservation(DreamcatcherDocument):
     """The independent facts that one scheduler tick observed about an issue."""
 
     issue: int
@@ -107,17 +107,17 @@ class IssueObservation(Document):
         return derive_issue_availability(observation=self)
 
 
-class AgentAssignmentObservation(Document):
+class AgentAssignmentObservation(DreamcatcherDocument):
     """What the scheduler found when it inspected one idle assignment."""
 
-    assignment: str
+    assignment_identifier: str = Field(alias="assignment")
     issue: int
     reason: str
     is_known: bool = True
     is_round_required: bool = True
 
 
-class GlobalCooldown(Document):
+class GlobalCooldown(DreamcatcherDocument):
     """The interval during which the scheduler starts no agent work."""
 
     started: UtcDateTime
@@ -131,12 +131,12 @@ class GlobalCooldown(Document):
         return self
 
 
-class SchedulerRecord(Document):
+class SchedulerRecord(DreamcatcherDocument):
     """What the scheduler's most recent tick observed and decided."""
 
     at: UtcDateTime
     hold: str | None = None
-    launched: str | None = None
+    launched_assignment_identifier: str | None = Field(default=None, alias="launched")
     issue_observations: list[IssueObservation] = Field(default_factory=list)
     assignment_observations: list[AgentAssignmentObservation] = Field(
         default_factory=list
@@ -163,7 +163,7 @@ class FaultedAgentAssignment:
     reason: str
 
 
-type AssignmentFinding = (
+type AgentAssignmentInspectionResult = (
     RequiredAgentRound | FaultedAgentAssignment | AgentAssignmentObservation
 )
 
@@ -174,7 +174,7 @@ class _IssueObservationContext:
 
     repository: str
     account: str
-    config: Config
+    config: DreamcatcherConfig
     assignments: dict[int, AgentAssignment]
     recovery_obstacles: dict[int, str | None]
 
@@ -188,7 +188,7 @@ class IssueObservationResult:
 
 
 @dataclass(frozen=True, kw_only=True)
-class _ConsideredIssues:
+class _ConsideredIssueResult:
     """The issues listed successfully and any route listing that failed."""
 
     issues: list[Issue]
@@ -251,12 +251,12 @@ def observe_issues(
     *,
     repository: str,
     account: str,
-    config: Config,
+    config: DreamcatcherConfig,
     assignments: list[AgentAssignment],
     recovery_obstacles: dict[int, str | None],
 ) -> IssueObservationResult:
     """Observe every issue considered for dispatch or claimed by this instance."""
-    listed = _list_considered_issues(repository=repository, config=config)
+    considered_issues = _list_considered_issues(repository=repository, config=config)
     open_assignments = {
         assignment.record.issue: assignment
         for assignment in assignments
@@ -269,19 +269,21 @@ def observe_issues(
         assignments=open_assignments,
         recovery_obstacles=recovery_obstacles,
     )
-    observed: dict[int, Issue | Unknown] = {
-        issue.number: issue for issue in listed.issues
+    issue_responses_by_number: dict[int, Issue | UnknownGitHubResponse] = {
+        issue.number: issue for issue in considered_issues.issues
     }
-    local_issues = open_assignments.keys() | recovery_obstacles.keys()
-    for issue in local_issues - observed.keys():
-        observed[issue] = read_issue(repository=repository, issue=issue)
+    local_issue_numbers = open_assignments.keys() | recovery_obstacles.keys()
+    for issue in local_issue_numbers - issue_responses_by_number.keys():
+        issue_responses_by_number[issue] = read_issue(
+            repository=repository, issue=issue
+        )
     issue_observations = [
         _observe_issue(
             context=context,
             issue=issue,
-            answer=answer,
+            issue_response=issue_response,
         )
-        for issue, answer in observed.items()
+        for issue, issue_response in issue_responses_by_number.items()
     ]
     return IssueObservationResult(
         observations=sorted(
@@ -292,45 +294,49 @@ def observe_issues(
                 observation.issue,
             ),
         ),
-        failure=listed.failure,
+        failure=considered_issues.failure,
     )
 
 
-def _list_considered_issues(*, repository: str, config: Config) -> _ConsideredIssues:
+def _list_considered_issues(
+    *, repository: str, config: DreamcatcherConfig
+) -> _ConsideredIssueResult:
     """List open assigned issues that carry any configured dispatch label."""
-    found: dict[int, Issue] = {}
+    issues_by_number: dict[int, Issue] = {}
     for route in config.dispatch:
-        answered = list_issues(
+        issue_response = list_issues(
             repository=repository, label=route.label, assignee=config.assignee
         )
-        if isinstance(answered, Unknown):
-            return _ConsideredIssues(
-                issues=list(found.values()),
-                failure=answered.reason,
+        if isinstance(issue_response, UnknownGitHubResponse):
+            return _ConsideredIssueResult(
+                issues=list(issues_by_number.values()),
+                failure=issue_response.reason,
             )
-        found.update((issue.number, issue) for issue in answered)
-    return _ConsideredIssues(issues=list(found.values()))
+        issues_by_number.update((issue.number, issue) for issue in issue_response)
+    return _ConsideredIssueResult(issues=list(issues_by_number.values()))
 
 
 def _observe_issue(
     *,
     context: _IssueObservationContext,
     issue: int,
-    answer: Issue | Unknown,
+    issue_response: Issue | UnknownGitHubResponse,
 ) -> IssueObservation:
     """Observe the independent scheduling facts for one issue."""
-    if isinstance(answer, Unknown):
-        external_reason = f"cannot read issue: {answer.reason}"
+    if isinstance(issue_response, UnknownGitHubResponse):
+        external_reason = f"cannot read issue: {issue_response.reason}"
         created_at = None
-        is_open = _unknown_fact(evidence=external_reason)
-        is_assigned = _unknown_fact(evidence=external_reason)
+        is_open = _compose_unknown_issue_fact(evidence=external_reason)
+        is_assigned = _compose_unknown_issue_fact(evidence=external_reason)
         dispatch_labels = None
-        routing_conflict = _unknown_fact(evidence=external_reason)
+        routing_conflict = _compose_unknown_issue_fact(evidence=external_reason)
     else:
-        created_at = answer.created_at
-        is_open = _known_fact(
-            value=answer.state is IssueState.OPEN,
-            evidence=(None if answer.state is IssueState.OPEN else "issue is closed"),
+        created_at = issue_response.created_at
+        is_open = _compose_known_issue_fact(
+            value=issue_response.state is IssueState.OPEN,
+            evidence=(
+                None if issue_response.state is IssueState.OPEN else "issue is closed"
+            ),
         )
         watched_account = (
             context.account
@@ -338,19 +344,19 @@ def _observe_issue(
             else context.config.assignee
         )
         is_assigned_to_user = watched_account.casefold() in {
-            assignee.login.casefold() for assignee in answer.assignees
+            assignee.login.casefold() for assignee in issue_response.assignees
         }
-        is_assigned = _known_fact(
+        is_assigned = _compose_known_issue_fact(
             value=is_assigned_to_user,
             evidence=(
                 None if is_assigned_to_user else f"is not assigned to {watched_account}"
             ),
         )
         dispatch_labels = context.config.identify_dispatch_labels(
-            labels=[label.name for label in answer.labels]
+            labels=[label.name for label in issue_response.labels]
         )
         has_routing_conflict = len(dispatch_labels) > 1
-        routing_conflict = _known_fact(
+        routing_conflict = _compose_known_issue_fact(
             value=has_routing_conflict,
             evidence=(
                 "carries more than one dispatch label: " + ", ".join(dispatch_labels)
@@ -359,7 +365,7 @@ def _observe_issue(
             ),
         )
     is_claimed_here = issue in context.assignments
-    claimed_here = _known_fact(
+    claimed_here = _compose_known_issue_fact(
         value=is_claimed_here,
         evidence=(
             "an assignment in this checkout is working on it"
@@ -392,43 +398,48 @@ def _observe_external_claim(
     has_recovery_setup = issue in context.recovery_obstacles
     obstacle = context.recovery_obstacles.get(issue)
     if has_recovery_setup and obstacle is None:
-        return _known_fact(value=False)
+        return _compose_known_issue_fact(value=False)
     linked = list_linked_pull_requests(repository=context.repository, issue=issue)
-    if isinstance(linked, Unknown):
+    if isinstance(linked, UnknownGitHubResponse):
         if obstacle is not None:
-            return _unknown_fact(evidence=obstacle)
-        return _unknown_fact(
+            return _compose_unknown_issue_fact(evidence=obstacle)
+        return _compose_unknown_issue_fact(
             evidence=f"cannot tell whether a pull request claims it: {linked.reason}"
         )
     assignment = context.assignments.get(issue)
     owned = None if assignment is None else assignment.record.pull_request
     external = [pull_request for pull_request in linked if pull_request.number != owned]
-    named = ", ".join(f"#{pull_request.number}" for pull_request in external)
+    external_pull_requests = ", ".join(
+        f"#{pull_request.number}" for pull_request in external
+    )
     if external:
-        return _known_fact(
-            value=True, evidence=f"a pull request is open on it: {named}"
+        return _compose_known_issue_fact(
+            value=True,
+            evidence=f"a pull request is open on it: {external_pull_requests}",
         )
     if obstacle is not None:
-        return _unknown_fact(evidence=obstacle)
-    return _known_fact(value=False)
+        return _compose_unknown_issue_fact(evidence=obstacle)
+    return _compose_known_issue_fact(value=False)
 
 
 def _observe_blocking_issues(*, repository: str, issue: int) -> IssueFact:
     """Observe whether an open issue dependency blocks the issue."""
-    blocking = list_blockers(repository=repository, issue=issue)
-    if isinstance(blocking, Unknown):
-        return _unknown_fact(evidence=f"cannot tell what blocks it: {blocking.reason}")
+    blocking = list_blocking_issues(repository=repository, issue=issue)
+    if isinstance(blocking, UnknownGitHubResponse):
+        return _compose_unknown_issue_fact(
+            evidence=f"cannot tell what blocks it: {blocking.reason}"
+        )
     open_blockers = [
         blocker.number for blocker in blocking if blocker.state is IssueState.OPEN
     ]
-    named = ", ".join(f"GH{number}" for number in open_blockers)
-    return _known_fact(
+    blocker_names = ", ".join(f"GH{number}" for number in open_blockers)
+    return _compose_known_issue_fact(
         value=bool(open_blockers),
-        evidence=(None if not named else f"blocked by {named}"),
+        evidence=(None if not blocker_names else f"blocked by {blocker_names}"),
     )
 
 
-def _known_fact(*, value: bool, evidence: str | None = None) -> IssueFact:
+def _compose_known_issue_fact(*, value: bool, evidence: str | None = None) -> IssueFact:
     """Return a known issue fact."""
     return IssueFact(
         value=IssueFactValue.TRUE if value else IssueFactValue.FALSE,
@@ -436,7 +447,7 @@ def _known_fact(*, value: bool, evidence: str | None = None) -> IssueFact:
     )
 
 
-def _unknown_fact(*, evidence: str) -> IssueFact:
+def _compose_unknown_issue_fact(*, evidence: str) -> IssueFact:
     """Return an issue fact that an external read could not establish."""
     return IssueFact(value=IssueFactValue.UNKNOWN, evidence=evidence)
 
@@ -456,14 +467,14 @@ def derive_assignment_fault(
         if boundary is not None
     ]
     most_recent_fault_boundary = max(boundaries, default=None)
-    latest = [record.ending for record in assignment.rounds[-2:]]
+    latest_endings = [record.ending for record in assignment.rounds[-2:]]
     return all(
         isinstance(ending, ErroredAgentRoundEnding)
         and (
             most_recent_fault_boundary is None
             or ending.at >= most_recent_fault_boundary
         )
-        for ending in latest
+        for ending in latest_endings
     )
 
 
@@ -502,16 +513,20 @@ def advance_scheduler_record(
 def _start_cooldown_if_required(
     *,
     active: GlobalCooldown | None,
-    found: list[AssignmentFinding],
+    inspection_results: list[AgentAssignmentInspectionResult],
     at: datetime,
 ) -> GlobalCooldown | None:
     """Start a cooldown when two assignments are currently in fault."""
     if active is not None:
         return active
-    faults = [one for one in found if isinstance(one, FaultedAgentAssignment)]
+    faults = [
+        result
+        for result in inspection_results
+        if isinstance(result, FaultedAgentAssignment)
+    ]
     if len(faults) < 2:
         return None
-    return GlobalCooldown(started=at, ends=at + COOLDOWN)
+    return GlobalCooldown(started=at, ends=at + GLOBAL_COOLDOWN_DURATION)
 
 
 def _describe_cooldown(*, cooldown: GlobalCooldown) -> str:
@@ -520,13 +535,13 @@ def _describe_cooldown(*, cooldown: GlobalCooldown) -> str:
 
 
 def prioritize_required_rounds(
-    *, found: list[RequiredAgentRound]
+    *, required_rounds: list[RequiredAgentRound]
 ) -> list[RequiredAgentRound]:
     """Return required rounds with the most open work first."""
-    return sorted(found, key=_required_round_priority)
+    return sorted(required_rounds, key=_rank_required_round)
 
 
-def _required_round_priority(required: RequiredAgentRound, /) -> int:
+def _rank_required_round(required: RequiredAgentRound, /) -> int:
     """Return the existing scheduling priority of one required round."""
     if not required.assignment.rounds:
         return 0
@@ -538,21 +553,24 @@ def _required_round_priority(required: RequiredAgentRound, /) -> int:
 
 
 def list_assignment_observations(
-    *, found: list[AssignmentFinding], required_reason: str | None = None
+    *,
+    inspection_results: list[AgentAssignmentInspectionResult],
+    required_reason: str | None = None,
 ) -> list[AgentAssignmentObservation]:
     """Return the operational observation for every unlaunched finding."""
     return [
-        one
-        if isinstance(one, AgentAssignmentObservation)
+        result
+        if isinstance(result, AgentAssignmentObservation)
         else compose_assignment_observation(
-            assignment=one.assignment,
+            assignment=result.assignment,
             reason=(
                 required_reason
-                if required_reason is not None and isinstance(one, RequiredAgentRound)
-                else one.reason
+                if required_reason is not None
+                and isinstance(result, RequiredAgentRound)
+                else result.reason
             ),
         )
-        for one in found
+        for result in inspection_results
     ]
 
 
@@ -562,7 +580,7 @@ def inspect_agent_assignment(
     account: str,
     assignment: AgentAssignment,
     most_recent_cooldown_ended: datetime | None,
-) -> AssignmentFinding | None:
+) -> AgentAssignmentInspectionResult | None:
     """Return what one assignment needs after reading any external facts."""
     if not assignment.rounds:
         return compose_initial_round_requirement(assignment=assignment)
@@ -585,12 +603,12 @@ def inspect_agent_assignment(
 
 def _inspect_assignment_pull_request(
     *, repository: str, account: str, assignment: AgentAssignment
-) -> AssignmentFinding | None:
+) -> AgentAssignmentInspectionResult | None:
     """Return what an assignment needs from its pull request and posts."""
     pull_request = read_pull_request(
         repository=repository, pull_request=assignment.record.pull_request
     )
-    if isinstance(pull_request, Unknown):
+    if isinstance(pull_request, UnknownGitHubResponse):
         return compose_assignment_observation(
             assignment=assignment,
             reason=f"cannot read its pull request: {pull_request.reason}",
@@ -605,26 +623,26 @@ def _inspect_assignment_pull_request(
                 is_recovery=True,
             ),
             reason=recovery_reason,
-            prompt=CARRY_ON_PROMPT,
+            prompt=RECOVERY_PROMPT,
         )
-    posted = list_undelivered_user_posts(
+    undelivered_posts = list_undelivered_user_posts(
         repository=repository,
         pull_request=pull_request.number,
         account=account,
         delivery_cursor=assignment.user_post_delivery_cursor,
     )
-    if isinstance(posted, Unknown):
+    if isinstance(undelivered_posts, UnknownGitHubResponse):
         return compose_assignment_observation(
             assignment=assignment,
-            reason=f"cannot tell what the user posted: {posted.reason}",
+            reason=f"cannot tell what the user posted: {undelivered_posts.reason}",
             is_known=False,
         )
-    if pull_request.state is PullRequestState.OPEN and not posted:
+    if pull_request.state is PullRequestState.OPEN and not undelivered_posts:
         return None
     return _compose_resumed_round_requirement(
         assignment=assignment,
         pull_request=pull_request,
-        posted=posted,
+        undelivered_posts=undelivered_posts,
         recovery_reason=recovery_reason,
     )
 
@@ -645,7 +663,7 @@ def _compose_resumed_round_requirement(
     *,
     assignment: AgentAssignment,
     pull_request: PullRequest,
-    posted: list[UserPost],
+    undelivered_posts: list[UserPost],
     recovery_reason: str | None,
 ) -> RequiredAgentRound:
     """Return the round that a pull request and its user posts require."""
@@ -655,19 +673,24 @@ def _compose_resumed_round_requirement(
         plan=AgentRoundPlan(
             purpose=_derive_round_purpose(pull_request=pull_request),
             is_recovery=recovery_reason is not None,
-            input=AgentRoundInput(state=pull_request.state, posts=posted),
+            input=AgentRoundInput(
+                pull_request_state=pull_request.state, user_posts=undelivered_posts
+            ),
         ),
         reason=(
             recovery_reason
             or (
-                f"{describe_count(number=len(posted), noun='new post')} to answer"
+                f"{describe_count(number=len(undelivered_posts), noun='new post')} "
+                "to answer"
                 if is_open
                 else f"the pull request is {pull_request.state.lower()}"
             )
         ),
-        prompt=compose_inbox_prompt(
+        prompt=compose_user_posts_prompt(
             pull_request=pull_request.number,
-            inbox=assignment.round_paths(number=assignment.next_round_number).inbox,
+            round_input=assignment.compose_round_paths(
+                number=assignment.next_round_number
+            ).round_input,
         ),
     )
 
@@ -690,7 +713,7 @@ def compose_assignment_observation(
 ) -> AgentAssignmentObservation:
     """Return what the scheduler found for one idle assignment."""
     return AgentAssignmentObservation(
-        assignment=assignment.identifier,
+        assignment_identifier=assignment.identifier,
         issue=assignment.record.issue,
         reason=reason,
         is_known=is_known,
@@ -699,14 +722,14 @@ def compose_assignment_observation(
 
 
 @dataclass(kw_only=True)
-class Scheduler:
+class AgentWorkScheduler:
     """Choose and start the work for one Dreamcatcher instance."""
 
     repository: str
     account: str
-    config: Config
+    config: DreamcatcherConfig
     state: StateDirectory
-    harness: Harness
+    harness: AgentHarness
     clock: Callable[[], datetime]
     rounds: dict[str, AgentRound]
 
@@ -725,22 +748,24 @@ class Scheduler:
         holds no read. So a tick under it still says what each assignment is
         waiting on, rather than going quiet for the whole fifteen minutes.
         """
-        previous = advance_scheduler_record(
+        previous_record = advance_scheduler_record(
             previous=read_scheduler_record(state=self.state), at=at
         )
-        cooldown = None if previous is None else previous.cooldown
+        cooldown = None if previous_record is None else previous_record.cooldown
         most_recent_cooldown_ended = (
-            None if previous is None else previous.most_recent_cooldown_ended
+            None
+            if previous_record is None
+            else previous_record.most_recent_cooldown_ended
         )
-        ended = [
-            assignment_id
-            for assignment_id, running in self.rounds.items()
+        ended_assignment_identifiers = [
+            assignment_identifier
+            for assignment_identifier, running in self.rounds.items()
             if not running.is_alive
         ]
-        for assignment_id in ended:
-            del self.rounds[assignment_id]
+        for assignment_identifier in ended_assignment_identifiers:
+            del self.rounds[assignment_identifier]
         assignments = read_agent_assignments(state=self.state)
-        observed = observe_issues(
+        issue_observation_result = observe_issues(
             repository=self.repository,
             account=self.account,
             config=self.config,
@@ -749,17 +774,23 @@ class Scheduler:
                 state=self.state, repository=self.repository
             ),
         )
-        issue_failure = observed.failure
+        issue_failure = issue_observation_result.failure
         issue_observations = [
             observation.model_copy(update={"observed_at": at})
-            for observation in observed.observations
+            for observation in issue_observation_result.observations
         ]
-        found = self._judge_assignments(
+        inspection_results = self._inspect_assignments(
             assignments=assignments,
             most_recent_cooldown_ended=most_recent_cooldown_ended,
         )
-        cooldown = _start_cooldown_if_required(active=cooldown, found=found, at=at)
-        assignment_observations = list_assignment_observations(found=found)
+        cooldown = _start_cooldown_if_required(
+            active=cooldown,
+            inspection_results=inspection_results,
+            at=at,
+        )
+        assignment_observations = list_assignment_observations(
+            inspection_results=inspection_results
+        )
         record = SchedulerRecord(
             at=at,
             cooldown=cooldown,
@@ -768,78 +799,84 @@ class Scheduler:
             assignment_observations=assignment_observations,
         )
         if cooldown is not None:
-            hold = _describe_cooldown(cooldown=cooldown)
+            hold_reason = _describe_cooldown(cooldown=cooldown)
             if issue_failure is not None:
-                hold = f"{hold}; could not refresh issues: {issue_failure}"
-            return record.model_copy(update={"hold": hold})
+                hold_reason = (
+                    f"{hold_reason}; could not refresh issues: {issue_failure}"
+                )
+            return record.model_copy(update={"hold": hold_reason})
         if len(self.rounds) >= self.config.max_agents:
-            cap = (
+            capacity_reason = (
                 f"at cap: {len(self.rounds)} of {self.config.max_agents} rounds running"
             )
-            hold = (
-                cap
+            hold_reason = (
+                capacity_reason
                 if issue_failure is None
-                else f"{cap}; could not refresh issues: {issue_failure}"
+                else f"{capacity_reason}; could not refresh issues: {issue_failure}"
             )
             return record.model_copy(
                 update={
-                    "hold": hold,
+                    "hold": hold_reason,
                     "assignment_observations": list_assignment_observations(
-                        found=found,
-                        required_reason=cap,
+                        inspection_results=inspection_results,
+                        required_reason=capacity_reason,
                     ),
                 }
             )
         if issue_failure is not None:
             return record.model_copy(update={"hold": issue_failure})
-        ready = prioritize_required_rounds(
-            found=[one for one in found if isinstance(one, RequiredAgentRound)]
+        prioritized_rounds = prioritize_required_rounds(
+            required_rounds=[
+                result
+                for result in inspection_results
+                if isinstance(result, RequiredAgentRound)
+            ]
         )
-        if ready:
+        if prioritized_rounds:
             return self._launch_assignment_round(
                 record=record,
-                required=ready[0],
-                found=found,
+                required=prioritized_rounds[0],
+                inspection_results=inspection_results,
             )
         return self._dispatch_oldest_issue(
             record=record,
         )
 
-    def _judge_assignments(
+    def _inspect_assignments(
         self,
         *,
         assignments: list[AgentAssignment],
         most_recent_cooldown_ended: datetime | None,
-    ) -> list[AssignmentFinding]:
+    ) -> list[AgentAssignmentInspectionResult]:
         """Return what each assignment needs next, and what each is waiting on."""
-        found: list[AssignmentFinding] = []
+        inspection_results: list[AgentAssignmentInspectionResult] = []
         for assignment in assignments:
             if assignment.identifier in self.rounds:
                 continue
-            needed = inspect_agent_assignment(
+            inspection_result = inspect_agent_assignment(
                 repository=self.repository,
                 account=self.account,
                 assignment=assignment,
                 most_recent_cooldown_ended=most_recent_cooldown_ended,
             )
-            if needed is not None:
-                found.append(needed)
+            if inspection_result is not None:
+                inspection_results.append(inspection_result)
             elif not assignment.is_complete:
-                found.append(
+                inspection_results.append(
                     compose_assignment_observation(
                         assignment=assignment,
                         reason="no round required",
                         is_round_required=False,
                     )
                 )
-        return found
+        return inspection_results
 
     def _launch_assignment_round(
         self,
         *,
         record: SchedulerRecord,
         required: RequiredAgentRound,
-        found: list[AssignmentFinding],
+        inspection_results: list[AgentAssignmentInspectionResult],
     ) -> SchedulerRecord:
         """Launch the next round for the highest-priority assignment."""
         try:
@@ -849,15 +886,19 @@ class Scheduler:
                 update={
                     "hold": str(failure),
                     "assignment_observations": list_assignment_observations(
-                        found=found
+                        inspection_results=inspection_results
                     ),
                 }
             )
-        rest = [one for one in found if one is not required]
+        remaining_results = [
+            result for result in inspection_results if result is not required
+        ]
         return record.model_copy(
             update={
-                "launched": required.assignment.identifier,
-                "assignment_observations": list_assignment_observations(found=rest),
+                "launched_assignment_identifier": required.assignment.identifier,
+                "assignment_observations": list_assignment_observations(
+                    inspection_results=remaining_results
+                ),
             }
         )
 
@@ -865,8 +906,8 @@ class Scheduler:
         """Start the round and advance the delivery cursor once it is running."""
         assignment = required.assignment
         harness_adapter = HARNESS_ADAPTERS[assignment.record.harness]
-        launch = AgentRoundLaunch(
-            assignment_id=assignment.identifier,
+        launch_request = AgentRoundLaunchRequest(
+            agent_assignment_identifier=assignment.identifier,
             model=assignment.record.model,
             effort=assignment.record.effort,
             prompt=required.prompt,
@@ -884,11 +925,11 @@ class Scheduler:
                 assignment=assignment, identifier=harness_session_identifier
             )
             invocation = harness_adapter.build_resumed_round(
-                launch=launch,
+                request=launch_request,
                 harness_session_identifier=harness_session_identifier,
             )
         else:
-            invocation = harness_adapter.build_first_round(launch=launch)
+            invocation = harness_adapter.build_first_round(request=launch_request)
         self.rounds[assignment.identifier] = AgentRound(
             output_reader=AgentRoundOutputReader(
                 harness_adapter=harness_adapter,
@@ -897,15 +938,15 @@ class Scheduler:
                 ),
             ),
             invocation=invocation,
-            paths=assignment.round_paths(number=assignment.next_round_number),
+            paths=assignment.compose_round_paths(number=assignment.next_round_number),
             plan=required.plan,
             clock=self.clock,
         )
         round_input = required.plan.input
-        if round_input is not None and round_input.posts:
+        if round_input is not None and round_input.user_posts:
             advance_user_post_delivery_cursor(
                 assignment=assignment,
-                newest=round_input.posts[-1].written_at,
+                newest=round_input.user_posts[-1].written_at,
             )
 
     def _dispatch_oldest_issue(
@@ -924,12 +965,14 @@ class Scheduler:
         oldest = eligible[0]
         labels = oldest.dispatch_labels or []
         try:
-            assignment_id = self._launch_assignment(
+            assignment_identifier = self._launch_assignment(
                 issue=oldest.issue, label=labels[0], at=record.at
             )
         except ReportableError as failure:
             return record.model_copy(update={"hold": str(failure)})
-        return record.model_copy(update={"launched": assignment_id})
+        return record.model_copy(
+            update={"launched_assignment_identifier": assignment_identifier}
+        )
 
     def _launch_assignment(self, *, issue: int, label: str, at: datetime) -> str:
         """Create an assignment and start its first round."""
@@ -939,7 +982,7 @@ class Scheduler:
         )
         assignment = creator.create(
             route=self.config.dispatch_routes[label],
-            named=self.harness,
+            requested_harness=self.harness,
             issue=issue,
             at=at,
         )
