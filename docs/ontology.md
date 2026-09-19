@@ -137,10 +137,11 @@ The **scheduler** decides what work Dreamcatcher starts and when.
 ### Status report
 
 A **status report** is Dreamcatcher's read-only account of a Dreamcatcher
-instance, its issues, and its agent assignments at a particular time.
+instance, its agent assignments, and the issues that are available for new
+assignments at a particular time.
 
-An **issue status** is an issue's entry in a status report. It is a derived,
-read-only account of several independent facts, not a single lifecycle state.
+An **issue observation** records the independent facts that one scheduler tick
+found for an issue. Its availability is derived from those facts.
 
 An **agent assignment status** is an assignment's single summary status in a
 status report. It is derived from the assignment record, its rounds, current
@@ -203,9 +204,9 @@ has wrapping up after a pull request is merged or closed as its purpose. A
 assignment's work. An implementation, feedback, or wrap-up round may therefore
 also be a recovery round, and two or more rounds may have the same purpose.
 
-### Issue status and availability
+### Issue observations and availability
 
-An issue status reports these independent facts, each of which can be true,
+An issue observation records these independent facts, each of which can be true,
 false, or unknown:
 
 - **Claimed here**: this Dreamcatcher instance has an open agent assignment for
@@ -220,10 +221,8 @@ elsewhere if somebody opens another pull request after Dreamcatcher creates its
 assignment. A claimed issue may also become blocked or develop a routing
 conflict after an assignment has started.
 
-An issue with a local assignment remains present in the status report even if
-its labels, assignee, or route configuration later place it outside the set of
-issues Dreamcatcher would consider for a new assignment. Selection governs new
-work; it does not make existing work disappear.
+An issue with a local assignment appears through its agent assignment rather
+than in the report's available issues.
 
 An issue is **available for an agent assignment** only when:
 
@@ -241,9 +240,9 @@ required fact is unknown, availability is also unknown. A failure to observe
 external state can delay work, but must never cause Dreamcatcher to create
 duplicate or improperly routed work.
 
-There is no conceptual issue queue. Available issues may be ordered when the
-scheduler chooses among them, but that transient ordering does not give an issue
-a durable queued state.
+There is no durable issue queue. The status report preserves the scheduler's
+order for available issues, which is the order in which it will consider them
+for new assignments.
 
 ### Agent assignment status
 
@@ -272,8 +271,8 @@ assignment can have any assignment status except complete.
 
 A status report may include operational facts such as the repository identity,
 whether the daemon is running, when the last scheduler tick occurred, current
-capacity, and whether a global cooldown is active. Its issue statuses and agent
-assignment statuses are projections derived for a person to read.
+capacity, and whether a global cooldown is active. Its available issues and
+agent assignment statuses are projections derived for a person to read.
 
 The status report never schedules work and is never an input to scheduling.
 Scheduling and reporting must nevertheless interpret the same underlying facts

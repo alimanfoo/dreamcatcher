@@ -196,6 +196,7 @@ def test_a_round_without_an_ending_describes_what_its_process_says(
 def holding(*, state):
     """Configure the instance and write the lock that its daemon holds."""
     configure(root=state.root)
+    write_text(text=f"{REPOSITORY}\n", path=state.repository)
     write_text(text=f"{DAEMON_PID}\n", path=state.lock)
 
 
@@ -252,7 +253,6 @@ def fabricate_everything(*, state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
-            repository=REPOSITORY,
             launched=f"GH13-{STAMP}",
             issue_observations=[
                 observed_issue(issue=50),
@@ -320,7 +320,6 @@ def fabricate_the_cap(*, state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
-            repository=REPOSITORY,
             hold=hold,
             assignment_observations=[
                 AgentAssignmentObservation(
@@ -334,6 +333,7 @@ def fabricate_the_cap(*, state):
 def fabricate_repeat_assignments(*, state):
     """Three assignments at one issue, so a repeat dispatch reads as one thing."""
     configure(root=state.root)
+    write_text(text=f"{REPOSITORY}\n", path=state.repository)
     for stamp, rounds in (
         (
             "20260817-090000",
@@ -370,7 +370,6 @@ def fabricate_repeat_assignments(*, state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
-            repository=REPOSITORY,
             assignment_observations=[
                 AgentAssignmentObservation(
                     assignment=f"GH13-{STAMP}",
@@ -405,7 +404,6 @@ def fabricate_a_silent_round(*, state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
-            repository=REPOSITORY,
             launched=f"GH13-{STAMP}",
         ),
     )

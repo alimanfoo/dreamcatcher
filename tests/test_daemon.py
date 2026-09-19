@@ -228,6 +228,7 @@ def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(
     daemon.run()
 
     assert (daemon.state.path / ".gitignore").exists()
+    assert daemon.state.repository.read_text(encoding="utf-8") == f"{REPOSITORY}\n"
     assert not daemon.state.lock.exists()
 
 

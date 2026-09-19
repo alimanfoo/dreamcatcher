@@ -45,6 +45,11 @@ class StateDirectory:
         return self.path / "daemon.pid"
 
     @property
+    def repository(self) -> Path:
+        """The file that names the repository this instance watches."""
+        return self.path / "repository"
+
+    @property
     def scheduler_record(self) -> Path:
         """The file the daemon overwrites with what the scheduler observed."""
         return self.path / "scheduler.json"

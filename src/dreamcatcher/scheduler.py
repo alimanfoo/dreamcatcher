@@ -92,6 +92,7 @@ class IssueObservation(Document):
 
     issue: int
     created_at: datetime | None = None
+    observed_at: UtcDateTime | None = None
     is_open: IssueFact
     is_assigned_to_user: IssueFact
     dispatch_labels: list[str] | None = None
@@ -99,6 +100,11 @@ class IssueObservation(Document):
     claimed_elsewhere: IssueFact
     blocked: IssueFact
     routing_conflict: IssueFact
+
+    @property
+    def availability(self) -> IssueFact:
+        """Whether the observed facts make the issue available for assignment."""
+        return derive_issue_availability(observation=self)
 
 
 class AgentAssignmentObservation(Document):
@@ -113,7 +119,7 @@ class AgentAssignmentObservation(Document):
     @model_validator(mode="before")
     @classmethod
     def _recognize_legacy_unknown_observation(cls, data: object, /) -> object:
-        """Recover old uncertainty; pydantic passes validator input by position."""
+        """Keep failed reads unknown in records written before `is_known`."""
         if not isinstance(data, dict) or "is_known" in data:
             return data
         reason = data.get("reason")
@@ -142,7 +148,6 @@ class SchedulerRecord(Document):
     """What the scheduler's most recent tick observed and decided."""
 
     at: UtcDateTime
-    repository: str | None = None
     hold: str | None = None
     launched: str | None = None
     issue_observations: list[IssueObservation] = Field(default_factory=list)
@@ -758,7 +763,10 @@ class Scheduler:
             ),
         )
         issue_failure = observed.failure
-        issue_observations = observed.observations
+        issue_observations = [
+            observation.model_copy(update={"observed_at": at})
+            for observation in observed.observations
+        ]
         found = self._judge_assignments(
             assignments=assignments,
             most_recent_cooldown_ended=most_recent_cooldown_ended,
@@ -767,7 +775,6 @@ class Scheduler:
         assignment_observations = list_assignment_observations(found=found)
         record = SchedulerRecord(
             at=at,
-            repository=self.repository,
             cooldown=cooldown,
             most_recent_cooldown_ended=most_recent_cooldown_ended,
             issue_observations=issue_observations,
@@ -923,8 +930,7 @@ class Scheduler:
         eligible = [
             observation
             for observation in record.issue_observations
-            if derive_issue_availability(observation=observation).value
-            is IssueFactValue.TRUE
+            if observation.availability.value is IssueFactValue.TRUE
         ]
         if not eligible:
             return record

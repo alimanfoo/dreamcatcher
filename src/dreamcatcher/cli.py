@@ -94,9 +94,9 @@ def build_parser() -> argparse.ArgumentParser:
         "status",
         help="show the instance, issue, and agent-assignment status",
         description=(
-            "Show instance and daemon facts, each relevant issue's independent "
-            "facts and availability, and each agent assignment's summary "
-            "status. It keeps up until you interrupt it. "
+            "Show instance and daemon facts, each agent assignment's status, "
+            "and available issues in dispatch order. It refreshes "
+            "automatically until you interrupt it. "
             + HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
             + " "
             + HELP_WHEN_NOTHING_WATCHES

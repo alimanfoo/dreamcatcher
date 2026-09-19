@@ -6,78 +6,6 @@ instance
   agent-round capacity   1 of 1 in use      
   global cooldown        none               
 
-issues
-  issue GH50  dispatch labels: dream:smith              available: true                             
-                                                        claimed here: false                         
-                                                        claimed elsewhere: false                    
-                                                        blocked: false                              
-                                                        routing conflict: false                     
-  issue GH51  dispatch labels: dream:smith              available: true                             
-                                                        claimed here: false                         
-                                                        claimed elsewhere: false                    
-                                                        blocked: false                              
-                                                        routing conflict: false                     
-  issue GH52  dispatch labels: dream:smith              available: false (blocked by GH50)          
-                                                        claimed here: false                         
-                                                        claimed elsewhere: false                    
-                                                        blocked: true (blocked by GH50)             
-                                                        routing conflict: false                     
-  issue GH53  dispatch labels: dream:smith, dream:less  available: false (carries more than one     
-                                                        dispatch label: dream:less, dream:smith)    
-                                                        claimed here: false                         
-                                                        claimed elsewhere: false                    
-                                                        blocked: false                              
-                                                        routing conflict: true (carries more than   
-                                                        one dispatch label: dream:less, dream:smith)
-  issue GH9   dispatch labels: unknown                  available: false                            
-                                                        claimed here: true                          
-                                                        claimed elsewhere: unknown (no scheduler    
-                                                        observation yet)                            
-                                                        blocked: unknown (no scheduler observation  
-                                                        yet)                                        
-                                                        routing conflict: unknown (no scheduler     
-                                                        observation yet)                            
-  issue GH13  dispatch labels: unknown                  available: false                            
-                                                        claimed here: true                          
-                                                        claimed elsewhere: unknown (no scheduler    
-                                                        observation yet)                            
-                                                        blocked: unknown (no scheduler observation  
-                                                        yet)                                        
-                                                        routing conflict: unknown (no scheduler     
-                                                        observation yet)                            
-  issue GH20  dispatch labels: unknown                  available: false                            
-                                                        claimed here: true                          
-                                                        claimed elsewhere: unknown (no scheduler    
-                                                        observation yet)                            
-                                                        blocked: unknown (no scheduler observation  
-                                                        yet)                                        
-                                                        routing conflict: unknown (no scheduler     
-                                                        observation yet)                            
-  issue GH31  dispatch labels: unknown                  available: false                            
-                                                        claimed here: true                          
-                                                        claimed elsewhere: unknown (no scheduler    
-                                                        observation yet)                            
-                                                        blocked: unknown (no scheduler observation  
-                                                        yet)                                        
-                                                        routing conflict: unknown (no scheduler     
-                                                        observation yet)                            
-  issue GH35  dispatch labels: unknown                  available: false                            
-                                                        claimed here: true                          
-                                                        claimed elsewhere: unknown (no scheduler    
-                                                        observation yet)                            
-                                                        blocked: unknown (no scheduler observation  
-                                                        yet)                                        
-                                                        routing conflict: unknown (no scheduler     
-                                                        observation yet)                            
-  issue GH44  dispatch labels: unknown                  available: false                            
-                                                        claimed here: true                          
-                                                        claimed elsewhere: unknown (no scheduler    
-                                                        observation yet)                            
-                                                        blocked: unknown (no scheduler observation  
-                                                        yet)                                        
-                                                        routing conflict: unknown (no scheduler     
-                                                        observation yet)                            
-
 agent assignments
   agent assignment GH9-20260819-184158   fault                two consecutive rounds failed         
                                                               (.dreamcatcher/assignments/GH9-2026081
@@ -90,3 +18,7 @@ agent assignments
   agent assignment GH31-20260819-184158  waiting              1 new post to answer                  
   agent assignment GH35-20260819-184158  waiting              the last round failed (exit 2)        
   agent assignment GH44-20260819-184158  waiting              no round has run yet                  
+
+available issues
+  issue GH50  dispatch label: dream:smith
+  issue GH51  dispatch label: dream:smith

@@ -256,7 +256,7 @@ def test_a_tick_dispatches_the_oldest_issue_nothing_stands_in_the_way_of(
     assignment = scheduler.state.assignments / DISPATCHED_ASSIGNMENT_ID
     assert (scheduler.state.worktrees / DISPATCHED_ASSIGNMENT_ID / "README.md").exists()
     assert (assignment / "assignment.json").exists()
-    assert observed.repository == REPOSITORY
+    assert observed.issue_observations[0].observed_at == observed.at
     assert observed.launched == DISPATCHED_ASSIGNMENT_ID
     assert (
         harnesses["claude"].calls[0].directory

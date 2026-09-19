@@ -16,6 +16,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     compose_agent_round_ending,
 )
+from dreamcatcher.documents import write_text
 from dreamcatcher.feed import Line
 from dreamcatcher.scheduler import (
     NO_ROUND_HAS_RUN,
@@ -131,11 +132,8 @@ def test_an_empty_instance_reports_its_configuration_and_no_work(tmp_path):
     assert found.assignments == []
 
 
-def test_a_scheduler_tick_names_the_repository(state):
-    write_tick(
-        state=state,
-        tick=SchedulerRecord(at=PINNED, repository=REPOSITORY),
-    )
+def test_the_instance_record_names_the_repository(state):
+    write_text(text=f"{REPOSITORY}\n", path=state.repository)
 
     assert report(state=state).repository == REPOSITORY
 
@@ -365,7 +363,7 @@ def test_a_stopped_daemon_has_no_current_scheduler_hold(state):
     assert report(state=state).scheduler_hold is None
 
 
-def test_issue_status_reuses_the_scheduler_availability_interpretation(state):
+def test_an_unavailable_issue_is_absent(state):
     write_tick(
         state=state,
         tick=SchedulerRecord(
@@ -380,16 +378,10 @@ def test_issue_status_reuses_the_scheduler_availability_interpretation(state):
         ),
     )
 
-    issue = report(state=state).issues[0]
-
-    assert issue.issue == 20
-    assert issue.blocked.value is IssueFactValue.TRUE
-    assert issue.availability.value is IssueFactValue.FALSE
-    assert issue.availability.evidence == "blocked by GH10"
-    assert issue.observed_at == PINNED
+    assert report(state=state).issues == []
 
 
-def test_an_open_local_assignment_makes_its_observed_issue_claimed_here(state):
+def test_an_open_local_assignment_removes_its_issue_from_available_work(state):
     write_tick(
         state=state,
         tick=SchedulerRecord(
@@ -398,10 +390,7 @@ def test_an_open_local_assignment_makes_its_observed_issue_claimed_here(state):
         ),
     )
 
-    issue = report(state=state).issues[0]
-
-    assert issue.claimed_here.value is IssueFactValue.TRUE
-    assert issue.availability.value is IssueFactValue.FALSE
+    assert report(state=state).issues == []
 
 
 def test_a_complete_local_assignment_no_longer_claims_its_observed_issue(state):
@@ -421,20 +410,23 @@ def test_a_complete_local_assignment_no_longer_claims_its_observed_issue(state):
     assert issue.availability.value is IssueFactValue.TRUE
 
 
-def test_an_unobserved_issue_with_an_open_assignment_is_reported_as_unknown(state):
-    issue = report(state=state).issues[0]
+def test_available_issues_keep_scheduler_order_and_observation_times(state):
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            issue_observations=[
+                observed_issue(issue=20),
+                observed_issue(issue=21).model_copy(update={"observed_at": LOOKED_AT}),
+            ],
+        ),
+    )
 
-    assert issue.issue == 13
-    assert issue.observed_at is None
-    assert issue.is_open.value is IssueFactValue.UNKNOWN
-    assert issue.claimed_here.value is IssueFactValue.TRUE
-    assert issue.availability.value is IssueFactValue.FALSE
+    issues = report(state=state).issues
 
-
-def test_an_unobserved_issue_with_only_a_complete_assignment_is_absent(state):
-    ran(state=state, number=1, purpose=AgentRoundPurpose.WRAP_UP)
-
-    assert report(state=state).issues == []
+    assert [issue.issue for issue in issues] == [20, 21]
+    assert issues[0].observed_at == PINNED
+    assert issues[1].observed_at == LOOKED_AT
 
 
 def test_assignments_are_ordered_by_issue_with_the_newest_at_an_issue_first(state):
@@ -484,7 +476,7 @@ def test_reading_one_issue_returns_only_its_assignments_newest_first(state):
     ]
 
 
-def test_an_observed_issue_with_no_local_assignment_keeps_its_claim_fact(state):
+def test_an_issue_with_an_unknown_claim_is_absent(state):
     observation = observed_issue(
         issue=20,
         values={"claimed_here": IssueFactValue.UNKNOWN},
@@ -495,10 +487,7 @@ def test_an_observed_issue_with_no_local_assignment_keeps_its_claim_fact(state):
         tick=SchedulerRecord(at=PINNED, issue_observations=[observation]),
     )
 
-    issue = report(state=state).issues[0]
-
-    assert issue.claimed_here.value is IssueFactValue.UNKNOWN
-    assert issue.claimed_here.evidence == "setup is incomplete"
+    assert report(state=state).issues == []
 
 
 def test_scheduling_does_not_consume_status_reports():

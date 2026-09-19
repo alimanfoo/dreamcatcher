@@ -212,17 +212,17 @@ interface.
 ### Status reporting
 
 `status.py` owns the read-only status model and constructs a `StatusReport`
-containing the repository identity, instance and daemon facts, `IssueStatus`
-entries, and `AgentAssignmentStatus` entries.
+containing the repository identity, instance and daemon facts, available
+`IssueObservation` entries, and `AgentAssignmentStatus` entries.
 
 Status construction may read:
 
 - assignment and round records;
 - current child-process state;
-- scheduler records, including the repository identity, active global cooldown,
-  and latest tick;
+- the instance's repository record;
+- scheduler records, including issue observations, the active global cooldown,
+  and the latest tick;
 - configuration, dispatch labels, and routes;
-- current GitHub issue, dependency, and pull-request facts; and
 - the latest rendered feed output needed for a useful summary.
 
 It may call the scheduler's pure interpretation functions, but it cannot invoke
@@ -230,14 +230,12 @@ a scheduling action, mutate an assignment, relay a user post, or start a
 process. Status values are always derived; they are not written back as domain
 state.
 
-An `IssueStatus` represents claimed here, claimed elsewhere, blocked, and
+An `IssueObservation` represents claimed here, claimed elsewhere, blocked, and
 routing conflict as independent facts which may each be true, false, or unknown;
-availability is derived from those facts together with whether the issue is
+its availability is derived from those facts together with whether the issue is
 open, assigned to the instance's user, and carries exactly one dispatch label.
-An `AgentAssignmentStatus` is one summary status from the ontology. The report
-includes every issue considered for a new assignment and every issue with an
-open local assignment, even if later changes to GitHub state or configuration
-would prevent a new assignment for that issue.
+The report includes only available issues, in the scheduler's dispatch order. An
+`AgentAssignmentStatus` is one summary status from the ontology.
 
 ### TUI
 
@@ -325,11 +323,12 @@ A round record persists:
   and
 - the durable files containing its prompt, delivered posts, and output.
 
-An instance-wide scheduler record persists an active global cooldown and the
-time at which the most recent cooldown ended. An assignment record persists the
-time of its latest user retry request. These boundaries allow fault to remain a
-derived status: ending a cooldown or requesting a retry changes which round
-errors count towards fault rather than writing an assignment status.
+An instance record persists the repository identity. An instance-wide scheduler
+record persists an active global cooldown and the time at which the most recent
+cooldown ended. An assignment record persists the time of its latest user retry
+request. These boundaries allow fault to remain a derived status: ending a
+cooldown or requesting a retry changes which round errors count towards fault
+rather than writing an assignment status.
 
 The following are derived rather than persisted as authoritative state:
 
@@ -339,7 +338,7 @@ The following are derived rather than persisted as authoritative state:
 - whether an assignment is complete or in fault;
 - whether an assignment requires an agent round or needs user feedback;
 - what round purpose and recovery flag are required next; and
-- every issue and assignment status shown in a status report.
+- every agent assignment status shown in a status report.
 
 Mutable external facts, including issue state, assignees, labels, dependencies,
 linked pull requests, pull-request draft/readiness/terminal state, and user

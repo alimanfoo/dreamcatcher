@@ -525,9 +525,9 @@ pull-request, and user-post scenarios continue to pass.
 ### Stage 9 Outcome
 
 `status.py` constructs a read-only `StatusReport` containing the repository
-identity, instance and daemon facts, an `IssueStatus` for each relevant issue,
-and an `AgentAssignmentStatus` for each assignment. `tui.py` renders those
-models and feeds without deriving lifecycle or scheduling decisions.
+identity, instance and daemon facts, each available `IssueObservation`, and an
+`AgentAssignmentStatus` for each assignment. `tui.py` renders those models and
+feeds without deriving lifecycle or scheduling decisions.
 
 ### Stage 9 Work
 
@@ -537,10 +537,9 @@ models and feeds without deriving lifecycle or scheduling decisions.
 - Put the repository identity at the top of the report, then include
   instance-wide facts such as daemon state, latest scheduler tick, capacity, and
   active global cooldown.
-- Give each issue status independent claimed-here, claimed-elsewhere, blocked,
-  and routing-conflict facts and a derived availability value. Include every
-  issue considered for new work and every issue with an open local assignment,
-  even when its current labels, assignee, or route no longer select it.
+- Give each issue observation independent claimed-here, claimed-elsewhere,
+  blocked, and routing-conflict facts and derived availability. Show only
+  available issues, in the scheduler's dispatch order.
 - Give each assignment one derived summary status: working, waiting, needs user
   feedback, fault, complete, or unknown. Reuse the scheduler's pure issue and
   required-round interpretations rather than restating their rules.
@@ -549,9 +548,9 @@ models and feeds without deriving lifecycle or scheduling decisions.
   were observed. Continue to use GitHub facts observed by the daemon and
   recorded locally; the view commands must not acquire network access or mutate
   external state.
-- Replace the `board` command with `status`. Present issues and assignments as
-  distinct concepts and remove queue position, “needs you”, “stuck”, “awake”,
-  and “asleep” language.
+- Replace the `board` command with `status`. Present assignments before
+  available issues and remove “needs you”, “stuck”, “awake”, and “asleep”
+  language.
 - Keep the `assignment` and `feed` views, including selection of the newest
   assignment for an issue and selection of a numbered agent round. Make labels
   distinguish issue identifiers, agent assignment identifiers, and harness

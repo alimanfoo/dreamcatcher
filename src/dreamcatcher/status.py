@@ -12,6 +12,7 @@ from dreamcatcher.agent_assignments import (
 )
 from dreamcatcher.clock import now
 from dreamcatcher.config import read_config
+from dreamcatcher.documents import read_text
 from dreamcatcher.feed import Line, read_last_feed_line
 from dreamcatcher.lock import read_daemon_pid
 from dreamcatcher.scheduler import (
@@ -23,7 +24,6 @@ from dreamcatcher.scheduler import (
     IssueObservation,
     advance_scheduler_record,
     derive_assignment_fault,
-    derive_issue_availability,
     read_scheduler_record,
 )
 from dreamcatcher.state import StateDirectory
@@ -39,23 +39,6 @@ class AgentAssignmentStatusValue(StrEnum):
     FAULT = "fault"
     COMPLETE = "complete"
     UNKNOWN = "unknown"
-
-
-@dataclass(frozen=True, kw_only=True)
-class IssueStatus:
-    """One issue's independent facts and derived availability."""
-
-    issue: int
-    created_at: datetime | None
-    is_open: IssueFact
-    is_assigned_to_user: IssueFact
-    dispatch_labels: list[str] | None
-    claimed_here: IssueFact
-    claimed_elsewhere: IssueFact
-    blocked: IssueFact
-    routing_conflict: IssueFact
-    availability: IssueFact
-    observed_at: datetime | None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -81,7 +64,7 @@ class StatusReport:
     max_agent_rounds: int
     running_agent_rounds: int
     active_global_cooldown: GlobalCooldown | None
-    issues: list[IssueStatus]
+    issues: list[IssueObservation]
     assignments: list[AgentAssignmentStatus]
 
 
@@ -95,7 +78,7 @@ def read_status_report(
     scheduler_record = reading.scheduler_record
     return StatusReport(
         at=reading.at,
-        repository=(None if scheduler_record is None else scheduler_record.repository),
+        repository=_read_repository(state=state),
         daemon_pid=reading.daemon_pid,
         latest_scheduler_tick=(
             None if scheduler_record is None else scheduler_record.at
@@ -112,9 +95,16 @@ def read_status_report(
         active_global_cooldown=(
             None if scheduler_record is None else scheduler_record.cooldown
         ),
-        issues=reading.list_issue_statuses(assignments=assignments),
+        issues=reading.list_available_issues(assignments=assignments),
         assignments=statuses,
     )
+
+
+def _read_repository(*, state: StateDirectory) -> str | None:
+    """Read the repository name after a daemon has recorded it."""
+    if not state.repository.exists():
+        return None
+    return read_text(path=state.repository).strip()
 
 
 def read_agent_assignment_statuses_for_issue(
@@ -148,40 +138,34 @@ class _StatusReading:
             }
         )
 
-    def list_issue_statuses(
+    def list_available_issues(
         self, *, assignments: list[AgentAssignment]
-    ) -> list[IssueStatus]:
-        """Return observed issues plus any open local assignment not observed."""
+    ) -> list[IssueObservation]:
+        """Return available issue observations in scheduler order."""
+        if self.scheduler_record is None:
+            return []
         by_issue: dict[int, list[AgentAssignment]] = {}
         for assignment in assignments:
             by_issue.setdefault(assignment.record.issue, []).append(assignment)
-        observations = (
-            []
-            if self.scheduler_record is None
-            else self.scheduler_record.issue_observations
-        )
-        statuses = [
-            self._compose_issue_status(
+        available = []
+        for observation in self.scheduler_record.issue_observations:
+            current = self._refresh_issue_observation(
                 observation=observation,
                 assignments=by_issue.get(observation.issue, []),
+                recorded_at=self.scheduler_record.at,
             )
-            for observation in observations
-        ]
-        observed_issues = {status.issue for status in statuses}
-        for issue, issue_assignments in sorted(by_issue.items()):
-            if issue not in observed_issues and any(
-                not assignment.is_complete for assignment in issue_assignments
-            ):
-                statuses.append(self._compose_unobserved_issue_status(issue=issue))
-        return statuses
+            if current.availability.value is IssueFactValue.TRUE:
+                available.append(current)
+        return available
 
-    def _compose_issue_status(
+    def _refresh_issue_observation(
         self,
         *,
         observation: IssueObservation,
         assignments: list[AgentAssignment],
-    ) -> IssueStatus:
-        """Return one observed issue with its current local claim and availability."""
+        recorded_at: datetime,
+    ) -> IssueObservation:
+        """Refresh one observation's local claim and missing observation time."""
         if any(not assignment.is_complete for assignment in assignments):
             claimed_here = IssueFact(value=IssueFactValue.TRUE)
         elif assignments:
@@ -189,33 +173,9 @@ class _StatusReading:
         else:
             claimed_here = observation.claimed_here
         current = observation.model_copy(update={"claimed_here": claimed_here})
-        return _compose_issue_status_from_observation(
-            observation=current,
-            observed_at=(
-                None if self.scheduler_record is None else self.scheduler_record.at
-            ),
-        )
-
-    def _compose_unobserved_issue_status(self, *, issue: int) -> IssueStatus:
-        """Return an open local assignment's issue with unknown external facts."""
-        unknown = IssueFact(
-            value=IssueFactValue.UNKNOWN,
-            evidence="no scheduler observation yet",
-        )
-        observation = IssueObservation(
-            issue=issue,
-            is_open=unknown,
-            is_assigned_to_user=unknown,
-            dispatch_labels=None,
-            claimed_here=IssueFact(value=IssueFactValue.TRUE),
-            claimed_elsewhere=unknown,
-            blocked=unknown,
-            routing_conflict=unknown,
-        )
-        return _compose_issue_status_from_observation(
-            observation=observation,
-            observed_at=None,
-        )
+        if current.observed_at is None:
+            return current.model_copy(update={"observed_at": recorded_at})
+        return current
 
     def list_assignment_statuses(
         self, *, assignments: list[AgentAssignment]
@@ -367,22 +327,3 @@ class _StatusReading:
         """Describe a fault and the feed that holds its latest output."""
         feed = assignment.round_paths(number=assignment.rounds[-1].number).feed
         return f"{reason} ({self.state.describe_path(path=feed)})"
-
-
-def _compose_issue_status_from_observation(
-    *, observation: IssueObservation, observed_at: datetime | None
-) -> IssueStatus:
-    """Build an issue status from an observation and its observation time."""
-    return IssueStatus(
-        issue=observation.issue,
-        created_at=observation.created_at,
-        is_open=observation.is_open,
-        is_assigned_to_user=observation.is_assigned_to_user,
-        dispatch_labels=observation.dispatch_labels,
-        claimed_here=observation.claimed_here,
-        claimed_elsewhere=observation.claimed_elsewhere,
-        blocked=observation.blocked,
-        routing_conflict=observation.routing_conflict,
-        availability=derive_issue_availability(observation=observation),
-        observed_at=observed_at,
-    )

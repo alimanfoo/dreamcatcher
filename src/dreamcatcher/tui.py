@@ -51,7 +51,7 @@ from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AgentAssignmentStatus,
     AgentAssignmentStatusValue,
-    IssueStatus,
+    IssueObservation,
     StatusReport,
     read_agent_assignment_statuses_for_issue,
     read_status_report,
@@ -116,7 +116,7 @@ def _repaint(*, console: Console, look: Callable[[], _Picture], wait: Wait) -> N
     whole of what the reader sees while it is going and the commands the shell
     printed above it are not read alongside it. The screen is as tall as the
     terminal, so a picture that outgrows it is cut at the bottom. Status puts
-    instance facts before issues and agent assignments.
+    instance facts before agent assignments and available issues.
 
     Handing the screen back brings the shell's own output back and takes the
     last picture with it, so a view whose last look found it over prints that
@@ -214,13 +214,13 @@ def _look_at_status(
 
 
 def _render_status(*, report: StatusReport) -> RenderableType:
-    """Render the repository, instance facts, issues, and assignments."""
+    """Render the repository, instance facts, assignments, and available issues."""
     return _render_parts(
         parts=[
             Text(report.repository or "repository unknown", style="bold"),
             _render_instance(report=report),
-            _render_issues(issues=report.issues),
             _render_assignments(assignments=report.assignments),
+            _render_issues(issues=report.issues),
             _describe_nothing_recorded(report=report),
         ]
     )
@@ -269,58 +269,17 @@ def _render_instance(*, report: StatusReport) -> RenderableType:
     return _render_section(heading="instance", body=table)
 
 
-def _render_issues(*, issues: Sequence[IssueStatus]) -> RenderableType | None:
-    """Render each issue's independent facts and derived availability."""
+def _render_issues(*, issues: Sequence[IssueObservation]) -> RenderableType | None:
+    """Render available issues in the order the scheduler will dispatch them."""
     if not issues:
         return None
-    table = _open_table(columns=3)
+    table = _open_table(columns=2)
     for issue in issues:
-        labels = (
-            "unknown"
-            if issue.dispatch_labels is None
-            else ", ".join(issue.dispatch_labels) or "none"
-        )
-        facts = "\n".join(
-            (
-                _describe_issue_fact(
-                    name="available",
-                    value=str(issue.availability.value),
-                    evidence=issue.availability.evidence,
-                ),
-                _describe_issue_fact(
-                    name="claimed here",
-                    value=str(issue.claimed_here.value),
-                    evidence=issue.claimed_here.evidence,
-                ),
-                _describe_issue_fact(
-                    name="claimed elsewhere",
-                    value=str(issue.claimed_elsewhere.value),
-                    evidence=issue.claimed_elsewhere.evidence,
-                ),
-                _describe_issue_fact(
-                    name="blocked",
-                    value=str(issue.blocked.value),
-                    evidence=issue.blocked.evidence,
-                ),
-                _describe_issue_fact(
-                    name="routing conflict",
-                    value=str(issue.routing_conflict.value),
-                    evidence=issue.routing_conflict.evidence,
-                ),
-            )
-        )
         table.add_row(
             Text(f"issue GH{issue.issue}"),
-            Text(f"dispatch labels: {labels}"),
-            Text(facts),
+            Text(f"dispatch label: {', '.join(issue.dispatch_labels or [])}"),
         )
-    return _render_section(heading="issues", body=table)
-
-
-def _describe_issue_fact(*, name: str, value: str, evidence: str | None) -> str:
-    """Render one named issue fact with its evidence when it has any."""
-    detail = "" if evidence is None else f" ({evidence})"
-    return f"{name}: {value}{detail}"
+    return _render_section(heading="available issues", body=table)
 
 
 def _render_assignments(
