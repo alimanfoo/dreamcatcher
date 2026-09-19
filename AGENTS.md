@@ -160,6 +160,17 @@ uv run pre-commit run --all-files
   qualifies it where it is defined and nowhere else, so a name that leans on the
   module reads as nothing at the call site. A method needs no such help, because
   its receiver says what it belongs to.
+- Give every module, exported class, exported function and public method a
+  docstring. Give a private object a docstring only when its name, signature,
+  types and immediate context do not make its contract or intent clear. Follow
+  PEP 257: begin with an imperative summary sentence, then put any further
+  contract information in paragraphs after a blank line. Document side effects,
+  invariants, ordering, selection rules, important failure conditions and
+  constraints that a caller cannot safely infer from the signature. Do not
+  narrate the implementation or repeat names, types, defaults and obvious return
+  values. The signature and types describe shape, the code describes the current
+  mechanism, comments explain non-obvious implementation choices, specifications
+  describe system-level behaviour, and tests demonstrate cases and boundaries.
 - Keep changes lean. Add nothing a requirement or the design doesn't call for;
   prefer deleting over adding. One way to do each thing, always.
 - Give every issue you file its type label, `bug`, `enhancement` or
