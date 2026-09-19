@@ -29,7 +29,7 @@ def write_agent_assignment(
     write_json(
         document=agent_assignments.AgentAssignmentRecord(
             issue=issue,
-            label="dream:smith",
+            dispatch_label="dream:smith",
             branch=f"{agent_assignments.AGENT_ASSIGNMENT_BRANCH_PREFIX}{identifier}",
             worktree=state.worktrees / identifier,
             pull_request=52,

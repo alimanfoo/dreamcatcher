@@ -255,7 +255,7 @@ def fabricate_everything(*, state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
-            launched=f"GH13-{ASSIGNMENT_TIMESTAMP}",
+            launched_assignment_identifier=f"GH13-{ASSIGNMENT_TIMESTAMP}",
             issue_observations=[
                 observed_issue(issue=50),
                 observed_issue(issue=51),
@@ -273,28 +273,28 @@ def fabricate_everything(*, state):
             ],
             assignment_observations=[
                 AgentAssignmentObservation(
-                    assignment=f"GH31-{ASSIGNMENT_TIMESTAMP}",
+                    assignment_identifier=f"GH31-{ASSIGNMENT_TIMESTAMP}",
                     issue=31,
                     reason="1 new post to answer",
                 ),
                 AgentAssignmentObservation(
-                    assignment=f"GH20-{ASSIGNMENT_TIMESTAMP}",
+                    assignment_identifier=f"GH20-{ASSIGNMENT_TIMESTAMP}",
                     issue=20,
                     reason="no round required",
                     is_round_required=False,
                 ),
                 AgentAssignmentObservation(
-                    assignment=f"GH35-{ASSIGNMENT_TIMESTAMP}",
+                    assignment_identifier=f"GH35-{ASSIGNMENT_TIMESTAMP}",
                     issue=35,
                     reason="the last round failed (exit 2)",
                 ),
                 AgentAssignmentObservation(
-                    assignment=f"GH9-{ASSIGNMENT_TIMESTAMP}",
+                    assignment_identifier=f"GH9-{ASSIGNMENT_TIMESTAMP}",
                     issue=9,
                     reason="two consecutive rounds failed",
                 ),
                 AgentAssignmentObservation(
-                    assignment=f"GH44-{ASSIGNMENT_TIMESTAMP}",
+                    assignment_identifier=f"GH44-{ASSIGNMENT_TIMESTAMP}",
                     issue=44,
                     reason=NO_ROUND_HAS_RUN,
                 ),
@@ -327,7 +327,9 @@ def fabricate_the_cap(*, state):
             hold=hold,
             assignment_observations=[
                 AgentAssignmentObservation(
-                    assignment=f"GH20-{ASSIGNMENT_TIMESTAMP}", issue=20, reason=hold
+                    assignment_identifier=f"GH20-{ASSIGNMENT_TIMESTAMP}",
+                    issue=20,
+                    reason=hold,
                 )
             ],
         ),
@@ -376,7 +378,7 @@ def fabricate_repeat_assignments(*, state):
             at=PINNED + timedelta(hours=1, minutes=58),
             assignment_observations=[
                 AgentAssignmentObservation(
-                    assignment=f"GH13-{ASSIGNMENT_TIMESTAMP}",
+                    assignment_identifier=f"GH13-{ASSIGNMENT_TIMESTAMP}",
                     issue=13,
                     reason="no round required",
                     is_round_required=False,
@@ -410,7 +412,7 @@ def fabricate_a_silent_round(*, state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
-            launched=f"GH13-{ASSIGNMENT_TIMESTAMP}",
+            launched_assignment_identifier=f"GH13-{ASSIGNMENT_TIMESTAMP}",
         ),
     )
 
@@ -486,7 +488,7 @@ def refusing(seconds, /):
     raise AssertionError("the view waited for something that was not coming")
 
 
-def rendered(*, state, width: int = WIDTH) -> str:
+def render_status_view(*, state, width: int = WIDTH) -> str:
     """Return the status report that the state renders on a pinned console.
 
     Nobody is watching a console that is no terminal, so the report is drawn
@@ -507,7 +509,7 @@ def test_a_state_directory_renders_as_its_golden_status(name, tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     STATUS_REPORTS[name](state=state)
 
-    status = rendered(state=state)
+    status = render_status_view(state=state)
 
     assert status == (FIXTURES / "status" / f"{name}.txt").read_text(encoding="utf-8")
 
@@ -517,7 +519,7 @@ def test_identifiers_remain_whole_when_the_assignment_table_folds(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_repeat_assignments(state=state)
 
-    status = rendered(state=state, width=55)
+    status = render_status_view(state=state, width=55)
 
     compact = "".join(status.split())
     assert "GH13-20260818-090000" in compact

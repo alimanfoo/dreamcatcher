@@ -175,8 +175,8 @@ def _record_agent_round_ending(
 class AgentRoundInput(DreamcatcherDocument):
     """The pull-request state and user posts delivered to one agent round."""
 
-    state: PullRequestState
-    posts: list[UserPost]
+    pull_request_state: PullRequestState = Field(alias="state")
+    user_posts: list[UserPost] = Field(alias="posts")
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -232,7 +232,7 @@ class AgentRoundPaths:
         return self.directory / "raw.jsonl"
 
     @property
-    def inbox(self) -> Path:
+    def round_input(self) -> Path:
         """The file holding the batch that the round was woken with."""
         return self.directory / "inbox.json"
 
@@ -324,7 +324,7 @@ class AgentRound:
         self._round_ended = Flag()
         self._feed_write_lock = Lock()
         if plan.input is not None:
-            write_json(document=plan.input, path=paths.inbox)
+            write_json(document=plan.input, path=paths.round_input)
         write_text(text=invocation.prompt, path=paths.prompt)
         self.harness_process = spawn_command(
             program=invocation.program,

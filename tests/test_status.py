@@ -97,7 +97,7 @@ def report(*, state: StateDirectory):
 
 def only_assignment(*, state: StateDirectory):
     """Return the only agent-assignment status in the fixture."""
-    assignments = report(state=state).assignments
+    assignments = report(state=state).assignment_statuses
     assert len(assignments) == 1
     return assignments[0]
 
@@ -105,7 +105,7 @@ def only_assignment(*, state: StateDirectory):
 def idle_observation() -> AgentAssignmentObservation:
     """Return the scheduler's explicit observation that no round is required."""
     return AgentAssignmentObservation(
-        assignment=ASSIGNMENT_ID,
+        assignment_identifier=ASSIGNMENT_ID,
         issue=13,
         reason="no round required",
         is_round_required=False,
@@ -128,8 +128,8 @@ def test_an_empty_instance_reports_its_configuration_and_no_work(tmp_path):
     assert found.max_agent_rounds == 3
     assert found.running_agent_rounds == 0
     assert found.active_global_cooldown is None
-    assert found.issues == []
-    assert found.assignments == []
+    assert found.issue_observations == []
+    assert found.assignment_statuses == []
 
 
 def test_the_instance_record_names_the_repository(state):
@@ -143,7 +143,7 @@ def test_a_live_round_reports_work_and_its_latest_output(running):
     said(state=running, number=1, texts=["first", "[Bash] pytest"])
 
     found = report(state=running)
-    status = found.assignments[0]
+    status = found.assignment_statuses[0]
 
     assert found.daemon_pid == os.getpid()
     assert found.running_agent_rounds == 1
@@ -203,7 +203,7 @@ def test_a_required_round_reports_the_scheduler_reason(state):
             at=LOOKED_AT,
             assignment_observations=[
                 AgentAssignmentObservation(
-                    assignment=ASSIGNMENT_ID,
+                    assignment_identifier=ASSIGNMENT_ID,
                     issue=13,
                     reason="1 new post to answer",
                 )
@@ -226,7 +226,7 @@ def test_an_unknown_assignment_observation_reports_unknown(state):
             at=LOOKED_AT,
             assignment_observations=[
                 AgentAssignmentObservation(
-                    assignment=ASSIGNMENT_ID,
+                    assignment_identifier=ASSIGNMENT_ID,
                     issue=13,
                     reason="cannot read its pull request: unavailable",
                     is_known=False,
@@ -331,7 +331,7 @@ def test_an_elapsed_cooldown_clears_the_fault_and_active_hold(state):
 
     found = report(state=state)
 
-    assert found.assignments[0].value is AgentAssignmentStatusValue.WAITING
+    assert found.assignment_statuses[0].value is AgentAssignmentStatusValue.WAITING
     assert found.scheduler_hold is None
     assert found.active_global_cooldown is None
 
@@ -378,7 +378,7 @@ def test_an_unavailable_issue_is_absent(state):
         ),
     )
 
-    assert report(state=state).issues == []
+    assert report(state=state).issue_observations == []
 
 
 def test_an_open_local_assignment_removes_its_issue_from_available_work(state):
@@ -390,7 +390,7 @@ def test_an_open_local_assignment_removes_its_issue_from_available_work(state):
         ),
     )
 
-    assert report(state=state).issues == []
+    assert report(state=state).issue_observations == []
 
 
 def test_a_complete_local_assignment_no_longer_claims_its_observed_issue(state):
@@ -404,7 +404,7 @@ def test_a_complete_local_assignment_no_longer_claims_its_observed_issue(state):
         tick=SchedulerRecord(at=PINNED, issue_observations=[observation]),
     )
 
-    issue = report(state=state).issues[0]
+    issue = report(state=state).issue_observations[0]
 
     assert issue.claimed_here.value is IssueFactValue.FALSE
     assert issue.availability.value is IssueFactValue.TRUE
@@ -422,7 +422,7 @@ def test_available_issues_keep_scheduler_order_and_observation_times(state):
         ),
     )
 
-    issues = report(state=state).issues
+    issues = report(state=state).issue_observations
 
     assert [issue.issue for issue in issues] == [20, 21]
     assert issues[0].observed_at == PINNED
@@ -442,7 +442,8 @@ def test_assignments_are_ordered_by_issue_with_the_newest_at_an_issue_first(stat
     )
 
     identifiers = [
-        status.assignment.identifier for status in report(state=state).assignments
+        status.assignment.identifier
+        for status in report(state=state).assignment_statuses
     ]
 
     assert identifiers == [
@@ -487,7 +488,7 @@ def test_an_issue_with_an_unknown_claim_is_absent(state):
         tick=SchedulerRecord(at=PINNED, issue_observations=[observation]),
     )
 
-    assert report(state=state).issues == []
+    assert report(state=state).issue_observations == []
 
 
 def test_scheduling_does_not_consume_status_reports():

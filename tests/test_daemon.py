@@ -205,7 +205,9 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
         clock=daemon.clock,
         rounds=daemon.rounds,
     )
-    scheduler_record = SchedulerRecord(at=PINNED, launched=ASSIGNMENT_ID)
+    scheduler_record = SchedulerRecord(
+        at=PINNED, launched_assignment_identifier=ASSIGNMENT_ID
+    )
 
     def launch(*, at):
         assert at == PINNED
@@ -405,7 +407,7 @@ def test_a_tick_that_could_not_dispatch_records_the_failure_and_ticks_again(
 
     assert waiting.waited == [300, 300]
     assert "git worktree add" in held(daemon=daemon)
-    assert recorded(daemon=daemon).launched is None
+    assert recorded(daemon=daemon).launched_assignment_identifier is None
 
 
 def test_a_run_that_cannot_be_told_which_repository_this_is_refuses(

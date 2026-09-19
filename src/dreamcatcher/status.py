@@ -64,8 +64,8 @@ class DreamcatcherStatusReport:
     max_agent_rounds: int
     running_agent_rounds: int
     active_global_cooldown: GlobalCooldown | None
-    issues: list[IssueObservation]
-    assignments: list[AgentAssignmentStatus]
+    issue_observations: list[IssueObservation]
+    assignment_statuses: list[AgentAssignmentStatus]
 
 
 def read_status_report(
@@ -96,8 +96,8 @@ def read_status_report(
         active_global_cooldown=(
             None if scheduler_record is None else scheduler_record.cooldown
         ),
-        issues=reader.list_available_issues(assignments=assignments),
-        assignments=assignment_statuses,
+        issue_observations=reader.list_available_issues(assignments=assignments),
+        assignment_statuses=assignment_statuses,
     )
 
 
@@ -137,7 +137,7 @@ class _StatusReportReader:
             {}
             if self.scheduler_record is None
             else {
-                observation.assignment: observation
+                observation.assignment_identifier: observation
                 for observation in self.scheduler_record.assignment_observations
             }
         )

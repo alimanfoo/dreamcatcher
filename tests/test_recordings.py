@@ -38,7 +38,7 @@ from pathlib import PurePosixPath
 import pytest
 from clocks import Ticking
 from conftest import FIXTURES
-from recordings import rendered
+from recordings import render_harness_recording
 
 from dreamcatcher.claude import CLAUDE_ADAPTER
 from dreamcatcher.codex import CODEX_ADAPTER
@@ -63,7 +63,7 @@ RECORDINGS = ((CLAUDE_ADAPTER, "claude"), (CODEX_ADAPTER, "codex"))
     ],
 )
 def test_a_recorded_stream_renders_as_its_golden_feed(adapter, recording):
-    feed = rendered(
+    feed = render_harness_recording(
         adapter=adapter,
         lines=recording.read_text(encoding="utf-8").splitlines(),
         renderer=FeedRenderer(worktree=RECORDED_IN, clock=Ticking()),

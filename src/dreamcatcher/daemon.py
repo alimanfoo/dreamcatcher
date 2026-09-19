@@ -153,8 +153,10 @@ class DreamcatcherDaemon:
             _write_output(line=f"{describe_time(at=at)}  held: {reason}")
             return
         write_json(document=scheduler_record, path=self.state.scheduler_record)
-        if scheduler_record.launched is not None:
-            outcome_description = f"launched round for {scheduler_record.launched}"
+        if scheduler_record.launched_assignment_identifier is not None:
+            outcome_description = (
+                f"launched round for {scheduler_record.launched_assignment_identifier}"
+            )
         elif scheduler_record.hold is not None:
             outcome_description = f"held: {' '.join(scheduler_record.hold.split())}"
         else:

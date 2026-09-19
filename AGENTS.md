@@ -150,8 +150,8 @@ uv run pre-commit run --all-files
   whose value comes from outside has a shape this project does not own, so
   either of those keeps a `Callable`.
 - Name a method or a function for what it does, with a verb: `render`, `stop`,
-  `strip_worktree`. A name like `rendered` or `holder` reads as a value, so a
-  reader takes it for a property and not for something that runs.
+  `strip_worktree_path`. A name like `rendered` or `holder` reads as a value, so
+  a reader takes it for a property and not for something that runs.
 - Name a boolean for the question it answers: `is_alive`, `is_subagent`, not
   `alive` or `subagent`. `if round.is_alive:` then reads as English.
 - Name a class or a function that a module exports so that it still says what it

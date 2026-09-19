@@ -169,8 +169,8 @@ def test_a_terminal_pull_request_makes_an_interrupted_round_a_recovery_wrap_up(
     assert resume.plan.purpose is AgentRoundPurpose.WRAP_UP
     assert resume.plan.is_recovery
     assert resume.plan.input is not None
-    assert resume.plan.input.state is PullRequestState.MERGED
-    assert [post.body for post in resume.plan.input.posts] == [
+    assert resume.plan.input.pull_request_state is PullRequestState.MERGED
+    assert [post.body for post in resume.plan.input.user_posts] == [
         "have another look at the filter"
     ]
     assert f"pull request #{PULL_REQUEST}" in resume.prompt
@@ -205,8 +205,8 @@ def test_an_assignment_the_user_has_posted_on_answers_what_they_said(state, gh):
     assert not resume.plan.is_recovery
     assert resume.reason == "1 new post to answer"
     assert resume.plan.input is not None
-    assert resume.plan.input.state is PullRequestState.OPEN
-    assert [post.body for post in resume.plan.input.posts] == [
+    assert resume.plan.input.pull_request_state is PullRequestState.OPEN
+    assert [post.body for post in resume.plan.input.user_posts] == [
         "have another look at the filter"
     ]
 
@@ -271,7 +271,7 @@ def test_the_prompt_of_a_posts_resume_sends_the_assignment_to_the_next_rounds_in
     paths = resume.assignment.compose_round_paths(
         number=resume.assignment.next_round_number
     )
-    assert str(paths.inbox) in resume.prompt
+    assert str(paths.round_input) in resume.prompt
     assert paths.directory.name == "2"
     assert AGENT_POST_MARKER in resume.prompt
 
@@ -288,7 +288,9 @@ def test_a_pull_request_that_is_finished_calls_for_one_last_round(
     assert isinstance(resume, RequiredAgentRound)
     assert resume.plan.purpose is AgentRoundPurpose.WRAP_UP
     assert resume.reason == f"the pull request is {state_name.lower()}"
-    assert resume.plan.input == AgentRoundInput(state=state_name, posts=[])
+    assert resume.plan.input == AgentRoundInput(
+        pull_request_state=state_name, user_posts=[]
+    )
 
 
 def test_a_last_round_carries_what_the_user_said_before_the_merge(state, gh):
@@ -303,7 +305,7 @@ def test_a_last_round_carries_what_the_user_said_before_the_merge(state, gh):
     assert isinstance(resume, RequiredAgentRound)
     assert resume.plan.purpose is AgentRoundPurpose.WRAP_UP
     assert resume.plan.input is not None
-    assert [post.body for post in resume.plan.input.posts] == [
+    assert [post.body for post in resume.plan.input.user_posts] == [
         "have another look at the filter"
     ]
 

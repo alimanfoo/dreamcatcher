@@ -526,7 +526,7 @@ def list_user_posts(
 def _read_github_pages[PostT: UserPost](
     *, response_adapter: TypeAdapter[list[list[PostT]]], endpoint: str
 ) -> list[UserPost] | UnknownGitHubResponse:
-    """Return every post the paginated list at path holds, or UnknownGitHubResponse.
+    """Return every post the paginated endpoint holds, or UnknownGitHubResponse.
 
     gh reads every page for us, and answers with one array for each page it
     read, so the pages join back into one list here.

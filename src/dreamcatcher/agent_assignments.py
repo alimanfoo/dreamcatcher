@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-from pydantic import AwareDatetime
+from pydantic import AwareDatetime, Field
 
 from dreamcatcher import prompts
 from dreamcatcher.agent_rounds import (
@@ -91,7 +91,7 @@ class AgentAssignmentRecord(DreamcatcherDocument):
     """
 
     issue: int
-    label: str
+    dispatch_label: str = Field(alias="label")
     branch: str
     worktree: Path
     pull_request: int
@@ -384,7 +384,7 @@ class AgentAssignmentCreator:
         )
         record = AgentAssignmentRecord(
             issue=issue,
-            label=route.label,
+            dispatch_label=route.label,
             branch=branch,
             worktree=worktree,
             pull_request=pull_request,

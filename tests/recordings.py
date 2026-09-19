@@ -10,7 +10,7 @@ from dreamcatcher.feed import FeedRenderer
 from dreamcatcher.harness_adapters import HarnessAdapter
 
 
-def rendered(
+def render_harness_recording(
     *, adapter: HarnessAdapter, lines: Iterable[str], renderer: FeedRenderer
 ) -> str:
     """Return the feed the harness's lines render as, read through adapter."""

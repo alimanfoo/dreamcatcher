@@ -145,7 +145,7 @@ def test_an_assignment_records_what_it_was_dispatched_with(state, route):
 
     assert written(state=state) == assignment.record
     assert assignment.record.issue == 12
-    assert assignment.record.label == "dream:smith"
+    assert assignment.record.dispatch_label == "dream:smith"
     assert assignment.record.pull_request == PULL_REQUEST
     assert assignment.record.harness == AgentHarness.CLAUDE
     assert assignment.record.model == "opus[1m]"

@@ -110,7 +110,7 @@ class IssueObservation(DreamcatcherDocument):
 class AgentAssignmentObservation(DreamcatcherDocument):
     """What the scheduler found when it inspected one idle assignment."""
 
-    assignment: str
+    assignment_identifier: str = Field(alias="assignment")
     issue: int
     reason: str
     is_known: bool = True
@@ -136,7 +136,7 @@ class SchedulerRecord(DreamcatcherDocument):
 
     at: UtcDateTime
     hold: str | None = None
-    launched: str | None = None
+    launched_assignment_identifier: str | None = Field(default=None, alias="launched")
     issue_observations: list[IssueObservation] = Field(default_factory=list)
     assignment_observations: list[AgentAssignmentObservation] = Field(
         default_factory=list
@@ -673,7 +673,9 @@ def _compose_resumed_round_requirement(
         plan=AgentRoundPlan(
             purpose=_derive_round_purpose(pull_request=pull_request),
             is_recovery=recovery_reason is not None,
-            input=AgentRoundInput(state=pull_request.state, posts=undelivered_posts),
+            input=AgentRoundInput(
+                pull_request_state=pull_request.state, user_posts=undelivered_posts
+            ),
         ),
         reason=(
             recovery_reason
@@ -688,7 +690,7 @@ def _compose_resumed_round_requirement(
             pull_request=pull_request.number,
             round_input=assignment.compose_round_paths(
                 number=assignment.next_round_number
-            ).inbox,
+            ).round_input,
         ),
     )
 
@@ -711,7 +713,7 @@ def compose_assignment_observation(
 ) -> AgentAssignmentObservation:
     """Return what the scheduler found for one idle assignment."""
     return AgentAssignmentObservation(
-        assignment=assignment.identifier,
+        assignment_identifier=assignment.identifier,
         issue=assignment.record.issue,
         reason=reason,
         is_known=is_known,
@@ -893,7 +895,7 @@ class AgentWorkScheduler:
         ]
         return record.model_copy(
             update={
-                "launched": required.assignment.identifier,
+                "launched_assignment_identifier": required.assignment.identifier,
                 "assignment_observations": list_assignment_observations(
                     inspection_results=remaining_results
                 ),
@@ -941,10 +943,10 @@ class AgentWorkScheduler:
             clock=self.clock,
         )
         round_input = required.plan.input
-        if round_input is not None and round_input.posts:
+        if round_input is not None and round_input.user_posts:
             advance_user_post_delivery_cursor(
                 assignment=assignment,
-                newest=round_input.posts[-1].written_at,
+                newest=round_input.user_posts[-1].written_at,
             )
 
     def _dispatch_oldest_issue(
@@ -968,7 +970,9 @@ class AgentWorkScheduler:
             )
         except ReportableError as failure:
             return record.model_copy(update={"hold": str(failure)})
-        return record.model_copy(update={"launched": assignment_identifier})
+        return record.model_copy(
+            update={"launched_assignment_identifier": assignment_identifier}
+        )
 
     def _launch_assignment(self, *, issue: int, label: str, at: datetime) -> str:
         """Create an assignment and start its first round."""

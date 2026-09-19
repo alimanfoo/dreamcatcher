@@ -17,7 +17,7 @@ from conftest import (
     review,
 )
 from fakes import Line, Stream, recorded
-from recordings import rendered
+from recordings import render_harness_recording
 
 from dreamcatcher.agent_rounds import (
     AGENT_ROUND_RECORD_NAME,
@@ -241,13 +241,15 @@ def test_a_round_writes_the_pull_request_state_and_user_posts_it_was_given(
         plan=AgentRoundPlan(
             purpose=PURPOSE,
             is_recovery=False,
-            input=AgentRoundInput(state=PullRequestState.OPEN, posts=posts),
+            input=AgentRoundInput(
+                pull_request_state=PullRequestState.OPEN, user_posts=posts
+            ),
         ),
         clock=pinned,
     )
     running.wait()
 
-    read_back = json.loads(running.paths.inbox.read_text(encoding="utf-8"))
+    read_back = json.loads(running.paths.round_input.read_text(encoding="utf-8"))
     assert read_back["state"] == "OPEN"
     assert [post["kind"] for post in read_back["posts"]] == [
         "comment",
@@ -271,7 +273,7 @@ def test_the_feed_a_round_writes_is_the_feed_its_stream_renders_as(
     )
     running.wait()
 
-    assert running.paths.feed.read_text(encoding="utf-8") == rendered(
+    assert running.paths.feed.read_text(encoding="utf-8") == render_harness_recording(
         adapter=CLAUDE_ADAPTER,
         lines=RECORDING.read_text(encoding="utf-8").splitlines(),
         renderer=FeedRenderer(worktree=worktree, clock=pinned),

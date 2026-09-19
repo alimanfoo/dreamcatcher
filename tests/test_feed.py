@@ -18,37 +18,37 @@ from dreamcatcher.feed import (
 WORKTREE = PurePosixPath("/checkout/worktree")
 
 
-def feed() -> FeedRenderer:
+def create_feed_renderer() -> FeedRenderer:
     return FeedRenderer(worktree=WORKTREE, clock=Ticking())
 
 
 def test_a_note_becomes_one_timestamped_line():
-    assert feed().render(event=FeedNote(label="Bash", detail="pytest")) == (
-        "2026-08-19T18:41:58Z  [Bash] pytest\n"
-    )
+    assert create_feed_renderer().render(
+        event=FeedNote(label="Bash", detail="pytest")
+    ) == ("2026-08-19T18:41:58Z  [Bash] pytest\n")
 
 
 def test_a_note_with_nothing_to_add_is_its_label_alone():
     assert (
-        feed().render(event=FeedNote(label="thinking"))
+        create_feed_renderer().render(event=FeedNote(label="thinking"))
         == "2026-08-19T18:41:58Z  [thinking]\n"
     )
 
 
 def test_a_detail_loses_the_worktrees_own_path():
-    assert feed().render(
+    assert create_feed_renderer().render(
         event=FeedNote(label="Edit", detail="/checkout/worktree/src/theme.css")
     ) == ("2026-08-19T18:41:58Z  [Edit] src/theme.css\n")
 
 
 def test_a_path_outside_the_worktree_keeps_its_own_root():
-    assert feed().render(event=FeedNote(label="Read", detail="/etc/hosts")) == (
-        "2026-08-19T18:41:58Z  [Read] /etc/hosts\n"
-    )
+    assert create_feed_renderer().render(
+        event=FeedNote(label="Read", detail="/etc/hosts")
+    ) == ("2026-08-19T18:41:58Z  [Read] /etc/hosts\n")
 
 
 def test_a_sibling_of_the_worktree_that_starts_the_same_way_keeps_its_path():
-    assert feed().render(
+    assert create_feed_renderer().render(
         event=FeedNote(label="Read", detail="/checkout/worktree-old/src/theme.css")
     ) == ("2026-08-19T18:41:58Z  [Read] /checkout/worktree-old/src/theme.css\n")
 
@@ -64,29 +64,31 @@ def test_a_detail_written_the_windows_way_loses_the_worktree_too():
 
 
 def test_a_detail_spread_over_lines_becomes_one():
-    assert feed().render(
+    assert create_feed_renderer().render(
         event=FeedNote(label="Bash", detail="git commit \\\n  --amend")
     ) == ("2026-08-19T18:41:58Z  [Bash] git commit \\ --amend\n")
 
 
 def test_a_detail_longer_than_the_feed_is_clipped():
-    assert feed().render(
+    assert create_feed_renderer().render(
         event=FeedNote(label="Write", detail="x" * (FEED_LINE_WIDTH + 10))
     ) == (f"2026-08-19T18:41:58Z  [Write] {'x' * FEED_LINE_WIDTH} ...\n")
 
 
 def test_prose_becomes_a_line_for_each_line_it_holds():
-    assert feed().render(event=FeedProse(text="I read the file.\n\nIt was empty.")) == (
+    assert create_feed_renderer().render(
+        event=FeedProse(text="I read the file.\n\nIt was empty.")
+    ) == (
         "2026-08-19T18:41:58Z  I read the file.\n2026-08-19T18:41:58Z  It was empty.\n"
     )
 
 
 def test_prose_with_nothing_in_it_writes_nothing():
-    assert feed().render(event=FeedProse(text="  \n\n")) == ""
+    assert create_feed_renderer().render(event=FeedProse(text="  \n\n")) == ""
 
 
 def test_a_subagents_lines_are_indented_under_the_timestamp():
-    rendered = feed()
+    rendered = create_feed_renderer()
 
     assert rendered.render(
         event=FeedNote(label="Bash", detail="ls", is_subagent=True)
@@ -127,7 +129,7 @@ def test_a_written_line_reads_back_as_what_it_says_and_when():
 
 
 def test_a_subagents_line_reads_back_with_the_indent_that_sets_it_in():
-    written = feed().render(
+    written = create_feed_renderer().render(
         event=FeedNote(label="Bash", detail="pytest", is_subagent=True)
     )
 

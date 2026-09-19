@@ -228,8 +228,8 @@ def _render_status(*, report: DreamcatcherStatusReport) -> RenderableType:
         parts=[
             Text(report.repository or "repository unknown", style="bold"),
             _render_instance_status(report=report),
-            _render_assignments(assignments=report.assignments),
-            _render_issues(issues=report.issues),
+            _render_assignments(assignments=report.assignment_statuses),
+            _render_issues(issues=report.issue_observations),
             _describe_empty_status_report(report=report),
         ]
     )
@@ -340,7 +340,7 @@ def _render_assignment_detail(
 
 def _describe_empty_status_report(*, report: DreamcatcherStatusReport) -> Text | None:
     """Describe an instance that has no issue or assignment status yet."""
-    if report.issues or report.assignments:
+    if report.issue_observations or report.assignment_statuses:
         return None
     return Text("no issues or agent assignments recorded yet")
 
@@ -476,7 +476,7 @@ def _render_assignment_summary(
         ("issue identifier", f"GH{record.issue}"),
         ("agent assignment identifier", assignment.identifier),
         ("pull request", f"#{record.pull_request}"),
-        ("dispatch label", record.label),
+        ("dispatch label", record.dispatch_label),
         ("branch", record.branch),
         ("worktree", state.describe_path(path=record.worktree)),
         ("agent harness", record.harness),
