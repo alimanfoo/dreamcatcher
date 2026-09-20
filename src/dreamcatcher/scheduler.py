@@ -176,7 +176,7 @@ class _IssueObservationContext:
     account: str
     config: DreamcatcherConfig
     assignments: dict[int, AgentAssignment]
-    recovery_obstacles: dict[int, str | None]
+    setup_obstacles: dict[int, str | None]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -253,7 +253,7 @@ def observe_issues(
     account: str,
     config: DreamcatcherConfig,
     assignments: list[AgentAssignment],
-    recovery_obstacles: dict[int, str | None],
+    setup_obstacles: dict[int, str | None],
 ) -> IssueObservationResult:
     """Observe every issue considered for dispatch or claimed by this instance."""
     considered_issues = _list_considered_issues(repository=repository, config=config)
@@ -263,12 +263,12 @@ def observe_issues(
         account=account,
         config=config,
         assignments=open_assignments,
-        recovery_obstacles=recovery_obstacles,
+        setup_obstacles=setup_obstacles,
     )
     issue_responses_by_number: dict[int, Issue | UnknownGitHubResponse] = {
         issue.number: issue for issue in considered_issues.issues
     }
-    local_issue_numbers = open_assignments.keys() | recovery_obstacles.keys()
+    local_issue_numbers = open_assignments.keys() | setup_obstacles.keys()
     for issue in local_issue_numbers - issue_responses_by_number.keys():
         issue_responses_by_number[issue] = read_issue(
             repository=repository, issue=issue
@@ -391,9 +391,9 @@ def _observe_external_claim(
     issue: int,
 ) -> IssueFact:
     """Observe whether an open linked pull request claims the issue elsewhere."""
-    has_recovery_setup = issue in context.recovery_obstacles
-    obstacle = context.recovery_obstacles.get(issue)
-    if has_recovery_setup and obstacle is None:
+    has_incomplete_setup = issue in context.setup_obstacles
+    obstacle = context.setup_obstacles.get(issue)
+    if has_incomplete_setup and obstacle is None:
         return _compose_known_issue_fact(value=False)
     linked = list_linked_pull_requests(repository=context.repository, issue=issue)
     if isinstance(linked, UnknownGitHubResponse):
@@ -755,7 +755,7 @@ class AgentWorkScheduler:
             account=self.account,
             config=self.config,
             assignments=assignments,
-            recovery_obstacles=inspect_incomplete_assignment_setups(
+            setup_obstacles=inspect_incomplete_assignment_setups(
                 state=self.state, repository=self.repository
             ),
         )
