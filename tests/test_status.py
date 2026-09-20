@@ -134,7 +134,8 @@ def test_an_empty_instance_reports_unknown_capacity_and_no_work(tmp_path):
     assert found.max_agent_rounds is None
     assert found.running_agent_rounds == 0
     assert found.active_global_cooldown is None
-    assert found.issue_observations == []
+    assert found.available_issues == []
+    assert found.blocked_issues == []
     assert found.assignment_statuses == []
 
 
@@ -543,7 +544,7 @@ def test_a_stopped_daemon_has_no_current_scheduler_hold(state):
     assert report(state=state).scheduler_hold is None
 
 
-def test_an_unavailable_issue_is_absent(state):
+def test_a_blocked_issue_is_reported_with_its_evidence(state):
     write_tick(
         state=state,
         tick=SchedulerRecord(
@@ -558,7 +559,11 @@ def test_an_unavailable_issue_is_absent(state):
         ),
     )
 
-    assert report(state=state).issue_observations == []
+    status_report = report(state=state)
+
+    assert status_report.available_issues == []
+    assert [issue.issue for issue in status_report.blocked_issues] == [20]
+    assert status_report.blocked_issues[0].blocked.evidence == "blocked by GH10"
 
 
 def test_an_open_local_assignment_removes_its_issue_from_available_work(state):
@@ -570,7 +575,7 @@ def test_an_open_local_assignment_removes_its_issue_from_available_work(state):
         ),
     )
 
-    assert report(state=state).issue_observations == []
+    assert report(state=state).available_issues == []
 
 
 def test_a_complete_local_assignment_no_longer_claims_its_observed_issue(state):
@@ -584,7 +589,7 @@ def test_a_complete_local_assignment_no_longer_claims_its_observed_issue(state):
         tick=SchedulerRecord(at=PINNED, issue_observations=[observation]),
     )
 
-    issue = report(state=state).issue_observations[0]
+    issue = report(state=state).available_issues[0]
 
     assert issue.claimed_here.value is IssueFactValue.FALSE
     assert issue.availability.value is IssueFactValue.TRUE
@@ -602,7 +607,7 @@ def test_available_issues_keep_scheduler_order_and_observation_times(state):
         ),
     )
 
-    issues = report(state=state).issue_observations
+    issues = report(state=state).available_issues
 
     assert [issue.issue for issue in issues] == [20, 21]
     assert issues[0].observed_at == PINNED
@@ -676,7 +681,7 @@ def test_a_failed_setup_reports_independently_of_an_external_claim(state):
             failure="assignment setup failed",
         )
     ]
-    assert status_report.issue_observations == []
+    assert status_report.available_issues == []
 
 
 def test_scheduling_does_not_consume_status_reports():

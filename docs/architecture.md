@@ -227,7 +227,7 @@ interface.
 
 `status.py` owns the read-only status model and constructs a
 `DreamcatcherStatusReport` containing the repository identity, instance and
-daemon facts, `FailedAssignmentSetupStatus` entries, available
+daemon facts, `FailedAssignmentSetupStatus` entries, available and blocked
 `IssueObservation` entries, and `AgentAssignmentStatus` entries.
 
 Status construction may read:
@@ -250,8 +250,10 @@ An `IssueObservation` represents claimed here, claimed elsewhere, blocked, and
 routing conflict as independent facts which may each be true, false, or unknown;
 its availability is derived from those facts together with whether the issue is
 open, assigned to the instance's user, and carries exactly one dispatch label.
-The report includes only available issues, in the scheduler's dispatch order. An
-`AgentAssignmentStatus` is one summary status from the ontology.
+The report includes available issues in the scheduler's dispatch order. It also
+includes issues with known open blockers, together with the scheduler's recorded
+blocker evidence. An `AgentAssignmentStatus` is one summary status from the
+ontology.
 
 A `FailedAssignmentSetupStatus` carries the issue identifier and the latest
 setup failure. The report includes it while the latest tick records a failure,

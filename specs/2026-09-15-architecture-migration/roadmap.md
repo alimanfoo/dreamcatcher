@@ -525,9 +525,10 @@ pull-request, and user-post scenarios continue to pass.
 ### Stage 9 Outcome
 
 `status.py` constructs a read-only `StatusReport` containing the repository
-identity, instance and daemon facts, each available `IssueObservation`, and an
-`AgentAssignmentStatus` for each assignment. `tui.py` renders those models and
-feeds without deriving lifecycle or scheduling decisions.
+identity, instance and daemon facts, each available or blocked
+`IssueObservation`, and an `AgentAssignmentStatus` for each assignment. `tui.py`
+renders those models and feeds without deriving lifecycle or scheduling
+decisions.
 
 ### Stage 9 Work
 
@@ -538,8 +539,9 @@ feeds without deriving lifecycle or scheduling decisions.
   instance-wide facts such as daemon state, latest scheduler tick, capacity, and
   active global cooldown.
 - Give each issue observation independent claimed-here, claimed-elsewhere,
-  blocked, and routing-conflict facts and derived availability. Show only
-  available issues, in the scheduler's dispatch order.
+  blocked, and routing-conflict facts and derived availability. Show available
+  issues in the scheduler's dispatch order, and show blocked issues with what
+  blocks them.
 - Give each assignment one derived summary status: working, waiting, needs user
   feedback, fault, complete, or unknown. Reuse the scheduler's pure issue and
   required-round interpretations rather than restating their rules.

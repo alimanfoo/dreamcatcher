@@ -181,7 +181,8 @@ def _render_status(*, report: DreamcatcherStatusReport) -> RenderableType:
             _render_instance_status(report=report),
             _render_assignments(assignments=report.assignment_statuses),
             _render_failed_assignment_setups(setups=report.failed_assignment_setups),
-            _render_issues(issues=report.issue_observations),
+            _render_available_issues(issues=report.available_issues),
+            _render_blocked_issues(issues=report.blocked_issues),
             _describe_empty_status_report(report=report),
         ]
     )
@@ -245,7 +246,9 @@ def _render_instance_status(*, report: DreamcatcherStatusReport) -> RenderableTy
     return _render_section(heading="instance", body=table)
 
 
-def _render_issues(*, issues: Sequence[IssueObservation]) -> RenderableType | None:
+def _render_available_issues(
+    *, issues: Sequence[IssueObservation]
+) -> RenderableType | None:
     """Render available issues in the order the scheduler will dispatch them."""
     if not issues:
         return None
@@ -256,6 +259,21 @@ def _render_issues(*, issues: Sequence[IssueObservation]) -> RenderableType | No
             Text(f"dispatch label: {', '.join(issue.dispatch_labels or [])}"),
         )
     return _render_section(heading="available issues", body=table)
+
+
+def _render_blocked_issues(
+    *, issues: Sequence[IssueObservation]
+) -> RenderableType | None:
+    """Render blocked issues with the scheduler's recorded blocker evidence."""
+    if not issues:
+        return None
+    table = _create_table(columns=2)
+    for issue in issues:
+        table.add_row(
+            Text(f"GH{issue.issue}"),
+            Text(issue.blocked.evidence or "blocked"),
+        )
+    return _render_section(heading="blocked issues", body=table)
 
 
 def _render_failed_assignment_setups(
@@ -319,7 +337,8 @@ def _describe_empty_status_report(*, report: DreamcatcherStatusReport) -> Text |
     """Describe an instance that has no issue or assignment status yet."""
     if (
         report.failed_assignment_setups
-        or report.issue_observations
+        or report.available_issues
+        or report.blocked_issues
         or report.assignment_statuses
     ):
         return None

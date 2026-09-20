@@ -512,6 +512,26 @@ def test_status_names_the_daemon_runs_harness_and_version(tmp_path, daemon):
     assert "agent harness claude" in " ".join(rendered.split())
 
 
+def test_a_blocked_issue_with_no_recorded_evidence_is_still_shown(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            issue_observations=[
+                observed_issue(
+                    issue=52,
+                    values={"blocked": IssueFactValue.TRUE},
+                )
+            ],
+        ),
+    )
+
+    rendered = render_status_view(state=state)
+
+    assert "GH52 blocked" in " ".join(rendered.split())
+
+
 def test_identifiers_remain_whole_when_the_assignment_table_folds(tmp_path):
     """Two assignments at one issue differ only in their identifier times."""
     state = StateDirectory(root=tmp_path)

@@ -131,7 +131,8 @@ class DreamcatcherStatusReport:
     running_agent_rounds: int
     active_global_cooldown: GlobalCooldown | None
     failed_assignment_setups: list[FailedAssignmentSetupStatus]
-    issue_observations: list[IssueObservation]
+    available_issues: list[IssueObservation]
+    blocked_issues: list[IssueObservation]
     assignment_statuses: list[AgentAssignmentStatus]
 
 
@@ -174,10 +175,15 @@ def read_status_report(
             for observation in issue_observations
             if observation.setup_failure is not None
         ],
-        issue_observations=[
+        available_issues=[
             observation
             for observation in issue_observations
             if observation.availability.value is IssueFactValue.TRUE
+        ],
+        blocked_issues=[
+            observation
+            for observation in issue_observations
+            if observation.blocked.value is IssueFactValue.TRUE
         ],
         assignment_statuses=assignment_statuses,
     )

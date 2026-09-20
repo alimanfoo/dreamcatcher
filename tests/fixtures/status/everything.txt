@@ -21,3 +21,6 @@ agent assignments
 available issues
   GH50  dispatch label: dream:smith
   GH51  dispatch label: dream:smith
+
+blocked issues
+  GH52  blocked by GH50
