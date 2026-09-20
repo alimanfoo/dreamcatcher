@@ -253,10 +253,10 @@ open, assigned to the instance's user, and carries exactly one dispatch label.
 The report includes only available issues, in the scheduler's dispatch order. An
 `AgentAssignmentStatus` is one summary status from the ontology.
 
-A `FailedAssignmentSetupStatus` carries the issue identifier and failure from
-the latest attempt to reconcile an incomplete setup. The report includes it
-while the latest tick records a failure, independently of whether the issue is
-available or a linked pull request proves that it is claimed elsewhere.
+A `FailedAssignmentSetupStatus` carries the issue identifier and the latest
+setup failure. The report includes it while the latest tick records a failure,
+independently of whether the issue is available or a linked pull request proves
+that it is claimed elsewhere.
 
 An `AgentAssignmentObservation` records the tick's interpretation of an idle
 open assignment. It carries a reason, whether the relevant facts were known, and

@@ -247,7 +247,7 @@ def _render_issues(*, issues: Sequence[IssueObservation]) -> RenderableType | No
 def _render_failed_assignment_setups(
     *, setups: Sequence[FailedAssignmentSetupStatus]
 ) -> RenderableType | None:
-    """Render incomplete assignment setups whose latest reconciliation failed."""
+    """Render incomplete assignment setups with recorded failures."""
     if not setups:
         return None
     table = _create_table(columns=2)

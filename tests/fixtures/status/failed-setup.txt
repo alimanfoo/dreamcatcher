@@ -10,7 +10,7 @@ agent assignments
   GH13-20260819-184158  waiting  no round has run yet
 
 failed assignment setups
-  GH20  cannot reconcile its incomplete setup
+  GH20  assignment setup failed
 
 available issues
   GH21  dispatch label: dream:smith

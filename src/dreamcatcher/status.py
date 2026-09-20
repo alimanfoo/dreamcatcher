@@ -109,7 +109,7 @@ class AgentAssignmentStatus:
 
 @dataclass(frozen=True, kw_only=True)
 class FailedAssignmentSetupStatus:
-    """Describe the latest failed attempt to reconcile an incomplete setup."""
+    """Describe an incomplete assignment setup's latest failure."""
 
     issue: int
     failure: str

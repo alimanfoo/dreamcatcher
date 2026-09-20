@@ -637,7 +637,7 @@ def test_a_failed_setup_reports_independently_of_an_external_claim(state):
         issue=20,
         values={"claimed_elsewhere": IssueFactValue.TRUE},
         evidence={"claimed_elsewhere": "a pull request is open on it: #52"},
-    ).model_copy(update={"setup_failure": "cannot reconcile its incomplete setup"})
+    ).model_copy(update={"setup_failure": "assignment setup failed"})
     write_tick(
         state=state,
         tick=SchedulerRecord(at=PINNED, issue_observations=[observation]),
@@ -648,7 +648,7 @@ def test_a_failed_setup_reports_independently_of_an_external_claim(state):
     assert status_report.failed_assignment_setups == [
         FailedAssignmentSetupStatus(
             issue=20,
-            failure="cannot reconcile its incomplete setup",
+            failure="assignment setup failed",
         )
     ]
     assert status_report.issue_observations == []

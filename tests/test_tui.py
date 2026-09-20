@@ -270,7 +270,7 @@ def fabricate_a_failed_setup(*, state):
     """A running daemon with an assignment, a failed setup, and available work."""
     holding(state=state)
     written(state=state, issue=13, records=[])
-    failure = "cannot reconcile its incomplete setup"
+    failure = "assignment setup failed"
     write_tick(
         state=state,
         tick=SchedulerRecord(

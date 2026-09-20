@@ -257,12 +257,12 @@ def test_a_recoverable_setup_is_not_treated_as_an_external_claim(gh):
 def test_a_setup_that_cannot_be_recovered_leaves_the_claim_unknown(gh):
     found = observe(
         config=config_with_routes(labels=[DISPATCH_LABEL]),
-        incomplete_setups={8: "cannot reconcile its incomplete setup"},
+        incomplete_setups={8: "assignment setup failed"},
     )[0]
 
     assert found.claimed_elsewhere.value is IssueFactValue.UNKNOWN
-    assert found.claimed_elsewhere.evidence == "cannot reconcile its incomplete setup"
-    assert found.setup_failure == "cannot reconcile its incomplete setup"
+    assert found.claimed_elsewhere.evidence == "assignment setup failed"
+    assert found.setup_failure == "assignment setup failed"
 
 
 def test_a_setup_failure_survives_a_failed_linked_pull_request_read(gh):
@@ -270,12 +270,12 @@ def test_a_setup_failure_survives_a_failed_linked_pull_request_read(gh):
 
     found = observe(
         config=config_with_routes(labels=[DISPATCH_LABEL]),
-        incomplete_setups={8: "cannot reconcile its incomplete setup"},
+        incomplete_setups={8: "assignment setup failed"},
     )[0]
 
     assert found.claimed_elsewhere.value is IssueFactValue.UNKNOWN
-    assert found.claimed_elsewhere.evidence == "cannot reconcile its incomplete setup"
-    assert found.setup_failure == "cannot reconcile its incomplete setup"
+    assert found.claimed_elsewhere.evidence == "assignment setup failed"
+    assert found.setup_failure == "assignment setup failed"
 
 
 def test_a_setup_failure_keeps_a_proven_external_claim(gh):
@@ -292,12 +292,12 @@ def test_a_setup_failure_keeps_a_proven_external_claim(gh):
 
     found = observe(
         config=config_with_routes(labels=[DISPATCH_LABEL]),
-        incomplete_setups={8: "cannot reconcile its incomplete setup"},
+        incomplete_setups={8: "assignment setup failed"},
     )[0]
 
     assert found.claimed_elsewhere.value is IssueFactValue.TRUE
     assert found.claimed_elsewhere.evidence == "a pull request is open on it: #52"
-    assert found.setup_failure == "cannot reconcile its incomplete setup"
+    assert found.setup_failure == "assignment setup failed"
 
 
 def test_a_failed_linked_pull_request_read_preserves_unknown_evidence(gh):
@@ -424,11 +424,9 @@ def test_an_incomplete_setup_is_observed_outside_the_listing(gh):
 
     found = observe(
         config=config_with_routes(labels=[DISPATCH_LABEL]),
-        incomplete_setups={13: "cannot reconcile its incomplete setup"},
+        incomplete_setups={13: "assignment setup failed"},
     )
 
     assert [observation.issue for observation in found] == [13]
     assert found[0].claimed_elsewhere.value is IssueFactValue.UNKNOWN
-    assert (
-        found[0].claimed_elsewhere.evidence == "cannot reconcile its incomplete setup"
-    )
+    assert found[0].claimed_elsewhere.evidence == "assignment setup failed"
