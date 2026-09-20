@@ -91,11 +91,7 @@ class AgentAssignmentStatus:
     @cached_property
     def harness_session_identifier(self) -> HarnessSessionIdentifier | None:
         """The recorded or recoverable harness session identifier."""
-        harness_adapter = HARNESS_ADAPTERS[self.assignment.record.harness]
-        return find_harness_session_identifier(
-            assignment=self.assignment,
-            harness_adapter=harness_adapter,
-        )
+        return find_harness_session_identifier(assignment=self.assignment)
 
     @cached_property
     def hand_resume_command(self) -> list[str] | None:
