@@ -224,8 +224,8 @@ conflict after an assignment has started.
 An issue whose assignment creation was interrupted has an incomplete setup. A
 setup that can be reconciled does not claim the issue elsewhere. A setup that
 cannot be reconciled leaves claimed elsewhere unknown, with the obstacle as its
-evidence, until the user resolves it, unless an open linked pull request already
-proves that claim true.
+evidence until a later tick can reconcile the setup, unless an open linked pull
+request already proves that claim true.
 
 An issue with a local assignment appears through its agent assignment rather
 than in the report's available issues.
