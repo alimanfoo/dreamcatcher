@@ -96,9 +96,9 @@ recorded assignment keeps its branch and pull request, and the next tick tries
 that first round again before it schedules ordinary work.
 
 The daemon lock lives at `.dreamcatcher/daemon.pid`, where every state format
-shares it. Everything else the daemon owns lives under `.dreamcatcher/v3/` in
-the checkout. The top-level directory ignores itself, so git never sees any of
-this state. `scheduler.json` in the versioned root says what the most recent
+shares it. All format-specific state lives under `.dreamcatcher/v3/` in the
+checkout. The top-level directory ignores itself, so git never sees any of this
+state. `scheduler.json` in the versioned root says what the most recent
 completed look observed and decided, including what the daemon did not do and
 why. It also preserves any active global cooldown and the end of the most recent
 one. A look that cannot complete reports its failure in the daemon output and
