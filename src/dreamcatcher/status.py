@@ -1,4 +1,4 @@
-"""Read-only status reports for a Dreamcatcher instance."""
+"""Read status reports for a Dreamcatcher instance."""
 
 from collections.abc import Callable
 from dataclasses import dataclass

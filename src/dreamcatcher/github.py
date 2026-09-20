@@ -1,4 +1,4 @@
-"""Read GitHub data through the gh command-line client."""
+"""Operate on GitHub data through the gh command-line client."""
 
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -361,7 +361,7 @@ def read_issue(*, repository: str, issue: int) -> Issue | UnknownGitHubResponse:
 def list_pull_requests(
     *, repository: str, branch: str
 ) -> list[PullRequest] | UnknownGitHubResponse:
-    """Return every pull request whose head is the branch.
+    """Return pull requests whose head is the branch, within gh's result limit.
 
     A branch usually has one, and an empty list means it has none. Which of
     several counts is the caller's rule, not this read's.

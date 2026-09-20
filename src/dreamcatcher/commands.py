@@ -51,7 +51,7 @@ UNQUOTABLE_CHARACTERS = {
 
 
 class CommandError(ReportableError):
-    """Report a missing or failed external command."""
+    """Report a failure preparing or running an external command."""
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -81,17 +81,17 @@ class ChildProcess:
         return self.process.returncode is None
 
     def wait(self) -> int:
-        """Wait for the child, terminate its descendants, and return its status.
+        """Wait for the child, end its contained process group, and return its status.
 
-        Whatever the child started can outlive it, so the child's whole tree is
-        ended here too, once the child itself has gone.
+        Processes still contained with the child can outlive it, so its POSIX
+        process group or Windows Job Object ends here after the child has gone.
         """
         status = self.process.wait()
         teardown.end_process_tree(pid=self.pid)
         return status
 
     def kill(self) -> None:
-        """Terminate the child and its descendants if it is still running.
+        """End the child's contained process group if it is still running.
 
         A child that has gone leaves the operating system free to give its pid
         to somebody else, so this leaves it alone. `wait` does signal at that

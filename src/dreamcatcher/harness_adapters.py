@@ -67,7 +67,7 @@ class HarnessInvocation:
 
 @dataclass(frozen=True, kw_only=True)
 class HarnessOutput:
-    """Describe the feed events and session identity in one output line."""
+    """Describe the feed events and harness session identifier in one output line."""
 
     events: list[FeedEvent]
     harness_session_identifier: str | None = None

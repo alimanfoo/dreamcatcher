@@ -34,11 +34,10 @@ def hold_daemon_lock(*, path: Path) -> Iterator[None]:
 
 
 def read_daemon_pid(*, path: Path) -> int | None:
-    """Return the live daemon PID, or None when the lock is stale.
+    """Return the PID when the lock names a live process, otherwise None.
 
-    A lock nobody can read as a live pid is stale. That covers a file that is
-    not there, one holding something other than a pid, and one holding a number
-    no process could have.
+    The check cannot distinguish the daemon from another process that reused
+    its PID. A missing or malformed file and a PID with no process are stale.
     """
     try:
         pid = int(path.read_text(encoding="utf-8").strip())

@@ -4,8 +4,9 @@ Each tick reads local assignments, observes relevant issues on GitHub, applies
 the concurrency cap and global cooldown, and launches at most one round.
 
 Within existing work, a missing first round comes first, followed by recovery,
-wrap-up, and user feedback. If no assignment needs a round, the oldest available
-issue is dispatched.
+wrap-up, and user feedback. After a successful issue read, when neither the cap
+nor cooldown holds launches, the oldest available issue is dispatched if no
+assignment needs a round.
 """
 
 from collections.abc import Callable
@@ -437,7 +438,6 @@ def _observe_blocking_issues(*, repository: str, issue: int) -> IssueFact:
 
 
 def _compose_known_issue_fact(*, value: bool, evidence: str | None = None) -> IssueFact:
-    """Return a known issue fact."""
     return IssueFact(
         value=IssueFactValue.TRUE if value else IssueFactValue.FALSE,
         evidence=evidence,
@@ -445,7 +445,6 @@ def _compose_known_issue_fact(*, value: bool, evidence: str | None = None) -> Is
 
 
 def _compose_unknown_issue_fact(*, evidence: str) -> IssueFact:
-    """Return an issue fact that an external read could not establish."""
     return IssueFact(value=IssueFactValue.UNKNOWN, evidence=evidence)
 
 
@@ -539,7 +538,6 @@ def prioritize_required_rounds(
 
 
 def _rank_required_round(required: RequiredAgentRound, /) -> int:
-    """Return the existing scheduling priority of one required round."""
     if not required.assignment.rounds:
         return 0
     if required.plan.is_recovery:

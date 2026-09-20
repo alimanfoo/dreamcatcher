@@ -157,7 +157,7 @@ def show_status_view(
 ) -> None:
     """Show instance, issue, and assignment status until interrupted.
 
-    A non-terminal console renders one report and returns.
+    A non-terminal or dumb terminal renders one report and returns.
     """
     _refresh_live_view(
         console=console,
@@ -331,8 +331,8 @@ def show_assignment_view(
 ) -> None:
     """Show the issue's newest assignment until it completes or enters fault.
 
-    The view remains open between rounds. A non-terminal console renders one
-    snapshot and returns.
+    The view remains open between rounds. A non-terminal or dumb terminal
+    renders one snapshot and returns.
     """
     _refresh_live_view(
         console=console,
@@ -551,7 +551,7 @@ def show_feed_view(
     them until the assignment completes or enters fault.
 
     Every feed line carries its own timestamp, so the view needs no clock. A
-    non-terminal console shows the current contents once and returns.
+    non-terminal or dumb terminal shows the current contents once and returns.
     """
     if round_number is not None:
         _show_one_round(

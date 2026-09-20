@@ -1,7 +1,8 @@
 """Create agent assignments and read their persisted state.
 
 Each dispatch creates an assignment with its own identifier, branch, worktree,
-state directory, and pull request. Several assignments can exist for one issue.
+assignment directory under the instance state, and pull request. Several
+assignments can exist for one issue.
 
 Creation prepares and publishes the assignment's branch, opens its linked draft
 pull request, then records the assignment. The scheduler decides which issue to
@@ -311,8 +312,8 @@ class AgentAssignmentCreator:
     ) -> AgentAssignment:
         """Create and publish the issue's assignment with no rounds run yet.
 
-        The assignment runs on the harness that the route and this daemon
-        select, with that harness's model, effort, and prompt template. Creation
+        The route selects the assignment harness from the requested harness,
+        with that harness's model, effort, and prompt template. Creation
         fetches main, makes the branch and worktree, adds and pushes an empty
         commit, opens the linked draft pull request, then writes the record.
 

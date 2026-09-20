@@ -5,8 +5,8 @@ A descendant that starts another session can escape that group. On Windows,
 each child belongs to a Job Object that terminates its members when the daemon
 closes the last job handle.
 
-Cleanup runs after normal exit as well as forced termination so that descendants
-do not outlive a completed round.
+Cleanup ends the contained group or job after normal exit as well as forced
+termination.
 """
 
 import sys

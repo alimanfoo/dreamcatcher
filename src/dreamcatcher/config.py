@@ -1,4 +1,4 @@
-"""Read dreamcatcher.toml, the configuration the repo agrees on."""
+"""Read dreamcatcher.toml, the configuration the repository agrees on."""
 
 from enum import StrEnum
 from pathlib import Path
@@ -135,5 +135,5 @@ class DreamcatcherConfig(DreamcatcherDocument):
 
 
 def read_dreamcatcher_config(*, root: Path) -> DreamcatcherConfig:
-    """Return the configuration the repo at root holds."""
+    """Return the configuration the repository at root holds."""
     return read_toml(model=DreamcatcherConfig, path=root / DREAMCATCHER_CONFIG_NAME)

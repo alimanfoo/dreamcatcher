@@ -177,7 +177,7 @@ class AgentRoundInput(DreamcatcherDocument):
 
 @dataclass(frozen=True, kw_only=True)
 class AgentRoundPlan:
-    """Describe the purpose, recovery state, and input for a new round."""
+    """Describe the decisions and input that a new round executes."""
 
     purpose: AgentRoundPurpose
     is_recovery: bool
@@ -368,7 +368,7 @@ class AgentRound:
         self._ending_recorder.join()
 
     def stop(self) -> None:
-        """End the round and all of its child processes.
+        """End the round and its contained process group or job.
 
         This returns as soon as the round has ended, and does not wait for the
         feed, so that a stream somebody else is still holding cannot hold up
