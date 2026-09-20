@@ -200,6 +200,7 @@ def fabricate_everything(*, state):
     )
     written(state=state, issue=31, records=[ended(minute=1)])
     written(state=state, issue=35, records=[ended(minute=1, status=2)])
+    written(state=state, issue=40, records=[ended(minute=1)])
     written(
         state=state,
         issue=9,
@@ -571,6 +572,27 @@ def test_latest_assignment_output_uses_one_full_width_line(tmp_path, daemon):
     assert output[0].startswith("  The agent is explaining")
     assert len(output[0]) <= 60
     assert "assignment below it" not in output[0]
+
+
+def test_assignments_are_rendered_in_attention_order(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    rendered = render_status_view(state=state)
+
+    identifiers = [
+        "GH20-20260819-184158",
+        "GH9-20260819-184158",
+        "GH13-20260819-184158",
+        "GH31-20260819-184158",
+        "GH35-20260819-184158",
+        "GH44-20260819-184158",
+        "GH40-20260819-184158",
+        "GH12-20260819-184158",
+    ]
+    assert [rendered.index(identifier) for identifier in identifiers] == sorted(
+        rendered.index(identifier) for identifier in identifiers
+    )
 
 
 def test_status_nobody_is_watching_is_drawn_once_and_returns(tmp_path, daemon):

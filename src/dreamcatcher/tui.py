@@ -51,6 +51,19 @@ ASSIGNMENT_STATUS_STYLES = {
     AgentAssignmentStatusValue.COMPLETE: "dim",
     AgentAssignmentStatusValue.UNKNOWN: "magenta",
 }
+ASSIGNMENT_STATUS_RANKS = {
+    value: rank
+    for rank, value in enumerate(
+        (
+            AgentAssignmentStatusValue.NEEDS_USER_FEEDBACK,
+            AgentAssignmentStatusValue.FAULT,
+            AgentAssignmentStatusValue.WORKING,
+            AgentAssignmentStatusValue.WAITING,
+            AgentAssignmentStatusValue.UNKNOWN,
+            AgentAssignmentStatusValue.COMPLETE,
+        )
+    )
+}
 
 STATUSES_THAT_END_A_VIEW = (
     AgentAssignmentStatusValue.FAULT,
@@ -291,13 +304,17 @@ def _render_failed_assignment_setups(
 def _render_assignments(
     *, assignments: Sequence[AgentAssignmentStatus]
 ) -> RenderableType | None:
-    """Render every agent assignment and its summary status."""
+    """Render assignments in attention order, preserving order within a status."""
     if not assignments:
         return None
-    identifier_width = max(len(status.assignment.identifier) for status in assignments)
-    status_width = max(len(status.value) for status in assignments)
+    ordered = sorted(
+        assignments,
+        key=lambda status: ASSIGNMENT_STATUS_RANKS[status.value],
+    )
+    identifier_width = max(len(status.assignment.identifier) for status in ordered)
+    status_width = max(len(status.value) for status in ordered)
     rows: list[RenderableType] = []
-    for status in assignments:
+    for status in ordered:
         table = Table(box=None, show_header=False, pad_edge=False)
         table.add_column(style="bold", width=identifier_width)
         table.add_column(width=status_width)

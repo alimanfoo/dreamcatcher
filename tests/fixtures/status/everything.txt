@@ -7,16 +7,17 @@ instance
   global cooldown        none               
 
 agent assignments
+  GH20-20260819-184158  needs user feedback  idle 2h 0m                                             
   GH9-20260819-184158   fault                two consecutive rounds failed                          
                                              (.dreamcatcher/assignments/GH9-20260819-184158/rounds/2
                                              /feed.txt)                                             
-  GH12-20260819-184158  complete             2 rounds                                               
   GH13-20260819-184158  working              round 2, running 1h 30m, last output 1h 29m ago        
   [Bash] pytest                                                                                     
-  GH20-20260819-184158  needs user feedback  idle 2h 0m                                             
   GH31-20260819-184158  waiting              1 new post to answer                                   
   GH35-20260819-184158  waiting              the last round failed (exit 2)                         
   GH44-20260819-184158  waiting              no round has run yet                                   
+  GH40-20260819-184158  unknown              no current scheduler observation                       
+  GH12-20260819-184158  complete             2 rounds                                               
 
 available issues
   GH50  dream:smith
