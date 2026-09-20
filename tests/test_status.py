@@ -41,8 +41,9 @@ LOOKED_AT = PINNED + timedelta(hours=2)
 @pytest.fixture
 def state(tmp_path):
     """A configured state directory holding one assignment."""
-    configure(root=tmp_path, head="interval = 300\nmax_agents = 3\n\n")
+    configure(root=tmp_path)
     directory = StateDirectory(root=tmp_path)
+    write_text(text="3\n", path=directory.max_agents)
     write_agent_assignment(state=directory, identifier=ASSIGNMENT_ID, issue=13)
     return directory
 
@@ -114,8 +115,7 @@ def idle_observation() -> AgentAssignmentObservation:
     )
 
 
-def test_an_empty_instance_reports_its_configuration_and_no_work(tmp_path):
-    configure(root=tmp_path, head="interval = 300\nmax_agents = 3\n\n")
+def test_an_empty_instance_reports_unknown_capacity_and_no_work(tmp_path):
 
     found = read_status_report(
         state=StateDirectory(root=tmp_path),
@@ -127,7 +127,7 @@ def test_an_empty_instance_reports_its_configuration_and_no_work(tmp_path):
     assert found.daemon_pid is None
     assert found.latest_scheduler_tick is None
     assert found.scheduler_hold is None
-    assert found.max_agent_rounds == 3
+    assert found.max_agent_rounds is None
     assert found.running_agent_rounds == 0
     assert found.active_global_cooldown is None
     assert found.issue_observations == []
@@ -138,6 +138,16 @@ def test_the_instance_record_names_the_repository(state):
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
 
     assert report(state=state).repository == REPOSITORY
+
+
+@pytest.mark.parametrize("value", ["not a number\n", "0\n"])
+def test_an_invalid_recorded_agent_cap_is_unknown(tmp_path, value):
+    state = StateDirectory(root=tmp_path)
+    write_text(text=value, path=state.max_agents)
+
+    found = report(state=state)
+
+    assert found.max_agent_rounds is None
 
 
 def test_a_live_round_reports_work_and_its_latest_output(running):
@@ -494,6 +504,7 @@ def test_an_active_cooldown_and_hold_are_instance_facts(running):
 
     assert found.latest_scheduler_tick == PINNED
     assert found.scheduler_hold == "global cooldown"
+    assert found.max_agent_rounds == 3
     assert found.active_global_cooldown == cooldown
 
 

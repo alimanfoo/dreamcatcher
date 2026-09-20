@@ -8,7 +8,6 @@ import psutil
 import pytest
 from clocks import PINNED, Ticking
 from conftest import (
-    CONFIG_HEAD,
     POST_LIST_PATHS,
     POSTED_BY,
     REPOSITORY,
@@ -86,16 +85,20 @@ class Interrupting:
             raise KeyboardInterrupt
 
 
-def idling(*, root, ticks: int = 2) -> tuple[DreamcatcherDaemon, Interrupting, Ticking]:
+def idling(
+    *, root, ticks: int = 2, max_agents: int = 1
+) -> tuple[DreamcatcherDaemon, Interrupting, Ticking]:
     waiting = Interrupting(ticks=ticks)
     ticking = Ticking(step=300)
-    return (
-        DreamcatcherDaemon(
-            root=root, harness=AgentHarness.CLAUDE, clock=ticking, wait=waiting
-        ),
-        waiting,
-        ticking,
+    daemon = DreamcatcherDaemon(
+        root=root,
+        harness=AgentHarness.CLAUDE,
+        interval=300,
+        max_agents=max_agents,
     )
+    daemon.clock = ticking
+    daemon.wait = waiting
+    return daemon, waiting, ticking
 
 
 def settling(*, root, ticks: int = 1) -> DreamcatcherDaemon:
@@ -233,16 +236,20 @@ def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(
 
     assert (daemon.state.path / ".gitignore").exists()
     assert daemon.state.repository.read_text(encoding="utf-8") == f"{REPOSITORY}\n"
+    assert daemon.state.max_agents.read_text(encoding="utf-8") == "1\n"
     assert not daemon.state.lock.exists()
 
 
 def test_a_second_daemon_refuses_while_the_first_holds_the_repo(watched, harnesses, gh):
-    daemon, _, _ = idling(root=watched)
+    daemon, _, _ = idling(root=watched, max_agents=4)
     daemon.state.bootstrap()
+    write_text(text="2\n", path=daemon.state.max_agents)
     daemon.state.lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
 
     with pytest.raises(ReportableError, match=f"pid {os.getpid()}"):
         daemon.run()
+
+    assert daemon.state.max_agents.read_text(encoding="utf-8") == "2\n"
 
 
 def test_the_daemon_runs_the_harness_it_was_given(watched):
@@ -286,15 +293,13 @@ def test_a_run_refuses_when_a_harness_it_could_dispatch_to_is_not_installed(
 
 
 def test_a_run_refuses_when_the_harness_it_was_named_is_not_installed(repo, alone):
-    (repo / DREAMCATCHER_CONFIG_NAME).write_text(
-        CONFIG_HEAD + SMITH_CLAUDE, encoding="utf-8"
-    )
+    (repo / DREAMCATCHER_CONFIG_NAME).write_text(SMITH_CLAUDE, encoding="utf-8")
     alone(programs=["claude"])
+    daemon = DreamcatcherDaemon(root=repo, harness=AgentHarness.CODEX)
+    daemon.wait = Interrupting(ticks=1)
 
     with pytest.raises(ReportableError, match="codex is not on the PATH"):
-        DreamcatcherDaemon(
-            root=repo, harness=AgentHarness.CODEX, wait=Interrupting(ticks=1)
-        ).run()
+        daemon.run()
 
 
 def test_a_round_the_daemon_before_this_one_left_running_is_ended(
@@ -415,11 +420,11 @@ def test_a_run_that_cannot_be_told_which_repository_this_is_refuses(
 ):
     configure(root=cloned)
     gh.fails(stderr="gh: no such remote", to="repo view")
+    daemon = DreamcatcherDaemon(root=cloned, harness=AgentHarness.CLAUDE)
+    daemon.wait = Interrupting(ticks=1)
 
     with pytest.raises(ReportableError, match="cannot tell which repository"):
-        DreamcatcherDaemon(
-            root=cloned, harness=AgentHarness.CLAUDE, wait=Interrupting(ticks=1)
-        ).run()
+        daemon.run()
 
 
 def test_the_daemon_ends_the_rounds_it_holds_as_it_goes_down(dispatching, harnesses):
@@ -490,8 +495,8 @@ def test_a_run_that_cannot_be_told_which_account_gh_is_signed_in_as_refuses(
 ):
     configure(root=cloned)
     gh.fails(stderr="gh: you are not logged in", to="api user")
+    daemon = DreamcatcherDaemon(root=cloned, harness=AgentHarness.CLAUDE)
+    daemon.wait = Interrupting(ticks=1)
 
     with pytest.raises(ReportableError, match="cannot tell which account"):
-        DreamcatcherDaemon(
-            root=cloned, harness=AgentHarness.CLAUDE, wait=Interrupting(ticks=1)
-        ).run()
+        daemon.run()

@@ -22,7 +22,11 @@ from dreamcatcher.github import (
 )
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.lock import hold_daemon_lock
-from dreamcatcher.scheduler import AgentWorkScheduler, InvalidSchedulerRecordError
+from dreamcatcher.scheduler import (
+    DEFAULT_MAX_AGENTS,
+    AgentWorkScheduler,
+    InvalidSchedulerRecordError,
+)
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.words import describe_time
 
@@ -32,6 +36,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from dreamcatcher.agent_rounds import AgentRound
+
+DEFAULT_INTERVAL_SECONDS = 120
 
 
 def _write_output(*, line: str) -> None:
@@ -56,8 +62,8 @@ class DreamcatcherDaemon:
         *,
         root: Path,
         harness: AgentHarness,
-        clock: Callable[[], datetime] = read_current_time,
-        wait: WaitForSeconds = sleep,
+        interval: int = DEFAULT_INTERVAL_SECONDS,
+        max_agents: int = DEFAULT_MAX_AGENTS,
     ) -> None:
         """Configure the daemon for the main checkout at root."""
         if not (root / ".git").is_dir():
@@ -66,10 +72,12 @@ class DreamcatcherDaemon:
                 f"{root} is not one."
             )
         self.harness = harness
+        self.interval = interval
+        self.max_agents = max_agents
         self.config = read_dreamcatcher_config(root=root)
         self.state = StateDirectory(root=root)
-        self.clock = clock
-        self.wait = wait
+        self.clock: Callable[[], datetime] = read_current_time
+        self.wait: WaitForSeconds = sleep
         # The rounds this daemon is running, by the identifier of the assignment each
         # belongs to. They are what the cap counts, and what the daemon ends as
         # it goes down.
@@ -109,8 +117,10 @@ class DreamcatcherDaemon:
             harness=self.harness,
             clock=self.clock,
             rounds=self.rounds,
+            max_agents=self.max_agents,
         )
         with hold_daemon_lock(path=self.state.lock):
+            write_text(text=f"{self.max_agents}\n", path=self.state.max_agents)
             self._sweep_orphans()
             at = self.clock()
             _write_output(line=f"{describe_time(at=at)}  dreamcatcher is running")
@@ -118,7 +128,7 @@ class DreamcatcherDaemon:
                 with suppress(KeyboardInterrupt):
                     while True:
                         self.run_scheduler_cycle(scheduler=scheduler, at=at)
-                        self.wait(self.config.interval)
+                        self.wait(self.interval)
                         at = self.clock()
             finally:
                 # Rounds die with the daemon by design, so this happens however

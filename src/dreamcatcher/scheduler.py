@@ -60,6 +60,7 @@ from dreamcatcher.state import StateDirectory
 from dreamcatcher.words import describe_count
 
 GLOBAL_COOLDOWN_DURATION = timedelta(minutes=15)
+DEFAULT_MAX_AGENTS = 1
 NO_ROUND_HAS_RUN = "no round has run yet"
 
 
@@ -718,6 +719,7 @@ class AgentWorkScheduler:
     harness: AgentHarness
     clock: Callable[[], datetime]
     rounds: dict[str, AgentRound]
+    max_agents: int = DEFAULT_MAX_AGENTS
 
     def tick(self, *, at: datetime) -> SchedulerRecord:
         """Inspect current work and launch at most one agent round.
@@ -788,9 +790,9 @@ class AgentWorkScheduler:
                     f"{hold_reason}; could not refresh issues: {issue_failure}"
                 )
             return record.model_copy(update={"hold": hold_reason})
-        if len(self.rounds) >= self.config.max_agents:
+        if len(self.rounds) >= self.max_agents:
             capacity_reason = (
-                f"at cap: {len(self.rounds)} of {self.config.max_agents} rounds running"
+                f"at cap: {len(self.rounds)} of {self.max_agents} rounds running"
             )
             hold_reason = (
                 capacity_reason

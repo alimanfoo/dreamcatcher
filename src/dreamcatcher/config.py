@@ -4,7 +4,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Self
 
-from pydantic import AfterValidator, ConfigDict, Field, PositiveInt, model_validator
+from pydantic import AfterValidator, ConfigDict, Field, model_validator
 
 from dreamcatcher.commands import refuse_unquotable
 from dreamcatcher.documents import DreamcatcherDocument, read_toml
@@ -81,8 +81,6 @@ class DispatchRoute(DreamcatcherDocument):
 class DreamcatcherConfig(DreamcatcherDocument):
     """Model a repository's agent-assignment configuration."""
 
-    interval: PositiveInt = 120
-    max_agents: PositiveInt = 1
     assignee: str = "@me"
     dispatch: list[DispatchRoute] = Field(min_length=1)
 

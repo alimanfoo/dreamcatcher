@@ -19,7 +19,6 @@ from dreamcatcher.agent_rounds import (
     ErroredAgentRoundEnding,
 )
 from dreamcatcher.clock import read_current_time
-from dreamcatcher.config import read_dreamcatcher_config
 from dreamcatcher.documents import read_text
 from dreamcatcher.feed import FeedLine, read_last_feed_line
 from dreamcatcher.harness_adapters import HarnessSessionIdentifier
@@ -117,7 +116,7 @@ class DreamcatcherStatusReport:
     daemon_pid: int | None
     latest_scheduler_tick: datetime | None
     scheduler_hold: str | None
-    max_agent_rounds: int
+    max_agent_rounds: int | None
     running_agent_rounds: int
     active_global_cooldown: GlobalCooldown | None
     issue_observations: list[IssueObservation]
@@ -127,7 +126,7 @@ class DreamcatcherStatusReport:
 def read_status_report(
     *, state: StateDirectory, clock: Callable[[], datetime] = read_current_time
 ) -> DreamcatcherStatusReport:
-    """Read a status report from the instance's local configuration and state."""
+    """Read a status report from the instance's local state."""
     reader = _StatusReportReader(state=state, clock=clock)
     assignments = read_agent_assignments(state=state)
     assignment_statuses = reader.list_assignment_statuses(assignments=assignments)
@@ -144,7 +143,7 @@ def read_status_report(
             if scheduler_record is None or reader.daemon_pid is None
             else scheduler_record.hold
         ),
-        max_agent_rounds=read_dreamcatcher_config(root=state.root).max_agents,
+        max_agent_rounds=_read_max_agents(state=state),
         running_agent_rounds=sum(
             status.value is AgentAssignmentStatusValue.WORKING
             for status in assignment_statuses
@@ -162,6 +161,17 @@ def _read_repository(*, state: StateDirectory) -> str | None:
     if not state.repository.exists():
         return None
     return read_text(path=state.repository).strip()
+
+
+def _read_max_agents(*, state: StateDirectory) -> int | None:
+    """Read the most recent daemon run's agent cap when it is valid."""
+    if not state.max_agents.exists():
+        return None
+    try:
+        max_agents = int(read_text(path=state.max_agents).strip())
+    except ValueError:
+        return None
+    return max_agents if max_agents > 0 else None
 
 
 def read_agent_assignment_statuses_for_issue(
