@@ -27,7 +27,7 @@ class DreamcatcherDocument(BaseModel):
     named error, not a setting that the tool quietly ignores.
     """
 
-    model_config = ConfigDict(extra="forbid", frozen=True, populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
 
 def read_toml[DocumentT: DreamcatcherDocument](
@@ -168,7 +168,7 @@ def append_text(*, text: str, path: Path) -> None:
 
 def write_json(*, document: DreamcatcherDocument, path: Path) -> None:
     """Write the document to path as JSON."""
-    write_text(text=document.model_dump_json(indent=2, by_alias=True) + "\n", path=path)
+    write_text(text=document.model_dump_json(indent=2) + "\n", path=path)
 
 
 @contextmanager

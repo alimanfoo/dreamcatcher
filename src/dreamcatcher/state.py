@@ -8,6 +8,8 @@ from dreamcatcher.agent_rounds import AgentRoundReader
 from dreamcatcher.documents import write_text
 
 STATE_DIRECTORY_NAME = ".dreamcatcher"
+STATE_FORMAT_VERSION = 3
+_LEGACY_STATE_NAMES = ("sessions", "last-tick.json", "worktrees", "assignments")
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -43,19 +45,24 @@ class StateDirectory:
         return self.path / "daemon.pid"
 
     @property
+    def format_root(self) -> Path:
+        """The root directory holding state in this format."""
+        return self.path / f"v{STATE_FORMAT_VERSION}"
+
+    @property
     def repository(self) -> Path:
         """The file that names the repository this instance watches."""
-        return self.path / "repository"
+        return self.format_root / "repository"
 
     @property
     def max_agents(self) -> Path:
         """The file that records the most recent daemon run's agent cap."""
-        return self.path / "max-agents"
+        return self.format_root / "max-agents"
 
     @property
     def scheduler_record(self) -> Path:
         """The file the daemon overwrites with what the scheduler observed."""
-        return self.path / "scheduler.json"
+        return self.format_root / "scheduler.json"
 
     @property
     def worktrees(self) -> Path:
@@ -66,12 +73,12 @@ class StateDirectory:
         therefore one of dreamcatcher's, and that is how the daemon tells its
         own work from everyone else's.
         """
-        return self.path / "worktrees"
+        return self.format_root / "worktrees"
 
     @property
     def assignments(self) -> Path:
         """The directory holding each assignment's files by identifier."""
-        return self.path / "assignments"
+        return self.format_root / "assignments"
 
     def describe_path(self, *, path: Path) -> str:
         """Return a portable path relative to the checkout when possible."""
@@ -79,10 +86,16 @@ class StateDirectory:
             return path.relative_to(self.root).as_posix()
         return path.as_posix()
 
-    def bootstrap(self) -> None:
-        """Create the state directory and make Git ignore its contents.
+    def bootstrap(self) -> str | None:
+        """Create the state directory and report state from an earlier format.
 
         Writing the .gitignore is what creates the directory. Bootstrap writes
         it on every run, so a directory that was deleted comes back.
         """
         write_text(text="*\n", path=self.path / ".gitignore")
+        if any((self.path / name).exists() for name in _LEGACY_STATE_NAMES):
+            return (
+                "Legacy state in .dreamcatcher/ belongs to an earlier format "
+                "and can be deleted."
+            )
+        return None

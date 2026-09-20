@@ -466,7 +466,7 @@ def test_two_current_errors_put_an_assignment_in_fault(state):
     assert status.value is AgentAssignmentStatusValue.FAULT
     assert status.detail == (
         "two consecutive rounds failed "
-        f"(.dreamcatcher/assignments/{ASSIGNMENT_ID}/rounds/2/feed.txt)"
+        f"(.dreamcatcher/v3/assignments/{ASSIGNMENT_ID}/rounds/2/feed.txt)"
     )
 
 

@@ -28,7 +28,12 @@ from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME, AgentHarness
 from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.scheduler import AgentWorkScheduler, GlobalCooldown, SchedulerRecord
+from dreamcatcher.scheduler import (
+    AgentAssignmentObservation,
+    AgentWorkScheduler,
+    GlobalCooldown,
+    SchedulerRecord,
+)
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158"
@@ -143,6 +148,24 @@ def test_the_daemon_reports_when_it_has_started_before_its_first_tick(
     daemon.run()
 
 
+def test_the_daemon_reports_state_from_an_earlier_format(
+    watched, harnesses, gh, monkeypatch, capsys
+):
+    daemon, _, _ = idling(root=watched)
+    (daemon.state.path / "sessions").mkdir(parents=True)
+
+    def verify_report(*, scheduler, at):
+        assert capsys.readouterr().out == (
+            "Legacy state in .dreamcatcher/ belongs to an earlier format and can "
+            "be deleted.\n"
+            "2026-08-19T18:41:58Z  dreamcatcher is running\n"
+        )
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(daemon, "run_scheduler_cycle", verify_report)
+    daemon.run()
+
+
 def test_the_daemon_flushes_every_report(watched, harnesses, gh, monkeypatch):
     daemon, _, _ = idling(root=watched, ticks=1)
     reports = []
@@ -209,7 +232,15 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
         rounds=daemon.rounds,
     )
     scheduler_record = SchedulerRecord(
-        at=PINNED, launched_assignment_identifier=ASSIGNMENT_ID
+        at=PINNED,
+        launched_assignment_identifier=ASSIGNMENT_ID,
+        assignment_observations=[
+            AgentAssignmentObservation(
+                assignment_identifier=ASSIGNMENT_ID,
+                issue=13,
+                reason="waiting",
+            )
+        ],
     )
 
     def launch(*, at):
@@ -221,6 +252,9 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
     daemon.run_scheduler_cycle(scheduler=scheduler, at=PINNED)
 
     assert recorded(daemon=daemon) == scheduler_record
+    written_record = daemon.state.scheduler_record.read_text(encoding="utf-8")
+    assert f'"launched_assignment_identifier": "{ASSIGNMENT_ID}"' in written_record
+    assert f'"assignment_identifier": "{ASSIGNMENT_ID}"' in written_record
     assert (
         capsys.readouterr().out
         == f"2026-08-19T18:41:58Z  launched round for {ASSIGNMENT_ID}\n"
@@ -404,7 +438,7 @@ def test_a_tick_that_could_not_dispatch_records_the_failure_and_ticks_again(
 ):
     # A file where every worktree goes, so no dispatch can ever cut one.
     state = StateDirectory(root=dispatching)
-    state.path.mkdir(parents=True)
+    state.format_root.mkdir(parents=True)
     state.worktrees.write_text("something else is here\n", encoding="utf-8")
     daemon, waiting, _ = idling(root=dispatching, ticks=2)
 

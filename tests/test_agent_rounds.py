@@ -309,15 +309,15 @@ def test_a_round_writes_the_pull_request_state_and_user_posts_it_was_given(
     running.wait()
 
     read_back = json.loads(running.paths.round_input.read_text(encoding="utf-8"))
-    assert read_back["state"] == "OPEN"
-    assert [post["kind"] for post in read_back["posts"]] == [
+    assert read_back["pull_request_state"] == "OPEN"
+    assert [post["kind"] for post in read_back["user_posts"]] == [
         "comment",
         "review",
         "inlineComment",
     ]
-    assert read_back["posts"][1]["verdict"] == "COMMENTED"
-    assert "state" not in read_back["posts"][1]
-    assert read_back["posts"][2]["diff_hunk"] == HUNK
+    assert read_back["user_posts"][1]["verdict"] == "COMMENTED"
+    assert "state" not in read_back["user_posts"][1]
+    assert read_back["user_posts"][2]["diff_hunk"] == HUNK
 
 
 def test_the_feed_a_round_writes_is_the_feed_its_stream_renders_as(

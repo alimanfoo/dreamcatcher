@@ -99,7 +99,9 @@ class DreamcatcherDaemon:
         posts.
         """
         self._locate_harnesses()
-        self.state.bootstrap()
+        legacy_state_hint = self.state.bootstrap()
+        if legacy_state_hint is not None:
+            _write_output(line=legacy_state_hint)
         repository = _require_known_github_value(
             value=identify_github_repository(root=self.state.root),
             question="which repository this is",

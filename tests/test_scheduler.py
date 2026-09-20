@@ -797,8 +797,8 @@ def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, g
     assert feedback.purpose is AgentRoundPurpose.ADDRESS_FEEDBACK
     assert not feedback.is_recovery
     inbox = json.loads(written_round(scheduler=scheduler, number=2, name="inbox.json"))
-    assert inbox["state"] == "OPEN"
-    assert [post["kind"] for post in inbox["posts"]] == ["comment"]
+    assert inbox["pull_request_state"] == "OPEN"
+    assert [post["kind"] for post in inbox["user_posts"]] == ["comment"]
     assert str(
         scheduler.state.assignments / ASSIGNMENT_ID / "rounds" / "2" / "inbox.json"
     ) in (written_round(scheduler=scheduler, number=2, name="prompt.txt"))
@@ -864,8 +864,8 @@ def test_a_pull_request_that_is_finished_gets_one_last_round(resuming, gh, state
     assert json.loads(
         written_round(scheduler=scheduler, number=2, name="inbox.json")
     ) == {
-        "state": state_name,
-        "posts": [],
+        "pull_request_state": state_name,
+        "user_posts": [],
     }
 
 
