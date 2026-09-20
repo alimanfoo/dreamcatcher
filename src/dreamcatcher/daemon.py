@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 from contextlib import suppress
+from dataclasses import dataclass
 from time import sleep
 from typing import TYPE_CHECKING
 
@@ -22,7 +23,11 @@ from dreamcatcher.github import (
 )
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.lock import hold_daemon_lock
-from dreamcatcher.scheduler import AgentWorkScheduler, InvalidSchedulerRecordError
+from dreamcatcher.scheduler import (
+    DEFAULT_MAX_AGENTS,
+    AgentWorkScheduler,
+    InvalidSchedulerRecordError,
+)
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.words import describe_time
 
@@ -32,6 +37,17 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from dreamcatcher.agent_rounds import AgentRound
+
+DEFAULT_INTERVAL_SECONDS = 120
+
+
+@dataclass(frozen=True, kw_only=True)
+class DaemonRunSettings:
+    """Hold the choices that apply to one daemon run."""
+
+    harness: AgentHarness
+    interval: int = DEFAULT_INTERVAL_SECONDS
+    max_agents: int = DEFAULT_MAX_AGENTS
 
 
 def _write_output(*, line: str) -> None:
@@ -55,7 +71,7 @@ class DreamcatcherDaemon:
         self,
         *,
         root: Path,
-        harness: AgentHarness,
+        settings: DaemonRunSettings,
         clock: Callable[[], datetime] = read_current_time,
         wait: WaitForSeconds = sleep,
     ) -> None:
@@ -65,7 +81,7 @@ class DreamcatcherDaemon:
                 f"Start dreamcatcher from a repository's main checkout. "
                 f"{root} is not one."
             )
-        self.harness = harness
+        self.settings = settings
         self.config = read_dreamcatcher_config(root=root)
         self.state = StateDirectory(root=root)
         self.clock = clock
@@ -106,9 +122,10 @@ class DreamcatcherDaemon:
             account=account,
             config=self.config,
             state=self.state,
-            harness=self.harness,
+            harness=self.settings.harness,
             clock=self.clock,
             rounds=self.rounds,
+            max_agents=self.settings.max_agents,
         )
         with hold_daemon_lock(path=self.state.lock):
             self._sweep_orphans()
@@ -118,7 +135,7 @@ class DreamcatcherDaemon:
                 with suppress(KeyboardInterrupt):
                     while True:
                         self.run_scheduler_cycle(scheduler=scheduler, at=at)
-                        self.wait(self.config.interval)
+                        self.wait(self.settings.interval)
                         at = self.clock()
             finally:
                 # Rounds die with the daemon by design, so this happens however
@@ -169,7 +186,7 @@ class DreamcatcherDaemon:
         the one the run named, because a label carrying one harness block runs
         on that harness whatever the run named.
         """
-        for harness in sorted({self.harness, *self.config.routed_harnesses}):
+        for harness in sorted({self.settings.harness, *self.config.routed_harnesses}):
             locate_program(program=HARNESS_ADAPTERS[harness].program)
 
     def _sweep_orphans(self) -> None:

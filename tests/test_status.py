@@ -39,7 +39,7 @@ LOOKED_AT = PINNED + timedelta(hours=2)
 @pytest.fixture
 def state(tmp_path):
     """A configured state directory holding one assignment."""
-    configure(root=tmp_path, head="interval = 300\nmax_agents = 3\n\n")
+    configure(root=tmp_path)
     directory = StateDirectory(root=tmp_path)
     write_agent_assignment(state=directory, identifier=ASSIGNMENT_ID, issue=13)
     return directory
@@ -112,8 +112,7 @@ def idle_observation() -> AgentAssignmentObservation:
     )
 
 
-def test_an_empty_instance_reports_its_configuration_and_no_work(tmp_path):
-    configure(root=tmp_path, head="interval = 300\nmax_agents = 3\n\n")
+def test_an_empty_instance_reports_default_capacity_and_no_work(tmp_path):
 
     found = read_status_report(
         state=StateDirectory(root=tmp_path),
@@ -125,7 +124,7 @@ def test_an_empty_instance_reports_its_configuration_and_no_work(tmp_path):
     assert found.daemon_pid is None
     assert found.latest_scheduler_tick is None
     assert found.scheduler_hold is None
-    assert found.max_agent_rounds == 3
+    assert found.max_agent_rounds == 1
     assert found.running_agent_rounds == 0
     assert found.active_global_cooldown is None
     assert found.issue_observations == []
@@ -342,6 +341,7 @@ def test_an_active_cooldown_and_hold_are_instance_facts(running):
         state=running,
         tick=SchedulerRecord(
             at=PINNED,
+            max_agents=3,
             hold="global cooldown",
             cooldown=cooldown,
         ),
@@ -351,6 +351,7 @@ def test_an_active_cooldown_and_hold_are_instance_facts(running):
 
     assert found.latest_scheduler_tick == PINNED
     assert found.scheduler_hold == "global cooldown"
+    assert found.max_agent_rounds == 3
     assert found.active_global_cooldown == cooldown
 
 

@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pytest
-from conftest import CONFIG, CONFIG_HEAD, SMITH_CLAUDE, SMITH_CODEX
+from conftest import CONFIG, SMITH_CLAUDE, SMITH_CODEX
 
 from dreamcatcher.config import (
     DREAMCATCHER_CONFIG_NAME,
@@ -11,7 +11,7 @@ from dreamcatcher.config import (
 )
 from dreamcatcher.errors import ReportableError
 
-WITHOUT_CODEX = CONFIG_HEAD + SMITH_CLAUDE
+WITHOUT_CODEX = SMITH_CLAUDE
 
 CLAUDE_RECIPE = AgentAssignmentRecipe(
     prompt="/dream:smith GH{issue}", model="opus[1m]", effort="xhigh"
@@ -31,7 +31,6 @@ def test_a_valid_config_reads_back(tmp_path):
 
     config = read_dreamcatcher_config(root=tmp_path)
 
-    assert config.interval == 300
     assert [route.label for route in config.dispatch] == ["dream:smith"]
     assert config.dispatch[0].assignment_recipes == {
         AgentHarness.CLAUDE: CLAUDE_RECIPE,
@@ -39,24 +38,19 @@ def test_a_valid_config_reads_back(tmp_path):
     }
 
 
-def test_the_settings_the_design_gives_defaults_for_have_them(tmp_path):
-    write_config(root=tmp_path, text=CONFIG.replace("interval = 300\n", ""))
+def test_the_repository_setting_the_design_gives_a_default_has_it(tmp_path):
+    write_config(root=tmp_path, text=CONFIG)
 
     config = read_dreamcatcher_config(root=tmp_path)
 
-    assert config.interval == 120
-    assert config.max_agents == 1
     assert config.assignee == "@me"
 
 
-def test_a_setting_the_config_names_beats_its_default(tmp_path):
-    write_config(
-        root=tmp_path, text='max_agents = 3\nassignee = "alimanfoo"\n' + CONFIG
-    )
+def test_a_repository_setting_the_config_names_beats_its_default(tmp_path):
+    write_config(root=tmp_path, text='assignee = "alimanfoo"\n' + CONFIG)
 
     config = read_dreamcatcher_config(root=tmp_path)
 
-    assert config.max_agents == 3
     assert config.assignee == "alimanfoo"
 
 
@@ -120,18 +114,23 @@ def test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named(tmp
             "intervl: Extra inputs are not permitted",
         ),
         (
-            "an interval of zero",
-            CONFIG.replace("interval = 300", "interval = 0"),
-            "interval: Input should be greater than 0",
+            "a daemon interval",
+            "interval = 300\n" + CONFIG,
+            "interval: Extra inputs are not permitted",
+        ),
+        (
+            "an agent cap",
+            "max_agents = 3\n" + CONFIG,
+            "max_agents: Extra inputs are not permitted",
         ),
         (
             "no dispatch routes",
-            "interval = 300\ndispatch = []\n",
+            "dispatch = []\n",
             "dispatch: List should have at least 1 item after validation, not 0",
         ),
         (
             "a label no harness can run",
-            CONFIG_HEAD + '[[dispatch]]\nlabel = "dream:smith"\n',
+            '[[dispatch]]\nlabel = "dream:smith"\n',
             "dispatch.0: Value error, label dream:smith has no harness block",
         ),
         (
@@ -141,7 +140,7 @@ def test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named(tmp
         ),
         (
             "a recipe block that is not a block",
-            CONFIG_HEAD + '[[dispatch]]\nlabel = "dream:smith"\nclaude = "opus"\n',
+            '[[dispatch]]\nlabel = "dream:smith"\nclaude = "opus"\n',
             "dispatch.0.claude: Input should be a valid dictionary or instance of "
             "AgentAssignmentRecipe",
         ),

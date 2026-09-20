@@ -74,7 +74,9 @@ def stop_scheduler_rounds():
     CREATED_SCHEDULERS.clear()
 
 
-def create_scheduler(*, root) -> tuple[AgentWorkScheduler, Ticking]:
+def create_scheduler(
+    *, root, max_agents: int = 1
+) -> tuple[AgentWorkScheduler, Ticking]:
     """Create a scheduler and a clock that advances between explicit ticks."""
     clock = Ticking(step=300)
     scheduler = AgentWorkScheduler(
@@ -85,6 +87,7 @@ def create_scheduler(*, root) -> tuple[AgentWorkScheduler, Ticking]:
         harness=AgentHarness.CLAUDE,
         clock=clock,
         rounds={},
+        max_agents=max_agents,
     )
     CREATED_SCHEDULERS.append(scheduler)
     return scheduler, clock
@@ -269,9 +272,8 @@ def test_a_dispatched_round_records_what_caused_it_and_what_it_said(dispatching)
 def test_a_tick_launches_one_round_and_leaves_the_rest_in_the_queue(
     dispatching, offered
 ):
-    configure(root=dispatching, head="max_agents = 2\n\n")
     offered.replies(stdout=listing(issues=[(8, FILED), (9, LATER)]), to="issue list")
-    scheduler, clock = create_scheduler(root=dispatching)
+    scheduler, clock = create_scheduler(root=dispatching, max_agents=2)
 
     observed = scheduler.tick(at=clock())
 
@@ -280,13 +282,13 @@ def test_a_tick_launches_one_round_and_leaves_the_rest_in_the_queue(
         IssueFactValue.TRUE,
         IssueFactValue.TRUE,
     ]
+    assert observed.max_agents == 2
     assert observed.launched_assignment_identifier == DISPATCHED_ASSIGNMENT_ID
     assert not (scheduler.state.worktrees / "GH9-20260819-184158").exists()
 
 
 def test_a_second_tick_judges_a_dispatched_issue_handled(dispatching):
-    configure(root=dispatching, head="max_agents = 2\n\n")
-    scheduler, clock = create_scheduler(root=dispatching)
+    scheduler, clock = create_scheduler(root=dispatching, max_agents=2)
 
     observed = scheduler.tick(at=clock())
     observed = scheduler.tick(at=clock())
@@ -507,11 +509,10 @@ def test_a_successful_round_breaks_the_error_sequence(dispatching):
 def test_an_assignment_the_scheduler_is_running_a_round_for_is_not_waiting(
     dispatching, harnesses
 ):
-    configure(root=dispatching, head="max_agents = 2\n\n")
     harnesses["claude"].streams(
         lines=[Line(text="still working\n")], delay=STILL_RUNNING
     )
-    scheduler, clock = create_scheduler(root=dispatching)
+    scheduler, clock = create_scheduler(root=dispatching, max_agents=2)
 
     observed = scheduler.tick(at=clock())
     observed = scheduler.tick(at=clock())

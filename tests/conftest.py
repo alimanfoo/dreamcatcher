@@ -17,9 +17,6 @@ from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME
 
 ARMING = "PYTHONWARNDEFAULTENCODING"
 
-CONFIG_HEAD = """interval = 300
-
-"""
 
 # The directory holding everything the suite reads back from a recording: the
 # streams a harness wrote, and what gh answered about a pull request.
@@ -73,7 +70,7 @@ model = "gpt-5.6-sol"
 effort = "xhigh"
 """
 
-CONFIG = CONFIG_HEAD + SMITH_CLAUDE + SMITH_CODEX
+CONFIG = SMITH_CLAUDE + SMITH_CODEX
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -294,7 +291,7 @@ def harnesses(fake):
     return {program: fake(program=program) for program in ("claude", "codex")}
 
 
-def configure(*, root, head: str = CONFIG_HEAD) -> None:
+def configure(*, root, head: str = "") -> None:
     """Write a config for that checkout, with this ahead of its one route."""
     (root / DREAMCATCHER_CONFIG_NAME).write_text(
         head + SMITH_CLAUDE + SMITH_CODEX, encoding="utf-8"

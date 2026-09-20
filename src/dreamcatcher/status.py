@@ -11,11 +11,11 @@ from dreamcatcher.agent_assignments import (
     read_agent_assignments_for_issue,
 )
 from dreamcatcher.clock import read_current_time
-from dreamcatcher.config import read_dreamcatcher_config
 from dreamcatcher.documents import read_text
 from dreamcatcher.feed import FeedLine, read_last_feed_line
 from dreamcatcher.lock import read_daemon_pid
 from dreamcatcher.scheduler import (
+    DEFAULT_MAX_AGENTS,
     NO_ROUND_HAS_RUN,
     AgentAssignmentObservation,
     GlobalCooldown,
@@ -71,7 +71,7 @@ class DreamcatcherStatusReport:
 def read_status_report(
     *, state: StateDirectory, clock: Callable[[], datetime] = read_current_time
 ) -> DreamcatcherStatusReport:
-    """Read a status report from the instance's local configuration and state."""
+    """Read a status report from the instance's local state."""
     reader = _StatusReportReader(state=state, clock=clock)
     assignments = read_agent_assignments(state=state)
     assignment_statuses = reader.list_assignment_statuses(assignments=assignments)
@@ -88,7 +88,11 @@ def read_status_report(
             if scheduler_record is None or reader.daemon_pid is None
             else scheduler_record.hold
         ),
-        max_agent_rounds=read_dreamcatcher_config(root=state.root).max_agents,
+        max_agent_rounds=(
+            DEFAULT_MAX_AGENTS
+            if scheduler_record is None
+            else scheduler_record.max_agents
+        ),
         running_agent_rounds=sum(
             status.value is AgentAssignmentStatusValue.WORKING
             for status in assignment_statuses

@@ -16,7 +16,7 @@ from enum import StrEnum
 from functools import partial
 from typing import Annotated, Self
 
-from pydantic import AfterValidator, AwareDatetime, Field, model_validator
+from pydantic import AfterValidator, AwareDatetime, Field, PositiveInt, model_validator
 
 from dreamcatcher.agent_assignments import (
     AgentAssignment,
@@ -59,6 +59,7 @@ from dreamcatcher.state import StateDirectory
 from dreamcatcher.words import describe_count
 
 GLOBAL_COOLDOWN_DURATION = timedelta(minutes=15)
+DEFAULT_MAX_AGENTS = 1
 NO_ROUND_HAS_RUN = "no round has run yet"
 
 
@@ -133,6 +134,7 @@ class SchedulerRecord(DreamcatcherDocument):
     """Record what one scheduler tick observed and decided."""
 
     at: UtcDateTime
+    max_agents: PositiveInt = DEFAULT_MAX_AGENTS
     hold: str | None = None
     launched_assignment_identifier: str | None = Field(default=None, alias="launched")
     issue_observations: list[IssueObservation] = Field(default_factory=list)
@@ -727,6 +729,7 @@ class AgentWorkScheduler:
     harness: AgentHarness
     clock: Callable[[], datetime]
     rounds: dict[str, AgentRound]
+    max_agents: int = DEFAULT_MAX_AGENTS
 
     def tick(self, *, at: datetime) -> SchedulerRecord:
         """Inspect current work and launch at most one agent round.
@@ -787,6 +790,7 @@ class AgentWorkScheduler:
         )
         record = SchedulerRecord(
             at=at,
+            max_agents=self.max_agents,
             cooldown=cooldown,
             most_recent_cooldown_ended=most_recent_cooldown_ended,
             issue_observations=issue_observations,
@@ -799,9 +803,9 @@ class AgentWorkScheduler:
                     f"{hold_reason}; could not refresh issues: {issue_failure}"
                 )
             return record.model_copy(update={"hold": hold_reason})
-        if len(self.rounds) >= self.config.max_agents:
+        if len(self.rounds) >= self.max_agents:
             capacity_reason = (
-                f"at cap: {len(self.rounds)} of {self.config.max_agents} rounds running"
+                f"at cap: {len(self.rounds)} of {self.max_agents} rounds running"
             )
             hold_reason = (
                 capacity_reason

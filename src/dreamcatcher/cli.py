@@ -15,9 +15,17 @@ from dreamcatcher.agent_assignments import (
 )
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.config import AgentHarness
-from dreamcatcher.daemon import DreamcatcherDaemon
+from dreamcatcher.daemon import (
+    DEFAULT_INTERVAL_SECONDS,
+    DaemonRunSettings,
+    DreamcatcherDaemon,
+)
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.scheduler import derive_assignment_fault, read_scheduler_record
+from dreamcatcher.scheduler import (
+    DEFAULT_MAX_AGENTS,
+    derive_assignment_fault,
+    read_scheduler_record,
+)
 from dreamcatcher.state import StateDirectory
 
 # How a view names the issue it is about, as the issue itself is written.
@@ -77,6 +85,20 @@ def build_cli_parser() -> argparse.ArgumentParser:
         # choice with repr(), which turns a member into <AgentHarness.CLAUDE: ...>.
         choices=[harness.value for harness in AgentHarness],
         help="the harness to run this repo's rounds with",
+    )
+    run_parser.add_argument(
+        "--interval",
+        type=_parse_positive_integer,
+        default=DEFAULT_INTERVAL_SECONDS,
+        metavar="SECONDS",
+        help=f"seconds between scheduler ticks (default: {DEFAULT_INTERVAL_SECONDS})",
+    )
+    run_parser.add_argument(
+        "--max-agents",
+        type=_parse_positive_integer,
+        default=DEFAULT_MAX_AGENTS,
+        metavar="N",
+        help=f"maximum agent rounds to run at once (default: {DEFAULT_MAX_AGENTS})",
     )
     run_parser.set_defaults(act=_run_daemon)
     retry_parser = subcommands.add_parser(
@@ -158,6 +180,17 @@ def _add_issue_argument(*, parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _parse_positive_integer(value: str, /) -> int:
+    """Return a positive integer; argparse calls this converter positionally."""
+    try:
+        parsed = int(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("must be a positive integer") from error
+    if parsed < 1:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+    return parsed
+
+
 def main(*, argv: Sequence[str] | None = None) -> int:
     """Run the verb that the arguments name, and return the exit status."""
     arguments = build_cli_parser().parse_args(argv)
@@ -170,7 +203,14 @@ def main(*, argv: Sequence[str] | None = None) -> int:
 
 
 def _run_daemon(*, arguments: argparse.Namespace) -> None:
-    DreamcatcherDaemon(root=Path.cwd(), harness=AgentHarness(arguments.harness)).run()
+    DreamcatcherDaemon(
+        root=Path.cwd(),
+        settings=DaemonRunSettings(
+            harness=AgentHarness(arguments.harness),
+            interval=arguments.interval,
+            max_agents=arguments.max_agents,
+        ),
+    ).run()
 
 
 def _retry_assignment(*, arguments: argparse.Namespace) -> None:

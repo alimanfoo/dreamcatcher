@@ -246,14 +246,48 @@ def test_run_starts_a_daemon_on_the_current_directory(monkeypatch, watched, star
 
     assert main(argv=["run", "--harness", "claude"]) == 0
     assert started[0].state.root == watched
-    assert started[0].harness is AgentHarness.CLAUDE
+    assert started[0].settings.harness is AgentHarness.CLAUDE
+    assert started[0].settings.interval == 120
+    assert started[0].settings.max_agents == 1
 
 
 def test_the_harness_flag_says_what_to_run_rounds_with(monkeypatch, watched, started):
     monkeypatch.chdir(watched)
 
     assert main(argv=["run", "--harness", "codex"]) == 0
-    assert started[0].harness is AgentHarness.CODEX
+    assert started[0].settings.harness is AgentHarness.CODEX
+
+
+def test_run_uses_the_requested_interval_and_agent_cap(monkeypatch, watched, started):
+    monkeypatch.chdir(watched)
+
+    assert (
+        main(
+            argv=[
+                "run",
+                "--harness",
+                "claude",
+                "--interval",
+                "30",
+                "--max-agents",
+                "4",
+            ]
+        )
+        == 0
+    )
+    assert started[0].settings.interval == 30
+    assert started[0].settings.max_agents == 4
+
+
+@pytest.mark.parametrize(
+    ("option", "value"), [("--interval", "0"), ("--max-agents", "many")]
+)
+def test_run_refuses_a_non_positive_integer_control(option, value, capsys):
+    with pytest.raises(SystemExit) as exit_info:
+        main(argv=["run", "--harness", "claude", option, value])
+
+    assert exit_info.value.code == 2
+    assert "must be a positive integer" in capsys.readouterr().err
 
 
 def test_a_run_with_no_harness_asks_for_one(capsys):

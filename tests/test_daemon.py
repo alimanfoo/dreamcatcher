@@ -8,7 +8,6 @@ import psutil
 import pytest
 from clocks import PINNED, Ticking
 from conftest import (
-    CONFIG_HEAD,
     POST_LIST_PATHS,
     POSTED_BY,
     REPOSITORY,
@@ -26,7 +25,7 @@ from dreamcatcher.agent_rounds import (
     compose_agent_round_ending,
 )
 from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME, AgentHarness
-from dreamcatcher.daemon import DreamcatcherDaemon
+from dreamcatcher.daemon import DaemonRunSettings, DreamcatcherDaemon
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.scheduler import AgentWorkScheduler, GlobalCooldown, SchedulerRecord
@@ -91,7 +90,13 @@ def idling(*, root, ticks: int = 2) -> tuple[DreamcatcherDaemon, Interrupting, T
     ticking = Ticking(step=300)
     return (
         DreamcatcherDaemon(
-            root=root, harness=AgentHarness.CLAUDE, clock=ticking, wait=waiting
+            root=root,
+            settings=DaemonRunSettings(
+                harness=AgentHarness.CLAUDE,
+                interval=300,
+            ),
+            clock=ticking,
+            wait=waiting,
         ),
         waiting,
         ticking,
@@ -201,7 +206,7 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
         account=POSTED_BY,
         config=daemon.config,
         state=daemon.state,
-        harness=daemon.harness,
+        harness=daemon.settings.harness,
         clock=daemon.clock,
         rounds=daemon.rounds,
     )
@@ -247,30 +252,45 @@ def test_a_second_daemon_refuses_while_the_first_holds_the_repo(watched, harness
 
 def test_the_daemon_runs_the_harness_it_was_given(watched):
     assert (
-        DreamcatcherDaemon(root=watched, harness=AgentHarness.CODEX).harness
+        DreamcatcherDaemon(
+            root=watched,
+            settings=DaemonRunSettings(harness=AgentHarness.CODEX),
+        ).settings.harness
         is AgentHarness.CODEX
     )
 
 
 def test_a_checkout_with_no_config_names_the_file_it_needs(repo):
     with pytest.raises(ReportableError, match=DREAMCATCHER_CONFIG_NAME):
-        DreamcatcherDaemon(root=repo, harness=AgentHarness.CLAUDE)
+        DreamcatcherDaemon(
+            root=repo,
+            settings=DaemonRunSettings(harness=AgentHarness.CLAUDE),
+        )
 
 
 def test_a_directory_that_is_not_a_repository_is_refused(tmp_path):
     with pytest.raises(ReportableError, match="main checkout"):
-        DreamcatcherDaemon(root=tmp_path, harness=AgentHarness.CLAUDE)
+        DreamcatcherDaemon(
+            root=tmp_path,
+            settings=DaemonRunSettings(harness=AgentHarness.CLAUDE),
+        )
 
 
 def test_a_linked_worktree_is_refused(tmp_path):
     (tmp_path / ".git").write_text("gitdir: elsewhere\n", encoding="utf-8")
 
     with pytest.raises(ReportableError, match="main checkout"):
-        DreamcatcherDaemon(root=tmp_path, harness=AgentHarness.CLAUDE)
+        DreamcatcherDaemon(
+            root=tmp_path,
+            settings=DaemonRunSettings(harness=AgentHarness.CLAUDE),
+        )
 
 
 def test_the_state_directory_sits_in_the_checkout(watched):
-    daemon = DreamcatcherDaemon(root=watched, harness=AgentHarness.CLAUDE)
+    daemon = DreamcatcherDaemon(
+        root=watched,
+        settings=DaemonRunSettings(harness=AgentHarness.CLAUDE),
+    )
 
     assert daemon.state == StateDirectory(root=watched)
 
@@ -286,14 +306,14 @@ def test_a_run_refuses_when_a_harness_it_could_dispatch_to_is_not_installed(
 
 
 def test_a_run_refuses_when_the_harness_it_was_named_is_not_installed(repo, alone):
-    (repo / DREAMCATCHER_CONFIG_NAME).write_text(
-        CONFIG_HEAD + SMITH_CLAUDE, encoding="utf-8"
-    )
+    (repo / DREAMCATCHER_CONFIG_NAME).write_text(SMITH_CLAUDE, encoding="utf-8")
     alone(programs=["claude"])
 
     with pytest.raises(ReportableError, match="codex is not on the PATH"):
         DreamcatcherDaemon(
-            root=repo, harness=AgentHarness.CODEX, wait=Interrupting(ticks=1)
+            root=repo,
+            settings=DaemonRunSettings(harness=AgentHarness.CODEX),
+            wait=Interrupting(ticks=1),
         ).run()
 
 
@@ -418,7 +438,9 @@ def test_a_run_that_cannot_be_told_which_repository_this_is_refuses(
 
     with pytest.raises(ReportableError, match="cannot tell which repository"):
         DreamcatcherDaemon(
-            root=cloned, harness=AgentHarness.CLAUDE, wait=Interrupting(ticks=1)
+            root=cloned,
+            settings=DaemonRunSettings(harness=AgentHarness.CLAUDE),
+            wait=Interrupting(ticks=1),
         ).run()
 
 
@@ -464,7 +486,7 @@ def test_a_failed_tick_preserves_the_last_scheduler_record(dispatching, capsys):
         account=POSTED_BY,
         config=daemon.config,
         state=daemon.state,
-        harness=daemon.harness,
+        harness=daemon.settings.harness,
         clock=daemon.clock,
         rounds=daemon.rounds,
     )
@@ -493,5 +515,7 @@ def test_a_run_that_cannot_be_told_which_account_gh_is_signed_in_as_refuses(
 
     with pytest.raises(ReportableError, match="cannot tell which account"):
         DreamcatcherDaemon(
-            root=cloned, harness=AgentHarness.CLAUDE, wait=Interrupting(ticks=1)
+            root=cloned,
+            settings=DaemonRunSettings(harness=AgentHarness.CLAUDE),
+            wait=Interrupting(ticks=1),
         ).run()

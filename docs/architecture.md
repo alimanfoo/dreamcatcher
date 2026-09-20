@@ -33,7 +33,7 @@ domain phrase into a class. In particular, it should:
 - record the daemon process identifier;
 - perform startup recovery of child processes;
 - call the scheduler repeatedly;
-- wait between ticks; and
+- wait for the run's requested interval between ticks; and
 - stop active child processes during shutdown.
 
 The daemon does not decide which issue or assignment deserves work. It knows
@@ -48,7 +48,7 @@ One scheduler tick:
 1. observes the relevant local, process, configuration, and GitHub facts;
 2. reconciles incomplete assignment creation and round processes, including
    recognizing interrupted rounds;
-3. applies capacity and global-cooldown constraints;
+3. applies the run's requested capacity and global-cooldown constraints;
 4. finds the highest-priority existing assignment that requires an agent round,
    considering recovery need, a terminal pull request, and unrelayed user posts
    in that order;
@@ -221,8 +221,8 @@ Status construction may read:
 - assignment and round records;
 - current child-process state;
 - the instance's repository record;
-- scheduler records, including issue observations, the active global cooldown,
-  and the latest tick;
+- scheduler records, including issue observations, the active capacity and
+  global cooldown, and the latest tick;
 - configuration, dispatch labels, and routes;
 - the latest rendered feed output needed for a useful summary.
 
@@ -251,6 +251,10 @@ maps one dispatch label to one or more harness-specific `AgentAssignmentRecipe`
 objects, each of which supplies the model, effort, and initial prompt used to
 start agent work through that harness. The initial prompt normally invokes an
 assignment skill.
+
+The repository configuration carries choices that everyone working in the
+repository shares. The daemon interval and agent cap belong to one person's run,
+so the `run` command receives them instead.
 
 The configuration module validates labels, routes, and recipes and, given an
 issue's observed labels, identifies which are configured dispatch labels. It
@@ -325,11 +329,11 @@ A round record persists:
 - the durable files containing its prompt, delivered posts, and output.
 
 An instance record persists the repository identity. An instance-wide scheduler
-record persists an active global cooldown and the time at which the most recent
-cooldown ended. An assignment record persists the time of its latest user retry
-request. These boundaries allow fault to remain a derived status: ending a
-cooldown or requesting a retry changes which round errors count towards fault
-rather than writing an assignment status.
+record persists the capacity applied to that tick, an active global cooldown,
+and the time at which the most recent cooldown ended. An assignment record
+persists the time of its latest user retry request. These boundaries allow fault
+to remain a derived status: ending a cooldown or requesting a retry changes
+which round errors count towards fault rather than writing an assignment status.
 
 The following are derived rather than persisted as authoritative state:
 
