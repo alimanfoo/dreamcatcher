@@ -23,14 +23,14 @@ QuotableText = Annotated[str, AfterValidator(refuse_unquotable)]
 
 
 class AgentHarness(StrEnum):
-    """A coding agent dreamcatcher can run a round with."""
+    """List the agent harnesses that Dreamcatcher can run."""
 
     CLAUDE = "claude"
     CODEX = "codex"
 
 
 class AgentAssignmentRecipe(DreamcatcherDocument):
-    """How one harness runs an assignment for one dispatch label."""
+    """Describe how one harness runs assignments for a dispatch label."""
 
     prompt: str
     model: QuotableText
@@ -38,15 +38,12 @@ class AgentAssignmentRecipe(DreamcatcherDocument):
 
 
 class DispatchRoute(DreamcatcherDocument):
-    """A dispatch label and the recipe that each harness uses for it.
+    """Map a dispatch label to its available harness recipes.
 
     The label is the route's identity, so no two routes carry the same one.
 
-    A harness block sits beside the label rather than under a key of its own,
-    as `[dispatch.claude]` does, so pydantic meets it as an extra key. Those
-    extra keys carry a declared type, AgentHarness, so the set of harnesses stays in
-    one home. A key that names no harness is then a named error, so the route
-    keeps the guarantee that every document makes.
+    Harness blocks sit beside the label as extra keys. Their declared key type
+    is `AgentHarness`, so an unknown harness is a validation error.
     """
 
     model_config = ConfigDict(extra="allow")
@@ -82,7 +79,7 @@ class DispatchRoute(DreamcatcherDocument):
 
 
 class DreamcatcherConfig(DreamcatcherDocument):
-    """What the repo agrees on about dispatching its labelled issues."""
+    """Model a repository's agent-assignment configuration."""
 
     interval: PositiveInt = 120
     max_agents: PositiveInt = 1
@@ -100,11 +97,10 @@ class DreamcatcherConfig(DreamcatcherDocument):
 
     @property
     def routed_harnesses(self) -> set[AgentHarness]:
-        """Every harness that a route here could settle one of its labels on.
+        """Every harness that any configured route can select.
 
-        A label carrying one harness block runs on that harness whatever a run
-        named, so this is wider than the harness the run gave, and a run has to
-        reach every one of them.
+        A route with one harness selects it regardless of the daemon's requested
+        harness, so startup must find every harness in this set.
         """
         return {
             harness for route in self.dispatch for harness in route.assignment_recipes
