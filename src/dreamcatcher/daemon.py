@@ -28,6 +28,7 @@ from dreamcatcher.scheduler import (
     InvalidSchedulerRecordError,
 )
 from dreamcatcher.state import StateDirectory
+from dreamcatcher.version import DREAMCATCHER_VERSION
 from dreamcatcher.words import describe_time
 
 if TYPE_CHECKING:
@@ -120,6 +121,8 @@ class DreamcatcherDaemon:
             max_agents=self.max_agents,
         )
         with hold_daemon_lock(path=self.state.lock):
+            write_text(text=f"{self.harness}\n", path=self.state.harness)
+            write_text(text=f"{DREAMCATCHER_VERSION}\n", path=self.state.version)
             write_text(text=f"{self.max_agents}\n", path=self.state.max_agents)
             self._sweep_orphans()
             at = self.clock()

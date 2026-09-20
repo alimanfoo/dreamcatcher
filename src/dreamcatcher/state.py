@@ -48,6 +48,16 @@ class StateDirectory:
         return self.path / "repository"
 
     @property
+    def harness(self) -> Path:
+        """The file that names the most recent daemon run's agent harness."""
+        return self.path / "harness"
+
+    @property
+    def version(self) -> Path:
+        """The file that names the most recent daemon run's Dreamcatcher version."""
+        return self.path / "version"
+
+    @property
     def max_agents(self) -> Path:
         """The file that records the most recent daemon run's agent cap."""
         return self.path / "max-agents"

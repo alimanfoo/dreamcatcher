@@ -236,7 +236,7 @@ Status construction may read:
 - raw harness output and the matching harness adapter when it must recover a
   harness session identifier or build a hand-resume command;
 - current child-process state;
-- the instance's repository and capacity records;
+- the instance's repository, harness, version, and capacity records;
 - scheduler records, including issue observations, assignment observations, the
   active global cooldown, and the latest tick;
 - the latest rendered feed output needed for a useful summary.
@@ -355,14 +355,14 @@ A round record persists:
 - the durable files containing its prompt, delivered posts, and output.
 
 Instance records persist the repository identity and the most recent daemon
-run's capacity. An instance-wide scheduler record persists the last tick's
-result, including its hold, issue and assignment observations, active global
-cooldown, and the time at which the most recent cooldown ended. Its
-per-assignment observations preserve operational evidence of the tick's
-interpretation rather than authoritative state. An assignment record persists
-the time of its latest user retry request. These boundaries allow fault to
-remain a derived status: ending a cooldown or requesting a retry changes which
-round errors count towards fault rather than writing an assignment status.
+run's harness, Dreamcatcher version, and capacity. An instance-wide scheduler
+record persists the last tick's result, including its hold, issue and assignment
+observations, active global cooldown, and the time at which the most recent
+cooldown ended. Its per-assignment observations preserve operational evidence of
+the tick's interpretation rather than authoritative state. An assignment record
+persists the time of its latest user retry request. These boundaries allow fault
+to remain a derived status: ending a cooldown or requesting a retry changes
+which round errors count towards fault rather than writing an assignment status.
 
 The following are derived rather than persisted as authoritative state:
 

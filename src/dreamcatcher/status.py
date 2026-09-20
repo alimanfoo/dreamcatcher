@@ -19,6 +19,7 @@ from dreamcatcher.agent_rounds import (
     ErroredAgentRoundEnding,
 )
 from dreamcatcher.clock import read_current_time
+from dreamcatcher.config import AgentHarness
 from dreamcatcher.documents import read_text
 from dreamcatcher.feed import FeedLine, read_last_feed_line
 from dreamcatcher.harness_adapters import HarnessSessionIdentifier
@@ -122,6 +123,8 @@ class DreamcatcherStatusReport:
     at: datetime
     repository: str | None
     daemon_pid: int | None
+    agent_harness: AgentHarness | None
+    dreamcatcher_version: str | None
     latest_scheduler_tick: datetime | None
     scheduler_hold: str | None
     max_agent_rounds: int | None
@@ -145,6 +148,8 @@ def read_status_report(
         at=reader.at,
         repository=_read_repository(state=state),
         daemon_pid=reader.daemon_pid,
+        agent_harness=_read_agent_harness(state=state),
+        dreamcatcher_version=_read_dreamcatcher_version(state=state),
         latest_scheduler_tick=(
             None if scheduler_record is None else scheduler_record.at
         ),
@@ -183,6 +188,23 @@ def _read_repository(*, state: StateDirectory) -> str | None:
     if not state.repository.exists():
         return None
     return read_text(path=state.repository).strip()
+
+
+def _read_agent_harness(*, state: StateDirectory) -> AgentHarness | None:
+    """Read the harness selected for the most recent daemon run."""
+    if not state.harness.exists():
+        return None
+    try:
+        return AgentHarness(read_text(path=state.harness).strip())
+    except ValueError:
+        return None
+
+
+def _read_dreamcatcher_version(*, state: StateDirectory) -> str | None:
+    """Read the version used for the most recent daemon run."""
+    if not state.version.exists():
+        return None
+    return read_text(path=state.version).strip() or None
 
 
 def _read_max_agents(*, state: StateDirectory) -> int | None:

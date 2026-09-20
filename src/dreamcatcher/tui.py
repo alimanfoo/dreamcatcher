@@ -199,7 +199,20 @@ def _render_instance_status(*, report: DreamcatcherStatusReport) -> RenderableTy
     daemon = (
         "not running"
         if report.daemon_pid is None
-        else f"running as pid {report.daemon_pid}"
+        else " ".join(
+            filter(
+                None,
+                (
+                    "running",
+                    (
+                        None
+                        if report.dreamcatcher_version is None
+                        else f"dreamcatcher v{report.dreamcatcher_version}"
+                    ),
+                    f"as pid {report.daemon_pid}",
+                ),
+            )
+        )
     )
     tick = (
         "none recorded"
@@ -213,6 +226,7 @@ def _render_instance_status(*, report: DreamcatcherStatusReport) -> RenderableTy
     )
     for name, value in (
         ("daemon", daemon),
+        ("agent harness", report.agent_harness),
         ("latest scheduler tick", tick),
         (
             "agent-round capacity",

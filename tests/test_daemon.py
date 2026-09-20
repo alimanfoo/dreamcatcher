@@ -30,6 +30,7 @@ from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.scheduler import AgentWorkScheduler, GlobalCooldown, SchedulerRecord
 from dreamcatcher.state import StateDirectory
+from dreamcatcher.version import DREAMCATCHER_VERSION
 
 ASSIGNMENT_ID = "GH13-20260819-184158"
 
@@ -236,6 +237,10 @@ def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(
 
     assert (daemon.state.path / ".gitignore").exists()
     assert daemon.state.repository.read_text(encoding="utf-8") == f"{REPOSITORY}\n"
+    assert daemon.state.harness.read_text(encoding="utf-8") == "claude\n"
+    assert daemon.state.version.read_text(encoding="utf-8") == (
+        f"{DREAMCATCHER_VERSION}\n"
+    )
     assert daemon.state.max_agents.read_text(encoding="utf-8") == "1\n"
     assert not daemon.state.lock.exists()
 

@@ -18,6 +18,7 @@ from dreamcatcher.agent_rounds import (
     InterruptedAgentRoundEnding,
     compose_agent_round_ending,
 )
+from dreamcatcher.config import AgentHarness
 from dreamcatcher.documents import write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.scheduler import (
@@ -126,6 +127,8 @@ def test_an_empty_instance_reports_unknown_capacity_and_no_work(tmp_path):
     assert found.at == LOOKED_AT
     assert found.repository is None
     assert found.daemon_pid is None
+    assert found.agent_harness is None
+    assert found.dreamcatcher_version is None
     assert found.latest_scheduler_tick is None
     assert found.scheduler_hold is None
     assert found.max_agent_rounds is None
@@ -139,6 +142,28 @@ def test_the_instance_record_names_the_repository(state):
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
 
     assert report(state=state).repository == REPOSITORY
+
+
+def test_the_instance_records_name_the_harness_and_version(state):
+    write_text(text="codex\n", path=state.harness)
+    write_text(text="3.0.0.beta1\n", path=state.version)
+
+    found = report(state=state)
+
+    assert found.agent_harness is AgentHarness.CODEX
+    assert found.dreamcatcher_version == "3.0.0.beta1"
+
+
+def test_an_invalid_recorded_harness_is_unknown(state):
+    write_text(text="not a harness\n", path=state.harness)
+
+    assert report(state=state).agent_harness is None
+
+
+def test_a_blank_recorded_version_is_unknown(state):
+    write_text(text="\n", path=state.version)
+
+    assert report(state=state).dreamcatcher_version is None
 
 
 @pytest.mark.parametrize("value", ["not a number\n", "0\n"])

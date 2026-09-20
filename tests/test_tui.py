@@ -500,6 +500,18 @@ def test_a_state_directory_renders_as_its_golden_status(name, tmp_path, daemon):
     assert status == (FIXTURES / "status" / f"{name}.txt").read_text(encoding="utf-8")
 
 
+def test_status_names_the_daemon_runs_harness_and_version(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    holding(state=state)
+    write_text(text="claude\n", path=state.harness)
+    write_text(text="3.0.0.beta1\n", path=state.version)
+
+    rendered = render_status_view(state=state)
+
+    assert "running dreamcatcher v3.0.0.beta1 as pid 4242" in rendered
+    assert "agent harness claude" in " ".join(rendered.split())
+
+
 def test_identifiers_remain_whole_when_the_assignment_table_folds(tmp_path):
     """Two assignments at one issue differ only in their identifier times."""
     state = StateDirectory(root=tmp_path)

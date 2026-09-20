@@ -38,6 +38,8 @@ def test_the_daemon_files_sit_in_the_state_directory(tmp_path):
     assert state.path == tmp_path / ".dreamcatcher"
     assert state.lock == state.path / "daemon.pid"
     assert state.repository == state.path / "repository"
+    assert state.harness == state.path / "harness"
+    assert state.version == state.path / "version"
     assert state.scheduler_record == state.path / "scheduler.json"
     assert state.worktrees == state.path / "worktrees"
     assert state.assignments == state.path / "assignments"
