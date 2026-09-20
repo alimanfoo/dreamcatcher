@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import sys
 from contextlib import suppress
-from dataclasses import dataclass
 from time import sleep
 from typing import TYPE_CHECKING
 
@@ -41,15 +40,6 @@ if TYPE_CHECKING:
 DEFAULT_INTERVAL_SECONDS = 120
 
 
-@dataclass(frozen=True, kw_only=True)
-class DaemonRunSettings:
-    """Hold the choices that apply to one daemon run."""
-
-    harness: AgentHarness
-    interval: int = DEFAULT_INTERVAL_SECONDS
-    max_agents: int = DEFAULT_MAX_AGENTS
-
-
 def _write_output(*, line: str) -> None:
     """Write and flush one line, escaped for the stream that receives it."""
     try:
@@ -71,9 +61,9 @@ class DreamcatcherDaemon:
         self,
         *,
         root: Path,
-        settings: DaemonRunSettings,
-        clock: Callable[[], datetime] = read_current_time,
-        wait: WaitForSeconds = sleep,
+        harness: AgentHarness,
+        interval: int = DEFAULT_INTERVAL_SECONDS,
+        max_agents: int = DEFAULT_MAX_AGENTS,
     ) -> None:
         """Configure the daemon for the main checkout at root."""
         if not (root / ".git").is_dir():
@@ -81,11 +71,13 @@ class DreamcatcherDaemon:
                 f"Start dreamcatcher from a repository's main checkout. "
                 f"{root} is not one."
             )
-        self.settings = settings
+        self.harness = harness
+        self.interval = interval
+        self.max_agents = max_agents
         self.config = read_dreamcatcher_config(root=root)
         self.state = StateDirectory(root=root)
-        self.clock = clock
-        self.wait = wait
+        self.clock: Callable[[], datetime] = read_current_time
+        self.wait: WaitForSeconds = sleep
         # The rounds this daemon is running, by the identifier of the assignment each
         # belongs to. They are what the cap counts, and what the daemon ends as
         # it goes down.
@@ -108,6 +100,7 @@ class DreamcatcherDaemon:
         """
         self._locate_harnesses()
         self.state.bootstrap()
+        write_text(text=f"{self.max_agents}\n", path=self.state.max_agents)
         repository = _require_known_github_value(
             value=identify_github_repository(root=self.state.root),
             question="which repository this is",
@@ -122,10 +115,10 @@ class DreamcatcherDaemon:
             account=account,
             config=self.config,
             state=self.state,
-            harness=self.settings.harness,
+            harness=self.harness,
             clock=self.clock,
             rounds=self.rounds,
-            max_agents=self.settings.max_agents,
+            max_agents=self.max_agents,
         )
         with hold_daemon_lock(path=self.state.lock):
             self._sweep_orphans()
@@ -135,7 +128,7 @@ class DreamcatcherDaemon:
                 with suppress(KeyboardInterrupt):
                     while True:
                         self.run_scheduler_cycle(scheduler=scheduler, at=at)
-                        self.wait(self.settings.interval)
+                        self.wait(self.interval)
                         at = self.clock()
             finally:
                 # Rounds die with the daemon by design, so this happens however
@@ -186,7 +179,7 @@ class DreamcatcherDaemon:
         the one the run named, because a label carrying one harness block runs
         on that harness whatever the run named.
         """
-        for harness in sorted({self.settings.harness, *self.config.routed_harnesses}):
+        for harness in sorted({self.harness, *self.config.routed_harnesses}):
             locate_program(program=HARNESS_ADAPTERS[harness].program)
 
     def _sweep_orphans(self) -> None:

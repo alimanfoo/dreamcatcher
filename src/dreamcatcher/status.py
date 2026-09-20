@@ -15,7 +15,6 @@ from dreamcatcher.documents import read_text
 from dreamcatcher.feed import FeedLine, read_last_feed_line
 from dreamcatcher.lock import read_daemon_pid
 from dreamcatcher.scheduler import (
-    DEFAULT_MAX_AGENTS,
     NO_ROUND_HAS_RUN,
     AgentAssignmentObservation,
     GlobalCooldown,
@@ -61,7 +60,7 @@ class DreamcatcherStatusReport:
     daemon_pid: int | None
     latest_scheduler_tick: datetime | None
     scheduler_hold: str | None
-    max_agent_rounds: int
+    max_agent_rounds: int | None
     running_agent_rounds: int
     active_global_cooldown: GlobalCooldown | None
     issue_observations: list[IssueObservation]
@@ -88,11 +87,7 @@ def read_status_report(
             if scheduler_record is None or reader.daemon_pid is None
             else scheduler_record.hold
         ),
-        max_agent_rounds=(
-            DEFAULT_MAX_AGENTS
-            if scheduler_record is None
-            else scheduler_record.max_agents
-        ),
+        max_agent_rounds=_read_max_agents(state=state),
         running_agent_rounds=sum(
             status.value is AgentAssignmentStatusValue.WORKING
             for status in assignment_statuses
@@ -110,6 +105,17 @@ def _read_repository(*, state: StateDirectory) -> str | None:
     if not state.repository.exists():
         return None
     return read_text(path=state.repository).strip()
+
+
+def _read_max_agents(*, state: StateDirectory) -> int | None:
+    """Read the most recent daemon run's agent cap when it is valid."""
+    if not state.max_agents.exists():
+        return None
+    try:
+        max_agents = int(read_text(path=state.max_agents).strip())
+    except ValueError:
+        return None
+    return max_agents if max_agents > 0 else None
 
 
 def read_agent_assignment_statuses_for_issue(

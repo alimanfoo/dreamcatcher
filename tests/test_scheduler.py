@@ -282,7 +282,6 @@ def test_a_tick_launches_one_round_and_leaves_the_rest_in_the_queue(
         IssueFactValue.TRUE,
         IssueFactValue.TRUE,
     ]
-    assert observed.max_agents == 2
     assert observed.launched_assignment_identifier == DISPATCHED_ASSIGNMENT_ID
     assert not (scheduler.state.worktrees / "GH9-20260819-184158").exists()
 

@@ -199,6 +199,7 @@ def holding(*, state):
     """Configure the instance and write the lock that its daemon holds."""
     configure(root=state.root)
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
+    write_text(text="1\n", path=state.max_agents)
     write_text(text=f"{DAEMON_PID}\n", path=state.lock)
 
 
@@ -206,6 +207,7 @@ def fabricate_nothing(*, state):
     """A state directory a daemon has bootstrapped and nothing else."""
     configure(root=state.root)
     state.bootstrap()
+    write_text(text="1\n", path=state.max_agents)
 
 
 def fabricate_everything(*, state):
@@ -340,6 +342,7 @@ def fabricate_repeat_assignments(*, state):
     """Three assignments at one issue, so a repeat dispatch reads as one thing."""
     configure(root=state.root)
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
+    write_text(text="1\n", path=state.max_agents)
     for stamp, rounds in (
         (
             "20260817-090000",

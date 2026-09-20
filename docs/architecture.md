@@ -223,7 +223,6 @@ Status construction may read:
 - the instance's repository record;
 - scheduler records, including issue observations, the active capacity and
   global cooldown, and the latest tick;
-- configuration, dispatch labels, and routes;
 - the latest rendered feed output needed for a useful summary.
 
 It may call the scheduler's pure interpretation functions, but it cannot invoke
@@ -328,12 +327,13 @@ A round record persists:
   and
 - the durable files containing its prompt, delivered posts, and output.
 
-An instance record persists the repository identity. An instance-wide scheduler
-record persists the capacity applied to that tick, an active global cooldown,
-and the time at which the most recent cooldown ended. An assignment record
-persists the time of its latest user retry request. These boundaries allow fault
-to remain a derived status: ending a cooldown or requesting a retry changes
-which round errors count towards fault rather than writing an assignment status.
+Instance records persist the repository identity and the most recent daemon
+run's capacity. An instance-wide scheduler record persists an active global
+cooldown and the time at which the most recent cooldown ended. An assignment
+record persists the time of its latest user retry request. These boundaries
+allow fault to remain a derived status: ending a cooldown or requesting a retry
+changes which round errors count towards fault rather than writing an assignment
+status.
 
 The following are derived rather than persisted as authoritative state:
 

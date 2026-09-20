@@ -16,7 +16,7 @@ from enum import StrEnum
 from functools import partial
 from typing import Annotated, Self
 
-from pydantic import AfterValidator, AwareDatetime, Field, PositiveInt, model_validator
+from pydantic import AfterValidator, AwareDatetime, Field, model_validator
 
 from dreamcatcher.agent_assignments import (
     AgentAssignment,
@@ -134,7 +134,6 @@ class SchedulerRecord(DreamcatcherDocument):
     """Record what one scheduler tick observed and decided."""
 
     at: UtcDateTime
-    max_agents: PositiveInt = DEFAULT_MAX_AGENTS
     hold: str | None = None
     launched_assignment_identifier: str | None = Field(default=None, alias="launched")
     issue_observations: list[IssueObservation] = Field(default_factory=list)
@@ -790,7 +789,6 @@ class AgentWorkScheduler:
         )
         record = SchedulerRecord(
             at=at,
-            max_agents=self.max_agents,
             cooldown=cooldown,
             most_recent_cooldown_ended=most_recent_cooldown_ended,
             issue_observations=issue_observations,

@@ -15,11 +15,7 @@ from dreamcatcher.agent_assignments import (
 )
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.config import AgentHarness
-from dreamcatcher.daemon import (
-    DEFAULT_INTERVAL_SECONDS,
-    DaemonRunSettings,
-    DreamcatcherDaemon,
-)
+from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS, DreamcatcherDaemon
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.scheduler import (
     DEFAULT_MAX_AGENTS,
@@ -205,11 +201,9 @@ def main(*, argv: Sequence[str] | None = None) -> int:
 def _run_daemon(*, arguments: argparse.Namespace) -> None:
     DreamcatcherDaemon(
         root=Path.cwd(),
-        settings=DaemonRunSettings(
-            harness=AgentHarness(arguments.harness),
-            interval=arguments.interval,
-            max_agents=arguments.max_agents,
-        ),
+        harness=AgentHarness(arguments.harness),
+        interval=arguments.interval,
+        max_agents=arguments.max_agents,
     ).run()
 
 

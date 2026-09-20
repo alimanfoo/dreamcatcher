@@ -223,7 +223,12 @@ def _render_instance_status(*, report: DreamcatcherStatusReport) -> RenderableTy
         ("latest scheduler tick", tick),
         (
             "agent-round capacity",
-            f"{report.running_agent_rounds} of {report.max_agent_rounds} in use",
+            (
+                None
+                if report.max_agent_rounds is None
+                else f"{report.running_agent_rounds} of "
+                f"{report.max_agent_rounds} in use"
+            ),
         ),
         ("global cooldown", cooldown),
         ("scheduler hold", report.scheduler_hold),
