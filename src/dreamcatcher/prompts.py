@@ -43,7 +43,7 @@ end your turn when the work is done."""
     + AGENT_POST_INSTRUCTIONS
 )
 
-# What a round woken by the pull request asks for. It ports from the catcher
+# What a round resumed from the pull request asks for. It ports from the catcher
 # this tool replaces, word for word. The user's own words are never in it: the
 # posts go to a file, and this names the file. The file also says where the
 # pull request has got to, which is what tells a round that answers the user

@@ -45,7 +45,7 @@ def _write_output(*, line: str) -> None:
 
 
 class DreamcatcherDaemon:
-    """The foreground process watching one repo.
+    """Run the foreground process that watches one repository.
 
     The clock and the wait are the daemon's own, so a test can pin the time and
     end the loop.
@@ -59,7 +59,7 @@ class DreamcatcherDaemon:
         clock: Callable[[], datetime] = read_current_time,
         wait: WaitForSeconds = sleep,
     ) -> None:
-        """Set the daemon up for the repo checked out at root."""
+        """Configure the daemon for the main checkout at root."""
         if not (root / ".git").is_dir():
             raise ReportableError(
                 f"Start dreamcatcher from a repository's main checkout. "
@@ -76,7 +76,7 @@ class DreamcatcherDaemon:
         self.rounds: dict[str, AgentRound] = {}
 
     def run(self) -> None:
-        """Hold the repo and tick until the user interrupts.
+        """Hold the repository and run scheduler cycles until interrupted.
 
         Everything a run cannot do without is settled before the loop: the
         harness CLIs, the state directory, the repository's name, the account
@@ -86,11 +86,9 @@ class DreamcatcherDaemon:
         reports the failure and the next tick tries again. An invalid scheduler
         record ends the run because retrying cannot change the document it reads.
 
-        The repository and the account are read here and nowhere else. Neither
-        can change while the daemon holds the repo, a run that cannot name the
-        repository dispatches nothing, and the relay reads every post against
-        the account before the marker tells the user's posts from the
-        assignment's own.
+        The repository and signed-in account are fixed for the run. The account
+        identifies user posts before the marker excludes the assignment's own
+        posts.
         """
         self._locate_harnesses()
         self.state.bootstrap()
@@ -133,11 +131,10 @@ class DreamcatcherDaemon:
     def run_scheduler_cycle(
         self, *, scheduler: AgentWorkScheduler, at: datetime
     ) -> None:
-        """Run one scheduler tick, then record and report its result.
+        """Run one scheduler tick, then persist and report its result.
 
-        A tick that failed reports the evidence and the next tick tries again,
-        rather than the daemon ending and leaving the assignments it holds to
-        nobody. The last complete scheduler record stays in place.
+        A failed tick reports the error and leaves the last complete scheduler
+        record in place so that the next cycle can try again.
 
         Writing that evidence down is the exception. A daemon that cannot write
         `scheduler.json` has no way left to say anything at all, so that
@@ -176,15 +173,10 @@ class DreamcatcherDaemon:
             locate_program(program=HARNESS_ADAPTERS[harness].program)
 
     def _sweep_orphans(self) -> None:
-        """End whatever a daemon that ran before this one left running.
+        """Terminate and reconcile rounds left running by an earlier daemon.
 
-        Rounds die with the daemon that started them, so a round still running
-        here means the daemon that started it went down without ending it,
-        which a crash or a kill does. A round whose record says how it ended is
-        over and is left alone. Every other round is ended, and ending a round
-        that has already gone does nothing, so nothing here has to ask whether
-        one has. Its record is then reconciled as interrupted, which a later
-        tick recovers.
+        A terminal record is left unchanged. Every record without an ending is
+        marked interrupted so that a later scheduler cycle can recover it.
 
         The pid is the one the record kept, and the operating system was free
         to give it to somebody else once the daemon that recorded it died.
@@ -193,9 +185,8 @@ class DreamcatcherDaemon:
         nothing happens. That leaves a window, and it is accepted, as the same
         window is where the tool ends its own rounds.
 
-        Windows cannot reach this at all: a round there sits in a job that
-        empties itself when the daemon's last handle on it closes, so no round
-        outlives its daemon and there is never anything to end.
+        Windows Job Objects empty when the earlier daemon closes its last
+        handle, so termination there is already complete.
         """
         for assignment in read_agent_assignments(state=self.state):
             for record in assignment.rounds:

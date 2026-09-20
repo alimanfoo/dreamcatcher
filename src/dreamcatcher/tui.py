@@ -1,17 +1,9 @@
-"""Show what the assignments are doing, from what the daemon left on the disk.
+"""Render status, assignment, and feed views from local state.
 
-This is the terminal interface, and the whole of it. It holds the three views
-a reader reaches through a verb of the command line: status, one assignment,
-and one assignment's feed. It reads the state directory and never talks to GitHub
-or to the daemon, so it answers whether the daemon is alive or dead, and
-answers fastest when you most want to look.
+The views read the state directory without contacting GitHub or the daemon.
+Status and assignment views redraw the current state, while a feed appends new
+lines and preserves terminal scrollback. Color is added only during rendering.
 
-Status and one assignment are pictures of a state, so each is drawn over the
-one before it. A feed is a log, so it is printed as it is read, and the reader
-keeps their scrollback.
-
-What the daemon writes stays plain text, and the colour goes on at the moment of
-reading.
 """
 
 from collections.abc import Callable, Iterable, Sequence
@@ -85,19 +77,16 @@ SECTION_PADDING = (0, 0, 0, 2)
 
 
 def open_tui_console() -> Console:
-    """Return the console that the views are written to.
+    """Return a console that follows the terminal's current dimensions.
 
-    It names no width and no height, so rich reads the terminal's own on every
-    look, and a view redrawn into a window the reader has since resized fills
-    the size it is now. Only the tests name a size, so that a picture is cut in
-    the same place whatever terminal runs them.
+    Tests may supply a console with fixed dimensions for stable output.
     """
     return Console()
 
 
 @dataclass(frozen=True, kw_only=True)
 class _ViewSnapshot:
-    """A view as one look found it: what to draw, and whether the view is over.
+    """Capture one rendered view and whether more output can reach it.
 
     A view is over when nothing more can reach it. That is not the same as the
     last look, because `_refresh_until_view_ends` takes one more after it.
@@ -113,29 +102,12 @@ def _refresh_live_view(
     read_snapshot: Callable[[], _ViewSnapshot],
     wait: WaitForSeconds,
 ) -> None:
-    """Draw what each look finds over the one before, until the view is over.
+    """Redraw snapshots in a terminal until the view ends.
 
-    A picture of a state has a current value rather than a history, so every
-    look is drawn over the one before rather than under it. rich's Live draws
-    into the terminal's alternate screen, which it fills, so the view is the
-    whole of what the reader sees while it is going and the commands the shell
-    printed above it are not read alongside it. The screen is as tall as the
-    terminal, so a picture that outgrows it is cut at the bottom. Status puts
-    instance facts before agent assignments and available issues.
+    A terminal uses its alternate screen and prints the final snapshot after a
+    completed view ends. An interrupted active view leaves no final snapshot.
 
-    Handing the screen back brings the shell's own output back and takes the
-    last picture with it, so a view whose last look found it over prints that
-    picture where the reader can go on reading it. An assignment that was already
-    over when the view opened is drawn once and printed, which is what a
-    reader looking one up reads. A view that the reader interrupts while
-    something is still coming leaves nothing behind, because interrupting is
-    how they say they have seen enough.
-
-    This decides where a look is drawn, and `_refresh_until_view_ends` decides
-    how long to go on looking. A view nobody is watching has no screen to take,
-    and a terminal that reports itself as dumb takes no control code, so rich
-    can draw nothing into a screen there and writes nothing at all. Either
-    console gets one look, printed as anything else is.
+    A non-terminal or dumb terminal prints one snapshot and returns.
     """
     if not console.is_terminal or console.is_dumb_terminal:
         console.print(read_snapshot().renderable)
@@ -160,24 +132,11 @@ def _refresh_live_view(
 def _refresh_until_view_ends(
     *, console: Console, refresh_view: Callable[[], bool], wait: WaitForSeconds
 ) -> None:
-    """Look again and again, until the view has seen the last of what it shows.
+    """Refresh until two consecutive looks say that the view is over.
 
-    A look shows where the view stands now and answers whether the view is
-    over, which is to say whether anything more can reach it.
-
-    Nobody is watching a console that is no terminal: the view is being piped,
-    redirected or captured, and a view that went on looking would write another
-    picture into that pipe, that file or that log at every look. So one look is
-    the last look there, and the reader is asked for no flag to say so.
-
-    A round records its ending as soon as its own child has gone, and whatever
-    it was still writing lands after that, so a view that finds itself over
-    looks once more before it ends. Nothing was going before the view opened,
-    so a view that opens on something already over ends on its first look and
-    never waits.
-
-    The reader ends a view that is still going by interrupting it, which is how
-    they say they have seen enough, so it ends without a word.
+    The extra look lets output that follows a round's terminal record arrive.
+    A view that is already over returns after its first look, and a non-terminal
+    console always takes one look. KeyboardInterrupt ends an active view quietly.
     """
     was_over_on_previous_refresh = True
     with suppress(KeyboardInterrupt):
@@ -196,11 +155,9 @@ def show_status_view(
     clock: Callable[[], datetime] = read_current_time,
     wait: WaitForSeconds = sleep,
 ) -> None:
-    """Show the instance, issue, and assignment status, and keep it current.
+    """Show instance, issue, and assignment status until interrupted.
 
-    A status report can always change, so a reader watching one ends it by
-    interrupting it. A console that is no terminal has nobody watching, so the
-    report is drawn once there and this returns.
+    A non-terminal console renders one report and returns.
     """
     _refresh_live_view(
         console=console,
@@ -212,7 +169,7 @@ def show_status_view(
 def _read_status_snapshot(
     *, state: StateDirectory, clock: Callable[[], datetime]
 ) -> _ViewSnapshot:
-    """Return the current status report, which no look ever finds over.
+    """Return the current status report as a view that never ends itself.
 
     A daemon can start, a tick can run, or a round can begin after any look.
     """
@@ -238,12 +195,7 @@ def _render_status(*, report: DreamcatcherStatusReport) -> RenderableType:
 def _combine_renderable_parts(
     *, parts: Sequence[RenderableType | None]
 ) -> RenderableType:
-    """Return the parts of a view that have something to say, as one renderable.
-
-    A part with nothing to say answers nothing, so it is left out rather than
-    shown empty. The status and assignment views both compose themselves
-    through this, so what that means is written down once.
-    """
+    """Combine the non-empty parts of a view into one renderable."""
     return Group(*(part for part in parts if part is not None))
 
 
@@ -346,7 +298,7 @@ def _describe_empty_status_report(*, report: DreamcatcherStatusReport) -> Text |
 
 
 def _create_table(*, columns: int) -> Table:
-    """Return an empty table whose columns fit whatever a section puts in them.
+    """Return a table whose cells fold instead of truncating.
 
     The first column names an assignment or an issue, which is what a reader picks
     a row out by, so it folds onto another line rather than being cut short.
@@ -363,11 +315,7 @@ def _create_table(*, columns: int) -> Table:
 
 
 def _render_section(*, heading: str, body: RenderableType) -> RenderableType:
-    """Return one section of a view, set in under its own heading.
-
-    A blank line opens the section, which sets it apart from the section above
-    and from the line that opens the view.
-    """
+    """Render a view section beneath a heading and blank separator."""
     return Group(
         Text(),
         Text(heading, style="bold blue"),
@@ -383,13 +331,10 @@ def show_assignment_view(
     clock: Callable[[], datetime] = read_current_time,
     wait: WaitForSeconds = sleep,
 ) -> None:
-    """Show the newest assignment at the issue, and keep on showing it.
+    """Show the issue's newest assignment until it completes or enters fault.
 
-    An assignment between rounds has another round coming, so the view stays open
-    through the gap and shows that round as it starts. An assignment that has run
-    a successful wrap-up round, and an assignment currently in fault, have no
-    round coming, so either one ends the view. A console that is no terminal has
-    nobody watching, so there the assignment is drawn once and this returns.
+    The view remains open between rounds. A non-terminal console renders one
+    snapshot and returns.
     """
     _refresh_live_view(
         console=console,
@@ -403,7 +348,7 @@ def show_assignment_view(
 def _read_assignment_snapshot(
     *, state: StateDirectory, issue: int, clock: Callable[[], datetime]
 ) -> _ViewSnapshot:
-    """Return the newest assignment at the issue as it stands, and whether it is over.
+    """Return the newest assignment and whether its view is over.
 
     One look reads the issue's statuses once, and takes both what it draws and
     whether the assignment is terminal from them.
@@ -424,11 +369,10 @@ def _read_assignment_snapshot(
 def _render_assignment(
     *, state: StateDirectory, assignment_statuses: list[AgentAssignmentStatus]
 ) -> RenderableType:
-    """Return the newest of these assignments, with the older ones beneath it.
+    """Render the newest assignment with older assignments beneath it.
 
-    An issue that has been dispatched more than once has an assignment for each
-    dispatch. The newest is the one still going, or the one that got furthest,
-    so it is the one the view is about.
+    Each dispatch creates another assignment for the issue, and the caller
+    orders them newest first.
     """
     current_status = assignment_statuses[0]
     assignment = current_status.assignment
@@ -494,11 +438,8 @@ def _render_assignment_summary(
 def _render_rounds(*, status: AgentAssignmentStatus) -> RenderableType | None:
     """Return the rounds the assignment has run, newest first.
 
-    The newest round is the one a reader came for, so it opens the section,
-    as the newest assignment opens the view. Each round keeps the number it ran
-    under, because that is the number `feed --round` takes.
-
-    An assignment that has run none answers nothing.
+    Each row keeps the round number accepted by `feed --round`. An assignment
+    with no rounds returns no section.
     """
     rounds = status.assignment.rounds
     if not rounds:
@@ -605,35 +546,14 @@ def show_feed_view(
     round_number: int | None = None,
     wait: WaitForSeconds = sleep,
 ) -> None:
-    """Show what the issue's newest assignment said, and follow what arrives.
+    """Show and follow the newest assignment's feed.
 
-    Naming a round narrows the view to that one round, and everything below is
-    about the view of the whole assignment, which is what a reader gets when they
-    name no round.
+    Naming a round limits the view to that round and ends when the round ends.
+    Without a round number, the view follows new rounds across the gaps between
+    them until the assignment completes or enters fault.
 
-    Neither view reads a clock, unlike the status and assignment views, which
-    say how long ago something happened. Every line a feed shows carries the
-    time it was written, so what a feed shows is the same whenever it is read.
-
-    Reading an assignment that is over and watching one that is going are the same
-    view in two tenses, so this shows what is there and then keeps showing what
-    lands for as long as the assignment has another round coming.
-
-    An assignment between rounds is still going, so the view stays open through the
-    gaps: while the assignment waits for a round that no daemon has launched yet,
-    while its pull request waits for the reader to post on it, and while the
-    daemon that was running it is stopped and started again.
-
-    An assignment with a successful wrap-up round has nothing more to say. An
-    assignment currently in fault has no ordinary recovery round coming, so
-    either state ends the view rather than have it wait indefinitely. A later
-    global cooldown can clear the fault, after which a new view follows recovery.
-
-    Every look reads the assignment again, so a round that starts while the view
-    is going is shown as it arrives, and not only the rounds it opened with.
-
-    A console that is no terminal has nobody watching, so there either view
-    shows what is there once and returns.
+    Every feed line carries its own timestamp, so the view needs no clock. A
+    non-terminal console shows the current contents once and returns.
     """
     if round_number is not None:
         _show_one_round(
@@ -660,14 +580,10 @@ def _show_one_round(
     console: Console,
     wait: WaitForSeconds,
 ) -> None:
-    """Show one round of the issue's newest assignment, until that round ends.
+    """Show one round of the newest assignment until the round ends.
 
-    One named round is all this shows, so it ends when that round has, rather
-    than stay open for the round after it.
-
-    The round list of the assignment view is where a reader finds the number, so
-    a number no round of the assignment carries is the reader's mistake, and is
-    the one thing this turns into words for them.
+    Raise ReportableError when the assignment has no round with the requested
+    number.
     """
     view = _FeedView(console=console)
 
@@ -718,12 +634,10 @@ def _find_assignment_statuses_for_issue(
 
 @dataclass(frozen=True, kw_only=True)
 class _FeedView:
-    """An assignment's feed on a console, and how far each round of it has been read.
+    """Track how far a console has read each round of an assignment feed.
 
-    A feed only grows, so a later look at one reads each round on from where
-    the last look stopped and shows what arrived. The rounds a position is held
-    for are the rounds already shown, so a round that has started since the
-    last look is the one that opens with its own heading.
+    Each later look resumes from the stored byte position. A round without a
+    stored position first receives its heading.
     """
 
     console: Console
@@ -777,8 +691,7 @@ class _FeedView:
 def _render_written_feed_line(*, written_line: str) -> Text:
     """Return one line of a feed as it reads on a console.
 
-    A line the reader cannot parse reaches the reader as it was written, since
-    showing what the feed holds is the whole point of showing it.
+    An unparseable line is returned unchanged.
     """
     line = read_feed_line(written_line=written_line)
     if line is None:
@@ -789,7 +702,7 @@ def _render_written_feed_line(*, written_line: str) -> Text:
 
 
 def _render_feed_line(*, line: FeedLine, content: Text) -> Text:
-    """Return the line with its stamp set back, so the words stand out."""
+    """Render a dim timestamp followed by the line's highlighted content."""
     return Text.assemble(
         (describe_time(at=line.at), "dim"), FEED_TIMESTAMP_GAP, content
     )

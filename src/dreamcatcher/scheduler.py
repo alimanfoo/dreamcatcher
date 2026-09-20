@@ -1,14 +1,11 @@
-"""Schedule one round of agent work at a time.
+"""Schedule agent work for one Dreamcatcher instance.
 
-A scheduler tick reads the assignments on disk and asks GitHub which labelled
-issues are available. It weighs the active rounds against the cap, works out
-what each assignment needs next, and launches at most one round.
+Each tick reads local assignments, observes relevant issues on GitHub, applies
+the concurrency cap and global cooldown, and launches at most one round.
 
-Open work goes before new work, and the most open of it first: a recorded
-assignment missing its first round finishes its dispatch, a round that did not
-finish is recovered, a merged or closed pull request gets a wrap-up round, then
-an assignment answers what the user posted. Only when no assignment needs
-anything does an uncapped tick dispatch the oldest available issue.
+Existing assignments precede new dispatches. Within existing work, a missing
+first round comes first, followed by recovery, wrap-up, and user feedback. If no
+assignment needs a round, the oldest available issue is dispatched.
 """
 
 from collections.abc import Callable
@@ -73,7 +70,7 @@ UtcDateTime = Annotated[AwareDatetime, AfterValidator(_normalize_utc)]
 
 
 class IssueFactValue(StrEnum):
-    """A known true or false issue fact, or one that could not be observed."""
+    """List the truth states of an observed issue fact."""
 
     TRUE = "true"
     FALSE = "false"
@@ -81,14 +78,14 @@ class IssueFactValue(StrEnum):
 
 
 class IssueFact(DreamcatcherDocument):
-    """One independently observed issue fact and its diagnostic evidence."""
+    """Model an independently observed issue fact and its evidence."""
 
     value: IssueFactValue
     evidence: str | None = None
 
 
 class IssueObservation(DreamcatcherDocument):
-    """The independent facts that one scheduler tick observed about an issue."""
+    """Model the independent facts observed about an issue in one tick."""
 
     issue: int
     created_at: datetime | None = None
@@ -108,7 +105,7 @@ class IssueObservation(DreamcatcherDocument):
 
 
 class AgentAssignmentObservation(DreamcatcherDocument):
-    """What the scheduler found when it inspected one idle assignment."""
+    """Model what the scheduler found for one idle assignment."""
 
     assignment_identifier: str = Field(alias="assignment")
     issue: int
@@ -118,7 +115,7 @@ class AgentAssignmentObservation(DreamcatcherDocument):
 
 
 class GlobalCooldown(DreamcatcherDocument):
-    """The interval during which the scheduler starts no agent work."""
+    """Model an interval during which the scheduler starts no agent work."""
 
     started: UtcDateTime
     ends: UtcDateTime
@@ -132,7 +129,7 @@ class GlobalCooldown(DreamcatcherDocument):
 
 
 class SchedulerRecord(DreamcatcherDocument):
-    """What the scheduler's most recent tick observed and decided."""
+    """Record what one scheduler tick observed and decided."""
 
     at: UtcDateTime
     hold: str | None = None
@@ -147,7 +144,7 @@ class SchedulerRecord(DreamcatcherDocument):
 
 @dataclass(frozen=True, kw_only=True)
 class RequiredAgentRound:
-    """The next round that an assignment requires, ready for the scheduler."""
+    """Describe the next round that an assignment requires."""
 
     assignment: AgentAssignment
     plan: AgentRoundPlan
@@ -157,7 +154,7 @@ class RequiredAgentRound:
 
 @dataclass(frozen=True, kw_only=True)
 class FaultedAgentAssignment:
-    """An assignment whose consecutive errors stop ordinary recovery."""
+    """Describe an assignment whose errors stop ordinary recovery."""
 
     assignment: AgentAssignment
     reason: str
@@ -170,7 +167,7 @@ type AgentAssignmentInspectionResult = (
 
 @dataclass(frozen=True, kw_only=True)
 class _IssueObservationContext:
-    """The shared inputs for observing each issue in one scheduler tick."""
+    """Collect the shared inputs for observing issues in one tick."""
 
     repository: str
     account: str
@@ -181,7 +178,7 @@ class _IssueObservationContext:
 
 @dataclass(frozen=True, kw_only=True)
 class IssueObservationResult:
-    """The issue facts one tick observed and any failed listing behind them."""
+    """Group issue observations with any failed listing behind them."""
 
     observations: list[IssueObservation]
     failure: str | None = None
@@ -189,7 +186,7 @@ class IssueObservationResult:
 
 @dataclass(frozen=True, kw_only=True)
 class _ConsideredIssueResult:
-    """The issues listed successfully and any route listing that failed."""
+    """Group listed issues with any route listing failure."""
 
     issues: list[Issue]
     failure: str | None = None
@@ -489,7 +486,7 @@ def read_scheduler_record(*, state: StateDirectory) -> SchedulerRecord | None:
 
 
 class InvalidSchedulerRecordError(ReportableError):
-    """A scheduler record the daemon cannot safely replace by retrying."""
+    """Report a scheduler record that retrying cannot safely replace."""
 
 
 def advance_scheduler_record(
@@ -734,19 +731,18 @@ class AgentWorkScheduler:
     rounds: dict[str, AgentRound]
 
     def tick(self, *, at: datetime) -> SchedulerRecord:
-        """Look once and launch at most one round.
+        """Inspect current work and launch at most one agent round.
 
         A round that has ended is forgotten first, so the cap counts what is
         running now. A failure reaches the daemon, which reports it before the
         next tick tries again.
 
-        Every tick observes the relevant issues, so status reporting stays
-        current while the daemon is carrying on open work or waiting for a
-        launch slot. A failed listing holds the tick.
+        Every tick observes relevant issues so that status stays current while
+        open work runs or waits for capacity. A failed issue listing prevents a
+        launch.
 
-        The cooldown holds every required round and dispatch alike, but it
-        holds no read. So a tick under it still says what each assignment is
-        waiting on, rather than going quiet for the whole fifteen minutes.
+        A global cooldown prevents every launch but does not prevent reads, so
+        assignment observations remain current while the cooldown is active.
         """
         previous_record = advance_scheduler_record(
             previous=read_scheduler_record(state=self.state), at=at

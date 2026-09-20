@@ -227,7 +227,7 @@ class AgentRoundPaths:
 
     @property
     def round_input(self) -> Path:
-        """The file holding the batch that the round was woken with."""
+        """The file holding the pull request state and user posts for the round."""
         return self.directory / "inbox.json"
 
 
