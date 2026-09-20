@@ -137,9 +137,9 @@ The **scheduler** decides what work Dreamcatcher starts and when.
 ### Status report
 
 A **status report** is Dreamcatcher's read-only account of a Dreamcatcher
-instance, its agent assignments, incomplete assignment setups that cannot be
-reconciled, and the issues that are available for new assignments at a
-particular time.
+instance, its agent assignments, incomplete assignment setups with recorded
+obstacles, and the issues that are available for new assignments at a particular
+time.
 
 An **issue observation** records the independent facts that one scheduler tick
 found for an issue. Its availability is derived from those facts.

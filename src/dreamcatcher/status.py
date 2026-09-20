@@ -108,8 +108,8 @@ class AgentAssignmentStatus:
 
 
 @dataclass(frozen=True, kw_only=True)
-class IncompleteAssignmentSetupStatus:
-    """Describe an incomplete assignment setup that needs reconciliation."""
+class ObstructedAssignmentSetupStatus:
+    """Describe an incomplete assignment setup with an obstacle."""
 
     issue: int
     obstacle: str
@@ -127,7 +127,7 @@ class DreamcatcherStatusReport:
     max_agent_rounds: int | None
     running_agent_rounds: int
     active_global_cooldown: GlobalCooldown | None
-    incomplete_assignment_setups: list[IncompleteAssignmentSetupStatus]
+    obstructed_assignment_setups: list[ObstructedAssignmentSetupStatus]
     issue_observations: list[IssueObservation]
     assignment_statuses: list[AgentAssignmentStatus]
 
@@ -161,8 +161,8 @@ def read_status_report(
         active_global_cooldown=(
             None if scheduler_record is None else scheduler_record.cooldown
         ),
-        incomplete_assignment_setups=[
-            IncompleteAssignmentSetupStatus(
+        obstructed_assignment_setups=[
+            ObstructedAssignmentSetupStatus(
                 issue=observation.issue,
                 obstacle=observation.setup_obstacle,
             )

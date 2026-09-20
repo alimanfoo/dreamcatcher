@@ -266,7 +266,7 @@ def fabricate_everything(*, state):
     )
 
 
-def fabricate_an_incomplete_setup(*, state):
+def fabricate_an_obstructed_setup(*, state):
     """A running daemon with an assignment, a setup obstacle, and available work."""
     holding(state=state)
     written(state=state, issue=13, records=[])
@@ -405,7 +405,7 @@ def fabricate_a_silent_round(*, state):
 STATUS_REPORTS = {
     "nothing": fabricate_nothing,
     "everything": fabricate_everything,
-    "incomplete-setup": fabricate_an_incomplete_setup,
+    "obstructed-setup": fabricate_an_obstructed_setup,
     "dead-daemon": fabricate_a_dead_daemon,
     "at-cap": fabricate_the_cap,
     "silent-round": fabricate_a_silent_round,

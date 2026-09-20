@@ -9,7 +9,7 @@ instance
 agent assignments
   GH13-20260819-184158  waiting  no round has run yet
 
-incomplete assignment setups
+obstructed assignment setups
   GH20  cannot reconcile its incomplete setup
 
 available issues
