@@ -138,8 +138,8 @@ The **scheduler** decides what work Dreamcatcher starts and when.
 
 A **status report** is Dreamcatcher's read-only account of a Dreamcatcher
 instance, its agent assignments, incomplete assignment setups with recorded
-obstacles, and the issues that are available for new assignments at a particular
-time.
+reconciliation failures, and the issues that are available for new assignments
+at a particular time.
 
 An **issue observation** records the independent facts that one scheduler tick
 found for an issue. Its availability is derived from those facts.
@@ -227,9 +227,10 @@ An issue whose assignment setup was interrupted has an incomplete assignment
 setup. If a later tick can safely resume the assignment setup, claimed elsewhere
 is false. Otherwise, the reason that the assignment setup cannot resume is
 evidence that claimed elsewhere is unknown, unless an open linked pull request
-proves the fact true. The issue observation records that setup obstacle
-separately, so the status report can show it even when another fact determines
-availability. Every later tick inspects the assignment setup again.
+proves the fact true. The issue observation records the failed reconciliation
+attempt separately, so the status report can show it even when another fact
+determines availability. Every later tick tries to reconcile the assignment
+setup again.
 
 An issue with a local assignment appears through its agent assignment rather
 than in the report's available issues.

@@ -35,8 +35,8 @@ from dreamcatcher.status import (
     AgentAssignmentStatus,
     AgentAssignmentStatusValue,
     DreamcatcherStatusReport,
+    FailedAssignmentSetupStatus,
     IssueObservation,
-    ObstructedAssignmentSetupStatus,
     read_agent_assignment_statuses_for_issue,
     read_status_report,
 )
@@ -174,15 +174,13 @@ def _read_status_snapshot(
 
 
 def _render_status(*, report: DreamcatcherStatusReport) -> RenderableType:
-    """Render repository facts, assignments, setup obstacles, and available issues."""
+    """Render repository facts, assignments, setup failures, and available issues."""
     return _combine_renderable_parts(
         parts=[
             Text(report.repository or "repository unknown", style="bold"),
             _render_instance_status(report=report),
             _render_assignments(assignments=report.assignment_statuses),
-            _render_obstructed_assignment_setups(
-                setups=report.obstructed_assignment_setups
-            ),
+            _render_failed_assignment_setups(setups=report.failed_assignment_setups),
             _render_issues(issues=report.issue_observations),
             _describe_empty_status_report(report=report),
         ]
@@ -246,16 +244,16 @@ def _render_issues(*, issues: Sequence[IssueObservation]) -> RenderableType | No
     return _render_section(heading="available issues", body=table)
 
 
-def _render_obstructed_assignment_setups(
-    *, setups: Sequence[ObstructedAssignmentSetupStatus]
+def _render_failed_assignment_setups(
+    *, setups: Sequence[FailedAssignmentSetupStatus]
 ) -> RenderableType | None:
-    """Render incomplete assignment setups with recorded obstacles."""
+    """Render incomplete assignment setups whose latest reconciliation failed."""
     if not setups:
         return None
     table = _create_table(columns=2)
     for setup in setups:
-        table.add_row(Text(f"GH{setup.issue}"), Text(setup.obstacle))
-    return _render_section(heading="obstructed assignment setups", body=table)
+        table.add_row(Text(f"GH{setup.issue}"), Text(setup.failure))
+    return _render_section(heading="failed assignment setups", body=table)
 
 
 def _render_assignments(
@@ -306,7 +304,7 @@ def _render_assignment_detail(
 def _describe_empty_status_report(*, report: DreamcatcherStatusReport) -> Text | None:
     """Describe an instance that has no issue or assignment status yet."""
     if (
-        report.obstructed_assignment_setups
+        report.failed_assignment_setups
         or report.issue_observations
         or report.assignment_statuses
     ):

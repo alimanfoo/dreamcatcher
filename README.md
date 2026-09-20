@@ -160,8 +160,8 @@ dreamcatcher status
 ```
 
 `status` starts with the repository name, then shows the instance, its agent
-assignments, any incomplete assignment setups with recorded obstacles, and the
-available issues in dispatch order.
+assignments, any incomplete assignment setups whose latest reconciliation
+failed, and the available issues in dispatch order.
 
 `assignment` shows one issue's newest assignment: its issue identifier, agent
 assignment identifier, harness session identifier, what its dispatch settled,

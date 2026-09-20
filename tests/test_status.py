@@ -30,7 +30,7 @@ from dreamcatcher.scheduler import (
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AgentAssignmentStatusValue,
-    ObstructedAssignmentSetupStatus,
+    FailedAssignmentSetupStatus,
     read_agent_assignment_statuses_for_issue,
     read_status_report,
 )
@@ -632,12 +632,12 @@ def test_reading_one_issue_returns_only_its_assignments_newest_first(state):
     ]
 
 
-def test_an_obstructed_setup_reports_independently_of_an_external_claim(state):
+def test_a_failed_setup_reports_independently_of_an_external_claim(state):
     observation = observed_issue(
         issue=20,
         values={"claimed_elsewhere": IssueFactValue.TRUE},
         evidence={"claimed_elsewhere": "a pull request is open on it: #52"},
-    ).model_copy(update={"setup_obstacle": "cannot reconcile its incomplete setup"})
+    ).model_copy(update={"setup_failure": "cannot reconcile its incomplete setup"})
     write_tick(
         state=state,
         tick=SchedulerRecord(at=PINNED, issue_observations=[observation]),
@@ -645,10 +645,10 @@ def test_an_obstructed_setup_reports_independently_of_an_external_claim(state):
 
     status_report = report(state=state)
 
-    assert status_report.obstructed_assignment_setups == [
-        ObstructedAssignmentSetupStatus(
+    assert status_report.failed_assignment_setups == [
+        FailedAssignmentSetupStatus(
             issue=20,
-            obstacle="cannot reconcile its incomplete setup",
+            failure="cannot reconcile its incomplete setup",
         )
     ]
     assert status_report.issue_observations == []

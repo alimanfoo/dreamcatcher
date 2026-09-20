@@ -108,11 +108,11 @@ class AgentAssignmentStatus:
 
 
 @dataclass(frozen=True, kw_only=True)
-class ObstructedAssignmentSetupStatus:
-    """Describe an incomplete assignment setup with an obstacle."""
+class FailedAssignmentSetupStatus:
+    """Describe the latest failed attempt to reconcile an incomplete setup."""
 
     issue: int
-    obstacle: str
+    failure: str
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -127,7 +127,7 @@ class DreamcatcherStatusReport:
     max_agent_rounds: int | None
     running_agent_rounds: int
     active_global_cooldown: GlobalCooldown | None
-    obstructed_assignment_setups: list[ObstructedAssignmentSetupStatus]
+    failed_assignment_setups: list[FailedAssignmentSetupStatus]
     issue_observations: list[IssueObservation]
     assignment_statuses: list[AgentAssignmentStatus]
 
@@ -161,13 +161,13 @@ def read_status_report(
         active_global_cooldown=(
             None if scheduler_record is None else scheduler_record.cooldown
         ),
-        obstructed_assignment_setups=[
-            ObstructedAssignmentSetupStatus(
+        failed_assignment_setups=[
+            FailedAssignmentSetupStatus(
                 issue=observation.issue,
-                obstacle=observation.setup_obstacle,
+                failure=observation.setup_failure,
             )
             for observation in issue_observations
-            if observation.setup_obstacle is not None
+            if observation.setup_failure is not None
         ],
         issue_observations=[
             observation

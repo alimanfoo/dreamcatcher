@@ -658,11 +658,11 @@ def test_several_incomplete_setups_for_one_issue_are_reported(state, route):
             at=PINNED + timedelta(hours=2),
         )
 
-    obstacles = inspect_incomplete_assignment_setups(state=state, repository=REPOSITORY)
+    failures = inspect_incomplete_assignment_setups(state=state, repository=REPOSITORY)
 
-    obstacle = obstacles[12]
-    assert obstacle is not None
-    assert obstacle.startswith("GH12 has several incomplete assignment setups: GH12-")
+    failure = failures[12]
+    assert failure is not None
+    assert failure.startswith("GH12 has several incomplete assignment setups: GH12-")
 
 
 def test_an_incomplete_setup_without_a_pull_request_is_recoverable(state, gh):
@@ -710,10 +710,10 @@ def test_an_incomplete_worktree_on_another_branch_is_reported(state, route):
             at=PINNED,
         )
 
-    obstacles = inspect_incomplete_assignment_setups(state=state, repository=REPOSITORY)
+    failures = inspect_incomplete_assignment_setups(state=state, repository=REPOSITORY)
 
-    assert obstacles[12] is not None
-    assert "some-other-branch, not dreamcatcher" in obstacles[12]
+    assert failures[12] is not None
+    assert "some-other-branch, not dreamcatcher" in failures[12]
 
 
 @pytest.mark.parametrize("state_name", ["CLOSED", "MERGED"])

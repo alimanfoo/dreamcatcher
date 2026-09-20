@@ -266,11 +266,11 @@ def fabricate_everything(*, state):
     )
 
 
-def fabricate_an_obstructed_setup(*, state):
-    """A running daemon with an assignment, a setup obstacle, and available work."""
+def fabricate_a_failed_setup(*, state):
+    """A running daemon with an assignment, a failed setup, and available work."""
     holding(state=state)
     written(state=state, issue=13, records=[])
-    obstacle = "cannot reconcile its incomplete setup"
+    failure = "cannot reconcile its incomplete setup"
     write_tick(
         state=state,
         tick=SchedulerRecord(
@@ -279,8 +279,8 @@ def fabricate_an_obstructed_setup(*, state):
                 observed_issue(
                     issue=20,
                     values={"claimed_elsewhere": IssueFactValue.UNKNOWN},
-                    evidence={"claimed_elsewhere": obstacle},
-                ).model_copy(update={"setup_obstacle": obstacle}),
+                    evidence={"claimed_elsewhere": failure},
+                ).model_copy(update={"setup_failure": failure}),
                 observed_issue(issue=21),
             ],
         ),
@@ -405,7 +405,7 @@ def fabricate_a_silent_round(*, state):
 STATUS_REPORTS = {
     "nothing": fabricate_nothing,
     "everything": fabricate_everything,
-    "obstructed-setup": fabricate_an_obstructed_setup,
+    "failed-setup": fabricate_a_failed_setup,
     "dead-daemon": fabricate_a_dead_daemon,
     "at-cap": fabricate_the_cap,
     "silent-round": fabricate_a_silent_round,

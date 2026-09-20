@@ -98,7 +98,7 @@ class IssueObservation(DreamcatcherDocument):
     dispatch_labels: list[str] | None = None
     claimed_here: IssueFact
     claimed_elsewhere: IssueFact
-    setup_obstacle: str | None = None
+    setup_failure: str | None = None
     blocked: IssueFact
     routing_conflict: IssueFact
 
@@ -381,7 +381,7 @@ def _observe_issue(
             context=context,
             issue=issue,
         ),
-        setup_obstacle=context.incomplete_setups.get(issue),
+        setup_failure=context.incomplete_setups.get(issue),
         blocked=_observe_blocking_issues(repository=context.repository, issue=issue),
         routing_conflict=routing_conflict,
     )
@@ -393,13 +393,13 @@ def _observe_external_claim(
     issue: int,
 ) -> IssueFact:
     """Observe whether an open linked pull request claims the issue elsewhere."""
-    obstacle = context.incomplete_setups.get(issue)
-    if issue in context.incomplete_setups and obstacle is None:
+    setup_failure = context.incomplete_setups.get(issue)
+    if issue in context.incomplete_setups and setup_failure is None:
         return _compose_known_issue_fact(value=False)
     linked = list_linked_pull_requests(repository=context.repository, issue=issue)
     if isinstance(linked, UnknownGitHubResponse):
-        if obstacle is not None:
-            return _compose_unknown_issue_fact(evidence=obstacle)
+        if setup_failure is not None:
+            return _compose_unknown_issue_fact(evidence=setup_failure)
         return _compose_unknown_issue_fact(
             evidence=f"cannot tell whether a pull request claims it: {linked.reason}"
         )
@@ -414,8 +414,8 @@ def _observe_external_claim(
             value=True,
             evidence=f"a pull request is open on it: {external_pull_requests}",
         )
-    if obstacle is not None:
-        return _compose_unknown_issue_fact(evidence=obstacle)
+    if setup_failure is not None:
+        return _compose_unknown_issue_fact(evidence=setup_failure)
     return _compose_known_issue_fact(value=False)
 
 
