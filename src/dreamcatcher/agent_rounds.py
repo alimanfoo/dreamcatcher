@@ -65,7 +65,7 @@ class AgentRoundOutputReader:
 
 
 class AgentRoundPurpose(StrEnum):
-    """List the kinds of work that an agent round advances."""
+    """The kinds of work that an agent round advances."""
 
     IMPLEMENT = "implement"
     ADDRESS_FEEDBACK = "address feedback"
@@ -73,7 +73,7 @@ class AgentRoundPurpose(StrEnum):
 
 
 class AgentRoundOutcome(StrEnum):
-    """List the possible outcomes of an agent round."""
+    """The possible outcomes of an agent round."""
 
     RUNNING = "running"
     SUCCESSFUL = "successful"
@@ -82,7 +82,7 @@ class AgentRoundOutcome(StrEnum):
 
 
 class SuccessfulAgentRoundEnding(DreamcatcherDocument):
-    """Model a successful agent round ending."""
+    """A successful agent round ending."""
 
     outcome: Literal[AgentRoundOutcome.SUCCESSFUL] = AgentRoundOutcome.SUCCESSFUL
     at: datetime
@@ -90,7 +90,7 @@ class SuccessfulAgentRoundEnding(DreamcatcherDocument):
 
 
 class ErroredAgentRoundEnding(DreamcatcherDocument):
-    """Model an agent round that exited with an error."""
+    """An agent round ending with an error exit."""
 
     outcome: Literal[AgentRoundOutcome.ERRORED] = AgentRoundOutcome.ERRORED
     at: datetime
@@ -106,7 +106,7 @@ class ErroredAgentRoundEnding(DreamcatcherDocument):
 
 
 class InterruptedAgentRoundEnding(DreamcatcherDocument):
-    """Model an agent round stopped without an observed exit."""
+    """An agent round ending without an observed exit."""
 
     outcome: Literal[AgentRoundOutcome.INTERRUPTED] = AgentRoundOutcome.INTERRUPTED
 

@@ -4,9 +4,9 @@ Each tick reads local assignments, observes relevant issues on GitHub, applies
 the concurrency cap and global cooldown, and launches at most one round.
 
 Within existing work, a missing first round comes first, followed by recovery,
-wrap-up, and user feedback. After a successful issue read, when neither the cap
-nor cooldown holds launches, the oldest available issue is dispatched if no
-assignment needs a round.
+wrap-up, and user feedback. After issue observation succeeds, the scheduler
+dispatches the oldest available issue only when no assignment requires a round
+and neither capacity nor cooldown prevents a launch.
 """
 
 from collections.abc import Callable

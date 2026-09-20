@@ -65,7 +65,7 @@ STATUSES_THAT_END_A_VIEW = (
     AgentAssignmentStatusValue.COMPLETE,
 )
 
-# How long a following view waits between looks at what the round has written.
+# How long a following view waits between refreshes for new round output.
 VIEW_REFRESH_INTERVAL = 1.0
 
 # What marks the label of a feed line, which is the harness's own word for what
@@ -89,7 +89,8 @@ class _ViewSnapshot:
     """Capture one rendered view and whether more output can reach it.
 
     A view is over when nothing more can reach it. That is not the same as the
-    last look, because `_refresh_until_view_ends` takes one more after it.
+    final snapshot, because an active view refreshes once more after first
+    reporting that it is over.
     """
 
     renderable: RenderableType
@@ -116,7 +117,7 @@ def _refresh_live_view(
     with Live(console=console, auto_refresh=False, screen=True) as live:
 
         def refresh_live_display() -> bool:
-            """Draw what this look found, and say whether the view is over."""
+            """Draw the current snapshot and return whether the view is over."""
             nonlocal last_snapshot
             last_snapshot = read_snapshot()
             live.update(last_snapshot.renderable, refresh=True)
@@ -134,9 +135,10 @@ def _refresh_until_view_ends(
 ) -> None:
     """Refresh until the view ends.
 
-    The extra look lets output that follows a round's terminal record arrive.
-    A view that is already over returns after its first look, and a non-terminal
-    console always takes one look. KeyboardInterrupt ends an active view quietly.
+    The extra refresh lets output that follows a round's terminal record arrive.
+    A view that is already over returns after its first refresh, and a
+    non-terminal console always takes one refresh. KeyboardInterrupt ends an
+    active view quietly.
     """
     was_over_on_previous_refresh = True
     with suppress(KeyboardInterrupt):
@@ -171,7 +173,7 @@ def _read_status_snapshot(
 ) -> _ViewSnapshot:
     """Return the current status report as a view that never ends itself.
 
-    A daemon can start, a tick can run, or a round can begin after any look.
+    A daemon can start, a tick can run, or a round can begin after any refresh.
     """
     return _ViewSnapshot(
         renderable=_render_status(report=read_status_report(state=state, clock=clock)),
@@ -348,8 +350,8 @@ def _read_assignment_snapshot(
 ) -> _ViewSnapshot:
     """Return the newest assignment and whether its view is over.
 
-    One look reads the issue's statuses once, and takes both what it draws and
-    whether the assignment is terminal from them.
+    Each refresh reads the issue's statuses once and derives both the rendered
+    view and whether the assignment is terminal from that snapshot.
     """
     assignment_statuses = _find_assignment_statuses_for_issue(
         state=state,
@@ -561,7 +563,7 @@ def show_feed_view(
     view = _FeedView(console=console)
 
     def refresh_feed() -> bool:
-        """Show what the assignment said since the last look, and say if it is over."""
+        """Show output since the previous refresh and return whether it is over."""
         status = _find_assignment_statuses_for_issue(state=state, issue=issue)[0]
         assignment = status.assignment
         view.show_new_output(assignment=assignment, records=assignment.rounds)
@@ -586,7 +588,7 @@ def _show_one_round(
     view = _FeedView(console=console)
 
     def refresh_round_feed() -> bool:
-        """Show what the round said since the last look, and say if it has ended."""
+        """Show output since the previous refresh and return whether it has ended."""
         assignment = _find_assignment_statuses_for_issue(
             state=state,
             issue=issue,
@@ -634,8 +636,8 @@ def _find_assignment_statuses_for_issue(
 class _FeedView:
     """Track how far a console has read each round of an assignment feed.
 
-    Each later look resumes from the stored byte position. A round without a
-    stored position first receives its heading.
+    Each refresh resumes from the stored byte position. A round without a stored
+    position first receives its heading.
     """
 
     console: Console
@@ -644,7 +646,7 @@ class _FeedView:
     def show_new_output(
         self, *, assignment: AgentAssignment, records: Iterable[AgentRoundRecord]
     ) -> None:
-        """Show what these rounds of the assignment have said since the last look."""
+        """Show assignment output written since the previous refresh."""
         for record in records:
             if record.number not in self.positions:
                 self._show_round_heading(record=record)
@@ -676,7 +678,7 @@ class _FeedView:
     def _show_new_lines(
         self, *, assignment: AgentAssignment, round_number: int
     ) -> None:
-        """Show the lines this round has written since the last look at it."""
+        """Show lines the round wrote since the previous refresh."""
         feed_path = assignment.compose_round_paths(number=round_number).feed
         new_lines, new_position = read_lines_from(
             path=feed_path, position=self.positions[round_number]
