@@ -48,7 +48,7 @@ that scheduling happens, but not the scheduling priorities.
 One scheduler tick:
 
 1. observes the relevant local, process, configuration, and GitHub facts;
-2. reconciles incomplete assignment creation;
+2. reconciles incomplete assignment setup;
 3. applies capacity and global-cooldown constraints;
 4. finds the highest-priority existing assignment that requires an agent round,
    considering recovery need, a terminal pull request, and unrelayed user posts
@@ -71,7 +71,7 @@ current external facts.
 The scheduler uses two distinct lower-level operations: creating an agent
 assignment and starting an agent round. When it selects an available issue, it
 performs both operations in one scheduling action, starting the first round as
-soon as assignment creation succeeds. Keeping the operations separate preserves
+soon as assignment setup succeeds. Keeping the operations separate preserves
 clear ownership. If the combined action is interrupted between the operations,
 the complete assignment record shows that its first round is missing, and the
 scheduler finishes the action before ordinary scheduling. This does not create a
@@ -108,7 +108,7 @@ of an agent assignment. It should provide cohesive operations to:
   fault; and
 - recognize completion after a successful wrap-up round.
 
-Assignment creation coordinates lower-level Git, GitHub, configuration, and
+Assignment setup coordinates lower-level Git, GitHub, configuration, and
 document operations. As one recoverable workflow it:
 
 1. allocates the agent assignment identifier;
@@ -120,17 +120,18 @@ document operations. As one recoverable workflow it:
 7. returns the newly created assignment to the scheduler so it can start the
    first round immediately.
 
-An interruption can leave an incomplete setup: a worktree and branch without a
-valid assignment record. A later tick either reconciles that setup or uses its
-obstacle when it observes whether the issue is claimed elsewhere. Unless an open
-linked pull request already proves the claim, the obstacle is evidence that the
-fact is unknown. The assignment identifier determines the branch and worktree
-identities, and the pull request identifies that branch as its head. Recovery
-can therefore recognize artifacts belonging to the same assignment. Repeating or
-recovering creation must reuse or remove those artifacts as appropriate and must
-not create a second branch or pull request. If the complete assignment record
-already exists, the scheduler continues to the first round instead of recreating
-the assignment.
+An interruption can leave an incomplete assignment setup: a worktree and branch
+without a valid assignment record. On a later tick, the assignment module checks
+whether it can safely resume the assignment setup. If it cannot, it returns the
+reason. The scheduler records that reason as evidence that claimed elsewhere is
+unknown, unless an open linked pull request already proves the claim true. The
+assignment identifier determines the branch and worktree identities, and the
+pull request identifies that branch as its head. Recovery can therefore
+recognize artifacts belonging to the same assignment. Repeating or recovering
+the assignment setup must reuse or remove those artifacts as appropriate and
+must not create a second branch or pull request. If the complete assignment
+record already exists, the scheduler continues to the first round instead of
+recreating the assignment.
 
 The assignment remains open until the module recognizes a successful wrap-up
 round. A merged or closed pull request calls for wrap up but does not by itself
@@ -327,7 +328,7 @@ acknowledged work.
 An assignment record persists:
 
 - the issue and assignment identifiers;
-- the frozen dispatch route and assignment recipe selected at creation;
+- the frozen dispatch route and assignment recipe selected during setup;
 - branch and worktree identity;
 - pull-request identity;
 - harness identity and, once known, its harness session identifier;

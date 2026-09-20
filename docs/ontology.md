@@ -144,8 +144,9 @@ An **issue observation** records the independent facts that one scheduler tick
 found for an issue. Its availability is derived from those facts.
 
 An **agent assignment status** is an assignment's single summary status in a
-status report. It summarizes local assignment facts and the most recently
-observed external facts.
+status report. It summarizes the assignment record, recorded rounds, live
+process state, and the latest scheduler observation of whether another round is
+required.
 
 ### Global cooldown
 
@@ -221,11 +222,11 @@ elsewhere if somebody opens another pull request after Dreamcatcher creates its
 assignment. A claimed issue may also become blocked or develop a routing
 conflict after an assignment has started.
 
-An issue whose assignment creation was interrupted has an incomplete setup. A
-setup that can be reconciled does not claim the issue elsewhere. A setup that
-cannot be reconciled leaves claimed elsewhere unknown, with the obstacle as its
-evidence until a later tick can reconcile the setup, unless an open linked pull
-request already proves that claim true.
+An issue whose assignment setup was interrupted has an incomplete assignment
+setup. If a later tick can safely resume the assignment setup, claimed elsewhere
+is false. Otherwise, the reason that the assignment setup cannot resume is
+evidence that claimed elsewhere is unknown, unless an open linked pull request
+proves the fact true. Every later tick inspects the assignment setup again.
 
 An issue with a local assignment appears through its agent assignment rather
 than in the report's available issues.
@@ -298,14 +299,14 @@ therefore already has a pull request before the agent starts working.
 
 Creating the durable assignment and starting its first agent round are separate
 operations, but the scheduler performs them as one scheduling action. As soon as
-assignment creation succeeds, it starts the first implementation round without
+assignment setup succeeds, it starts the first implementation round without
 waiting for another scheduler tick.
 
 ### Working through an assignment
 
 An assignment normally progresses as follows:
 
-1. Dreamcatcher opens its pull request as a draft during assignment creation.
+1. Dreamcatcher opens its pull request as a draft during assignment setup.
 2. The agent works on the implementation and may ask the user questions while it
    remains a draft.
 3. The agent marks it ready when the work is ready for the user to review.
