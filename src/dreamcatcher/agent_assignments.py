@@ -207,6 +207,17 @@ def read_agent_assignments_for_issue(
     ]
 
 
+def find_open_agent_assignments_by_issue(
+    *, assignments: list[AgentAssignment]
+) -> dict[int, AgentAssignment]:
+    """Return each issue's open assignment, keyed by issue."""
+    return {
+        assignment.record.issue: assignment
+        for assignment in assignments
+        if not assignment.is_complete
+    }
+
+
 def request_agent_assignment_retry(
     *, assignment: AgentAssignment, at: datetime
 ) -> None:
@@ -323,17 +334,12 @@ class AgentAssignmentCreator:
         leave evidence for a later recovery. An issue with an open local
         assignment cannot receive another.
         """
-        open_assignments = [
-            assignment
-            for assignment in read_agent_assignments_for_issue(
-                state=self.state, issue=issue
-            )
-            if not assignment.is_complete
-        ]
-        if open_assignments:
+        open_assignment = find_open_agent_assignments_by_issue(
+            assignments=read_agent_assignments(state=self.state)
+        ).get(issue)
+        if open_assignment is not None:
             raise ReportableError(
-                f"GH{issue} already has open assignment "
-                f"{open_assignments[0].identifier}."
+                f"GH{issue} already has open assignment {open_assignment.identifier}."
             )
         selected_harness = route.choose_harness(requested_harness=requested_harness)
         recipe = route.assignment_recipes[selected_harness]
