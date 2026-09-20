@@ -23,6 +23,7 @@ from dreamcatcher.agent_assignments import (
     AgentAssignmentCreator,
     advance_user_post_delivery_cursor,
     find_harness_session_identifier,
+    find_open_agent_assignments_by_issue,
     inspect_incomplete_assignment_setups,
     read_agent_assignments,
     record_harness_session_identifier,
@@ -255,11 +256,7 @@ def observe_issues(
 ) -> IssueObservationResult:
     """Observe every issue considered for dispatch or claimed by this instance."""
     considered_issues = _list_considered_issues(repository=repository, config=config)
-    open_assignments = {
-        assignment.record.issue: assignment
-        for assignment in assignments
-        if not assignment.is_complete
-    }
+    open_assignments = find_open_agent_assignments_by_issue(assignments=assignments)
     context = _IssueObservationContext(
         repository=repository,
         account=account,
@@ -844,7 +841,8 @@ class AgentWorkScheduler:
     ) -> list[AgentAssignmentInspectionResult]:
         """Return what each assignment needs next, and what each is waiting on."""
         inspection_results: list[AgentAssignmentInspectionResult] = []
-        for assignment in assignments:
+        open_assignments = find_open_agent_assignments_by_issue(assignments=assignments)
+        for assignment in open_assignments.values():
             if assignment.identifier in self.rounds:
                 continue
             inspection_result = inspect_agent_assignment(
@@ -855,7 +853,7 @@ class AgentWorkScheduler:
             )
             if inspection_result is not None:
                 inspection_results.append(inspection_result)
-            elif not assignment.is_complete:
+            else:
                 inspection_results.append(
                     compose_assignment_observation(
                         assignment=assignment,
