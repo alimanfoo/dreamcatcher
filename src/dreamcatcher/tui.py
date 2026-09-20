@@ -256,7 +256,7 @@ def _render_available_issues(
     for issue in issues:
         table.add_row(
             Text(f"GH{issue.issue}"),
-            Text(f"dispatch label: {', '.join(issue.dispatch_labels or [])}"),
+            Text(", ".join(issue.dispatch_labels or [])),
         )
     return _render_section(heading="available issues", body=table)
 
@@ -333,7 +333,9 @@ def _render_assignment_detail(
     return Group(detail, output)
 
 
-def _describe_empty_status_report(*, report: DreamcatcherStatusReport) -> Text | None:
+def _describe_empty_status_report(
+    *, report: DreamcatcherStatusReport
+) -> RenderableType | None:
     """Describe an instance that has no issue or assignment status yet."""
     if (
         report.failed_assignment_setups
@@ -342,7 +344,7 @@ def _describe_empty_status_report(*, report: DreamcatcherStatusReport) -> Text |
         or report.assignment_statuses
     ):
         return None
-    return Text("no issues or agent assignments recorded yet")
+    return Group(Text(), Text("no issues or agent assignments recorded yet"))
 
 
 def _create_table(*, columns: int) -> Table:

@@ -538,7 +538,7 @@ def test_an_active_cooldown_and_hold_are_instance_facts(running):
 def test_a_stopped_daemon_has_no_current_scheduler_hold(state):
     write_tick(
         state=state,
-        tick=SchedulerRecord(at=PINNED, hold="at cap: 1 of 1 rounds running"),
+        tick=SchedulerRecord(at=PINNED, hold="at cap: 1 of 1 agents running"),
     )
 
     assert report(state=state).scheduler_hold is None

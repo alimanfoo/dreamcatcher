@@ -19,8 +19,8 @@ agent assignments
   GH44-20260819-184158  waiting              no round has run yet                                   
 
 available issues
-  GH50  dispatch label: dream:smith
-  GH51  dispatch label: dream:smith
+  GH50  dream:smith
+  GH51  dream:smith
 
 blocked issues
   GH52  blocked by GH50

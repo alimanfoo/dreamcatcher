@@ -352,7 +352,7 @@ def test_a_tick_at_the_cap_says_the_cap_is_what_each_assignment_waits_on(
         AgentAssignmentObservation(
             assignment_identifier=ASSIGNMENT_ID,
             issue=13,
-            reason="at cap: 1 of 1 rounds running",
+            reason="at cap: 1 of 1 agents running",
         )
     ]
 
@@ -386,7 +386,7 @@ def test_a_tick_at_the_cap_refreshes_the_candidates(dispatching, offered, harnes
     observed = scheduler.tick(at=clock())
     observed = scheduler.tick(at=clock())
 
-    assert observed.hold == "at cap: 1 of 1 rounds running"
+    assert observed.hold == "at cap: 1 of 1 agents running"
     assert observed_issues(tick=observed) == [8, 9]
     assert availability_values(tick=observed) == [
         IssueFactValue.FALSE,
@@ -410,7 +410,7 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
     observed = scheduler.tick(at=clock())
 
     hold = held(observed=observed)
-    assert hold.startswith("at cap: 1 of 1 rounds running; could not refresh issues: ")
+    assert hold.startswith("at cap: 1 of 1 agents running; could not refresh issues: ")
     assert "could not connect" in hold
     assert observed_issues(tick=observed) == [8, 13]
     assert all(
