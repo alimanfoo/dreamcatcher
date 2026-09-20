@@ -1,4 +1,4 @@
-"""Read-only status reports for a Dreamcatcher instance."""
+"""Read status reports for a Dreamcatcher instance."""
 
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -31,7 +31,7 @@ from dreamcatcher.words import describe_count, describe_span
 
 
 class AgentAssignmentStatusValue(StrEnum):
-    """The summary statuses that one agent assignment can have."""
+    """List the summary statuses of an agent assignment."""
 
     WORKING = "working"
     WAITING = "waiting"
@@ -43,7 +43,7 @@ class AgentAssignmentStatusValue(StrEnum):
 
 @dataclass(frozen=True, kw_only=True)
 class AgentAssignmentStatus:
-    """One agent assignment and its derived summary status."""
+    """Describe an agent assignment's derived summary status."""
 
     assignment: AgentAssignment
     value: AgentAssignmentStatusValue
@@ -54,7 +54,7 @@ class AgentAssignmentStatus:
 
 @dataclass(frozen=True, kw_only=True)
 class DreamcatcherStatusReport:
-    """A read-only account of one Dreamcatcher instance."""
+    """Describe one Dreamcatcher instance from its local state."""
 
     at: datetime
     repository: str | None
@@ -122,7 +122,7 @@ def read_agent_assignment_statuses_for_issue(
 
 
 class _StatusReportReader:
-    """The local facts read together for one status report."""
+    """Read the local facts required for one status report."""
 
     def __init__(self, *, state: StateDirectory, clock: Callable[[], datetime]) -> None:
         """Read the daemon and latest complete scheduler record once."""
@@ -204,7 +204,7 @@ class _StatusReportReader:
     def _read_assignment_status(
         self, *, assignment: AgentAssignment
     ) -> AgentAssignmentStatus:
-        """Derive one assignment's summary from local facts and its last observation."""
+        """Derive an assignment's summary from local facts and its observation."""
         local_status = self._read_local_assignment_status(assignment=assignment)
         if local_status is not None:
             return local_status
@@ -236,7 +236,7 @@ class _StatusReportReader:
     def _read_local_assignment_status(
         self, *, assignment: AgentAssignment
     ) -> AgentAssignmentStatus | None:
-        """Derive a status from local facts alone, when they settle it."""
+        """Derive a status when local facts determine it completely."""
         most_recent_cooldown_ended = (
             None
             if self.scheduler_record is None

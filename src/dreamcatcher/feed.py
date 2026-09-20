@@ -1,8 +1,6 @@
-"""One feed for every harness: what a line can say, and how it reads.
+"""Render every harness's output as one shared feed format.
 
-A feed holds a line for each thing that happened, stamped with the time it
-happened. `FeedLine` is that line, both as `feed.txt` holds it and as a reader
-of `feed.txt` reads it back.
+A feed records each event with the time that Dreamcatcher rendered it.
 
 A harness adapter turns what its CLI streams into the events here, and the
 renderer turns those events into lines. So a reader sees the same feed
@@ -32,7 +30,7 @@ FEED_TIMESTAMP_GAP = "  "
 
 @dataclass(frozen=True, kw_only=True)
 class FeedLine:
-    """One line of a feed: when it was written, and what it says.
+    """Model one timestamped line of a feed.
 
     The text is everything the line holds after its stamp, so a subagent's
     line keeps the indent that sets it in from the rest.
@@ -90,7 +88,7 @@ def read_last_feed_line(*, path: Path) -> FeedLine | None:
 
 @dataclass(frozen=True, kw_only=True)
 class FeedNote:
-    """One line saying what happened: a tool call, a failure, a mark.
+    """Model a labelled event with optional summary detail.
 
     A note with no detail says that something happened and nothing more.
     """
@@ -102,7 +100,7 @@ class FeedNote:
 
 @dataclass(frozen=True, kw_only=True)
 class FeedProse:
-    """Text the feed keeps whole: what the agent said, or a line as it came.
+    """Model prose that the feed preserves without clipping.
 
     A note is clipped because its detail is a summary of something structured.
     FeedProse is not, because the words are the point.
@@ -117,11 +115,10 @@ type FeedEvent = FeedNote | FeedProse
 
 @dataclass(frozen=True, kw_only=True)
 class FeedRenderer:
-    """Turns the events of one round into the lines a reader reads.
+    """Render one round's events as timestamped feed lines.
 
-    Every line opens with the time it was written. That is what makes silence
-    legible: a reader, and later the status report, can tell a round that is thinking
-    from one that has hung.
+    Each rendered line records its time so that a reader can distinguish recent
+    activity from prolonged silence.
     """
 
     worktree: PurePath

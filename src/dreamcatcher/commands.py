@@ -1,8 +1,4 @@
-"""Run the external commands dreamcatcher shells out to.
-
-This module also owns what the tool knows about cmd.exe, the second reader that
-a command line meets on Windows, since a command line has to survive it.
-"""
+"""Run external commands and quote Windows batch-file arguments safely."""
 
 import os
 import subprocess
@@ -55,17 +51,12 @@ UNQUOTABLE_CHARACTERS = {
 
 
 class CommandError(ReportableError):
-    """A command dreamcatcher ran is not there, or it failed."""
+    """Report a failure preparing or running an external command."""
 
 
 @dataclass(frozen=True, kw_only=True)
 class ChildProcess:
-    """A program running as a child process, with both its streams on pipes.
-
-    subprocess gives a child only the streams that the caller asked it for, so
-    reading one means asking first whether it is there. This child always has
-    both, so whoever reads them never has to ask.
-    """
+    """Represent a running child process with stdout and stderr pipes."""
 
     out: IO[str]
     err: IO[str]
@@ -73,35 +64,34 @@ class ChildProcess:
 
     @property
     def pid(self) -> int:
-        """The process id the operating system gave the child."""
+        """The process identifier that the operating system assigned."""
         return self.process.pid
 
     @property
     def is_running(self) -> bool:
-        """Whether the child is still running.
+        """Whether nobody has collected the child's exit status yet.
 
         The answer is no once somebody has waited for the child and collected
         the status it ended with. So a child that has ended, and that nobody
         has waited for yet, still reads as running.
 
-        A caller acts on the answer a moment after asking for it, and the
-        child can end in that moment, so an answer of yes can already be out
-        of date.
+        The child can exit after this property returns, so a true result may
+        already be stale when the caller acts on it.
         """
         return self.process.returncode is None
 
     def wait(self) -> int:
-        """Wait for the child to end, and return the status that it ended with.
+        """Wait for the child, end its contained process group, and return its status.
 
-        Whatever the child started can outlive it, so the child's whole tree is
-        ended here too, once the child itself has gone.
+        Processes still contained with the child can outlive it, so its POSIX
+        process group or Windows Job Object ends here after the child has gone.
         """
         status = self.process.wait()
         teardown.end_process_tree(pid=self.pid)
         return status
 
     def kill(self) -> None:
-        """End the child, and everything that the child started, outright.
+        """End the child's contained process group if it is still running.
 
         A child that has gone leaves the operating system free to give its pid
         to somebody else, so this leaves it alone. `wait` does signal at that
@@ -115,11 +105,8 @@ class ChildProcess:
 def refuse_unquotable(text: str, /) -> str:
     """Return text, or raise ValueError naming every character it cannot carry.
 
-    Whoever reads text in from outside calls this, so the message can name where
-    the text came from. A ValueError is what pydantic turns into that message.
-
     The message names every character it found, rather than the first, so the
-    repo's owner fixes a setting once instead of once for each.
+    user can fix every invalid character at once.
 
     pydantic is what calls this, as the validator behind `QuotableText`, and it
     passes the text positionally, so the parameter is positional-only.
@@ -179,16 +166,12 @@ def spawn_command(
     cwd: Path,
     stdin: Path | None = None,
 ) -> ChildProcess:
-    """Start the program in cwd and hand it back while it runs.
-
-    The daemon watches a round while it runs rather than waiting for it to
-    finish, so this returns the running child, with each of its two streams on
-    a pipe of its own and its output read as UTF-8.
+    """Start the program in cwd and return it with UTF-8 output pipes.
 
     A harness reads its prompt from stdin, so the caller names the file holding
     it and the child reads that file. A pipe would have the daemon writing the
     prompt while the child read it, and a prompt longer than the pipe's own
-    buffer would stall them both. So a file, rather than a pipe.
+    buffer would stall them both.
 
     A child named no file finds its stdin already at an end, so a harness
     waiting for the rest of a prompt waits no longer than that.
@@ -224,9 +207,8 @@ def spawn_command(
 def _open_for_reading(*, path: Path) -> IO[bytes]:
     """Return the file at path, open for a child to read, or raise CommandError.
 
-    A file the tool cannot open is not a bug in the tool, and the user can act
-    on it, so it reads as a message. The bytes go to the child as they are,
-    which is what keeps a prompt's own line endings.
+    The bytes reach the child unchanged, which preserves the prompt's line
+    endings.
     """
     try:
         return path.open("rb")
@@ -237,12 +219,10 @@ def _open_for_reading(*, path: Path) -> IO[bytes]:
 def _build_subprocess_command(
     *, program: str, arguments: Sequence[str]
 ) -> list[str] | str:
-    """Return the command as subprocess has to be given it.
+    """Return the command in the form that subprocess requires.
 
-    A list, which subprocess quotes for the program's own reader. A batch file
-    is the exception. Windows hands one to cmd.exe, which reads the line again
-    under its own rules, and subprocess quotes for the second reader alone. So
-    a batch file gets a line that this builds for both readers.
+    Most programs receive a list that subprocess quotes. Windows passes batch
+    files through cmd.exe, so they receive a string quoted for both readers.
     """
     executable = locate_program(program=program)
     if (

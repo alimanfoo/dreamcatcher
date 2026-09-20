@@ -35,7 +35,7 @@ RESUME_PERMISSION_OVERRIDES = (
 
 
 class CodexHarnessAdapter(HarnessAdapter):
-    """Codex as one round of an agent assignment runs it."""
+    """Run Codex and translate its stream into feed events."""
 
     program: ClassVar[str] = "codex"
 
@@ -147,12 +147,11 @@ def _build_round_settings(*, request: AgentRoundLaunchRequest) -> list[str]:
 
 
 def _build_config_overrides(*, settings: Sequence[str]) -> list[str]:
-    """Return each setting as the `-c setting` pair Codex expects."""
     return [part for setting in settings for part in ("-c", setting)]
 
 
 def _read_completed_item(*, item: dict) -> list[FeedEvent]:
-    """Return the feed events one finished item turns into.
+    """Return the feed events represented by a completed Codex item.
 
     When the agent does something, the item becomes one action line. Codex's own
     name for the item is the label, and the detail is the thing the agent acted
@@ -185,7 +184,7 @@ def _read_completed_item(*, item: dict) -> list[FeedEvent]:
 
 
 def _read_command_execution(*, item: dict) -> list[FeedEvent]:
-    """Return the command the agent ran, and how it went.
+    """Return the command and any non-successful outcome that Codex reported.
 
     A command that finished cleanly says all it needs to in one line. Anything
     else gets a second line, labelled with the status Codex gave it. So a failed
@@ -203,7 +202,7 @@ def _read_command_execution(*, item: dict) -> list[FeedEvent]:
 
 
 def _compose_usage_note(*, counts: dict) -> FeedNote:
-    """Return what the round used, counted in tokens.
+    """Return the round's separate token counts.
 
     Codex tells us no prices, so this reports tokens and no money. Each count
     keeps the name Codex gave it, and this does not add them up: a cached input

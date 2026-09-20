@@ -41,7 +41,7 @@ TOOL_INPUT_KEYS_BY_PRIORITY = (
 
 
 class ClaudeHarnessAdapter(HarnessAdapter):
-    """Claude Code as one round of an agent assignment runs it."""
+    """Run Claude Code and translate its stream into feed events."""
 
     program: ClassVar[str] = "claude"
 
@@ -182,7 +182,7 @@ def _read_system_event(*, harness_event: dict) -> HarnessOutput:
 
 
 class _ReadsClaudeBlock(Protocol):
-    """What reads one block of a message, as `_read_message_blocks` calls it."""
+    """Read one block from a Claude message."""
 
     def __call__(self, *, block: dict, is_subagent: bool) -> list[FeedEvent]:
         """Return what one block carries."""
@@ -238,7 +238,7 @@ def _read_tool_failure(*, block: dict, is_subagent: bool) -> list[FeedEvent]:
 
 
 def _read_round_result(*, harness_event: dict) -> list[FeedEvent]:
-    """Return the lines that close the round: what it used, then how it ended.
+    """Return the usage and outcome events that close the round.
 
     The subtype reads "success" even on a round that failed, so the event's own
     error flag is what the feed reports.
@@ -258,7 +258,7 @@ def _read_round_result(*, harness_event: dict) -> list[FeedEvent]:
 
 
 def _compose_usage_note(*, cost: float, counts: dict) -> FeedNote:
-    """Return what the round used, in money and in tokens.
+    """Return the round's cost and separate token counts.
 
     Each count keeps the name the event gave it, and this does not add them up.
     A cache read and a cache write each cost a different amount from a fresh

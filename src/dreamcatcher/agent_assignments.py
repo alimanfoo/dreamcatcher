@@ -1,13 +1,12 @@
-"""Create an assignment for an issue, and read back the ones a repo already has.
+"""Create agent assignments and read their persisted state.
 
-An assignment is what one dispatch of an issue makes. Its identifier combines
-the issue number with the time that the assignment started. The identifier names
-its branch, worktree, and file directory. Three worktrees for one issue therefore
-read as three assignments at one thing, each with its own pull request.
+Each dispatch creates an assignment with its own identifier, branch, worktree,
+assignment directory under the instance state, and pull request. Several
+assignments can exist for one issue.
 
 Creation prepares and publishes the assignment's branch, opens its linked draft
-pull request, then records the assignment. Nothing here decides which
-issue to dispatch, or when. A caller that has decided asks for the assignment.
+pull request, then records the assignment. The scheduler decides which issue to
+dispatch and when.
 """
 
 from contextlib import suppress
@@ -80,14 +79,13 @@ USER_POST_DELIVERY_CURSOR_NAME = "watermark"
 
 
 class AgentAssignmentRecord(DreamcatcherDocument):
-    """The issue an assignment works on, and the settings it runs its rounds with.
+    """Model the identities and settled settings of an agent assignment.
 
     The dispatch settles the assignment recipe and identities. The first round
-    adds the harness session identifier when the harness reports it, and a user
-    may later request a retry after resolving the cause of a fault. Every round
-    reads its settled recipe from here rather than from the config, so editing
-    the config while an assignment is in flight cannot reach that assignment.
-    Mutable pull request state stays on GitHub.
+    adds the harness session identifier when the harness reports it, and a retry
+    request records its time. Every round reads this record, so later config
+    edits do not change an assignment in progress. Pull request state stays on
+    GitHub.
     """
 
     issue: int
@@ -105,12 +103,10 @@ class AgentAssignmentRecord(DreamcatcherDocument):
 
 @dataclass(frozen=True, kw_only=True)
 class AgentAssignment:
-    """One assignment at one issue, as it stands.
+    """Represent an agent assignment as its persisted state currently reads.
 
-    The directory is where the assignment keeps its own files, and its own name is
-    the assignment's identifier, which is how a reader of the disk finds one. The record
-    says what the dispatch settled and which harness session the first round
-    created, and the rounds are what the assignment has run so far, oldest first.
+    The directory name is the assignment identifier. The record holds the
+    dispatch settings, and the rounds are ordered from oldest to newest.
 
     The user-post delivery cursor is the newest post delivered to the assignment.
     An assignment that has received none has the beginning of time, so the first
@@ -139,16 +135,10 @@ class AgentAssignment:
         )
 
     def describe_unfinished_round(self) -> str | None:
-        """Return what the assignment's last round left unfinished, or nothing.
+        """Describe an interrupted or errored final round, if one exists.
 
         A record with no ending is a round the daemon has not reconciled yet,
         and an interrupted or errored ending says that the work stopped short.
-        Each can be recovered from where it stopped. The scheduler decides
-        whether a current fault or global cooldown delays that recovery.
-
-        An assignment that has run no round at all has left nothing unfinished.
-        Its first round never started, which is another matter: the scheduler
-        retries that recorded assignment before it starts ordinary work.
         """
         if not self.rounds:
             return None
@@ -160,16 +150,12 @@ class AgentAssignment:
         return None
 
     def compose_round_paths(self, *, number: int) -> AgentRoundPaths:
-        """Where the assignment's numbered round ran, and where it wrote.
+        """Return the worktree and file paths for a numbered round.
 
         Every round runs in the assignment's worktree, and writes into a
         directory named by the number of the round it is.
 
-        An assignment runs one round at a time, and each round is numbered by how
-        many the assignment had run before it, so the rounds are numbered from one
-        in the order they ran. The place of a record in `rounds` is therefore
-        the number of the round it records, which is how a reader of the round
-        list finds each round's own files.
+        Round numbers start at one and increase in execution order.
         """
         return AgentRoundPaths(
             worktree=self.record.worktree,
@@ -184,25 +170,17 @@ class AgentAssignment:
 
 
 def read_agent_assignments(*, state: StateDirectory) -> list[AgentAssignment]:
-    """Return every assignment the state directory holds, by identifier.
+    """Return every complete assignment setup, ordered by identifier.
 
-    A worktree under `worktrees/` is what says an assignment exists, since that is
-    the one place an assignment of this daemon's can be. The assignment's own files
-    sit under `assignments/`, in a directory with the same identifier.
+    A worktree under `worktrees/` declares that an assignment exists. Its state
+    sits under `assignments/` in a directory with the same identifier.
 
     The state directory is also what the round records are read through, so a
     process that reads the same one again reads only the records that can have
     changed since.
 
-    A state directory with no worktrees in it yet holds no assignments, so this
-    answers with nothing rather than failing. Anything under `worktrees/` that
-    is not a directory is not a worktree, which is what keeps a file a file
-    browser left there from reading as an assignment.
-
-    A worktree whose record is not there is not an assignment either. Assignment
-    creation may leave such a worktree when it is interrupted, and a later
-    creation attempt reconciles it. A record that is there and will not read is
-    another matter, and says so.
+    Missing state and worktrees without assignment records are incomplete setups,
+    so this read omits them. An invalid record raises ReportableError.
     """
     if not state.worktrees.is_dir():
         return []
@@ -319,7 +297,7 @@ def _inspect_incomplete_assignment_setup(
 
 @dataclass(frozen=True, kw_only=True)
 class AgentAssignmentCreator:
-    """Create assignment records in one repository and state directory."""
+    """Create durable agent assignments in one repository."""
 
     state: StateDirectory
     repository: str
@@ -332,17 +310,18 @@ class AgentAssignmentCreator:
         issue: int,
         at: datetime,
     ) -> AgentAssignment:
-        """Create the issue's durable assignment with no rounds run yet.
+        """Create and publish the issue's assignment with no rounds run yet.
 
-        The assignment runs on the harness that the route and this daemon
-        select, with that harness's model, effort, and prompt template. Creation
-        fetches main, makes the branch and worktree, adds and pushes an empty
-        commit, opens the linked draft pull request, then writes the record.
+        The route selects an assignment recipe in response to the requested
+        agent harness. The recipe supplies the model, effort, and prompt
+        template. Creation fetches main, makes the branch and worktree, adds and
+        pushes an empty commit, opens the linked draft pull request, then writes
+        the record.
 
-        A retry reuses an incomplete setup identified by its worktree and
-        branch. Only a failed worktree creation is removed immediately, because
-        later setup steps leave recoverable evidence. An issue that already has
-        an open local assignment cannot receive another.
+        A retry reuses an incomplete setup that has the expected worktree and
+        branch. A failed worktree creation is removed; failures after that point
+        leave evidence for a later recovery. An issue with an open local
+        assignment cannot receive another.
         """
         open_assignments = [
             assignment
@@ -553,14 +532,13 @@ def _read_assignment(*, state: StateDirectory, directory: Path) -> AgentAssignme
 
 
 def _read_user_post_delivery_cursor(*, directory: Path) -> str:
-    """Return the newest user post delivered to this assignment.
+    """Return the time of the newest user post delivered to the assignment.
 
     A batch is delivered when a round launches with it, and that launch writes
     this file. An assignment that no round has carried the user's words to has no
     file here, so its cursor is the beginning of time.
 
-    Whatever wrote the file may have left a line ending after the timestamp, so
-    the surrounding space goes: an ISO-8601 time is the whole value.
+    Surrounding whitespace is not part of the ISO-8601 cursor.
     """
     path = directory / USER_POST_DELIVERY_CURSOR_NAME
     if not path.exists():
@@ -571,7 +549,7 @@ def _read_user_post_delivery_cursor(*, directory: Path) -> str:
 def advance_user_post_delivery_cursor(
     *, assignment: AgentAssignment, newest: str
 ) -> None:
-    """Write the time of the newest user post delivered to the assignment.
+    """Record the time of the newest user post delivered to the assignment.
 
     A round launching with a batch of posts performs this write after it starts.
     Until the write lands, a daemon that dies reads those same posts again on its

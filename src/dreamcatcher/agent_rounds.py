@@ -1,16 +1,12 @@
-"""Run one agent round, and leave behind what it did.
+"""Run agent rounds and persist their inputs, output, and outcomes.
 
-A round is a harness command running as a child of the daemon, in the assignment's
-worktree. It writes into a directory of its own as it goes.
+A round runs a harness command in an assignment's worktree. It writes into a
+numbered directory of its own.
 
-`prompt.txt` holds what the round asked the harness to do, which the harness
-reads as its stdin. A resumed round's `inbox.json` holds the pull-request state
-and user posts delivered to it. `raw.jsonl` keeps the harness's own stdout as it
-arrived, so that whoever works on a parser can read what the harness really sent.
-`feed.txt` is that same stream read through the harness's adapter and rendered as
-lines a person can read, with whatever the harness said on stderr among them,
-where it happened. `round.json` says the round's number, purpose, recovery flag,
-process, and outcome.
+`prompt.txt` supplies the harness's stdin. A resumed round's `inbox.json` holds
+the pull request state and user posts. `raw.jsonl` preserves harness stdout,
+`feed.txt` renders both streams for the user, and `round.json` records identity,
+purpose, recovery, process, and outcome.
 
 The daemon watches a round rather than waiting for it, so a round reads its own
 streams on threads of its own, and records its own ending on another.
@@ -69,7 +65,7 @@ class AgentRoundOutputReader:
 
 
 class AgentRoundPurpose(StrEnum):
-    """What work an agent round advances."""
+    """The kinds of work that an agent round advances."""
 
     IMPLEMENT = "implement"
     ADDRESS_FEEDBACK = "address feedback"
@@ -77,7 +73,7 @@ class AgentRoundPurpose(StrEnum):
 
 
 class AgentRoundOutcome(StrEnum):
-    """How far an agent round has got."""
+    """The possible outcomes of an agent round."""
 
     RUNNING = "running"
     SUCCESSFUL = "successful"
@@ -86,7 +82,7 @@ class AgentRoundOutcome(StrEnum):
 
 
 class SuccessfulAgentRoundEnding(DreamcatcherDocument):
-    """An agent round that exited successfully."""
+    """A successful agent round ending."""
 
     outcome: Literal[AgentRoundOutcome.SUCCESSFUL] = AgentRoundOutcome.SUCCESSFUL
     at: datetime
@@ -94,7 +90,7 @@ class SuccessfulAgentRoundEnding(DreamcatcherDocument):
 
 
 class ErroredAgentRoundEnding(DreamcatcherDocument):
-    """An agent round that exited with an error."""
+    """An agent round ending with an error exit."""
 
     outcome: Literal[AgentRoundOutcome.ERRORED] = AgentRoundOutcome.ERRORED
     at: datetime
@@ -110,7 +106,7 @@ class ErroredAgentRoundEnding(DreamcatcherDocument):
 
 
 class InterruptedAgentRoundEnding(DreamcatcherDocument):
-    """An agent round stopped without an observed exit."""
+    """An agent round ending without an observed exit."""
 
     outcome: Literal[AgentRoundOutcome.INTERRUPTED] = AgentRoundOutcome.INTERRUPTED
 
@@ -131,7 +127,7 @@ def compose_agent_round_ending(
 
 
 class AgentRoundRecord(DreamcatcherDocument):
-    """The independent identity, purpose, recovery, and outcome of one round."""
+    """Model an agent round's identity, purpose, recovery, and outcome."""
 
     number: PositiveInt
     purpose: AgentRoundPurpose
@@ -173,7 +169,7 @@ def _record_agent_round_ending(
 
 
 class AgentRoundInput(DreamcatcherDocument):
-    """The pull-request state and user posts delivered to one agent round."""
+    """Model the pull request state and user posts delivered to a round."""
 
     pull_request_state: PullRequestState = Field(alias="state")
     user_posts: list[UserPost] = Field(alias="posts")
@@ -181,7 +177,7 @@ class AgentRoundInput(DreamcatcherDocument):
 
 @dataclass(frozen=True, kw_only=True)
 class AgentRoundPlan:
-    """The decisions and input that a new round executes."""
+    """Describe the decisions and input that a new round executes."""
 
     purpose: AgentRoundPurpose
     is_recovery: bool
@@ -190,16 +186,14 @@ class AgentRoundPlan:
 
 @dataclass(frozen=True, kw_only=True)
 class AgentRoundPaths:
-    """A numbered round's worktree and files.
+    """Provide the worktree and file paths for a numbered round.
 
     The round runs in its assignment's worktree and writes into the directory
     its number selects under the assignment's rounds directory. Keeping the
     number beside that parent makes one value authoritative for both the path
     and the record the round writes.
 
-    The files themselves are named here, beside the directory that holds them,
-    so whoever has the paths can name a file before the round that writes it
-    exists.
+    The paths are available before the round creates any files.
     """
 
     worktree: Path
@@ -233,25 +227,19 @@ class AgentRoundPaths:
 
     @property
     def round_input(self) -> Path:
-        """The file holding the batch that the round was woken with."""
+        """The file holding the pull request state and user posts for the round."""
         return self.directory / "inbox.json"
 
 
 class AgentRoundReader:
-    """Read the records of an assignment's rounds, keeping the terminal ones.
+    """Read round records and cache terminal records.
 
     A terminal record has had both of its writes, and nothing writes it again,
     so a reader that has read one need never open it again.
 
-    A running record is opened again on every read, because the record does
-    not say whether its ending is still to come. A round that is running will
-    record one, a round that nothing let finish never will, and both read the
-    same.
-
-    So a read costs a listing of the rounds directory, and one small read for
-    each round of the assignment whose record has no terminal outcome — one while
-    a round of the assignment is running, and none at all once every round has
-    ended, however many rounds the assignment has run.
+    Running records are reopened on every read because their endings may arrive
+    later. Each read lists the rounds directory and opens only records that have
+    no cached terminal outcome.
     """
 
     def __init__(self) -> None:
@@ -259,15 +247,10 @@ class AgentRoundReader:
         self._cache: dict[Path, AgentRoundRecord] = {}
 
     def read_records(self, *, directory: Path) -> list[AgentRoundRecord]:
-        """Return the records of the rounds written under directory, oldest first.
+        """Return round records under the directory, oldest first.
 
-        Each round writes into a directory of its own under this one, so a
-        assignment passes the directory holding all of them.
-
-        The order comes from the records themselves, so nothing here has to
-        read a directory's name as a number. A directory with no record in it
-        yet, and a directory that holds no rounds at all, both come back with
-        nothing rather than as a failure.
+        The records determine the order. A directory without a record is not a
+        round and is omitted.
         """
         records = [
             self._read_record(path=record_path)
@@ -292,7 +275,7 @@ class AgentRoundReader:
 
 
 class AgentRound:
-    """One round of an assignment, running as a child of the daemon.
+    """Run one agent round as a child of the daemon.
 
     Making one starts it. From then on the round runs on its own threads, and
     the daemon reads its state rather than waiting on it.
@@ -378,15 +361,14 @@ class AgentRound:
     def wait(self) -> None:
         """Wait for the round to end and for everything it wrote to land.
 
-        Waiting for the feed means waiting for both streams to reach their end,
-        and a process the harness left behind can hold one open for as long as
-        it likes, so this can wait for ever. Nothing the daemon does waits like
-        this: `is_alive` and `stop` read and wait for the record alone.
+        A harness descendant can keep an output pipe open indefinitely, so this
+        method can wait indefinitely. The daemon uses `is_alive` and `stop`
+        instead.
         """
         self._ending_recorder.join()
 
     def stop(self) -> None:
-        """End the round now, and everything it started.
+        """End the round and its contained process group or job.
 
         This returns as soon as the round has ended, and does not wait for the
         feed, so that a stream somebody else is still holding cannot hold up
@@ -396,40 +378,25 @@ class AgentRound:
         self._round_ended.wait()
 
     def _interrupt(self) -> None:
-        """End the round while it is still running, so it reads as interrupted.
+        """End a running child and mark the round as interrupted.
 
-        A child that has already gone finished by itself keeps the observed
-        ending that `_record_ending_and_join_streams` writes for it, so this
-        leaves that record alone
-        rather than sending an assignment back over a round it has done.
+        The interruption flag is set before the kill releases the ending
+        recorder from `harness_process.wait()`.
 
-        The mark goes on before the kill, because the kill is what makes
-        `_record_ending_and_join_streams` return from
-        `harness_process.wait()`. So the ending recorder reads a mark this made,
-        and reordering the two would let it write an ending for a round the
-        daemon interrupted.
-
-        One window stays open. The child can go after `child.is_running` has
-        answered and before the mark goes on, and a round that has just
-        finished then reads as interrupted. Reading the exit status would not
-        settle it, because on Windows a killed child leaves the status a
-        harness that failed would leave, for the reason `teardown` gives. A
-        lock is no help either: `_record_ending_and_join_streams` would have to
-        hold it across `harness_process.wait()`, and then a stop would wait for
-        the child to finish by itself, which is what a stop is there to avoid.
+        The child can exit between the liveness check and the flag update, which
+        records that narrow race as an interruption. Closing the race would
+        require holding a lock across the blocking wait and would prevent a
+        prompt stop.
         """
         if self.harness_process.is_running:
             self.is_interrupted = True
             self.harness_process.kill()
 
     def _read_stream_until_finished(self, *, read_stream: Callable[[], None]) -> None:
-        """Read one of the round's streams, and end the round if that fails.
+        """Read one output stream and interrupt the round if persistence fails.
 
-        A round that cannot write its own files has nothing to show for itself.
-        It would also hang: a reader that stops reading fills the pipe, the
-        harness blocks on its next write, and nothing ever ends the round. So
-        the round is ended here. A child that had already gone ended the round
-        by itself and keeps its ending, however short the feed came out.
+        Stopping a stream reader would eventually fill the pipe and block the
+        harness, so a write failure must end the round.
         """
         try:
             read_stream()
@@ -437,7 +404,6 @@ class AgentRound:
             self._interrupt()
 
     def _read_stdout(self) -> None:
-        """Keep each line that the harness streams, and write what it says."""
         for line in self.harness_process.out:
             append_text(text=line, path=self.paths.raw_output)
             self._append_feed_events(
@@ -445,19 +411,14 @@ class AgentRound:
             )
 
     def _read_stderr(self) -> None:
-        """Write what the harness says on stderr, among the lines around it."""
         for line in self.harness_process.err:
             self._append_feed_events(line=line, events=[FeedProse(text=line)])
 
     def _record_ending_and_join_streams(self) -> None:
-        """Record how the round ended as soon as its child has gone.
+        """Record the outcome when the child exits, then join its stream readers.
 
-        The pumps are left to catch up afterwards. A pipe reaches its end only
-        when every process holding it has closed it, and a process the harness
-        left behind can hold one for as long as it likes, so a record that
-        waited for the pumps could wait for ever. The child says how the round
-        ended, so the record is written as soon as the child has gone, and the
-        feed catches up.
+        A descendant can keep a pipe open indefinitely, so the terminal record
+        is written before the stream readers finish.
         """
         try:
             status = self.harness_process.wait()
@@ -480,15 +441,14 @@ class AgentRound:
                 stream_reader.join()
 
     def _append_feed_events(self, *, line: str, events: list[FeedEvent]) -> None:
-        """Add what one line says to the feed, letting one stream write at a time.
+        """Append one output line's events while holding the feed write lock.
 
         Rendering happens under the same lock as the write. A line is stamped
         as it is rendered, so holding the lock across both keeps the stamps in
         the same order as the lines.
 
-        Rendering an event fails when the event holds something other than
-        text. A line the feed cannot render is written out as the harness sent
-        it, so one bad line costs one line.
+        If an event cannot render, the original harness line reaches the feed
+        instead.
         """
         with self._feed_write_lock:
             try:

@@ -84,6 +84,8 @@ uv run pre-commit run --all-files
 
 ## Conventions
 
+### Development workflow and fixtures
+
 - Run the tests and the checks before every commit. The commit hook runs the
   checks, never the tests.
 - Never commit with `--no-verify`. CI runs the same checks and fails the build.
@@ -101,6 +103,9 @@ uv run pre-commit run --all-files
   the one path no hook rewrites. A rendered table's rows end in the spaces that
   pad them, and the trailing-whitespace hook would take those away anywhere
   else, so the test would then assert what the view never wrote.
+
+### Errors and documents
+
 - For a failure that the user needs to read, raise a `ReportableError`.
   `cli.main` catches that one class and prints the message, and anything else
   reaches the user as a traceback, which means a bug in the tool. A failed write
@@ -120,6 +125,9 @@ uv run pre-commit run --all-files
   owns that document and adds to it as it pleases. A `DreamcatcherDocument`
   refuses a key that it doesn't expect, which is right only for a document the
   tool owns itself.
+
+### Module and process boundaries
+
 - Shell out from `commands.py` alone. `pyproject.toml` waives ruff's subprocess
   rules for that one module, so any other module that imports `subprocess` fails
   the check.
@@ -137,6 +145,9 @@ uv run pre-commit run --all-files
   `config.QuotableText` does this for the model and the effort a dispatch holds,
   where pydantic turns the `ValueError` into a named error. Anywhere else, catch
   the `ValueError` and raise a `ReportableError`, or the user reads a traceback.
+
+### API design
+
 - Give every function and method keyword-only parameters, so a call says what
   each argument means and reordering a signature cannot change what a caller
   already passes. `tools/require_keyword_parameters.py` enforces this on every
@@ -149,6 +160,9 @@ uv run pre-commit run --all-files
   called by position. A callback that takes nothing has nothing to pass, and one
   whose value comes from outside has a shape this project does not own, so
   either of those keeps a `Callable`.
+
+### Naming conventions
+
 - Name a method or a function for what it does, with a verb: `render`, `stop`,
   `strip_worktree_path`. A name like `rendered` or `holder` reads as a value, so
   a reader takes it for a property and not for something that runs.
@@ -160,6 +174,28 @@ uv run pre-commit run --all-files
   qualifies it where it is defined and nowhere else, so a name that leans on the
   module reads as nothing at the call site. A method needs no such help, because
   its receiver says what it belongs to.
+
+### Docstring conventions
+
+- Give every module, exported class, exported function and public method a
+  docstring. Give a private object a docstring only when its name, signature,
+  types and immediate context do not make its contract or intent clear.
+- Follow PEP 257: begin a function or method docstring with an imperative
+  summary sentence, then put any further contract information in paragraphs
+  after a blank line. Let a module or class summary directly describe its
+  responsibility or the thing it represents. A property's summary describes the
+  value instead, as pydocstyle requires.
+- Document side effects, invariants, ordering, selection rules, important
+  failure conditions and constraints that a caller cannot safely infer from the
+  signature. Do not narrate the implementation or repeat names, types, defaults
+  and obvious return values.
+- Let each source carry only what it owns: signatures and types describe shape,
+  code describes the current mechanism, comments explain non-obvious
+  implementation choices, specifications describe system-level behaviour, and
+  tests demonstrate cases and boundaries.
+
+### Change and issue conventions
+
 - Keep changes lean. Add nothing a requirement or the design doesn't call for;
   prefer deleting over adding. One way to do each thing, always.
 - Give every issue you file its type label, `bug`, `enhancement` or
@@ -174,6 +210,9 @@ uv run pre-commit run --all-files
   `gh api repos/{owner}/{repo}/issues/<N>/dependencies/blocked_by`, and add to
   it by posting the blocking issue's `id`, which is its own API id and not its
   number.
+
+### Cross-platform code and tests
+
 - Every path is cross-platform: Windows, macOS, and Linux are all first-class.
   Force UTF-8 on every subprocess and file operation. Ruff's
   `unspecified-encoding` rule catches a file opened without `encoding=`. Ruff

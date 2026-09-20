@@ -1,10 +1,7 @@
-"""Compose the prompts that the daemon starts and resumes an assignment with.
+"""Compose the prompts that start and resume agent assignments.
 
-An assignment is asked something at each of the four points its life can turn on: a
-dispatch opens it, an unfinished round is recovered, the user posts on the pull
-request, and a merged or closed pull request calls for a wrap-up round. Every one
-of those prompts ends with the same postscript, so an assignment marks its posts
-whichever woke it.
+Every composed prompt includes the marker that prevents the relay from treating
+an agent's GitHub posts as user input.
 """
 
 from pathlib import Path
@@ -46,7 +43,7 @@ end your turn when the work is done."""
     + AGENT_POST_INSTRUCTIONS
 )
 
-# What a round woken by the pull request asks for. It ports from the catcher
+# What a round resumed from the pull request asks for. It ports from the catcher
 # this tool replaces, word for word. The user's own words are never in it: the
 # posts go to a file, and this names the file. The file also says where the
 # pull request has got to, which is what tells a round that answers the user
@@ -72,10 +69,9 @@ def compose_first_round_prompt(*, template: str, issue: int) -> str:
 
 
 def compose_user_posts_prompt(*, pull_request: int, round_input: Path) -> str:
-    """Return the prompt that sends an assignment to the inbox a round was given.
+    """Return the prompt that directs a resumed round to its input file.
 
-    The pull request is the assignment's own, and the inbox is the file that the
-    round writes the batch to before it starts.
+    The input file holds the pull request state and the batch of user posts.
     """
     return (
         USER_POSTS_PROMPT.format(

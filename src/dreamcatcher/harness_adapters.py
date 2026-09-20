@@ -1,4 +1,4 @@
-"""The boundary a harness sits behind.
+"""Define the boundary between Dreamcatcher and each agent harness.
 
 Everything else in the tool names a harness only to pick its adapter. The
 adapter knows what the CLI is called, which flags keep it from stalling, and
@@ -39,7 +39,7 @@ HarnessSessionIdentifier = Annotated[
 
 @dataclass(frozen=True, kw_only=True)
 class AgentRoundLaunchRequest:
-    """What one round starts with.
+    """Describe the settled assignment settings and prompt for one round.
 
     The dispatch fixes the agent assignment identifier, model, and effort.
     Every round of that assignment runs with them. The prompt is this round's
@@ -54,17 +54,10 @@ class AgentRoundLaunchRequest:
 
 @dataclass(frozen=True, kw_only=True)
 class HarnessInvocation:
-    """How one round runs: the program to start, its arguments, and its prompt.
-
-    `commands.spawn_command` takes the program apart from its arguments, and a list
-    holding both would have whoever spawns it split the two apart again. So the
-    program is named apart from its arguments here as well.
+    """Describe the command and prompt that start one round.
 
     A harness reads its prompt from stdin rather than from its command line,
-    so the three travel together and the adapter is what knows which is which.
-    That keeps a prompt off every command line, where cmd.exe would act on a
-    percent sign or a line ending in it, and it lets a prompt run to any
-    length.
+    which keeps prompt length and Windows command parsing outside this contract.
     """
 
     program: str
@@ -74,17 +67,17 @@ class HarnessInvocation:
 
 @dataclass(frozen=True, kw_only=True)
 class HarnessOutput:
-    """What one line of harness output says to Dreamcatcher."""
+    """Describe the feed events and harness session identifier in one output line."""
 
     events: list[FeedEvent]
     harness_session_identifier: str | None = None
 
 
 class HarnessAdapter(ABC):
-    """One harness, as everything outside its own module sees it.
+    """Define how Dreamcatcher invokes and reads one harness.
 
-    The program is the name of the harness's CLI. Asking the adapter for it is
-    how anything else reaches the CLI without knowing which harness it is.
+    The program names the harness CLI. Callers use the adapter without knowing
+    any harness-specific arguments or event shapes.
     """
 
     program: ClassVar[str]
@@ -119,12 +112,12 @@ class HarnessAdapter(ABC):
         return self.read_output(line=line).events
 
     def read_output(self, *, line: str) -> HarnessOutput:
-        """Return what one line of the harness's stream says.
+        """Return what one line of the harness stream says.
 
         Not every line is an event. A CLI prints a warning now and then, and an
         event can arrive in a shape the adapter does not expect. In both cases
         the line goes to the feed exactly as it arrived. The reader then sees a
-        raw line where a tidy one would normally be, and loses nothing.
+        raw line where a parsed event would normally be, and loses nothing.
         """
         try:
             harness_event = json.loads(line)
