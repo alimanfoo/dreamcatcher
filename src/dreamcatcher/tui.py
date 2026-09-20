@@ -132,7 +132,7 @@ def _refresh_live_view(
 def _refresh_until_view_ends(
     *, console: Console, refresh_view: Callable[[], bool], wait: WaitForSeconds
 ) -> None:
-    """Refresh until two consecutive looks say that the view is over.
+    """Refresh until the view ends.
 
     The extra look lets output that follows a round's terminal record arrive.
     A view that is already over returns after its first look, and a non-terminal
@@ -195,7 +195,6 @@ def _render_status(*, report: DreamcatcherStatusReport) -> RenderableType:
 def _combine_renderable_parts(
     *, parts: Sequence[RenderableType | None]
 ) -> RenderableType:
-    """Combine the non-empty parts of a view into one renderable."""
     return Group(*(part for part in parts if part is not None))
 
 
@@ -315,7 +314,6 @@ def _create_table(*, columns: int) -> Table:
 
 
 def _render_section(*, heading: str, body: RenderableType) -> RenderableType:
-    """Render a view section beneath a heading and blank separator."""
     return Group(
         Text(),
         Text(heading, style="bold blue"),
@@ -702,7 +700,6 @@ def _render_written_feed_line(*, written_line: str) -> Text:
 
 
 def _render_feed_line(*, line: FeedLine, content: Text) -> Text:
-    """Render a dim timestamp followed by the line's highlighted content."""
     return Text.assemble(
         (describe_time(at=line.at), "dim"), FEED_TIMESTAMP_GAP, content
     )

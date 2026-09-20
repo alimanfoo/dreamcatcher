@@ -150,7 +150,6 @@ def build_cli_parser() -> argparse.ArgumentParser:
 
 
 def _add_issue_argument(*, parser: argparse.ArgumentParser) -> None:
-    """Add an issue reference argument to a command parser."""
     parser.add_argument(
         "issue",
         type=_parse_issue_reference,
@@ -171,7 +170,6 @@ def main(*, argv: Sequence[str] | None = None) -> int:
 
 
 def _run_daemon(*, arguments: argparse.Namespace) -> None:
-    """Run the daemon for the current checkout."""
     DreamcatcherDaemon(root=Path.cwd(), harness=AgentHarness(arguments.harness)).run()
 
 
@@ -200,14 +198,12 @@ def _retry_assignment(*, arguments: argparse.Namespace) -> None:
 
 
 def _show_status(*, arguments: argparse.Namespace) -> None:
-    """Show the status of the instance in this checkout."""
     tui.show_status_view(
         state=_find_state_directory(root=Path.cwd()), console=tui.open_tui_console()
     )
 
 
 def _show_assignment(*, arguments: argparse.Namespace) -> None:
-    """Show the issue's newest assignment from the current checkout."""
     tui.show_assignment_view(
         state=_find_state_directory(root=Path.cwd()),
         issue=arguments.issue,
@@ -216,7 +212,6 @@ def _show_assignment(*, arguments: argparse.Namespace) -> None:
 
 
 def _show_feed(*, arguments: argparse.Namespace) -> None:
-    """Show the issue's feed from the current checkout."""
     tui.show_feed_view(
         state=_find_state_directory(root=Path.cwd()),
         issue=arguments.issue,

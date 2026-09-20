@@ -202,7 +202,7 @@ class ConversationComment(_UserPostProjection):
 
 
 class PullRequestReview(_UserPostProjection):
-    """Model a submitted pull request review."""
+    """Model a pull request review."""
 
     kind: Literal["review"] = "review"
     verdict: PullRequestReviewVerdict = Field(validation_alias="state")

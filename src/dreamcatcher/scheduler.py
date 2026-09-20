@@ -3,9 +3,9 @@
 Each tick reads local assignments, observes relevant issues on GitHub, applies
 the concurrency cap and global cooldown, and launches at most one round.
 
-Existing assignments precede new dispatches. Within existing work, a missing
-first round comes first, followed by recovery, wrap-up, and user feedback. If no
-assignment needs a round, the oldest available issue is dispatched.
+Within existing work, a missing first round comes first, followed by recovery,
+wrap-up, and user feedback. If no assignment needs a round, the oldest available
+issue is dispatched.
 """
 
 from collections.abc import Callable

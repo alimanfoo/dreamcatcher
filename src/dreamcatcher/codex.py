@@ -147,7 +147,6 @@ def _build_round_settings(*, request: AgentRoundLaunchRequest) -> list[str]:
 
 
 def _build_config_overrides(*, settings: Sequence[str]) -> list[str]:
-    """Return each setting as the `-c setting` pair Codex expects."""
     return [part for setting in settings for part in ("-c", setting)]
 
 

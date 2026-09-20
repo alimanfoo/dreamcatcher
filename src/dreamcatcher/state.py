@@ -69,12 +69,7 @@ class StateDirectory:
         return self.path / "assignments"
 
     def describe_path(self, *, path: Path) -> str:
-        """Return a portable path relative to the checkout when possible.
-
-        A path outside the checkout remains absolute. This can happen when the
-        current checkout is reached through a different path from the one that
-        the assignment record persisted.
-        """
+        """Return a portable path relative to the checkout when possible."""
         if path.is_relative_to(self.root):
             return path.relative_to(self.root).as_posix()
         return path.as_posix()

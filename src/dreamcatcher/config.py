@@ -100,7 +100,7 @@ class DreamcatcherConfig(DreamcatcherDocument):
         """Every harness that any configured route can select.
 
         A route with one harness selects it regardless of the daemon's requested
-        harness, so startup must find every harness in this set.
+        harness.
         """
         return {
             harness for route in self.dispatch for harness in route.assignment_recipes

@@ -247,7 +247,7 @@ class AgentRoundReader:
         self._cache: dict[Path, AgentRoundRecord] = {}
 
     def read_records(self, *, directory: Path) -> list[AgentRoundRecord]:
-        """Return complete round records under the directory, oldest first.
+        """Return round records under the directory, oldest first.
 
         The records determine the order. A directory without a record is not a
         round and is omitted.
@@ -404,7 +404,6 @@ class AgentRound:
             self._interrupt()
 
     def _read_stdout(self) -> None:
-        """Persist and render each line from harness stdout."""
         for line in self.harness_process.out:
             append_text(text=line, path=self.paths.raw_output)
             self._append_feed_events(
@@ -412,7 +411,6 @@ class AgentRound:
             )
 
     def _read_stderr(self) -> None:
-        """Render each line from harness stderr into the feed."""
         for line in self.harness_process.err:
             self._append_feed_events(line=line, events=[FeedProse(text=line)])
 

@@ -162,8 +162,6 @@ def append_text(*, text: str, path: Path) -> None:
     """Append UTF-8 text without translating line endings.
 
     Raise ReportableError when the write fails, for the reason write_text does.
-
-    Feeds and raw harness streams grow one complete line at a time.
     """
     _write(text=text, path=path, mode="a")
 
