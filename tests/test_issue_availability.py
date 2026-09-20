@@ -61,7 +61,7 @@ def observe(
     *,
     config: DreamcatcherConfig,
     assignments: Sequence[AgentAssignment] = (),
-    setup_obstacles: dict[int, str | None] | None = None,
+    incomplete_setups: dict[int, str | None] | None = None,
 ):
     """Return the issue observations after asserting that the listing succeeded."""
     found = observe_issues(
@@ -69,7 +69,7 @@ def observe(
         account=POSTED_BY,
         config=config,
         assignments=list(assignments),
-        setup_obstacles=({} if setup_obstacles is None else setup_obstacles),
+        incomplete_setups=({} if incomplete_setups is None else incomplete_setups),
     )
     assert found.failure is None
     return found.observations
@@ -162,7 +162,7 @@ def test_a_listing_failure_makes_the_whole_observation_unknown(gh):
         account=POSTED_BY,
         config=config_with_routes(labels=[DISPATCH_LABEL]),
         assignments=[],
-        setup_obstacles={},
+        incomplete_setups={},
     )
 
     assert found.observations == []
@@ -185,7 +185,7 @@ def test_a_later_route_failure_preserves_earlier_issue_observations(gh):
         account=POSTED_BY,
         config=config_with_routes(labels=[DISPATCH_LABEL, "dream:less"]),
         assignments=[],
-        setup_obstacles={},
+        incomplete_setups={},
     )
 
     assert found.failure is not None
@@ -247,7 +247,7 @@ def test_local_and_external_claims_can_both_be_true(gh, tmp_path):
 def test_a_recoverable_setup_is_not_treated_as_an_external_claim(gh):
     found = observe(
         config=config_with_routes(labels=[DISPATCH_LABEL]),
-        setup_obstacles={8: None},
+        incomplete_setups={8: None},
     )[0]
 
     assert found.claimed_elsewhere.value is IssueFactValue.FALSE
@@ -257,7 +257,7 @@ def test_a_recoverable_setup_is_not_treated_as_an_external_claim(gh):
 def test_a_setup_that_cannot_be_recovered_leaves_the_claim_unknown(gh):
     found = observe(
         config=config_with_routes(labels=[DISPATCH_LABEL]),
-        setup_obstacles={8: "cannot reconcile its incomplete setup"},
+        incomplete_setups={8: "cannot reconcile its incomplete setup"},
     )[0]
 
     assert found.claimed_elsewhere.value is IssueFactValue.UNKNOWN
@@ -270,7 +270,7 @@ def test_a_setup_obstacle_survives_a_failed_linked_pull_request_read(gh):
 
     found = observe(
         config=config_with_routes(labels=[DISPATCH_LABEL]),
-        setup_obstacles={8: "cannot reconcile its incomplete setup"},
+        incomplete_setups={8: "cannot reconcile its incomplete setup"},
     )[0]
 
     assert found.claimed_elsewhere.value is IssueFactValue.UNKNOWN
@@ -292,7 +292,7 @@ def test_a_setup_obstacle_keeps_a_proven_external_claim(gh):
 
     found = observe(
         config=config_with_routes(labels=[DISPATCH_LABEL]),
-        setup_obstacles={8: "cannot reconcile its incomplete setup"},
+        incomplete_setups={8: "cannot reconcile its incomplete setup"},
     )[0]
 
     assert found.claimed_elsewhere.value is IssueFactValue.TRUE
@@ -391,7 +391,7 @@ def test_a_local_assignment_remains_observed_when_the_listing_and_issue_read_fai
         account=POSTED_BY,
         config=config_with_routes(labels=[DISPATCH_LABEL]),
         assignments=read_agent_assignments(state=state),
-        setup_obstacles={},
+        incomplete_setups={},
     )
 
     assert found.failure is not None
@@ -424,7 +424,7 @@ def test_an_incomplete_setup_is_observed_outside_the_listing(gh):
 
     found = observe(
         config=config_with_routes(labels=[DISPATCH_LABEL]),
-        setup_obstacles={13: "cannot reconcile its incomplete setup"},
+        incomplete_setups={13: "cannot reconcile its incomplete setup"},
     )
 
     assert [observation.issue for observation in found] == [13]

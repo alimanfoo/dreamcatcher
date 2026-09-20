@@ -177,7 +177,7 @@ class _IssueObservationContext:
     account: str
     config: DreamcatcherConfig
     assignments: dict[int, AgentAssignment]
-    setup_obstacles: dict[int, str | None]
+    incomplete_setups: dict[int, str | None]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -254,7 +254,7 @@ def observe_issues(
     account: str,
     config: DreamcatcherConfig,
     assignments: list[AgentAssignment],
-    setup_obstacles: dict[int, str | None],
+    incomplete_setups: dict[int, str | None],
 ) -> IssueObservationResult:
     """Observe every issue considered for dispatch or claimed by this instance."""
     considered_issues = _list_considered_issues(repository=repository, config=config)
@@ -264,12 +264,12 @@ def observe_issues(
         account=account,
         config=config,
         assignments=open_assignments,
-        setup_obstacles=setup_obstacles,
+        incomplete_setups=incomplete_setups,
     )
     issue_responses_by_number: dict[int, Issue | UnknownGitHubResponse] = {
         issue.number: issue for issue in considered_issues.issues
     }
-    local_issue_numbers = open_assignments.keys() | setup_obstacles.keys()
+    local_issue_numbers = open_assignments.keys() | incomplete_setups.keys()
     for issue in local_issue_numbers - issue_responses_by_number.keys():
         issue_responses_by_number[issue] = read_issue(
             repository=repository, issue=issue
@@ -381,7 +381,7 @@ def _observe_issue(
             context=context,
             issue=issue,
         ),
-        setup_obstacle=context.setup_obstacles.get(issue),
+        setup_obstacle=context.incomplete_setups.get(issue),
         blocked=_observe_blocking_issues(repository=context.repository, issue=issue),
         routing_conflict=routing_conflict,
     )
@@ -393,9 +393,8 @@ def _observe_external_claim(
     issue: int,
 ) -> IssueFact:
     """Observe whether an open linked pull request claims the issue elsewhere."""
-    has_incomplete_setup = issue in context.setup_obstacles
-    obstacle = context.setup_obstacles.get(issue)
-    if has_incomplete_setup and obstacle is None:
+    obstacle = context.incomplete_setups.get(issue)
+    if issue in context.incomplete_setups and obstacle is None:
         return _compose_known_issue_fact(value=False)
     linked = list_linked_pull_requests(repository=context.repository, issue=issue)
     if isinstance(linked, UnknownGitHubResponse):
@@ -757,7 +756,7 @@ class AgentWorkScheduler:
             account=self.account,
             config=self.config,
             assignments=assignments,
-            setup_obstacles=inspect_incomplete_assignment_setups(
+            incomplete_setups=inspect_incomplete_assignment_setups(
                 state=self.state, repository=self.repository
             ),
         )
