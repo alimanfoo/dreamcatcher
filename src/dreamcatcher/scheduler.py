@@ -903,8 +903,8 @@ class AgentWorkScheduler:
             )
         self.rounds[assignment.identifier] = start_agent_round(
             request=AgentRoundStartRequest(
-                assignment_identifier=assignment.identifier,
                 harness=assignment.record.harness,
+                agent_assignment_identifier=assignment.identifier,
                 model=assignment.record.model,
                 effort=assignment.record.effort,
                 prompt=required.prompt,
