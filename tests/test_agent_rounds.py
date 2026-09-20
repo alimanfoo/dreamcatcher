@@ -29,12 +29,15 @@ from dreamcatcher.agent_rounds import (
     AgentRoundPlan,
     AgentRoundPurpose,
     AgentRoundRecord,
+    AgentRoundStartRequest,
     ErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
     compose_agent_round_ending,
     record_agent_round_interruption,
+    start_agent_round,
 )
 from dreamcatcher.claude import CLAUDE_ADAPTER
+from dreamcatcher.config import AgentHarness
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedNote, FeedRenderer
 from dreamcatcher.github import (
@@ -219,6 +222,58 @@ def test_a_round_gives_the_harness_its_prompt_to_read(fake, worktree, directory)
 
     assert harness.calls[0].prompt == PROMPT
     assert running.paths.prompt.read_text(encoding="utf-8") == PROMPT
+
+
+def test_a_first_round_builds_its_harness_invocation(fake, worktree, directory):
+    harness = fake(program="claude")
+    harness.replies(stdout="")
+
+    start_agent_round(
+        request=AgentRoundStartRequest(
+            assignment_identifier="GH9-20260819-184158",
+            harness=AgentHarness.CLAUDE,
+            model="opus[1m]",
+            effort="xhigh",
+            prompt=PROMPT,
+            harness_session_identifier=None,
+            record_harness_session_identifier=ignore_harness_session_identifier,
+            paths=compose_round_paths(worktree=worktree, directory=directory),
+            plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
+        ),
+        clock=pinned,
+    ).wait()
+
+    call = harness.calls[0]
+    assert call.arguments[-4:] == ["--model", "opus[1m]", "--effort", "xhigh"]
+    assert call.prompt == PROMPT
+    assert call.directory == worktree.resolve()
+
+
+def test_a_resumed_round_builds_its_harness_invocation(fake, worktree, directory):
+    harness = fake(program="claude")
+    harness.replies(stdout="")
+
+    start_agent_round(
+        request=AgentRoundStartRequest(
+            assignment_identifier="GH9-20260819-184158",
+            harness=AgentHarness.CLAUDE,
+            model="opus[1m]",
+            effort="xhigh",
+            prompt=PROMPT,
+            harness_session_identifier="abc-123",
+            record_harness_session_identifier=ignore_harness_session_identifier,
+            paths=compose_round_paths(worktree=worktree, directory=directory),
+            plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=True),
+        ),
+        clock=pinned,
+    ).wait()
+
+    call = harness.calls[0]
+    assert call.arguments[-2:] == ["--resume", "abc-123"]
+    assert "opus[1m]" not in call.arguments
+    assert "xhigh" not in call.arguments
+    assert call.prompt == PROMPT
+    assert call.directory == worktree.resolve()
 
 
 def test_a_round_writes_the_pull_request_state_and_user_posts_it_was_given(

@@ -31,10 +31,11 @@ from dreamcatcher.agent_assignments import (
 from dreamcatcher.agent_rounds import (
     AgentRound,
     AgentRoundInput,
-    AgentRoundOutputReader,
     AgentRoundPlan,
     AgentRoundPurpose,
+    AgentRoundStartRequest,
     ErroredAgentRoundEnding,
+    start_agent_round,
 )
 from dreamcatcher.config import AgentHarness, DreamcatcherConfig
 from dreamcatcher.documents import DreamcatcherDocument, read_json
@@ -52,8 +53,6 @@ from dreamcatcher.github import (
     read_issue,
     read_pull_request,
 )
-from dreamcatcher.harness_adapters import AgentRoundLaunchRequest
-from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.prompts import RECOVERY_PROMPT, compose_user_posts_prompt
 from dreamcatcher.relay import list_undelivered_user_posts
 from dreamcatcher.state import StateDirectory
@@ -889,16 +888,10 @@ class AgentWorkScheduler:
     def _launch_required_round(self, *, required: RequiredAgentRound) -> None:
         """Start the round and advance the delivery cursor once it is running."""
         assignment = required.assignment
-        harness_adapter = HARNESS_ADAPTERS[assignment.record.harness]
-        launch_request = AgentRoundLaunchRequest(
-            agent_assignment_identifier=assignment.identifier,
-            model=assignment.record.model,
-            effort=assignment.record.effort,
-            prompt=required.prompt,
-        )
+        harness_session_identifier = None
         if assignment.rounds:
             harness_session_identifier = find_harness_session_identifier(
-                assignment=assignment, harness_adapter=harness_adapter
+                assignment=assignment
             )
             if harness_session_identifier is None:
                 raise ReportableError(
@@ -908,22 +901,22 @@ class AgentWorkScheduler:
             record_harness_session_identifier(
                 assignment=assignment, identifier=harness_session_identifier
             )
-            invocation = harness_adapter.build_resumed_round(
-                request=launch_request,
+        self.rounds[assignment.identifier] = start_agent_round(
+            request=AgentRoundStartRequest(
+                assignment_identifier=assignment.identifier,
+                harness=assignment.record.harness,
+                model=assignment.record.model,
+                effort=assignment.record.effort,
+                prompt=required.prompt,
                 harness_session_identifier=harness_session_identifier,
-            )
-        else:
-            invocation = harness_adapter.build_first_round(request=launch_request)
-        self.rounds[assignment.identifier] = AgentRound(
-            output_reader=AgentRoundOutputReader(
-                harness_adapter=harness_adapter,
                 record_harness_session_identifier=partial(
                     record_harness_session_identifier, assignment=assignment
                 ),
+                paths=assignment.compose_round_paths(
+                    number=assignment.next_round_number
+                ),
+                plan=required.plan,
             ),
-            invocation=invocation,
-            paths=assignment.compose_round_paths(number=assignment.next_round_number),
-            plan=required.plan,
             clock=self.clock,
         )
         round_input = required.plan.input

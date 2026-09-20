@@ -25,6 +25,7 @@ from pydantic import Field, PositiveInt, field_validator
 
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.commands import spawn_command
+from dreamcatcher.config import AgentHarness
 from dreamcatcher.documents import (
     DreamcatcherDocument,
     append_text,
@@ -35,7 +36,13 @@ from dreamcatcher.documents import (
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedEvent, FeedProse, FeedRenderer
 from dreamcatcher.github import PullRequestState, UserPost
-from dreamcatcher.harness_adapters import HarnessAdapter, HarnessInvocation
+from dreamcatcher.harness_adapters import (
+    AgentRoundLaunchRequest,
+    HarnessAdapter,
+    HarnessInvocation,
+    HarnessSessionIdentifier,
+)
+from dreamcatcher.harnesses import HARNESS_ADAPTERS
 
 # The file in a round's own directory saying what the round did.
 AGENT_ROUND_RECORD_NAME = "round.json"
@@ -62,6 +69,55 @@ class AgentRoundOutputReader:
         if identifier is not None:
             self.record_harness_session_identifier(identifier=identifier)
         return output.events
+
+
+@dataclass(frozen=True, kw_only=True)
+class AgentRoundStartRequest:
+    """Describe everything that the round boundary needs to start a round."""
+
+    assignment_identifier: str
+    harness: AgentHarness
+    model: str
+    effort: str
+    prompt: str
+    harness_session_identifier: HarnessSessionIdentifier | None
+    record_harness_session_identifier: HarnessSessionIdentifierRecorder
+    paths: "AgentRoundPaths"
+    plan: "AgentRoundPlan"
+
+
+def start_agent_round(
+    *,
+    request: AgentRoundStartRequest,
+    clock: Callable[[], datetime] = read_current_time,
+) -> "AgentRound":
+    """Start a first or resumed round through the assignment's harness."""
+    harness_adapter = HARNESS_ADAPTERS[request.harness]
+    launch_request = AgentRoundLaunchRequest(
+        agent_assignment_identifier=request.assignment_identifier,
+        model=request.model,
+        effort=request.effort,
+        prompt=request.prompt,
+    )
+    if request.harness_session_identifier is None:
+        invocation = harness_adapter.build_first_round(request=launch_request)
+    else:
+        invocation = harness_adapter.build_resumed_round(
+            request=launch_request,
+            harness_session_identifier=request.harness_session_identifier,
+        )
+    return AgentRound(
+        output_reader=AgentRoundOutputReader(
+            harness_adapter=harness_adapter,
+            record_harness_session_identifier=(
+                request.record_harness_session_identifier
+            ),
+        ),
+        invocation=invocation,
+        paths=request.paths,
+        plan=request.plan,
+        clock=clock,
+    )
 
 
 class AgentRoundPurpose(StrEnum):

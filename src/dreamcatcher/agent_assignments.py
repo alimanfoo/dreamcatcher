@@ -57,10 +57,10 @@ from dreamcatcher.github import (
     list_pull_requests,
 )
 from dreamcatcher.harness_adapters import (
-    HarnessAdapter,
     HarnessSessionIdentifier,
     refuse_invalid_harness_session_identifier,
 )
+from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.state import StateDirectory
 
 # What an assignment's branch is called, before its identifier. The prefix keeps
@@ -565,11 +565,12 @@ def advance_user_post_delivery_cursor(
 
 
 def find_harness_session_identifier(
-    *, assignment: AgentAssignment, harness_adapter: HarnessAdapter
+    *, assignment: AgentAssignment
 ) -> HarnessSessionIdentifier | None:
     """Return the recorded or recoverable harness session identifier."""
     if assignment.record.harness_session_identifier is not None:
         return assignment.record.harness_session_identifier
+    harness_adapter = HARNESS_ADAPTERS[assignment.record.harness]
     lines, _ = read_lines_from(
         path=assignment.compose_round_paths(number=1).raw_output, position=0
     )
