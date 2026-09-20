@@ -271,7 +271,7 @@ GITHUB_ISSUE_RESPONSE_ADAPTER = TypeAdapter(Issue)
 GITHUB_ISSUE_LIST_RESPONSE_ADAPTER = TypeAdapter(list[Issue])
 GITHUB_PULL_REQUEST_LIST_RESPONSE_ADAPTER = TypeAdapter(list[PullRequest])
 GITHUB_PULL_REQUEST_RESPONSE_ADAPTER = TypeAdapter(PullRequest)
-GITHUB_BLOCKING_ISSUE_LIST_RESPONSE_ADAPTER = TypeAdapter(list[BlockingIssue])
+GITHUB_BLOCKING_ISSUE_LIST_RESPONSE_ADAPTER = TypeAdapter(list[list[BlockingIssue]])
 GITHUB_LINKED_PULL_REQUESTS_RESPONSE_ADAPTER = TypeAdapter(LinkedPullRequestsResponse)
 GITHUB_CONVERSATION_COMMENT_PAGES_ADAPTER = TypeAdapter(list[list[ConversationComment]])
 GITHUB_PULL_REQUEST_REVIEW_PAGES_ADAPTER = TypeAdapter(list[list[PullRequestReview]])
@@ -471,17 +471,10 @@ def list_linked_pull_requests(
 def list_blocking_issues(
     *, repository: str, issue: int
 ) -> list[BlockingIssue] | UnknownGitHubResponse:
-    """Return the issues that block this issue, including their states.
-
-    This reads the one page GitHub answers with, so an issue with more than
-    thirty blockers would keep the rest out of view.
-    """
-    return _read_github_response(
+    """Return the issues that block this issue, including their states."""
+    return _read_github_pages(
         response_adapter=GITHUB_BLOCKING_ISSUE_LIST_RESPONSE_ADAPTER,
-        arguments=[
-            "api",
-            f"repos/{repository}/issues/{issue}/dependencies/blocked_by",
-        ],
+        endpoint=f"repos/{repository}/issues/{issue}/dependencies/blocked_by",
     )
 
 
@@ -510,10 +503,10 @@ def list_user_posts(
     return user_posts
 
 
-def _read_github_pages[PostT: UserPost](
-    *, response_adapter: TypeAdapter[list[list[PostT]]], endpoint: str
-) -> list[UserPost] | UnknownGitHubResponse:
-    """Return every post from the paginated endpoint, or an unknown response.
+def _read_github_pages[ItemT](
+    *, response_adapter: TypeAdapter[list[list[ItemT]]], endpoint: str
+) -> list[ItemT] | UnknownGitHubResponse:
+    """Return every item from the paginated endpoint, or an unknown response.
 
     gh reads every page for us, and answers with one array for each page it
     read, so the pages join back into one list here.

@@ -314,7 +314,7 @@ def gh(fake):
         to="pr create",
     )
     stand_in.replies(stdout=pull_request(state="OPEN", is_draft=True), to="pr view")
-    stand_in.replies(stdout="[]", to="api")
+    stand_in.replies(stdout=json.dumps([[]]), to="api")
     return stand_in
 
 

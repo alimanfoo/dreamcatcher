@@ -306,7 +306,12 @@ def test_the_blockers_of_an_issue_come_back_with_their_states(fake):
     gh = fake(program="gh")
     gh.replies(
         stdout=json.dumps(
-            [{"number": 7, "state": "closed"}, {"number": 8, "state": "open"}]
+            [
+                [
+                    {"number": 7, "state": "closed"},
+                    {"number": 8, "state": "open"},
+                ]
+            ]
         )
     )
 
@@ -316,8 +321,27 @@ def test_the_blockers_of_an_issue_come_back_with_their_states(fake):
     ]
     assert gh.calls[0].arguments == [
         "api",
-        f"repos/{REPOSITORY}/issues/9/dependencies/blocked_by",
+        f"repos/{REPOSITORY}/issues/9/dependencies/blocked_by?per_page=100",
+        "--paginate",
+        "--slurp",
     ]
+
+
+def test_an_open_blocker_on_the_second_page_comes_back(fake):
+    gh = fake(program="gh")
+    gh.replies(
+        stdout=json.dumps(
+            [
+                [{"number": 7, "state": "closed"}],
+                [{"number": 8, "state": "open"}],
+            ]
+        )
+    )
+
+    found = list_blocking_issues(repository=REPOSITORY, issue=9)
+
+    assert isinstance(found, list)
+    assert [blocker.number for blocker in found] == [7, 8]
 
 
 def posted() -> list[UserPost]:

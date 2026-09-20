@@ -432,7 +432,10 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
 
 
 def test_a_tick_with_nothing_eligible_dispatches_nothing(dispatching, offered):
-    offered.replies(stdout=pull_requests(listed=[(7, "open")]), to="api")
+    offered.replies(
+        stdout=json.dumps([json.loads(pull_requests(listed=[(7, "open")]))]),
+        to="api",
+    )
     scheduler, clock = create_scheduler(root=dispatching)
 
     observed = scheduler.tick(at=clock())
