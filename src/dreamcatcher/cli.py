@@ -18,7 +18,6 @@ from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.scheduler import (
-    advance_scheduler_record,
     derive_assignment_fault,
     read_scheduler_record,
 )
@@ -187,10 +186,7 @@ def _retry_assignment(*, arguments: argparse.Namespace) -> None:
         raise ReportableError(f"GH{arguments.issue} has no assignment to retry.")
     assignment = issue_assignments[-1]
     at = read_current_time()
-    scheduler_record = advance_scheduler_record(
-        previous=read_scheduler_record(state=state),
-        at=at,
-    )
+    scheduler_record = read_scheduler_record(state=state, at=at)
     most_recent_cooldown_ended = (
         None
         if scheduler_record is None

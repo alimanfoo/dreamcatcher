@@ -474,36 +474,30 @@ def derive_assignment_fault(
     )
 
 
-def read_scheduler_record(*, state: StateDirectory) -> SchedulerRecord | None:
-    """Read the scheduler record when a preceding tick has written one."""
+def read_scheduler_record(
+    *, state: StateDirectory, at: datetime
+) -> SchedulerRecord | None:
+    """Read the scheduler record advanced to the current time."""
     if not state.scheduler_record.exists():
         return None
     try:
-        return read_json(model=SchedulerRecord, path=state.scheduler_record)
+        record = read_json(model=SchedulerRecord, path=state.scheduler_record)
     except ReportableError as failure:
         raise InvalidSchedulerRecordError(str(failure)) from failure
-
-
-class InvalidSchedulerRecordError(ReportableError):
-    """Report a scheduler record that retrying cannot safely replace."""
-
-
-def advance_scheduler_record(
-    *, previous: SchedulerRecord | None, at: datetime
-) -> SchedulerRecord | None:
-    """Advance an elapsed cooldown to the record's completed boundary."""
-    if previous is None:
-        return None
-    cooldown = previous.cooldown
+    cooldown = record.cooldown
     if cooldown is not None and at >= cooldown.ends:
-        return previous.model_copy(
+        return record.model_copy(
             update={
                 "hold": None,
                 "cooldown": None,
                 "most_recent_cooldown_ended": cooldown.ends,
             }
         )
-    return previous
+    return record
+
+
+class InvalidSchedulerRecordError(ReportableError):
+    """Report a scheduler record that retrying cannot safely replace."""
 
 
 def _start_cooldown_if_required(
@@ -742,9 +736,7 @@ class AgentWorkScheduler:
         A global cooldown prevents every launch but does not prevent reads, so
         assignment observations remain current while the cooldown is active.
         """
-        previous_record = advance_scheduler_record(
-            previous=read_scheduler_record(state=self.state), at=at
-        )
+        previous_record = read_scheduler_record(state=self.state, at=at)
         cooldown = None if previous_record is None else previous_record.cooldown
         most_recent_cooldown_ended = (
             None
