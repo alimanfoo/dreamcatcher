@@ -41,7 +41,7 @@ An **agent assignment** is Dreamcatcher's durable commission to an agent to
 implement one issue. It is the central unit of work managed by Dreamcatcher.
 
 An **agent assignment identifier** identifies one agent assignment. It combines
-the issue identifier with a timestamp, as in `GH123-20260912-1924`, and is
+the issue identifier with a timestamp, as in `GH123-20260912-192458`, and is
 distinct from the issue identifier because an issue can receive more than one
 assignment over its lifetime.
 
@@ -221,6 +221,11 @@ elsewhere if somebody opens another pull request after Dreamcatcher creates its
 assignment. A claimed issue may also become blocked or develop a routing
 conflict after an assignment has started.
 
+An issue whose assignment creation was interrupted has an incomplete setup. A
+setup that can be reconciled does not claim the issue elsewhere. A setup that
+cannot be reconciled leaves claimed elsewhere unknown, with the recovery
+obstacle as its evidence, until the user resolves it.
+
 An issue with a local assignment appears through its agent assignment rather
 than in the report's available issues.
 
@@ -271,8 +276,10 @@ assignment can have any assignment status except complete.
 
 A status report may include operational facts such as the repository identity,
 whether the daemon is running, when the last scheduler tick occurred, current
-capacity, and whether a global cooldown is active. Its available issues and
-agent assignment statuses are projections derived for a person to read.
+capacity, whether a global cooldown is active, and the scheduler hold. The
+scheduler hold says why the latest tick launched nothing, such as a cooldown,
+full capacity, a failed issue listing, or a failed launch. Its available issues
+and agent assignment statuses are projections derived for a person to read.
 
 The status report never schedules work and is never an input to scheduling.
 Scheduling and reporting must nevertheless interpret the same underlying facts
@@ -328,6 +335,9 @@ a recovery round automatically unless the assignment has entered a fault.
 ### Scheduling work
 
 The scheduler creates agent assignments and starts agent rounds.
+
+If the issue listing fails, the scheduler holds every launch until a later tick
+can read the listing.
 
 Existing assignments take precedence over creating new ones. Subject to capacity
 and cooldown, the scheduler considers work in this order:
