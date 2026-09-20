@@ -83,7 +83,7 @@ post again.
 dreamcatcher gives the agent a wrap-up round when the user merges or closes the
 pull request, with the same prompt naming the same file. `state` then reads
 `MERGED` or `CLOSED`, so an assignment skill that needs to distinguish the two
-outcomes reads `state`. `posts` still holds any feedback that the user posted
+states reads `state`. `posts` still holds any feedback that the user posted
 before merging or closing.
 
 An assignment skill must instruct the agent to wind the work up when `state`
