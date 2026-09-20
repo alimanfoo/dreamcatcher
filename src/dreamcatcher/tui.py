@@ -294,17 +294,33 @@ def _render_assignments(
     """Render every agent assignment and its summary status."""
     if not assignments:
         return None
-    table = _create_table(columns=3)
+    identifier_width = max(len(status.assignment.identifier) for status in assignments)
+    status_width = max(len(status.value) for status in assignments)
+    rows: list[RenderableType] = []
     for status in assignments:
+        table = Table(box=None, show_header=False, pad_edge=False)
+        table.add_column(style="bold", width=identifier_width)
+        table.add_column(width=status_width)
+        table.add_column(overflow="fold")
         table.add_row(
             Text(status.assignment.identifier),
             Text(str(status.value), style=ASSIGNMENT_STATUS_STYLES[status.value]),
-            _render_assignment_detail(
+            _render_assignment_detail_line(
                 status=status,
                 prefix=_describe_running_round(status=status),
             ),
         )
-    return _render_section(heading="agent assignments", body=table)
+        rows.append(table)
+        if status.latest_output is not None:
+            rows.append(
+                Text(
+                    status.latest_output,
+                    style="dim",
+                    overflow="ellipsis",
+                    no_wrap=True,
+                )
+            )
+    return _render_section(heading="agent assignments", body=Group(*rows))
 
 
 def _describe_running_round(*, status: AgentAssignmentStatus) -> str:
@@ -322,7 +338,11 @@ def _render_assignment_detail(
     style: str = "",
 ) -> RenderableType:
     """Render assignment detail behind its prefix, latest output beneath it."""
-    detail = Text(", ".join(filter(None, (prefix, status.detail))), style=style)
+    detail = _render_assignment_detail_line(
+        status=status,
+        prefix=prefix,
+        style=style,
+    )
     if status.latest_output is None:
         return detail
     output = Padding(
@@ -331,6 +351,16 @@ def _render_assignment_detail(
         expand=False,
     )
     return Group(detail, output)
+
+
+def _render_assignment_detail_line(
+    *,
+    status: AgentAssignmentStatus,
+    prefix: str = "",
+    style: str = "",
+) -> Text:
+    """Render an assignment's detail and optional prefix on one line."""
+    return Text(", ".join(filter(None, (prefix, status.detail))), style=style)
 
 
 def _describe_empty_status_report(

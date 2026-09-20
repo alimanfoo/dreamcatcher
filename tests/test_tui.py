@@ -544,6 +544,35 @@ def test_identifiers_remain_whole_when_the_assignment_table_folds(tmp_path):
     assert "GH13-20260817-090000" in compact
 
 
+def test_latest_assignment_output_uses_one_full_width_line(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    holding(state=state)
+    directory = written(
+        state=state,
+        issue=13,
+        records=[running(minute=1, purpose=AgentRoundPurpose.IMPLEMENT)],
+    )
+    write_feed(
+        directory=directory,
+        number=1,
+        lines=[
+            FeedLine(
+                at=PINNED,
+                text="The agent is explaining a long change that would otherwise "
+                "move every assignment below it.",
+            )
+        ],
+    )
+
+    view = render_status_view(state=state, width=60)
+    output = [line for line in view.splitlines() if "agent is explaining" in line]
+
+    assert len(output) == 1
+    assert output[0].startswith("  The agent is explaining")
+    assert len(output[0]) <= 60
+    assert "assignment below it" not in output[0]
+
+
 def test_status_nobody_is_watching_is_drawn_once_and_returns(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
