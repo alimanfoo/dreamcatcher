@@ -144,8 +144,8 @@ An **issue observation** records the independent facts that one scheduler tick
 found for an issue. Its availability is derived from those facts.
 
 An **agent assignment status** is an assignment's single summary status in a
-status report. It is derived from the assignment record, its rounds, current
-process state, and current GitHub state.
+status report. It is derived from local assignment facts and the latest
+scheduler observation.
 
 ### Global cooldown
 
@@ -223,8 +223,9 @@ conflict after an assignment has started.
 
 An issue whose assignment creation was interrupted has an incomplete setup. A
 setup that can be reconciled does not claim the issue elsewhere. A setup that
-cannot be reconciled leaves claimed elsewhere unknown, with the recovery
-obstacle as its evidence, until the user resolves it.
+cannot be reconciled leaves claimed elsewhere unknown, with the obstacle as its
+evidence, until the user resolves it, unless an open linked pull request already
+proves that claim true.
 
 An issue with a local assignment appears through its agent assignment rather
 than in the report's available issues.

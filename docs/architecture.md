@@ -31,8 +31,8 @@ domain phrase into a class. In particular, it should:
 
 - acquire and release the repository lock;
 - record the daemon process identifier;
-- recognize rounds left running by an earlier daemon at startup and ask the
-  round boundary to record them as interrupted;
+- recognize and end round processes left running by an earlier daemon at
+  startup, then ask the round boundary to record them as interrupted;
 - call the scheduler repeatedly;
 - wait between ticks; and
 - stop active child processes during shutdown.
@@ -54,17 +54,18 @@ One scheduler tick:
    in that order;
 5. otherwise finds the oldest issue available for an agent assignment;
 6. performs at most one scheduling action; and
-7. returns a concise account of what happened for operational reporting.
+7. returns a `SchedulerRecord` for operational reporting.
 
-The daemon persists that account as the scheduler record and reports it in its
-output. A scheduler tick that fails before producing an account is reported in
-daemon output and leaves the last complete scheduler record in place. An invalid
-scheduler record ends the daemon because retrying cannot repair the document.
+The daemon persists the returned `SchedulerRecord` and reports it in its output.
+A scheduler tick that fails before returning one is reported in daemon output
+and leaves the last complete scheduler record in place. An invalid scheduler
+record ends the daemon because retrying cannot repair the document.
 
-If the issue listing fails, the tick returns an account with the failure as its
-hold and launches nothing, including rounds for existing assignments. A later
-tick must read the listing before any launch can proceed. This conservative rule
-prevents work from starting while the scheduler lacks current external facts.
+If the issue listing fails, the tick returns a `SchedulerRecord` with the
+failure as its hold and launches nothing, including rounds for existing
+assignments. A later tick must read the listing before any launch can proceed.
+This conservative rule prevents work from starting while the scheduler lacks
+current external facts.
 
 The scheduler uses two distinct lower-level operations: creating an agent
 assignment and starting an agent round. When it selects an available issue, it
@@ -156,10 +157,7 @@ boundary executes and records that decision; it does not inspect the pull
 request or select later work.
 
 A round is running while it has no terminal outcome and its process is alive.
-Successful, errored, and interrupted are terminal outcomes. At startup, the
-daemon recognizes a round with no recorded ending as left running by the earlier
-daemon, ends its process tree, and asks the round module to record the
-interruption.
+Successful, errored, and interrupted are terminal outcomes.
 
 A round may have an internal collection of file paths, but the domain object
 shared across boundaries is the assignment's Git worktree.
@@ -178,8 +176,8 @@ GitHub commands. It owns projections and operations for:
   inline comments.
 
 An agent assignment persists its pull-request identity, not a cached copy of
-mutable pull-request state. Scheduling and reporting read that state from GitHub
-when they need it.
+mutable pull-request state. Scheduling reads that state from GitHub when it
+needs it.
 
 GitHub owns its documents and may add fields, so its responses remain tolerant
 projections. Documents owned by Dreamcatcher remain strict.
@@ -246,11 +244,11 @@ open, assigned to the instance's user, and carries exactly one dispatch label.
 The report includes only available issues, in the scheduler's dispatch order. An
 `AgentAssignmentStatus` is one summary status from the ontology.
 
-The tick records an `AgentAssignmentObservation` for every assignment that it
-does not launch. The observation carries the reason, whether the relevant facts
-were known, and whether a round was required. Status reads this observation
-because view commands cannot reach GitHub. It is the last tick's interpretation
-kept as operational evidence, not authoritative assignment state.
+An `AgentAssignmentObservation` records why an idle open assignment was not
+launched, whether the relevant facts were known, and whether it required a
+round. Status reads this observation because view commands cannot reach GitHub.
+It is the last tick's interpretation kept as operational evidence, not
+authoritative assignment state.
 
 ### TUI
 
@@ -339,14 +337,13 @@ A round record persists:
 - the durable files containing its prompt, delivered posts, and output.
 
 An instance record persists the repository identity. An instance-wide scheduler
-record persists the last tick's account, including its hold, issue and
-assignment observations, active global cooldown, and the time at which the most
-recent cooldown ended. Its per-assignment observations preserve operational
-evidence of the tick's interpretation rather than authoritative state. An
-assignment record persists the time of its latest user retry request. These
-boundaries allow fault to remain a derived status: ending a cooldown or
-requesting a retry changes which round errors count towards fault rather than
-writing an assignment status.
+record persists the last tick's result, including its hold, issue and assignment
+observations, active global cooldown, and the time at which the most recent
+cooldown ended. Its per-assignment observations preserve operational evidence of
+the tick's interpretation rather than authoritative state. An assignment record
+persists the time of its latest user retry request. These boundaries allow fault
+to remain a derived status: ending a cooldown or requesting a retry changes
+which round errors count towards fault rather than writing an assignment status.
 
 The following are derived rather than persisted as authoritative state:
 
