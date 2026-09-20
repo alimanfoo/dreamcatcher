@@ -23,8 +23,6 @@ dreamcatcher reads `dreamcatcher.toml` from the root of the repository it
 watches. Commit it, so everyone watching that repo dispatches the same way.
 
 ```toml
-interval = 120
-max_agents = 1
 assignee = "@me"
 
 [[dispatch]]
@@ -39,15 +37,12 @@ model = "gpt-5.6-sol"
 effort = "xhigh"
 ```
 
-Every setting outside a `[[dispatch]]` entry has a default, so you can leave it
-out:
+`assignee` is whose issues to pick up, as a GitHub login. It defaults to `@me`,
+the account `gh` is signed in as, so you can leave it out.
 
-- `interval` is the seconds between one look at GitHub and the next. It defaults
-  to 120.
-- `max_agents` is how many agent rounds may run at once. It defaults to 1, so
-  one issue reaches a pull request before the next one starts.
-- `assignee` is whose issues to pick up, as a GitHub login. It defaults to
-  `@me`, the account `gh` is signed in as.
+If an existing `dreamcatcher.toml` contains `interval` or `max_agents`, remove
+those settings. Add `--interval` or `--max-agents` to the `run` command to keep
+any non-default values; the configuration file no longer accepts them.
 
 A `[[dispatch]]` entry says what to run for one label. Give it the label, then a
 block for each harness that can run it. Every entry needs its label and at least
@@ -74,8 +69,19 @@ assignment per labelled issue.
 dreamcatcher run --harness claude
 ```
 
-Every `interval` seconds it looks once and launches at most one round. An issue
-is dispatched when it carries exactly one dispatch label, is assigned to
+`--interval` sets the seconds between one look at GitHub and the next, and
+defaults to 120. `--max-agents` sets how many agent rounds may run at once, and
+defaults to 1. These options apply to this run, so each person can choose them
+without changing the repository's shared configuration.
+
+For example, run every 30 seconds and allow four agent rounds at once:
+
+```sh
+dreamcatcher run --harness claude --interval 30 --max-agents 4
+```
+
+The daemon looks once per interval and launches at most one round. An issue is
+dispatched when it carries exactly one dispatch label, is assigned to
 `assignee`, has no assignment here already, has no open pull request GitHub
 links to it, and has no open issue blocking it. The oldest such issue goes
 first. A dispatch cuts a branch and a worktree under `.dreamcatcher/`, makes and

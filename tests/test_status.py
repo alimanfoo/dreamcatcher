@@ -10,10 +10,12 @@ from observations import observed_issue
 from records import write_agent_assignment, write_feed, write_round, write_tick
 
 import dreamcatcher.scheduler as scheduler_module
+import dreamcatcher.status as status_module
 import dreamcatcher.tui as tui_module
 from dreamcatcher.agent_rounds import (
     AgentRoundPurpose,
     AgentRoundRecord,
+    InterruptedAgentRoundEnding,
     compose_agent_round_ending,
 )
 from dreamcatcher.documents import write_text
@@ -39,8 +41,9 @@ LOOKED_AT = PINNED + timedelta(hours=2)
 @pytest.fixture
 def state(tmp_path):
     """A configured state directory holding one assignment."""
-    configure(root=tmp_path, head="interval = 300\nmax_agents = 3\n\n")
+    configure(root=tmp_path)
     directory = StateDirectory(root=tmp_path)
+    write_text(text="3\n", path=directory.max_agents)
     write_agent_assignment(state=directory, identifier=ASSIGNMENT_ID, issue=13)
     return directory
 
@@ -112,8 +115,7 @@ def idle_observation() -> AgentAssignmentObservation:
     )
 
 
-def test_an_empty_instance_reports_its_configuration_and_no_work(tmp_path):
-    configure(root=tmp_path, head="interval = 300\nmax_agents = 3\n\n")
+def test_an_empty_instance_reports_unknown_capacity_and_no_work(tmp_path):
 
     found = read_status_report(
         state=StateDirectory(root=tmp_path),
@@ -125,7 +127,7 @@ def test_an_empty_instance_reports_its_configuration_and_no_work(tmp_path):
     assert found.daemon_pid is None
     assert found.latest_scheduler_tick is None
     assert found.scheduler_hold is None
-    assert found.max_agent_rounds == 3
+    assert found.max_agent_rounds is None
     assert found.running_agent_rounds == 0
     assert found.active_global_cooldown is None
     assert found.issue_observations == []
@@ -136,6 +138,16 @@ def test_the_instance_record_names_the_repository(state):
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
 
     assert report(state=state).repository == REPOSITORY
+
+
+@pytest.mark.parametrize("value", ["not a number\n", "0\n"])
+def test_an_invalid_recorded_agent_cap_is_unknown(tmp_path, value):
+    state = StateDirectory(root=tmp_path)
+    write_text(text=value, path=state.max_agents)
+
+    found = report(state=state)
+
+    assert found.max_agent_rounds is None
 
 
 def test_a_live_round_reports_work_and_its_latest_output(running):
@@ -150,6 +162,147 @@ def test_a_live_round_reports_work_and_its_latest_output(running):
     assert status.value is AgentAssignmentStatusValue.WORKING
     assert status.detail == "running 1h 59m, last output 1h 58m ago"
     assert status.latest_output == "[Bash] pytest"
+    assert status.hand_resume_command is None
+
+
+@pytest.mark.parametrize(
+    ("ending", "outcome_description", "duration"),
+    [
+        (
+            compose_agent_round_ending(at=PINNED + timedelta(minutes=4), status=0),
+            "successful",
+            "ran 4m",
+        ),
+        (
+            compose_agent_round_ending(at=PINNED + timedelta(minutes=4), status=2),
+            "errored (exit 2)",
+            "ran 4m",
+        ),
+        (InterruptedAgentRoundEnding(), "interrupted", ""),
+    ],
+)
+def test_a_terminal_round_status_describes_its_outcome_and_duration(
+    state, ending, outcome_description, duration
+):
+    write_round(
+        directory=state.assignments / ASSIGNMENT_ID,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            purpose=AgentRoundPurpose.IMPLEMENT,
+            started=PINNED,
+            pid=1,
+            ending=ending,
+        ),
+    )
+
+    round_status = only_assignment(state=state).round_statuses[0]
+
+    assert round_status.outcome_description == outcome_description
+    assert round_status.duration_description == duration
+
+
+@pytest.mark.parametrize(
+    ("is_running", "outcome_description"),
+    [(True, "running"), (False, "interrupted")],
+)
+def test_an_unended_round_status_follows_the_daemon(
+    state, is_running, outcome_description
+):
+    if is_running:
+        write_text(text=f"{os.getpid()}\n", path=state.lock)
+    ran(state=state, number=1, status=None)
+
+    round_status = only_assignment(state=state).round_statuses[0]
+
+    assert round_status.outcome_description == outcome_description
+    assert round_status.duration_description == ""
+
+
+def test_status_recovers_the_harness_session_and_builds_its_resume_command(tmp_path):
+    configure(root=tmp_path)
+    state = StateDirectory(root=tmp_path)
+    directory = write_agent_assignment(
+        state=state,
+        identifier=ASSIGNMENT_ID,
+        issue=13,
+        harness_session_identifier=None,
+    )
+    write_round(
+        directory=directory,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            purpose=AgentRoundPurpose.IMPLEMENT,
+            started=PINNED,
+            pid=1,
+            ending=compose_agent_round_ending(
+                at=PINNED + timedelta(minutes=4), status=0
+            ),
+        ),
+    )
+    write_text(
+        text=(
+            '{"type":"system","subtype":"init","model":"claude-opus-5",'
+            '"session_id":"abc-123"}\n'
+        ),
+        path=directory / "rounds" / "1" / "raw.jsonl",
+    )
+
+    status = only_assignment(state=state)
+
+    assert status.harness_session_identifier == "abc-123"
+    assert status.hand_resume_command == ["claude", "--resume", "abc-123"]
+
+
+def test_status_reads_harness_resume_details_only_when_requested(state, monkeypatch):
+    calls = []
+
+    def recover_harness_session_identifier(**kwargs):
+        calls.append(kwargs)
+        return "abc-123"
+
+    monkeypatch.setattr(
+        status_module,
+        "find_harness_session_identifier",
+        recover_harness_session_identifier,
+    )
+
+    status = only_assignment(state=state)
+
+    assert calls == []
+    assert status.harness_session_identifier == "abc-123"
+    assert status.hand_resume_command == ["claude", "--resume", "abc-123"]
+    assert len(calls) == 1
+
+
+def test_status_with_no_harness_session_has_no_resume_command(tmp_path):
+    configure(root=tmp_path)
+    state = StateDirectory(root=tmp_path)
+    directory = write_agent_assignment(
+        state=state,
+        identifier=ASSIGNMENT_ID,
+        issue=13,
+        harness_session_identifier=None,
+    )
+    write_round(
+        directory=directory,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            purpose=AgentRoundPurpose.IMPLEMENT,
+            started=PINNED,
+            pid=1,
+            ending=compose_agent_round_ending(
+                at=PINNED + timedelta(minutes=4), status=0
+            ),
+        ),
+    )
+
+    status = only_assignment(state=state)
+
+    assert status.harness_session_identifier is None
+    assert status.hand_resume_command is None
 
 
 def test_a_live_round_that_has_said_nothing_reports_that(running):
@@ -351,6 +504,7 @@ def test_an_active_cooldown_and_hold_are_instance_facts(running):
 
     assert found.latest_scheduler_tick == PINNED
     assert found.scheduler_hold == "global cooldown"
+    assert found.max_agent_rounds == 3
     assert found.active_global_cooldown == cooldown
 
 
@@ -495,5 +649,15 @@ def test_scheduling_does_not_consume_status_reports():
     assert "dreamcatcher.status" not in inspect.getsource(scheduler_module)
 
 
-def test_the_tui_does_not_import_scheduling_policy():
-    assert "dreamcatcher.scheduler" not in inspect.getsource(tui_module)
+@pytest.mark.parametrize(
+    "dependency",
+    [
+        "dreamcatcher.scheduler",
+        "find_harness_session_identifier",
+        "HARNESS_ADAPTERS",
+        "ErroredAgentRoundEnding",
+        "InterruptedAgentRoundEnding",
+    ],
+)
+def test_the_tui_does_not_import_domain_policy_or_operations(dependency):
+    assert dependency not in inspect.getsource(tui_module)

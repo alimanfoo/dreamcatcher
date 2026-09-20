@@ -25,7 +25,6 @@ from rich.text import Text
 from dreamcatcher.agent_rounds import (
     AgentRoundPurpose,
     AgentRoundRecord,
-    InterruptedAgentRoundEnding,
     compose_agent_round_ending,
 )
 from dreamcatcher.documents import append_text, write_text
@@ -40,7 +39,6 @@ from dreamcatcher.scheduler import (
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.tui import (
     VIEW_REFRESH_INTERVAL,
-    _describe_round_outcome,
     _render_feed_line,
     _render_written_feed_line,
     show_assignment_view,
@@ -158,47 +156,11 @@ def running(
     )
 
 
-@pytest.mark.parametrize(
-    ("ending", "description"),
-    [
-        (compose_agent_round_ending(at=PINNED, status=0), "successful"),
-        (compose_agent_round_ending(at=PINNED, status=2), "errored (exit 2)"),
-        (InterruptedAgentRoundEnding(), "interrupted"),
-    ],
-)
-def test_a_terminal_round_describes_its_explicit_outcome(ending, description):
-    record = AgentRoundRecord(
-        number=1,
-        purpose=AgentRoundPurpose.IMPLEMENT,
-        started=PINNED,
-        pid=1,
-        ending=ending,
-    )
-
-    assert _describe_round_outcome(record=record, is_running=False) == description
-
-
-@pytest.mark.parametrize(
-    ("is_running", "description"),
-    [(True, "running"), (False, "interrupted")],
-)
-def test_a_round_without_an_ending_describes_what_its_process_says(
-    is_running, description
-):
-    record = AgentRoundRecord(
-        number=1,
-        purpose=AgentRoundPurpose.IMPLEMENT,
-        started=PINNED,
-        pid=1,
-    )
-
-    assert _describe_round_outcome(record=record, is_running=is_running) == description
-
-
 def holding(*, state):
     """Configure the instance and write the lock that its daemon holds."""
     configure(root=state.root)
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
+    write_text(text="1\n", path=state.max_agents)
     write_text(text=f"{DAEMON_PID}\n", path=state.lock)
 
 
@@ -206,6 +168,7 @@ def fabricate_nothing(*, state):
     """A state directory a daemon has bootstrapped and nothing else."""
     configure(root=state.root)
     state.bootstrap()
+    write_text(text="1\n", path=state.max_agents)
 
 
 def fabricate_everything(*, state):
@@ -340,6 +303,7 @@ def fabricate_repeat_assignments(*, state):
     """Three assignments at one issue, so a repeat dispatch reads as one thing."""
     configure(root=state.root)
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
+    write_text(text="1\n", path=state.max_agents)
     for stamp, rounds in (
         (
             "20260817-090000",
@@ -672,47 +636,6 @@ def test_an_assignment_renders_as_its_golden_view(name, tmp_path, daemon):
     view = viewed(state=state, issue=issue)
 
     assert view == (FIXTURES / "assignment" / f"{name}.txt").read_text(encoding="utf-8")
-
-
-def test_a_manual_resume_recovers_the_harness_session_from_the_raw_stream(
-    tmp_path, daemon
-):
-    state = StateDirectory(root=tmp_path)
-    holding(state=state)
-    directory = write_agent_assignment(
-        state=state,
-        identifier=f"GH20-{ASSIGNMENT_TIMESTAMP}",
-        issue=20,
-        harness_session_identifier=None,
-    )
-    write_round(directory=directory, number=1, record=ended(minute=1))
-    write_text(
-        text=(
-            '{"type":"system","subtype":"init","model":"claude-opus-5",'
-            f'"session_id":"{HARNESS_SESSION_IDENTIFIER}"}}\n'
-        ),
-        path=directory / "rounds" / "1" / "raw.jsonl",
-    )
-
-    view = viewed(state=state, issue=20)
-
-    assert f"claude --resume {HARNESS_SESSION_IDENTIFIER}" in view
-
-
-def test_an_assignment_without_a_harness_session_has_no_manual_resume(tmp_path, daemon):
-    state = StateDirectory(root=tmp_path)
-    holding(state=state)
-    directory = write_agent_assignment(
-        state=state,
-        identifier=f"GH20-{ASSIGNMENT_TIMESTAMP}",
-        issue=20,
-        harness_session_identifier=None,
-    )
-    write_round(directory=directory, number=1, record=ended(minute=1))
-
-    view = viewed(state=state, issue=20)
-
-    assert "resume harness session yourself" not in view
 
 
 def test_an_assignment_view_shows_the_round_that_starts_while_it_is_open(

@@ -4,16 +4,25 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
+from functools import cached_property
 
 from dreamcatcher.agent_assignments import (
     AgentAssignment,
+    find_harness_session_identifier,
+    find_open_agent_assignments_by_issue,
     read_agent_assignments,
     read_agent_assignments_for_issue,
 )
+from dreamcatcher.agent_rounds import (
+    AgentRoundOutcome,
+    AgentRoundRecord,
+    ErroredAgentRoundEnding,
+)
 from dreamcatcher.clock import read_current_time
-from dreamcatcher.config import read_dreamcatcher_config
 from dreamcatcher.documents import read_text
 from dreamcatcher.feed import FeedLine, read_last_feed_line
+from dreamcatcher.harness_adapters import HarnessSessionIdentifier
+from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.lock import read_daemon_pid
 from dreamcatcher.scheduler import (
     NO_ROUND_HAS_RUN,
@@ -22,7 +31,6 @@ from dreamcatcher.scheduler import (
     IssueFact,
     IssueFactValue,
     IssueObservation,
-    advance_scheduler_record,
     derive_assignment_fault,
     read_scheduler_record,
 )
@@ -42,6 +50,15 @@ class AgentAssignmentStatusValue(StrEnum):
 
 
 @dataclass(frozen=True, kw_only=True)
+class AgentRoundStatus:
+    """Describe one agent round for a status view."""
+
+    record: AgentRoundRecord
+    duration_description: str
+    outcome_description: str
+
+
+@dataclass(frozen=True, kw_only=True)
 class AgentAssignmentStatus:
     """Describe an agent assignment's derived summary status."""
 
@@ -50,6 +67,44 @@ class AgentAssignmentStatus:
     detail: str
     latest_output: str | None
     observed_at: datetime | None
+
+    @cached_property
+    def round_statuses(self) -> list[AgentRoundStatus]:
+        """The derived status of every round in assignment order."""
+        assignment = self.assignment
+        return [
+            AgentRoundStatus(
+                record=record,
+                duration_description=_compose_round_duration_description(record=record),
+                outcome_description=_describe_round_outcome(
+                    record=record,
+                    is_running=(
+                        self.value is AgentAssignmentStatusValue.WORKING
+                        and record.number == assignment.rounds[-1].number
+                    ),
+                ),
+            )
+            for record in assignment.rounds
+        ]
+
+    @cached_property
+    def harness_session_identifier(self) -> HarnessSessionIdentifier | None:
+        """The recorded or recoverable harness session identifier."""
+        return find_harness_session_identifier(assignment=self.assignment)
+
+    @cached_property
+    def hand_resume_command(self) -> list[str] | None:
+        """The hand-resume command when nobody is running the session."""
+        harness_session_identifier = self.harness_session_identifier
+        if (
+            self.value is AgentAssignmentStatusValue.WORKING
+            or harness_session_identifier is None
+        ):
+            return None
+        harness_adapter = HARNESS_ADAPTERS[self.assignment.record.harness]
+        return harness_adapter.build_hand_resume(
+            harness_session_identifier=harness_session_identifier
+        )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -61,7 +116,7 @@ class DreamcatcherStatusReport:
     daemon_pid: int | None
     latest_scheduler_tick: datetime | None
     scheduler_hold: str | None
-    max_agent_rounds: int
+    max_agent_rounds: int | None
     running_agent_rounds: int
     active_global_cooldown: GlobalCooldown | None
     issue_observations: list[IssueObservation]
@@ -71,7 +126,7 @@ class DreamcatcherStatusReport:
 def read_status_report(
     *, state: StateDirectory, clock: Callable[[], datetime] = read_current_time
 ) -> DreamcatcherStatusReport:
-    """Read a status report from the instance's local configuration and state."""
+    """Read a status report from the instance's local state."""
     reader = _StatusReportReader(state=state, clock=clock)
     assignments = read_agent_assignments(state=state)
     assignment_statuses = reader.list_assignment_statuses(assignments=assignments)
@@ -88,7 +143,7 @@ def read_status_report(
             if scheduler_record is None or reader.daemon_pid is None
             else scheduler_record.hold
         ),
-        max_agent_rounds=read_dreamcatcher_config(root=state.root).max_agents,
+        max_agent_rounds=_read_max_agents(state=state),
         running_agent_rounds=sum(
             status.value is AgentAssignmentStatusValue.WORKING
             for status in assignment_statuses
@@ -108,6 +163,17 @@ def _read_repository(*, state: StateDirectory) -> str | None:
     return read_text(path=state.repository).strip()
 
 
+def _read_max_agents(*, state: StateDirectory) -> int | None:
+    """Read the most recent daemon run's agent cap when it is valid."""
+    if not state.max_agents.exists():
+        return None
+    try:
+        max_agents = int(read_text(path=state.max_agents).strip())
+    except ValueError:
+        return None
+    return max_agents if max_agents > 0 else None
+
+
 def read_agent_assignment_statuses_for_issue(
     *,
     state: StateDirectory,
@@ -121,6 +187,27 @@ def read_agent_assignment_statuses_for_issue(
     )
 
 
+def _compose_round_duration_description(*, record: AgentRoundRecord) -> str:
+    ending = record.ending
+    if ending is None or ending.outcome is AgentRoundOutcome.INTERRUPTED:
+        return ""
+    return f"ran {describe_span(span=ending.at - record.started)}"
+
+
+def _describe_round_outcome(*, record: AgentRoundRecord, is_running: bool) -> str:
+    """Return how the round ended, or what it is doing instead.
+
+    A round that recorded no ending never finished. It is running when a daemon
+    is still there to run it, and interrupted once that daemon has gone, since
+    a round cannot outlive its daemon.
+    """
+    if isinstance(record.ending, ErroredAgentRoundEnding):
+        return f"errored (exit {record.ending.status})"
+    if record.ending is None and not is_running:
+        return str(AgentRoundOutcome.INTERRUPTED)
+    return str(record.outcome)
+
+
 class _StatusReportReader:
     """Read the local facts required for one status report."""
 
@@ -129,10 +216,7 @@ class _StatusReportReader:
         self.state = state
         self.at = clock()
         self.daemon_pid = read_daemon_pid(path=state.lock)
-        self.scheduler_record = advance_scheduler_record(
-            previous=read_scheduler_record(state=state),
-            at=self.at,
-        )
+        self.scheduler_record = read_scheduler_record(state=state, at=self.at)
         self.assignment_observations: dict[str, AgentAssignmentObservation] = (
             {}
             if self.scheduler_record is None
@@ -172,7 +256,10 @@ class _StatusReportReader:
         recorded_at: datetime,
     ) -> IssueObservation:
         """Refresh one observation's local claim and missing observation time."""
-        if any(not assignment.is_complete for assignment in assignments):
+        open_assignment = find_open_agent_assignments_by_issue(
+            assignments=assignments
+        ).get(observation.issue)
+        if open_assignment is not None:
             claimed_here = IssueFact(value=IssueFactValue.TRUE)
         elif assignments:
             claimed_here = IssueFact(value=IssueFactValue.FALSE)

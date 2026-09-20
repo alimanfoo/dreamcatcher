@@ -18,15 +18,8 @@ from rich.padding import Padding
 from rich.table import Table
 from rich.text import Text
 
-from dreamcatcher.agent_assignments import (
-    AgentAssignment,
-    find_harness_session_identifier,
-)
-from dreamcatcher.agent_rounds import (
-    AgentRoundRecord,
-    ErroredAgentRoundEnding,
-    InterruptedAgentRoundEnding,
-)
+from dreamcatcher.agent_assignments import AgentAssignment
+from dreamcatcher.agent_rounds import AgentRoundRecord
 from dreamcatcher.clock import WaitForSeconds, read_current_time
 from dreamcatcher.documents import read_lines_from
 from dreamcatcher.errors import ReportableError
@@ -37,8 +30,6 @@ from dreamcatcher.feed import (
     describe_agent_round_start,
     read_feed_line,
 )
-from dreamcatcher.harness_adapters import HarnessSessionIdentifier
-from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AgentAssignmentStatus,
@@ -223,7 +214,12 @@ def _render_instance_status(*, report: DreamcatcherStatusReport) -> RenderableTy
         ("latest scheduler tick", tick),
         (
             "agent-round capacity",
-            f"{report.running_agent_rounds} of {report.max_agent_rounds} in use",
+            (
+                None
+                if report.max_agent_rounds is None
+                else f"{report.running_agent_rounds} of "
+                f"{report.max_agent_rounds} in use"
+            ),
         ),
         ("global cooldown", cooldown),
         ("scheduler hold", report.scheduler_hold),
@@ -375,12 +371,6 @@ def _render_assignment(
     orders them newest first.
     """
     current_status = assignment_statuses[0]
-    assignment = current_status.assignment
-    harness_adapter = HARNESS_ADAPTERS[assignment.record.harness]
-    harness_session_identifier = find_harness_session_identifier(
-        assignment=assignment,
-        harness_adapter=harness_adapter,
-    )
     return _combine_renderable_parts(
         parts=[
             Text(f"newest agent assignment {current_status.assignment.identifier}"),
@@ -390,17 +380,9 @@ def _render_assignment(
                 continuation_indent=SECTION_PADDING[3],
                 style=ASSIGNMENT_STATUS_STYLES[current_status.value],
             ),
-            _render_assignment_summary(
-                state=state,
-                status=current_status,
-                harness_session_identifier=harness_session_identifier,
-            ),
+            _render_assignment_summary(state=state, status=current_status),
             _render_rounds(status=current_status),
-            _render_harness_resume(
-                state=state,
-                status=current_status,
-                harness_session_identifier=harness_session_identifier,
-            ),
+            _render_harness_resume(state=state, status=current_status),
             _render_older_assignments(older_statuses=assignment_statuses[1:]),
         ]
     )
@@ -410,7 +392,6 @@ def _render_assignment_summary(
     *,
     state: StateDirectory,
     status: AgentAssignmentStatus,
-    harness_session_identifier: HarnessSessionIdentifier | None,
 ) -> RenderableType:
     """Return what the dispatch settled for every round of the assignment."""
     assignment = status.assignment
@@ -426,7 +407,7 @@ def _render_assignment_summary(
         ("agent harness", record.harness),
         (
             "harness session identifier",
-            harness_session_identifier or "not recorded",
+            status.harness_session_identifier or "not recorded",
         ),
         ("model", record.model),
         ("effort", record.effort),
@@ -441,15 +422,11 @@ def _render_rounds(*, status: AgentAssignmentStatus) -> RenderableType | None:
     Each row keeps the round number accepted by `feed --round`. An assignment
     with no rounds returns no section.
     """
-    rounds = status.assignment.rounds
-    if not rounds:
+    if not status.round_statuses:
         return None
     table = _create_table(columns=5)
-    for record in reversed(rounds):
-        is_running = (
-            status.value is AgentAssignmentStatusValue.WORKING
-            and record.number == rounds[-1].number
-        )
+    for round_status in reversed(status.round_statuses):
+        record = round_status.record
         table.add_row(
             Text(str(record.number)),
             Text(
@@ -459,40 +436,16 @@ def _render_rounds(*, status: AgentAssignmentStatus) -> RenderableType | None:
                 )
             ),
             Text(describe_time(at=record.started)),
-            Text(_describe_round_duration(record=record)),
-            Text(_describe_round_outcome(record=record, is_running=is_running)),
+            Text(round_status.duration_description),
+            Text(round_status.outcome_description),
         )
     return _render_section(heading="rounds", body=table)
-
-
-def _describe_round_duration(*, record: AgentRoundRecord) -> str:
-    """Return how long the round ran, or nothing while it is still running."""
-    if record.ending is None or isinstance(record.ending, InterruptedAgentRoundEnding):
-        return ""
-    return f"ran {describe_span(span=record.ending.at - record.started)}"
-
-
-def _describe_round_outcome(*, record: AgentRoundRecord, is_running: bool) -> str:
-    """Return how the round ended, or what it is doing instead.
-
-    A round that recorded no ending never finished. It is running when a daemon
-    is still there to run it, and interrupted once that daemon has gone, since
-    a round cannot outlive its daemon.
-    """
-    if isinstance(record.ending, ErroredAgentRoundEnding):
-        return f"errored (exit {record.ending.status})"
-    if isinstance(record.ending, InterruptedAgentRoundEnding):
-        return "interrupted"
-    if record.ending is not None:
-        return "successful"
-    return "running" if is_running else "interrupted"
 
 
 def _render_harness_resume(
     *,
     state: StateDirectory,
     status: AgentAssignmentStatus,
-    harness_session_identifier: HarnessSessionIdentifier | None,
 ) -> RenderableType | None:
     """Return how to resume the harness session by hand, when one exists.
 
@@ -501,18 +454,10 @@ def _render_harness_resume(
     at all has no harness session behind it either, so there is nothing to resume
     there and never will be.
     """
-    if (
-        status.value is AgentAssignmentStatusValue.WORKING
-        or harness_session_identifier is None
-    ):
+    if status.hand_resume_command is None:
         return None
-    harness_adapter = HARNESS_ADAPTERS[status.assignment.record.harness]
     worktree = state.describe_path(path=status.assignment.record.worktree)
-    command = " ".join(
-        harness_adapter.build_hand_resume(
-            harness_session_identifier=harness_session_identifier
-        )
-    )
+    command = " ".join(status.hand_resume_command)
     return _render_section(
         heading="resume harness session yourself",
         body=Text(f"cd {worktree}\n{command}"),

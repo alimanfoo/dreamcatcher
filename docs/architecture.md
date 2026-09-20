@@ -31,9 +31,11 @@ domain phrase into a class. In particular, it should:
 
 - acquire and release the repository lock;
 - record the daemon process identifier;
-- perform startup recovery of child processes;
+- reconcile round records that an earlier daemon left without an ending by
+  ending their recorded process trees at startup, then asking the round boundary
+  to record them as interrupted;
 - call the scheduler repeatedly;
-- wait between ticks; and
+- wait for the run's requested interval between ticks; and
 - stop active child processes during shutdown.
 
 The daemon does not decide which issue or assignment deserves work. It knows
@@ -46,25 +48,30 @@ that scheduling happens, but not the scheduling priorities.
 One scheduler tick:
 
 1. observes the relevant local, process, configuration, and GitHub facts;
-2. reconciles incomplete assignment creation and round processes, including
-   recognizing interrupted rounds;
-3. applies capacity and global-cooldown constraints;
+2. reconciles incomplete assignment setup;
+3. applies the run's requested capacity and global-cooldown constraints;
 4. finds the highest-priority existing assignment that requires an agent round,
    considering recovery need, a terminal pull request, and unrelayed user posts
    in that order;
 5. otherwise finds the oldest issue available for an agent assignment;
 6. performs at most one scheduling action; and
-7. when the scheduler tick completes, records a concise account of what happened
-   for operational reporting.
+7. returns a `SchedulerRecord` for operational reporting.
 
-A scheduler tick that fails before producing that account is reported in daemon
-output and leaves the last complete scheduler record in place. An invalid
-scheduler record ends the daemon because retrying cannot repair the document.
+The daemon persists the returned `SchedulerRecord` and reports it in its output.
+A scheduler tick that fails before returning one is reported in daemon output
+and leaves the last complete scheduler record in place. An invalid scheduler
+record ends the daemon because retrying cannot repair the document.
+
+If the issue listing fails, the tick returns a `SchedulerRecord` with the
+failure as its hold and launches nothing, including rounds for existing
+assignments. A later tick must read the listing before any launch can proceed.
+This conservative rule prevents work from starting while the scheduler lacks
+current external facts.
 
 The scheduler uses two distinct lower-level operations: creating an agent
 assignment and starting an agent round. When it selects an available issue, it
 performs both operations in one scheduling action, starting the first round as
-soon as assignment creation succeeds. Keeping the operations separate preserves
+soon as assignment setup succeeds. Keeping the operations separate preserves
 clear ownership. If the combined action is interrupted between the operations,
 the complete assignment record shows that its first round is missing, and the
 scheduler finishes the action before ordinary scheduling. This does not create a
@@ -95,12 +102,13 @@ of an agent assignment. It should provide cohesive operations to:
   assignment;
 - read existing assignments;
 - find the open assignment for an issue;
+- allocate the next round number within an assignment;
 - update the harness session identifier and user-post delivery cursor;
 - record when the user requests another recovery attempt after resolving a
   fault; and
 - recognize completion after a successful wrap-up round.
 
-Assignment creation coordinates lower-level Git, GitHub, configuration, and
+Assignment setup coordinates lower-level Git, GitHub, configuration, and
 document operations. As one recoverable workflow it:
 
 1. allocates the agent assignment identifier;
@@ -112,14 +120,18 @@ document operations. As one recoverable workflow it:
 7. returns the newly created assignment to the scheduler so it can start the
    first round immediately.
 
-An interruption can leave external setup artifacts, but not a valid partial
-assignment record. The assignment identifier determines the branch and worktree
-identities, and the pull request identifies that branch as its head. Recovery
-can therefore recognize artifacts belonging to the same assignment. Repeating or
-recovering creation must reuse or remove those artifacts as appropriate and must
-not create a second branch or pull request. If the complete assignment record
-already exists, the scheduler continues to the first round instead of recreating
-the assignment.
+An interruption can leave an incomplete assignment setup: a worktree and branch
+without a valid assignment record. On a later tick, the assignment module checks
+whether it can safely resume the assignment setup. If it cannot, it returns the
+reason. The scheduler records that reason as evidence that claimed elsewhere is
+unknown, unless an open linked pull request already proves the claim true. The
+assignment identifier determines the branch and worktree identities, and the
+pull request identifies that branch as its head. Recovery can therefore
+recognize artifacts belonging to the same assignment. Repeating or recovering
+the assignment setup must reuse or remove those artifacts as appropriate and
+must not create a second branch or pull request. If the complete assignment
+record already exists, the scheduler continues to the first round instead of
+recreating the assignment.
 
 The assignment remains open until the module recognizes a successful wrap-up
 round. A merged or closed pull request calls for wrap up but does not by itself
@@ -134,7 +146,7 @@ run.
 `agent_rounds.py` owns agent-round records and the supervised lifetime of a
 round process. It should provide operations to:
 
-- allocate the next number within an assignment;
+- record the next number that the assignment allocated;
 - record the round's purpose and whether it is recovery;
 - write the prompt and any relayed user posts;
 - ask a harness adapter to build the invocation;
@@ -142,17 +154,18 @@ round process. It should provide operations to:
 - stream and render its output;
 - record a successful or errored ending;
 - interrupt the process tree safely; and
-- recognize and record an interruption when a previously running process is no
-  longer present without a recorded ending.
+- record an interruption when the daemon finds a round record that an earlier
+  daemon left without an ending.
+
+An `AgentRoundInput` is the document that a resumed round receives beside its
+prompt. It carries the pull request state and any relayed user posts.
 
 The scheduler decides which purpose and recovery flag a new round has. The round
 boundary executes and records that decision; it does not inspect the pull
 request or select later work.
 
 A round is running while it has no terminal outcome and its process is alive.
-Successful, errored, and interrupted are terminal outcomes. Reconciliation
-records interrupted when a round has no recorded ending and its process is no
-longer alive.
+Successful, errored, and interrupted are terminal outcomes.
 
 A round may have an internal collection of file paths, but the domain object
 shared across boundaries is the assignment's Git worktree.
@@ -171,8 +184,8 @@ GitHub commands. It owns projections and operations for:
   inline comments.
 
 An agent assignment persists its pull-request identity, not a cached copy of
-mutable pull-request state. Scheduling and reporting read that state from GitHub
-when they need it.
+mutable pull-request state. Scheduling reads that state from GitHub when it
+needs it.
 
 GitHub owns its documents and may add fields, so its responses remain tolerant
 projections. Documents owned by Dreamcatcher remain strict.
@@ -191,7 +204,8 @@ is running remain beyond that cursor and are available to a later round.
 
 ### Harness adapters
 
-`harness_adapters.py` and `harnesses.py` form the harness boundary. A harness
+`harness_adapters.py` and `harnesses.py` form the harness boundary, with
+`claude.py` and `codex.py` providing its two concrete adapters. A harness
 adapter knows:
 
 - how to start a new harness session;
@@ -219,11 +233,12 @@ entries.
 Status construction may read:
 
 - assignment and round records;
+- raw harness output and the matching harness adapter when it must recover a
+  harness session identifier or build a hand-resume command;
 - current child-process state;
-- the instance's repository record;
-- scheduler records, including issue observations, the active global cooldown,
-  and the latest tick;
-- configuration, dispatch labels, and routes;
+- the instance's repository and capacity records;
+- scheduler records, including issue observations, assignment observations, the
+  active global cooldown, and the latest tick;
 - the latest rendered feed output needed for a useful summary.
 
 It may call the scheduler's pure interpretation functions, but it cannot invoke
@@ -238,6 +253,12 @@ open, assigned to the instance's user, and carries exactly one dispatch label.
 The report includes only available issues, in the scheduler's dispatch order. An
 `AgentAssignmentStatus` is one summary status from the ontology.
 
+An `AgentAssignmentObservation` records the tick's interpretation of an idle
+open assignment. It carries a reason, whether the relevant facts were known, and
+whether it required a round. Status reads this observation because view commands
+cannot reach GitHub. It is the last tick's interpretation kept as operational
+evidence, not authoritative assignment state.
+
 ### TUI
 
 `tui.py` renders status reports and feeds with Rich. It owns presentation only.
@@ -251,6 +272,10 @@ maps one dispatch label to one or more harness-specific `AgentAssignmentRecipe`
 objects, each of which supplies the model, effort, and initial prompt used to
 start agent work through that harness. The initial prompt normally invokes an
 assignment skill.
+
+The repository configuration carries choices that everyone working in the
+repository shares. The daemon interval and agent cap belong to one person's run,
+so the `run` command receives them instead.
 
 The configuration module validates labels, routes, and recipes and, given an
 issue's observed labels, identifies which are configured dispatch labels. It
@@ -308,7 +333,7 @@ acknowledged work.
 An assignment record persists:
 
 - the issue and assignment identifiers;
-- the frozen dispatch route and assignment recipe selected at creation;
+- the frozen dispatch route and assignment recipe selected during setup;
 - branch and worktree identity;
 - pull-request identity;
 - harness identity and, once known, its harness session identifier;
@@ -324,12 +349,15 @@ A round record persists:
   and
 - the durable files containing its prompt, delivered posts, and output.
 
-An instance record persists the repository identity. An instance-wide scheduler
-record persists an active global cooldown and the time at which the most recent
-cooldown ended. An assignment record persists the time of its latest user retry
-request. These boundaries allow fault to remain a derived status: ending a
-cooldown or requesting a retry changes which round errors count towards fault
-rather than writing an assignment status.
+Instance records persist the repository identity and the most recent daemon
+run's capacity. An instance-wide scheduler record persists the last tick's
+result, including its hold, issue and assignment observations, active global
+cooldown, and the time at which the most recent cooldown ended. Its
+per-assignment observations preserve operational evidence of the tick's
+interpretation rather than authoritative state. An assignment record persists
+the time of its latest user retry request. These boundaries allow fault to
+remain a derived status: ending a cooldown or requesting a retry changes which
+round errors count towards fault rather than writing an assignment status.
 
 The following are derived rather than persisted as authoritative state:
 
@@ -379,5 +407,4 @@ The contract should establish that:
 - the agent marks the pull request ready when implementation is ready for
   review;
 - resumed rounds act on relayed user posts; and
-- wrap-up rounds distinguish a merged pull request from one closed without
-  merging.
+- a wrap-up round acts on the merged or closed state carried in its round input.

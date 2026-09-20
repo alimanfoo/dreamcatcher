@@ -13,12 +13,16 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     compose_agent_round_ending,
 )
-from dreamcatcher.cli import main
+from dreamcatcher.cli import MAX_INTERVAL_SECONDS, main
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
-from dreamcatcher.scheduler import SchedulerRecord, derive_assignment_fault
+from dreamcatcher.scheduler import (
+    GlobalCooldown,
+    SchedulerRecord,
+    derive_assignment_fault,
+)
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158"
@@ -148,6 +152,30 @@ def test_retry_clears_the_newest_assignments_fault(monkeypatch, faulted, capsys)
     assert "next scheduler tick" in capsys.readouterr().out
 
 
+def test_retry_refuses_a_fault_an_elapsed_cooldown_cleared(
+    monkeypatch, faulted, capsys
+):
+    cooldown_ended = PINNED + timedelta(minutes=3)
+    write_json(
+        document=SchedulerRecord(
+            at=PINNED,
+            cooldown=GlobalCooldown(started=PINNED, ends=cooldown_ended),
+        ),
+        path=faulted.scheduler_record,
+    )
+    monkeypatch.chdir(faulted.root)
+    monkeypatch.setattr(
+        "dreamcatcher.cli.read_current_time",
+        lambda: cooldown_ended,
+    )
+
+    assert main(argv=["retry", "GH13"]) == 1
+
+    assignment = read_agent_assignments_for_issue(state=faulted, issue=13)[-1]
+    assert assignment.record.retry_requested_at is None
+    assert "not in fault" in capsys.readouterr().err
+
+
 def test_retry_refuses_an_issue_with_no_assignment(monkeypatch, tmp_path, capsys):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
@@ -247,6 +275,8 @@ def test_run_starts_a_daemon_on_the_current_directory(monkeypatch, watched, star
     assert main(argv=["run", "--harness", "claude"]) == 0
     assert started[0].state.root == watched
     assert started[0].harness is AgentHarness.CLAUDE
+    assert started[0].interval == 120
+    assert started[0].max_agents == 1
 
 
 def test_the_harness_flag_says_what_to_run_rounds_with(monkeypatch, watched, started):
@@ -254,6 +284,54 @@ def test_the_harness_flag_says_what_to_run_rounds_with(monkeypatch, watched, sta
 
     assert main(argv=["run", "--harness", "codex"]) == 0
     assert started[0].harness is AgentHarness.CODEX
+
+
+def test_run_uses_the_requested_interval_and_agent_cap(monkeypatch, watched, started):
+    monkeypatch.chdir(watched)
+
+    assert (
+        main(
+            argv=[
+                "run",
+                "--harness",
+                "claude",
+                "--interval",
+                "30",
+                "--max-agents",
+                "4",
+            ]
+        )
+        == 0
+    )
+    assert started[0].interval == 30
+    assert started[0].max_agents == 4
+
+
+@pytest.mark.parametrize(
+    ("option", "value"), [("--interval", "0"), ("--max-agents", "many")]
+)
+def test_run_refuses_a_non_positive_integer_control(option, value, capsys):
+    with pytest.raises(SystemExit) as exit_info:
+        main(argv=["run", "--harness", "claude", option, value])
+
+    assert exit_info.value.code == 2
+    assert "must be a positive integer" in capsys.readouterr().err
+
+
+def test_run_refuses_an_interval_too_large_to_wait(capsys):
+    with pytest.raises(SystemExit) as exit_info:
+        main(
+            argv=[
+                "run",
+                "--harness",
+                "claude",
+                "--interval",
+                str(MAX_INTERVAL_SECONDS + 1),
+            ]
+        )
+
+    assert exit_info.value.code == 2
+    assert "must be no greater than" in capsys.readouterr().err
 
 
 def test_a_run_with_no_harness_asks_for_one(capsys):
