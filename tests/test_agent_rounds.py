@@ -231,10 +231,12 @@ def test_a_first_round_builds_its_harness_invocation(fake, worktree, directory):
     start_agent_round(
         request=AgentRoundStartRequest(
             harness=AgentHarness.CLAUDE,
-            agent_assignment_identifier="GH9-20260819-184158",
-            model="opus[1m]",
-            effort="xhigh",
-            prompt=PROMPT,
+            launch_request=AgentRoundLaunchRequest(
+                agent_assignment_identifier="GH9-20260819-184158",
+                model="opus[1m]",
+                effort="xhigh",
+                prompt=PROMPT,
+            ),
             harness_session_identifier=None,
             record_harness_session_identifier=ignore_harness_session_identifier,
             paths=compose_round_paths(worktree=worktree, directory=directory),
@@ -256,10 +258,12 @@ def test_a_resumed_round_builds_its_harness_invocation(fake, worktree, directory
     start_agent_round(
         request=AgentRoundStartRequest(
             harness=AgentHarness.CLAUDE,
-            agent_assignment_identifier="GH9-20260819-184158",
-            model="opus[1m]",
-            effort="xhigh",
-            prompt=PROMPT,
+            launch_request=AgentRoundLaunchRequest(
+                agent_assignment_identifier="GH9-20260819-184158",
+                model="opus[1m]",
+                effort="xhigh",
+                prompt=PROMPT,
+            ),
             harness_session_identifier="abc-123",
             record_harness_session_identifier=ignore_harness_session_identifier,
             paths=compose_round_paths(worktree=worktree, directory=directory),

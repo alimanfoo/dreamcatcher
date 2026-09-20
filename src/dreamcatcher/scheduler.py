@@ -53,6 +53,7 @@ from dreamcatcher.github import (
     read_issue,
     read_pull_request,
 )
+from dreamcatcher.harness_adapters import AgentRoundLaunchRequest
 from dreamcatcher.prompts import RECOVERY_PROMPT, compose_user_posts_prompt
 from dreamcatcher.relay import list_undelivered_user_posts
 from dreamcatcher.state import StateDirectory
@@ -904,10 +905,12 @@ class AgentWorkScheduler:
         self.rounds[assignment.identifier] = start_agent_round(
             request=AgentRoundStartRequest(
                 harness=assignment.record.harness,
-                agent_assignment_identifier=assignment.identifier,
-                model=assignment.record.model,
-                effort=assignment.record.effort,
-                prompt=required.prompt,
+                launch_request=AgentRoundLaunchRequest(
+                    agent_assignment_identifier=assignment.identifier,
+                    model=assignment.record.model,
+                    effort=assignment.record.effort,
+                    prompt=required.prompt,
+                ),
                 harness_session_identifier=harness_session_identifier,
                 record_harness_session_identifier=partial(
                     record_harness_session_identifier, assignment=assignment

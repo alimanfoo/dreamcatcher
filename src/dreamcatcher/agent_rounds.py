@@ -72,10 +72,11 @@ class AgentRoundOutputReader:
 
 
 @dataclass(frozen=True, kw_only=True)
-class AgentRoundStartRequest(AgentRoundLaunchRequest):
+class AgentRoundStartRequest:
     """Describe everything that the round boundary needs to start a round."""
 
     harness: AgentHarness
+    launch_request: AgentRoundLaunchRequest
     harness_session_identifier: HarnessSessionIdentifier | None
     record_harness_session_identifier: HarnessSessionIdentifierRecorder
     paths: "AgentRoundPaths"
@@ -89,17 +90,11 @@ def start_agent_round(
 ) -> "AgentRound":
     """Start a first or resumed round through the assignment's harness."""
     harness_adapter = HARNESS_ADAPTERS[request.harness]
-    launch_request = AgentRoundLaunchRequest(
-        agent_assignment_identifier=request.agent_assignment_identifier,
-        model=request.model,
-        effort=request.effort,
-        prompt=request.prompt,
-    )
     if request.harness_session_identifier is None:
-        invocation = harness_adapter.build_first_round(request=launch_request)
+        invocation = harness_adapter.build_first_round(request=request.launch_request)
     else:
         invocation = harness_adapter.build_resumed_round(
-            request=launch_request,
+            request=request.launch_request,
             harness_session_identifier=request.harness_session_identifier,
         )
     return AgentRound(
