@@ -10,6 +10,7 @@ from observations import observed_issue
 from records import write_agent_assignment, write_feed, write_round, write_tick
 
 import dreamcatcher.scheduler as scheduler_module
+import dreamcatcher.status as status_module
 import dreamcatcher.tui as tui_module
 from dreamcatcher.agent_rounds import (
     AgentRoundPurpose,
@@ -199,7 +200,7 @@ def test_an_unended_round_status_follows_the_daemon(
     state, is_running, outcome_description
 ):
     if is_running:
-        state.lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
+        write_text(text=f"{os.getpid()}\n", path=state.lock)
     ran(state=state, number=1, status=None)
 
     round_status = only_assignment(state=state).round_statuses[0]
@@ -242,6 +243,29 @@ def test_status_recovers_the_harness_session_and_builds_its_resume_command(tmp_p
 
     assert status.harness_session_identifier == "abc-123"
     assert status.hand_resume_command == ["claude", "--resume", "abc-123"]
+
+
+def test_harness_resume_details_are_read_only_when_the_assignment_view_needs_them(
+    state, monkeypatch
+):
+    calls = []
+
+    def recover_harness_session_identifier(**kwargs):
+        calls.append(kwargs)
+        return "abc-123"
+
+    monkeypatch.setattr(
+        status_module,
+        "find_harness_session_identifier",
+        recover_harness_session_identifier,
+    )
+
+    status = only_assignment(state=state)
+
+    assert calls == []
+    assert status.harness_session_identifier == "abc-123"
+    assert status.hand_resume_command == ["claude", "--resume", "abc-123"]
+    assert len(calls) == 1
 
 
 def test_status_with_no_harness_session_has_no_resume_command(tmp_path):

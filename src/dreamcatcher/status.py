@@ -4,6 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
+from functools import cached_property
 
 from dreamcatcher.agent_assignments import (
     AgentAssignment,
@@ -67,9 +68,48 @@ class AgentAssignmentStatus:
     detail: str
     latest_output: str | None
     observed_at: datetime | None
-    round_statuses: list[AgentRoundStatus]
-    harness_session_identifier: HarnessSessionIdentifier | None
-    hand_resume_command: list[str] | None
+
+    @cached_property
+    def round_statuses(self) -> list[AgentRoundStatus]:
+        """The derived status of every round in assignment order."""
+        assignment = self.assignment
+        return [
+            AgentRoundStatus(
+                record=record,
+                duration_description=_compose_round_duration_description(record=record),
+                outcome_description=_describe_round_outcome(
+                    record=record,
+                    is_running=(
+                        self.value is AgentAssignmentStatusValue.WORKING
+                        and record.number == assignment.rounds[-1].number
+                    ),
+                ),
+            )
+            for record in assignment.rounds
+        ]
+
+    @cached_property
+    def harness_session_identifier(self) -> HarnessSessionIdentifier | None:
+        """The recorded or recoverable harness session identifier."""
+        harness_adapter = HARNESS_ADAPTERS[self.assignment.record.harness]
+        return find_harness_session_identifier(
+            assignment=self.assignment,
+            harness_adapter=harness_adapter,
+        )
+
+    @cached_property
+    def hand_resume_command(self) -> list[str] | None:
+        """The hand-resume command when nobody is running the session."""
+        harness_session_identifier = self.harness_session_identifier
+        if (
+            self.value is AgentAssignmentStatusValue.WORKING
+            or harness_session_identifier is None
+        ):
+            return None
+        harness_adapter = HARNESS_ADAPTERS[self.assignment.record.harness]
+        return harness_adapter.build_hand_resume(
+            harness_session_identifier=harness_session_identifier
+        )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -335,11 +375,6 @@ class _StatusReportReader:
         latest_output: str | None = None,
     ) -> AgentAssignmentStatus:
         """Return a summary status from the assignment's current facts."""
-        harness_adapter = HARNESS_ADAPTERS[assignment.record.harness]
-        harness_session_identifier = find_harness_session_identifier(
-            assignment=assignment,
-            harness_adapter=harness_adapter,
-        )
         return AgentAssignmentStatus(
             assignment=assignment,
             value=value,
@@ -347,31 +382,6 @@ class _StatusReportReader:
             latest_output=latest_output,
             observed_at=(
                 None if self.scheduler_record is None else self.scheduler_record.at
-            ),
-            round_statuses=[
-                AgentRoundStatus(
-                    record=record,
-                    duration_description=_compose_round_duration_description(
-                        record=record
-                    ),
-                    outcome_description=_describe_round_outcome(
-                        record=record,
-                        is_running=(
-                            value is AgentAssignmentStatusValue.WORKING
-                            and record.number == assignment.rounds[-1].number
-                        ),
-                    ),
-                )
-                for record in assignment.rounds
-            ],
-            harness_session_identifier=harness_session_identifier,
-            hand_resume_command=(
-                None
-                if value is AgentAssignmentStatusValue.WORKING
-                or harness_session_identifier is None
-                else harness_adapter.build_hand_resume(
-                    harness_session_identifier=harness_session_identifier
-                )
             ),
         )
 
