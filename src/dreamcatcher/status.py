@@ -20,7 +20,8 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.config import AgentHarness
-from dreamcatcher.documents import read_text
+from dreamcatcher.daemon_runs import DaemonRunRecord
+from dreamcatcher.documents import read_json, read_text
 from dreamcatcher.feed import FeedLine, read_last_feed_line
 from dreamcatcher.harness_adapters import HarnessSessionIdentifier
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
@@ -127,8 +128,8 @@ class DreamcatcherStatusReport:
     dreamcatcher_version: str | None
     latest_scheduler_tick: datetime | None
     scheduler_hold: str | None
-    max_agent_rounds: int | None
-    running_agent_rounds: int
+    max_agents: int | None
+    running_agents: int
     active_global_cooldown: GlobalCooldown | None
     failed_assignment_setups: list[FailedAssignmentSetupStatus]
     available_issues: list[IssueObservation]
@@ -145,12 +146,16 @@ def read_status_report(
     assignment_statuses = reader.list_assignment_statuses(assignments=assignments)
     issue_observations = reader.list_issue_observations(assignments=assignments)
     scheduler_record = reader.scheduler_record
+    daemon_run = _read_daemon_run_record(
+        state=state,
+        daemon_pid=reader.daemon_pid,
+    )
     return DreamcatcherStatusReport(
         at=reader.at,
         repository=_read_repository(state=state),
         daemon_pid=reader.daemon_pid,
-        agent_harness=_read_agent_harness(state=state),
-        dreamcatcher_version=_read_dreamcatcher_version(state=state),
+        agent_harness=None if daemon_run is None else daemon_run.harness,
+        dreamcatcher_version=None if daemon_run is None else daemon_run.version,
         latest_scheduler_tick=(
             None if scheduler_record is None else scheduler_record.at
         ),
@@ -159,8 +164,8 @@ def read_status_report(
             if scheduler_record is None or reader.daemon_pid is None
             else scheduler_record.hold
         ),
-        max_agent_rounds=_read_max_agents(state=state),
-        running_agent_rounds=sum(
+        max_agents=None if daemon_run is None else daemon_run.max_agents,
+        running_agents=sum(
             status.value is AgentAssignmentStatusValue.WORKING
             for status in assignment_statuses
         ),
@@ -196,32 +201,16 @@ def _read_repository(*, state: StateDirectory) -> str | None:
     return read_text(path=state.repository).strip()
 
 
-def _read_agent_harness(*, state: StateDirectory) -> AgentHarness | None:
-    """Read the harness selected for the most recent daemon run."""
-    if not state.harness.exists():
+def _read_daemon_run_record(
+    *, state: StateDirectory, daemon_pid: int | None
+) -> DaemonRunRecord | None:
+    """Read one coherent set of facts about the current or most recent run."""
+    if not state.daemon_run_record.exists():
         return None
-    try:
-        return AgentHarness(read_text(path=state.harness).strip())
-    except ValueError:
+    record = read_json(model=DaemonRunRecord, path=state.daemon_run_record)
+    if daemon_pid is not None and record.pid != daemon_pid:
         return None
-
-
-def _read_dreamcatcher_version(*, state: StateDirectory) -> str | None:
-    """Read the version used for the most recent daemon run."""
-    if not state.version.exists():
-        return None
-    return read_text(path=state.version).strip() or None
-
-
-def _read_max_agents(*, state: StateDirectory) -> int | None:
-    """Read the most recent daemon run's agent cap when it is valid."""
-    if not state.max_agents.exists():
-        return None
-    try:
-        max_agents = int(read_text(path=state.max_agents).strip())
-    except ValueError:
-        return None
-    return max_agents if max_agents > 0 else None
+    return record
 
 
 def read_agent_assignment_statuses_for_issue(

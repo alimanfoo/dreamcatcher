@@ -283,8 +283,9 @@ A status report may include operational facts such as the repository identity,
 whether the daemon is running, when the last scheduler tick occurred, current
 capacity, whether a global cooldown is active, and the scheduler hold. The
 scheduler hold says why the latest tick launched nothing, such as a cooldown,
-full capacity, a failed issue listing, or a failed launch. Its available issues
-and agent assignment statuses are projections derived for a person to read.
+full capacity, a failed issue listing, or a failed launch. Its issue
+observations and agent assignment statuses are projections derived for a person
+to read.
 
 The status report never schedules work and is never an input to scheduling.
 Scheduling and reporting must nevertheless interpret the same underlying facts

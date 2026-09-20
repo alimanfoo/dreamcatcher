@@ -16,7 +16,7 @@ from conftest import (
     gone,
 )
 from fakes import Line
-from records import write_agent_assignment, write_round
+from records import write_agent_assignment, write_daemon_run, write_round
 
 from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
@@ -26,7 +26,8 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME, AgentHarness
 from dreamcatcher.daemon import DreamcatcherDaemon
-from dreamcatcher.documents import write_json, write_text
+from dreamcatcher.daemon_runs import DaemonRunRecord
+from dreamcatcher.documents import read_json, write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.scheduler import AgentWorkScheduler, GlobalCooldown, SchedulerRecord
 from dreamcatcher.state import StateDirectory
@@ -237,24 +238,34 @@ def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(
 
     assert (daemon.state.path / ".gitignore").exists()
     assert daemon.state.repository.read_text(encoding="utf-8") == f"{REPOSITORY}\n"
-    assert daemon.state.harness.read_text(encoding="utf-8") == "claude\n"
-    assert daemon.state.version.read_text(encoding="utf-8") == (
-        f"{DREAMCATCHER_VERSION}\n"
+    assert read_json(
+        model=DaemonRunRecord,
+        path=daemon.state.daemon_run_record,
+    ) == DaemonRunRecord(
+        pid=os.getpid(),
+        harness=AgentHarness.CLAUDE,
+        version=DREAMCATCHER_VERSION,
+        max_agents=1,
     )
-    assert daemon.state.max_agents.read_text(encoding="utf-8") == "1\n"
     assert not daemon.state.lock.exists()
 
 
 def test_a_second_daemon_refuses_while_the_first_holds_the_repo(watched, harnesses, gh):
     daemon, _, _ = idling(root=watched, max_agents=4)
     daemon.state.bootstrap()
-    write_text(text="2\n", path=daemon.state.max_agents)
+    write_daemon_run(state=daemon.state, pid=os.getpid(), max_agents=2)
     daemon.state.lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
 
     with pytest.raises(ReportableError, match=f"pid {os.getpid()}"):
         daemon.run()
 
-    assert daemon.state.max_agents.read_text(encoding="utf-8") == "2\n"
+    assert (
+        read_json(
+            model=DaemonRunRecord,
+            path=daemon.state.daemon_run_record,
+        ).max_agents
+        == 2
+    )
 
 
 def test_the_daemon_runs_the_harness_it_was_given(watched):

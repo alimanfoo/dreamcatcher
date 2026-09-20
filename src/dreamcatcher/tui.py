@@ -43,26 +43,13 @@ from dreamcatcher.status import (
 from dreamcatcher.words import describe_count, describe_span, describe_time
 
 # What each assignment summary is set in, so a reader can scan the status table.
-ASSIGNMENT_STATUS_STYLES = {
-    AgentAssignmentStatusValue.WORKING: "green",
-    AgentAssignmentStatusValue.WAITING: "cyan",
+ASSIGNMENT_STATUS_STYLES_IN_ATTENTION_ORDER = {
     AgentAssignmentStatusValue.NEEDS_USER_FEEDBACK: "yellow",
     AgentAssignmentStatusValue.FAULT: "red",
-    AgentAssignmentStatusValue.COMPLETE: "dim",
+    AgentAssignmentStatusValue.WORKING: "green",
+    AgentAssignmentStatusValue.WAITING: "cyan",
     AgentAssignmentStatusValue.UNKNOWN: "magenta",
-}
-ASSIGNMENT_STATUS_RANKS = {
-    value: rank
-    for rank, value in enumerate(
-        (
-            AgentAssignmentStatusValue.NEEDS_USER_FEEDBACK,
-            AgentAssignmentStatusValue.FAULT,
-            AgentAssignmentStatusValue.WORKING,
-            AgentAssignmentStatusValue.WAITING,
-            AgentAssignmentStatusValue.UNKNOWN,
-            AgentAssignmentStatusValue.COMPLETE,
-        )
-    )
+    AgentAssignmentStatusValue.COMPLETE: "dim",
 }
 
 STATUSES_THAT_END_A_VIEW = (
@@ -187,7 +174,6 @@ def _read_status_snapshot(
 
 
 def _render_status(*, report: DreamcatcherStatusReport) -> RenderableType:
-    """Render repository facts, assignments, setup failures, and available issues."""
     return _combine_renderable_parts(
         parts=[
             Text(report.repository or "repository unknown", style="bold"),
@@ -243,12 +229,11 @@ def _render_instance_status(*, report: DreamcatcherStatusReport) -> RenderableTy
         ("agent harness", report.agent_harness),
         ("latest scheduler tick", tick),
         (
-            "agent-round capacity",
+            "agent capacity",
             (
                 None
-                if report.max_agent_rounds is None
-                else f"{report.running_agent_rounds} of "
-                f"{report.max_agent_rounds} in use"
+                if report.max_agents is None
+                else f"{report.running_agents} of {report.max_agents} in use"
             ),
         ),
         ("global cooldown", cooldown),
@@ -309,7 +294,9 @@ def _render_assignments(
         return None
     ordered = sorted(
         assignments,
-        key=lambda status: ASSIGNMENT_STATUS_RANKS[status.value],
+        key=lambda status: tuple(ASSIGNMENT_STATUS_STYLES_IN_ATTENTION_ORDER).index(
+            status.value
+        ),
     )
     identifier_width = max(len(status.assignment.identifier) for status in ordered)
     status_width = max(len(status.value) for status in ordered)
@@ -321,10 +308,17 @@ def _render_assignments(
         table.add_column(overflow="fold")
         table.add_row(
             Text(status.assignment.identifier),
-            Text(str(status.value), style=ASSIGNMENT_STATUS_STYLES[status.value]),
-            _render_assignment_detail_line(
-                status=status,
-                prefix=_describe_running_round(status=status),
+            Text(
+                str(status.value),
+                style=ASSIGNMENT_STATUS_STYLES_IN_ATTENTION_ORDER[status.value],
+            ),
+            Text(
+                ", ".join(
+                    filter(
+                        None,
+                        (_describe_running_round(status=status), status.detail),
+                    )
+                )
             ),
         )
         rows.append(table)
@@ -355,9 +349,8 @@ def _render_assignment_detail(
     style: str = "",
 ) -> RenderableType:
     """Render assignment detail behind its prefix, latest output beneath it."""
-    detail = _render_assignment_detail_line(
-        status=status,
-        prefix=prefix,
+    detail = Text(
+        ", ".join(filter(None, (prefix, status.detail))),
         style=style,
     )
     if status.latest_output is None:
@@ -368,16 +361,6 @@ def _render_assignment_detail(
         expand=False,
     )
     return Group(detail, output)
-
-
-def _render_assignment_detail_line(
-    *,
-    status: AgentAssignmentStatus,
-    prefix: str = "",
-    style: str = "",
-) -> Text:
-    """Render an assignment's detail and optional prefix on one line."""
-    return Text(", ".join(filter(None, (prefix, status.detail))), style=style)
 
 
 def _describe_empty_status_report(
@@ -478,7 +461,7 @@ def _render_assignment(
                 status=current_status,
                 prefix=str(current_status.value),
                 continuation_indent=SECTION_PADDING[3],
-                style=ASSIGNMENT_STATUS_STYLES[current_status.value],
+                style=ASSIGNMENT_STATUS_STYLES_IN_ATTENTION_ORDER[current_status.value],
             ),
             _render_assignment_summary(state=state, status=current_status),
             _render_rounds(status=current_status),
@@ -577,7 +560,10 @@ def _render_older_assignments(
     for status in older_statuses:
         table.add_row(
             Text(f"agent assignment {status.assignment.identifier}"),
-            Text(str(status.value), style=ASSIGNMENT_STATUS_STYLES[status.value]),
+            Text(
+                str(status.value),
+                style=ASSIGNMENT_STATUS_STYLES_IN_ATTENTION_ORDER[status.value],
+            ),
             _render_assignment_detail(status=status),
         )
     return _render_section(heading="older assignments", body=table)

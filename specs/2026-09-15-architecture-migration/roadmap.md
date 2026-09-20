@@ -551,8 +551,8 @@ decisions.
   recorded locally; the view commands must not acquire network access or mutate
   external state.
 - Replace the `board` command with `status`. Present assignments before
-  available issues and remove “needs you”, “stuck”, “awake”, and “asleep”
-  language.
+  available and blocked issues, and remove “needs you”, “stuck”, “awake”, and
+  “asleep” language.
 - Keep the `assignment` and `feed` views, including selection of the newest
   assignment for an issue and selection of a numbered agent round. Make labels
   distinguish issue identifiers, agent assignment identifiers, and harness

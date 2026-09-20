@@ -13,6 +13,7 @@ from dreamcatcher.agent_rounds import record_agent_round_interruption
 from dreamcatcher.clock import WaitForSeconds, read_current_time
 from dreamcatcher.commands import locate_program
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
+from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
@@ -120,10 +121,16 @@ class DreamcatcherDaemon:
             rounds=self.rounds,
             max_agents=self.max_agents,
         )
-        with hold_daemon_lock(path=self.state.lock):
-            write_text(text=f"{self.harness}\n", path=self.state.harness)
-            write_text(text=f"{DREAMCATCHER_VERSION}\n", path=self.state.version)
-            write_text(text=f"{self.max_agents}\n", path=self.state.max_agents)
+        with hold_daemon_lock(path=self.state.lock) as pid:
+            write_json(
+                document=DaemonRunRecord(
+                    pid=pid,
+                    harness=self.harness,
+                    version=DREAMCATCHER_VERSION,
+                    max_agents=self.max_agents,
+                ),
+                path=self.state.daemon_run_record,
+            )
             self._sweep_orphans()
             at = self.clock()
             _write_output(line=f"{describe_time(at=at)}  dreamcatcher is running")

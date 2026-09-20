@@ -17,7 +17,13 @@ import pytest
 from clocks import PINNED
 from conftest import DISPATCH_LABEL, FIXTURES, REPOSITORY, configure
 from observations import observed_issue
-from records import write_agent_assignment, write_feed, write_round, write_tick
+from records import (
+    write_agent_assignment,
+    write_daemon_run,
+    write_feed,
+    write_round,
+    write_tick,
+)
 from rich.console import Console
 from rich.control import Control
 from rich.text import Text
@@ -160,7 +166,7 @@ def holding(*, state):
     """Configure the instance and write the lock that its daemon holds."""
     configure(root=state.root)
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
-    write_text(text="1\n", path=state.max_agents)
+    write_daemon_run(state=state, pid=DAEMON_PID)
     write_text(text=f"{DAEMON_PID}\n", path=state.lock)
 
 
@@ -168,7 +174,7 @@ def fabricate_nothing(*, state):
     """A state directory a daemon has bootstrapped and nothing else."""
     configure(root=state.root)
     state.bootstrap()
-    write_text(text="1\n", path=state.max_agents)
+    write_daemon_run(state=state, pid=DAEMON_PID)
 
 
 def fabricate_everything(*, state):
@@ -191,7 +197,13 @@ def fabricate_everything(*, state):
     write_feed(
         directory=directory,
         number=2,
-        lines=[FeedLine(at=PINNED + timedelta(minutes=31), text="[Bash] pytest")],
+        lines=[
+            FeedLine(
+                at=PINNED + timedelta(minutes=31),
+                text="The agent is explaining a long change that would otherwise "
+                "wrap onto another line and move every assignment below it.",
+            )
+        ],
     )
     write_feed(
         directory=written(state=state, issue=20, records=[ended(minute=1)]),
@@ -227,6 +239,10 @@ def fabricate_everything(*, state):
                     issue=52,
                     values={"blocked": IssueFactValue.TRUE},
                     evidence={"blocked": "blocked by GH50"},
+                ),
+                observed_issue(
+                    issue=54,
+                    values={"blocked": IssueFactValue.TRUE},
                 ),
                 observed_issue(
                     issue=53,
@@ -325,7 +341,7 @@ def fabricate_repeat_assignments(*, state):
     """Three assignments at one issue, so a repeat dispatch reads as one thing."""
     configure(root=state.root)
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
-    write_text(text="1\n", path=state.max_agents)
+    write_daemon_run(state=state, pid=DAEMON_PID)
     for stamp, rounds in (
         (
             "20260817-090000",
@@ -501,38 +517,6 @@ def test_a_state_directory_renders_as_its_golden_status(name, tmp_path, daemon):
     assert status == (FIXTURES / "status" / f"{name}.txt").read_text(encoding="utf-8")
 
 
-def test_status_names_the_daemon_runs_harness_and_version(tmp_path, daemon):
-    state = StateDirectory(root=tmp_path)
-    holding(state=state)
-    write_text(text="claude\n", path=state.harness)
-    write_text(text="3.0.0.beta1\n", path=state.version)
-
-    rendered = render_status_view(state=state)
-
-    assert "running dreamcatcher v3.0.0.beta1 as pid 4242" in rendered
-    assert "agent harness claude" in " ".join(rendered.split())
-
-
-def test_a_blocked_issue_with_no_recorded_evidence_is_still_shown(tmp_path):
-    state = StateDirectory(root=tmp_path)
-    write_tick(
-        state=state,
-        tick=SchedulerRecord(
-            at=PINNED,
-            issue_observations=[
-                observed_issue(
-                    issue=52,
-                    values={"blocked": IssueFactValue.TRUE},
-                )
-            ],
-        ),
-    )
-
-    rendered = render_status_view(state=state)
-
-    assert "GH52 blocked" in " ".join(rendered.split())
-
-
 def test_identifiers_remain_whole_when_the_assignment_table_folds(tmp_path):
     """Two assignments at one issue differ only in their identifier times."""
     state = StateDirectory(root=tmp_path)
@@ -543,35 +527,6 @@ def test_identifiers_remain_whole_when_the_assignment_table_folds(tmp_path):
     compact = "".join(status.split())
     assert "GH13-20260818-090000" in compact
     assert "GH13-20260817-090000" in compact
-
-
-def test_latest_assignment_output_uses_one_full_width_line(tmp_path, daemon):
-    state = StateDirectory(root=tmp_path)
-    holding(state=state)
-    directory = written(
-        state=state,
-        issue=13,
-        records=[running(minute=1, purpose=AgentRoundPurpose.IMPLEMENT)],
-    )
-    write_feed(
-        directory=directory,
-        number=1,
-        lines=[
-            FeedLine(
-                at=PINNED,
-                text="The agent is explaining a long change that would otherwise "
-                "move every assignment below it.",
-            )
-        ],
-    )
-
-    view = render_status_view(state=state, width=60)
-    output = [line for line in view.splitlines() if "agent is explaining" in line]
-
-    assert len(output) == 1
-    assert output[0].startswith("  The agent is explaining")
-    assert len(output[0]) <= 60
-    assert "assignment below it" not in output[0]
 
 
 def test_assignments_are_rendered_in_attention_order(tmp_path, daemon):
@@ -607,7 +562,7 @@ def test_status_nobody_is_watching_is_drawn_once_and_returns(tmp_path, daemon):
         wait=refusing,
     )
 
-    assert "running as pid 4242" in written_to.getvalue()
+    assert "running dreamcatcher v3.0.0.beta1 as pid 4242" in written_to.getvalue()
 
 
 def test_status_a_reader_watches_keeps_up_with_what_the_daemon_writes(tmp_path, daemon):
@@ -844,7 +799,7 @@ def test_a_feed_nobody_is_watching_shows_what_is_there_and_returns(tmp_path, dae
         state=state, issue=13, console=pinned(written_to=written_to), wait=refusing
     )
 
-    assert "[Bash] pytest" in written_to.getvalue()
+    assert "The agent is explaining a long change" in written_to.getvalue()
 
 
 @pytest.mark.parametrize("name", sorted(FEEDS))
@@ -1065,7 +1020,9 @@ def test_a_reader_who_has_seen_enough_interrupts_the_view(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
-    assert "[Bash] pytest" in followed(state=state, issue=13, wait=interrupting)
+    assert "The agent is explaining a long change" in followed(
+        state=state, issue=13, wait=interrupting
+    )
 
 
 def viewed_round(
@@ -1113,7 +1070,9 @@ def test_one_round_of_an_assignment_reads_on_its_own(tmp_path, daemon):
 
     assert viewed_round(state=state, issue=13, number=2) == (
         "2026-08-19T19:11:58Z  round 2: address feedback (recovery)\n"
-        "2026-08-19T19:12:58Z  [Bash] pytest\n"
+        "2026-08-19T19:12:58Z  The agent is explaining a long change that would "
+        "otherwise wrap onto another \n"
+        "line and move every assignment below it.\n"
     )
 
 
@@ -1155,7 +1114,7 @@ def test_a_view_of_a_running_round_ends_when_that_round_does(tmp_path, daemon):
     # The round ended while the view was waiting, so the view looked once more
     # for whatever that round was still writing as it stopped, and ended.
     assert looks == [VIEW_REFRESH_INTERVAL, VIEW_REFRESH_INTERVAL]
-    assert "[Bash] pytest" in shown
+    assert "The agent is explaining a long change" in shown
 
 
 def test_a_round_the_assignment_never_ran_says_how_many_it_did(tmp_path, daemon):

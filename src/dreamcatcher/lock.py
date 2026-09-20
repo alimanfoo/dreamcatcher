@@ -12,7 +12,7 @@ from dreamcatcher.errors import ReportableError
 
 
 @contextmanager
-def hold_daemon_lock(*, path: Path) -> Iterator[None]:
+def hold_daemon_lock(*, path: Path) -> Iterator[int]:
     """Hold the daemon lock and release it when the caller exits.
 
     Raise ReportableError when a live daemon holds it.
@@ -22,9 +22,10 @@ def hold_daemon_lock(*, path: Path) -> Iterator[None]:
     daemon_pid = read_daemon_pid(path=path)
     if daemon_pid is not None:
         raise ReportableError(f"dreamcatcher is already running as pid {daemon_pid}.")
-    write_text(text=f"{os.getpid()}\n", path=path)
+    pid = os.getpid()
+    write_text(text=f"{pid}\n", path=path)
     try:
-        yield
+        yield pid
     finally:
         # A release that cannot happen costs nothing, because the next run
         # reclaims a lock naming a dead pid. Letting the failure out would

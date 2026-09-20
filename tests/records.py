@@ -10,10 +10,31 @@ from pathlib import Path
 
 from dreamcatcher import agent_assignments, agent_rounds
 from dreamcatcher.config import AgentHarness
+from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.scheduler import SchedulerRecord
 from dreamcatcher.state import StateDirectory
+
+
+def write_daemon_run(
+    *,
+    state: StateDirectory,
+    pid: int,
+    harness: AgentHarness = AgentHarness.CLAUDE,
+    version: str = "3.0.0.beta1",
+    max_agents: int = 1,
+) -> None:
+    """Write the facts fixed for one daemon run."""
+    write_json(
+        document=DaemonRunRecord(
+            pid=pid,
+            harness=harness,
+            version=version,
+            max_agents=max_agents,
+        ),
+        path=state.daemon_run_record,
+    )
 
 
 def write_agent_assignment(
