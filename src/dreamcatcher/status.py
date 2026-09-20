@@ -108,6 +108,14 @@ class AgentAssignmentStatus:
 
 
 @dataclass(frozen=True, kw_only=True)
+class IncompleteAssignmentSetupStatus:
+    """Describe an incomplete assignment setup that needs reconciliation."""
+
+    issue: int
+    obstacle: str
+
+
+@dataclass(frozen=True, kw_only=True)
 class DreamcatcherStatusReport:
     """Describe one Dreamcatcher instance from its local state."""
 
@@ -119,6 +127,7 @@ class DreamcatcherStatusReport:
     max_agent_rounds: int | None
     running_agent_rounds: int
     active_global_cooldown: GlobalCooldown | None
+    incomplete_assignment_setups: list[IncompleteAssignmentSetupStatus]
     issue_observations: list[IssueObservation]
     assignment_statuses: list[AgentAssignmentStatus]
 
@@ -130,6 +139,7 @@ def read_status_report(
     reader = _StatusReportReader(state=state, clock=clock)
     assignments = read_agent_assignments(state=state)
     assignment_statuses = reader.list_assignment_statuses(assignments=assignments)
+    issue_observations = reader.list_issue_observations(assignments=assignments)
     scheduler_record = reader.scheduler_record
     return DreamcatcherStatusReport(
         at=reader.at,
@@ -151,7 +161,19 @@ def read_status_report(
         active_global_cooldown=(
             None if scheduler_record is None else scheduler_record.cooldown
         ),
-        issue_observations=reader.list_available_issues(assignments=assignments),
+        incomplete_assignment_setups=[
+            IncompleteAssignmentSetupStatus(
+                issue=observation.issue,
+                obstacle=observation.setup_obstacle,
+            )
+            for observation in issue_observations
+            if observation.setup_obstacle is not None
+        ],
+        issue_observations=[
+            observation
+            for observation in issue_observations
+            if observation.availability.value is IssueFactValue.TRUE
+        ],
         assignment_statuses=assignment_statuses,
     )
 
@@ -226,10 +248,10 @@ class _StatusReportReader:
             }
         )
 
-    def list_available_issues(
+    def list_issue_observations(
         self, *, assignments: list[AgentAssignment]
     ) -> list[IssueObservation]:
-        """Return available issue observations in scheduler order."""
+        """Return refreshed issue observations in scheduler order."""
         if self.scheduler_record is None:
             return []
         assignments_by_issue: dict[int, list[AgentAssignment]] = {}
@@ -237,16 +259,14 @@ class _StatusReportReader:
             assignments_by_issue.setdefault(assignment.record.issue, []).append(
                 assignment
             )
-        available_issues = []
-        for observation in self.scheduler_record.issue_observations:
-            refreshed_observation = self._refresh_issue_observation(
+        return [
+            self._refresh_issue_observation(
                 observation=observation,
                 assignments=assignments_by_issue.get(observation.issue, []),
                 recorded_at=self.scheduler_record.at,
             )
-            if refreshed_observation.availability.value is IssueFactValue.TRUE:
-                available_issues.append(refreshed_observation)
-        return available_issues
+            for observation in self.scheduler_record.issue_observations
+        ]
 
     def _refresh_issue_observation(
         self,

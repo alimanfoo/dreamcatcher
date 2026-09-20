@@ -35,6 +35,7 @@ from dreamcatcher.status import (
     AgentAssignmentStatus,
     AgentAssignmentStatusValue,
     DreamcatcherStatusReport,
+    IncompleteAssignmentSetupStatus,
     IssueObservation,
     read_agent_assignment_statuses_for_issue,
     read_status_report,
@@ -173,12 +174,15 @@ def _read_status_snapshot(
 
 
 def _render_status(*, report: DreamcatcherStatusReport) -> RenderableType:
-    """Render the repository, instance facts, assignments, and available issues."""
+    """Render the repository, instance facts, assignments, and issue statuses."""
     return _combine_renderable_parts(
         parts=[
             Text(report.repository or "repository unknown", style="bold"),
             _render_instance_status(report=report),
             _render_assignments(assignments=report.assignment_statuses),
+            _render_incomplete_assignment_setups(
+                setups=report.incomplete_assignment_setups
+            ),
             _render_issues(issues=report.issue_observations),
             _describe_empty_status_report(report=report),
         ]
@@ -242,6 +246,18 @@ def _render_issues(*, issues: Sequence[IssueObservation]) -> RenderableType | No
     return _render_section(heading="available issues", body=table)
 
 
+def _render_incomplete_assignment_setups(
+    *, setups: Sequence[IncompleteAssignmentSetupStatus]
+) -> RenderableType | None:
+    """Render incomplete assignment setups that need reconciliation."""
+    if not setups:
+        return None
+    table = _create_table(columns=2)
+    for setup in setups:
+        table.add_row(Text(f"GH{setup.issue}"), Text(setup.obstacle))
+    return _render_section(heading="incomplete assignment setups", body=table)
+
+
 def _render_assignments(
     *, assignments: Sequence[AgentAssignmentStatus]
 ) -> RenderableType | None:
@@ -289,7 +305,11 @@ def _render_assignment_detail(
 
 def _describe_empty_status_report(*, report: DreamcatcherStatusReport) -> Text | None:
     """Describe an instance that has no issue or assignment status yet."""
-    if report.issue_observations or report.assignment_statuses:
+    if (
+        report.incomplete_assignment_setups
+        or report.issue_observations
+        or report.assignment_statuses
+    ):
         return None
     return Text("no issues or agent assignments recorded yet")
 
