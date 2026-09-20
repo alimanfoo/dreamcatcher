@@ -85,13 +85,16 @@ class Interrupting:
             raise KeyboardInterrupt
 
 
-def idling(*, root, ticks: int = 2) -> tuple[DreamcatcherDaemon, Interrupting, Ticking]:
+def idling(
+    *, root, ticks: int = 2, max_agents: int = 1
+) -> tuple[DreamcatcherDaemon, Interrupting, Ticking]:
     waiting = Interrupting(ticks=ticks)
     ticking = Ticking(step=300)
     daemon = DreamcatcherDaemon(
         root=root,
         harness=AgentHarness.CLAUDE,
         interval=300,
+        max_agents=max_agents,
     )
     daemon.clock = ticking
     daemon.wait = waiting
@@ -238,12 +241,15 @@ def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(
 
 
 def test_a_second_daemon_refuses_while_the_first_holds_the_repo(watched, harnesses, gh):
-    daemon, _, _ = idling(root=watched)
+    daemon, _, _ = idling(root=watched, max_agents=4)
     daemon.state.bootstrap()
+    write_text(text="2\n", path=daemon.state.max_agents)
     daemon.state.lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
 
     with pytest.raises(ReportableError, match=f"pid {os.getpid()}"):
         daemon.run()
+
+    assert daemon.state.max_agents.read_text(encoding="utf-8") == "2\n"
 
 
 def test_the_daemon_runs_the_harness_it_was_given(watched):

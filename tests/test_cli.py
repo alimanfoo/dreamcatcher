@@ -13,7 +13,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     compose_agent_round_ending,
 )
-from dreamcatcher.cli import main
+from dreamcatcher.cli import MAX_INTERVAL_SECONDS, main
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.documents import write_json, write_text
@@ -288,6 +288,22 @@ def test_run_refuses_a_non_positive_integer_control(option, value, capsys):
 
     assert exit_info.value.code == 2
     assert "must be a positive integer" in capsys.readouterr().err
+
+
+def test_run_refuses_an_interval_too_large_to_wait(capsys):
+    with pytest.raises(SystemExit) as exit_info:
+        main(
+            argv=[
+                "run",
+                "--harness",
+                "claude",
+                "--interval",
+                str(MAX_INTERVAL_SECONDS + 1),
+            ]
+        )
+
+    assert exit_info.value.code == 2
+    assert "must be no greater than" in capsys.readouterr().err
 
 
 def test_a_run_with_no_harness_asks_for_one(capsys):

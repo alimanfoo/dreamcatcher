@@ -6,6 +6,7 @@ import sys
 from collections.abc import Sequence
 from importlib.metadata import version
 from pathlib import Path
+from threading import TIMEOUT_MAX
 
 import dreamcatcher
 from dreamcatcher import tui
@@ -26,6 +27,7 @@ from dreamcatcher.state import StateDirectory
 
 # How a view names the issue it is about, as the issue itself is written.
 ISSUE_REFERENCE_PATTERN = re.compile(r"gh(\d+)\Z", re.IGNORECASE)
+MAX_INTERVAL_SECONDS = int(TIMEOUT_MAX) - 1
 
 # The help that says when a view of one assignment ends, which the assignment view
 # and the feed both give, since a reader reads one verb's help and no other.
@@ -84,7 +86,7 @@ def build_cli_parser() -> argparse.ArgumentParser:
     )
     run_parser.add_argument(
         "--interval",
-        type=_parse_positive_integer,
+        type=_parse_interval,
         default=DEFAULT_INTERVAL_SECONDS,
         metavar="SECONDS",
         help=f"seconds between scheduler ticks (default: {DEFAULT_INTERVAL_SECONDS})",
@@ -185,6 +187,16 @@ def _parse_positive_integer(value: str, /) -> int:
     if parsed < 1:
         raise argparse.ArgumentTypeError("must be a positive integer")
     return parsed
+
+
+def _parse_interval(value: str, /) -> int:
+    """Return an interval that the process can wait; argparse calls positionally."""
+    interval = _parse_positive_integer(value)
+    if interval > MAX_INTERVAL_SECONDS:
+        raise argparse.ArgumentTypeError(
+            f"must be no greater than {MAX_INTERVAL_SECONDS}"
+        )
+    return interval
 
 
 def main(*, argv: Sequence[str] | None = None) -> int:

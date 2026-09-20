@@ -40,6 +40,10 @@ effort = "xhigh"
 `assignee` is whose issues to pick up, as a GitHub login. It defaults to `@me`,
 the account `gh` is signed in as, so you can leave it out.
 
+If an existing `dreamcatcher.toml` contains `interval` or `max_agents`, remove
+those settings. Add `--interval` or `--max-agents` to the `run` command to keep
+any non-default values; the configuration file no longer accepts them.
+
 A `[[dispatch]]` entry says what to run for one label. Give it the label, then a
 block for each harness that can run it. Every entry needs its label and at least
 one block.

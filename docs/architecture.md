@@ -220,9 +220,9 @@ Status construction may read:
 
 - assignment and round records;
 - current child-process state;
-- the instance's repository record;
-- scheduler records, including issue observations, the active capacity and
-  global cooldown, and the latest tick;
+- the instance's repository and capacity records;
+- scheduler records, including issue observations, the active global cooldown,
+  and the latest tick;
 - the latest rendered feed output needed for a useful summary.
 
 It may call the scheduler's pure interpretation functions, but it cannot invoke
