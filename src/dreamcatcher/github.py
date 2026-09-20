@@ -25,7 +25,7 @@ from dreamcatcher.commands import CommandError, run_command
 # gh lists thirty of anything unless you tell it otherwise, and thirty issues is
 # a number a busy repository passes. Asking for five hundred keeps the tool from
 # dropping work it can see. Only the issue listing needs it: a branch has one
-# pull request, near enough, and thirty is beyond any real count of blockers.
+# pull request, near enough.
 ISSUE_LISTING_LIMIT = "500"
 
 # How many of a paginated list to ask GitHub for at a time. gh reads every page

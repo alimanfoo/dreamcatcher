@@ -305,12 +305,10 @@ def test_an_issue_nobody_has_claimed_has_no_linked_pull_request(fake):
 def test_the_blockers_of_an_issue_come_back_with_their_states(fake):
     gh = fake(program="gh")
     gh.replies(
-        stdout=json.dumps(
-            [
-                [
-                    {"number": 7, "state": "closed"},
-                    {"number": 8, "state": "open"},
-                ]
+        stdout=pages(
+            items=[
+                {"number": 7, "state": "closed"},
+                {"number": 8, "state": "open"},
             ]
         )
     )
@@ -357,13 +355,13 @@ def test_a_pull_request_nobody_has_posted_on_comes_back_with_no_posts(gh_with_no
 
 def test_the_posts_of_a_pull_request_come_from_all_three_of_its_lists(gh_with_no_posts):
     gh_with_no_posts.replies(
-        stdout=pages(posts=[COMMENT]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=pages(items=[COMMENT]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
     gh_with_no_posts.replies(
-        stdout=pages(posts=[REVIEW]), to=f"api {POST_LIST_PATHS['reviews']}"
+        stdout=pages(items=[REVIEW]), to=f"api {POST_LIST_PATHS['reviews']}"
     )
     gh_with_no_posts.replies(
-        stdout=pages(posts=[INLINE_COMMENT]),
+        stdout=pages(items=[INLINE_COMMENT]),
         to=f"api {POST_LIST_PATHS['inline-comments']}",
     )
 

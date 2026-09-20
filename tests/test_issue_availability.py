@@ -11,6 +11,7 @@ from conftest import (
     PULL_REQUEST,
     REPOSITORY,
     listing,
+    pages,
 )
 from observations import observed_issue
 from records import write_agent_assignment
@@ -53,7 +54,7 @@ def gh(fake):
     stand_in.replies(
         stdout=json.dumps({"closedByPullRequestsReferences": []}), to="issue view"
     )
-    stand_in.replies(stdout=json.dumps([[]]), to="api")
+    stand_in.replies(stdout=pages(items=[]), to="api")
     return stand_in
 
 
@@ -316,12 +317,10 @@ def test_a_failed_linked_pull_request_read_preserves_unknown_evidence(gh):
 
 def test_open_blockers_are_observed_independently(gh):
     gh.replies(
-        stdout=json.dumps(
-            [
-                [
-                    {"number": 7, "state": "closed"},
-                    {"number": 9, "state": "open"},
-                ]
+        stdout=pages(
+            items=[
+                {"number": 7, "state": "closed"},
+                {"number": 9, "state": "open"},
             ]
         ),
         to="api",

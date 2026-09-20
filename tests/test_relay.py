@@ -47,7 +47,7 @@ def test_an_assignment_with_an_empty_delivery_cursor_receives_the_whole_history(
     gh_with_no_posts,
 ):
     gh_with_no_posts.replies(
-        stdout=pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
 
     assert [post.id for post in undelivered()] == [1]
@@ -57,7 +57,7 @@ def test_a_post_at_the_assignment_delivery_cursor_does_not_come_back(
     gh_with_no_posts,
 ):
     gh_with_no_posts.replies(
-        stdout=pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
 
     assert undelivered(delivery_cursor=POSTED_AT) == []
@@ -67,15 +67,15 @@ def test_the_posts_come_back_oldest_first_whichever_list_each_came_from(
     gh_with_no_posts,
 ):
     gh_with_no_posts.replies(
-        stdout=pages(posts=[comment(created_at="2026-09-03T23:47:28Z")]),
+        stdout=pages(items=[comment(created_at="2026-09-03T23:47:28Z")]),
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
     gh_with_no_posts.replies(
-        stdout=pages(posts=[review(submitted_at=BEFORE, body="see inline")]),
+        stdout=pages(items=[review(submitted_at=BEFORE, body="see inline")]),
         to=f"api {POST_LIST_PATHS['reviews']}",
     )
     gh_with_no_posts.replies(
-        stdout=pages(posts=[inline_comment()]),
+        stdout=pages(items=[inline_comment()]),
         to=f"api {POST_LIST_PATHS['inline-comments']}",
     )
 
@@ -91,7 +91,7 @@ def test_a_post_carrying_the_marker_is_the_assignments_own_and_does_not_come_bac
 ):
     gh_with_no_posts.replies(
         stdout=pages(
-            posts=[comment(body=f"opened the pull request\n\n{AGENT_POST_MARKER}")]
+            items=[comment(body=f"opened the pull request\n\n{AGENT_POST_MARKER}")]
         ),
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
@@ -101,7 +101,7 @@ def test_a_post_carrying_the_marker_is_the_assignments_own_and_does_not_come_bac
 
 def test_a_post_from_another_account_does_not_come_back(gh_with_no_posts):
     gh_with_no_posts.replies(
-        stdout=pages(posts=[comment(user={"login": "somebody-else"})]),
+        stdout=pages(items=[comment(user={"login": "somebody-else"})]),
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
@@ -112,7 +112,7 @@ def test_a_post_whose_account_github_no_longer_knows_does_not_come_back(
     gh_with_no_posts,
 ):
     gh_with_no_posts.replies(
-        stdout=pages(posts=[comment(user=None)]),
+        stdout=pages(items=[comment(user=None)]),
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
@@ -123,10 +123,10 @@ def test_the_empty_review_github_wrapped_an_inline_reply_in_does_not_come_back(
     gh_with_no_posts,
 ):
     gh_with_no_posts.replies(
-        stdout=pages(posts=[review()]), to=f"api {POST_LIST_PATHS['reviews']}"
+        stdout=pages(items=[review()]), to=f"api {POST_LIST_PATHS['reviews']}"
     )
     gh_with_no_posts.replies(
-        stdout=pages(posts=[inline_comment()]),
+        stdout=pages(items=[inline_comment()]),
         to=f"api {POST_LIST_PATHS['inline-comments']}",
     )
 
@@ -142,7 +142,7 @@ def test_a_review_that_reached_a_verdict_comes_back_with_an_empty_body(
     gh_with_no_posts, verdict
 ):
     gh_with_no_posts.replies(
-        stdout=pages(posts=[review(state=verdict)]),
+        stdout=pages(items=[review(state=verdict)]),
         to=f"api {POST_LIST_PATHS['reviews']}",
     )
 
@@ -153,7 +153,7 @@ def test_a_review_nobody_has_submitted_yet_does_not_come_back(gh_with_no_posts):
     unsubmitted = review(state=PullRequestReviewVerdict.PENDING, body="half a thought")
     del unsubmitted["submitted_at"]
     gh_with_no_posts.replies(
-        stdout=pages(posts=[unsubmitted]), to=f"api {POST_LIST_PATHS['reviews']}"
+        stdout=pages(items=[unsubmitted]), to=f"api {POST_LIST_PATHS['reviews']}"
     )
 
     assert undelivered() == []
@@ -164,7 +164,7 @@ def test_a_suggestion_over_a_range_comes_back_with_its_lines_and_its_diff(
 ):
     gh_with_no_posts.replies(
         stdout=pages(
-            posts=[
+            items=[
                 inline_comment(
                     body="```suggestion\nfrom dreamcatcher.github import posts\n```",
                     start_line=1,
@@ -233,7 +233,7 @@ def test_a_comment_on_a_whole_file_says_so_rather_than_naming_line_one(
     gh_with_no_posts,
 ):
     gh_with_no_posts.replies(
-        stdout=pages(posts=[inline_comment(subject_type="file", line=1)]),
+        stdout=pages(items=[inline_comment(subject_type="file", line=1)]),
         to=f"api {POST_LIST_PATHS['inline-comments']}",
     )
 
@@ -253,7 +253,7 @@ def test_a_comment_gh_says_nothing_about_the_subject_of_reads_as_one_on_a_line(
     answered = inline_comment()
     del answered["subject_type"]
     gh_with_no_posts.replies(
-        stdout=pages(posts=[answered]), to=f"api {POST_LIST_PATHS['inline-comments']}"
+        stdout=pages(items=[answered]), to=f"api {POST_LIST_PATHS['inline-comments']}"
     )
 
     assert [
