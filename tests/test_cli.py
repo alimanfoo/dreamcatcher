@@ -179,6 +179,7 @@ def test_retry_refuses_a_fault_an_elapsed_cooldown_cleared(
 def test_retry_refuses_an_issue_with_no_assignment(monkeypatch, tmp_path, capsys):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
+    state.path.mkdir()
     monkeypatch.chdir(tmp_path)
 
     assert main(argv=["retry", "GH13"]) == 1

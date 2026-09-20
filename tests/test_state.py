@@ -10,7 +10,7 @@ def test_bootstrap_creates_a_directory_that_ignores_itself(repo):
 
     legacy_state_hint = state.bootstrap()
 
-    assert (state.path / ".gitignore").read_text(encoding="utf-8") == "*\n"
+    assert (state.path.parent / ".gitignore").read_text(encoding="utf-8") == "*\n"
     assert git(arguments=["status", "--porcelain"], cwd=repo) == ""
     assert legacy_state_hint is None
 
@@ -18,7 +18,7 @@ def test_bootstrap_creates_a_directory_that_ignores_itself(repo):
 def test_bootstrap_heals_a_deleted_gitignore(repo):
     state = StateDirectory(root=repo)
     state.bootstrap()
-    (state.path / ".gitignore").unlink()
+    (state.path.parent / ".gitignore").unlink()
 
     state.bootstrap()
 
@@ -27,18 +27,15 @@ def test_bootstrap_heals_a_deleted_gitignore(repo):
 
 def test_bootstrap_says_so_when_a_file_sits_where_the_directory_goes(repo):
     state = StateDirectory(root=repo)
-    state.path.write_text("not a directory\n", encoding="utf-8")
+    state.path.parent.write_text("not a directory\n", encoding="utf-8")
 
     with pytest.raises(ReportableError, match="cannot write"):
         state.bootstrap()
 
 
-@pytest.mark.parametrize(
-    "name", ["sessions", "last-tick.json", "worktrees", "assignments"]
-)
-def test_bootstrap_reports_state_from_an_earlier_format(repo, name):
+def test_bootstrap_reports_state_from_an_earlier_format(repo):
     state = StateDirectory(root=repo)
-    legacy_path = state.path / name
+    legacy_path = state.path.parent / "repository"
     legacy_path.parent.mkdir(parents=True)
     legacy_path.write_bytes(b"legacy")
 
@@ -50,17 +47,24 @@ def test_bootstrap_reports_state_from_an_earlier_format(repo, name):
     )
 
 
-def test_the_daemon_files_sit_in_the_state_directory(tmp_path):
+def test_bootstrap_ignores_current_state_and_the_shared_lock(repo):
+    state = StateDirectory(root=repo)
+    state.path.mkdir(parents=True)
+    state.lock.write_bytes(b"123\n")
+
+    assert state.bootstrap() is None
+
+
+def test_the_daemon_files_use_the_versioned_root_and_shared_lock(tmp_path):
     state = StateDirectory(root=tmp_path)
 
-    assert state.path == tmp_path / ".dreamcatcher"
-    assert state.lock == state.path / "daemon.pid"
-    assert state.format_root == state.path / "v3"
-    assert state.repository == state.format_root / "repository"
-    assert state.max_agents == state.format_root / "max-agents"
-    assert state.scheduler_record == state.format_root / "scheduler.json"
-    assert state.worktrees == state.format_root / "worktrees"
-    assert state.assignments == state.format_root / "assignments"
+    assert state.path == tmp_path / ".dreamcatcher" / "v3"
+    assert state.lock == state.path.parent / "daemon.pid"
+    assert state.repository == state.path / "repository"
+    assert state.max_agents == state.path / "max-agents"
+    assert state.scheduler_record == state.path / "scheduler.json"
+    assert state.worktrees == state.path / "worktrees"
+    assert state.assignments == state.path / "assignments"
 
 
 def test_a_path_the_checkout_holds_reads_from_the_checkout(tmp_path):

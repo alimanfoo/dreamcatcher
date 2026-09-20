@@ -152,7 +152,9 @@ def test_the_daemon_reports_state_from_an_earlier_format(
     watched, harnesses, gh, monkeypatch, capsys
 ):
     daemon, _, _ = idling(root=watched)
-    (daemon.state.path / "sessions").mkdir(parents=True)
+    legacy_repository = daemon.state.path.parent / "repository"
+    legacy_repository.parent.mkdir(parents=True)
+    legacy_repository.write_bytes(b"legacy\n")
 
     def verify_report(*, scheduler, at):
         assert capsys.readouterr().out == (
@@ -268,7 +270,7 @@ def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(
 
     daemon.run()
 
-    assert (daemon.state.path / ".gitignore").exists()
+    assert (daemon.state.path.parent / ".gitignore").exists()
     assert daemon.state.repository.read_text(encoding="utf-8") == f"{REPOSITORY}\n"
     assert daemon.state.max_agents.read_text(encoding="utf-8") == "1\n"
     assert not daemon.state.lock.exists()
@@ -438,7 +440,7 @@ def test_a_tick_that_could_not_dispatch_records_the_failure_and_ticks_again(
 ):
     # A file where every worktree goes, so no dispatch can ever cut one.
     state = StateDirectory(root=dispatching)
-    state.format_root.mkdir(parents=True)
+    state.path.mkdir(parents=True)
     state.worktrees.write_text("something else is here\n", encoding="utf-8")
     daemon, waiting, _ = idling(root=dispatching, ticks=2)
 
