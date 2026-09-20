@@ -432,7 +432,10 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
 
 
 def test_a_tick_with_nothing_eligible_dispatches_nothing(dispatching, offered):
-    offered.replies(stdout=pull_requests(listed=[(7, "open")]), to="api")
+    offered.replies(
+        stdout=pages(items=[{"number": 7, "state": "open"}]),
+        to="api",
+    )
     scheduler, clock = create_scheduler(root=dispatching)
 
     observed = scheduler.tick(at=clock())
@@ -785,7 +788,7 @@ def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, g
     ran(root=resuming, number=1, purpose=AgentRoundPurpose.IMPLEMENT)
     gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
     gh.replies(
-        stdout=pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
     scheduler, clock = create_scheduler(root=resuming)
 
@@ -808,7 +811,7 @@ def test_an_assignment_receives_a_batch_only_once(resuming, gh):
     ran(root=resuming, number=1, purpose=AgentRoundPurpose.IMPLEMENT)
     gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
     gh.replies(
-        stdout=pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
     scheduler, clock = create_scheduler(root=resuming)
 
@@ -827,7 +830,7 @@ def test_a_batch_no_round_ever_launched_is_read_again_next_tick(
     ran(root=resuming, number=1, purpose=AgentRoundPurpose.IMPLEMENT)
     gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
     gh.replies(
-        stdout=pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
     # A file where the round's own directory goes, so no round can ever start.
     occupied = (
