@@ -457,14 +457,28 @@ def test_the_daemon_ends_the_rounds_it_holds_as_it_goes_down(dispatching, harnes
 
 
 def test_a_run_that_cannot_read_an_assignment_refuses_to_start(dispatching):
-    directory = write_agent_assignment(
-        state=StateDirectory(root=dispatching), identifier=ASSIGNMENT_ID, issue=13
+    state = StateDirectory(root=dispatching)
+    previous_run = DaemonRunRecord(
+        pid=os.getpid(),
+        harness=AgentHarness.CODEX,
+        version="2.9.0",
+        max_agents=2,
     )
+    write_json(document=previous_run, path=state.daemon_run_record)
+    directory = write_agent_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13)
     (directory / "assignment.json").write_text("{}", encoding="utf-8")
     daemon, _, _ = idling(root=dispatching, ticks=1)
 
     with pytest.raises(ReportableError, match=r"assignment\.json is not valid"):
         daemon.run()
+
+    assert (
+        read_json(
+            model=DaemonRunRecord,
+            path=state.daemon_run_record,
+        )
+        == previous_run
+    )
 
 
 def test_a_failed_tick_preserves_the_last_scheduler_record(dispatching, capsys):

@@ -122,6 +122,7 @@ class DreamcatcherDaemon:
             max_agents=self.max_agents,
         )
         with hold_daemon_lock(path=self.state.lock) as pid:
+            self._sweep_orphans()
             write_json(
                 document=DaemonRunRecord(
                     pid=pid,
@@ -131,7 +132,6 @@ class DreamcatcherDaemon:
                 ),
                 path=self.state.daemon_run_record,
             )
-            self._sweep_orphans()
             at = self.clock()
             _write_output(line=f"{describe_time(at=at)}  dreamcatcher is running")
             try:
