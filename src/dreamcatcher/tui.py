@@ -174,7 +174,7 @@ def _read_status_snapshot(
 
 
 def _render_status(*, report: DreamcatcherStatusReport) -> RenderableType:
-    """Render the repository, instance facts, assignments, and issue statuses."""
+    """Render repository facts, assignments, setup obstacles, and available issues."""
     return _combine_renderable_parts(
         parts=[
             Text(report.repository or "repository unknown", style="bold"),
