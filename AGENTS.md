@@ -179,18 +179,20 @@ uv run pre-commit run --all-files
 
 - Give every module, exported class, exported function and public method a
   docstring. Give a private object a docstring only when its name, signature,
-  types and immediate context do not make its contract or intent clear. Follow
-  PEP 257: begin a function or method docstring with an imperative summary
-  sentence, then put any further contract information in paragraphs after a
-  blank line. Let a module or class summary directly describe its responsibility
-  or the thing it represents. A property's summary describes the value instead,
-  as pydocstyle requires. Document side effects, invariants, ordering, selection
-  rules, important failure conditions and constraints that a caller cannot
-  safely infer from the signature. Do not narrate the implementation or repeat
-  names, types, defaults and obvious return values. The signature and types
-  describe shape, the code describes the current mechanism, comments explain
-  non-obvious implementation choices, specifications describe system-level
-  behaviour, and tests demonstrate cases and boundaries.
+  types and immediate context do not make its contract or intent clear.
+- Follow PEP 257: begin a function or method docstring with an imperative
+  summary sentence, then put any further contract information in paragraphs
+  after a blank line. Let a module or class summary directly describe its
+  responsibility or the thing it represents. A property's summary describes the
+  value instead, as pydocstyle requires.
+- Document side effects, invariants, ordering, selection rules, important
+  failure conditions and constraints that a caller cannot safely infer from the
+  signature. Do not narrate the implementation or repeat names, types, defaults
+  and obvious return values.
+- Let each source carry only what it owns: signatures and types describe shape,
+  code describes the current mechanism, comments explain non-obvious
+  implementation choices, specifications describe system-level behaviour, and
+  tests demonstrate cases and boundaries.
 
 ### Change and issue conventions
 
