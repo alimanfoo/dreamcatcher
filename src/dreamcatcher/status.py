@@ -7,14 +7,22 @@ from enum import StrEnum
 
 from dreamcatcher.agent_assignments import (
     AgentAssignment,
+    find_harness_session_identifier,
     find_open_agent_assignments_by_issue,
     read_agent_assignments,
     read_agent_assignments_for_issue,
+)
+from dreamcatcher.agent_rounds import (
+    AgentRoundRecord,
+    ErroredAgentRoundEnding,
+    InterruptedAgentRoundEnding,
 )
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.config import read_dreamcatcher_config
 from dreamcatcher.documents import read_text
 from dreamcatcher.feed import FeedLine, read_last_feed_line
+from dreamcatcher.harness_adapters import HarnessSessionIdentifier
+from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.lock import read_daemon_pid
 from dreamcatcher.scheduler import (
     NO_ROUND_HAS_RUN,
@@ -42,6 +50,15 @@ class AgentAssignmentStatusValue(StrEnum):
 
 
 @dataclass(frozen=True, kw_only=True)
+class AgentRoundStatus:
+    """Describe one agent round for a status view."""
+
+    record: AgentRoundRecord
+    duration: str
+    outcome_description: str
+
+
+@dataclass(frozen=True, kw_only=True)
 class AgentAssignmentStatus:
     """Describe an agent assignment's derived summary status."""
 
@@ -50,6 +67,9 @@ class AgentAssignmentStatus:
     detail: str
     latest_output: str | None
     observed_at: datetime | None
+    rounds: list[AgentRoundStatus]
+    harness_session_identifier: HarnessSessionIdentifier | None
+    hand_resume_command: list[str] | None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -119,6 +139,29 @@ def read_agent_assignment_statuses_for_issue(
     return reader.list_assignment_statuses(
         assignments=read_agent_assignments_for_issue(state=state, issue=issue)
     )
+
+
+def _describe_round_duration(*, record: AgentRoundRecord) -> str:
+    """Return how long the round ran, or nothing without a timed ending."""
+    if record.ending is None or isinstance(record.ending, InterruptedAgentRoundEnding):
+        return ""
+    return f"ran {describe_span(span=record.ending.at - record.started)}"
+
+
+def _describe_round_outcome(*, record: AgentRoundRecord, is_running: bool) -> str:
+    """Return how the round ended, or what it is doing instead.
+
+    A round that recorded no ending never finished. It is running when a daemon
+    is still there to run it, and interrupted once that daemon has gone, since
+    a round cannot outlive its daemon.
+    """
+    if isinstance(record.ending, ErroredAgentRoundEnding):
+        return f"errored (exit {record.ending.status})"
+    if isinstance(record.ending, InterruptedAgentRoundEnding):
+        return "interrupted"
+    if record.ending is not None:
+        return "successful"
+    return "running" if is_running else "interrupted"
 
 
 class _StatusReportReader:
@@ -294,6 +337,11 @@ class _StatusReportReader:
         latest_output: str | None = None,
     ) -> AgentAssignmentStatus:
         """Return a summary status from the assignment's current facts."""
+        harness_adapter = HARNESS_ADAPTERS[assignment.record.harness]
+        harness_session_identifier = find_harness_session_identifier(
+            assignment=assignment,
+            harness_adapter=harness_adapter,
+        )
         return AgentAssignmentStatus(
             assignment=assignment,
             value=value,
@@ -301,6 +349,29 @@ class _StatusReportReader:
             latest_output=latest_output,
             observed_at=(
                 None if self.scheduler_record is None else self.scheduler_record.at
+            ),
+            rounds=[
+                AgentRoundStatus(
+                    record=record,
+                    duration=_describe_round_duration(record=record),
+                    outcome_description=_describe_round_outcome(
+                        record=record,
+                        is_running=(
+                            value is AgentAssignmentStatusValue.WORKING
+                            and record.number == assignment.rounds[-1].number
+                        ),
+                    ),
+                )
+                for record in assignment.rounds
+            ],
+            harness_session_identifier=harness_session_identifier,
+            hand_resume_command=(
+                None
+                if value is AgentAssignmentStatusValue.WORKING
+                or harness_session_identifier is None
+                else harness_adapter.build_hand_resume(
+                    harness_session_identifier=harness_session_identifier
+                )
             ),
         )
 
