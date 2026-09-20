@@ -153,7 +153,9 @@ def read_status_report(
             if scheduler_record is None or reader.daemon_pid is None
             else scheduler_record.hold
         ),
-        max_agent_rounds=_read_max_agents(state=state),
+        max_agent_rounds=(
+            None if reader.daemon_pid is None else _read_max_agents(state=state)
+        ),
         running_agent_rounds=sum(
             status.value is AgentAssignmentStatusValue.WORKING
             for status in assignment_statuses
@@ -186,7 +188,7 @@ def _read_repository(*, state: StateDirectory) -> str | None:
 
 
 def _read_max_agents(*, state: StateDirectory) -> int | None:
-    """Read the most recent daemon run's agent cap when it is valid."""
+    """Read the positive agent cap a running daemon recorded."""
     if not state.max_agents.exists():
         return None
     try:

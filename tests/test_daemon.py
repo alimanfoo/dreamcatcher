@@ -148,26 +148,6 @@ def test_the_daemon_reports_when_it_has_started_before_its_first_tick(
     daemon.run()
 
 
-def test_the_daemon_reports_state_from_an_earlier_format(
-    watched, harnesses, gh, monkeypatch, capsys
-):
-    daemon, _, _ = idling(root=watched)
-    legacy_repository = daemon.state.path.parent / "repository"
-    legacy_repository.parent.mkdir(parents=True)
-    legacy_repository.write_bytes(b"legacy\n")
-
-    def verify_report(*, scheduler, at):
-        assert capsys.readouterr().out == (
-            "Legacy state in .dreamcatcher/ belongs to an earlier format and can "
-            "be deleted.\n"
-            "2026-08-19T18:41:58Z  dreamcatcher is running\n"
-        )
-        raise KeyboardInterrupt
-
-    monkeypatch.setattr(daemon, "run_scheduler_cycle", verify_report)
-    daemon.run()
-
-
 def test_the_daemon_flushes_every_report(watched, harnesses, gh, monkeypatch):
     daemon, _, _ = idling(root=watched, ticks=1)
     reports = []

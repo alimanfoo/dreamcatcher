@@ -141,9 +141,14 @@ def test_the_instance_record_names_the_repository(state):
     assert report(state=state).repository == REPOSITORY
 
 
+def test_a_running_daemon_reports_its_agent_cap(running):
+    assert report(state=running).max_agent_rounds == 3
+
+
 @pytest.mark.parametrize("value", ["not a number\n", "0\n"])
 def test_an_invalid_recorded_agent_cap_is_unknown(tmp_path, value):
     state = StateDirectory(root=tmp_path)
+    write_text(text=f"{os.getpid()}\n", path=state.lock)
     write_text(text=value, path=state.max_agents)
 
     found = report(state=state)
@@ -509,13 +514,16 @@ def test_an_active_cooldown_and_hold_are_instance_facts(running):
     assert found.active_global_cooldown == cooldown
 
 
-def test_a_stopped_daemon_has_no_current_scheduler_hold(state):
+def test_a_stopped_daemon_has_no_current_runtime_state(state):
     write_tick(
         state=state,
         tick=SchedulerRecord(at=PINNED, hold="at cap: 1 of 1 rounds running"),
     )
 
-    assert report(state=state).scheduler_hold is None
+    found = report(state=state)
+
+    assert found.scheduler_hold is None
+    assert found.max_agent_rounds is None
 
 
 def test_an_unavailable_issue_is_absent(state):

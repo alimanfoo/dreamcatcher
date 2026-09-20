@@ -6,31 +6,9 @@ from pathlib import Path
 
 from dreamcatcher.agent_rounds import AgentRoundReader
 from dreamcatcher.documents import write_text
-from dreamcatcher.errors import ReportableError
 
 STATE_DIRECTORY_NAME = ".dreamcatcher"
 STATE_FORMAT_VERSION = 3
-_UNVERSIONED_STATE_NAMES = {
-    "sessions",
-    "last-tick.json",
-    "worktrees",
-    "assignments",
-    "repository",
-    "max-agents",
-    "scheduler.json",
-}
-
-
-def _is_earlier_format_state(*, entry: Path) -> bool:
-    """Return whether an entry belongs to an earlier state format."""
-    if entry.name in _UNVERSIONED_STATE_NAMES:
-        return True
-    version = entry.name.removeprefix("v")
-    return (
-        entry.name.startswith("v")
-        and version.isdigit()
-        and int(version) < STATE_FORMAT_VERSION
-    )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -72,7 +50,7 @@ class StateDirectory:
 
     @property
     def max_agents(self) -> Path:
-        """The file that records the most recent daemon run's agent cap."""
+        """The file through which a daemon reports its agent cap."""
         return self.path / "max-agents"
 
     @property
@@ -102,25 +80,10 @@ class StateDirectory:
             return path.relative_to(self.root).as_posix()
         return path.as_posix()
 
-    def bootstrap(self) -> str | None:
-        """Create the state directory and report state from an earlier format.
+    def bootstrap(self) -> None:
+        """Create the state directory and make Git ignore its contents.
 
         Writing the .gitignore is what creates the directory. Bootstrap writes
         it on every run, so a directory that was deleted comes back.
         """
-        state_container = self.path.parent
-        ignored = state_container / ".gitignore"
-        write_text(text="*\n", path=ignored)
-        try:
-            has_earlier_state = any(
-                _is_earlier_format_state(entry=entry)
-                for entry in state_container.iterdir()
-            )
-        except OSError as error:
-            raise ReportableError(f"cannot read {state_container}: {error}.") from error
-        if has_earlier_state:
-            return (
-                "Legacy state in .dreamcatcher/ belongs to an earlier format "
-                "and can be deleted."
-            )
-        return None
+        write_text(text="*\n", path=self.path.parent / ".gitignore")

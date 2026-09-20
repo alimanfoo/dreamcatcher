@@ -294,11 +294,10 @@ conflict, and none as outside scope.
 bootstrap that directory. A state-format constant selects the versioned root,
 currently `.dreamcatcher/v3/`, so one format never reads another format's files.
 The shared `.dreamcatcher/daemon.pid` lock stays outside that root, so daemons
-using different formats still cannot run against one checkout together.
-Bootstrap reports root-level state from an earlier format as safe to delete; it
-does not migrate it. The module should remain deliberately small. It must not
-contain collections of issues or assignments selected for work, scheduling
-decisions, or status projections.
+using different formats still cannot run against one checkout together. The
+module should remain deliberately small. It must not contain collections of
+issues or assignments selected for work, scheduling decisions, or status
+projections.
 
 The on-disk layout follows ownership:
 

@@ -3,6 +3,5 @@ repository unknown
 instance
   daemon                 not running  
   latest scheduler tick  none recorded
-  agent-round capacity   0 of 1 in use
   global cooldown        none         
 no issues or agent assignments recorded yet

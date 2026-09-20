@@ -1,10 +1,9 @@
 alimanfoo/dreamcatcher
 
 instance
-  daemon                 not running  
-  latest scheduler tick  2m ago       
-  agent-round capacity   0 of 1 in use
-  global cooldown        none         
+  daemon                 not running
+  latest scheduler tick  2m ago     
+  global cooldown        none       
 
 agent assignments
   GH9-20260819-184158   fault                two consecutive rounds failed                          
