@@ -1,5 +1,5 @@
 interval = 120
-max_agents = 1
+max_agents = 2
 assignee = "@me"
 
 [[dispatch]]
