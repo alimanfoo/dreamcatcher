@@ -23,6 +23,7 @@ from dreamcatcher.agent_assignments import (
     AgentAssignmentCreator,
     advance_user_post_delivery_cursor,
     find_harness_session_identifier,
+    find_open_agent_assignments_by_issue,
     inspect_incomplete_assignment_setups,
     read_agent_assignments,
     record_harness_session_identifier,
@@ -30,10 +31,11 @@ from dreamcatcher.agent_assignments import (
 from dreamcatcher.agent_rounds import (
     AgentRound,
     AgentRoundInput,
-    AgentRoundOutputReader,
     AgentRoundPlan,
     AgentRoundPurpose,
+    AgentRoundStartRequest,
     ErroredAgentRoundEnding,
+    start_agent_round,
 )
 from dreamcatcher.config import AgentHarness, DreamcatcherConfig
 from dreamcatcher.documents import DreamcatcherDocument, read_json
@@ -52,7 +54,6 @@ from dreamcatcher.github import (
     read_pull_request,
 )
 from dreamcatcher.harness_adapters import AgentRoundLaunchRequest
-from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.prompts import RECOVERY_PROMPT, compose_user_posts_prompt
 from dreamcatcher.relay import list_undelivered_user_posts
 from dreamcatcher.state import StateDirectory
@@ -256,11 +257,7 @@ def observe_issues(
 ) -> IssueObservationResult:
     """Observe every issue considered for dispatch or claimed by this instance."""
     considered_issues = _list_considered_issues(repository=repository, config=config)
-    open_assignments = {
-        assignment.record.issue: assignment
-        for assignment in assignments
-        if not assignment.is_complete
-    }
+    open_assignments = find_open_agent_assignments_by_issue(assignments=assignments)
     context = _IssueObservationContext(
         repository=repository,
         account=account,
@@ -475,36 +472,30 @@ def derive_assignment_fault(
     )
 
 
-def read_scheduler_record(*, state: StateDirectory) -> SchedulerRecord | None:
-    """Read the scheduler record when a preceding tick has written one."""
+def read_scheduler_record(
+    *, state: StateDirectory, at: datetime
+) -> SchedulerRecord | None:
+    """Read the scheduler record advanced to the current time."""
     if not state.scheduler_record.exists():
         return None
     try:
-        return read_json(model=SchedulerRecord, path=state.scheduler_record)
+        record = read_json(model=SchedulerRecord, path=state.scheduler_record)
     except ReportableError as failure:
         raise InvalidSchedulerRecordError(str(failure)) from failure
-
-
-class InvalidSchedulerRecordError(ReportableError):
-    """Report a scheduler record that retrying cannot safely replace."""
-
-
-def advance_scheduler_record(
-    *, previous: SchedulerRecord | None, at: datetime
-) -> SchedulerRecord | None:
-    """Advance an elapsed cooldown to the record's completed boundary."""
-    if previous is None:
-        return None
-    cooldown = previous.cooldown
+    cooldown = record.cooldown
     if cooldown is not None and at >= cooldown.ends:
-        return previous.model_copy(
+        return record.model_copy(
             update={
                 "hold": None,
                 "cooldown": None,
                 "most_recent_cooldown_ended": cooldown.ends,
             }
         )
-    return previous
+    return record
+
+
+class InvalidSchedulerRecordError(ReportableError):
+    """Report a scheduler record that retrying cannot safely replace."""
 
 
 def _start_cooldown_if_required(
@@ -744,9 +735,7 @@ class AgentWorkScheduler:
         A global cooldown prevents every launch but does not prevent reads, so
         assignment observations remain current while the cooldown is active.
         """
-        previous_record = advance_scheduler_record(
-            previous=read_scheduler_record(state=self.state), at=at
-        )
+        previous_record = read_scheduler_record(state=self.state, at=at)
         cooldown = None if previous_record is None else previous_record.cooldown
         most_recent_cooldown_ended = (
             None
@@ -846,7 +835,8 @@ class AgentWorkScheduler:
     ) -> list[AgentAssignmentInspectionResult]:
         """Return what each assignment needs next, and what each is waiting on."""
         inspection_results: list[AgentAssignmentInspectionResult] = []
-        for assignment in assignments:
+        open_assignments = find_open_agent_assignments_by_issue(assignments=assignments)
+        for assignment in open_assignments.values():
             if assignment.identifier in self.rounds:
                 continue
             inspection_result = inspect_agent_assignment(
@@ -857,7 +847,7 @@ class AgentWorkScheduler:
             )
             if inspection_result is not None:
                 inspection_results.append(inspection_result)
-            elif not assignment.is_complete:
+            else:
                 inspection_results.append(
                     compose_assignment_observation(
                         assignment=assignment,
@@ -901,16 +891,10 @@ class AgentWorkScheduler:
     def _launch_required_round(self, *, required: RequiredAgentRound) -> None:
         """Start the round and advance the delivery cursor once it is running."""
         assignment = required.assignment
-        harness_adapter = HARNESS_ADAPTERS[assignment.record.harness]
-        launch_request = AgentRoundLaunchRequest(
-            agent_assignment_identifier=assignment.identifier,
-            model=assignment.record.model,
-            effort=assignment.record.effort,
-            prompt=required.prompt,
-        )
+        harness_session_identifier = None
         if assignment.rounds:
             harness_session_identifier = find_harness_session_identifier(
-                assignment=assignment, harness_adapter=harness_adapter
+                assignment=assignment
             )
             if harness_session_identifier is None:
                 raise ReportableError(
@@ -920,22 +904,24 @@ class AgentWorkScheduler:
             record_harness_session_identifier(
                 assignment=assignment, identifier=harness_session_identifier
             )
-            invocation = harness_adapter.build_resumed_round(
-                request=launch_request,
+        self.rounds[assignment.identifier] = start_agent_round(
+            request=AgentRoundStartRequest(
+                harness=assignment.record.harness,
+                launch_request=AgentRoundLaunchRequest(
+                    agent_assignment_identifier=assignment.identifier,
+                    model=assignment.record.model,
+                    effort=assignment.record.effort,
+                    prompt=required.prompt,
+                ),
                 harness_session_identifier=harness_session_identifier,
-            )
-        else:
-            invocation = harness_adapter.build_first_round(request=launch_request)
-        self.rounds[assignment.identifier] = AgentRound(
-            output_reader=AgentRoundOutputReader(
-                harness_adapter=harness_adapter,
                 record_harness_session_identifier=partial(
                     record_harness_session_identifier, assignment=assignment
                 ),
+                paths=assignment.compose_round_paths(
+                    number=assignment.next_round_number
+                ),
+                plan=required.plan,
             ),
-            invocation=invocation,
-            paths=assignment.compose_round_paths(number=assignment.next_round_number),
-            plan=required.plan,
             clock=self.clock,
         )
         round_input = required.plan.input

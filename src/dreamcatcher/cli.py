@@ -228,7 +228,8 @@ def _retry_assignment(*, arguments: argparse.Namespace) -> None:
     if not issue_assignments:
         raise ReportableError(f"GH{arguments.issue} has no assignment to retry.")
     assignment = issue_assignments[-1]
-    scheduler_record = read_scheduler_record(state=state)
+    current_time = read_current_time()
+    scheduler_record = read_scheduler_record(state=state, at=current_time)
     most_recent_cooldown_ended = (
         None
         if scheduler_record is None
@@ -239,7 +240,7 @@ def _retry_assignment(*, arguments: argparse.Namespace) -> None:
         most_recent_cooldown_ended=most_recent_cooldown_ended,
     ):
         raise ReportableError(f"{assignment.identifier} is not in fault.")
-    request_agent_assignment_retry(assignment=assignment, at=read_current_time())
+    request_agent_assignment_retry(assignment=assignment, at=current_time)
     print(f"{assignment.identifier} can recover on the next scheduler tick.")
 
 

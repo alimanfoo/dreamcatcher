@@ -18,7 +18,11 @@ from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
-from dreamcatcher.scheduler import SchedulerRecord, derive_assignment_fault
+from dreamcatcher.scheduler import (
+    GlobalCooldown,
+    SchedulerRecord,
+    derive_assignment_fault,
+)
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158"
@@ -146,6 +150,30 @@ def test_retry_clears_the_newest_assignments_fault(monkeypatch, faulted, capsys)
         most_recent_cooldown_ended=PINNED - timedelta(minutes=1),
     )
     assert "next scheduler tick" in capsys.readouterr().out
+
+
+def test_retry_refuses_a_fault_an_elapsed_cooldown_cleared(
+    monkeypatch, faulted, capsys
+):
+    cooldown_ended = PINNED + timedelta(minutes=3)
+    write_json(
+        document=SchedulerRecord(
+            at=PINNED,
+            cooldown=GlobalCooldown(started=PINNED, ends=cooldown_ended),
+        ),
+        path=faulted.scheduler_record,
+    )
+    monkeypatch.chdir(faulted.root)
+    monkeypatch.setattr(
+        "dreamcatcher.cli.read_current_time",
+        lambda: cooldown_ended,
+    )
+
+    assert main(argv=["retry", "GH13"]) == 1
+
+    assignment = read_agent_assignments_for_issue(state=faulted, issue=13)[-1]
+    assert assignment.record.retry_requested_at is None
+    assert "not in fault" in capsys.readouterr().err
 
 
 def test_retry_refuses_an_issue_with_no_assignment(monkeypatch, tmp_path, capsys):

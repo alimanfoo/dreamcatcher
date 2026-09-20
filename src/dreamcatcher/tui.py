@@ -381,11 +381,7 @@ def _render_assignment(
     """
     current_status = assignment_statuses[0]
     assignment = current_status.assignment
-    harness_adapter = HARNESS_ADAPTERS[assignment.record.harness]
-    harness_session_identifier = find_harness_session_identifier(
-        assignment=assignment,
-        harness_adapter=harness_adapter,
-    )
+    harness_session_identifier = find_harness_session_identifier(assignment=assignment)
     return _combine_renderable_parts(
         parts=[
             Text(f"newest agent assignment {current_status.assignment.identifier}"),

@@ -20,6 +20,7 @@ from dreamcatcher.agent_assignments import (
     AgentAssignmentCreator,
     AgentAssignmentRecord,
     advance_user_post_delivery_cursor,
+    find_open_agent_assignments_by_issue,
     inspect_incomplete_assignment_setups,
     read_agent_assignments,
     read_agent_assignments_for_issue,
@@ -209,6 +210,34 @@ def test_assignments_at_one_issue_are_read_behind_the_assignment_boundary(fabric
         "GH12-20260818-090000",
         "GH12-20260820-090000",
     ]
+
+
+def test_open_assignments_are_found_by_issue_across_assignment_histories(fabricated):
+    for issue in (13, 14):
+        complete = write_agent_assignment(
+            state=fabricated, identifier=f"GH{issue}-20260818-090000", issue=issue
+        )
+        write_round(
+            directory=complete,
+            number=1,
+            record=AgentRoundRecord(
+                number=1,
+                started=PINNED,
+                pid=1,
+                purpose=AgentRoundPurpose.WRAP_UP,
+                ending=compose_agent_round_ending(at=PINNED, status=0),
+            ),
+        )
+    write_agent_assignment(
+        state=fabricated, identifier="GH14-20260819-090000", issue=14
+    )
+    assignments = read_agent_assignments(state=fabricated)
+
+    open_assignments = find_open_agent_assignments_by_issue(assignments=assignments)
+
+    assert 12 not in open_assignments
+    assert 13 not in open_assignments
+    assert open_assignments[14].identifier == "GH14-20260819-090000"
 
 
 def ended(*, status, minute=0, number: int = 1):
