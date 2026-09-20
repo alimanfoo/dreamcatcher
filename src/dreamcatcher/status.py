@@ -4,17 +4,26 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
+from functools import cached_property
 
 from dreamcatcher.agent_assignments import (
     AgentAssignment,
+    find_harness_session_identifier,
     find_open_agent_assignments_by_issue,
     read_agent_assignments,
     read_agent_assignments_for_issue,
+)
+from dreamcatcher.agent_rounds import (
+    AgentRoundOutcome,
+    AgentRoundRecord,
+    ErroredAgentRoundEnding,
 )
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.config import read_dreamcatcher_config
 from dreamcatcher.documents import read_text
 from dreamcatcher.feed import FeedLine, read_last_feed_line
+from dreamcatcher.harness_adapters import HarnessSessionIdentifier
+from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.lock import read_daemon_pid
 from dreamcatcher.scheduler import (
     NO_ROUND_HAS_RUN,
@@ -42,6 +51,15 @@ class AgentAssignmentStatusValue(StrEnum):
 
 
 @dataclass(frozen=True, kw_only=True)
+class AgentRoundStatus:
+    """Describe one agent round for a status view."""
+
+    record: AgentRoundRecord
+    duration_description: str
+    outcome_description: str
+
+
+@dataclass(frozen=True, kw_only=True)
 class AgentAssignmentStatus:
     """Describe an agent assignment's derived summary status."""
 
@@ -50,6 +68,44 @@ class AgentAssignmentStatus:
     detail: str
     latest_output: str | None
     observed_at: datetime | None
+
+    @cached_property
+    def round_statuses(self) -> list[AgentRoundStatus]:
+        """The derived status of every round in assignment order."""
+        assignment = self.assignment
+        return [
+            AgentRoundStatus(
+                record=record,
+                duration_description=_compose_round_duration_description(record=record),
+                outcome_description=_describe_round_outcome(
+                    record=record,
+                    is_running=(
+                        self.value is AgentAssignmentStatusValue.WORKING
+                        and record.number == assignment.rounds[-1].number
+                    ),
+                ),
+            )
+            for record in assignment.rounds
+        ]
+
+    @cached_property
+    def harness_session_identifier(self) -> HarnessSessionIdentifier | None:
+        """The recorded or recoverable harness session identifier."""
+        return find_harness_session_identifier(assignment=self.assignment)
+
+    @cached_property
+    def hand_resume_command(self) -> list[str] | None:
+        """The hand-resume command when nobody is running the session."""
+        harness_session_identifier = self.harness_session_identifier
+        if (
+            self.value is AgentAssignmentStatusValue.WORKING
+            or harness_session_identifier is None
+        ):
+            return None
+        harness_adapter = HARNESS_ADAPTERS[self.assignment.record.harness]
+        return harness_adapter.build_hand_resume(
+            harness_session_identifier=harness_session_identifier
+        )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -119,6 +175,27 @@ def read_agent_assignment_statuses_for_issue(
     return reader.list_assignment_statuses(
         assignments=read_agent_assignments_for_issue(state=state, issue=issue)
     )
+
+
+def _compose_round_duration_description(*, record: AgentRoundRecord) -> str:
+    ending = record.ending
+    if ending is None or ending.outcome is AgentRoundOutcome.INTERRUPTED:
+        return ""
+    return f"ran {describe_span(span=ending.at - record.started)}"
+
+
+def _describe_round_outcome(*, record: AgentRoundRecord, is_running: bool) -> str:
+    """Return how the round ended, or what it is doing instead.
+
+    A round that recorded no ending never finished. It is running when a daemon
+    is still there to run it, and interrupted once that daemon has gone, since
+    a round cannot outlive its daemon.
+    """
+    if isinstance(record.ending, ErroredAgentRoundEnding):
+        return f"errored (exit {record.ending.status})"
+    if record.ending is None and not is_running:
+        return str(AgentRoundOutcome.INTERRUPTED)
+    return str(record.outcome)
 
 
 class _StatusReportReader:

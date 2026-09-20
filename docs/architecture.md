@@ -233,6 +233,8 @@ entries.
 Status construction may read:
 
 - assignment and round records;
+- raw harness output and the matching harness adapter when it must recover a
+  harness session identifier or build a hand-resume command;
 - current child-process state;
 - the instance's repository record;
 - scheduler records, including issue observations, assignment observations, the
