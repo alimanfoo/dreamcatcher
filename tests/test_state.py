@@ -33,9 +33,22 @@ def test_bootstrap_says_so_when_a_file_sits_where_the_directory_goes(repo):
         state.bootstrap()
 
 
-def test_bootstrap_reports_state_from_an_earlier_format(repo):
+@pytest.mark.parametrize(
+    "name",
+    [
+        "sessions",
+        "last-tick.json",
+        "worktrees",
+        "assignments",
+        "repository",
+        "max-agents",
+        "scheduler.json",
+        "v2",
+    ],
+)
+def test_bootstrap_reports_state_from_an_earlier_format(repo, name):
     state = StateDirectory(root=repo)
-    legacy_path = state.path.parent / "repository"
+    legacy_path = state.path.parent / name
     legacy_path.parent.mkdir(parents=True)
     legacy_path.write_bytes(b"legacy")
 
@@ -51,8 +64,22 @@ def test_bootstrap_ignores_current_state_and_the_shared_lock(repo):
     state = StateDirectory(root=repo)
     state.path.mkdir(parents=True)
     state.lock.write_bytes(b"123\n")
+    (state.path.parent / "v4").mkdir()
+    (state.path.parent / ".DS_Store").write_bytes(b"metadata")
 
     assert state.bootstrap() is None
+
+
+def test_bootstrap_says_so_when_the_state_container_cannot_be_read(repo, monkeypatch):
+    state = StateDirectory(root=repo)
+
+    def refuse(_path, /):
+        raise PermissionError("not allowed")
+
+    monkeypatch.setattr(type(state.path), "iterdir", refuse)
+
+    with pytest.raises(ReportableError, match=r"cannot read .*dreamcatcher"):
+        state.bootstrap()
 
 
 def test_the_daemon_files_use_the_versioned_root_and_shared_lock(tmp_path):

@@ -105,6 +105,10 @@ one. A look that cannot complete reports its failure in the daemon output and
 leaves that last complete record in place. When state from an earlier format
 remains at the top level, startup says that it can be deleted.
 
+This is an intentional format break. Version 3 does not migrate assignments from
+an earlier format and starts with empty local state. Stop the daemon and upgrade
+between dispatch batches, when no assignment needs another round.
+
 Open work goes before new work. Before it dispatches anything, the daemon reads
 each assignment it already has and gives it whatever it needs next: a round that
 did not finish is recovered, a merged or closed pull request gets a wrap-up

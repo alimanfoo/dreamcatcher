@@ -99,29 +99,29 @@ class DreamcatcherDaemon:
         posts.
         """
         self._locate_harnesses()
-        legacy_state_hint = self.state.bootstrap()
-        if legacy_state_hint is not None:
-            _write_output(line=legacy_state_hint)
-        repository = _require_known_github_value(
-            value=identify_github_repository(root=self.state.root),
-            question="which repository this is",
-        )
-        write_text(text=f"{repository}\n", path=self.state.repository)
-        account = _require_known_github_value(
-            value=identify_github_account(),
-            question="which account gh is signed in as",
-        )
-        scheduler = AgentWorkScheduler(
-            repository=repository,
-            account=account,
-            config=self.config,
-            state=self.state,
-            harness=self.harness,
-            clock=self.clock,
-            rounds=self.rounds,
-            max_agents=self.max_agents,
-        )
         with hold_daemon_lock(path=self.state.lock):
+            legacy_state_hint = self.state.bootstrap()
+            if legacy_state_hint is not None:
+                _write_output(line=legacy_state_hint)
+            repository = _require_known_github_value(
+                value=identify_github_repository(root=self.state.root),
+                question="which repository this is",
+            )
+            write_text(text=f"{repository}\n", path=self.state.repository)
+            account = _require_known_github_value(
+                value=identify_github_account(),
+                question="which account gh is signed in as",
+            )
+            scheduler = AgentWorkScheduler(
+                repository=repository,
+                account=account,
+                config=self.config,
+                state=self.state,
+                harness=self.harness,
+                clock=self.clock,
+                rounds=self.rounds,
+                max_agents=self.max_agents,
+            )
             write_text(text=f"{self.max_agents}\n", path=self.state.max_agents)
             self._sweep_orphans()
             at = self.clock()

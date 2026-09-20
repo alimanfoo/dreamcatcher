@@ -6,9 +6,31 @@ from pathlib import Path
 
 from dreamcatcher.agent_rounds import AgentRoundReader
 from dreamcatcher.documents import write_text
+from dreamcatcher.errors import ReportableError
 
 STATE_DIRECTORY_NAME = ".dreamcatcher"
 STATE_FORMAT_VERSION = 3
+_UNVERSIONED_STATE_NAMES = {
+    "sessions",
+    "last-tick.json",
+    "worktrees",
+    "assignments",
+    "repository",
+    "max-agents",
+    "scheduler.json",
+}
+
+
+def _is_earlier_format_state(*, entry: Path) -> bool:
+    """Return whether an entry belongs to an earlier state format."""
+    if entry.name in _UNVERSIONED_STATE_NAMES:
+        return True
+    version = entry.name.removeprefix("v")
+    return (
+        entry.name.startswith("v")
+        and version.isdigit()
+        and int(version) < STATE_FORMAT_VERSION
+    )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -89,8 +111,14 @@ class StateDirectory:
         state_container = self.path.parent
         ignored = state_container / ".gitignore"
         write_text(text="*\n", path=ignored)
-        current_paths = {ignored, self.lock, self.path}
-        if any(entry not in current_paths for entry in state_container.iterdir()):
+        try:
+            has_earlier_state = any(
+                _is_earlier_format_state(entry=entry)
+                for entry in state_container.iterdir()
+            )
+        except OSError as error:
+            raise ReportableError(f"cannot read {state_container}: {error}.") from error
+        if has_earlier_state:
             return (
                 "Legacy state in .dreamcatcher/ belongs to an earlier format "
                 "and can be deleted."

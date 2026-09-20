@@ -276,16 +276,20 @@ def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(
     assert not daemon.state.lock.exists()
 
 
-def test_a_second_daemon_refuses_while_the_first_holds_the_repo(watched, harnesses, gh):
+def test_a_second_daemon_refuses_while_the_first_holds_the_repo(
+    watched, harnesses, gh, capsys
+):
     daemon, _, _ = idling(root=watched, max_agents=4)
     daemon.state.bootstrap()
     write_text(text="2\n", path=daemon.state.max_agents)
+    (daemon.state.path.parent / "repository").write_bytes(b"legacy\n")
     daemon.state.lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
 
     with pytest.raises(ReportableError, match=f"pid {os.getpid()}"):
         daemon.run()
 
     assert daemon.state.max_agents.read_text(encoding="utf-8") == "2\n"
+    assert capsys.readouterr().out == ""
 
 
 def test_the_daemon_runs_the_harness_it_was_given(watched):
