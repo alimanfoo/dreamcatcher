@@ -417,11 +417,10 @@ def _render_rounds(*, status: AgentAssignmentStatus) -> RenderableType | None:
     Each row keeps the round number accepted by `feed --round`. An assignment
     with no rounds returns no section.
     """
-    rounds = status.rounds
-    if not rounds:
+    if not status.round_statuses:
         return None
     table = _create_table(columns=5)
-    for round_status in reversed(rounds):
+    for round_status in reversed(status.round_statuses):
         record = round_status.record
         table.add_row(
             Text(str(record.number)),
@@ -432,7 +431,7 @@ def _render_rounds(*, status: AgentAssignmentStatus) -> RenderableType | None:
                 )
             ),
             Text(describe_time(at=record.started)),
-            Text(round_status.duration),
+            Text(round_status.duration_description),
             Text(round_status.outcome_description),
         )
     return _render_section(heading="rounds", body=table)

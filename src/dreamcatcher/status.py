@@ -13,9 +13,9 @@ from dreamcatcher.agent_assignments import (
     read_agent_assignments_for_issue,
 )
 from dreamcatcher.agent_rounds import (
+    AgentRoundOutcome,
     AgentRoundRecord,
     ErroredAgentRoundEnding,
-    InterruptedAgentRoundEnding,
 )
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.config import read_dreamcatcher_config
@@ -54,7 +54,7 @@ class AgentRoundStatus:
     """Describe one agent round for a status view."""
 
     record: AgentRoundRecord
-    duration: str
+    duration_description: str
     outcome_description: str
 
 
@@ -67,7 +67,7 @@ class AgentAssignmentStatus:
     detail: str
     latest_output: str | None
     observed_at: datetime | None
-    rounds: list[AgentRoundStatus]
+    round_statuses: list[AgentRoundStatus]
     harness_session_identifier: HarnessSessionIdentifier | None
     hand_resume_command: list[str] | None
 
@@ -141,11 +141,11 @@ def read_agent_assignment_statuses_for_issue(
     )
 
 
-def _describe_round_duration(*, record: AgentRoundRecord) -> str:
-    """Return how long the round ran, or nothing without a timed ending."""
-    if record.ending is None or isinstance(record.ending, InterruptedAgentRoundEnding):
+def _compose_round_duration_description(*, record: AgentRoundRecord) -> str:
+    ending = record.ending
+    if ending is None or ending.outcome is AgentRoundOutcome.INTERRUPTED:
         return ""
-    return f"ran {describe_span(span=record.ending.at - record.started)}"
+    return f"ran {describe_span(span=ending.at - record.started)}"
 
 
 def _describe_round_outcome(*, record: AgentRoundRecord, is_running: bool) -> str:
@@ -157,11 +157,9 @@ def _describe_round_outcome(*, record: AgentRoundRecord, is_running: bool) -> st
     """
     if isinstance(record.ending, ErroredAgentRoundEnding):
         return f"errored (exit {record.ending.status})"
-    if isinstance(record.ending, InterruptedAgentRoundEnding):
-        return "interrupted"
-    if record.ending is not None:
-        return "successful"
-    return "running" if is_running else "interrupted"
+    if record.ending is None and not is_running:
+        return str(AgentRoundOutcome.INTERRUPTED)
+    return str(record.outcome)
 
 
 class _StatusReportReader:
@@ -350,10 +348,12 @@ class _StatusReportReader:
             observed_at=(
                 None if self.scheduler_record is None else self.scheduler_record.at
             ),
-            rounds=[
+            round_statuses=[
                 AgentRoundStatus(
                     record=record,
-                    duration=_describe_round_duration(record=record),
+                    duration_description=_compose_round_duration_description(
+                        record=record
+                    ),
                     outcome_description=_describe_round_outcome(
                         record=record,
                         is_running=(

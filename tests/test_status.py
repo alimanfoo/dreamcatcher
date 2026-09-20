@@ -185,10 +185,10 @@ def test_a_terminal_round_status_describes_its_outcome_and_duration(
         ),
     )
 
-    round_status = only_assignment(state=state).rounds[0]
+    round_status = only_assignment(state=state).round_statuses[0]
 
     assert round_status.outcome_description == outcome_description
-    assert round_status.duration == duration
+    assert round_status.duration_description == duration
 
 
 @pytest.mark.parametrize(
@@ -202,10 +202,10 @@ def test_an_unended_round_status_follows_the_daemon(
         state.lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
     ran(state=state, number=1, status=None)
 
-    round_status = only_assignment(state=state).rounds[0]
+    round_status = only_assignment(state=state).round_statuses[0]
 
     assert round_status.outcome_description == outcome_description
-    assert round_status.duration == ""
+    assert round_status.duration_description == ""
 
 
 def test_status_recovers_the_harness_session_and_builds_its_resume_command(tmp_path):
