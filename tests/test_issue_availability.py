@@ -251,6 +251,7 @@ def test_a_recoverable_setup_is_not_treated_as_an_external_claim(gh):
     )[0]
 
     assert found.claimed_elsewhere.value is IssueFactValue.FALSE
+    assert found.setup_obstacle is None
 
 
 def test_a_setup_that_cannot_be_recovered_leaves_the_claim_unknown(gh):
@@ -261,6 +262,7 @@ def test_a_setup_that_cannot_be_recovered_leaves_the_claim_unknown(gh):
 
     assert found.claimed_elsewhere.value is IssueFactValue.UNKNOWN
     assert found.claimed_elsewhere.evidence == "cannot reconcile its incomplete setup"
+    assert found.setup_obstacle == "cannot reconcile its incomplete setup"
 
 
 def test_a_setup_obstacle_survives_a_failed_linked_pull_request_read(gh):
@@ -273,6 +275,7 @@ def test_a_setup_obstacle_survives_a_failed_linked_pull_request_read(gh):
 
     assert found.claimed_elsewhere.value is IssueFactValue.UNKNOWN
     assert found.claimed_elsewhere.evidence == "cannot reconcile its incomplete setup"
+    assert found.setup_obstacle == "cannot reconcile its incomplete setup"
 
 
 def test_a_setup_obstacle_keeps_a_proven_external_claim(gh):
@@ -294,6 +297,7 @@ def test_a_setup_obstacle_keeps_a_proven_external_claim(gh):
 
     assert found.claimed_elsewhere.value is IssueFactValue.TRUE
     assert found.claimed_elsewhere.evidence == "a pull request is open on it: #52"
+    assert found.setup_obstacle == "cannot reconcile its incomplete setup"
 
 
 def test_a_failed_linked_pull_request_read_preserves_unknown_evidence(gh):
@@ -307,6 +311,7 @@ def test_a_failed_linked_pull_request_read_preserves_unknown_evidence(gh):
         "cannot tell whether a pull request claims it"
         in found.claimed_elsewhere.evidence
     )
+    assert found.setup_obstacle is None
 
 
 def test_open_blockers_are_observed_independently(gh):

@@ -98,6 +98,7 @@ class IssueObservation(DreamcatcherDocument):
     dispatch_labels: list[str] | None = None
     claimed_here: IssueFact
     claimed_elsewhere: IssueFact
+    setup_obstacle: str | None = None
     blocked: IssueFact
     routing_conflict: IssueFact
 
@@ -380,6 +381,7 @@ def _observe_issue(
             context=context,
             issue=issue,
         ),
+        setup_obstacle=context.setup_obstacles.get(issue),
         blocked=_observe_blocking_issues(repository=context.repository, issue=issue),
         routing_conflict=routing_conflict,
     )
