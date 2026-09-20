@@ -266,6 +266,27 @@ def fabricate_everything(*, state):
     )
 
 
+def fabricate_a_failed_setup(*, state):
+    """A running daemon with an assignment, a failed setup, and available work."""
+    holding(state=state)
+    written(state=state, issue=13, records=[])
+    failure = "assignment setup failed"
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED + timedelta(hours=1, minutes=58),
+            issue_observations=[
+                observed_issue(
+                    issue=20,
+                    values={"claimed_elsewhere": IssueFactValue.UNKNOWN},
+                    evidence={"claimed_elsewhere": failure},
+                ).model_copy(update={"setup_failure": failure}),
+                observed_issue(issue=21),
+            ],
+        ),
+    )
+
+
 def fabricate_a_dead_daemon(*, state):
     """The same assignments, with the daemon that was running them gone."""
     fabricate_everything(state=state)
@@ -384,6 +405,7 @@ def fabricate_a_silent_round(*, state):
 STATUS_REPORTS = {
     "nothing": fabricate_nothing,
     "everything": fabricate_everything,
+    "failed-setup": fabricate_a_failed_setup,
     "dead-daemon": fabricate_a_dead_daemon,
     "at-cap": fabricate_the_cap,
     "silent-round": fabricate_a_silent_round,

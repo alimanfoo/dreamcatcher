@@ -233,9 +233,9 @@ def request_agent_assignment_retry(
 def inspect_incomplete_assignment_setups(
     *, state: StateDirectory, repository: str
 ) -> dict[int, str | None]:
-    """Return each incomplete setup's recovery obstacle, when it has one.
+    """Return each incomplete setup's latest failure, if any.
 
-    A setup with no obstacle is safe for assignment creation to resume. This
+    A setup with no failure is safe for assignment creation to resume. This
     boundary owns that decision.
     """
     return {
@@ -274,7 +274,7 @@ def _inspect_incomplete_assignment_setup(
     issue: int,
     identifiers: list[str],
 ) -> str | None:
-    """Return what prevents this issue's incomplete setup from recovery."""
+    """Return this issue's incomplete setup failure, if any."""
     if len(identifiers) > 1:
         identifier_names = ", ".join(sorted(identifiers))
         return (

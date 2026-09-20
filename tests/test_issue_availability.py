@@ -61,7 +61,7 @@ def observe(
     *,
     config: DreamcatcherConfig,
     assignments: Sequence[AgentAssignment] = (),
-    recovery_obstacles: dict[int, str | None] | None = None,
+    incomplete_setups: dict[int, str | None] | None = None,
 ):
     """Return the issue observations after asserting that the listing succeeded."""
     found = observe_issues(
@@ -69,7 +69,7 @@ def observe(
         account=POSTED_BY,
         config=config,
         assignments=list(assignments),
-        recovery_obstacles=({} if recovery_obstacles is None else recovery_obstacles),
+        incomplete_setups=({} if incomplete_setups is None else incomplete_setups),
     )
     assert found.failure is None
     return found.observations
@@ -162,7 +162,7 @@ def test_a_listing_failure_makes_the_whole_observation_unknown(gh):
         account=POSTED_BY,
         config=config_with_routes(labels=[DISPATCH_LABEL]),
         assignments=[],
-        recovery_obstacles={},
+        incomplete_setups={},
     )
 
     assert found.observations == []
@@ -185,7 +185,7 @@ def test_a_later_route_failure_preserves_earlier_issue_observations(gh):
         account=POSTED_BY,
         config=config_with_routes(labels=[DISPATCH_LABEL, "dream:less"]),
         assignments=[],
-        recovery_obstacles={},
+        incomplete_setups={},
     )
 
     assert found.failure is not None
@@ -247,35 +247,38 @@ def test_local_and_external_claims_can_both_be_true(gh, tmp_path):
 def test_a_recoverable_setup_is_not_treated_as_an_external_claim(gh):
     found = observe(
         config=config_with_routes(labels=[DISPATCH_LABEL]),
-        recovery_obstacles={8: None},
+        incomplete_setups={8: None},
     )[0]
 
     assert found.claimed_elsewhere.value is IssueFactValue.FALSE
+    assert found.setup_failure is None
 
 
 def test_a_setup_that_cannot_be_recovered_leaves_the_claim_unknown(gh):
     found = observe(
         config=config_with_routes(labels=[DISPATCH_LABEL]),
-        recovery_obstacles={8: "cannot reconcile its incomplete setup"},
+        incomplete_setups={8: "assignment setup failed"},
     )[0]
 
     assert found.claimed_elsewhere.value is IssueFactValue.UNKNOWN
-    assert found.claimed_elsewhere.evidence == "cannot reconcile its incomplete setup"
+    assert found.claimed_elsewhere.evidence == "assignment setup failed"
+    assert found.setup_failure == "assignment setup failed"
 
 
-def test_a_setup_obstacle_survives_a_failed_linked_pull_request_read(gh):
+def test_a_setup_failure_survives_a_failed_linked_pull_request_read(gh):
     gh.fails(stderr="gh: could not connect to github.com", to="issue view")
 
     found = observe(
         config=config_with_routes(labels=[DISPATCH_LABEL]),
-        recovery_obstacles={8: "cannot reconcile its incomplete setup"},
+        incomplete_setups={8: "assignment setup failed"},
     )[0]
 
     assert found.claimed_elsewhere.value is IssueFactValue.UNKNOWN
-    assert found.claimed_elsewhere.evidence == "cannot reconcile its incomplete setup"
+    assert found.claimed_elsewhere.evidence == "assignment setup failed"
+    assert found.setup_failure == "assignment setup failed"
 
 
-def test_a_setup_obstacle_keeps_a_proven_external_claim(gh):
+def test_a_setup_failure_keeps_a_proven_external_claim(gh):
     gh.replies(
         stdout=json.dumps(
             {"closedByPullRequestsReferences": [{"number": PULL_REQUEST}]}
@@ -289,11 +292,12 @@ def test_a_setup_obstacle_keeps_a_proven_external_claim(gh):
 
     found = observe(
         config=config_with_routes(labels=[DISPATCH_LABEL]),
-        recovery_obstacles={8: "cannot reconcile its incomplete setup"},
+        incomplete_setups={8: "assignment setup failed"},
     )[0]
 
     assert found.claimed_elsewhere.value is IssueFactValue.TRUE
     assert found.claimed_elsewhere.evidence == "a pull request is open on it: #52"
+    assert found.setup_failure == "assignment setup failed"
 
 
 def test_a_failed_linked_pull_request_read_preserves_unknown_evidence(gh):
@@ -307,6 +311,7 @@ def test_a_failed_linked_pull_request_read_preserves_unknown_evidence(gh):
         "cannot tell whether a pull request claims it"
         in found.claimed_elsewhere.evidence
     )
+    assert found.setup_failure is None
 
 
 def test_open_blockers_are_observed_independently(gh):
@@ -386,7 +391,7 @@ def test_a_local_assignment_remains_observed_when_the_listing_and_issue_read_fai
         account=POSTED_BY,
         config=config_with_routes(labels=[DISPATCH_LABEL]),
         assignments=read_agent_assignments(state=state),
-        recovery_obstacles={},
+        incomplete_setups={},
     )
 
     assert found.failure is not None
@@ -419,11 +424,9 @@ def test_an_incomplete_setup_is_observed_outside_the_listing(gh):
 
     found = observe(
         config=config_with_routes(labels=[DISPATCH_LABEL]),
-        recovery_obstacles={13: "cannot reconcile its incomplete setup"},
+        incomplete_setups={13: "assignment setup failed"},
     )
 
     assert [observation.issue for observation in found] == [13]
     assert found[0].claimed_elsewhere.value is IssueFactValue.UNKNOWN
-    assert (
-        found[0].claimed_elsewhere.evidence == "cannot reconcile its incomplete setup"
-    )
+    assert found[0].claimed_elsewhere.evidence == "assignment setup failed"

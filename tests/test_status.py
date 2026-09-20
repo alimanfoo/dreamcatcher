@@ -30,6 +30,7 @@ from dreamcatcher.scheduler import (
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AgentAssignmentStatusValue,
+    FailedAssignmentSetupStatus,
     read_agent_assignment_statuses_for_issue,
     read_status_report,
 )
@@ -631,18 +632,26 @@ def test_reading_one_issue_returns_only_its_assignments_newest_first(state):
     ]
 
 
-def test_an_issue_with_an_unknown_claim_is_absent(state):
+def test_a_failed_setup_reports_independently_of_an_external_claim(state):
     observation = observed_issue(
         issue=20,
-        values={"claimed_here": IssueFactValue.UNKNOWN},
-        evidence={"claimed_here": "setup is incomplete"},
-    )
+        values={"claimed_elsewhere": IssueFactValue.TRUE},
+        evidence={"claimed_elsewhere": "a pull request is open on it: #52"},
+    ).model_copy(update={"setup_failure": "assignment setup failed"})
     write_tick(
         state=state,
         tick=SchedulerRecord(at=PINNED, issue_observations=[observation]),
     )
 
-    assert report(state=state).issue_observations == []
+    status_report = report(state=state)
+
+    assert status_report.failed_assignment_setups == [
+        FailedAssignmentSetupStatus(
+            issue=20,
+            failure="assignment setup failed",
+        )
+    ]
+    assert status_report.issue_observations == []
 
 
 def test_scheduling_does_not_consume_status_reports():

@@ -659,6 +659,24 @@ def test_the_next_tick_recovers_each_incomplete_creation_checkpoint(
     assert len(created) == (0 if checkpoint == "pull request" else 1)
 
 
+def test_a_tick_records_an_incomplete_setup_failure(dispatching):
+    state = StateDirectory(root=dispatching)
+    fetch_main(root=dispatching)
+    add_worktree(
+        root=dispatching,
+        path=state.worktrees / DISPATCHED_ASSIGNMENT_ID,
+        branch="some-other-branch",
+    )
+    scheduler, clock = create_scheduler(root=dispatching)
+
+    observed = scheduler.tick(at=clock())
+    setup_failure = observed.issue_observations[0].setup_failure
+
+    assert observed.launched_assignment_identifier is None
+    assert setup_failure is not None
+    assert "some-other-branch, not dreamcatcher" in setup_failure
+
+
 def test_an_assignment_whose_last_round_did_not_finish_is_carried_on(
     resuming, left_running, harnesses
 ):

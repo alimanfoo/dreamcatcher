@@ -98,6 +98,7 @@ class IssueObservation(DreamcatcherDocument):
     dispatch_labels: list[str] | None = None
     claimed_here: IssueFact
     claimed_elsewhere: IssueFact
+    setup_failure: str | None = None
     blocked: IssueFact
     routing_conflict: IssueFact
 
@@ -176,7 +177,7 @@ class _IssueObservationContext:
     account: str
     config: DreamcatcherConfig
     assignments: dict[int, AgentAssignment]
-    recovery_obstacles: dict[int, str | None]
+    incomplete_setups: dict[int, str | None]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -253,7 +254,7 @@ def observe_issues(
     account: str,
     config: DreamcatcherConfig,
     assignments: list[AgentAssignment],
-    recovery_obstacles: dict[int, str | None],
+    incomplete_setups: dict[int, str | None],
 ) -> IssueObservationResult:
     """Observe every issue considered for dispatch or claimed by this instance."""
     considered_issues = _list_considered_issues(repository=repository, config=config)
@@ -263,12 +264,12 @@ def observe_issues(
         account=account,
         config=config,
         assignments=open_assignments,
-        recovery_obstacles=recovery_obstacles,
+        incomplete_setups=incomplete_setups,
     )
     issue_responses_by_number: dict[int, Issue | UnknownGitHubResponse] = {
         issue.number: issue for issue in considered_issues.issues
     }
-    local_issue_numbers = open_assignments.keys() | recovery_obstacles.keys()
+    local_issue_numbers = open_assignments.keys() | incomplete_setups.keys()
     for issue in local_issue_numbers - issue_responses_by_number.keys():
         issue_responses_by_number[issue] = read_issue(
             repository=repository, issue=issue
@@ -380,6 +381,7 @@ def _observe_issue(
             context=context,
             issue=issue,
         ),
+        setup_failure=context.incomplete_setups.get(issue),
         blocked=_observe_blocking_issues(repository=context.repository, issue=issue),
         routing_conflict=routing_conflict,
     )
@@ -391,14 +393,13 @@ def _observe_external_claim(
     issue: int,
 ) -> IssueFact:
     """Observe whether an open linked pull request claims the issue elsewhere."""
-    has_recovery_setup = issue in context.recovery_obstacles
-    obstacle = context.recovery_obstacles.get(issue)
-    if has_recovery_setup and obstacle is None:
+    setup_failure = context.incomplete_setups.get(issue)
+    if issue in context.incomplete_setups and setup_failure is None:
         return _compose_known_issue_fact(value=False)
     linked = list_linked_pull_requests(repository=context.repository, issue=issue)
     if isinstance(linked, UnknownGitHubResponse):
-        if obstacle is not None:
-            return _compose_unknown_issue_fact(evidence=obstacle)
+        if setup_failure is not None:
+            return _compose_unknown_issue_fact(evidence=setup_failure)
         return _compose_unknown_issue_fact(
             evidence=f"cannot tell whether a pull request claims it: {linked.reason}"
         )
@@ -413,8 +414,8 @@ def _observe_external_claim(
             value=True,
             evidence=f"a pull request is open on it: {external_pull_requests}",
         )
-    if obstacle is not None:
-        return _compose_unknown_issue_fact(evidence=obstacle)
+    if setup_failure is not None:
+        return _compose_unknown_issue_fact(evidence=setup_failure)
     return _compose_known_issue_fact(value=False)
 
 
@@ -755,7 +756,7 @@ class AgentWorkScheduler:
             account=self.account,
             config=self.config,
             assignments=assignments,
-            recovery_obstacles=inspect_incomplete_assignment_setups(
+            incomplete_setups=inspect_incomplete_assignment_setups(
                 state=self.state, repository=self.repository
             ),
         )
