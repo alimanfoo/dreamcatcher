@@ -266,6 +266,11 @@ whether it required a round. Status reads this observation because view commands
 cannot reach GitHub. It is the last tick's interpretation kept as operational
 evidence, not authoritative assignment state.
 
+The scheduler record also names the assignment whose required round the tick
+launched. Status uses that evidence if the round ends before the next tick, so a
+successful implementation or feedback round reads as awaiting user feedback
+rather than unknown during that interval.
+
 ### TUI
 
 `tui.py` renders status reports and feeds with Rich. It owns presentation only.

@@ -146,8 +146,8 @@ found for an issue. Its availability is derived from those facts.
 
 An **agent assignment status** is an assignment's single summary status in a
 status report. It summarizes the assignment record, recorded rounds, live
-process state, and the latest scheduler observation of whether another round is
-required.
+process state, and the latest scheduler evidence about whether another round was
+required or launched.
 
 ### Global cooldown
 

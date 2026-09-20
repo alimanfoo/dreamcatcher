@@ -345,6 +345,16 @@ class _StatusReportReader:
             return local_status
         observation = self.assignment_observations.get(assignment.identifier)
         if observation is None:
+            if (
+                self.scheduler_record is not None
+                and self.scheduler_record.launched_assignment_identifier
+                == assignment.identifier
+            ):
+                return self._compose_agent_assignment_status(
+                    assignment=assignment,
+                    value=AgentAssignmentStatusValue.NEEDS_USER_FEEDBACK,
+                    detail=self._describe_idle_assignment(assignment=assignment),
+                )
             return self._compose_agent_assignment_status(
                 assignment=assignment,
                 value=AgentAssignmentStatusValue.UNKNOWN,

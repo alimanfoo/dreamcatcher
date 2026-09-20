@@ -546,7 +546,7 @@ decisions.
   feedback, fault, complete, or unknown. Reuse the scheduler's pure issue and
   required-round interpretations rather than restating their rules.
 - Derive status from assignment and round records, process state, configuration,
-  scheduler observations, and latest feed output. Report when the external facts
+  the scheduler record, and latest feed output. Report when the external facts
   were observed. Continue to use GitHub facts observed by the daemon and
   recorded locally; the view commands must not acquire network access or mutate
   external state.

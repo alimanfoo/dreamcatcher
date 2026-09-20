@@ -437,6 +437,22 @@ def test_a_tick_without_an_observation_of_the_latest_ending_is_not_current(state
     assert only_assignment(state=state).value is AgentAssignmentStatusValue.UNKNOWN
 
 
+def test_a_round_that_ends_after_its_launch_tick_needs_user_feedback(state):
+    ran(state=state, number=1, ended_at=LOOKED_AT + timedelta(minutes=1))
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=LOOKED_AT,
+            launched_assignment_identifier=ASSIGNMENT_ID,
+        ),
+    )
+
+    status = only_assignment(state=state)
+
+    assert status.value is AgentAssignmentStatusValue.NEEDS_USER_FEEDBACK
+    assert status.detail == "idle"
+
+
 def test_an_observation_is_current_when_a_round_ends_after_the_tick_begins(state):
     ran(state=state, number=1, ended_at=LOOKED_AT + timedelta(minutes=1))
     write_tick(
