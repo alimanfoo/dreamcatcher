@@ -31,8 +31,9 @@ domain phrase into a class. In particular, it should:
 
 - acquire and release the repository lock;
 - record the daemon process identifier;
-- recognize and end round processes left running by an earlier daemon at
-  startup, then ask the round boundary to record them as interrupted;
+- reconcile round records that an earlier daemon left without an ending by
+  ending their recorded process trees at startup, then asking the round boundary
+  to record them as interrupted;
 - call the scheduler repeatedly;
 - wait between ticks; and
 - stop active child processes during shutdown.
@@ -101,6 +102,7 @@ of an agent assignment. It should provide cohesive operations to:
   assignment;
 - read existing assignments;
 - find the open assignment for an issue;
+- allocate the next round number within an assignment;
 - update the harness session identifier and user-post delivery cursor;
 - record when the user requests another recovery attempt after resolving a
   fault; and
@@ -119,14 +121,16 @@ document operations. As one recoverable workflow it:
    first round immediately.
 
 An interruption can leave an incomplete setup: a worktree and branch without a
-valid assignment record. A later tick either reconciles that setup or reports
-its obstacle through the issue's observation. The assignment identifier
-determines the branch and worktree identities, and the pull request identifies
-that branch as its head. Recovery can therefore recognize artifacts belonging to
-the same assignment. Repeating or recovering creation must reuse or remove those
-artifacts as appropriate and must not create a second branch or pull request. If
-the complete assignment record already exists, the scheduler continues to the
-first round instead of recreating the assignment.
+valid assignment record. A later tick either reconciles that setup or uses its
+obstacle when it observes whether the issue is claimed elsewhere. Unless an open
+linked pull request already proves the claim, the obstacle is evidence that the
+fact is unknown. The assignment identifier determines the branch and worktree
+identities, and the pull request identifies that branch as its head. Recovery
+can therefore recognize artifacts belonging to the same assignment. Repeating or
+recovering creation must reuse or remove those artifacts as appropriate and must
+not create a second branch or pull request. If the complete assignment record
+already exists, the scheduler continues to the first round instead of recreating
+the assignment.
 
 The assignment remains open until the module recognizes a successful wrap-up
 round. A merged or closed pull request calls for wrap up but does not by itself
@@ -149,8 +153,11 @@ round process. It should provide operations to:
 - stream and render its output;
 - record a successful or errored ending;
 - interrupt the process tree safely; and
-- record an interruption when the daemon recognizes a round left running by an
-  earlier daemon.
+- record an interruption when the daemon finds a round record that an earlier
+  daemon left without an ending.
+
+An `AgentRoundInput` is the document that a resumed round receives beside its
+prompt. It carries the pull request state and any relayed user posts.
 
 The scheduler decides which purpose and recovery flag a new round has. The round
 boundary executes and records that decision; it does not inspect the pull
@@ -244,11 +251,11 @@ open, assigned to the instance's user, and carries exactly one dispatch label.
 The report includes only available issues, in the scheduler's dispatch order. An
 `AgentAssignmentStatus` is one summary status from the ontology.
 
-An `AgentAssignmentObservation` records why an idle open assignment was not
-launched, whether the relevant facts were known, and whether it required a
-round. Status reads this observation because view commands cannot reach GitHub.
-It is the last tick's interpretation kept as operational evidence, not
-authoritative assignment state.
+An `AgentAssignmentObservation` records the tick's interpretation of an idle
+open assignment. It carries a reason, whether the relevant facts were known, and
+whether it required a round. Status reads this observation because view commands
+cannot reach GitHub. It is the last tick's interpretation kept as operational
+evidence, not authoritative assignment state.
 
 ### TUI
 

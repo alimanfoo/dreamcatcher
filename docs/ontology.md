@@ -144,8 +144,8 @@ An **issue observation** records the independent facts that one scheduler tick
 found for an issue. Its availability is derived from those facts.
 
 An **agent assignment status** is an assignment's single summary status in a
-status report. It is derived from local assignment facts and the latest
-scheduler observation.
+status report. It summarizes local assignment facts and the most recently
+observed external facts.
 
 ### Global cooldown
 
