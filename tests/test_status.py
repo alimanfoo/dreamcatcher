@@ -245,9 +245,7 @@ def test_status_recovers_the_harness_session_and_builds_its_resume_command(tmp_p
     assert status.hand_resume_command == ["claude", "--resume", "abc-123"]
 
 
-def test_harness_resume_details_are_read_only_when_the_assignment_view_needs_them(
-    state, monkeypatch
-):
+def test_status_reads_harness_resume_details_only_when_requested(state, monkeypatch):
     calls = []
 
     def recover_harness_session_identifier(**kwargs):
