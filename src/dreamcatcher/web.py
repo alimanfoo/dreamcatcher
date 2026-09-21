@@ -191,18 +191,15 @@ def _compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
             status.value
         ),
     )
-    assignments = tuple(
-        _compose_assignment_card(status=status) for status in ordered_statuses
-    )
     complete_assignments = tuple(
-        assignment
-        for assignment, status in zip(assignments, ordered_statuses, strict=True)
+        _compose_assignment_card(status=status)
+        for status in ordered_statuses
         if status.value is AgentAssignmentStatusValue.COMPLETE
     )
     active_assignments = tuple(
-        assignment
-        for assignment in assignments
-        if assignment not in complete_assignments
+        _compose_assignment_card(status=status)
+        for status in ordered_statuses
+        if status.value is not AgentAssignmentStatusValue.COMPLETE
     )
     return WebHomeView(
         repository=report.repository or "repository unknown",
