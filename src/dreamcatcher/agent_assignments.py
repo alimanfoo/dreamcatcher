@@ -55,6 +55,7 @@ from dreamcatcher.github import (
     create_pull_request,
     list_linked_pull_requests,
     list_pull_requests,
+    read_issue_title,
 )
 from dreamcatcher.harness_adapters import (
     HarnessSessionIdentifier,
@@ -508,8 +509,11 @@ def _refuse_linked_pull_requests(
 
 def _create_assignment_pull_request(*, repository: str, branch: str, issue: int) -> int:
     """Create and return the assignment branch's open draft pull request."""
+    title = read_issue_title(repository=repository, issue=issue)
+    if isinstance(title, UnknownGitHubResponse):
+        raise ReportableError(f"cannot read the title of GH{issue}: {title.reason}")
     pull_request = create_pull_request(
-        repository=repository, branch=branch, issue=issue
+        repository=repository, branch=branch, issue=issue, title=title
     )
     if isinstance(pull_request, UnknownGitHubResponse):
         raise ReportableError(

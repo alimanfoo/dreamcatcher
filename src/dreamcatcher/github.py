@@ -112,6 +112,12 @@ class GitHubIssueLabel(GitHubResponseProjection):
     name: str
 
 
+class GitHubIssueTitle(GitHubResponseProjection):
+    """Model the title of an issue."""
+
+    title: str
+
+
 class Issue(GitHubResponseProjection):
     """Model the GitHub facts that scheduling observes about an issue."""
 
@@ -267,6 +273,7 @@ type UserPost = ConversationComment | PullRequestReview | InlineReviewComment
 
 GITHUB_REPOSITORY_RESPONSE_ADAPTER = TypeAdapter(GitHubRepository)
 GITHUB_ACCOUNT_RESPONSE_ADAPTER = TypeAdapter(GitHubUserAccount)
+GITHUB_ISSUE_TITLE_RESPONSE_ADAPTER = TypeAdapter(GitHubIssueTitle)
 GITHUB_ISSUE_RESPONSE_ADAPTER = TypeAdapter(Issue)
 GITHUB_ISSUE_LIST_RESPONSE_ADAPTER = TypeAdapter(list[Issue])
 GITHUB_PULL_REQUEST_LIST_RESPONSE_ADAPTER = TypeAdapter(list[PullRequest])
@@ -358,6 +365,25 @@ def read_issue(*, repository: str, issue: int) -> Issue | UnknownGitHubResponse:
     )
 
 
+def read_issue_title(*, repository: str, issue: int) -> str | UnknownGitHubResponse:
+    """Return the current title of one issue."""
+    title_response = _read_github_response(
+        response_adapter=GITHUB_ISSUE_TITLE_RESPONSE_ADAPTER,
+        arguments=[
+            "issue",
+            "view",
+            str(issue),
+            "--repo",
+            repository,
+            "--json",
+            "title",
+        ],
+    )
+    if isinstance(title_response, UnknownGitHubResponse):
+        return title_response
+    return title_response.title
+
+
 def list_pull_requests(
     *, repository: str, branch: str
 ) -> list[PullRequest] | UnknownGitHubResponse:
@@ -384,7 +410,7 @@ def list_pull_requests(
 
 
 def create_pull_request(
-    *, repository: str, branch: str, issue: int
+    *, repository: str, branch: str, issue: int, title: str
 ) -> PullRequest | UnknownGitHubResponse:
     """Open the branch's linked draft pull request and return its identity."""
     reference = run_command(
@@ -400,7 +426,7 @@ def create_pull_request(
             branch,
             "--draft",
             "--title",
-            f"GH{issue}",
+            title,
             "--body",
             f"Closes #{issue}",
         ],
