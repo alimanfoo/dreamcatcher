@@ -43,8 +43,11 @@ from dreamcatcher.scheduler import (
     SchedulerRecord,
 )
 from dreamcatcher.state import StateDirectory
+from dreamcatcher.status import read_agent_assignment_statuses_for_issue
 from dreamcatcher.tui import (
     VIEW_REFRESH_INTERVAL,
+    _render_assignment_latest_output,
+    _render_assignment_status,
     _render_feed_line,
     _render_written_feed_line,
     show_assignment_view,
@@ -674,7 +677,7 @@ def viewed(*, state, issue: int, width: int = WIDTH) -> str:
     return written_to.getvalue()
 
 
-def test_wrapped_latest_output_keeps_its_indent(tmp_path, daemon):
+def test_assignment_latest_output_is_indented_on_one_line(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     holding(state=state)
     directory = written(
@@ -695,17 +698,36 @@ def test_wrapped_latest_output_keeps_its_indent(tmp_path, daemon):
     )
 
     view = viewed(state=state, issue=13, width=40)
-    output = [
-        line
-        for line in view.splitlines()
-        if "agent is explaining" in line or "that needs to wrap" in line
-    ]
+    output = [line for line in view.splitlines() if "agent is explaining" in line]
 
-    assert [line.strip() for line in output] == [
-        "The agent is explaining a long change",
-        "that needs to wrap onto another line.",
-    ]
-    assert all(line.startswith("  ") and not line.startswith("   ") for line in output)
+    assert len(output) == 1
+    assert output[0].startswith("  ")
+    assert not output[0].startswith("   ")
+    assert len(output[0]) <= 40
+    assert output[0].endswith("…")
+
+
+def test_assignment_status_alone_is_coloured_and_latest_output_is_dim(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    status = read_agent_assignment_statuses_for_issue(
+        state=state,
+        issue=13,
+        clock=lambda: LOOKED_AT,
+    )[0]
+    console = Console(color_system="standard")
+
+    summary = _render_assignment_status(status=status)
+    latest_output = _render_assignment_latest_output(status=status)
+    status_colour = summary.get_style_at_offset(console, 0).color
+
+    assert status_colour is not None
+    assert status_colour.name == "green"
+    assert (
+        summary.get_style_at_offset(console, summary.plain.index("round")).color is None
+    )
+    assert latest_output is not None
+    assert latest_output.get_style_at_offset(console, 0).dim
 
 
 @pytest.mark.parametrize("name", sorted(ASSIGNMENTS))
