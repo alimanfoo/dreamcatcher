@@ -2,13 +2,13 @@ newest agent assignment GH44-20260819-184158
 waiting, no round has run yet
 
 assignment
-  issue identifier             GH44                                        
-  agent assignment identifier  GH44-20260819-184158                        
-  pull request                 #52                                         
-  dispatch label               dream:smith                                 
-  branch                       dreamcatcher-GH44-20260819-184158           
-  worktree                     .dreamcatcher/worktrees/GH44-20260819-184158
-  agent harness                claude                                      
-  harness session identifier   not recorded                                
-  model                        opus[1m]                                    
-  effort                       xhigh                                       
+  issue identifier             GH44                                           
+  agent assignment identifier  GH44-20260819-184158                           
+  pull request                 #52                                            
+  dispatch label               dream:smith                                    
+  branch                       dreamcatcher-GH44-20260819-184158              
+  worktree                     .dreamcatcher/v3/worktrees/GH44-20260819-184158
+  agent harness                claude                                         
+  harness session identifier   not recorded                                   
+  model                        opus[1m]                                       
+  effort                       xhigh                                          

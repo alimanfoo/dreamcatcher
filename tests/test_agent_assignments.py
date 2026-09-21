@@ -152,6 +152,8 @@ def test_an_assignment_records_what_it_was_dispatched_with(state, route):
     assert assignment.record.model == "opus[1m]"
     assert assignment.record.effort == "xhigh"
     assert assignment.record.prompt.startswith("/dream:smith GH12\n")
+    record = state.assignments / ASSIGNMENT_ID / "assignment.json"
+    assert '"dispatch_label": "dream:smith"' in record.read_text(encoding="utf-8")
 
 
 def test_an_assignment_runs_on_the_harness_the_run_named(state, route):

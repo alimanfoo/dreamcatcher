@@ -111,7 +111,7 @@ class IssueObservation(DreamcatcherDocument):
 class AgentAssignmentObservation(DreamcatcherDocument):
     """Model what the scheduler found for one idle assignment."""
 
-    assignment_identifier: str = Field(alias="assignment")
+    assignment_identifier: str
     issue: int
     reason: str
     is_known: bool = True
@@ -137,7 +137,7 @@ class SchedulerRecord(DreamcatcherDocument):
 
     at: UtcDateTime
     hold: str | None = None
-    launched_assignment_identifier: str | None = Field(default=None, alias="launched")
+    launched_assignment_identifier: str | None = None
     issue_observations: list[IssueObservation] = Field(default_factory=list)
     assignment_observations: list[AgentAssignmentObservation] = Field(
         default_factory=list

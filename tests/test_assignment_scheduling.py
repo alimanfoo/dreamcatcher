@@ -160,7 +160,7 @@ def test_a_terminal_pull_request_makes_an_interrupted_round_a_recovery_wrap_up(
     )
     gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
     gh.replies(
-        stdout=pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
 
     resume = found(state=state)
@@ -195,7 +195,7 @@ def test_an_assignment_nobody_has_posted_on_needs_nothing(state, gh):
 def test_an_assignment_the_user_has_posted_on_answers_what_they_said(state, gh):
     ran(state=state, number=1, purpose=AgentRoundPurpose.IMPLEMENT)
     gh.replies(
-        stdout=pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
 
     resume = found(state=state)
@@ -219,7 +219,7 @@ def test_a_draft_pull_request_keeps_implementation_as_its_purpose(
         stdout=pull_request(state="OPEN", is_draft=True), to="pr view"
     )
     gh_with_no_posts.replies(
-        stdout=pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
 
     resume = found(state=state)
@@ -233,7 +233,7 @@ def test_a_batch_of_posts_says_how_many_it_holds(state, gh):
     ran(state=state, number=1, purpose=AgentRoundPurpose.IMPLEMENT)
     gh.replies(
         stdout=pages(
-            posts=[comment(), comment(id=2, created_at="2026-09-03T22:20:55Z")]
+            items=[comment(), comment(id=2, created_at="2026-09-03T22:20:55Z")]
         ),
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
@@ -247,7 +247,7 @@ def test_a_batch_of_posts_says_how_many_it_holds(state, gh):
 def test_a_post_at_the_assignment_delivery_cursor_wakes_nothing(state, gh):
     ran(state=state, number=1, purpose=AgentRoundPurpose.IMPLEMENT)
     gh.replies(
-        stdout=pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
     advance_user_post_delivery_cursor(
         assignment=read_agent_assignments(state=state)[0], newest=POSTED_AT
@@ -261,7 +261,7 @@ def test_the_prompt_of_a_posts_resume_sends_the_assignment_to_the_next_rounds_in
 ):
     ran(state=state, number=1, purpose=AgentRoundPurpose.IMPLEMENT)
     gh.replies(
-        stdout=pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
 
     resume = found(state=state)
@@ -297,7 +297,7 @@ def test_a_last_round_carries_what_the_user_said_before_the_merge(state, gh):
     ran(state=state, number=1, purpose=AgentRoundPurpose.IMPLEMENT)
     gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
     gh.replies(
-        stdout=pages(posts=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
 
     resume = found(state=state)

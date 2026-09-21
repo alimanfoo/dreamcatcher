@@ -8,6 +8,7 @@ from dreamcatcher.agent_rounds import AgentRoundReader
 from dreamcatcher.documents import write_text
 
 STATE_DIRECTORY_NAME = ".dreamcatcher"
+STATE_FORMAT_VERSION = 3
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -34,13 +35,13 @@ class StateDirectory:
 
     @property
     def path(self) -> Path:
-        """The directory itself."""
-        return self.root / STATE_DIRECTORY_NAME
+        """The directory holding state in this format."""
+        return self.root / STATE_DIRECTORY_NAME / f"v{STATE_FORMAT_VERSION}"
 
     @property
     def lock(self) -> Path:
         """The file the running daemon writes its pid to."""
-        return self.path / "daemon.pid"
+        return self.path.parent / "daemon.pid"
 
     @property
     def repository(self) -> Path:
@@ -85,4 +86,4 @@ class StateDirectory:
         Writing the .gitignore is what creates the directory. Bootstrap writes
         it on every run, so a directory that was deleted comes back.
         """
-        write_text(text="*\n", path=self.path / ".gitignore")
+        write_text(text="*\n", path=self.path.parent / ".gitignore")

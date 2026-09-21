@@ -156,9 +156,9 @@ def pull_request(
     return json.dumps({"number": number, "state": state, "isDraft": is_draft})
 
 
-def pages(*, posts: Sequence[dict]) -> str:
+def pages(*, items: Sequence[dict]) -> str:
     """Return what gh answers a paginated list with: one page holding these."""
-    return json.dumps([list(posts)])
+    return json.dumps([list(items)])
 
 
 def recorded_posts(*, source: str) -> str:
@@ -272,7 +272,7 @@ def gh_with_no_posts(fake):
     """
     stand_in = fake(program="gh")
     for path in POST_LIST_PATHS.values():
-        stand_in.replies(stdout=pages(posts=[]), to=f"api {path}")
+        stand_in.replies(stdout=pages(items=[]), to=f"api {path}")
     return stand_in
 
 
@@ -314,7 +314,7 @@ def gh(fake):
         to="pr create",
     )
     stand_in.replies(stdout=pull_request(state="OPEN", is_draft=True), to="pr view")
-    stand_in.replies(stdout="[]", to="api")
+    stand_in.replies(stdout=pages(items=[]), to="api")
     return stand_in
 
 

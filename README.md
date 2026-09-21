@@ -69,10 +69,10 @@ assignment per labelled issue.
 dreamcatcher run --harness claude
 ```
 
-`--interval` sets the seconds between one look at GitHub and the next, and
-defaults to 120. `--max-agents` sets how many agents may run at once, and
-defaults to 1. These options apply to this run, so each person can choose them
-without changing the repository's shared configuration.
+`--interval` sets the seconds between scheduler ticks and defaults to 120.
+`--max-agents` sets how many agents may run at once, and defaults to 1. These
+options apply to this run, so each person can choose them without changing the
+repository's shared configuration.
 
 For example, run every 30 seconds and allow four agents at once:
 
@@ -80,9 +80,9 @@ For example, run every 30 seconds and allow four agents at once:
 dreamcatcher run --harness claude --interval 30 --max-agents 4
 ```
 
-The daemon looks once per interval and launches at most one round. An issue is
-dispatched when it carries exactly one dispatch label, is assigned to
-`assignee`, has no assignment here already, has no open pull request GitHub
+The daemon runs one scheduler tick per interval and launches at most one round.
+An issue is dispatched when it carries exactly one dispatch label, is assigned
+to `assignee`, has no assignment here already, has no open pull request GitHub
 links to it, and has no open issue blocking it. The oldest such issue goes
 first. A dispatch cuts a branch and a worktree under `.dreamcatcher/`, makes and
 pushes an empty commit, and opens a linked draft pull request before it runs the
@@ -95,12 +95,18 @@ another pull request. If setup completes but the first round cannot start, the
 recorded assignment keeps its branch and pull request, and the next tick tries
 that first round again before it schedules ordinary work.
 
-Everything the daemon owns lives under `.dreamcatcher/` in the checkout, which
-ignores itself, so git never sees it. `scheduler.json` there says what the most
-recent completed look observed and decided, including what the daemon did not do
-and why. It also preserves any active global cooldown and the end of the most
-recent one. A look that cannot complete reports its failure in the daemon output
-and leaves that last complete record in place.
+The daemon lock lives at `.dreamcatcher/daemon.pid`, where every state format
+shares it. All format-specific state lives under `.dreamcatcher/v3/` in the
+checkout. The top-level directory ignores itself, so git never sees any of this
+state. `scheduler.json` in the versioned root says what the most recent
+completed scheduler tick observed and decided, including what the daemon did not
+do and why. It also preserves any active global cooldown and the end of the most
+recent one. A scheduler tick that cannot complete reports its failure in the
+daemon output and leaves that last complete record in place.
+
+This is an intentional format break. Version 3 does not migrate assignments from
+an earlier format and starts with empty local state. Stop the daemon and upgrade
+between dispatch batches, when no assignment needs another round.
 
 Open work goes before new work. Before it dispatches anything, the daemon reads
 each assignment it already has and gives it whatever it needs next: a round that

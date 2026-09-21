@@ -298,18 +298,23 @@ conflict, and none as outside scope.
 ### State and documents
 
 `state.py` owns the paths within `.dreamcatcher/` and the mechanics required to
-bootstrap that directory. It should become deliberately small. It must not
-contain collections of issues or assignments selected for work, scheduling
-decisions, or status projections.
+bootstrap that directory. A state-format constant selects the versioned root,
+currently `.dreamcatcher/v3/`, so one format never reads another format's files.
+The shared `.dreamcatcher/daemon.pid` lock stays outside that root, so daemons
+using different formats still cannot run against one checkout together. The
+module should remain deliberately small. It must not contain collections of
+issues or assignments selected for work, scheduling decisions, or status
+projections.
 
 The on-disk layout follows ownership:
 
-- instance-wide operational records live at the state-directory root;
+- instance-wide operational records live at the versioned root;
 - each assignment owns its durable record, delivery cursor, and numbered round
   records;
 - each round owns its prompt, raw output, rendered feed, and any delivered user
   posts; and
-- worktrees live in a separate collection keyed by assignment identifier.
+- worktrees live in a separate collection under the versioned root, keyed by
+  assignment identifier.
 
 `documents.py` remains the only way Dreamcatcher reads and writes documents it
 owns. Every structured document has a strict model and every replacement write

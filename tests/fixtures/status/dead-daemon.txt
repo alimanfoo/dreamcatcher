@@ -10,8 +10,8 @@ instance
 agent assignments
   GH20-20260819-184158  needs user feedback  idle 2h 0m                                             
   GH9-20260819-184158   fault                two consecutive rounds failed                          
-                                             (.dreamcatcher/assignments/GH9-20260819-184158/rounds/2
-                                             /feed.txt)                                             
+                                             (.dreamcatcher/v3/assignments/GH9-20260819-184158/round
+                                             s/2/feed.txt)                                          
   GH13-20260819-184158  waiting              the last round was interrupted                         
   GH31-20260819-184158  waiting              1 new post to answer                                   
   GH35-20260819-184158  waiting              the last round failed (exit 2)                         

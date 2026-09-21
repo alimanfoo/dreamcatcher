@@ -305,8 +305,11 @@ def test_an_issue_nobody_has_claimed_has_no_linked_pull_request(fake):
 def test_the_blockers_of_an_issue_come_back_with_their_states(fake):
     gh = fake(program="gh")
     gh.replies(
-        stdout=json.dumps(
-            [{"number": 7, "state": "closed"}, {"number": 8, "state": "open"}]
+        stdout=pages(
+            items=[
+                {"number": 7, "state": "closed"},
+                {"number": 8, "state": "open"},
+            ]
         )
     )
 
@@ -316,8 +319,27 @@ def test_the_blockers_of_an_issue_come_back_with_their_states(fake):
     ]
     assert gh.calls[0].arguments == [
         "api",
-        f"repos/{REPOSITORY}/issues/9/dependencies/blocked_by",
+        f"repos/{REPOSITORY}/issues/9/dependencies/blocked_by?per_page=100",
+        "--paginate",
+        "--slurp",
     ]
+
+
+def test_an_open_blocker_on_the_second_page_comes_back(fake):
+    gh = fake(program="gh")
+    gh.replies(
+        stdout=json.dumps(
+            [
+                [{"number": 7, "state": "closed"}],
+                [{"number": 8, "state": "open"}],
+            ]
+        )
+    )
+
+    found = list_blocking_issues(repository=REPOSITORY, issue=9)
+
+    assert isinstance(found, list)
+    assert [blocker.number for blocker in found] == [7, 8]
 
 
 def posted() -> list[UserPost]:
@@ -333,13 +355,13 @@ def test_a_pull_request_nobody_has_posted_on_comes_back_with_no_posts(gh_with_no
 
 def test_the_posts_of_a_pull_request_come_from_all_three_of_its_lists(gh_with_no_posts):
     gh_with_no_posts.replies(
-        stdout=pages(posts=[COMMENT]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=pages(items=[COMMENT]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
     gh_with_no_posts.replies(
-        stdout=pages(posts=[REVIEW]), to=f"api {POST_LIST_PATHS['reviews']}"
+        stdout=pages(items=[REVIEW]), to=f"api {POST_LIST_PATHS['reviews']}"
     )
     gh_with_no_posts.replies(
-        stdout=pages(posts=[INLINE_COMMENT]),
+        stdout=pages(items=[INLINE_COMMENT]),
         to=f"api {POST_LIST_PATHS['inline-comments']}",
     )
 
