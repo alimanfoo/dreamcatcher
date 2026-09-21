@@ -218,8 +218,8 @@ def _record_agent_round_ending(
 class AgentRoundInput(DreamcatcherDocument):
     """Model the pull request state and user posts delivered to a round."""
 
-    pull_request_state: PullRequestState = Field(alias="state")
-    user_posts: list[UserPost] = Field(alias="posts")
+    pull_request_state: PullRequestState
+    user_posts: list[UserPost]
 
 
 @dataclass(frozen=True, kw_only=True)

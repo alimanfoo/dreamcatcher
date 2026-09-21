@@ -28,7 +28,12 @@ from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME, AgentHarness
 from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.scheduler import AgentWorkScheduler, GlobalCooldown, SchedulerRecord
+from dreamcatcher.scheduler import (
+    AgentAssignmentObservation,
+    AgentWorkScheduler,
+    GlobalCooldown,
+    SchedulerRecord,
+)
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158"
@@ -209,7 +214,15 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
         rounds=daemon.rounds,
     )
     scheduler_record = SchedulerRecord(
-        at=PINNED, launched_assignment_identifier=ASSIGNMENT_ID
+        at=PINNED,
+        launched_assignment_identifier=ASSIGNMENT_ID,
+        assignment_observations=[
+            AgentAssignmentObservation(
+                assignment_identifier=ASSIGNMENT_ID,
+                issue=13,
+                reason="waiting",
+            )
+        ],
     )
 
     def launch(*, at):
@@ -221,6 +234,9 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
     daemon.run_scheduler_cycle(scheduler=scheduler, at=PINNED)
 
     assert recorded(daemon=daemon) == scheduler_record
+    written_record = daemon.state.scheduler_record.read_text(encoding="utf-8")
+    assert f'"launched_assignment_identifier": "{ASSIGNMENT_ID}"' in written_record
+    assert f'"assignment_identifier": "{ASSIGNMENT_ID}"' in written_record
     assert (
         capsys.readouterr().out
         == f"2026-08-19T18:41:58Z  launched round for {ASSIGNMENT_ID}\n"
@@ -234,22 +250,26 @@ def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(
 
     daemon.run()
 
-    assert (daemon.state.path / ".gitignore").exists()
+    assert (daemon.state.path.parent / ".gitignore").exists()
     assert daemon.state.repository.read_text(encoding="utf-8") == f"{REPOSITORY}\n"
     assert daemon.state.max_agents.read_text(encoding="utf-8") == "1\n"
     assert not daemon.state.lock.exists()
 
 
-def test_a_second_daemon_refuses_while_the_first_holds_the_repo(watched, harnesses, gh):
+def test_a_second_daemon_refuses_while_the_first_holds_the_repo(
+    watched, harnesses, gh, capsys
+):
     daemon, _, _ = idling(root=watched, max_agents=4)
     daemon.state.bootstrap()
     write_text(text="2\n", path=daemon.state.max_agents)
+    (daemon.state.path.parent / "repository").write_bytes(b"legacy\n")
     daemon.state.lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
 
     with pytest.raises(ReportableError, match=f"pid {os.getpid()}"):
         daemon.run()
 
     assert daemon.state.max_agents.read_text(encoding="utf-8") == "2\n"
+    assert capsys.readouterr().out == ""
 
 
 def test_the_daemon_runs_the_harness_it_was_given(watched):

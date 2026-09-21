@@ -10,14 +10,14 @@ def test_bootstrap_creates_a_directory_that_ignores_itself(repo):
 
     state.bootstrap()
 
-    assert (state.path / ".gitignore").read_text(encoding="utf-8") == "*\n"
+    assert (state.path.parent / ".gitignore").read_text(encoding="utf-8") == "*\n"
     assert git(arguments=["status", "--porcelain"], cwd=repo) == ""
 
 
 def test_bootstrap_heals_a_deleted_gitignore(repo):
     state = StateDirectory(root=repo)
     state.bootstrap()
-    (state.path / ".gitignore").unlink()
+    (state.path.parent / ".gitignore").unlink()
 
     state.bootstrap()
 
@@ -26,18 +26,19 @@ def test_bootstrap_heals_a_deleted_gitignore(repo):
 
 def test_bootstrap_says_so_when_a_file_sits_where_the_directory_goes(repo):
     state = StateDirectory(root=repo)
-    state.path.write_text("not a directory\n", encoding="utf-8")
+    state.path.parent.write_text("not a directory\n", encoding="utf-8")
 
     with pytest.raises(ReportableError, match="cannot write"):
         state.bootstrap()
 
 
-def test_the_daemon_files_sit_in_the_state_directory(tmp_path):
+def test_the_daemon_files_use_the_versioned_root_and_shared_lock(tmp_path):
     state = StateDirectory(root=tmp_path)
 
-    assert state.path == tmp_path / ".dreamcatcher"
-    assert state.lock == state.path / "daemon.pid"
+    assert state.path == tmp_path / ".dreamcatcher" / "v3"
+    assert state.lock == state.path.parent / "daemon.pid"
     assert state.repository == state.path / "repository"
+    assert state.max_agents == state.path / "max-agents"
     assert state.scheduler_record == state.path / "scheduler.json"
     assert state.worktrees == state.path / "worktrees"
     assert state.assignments == state.path / "assignments"
@@ -47,7 +48,7 @@ def test_a_path_the_checkout_holds_reads_from_the_checkout(tmp_path):
     state = StateDirectory(root=tmp_path)
 
     assert state.describe_path(path=state.worktrees / "GH13") == (
-        ".dreamcatcher/worktrees/GH13"
+        ".dreamcatcher/v3/worktrees/GH13"
     )
 
 

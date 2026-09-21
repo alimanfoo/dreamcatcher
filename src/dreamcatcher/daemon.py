@@ -99,28 +99,28 @@ class DreamcatcherDaemon:
         posts.
         """
         self._locate_harnesses()
-        self.state.bootstrap()
-        repository = _require_known_github_value(
-            value=identify_github_repository(root=self.state.root),
-            question="which repository this is",
-        )
-        write_text(text=f"{repository}\n", path=self.state.repository)
-        account = _require_known_github_value(
-            value=identify_github_account(),
-            question="which account gh is signed in as",
-        )
-        scheduler = AgentWorkScheduler(
-            repository=repository,
-            account=account,
-            config=self.config,
-            state=self.state,
-            harness=self.harness,
-            clock=self.clock,
-            rounds=self.rounds,
-            max_agents=self.max_agents,
-        )
         with hold_daemon_lock(path=self.state.lock):
+            self.state.bootstrap()
             write_text(text=f"{self.max_agents}\n", path=self.state.max_agents)
+            repository = _require_known_github_value(
+                value=identify_github_repository(root=self.state.root),
+                question="which repository this is",
+            )
+            write_text(text=f"{repository}\n", path=self.state.repository)
+            account = _require_known_github_value(
+                value=identify_github_account(),
+                question="which account gh is signed in as",
+            )
+            scheduler = AgentWorkScheduler(
+                repository=repository,
+                account=account,
+                config=self.config,
+                state=self.state,
+                harness=self.harness,
+                clock=self.clock,
+                rounds=self.rounds,
+                max_agents=self.max_agents,
+            )
             self._sweep_orphans()
             at = self.clock()
             _write_output(line=f"{describe_time(at=at)}  dreamcatcher is running")
