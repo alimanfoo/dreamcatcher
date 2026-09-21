@@ -328,21 +328,27 @@ class _StatusReportReader:
     def _read_assignment_status(
         self, *, assignment: AgentAssignment
     ) -> AgentAssignmentStatus:
-        """Derive an assignment's summary from local facts and its observation."""
+        """Derive an assignment's summary from local facts and its observation.
+
+        The tick that launches a round omits that assignment's observation. If
+        the round ends before the next tick, the launch record identifies why
+        no newer observation exists and the assignment waits for that tick.
+        """
         local_status = self._read_local_assignment_status(assignment=assignment)
         if local_status is not None:
             return local_status
         observation = self.assignment_observations.get(assignment.identifier)
         if observation is None:
-            if (
-                self.scheduler_record is not None
-                and self.scheduler_record.launched_assignment_identifier
-                == assignment.identifier
-            ):
+            launched_assignment_identifier = (
+                None
+                if self.scheduler_record is None
+                else self.scheduler_record.launched_assignment_identifier
+            )
+            if launched_assignment_identifier == assignment.identifier:
                 return self._compose_agent_assignment_status(
                     assignment=assignment,
-                    value=AgentAssignmentStatusValue.NEEDS_USER_FEEDBACK,
-                    detail=self._describe_idle_assignment(assignment=assignment),
+                    value=AgentAssignmentStatusValue.WAITING,
+                    detail="awaiting next scheduler tick",
                 )
             return self._compose_agent_assignment_status(
                 assignment=assignment,

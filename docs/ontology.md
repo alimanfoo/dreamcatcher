@@ -259,8 +259,8 @@ for new assignments.
 An agent assignment has one of these summary statuses in a status report:
 
 - **Working**: an agent round is running.
-- **Waiting**: an agent round is required but has not started, for example
-  because capacity is full or a global cooldown is active.
+- **Waiting**: an agent round is required but has not started, or a round has
+  just ended and the scheduler has not inspected its result yet.
 - **Needs user feedback**: no agent round is currently required and the
   assignment awaits a user post, review decision, merge, or closure.
 - **Fault**: two consecutive agent rounds for this assignment have exited with

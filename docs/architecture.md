@@ -236,7 +236,7 @@ Status construction may read:
 - raw harness output and the matching harness adapter when it must recover a
   harness session identifier or build a hand-resume command;
 - current child-process state;
-- the instance's repository, harness, version, and capacity records;
+- the instance's repository record and daemon-run record;
 - scheduler records, including issue observations, assignment observations, the
   active global cooldown, and the latest tick;
 - the latest rendered feed output needed for a useful summary.
@@ -266,10 +266,10 @@ whether it required a round. Status reads this observation because view commands
 cannot reach GitHub. It is the last tick's interpretation kept as operational
 evidence, not authoritative assignment state.
 
-The scheduler record also names the assignment whose required round the tick
-launched. Status uses that evidence if the round ends before the next tick, so a
-successful implementation or feedback round reads as awaiting user feedback
-rather than unknown during that interval.
+The scheduler record also names the assignment whose round the tick launched.
+That assignment has no observation in the same record. If its round ends before
+the next tick, status reports that it is waiting for that tick rather than
+reporting an unknown state.
 
 ### TUI
 

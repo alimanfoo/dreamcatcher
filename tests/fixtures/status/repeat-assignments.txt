@@ -2,7 +2,7 @@ alimanfoo/dreamcatcher
 
 instance
   daemon                 not running  
-  agent harness          claude       
+  harness                claude       
   latest scheduler tick  2m ago       
   agent capacity         0 of 1 in use
   global cooldown        none         

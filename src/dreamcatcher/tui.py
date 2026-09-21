@@ -11,6 +11,7 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import datetime
 from time import sleep
+from typing import cast
 
 from rich.console import Console, Group, RenderableType
 from rich.live import Live
@@ -226,7 +227,7 @@ def _render_instance_status(*, report: DreamcatcherStatusReport) -> RenderableTy
     )
     for name, value in (
         ("daemon", daemon),
-        ("agent harness", report.agent_harness),
+        ("harness", report.agent_harness),
         ("latest scheduler tick", tick),
         (
             "agent capacity",
@@ -265,11 +266,12 @@ def _render_blocked_issues(
     """Render blocked issues with the scheduler's recorded blocker evidence."""
     if not issues:
         return None
-    table = _create_table(columns=2)
+    table = _create_table(columns=3)
     for issue in issues:
         table.add_row(
             Text(f"GH{issue.issue}"),
-            Text(issue.blocked.evidence or "blocked"),
+            Text(", ".join(issue.dispatch_labels or [])),
+            Text(cast("str", issue.blocked.evidence)),
         )
     return _render_section(heading="blocked issues", body=table)
 

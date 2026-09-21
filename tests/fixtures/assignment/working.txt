@@ -1,7 +1,6 @@
 newest agent assignment GH13-20260819-184158
 working, running 1h 30m, last output 1h 29m ago
-  The agent is explaining a long change that would otherwise wrap onto another line and move every  
-  assignment below it.                                                                              
+  [Bash] pytest
 
 assignment
   issue identifier             GH13                                        

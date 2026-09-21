@@ -2,7 +2,7 @@ alimanfoo/dreamcatcher
 
 instance
   daemon                 running dreamcatcher v3.0.0.beta1 as pid 4242
-  agent harness          claude                                       
+  harness                claude                                       
   latest scheduler tick  2m ago                                       
   agent capacity         1 of 1 in use                                
   global cooldown        none                                         
@@ -25,5 +25,4 @@ available issues
   GH51  dream:smith
 
 blocked issues
-  GH52  blocked by GH50
-  GH54  blocked        
+  GH52  dream:smith  blocked by GH50

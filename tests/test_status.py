@@ -442,7 +442,7 @@ def test_a_tick_without_an_observation_of_the_latest_ending_is_not_current(state
     assert only_assignment(state=state).value is AgentAssignmentStatusValue.UNKNOWN
 
 
-def test_a_round_that_ends_after_its_launch_tick_needs_user_feedback(state):
+def test_a_round_that_ends_after_its_launch_tick_waits_for_the_next_tick(state):
     ran(state=state, number=1, ended_at=LOOKED_AT + timedelta(minutes=1))
     write_tick(
         state=state,
@@ -454,8 +454,8 @@ def test_a_round_that_ends_after_its_launch_tick_needs_user_feedback(state):
 
     status = only_assignment(state=state)
 
-    assert status.value is AgentAssignmentStatusValue.NEEDS_USER_FEEDBACK
-    assert status.detail == "idle"
+    assert status.value is AgentAssignmentStatusValue.WAITING
+    assert status.detail == "awaiting next scheduler tick"
 
 
 def test_an_observation_is_current_when_a_round_ends_after_the_tick_begins(state):
