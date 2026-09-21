@@ -25,26 +25,34 @@ Only my comments are passed to the agent. Comments from anyone else are filtered
 out before the agent sees them, including as context, to reduce the risk of
 prompt injection. This applies to both existing comments and new comments. The
 agent answers my unanswered questions, including those I posted before adding
-the label.
+the label. Later rounds respond to newly posted comments, not edits to comments
+already delivered. Comments posted while the conversation was inactive can be
+picked up when it becomes eligible again.
 
-My questions and its replies are comments on the same issue. Keep replies
-simple: address all the questions in my comment, and quote a question when that
-helps make the answer clear.
+My questions and its replies are comments on the same issue. Dreamcatcher
+supplies the comments and posts the agent's final answer; the agent does not
+fetch comments or post replies itself. Each round handles a batch of comments
+and returns one reply, or indicates that no reply is needed. Keep replies
+simple: address the questions together, and quote a question when that helps
+make the answer clear.
 
 It can read code, inspect Git history and diffs, run code, and try to reproduce
 bugs. It must not edit source code, perform Git operations that change anything,
 create branches or commits, push, or open a pull request. Its job is answering
 and investigating, never implementation.
 
-Each round should answer against current main. It should check earlier findings
-again where relevant and explain when changes to the code affect an earlier
-answer. I do not need it pinned to the code from when the conversation began.
+Each new batch should answer against current main. Keep that revision unchanged
+during the round and any recovery of interrupted or failed work. The agent
+should check earlier findings again where relevant and explain when changes to
+the code affect an earlier answer. I do not need it pinned to the code from when
+the conversation began.
 
-Dreamcatcher watches for comments and responds only while the issue is open, has
-the conversation label, and is assigned to me. Closing the issue, removing the
-label, or unassigning me stops Dreamcatcher watching it for comments. Keep the
-saved session so the conversation can resume if the issue becomes eligible
-again, without polling comments on ineligible issues.
+Dreamcatcher watches for comments and takes new batches only while the issue is
+open, has the conversation label, and is assigned to me. Closing the issue,
+removing the label, or unassigning me stops Dreamcatcher watching it for
+comments. An already-started round can continue, recover, and post its answer.
+Keep the saved session so the conversation can resume if the issue becomes
+eligible again, without polling comments on ineligible issues.
 
 Conversation and implementation are independent. A conversation partner does not
 claim the issue or prevent an implementation assignment. An implementation
@@ -54,9 +62,11 @@ with the implementation agent.
 
 ## What limits this?
 
-A conversation assignment needs a simpler contract than an implementation
-assignment. It must let the agent investigate without giving it permission to
-change the project.
+An issue conversation needs a simpler skill contract than an implementation
+assignment. It must let the agent investigate without authorizing
+implementation. Use practical harness permissions to reinforce that contract,
+without requiring a new cross-platform isolation system or a hard security
+guarantee.
 
 ## How will I know it worked?
 
@@ -67,5 +77,5 @@ the issue needs work, without starting implementation.
 
 ## What's still open?
 
-Nothing remains unsettled from this discussion. How to provide a fresh view of
-main and keep investigation within these boundaries is for the design.
+Nothing remains unsettled from this discussion. The accompanying design
+describes code freshness, recovery, delivery, and the investigation boundary.
