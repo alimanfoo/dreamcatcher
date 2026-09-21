@@ -43,11 +43,8 @@ from dreamcatcher.scheduler import (
     SchedulerRecord,
 )
 from dreamcatcher.state import StateDirectory
-from dreamcatcher.status import read_agent_assignment_statuses_for_issue
 from dreamcatcher.tui import (
     VIEW_REFRESH_INTERVAL,
-    _render_assignment_latest_output,
-    _render_assignment_status,
     _render_feed_line,
     _render_written_feed_line,
     show_assignment_view,
@@ -710,24 +707,29 @@ def test_assignment_latest_output_is_indented_on_one_line(tmp_path, daemon):
 def test_assignment_status_alone_is_coloured_and_latest_output_is_dim(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    status = read_agent_assignment_statuses_for_issue(
+    written_to = StringIO()
+    console = Console(
+        file=written_to,
+        width=WIDTH,
+        height=HEIGHT,
+        force_terminal=False,
+        color_system="standard",
+        legacy_windows=False,
+        _environ={"TERM": "xterm"},
+        record=True,
+    )
+
+    show_assignment_view(
         state=state,
         issue=13,
+        console=console,
         clock=lambda: LOOKED_AT,
-    )[0]
-    console = Console(color_system="standard")
-
-    summary = _render_assignment_status(status=status)
-    latest_output = _render_assignment_latest_output(status=status)
-    status_colour = summary.get_style_at_offset(console, 0).color
-
-    assert status_colour is not None
-    assert status_colour.name == "green"
-    assert (
-        summary.get_style_at_offset(console, summary.plain.index("round")).color is None
+        wait=refusing,
     )
-    assert latest_output is not None
-    assert latest_output.get_style_at_offset(console, 0).dim
+    rendered = console.export_text(styles=True)
+
+    assert "\x1b[32mworking\x1b[0m  round 2, running" in rendered
+    assert "\x1b[2m[Bash] pytest\x1b[0m" in rendered
 
 
 @pytest.mark.parametrize("name", sorted(ASSIGNMENTS))
