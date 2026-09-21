@@ -545,7 +545,7 @@ def list_assignment_observations(
     inspection_results: list[AgentAssignmentInspectionResult],
     required_reason: str | None = None,
 ) -> list[AgentAssignmentObservation]:
-    """Return the operational observation for every unlaunched finding."""
+    """Return one operational observation for every inspection result."""
     return [
         result
         if isinstance(result, AgentAssignmentObservation)

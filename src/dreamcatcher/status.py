@@ -310,7 +310,7 @@ class _StatusReportReader:
     def list_assignment_statuses(
         self, *, assignments: list[AgentAssignment]
     ) -> list[AgentAssignmentStatus]:
-        """Return agent assignments by issue, newest at each issue first."""
+        """Return assignment statuses by issue, newest at each issue first."""
         newest_first = sorted(
             assignments,
             key=lambda assignment: assignment.identifier,
