@@ -1,0 +1,12 @@
+<article class="assignment-card{% if assignment.status_class == 'needs-user-feedback' %} needs-feedback{% endif %}">
+  <div class="card-heading">
+    <div><strong class="issue-number">#{{ assignment.issue }}</strong> <span class="identifier">{{ assignment.identifier }}</span></div>
+    <span class="chip status-{{ assignment.status_class }}">[{{ assignment.status }}]</span>
+  </div>
+  <p class="assignment-detail">{{ assignment.detail }}</p>
+  {% if assignment.latest_output %}<p class="latest-output"><span>[AGENT]</span> {{ assignment.latest_output }}</p>{% endif %}
+  <div class="assignment-meta">
+    <span>{{ assignment.harness }} · {{ assignment.model }} · {{ assignment.effort }}</span>
+    <span class="pr-chip">PR #{{ assignment.pull_request }}</span>
+  </div>
+</article>

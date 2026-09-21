@@ -1,0 +1,8 @@
+<article class="issue-row">
+  <div class="card-heading">
+    <strong class="issue-number">#{{ issue.issue }}</strong>
+    <span class="chip issue-{{ issue.status_class }}">[{{ issue.status }}]</span>
+  </div>
+  {% if issue.labels %}<p class="labels">{{ issue.labels }}</p>{% endif %}
+  {% if issue.evidence %}<p class="evidence">{{ issue.evidence }}</p>{% endif %}
+</article>
