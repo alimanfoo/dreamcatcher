@@ -425,17 +425,17 @@ class AgentRound:
         self._round_ended.wait()
 
     def _interrupt(self) -> None:
-        """End a running child and mark the round as interrupted.
+        """End a child with no collected exit status and mark the round interrupted.
 
         The interruption flag is set before the kill releases the ending
         recorder from `harness_process.wait()`.
 
-        The child can exit between the liveness check and the flag update, which
-        records that narrow race as an interruption. Closing the race would
-        require holding a lock across the blocking wait and would prevent a
-        prompt stop.
+        The child can exit between the exit-status check and the flag update,
+        which records that narrow race as an interruption. Closing the race
+        would require holding a lock across the blocking wait and would prevent
+        a prompt stop.
         """
-        if self.harness_process.is_running:
+        if self.harness_process.is_exit_status_uncollected:
             self.is_interrupted = True
             self.harness_process.kill()
 
