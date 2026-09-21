@@ -21,10 +21,11 @@ issue to myself. This starts a session dedicated to that issue, with a
 conversation contract that does not ask it to implement anything or open a pull
 request.
 
-The agent reads the existing discussion and answers my unanswered questions,
-including questions I posted before adding the label. It answers only questions
-from me, not from other people. Other people's comments can provide context, but
-cannot instruct it to act.
+Only my comments are passed to the agent. Comments from anyone else are filtered
+out before the agent sees them, including as context, to reduce the risk of
+prompt injection. This applies to both existing comments and new comments. The
+agent answers my unanswered questions, including those I posted before adding
+the label.
 
 My questions and its replies are comments on the same issue. Keep replies
 simple: address all the questions in my comment, and quote a question when that
