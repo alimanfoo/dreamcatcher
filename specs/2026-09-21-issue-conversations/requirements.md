@@ -40,10 +40,11 @@ Each round should answer against current main. It should check earlier findings
 again where relevant and explain when changes to the code affect an earlier
 answer. I do not need it pinned to the code from when the conversation began.
 
-It responds only while the issue is open, has the conversation label, and is
-assigned to me. Closing the issue, removing the label, or unassigning me stops
-responses. Keep the session available so restoring those conditions lets me
-continue the same conversation.
+Dreamcatcher watches for comments and responds only while the issue is open, has
+the conversation label, and is assigned to me. Closing the issue, removing the
+label, or unassigning me stops Dreamcatcher watching it for comments. Keep the
+saved session so the conversation can resume if the issue becomes eligible
+again, without polling comments on ineligible issues.
 
 Conversation and implementation are independent. A conversation partner does not
 claim the issue or prevent an implementation assignment. An implementation
