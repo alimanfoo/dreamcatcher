@@ -873,7 +873,9 @@ def test_a_created_pull_request_that_cannot_be_read_is_reconciled_next_time(
 ):
     gh.fails(stderr="gh: could not connect to github.com", to="pr view")
 
-    with pytest.raises(ReportableError, match="cannot create the pull request"):
+    with pytest.raises(
+        ReportableError, match=f"created the pull request for {BRANCH} but cannot read"
+    ):
         create_agent_assignment(
             state=state,
             route=route,
@@ -906,7 +908,7 @@ def test_a_pull_request_is_not_created_when_its_issue_title_cannot_be_read(
         to=f"issue view 12 --repo {REPOSITORY} --json title",
     )
 
-    with pytest.raises(ReportableError, match="cannot create the pull request"):
+    with pytest.raises(ReportableError, match="cannot read the title of GH12"):
         create_agent_assignment(
             state=state,
             route=route,

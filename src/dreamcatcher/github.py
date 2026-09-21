@@ -393,7 +393,11 @@ def list_pull_requests(
 def create_pull_request(
     *, repository: str, branch: str, issue: int
 ) -> PullRequest | UnknownGitHubResponse:
-    """Open the branch's linked draft pull request and return its identity."""
+    """Open the branch's linked draft pull request and return its identity.
+
+    An unknown response distinguishes a failure before creation from one that
+    leaves a created pull request whose identity could not be read.
+    """
     title_response = _read_github_response(
         response_adapter=GITHUB_ISSUE_TITLE_RESPONSE_ADAPTER,
         arguments=[
@@ -407,7 +411,9 @@ def create_pull_request(
         ],
     )
     if isinstance(title_response, UnknownGitHubResponse):
-        return title_response
+        return UnknownGitHubResponse(
+            reason=f"cannot read the title of GH{issue}: {title_response.reason}"
+        )
     reference = run_command(
         program="gh",
         arguments=[
@@ -426,7 +432,13 @@ def create_pull_request(
             f"Closes #{issue}",
         ],
     ).strip()
-    return _read_pull_request(repository=repository, reference=reference)
+    pull_request = _read_pull_request(repository=repository, reference=reference)
+    if isinstance(pull_request, UnknownGitHubResponse):
+        return UnknownGitHubResponse(
+            reason=f"created the pull request for {branch} but cannot read it: "
+            f"{pull_request.reason}"
+        )
+    return pull_request
 
 
 def read_pull_request(

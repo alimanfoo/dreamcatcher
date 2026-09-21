@@ -512,9 +512,7 @@ def _create_assignment_pull_request(*, repository: str, branch: str, issue: int)
         repository=repository, branch=branch, issue=issue
     )
     if isinstance(pull_request, UnknownGitHubResponse):
-        raise ReportableError(
-            f"cannot create the pull request for {branch}: {pull_request.reason}"
-        )
+        raise ReportableError(pull_request.reason)
     if pull_request.state is not PullRequestState.OPEN or not pull_request.is_draft:
         raise ReportableError(
             f"pull request #{pull_request.number} for {branch} was not created as "
