@@ -88,9 +88,10 @@ page. Its idiomorph extension adds one way of swapping: rather than replacing an
 element, it diffs the new HTML against the live element and edits only what
 differs, so untouched elements keep their identity, their focus and their state.
 Both files are vendored under `static/vendor/` with the version in each file's
-name and the licence beside them, pinned and never edited. A CDN would work as
-well, but a vendored file cannot change under us and tells no third party who is
-looking at the page.
+name, the licence beside them, and a note of each file's source, version and
+checksum, so a reviewer checks a file against its release rather than reading
+it. They are pinned and never edited. A CDN would work as well, but a vendored
+file cannot change under us and tells no third party who is looking at the page.
 
 The one script of our own is a few lines that keep the feed scrolled to its end,
 described below.
@@ -171,10 +172,13 @@ small read, which is what one pass of the `feed` view costs.
 tower settled for the `feed` and `assignment` views: follow through the gap
 between rounds, and through a gap where the daemon has stopped, because the next
 round may still arrive; stop when the assignment is complete or in fault,
-because neither has another round coming. When the feed is over the tail answers
-with status 286, which is htmx's signal to stop polling, and the page drops its
-live marker. A page of an assignment that is over is the same page, arriving at
-its end immediately.
+because neither has another round coming. When the feed is over and a poll has
+read nothing new, the tail answers with status 286, which is htmx's signal to
+stop polling. Answering only on an empty read gives output that lands after the
+last ending one more poll to arrive, which is the extra look the TUI's following
+views take. A page of an assignment that is over is the same page, arriving at
+its end immediately. There is no live marker: the status chip already says
+working, and the rounds section already shows the latest round running.
 
 **The reader's place is kept.** While the reader is at the bottom, every
 appended line scrolls the container to the bottom. If they scroll up to read
@@ -191,10 +195,10 @@ assignment has said is what the feed is for.
 
 **The status report, as the TUI reads it.** `status.read_status_report` gives
 the home page what it shows, and the assignment statuses give the assignment
-page its top. Where the status model today has only a sentence for a fact the
-page needs as a field, such as a round's duration, the fact is promoted into the
-model and the TUI keeps composing its sentence from it, so the terminal goldens
-hold.
+page its top. The pages reuse the descriptions the status model composes, such
+as a round's duration, wherever they say what the page needs. Where a page needs
+a fact that no description gives, the fact is promoted into the model and the
+TUI keeps composing its description from it, so the terminal goldens hold.
 
 **The feed, as it is written.** The feed on disk stays the plain text it is
 today: a timestamp, then either a bracketed label and its detail or a line of
@@ -275,12 +279,12 @@ and, separately, the latest observed state, for reporting only.
 
 Every time a page shows is in the viewer's local time. The `web` server runs on
 the viewer's machine, so the machine's zone is theirs. The TUI adapts to local
-time as well, as its own step before the pages land, so the terminal and the
-browser never disagree about when something happened. What is stored stays UTC:
-the feed's stamps and every record's times need an unambiguous instant that
-survives daylight saving. Every place that shows a time converts to a zone the
-caller passes, defaulting to the machine's, so a test pins a zone and renders
-the same on every platform.
+time as well, in the same stage as the pages, so the terminal and the browser
+never disagree about when something happened. What is stored stays UTC: the
+feed's stamps and every record's times need an unambiguous instant that survives
+daylight saving. Every place that shows a time converts to a zone the caller
+passes, defaulting to the machine's, so a test pins a zone and renders the same
+on every platform.
 
 ### The command
 
@@ -323,7 +327,9 @@ filed as a follow-up once there is a page to dress.
 
 A record that will not read produces a page carrying the reportable message,
 never a traceback, as the TUI does today. The web module raises and catches the
-same `ReportableError` the rest of the tool uses.
+same `ReportableError` the rest of the tool uses, and answers with status 500. A
+poll that fails leaves the page as it was, because htmx swaps no error answer.
+An assignment identifier nobody has answers with status 404 and a message.
 
 ### Cross-platform notes
 
@@ -360,7 +366,8 @@ New: `web.py`; `templates/` and `static/` beside it, with `static/vendor/`; the
 record; `pull_request_observation` on the assignment record and the assignment
 operation that records it; `title` in the GitHub issue projection and the two
 `gh` calls that read issues; the feed line parse in `feed.py`; a zone parameter
-wherever a time is shown.
+wherever a time is shown; a documented way to regenerate the goldens, which
+moving every shown time to the local zone needs and issue 104 asks for.
 
 Changed: the TUI shows local time; the TUI reads the feed label through
 `feed.py` instead of its own regex; the status model carries as fields what it
