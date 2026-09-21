@@ -1,4 +1,4 @@
-<article class="assignment-card{% if assignment.status == 'needs user feedback' %} needs-feedback{% endif %}">
+<article class="assignment-card{% if assignment.status == 'needs user feedback' %} needs-feedback{% endif %}" aria-label="Assignment #{{ assignment.issue }} {{ assignment.identifier }}">
   <div class="card-heading">
     <div><strong class="issue-number">#{{ assignment.issue }}</strong> <span class="identifier">{{ assignment.identifier }}</span></div>
     <span class="chip status-{{ assignment.status|replace(' ', '-') }}">[{{ assignment.status|upper }}]</span>

@@ -1,17 +1,17 @@
 """Render Dreamcatcher status reports as local web pages."""
 
+import errno
 import logging
 import zlib
 from collections.abc import Callable
-from contextlib import redirect_stderr, suppress
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime
-from io import StringIO
 from typing import Protocol
 from webbrowser import open as open_browser
 
 from flask import Flask, render_template
-from werkzeug.serving import BaseWSGIServer, make_server
+from werkzeug.serving import BaseWSGIServer
 
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.documents import read_text
@@ -33,6 +33,23 @@ WEB_HOST = "127.0.0.1"
 WEB_BASE_PORT = 8100
 WEB_PORT_RANGE = 400
 WEB_MAX_PORT = 65535
+
+
+class _WebServerBindError(Exception):
+    def __init__(self, *, error: OSError) -> None:
+        super().__init__(str(error))
+        self.error = error
+
+
+class _ExclusiveWebServer(BaseWSGIServer):
+    allow_reuse_address = False
+
+    def server_bind(self) -> None:
+        """Bind exclusively while preserving failures for the caller."""
+        try:
+            super().server_bind()
+        except OSError as error:
+            raise _WebServerBindError(error=error) from error
 
 
 class WebServerRunner(Protocol):
@@ -100,6 +117,7 @@ def create_app(
 ) -> Flask:
     """Create the read-only web application for one local state directory."""
     app = Flask(__name__)
+    app.config["TRUSTED_HOSTS"] = [WEB_HOST, "localhost"]
 
     @app.get("/")
     def show_home() -> str:
@@ -131,9 +149,9 @@ def serve_web(
     server = _create_web_server(state=state, port=port, application=application)
     address = f"http://{WEB_HOST}:{server.server_port}/"
     try:
-        print(address)
-        browser_opener(address)
         with suppress(KeyboardInterrupt):
+            browser_opener(address)
+            print(address, flush=True)
             server_runner(server=server)
     finally:
         server.server_close()
@@ -146,11 +164,15 @@ def _create_web_server(
     ending_port = starting_port if port is not None else WEB_MAX_PORT
     for candidate in range(starting_port, ending_port + 1):
         try:
-            with redirect_stderr(StringIO()):
-                return make_server(WEB_HOST, candidate, application, threaded=False)
-        except SystemExit:
-            if port is not None:
-                raise ReportableError(f"--port {port} is already in use") from None
+            return _ExclusiveWebServer(WEB_HOST, candidate, application)
+        except _WebServerBindError as failure:
+            if failure.error.errno == errno.EADDRINUSE:
+                if port is not None:
+                    raise ReportableError(f"--port {port} is already in use") from None
+                continue
+            raise ReportableError(
+                f"could not listen on port {candidate}: {failure.error}"
+            ) from None
     raise ReportableError(f"no free port is available from {starting_port}")
 
 

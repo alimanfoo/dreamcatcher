@@ -1,5 +1,6 @@
 """Render the web status view and read back its goldens."""
 
+import errno
 import inspect
 import logging
 import socket
@@ -19,13 +20,6 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.web import WEB_BASE_PORT, WEB_HOST, create_app, serve_web
-
-
-def find_unused_port() -> int:
-    """Return a port that a loopback socket can bind now."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as candidate:
-        candidate.bind((WEB_HOST, 0))
-        return candidate.getsockname()[1]
 
 
 def render_home(*, state: StateDirectory) -> str:
@@ -72,6 +66,16 @@ def test_a_record_that_will_not_read_renders_an_error_page(tmp_path, daemon):
     assert "Invalid JSON" in response.get_data(as_text=True)
 
 
+def test_the_home_page_rejects_a_non_loopback_host(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    application = create_app(state=state, clock=lambda: LOOKED_AT)
+
+    response = application.test_client().get("/", headers={"Host": "attacker.test"})
+
+    assert response.status_code == 400
+
+
 def test_one_repository_always_starts_on_the_same_port(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
@@ -89,6 +93,7 @@ def test_one_repository_always_starts_on_the_same_port(tmp_path):
         )
 
     assert ports[0] == ports[1]
+    assert ports[0] == 8262
 
 
 def test_an_occupied_starting_port_makes_the_scan_move_on(tmp_path):
@@ -154,11 +159,14 @@ def test_the_browser_receives_the_address_the_server_listens_on(
     def record_port(*, server):
         ports.append(server.server_port)
 
-    port = find_unused_port()
+    def record_address(address, /):
+        assert capsys.readouterr().out == ""
+        opened.append(address)
+
     serve_web(
         state=state,
-        port=port,
-        browser_opener=opened.append,
+        port=0,
+        browser_opener=record_address,
         server_runner=record_port,
     )
 
@@ -171,15 +179,34 @@ def test_the_browser_receives_the_address_the_server_listens_on(
 def test_an_interruption_ends_the_server_without_an_error(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
+    servers = []
 
     def interrupt(*, server):
+        servers.append(server)
         raise KeyboardInterrupt
 
     serve_web(
         state=state,
-        port=find_unused_port(),
+        port=0,
         browser_opener=lambda address: None,
         server_runner=interrupt,
+    )
+
+    assert servers[0].socket.fileno() == -1
+
+
+def test_an_interruption_while_opening_the_browser_ends_without_an_error(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+
+    def interrupt(address, /):
+        raise KeyboardInterrupt
+
+    serve_web(
+        state=state,
+        port=0,
+        browser_opener=interrupt,
+        server_runner=lambda *, server: None,
     )
 
 
@@ -187,7 +214,12 @@ def test_a_scan_with_no_free_port_says_so(tmp_path, monkeypatch):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
     monkeypatch.setattr(web_module, "WEB_MAX_PORT", WEB_BASE_PORT)
-    monkeypatch.setattr(web_module, "make_server", MagicMock(side_effect=SystemExit))
+    failure = web_module._WebServerBindError(
+        error=OSError(errno.EADDRINUSE, "address already in use")
+    )
+    monkeypatch.setattr(
+        web_module, "_ExclusiveWebServer", MagicMock(side_effect=failure)
+    )
 
     with pytest.raises(ReportableError, match="no free port"):
         serve_web(
@@ -195,6 +227,29 @@ def test_a_scan_with_no_free_port_says_so(tmp_path, monkeypatch):
             browser_opener=lambda address: None,
             server_runner=lambda *, server: None,
         )
+
+
+def test_a_bind_failure_other_than_contention_is_reported(tmp_path, monkeypatch):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    failure = web_module._WebServerBindError(
+        error=OSError(errno.EACCES, "permission denied")
+    )
+    monkeypatch.setattr(
+        web_module, "_ExclusiveWebServer", MagicMock(side_effect=failure)
+    )
+
+    with pytest.raises(ReportableError, match="permission denied"):
+        serve_web(
+            state=state,
+            port=0,
+            browser_opener=lambda address: None,
+            server_runner=lambda *, server: None,
+        )
+
+
+def test_the_web_server_refuses_address_reuse():
+    assert web_module._ExclusiveWebServer.allow_reuse_address is False
 
 
 def test_the_default_server_runner_serves_forever():
