@@ -49,8 +49,8 @@ from dreamcatcher.github import (
     UserPost,
     list_blocking_issues,
     list_issues,
-    list_linked_pull_requests,
     read_issue,
+    read_issue_pull_request_context,
     read_pull_request,
 )
 from dreamcatcher.harness_adapters import AgentRoundLaunchRequest
@@ -396,16 +396,25 @@ def _observe_external_claim(
     setup_failure = context.incomplete_setups.get(issue)
     if issue in context.incomplete_setups and setup_failure is None:
         return _compose_known_issue_fact(value=False)
-    linked = list_linked_pull_requests(repository=context.repository, issue=issue)
-    if isinstance(linked, UnknownGitHubResponse):
+    pull_request_context = read_issue_pull_request_context(
+        repository=context.repository, issue=issue
+    )
+    if isinstance(pull_request_context, UnknownGitHubResponse):
         if setup_failure is not None:
             return _compose_unknown_issue_fact(evidence=setup_failure)
         return _compose_unknown_issue_fact(
-            evidence=f"cannot tell whether a pull request claims it: {linked.reason}"
+            evidence=(
+                "cannot tell whether a pull request claims it: "
+                f"{pull_request_context.reason}"
+            )
         )
     assignment = context.assignments.get(issue)
     owned = None if assignment is None else assignment.record.pull_request
-    external = [pull_request for pull_request in linked if pull_request.number != owned]
+    external = [
+        pull_request
+        for pull_request in pull_request_context.pull_requests
+        if pull_request.number != owned
+    ]
     external_pull_requests = ", ".join(
         f"#{pull_request.number}" for pull_request in external
     )

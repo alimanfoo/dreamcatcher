@@ -6,15 +6,16 @@ import pytest
 
 from dreamcatcher.github import (
     Issue,
+    IssuePullRequestContext,
     PullRequest,
     PullRequestState,
     identify_github_account,
     identify_github_repository,
     list_blocking_issues,
     list_issues,
-    list_linked_pull_requests,
     list_pull_requests,
     read_issue,
+    read_issue_pull_request_context,
 )
 
 pytestmark = pytest.mark.integration
@@ -69,7 +70,8 @@ def test_a_branch_that_never_existed_comes_back_empty():
 
 def test_gh_takes_the_linked_pull_requests_command():
     assert isinstance(
-        list_linked_pull_requests(repository=REPOSITORY, issue=BLOCKED), list
+        read_issue_pull_request_context(repository=REPOSITORY, issue=BLOCKED),
+        IssuePullRequestContext,
     )
 
 
