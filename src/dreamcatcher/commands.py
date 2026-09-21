@@ -56,7 +56,7 @@ class CommandError(ReportableError):
 
 @dataclass(frozen=True, kw_only=True)
 class ChildProcess:
-    """Represent a running child process with stdout and stderr pipes."""
+    """Represent a child process with stdout and stderr pipes."""
 
     out: IO[str]
     err: IO[str]
