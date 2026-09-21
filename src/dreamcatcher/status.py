@@ -51,6 +51,16 @@ class AgentAssignmentStatusValue(StrEnum):
     UNKNOWN = "unknown"
 
 
+ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER = (
+    AgentAssignmentStatusValue.NEEDS_USER_FEEDBACK,
+    AgentAssignmentStatusValue.FAULT,
+    AgentAssignmentStatusValue.WORKING,
+    AgentAssignmentStatusValue.WAITING,
+    AgentAssignmentStatusValue.UNKNOWN,
+    AgentAssignmentStatusValue.COMPLETE,
+)
+
+
 @dataclass(frozen=True, kw_only=True)
 class AgentRoundStatus:
     """Describe one agent round for a status view."""

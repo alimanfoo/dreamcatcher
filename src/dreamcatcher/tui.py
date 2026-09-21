@@ -33,6 +33,7 @@ from dreamcatcher.feed import (
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
+    ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
     AgentAssignmentStatus,
     AgentAssignmentStatusValue,
     DreamcatcherStatusReport,
@@ -44,14 +45,13 @@ from dreamcatcher.status import (
 from dreamcatcher.words import describe_count, describe_span, describe_time
 
 # What each assignment summary is set in, so a reader can scan the status table.
-ASSIGNMENT_STATUS_STYLES_IN_ATTENTION_ORDER = {
-    AgentAssignmentStatusValue.NEEDS_USER_FEEDBACK: "yellow",
-    AgentAssignmentStatusValue.FAULT: "red",
-    AgentAssignmentStatusValue.WORKING: "green",
-    AgentAssignmentStatusValue.WAITING: "cyan",
-    AgentAssignmentStatusValue.UNKNOWN: "magenta",
-    AgentAssignmentStatusValue.COMPLETE: "dim",
-}
+ASSIGNMENT_STATUS_STYLES = dict(
+    zip(
+        ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
+        ("yellow", "red", "green", "cyan", "magenta", "dim"),
+        strict=True,
+    )
+)
 
 STATUSES_THAT_END_A_VIEW = (
     AgentAssignmentStatusValue.FAULT,
@@ -296,7 +296,7 @@ def _render_assignments(
         return None
     ordered = sorted(
         assignments,
-        key=lambda status: tuple(ASSIGNMENT_STATUS_STYLES_IN_ATTENTION_ORDER).index(
+        key=lambda status: ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER.index(
             status.value
         ),
     )
@@ -312,7 +312,7 @@ def _render_assignments(
             Text(status.assignment.identifier),
             Text(
                 str(status.value),
-                style=ASSIGNMENT_STATUS_STYLES_IN_ATTENTION_ORDER[status.value],
+                style=ASSIGNMENT_STATUS_STYLES[status.value],
             ),
             Text(
                 ", ".join(
@@ -463,7 +463,7 @@ def _render_assignment(
                 status=current_status,
                 prefix=str(current_status.value),
                 continuation_indent=SECTION_PADDING[3],
-                style=ASSIGNMENT_STATUS_STYLES_IN_ATTENTION_ORDER[current_status.value],
+                style=ASSIGNMENT_STATUS_STYLES[current_status.value],
             ),
             _render_assignment_summary(state=state, status=current_status),
             _render_rounds(status=current_status),
@@ -564,7 +564,7 @@ def _render_older_assignments(
             Text(f"agent assignment {status.assignment.identifier}"),
             Text(
                 str(status.value),
-                style=ASSIGNMENT_STATUS_STYLES_IN_ATTENTION_ORDER[status.value],
+                style=ASSIGNMENT_STATUS_STYLES[status.value],
             ),
             _render_assignment_detail(status=status),
         )
