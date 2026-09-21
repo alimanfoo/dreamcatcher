@@ -8,10 +8,10 @@ Run `uv run uncoded sync` first. Git ignores the index it writes under
 `.uncoded/`, so a fresh clone or worktree holds none of it, and both skills
 below read the index.
 
-- Load the `uncoded-code-navigation` skill once, before searching, reading or
-  editing any code.
-- Load the `uncoded-doc-navigation` skill once, before searching, reading or
-  editing any docs.
+- Load the `uncoded-code-navigation` skill once per session, before searching,
+  reading or editing any code.
+- Load the `uncoded-doc-navigation` skill once per session, before searching,
+  reading or editing any docs.
 
 ## What this is
 
