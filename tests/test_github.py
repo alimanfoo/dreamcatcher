@@ -29,7 +29,6 @@ from dreamcatcher.github import (
     list_pull_requests,
     list_user_posts,
     read_issue,
-    read_issue_title,
     read_pull_request,
 )
 
@@ -141,24 +140,6 @@ def test_one_issue_carries_its_state_assignees_and_labels(fake):
     ]
 
 
-def test_one_issue_title_is_read(fake):
-    gh = fake(program="gh")
-    gh.replies(stdout=json.dumps({"title": "Use the issue title"}))
-
-    found = read_issue_title(repository=REPOSITORY, issue=8)
-
-    assert found == "Use the issue title"
-    assert gh.calls[0].arguments == [
-        "issue",
-        "view",
-        "8",
-        "--repo",
-        REPOSITORY,
-        "--json",
-        "title",
-    ]
-
-
 def test_the_pull_requests_of_a_branch_come_back_with_their_states(fake):
     gh = fake(program="gh")
     gh.replies(
@@ -197,6 +178,7 @@ def test_a_branch_with_no_pull_request_comes_back_empty(fake):
 
 def test_a_linked_draft_pull_request_is_opened_for_the_assignment_branch(fake):
     gh = fake(program="gh")
+    gh.replies(stdout=json.dumps({"title": "Use the issue title"}), to="issue view")
     gh.replies(
         stdout="https://github.com/alimanfoo/dreamcatcher/pull/28\n", to="pr create"
     )
@@ -205,15 +187,19 @@ def test_a_linked_draft_pull_request_is_opened_for_the_assignment_branch(fake):
         to="pr view",
     )
 
-    created = create_pull_request(
-        repository=REPOSITORY,
-        branch=BRANCH,
-        issue=8,
-        title="Use the issue title",
-    )
+    created = create_pull_request(repository=REPOSITORY, branch=BRANCH, issue=8)
 
     assert created == PullRequest(number=28, state=PullRequestState.OPEN, isDraft=True)
     assert gh.calls[0].arguments == [
+        "issue",
+        "view",
+        "8",
+        "--repo",
+        REPOSITORY,
+        "--json",
+        "title",
+    ]
+    assert gh.calls[1].arguments == [
         "pr",
         "create",
         "--repo",
@@ -228,7 +214,7 @@ def test_a_linked_draft_pull_request_is_opened_for_the_assignment_branch(fake):
         "--body",
         "Closes #8",
     ]
-    assert gh.calls[1].arguments == [
+    assert gh.calls[2].arguments == [
         "pr",
         "view",
         "https://github.com/alimanfoo/dreamcatcher/pull/28",
@@ -502,10 +488,6 @@ def test_a_recorded_inline_comment_carries_the_diff_it_was_written_against(
             id="a listing",
         ),
         pytest.param(lambda: read_issue(repository=REPOSITORY, issue=9), id="an issue"),
-        pytest.param(
-            lambda: read_issue_title(repository=REPOSITORY, issue=9),
-            id="an issue title",
-        ),
         pytest.param(
             lambda: list_pull_requests(repository=REPOSITORY, branch=BRANCH),
             id="the pull requests",

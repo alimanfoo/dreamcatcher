@@ -365,25 +365,6 @@ def read_issue(*, repository: str, issue: int) -> Issue | UnknownGitHubResponse:
     )
 
 
-def read_issue_title(*, repository: str, issue: int) -> str | UnknownGitHubResponse:
-    """Return the current title of one issue."""
-    title_response = _read_github_response(
-        response_adapter=GITHUB_ISSUE_TITLE_RESPONSE_ADAPTER,
-        arguments=[
-            "issue",
-            "view",
-            str(issue),
-            "--repo",
-            repository,
-            "--json",
-            "title",
-        ],
-    )
-    if isinstance(title_response, UnknownGitHubResponse):
-        return title_response
-    return title_response.title
-
-
 def list_pull_requests(
     *, repository: str, branch: str
 ) -> list[PullRequest] | UnknownGitHubResponse:
@@ -410,9 +391,23 @@ def list_pull_requests(
 
 
 def create_pull_request(
-    *, repository: str, branch: str, issue: int, title: str
+    *, repository: str, branch: str, issue: int
 ) -> PullRequest | UnknownGitHubResponse:
     """Open the branch's linked draft pull request and return its identity."""
+    title_response = _read_github_response(
+        response_adapter=GITHUB_ISSUE_TITLE_RESPONSE_ADAPTER,
+        arguments=[
+            "issue",
+            "view",
+            str(issue),
+            "--repo",
+            repository,
+            "--json",
+            "title",
+        ],
+    )
+    if isinstance(title_response, UnknownGitHubResponse):
+        return title_response
     reference = run_command(
         program="gh",
         arguments=[
@@ -426,7 +421,7 @@ def create_pull_request(
             branch,
             "--draft",
             "--title",
-            title,
+            title_response.title,
             "--body",
             f"Closes #{issue}",
         ],
