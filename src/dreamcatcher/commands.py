@@ -69,11 +69,10 @@ class ChildProcess:
 
     @property
     def is_exit_status_uncollected(self) -> bool:
-        """Whether nobody has collected the child's exit status yet.
+        """Whether the child's exit status is still uncollected.
 
-        The answer is no once somebody has waited for the child and collected
-        the status it ended with. The answer remains yes when the child has
-        ended but nobody has waited for it yet.
+        `Popen.wait` and `Popen.poll` both collect the status. Until one does,
+        the answer remains yes when the child has ended.
         """
         return self.process.returncode is None
 
@@ -88,12 +87,12 @@ class ChildProcess:
         return status
 
     def kill(self) -> None:
-        """End the child's process group while its exit status is uncollected.
+        """End the child's contained process tree while its status is uncollected.
 
-        After `wait` collects the status, the child has gone and the operating
-        system is free to give its pid to somebody else, so this leaves it
-        alone. `wait` does signal at that point, because there the two
-        statements sit next to each other, while a kill can come long
+        After waiting or polling collects the status, the child has gone and
+        the operating system is free to give its pid to somebody else, so this
+        leaves it alone. `wait` does signal at that point, because there the
+        two statements sit next to each other, while a kill can come long
         afterwards.
         """
         if self.is_exit_status_uncollected:

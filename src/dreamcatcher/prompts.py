@@ -1,4 +1,4 @@
-"""Compose the prompts that start and resume agent rounds.
+"""Compose prompts for agent rounds.
 
 Every composed prompt includes the marker that prevents the relay from treating
 an agent's GitHub posts as user input.
@@ -59,11 +59,11 @@ assignment's rules. End your turn when done."""
 
 
 def compose_first_round_prompt(*, template: str, issue: int) -> str:
-    """Return the prompt that starts an assignment's first round.
+    """Return the first-round prompt for an issue.
 
-    The template is the label's own, from the config, and the issue's number
-    replaces the placeholder in it. Anything else that the template holds in
-    braces reaches the first round as it was written.
+    The selected assignment recipe supplies the template, and the issue's
+    number replaces the placeholder in it. Anything else that the template
+    holds in braces reaches the first round as it was written.
     """
     return template.replace(ISSUE_PLACEHOLDER, str(issue)) + AGENT_POST_INSTRUCTIONS
 

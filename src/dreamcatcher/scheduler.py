@@ -545,7 +545,11 @@ def list_assignment_observations(
     inspection_results: list[AgentAssignmentInspectionResult],
     required_reason: str | None = None,
 ) -> list[AgentAssignmentObservation]:
-    """Return one operational observation for every inspection result."""
+    """Return an agent assignment observation for every inspection result.
+
+    When `required_reason` is given, it replaces the reason of each required
+    round. Existing observation and fault reasons remain unchanged.
+    """
     return [
         result
         if isinstance(result, AgentAssignmentObservation)
