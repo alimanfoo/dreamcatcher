@@ -56,7 +56,7 @@ class CommandError(ReportableError):
 
 @dataclass(frozen=True, kw_only=True)
 class ChildProcess:
-    """Represent a running child process with stdout and stderr pipes."""
+    """Represent a child process with stdout and stderr pipes."""
 
     out: IO[str]
     err: IO[str]
@@ -68,15 +68,11 @@ class ChildProcess:
         return self.process.pid
 
     @property
-    def is_running(self) -> bool:
-        """Whether nobody has collected the child's exit status yet.
+    def is_exit_status_uncollected(self) -> bool:
+        """Whether the child's exit status is still uncollected.
 
-        The answer is no once somebody has waited for the child and collected
-        the status it ended with. So a child that has ended, and that nobody
-        has waited for yet, still reads as running.
-
-        The child can exit after this property returns, so a true result may
-        already be stale when the caller acts on it.
+        `Popen.wait` and `Popen.poll` both collect the status. Until one does,
+        the answer remains yes when the child has ended.
         """
         return self.process.returncode is None
 
@@ -91,14 +87,15 @@ class ChildProcess:
         return status
 
     def kill(self) -> None:
-        """End the child's contained process group if it is still running.
+        """End the child's contained process tree while its status is uncollected.
 
-        A child that has gone leaves the operating system free to give its pid
-        to somebody else, so this leaves it alone. `wait` does signal at that
-        point, because there the two statements sit next to each other, while a
-        kill can come long afterwards.
+        After waiting or polling collects the status, the child has gone and
+        the operating system is free to give its pid to somebody else, so this
+        leaves it alone. `wait` does signal at that point, because there the
+        two statements sit next to each other, while a kill can come long
+        afterwards.
         """
-        if self.is_running:
+        if self.is_exit_status_uncollected:
             teardown.end_process_tree(pid=self.pid)
 
 
