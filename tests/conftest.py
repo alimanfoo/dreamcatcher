@@ -31,6 +31,8 @@ PULL_REQUEST = 52
 
 POSTED_BY = "alimanfoo"
 
+DAEMON_PID = 4242
+
 # When the tests say the user posted on that pull request, and the piece of the
 # diff that they wrote an inline comment against.
 POSTED_AT = "2026-09-03T22:19:55Z"
@@ -71,6 +73,12 @@ effort = "xhigh"
 """
 
 CONFIG = SMITH_CLAUDE + SMITH_CODEX
+
+
+@pytest.fixture
+def daemon(monkeypatch):
+    """Answer that the fabricated daemon, and nothing else, is still running."""
+    monkeypatch.setattr(psutil, "pid_exists", lambda pid: pid == DAEMON_PID)
 
 
 def pytest_configure(config: pytest.Config) -> None:

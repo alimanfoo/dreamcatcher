@@ -5,11 +5,9 @@ import logging
 import socket
 from unittest.mock import MagicMock
 
-import psutil
 import pytest
 from conftest import FIXTURES, REPOSITORY
 from status_fabrications import (
-    DAEMON_PID,
     LOOKED_AT,
     STATUS_REPORTS,
     fabricate_everything,
@@ -28,12 +26,6 @@ def find_unused_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as candidate:
         candidate.bind((WEB_HOST, 0))
         return candidate.getsockname()[1]
-
-
-@pytest.fixture
-def daemon(monkeypatch):
-    """Answer that the fabricated daemon, and nothing else, is still running."""
-    monkeypatch.setattr(psutil, "pid_exists", lambda pid: pid == DAEMON_PID)
 
 
 def render_home(*, state: StateDirectory) -> str:
@@ -195,7 +187,7 @@ def test_a_scan_with_no_free_port_says_so(tmp_path, monkeypatch):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
     monkeypatch.setattr(web_module, "WEB_MAX_PORT", WEB_BASE_PORT)
-    monkeypatch.setattr(web_module, "_can_bind_to_port", lambda *, port: False)
+    monkeypatch.setattr(web_module, "make_server", MagicMock(side_effect=SystemExit))
 
     with pytest.raises(ReportableError, match="no free port"):
         serve_web(

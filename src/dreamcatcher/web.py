@@ -1,12 +1,12 @@
 """Render Dreamcatcher status reports as local web pages."""
 
 import logging
-import socket
 import zlib
 from collections.abc import Callable
-from contextlib import suppress
+from contextlib import redirect_stderr, suppress
 from dataclasses import dataclass
 from datetime import datetime
+from io import StringIO
 from typing import Protocol
 from webbrowser import open as open_browser
 
@@ -23,6 +23,7 @@ from dreamcatcher.status import (
     AgentAssignmentStatusValue,
     DreamcatcherStatusReport,
     FailedAssignmentSetupStatus,
+    IssueFactValue,
     IssueObservation,
     read_status_report,
 )
@@ -58,7 +59,6 @@ class WebAssignmentCard:
     identifier: str
     issue: int
     status: str
-    status_class: str
     detail: str
     harness: str
     model: str
@@ -74,16 +74,7 @@ class WebIssueRow:
     issue: int
     labels: str
     status: str
-    status_class: str
     evidence: str | None
-
-
-@dataclass(frozen=True, kw_only=True)
-class WebFailedSetupRow:
-    """Represent one failed assignment setup row."""
-
-    issue: int
-    failure: str
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -97,11 +88,9 @@ class WebHomeView:
     cooldown_message: str | None
     active_assignments: tuple[WebAssignmentCard, ...]
     complete_assignments: tuple[WebAssignmentCard, ...]
-    assignment_count: str
-    failed_setups: tuple[WebFailedSetupRow, ...]
+    failed_setups: tuple[FailedAssignmentSetupStatus, ...]
     available_issues: tuple[WebIssueRow, ...]
     blocked_issues: tuple[WebIssueRow, ...]
-    issue_count: str
 
 
 def create_app(
@@ -137,11 +126,10 @@ def serve_web(
     server_runner: WebServerRunner = _run_server,
 ) -> None:
     """Serve one local status page, open it, and run until interrupted."""
-    selected_port = _select_web_port(state=state, port=port)
     logging.getLogger("werkzeug").setLevel(logging.ERROR)
     application = create_app(state=state)
-    server = make_server(WEB_HOST, selected_port, application, threaded=False)
-    address = f"http://{WEB_HOST}:{selected_port}/"
+    server = _create_web_server(state=state, port=port, application=application)
+    address = f"http://{WEB_HOST}:{server.server_port}/"
     try:
         print(address)
         browser_opener(address)
@@ -151,15 +139,18 @@ def serve_web(
         server.server_close()
 
 
-def _select_web_port(*, state: StateDirectory, port: int | None) -> int:
-    if port is not None:
-        if _can_bind_to_port(port=port):
-            return port
-        raise ReportableError(f"--port {port} is already in use")
-    starting_port = _derive_starting_port(state=state)
-    for candidate in range(starting_port, WEB_MAX_PORT + 1):
-        if _can_bind_to_port(port=candidate):
-            return candidate
+def _create_web_server(
+    *, state: StateDirectory, port: int | None, application: Flask
+) -> BaseWSGIServer:
+    starting_port = port if port is not None else _derive_starting_port(state=state)
+    ending_port = starting_port if port is not None else WEB_MAX_PORT
+    for candidate in range(starting_port, ending_port + 1):
+        try:
+            with redirect_stderr(StringIO()):
+                return make_server(WEB_HOST, candidate, application, threaded=False)
+        except SystemExit:
+            if port is not None:
+                raise ReportableError(f"--port {port} is already in use") from None
     raise ReportableError(f"no free port is available from {starting_port}")
 
 
@@ -169,15 +160,6 @@ def _derive_starting_port(*, state: StateDirectory) -> int:
     repository = read_text(path=state.repository).strip()
     repository_digest = zlib.crc32(repository.encode("utf-8"))
     return WEB_BASE_PORT + repository_digest % WEB_PORT_RANGE
-
-
-def _can_bind_to_port(*, port: int) -> bool:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as candidate:
-        try:
-            candidate.bind((WEB_HOST, port))
-        except OSError:
-            return False
-    return True
 
 
 def _compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
@@ -200,7 +182,6 @@ def _compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
         for assignment in assignments
         if assignment not in complete_assignments
     )
-    issue_count = len(report.available_issues) + len(report.blocked_issues)
     return WebHomeView(
         repository=report.repository or "repository unknown",
         daemon_state="stopped" if report.daemon_pid is None else "running",
@@ -216,20 +197,13 @@ def _compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
         ),
         active_assignments=active_assignments,
         complete_assignments=complete_assignments,
-        assignment_count=f"{len(assignments):02d}",
-        failed_setups=tuple(
-            _compose_failed_setup_row(setup=setup)
-            for setup in report.failed_assignment_setups
-        ),
+        failed_setups=tuple(report.failed_assignment_setups),
         available_issues=tuple(
-            _compose_issue_row(observation=issue, status="available")
-            for issue in report.available_issues
+            _compose_issue_row(observation=issue) for issue in report.available_issues
         ),
         blocked_issues=tuple(
-            _compose_issue_row(observation=issue, status="blocked")
-            for issue in report.blocked_issues
+            _compose_issue_row(observation=issue) for issue in report.blocked_issues
         ),
-        issue_count=f"{issue_count:02d}",
     )
 
 
@@ -243,8 +217,7 @@ def _compose_assignment_card(*, status: AgentAssignmentStatus) -> WebAssignmentC
     return WebAssignmentCard(
         identifier=assignment.identifier,
         issue=assignment.record.issue,
-        status=str(status.value).upper(),
-        status_class=str(status.value).replace(" ", "-"),
+        status=str(status.value),
         detail=f"{round_prefix}{status.detail}",
         harness=str(assignment.record.harness),
         model=assignment.record.model,
@@ -254,21 +227,15 @@ def _compose_assignment_card(*, status: AgentAssignmentStatus) -> WebAssignmentC
     )
 
 
-def _compose_issue_row(*, observation: IssueObservation, status: str) -> WebIssueRow:
-    evidence = observation.blocked.evidence if status == "blocked" else None
+def _compose_issue_row(*, observation: IssueObservation) -> WebIssueRow:
+    is_blocked = observation.blocked.value is IssueFactValue.TRUE
+    status = "blocked" if is_blocked else "available"
     return WebIssueRow(
         issue=observation.issue,
         labels=", ".join(observation.dispatch_labels or []),
-        status=status.upper(),
-        status_class=status,
-        evidence=evidence,
+        status=status,
+        evidence=observation.blocked.evidence if is_blocked else None,
     )
-
-
-def _compose_failed_setup_row(
-    *, setup: FailedAssignmentSetupStatus
-) -> WebFailedSetupRow:
-    return WebFailedSetupRow(issue=setup.issue, failure=setup.failure)
 
 
 def _describe_daemon(*, report: DreamcatcherStatusReport) -> str:

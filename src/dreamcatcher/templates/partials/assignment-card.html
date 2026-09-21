@@ -1,7 +1,7 @@
-<article class="assignment-card{% if assignment.status_class == 'needs-user-feedback' %} needs-feedback{% endif %}">
+<article class="assignment-card{% if assignment.status == 'needs user feedback' %} needs-feedback{% endif %}">
   <div class="card-heading">
     <div><strong class="issue-number">#{{ assignment.issue }}</strong> <span class="identifier">{{ assignment.identifier }}</span></div>
-    <span class="chip status-{{ assignment.status_class }}">[{{ assignment.status }}]</span>
+    <span class="chip status-{{ assignment.status|replace(' ', '-') }}">[{{ assignment.status|upper }}]</span>
   </div>
   <p class="assignment-detail">{{ assignment.detail }}</p>
   {% if assignment.latest_output %}<p class="latest-output"><span>[AGENT]</span> {{ assignment.latest_output }}</p>{% endif %}

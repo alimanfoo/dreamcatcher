@@ -11,7 +11,6 @@ same text.
 from datetime import timedelta
 from io import StringIO
 
-import psutil
 import pytest
 from clocks import PINNED
 from conftest import FIXTURES
@@ -21,7 +20,6 @@ from rich.control import Control
 from rich.text import Text
 from status_fabrications import (
     ASSIGNMENT_TIMESTAMP,
-    DAEMON_PID,
     LOOKED_AT,
     SAID,
     STATUS_REPORTS,
@@ -64,12 +62,6 @@ HEIGHT = 40
 # rather than spelled out again here.
 SCREEN_TAKEN = Control.alt_screen(True).segment.text
 SCREEN_HANDED_BACK = Control.alt_screen(False).segment.text
-
-
-@pytest.fixture
-def daemon(monkeypatch):
-    """Answer that the fabricated daemon, and nothing else, is still running."""
-    monkeypatch.setattr(psutil, "pid_exists", lambda pid: pid == DAEMON_PID)
 
 
 # The feed view each fabricated state directory is worth reading, by the issue

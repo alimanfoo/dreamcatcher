@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from datetime import timedelta
 
 from clocks import PINNED
-from conftest import DISPATCH_LABEL, REPOSITORY, configure
+from conftest import DAEMON_PID, DISPATCH_LABEL, REPOSITORY, configure
 from observations import observed_issue
 from records import (
     write_agent_assignment,
@@ -29,7 +29,6 @@ from dreamcatcher.scheduler import (
 )
 
 LOOKED_AT = PINNED + timedelta(hours=2)
-DAEMON_PID = 4242
 ASSIGNMENT_TIMESTAMP = "20260819-184158"
 HARNESS_SESSION_IDENTIFIER = "abc-123"
 
