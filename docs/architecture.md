@@ -277,6 +277,13 @@ reporting an unknown state.
 It should not rediscover status, scheduling, or lifecycle rules while choosing
 headings and colors.
 
+### Web
+
+`web.py` renders status reports and feeds as HTML. It owns presentation only and
+depends on the status and feed models; neither model depends on it. It should
+not rediscover status, scheduling, or lifecycle rules while choosing markup and
+styles.
+
 ### Configuration, dispatch labels, and routes
 
 `config.py` owns the strict model for `dreamcatcher.toml`. A `DispatchRoute`

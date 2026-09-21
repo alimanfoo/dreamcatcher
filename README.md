@@ -152,8 +152,27 @@ Removing the label is how you say stop.
 One daemon watches one repo. A second `run` on the same repo refuses while the
 first is alive.
 
-The CLI has three read-only views: `status`, `assignment` and `feed`. Each view
-reads the local `.dreamcatcher/` directory and never contacts GitHub.
+The `web` verb serves the status report on the loopback interface and opens it
+in your default browser. It reads the local `.dreamcatcher/` directory, never
+contacts GitHub and works whether or not the daemon is running.
+
+```sh
+dreamcatcher web
+```
+
+The default port is stable for each repository. Dreamcatcher hashes the recorded
+`owner/name` into a range of 400 ports starting at 8100, then scans upward for
+the first free port. A state directory with no repository record starts at 8100.
+Use `--port` to require one port exactly; the command reports an error when that
+port is already in use.
+
+```sh
+dreamcatcher web --port 8123
+```
+
+The CLI also has three terminal read-only views: `status`, `assignment` and
+`feed`. Each view reads the local `.dreamcatcher/` directory and never contacts
+GitHub.
 
 Every view refreshes automatically in a terminal. `status` runs until you
 interrupt it. `assignment` and `feed` run until the assignment completes or
