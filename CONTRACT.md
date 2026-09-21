@@ -67,27 +67,27 @@ dreamcatcher's prompt says what the round is for.
 
 ### User posts and feedback
 
-dreamcatcher's prompt names a JSON file and asks the agent to read it. `state`
-in that file says where the pull request has got to, and `posts` holds every
-user post not delivered to an earlier round, oldest first. These posts are the
-user's feedback.
+dreamcatcher's prompt names a JSON file and asks the agent to read it.
+`pull_request_state` in that file says where the pull request has got to, and
+`user_posts` holds every user post not delivered to an earlier round, oldest
+first. These posts are the user's feedback.
 
-An assignment skill must instruct the agent to read `state` before anything
-else, and, when `state` reads `OPEN`, to act on every user post and reply on the
-pull request. dreamcatcher advances the assignment's user-post delivery cursor
-after the round starts. Once that write lands, later ticks do not deliver that
-post again.
+An assignment skill must instruct the agent to read `pull_request_state` before
+anything else, and, when `pull_request_state` reads `OPEN`, to act on every user
+post in `user_posts` and reply on the pull request. dreamcatcher advances the
+assignment's user-post delivery cursor after the round starts. Once that write
+lands, later ticks do not deliver that post again.
 
 ### A merged or closed pull request
 
 dreamcatcher gives the agent a wrap-up round when the user merges or closes the
-pull request, with the same prompt naming the same file. `state` then reads
-`MERGED` or `CLOSED`, so an assignment skill that needs to distinguish the two
-states reads `state`. `posts` still holds any feedback that the user posted
-before merging or closing.
+pull request, with the same prompt naming the same file. `pull_request_state`
+then reads `MERGED` or `CLOSED`, so an assignment skill that needs to
+distinguish the two states reads `pull_request_state`. `user_posts` still holds
+any feedback that the user posted before merging or closing.
 
-An assignment skill must instruct the agent to wind the work up when `state`
-reads anything but `OPEN`.
+An assignment skill must instruct the agent to wind the work up when
+`pull_request_state` reads anything but `OPEN`.
 
 ### A recovery round
 
@@ -95,7 +95,7 @@ A recovery round follows a round that was interrupted or exited with an error.
 While the pull request is open, dreamcatcher's prompt says that the previous
 round did not finish and asks the agent to carry on. A recovery round on a
 merged or closed pull request receives the user-posts prompt instead, whose
-`state` tells the agent to wind up.
+`pull_request_state` tells the agent to wind up.
 
 An assignment skill needs nothing of its own for recovery. The resumed agent
 still has its own transcript, and dreamcatcher's prompt is enough to carry it
