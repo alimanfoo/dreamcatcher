@@ -7,6 +7,7 @@ from clocks import PINNED
 from conftest import configure
 from records import write_agent_assignment, write_feed, write_round
 
+from dreamcatcher import web
 from dreamcatcher.agent_assignments import read_agent_assignments_for_issue
 from dreamcatcher.agent_rounds import (
     AgentRoundPurpose,
@@ -96,6 +97,35 @@ def test_a_checkout_no_daemon_has_watched_has_nothing_to_show(
 
     assert main(argv=["status"]) == 1
     assert "nothing to show" in capsys.readouterr().err
+
+
+def test_web_serves_the_state_directory_in_the_current_checkout(monkeypatch, watching):
+    monkeypatch.chdir(watching.root)
+    served = []
+
+    def record_server(*, state, port):
+        served.append((state, port))
+
+    monkeypatch.setattr(web, "serve_web", record_server)
+
+    assert main(argv=["web", "--port", "8123"]) == 0
+    assert served == [(watching, 8123)]
+
+
+def test_web_refuses_a_checkout_no_daemon_has_watched(monkeypatch, tmp_path, capsys):
+    monkeypatch.chdir(tmp_path)
+
+    assert main(argv=["web"]) == 1
+    assert "nothing to show" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("port", ["0", "65536", "not-a-port"])
+def test_web_refuses_an_invalid_port(port, capsys):
+    with pytest.raises(SystemExit) as exit_info:
+        main(argv=["web", "--port", port])
+
+    assert exit_info.value.code == 2
+    assert "--port" in capsys.readouterr().err
 
 
 def test_status_shows_every_assignment(monkeypatch, watching, capsys):
@@ -249,7 +279,9 @@ def test_status_takes_no_issue(capsys):
     assert "GH13" in capsys.readouterr().err
 
 
-@pytest.mark.parametrize("verb", ["run", "retry", "status", "assignment", "feed"])
+@pytest.mark.parametrize(
+    "verb", ["run", "retry", "web", "status", "assignment", "feed"]
+)
 def test_every_verb_describes_itself_in_its_own_help(verb, capsys):
     with pytest.raises(SystemExit) as exit_info:
         main(argv=[verb, "--help"])

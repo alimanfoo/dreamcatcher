@@ -1,10 +1,13 @@
 """Render the web status view and read back its goldens."""
 
 import inspect
+import logging
+import socket
+from unittest.mock import MagicMock
 
 import psutil
 import pytest
-from conftest import FIXTURES
+from conftest import FIXTURES, REPOSITORY
 from status_fabrications import (
     DAEMON_PID,
     LOOKED_AT,
@@ -14,9 +17,17 @@ from status_fabrications import (
 
 import dreamcatcher.web as web_module
 from dreamcatcher.documents import append_text, write_text
+from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.state import StateDirectory
-from dreamcatcher.web import create_app
+from dreamcatcher.web import WEB_BASE_PORT, WEB_HOST, create_app, serve_web
+
+
+def find_unused_port() -> int:
+    """Return a port that a loopback socket can bind now."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as candidate:
+        candidate.bind((WEB_HOST, 0))
+        return candidate.getsockname()[1]
 
 
 @pytest.fixture
@@ -67,6 +78,139 @@ def test_a_record_that_will_not_read_renders_an_error_page(tmp_path, daemon):
 
     assert response.status_code == 500
     assert "Invalid JSON" in response.get_data(as_text=True)
+
+
+def test_one_repository_always_starts_on_the_same_port(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    write_text(text=f"{REPOSITORY}\n", path=state.repository)
+    ports = []
+
+    def record_port(*, server):
+        ports.append(server.server_port)
+
+    for _ in range(2):
+        serve_web(
+            state=state,
+            browser_opener=lambda address: None,
+            server_runner=record_port,
+        )
+
+    assert ports[0] == ports[1]
+
+
+def test_an_occupied_starting_port_makes_the_scan_move_on(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    write_text(text=f"{REPOSITORY}\n", path=state.repository)
+    ports = []
+
+    def record_port(*, server):
+        ports.append(server.server_port)
+
+    serve_web(
+        state=state,
+        browser_opener=lambda address: None,
+        server_runner=record_port,
+    )
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as occupied:
+        occupied.bind((WEB_HOST, ports[0]))
+        occupied.listen()
+        serve_web(
+            state=state,
+            browser_opener=lambda address: None,
+            server_runner=record_port,
+        )
+
+    assert ports[1] == ports[0] + 1
+
+
+def test_a_pinned_port_that_is_taken_is_refused(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as occupied:
+        occupied.bind((WEB_HOST, 0))
+        occupied.listen()
+        port = occupied.getsockname()[1]
+
+        with pytest.raises(ReportableError, match=rf"--port {port} is already in use"):
+            serve_web(
+                state=state,
+                port=port,
+                browser_opener=lambda address: None,
+                server_runner=lambda *, server: None,
+            )
+
+
+def test_the_base_port_starts_a_scan_with_no_repository_record(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+
+    assert web_module._derive_starting_port(state=state) == WEB_BASE_PORT
+
+
+def test_the_browser_receives_the_address_the_server_listens_on(
+    tmp_path, capsys, monkeypatch
+):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    opened = []
+    ports = []
+    werkzeug_logger = logging.getLogger("werkzeug")
+    monkeypatch.setattr(werkzeug_logger, "level", logging.NOTSET)
+
+    def record_port(*, server):
+        ports.append(server.server_port)
+
+    port = find_unused_port()
+    serve_web(
+        state=state,
+        port=port,
+        browser_opener=opened.append,
+        server_runner=record_port,
+    )
+
+    address = f"http://{WEB_HOST}:{ports[0]}/"
+    assert opened == [address]
+    assert capsys.readouterr().out == f"{address}\n"
+    assert werkzeug_logger.level == logging.ERROR
+
+
+def test_an_interruption_ends_the_server_without_an_error(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+
+    def interrupt(*, server):
+        raise KeyboardInterrupt
+
+    serve_web(
+        state=state,
+        port=find_unused_port(),
+        browser_opener=lambda address: None,
+        server_runner=interrupt,
+    )
+
+
+def test_a_scan_with_no_free_port_says_so(tmp_path, monkeypatch):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    monkeypatch.setattr(web_module, "WEB_MAX_PORT", WEB_BASE_PORT)
+    monkeypatch.setattr(web_module, "_can_bind_to_port", lambda *, port: False)
+
+    with pytest.raises(ReportableError, match="no free port"):
+        serve_web(
+            state=state,
+            browser_opener=lambda address: None,
+            server_runner=lambda *, server: None,
+        )
+
+
+def test_the_default_server_runner_serves_forever():
+    server = MagicMock()
+
+    web_module._run_server(server=server)
+
+    server.serve_forever.assert_called_once_with()
 
 
 @pytest.mark.parametrize(

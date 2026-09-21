@@ -1,12 +1,20 @@
 """Render Dreamcatcher status reports as local web pages."""
 
+import logging
+import socket
+import zlib
 from collections.abc import Callable
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Protocol
+from webbrowser import open as open_browser
 
 from flask import Flask, render_template
+from werkzeug.serving import BaseWSGIServer, make_server
 
 from dreamcatcher.clock import read_current_time
+from dreamcatcher.documents import read_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
@@ -19,6 +27,19 @@ from dreamcatcher.status import (
     read_status_report,
 )
 from dreamcatcher.words import describe_span, describe_time
+
+WEB_HOST = "127.0.0.1"
+WEB_BASE_PORT = 8100
+WEB_PORT_RANGE = 400
+WEB_MAX_PORT = 65535
+
+
+class WebServerRunner(Protocol):
+    """Run a bound local web server until the process should stop."""
+
+    def __call__(self, *, server: BaseWSGIServer) -> None:
+        """Run the server, which has already started listening."""
+        ...
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -102,6 +123,61 @@ def create_app(
         return render_template("error.html", message=str(error)), 500
 
     return app
+
+
+def _run_server(*, server: BaseWSGIServer) -> None:
+    server.serve_forever()
+
+
+def serve_web(
+    *,
+    state: StateDirectory,
+    port: int | None = None,
+    browser_opener: Callable[[str], object] = open_browser,
+    server_runner: WebServerRunner = _run_server,
+) -> None:
+    """Serve one local status page, open it, and run until interrupted."""
+    selected_port = _select_web_port(state=state, port=port)
+    logging.getLogger("werkzeug").setLevel(logging.ERROR)
+    application = create_app(state=state)
+    server = make_server(WEB_HOST, selected_port, application, threaded=False)
+    address = f"http://{WEB_HOST}:{selected_port}/"
+    try:
+        print(address)
+        browser_opener(address)
+        with suppress(KeyboardInterrupt):
+            server_runner(server=server)
+    finally:
+        server.server_close()
+
+
+def _select_web_port(*, state: StateDirectory, port: int | None) -> int:
+    if port is not None:
+        if _can_bind_to_port(port=port):
+            return port
+        raise ReportableError(f"--port {port} is already in use")
+    starting_port = _derive_starting_port(state=state)
+    for candidate in range(starting_port, WEB_MAX_PORT + 1):
+        if _can_bind_to_port(port=candidate):
+            return candidate
+    raise ReportableError(f"no free port is available from {starting_port}")
+
+
+def _derive_starting_port(*, state: StateDirectory) -> int:
+    if not state.repository.is_file():
+        return WEB_BASE_PORT
+    repository = read_text(path=state.repository).strip()
+    repository_digest = zlib.crc32(repository.encode("utf-8"))
+    return WEB_BASE_PORT + repository_digest % WEB_PORT_RANGE
+
+
+def _can_bind_to_port(*, port: int) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as candidate:
+        try:
+            candidate.bind((WEB_HOST, port))
+        except OSError:
+            return False
+    return True
 
 
 def _compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
