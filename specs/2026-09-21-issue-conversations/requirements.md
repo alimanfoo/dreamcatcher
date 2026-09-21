@@ -54,8 +54,7 @@ with the implementation agent.
 
 ## What limits this?
 
-This belongs in dreamcatcher's existing label-and-assignment workflow. A
-conversation assignment needs a simpler contract than an implementation
+A conversation assignment needs a simpler contract than an implementation
 assignment. It must let the agent investigate without giving it permission to
 change the project.
 
