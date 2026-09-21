@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Alegreya+Sans:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <style>
+    body{margin:0;background:linear-gradient(180deg,#E3DFE4 0%,#ECE5DA 34%,#EFE6D6 100%) fixed;color:#3B342E;font-family:'Alegreya Sans',ui-sans-serif,system-ui,sans-serif;font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+    a{color:#A8623F}a:hover{color:#8C4B2E}
+    ::selection{background:#D9C4A3;color:#3B342E}
+    *:focus-visible{outline:2px solid #8A9A78;outline-offset:2px}
+    details>summary{list-style:none}details>summary::-webkit-details-marker{display:none}
+    @keyframes dcBreathe{0%,100%{transform:scale(1);opacity:.9}50%{transform:scale(1.25);opacity:.55}}
+    @keyframes dcRipple{0%{transform:scale(1);opacity:.5}100%{transform:scale(3.2);opacity:0}}
+    @keyframes dcSway{0%,100%{transform:translate(0,0) rotate(0deg)}30%{transform:translate(3px,1.2px) rotate(0.3deg)}65%{transform:translate(-2.4px,0.9px) rotate(-0.24deg)}}
+    @keyframes dcDrift{0%,100%{transform:translate(0,0) rotate(0deg)}40%{transform:translate(-1.5px,1px) rotate(-0.6deg)}70%{transform:translate(1.2px,-0.6px) rotate(0.5deg)}}
+    @keyframes dcHang{0%,100%{transform:rotate(-2.2deg)}50%{transform:rotate(2.2deg)}}
+    @keyframes dcLight{0%{transform:translateX(-22vw) translateY(0)}50%{transform:translateX(18vw) translateY(4vh)}100%{transform:translateX(-22vw) translateY(0)}}
+    @keyframes dcLight2{0%{transform:translateX(26vw) translateY(6vh)}50%{transform:translateX(-14vw) translateY(-2vh)}100%{transform:translateX(26vw) translateY(6vh)}}
+    @keyframes dcSun{0%,100%{transform:scale(1);opacity:.8}50%{transform:scale(1.08);opacity:1}}
+    @keyframes dcSunCore{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.07);opacity:1}}
+  </style>
+</helmet>
+<div style="position:fixed;inset:0;pointer-events:none;z-index:5;opacity:0.35;mix-blend-mode:multiply;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.45 0 0 0 0 0.40 0 0 0 0 0.34 0 0 0 0.18 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E&quot;)"></div>
+<div style="position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;background:{{ sky }};transition:background 2s ease">
+  <sc-if value="{{ sunVisible }}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute;left:{{ sunX }}%;top:{{ sunY }}vh;width:0;height:0;opacity:{{ sunOpacity }};transition:left 2s ease,top 2s ease,opacity 2s ease">
+      <div style="position:absolute;left:-85vmin;top:-85vmin;width:170vmin;height:170vmin;border-radius:50%;background:{{ coronaBg }};animation:dcSun 22s ease-in-out infinite;will-change:transform,opacity"></div>
+      <div style="position:absolute;left:-19vmin;top:-19vmin;width:38vmin;height:38vmin;border-radius:50%;background:{{ coreBg }};filter:blur(5px);animation:dcSunCore 14s ease-in-out infinite;will-change:transform,opacity"></div>
+    </div>
+  </sc-if>
+  <div style="position:absolute;top:-10vh;left:10vw;width:80vw;height:120vh;border-radius:50%;background:radial-gradient(ellipse at center,rgba(255,250,240,0.45) 0%,rgba(255,250,240,0) 60%);animation:dcLight 46s ease-in-out infinite;will-change:transform"></div>
+  <div style="position:absolute;top:30vh;left:0;width:60vw;height:90vh;border-radius:50%;background:radial-gradient(ellipse at center,rgba(227,223,228,0.5) 0%,rgba(227,223,228,0) 60%);animation:dcLight2 61s ease-in-out infinite;will-change:transform"></div>
+</div>
+<div style="position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column">
+  <header style="display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;padding:18px 32px 14px;border-bottom:1px solid rgba(59,52,46,0.10);overflow:visible">
+    <div style="display:flex;align-items:center;gap:16px;min-width:0;flex-wrap:wrap">
+      <span style="display:inline-flex;flex-direction:column;align-items:center;flex:none;margin-top:-18px;transform-origin:50% 0;animation:dcHang 7s ease-in-out infinite"><span style="width:1px;height:16px;background:rgba(59,52,46,0.3)"></span><img src="assets/dreamcatcher-mark-ink.png" alt="Dreamcatcher" style="width:54px;height:54px;opacity:0.85;filter:drop-shadow(0 0 14px rgba(255,250,240,0.9))"></span>
+      <span style="color:#7A6E63">{{ inst.repo }}</span>
+      <span style="color:#7A6E63">{{ inst.user }}</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;color:#7A6E63">
+      <span style="display:inline-flex;align-items:center;gap:8px"><span style="width:8px;height:8px;border-radius:50%;background:#8A9A78;display:inline-block"></span>daemon {{ inst.daemonLabel }} · pid {{ inst.pid }}</span>
+      <span>{{ inst.harnessSummary }}</span>
+      <span style="display:inline-flex;align-items:center;gap:2px;padding:2px;border-radius:9999px;background:rgba(59,52,46,0.05);box-shadow:0 0 12px 3px rgba(59,52,46,0.05);font-size:13px"><span style="padding:3px 12px;border-radius:9999px;background:rgba(251,247,239,0.9);color:#3B342E;font-weight:500">Nature</span><a href="Dreamcatcher Status.dc.html" style="padding:3px 12px;border-radius:9999px;color:#7A6E63;text-decoration:none" style-hover="color:#3B342E">Matrix</a></span>
+    </div>
+  </header>
+
+  <sc-if value="{{ isOverview }}" hint-placeholder-val="{{ true }}">
+  <main style="flex:1;width:100%;max-width:1320px;box-sizing:border-box;margin:0 auto;padding:28px 32px 64px;display:flex;flex-direction:column;gap:30px">
+
+    <sc-if value="{{ inst.cooldownActive }}" hint-placeholder-val="{{ false }}">
+      <div style="border-radius:24px;padding:16px 22px;color:#8C3F2B;position:relative;isolation:isolate;background:transparent" style-before="content:'';position:absolute;inset:-6px;border-radius:40px;background:rgba(168,98,63,0.12);filter:blur(14px);z-index:-1;pointer-events:none;display:flex;gap:14px;flex-wrap:wrap;align-items:baseline"><span style="font-family:'Newsreader',Georgia,serif;font-size:18px">Global cooldown until {{ inst.cooldownUntil }}</span><span style="color:#7A6E63">{{ inst.cooldownReason }} No new rounds start until it ends; faults clear afterwards.</span></div>
+    </sc-if>
+
+    <section style="display:flex;align-items:center;gap:0;flex-wrap:wrap;color:#7A6E63;row-gap:6px">
+      <sc-for list="{{ facts }}" as="f" hint-placeholder-count="5">
+        <span style="display:inline-flex;align-items:baseline;gap:8px;padding-right:16px;margin-right:16px;border-right:1px solid rgba(59,52,46,0.14);white-space:nowrap;flex:none;line-height:1.2"><span style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase">{{ f.label }}</span><span style="color:{{ f.color }};font-weight:500">{{ f.value }}</span></span>
+      </sc-for>
+    </section>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(460px,1fr));gap:32px;align-items:start">
+    <section style="display:flex;flex-direction:column;gap:14px;min-width:0">
+      <h2 style="margin:0 0 4px;font-family:'Newsreader',Georgia,serif;font-weight:400;font-style:italic;font-size:27px;line-height:1.2;color:#3B342E;display:flex;align-items:baseline;gap:12px;padding-bottom:10px;border-bottom:1px solid rgba(59,52,46,0.12)">Agents <span style="font-family:'Alegreya Sans',sans-serif;font-size:15px;color:#7A6E63;font-weight:400">{{ openCount }}</span></h2>
+      <sc-for list="{{ openAssignments }}" as="a" hint-placeholder-count="4">
+        <div style="border-radius:28px;padding:22px 26px;display:flex;flex-direction:column;gap:8px;transform-origin:50% 0;animation:{{ a.sway }};position:relative;isolation:isolate;background:transparent;--card-bg:{{ a.rowBg }}" style-before="content:'';position:absolute;inset:-6px;border-radius:40px;background:var(--card-bg);filter:blur(14px);z-index:-1;pointer-events:none">
+          <div style="display:flex;align-items:flex-start;gap:14px;min-width:0">
+            <div style="flex:1 1 auto;min-width:0;font-family:'Newsreader',Georgia,serif;font-size:19px;line-height:1.3;color:#3B342E;text-wrap:pretty"><a href="{{ a.issueUrl }}" style="color:#A8623F;text-decoration:none;margin-right:10px;font-variant-numeric:tabular-nums" style-hover="text-decoration:underline">{{ a.issueLabel }}</a>{{ a.title }}</div>
+            <span style="display:inline-flex;flex:none;align-items:center;gap:7px;padding:3px 12px;border-radius:9999px;margin-top:3px;background:{{ a.bg }};color:{{ a.fg }};box-shadow:0 0 14px 3px {{ a.bg }};font-size:13px;font-weight:500;white-space:nowrap;animation:{{ a.drift }}"><span style="width:7px;height:7px;border-radius:50%;background:{{ a.dot }};display:inline-block"></span>{{ a.status }}</span>
+          </div>
+          <div style="color:#7A6E63;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px"><span style="color:#3B342E">{{ a.roundLine }}</span> · {{ a.activity }} · {{ a.harness }}</div>
+          <sc-if value="{{ a.isRunning }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:10px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px;padding-top:2px;border-top:1px solid rgba(59,52,46,0.08);margin-top:2px;padding-top:8px">{{ liveDot }}<span style="color:{{ a.lastKindFg }};font-weight:500;flex:none">{{ a.lastKind }}</span><span style="color:#3B342E;min-width:0;overflow:hidden;text-overflow:ellipsis">{{ a.lastLine }}</span></div>
+          </sc-if>
+          <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin-top:2px">
+            <a href="{{ a.prUrl }}" style="display:inline-flex;align-items:center;gap:8px;padding:6px 16px;border-radius:9999px;text-decoration:none;white-space:nowrap;background:{{ a.prBg }};color:{{ a.prFg }};border:0;box-shadow:0 0 16px 3px {{ a.prBg }};font-weight:500;transition:background 220ms ease;animation:{{ a.drift2 }}" style-hover="background:{{ a.prHoverBg }};color:{{ a.prFg }}"><span>PR #{{ a.pr }}</span><span style="font-weight:400;opacity:0.8">{{ a.prState }}</span></a>
+            <button onClick="{{ a.open }}" aria-label="Open feed" style="font:inherit;width:34px;height:34px;border-radius:50%;color:#3B342E;background:rgba(59,52,46,0.05);border:0;box-shadow:0 0 12px 3px rgba(59,52,46,0.05);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background 220ms ease" style-hover="background:rgba(59,52,46,0.12)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg></button>
+          </div>
+        </div>
+      </sc-for>
+      <sc-if value="{{ noOpen }}" hint-placeholder-val="{{ false }}"><div style="color:#7A6E63;font-style:italic;padding:4px 2px">No open assignments.</div></sc-if>
+      <sc-if value="{{ hasComplete }}" hint-placeholder-val="{{ true }}">
+      <details>
+        <summary style="color:#7A6E63;cursor:pointer;display:inline-flex;gap:8px;align-items:center;padding:4px 2px" style-hover="color:#3B342E"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg>{{ completeLine }}</summary>
+        <div style="margin-top:14px;display:flex;flex-direction:column;gap:14px">
+        <sc-for list="{{ completeAssignments }}" as="a" hint-placeholder-count="1">
+          <div style="border-radius:28px;padding:22px 26px;display:flex;flex-direction:column;gap:8px;transform-origin:50% 0;animation:{{ a.sway }};position:relative;isolation:isolate;background:transparent;--card-bg:{{ a.rowBg }}" style-before="content:'';position:absolute;inset:-6px;border-radius:40px;background:var(--card-bg);filter:blur(14px);z-index:-1;pointer-events:none">
+            <div style="display:flex;align-items:flex-start;gap:14px;min-width:0">
+              <div style="flex:1 1 auto;min-width:0;font-family:'Newsreader',Georgia,serif;font-size:19px;line-height:1.3;color:#3B342E;text-wrap:pretty"><a href="{{ a.issueUrl }}" style="color:#A8623F;text-decoration:none;margin-right:10px;font-variant-numeric:tabular-nums" style-hover="text-decoration:underline">{{ a.issueLabel }}</a>{{ a.title }}</div>
+              <span style="display:inline-flex;flex:none;align-items:center;gap:7px;padding:3px 12px;border-radius:9999px;margin-top:3px;background:{{ a.bg }};color:{{ a.fg }};box-shadow:0 0 14px 3px {{ a.bg }};font-size:13px;font-weight:500;white-space:nowrap;animation:{{ a.drift }}"><span style="width:7px;height:7px;border-radius:50%;background:{{ a.dot }};display:inline-block"></span>{{ a.status }}</span>
+            </div>
+            <div style="color:#7A6E63;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px"><span style="color:#3B342E">{{ a.roundLine }}</span> · {{ a.activity }} · {{ a.harness }}</div>
+            <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin-top:2px">
+              <a href="{{ a.prUrl }}" style="display:inline-flex;align-items:center;gap:8px;padding:6px 16px;border-radius:9999px;text-decoration:none;white-space:nowrap;background:{{ a.prBg }};color:{{ a.prFg }};border:0;box-shadow:0 0 16px 3px {{ a.prBg }};font-weight:500;transition:background 220ms ease;animation:{{ a.drift2 }}" style-hover="background:{{ a.prHoverBg }};color:{{ a.prFg }}"><span>PR #{{ a.pr }}</span><span style="font-weight:400;opacity:0.8">{{ a.prState }}</span></a>
+              <button onClick="{{ a.open }}" aria-label="Open feed" style="font:inherit;width:34px;height:34px;border-radius:50%;color:#3B342E;background:rgba(59,52,46,0.05);border:0;box-shadow:0 0 12px 3px rgba(59,52,46,0.05);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background 220ms ease" style-hover="background:rgba(59,52,46,0.12)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg></button>
+            </div>
+          </div>
+        </sc-for>
+        </div>
+      </details>
+      </sc-if>
+    </section>
+
+    <sc-if value="{{ showIssues }}" hint-placeholder-val="{{ true }}">
+    <section style="display:flex;flex-direction:column;gap:14px;min-width:0">
+      <h2 style="margin:0 0 4px;font-family:'Newsreader',Georgia,serif;font-weight:400;font-style:italic;font-size:27px;line-height:1.2;color:#3B342E;display:flex;align-items:baseline;gap:12px;padding-bottom:10px;border-bottom:1px solid rgba(59,52,46,0.12)">Backlog <span style="font-family:'Alegreya Sans',sans-serif;font-size:15px;color:#7A6E63;font-weight:400">{{ backlogCount }}</span></h2>
+      <sc-for list="{{ backlog }}" as="i" hint-placeholder-count="4">
+        <div style="border-radius:28px;padding:22px 26px;display:flex;flex-direction:column;gap:8px;transform-origin:50% 0;animation:{{ i.sway }};position:relative;isolation:isolate;background:transparent" style-before="content:'';position:absolute;inset:-6px;border-radius:40px;background:rgba(251,247,239,0.85);filter:blur(14px);z-index:-1;pointer-events:none">
+          <div style="display:flex;align-items:flex-start;gap:14px;min-width:0">
+            <div style="flex:1 1 auto;min-width:0;font-family:'Newsreader',Georgia,serif;font-size:19px;line-height:1.3;color:#3B342E;text-wrap:pretty"><a href="{{ i.url }}" style="color:#A8623F;text-decoration:none;margin-right:10px;font-variant-numeric:tabular-nums" style-hover="text-decoration:underline">{{ i.label }}</a>{{ i.title }}</div>
+            <span style="display:inline-flex;flex:none;align-items:center;gap:7px;padding:3px 12px;border-radius:9999px;margin-top:3px;background:{{ i.avBg }};color:{{ i.avFg }};box-shadow:0 0 14px 3px {{ i.avBg }};font-size:13px;font-weight:500;white-space:nowrap;animation:{{ i.drift }}"><span style="width:7px;height:7px;border-radius:50%;background:{{ i.avDot }};display:inline-block"></span>{{ i.availLabel }}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:#7A6E63;font-size:14px">
+            <sc-for list="{{ i.labels }}" as="l" hint-placeholder-count="1"><span style="padding:1px 10px;border-radius:9999px;background:rgba(138,154,120,0.16);box-shadow:0 0 10px 3px rgba(138,154,120,0.16);color:#5F7052">{{ l }}</span></sc-for>
+            <sc-if value="{{ i.hasElsewherePr }}" hint-placeholder-val="{{ false }}"><a href="{{ i.elsewherePrUrl }}" style="display:inline-flex;gap:8px;padding:1px 10px;border-radius:9999px;background:rgba(86,112,75,0.10);box-shadow:0 0 10px 3px rgba(86,112,75,0.10);color:#56704B;text-decoration:none;white-space:nowrap" style-hover="background:rgba(86,112,75,0.18)"><span>PR #{{ i.elsewherePrN }}</span><span style="opacity:0.8">{{ i.elsewherePrState }}</span></a></sc-if>
+            <sc-if value="{{ i.hasBlockers }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;gap:6px">blocked by<sc-for list="{{ i.blockers }}" as="b" hint-placeholder-count="1"><a href="{{ b.url }}" style="color:#A8623F;text-decoration:none;font-variant-numeric:tabular-nums" style-hover="text-decoration:underline">{{ b.label }}</a></sc-for></span></sc-if>
+          </div>
+        </div>
+      </sc-for>
+      <sc-if value="{{ noBacklog }}" hint-placeholder-val="{{ false }}"><div style="color:#7A6E63;font-style:italic;padding:4px 2px">No labelled issues without an assignment.</div></sc-if>
+    </section>
+    </sc-if>
+    </div>
+  </main>
+  </sc-if>
+
+  <sc-if value="{{ isDetail }}" hint-placeholder-val="{{ false }}">
+  <main style="flex:1;width:100%;max-width:1320px;box-sizing:border-box;margin:0 auto;padding:22px 32px 64px;display:flex;flex-direction:column;gap:24px">
+    <button onClick="{{ back }}" style="align-self:flex-start;background:transparent;border:0;padding:0;font:inherit;color:#7A6E63;cursor:pointer;display:inline-flex;align-items:center;gap:6px" style-hover="color:#3B342E"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>Home</button>
+
+    <section style="display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:baseline;gap:8px 16px;flex-wrap:wrap">
+        <h1 style="font-family:'Newsreader',Georgia,serif;font-weight:300;font-size:36px;line-height:1.2;color:#3B342E;margin:0;text-wrap:balance;min-width:0;flex:1 1 320px"><a href="{{ sel.issueUrl }}" style="color:#A8623F;text-decoration:none;margin-right:12px;font-variant-numeric:tabular-nums" style-hover="text-decoration:underline">{{ sel.issueLabel }}</a>{{ sel.title }}</h1>
+        <span style="display:inline-flex;flex:none;align-items:center;gap:7px;padding:3px 12px;border-radius:9999px;background:{{ sel.bg }};color:{{ sel.fg }};box-shadow:0 0 14px 3px {{ sel.bg }};font-size:13px;font-weight:500;white-space:nowrap;animation:{{ sel.drift }}"><span style="width:7px;height:7px;border-radius:50%;background:{{ sel.dot }};display:inline-block"></span>{{ sel.status }}</span>
+        <a href="{{ sel.prUrl }}" style="display:inline-flex;align-items:center;gap:8px;padding:6px 16px;border-radius:9999px;text-decoration:none;white-space:nowrap;background:{{ sel.prBg }};color:{{ sel.prFg }};border:0;box-shadow:0 0 16px 3px {{ sel.prBg }};font-weight:500;transition:background 220ms ease;animation:{{ sel.drift2 }}" style-hover="background:{{ sel.prHoverBg }};color:{{ sel.prFg }}"><span>PR #{{ sel.pr }}</span><span style="font-weight:400;opacity:0.8">{{ sel.prState }}</span></a>
+      </div>
+      <div style="display:flex;align-items:center;gap:0;flex-wrap:wrap;color:#7A6E63;row-gap:6px;font-size:14px">
+        <sc-for list="{{ sel.meta }}" as="m" hint-placeholder-count="5">
+          <span style="display:inline-flex;align-items:baseline;gap:8px;padding-right:16px;margin-right:16px;border-right:1px solid rgba(59,52,46,0.14);white-space:nowrap;flex:none;line-height:1.2"><span style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase">{{ m.label }}</span><span style="color:#3B342E">{{ m.value }}</span></span>
+        </sc-for>
+      </div>
+    </section>
+
+    <section style="display:grid;grid-template-columns:minmax(240px,320px) minmax(0,1fr);gap:28px;align-items:start">
+      <aside style="position:sticky;top:16px;display:flex;flex-direction:column;gap:16px">
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <div style="font-family:'Newsreader',Georgia,serif;font-size:22px;font-weight:400;font-style:italic;color:#3B342E;padding:0 0 10px;border-bottom:1px solid rgba(59,52,46,0.12);margin-bottom:8px">Rounds</div>
+          <sc-for list="{{ rounds }}" as="r" hint-placeholder-count="3">
+            <div role="button" tabindex="0" onClick="{{ r.select }}" onKeyDown="{{ r.key }}" style="display:grid;grid-template-columns:32px minmax(0,1fr);gap:12px;padding:10px 12px;cursor:pointer;border-radius:20px;background:{{ r.rowBg }};transition:background 220ms ease" style-hover="background:rgba(59,52,46,0.06)">
+              <span style="width:32px;height:32px;border-radius:50%;border:0;box-shadow:0 0 12px 2px {{ r.numBg }};background:{{ r.numBg }};color:{{ r.numFg }};display:inline-flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums;font-weight:500;font-size:14px">{{ r.n }}</span>
+              <div style="display:flex;flex-direction:column;gap:3px;min-width:0">
+                <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><span style="color:#3B342E;font-weight:500">{{ r.purpose }}</span><sc-if value="{{ r.recovery }}" hint-placeholder-val="{{ false }}"><span style="color:#7A6E63;font-style:italic">recovery</span></sc-if></div>
+                <div style="display:flex;align-items:center;gap:7px;color:{{ r.oc.fg }};font-size:14px"><span style="width:7px;height:7px;border-radius:50%;background:{{ r.oc.dot }};display:inline-block"></span>{{ r.outcomeLabel }}</div>
+                <div style="color:#7A6E63;font-size:14px">{{ r.when }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <sc-if value="{{ sel.nextRound }}" hint-placeholder-val="{{ false }}">
+          <div style="border:0;border-radius:20px;padding:12px 16px;background:rgba(251,247,239,0.45);color:#7A6E63;font-size:14px"><span style="color:#3B342E;font-weight:500">Next </span>{{ sel.nextRound }}</div>
+        </sc-if>
+      </aside>
+
+      <div style="min-width:0;display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;align-items:baseline;gap:14px;padding-bottom:10px;border-bottom:1px solid rgba(59,52,46,0.12)"><span style="font-family:'Newsreader',Georgia,serif;font-size:22px;font-weight:400;font-style:italic;color:#3B342E">Feed</span><sc-if value="{{ curRound.running }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;gap:8px;color:#7A6E63;font-size:14px">{{ liveDot }} live</span></sc-if></div>
+        <div style="position:relative;isolation:isolate" style-before="content:'';position:absolute;inset:-6px;border-radius:40px;background:rgba(251,247,239,0.9);filter:blur(14px);z-index:-1;pointer-events:none">
+        <div ref="{{ feedRef }}" onScroll="{{ onFeedScroll }}" style="border-radius:28px;height:72vh;min-height:380px;overflow:auto;position:relative;padding:6px 24px 20px;display:flex;flex-direction:column;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.6">
+          <sc-for list="{{ feedRounds }}" as="fr" hint-placeholder-count="2">
+            <div ref="{{ fr.ref }}" style="display:flex;flex-direction:column;gap:2px;padding-top:12px">
+              <div style="position:sticky;top:-6px;background:#F7F1E6;padding:10px 0 8px;margin-bottom:6px;border-bottom:1px solid rgba(59,52,46,0.16);font-family:'Alegreya Sans',sans-serif;font-size:14px;color:#7A6E63;display:flex;gap:12px;align-items:baseline;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:1"><span style="color:#3B342E;font-weight:500">Round {{ fr.n }}</span><span>{{ fr.purpose }}</span><span>{{ fr.when }}</span></div>
+              <sc-for list="{{ fr.rows }}" as="e" hint-placeholder-count="4">
+                <div style="display:grid;grid-template-columns:auto 12ch minmax(0,1fr);gap:0 14px;align-items:baseline;padding:1px 0">
+                  <span style="color:#A39789;white-space:nowrap">{{ e.time }}</span>
+                  <span style="color:{{ e.tagFg }};font-weight:600;white-space:nowrap">{{ e.tag }}</span>
+                  <span style="color:{{ e.fg }};white-space:pre-wrap;overflow-wrap:anywhere;display:inline-flex;gap:8px;align-items:baseline;flex-wrap:wrap"><span>{{ e.text }}</span>{{ e.cursor }}</span>
+                  <sc-if value="{{ e.detail }}" hint-placeholder-val="{{ false }}"><pre style="grid-column:3;margin:2px 0 8px;font:inherit;color:#7A6E63;white-space:pre-wrap;overflow-wrap:anywhere;border-left:1px solid rgba(59,52,46,0.2);padding-left:12px">{{ e.detail }}</pre></sc-if>
+                </div>
+              </sc-for>
+            </div>
+          </sc-for>
+        </div>
+        </div>
+      </div>
+    </section>
+  </main>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;scenario&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;realistic&quot;,&quot;quiet&quot;,&quot;cooldown&quot;],&quot;default&quot;:&quot;realistic&quot;,&quot;tsType&quot;:&quot;'realistic'|'quiet'|'cooldown'&quot;,&quot;section&quot;:&quot;Sample data&quot;},&quot;showIssues&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Overview&quot;},&quot;timeOfDay&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;live&quot;,&quot;dawn&quot;,&quot;morning&quot;,&quot;noon&quot;,&quot;afternoon&quot;,&quot;dusk&quot;,&quot;night&quot;],&quot;default&quot;:&quot;live&quot;,&quot;tsType&quot;:&quot;'live'|'dawn'|'morning'|'noon'|'afternoon'|'dusk'|'night'&quot;,&quot;section&quot;:&quot;Sky&quot;}}">
+const REPO = 'https://github.com/eit-org/dreamcatcher';
+
+const ev = (kind, time, body, head, detail) => ({kind, time, body, head: head || '', detail: detail || ''});
+const A = (kind, t, b, h, d) => ev(kind, t, b, h, d);
+
+const ASSIGNMENTS = [
+  {id:'GH142-20260916-1804', issue:'GH142', title:'Add retry with backoff to the GitHub client', status:'Working',
+   statusNote:'Round 2 is running. The pull request is still a draft.', harness:'Claude Code', model:'claude-opus-4', effort:'high', route:'agent:implement',
+   pr:151, prState:'draft', branch:'dreamcatcher/GH142-20260916-1804', session:'sess_7f3a9c2e', activity:'Started 14 min ago', roundLine:'Round 2 · Implement',
+   rounds:[
+     {n:1, purpose:'Implement', recovery:false, outcome:'successful', when:'18:04 – 18:26 · 22 min', events:[
+       A('system','18:04:12','Begin implementation of #142 on branch dreamcatcher/GH142-20260916-1804. A draft pull request (#151) is already open; adopt it for questions and for marking the work ready.', 'Prompt · new harness session'),
+       A('agent','18:04:31','Reading the GitHub boundary first. All requests go through github.py, so the retry wrapper belongs there rather than in callers.'),
+       A('tool','18:04:40','Read','src/dreamcatcher/github.py'),
+       A('tool','18:05:02','Read','tests/test_github.py'),
+       A('agent','18:06:15','Plan: a small with_retry helper taking the command, a maximum of four attempts, and exponential backoff starting at 500 ms. Retry only on transport errors and HTTP 5xx; a 4xx is a real answer and must surface as an unknown fact, not be retried.'),
+       A('tool','18:07:48','Edit','src/dreamcatcher/github.py','+31 −2'),
+       A('tool','18:09:10','Edit','tests/test_github.py','+44 −0'),
+       A('tool','18:09:30','Bash','pytest tests/test_github.py -q','.............. 14 passed in 1.92s'),
+       A('agent','18:25:50','Retry helper is in place for issue and pull-request reads. Pausing here: the write paths (creating the draft pull request) need a decision on idempotency before they can retry safely. I have asked on the pull request.'),
+       A('end','18:26:04','Harness exited with status 0.'),
+     ]},
+     {n:2, purpose:'Implement', recovery:false, outcome:'running', when:'Started 18:05 · 14 min so far', events:[
+       A('system','18:05:07','Resume harness session sess_7f3a9c2e. One new user post is relayed below. Continue the implementation; the pull request remains a draft.', 'Prompt · resume'),
+       A('user','18:05:07','Do not retry pull-request creation. If the create call fails, let assignment creation fail and rely on the existing recovery path, which already recognises the branch as belonging to the same assignment.', 'Relayed post · conversation comment · 17:58'),
+       A('agent','18:05:40','Understood. Only reads and the ready-for-review toggle will retry. Creation stays single-shot so recovery can reconcile artefacts by branch name.'),
+       A('tool','18:06:02','Edit','src/dreamcatcher/github.py','+9 −6'),
+       A('agent','18:11:18','Adding jitter of up to 250 ms so several assignments hitting a rate limit at once do not retry in lockstep.'),
+       A('tool','18:11:44','Edit','src/dreamcatcher/github.py','+7 −1'),
+       A('tool','18:12:30','Bash','pytest -q','..................................... 61 passed in 6.41s'),
+       A('agent','18:17:55','Updating the docstring in the GitHub boundary to state which operations retry, then marking the pull request ready.'),
+       A('tool','18:18:20','Edit','src/dreamcatcher/github.py','+5 −1'),
+       A('tool','18:19:02','Bash','gh pr ready 151'),
+     ]},
+   ]},
+  {id:'GH137-20260916-1520', issue:'GH137', title:'Normalise inline review comments into user posts', status:'Working',
+   statusNote:'Round 4 is addressing feedback left on the ready pull request.', harness:'Codex', model:'gpt-5-codex', effort:'medium', route:'agent:implement',
+   pr:148, prState:'ready', branch:'dreamcatcher/GH137-20260916-1520', session:'thr_01J8Q2', activity:'Started 6 min ago', roundLine:'Round 4 · Address feedback',
+   rounds:[
+     {n:1, purpose:'Implement', recovery:false, outcome:'successful', when:'15:20 – 15:58 · 38 min'},
+     {n:2, purpose:'Implement', recovery:false, outcome:'successful', when:'16:10 – 16:31 · 21 min'},
+     {n:3, purpose:'Address feedback', recovery:false, outcome:'successful', when:'17:02 – 17:19 · 17 min'},
+     {n:4, purpose:'Address feedback', recovery:false, outcome:'running', when:'Started 18:13 · 6 min so far', events:[
+       A('system','18:13:02','Resume harness session thr_01J8Q2. Two new user posts are relayed below. The pull request is ready for review; address the feedback and leave it ready.', 'Prompt · resume'),
+       A('user','18:13:02','Review verdict: changes requested.', 'Relayed post · review verdict · 18:09'),
+       A('user','18:13:02','relay.py L41 — the cursor should compare on the post identifier, not the timestamp. Two inline comments can share a timestamp.', 'Relayed post · inline review comment · 18:09'),
+       A('agent','18:13:39','Agreed, timestamps are not unique across GitHub post types. Switching the cursor to the normalised post identifier and ordering by (created_at, id) for determinism.'),
+       A('tool','18:14:10','Edit','src/dreamcatcher/relay.py','+12 −8'),
+       A('tool','18:15:22','Edit','tests/test_relay.py','+27 −3'),
+       A('tool','18:15:50','Bash','pytest tests/test_relay.py -q','.......... 10 passed in 0.88s'),
+       A('agent','18:18:41','Replying to the inline thread and re-requesting review.'),
+     ]},
+   ]},
+  {id:'GH129-20260915-0912', issue:'GH129', title:'Scheduler: recover interrupted assignment creation', status:'Needs feedback',
+   statusNote:'No round is required. The pull request is ready and awaits your review.', harness:'Claude Code', model:'claude-opus-4', effort:'high', route:'agent:implement',
+   pr:144, prState:'ready', branch:'dreamcatcher/GH129-20260915-0912', session:'sess_2b91d0aa', activity:'Ready since yesterday 11:40', roundLine:'Round 3 · Address feedback',
+   rounds:[
+     {n:1, purpose:'Implement', recovery:false, outcome:'successful', when:'Yesterday 09:12 – 09:51 · 39 min'},
+     {n:2, purpose:'Implement', recovery:false, outcome:'successful', when:'Yesterday 10:20 – 10:44 · 24 min'},
+     {n:3, purpose:'Address feedback', recovery:false, outcome:'successful', when:'Yesterday 11:15 – 11:40 · 25 min', events:[
+       A('system','11:15:00','Resume harness session sess_2b91d0aa. One new user post is relayed below.', 'Prompt · resume'),
+       A('user','11:15:00','Please make sure a half-created assignment never produces a second pull request when creation is retried.', 'Relayed post · review body · 11:02'),
+       A('agent','11:15:36','Recovery now looks up an existing pull request by head branch before opening one. If found, it is adopted and the record is completed from it.'),
+       A('tool','11:17:02','Edit','src/dreamcatcher/agent_assignments.py','+38 −11'),
+       A('tool','11:22:15','Edit','tests/test_agent_assignments.py','+52 −0'),
+       A('tool','11:22:40','Bash','pytest -q','..................................... 58 passed in 6.02s'),
+       A('agent','11:39:30','Addressed. The pull request is ready for another look.'),
+       A('end','11:40:12','Harness exited with status 0.'),
+     ]},
+   ]},
+  {id:'GH131-20260916-1701', issue:'GH131', title:'Render the feed as plain-text records', status:'Queued',
+   statusNote:'A recovery round is required but capacity is full.', harness:'Codex', model:'gpt-5-codex', effort:'medium', route:'agent:implement',
+   pr:150, prState:'draft', branch:'dreamcatcher/GH131-20260916-1701', session:'thr_01J8QK', activity:'Interrupted 17:52 · queued behind capacity', roundLine:'Round 2 required · Recovery',
+   nextRound:'Implement, marked as recovery, once a slot frees. Round 1 was interrupted when the daemon restarted.',
+   rounds:[
+     {n:1, purpose:'Implement', recovery:false, outcome:'interrupted', when:'17:01 – 17:52 · no recorded ending', events:[
+       A('system','17:01:10','Begin implementation of #131 on branch dreamcatcher/GH131-20260916-1701. Draft pull request #150 is open.', 'Prompt · new harness session'),
+       A('agent','17:01:48','feed.py should own a harness-neutral record type. Starting with a small dataclass and a renderer that the TUI can consume without knowing about harness event shapes.'),
+       A('tool','17:03:20','Edit','src/dreamcatcher/feed.py','+64 −0'),
+       A('tool','17:20:05','Edit','src/dreamcatcher/adapters.py','+19 −4'),
+       A('tool','17:41:12','Bash','pytest tests/test_feed.py -q','...... 6 passed in 0.41s'),
+       A('end','17:52:30','Process no longer present at reconciliation; recorded as interrupted.'),
+     ]},
+   ]},
+  {id:'GH118-20260914-1130', issue:'GH118', title:'Strict TOML validation for dispatch routes', status:'Fault',
+   statusNote:'Two consecutive rounds errored. Ordinary recovery has stopped until a cooldown clears the fault or you intervene.', harness:'Claude Code', model:'claude-sonnet-4', effort:'medium', route:'agent:implement',
+   pr:139, prState:'draft', branch:'dreamcatcher/GH118-20260914-1130', session:'sess_9ac0e17b', activity:'Errored 16:48 and 17:05', roundLine:'Rounds 3 & 4 errored',
+   rounds:[
+     {n:1, purpose:'Implement', recovery:false, outcome:'successful', when:'14 Sep 11:30 – 12:02 · 32 min'},
+     {n:2, purpose:'Implement', recovery:false, outcome:'successful', when:'15 Sep 09:40 – 10:05 · 25 min'},
+     {n:3, purpose:'Implement', recovery:false, outcome:'errored', when:'16:40 – 16:48 · exit 1'},
+     {n:4, purpose:'Implement', recovery:true, outcome:'errored', when:'16:58 – 17:05 · exit 1', events:[
+       A('system','16:58:00','Resume harness session sess_9ac0e17b. This is a recovery round; the previous round exited with an error. No new user posts.', 'Prompt · resume · recovery'),
+       A('agent','16:58:44','Resuming the validator work. Re-running the failing test to see the current state.'),
+       A('tool','16:59:10','Bash','pytest tests/test_config.py -q','FAILED tests/test_config.py::test_duplicate_label_rejected\n  tomllib.TOMLDecodeError: Cannot overwrite a value (at line 12, column 3)'),
+       A('tool','17:04:52','Bash','pytest tests/test_config.py -q','FAILED tests/test_config.py::test_duplicate_label_rejected'),
+       A('end','17:05:18','Harness exited with status 1: context limit reached while reading fixtures.'),
+     ]},
+   ]},
+  {id:'GH112-20260913-0940', issue:'GH112', title:'Document atomic replacement writes in documents.py', status:'Complete',
+   statusNote:'The pull request was merged and the wrap-up round exited successfully.', harness:'Claude Code', model:'claude-sonnet-4', effort:'low', route:'agent:docs',
+   pr:133, prState:'merged', branch:'dreamcatcher/GH112-20260913-0940', session:'sess_44d1c9f0', activity:'Completed today 09:15', roundLine:'Round 3 · Wrap up',
+   rounds:[
+     {n:1, purpose:'Implement', recovery:false, outcome:'successful', when:'13 Sep 09:40 – 09:58 · 18 min'},
+     {n:2, purpose:'Address feedback', recovery:false, outcome:'successful', when:'15 Sep 14:10 – 14:22 · 12 min'},
+     {n:3, purpose:'Wrap up', recovery:false, outcome:'successful', when:'Today 09:11 – 09:15 · 4 min', events:[
+       A('system','09:11:00','Resume harness session sess_44d1c9f0. Pull request #133 has been merged. Wrap up the assignment: confirm nothing is left uncommitted and leave a closing note.', 'Prompt · resume · wrap up'),
+       A('tool','09:11:20','Bash','git status --porcelain',''),
+       A('agent','09:14:30','The worktree is clean and the merge commit is on main. Closing note posted to the pull request.'),
+       A('end','09:15:02','Harness exited with status 0. Assignment complete.'),
+     ]},
+   ]},
+];
+
+const ISSUES = [
+  {id:'GH142', title:'Add retry with backoff to the GitHub client', labels:['agent:implement'], here:true, elsewhere:false, blocked:false, conflict:false},
+  {id:'GH137', title:'Normalise inline review comments into user posts', labels:['agent:implement'], here:true, elsewhere:false, blocked:false, conflict:false},
+  {id:'GH129', title:'Scheduler: recover interrupted assignment creation', labels:['agent:implement'], here:true, elsewhere:false, blocked:false, conflict:false},
+  {id:'GH131', title:'Render the feed as plain-text records', labels:['agent:implement'], here:true, elsewhere:false, blocked:false, conflict:false},
+  {id:'GH118', title:'Strict TOML validation for dispatch routes', labels:['agent:implement'], here:true, elsewhere:false, blocked:false, conflict:false},
+  {id:'GH145', title:'Expose the status report as JSON', labels:['agent:implement'], here:false, elsewhere:false, blocked:false, conflict:false},
+  {id:'GH146', title:'Web frontend for the status report', labels:['agent:implement'], here:false, elsewhere:false, blocked:true, blockedBy:['GH145'], conflict:false},
+  {id:'GH140', title:'Harness adapter for Gemini CLI', labels:['agent:implement','agent:docs'], here:false, elsewhere:false, blocked:false, conflict:true},
+  {id:'GH138', title:'Prompt templates for wrap-up rounds', labels:['agent:docs'], here:false, elsewhere:true, elsewherePr:{n:149, state:'draft'}, blocked:false, conflict:false},
+  {id:'GH147', title:'Persist the time the last cooldown ended', labels:['agent:implement'], here:false, elsewhere:false, blocked:null, conflict:false},
+];
+
+// Records that a running round emits over time (revealed one per tick to simulate the live feed).
+const LIVE = {
+  'GH142-20260916-1804': [
+    A('tool','18:19:31','Bash','gh pr view 151 --json isDraft','{"isDraft": false}'),
+    A('agent','18:19:58','Pull request #151 is now ready for review. Summary of the change posted as a comment; retry covers reads and the ready toggle only, per the relayed decision.'),
+    A('tool','18:20:12','Bash','gh pr comment 151 --body-file .dreamcatcher/tmp/summary.md'),
+    A('agent','18:20:40','Running the full suite once more with the jitter change before wrapping up, and checking that no caller still catches the transport error itself.'),
+    A('tool','18:21:05','Grep','except (ConnectionError, TimeoutError)','3 matches in 2 files'),
+    A('agent','18:21:30','Two callers in scheduler.py still catch transport errors locally; removing those handlers so the retry wrapper is the single place this is decided.'),
+    A('tool','18:22:10','Edit','src/dreamcatcher/scheduler.py','+2 −11'),
+    A('tool','18:22:40','Bash','pytest -q','..................................... 61 passed in 6.38s'),
+  ],
+  'GH137-20260916-1520': [
+    A('tool','18:19:20','Bash','gh api repos/eit-org/dreamcatcher/pulls/148/comments/2211 -X POST -f body=@reply.md'),
+    A('agent','18:19:52','Checking the remaining review threads before re-requesting review.'),
+    A('tool','18:20:05','Bash','gh pr view 148 --json reviewThreads','2 threads · 1 unresolved'),
+    A('agent','18:20:30','The remaining thread concerns naming in relay.py; renaming delivered_through to delivery_cursor for consistency with the ontology.'),
+    A('tool','18:21:02','Edit','src/dreamcatcher/relay.py','+4 −4'),
+    A('tool','18:21:25','Bash','pytest -q','..................................... 61 passed in 6.10s'),
+  ],
+};
+const KIND_LABEL = {system:'Dreamcatcher', agent:'Agent', tool:'Tool', user:'User post', end:'Ended'};
+const KIND_FG = {system:'#9E6544', agent:'#494747', tool:'#3F7388', user:'#9E6544', end:'#6E6A66'};
+function lastLineOf(e) {
+  if (!e) return {kind:'', fg:'#6E6A66', text:'No records yet'};
+  const text = e.kind === 'tool' ? e.body + ' ' + e.head : e.kind === 'user' ? (e.head || 'Relayed') : e.body;
+  return {kind: KIND_LABEL[e.kind], fg: KIND_FG[e.kind], text};
+}
+
+function fallbackEvents(r, a) {
+  return [
+    A('system', (m => m ? m[1].padStart(5, '0') + ':00' : '')(r.when.match(/(\d{1,2}:\d{2})/)), 'Round ' + r.n + ' · ' + r.purpose + (r.recovery ? ' (recovery)' : '') + ' for #' + a.issue.slice(2) + '.', 'Prompt'),
+    A('agent', '', 'Rendered feed for this round is stored in the round directory; only a summary is shown here.'),
+    A('end', '', 'Round ended: ' + r.outcome + '.'),
+  ];
+}
+
+const INK = '#3B342E', MUTED = '#7A6E63', CLAY = '#A8623F', RUST = '#8C3F2B', SAGE = '#8A9A78', SAGE_DK = '#5F7052', SAND = '#D9C4A3', SURFACE = '#F7F1E6', CREAM = '#FBF7EF', THREAD = 'rgba(59,52,46,0.18)';
+const LEAF_FRESH = '#7E9A6C', LEAF_YOUNG = 'rgba(170,190,140,0.45)', LEAF_GOLD = '#C9A24A', LEAF_RUSSET = '#A65A3C', LEAF_FADED = 'rgba(150,140,110,0.28)', MOSS = '#56704B';
+const STATUS = {
+  'Working':        {bg:'rgba(126,154,108,0.85)', fg:CREAM, border:'transparent', dot:CREAM},
+  'Queued':         {bg:LEAF_YOUNG, fg:'#5F7052', border:'transparent', dot:LEAF_FRESH},
+  'Needs feedback': {bg:'rgba(201,162,74,0.9)', fg:'#3B342E', border:'transparent', dot:'#3B342E'},
+  'Fault':          {bg:'rgba(166,90,60,0.85)', fg:CREAM, border:'transparent', dot:CREAM},
+  'Complete':       {bg:LEAF_FADED, fg:MUTED, border:'transparent', dot:MUTED},
+  'Unknown':        {bg:'rgba(59,52,46,0.05)', fg:MUTED, border:'transparent', dot:'rgba(59,52,46,0.25)'},
+};
+const OUTCOME = {
+  running:     {fg:'#5F7052', dot:LEAF_FRESH},
+  successful:  {fg:MUTED, dot:MUTED},
+  errored:     {fg:LEAF_RUSSET, dot:LEAF_RUSSET},
+  interrupted: {fg:'#9A7A2E', dot:LEAF_GOLD},
+};
+const TAG = {
+  system: {tag:'dreamcatcher', tagFg:SAGE_DK, fg:MUTED},
+  agent:  {tag:'agent', tagFg:INK, fg:INK},
+  tool:   {tag:'tool', tagFg:MUTED, fg:MUTED},
+  user:   {tag:'user post', tagFg:CLAY, fg:INK},
+  end:    {tag:'ended', tagFg:MUTED, fg:MUTED},
+};
+
+class Component extends DCLogic {
+  state = { view: 'overview', selId: null, round: null, tick: 0, typed: 9999 };
+  _feedRef = React.createRef();
+  _follow = true;
+  componentDidMount() { this._t = setInterval(() => this.setState(s => ({tick: s.tick + 1, typed: 0})), 4000); }
+  componentWillUnmount() { clearInterval(this._t); clearInterval(this._ty); }
+  componentDidUpdate() {
+    const prev = this._prevState || {};
+    this._prevState = {...this.state};
+    if (prev.tick !== this.state.tick) {
+      clearInterval(this._ty);
+      this._ty = setInterval(() => this.setState(s => s.typed > 400 ? (clearInterval(this._ty), null) : {typed: s.typed + 3}), 16);
+    }
+    const el = this._feedRef.current;
+    if (!el) return;
+    if (this._scrollTo) {
+      const r = this._roundRefs && this._roundRefs[this._scrollTo];
+      this._scrollTo = null;
+      if (r && r.current) el.scrollTop = r.current.offsetTop;
+      return;
+    }
+    const opened = prev.view !== this.state.view || prev.selId !== this.state.selId;
+    if (opened) this._follow = true;
+    if (this._follow) el.scrollTop = el.scrollHeight;
+  }
+  onFeedScroll = e => { const el = e.currentTarget; this._follow = el.scrollHeight - el.scrollTop - el.clientHeight < 24; };
+
+  roundEvents(a, r) {
+    const base = r.events || fallbackEvents(r, a);
+    if (r.outcome !== 'running') return {events: base, liveTail: false};
+    const extra = (LIVE[a.id] || []).slice(0, this.state.tick);
+    return {events: base.concat(extra), liveTail: extra.length > 0};
+  }
+  typed(text) { return this.state.typed >= text.length ? text : text.slice(0, this.state.typed); }
+
+  scenario() {
+    const s = this.props.scenario ?? 'realistic';
+    let list = ASSIGNMENTS, issues = ISSUES;
+    let inst = {repo:'eit-org/dreamcatcher', user:'@abarnert', daemonState:'running', pid:'48213', lastTickAgo:'12 s ago',
+      tickAccount:'Started round 4 for GH137-20260916-1520', capacity:2, running:2, cooldownActive:false, cooldownUntil:'', cooldownReason:''};
+    if (s === 'quiet') {
+      list = list.filter(a => ['GH129-20260915-0912','GH112-20260913-0940'].includes(a.id));
+      issues = issues.filter(i => ['GH129','GH145','GH146'].includes(i.id));
+      inst = {...inst, running:0, tickAccount:'Nothing to do'};
+    } else if (s === 'cooldown') {
+      list = list.map(a => a.id === 'GH131-20260916-1701' ? {...a, status:'Fault', roundLine:'Rounds 1 & 2 errored', activity:'Errored 17:52 and 18:03', nextRound:''} : a.status === 'Working' ? {...a, status:'Queued', activity:'Held by cooldown', rounds:a.rounds.map(r => r.outcome==='running' ? {...r, outcome:'interrupted', when:r.when.replace('Started','Interrupted')} : r)} : a);
+      issues = issues.map(i => i.id === 'GH147' ? i : {...i, blocked: i.blocked === null ? false : i.blocked});
+      inst = {...inst, running:0, cooldownActive:true, cooldownUntil:'19:10', cooldownReason:'Two assignments entered fault within one hour, which Dreamcatcher treats as evidence of a shared harness problem.', tickAccount:'Cooldown active; no action taken'};
+    }
+    inst.daemonLabel = inst.daemonState;
+    const hs = [...new Set(list.map(a => a.harness))];
+    inst.harnessSummary = hs.length ? hs.join(' · ') : 'no harnesses active';
+    return {list, issues, inst};
+  }
+
+  sun() {
+    const lat = 51.75;
+    const now = new Date();
+    const mode = this.props.timeOfDay ?? 'live';
+    const hourOverride = {dawn:6.6, morning:9.5, noon:13.1, afternoon:16, dusk:19.6, night:23.5}[mode];
+    const d = new Date(now); if (hourOverride != null) { d.setMonth(8, 21); d.setHours(Math.floor(hourOverride), Math.round((hourOverride % 1) * 60), 0, 0); }
+    const start = new Date(d.getFullYear(), 0, 0);
+    const n = Math.floor((d - start) / 864e5);
+    const rad = x => x * Math.PI / 180, deg = x => x * 180 / Math.PI;
+    const decl = rad(23.44 * Math.sin(rad(360 / 365 * (284 + n))));
+    // Viewer's local clock drives the day; solar noon ≈ 12:00 standard time, ≈ 13:00 under DST.
+    const jan = new Date(d.getFullYear(), 0, 1).getTimezoneOffset(), jul = new Date(d.getFullYear(), 6, 1).getTimezoneOffset();
+    const dst = d.getTimezoneOffset() < Math.max(jan, jul) ? 1 : 0;
+    const solarHour = d.getHours() + d.getMinutes() / 60 - dst;
+    const H = rad(15 * (solarHour - 12));
+    const la = rad(lat);
+    const elev = deg(Math.asin(Math.sin(la) * Math.sin(decl) + Math.cos(la) * Math.cos(decl) * Math.cos(H)));
+    let az = deg(Math.atan2(Math.sin(H), Math.cos(H) * Math.sin(la) - Math.tan(decl) * Math.cos(la))) + 180;
+    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+    const x = 6 + clamp((az - 80) / 200, 0, 1) * 88;
+    const maxE = 90 - lat + 23.44;
+    const y = 60 - clamp(elev, 0, maxE) / maxE * 72;
+    const mix = (c1, c2, t) => c1.map((v, i) => Math.round(v + (c2[i] - v) * t));
+    const rgb = c => 'rgb(' + c.join(',') + ')', rgba = (c, a) => 'rgba(' + c.join(',') + ',' + a + ')';
+    const t = clamp(elev / 28, 0, 1);
+    const core = mix([255, 176, 92], [255, 250, 232], t), mid = mix([255, 150, 70], [255, 236, 170], t), halo = mix([255, 140, 90], [255, 226, 150], t);
+    const visible = elev > -6;
+    const opacity = clamp((elev + 6) / 8, 0, 1);
+    const sky = elev < -6 ? 'linear-gradient(180deg,#C3BECB 0%,#D8D1CD 34%,#E5DED2 100%)'
+      : elev < 6 ? 'linear-gradient(180deg,#DCCBD1 0%,#ECDDD0 34%,#EFE6D6 100%)'
+      : 'linear-gradient(180deg,#E3DFE4 0%,#ECE5DA 34%,#EFE6D6 100%)';
+    return {sky, sunVisible: visible, sunOpacity: opacity, sunX: x.toFixed(1), sunY: y.toFixed(1),
+      coreBg: 'radial-gradient(circle,' + rgb(core) + ' 0%,' + rgb(mid) + ' 30%,' + rgba(mid, 0.9) + ' 48%,' + rgba(mid, 0) + ' 72%)',
+      coronaBg: 'radial-gradient(circle,' + rgba(halo, 0.6) + ' 0%,' + rgba(halo, 0.34) + ' 16%,' + rgba(halo, 0.16) + ' 34%,' + rgba(halo, 0.06) + ' 50%,' + rgba(halo, 0) + ' 66%)'};
+  }
+
+  renderVals() {
+    const {list, issues, inst} = this.scenario();
+    const sel = list.find(a => a.id === this.state.selId);
+    const isDetail = this.state.view === 'detail' && !!sel;
+    const keyOf = fn => e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(); } };
+    const liveDot = React.createElement('span', {style:{position:'relative', display:'inline-block', width:8, height:8, flex:'none'}},
+      React.createElement('span', {style:{position:'absolute', inset:0, borderRadius:'50%', background:SAGE, animation:'dcBreathe 3.2s ease-in-out infinite'}}),
+      React.createElement('span', {style:{position:'absolute', inset:0, borderRadius:'50%', border:'1px solid ' + SAGE, animation:'dcRipple 3.2s ease-out infinite'}}));
+
+    const driftOf = (k, i) => 'dcDrift ' + (6 + ((k * 5 + i * 3) % 5)) + 's ease-in-out -' + ((k * 7 + i * 4) % 8) + 's infinite';
+    const swayOf = (k, i) => 'dcSway ' + (9 + ((k * 7 + i * 3) % 5)) + 's ease-in-out -' + ((k * 11 + i * 5) % 9) + 's infinite';
+    const rank = {'Needs feedback':0, 'Fault':1, 'Working':2, 'Queued':3, 'Unknown':4, 'Complete':5};
+    const assignments = [...list].sort((a, b) => rank[a.status] - rank[b.status]).map((a, idx) => {
+      const st = STATUS[a.status];
+      const open = () => this.setState({view:'detail', selId:a.id, round:null});
+      const review = a.status === 'Needs feedback';
+      const last = a.rounds[a.rounds.length - 1];
+      const {events, liveTail} = this.roundEvents(a, last);
+      const lastEv = events[events.length - 1];
+      const ll = lastLineOf(lastEv);
+      const roundLine = 'Round ' + last.n + ' · ' + last.purpose.toLowerCase() + (last.recovery ? ' (recovery)' : '') + ' · ' + last.outcome;
+      return {...a, sway: swayOf(1, idx), drift: driftOf(1, idx), drift2: driftOf(4, idx), bg: st.bg, fg: st.fg, border: st.border, dot: st.dot, prUrl: REPO + '/pull/' + a.pr, issueUrl: REPO + '/issues/' + a.issue.slice(2), issueLabel: '#' + a.issue.slice(2), open, key: keyOf(open),
+        roundLine, isRunning: last.outcome === 'running', lastKind: TAG[lastEv ? lastEv.kind : 'agent'].tag, lastKindFg: TAG[lastEv ? lastEv.kind : 'agent'].tagFg, lastLine: liveTail ? this.typed(ll.text) : ll.text,
+        rowBg: 'rgba(251,247,239,0.85)',
+        prBg: review ? 'rgba(86,112,75,0.9)' : 'rgba(86,112,75,0.10)', prFg: review ? CREAM : MOSS, prBorder: 'transparent', prHoverBg: review ? 'rgba(104,132,92,0.95)' : 'rgba(86,112,75,0.18)'};
+    });
+
+    const working = list.filter(a => a.status === 'Working').length;
+    const faults = list.filter(a => a.status === 'Fault').length;
+    const avail = issues.filter(i => i.here === false && i.elsewhere === false && i.blocked === false && i.conflict === false).length;
+    const facts = [
+      {label:'Capacity', value: working + ' of ' + inst.capacity, color:INK},
+      {label:'Cooldown', value: inst.cooldownActive ? 'until ' + inst.cooldownUntil : 'none', color: inst.cooldownActive ? RUST : INK},
+      {label:'Faults', value: String(faults), color: faults ? RUST : INK},
+      {label:'Available', value: String(avail), color:INK},
+      {label:'Last tick', value: inst.lastTickAgo + ' · ' + inst.tickAccount, color:INK},
+    ];
+
+    const issueRows = issues.map((i, idx) => {
+      const known = [i.here, i.elsewhere, i.blocked, i.conflict];
+      const av = known.some(v => v === true) ? 'No' : known.some(v => v === null) ? 'Unknown' : 'Yes';
+      const reason = i.here ? 'Claimed here' : i.elsewhere ? 'Claimed elsewhere' : i.blocked ? 'Blocked' : i.conflict ? 'Routing conflict' : av === 'Unknown' ? 'Unknown' : 'Available';
+      const style = av === 'Yes' ? {avBg:'rgba(126,154,108,0.85)', avFg:CREAM, avBorder:'transparent', avDot:CREAM} : av === 'Unknown' ? {avBg:'rgba(59,52,46,0.05)', avFg:MUTED, avBorder:'transparent', avDot:'rgba(59,52,46,0.25)'} : {avBg:LEAF_FADED, avFg:MUTED, avBorder:'transparent', avDot:MUTED};
+      return {...i, sway: swayOf(2, idx), drift: driftOf(2, idx), url: REPO + '/issues/' + i.id.slice(2), label: '#' + i.id.slice(2), availLabel: reason, isAvailable: av === 'Yes', ...style,
+        blockers: (i.blockedBy || []).map(b => ({label:'#' + b.slice(2), url: REPO + '/issues/' + b.slice(2)})), hasBlockers: !!(i.blockedBy && i.blockedBy.length),
+        hasElsewherePr: !!i.elsewherePr, elsewherePrUrl: i.elsewherePr ? REPO + '/pull/' + i.elsewherePr.n : '', elsewherePrN: i.elsewherePr ? i.elsewherePr.n : '', elsewherePrState: i.elsewherePr ? i.elsewherePr.state : ''};
+    });
+    const openAssignments = assignments.filter(a => a.status !== 'Complete');
+    const completeAssignments = assignments.filter(a => a.status === 'Complete');
+    const backlog = issueRows.filter(i => !i.here).sort((a, b) => (a.isAvailable ? 0 : 1) - (b.isAvailable ? 0 : 1));
+
+    let selVals = {}, rounds = [], curRound = {}, feedRounds = [];
+    if (isDetail) {
+      const st = STATUS[sel.status];
+      const roundN = this.state.round ?? sel.rounds[sel.rounds.length - 1].n;
+      const cr = sel.rounds.find(r => r.n === roundN) || sel.rounds[sel.rounds.length - 1];
+      rounds = sel.rounds.map(r => {
+        const active = r.n === cr.n;
+        const select = () => { this._scrollTo = sel.id + ':' + r.n; this._follow = false; this.setState({round:r.n}); };
+        return {...r, select, key:keyOf(select), rowBg: active ? 'rgba(59,52,46,0.06)' : 'transparent',
+          numBg: active ? 'rgba(59,52,46,0.78)' : 'rgba(59,52,46,0.05)', numFg: active ? CREAM : MUTED, oc: OUTCOME[r.outcome], outcomeLabel: r.outcome.charAt(0).toUpperCase() + r.outcome.slice(1)};
+      });
+      curRound = {n: cr.n, running: cr.outcome === 'running'};
+      const today = new Date(2026, 8, 16);
+      const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const dateOf = r => {
+        let d = new Date(+sel.id.slice(6,10), +sel.id.slice(10,12) - 1, +sel.id.slice(12,14));
+        const w = r.when || '';
+        if (/^Today/.test(w) || /^Started/.test(w)) d = today;
+        else if (/^Yesterday/.test(w)) d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+        else { const m = w.match(/^(\d{1,2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/); if (m) d = new Date(today.getFullYear(), MON.indexOf(m[2]), +m[1]); }
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      };
+      this._roundRefs = this._roundRefs || {};
+      feedRounds = sel.rounds.map(r => {
+        const date = dateOf(r);
+        const {events, liveTail} = this.roundEvents(sel, r);
+        const rows = events.map((e, idx) => {
+          const t = TAG[e.kind];
+          const isLast = idx === events.length - 1;
+          let text = e.kind === 'tool' ? e.body + ' ' + e.head : (e.head ? e.head + ' — ' : '') + e.body;
+          if (isLast && liveTail) text = this.typed(text);
+          return {time: e.time ? date + ' ' + e.time : '', ...t, text, detail: e.detail || false, cursor: isLast && r.outcome === 'running' ? liveDot : null};
+        });
+        const key = sel.id + ':' + r.n;
+        this._roundRefs[key] = this._roundRefs[key] || React.createRef();
+        return {n: r.n, purpose: r.purpose + (r.recovery ? ' (recovery)' : ''), when: r.when, rows, ref: this._roundRefs[key]};
+      });
+      const review = sel.status === 'Needs feedback';
+      selVals = {...sel, drift: driftOf(3, 0), drift2: driftOf(5, 0), bg: st.bg, fg: st.fg, border: st.border, dot: st.dot, prUrl: REPO + '/pull/' + sel.pr, issueUrl: REPO + '/issues/' + sel.issue.slice(2), issueLabel: '#' + sel.issue.slice(2), nextRound: sel.nextRound || false,
+        prBg: review ? 'rgba(86,112,75,0.9)' : 'rgba(86,112,75,0.10)', prFg: review ? CREAM : MOSS, prBorder: 'transparent', prHoverBg: review ? 'rgba(104,132,92,0.95)' : 'rgba(86,112,75,0.18)',
+        meta: [
+          {label:'Assignment', value:sel.id},
+          {label:'Branch', value:sel.branch},
+          {label:'Harness', value:sel.harness},
+          {label:'Session', value:sel.session},
+          {label:'Recipe', value:sel.model + ' · ' + sel.effort},
+          {label:'Route', value:sel.route},
+        ]};
+    }
+
+    return {
+      inst, facts, assignments, showIssues: this.props.showIssues ?? true,
+      backlog, noBacklog: backlog.length === 0, backlogCount: String(backlog.length),
+      openAssignments, completeAssignments, noOpen: openAssignments.length === 0, hasComplete: completeAssignments.length > 0,
+      openCount: String(openAssignments.length), completeLine: completeAssignments.length + ' complete',
+      isOverview: !isDetail, isDetail, sel: selVals, rounds, curRound, feedRounds, feedRef: this._feedRef, onFeedScroll: this.onFeedScroll,
+      back: () => this.setState({view:'overview'}),
+      liveDot, ...this.sun(),
+    };
+  }
+}
+</script>
+</body>
+</html>
