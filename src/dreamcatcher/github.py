@@ -112,12 +112,6 @@ class GitHubIssueLabel(GitHubResponseProjection):
     name: str
 
 
-class GitHubIssueTitle(GitHubResponseProjection):
-    """Model the title of an issue."""
-
-    title: str
-
-
 class Issue(GitHubResponseProjection):
     """Model the GitHub facts that scheduling observes about an issue."""
 
@@ -155,8 +149,8 @@ class LinkedPullRequest(GitHubResponseProjection):
     number: int
 
 
-class LinkedPullRequestsResponse(GitHubResponseProjection):
-    """Model the pull requests that GitHub links to an issue.
+class IssuePullRequestContext(GitHubResponseProjection):
+    """Model the issue facts needed to reconcile or create a pull request.
 
     GitHub lists pull requests in every state here, and counts both the ones that
     said they close the issue and the ones somebody linked by hand. The public
@@ -164,6 +158,8 @@ class LinkedPullRequestsResponse(GitHubResponseProjection):
     declined assignment leaves its issue free to go again.
     """
 
+    issue: int = Field(alias="number")
+    title: str
     pull_requests: list[LinkedPullRequest] = Field(
         alias="closedByPullRequestsReferences"
     )
@@ -273,13 +269,14 @@ type UserPost = ConversationComment | PullRequestReview | InlineReviewComment
 
 GITHUB_REPOSITORY_RESPONSE_ADAPTER = TypeAdapter(GitHubRepository)
 GITHUB_ACCOUNT_RESPONSE_ADAPTER = TypeAdapter(GitHubUserAccount)
-GITHUB_ISSUE_TITLE_RESPONSE_ADAPTER = TypeAdapter(GitHubIssueTitle)
 GITHUB_ISSUE_RESPONSE_ADAPTER = TypeAdapter(Issue)
 GITHUB_ISSUE_LIST_RESPONSE_ADAPTER = TypeAdapter(list[Issue])
 GITHUB_PULL_REQUEST_LIST_RESPONSE_ADAPTER = TypeAdapter(list[PullRequest])
 GITHUB_PULL_REQUEST_RESPONSE_ADAPTER = TypeAdapter(PullRequest)
 GITHUB_BLOCKING_ISSUE_LIST_RESPONSE_ADAPTER = TypeAdapter(list[list[BlockingIssue]])
-GITHUB_LINKED_PULL_REQUESTS_RESPONSE_ADAPTER = TypeAdapter(LinkedPullRequestsResponse)
+GITHUB_ISSUE_PULL_REQUEST_CONTEXT_RESPONSE_ADAPTER = TypeAdapter(
+    IssuePullRequestContext
+)
 GITHUB_CONVERSATION_COMMENT_PAGES_ADAPTER = TypeAdapter(list[list[ConversationComment]])
 GITHUB_PULL_REQUEST_REVIEW_PAGES_ADAPTER = TypeAdapter(list[list[PullRequestReview]])
 GITHUB_INLINE_REVIEW_COMMENT_PAGES_ADAPTER = TypeAdapter(
@@ -391,29 +388,13 @@ def list_pull_requests(
 
 
 def create_pull_request(
-    *, repository: str, branch: str, issue: int
+    *, repository: str, branch: str, context: IssuePullRequestContext
 ) -> PullRequest | UnknownGitHubResponse:
     """Open the branch's linked draft pull request and return its identity.
 
-    An unknown response distinguishes a failure before creation from one that
-    leaves a created pull request whose identity could not be read.
+    An unknown response means that creation succeeded but the pull request's
+    identity could not be read.
     """
-    title_response = _read_github_response(
-        response_adapter=GITHUB_ISSUE_TITLE_RESPONSE_ADAPTER,
-        arguments=[
-            "issue",
-            "view",
-            str(issue),
-            "--repo",
-            repository,
-            "--json",
-            "title",
-        ],
-    )
-    if isinstance(title_response, UnknownGitHubResponse):
-        return UnknownGitHubResponse(
-            reason=f"cannot read the title of GH{issue}: {title_response.reason}"
-        )
     reference = run_command(
         program="gh",
         arguments=[
@@ -427,9 +408,9 @@ def create_pull_request(
             branch,
             "--draft",
             "--title",
-            title_response.title,
+            context.title,
             "--body",
-            f"Closes #{issue}",
+            f"Closes #{context.issue}",
         ],
     ).strip()
     pull_request = _read_pull_request(repository=repository, reference=reference)
@@ -466,17 +447,17 @@ def _read_pull_request(
     )
 
 
-def list_linked_pull_requests(
+def read_issue_pull_request_context(
     *, repository: str, issue: int
-) -> list[LinkedPullRequest] | UnknownGitHubResponse:
-    """Return the open pull requests that GitHub links to the issue.
+) -> IssuePullRequestContext | UnknownGitHubResponse:
+    """Return the issue title and its open linked pull requests.
 
     This is how the tool knows an issue is claimed when no worktree here says
     so, which is the state a second checkout of the same repository is always
     in.
     """
     linked_response = _read_github_response(
-        response_adapter=GITHUB_LINKED_PULL_REQUESTS_RESPONSE_ADAPTER,
+        response_adapter=GITHUB_ISSUE_PULL_REQUEST_CONTEXT_RESPONSE_ADAPTER,
         arguments=[
             "issue",
             "view",
@@ -484,7 +465,7 @@ def list_linked_pull_requests(
             "--repo",
             repository,
             "--json",
-            "closedByPullRequestsReferences",
+            "number,title,closedByPullRequestsReferences",
         ],
     )
     if isinstance(linked_response, UnknownGitHubResponse):
@@ -498,7 +479,7 @@ def list_linked_pull_requests(
             return pull_request
         if pull_request.state is PullRequestState.OPEN:
             open_pull_requests.append(linked_pull_request)
-    return open_pull_requests
+    return linked_response.model_copy(update={"pull_requests": open_pull_requests})
 
 
 def list_blocking_issues(

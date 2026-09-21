@@ -48,13 +48,14 @@ from dreamcatcher.git import (
     remove_worktree,
 )
 from dreamcatcher.github import (
+    IssuePullRequestContext,
     LinkedPullRequest,
     PullRequest,
     PullRequestState,
     UnknownGitHubResponse,
     create_pull_request,
-    list_linked_pull_requests,
     list_pull_requests,
+    read_issue_pull_request_context,
 )
 from dreamcatcher.harness_adapters import (
     HarnessSessionIdentifier,
@@ -287,17 +288,19 @@ def _inspect_incomplete_assignment_setup(
         branch_pull_request = _find_branch_pull_request(
             repository=repository, branch=branch
         )
-        linked_pull_requests = _read_linked_pull_requests(
+        pull_request_context = _read_issue_pull_request_context(
             repository=repository, issue=issue
         )
         if branch_pull_request is None:
             _refuse_linked_pull_requests(
-                linked=linked_pull_requests, branch=branch, issue=issue
+                linked=pull_request_context.pull_requests,
+                branch=branch,
+                issue=issue,
             )
         else:
             _adopt_pull_request(
                 pull_request=branch_pull_request,
-                linked=linked_pull_requests,
+                linked=pull_request_context.pull_requests,
                 branch=branch,
                 issue=issue,
             )
@@ -413,21 +416,21 @@ def _find_or_create_pull_request(*, repository: str, branch: str, issue: int) ->
     branch_pull_request = _find_branch_pull_request(
         repository=repository, branch=branch
     )
-    linked_pull_requests = _read_linked_pull_requests(
+    pull_request_context = _read_issue_pull_request_context(
         repository=repository, issue=issue
     )
     if branch_pull_request is not None:
         return _adopt_pull_request(
             pull_request=branch_pull_request,
-            linked=linked_pull_requests,
+            linked=pull_request_context.pull_requests,
             branch=branch,
             issue=issue,
         )
     _refuse_linked_pull_requests(
-        linked=linked_pull_requests, branch=branch, issue=issue
+        linked=pull_request_context.pull_requests, branch=branch, issue=issue
     )
     return _create_assignment_pull_request(
-        repository=repository, branch=branch, issue=issue
+        repository=repository, branch=branch, context=pull_request_context
     )
 
 
@@ -443,17 +446,17 @@ def _find_branch_pull_request(*, repository: str, branch: str) -> PullRequest | 
     return pull_requests[0] if pull_requests else None
 
 
-def _read_linked_pull_requests(
+def _read_issue_pull_request_context(
     *, repository: str, issue: int
-) -> list[LinkedPullRequest]:
-    """Return the issue's open linked pull requests or report why they are unknown."""
-    linked = list_linked_pull_requests(repository=repository, issue=issue)
-    if isinstance(linked, UnknownGitHubResponse):
+) -> IssuePullRequestContext:
+    """Return the issue's pull request context or report why it is unknown."""
+    context = read_issue_pull_request_context(repository=repository, issue=issue)
+    if isinstance(context, UnknownGitHubResponse):
         raise ReportableError(
             f"cannot tell whether another pull request claims GH{issue}: "
-            f"{linked.reason}"
+            f"{context.reason}"
         )
-    return linked
+    return context
 
 
 def _adopt_pull_request(
@@ -506,10 +509,12 @@ def _refuse_linked_pull_requests(
         )
 
 
-def _create_assignment_pull_request(*, repository: str, branch: str, issue: int) -> int:
+def _create_assignment_pull_request(
+    *, repository: str, branch: str, context: IssuePullRequestContext
+) -> int:
     """Create and return the assignment branch's open draft pull request."""
     pull_request = create_pull_request(
-        repository=repository, branch=branch, issue=issue
+        repository=repository, branch=branch, context=context
     )
     if isinstance(pull_request, UnknownGitHubResponse):
         raise ReportableError(pull_request.reason)

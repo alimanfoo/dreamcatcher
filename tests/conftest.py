@@ -308,6 +308,7 @@ def gh(fake):
     stand_in.replies(
         stdout=json.dumps(
             {
+                "number": 8,
                 "closedByPullRequestsReferences": [],
                 "title": "The issue title",
             }

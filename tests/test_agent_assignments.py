@@ -60,7 +60,11 @@ def create_agent_assignment(*, state, route, requested_harness, issue, at):
 def linked_pull_requests(*, numbers: Sequence[int]) -> str:
     """Return what gh says when these pull requests are linked to an issue."""
     return json.dumps(
-        {"closedByPullRequestsReferences": [{"number": one} for one in numbers]}
+        {
+            "number": 12,
+            "title": "The issue title",
+            "closedByPullRequestsReferences": [{"number": one} for one in numbers],
+        }
     )
 
 
@@ -898,26 +902,6 @@ def test_a_created_pull_request_that_cannot_be_read_is_reconciled_next_time(
     assert recovered.identifier == ASSIGNMENT_ID
     created = [call for call in gh.calls if call.arguments[:2] == ["pr", "create"]]
     assert len(created) == 1
-
-
-def test_a_pull_request_is_not_created_when_its_issue_title_cannot_be_read(
-    state, route, gh
-):
-    gh.fails(
-        stderr="gh: could not connect to github.com",
-        to=f"issue view 12 --repo {REPOSITORY} --json title",
-    )
-
-    with pytest.raises(ReportableError, match="cannot read the title of GH12"):
-        create_agent_assignment(
-            state=state,
-            route=route,
-            requested_harness=AgentHarness.CLAUDE,
-            issue=12,
-            at=PINNED,
-        )
-
-    assert not any(call.arguments[:2] == ["pr", "create"] for call in gh.calls)
 
 
 def test_a_created_pull_request_that_is_not_a_draft_is_reported(state, route, gh):
