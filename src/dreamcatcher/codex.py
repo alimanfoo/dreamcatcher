@@ -88,7 +88,7 @@ class CodexHarnessAdapter(HarnessAdapter):
     def build_hand_resume(
         self, *, harness_session_identifier: HarnessSessionIdentifier
     ) -> list[str]:
-        """Return how a person carries on the identified harness session.
+        """Return how a person resumes the identified harness session.
 
         `codex resume` is Codex's interactive resume, where `codex exec resume`
         is the headless one that every round of an assignment runs.

@@ -71,7 +71,7 @@ class ClaudeHarnessAdapter(HarnessAdapter):
         request: AgentRoundLaunchRequest,
         harness_session_identifier: HarnessSessionIdentifier,
     ) -> HarnessInvocation:
-        """Return how to continue the identified harness session.
+        """Return how to resume the identified harness session.
 
         Claude recovers the model and the effort itself, so a resume replays
         neither.
@@ -89,7 +89,7 @@ class ClaudeHarnessAdapter(HarnessAdapter):
     def build_hand_resume(
         self, *, harness_session_identifier: HarnessSessionIdentifier
     ) -> list[str]:
-        """Return how a person carries on the identified harness session."""
+        """Return how a person resumes the identified harness session."""
         return [self.program, "--resume", harness_session_identifier]
 
     def _read(self, *, harness_event: dict) -> HarnessOutput:
