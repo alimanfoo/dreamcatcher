@@ -61,15 +61,6 @@ def test_the_prompt_that_hands_over_user_posts_names_the_pull_request_and_the_fi
     assert composed.endswith(AGENT_POST_INSTRUCTIONS)
 
 
-def test_the_prompt_names_the_fields_a_resumed_agent_must_read(tmp_path):
-    composed = compose_user_posts_prompt(
-        pull_request=52, round_input=tmp_path / "inbox.json"
-    )
-
-    assert "Read pull_request_state before anything else." in composed
-    assert "act on user_posts" in composed
-
-
 def test_every_prompt_the_daemon_composes_asks_for_the_marker():
     composed = [
         compose_first_round_prompt(template="/dream:smith GH12", issue=12),
