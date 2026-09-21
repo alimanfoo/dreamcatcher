@@ -1,15 +1,15 @@
-"""Read dreamcatcher.toml, the configuration the repo agrees on."""
+"""Read dreamcatcher.toml, the configuration the repository agrees on."""
 
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Self
 
-from pydantic import AfterValidator, ConfigDict, Field, PositiveInt, model_validator
+from pydantic import AfterValidator, ConfigDict, Field, model_validator
 
 from dreamcatcher.commands import refuse_unquotable
-from dreamcatcher.documents import Document, read_toml
+from dreamcatcher.documents import DreamcatcherDocument, read_toml
 
-CONFIG_NAME = "dreamcatcher.toml"
+DREAMCATCHER_CONFIG_NAME = "dreamcatcher.toml"
 
 # Text that quoting can carry to a harness's own command line. Windows runs a
 # harness that npm installed as a batch file, so the text meets cmd.exe on the
@@ -22,44 +22,41 @@ CONFIG_NAME = "dreamcatcher.toml"
 QuotableText = Annotated[str, AfterValidator(refuse_unquotable)]
 
 
-class Harness(StrEnum):
-    """A coding agent dreamcatcher can run a round with."""
+class AgentHarness(StrEnum):
+    """List the agent harnesses that Dreamcatcher can run."""
 
     CLAUDE = "claude"
     CODEX = "codex"
 
 
-class AssignmentRecipe(Document):
-    """How one harness runs an assignment for one dispatch label."""
+class AgentAssignmentRecipe(DreamcatcherDocument):
+    """Describe how one harness runs assignments for a dispatch label."""
 
     prompt: str
     model: QuotableText
     effort: QuotableText
 
 
-class DispatchRoute(Document):
-    """A dispatch label and the recipe that each harness uses for it.
+class DispatchRoute(DreamcatcherDocument):
+    """Map a dispatch label to its available harness recipes.
 
     The label is the route's identity, so no two routes carry the same one.
 
-    A harness block sits beside the label rather than under a key of its own,
-    as `[dispatch.claude]` does, so pydantic meets it as an extra key. Those
-    extra keys carry a declared type, Harness, so the set of harnesses stays in
-    one home. A key that names no harness is then a named error, so the route
-    keeps the guarantee that every document makes.
+    Harness blocks sit beside the label as extra keys. Their declared key type
+    is `AgentHarness`, so an unknown harness is a validation error.
     """
 
     model_config = ConfigDict(extra="allow")
-    __pydantic_extra__: dict[Harness, AssignmentRecipe]
+    __pydantic_extra__: dict[AgentHarness, AgentAssignmentRecipe]
 
     label: str
 
     @property
-    def assignment_recipes(self) -> dict[Harness, AssignmentRecipe]:
+    def assignment_recipes(self) -> dict[AgentHarness, AgentAssignmentRecipe]:
         """The recipe of each harness that can run this route."""
         return self.__pydantic_extra__
 
-    def choose_harness(self, *, named: Harness) -> Harness:
+    def choose_harness(self, *, requested_harness: AgentHarness) -> AgentHarness:
         """Return the harness that runs this label, given what the run named.
 
         A label carrying a block for the named harness runs on that one. There
@@ -69,21 +66,21 @@ class DispatchRoute(Document):
         label carries, and the config needs no pin of its own.
         """
         recipes = self.assignment_recipes
-        return named if named in recipes else next(iter(recipes))
+        return (
+            requested_harness if requested_harness in recipes else next(iter(recipes))
+        )
 
     @model_validator(mode="after")
-    def _carries_a_block(self) -> Self:
+    def _require_assignment_recipe(self) -> Self:
         """Refuse a label with no harness able to run it."""
         if not self.assignment_recipes:
             raise ValueError(f"label {self.label} has no harness block")
         return self
 
 
-class Config(Document):
-    """What the repo agrees on about dispatching its labelled issues."""
+class DreamcatcherConfig(DreamcatcherDocument):
+    """Model a repository's agent-assignment configuration."""
 
-    interval: PositiveInt = 120
-    max_agents: PositiveInt = 1
     assignee: str = "@me"
     dispatch: list[DispatchRoute] = Field(min_length=1)
 
@@ -97,28 +94,44 @@ class Config(Document):
         return {route.label: route for route in self.dispatch}
 
     @property
-    def routed_harnesses(self) -> set[Harness]:
-        """Every harness that a route here could settle one of its labels on.
+    def routed_harnesses(self) -> set[AgentHarness]:
+        """Every harness that any configured route can select.
 
-        A label carrying one harness block runs on that harness whatever a run
-        named, so this is wider than the harness the run gave, and a run has to
-        reach every one of them.
+        A route with one harness selects it regardless of the daemon's requested
+        harness.
         """
         return {
             harness for route in self.dispatch for harness in route.assignment_recipes
         }
 
+    def identify_dispatch_labels(self, *, labels: list[str]) -> list[str]:
+        """Return the configured dispatch labels among the observed labels."""
+        configured = {label.casefold(): label for label in self.dispatch_routes}
+        return sorted(
+            {
+                configured[label.casefold()]
+                for label in labels
+                if label.casefold() in configured
+            },
+            key=str.casefold,
+        )
+
     @model_validator(mode="after")
-    def _each_label_has_one_route(self) -> Self:
+    def _require_one_route_per_label(self) -> Self:
         """Refuse two routes for one label, since the label is the identity."""
         labels = [route.label for route in self.dispatch]
-        repeated = sorted({label for label in labels if labels.count(label) > 1})
+        identities = [label.casefold() for label in labels]
+        repeated = sorted(
+            {identity for identity in identities if identities.count(identity) > 1}
+        )
         if repeated:
-            named = ", ".join(repeated)
-            raise ValueError(f"more than one dispatch entry uses the label {named}")
+            repeated_label_names = ", ".join(repeated)
+            raise ValueError(
+                f"more than one dispatch entry uses the label {repeated_label_names}"
+            )
         return self
 
 
-def read_config(*, root: Path) -> Config:
-    """Return the configuration the repo at root holds."""
-    return read_toml(model=Config, path=root / CONFIG_NAME)
+def read_dreamcatcher_config(*, root: Path) -> DreamcatcherConfig:
+    """Return the configuration the repository at root holds."""
+    return read_toml(model=DreamcatcherConfig, path=root / DREAMCATCHER_CONFIG_NAME)

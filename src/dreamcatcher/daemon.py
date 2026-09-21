@@ -10,16 +10,26 @@ from typing import TYPE_CHECKING
 from dreamcatcher import teardown
 from dreamcatcher.agent_assignments import read_agent_assignments
 from dreamcatcher.agent_rounds import record_agent_round_interruption
-from dreamcatcher.clock import Wait, now
-from dreamcatcher.commands import locate
-from dreamcatcher.config import Harness, read_config
-from dreamcatcher.documents import write_json
+from dreamcatcher.clock import WaitForSeconds, read_current_time
+from dreamcatcher.commands import locate_program
+from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
+from dreamcatcher.daemon_runs import DaemonRunRecord
+from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.github import Unknown, identify_account, identify_repository
-from dreamcatcher.harnesses import ADAPTERS
-from dreamcatcher.lock import hold
-from dreamcatcher.scheduler import Scheduler
-from dreamcatcher.state import LastTick, StateDirectory
+from dreamcatcher.github import (
+    UnknownGitHubResponse,
+    identify_github_account,
+    identify_github_repository,
+)
+from dreamcatcher.harnesses import HARNESS_ADAPTERS
+from dreamcatcher.lock import hold_daemon_lock
+from dreamcatcher.scheduler import (
+    DEFAULT_MAX_AGENTS,
+    AgentWorkScheduler,
+    InvalidSchedulerRecordError,
+)
+from dreamcatcher.state import StateDirectory
+from dreamcatcher.version import DREAMCATCHER_VERSION
 from dreamcatcher.words import describe_time
 
 if TYPE_CHECKING:
@@ -28,6 +38,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from dreamcatcher.agent_rounds import AgentRound
+
+DEFAULT_INTERVAL_SECONDS = 120
 
 
 def _write_output(*, line: str) -> None:
@@ -40,8 +52,8 @@ def _write_output(*, line: str) -> None:
         raise ReportableError("Could not write daemon output.") from error
 
 
-class Daemon:
-    """The foreground process watching one repo.
+class DreamcatcherDaemon:
+    """Run the foreground process that watches one repository.
 
     The clock and the wait are the daemon's own, so a test can pin the time and
     end the loop.
@@ -51,125 +63,140 @@ class Daemon:
         self,
         *,
         root: Path,
-        harness: Harness,
-        clock: Callable[[], datetime] = now,
-        wait: Wait = sleep,
+        harness: AgentHarness,
+        interval: int = DEFAULT_INTERVAL_SECONDS,
+        max_agents: int = DEFAULT_MAX_AGENTS,
     ) -> None:
-        """Set the daemon up for the repo checked out at root."""
+        """Configure the daemon for the main checkout at root."""
         if not (root / ".git").is_dir():
             raise ReportableError(
                 f"Start dreamcatcher from a repository's main checkout. "
                 f"{root} is not one."
             )
         self.harness = harness
-        self.config = read_config(root=root)
+        self.interval = interval
+        self.max_agents = max_agents
+        self.config = read_dreamcatcher_config(root=root)
         self.state = StateDirectory(root=root)
-        self.clock = clock
-        self.wait = wait
+        self.clock: Callable[[], datetime] = read_current_time
+        self.wait: WaitForSeconds = sleep
         # The rounds this daemon is running, by the identifier of the assignment each
         # belongs to. They are what the cap counts, and what the daemon ends as
         # it goes down.
         self.rounds: dict[str, AgentRound] = {}
 
     def run(self) -> None:
-        """Hold the repo and tick until the user interrupts.
+        """Hold the repository and run scheduler cycles until interrupted.
 
         Everything a run cannot do without is settled before the loop: the
         harness CLIs, the state directory, the repository's name, the account
         gh is signed in as, the lock, and the assignments the sweep reads. A run
         refuses when any of those will not answer, rather than starting a loop
         that could never dispatch. Once the loop is going, a tick that fails
-        records the failure and the next tick tries again.
+        reports the failure and the next tick tries again. An invalid scheduler
+        record ends the run because retrying cannot change the document it reads.
 
-        The repository and the account are read here and nowhere else. Neither
-        can change while the daemon holds the repo, a run that cannot name the
-        repository dispatches nothing, and the relay reads every post against
-        the account before the marker tells the user's posts from the
-        assignment's own.
+        The repository and signed-in account are fixed for the run. The account
+        identifies user posts before the marker excludes the assignment's own
+        posts.
         """
         self._locate_harnesses()
-        self.state.bootstrap()
-        repository = _refuse_unknown(
-            named=identify_repository(root=self.state.root),
-            question="which repository this is",
-        )
-        account = _refuse_unknown(
-            named=identify_account(), question="which account gh is signed in as"
-        )
-        scheduler = Scheduler(
-            repository=repository,
-            account=account,
-            config=self.config,
-            state=self.state,
-            harness=self.harness,
-            clock=self.clock,
-            rounds=self.rounds,
-        )
-        with hold(path=self.state.lock):
+        with hold_daemon_lock(path=self.state.lock) as pid:
+            self.state.bootstrap()
+            repository = _require_known_github_value(
+                value=identify_github_repository(root=self.state.root),
+                question="which repository this is",
+            )
+            write_text(text=f"{repository}\n", path=self.state.repository)
+            account = _require_known_github_value(
+                value=identify_github_account(),
+                question="which account gh is signed in as",
+            )
+            scheduler = AgentWorkScheduler(
+                repository=repository,
+                account=account,
+                config=self.config,
+                state=self.state,
+                harness=self.harness,
+                clock=self.clock,
+                rounds=self.rounds,
+                max_agents=self.max_agents,
+            )
             self._sweep_orphans()
+            write_json(
+                document=DaemonRunRecord(
+                    pid=pid,
+                    harness=self.harness,
+                    version=DREAMCATCHER_VERSION,
+                    max_agents=self.max_agents,
+                ),
+                path=self.state.daemon_run_record,
+            )
             at = self.clock()
             _write_output(line=f"{describe_time(at=at)}  dreamcatcher is running")
             try:
                 with suppress(KeyboardInterrupt):
                     while True:
-                        self.tick(scheduler=scheduler, at=at)
-                        self.wait(self.config.interval)
+                        self.run_scheduler_cycle(scheduler=scheduler, at=at)
+                        self.wait(self.interval)
                         at = self.clock()
             finally:
                 # Rounds die with the daemon by design, so this happens however
                 # the run ends: on the user's interrupt, and on a failure the
                 # daemon could not carry on from. A round that already ended
                 # keeps the ending it recorded for itself.
-                for running in self.rounds.values():
-                    running.stop()
+                for agent_round in self.rounds.values():
+                    agent_round.stop()
 
-    def tick(self, *, scheduler: Scheduler, at: datetime) -> None:
-        """Run one scheduler tick, then record and report its result.
+    def run_scheduler_cycle(
+        self, *, scheduler: AgentWorkScheduler, at: datetime
+    ) -> None:
+        """Run one scheduler tick, then persist and report its result.
 
-        A tick that failed still leaves the evidence where the user can read
-        it, and the next tick tries again, rather than the daemon ending and
-        leaving the assignments it holds to nobody.
+        A failed tick reports the error and leaves the last complete scheduler
+        record in place so that the next cycle can try again.
 
         Writing that evidence down is the exception. A daemon that cannot write
-        `last-tick.json` has no way left to say anything at all, so that
+        `scheduler.json` has no way left to say anything at all, so that
         failure ends the run with a message the user can act on, and the rounds
         it was holding end with it.
         """
         try:
-            observed = scheduler.tick(at=at)
+            scheduler_record = scheduler.tick(at=at)
+        except InvalidSchedulerRecordError:
+            raise
         except ReportableError as failure:
-            observed = LastTick(at=at, hold=str(failure))
-        write_json(document=observed, path=self.state.last_tick)
-        if observed.launched is not None:
-            outcome = f"launched round for {observed.launched}"
-        elif observed.hold is not None:
-            outcome = f"held: {' '.join(observed.hold.split())}"
+            reason = " ".join(str(failure).split())
+            _write_output(line=f"{describe_time(at=at)}  held: {reason}")
+            return
+        write_json(document=scheduler_record, path=self.state.scheduler_record)
+        if scheduler_record.launched_assignment_identifier is not None:
+            outcome_description = (
+                f"launched round for {scheduler_record.launched_assignment_identifier}"
+            )
+        elif scheduler_record.hold is not None:
+            outcome_description = f"held: {' '.join(scheduler_record.hold.split())}"
         else:
-            outcome = "nothing launched"
-        _write_output(line=f"{describe_time(at=observed.at)}  {outcome}")
+            outcome_description = "nothing launched"
+        _write_output(
+            line=(f"{describe_time(at=scheduler_record.at)}  {outcome_description}")
+        )
 
     def _locate_harnesses(self) -> None:
         """Refuse the run when a harness it could dispatch to is not installed.
 
         Every harness a route can settle a label on is looked up, not just
         the one the run named, because a label carrying one harness block runs
-        on that harness whatever the run named. Without this a missing CLI
-        would read as a round that fails every fifteen minutes, since the hold
-        after a failure cannot tell a misconfiguration from a blip.
+        on that harness whatever the run named.
         """
         for harness in sorted({self.harness, *self.config.routed_harnesses}):
-            locate(program=ADAPTERS[harness].program)
+            locate_program(program=HARNESS_ADAPTERS[harness].program)
 
     def _sweep_orphans(self) -> None:
-        """End whatever a daemon that ran before this one left running.
+        """Terminate and reconcile rounds left running by an earlier daemon.
 
-        Rounds die with the daemon that started them, so a round still running
-        here means the daemon that started it went down without ending it,
-        which a crash or a kill does. A round whose record says how it ended is
-        over and is left alone. Every other round is ended, and ending a round
-        that has already gone does nothing, so nothing here has to ask whether
-        one has. Its record is then reconciled as interrupted, which a later
-        tick recovers.
+        A terminal record is left unchanged. Every record without an ending is
+        marked interrupted so that a later scheduler cycle can recover it.
 
         The pid is the one the record kept, and the operating system was free
         to give it to somebody else once the daemon that recorded it died.
@@ -178,22 +205,25 @@ class Daemon:
         nothing happens. That leaves a window, and it is accepted, as the same
         window is where the tool ends its own rounds.
 
-        Windows cannot reach this at all: a round there sits in a job that
-        empties itself when the daemon's last handle on it closes, so no round
-        outlives its daemon and there is never anything to end.
+        Windows Job Objects empty when the earlier daemon closes its last
+        handle, so termination there is already complete.
         """
         for assignment in read_agent_assignments(state=self.state):
             for record in assignment.rounds:
                 if record.ending is None:
-                    teardown.end(pid=record.pid)
+                    teardown.end_process_tree(pid=record.pid)
                     record_agent_round_interruption(
                         record=record,
-                        path=assignment.round_paths(number=record.number).record,
+                        path=assignment.compose_round_paths(
+                            number=record.number
+                        ).record,
                     )
 
 
-def _refuse_unknown(*, named: str | Unknown, question: str) -> str:
+def _require_known_github_value(
+    *, value: str | UnknownGitHubResponse, question: str
+) -> str:
     """Return what gh named, or refuse the run saying what it could not tell."""
-    if isinstance(named, Unknown):
-        raise ReportableError(f"dreamcatcher cannot tell {question}: {named.reason}")
-    return named
+    if isinstance(value, UnknownGitHubResponse):
+        raise ReportableError(f"dreamcatcher cannot tell {question}: {value.reason}")
+    return value

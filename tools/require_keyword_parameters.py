@@ -21,10 +21,10 @@ from pathlib import Path
 
 # What a method's receiver is called. It arrives by position, whatever the
 # parameters after it do.
-RECEIVERS = ("self", "cls")
+METHOD_RECEIVER_NAMES = ("self", "cls")
 
 # What pytest's own decorator is called, wherever it was imported from.
-FIXTURE = "fixture"
+PYTEST_FIXTURE_DECORATOR = "fixture"
 
 
 def is_called_by_pytest(*, definition: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
@@ -32,12 +32,12 @@ def is_called_by_pytest(*, definition: ast.FunctionDef | ast.AsyncFunctionDef) -
     if definition.name.startswith(("test_", "pytest_")):
         return True
     return any(
-        _name_of(decorator=decorator) == FIXTURE
+        _read_decorator_name(decorator=decorator) == PYTEST_FIXTURE_DECORATOR
         for decorator in definition.decorator_list
     )
 
 
-def _name_of(*, decorator: ast.expr) -> str:
+def _read_decorator_name(*, decorator: ast.expr) -> str:
     """Return what a decorator is called, without its module or its arguments.
 
     A decorator reads as `pytest.fixture`, as `fixture`, or as either of those
@@ -46,7 +46,7 @@ def _name_of(*, decorator: ast.expr) -> str:
     matches.
     """
     if isinstance(decorator, ast.Call):
-        return _name_of(decorator=decorator.func)
+        return _read_decorator_name(decorator=decorator.func)
     if isinstance(decorator, ast.Attribute):
         return decorator.attr
     if isinstance(decorator, ast.Name):
@@ -62,7 +62,7 @@ def find_positional_parameters(*, text: str) -> Iterator[str]:
         if is_called_by_pytest(definition=node):
             continue
         taken = [argument.arg for argument in node.args.args]
-        if taken and taken[0] in RECEIVERS:
+        if taken and taken[0] in METHOD_RECEIVER_NAMES:
             taken = taken[1:]
         if node.args.vararg is not None:
             taken.append(f"*{node.args.vararg.arg}")
@@ -72,13 +72,13 @@ def find_positional_parameters(*, text: str) -> Iterator[str]:
 
 def main(*, paths: Sequence[str]) -> int:
     """Name every parameter a caller could pass by position, and fail if any."""
-    found = False
+    has_positional_parameters = False
     for path in paths:
         text = Path(path).read_text(encoding="utf-8")
         for reported in find_positional_parameters(text=text):
             print(f"{path}:{reported}")
-            found = True
-    return int(found)
+            has_positional_parameters = True
+    return int(has_positional_parameters)
 
 
 if __name__ == "__main__":

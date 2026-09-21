@@ -2,7 +2,7 @@ import sys
 
 from conftest import gone
 
-from dreamcatcher.commands import spawn
+from dreamcatcher.commands import spawn_command
 
 # A child that starts a child of its own, says which process that is, and then
 # ends. So anything that reached the child alone would leave the other running.
@@ -17,7 +17,7 @@ AND_WAITS = "time.sleep(60)\n"
 
 
 def test_a_kill_reaches_what_the_child_started(tmp_path):
-    child = spawn(
+    child = spawn_command(
         program=sys.executable,
         arguments=["-c", STARTS_A_CHILD + AND_WAITS],
         cwd=tmp_path,
@@ -32,7 +32,7 @@ def test_a_kill_reaches_what_the_child_started(tmp_path):
 
 
 def test_a_child_that_ends_by_itself_takes_what_it_started_with_it(tmp_path):
-    child = spawn(
+    child = spawn_command(
         program=sys.executable, arguments=["-c", STARTS_A_CHILD], cwd=tmp_path
     )
     grandchild = int(child.out.readline())
@@ -43,7 +43,7 @@ def test_a_child_that_ends_by_itself_takes_what_it_started_with_it(tmp_path):
 
 
 def test_a_kill_after_the_child_ended_leaves_its_pid_alone(tmp_path):
-    child = spawn(
+    child = spawn_command(
         program=sys.executable, arguments=["-c", "print('done')"], cwd=tmp_path
     )
 

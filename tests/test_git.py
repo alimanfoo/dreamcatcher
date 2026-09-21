@@ -7,7 +7,7 @@ from dreamcatcher.commands import CommandError
 from dreamcatcher.git import (
     add_worktree,
     delete_branch,
-    fetch,
+    fetch_main,
     has_commits_since_main,
     make_empty_commit,
     push_branch,
@@ -39,7 +39,7 @@ def worktrees(*, root):
 def test_a_fetch_brings_origins_main_back(cloned):
     git(arguments=["update-ref", "-d", "refs/remotes/origin/main"], cwd=cloned)
 
-    fetch(root=cloned)
+    fetch_main(root=cloned)
 
     assert git(arguments=["rev-parse", "origin/main"], cwd=cloned).strip()
 

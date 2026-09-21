@@ -1,8 +1,0 @@
-daemon running as pid 4242, last tick 2m ago, at cap: 1 of 1 rounds running
-
-agent working
-  GH13-20260819-184158  round 1, running 1h 30m, last output 1h 29m ago
-                        [Bash] pytest                                  
-
-waiting
-  GH20-20260819-184158  at cap: 1 of 1 rounds running

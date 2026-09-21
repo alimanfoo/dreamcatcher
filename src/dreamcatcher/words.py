@@ -1,9 +1,9 @@
-"""How the tool says a value in words, so every view says it the same way."""
+"""Format shared time, duration, and count values for display."""
 
 from datetime import UTC, datetime, timedelta
 
 # How a time is written wherever the tool writes one.
-STAMP = "%Y-%m-%dT%H:%M:%SZ"
+UTC_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 SECONDS_PER_MINUTE = 60
 MINUTES_PER_HOUR = 60
@@ -11,12 +11,12 @@ HOURS_PER_DAY = 24
 
 
 def describe_time(*, at: datetime) -> str:
-    """Return the time as the tool writes one, in UTC whatever it was read in."""
-    return f"{at.astimezone(UTC):{STAMP}}"
+    """Return the time in Dreamcatcher's UTC timestamp format."""
+    return f"{at.astimezone(UTC):{UTC_TIMESTAMP_FORMAT}}"
 
 
 def describe_span(*, span: timedelta) -> str:
-    """Return how long that is, in the largest unit that says it.
+    """Return the duration in its largest useful units.
 
     A span of hours or more carries the next unit down as well, since the hour
     alone would round a whole working day away.
@@ -34,7 +34,7 @@ def describe_span(*, span: timedelta) -> str:
 
 
 def describe_count(*, number: int, noun: str) -> str:
-    """Return how many of the noun that is, in words that read for one.
+    """Return a count with the noun pluralized when needed.
 
     The noun is one that takes an s, which every noun the tool counts is: a
     round, a post, an assignment.

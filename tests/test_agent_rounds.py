@@ -1,3 +1,4 @@
+import json
 import sys
 from contextlib import suppress
 from threading import Thread
@@ -7,36 +8,59 @@ from typing import cast
 import psutil
 import pytest
 from clocks import PINNED
-from conftest import FIXTURES
+from conftest import (
+    FIXTURES,
+    HUNK,
+    POSTED_BY,
+    comment,
+    inline_comment,
+    review,
+)
 from fakes import Line, Stream, recorded
-from recordings import rendered
+from recordings import render_harness_recording
 
-from dreamcatcher.adapters import Adapter, Invocation, Launch
 from dreamcatcher.agent_rounds import (
-    RECORD,
+    AGENT_ROUND_RECORD_NAME,
     AgentRound,
+    AgentRoundInput,
+    AgentRoundOutcome,
+    AgentRoundOutputReader,
     AgentRoundPaths,
     AgentRoundPlan,
+    AgentRoundPurpose,
     AgentRoundRecord,
+    AgentRoundStartRequest,
     ErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
-    RoundOutcome,
-    RoundPurpose,
     compose_agent_round_ending,
     record_agent_round_interruption,
+    start_agent_round,
 )
-from dreamcatcher.claude import CLAUDE
+from dreamcatcher.claude import CLAUDE_ADAPTER
+from dreamcatcher.config import AgentHarness
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.feed import Event, Note, Renderer
+from dreamcatcher.feed import FeedNote, FeedRenderer
+from dreamcatcher.github import (
+    ConversationComment,
+    InlineReviewComment,
+    PullRequestReview,
+    PullRequestState,
+)
+from dreamcatcher.harness_adapters import (
+    AgentRoundLaunchRequest,
+    HarnessAdapter,
+    HarnessInvocation,
+    HarnessOutput,
+)
 
 # A round that listed a directory, read a file that was not there, and sent a
 # subagent to count the files. Its golden feed is asserted in test_recordings.
 RECORDING = FIXTURES / "claude" / "round.jsonl"
 
-STAMP = "2026-08-19T18:41:58Z"
+FEED_TIMESTAMP = "2026-08-19T18:41:58Z"
 
 # What the tests here say woke every round they run.
-PURPOSE = RoundPurpose.IMPLEMENT
+PURPOSE = AgentRoundPurpose.IMPLEMENT
 
 # What every round here asks the harness to do. It holds a percent sign and runs
 # over two lines, neither of which a command line could carry to a batch file,
@@ -68,24 +92,50 @@ def pinned():
     return PINNED
 
 
-class Unrenderable(Adapter):
+def ignore_harness_session_identifier(*, identifier: str) -> None:
+    """Accept a harness session identifier that a test does not inspect."""
+
+
+def round_harness(
+    *,
+    harness_adapter: HarnessAdapter = CLAUDE_ADAPTER,
+    record=ignore_harness_session_identifier,
+) -> AgentRoundOutputReader:
+    """Return the harness boundary used by one round test."""
+    return AgentRoundOutputReader(
+        harness_adapter=harness_adapter,
+        record_harness_session_identifier=record,
+    )
+
+
+class Unrenderable(HarnessAdapter):
     """An adapter whose events hold what the feed has no way to write."""
 
     program = "harness"
 
-    def build_first_round(self, *, launch: Launch) -> Invocation:
-        return Invocation(program=self.program, arguments=[], prompt=launch.prompt)
+    def build_first_round(
+        self, *, request: AgentRoundLaunchRequest
+    ) -> HarnessInvocation:
+        return HarnessInvocation(
+            program=self.program, arguments=[], prompt=request.prompt
+        )
 
-    def build_resumed_round(self, *, launch: Launch) -> Invocation:
-        return Invocation(program=self.program, arguments=[], prompt=launch.prompt)
+    def build_resumed_round(
+        self, *, request: AgentRoundLaunchRequest, harness_session_identifier: str
+    ) -> HarnessInvocation:
+        return HarnessInvocation(
+            program=self.program, arguments=[], prompt=request.prompt
+        )
 
-    def build_hand_resume(self) -> list[str]:
+    def build_hand_resume(self, *, harness_session_identifier: str) -> list[str]:
         return [self.program]
 
-    def _events(self, *, streamed: dict) -> list[Event]:
+    def _read(self, *, harness_event: dict) -> HarnessOutput:
         # A real harness can send a path or a command as something other than
         # text, and the renderer cannot write an event that holds one.
-        return [Note(label="read", detail=cast("str", streamed))]
+        return HarnessOutput(
+            events=[FeedNote(label="read", detail=cast("str", harness_event))]
+        )
 
 
 @pytest.fixture
@@ -120,7 +170,7 @@ def written(*, path):
     return AgentRoundRecord.model_validate_json(path.read_text(encoding="utf-8"))
 
 
-def round_paths(*, worktree, directory) -> AgentRoundPaths:
+def compose_round_paths(*, worktree, directory) -> AgentRoundPaths:
     """Name the files of the numbered round at directory."""
     return AgentRoundPaths(
         worktree=worktree,
@@ -144,9 +194,11 @@ def test_a_round_runs_the_command_it_was_given_in_the_worktree(
     harness.replies(stdout="")
 
     AgentRound(
-        adapter=CLAUDE,
-        invocation=Invocation(program="harness", arguments=["--print"], prompt=PROMPT),
-        paths=round_paths(worktree=worktree, directory=directory),
+        output_reader=round_harness(),
+        invocation=HarnessInvocation(
+            program="harness", arguments=["--print"], prompt=PROMPT
+        ),
+        paths=compose_round_paths(worktree=worktree, directory=directory),
         plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
         clock=pinned,
     ).wait()
@@ -160,9 +212,9 @@ def test_a_round_gives_the_harness_its_prompt_to_read(fake, worktree, directory)
     harness.replies(stdout="")
 
     running = AgentRound(
-        adapter=CLAUDE,
-        invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
-        paths=round_paths(worktree=worktree, directory=directory),
+        output_reader=round_harness(),
+        invocation=HarnessInvocation(program="harness", arguments=[], prompt=PROMPT),
+        paths=compose_round_paths(worktree=worktree, directory=directory),
         plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
         clock=pinned,
     )
@@ -172,24 +224,120 @@ def test_a_round_gives_the_harness_its_prompt_to_read(fake, worktree, directory)
     assert running.paths.prompt.read_text(encoding="utf-8") == PROMPT
 
 
+def test_a_first_round_builds_its_harness_invocation(fake, worktree, directory):
+    harness = fake(program="claude")
+    harness.replies(stdout="")
+
+    start_agent_round(
+        request=AgentRoundStartRequest(
+            harness=AgentHarness.CLAUDE,
+            launch_request=AgentRoundLaunchRequest(
+                agent_assignment_identifier="GH9-20260819-184158",
+                model="opus[1m]",
+                effort="xhigh",
+                prompt=PROMPT,
+            ),
+            harness_session_identifier=None,
+            record_harness_session_identifier=ignore_harness_session_identifier,
+            paths=compose_round_paths(worktree=worktree, directory=directory),
+            plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
+        ),
+        clock=pinned,
+    ).wait()
+
+    call = harness.calls[0]
+    assert call.arguments[-4:] == ["--model", "opus[1m]", "--effort", "xhigh"]
+    assert call.prompt == PROMPT
+    assert call.directory == worktree.resolve()
+
+
+def test_a_resumed_round_builds_its_harness_invocation(fake, worktree, directory):
+    harness = fake(program="claude")
+    harness.replies(stdout="")
+
+    start_agent_round(
+        request=AgentRoundStartRequest(
+            harness=AgentHarness.CLAUDE,
+            launch_request=AgentRoundLaunchRequest(
+                agent_assignment_identifier="GH9-20260819-184158",
+                model="opus[1m]",
+                effort="xhigh",
+                prompt=PROMPT,
+            ),
+            harness_session_identifier="abc-123",
+            record_harness_session_identifier=ignore_harness_session_identifier,
+            paths=compose_round_paths(worktree=worktree, directory=directory),
+            plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=True),
+        ),
+        clock=pinned,
+    ).wait()
+
+    call = harness.calls[0]
+    assert call.arguments[-2:] == ["--resume", "abc-123"]
+    assert "opus[1m]" not in call.arguments
+    assert "xhigh" not in call.arguments
+    assert call.prompt == PROMPT
+    assert call.directory == worktree.resolve()
+
+
+def test_a_round_writes_the_pull_request_state_and_user_posts_it_was_given(
+    fake, worktree, directory
+):
+    harness = fake(program="harness")
+    harness.replies(stdout="")
+    posts = [
+        ConversationComment.model_validate(comment()),
+        PullRequestReview.model_validate(
+            review(body="have a look", user={"login": POSTED_BY})
+        ),
+        InlineReviewComment.model_validate(inline_comment()),
+    ]
+
+    running = AgentRound(
+        output_reader=round_harness(),
+        invocation=HarnessInvocation(program="harness", arguments=[], prompt=PROMPT),
+        paths=compose_round_paths(worktree=worktree, directory=directory),
+        plan=AgentRoundPlan(
+            purpose=PURPOSE,
+            is_recovery=False,
+            input=AgentRoundInput(
+                pull_request_state=PullRequestState.OPEN, user_posts=posts
+            ),
+        ),
+        clock=pinned,
+    )
+    running.wait()
+
+    read_back = json.loads(running.paths.round_input.read_text(encoding="utf-8"))
+    assert read_back["pull_request_state"] == "OPEN"
+    assert [post["kind"] for post in read_back["user_posts"]] == [
+        "comment",
+        "review",
+        "inlineComment",
+    ]
+    assert read_back["user_posts"][1]["verdict"] == "COMMENTED"
+    assert "state" not in read_back["user_posts"][1]
+    assert read_back["user_posts"][2]["diff_hunk"] == HUNK
+
+
 def test_the_feed_a_round_writes_is_the_feed_its_stream_renders_as(
     fake, worktree, directory
 ):
     fake(program="harness").streams(lines=recorded(path=RECORDING))
 
     running = AgentRound(
-        adapter=CLAUDE,
-        invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
-        paths=round_paths(worktree=worktree, directory=directory),
+        output_reader=round_harness(),
+        invocation=HarnessInvocation(program="harness", arguments=[], prompt=PROMPT),
+        paths=compose_round_paths(worktree=worktree, directory=directory),
         plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
         clock=pinned,
     )
     running.wait()
 
-    assert running.paths.feed.read_text(encoding="utf-8") == rendered(
-        adapter=CLAUDE,
+    assert running.paths.feed.read_text(encoding="utf-8") == render_harness_recording(
+        adapter=CLAUDE_ADAPTER,
         lines=RECORDING.read_text(encoding="utf-8").splitlines(),
-        renderer=Renderer(worktree=worktree, clock=pinned),
+        renderer=FeedRenderer(worktree=worktree, clock=pinned),
     )
 
 
@@ -197,17 +345,50 @@ def test_a_round_keeps_the_harnesss_own_stream_as_it_arrived(fake, worktree, dir
     fake(program="harness").streams(lines=recorded(path=RECORDING))
 
     running = AgentRound(
-        adapter=CLAUDE,
-        invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
-        paths=round_paths(worktree=worktree, directory=directory),
+        output_reader=round_harness(),
+        invocation=HarnessInvocation(program="harness", arguments=[], prompt=PROMPT),
+        paths=compose_round_paths(worktree=worktree, directory=directory),
         plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
         clock=pinned,
     )
     running.wait()
 
-    assert running.paths.raw.read_text(encoding="utf-8") == RECORDING.read_text(
+    assert running.paths.raw_output.read_text(encoding="utf-8") == RECORDING.read_text(
         encoding="utf-8"
     )
+
+
+def test_a_round_records_the_harness_session_after_its_raw_event_lands(
+    fake, worktree, directory
+):
+    line = (
+        json.dumps(
+            {
+                "type": "system",
+                "subtype": "init",
+                "model": "claude-opus-5",
+                "session_id": "abc-123",
+            }
+        )
+        + "\n"
+    )
+    fake(program="harness").streams(lines=[Line(text=line)])
+    paths = compose_round_paths(worktree=worktree, directory=directory)
+    recorded = []
+
+    def record(*, identifier: str) -> None:
+        recorded.append((identifier, paths.raw_output.read_text(encoding="utf-8")))
+
+    running = AgentRound(
+        output_reader=round_harness(record=record),
+        invocation=HarnessInvocation(program="harness", arguments=[], prompt=PROMPT),
+        paths=paths,
+        plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
+        clock=pinned,
+    )
+    running.wait()
+
+    assert recorded == [("abc-123", line)]
 
 
 def test_what_the_harness_says_on_stderr_lands_where_it_happened(
@@ -225,20 +406,20 @@ def test_what_the_harness_says_on_stderr_lands_where_it_happened(
     )
 
     running = AgentRound(
-        adapter=CLAUDE,
-        invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
-        paths=round_paths(worktree=worktree, directory=directory),
+        output_reader=round_harness(),
+        invocation=HarnessInvocation(program="harness", arguments=[], prompt=PROMPT),
+        paths=compose_round_paths(worktree=worktree, directory=directory),
         plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
         clock=pinned,
     )
     running.wait()
 
     assert running.paths.feed.read_text(encoding="utf-8").splitlines() == [
-        f"{STAMP}  first",
-        f"{STAMP}  an aside",
-        f"{STAMP}  second",
+        f"{FEED_TIMESTAMP}  first",
+        f"{FEED_TIMESTAMP}  an aside",
+        f"{FEED_TIMESTAMP}  second",
     ]
-    assert running.paths.raw.read_text(encoding="utf-8") == "first\nsecond\n"
+    assert running.paths.raw_output.read_text(encoding="utf-8") == "first\nsecond\n"
 
 
 def test_a_line_the_feed_cannot_write_costs_that_line_alone(fake, worktree, directory):
@@ -247,17 +428,17 @@ def test_a_line_the_feed_cannot_write_costs_that_line_alone(fake, worktree, dire
     )
 
     running = AgentRound(
-        adapter=Unrenderable(),
-        invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
-        paths=round_paths(worktree=worktree, directory=directory),
+        output_reader=round_harness(harness_adapter=Unrenderable()),
+        invocation=HarnessInvocation(program="harness", arguments=[], prompt=PROMPT),
+        paths=compose_round_paths(worktree=worktree, directory=directory),
         plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
         clock=pinned,
     )
     running.wait()
 
     assert running.paths.feed.read_text(encoding="utf-8").splitlines() == [
-        f'{STAMP}  {{"said": "hello"}}',
-        f"{STAMP}  plain",
+        f'{FEED_TIMESTAMP}  {{"said": "hello"}}',
+        f"{FEED_TIMESTAMP}  plain",
     ]
 
 
@@ -269,9 +450,9 @@ def test_a_round_records_its_number_purpose_recovery_and_process(
     )
 
     running = AgentRound(
-        adapter=CLAUDE,
-        invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
-        paths=round_paths(worktree=worktree, directory=directory),
+        output_reader=round_harness(),
+        invocation=HarnessInvocation(program="harness", arguments=[], prompt=PROMPT),
+        paths=compose_round_paths(worktree=worktree, directory=directory),
         plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
         clock=pinned,
     )
@@ -283,9 +464,9 @@ def test_a_round_records_its_number_purpose_recovery_and_process(
         purpose=PURPOSE,
         is_recovery=False,
         started=PINNED,
-        pid=running.child.pid,
+        pid=running.harness_process.pid,
     )
-    assert record.outcome is RoundOutcome.RUNNING
+    assert record.outcome is AgentRoundOutcome.RUNNING
 
     running.stop()
 
@@ -294,9 +475,9 @@ def test_a_round_that_finished_says_how_it_ended(fake, worktree, directory):
     fake(program="harness").streams(lines=[Line(text="giving up\n")], status=2)
 
     running = AgentRound(
-        adapter=CLAUDE,
-        invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
-        paths=round_paths(worktree=worktree, directory=directory),
+        output_reader=round_harness(),
+        invocation=HarnessInvocation(program="harness", arguments=[], prompt=PROMPT),
+        paths=compose_round_paths(worktree=worktree, directory=directory),
         plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=True),
         clock=pinned,
     )
@@ -306,13 +487,13 @@ def test_a_round_that_finished_says_how_it_ended(fake, worktree, directory):
     record = written(path=running.paths.record)
     assert record == AgentRoundRecord(
         started=PINNED,
-        pid=running.child.pid,
+        pid=running.harness_process.pid,
         number=1,
         purpose=PURPOSE,
         is_recovery=True,
         ending=compose_agent_round_ending(at=PINNED, status=2),
     )
-    assert record.outcome is RoundOutcome.ERRORED
+    assert record.outcome is AgentRoundOutcome.ERRORED
 
 
 def test_an_errored_ending_refuses_a_success_status():
@@ -326,25 +507,25 @@ def test_a_round_somebody_stopped_records_interruption(fake, worktree, directory
     )
 
     running = AgentRound(
-        adapter=CLAUDE,
-        invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
-        paths=round_paths(worktree=worktree, directory=directory),
+        output_reader=round_harness(),
+        invocation=HarnessInvocation(program="harness", arguments=[], prompt=PROMPT),
+        paths=compose_round_paths(worktree=worktree, directory=directory),
         plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
         clock=pinned,
     )
     running.stop()
 
     assert not running.is_alive
-    assert written(path=running.paths.record).outcome is RoundOutcome.INTERRUPTED
+    assert written(path=running.paths.record).outcome is AgentRoundOutcome.INTERRUPTED
 
 
 def test_a_round_stopped_after_it_finished_keeps_its_ending(fake, worktree, directory):
     fake(program="harness").streams(lines=[Line(text="done\n")])
 
     running = AgentRound(
-        adapter=CLAUDE,
-        invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
-        paths=round_paths(worktree=worktree, directory=directory),
+        output_reader=round_harness(),
+        invocation=HarnessInvocation(program="harness", arguments=[], prompt=PROMPT),
+        paths=compose_round_paths(worktree=worktree, directory=directory),
         plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
         clock=pinned,
     )
@@ -357,7 +538,7 @@ def test_a_round_stopped_after_it_finished_keeps_its_ending(fake, worktree, dire
     assert not running.is_interrupted
     record = written(path=running.paths.record)
     assert record.ending == compose_agent_round_ending(at=PINNED, status=0)
-    assert record.outcome is RoundOutcome.SUCCESSFUL
+    assert record.outcome is AgentRoundOutcome.SUCCESSFUL
 
 
 def test_a_round_that_cannot_write_its_feed_stops_rather_than_stalls(
@@ -370,16 +551,16 @@ def test_a_round_that_cannot_write_its_feed_stops_rather_than_stalls(
     (directory / "feed.txt").mkdir()
 
     running = AgentRound(
-        adapter=CLAUDE,
-        invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
-        paths=round_paths(worktree=worktree, directory=directory),
+        output_reader=round_harness(),
+        invocation=HarnessInvocation(program="harness", arguments=[], prompt=PROMPT),
+        paths=compose_round_paths(worktree=worktree, directory=directory),
         plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
         clock=pinned,
     )
     running.wait()
 
     assert not running.is_alive
-    assert written(path=running.paths.record).outcome is RoundOutcome.INTERRUPTED
+    assert written(path=running.paths.record).outcome is AgentRoundOutcome.INTERRUPTED
 
 
 def test_a_round_that_cannot_write_its_prompt_never_starts(fake, worktree, tmp_path):
@@ -390,9 +571,11 @@ def test_a_round_that_cannot_write_its_prompt_never_starts(fake, worktree, tmp_p
 
     with pytest.raises(ReportableError, match=r"prompt\.txt"):
         AgentRound(
-            adapter=CLAUDE,
-            invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
-            paths=round_paths(worktree=worktree, directory=occupied / "1"),
+            output_reader=round_harness(),
+            invocation=HarnessInvocation(
+                program="harness", arguments=[], prompt=PROMPT
+            ),
+            paths=compose_round_paths(worktree=worktree, directory=occupied / "1"),
             plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
             clock=pinned,
         )
@@ -406,13 +589,15 @@ def test_a_round_that_cannot_record_its_start_does_not_run_on(
     fake(program="harness").streams(lines=[Line(text="working\n")], delay=5)
     # A directory where the record goes, so the prompt lands and the record
     # cannot, which is what leaves a child running with nothing to find it by.
-    (directory / RECORD).mkdir(parents=True)
+    (directory / AGENT_ROUND_RECORD_NAME).mkdir(parents=True)
 
     with pytest.raises(ReportableError, match=r"round\.json"):
         AgentRound(
-            adapter=CLAUDE,
-            invocation=Invocation(program="harness", arguments=[], prompt=PROMPT),
-            paths=round_paths(worktree=worktree, directory=directory),
+            output_reader=round_harness(),
+            invocation=HarnessInvocation(
+                program="harness", arguments=[], prompt=PROMPT
+            ),
+            paths=compose_round_paths(worktree=worktree, directory=directory),
             plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
             clock=pinned,
         )
@@ -422,13 +607,13 @@ def test_a_round_a_straggler_outlives_still_records_an_ending(
     worktree, directory, straggler
 ):
     running = AgentRound(
-        adapter=CLAUDE,
-        invocation=Invocation(
+        output_reader=round_harness(),
+        invocation=HarnessInvocation(
             program=sys.executable,
             arguments=["-c", LEAVES_A_STRAGGLER, str(straggler)],
             prompt=PROMPT,
         ),
-        paths=round_paths(worktree=worktree, directory=directory),
+        paths=compose_round_paths(worktree=worktree, directory=directory),
         plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
         clock=pinned,
     )
@@ -436,7 +621,7 @@ def test_a_round_a_straggler_outlives_still_records_an_ending(
     assert within(seconds=30, holds=lambda: not running.is_alive)
     assert written(path=running.paths.record) == AgentRoundRecord(
         started=PINNED,
-        pid=running.child.pid,
+        pid=running.harness_process.pid,
         number=1,
         purpose=PURPOSE,
         is_recovery=False,
@@ -446,13 +631,13 @@ def test_a_round_a_straggler_outlives_still_records_an_ending(
 
 def test_a_round_a_straggler_outlives_still_stops(worktree, directory, straggler):
     running = AgentRound(
-        adapter=CLAUDE,
-        invocation=Invocation(
+        output_reader=round_harness(),
+        invocation=HarnessInvocation(
             program=sys.executable,
             arguments=["-c", LEAVES_A_STRAGGLER + AND_WAITS, str(straggler)],
             prompt=PROMPT,
         ),
-        paths=round_paths(worktree=worktree, directory=directory),
+        paths=compose_round_paths(worktree=worktree, directory=directory),
         plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
         clock=pinned,
     )
@@ -466,7 +651,7 @@ def test_a_round_a_straggler_outlives_still_stops(worktree, directory, straggler
 
     assert not stopping.is_alive()
     assert not running.is_alive
-    assert written(path=running.paths.record).outcome is RoundOutcome.INTERRUPTED
+    assert written(path=running.paths.record).outcome is AgentRoundOutcome.INTERRUPTED
 
 
 def test_recording_interruption_again_keeps_a_terminal_record(tmp_path):

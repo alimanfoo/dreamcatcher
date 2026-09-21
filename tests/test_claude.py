@@ -1,19 +1,20 @@
 from collections.abc import Sequence
 
+import pytest
 from conftest import streamed
 
-from dreamcatcher.adapters import Invocation, Launch
-from dreamcatcher.claude import ALLOWED_TOOLS, CLAUDE
-from dreamcatcher.feed import Note, Prose
+from dreamcatcher.claude import CLAUDE_ADAPTER, CLAUDE_ALLOWED_TOOLS
+from dreamcatcher.feed import FeedNote, FeedProse
+from dreamcatcher.harness_adapters import AgentRoundLaunchRequest, HarnessInvocation
 
-LAUNCH = Launch(
-    assignment_id="GH9-20260819-184158",
+ROUND_LAUNCH_REQUEST = AgentRoundLaunchRequest(
+    agent_assignment_identifier="GH9-20260819-184158",
     model="opus[1m]",
     effort="xhigh",
     prompt="/dream:smith GH9",
 )
 
-BASE = [
+CLAUDE_BASE_ARGUMENTS = [
     "--print",
     "--output-format",
     "stream-json",
@@ -21,7 +22,7 @@ BASE = [
     "--permission-mode",
     "auto",
     "--allowedTools",
-    " ".join(ALLOWED_TOOLS),
+    " ".join(CLAUDE_ALLOWED_TOOLS),
     "--name",
     "GH9-20260819-184158",
 ]
@@ -37,23 +38,31 @@ def assistant(*, blocks: Sequence[dict], parent: str | None = None) -> str:
 
 # Neither command names the prompt, which is what has Claude read it from stdin.
 def test_a_first_round_names_the_model_and_the_effort_it_was_dispatched_with():
-    assert CLAUDE.build_first_round(launch=LAUNCH) == Invocation(
+    assert CLAUDE_ADAPTER.build_first_round(
+        request=ROUND_LAUNCH_REQUEST
+    ) == HarnessInvocation(
         program="claude",
-        arguments=[*BASE, "--model", "opus[1m]", "--effort", "xhigh"],
+        arguments=[*CLAUDE_BASE_ARGUMENTS, "--model", "opus[1m]", "--effort", "xhigh"],
         prompt="/dream:smith GH9",
     )
 
 
 def test_a_resume_continues_the_harness_session_and_replays_no_settings():
-    assert CLAUDE.build_resumed_round(launch=LAUNCH) == Invocation(
+    assert CLAUDE_ADAPTER.build_resumed_round(
+        request=ROUND_LAUNCH_REQUEST, harness_session_identifier="abc-123"
+    ) == HarnessInvocation(
         program="claude",
-        arguments=[*BASE, "--continue"],
+        arguments=[*CLAUDE_BASE_ARGUMENTS, "--resume", "abc-123"],
         prompt="/dream:smith GH9",
     )
 
 
 def test_a_person_continues_the_harness_session_where_it_ran():
-    assert CLAUDE.build_hand_resume() == ["claude", "--continue"]
+    assert CLAUDE_ADAPTER.build_hand_resume(harness_session_identifier="abc-123") == [
+        "claude",
+        "--resume",
+        "abc-123",
+    ]
 
 
 def test_the_first_event_names_the_model_and_the_harness_session():
@@ -61,9 +70,34 @@ def test_the_first_event_names_the_model_and_the_harness_session():
         type="system", subtype="init", model="claude-opus-5", session_id="abc-123"
     )
 
-    assert CLAUDE.read(line=line) == [
-        Note(label="harness session", detail="model claude-opus-5, id abc-123")
+    assert CLAUDE_ADAPTER.read(line=line) == [
+        FeedNote(label="harness session", detail="model claude-opus-5, id abc-123")
     ]
+    assert CLAUDE_ADAPTER.read_output(line=line).harness_session_identifier == "abc-123"
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "not json",
+        "[]",
+        streamed(type="assistant"),
+        streamed(type="system", subtype="api_retry"),
+    ],
+)
+def test_anything_but_the_first_event_names_no_harness_session(line):
+    assert CLAUDE_ADAPTER.read_output(line=line).harness_session_identifier is None
+
+
+def test_a_non_text_harness_session_identifier_is_left_raw():
+    line = streamed(
+        type="system", subtype="init", model="claude-opus-5", session_id=None
+    )
+
+    output = CLAUDE_ADAPTER.read_output(line=line)
+
+    assert output.harness_session_identifier is None
+    assert output.events == [FeedProse(text=line)]
 
 
 def test_what_the_agent_says_comes_through_whole():
@@ -71,7 +105,9 @@ def test_what_the_agent_says_comes_through_whole():
         blocks=[{"type": "text", "text": "I read the file.\nIt was empty."}]
     )
 
-    assert CLAUDE.read(line=line) == [Prose(text="I read the file.\nIt was empty.")]
+    assert CLAUDE_ADAPTER.read(line=line) == [
+        FeedProse(text="I read the file.\nIt was empty.")
+    ]
 
 
 def test_a_thinking_block_says_only_that_the_agent_thought():
@@ -79,7 +115,7 @@ def test_a_thinking_block_says_only_that_the_agent_thought():
         blocks=[{"type": "thinking", "thinking": "", "signature": "opaque"}]
     )
 
-    assert CLAUDE.read(line=line) == [Note(label="thinking")]
+    assert CLAUDE_ADAPTER.read(line=line) == [FeedNote(label="thinking")]
 
 
 def test_a_tool_call_reports_the_input_that_says_most_about_it():
@@ -93,7 +129,7 @@ def test_a_tool_call_reports_the_input_that_says_most_about_it():
         ]
     )
 
-    assert CLAUDE.read(line=line) == [Note(label="Bash", detail="pytest")]
+    assert CLAUDE_ADAPTER.read(line=line) == [FeedNote(label="Bash", detail="pytest")]
 
 
 def test_a_tool_the_chain_does_not_name_reports_its_whole_input():
@@ -101,7 +137,9 @@ def test_a_tool_the_chain_does_not_name_reports_its_whole_input():
         blocks=[{"type": "tool_use", "name": "Odd", "input": {"where": "here"}}]
     )
 
-    assert CLAUDE.read(line=line) == [Note(label="Odd", detail='{"where": "here"}')]
+    assert CLAUDE_ADAPTER.read(line=line) == [
+        FeedNote(label="Odd", detail='{"where": "here"}')
+    ]
 
 
 def test_a_tool_result_that_failed_surfaces():
@@ -114,7 +152,9 @@ def test_a_tool_result_that_failed_surfaces():
         },
     )
 
-    assert CLAUDE.read(line=line) == [Note(label="failed", detail="no such file")]
+    assert CLAUDE_ADAPTER.read(line=line) == [
+        FeedNote(label="failed", detail="no such file")
+    ]
 
 
 def test_a_failure_that_came_back_as_blocks_reads_as_the_json_it_was():
@@ -131,8 +171,8 @@ def test_a_failure_that_came_back_as_blocks_reads_as_the_json_it_was():
         },
     )
 
-    assert CLAUDE.read(line=line) == [
-        Note(label="failed", detail='[{"type": "text", "text": "no such file"}]')
+    assert CLAUDE_ADAPTER.read(line=line) == [
+        FeedNote(label="failed", detail='[{"type": "text", "text": "no such file"}]')
     ]
 
 
@@ -141,19 +181,21 @@ def test_a_tool_result_that_worked_writes_nothing():
         type="user", message={"content": [{"type": "tool_result", "content": "ok"}]}
     )
 
-    assert CLAUDE.read(line=line) == []
+    assert CLAUDE_ADAPTER.read(line=line) == []
 
 
 def test_a_subagents_own_words_are_left_to_its_report():
     line = assistant(blocks=[{"type": "text", "text": "counting"}], parent="toolu_1")
 
-    assert CLAUDE.read(line=line) == []
+    assert CLAUDE_ADAPTER.read(line=line) == []
 
 
 def test_a_subagent_that_thinks_is_marked_as_one():
     line = assistant(blocks=[{"type": "thinking", "thinking": ""}], parent="toolu_1")
 
-    assert CLAUDE.read(line=line) == [Note(label="thinking", is_subagent=True)]
+    assert CLAUDE_ADAPTER.read(line=line) == [
+        FeedNote(label="thinking", is_subagent=True)
+    ]
 
 
 def test_a_subagents_tool_call_is_marked_as_one():
@@ -162,7 +204,9 @@ def test_a_subagents_tool_call_is_marked_as_one():
         parent="toolu_1",
     )
 
-    assert CLAUDE.read(line=line) == [Note(label="Bash", detail="ls", is_subagent=True)]
+    assert CLAUDE_ADAPTER.read(line=line) == [
+        FeedNote(label="Bash", detail="ls", is_subagent=True)
+    ]
 
 
 def test_a_finished_subagent_reports_what_it_did():
@@ -174,9 +218,9 @@ def test_a_finished_subagent_reports_what_it_did():
         usage={"output_tokens": 21},
     )
 
-    assert CLAUDE.read(line=line) == [
-        Note(label="report", detail="completed", is_subagent=True),
-        Prose(text="Two files.", is_subagent=True),
+    assert CLAUDE_ADAPTER.read(line=line) == [
+        FeedNote(label="report", detail="completed", is_subagent=True),
+        FeedProse(text="Two files.", is_subagent=True),
     ]
 
 
@@ -188,7 +232,7 @@ def test_a_background_command_finishing_is_not_a_report():
         summary='Background command "sleep 3; echo finished" completed (exit code 0)',
     )
 
-    assert CLAUDE.read(line=line) == []
+    assert CLAUDE_ADAPTER.read(line=line) == []
 
 
 def test_a_round_being_retried_says_what_it_is_waiting_on():
@@ -202,8 +246,8 @@ def test_a_round_being_retried_says_what_it_is_waiting_on():
         error="rate_limit",
     )
 
-    assert CLAUDE.read(line=line) == [
-        Note(label="retry", detail="rate_limit (429), attempt 3 of 10")
+    assert CLAUDE_ADAPTER.read(line=line) == [
+        FeedNote(label="retry", detail="rate_limit (429), attempt 3 of 10")
     ]
 
 
@@ -214,7 +258,7 @@ SPENT = {
     "cache_creation_input_tokens": 8676,
 }
 
-SPEND = Note(
+SPEND = FeedNote(
     label="usage",
     detail="$0.0826, 226 output, 6 input, 90437 cache read, 8676 cache write",
 )
@@ -229,7 +273,10 @@ def test_a_round_that_ended_well_says_what_it_spent_and_how_it_ended():
         usage=SPENT,
     )
 
-    assert CLAUDE.read(line=line) == [SPEND, Note(label="result", detail="success")]
+    assert CLAUDE_ADAPTER.read(line=line) == [
+        SPEND,
+        FeedNote(label="result", detail="success"),
+    ]
 
 
 def test_a_round_that_failed_closes_with_what_went_wrong():
@@ -242,32 +289,42 @@ def test_a_round_that_failed_closes_with_what_went_wrong():
         usage=SPENT,
     )
 
-    assert CLAUDE.read(line=line) == [
+    assert CLAUDE_ADAPTER.read(line=line) == [
         SPEND,
-        Note(label="failed", detail="no such model"),
+        FeedNote(label="failed", detail="no such model"),
     ]
 
 
 def test_an_event_the_feed_has_no_line_for_writes_nothing():
-    assert CLAUDE.read(line=streamed(type="rate_limit_event", rate_limit_info={})) == []
-    assert CLAUDE.read(line=streamed(type="system", subtype="hook_started")) == []
-    assert CLAUDE.read(line=assistant(blocks=[{"type": "image", "source": {}}])) == []
+    assert (
+        CLAUDE_ADAPTER.read(line=streamed(type="rate_limit_event", rate_limit_info={}))
+        == []
+    )
+    assert (
+        CLAUDE_ADAPTER.read(line=streamed(type="system", subtype="hook_started")) == []
+    )
+    assert (
+        CLAUDE_ADAPTER.read(line=assistant(blocks=[{"type": "image", "source": {}}]))
+        == []
+    )
 
 
 def test_a_line_that_is_not_json_comes_through_unchanged():
-    assert CLAUDE.read(line="a warning nobody wrapped in JSON\n") == [
-        Prose(text="a warning nobody wrapped in JSON\n")
+    assert CLAUDE_ADAPTER.read(line="a warning nobody wrapped in JSON\n") == [
+        FeedProse(text="a warning nobody wrapped in JSON\n")
     ]
 
 
 def test_a_line_of_json_that_is_not_an_event_comes_through_unchanged():
-    assert CLAUDE.read(line='"just a string"') == [Prose(text='"just a string"')]
+    assert CLAUDE_ADAPTER.read(line='"just a string"') == [
+        FeedProse(text='"just a string"')
+    ]
 
 
 def test_an_event_shaped_in_a_way_the_parser_cannot_read_comes_through_unchanged():
     line = streamed(type="assistant", message={"content": [{"type": "text"}]})
 
-    assert CLAUDE.read(line=line) == [Prose(text=line)]
+    assert CLAUDE_ADAPTER.read(line=line) == [FeedProse(text=line)]
 
 
 def test_a_tool_input_that_is_not_a_mapping_comes_through_unchanged():
@@ -275,4 +332,4 @@ def test_a_tool_input_that_is_not_a_mapping_comes_through_unchanged():
         blocks=[{"type": "tool_use", "name": "Odd", "input": ["not", "a", "map"]}]
     )
 
-    assert CLAUDE.read(line=line) == [Prose(text=line)]
+    assert CLAUDE_ADAPTER.read(line=line) == [FeedProse(text=line)]

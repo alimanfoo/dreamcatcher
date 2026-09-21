@@ -1,17 +1,9 @@
-"""Show what the assignments are doing, from what the daemon left on the disk.
+"""Render status, assignment, and feed views from local state.
 
-This is the terminal interface, and the whole of it. It holds the three views
-a reader reaches through a verb of the command line: the board, one assignment,
-and one assignment's feed. It reads the state directory and never talks to GitHub
-or to the daemon, so it answers whether the daemon is alive or dead, and
-answers fastest when you most want to look.
+The views read the state directory without contacting GitHub or the daemon.
+Status and assignment views redraw the current state, while a feed appends new
+lines and preserves terminal scrollback. Color is added only during rendering.
 
-The board and one assignment are pictures of a state, so each is drawn over the
-one before it. A feed is a log, so it is printed as it is read, and the reader
-keeps their scrollback.
-
-What the daemon writes stays plain text, and the colour goes on at the moment of
-reading.
 """
 
 from collections.abc import Callable, Iterable, Sequence
@@ -19,6 +11,7 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import datetime
 from time import sleep
+from typing import cast
 
 from rich.console import Console, Group, RenderableType
 from rich.live import Live
@@ -27,314 +20,367 @@ from rich.table import Table
 from rich.text import Text
 
 from dreamcatcher.agent_assignments import AgentAssignment
-from dreamcatcher.agent_rounds import (
-    AgentRoundRecord,
-    ErroredAgentRoundEnding,
-    InterruptedAgentRoundEnding,
-)
-from dreamcatcher.board import (
-    AgentAssignmentRow,
-    AgentAssignmentStanding,
-    Board,
-    read_board,
-    read_rows_for_issue,
-)
-from dreamcatcher.clock import Wait, now
+from dreamcatcher.agent_rounds import AgentRoundRecord
+from dreamcatcher.clock import WaitForSeconds, read_current_time
 from dreamcatcher.documents import read_lines_from
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import (
-    GAP,
-    Line,
-    compose_round_boundary,
+    FEED_TIMESTAMP_GAP,
+    FeedLine,
+    compose_agent_round_boundary,
     describe_agent_round_start,
     read_feed_line,
 )
-from dreamcatcher.harnesses import ADAPTERS
 from dreamcatcher.state import StateDirectory
+from dreamcatcher.status import (
+    AgentAssignmentStatus,
+    AgentAssignmentStatusValue,
+    DreamcatcherStatusReport,
+    FailedAssignmentSetupStatus,
+    IssueObservation,
+    read_agent_assignment_statuses_for_issue,
+    read_status_report,
+)
 from dreamcatcher.words import describe_count, describe_span, describe_time
 
-# What each section of the board is set in, so a reader finds the one they
-# came for without reading the words.
-COLOURS = {
-    AgentAssignmentStanding.NEEDS_YOU: "yellow",
-    AgentAssignmentStanding.WORKING: "green",
-    AgentAssignmentStanding.WAITING: "cyan",
-    AgentAssignmentStanding.STUCK: "red",
-    AgentAssignmentStanding.DONE: "dim",
+# What each assignment summary is set in, so a reader can scan the status table.
+ASSIGNMENT_STATUS_STYLES_IN_ATTENTION_ORDER = {
+    AgentAssignmentStatusValue.NEEDS_USER_FEEDBACK: "yellow",
+    AgentAssignmentStatusValue.FAULT: "red",
+    AgentAssignmentStatusValue.WORKING: "green",
+    AgentAssignmentStatusValue.WAITING: "cyan",
+    AgentAssignmentStatusValue.UNKNOWN: "magenta",
+    AgentAssignmentStatusValue.COMPLETE: "dim",
 }
 
-QUEUE = "queued"
-
-# The standings at which a view of that assignment ends. An assignment standing at
-# either of them has no round coming, so a view of it has seen the last of what
-# it will ever show.
-STANDINGS_THAT_END_A_VIEW = (
-    AgentAssignmentStanding.DONE,
-    AgentAssignmentStanding.STUCK,
+STATUSES_THAT_END_A_VIEW = (
+    AgentAssignmentStatusValue.FAULT,
+    AgentAssignmentStatusValue.COMPLETE,
 )
 
-# How long a following view waits between looks at what the round has written.
-PAUSE = 1.0
+# How long a following view waits between refreshes for new round output.
+VIEW_REFRESH_INTERVAL = 1.0
 
 # What marks the label of a feed line, which is the harness's own word for what
 # it just did.
-LABEL = r"^\s*\[[^\]]+\]"
+FEED_NOTE_LABEL_PATTERN = r"^\s*\[[^\]]+\]"
 
 # How far a section's rows are set in from its heading.
-INDENT = (0, 0, 0, 2)
+SECTION_PADDING = (0, 0, 0, 2)
 
 
-def open_console() -> Console:
-    """Return the console that the views are written to.
+def open_tui_console() -> Console:
+    """Return a console that follows the terminal's current dimensions.
 
-    It names no width and no height, so rich reads the terminal's own on every
-    look, and a view redrawn into a window the reader has since resized fills
-    the size it is now. Only the tests name a size, so that a picture is cut in
-    the same place whatever terminal runs them.
+    Tests may supply a console with fixed dimensions for stable output.
     """
     return Console()
 
 
 @dataclass(frozen=True, kw_only=True)
-class _Picture:
-    """A view as one look found it: what to draw, and whether the view is over.
+class _ViewSnapshot:
+    """Capture one rendered view and whether more output can reach it.
 
     A view is over when nothing more can reach it. That is not the same as the
-    last look, because `_keep_looking` takes one more after it.
+    final snapshot, because an active view refreshes once more after first
+    reporting that it is over.
     """
 
-    shown: RenderableType
+    renderable: RenderableType
     is_over: bool
 
 
-def _repaint(*, console: Console, look: Callable[[], _Picture], wait: Wait) -> None:
-    """Draw what each look finds over the one before, until the view is over.
+def _refresh_live_view(
+    *,
+    console: Console,
+    read_snapshot: Callable[[], _ViewSnapshot],
+    wait: WaitForSeconds,
+) -> None:
+    """Redraw snapshots in a terminal until the view ends.
 
-    A picture of a state has a current value rather than a history, so every
-    look is drawn over the one before rather than under it. rich's Live draws
-    into the terminal's alternate screen, which it fills, so the view is the
-    whole of what the reader sees while it is going and the commands the shell
-    printed above it are not read alongside it. The screen is as tall as the
-    terminal, so a picture that outgrows it is cut at the bottom, which takes
-    the sections a reader came for last: the board is sorted by whose turn it
-    is, so what goes first is what is done.
+    A terminal uses its alternate screen and prints the final snapshot after a
+    completed view ends. An interrupted active view leaves no final snapshot.
 
-    Handing the screen back brings the shell's own output back and takes the
-    last picture with it, so a view whose last look found it over prints that
-    picture where the reader can go on reading it. An assignment that was already
-    over when the view opened is drawn once and printed, which is what a
-    reader looking one up reads. A view that the reader interrupts while
-    something is still coming leaves nothing behind, because interrupting is
-    how they say they have seen enough.
-
-    This decides where a look is drawn, and `_keep_looking` decides how long to
-    go on looking. A view nobody is watching has no screen to take, and a
-    terminal that reports itself as dumb takes no control code, so rich can
-    draw nothing into a screen there and writes nothing at all. Either console
-    gets one look, printed as anything else is.
+    A non-terminal or dumb terminal prints one snapshot and returns.
     """
     if not console.is_terminal or console.is_dumb_terminal:
-        console.print(look().shown)
+        console.print(read_snapshot().renderable)
         return
-    last_picture = _Picture(shown="", is_over=False)
+    last_snapshot = _ViewSnapshot(renderable="", is_over=False)
     with Live(console=console, auto_refresh=False, screen=True) as live:
 
-        def draw() -> bool:
-            """Draw what this look found, and say whether the view is over."""
-            nonlocal last_picture
-            last_picture = look()
-            live.update(last_picture.shown, refresh=True)
-            return last_picture.is_over
+        def refresh_live_display() -> bool:
+            """Draw the current snapshot and return whether the view is over."""
+            nonlocal last_snapshot
+            last_snapshot = read_snapshot()
+            live.update(last_snapshot.renderable, refresh=True)
+            return last_snapshot.is_over
 
-        _keep_looking(console=console, look=draw, wait=wait)
-    if last_picture.is_over:
-        console.print(last_picture.shown)
+        _refresh_until_view_ends(
+            console=console, refresh_view=refresh_live_display, wait=wait
+        )
+    if last_snapshot.is_over:
+        console.print(last_snapshot.renderable)
 
 
-def _keep_looking(*, console: Console, look: Callable[[], bool], wait: Wait) -> None:
-    """Look again and again, until the view has seen the last of what it shows.
+def _refresh_until_view_ends(
+    *, console: Console, refresh_view: Callable[[], bool], wait: WaitForSeconds
+) -> None:
+    """Refresh until the view ends.
 
-    A look shows where the view stands now and answers whether the view is
-    over, which is to say whether anything more can reach it.
-
-    Nobody is watching a console that is no terminal: the view is being piped,
-    redirected or captured, and a view that went on looking would write another
-    picture into that pipe, that file or that log at every look. So one look is
-    the last look there, and the reader is asked for no flag to say so.
-
-    A round records its ending as soon as its own child has gone, and whatever
-    it was still writing lands after that, so a view that finds itself over
-    looks once more before it ends. Nothing was going before the view opened,
-    so a view that opens on something already over ends on its first look and
-    never waits.
-
-    The reader ends a view that is still going by interrupting it, which is how
-    they say they have seen enough, so it ends without a word.
+    The extra refresh lets output that follows a round's terminal record arrive.
+    A view that is already over returns after its first refresh, and a
+    non-terminal console always takes one refresh. KeyboardInterrupt ends an
+    active view quietly.
     """
-    was_over = True
+    was_over_on_previous_refresh = True
     with suppress(KeyboardInterrupt):
         while True:
-            is_over = look()
-            if (is_over and was_over) or not console.is_terminal:
+            is_over = refresh_view()
+            if (is_over and was_over_on_previous_refresh) or not console.is_terminal:
                 return
-            was_over = is_over
-            wait(PAUSE)
+            was_over_on_previous_refresh = is_over
+            wait(VIEW_REFRESH_INTERVAL)
 
 
-def show_board(
+def show_status_view(
     *,
     state: StateDirectory,
     console: Console,
-    clock: Callable[[], datetime] = now,
-    wait: Wait = sleep,
+    clock: Callable[[], datetime] = read_current_time,
+    wait: WaitForSeconds = sleep,
 ) -> None:
-    """Show every assignment and every queued issue, and keep on showing them.
+    """Show instance, issue, and assignment status until interrupted.
 
-    A board always has something more to show: a daemon can start, a tick can
-    dispatch, a round can begin. So a board is never over, and a reader
-    watching one ends it by interrupting it. A console that is no terminal has
-    nobody watching, so there the board is drawn once and this returns.
+    A non-terminal or dumb terminal renders one report and returns.
     """
-    _repaint(
+    _refresh_live_view(
         console=console,
-        look=lambda: _look_at_board(state=state, clock=clock),
+        read_snapshot=lambda: _read_status_snapshot(state=state, clock=clock),
         wait=wait,
     )
 
 
-def _look_at_board(*, state: StateDirectory, clock: Callable[[], datetime]) -> _Picture:
-    """Return the board as it stands, which no look ever finds over.
+def _read_status_snapshot(
+    *, state: StateDirectory, clock: Callable[[], datetime]
+) -> _ViewSnapshot:
+    """Return the current status report as a view that never ends itself.
 
-    A daemon can start, a tick can dispatch, a round can begin, so a later look
-    can always find what this one did not. The picture answers `is_over` as
-    False for that reason, and that is what keeps a board on the screen until
-    the reader interrupts it.
+    A daemon can start, a tick can run, or a round can begin after any refresh.
     """
-    return _Picture(
-        shown=_render_board(board=read_board(state=state, clock=clock)), is_over=False
+    return _ViewSnapshot(
+        renderable=_render_status(report=read_status_report(state=state, clock=clock)),
+        is_over=False,
     )
 
 
-def _render_board(*, board: Board) -> RenderableType:
-    """Return every assignment and every queued issue, sorted by whose turn it is.
-
-    The sections run in the order of whose turn it is, so the reader meets the
-    work waiting on them first and the work that is finished last. A section
-    with nothing in it is left out rather than shown empty.
-    """
-    return _render_parts(
+def _render_status(*, report: DreamcatcherStatusReport) -> RenderableType:
+    return _combine_renderable_parts(
         parts=[
-            _describe_daemon(board=board),
-            _render_rows(board=board, standing=AgentAssignmentStanding.NEEDS_YOU),
-            _render_rows(board=board, standing=AgentAssignmentStanding.WORKING),
-            _render_rows(board=board, standing=AgentAssignmentStanding.WAITING),
-            _render_rows(board=board, standing=AgentAssignmentStanding.STUCK),
-            _render_queue(board=board),
-            _render_rows(board=board, standing=AgentAssignmentStanding.DONE),
-            _describe_nothing_dispatched(board=board),
+            Text(report.repository or "repository unknown", style="bold"),
+            _render_instance_status(report=report),
+            _render_assignments(assignments=report.assignment_statuses),
+            _render_failed_assignment_setups(setups=report.failed_assignment_setups),
+            _render_available_issues(issues=report.available_issues),
+            _render_blocked_issues(issues=report.blocked_issues),
+            _describe_empty_status_report(report=report),
         ]
     )
 
 
-def _render_parts(*, parts: Sequence[RenderableType | None]) -> RenderableType:
-    """Return the parts of a view that have something to say, as one renderable.
-
-    A part with nothing to say answers nothing, so it is left out rather than
-    shown empty. The board and one assignment both compose themselves through
-    this, so what that means is written down once.
-    """
+def _combine_renderable_parts(
+    *, parts: Sequence[RenderableType | None]
+) -> RenderableType:
     return Group(*(part for part in parts if part is not None))
 
 
-def _describe_daemon(*, board: Board) -> Text:
-    """Return the line saying whether a daemon is running, and when it last ran.
-
-    A daemon that has gone leaves everything it wrote behind, so the age of the
-    last tick is what says how much of the board is stale.
-    """
+def _render_instance_status(*, report: DreamcatcherStatusReport) -> RenderableType:
+    """Render the daemon, scheduler, capacity, and cooldown facts."""
+    table = _create_table(columns=2)
     daemon = (
-        "no daemon running"
-        if board.daemon_pid is None
-        else f"daemon running as pid {board.daemon_pid}"
-    )
-    if board.tick is None:
-        return Text(f"{daemon}, no tick recorded")
-    ticked = describe_span(span=board.at - board.tick.at)
-    held = "" if board.tick.hold is None else f", {board.tick.hold}"
-    return Text(f"{daemon}, last tick {ticked} ago{held}")
-
-
-def _render_rows(
-    *, board: Board, standing: AgentAssignmentStanding
-) -> RenderableType | None:
-    """Return the assignments standing there, a row for each, or nothing if none do."""
-    rows = board.list_rows_for_standing(standing=standing)
-    if not rows:
-        return None
-    table = _open_table()
-    for row in rows:
-        table.add_row(
-            Text(row.assignment.identifier),
-            _render_detail(row=row, prefix=_describe_round(row=row)),
+        "not running"
+        if report.daemon_pid is None
+        else " ".join(
+            filter(
+                None,
+                (
+                    "running",
+                    (
+                        None
+                        if report.dreamcatcher_version is None
+                        else f"dreamcatcher v{report.dreamcatcher_version}"
+                    ),
+                    f"as pid {report.daemon_pid}",
+                ),
+            )
         )
-    return _render_section(heading=str(standing), colour=COLOURS[standing], body=table)
+    )
+    tick = (
+        "none recorded"
+        if report.latest_scheduler_tick is None
+        else f"{describe_span(span=report.at - report.latest_scheduler_tick)} ago"
+    )
+    cooldown = (
+        "none"
+        if report.active_global_cooldown is None
+        else f"ends {describe_time(at=report.active_global_cooldown.ends)}"
+    )
+    for name, value in (
+        ("daemon", daemon),
+        ("harness", report.agent_harness),
+        ("latest scheduler tick", tick),
+        (
+            "agent capacity",
+            (
+                None
+                if report.max_agents is None
+                else f"{report.running_agents} of {report.max_agents} in use"
+            ),
+        ),
+        ("global cooldown", cooldown),
+        ("scheduler hold", report.scheduler_hold),
+    ):
+        if value is not None:
+            table.add_row(Text(name), Text(value))
+    return _render_section(heading="instance", body=table)
 
 
-def _describe_round(*, row: AgentAssignmentRow) -> str:
-    """Return which round is running, or nothing while none is.
+def _render_available_issues(
+    *, issues: Sequence[IssueObservation]
+) -> RenderableType | None:
+    """Render available issues in the order the scheduler will dispatch them."""
+    if not issues:
+        return None
+    table = _create_table(columns=2)
+    for issue in issues:
+        table.add_row(
+            Text(f"GH{issue.issue}"),
+            Text(", ".join(issue.dispatch_labels or [])),
+        )
+    return _render_section(heading="available issues", body=table)
 
-    A number says which round only while a round is running. An assignment between
-    rounds has one behind it and another to come, and a bare number there reads
-    as either.
-    """
-    if row.standing is not AgentAssignmentStanding.WORKING:
+
+def _render_blocked_issues(
+    *, issues: Sequence[IssueObservation]
+) -> RenderableType | None:
+    """Render blocked issues with the scheduler's recorded blocker evidence."""
+    if not issues:
+        return None
+    table = _create_table(columns=3)
+    for issue in issues:
+        table.add_row(
+            Text(f"GH{issue.issue}"),
+            Text(", ".join(issue.dispatch_labels or [])),
+            Text(cast("str", issue.blocked.evidence)),
+        )
+    return _render_section(heading="blocked issues", body=table)
+
+
+def _render_failed_assignment_setups(
+    *, setups: Sequence[FailedAssignmentSetupStatus]
+) -> RenderableType | None:
+    """Render incomplete assignment setups with recorded failures."""
+    if not setups:
+        return None
+    table = _create_table(columns=2)
+    for setup in setups:
+        table.add_row(Text(f"GH{setup.issue}"), Text(setup.failure))
+    return _render_section(heading="failed assignment setups", body=table)
+
+
+def _render_assignments(
+    *, assignments: Sequence[AgentAssignmentStatus]
+) -> RenderableType | None:
+    """Render assignments in attention order, preserving order within a status."""
+    if not assignments:
+        return None
+    ordered = sorted(
+        assignments,
+        key=lambda status: tuple(ASSIGNMENT_STATUS_STYLES_IN_ATTENTION_ORDER).index(
+            status.value
+        ),
+    )
+    identifier_width = max(len(status.assignment.identifier) for status in ordered)
+    status_width = max(len(status.value) for status in ordered)
+    rows: list[RenderableType] = []
+    for status in ordered:
+        table = Table(box=None, show_header=False, pad_edge=False)
+        table.add_column(style="bold", width=identifier_width)
+        table.add_column(width=status_width)
+        table.add_column(overflow="fold")
+        table.add_row(
+            Text(status.assignment.identifier),
+            Text(
+                str(status.value),
+                style=ASSIGNMENT_STATUS_STYLES_IN_ATTENTION_ORDER[status.value],
+            ),
+            Text(
+                ", ".join(
+                    filter(
+                        None,
+                        (_describe_running_round(status=status), status.detail),
+                    )
+                )
+            ),
+        )
+        rows.append(table)
+        if status.latest_output is not None:
+            rows.append(
+                Text(
+                    status.latest_output,
+                    style="dim",
+                    overflow="ellipsis",
+                    no_wrap=True,
+                )
+            )
+    return _render_section(heading="agent assignments", body=Group(*rows))
+
+
+def _describe_running_round(*, status: AgentAssignmentStatus) -> str:
+    """Return the running round's number, or nothing between rounds."""
+    if status.value is not AgentAssignmentStatusValue.WORKING:
         return ""
-    return f"round {len(row.assignment.rounds)}"
+    return f"round {len(status.assignment.rounds)}"
 
 
-def _render_detail(
+def _render_assignment_detail(
     *,
-    row: AgentAssignmentRow,
+    status: AgentAssignmentStatus,
     prefix: str = "",
     continuation_indent: int = 0,
     style: str = "",
 ) -> RenderableType:
-    """Render a row's detail behind its prefix, latest output beneath it."""
-    detail = Text(", ".join(filter(None, (prefix, row.detail))), style=style)
-    if row.last_output is None:
+    """Render assignment detail behind its prefix, latest output beneath it."""
+    detail = Text(
+        ", ".join(filter(None, (prefix, status.detail))),
+        style=style,
+    )
+    if status.latest_output is None:
         return detail
     output = Padding(
-        Text(row.last_output), (0, 0, 0, continuation_indent), expand=False
+        Text(status.latest_output),
+        (0, 0, 0, continuation_indent),
+        expand=False,
     )
     return Group(detail, output)
 
 
-def _render_queue(*, board: Board) -> RenderableType | None:
-    """Return the labelled issues waiting to be dispatched, or nothing if none are."""
-    if not board.queued:
+def _describe_empty_status_report(
+    *, report: DreamcatcherStatusReport
+) -> RenderableType | None:
+    """Describe an instance that has no issue or assignment status yet."""
+    if (
+        report.failed_assignment_setups
+        or report.available_issues
+        or report.blocked_issues
+        or report.assignment_statuses
+    ):
         return None
-    table = _open_table()
-    for queued in board.queued:
-        table.add_row(
-            Text(f"GH{queued.issue}"), Text(queued.label), Text(queued.reason)
-        )
-    return _render_section(heading=QUEUE, colour="blue", body=table)
+    return Group(Text(), Text("no issues or agent assignments recorded yet"))
 
 
-def _describe_nothing_dispatched(*, board: Board) -> Text | None:
-    """Return the line for a board with nothing on it, or nothing while it has.
-
-    A board with no assignment and no queued issue would otherwise be the daemon's
-    line and blank space, which reads as a view that failed rather than as a
-    repo nothing has been dispatched in.
-    """
-    if board.rows or board.queued:
-        return None
-    return Text("nothing dispatched yet")
-
-
-def _open_table() -> Table:
-    """Return an empty table whose columns fit whatever a section puts in them.
+def _create_table(*, columns: int) -> Table:
+    """Return a table whose cells fold instead of truncating.
 
     The first column names an assignment or an issue, which is what a reader picks
     a row out by, so it folds onto another line rather than being cut short.
@@ -342,124 +388,130 @@ def _open_table() -> Table:
     and a cut that reached that far would leave the rows reading the same.
     """
     table = Table(box=None, show_header=False, pad_edge=False)
-    table.add_column(style="bold", overflow="fold")
+    for number in range(columns):
+        table.add_column(
+            style="bold" if number == 0 else "",
+            overflow="fold",
+        )
     return table
 
 
-def _render_section(
-    *, heading: str, colour: str, body: RenderableType
-) -> RenderableType:
-    """Return one section of a view, set in under its own heading.
-
-    A blank line opens the section, which sets it apart from the section above
-    and from the line that opens the view.
-    """
+def _render_section(*, heading: str, body: RenderableType) -> RenderableType:
     return Group(
         Text(),
-        Text(heading, style=f"bold {colour}"),
-        Padding(body, INDENT, expand=False),
+        Text(heading, style="bold blue"),
+        Padding(body, SECTION_PADDING, expand=False),
     )
 
 
-def show_assignment(
+def show_assignment_view(
     *,
     state: StateDirectory,
     issue: int,
     console: Console,
-    clock: Callable[[], datetime] = now,
-    wait: Wait = sleep,
+    clock: Callable[[], datetime] = read_current_time,
+    wait: WaitForSeconds = sleep,
 ) -> None:
-    """Show the newest assignment at the issue, and keep on showing it.
+    """Show the issue's newest assignment until it completes or enters fault.
 
-    An assignment between rounds has another round coming, so the view stays open
-    through the gap and shows that round as it starts. An assignment that has run
-    a successful wrap-up round, and a stuck assignment, have no round coming, so
-    ends the view. A console that is no terminal has nobody watching, so there
-    the assignment is drawn once and this returns.
+    The view remains open between rounds. A non-terminal or dumb terminal
+    renders one snapshot and returns.
     """
-    _repaint(
+    _refresh_live_view(
         console=console,
-        look=lambda: _look_at_assignment(state=state, issue=issue, clock=clock),
+        read_snapshot=lambda: _read_assignment_snapshot(
+            state=state, issue=issue, clock=clock
+        ),
         wait=wait,
     )
 
 
-def _look_at_assignment(
+def _read_assignment_snapshot(
     *, state: StateDirectory, issue: int, clock: Callable[[], datetime]
-) -> _Picture:
-    """Return the newest assignment at the issue as it stands, and whether it is over.
+) -> _ViewSnapshot:
+    """Return the newest assignment and whether its view is over.
 
-    One look reads the issue's rows once, and takes both what it draws and
-    where the assignment stands from them.
+    Each refresh reads the issue's statuses once and derives both the rendered
+    view and whether the assignment is terminal from that snapshot.
     """
-    rows = _find_rows_for_issue(state=state, issue=issue, clock=clock)
-    return _Picture(
-        shown=_render_assignment(state=state, rows=rows),
-        is_over=rows[0].standing in STANDINGS_THAT_END_A_VIEW,
+    assignment_statuses = _find_assignment_statuses_for_issue(
+        state=state,
+        issue=issue,
+        clock=clock,
+    )
+    return _ViewSnapshot(
+        renderable=_render_assignment(
+            state=state, assignment_statuses=assignment_statuses
+        ),
+        is_over=assignment_statuses[0].value in STATUSES_THAT_END_A_VIEW,
     )
 
 
 def _render_assignment(
-    *, state: StateDirectory, rows: list[AgentAssignmentRow]
+    *, state: StateDirectory, assignment_statuses: list[AgentAssignmentStatus]
 ) -> RenderableType:
-    """Return the newest of these assignments, with the older ones beneath it.
+    """Render the newest assignment with older assignments beneath it.
 
-    An issue that has been dispatched more than once has an assignment for each
-    dispatch. The newest is the one still going, or the one that got furthest,
-    so it is the one the view is about.
+    Each dispatch creates another assignment for the issue, and the caller
+    orders them newest first.
     """
-    newest = rows[0]
-    return _render_parts(
+    current_status = assignment_statuses[0]
+    return _combine_renderable_parts(
         parts=[
-            Text(f"newest assignment {newest.assignment.identifier}"),
-            _render_detail(
-                row=newest,
-                prefix=str(newest.standing),
-                continuation_indent=INDENT[3],
-                style=COLOURS[newest.standing],
+            Text(f"newest agent assignment {current_status.assignment.identifier}"),
+            _render_assignment_detail(
+                status=current_status,
+                prefix=str(current_status.value),
+                continuation_indent=SECTION_PADDING[3],
+                style=ASSIGNMENT_STATUS_STYLES_IN_ATTENTION_ORDER[current_status.value],
             ),
-            _render_vitals(state=state, row=newest),
-            _render_rounds(row=newest),
-            _render_harness_resume(state=state, row=newest),
-            _render_older_assignments(older=rows[1:]),
+            _render_assignment_summary(state=state, status=current_status),
+            _render_rounds(status=current_status),
+            _render_harness_resume(state=state, status=current_status),
+            _render_older_assignments(older_statuses=assignment_statuses[1:]),
         ]
     )
 
 
-def _render_vitals(*, state: StateDirectory, row: AgentAssignmentRow) -> RenderableType:
+def _render_assignment_summary(
+    *,
+    state: StateDirectory,
+    status: AgentAssignmentStatus,
+) -> RenderableType:
     """Return what the dispatch settled for every round of the assignment."""
-    record = row.assignment.record
-    table = _open_table()
+    assignment = status.assignment
+    record = assignment.record
+    table = _create_table(columns=2)
     for name, value in (
-        ("label", record.label),
+        ("issue identifier", f"GH{record.issue}"),
+        ("agent assignment identifier", assignment.identifier),
+        ("pull request", f"#{record.pull_request}"),
+        ("dispatch label", record.dispatch_label),
         ("branch", record.branch),
         ("worktree", state.describe_path(path=record.worktree)),
-        ("harness", record.harness),
+        ("agent harness", record.harness),
+        (
+            "harness session identifier",
+            status.harness_session_identifier or "not recorded",
+        ),
         ("model", record.model),
         ("effort", record.effort),
     ):
         table.add_row(Text(name), Text(str(value)))
-    return _render_section(heading="assignment", colour="blue", body=table)
+    return _render_section(heading="assignment", body=table)
 
 
-def _render_rounds(*, row: AgentAssignmentRow) -> RenderableType | None:
+def _render_rounds(*, status: AgentAssignmentStatus) -> RenderableType | None:
     """Return the rounds the assignment has run, newest first.
 
-    The newest round is the one a reader came for, so it opens the section,
-    as the newest assignment opens the view. Each round keeps the number it ran
-    under, because that is the number `feed --round` takes.
-
-    An assignment that has run none answers nothing.
+    Each row keeps the round number accepted by `feed --round`. An assignment
+    with no rounds returns no section.
     """
-    rounds = row.assignment.rounds
-    if not rounds:
+    if not status.round_statuses:
         return None
-    table = _open_table()
-    for record in reversed(rounds):
-        is_running = (
-            row.standing is AgentAssignmentStanding.WORKING
-            and record.number == rounds[-1].number
-        )
+    table = _create_table(columns=5)
+    for round_status in reversed(status.round_statuses):
+        record = round_status.record
         table.add_row(
             Text(str(record.number)),
             Text(
@@ -469,37 +521,16 @@ def _render_rounds(*, row: AgentAssignmentRow) -> RenderableType | None:
                 )
             ),
             Text(describe_time(at=record.started)),
-            Text(_describe_run(record=record)),
-            Text(_describe_ending(record=record, is_running=is_running)),
+            Text(round_status.duration_description),
+            Text(round_status.outcome_description),
         )
-    return _render_section(heading="rounds", colour="blue", body=table)
-
-
-def _describe_run(*, record: AgentRoundRecord) -> str:
-    """Return how long the round ran, or nothing while it is still running."""
-    if record.ending is None or isinstance(record.ending, InterruptedAgentRoundEnding):
-        return ""
-    return f"ran {describe_span(span=record.ending.at - record.started)}"
-
-
-def _describe_ending(*, record: AgentRoundRecord, is_running: bool) -> str:
-    """Return how the round ended, or what it is doing instead.
-
-    A round that recorded no ending never finished. It is running when a daemon
-    is still there to run it, and interrupted once that daemon has gone, since
-    a round cannot outlive its daemon.
-    """
-    if isinstance(record.ending, ErroredAgentRoundEnding):
-        return f"errored (exit {record.ending.status})"
-    if isinstance(record.ending, InterruptedAgentRoundEnding):
-        return "interrupted"
-    if record.ending is not None:
-        return "successful"
-    return "running" if is_running else "interrupted"
+    return _render_section(heading="rounds", body=table)
 
 
 def _render_harness_resume(
-    *, state: StateDirectory, row: AgentAssignmentRow
+    *,
+    state: StateDirectory,
+    status: AgentAssignmentStatus,
 ) -> RenderableType | None:
     """Return how to resume the harness session by hand, when one exists.
 
@@ -508,72 +539,54 @@ def _render_harness_resume(
     at all has no harness session behind it either, so there is nothing to resume
     there and never will be.
     """
-    if row.standing is AgentAssignmentStanding.WORKING or not row.assignment.rounds:
+    if status.hand_resume_command is None:
         return None
-    worktree = state.describe_path(path=row.assignment.record.worktree)
-    command = " ".join(ADAPTERS[row.assignment.record.harness].build_hand_resume())
+    worktree = state.describe_path(path=status.assignment.record.worktree)
+    command = " ".join(status.hand_resume_command)
     return _render_section(
         heading="resume harness session yourself",
-        colour="blue",
         body=Text(f"cd {worktree}\n{command}"),
     )
 
 
 def _render_older_assignments(
-    *, older: list[AgentAssignmentRow]
+    *, older_statuses: list[AgentAssignmentStatus]
 ) -> RenderableType | None:
     """Return the assignments at this issue that came before, newest first.
 
     An assignment that is the only one at its issue has none, and answers nothing.
     """
-    if not older:
+    if not older_statuses:
         return None
-    table = _open_table()
-    for row in older:
+    table = _create_table(columns=3)
+    for status in older_statuses:
         table.add_row(
-            Text(row.assignment.identifier),
-            Text(str(row.standing)),
-            _render_detail(row=row),
+            Text(f"agent assignment {status.assignment.identifier}"),
+            Text(
+                str(status.value),
+                style=ASSIGNMENT_STATUS_STYLES_IN_ATTENTION_ORDER[status.value],
+            ),
+            _render_assignment_detail(status=status),
         )
-    return _render_section(heading="older assignments", colour="blue", body=table)
+    return _render_section(heading="older assignments", body=table)
 
 
-def show_feed(
+def show_feed_view(
     *,
     state: StateDirectory,
     issue: int,
     console: Console,
     round_number: int | None = None,
-    wait: Wait = sleep,
+    wait: WaitForSeconds = sleep,
 ) -> None:
-    """Show what the issue's newest assignment said, and follow what arrives.
+    """Show and follow the newest assignment's feed.
 
-    Naming a round narrows the view to that one round, and everything below is
-    about the view of the whole assignment, which is what a reader gets when they
-    name no round.
+    Naming a round limits the view to that round and ends when the round ends.
+    Without a round number, the view follows new rounds across the gaps between
+    them until the assignment completes or enters fault.
 
-    Neither view reads a clock, unlike the board and the assignment view, which
-    say how long ago something happened. Every line a feed shows carries the
-    time it was written, so what a feed shows is the same whenever it is read.
-
-    Reading an assignment that is over and watching one that is going are the same
-    view in two tenses, so this shows what is there and then keeps showing what
-    lands for as long as the assignment has another round coming.
-
-    An assignment between rounds is still going, so the view stays open through the
-    gaps: while the assignment waits for a round that no daemon has launched yet,
-    while its pull request waits for the reader to post on it, and while the
-    daemon that was running it is stopped and started again.
-
-    An assignment with a successful wrap-up round has nothing more to say, and a stuck
-    assignment says nothing more until a person moves it on, so either one ends
-    the view rather than have it wait for a round that is not coming.
-
-    Every look reads the assignment again, so a round that starts while the view
-    is going is shown as it arrives, and not only the rounds it opened with.
-
-    A console that is no terminal has nobody watching, so there either view
-    shows what is there once and returns.
+    Every feed line carries its own timestamp, so the view needs no clock. A
+    non-terminal or dumb terminal shows the current contents once and returns.
     """
     if round_number is not None:
         _show_one_round(
@@ -582,14 +595,14 @@ def show_feed(
         return
     view = _FeedView(console=console)
 
-    def look() -> bool:
-        """Show what the assignment said since the last look, and say if it is over."""
-        row = _find_rows_for_issue(state=state, issue=issue)[0]
-        assignment = row.assignment
-        view.show_what_arrived(assignment=assignment, records=assignment.rounds)
-        return row.standing in STANDINGS_THAT_END_A_VIEW
+    def refresh_feed() -> bool:
+        """Show output since the previous refresh and return whether it is over."""
+        status = _find_assignment_statuses_for_issue(state=state, issue=issue)[0]
+        assignment = status.assignment
+        view.show_new_output(assignment=assignment, records=assignment.rounds)
+        return status.value in STATUSES_THAT_END_A_VIEW
 
-    _keep_looking(console=console, look=look, wait=wait)
+    _refresh_until_view_ends(console=console, refresh_view=refresh_feed, wait=wait)
 
 
 def _show_one_round(
@@ -598,22 +611,21 @@ def _show_one_round(
     issue: int,
     number: int,
     console: Console,
-    wait: Wait,
+    wait: WaitForSeconds,
 ) -> None:
-    """Show one round of the issue's newest assignment, until that round ends.
+    """Show one round of the newest assignment until the round ends.
 
-    One named round is all this shows, so it ends when that round has, rather
-    than stay open for the round after it.
-
-    The round list of the assignment view is where a reader finds the number, so
-    a number no round of the assignment carries is the reader's mistake, and is
-    the one thing this turns into words for them.
+    Raise ReportableError when the assignment has no round with the requested
+    number.
     """
     view = _FeedView(console=console)
 
-    def look() -> bool:
-        """Show what the round said since the last look, and say if it has ended."""
-        assignment = _find_rows_for_issue(state=state, issue=issue)[0].assignment
+    def refresh_round_feed() -> bool:
+        """Show output since the previous refresh and return whether it has ended."""
+        assignment = _find_assignment_statuses_for_issue(
+            state=state,
+            issue=issue,
+        )[0].assignment
         record = next(
             (record for record in assignment.rounds if record.number == number), None
         )
@@ -623,44 +635,51 @@ def _show_one_round(
                 f"{describe_count(number=len(assignment.rounds), noun='round')}, "
                 f"so it has no round {number}."
             )
-        view.show_what_arrived(assignment=assignment, records=[record])
+        view.show_new_output(assignment=assignment, records=[record])
         return record.ending is not None
 
-    _keep_looking(console=console, look=look, wait=wait)
+    _refresh_until_view_ends(
+        console=console, refresh_view=refresh_round_feed, wait=wait
+    )
 
 
-def _find_rows_for_issue(
-    *, state: StateDirectory, issue: int, clock: Callable[[], datetime] = now
-) -> list[AgentAssignmentRow]:
-    """Return the rows for the issue, newest assignment first, or refuse if none.
+def _find_assignment_statuses_for_issue(
+    *,
+    state: StateDirectory,
+    issue: int,
+    clock: Callable[[], datetime] = read_current_time,
+) -> list[AgentAssignmentStatus]:
+    """Return the issue's agent-assignment statuses, or refuse if none.
 
-    A view of one issue reads that issue's rows rather than the whole board,
-    so it never pays for an assignment it does not show. This is the one place
-    that turns an issue with no assignment behind it into words for the reader.
+    A view of one issue reads that issue's assignments rather than the full
+    status report. This is the one place that turns an issue with no assignment
+    behind it into words for the reader.
     """
-    rows = read_rows_for_issue(state=state, issue=issue, clock=clock)
-    if not rows:
+    assignment_statuses = read_agent_assignment_statuses_for_issue(
+        state=state,
+        issue=issue,
+        clock=clock,
+    )
+    if not assignment_statuses:
         raise ReportableError(f"No assignment here for GH{issue}.")
-    return rows
+    return assignment_statuses
 
 
 @dataclass(frozen=True, kw_only=True)
 class _FeedView:
-    """An assignment's feed on a console, and how far each round of it has been read.
+    """Track how far a console has read each round of an assignment feed.
 
-    A feed only grows, so a later look at one reads each round on from where
-    the last look stopped and shows what arrived. The rounds a position is held
-    for are the rounds already shown, so a round that has started since the
-    last look is the one that opens with its own heading.
+    Each refresh resumes from the stored byte position. A round without a stored
+    position first receives its heading.
     """
 
     console: Console
     positions: dict[int, int] = field(default_factory=dict)
 
-    def show_what_arrived(
+    def show_new_output(
         self, *, assignment: AgentAssignment, records: Iterable[AgentRoundRecord]
     ) -> None:
-        """Show what these rounds of the assignment have said since the last look."""
+        """Show assignment output written since the previous refresh."""
         for record in records:
             if record.number not in self.positions:
                 self._show_round_heading(record=record)
@@ -675,42 +694,47 @@ class _FeedView:
         """
         if self.positions:
             self.console.print()
-        heading = compose_round_boundary(
+        round_heading = compose_agent_round_boundary(
             number=record.number,
             purpose=record.purpose,
             is_recovery=record.is_recovery,
             at=record.started,
         )
-        self.console.print(_paint(line=heading, said=Text(heading.text, style="bold")))
+        self.console.print(
+            _render_feed_line(
+                line=round_heading,
+                content=Text(round_heading.text, style="bold"),
+            )
+        )
         self.positions[record.number] = 0
 
     def _show_new_lines(
         self, *, assignment: AgentAssignment, round_number: int
     ) -> None:
-        """Show the lines this round has written since the last look at it."""
-        feed = assignment.round_paths(number=round_number).feed
-        lines, position = read_lines_from(
-            path=feed, position=self.positions[round_number]
+        """Show lines the round wrote since the previous refresh."""
+        feed_path = assignment.compose_round_paths(number=round_number).feed
+        new_lines, new_position = read_lines_from(
+            path=feed_path, position=self.positions[round_number]
         )
-        for line in lines:
-            self.console.print(_paint_written(written=line))
-        self.positions[round_number] = position
+        for line in new_lines:
+            self.console.print(_render_written_feed_line(written_line=line))
+        self.positions[round_number] = new_position
 
 
-def _paint_written(*, written: str) -> Text:
+def _render_written_feed_line(*, written_line: str) -> Text:
     """Return one line of a feed as it reads on a console.
 
-    A line the reader cannot parse reaches the reader as it was written, since
-    showing what the feed holds is the whole point of showing it.
+    An unparseable line is returned unchanged.
     """
-    line = read_feed_line(written=written)
+    line = read_feed_line(written_line=written_line)
     if line is None:
-        return Text(written)
-    said = Text(line.text)
-    said.highlight_regex(LABEL, "cyan")
-    return _paint(line=line, said=said)
+        return Text(written_line)
+    content = Text(line.text)
+    content.highlight_regex(FEED_NOTE_LABEL_PATTERN, "cyan")
+    return _render_feed_line(line=line, content=content)
 
 
-def _paint(*, line: Line, said: Text) -> Text:
-    """Return the line with its stamp set back, so the words stand out."""
-    return Text.assemble((describe_time(at=line.at), "dim"), GAP, said)
+def _render_feed_line(*, line: FeedLine, content: Text) -> Text:
+    return Text.assemble(
+        (describe_time(at=line.at), "dim"), FEED_TIMESTAMP_GAP, content
+    )

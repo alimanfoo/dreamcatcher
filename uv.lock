@@ -243,7 +243,7 @@ dev = [
     { name = "pytest-cov", specifier = ">=6.0" },
     { name = "ruff", specifier = "==0.16.3" },
     { name = "ty", specifier = "==0.0.73" },
-    { name = "uncoded", specifier = "==2.1.1" },
+    { name = "uncoded", specifier = "==3.0.0" },
 ]
 
 [[package]]
@@ -735,14 +735,14 @@ wheels = [
 
 [[package]]
 name = "uncoded"
-version = "2.1.1"
+version = "3.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/13/f6/da05131fc91ebbe6b8e42c40b870de6517fce8433d1ce7ecc4d183ec851f/uncoded-2.1.1.tar.gz", hash = "sha256:d79d9f7d0e2acea5b02dd48e7d8796bef73cb865b07e87b546ed5e67b8a527e5", size = 106761, upload-time = "2026-06-26T08:40:58.872Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ef/b0/ef0a584881f9be09297ac1b4c0a21098dc590670d455792ddae737817f59/uncoded-3.0.0.tar.gz", hash = "sha256:1988f2e1ccd3d0f1ee84406c4085d859e0221d1099e76a28adfdd8420a3cb8fb", size = 96285, upload-time = "2026-09-19T23:04:47.638Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c6/cf/bf525a0687545bed4c8baa9dcab897031db1182f9f1ea260ab05c115269d/uncoded-2.1.1-py3-none-any.whl", hash = "sha256:f606ad737d44d285719c628eaa8c1fa1b8660d811f622afeefee5ca96267844a", size = 41232, upload-time = "2026-06-26T08:40:57.601Z" },
+    { url = "https://files.pythonhosted.org/packages/cc/f4/a691a87688d6771f7193cabd7bb750f1fa15cb0892a625223cf19c4d3f3f/uncoded-3.0.0-py3-none-any.whl", hash = "sha256:e1c5d2b3d3ecded0db913c1bb670dfd58da28c30a1e4e46a7b197194e592bd4e", size = 37322, upload-time = "2026-09-19T23:04:46.258Z" },
 ]
 
 [[package]]

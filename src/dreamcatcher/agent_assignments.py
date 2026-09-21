@@ -1,13 +1,12 @@
-"""Create an assignment for an issue, and read back the ones a repo already has.
+"""Create agent assignments and read their persisted state.
 
-An assignment is what one dispatch of an issue makes. Its identifier combines
-the issue number with the time that the assignment started. The identifier names
-its branch, worktree, and file directory. Three worktrees for one issue therefore
-read as three assignments at one thing, each with its own pull request.
+Each dispatch creates an assignment with its own identifier, branch, worktree,
+assignment directory under the instance state, and pull request. Several
+assignments can exist for one issue.
 
 Creation prepares and publishes the assignment's branch, opens its linked draft
-pull request, then records the assignment. Nothing here decides which
-issue to dispatch, or when. A caller that has decided asks for the assignment.
+pull request, then records the assignment. The scheduler decides which issue to
+dispatch and when.
 """
 
 from contextlib import suppress
@@ -15,20 +14,23 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
+from pydantic import AwareDatetime
+
 from dreamcatcher import prompts
 from dreamcatcher.agent_rounds import (
+    AgentRoundOutcome,
     AgentRoundPaths,
+    AgentRoundPurpose,
     AgentRoundRecord,
     ErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
-    RoundOutcome,
-    RoundPurpose,
 )
 from dreamcatcher.commands import CommandError
-from dreamcatcher.config import DispatchRoute, Harness
+from dreamcatcher.config import AgentHarness, DispatchRoute
 from dreamcatcher.documents import (
-    Document,
+    DreamcatcherDocument,
     read_json,
+    read_lines_from,
     read_text,
     write_json,
     write_text,
@@ -37,7 +39,7 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import (
     add_worktree,
     delete_branch,
-    fetch,
+    fetch_main,
     has_commits_since_main,
     is_assignment_worktree,
     make_empty_commit,
@@ -49,45 +51,51 @@ from dreamcatcher.github import (
     LinkedPullRequest,
     PullRequest,
     PullRequestState,
-    Unknown,
+    UnknownGitHubResponse,
     create_pull_request,
     list_linked_pull_requests,
     list_pull_requests,
 )
+from dreamcatcher.harness_adapters import (
+    HarnessSessionIdentifier,
+    refuse_invalid_harness_session_identifier,
+)
+from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.state import StateDirectory
 
 # What an assignment's branch is called, before its identifier. The prefix keeps
 # dreamcatcher's own branches apart from everyone else's, and from the branches
 # that the catcher it replaces left behind.
-BRANCH_PREFIX = "dreamcatcher-"
+AGENT_ASSIGNMENT_BRANCH_PREFIX = "dreamcatcher-"
 
 # The file in an assignment's directory saying what the assignment was dispatched
 # with.
-RECORD = "assignment.json"
+AGENT_ASSIGNMENT_RECORD_NAME = "assignment.json"
 
 # The directory in an assignment's directory holding a directory per round.
-ROUNDS = "rounds"
+AGENT_ROUNDS_DIRECTORY_NAME = "rounds"
 
-# The file in an assignment's directory holding the newest post the assignment has
-# been told about.
-WATERMARK = "watermark"
+USER_POST_DELIVERY_CURSOR_NAME = "watermark"
 
 
-class AgentAssignmentRecord(Document):
-    """The issue an assignment works on, and the settings it runs its rounds with.
+class AgentAssignmentRecord(DreamcatcherDocument):
+    """Model the identities and settled settings of an agent assignment.
 
-    The dispatch settles all of these, including the pull request identity, and
-    no later round changes any of them. Every round reads them from here rather
-    than from the config, so editing the config while an assignment is in flight
-    cannot reach that assignment. Mutable pull request state stays on GitHub.
+    The dispatch settles the assignment recipe and identities. The first round
+    adds the harness session identifier when the harness reports it, and a retry
+    request records its time. Every round reads this record, so later config
+    edits do not change an assignment in progress. Pull request state stays on
+    GitHub.
     """
 
     issue: int
-    label: str
+    dispatch_label: str
     branch: str
     worktree: Path
     pull_request: int
-    harness: Harness
+    harness: AgentHarness
+    harness_session_identifier: HarnessSessionIdentifier | None = None
+    retry_requested_at: AwareDatetime | None = None
     model: str
     effort: str
     prompt: str
@@ -95,22 +103,20 @@ class AgentAssignmentRecord(Document):
 
 @dataclass(frozen=True, kw_only=True)
 class AgentAssignment:
-    """One assignment at one issue, as it stands.
+    """Represent an agent assignment as its persisted state currently reads.
 
-    The directory is where the assignment keeps its own files, and its own name is
-    the assignment's identifier, which is how a reader of the disk finds one. The record
-    says what the dispatch settled, and the rounds are what the assignment has run
-    so far, oldest first.
+    The directory name is the assignment identifier. The record holds the
+    dispatch settings, and the rounds are ordered from oldest to newest.
 
-    The watermark is the newest post the assignment has been told about. An assignment
-    that has been told about none has the beginning of time, so the first peek
-    at its pull request returns the whole history.
+    The user-post delivery cursor is the newest post delivered to the assignment.
+    An assignment that has received none has the beginning of time, so the first
+    relay from its pull request returns the whole history.
     """
 
     directory: Path
     record: AgentAssignmentRecord
     rounds: list[AgentRoundRecord] = field(default_factory=list)
-    watermark: str = ""
+    user_post_delivery_cursor: str = ""
 
     @property
     def identifier(self) -> str:
@@ -124,20 +130,15 @@ class AgentAssignment:
             return False
         round = self.rounds[-1]
         return (
-            round.purpose is RoundPurpose.WRAP_UP
-            and round.outcome is RoundOutcome.SUCCESSFUL
+            round.purpose is AgentRoundPurpose.WRAP_UP
+            and round.outcome is AgentRoundOutcome.SUCCESSFUL
         )
 
     def describe_unfinished_round(self) -> str | None:
-        """Return what the assignment's last round left unfinished, or nothing.
+        """Describe an interrupted or errored final round, if one exists.
 
         A record with no ending is a round the daemon has not reconciled yet,
         and an interrupted or errored ending says that the work stopped short.
-        Each is recovered from where it stopped.
-
-        An assignment that has run no round at all has left nothing unfinished.
-        Its first round never started, which is another matter: the scheduler
-        retries that recorded assignment before it starts ordinary work.
         """
         if not self.rounds:
             return None
@@ -148,21 +149,17 @@ class AgentAssignment:
             return f"the last round failed (exit {ending.status})"
         return None
 
-    def round_paths(self, *, number: int) -> AgentRoundPaths:
-        """Where the assignment's numbered round ran, and where it wrote.
+    def compose_round_paths(self, *, number: int) -> AgentRoundPaths:
+        """Return the worktree and file paths for a numbered round.
 
         Every round runs in the assignment's worktree, and writes into a
         directory named by the number of the round it is.
 
-        An assignment runs one round at a time, and each round is numbered by how
-        many the assignment had run before it, so the rounds are numbered from one
-        in the order they ran. The place of a record in `rounds` is therefore
-        the number of the round it records, which is how a reader of the round
-        list finds each round's own files.
+        Round numbers start at one and increase in execution order.
         """
         return AgentRoundPaths(
             worktree=self.record.worktree,
-            rounds_directory=self.directory / ROUNDS,
+            rounds_directory=self.directory / AGENT_ROUNDS_DIRECTORY_NAME,
             number=number,
         )
 
@@ -173,25 +170,17 @@ class AgentAssignment:
 
 
 def read_agent_assignments(*, state: StateDirectory) -> list[AgentAssignment]:
-    """Return every assignment the state directory holds, by identifier.
+    """Return every complete assignment setup, ordered by identifier.
 
-    A worktree under `worktrees/` is what says an assignment exists, since that is
-    the one place an assignment of this daemon's can be. The assignment's own files
-    sit under `assignments/`, in a directory with the same identifier.
+    A worktree under `worktrees/` declares that an assignment exists. Its state
+    sits under `assignments/` in a directory with the same identifier.
 
     The state directory is also what the round records are read through, so a
     process that reads the same one again reads only the records that can have
     changed since.
 
-    A state directory with no worktrees in it yet holds no assignments, so this
-    answers with nothing rather than failing. Anything under `worktrees/` that
-    is not a directory is not a worktree, which is what keeps a file a file
-    browser left there from reading as an assignment.
-
-    A worktree whose record is not there is not an assignment either. Assignment
-    creation may leave such a worktree when it is interrupted, and a later
-    creation attempt reconciles it. A record that is there and will not read is
-    another matter, and says so.
+    Missing state and worktrees without assignment records are incomplete setups,
+    so this read omits them. An invalid record raises ReportableError.
     """
     if not state.worktrees.is_dir():
         return []
@@ -203,7 +192,7 @@ def read_agent_assignments(*, state: StateDirectory) -> list[AgentAssignment]:
     return [
         _read_assignment(state=state, directory=directory)
         for directory in directories
-        if (directory / RECORD).exists()
+        if (directory / AGENT_ASSIGNMENT_RECORD_NAME).exists()
     ]
 
 
@@ -218,14 +207,36 @@ def read_agent_assignments_for_issue(
     ]
 
 
+def find_open_agent_assignments_by_issue(
+    *, assignments: list[AgentAssignment]
+) -> dict[int, AgentAssignment]:
+    """Return each issue's open assignment, keyed by issue."""
+    return {
+        assignment.record.issue: assignment
+        for assignment in assignments
+        if not assignment.is_complete
+    }
+
+
+def request_agent_assignment_retry(
+    *, assignment: AgentAssignment, at: datetime
+) -> None:
+    """Record when the user asked a faulted assignment to recover again."""
+    path = assignment.directory / AGENT_ASSIGNMENT_RECORD_NAME
+    record = read_json(model=AgentAssignmentRecord, path=path)
+    write_json(
+        document=record.model_copy(update={"retry_requested_at": at}),
+        path=path,
+    )
+
+
 def inspect_incomplete_assignment_setups(
     *, state: StateDirectory, repository: str
 ) -> dict[int, str | None]:
-    """Return each incomplete setup's recovery obstacle, when it has one.
+    """Return each incomplete setup's latest failure, if any.
 
-    A setup with no obstacle is safe for assignment creation to resume. This
-    boundary owns that decision, so eligibility only has to distinguish a
-    recoverable local setup from a pull request owned elsewhere.
+    A setup with no failure is safe for assignment creation to resume. This
+    boundary owns that decision.
     """
     return {
         issue: _inspect_incomplete_assignment_setup(
@@ -244,16 +255,16 @@ def _find_incomplete_assignment_identifiers(
     *, state: StateDirectory
 ) -> dict[int, list[str]]:
     """Return each issue's setup identifiers whose record is absent."""
-    found: dict[int, list[str]] = {}
+    identifiers_by_issue: dict[int, list[str]] = {}
     for path in state.worktrees.glob("GH*-*"):
         if (
             not is_assignment_worktree(path=path)
-            or (state.assignments / path.name / RECORD).exists()
+            or (state.assignments / path.name / AGENT_ASSIGNMENT_RECORD_NAME).exists()
         ):
             continue
         issue = int(path.name.split("-", maxsplit=1)[0].removeprefix("GH"))
-        found.setdefault(issue, []).append(path.name)
-    return found
+        identifiers_by_issue.setdefault(issue, []).append(path.name)
+    return identifiers_by_issue
 
 
 def _inspect_incomplete_assignment_setup(
@@ -263,22 +274,30 @@ def _inspect_incomplete_assignment_setup(
     issue: int,
     identifiers: list[str],
 ) -> str | None:
-    """Return what prevents this issue's incomplete setup from recovery."""
+    """Return this issue's incomplete setup failure, if any."""
     if len(identifiers) > 1:
-        named = ", ".join(sorted(identifiers))
-        return f"GH{issue} has several incomplete assignment setups: {named}."
+        identifier_names = ", ".join(sorted(identifiers))
+        return (
+            f"GH{issue} has several incomplete assignment setups: {identifier_names}."
+        )
     identifier = identifiers[0]
-    branch = f"{BRANCH_PREFIX}{identifier}"
+    branch = f"{AGENT_ASSIGNMENT_BRANCH_PREFIX}{identifier}"
     try:
         _check_worktree_branch(state=state, identifier=identifier, branch=branch)
-        found = _find_branch_pull_request(repository=repository, branch=branch)
-        linked = _read_linked_pull_requests(repository=repository, issue=issue)
-        if found is None:
-            _refuse_linked_pull_requests(linked=linked, branch=branch, issue=issue)
+        branch_pull_request = _find_branch_pull_request(
+            repository=repository, branch=branch
+        )
+        linked_pull_requests = _read_linked_pull_requests(
+            repository=repository, issue=issue
+        )
+        if branch_pull_request is None:
+            _refuse_linked_pull_requests(
+                linked=linked_pull_requests, branch=branch, issue=issue
+            )
         else:
             _adopt_pull_request(
-                pull_request=found,
-                linked=linked,
+                pull_request=branch_pull_request,
+                linked=linked_pull_requests,
                 branch=branch,
                 issue=issue,
             )
@@ -289,7 +308,7 @@ def _inspect_incomplete_assignment_setup(
 
 @dataclass(frozen=True, kw_only=True)
 class AgentAssignmentCreator:
-    """Create assignment records in one repository and state directory."""
+    """Create durable agent assignments in one repository."""
 
     state: StateDirectory
     repository: str
@@ -298,41 +317,37 @@ class AgentAssignmentCreator:
         self,
         *,
         route: DispatchRoute,
-        named: Harness,
+        requested_harness: AgentHarness,
         issue: int,
         at: datetime,
     ) -> AgentAssignment:
-        """Create the issue's durable assignment with no rounds run yet.
+        """Create and publish the issue's assignment with no rounds run yet.
 
-        The assignment runs on the harness that the route and this daemon
-        select, with that harness's model, effort, and prompt template. Creation
-        fetches main, makes the branch and worktree, adds and pushes an empty
-        commit, opens the linked draft pull request, then writes the record.
+        The route selects an assignment recipe in response to the requested
+        agent harness. The recipe supplies the model, effort, and prompt
+        template. Creation fetches main, makes the branch and worktree, adds and
+        pushes an empty commit, opens the linked draft pull request, then writes
+        the record.
 
-        A retry reuses an incomplete setup identified by its worktree and
-        branch. Only a failed worktree creation is removed immediately, because
-        later setup steps leave recoverable evidence. An issue that already has
-        an open local assignment cannot receive another.
+        A retry reuses an incomplete setup that has the expected worktree and
+        branch. A failed worktree creation is removed; failures after that point
+        leave evidence for a later recovery. An issue with an open local
+        assignment cannot receive another.
         """
-        open_assignments = [
-            assignment
-            for assignment in read_agent_assignments_for_issue(
-                state=self.state, issue=issue
-            )
-            if not assignment.is_complete
-        ]
-        if open_assignments:
+        open_assignment = find_open_agent_assignments_by_issue(
+            assignments=read_agent_assignments(state=self.state)
+        ).get(issue)
+        if open_assignment is not None:
             raise ReportableError(
-                f"GH{issue} already has open assignment "
-                f"{open_assignments[0].identifier}."
+                f"GH{issue} already has open assignment {open_assignment.identifier}."
             )
-        harness = route.choose_harness(named=named)
-        recipe = route.assignment_recipes[harness]
-        fetch(root=self.state.root)
+        selected_harness = route.choose_harness(requested_harness=requested_harness)
+        recipe = route.assignment_recipes[selected_harness]
+        fetch_main(root=self.state.root)
         identifier = _find_incomplete_assignment(state=self.state, issue=issue) or (
             f"GH{issue}-{at:%Y%m%d-%H%M%S}"
         )
-        branch = f"{BRANCH_PREFIX}{identifier}"
+        branch = f"{AGENT_ASSIGNMENT_BRANCH_PREFIX}{identifier}"
         worktree = self.state.worktrees / identifier
         if is_assignment_worktree(path=worktree):
             _check_worktree_branch(
@@ -354,11 +369,11 @@ class AgentAssignmentCreator:
         )
         record = AgentAssignmentRecord(
             issue=issue,
-            label=route.label,
+            dispatch_label=route.label,
             branch=branch,
             worktree=worktree,
             pull_request=pull_request,
-            harness=harness,
+            harness=selected_harness,
             model=recipe.model,
             effort=recipe.effort,
             prompt=prompts.compose_first_round_prompt(
@@ -366,42 +381,51 @@ class AgentAssignmentCreator:
             ),
         )
         directory = self.state.assignments / identifier
-        write_json(document=record, path=directory / RECORD)
+        write_json(document=record, path=directory / AGENT_ASSIGNMENT_RECORD_NAME)
         return AgentAssignment(directory=directory, record=record)
 
 
 def _find_incomplete_assignment(*, state: StateDirectory, issue: int) -> str | None:
     """Return the identifier of this issue's incomplete assignment setup."""
-    found = _find_incomplete_assignment_identifiers(state=state).get(issue, [])
-    if len(found) > 1:
-        identifiers = ", ".join(sorted(found))
+    identifiers = _find_incomplete_assignment_identifiers(state=state).get(issue, [])
+    if len(identifiers) > 1:
+        identifier_names = ", ".join(sorted(identifiers))
         raise ReportableError(
-            f"GH{issue} has several incomplete assignment setups: {identifiers}."
+            f"GH{issue} has several incomplete assignment setups: {identifier_names}."
         )
-    return found[0] if found else None
+    return identifiers[0] if identifiers else None
 
 
 def _check_worktree_branch(
     *, state: StateDirectory, identifier: str, branch: str
 ) -> None:
     """Require an incomplete setup's worktree to have its assignment branch."""
-    checked_out = read_worktree_branch(worktree=state.worktrees / identifier)
-    if checked_out != branch:
+    checked_out_branch = read_worktree_branch(worktree=state.worktrees / identifier)
+    if checked_out_branch != branch:
         raise ReportableError(
             f"cannot reconcile {identifier}: its worktree has branch "
-            f"{checked_out}, not {branch}."
+            f"{checked_out_branch}, not {branch}."
         )
 
 
 def _find_or_create_pull_request(*, repository: str, branch: str, issue: int) -> int:
     """Return the branch's existing pull request or create its draft."""
-    found = _find_branch_pull_request(repository=repository, branch=branch)
-    linked = _read_linked_pull_requests(repository=repository, issue=issue)
-    if found is not None:
+    branch_pull_request = _find_branch_pull_request(
+        repository=repository, branch=branch
+    )
+    linked_pull_requests = _read_linked_pull_requests(
+        repository=repository, issue=issue
+    )
+    if branch_pull_request is not None:
         return _adopt_pull_request(
-            pull_request=found, linked=linked, branch=branch, issue=issue
+            pull_request=branch_pull_request,
+            linked=linked_pull_requests,
+            branch=branch,
+            issue=issue,
         )
-    _refuse_linked_pull_requests(linked=linked, branch=branch, issue=issue)
+    _refuse_linked_pull_requests(
+        linked=linked_pull_requests, branch=branch, issue=issue
+    )
     return _create_assignment_pull_request(
         repository=repository, branch=branch, issue=issue
     )
@@ -409,14 +433,14 @@ def _find_or_create_pull_request(*, repository: str, branch: str, issue: int) ->
 
 def _find_branch_pull_request(*, repository: str, branch: str) -> PullRequest | None:
     """Return the sole pull request on a recovery branch, when it has one."""
-    found = list_pull_requests(repository=repository, branch=branch)
-    if isinstance(found, Unknown):
+    pull_requests = list_pull_requests(repository=repository, branch=branch)
+    if isinstance(pull_requests, UnknownGitHubResponse):
         raise ReportableError(
-            f"cannot reconcile the pull request for {branch}: {found.reason}"
+            f"cannot reconcile the pull request for {branch}: {pull_requests.reason}"
         )
-    if len(found) > 1:
+    if len(pull_requests) > 1:
         raise ReportableError(f"{branch} has more than one pull request.")
-    return found[0] if found else None
+    return pull_requests[0] if pull_requests else None
 
 
 def _read_linked_pull_requests(
@@ -424,7 +448,7 @@ def _read_linked_pull_requests(
 ) -> list[LinkedPullRequest]:
     """Return the issue's open linked pull requests or report why they are unknown."""
     linked = list_linked_pull_requests(repository=repository, issue=issue)
-    if isinstance(linked, Unknown):
+    if isinstance(linked, UnknownGitHubResponse):
         raise ReportableError(
             f"cannot tell whether another pull request claims GH{issue}: "
             f"{linked.reason}"
@@ -450,13 +474,21 @@ def _adopt_pull_request(
             f"cannot reconcile {branch}: pull request #{pull_request.number} "
             "is ready for review rather than draft."
         )
-    if pull_request.number not in {one.number for one in linked}:
+    if pull_request.number not in {
+        linked_pull_request.number for linked_pull_request in linked
+    }:
         raise ReportableError(
             f"cannot reconcile {branch}: pull request #{pull_request.number} "
             f"is not linked to GH{issue}."
         )
-    unrelated = [one for one in linked if one.number != pull_request.number]
-    _refuse_linked_pull_requests(linked=unrelated, branch=branch, issue=issue)
+    unrelated_pull_requests = [
+        linked_pull_request
+        for linked_pull_request in linked
+        if linked_pull_request.number != pull_request.number
+    ]
+    _refuse_linked_pull_requests(
+        linked=unrelated_pull_requests, branch=branch, issue=issue
+    )
     return pull_request.number
 
 
@@ -465,64 +497,131 @@ def _refuse_linked_pull_requests(
 ) -> None:
     """Refuse open linked pull requests not owned by the recovery branch."""
     if linked:
-        named = ", ".join(f"#{pull_request.number}" for pull_request in linked)
+        pull_request_names = ", ".join(
+            f"#{pull_request.number}" for pull_request in linked
+        )
         raise ReportableError(
             f"cannot create a pull request for {branch}: GH{issue} already has "
-            f"an open linked pull request ({named})."
+            f"an open linked pull request ({pull_request_names})."
         )
 
 
 def _create_assignment_pull_request(*, repository: str, branch: str, issue: int) -> int:
     """Create and return the assignment branch's open draft pull request."""
-    created = create_pull_request(repository=repository, branch=branch, issue=issue)
-    if isinstance(created, Unknown):
+    pull_request = create_pull_request(
+        repository=repository, branch=branch, issue=issue
+    )
+    if isinstance(pull_request, UnknownGitHubResponse):
         raise ReportableError(
-            f"cannot read the pull request created for {branch}: {created.reason}"
+            f"cannot read the pull request created for {branch}: {pull_request.reason}"
         )
-    if created.state is not PullRequestState.OPEN or not created.is_draft:
+    if pull_request.state is not PullRequestState.OPEN or not pull_request.is_draft:
         raise ReportableError(
-            f"pull request #{created.number} for {branch} was not created as "
+            f"pull request #{pull_request.number} for {branch} was not created as "
             "an open draft."
         )
-    return created.number
+    return pull_request.number
 
 
 def _read_assignment(*, state: StateDirectory, directory: Path) -> AgentAssignment:
     """Return the assignment whose own files sit in this directory."""
     return AgentAssignment(
         directory=directory,
-        record=read_json(model=AgentAssignmentRecord, path=directory / RECORD),
-        rounds=state.round_reader.read_records(directory=directory / ROUNDS),
-        watermark=_read_watermark(directory=directory),
+        record=read_json(
+            model=AgentAssignmentRecord, path=directory / AGENT_ASSIGNMENT_RECORD_NAME
+        ),
+        rounds=state.round_reader.read_records(
+            directory=directory / AGENT_ROUNDS_DIRECTORY_NAME
+        ),
+        user_post_delivery_cursor=_read_user_post_delivery_cursor(directory=directory),
     )
 
 
-def _read_watermark(*, directory: Path) -> str:
-    """Return the newest post this assignment has been told about.
+def _read_user_post_delivery_cursor(*, directory: Path) -> str:
+    """Return the time of the newest user post delivered to the assignment.
 
-    An assignment is told about a batch of posts when a round launches with that
-    batch, and that launch is what writes this file. So an assignment no round has
-    yet carried the user's words to has no file here, and the beginning of time
-    is what it has seen.
+    A batch is delivered when a round launches with it, and that launch writes
+    this file. An assignment that no round has carried the user's words to has no
+    file here, so its cursor is the beginning of time.
 
-    Whatever wrote the file may have left a line ending after the timestamp, so
-    the surrounding space goes: an ISO-8601 time is the whole value.
+    Surrounding whitespace is not part of the ISO-8601 cursor.
     """
-    path = directory / WATERMARK
+    path = directory / USER_POST_DELIVERY_CURSOR_NAME
     if not path.exists():
         return ""
     return read_text(path=path).strip()
 
 
-def advance_assignment_watermark(*, assignment: AgentAssignment, newest: str) -> None:
-    """Write the time of the newest post the assignment has now been told about.
+def advance_user_post_delivery_cursor(
+    *, assignment: AgentAssignment, newest: str
+) -> None:
+    """Record the time of the newest user post delivered to the assignment.
 
-    A round launching with a batch of posts as its inbox is what tells the
-    assignment about them, and this is that launch's own write. Until it lands the
-    assignment has heard nothing, so a daemon that died before the round started
-    reads those same posts again on its next tick rather than losing them.
+    A round launching with a batch of posts performs this write after it starts.
+    Until the write lands, a daemon that dies reads those same posts again on its
+    next tick rather than losing them.
     """
-    write_text(text=newest, path=assignment.directory / WATERMARK)
+    write_text(text=newest, path=assignment.directory / USER_POST_DELIVERY_CURSOR_NAME)
+
+
+def find_harness_session_identifier(
+    *, assignment: AgentAssignment
+) -> HarnessSessionIdentifier | None:
+    """Return the recorded or recoverable harness session identifier."""
+    if assignment.record.harness_session_identifier is not None:
+        return assignment.record.harness_session_identifier
+    harness_adapter = HARNESS_ADAPTERS[assignment.record.harness]
+    lines, _ = read_lines_from(
+        path=assignment.compose_round_paths(number=1).raw_output, position=0
+    )
+    for line in lines:
+        identifier = harness_adapter.read_output(line=line).harness_session_identifier
+        if identifier is not None:
+            return _refuse_harness_session_identifier(
+                assignment=assignment, identifier=identifier
+            )
+    return None
+
+
+def record_harness_session_identifier(
+    *, assignment: AgentAssignment, identifier: str
+) -> None:
+    """Record the harness session that every round of the assignment continues."""
+    safe_identifier = _refuse_harness_session_identifier(
+        assignment=assignment, identifier=identifier
+    )
+    path = assignment.directory / AGENT_ASSIGNMENT_RECORD_NAME
+    record = read_json(model=AgentAssignmentRecord, path=path)
+    recorded_identifier = record.harness_session_identifier
+    if recorded_identifier is not None and recorded_identifier != safe_identifier:
+        raise ReportableError(
+            f"{assignment.identifier} reported harness session {safe_identifier}, "
+            f"but its record names {recorded_identifier}."
+        )
+    if recorded_identifier == safe_identifier:
+        return
+    write_json(
+        document=record.model_copy(
+            update={"harness_session_identifier": safe_identifier}
+        ),
+        path=path,
+    )
+
+
+def _refuse_harness_session_identifier(
+    *, assignment: AgentAssignment, identifier: str
+) -> str:
+    """Return an identifier safe for a harness command line, or report why not."""
+    if not identifier:
+        raise ReportableError(
+            f"{assignment.identifier}'s harness session identifier is empty."
+        )
+    try:
+        return refuse_invalid_harness_session_identifier(identifier)
+    except ValueError as error:
+        raise ReportableError(
+            f"{assignment.identifier}'s harness session identifier {error}."
+        ) from error
 
 
 def _discard_worktree_and_branch(

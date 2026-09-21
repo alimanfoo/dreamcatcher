@@ -3,13 +3,19 @@
 import json
 from typing import ClassVar, Protocol
 
-from dreamcatcher.adapters import Adapter, Invocation, Launch
-from dreamcatcher.feed import Event, Note, Prose
+from dreamcatcher.feed import FeedEvent, FeedNote, FeedProse
+from dreamcatcher.harness_adapters import (
+    AgentRoundLaunchRequest,
+    HarnessAdapter,
+    HarnessInvocation,
+    HarnessOutput,
+    HarnessSessionIdentifier,
+)
 
 # What an unattended round may do without being asked, and nothing else. The
 # round runs under `--permission-mode auto`, so this list is Claude's whole
 # answer to never stalling for a human. It is the port's list.
-ALLOWED_TOOLS = (
+CLAUDE_ALLOWED_TOOLS = (
     "Bash(gh pr create:*)",
     "Bash(gh pr comment:*)",
     "Bash(gh pr edit:*)",
@@ -23,7 +29,7 @@ ALLOWED_TOOLS = (
 
 # The inputs of a tool call that say most about it, most telling first. The
 # whole input comes last, so a tool none of these names still says something.
-TELLING_INPUTS = (
+TOOL_INPUT_KEYS_BY_PRIORITY = (
     "command",
     "file_path",
     "pattern",
@@ -34,63 +40,83 @@ TELLING_INPUTS = (
 )
 
 
-class Claude(Adapter):
-    """Claude Code as one round of an agent assignment runs it."""
+class ClaudeHarnessAdapter(HarnessAdapter):
+    """Run Claude Code and translate its stream into feed events."""
 
     program: ClassVar[str] = "claude"
 
-    def build_first_round(self, *, launch: Launch) -> Invocation:
+    def build_first_round(
+        self, *, request: AgentRoundLaunchRequest
+    ) -> HarnessInvocation:
         """Return how to run an assignment's first round.
 
         The command names no prompt, which is how Claude knows to read one
         from stdin.
         """
-        return Invocation(
+        return HarnessInvocation(
             program=self.program,
             arguments=[
-                *self._base(launch=launch),
+                *self._build_base_arguments(request=request),
                 "--model",
-                launch.model,
+                request.model,
                 "--effort",
-                launch.effort,
+                request.effort,
             ],
-            prompt=launch.prompt,
+            prompt=request.prompt,
         )
 
-    def build_resumed_round(self, *, launch: Launch) -> Invocation:
-        """Return how to continue the harness session in this directory.
+    def build_resumed_round(
+        self,
+        *,
+        request: AgentRoundLaunchRequest,
+        harness_session_identifier: HarnessSessionIdentifier,
+    ) -> HarnessInvocation:
+        """Return how to continue the identified harness session.
 
         Claude recovers the model and the effort itself, so a resume replays
         neither.
         """
-        return Invocation(
+        return HarnessInvocation(
             program=self.program,
-            arguments=[*self._base(launch=launch), "--continue"],
-            prompt=launch.prompt,
+            arguments=[
+                *self._build_base_arguments(request=request),
+                "--resume",
+                harness_session_identifier,
+            ],
+            prompt=request.prompt,
         )
 
-    def build_hand_resume(self) -> list[str]:
-        """Return how a person carries on the harness session in this directory.
+    def build_hand_resume(
+        self, *, harness_session_identifier: HarnessSessionIdentifier
+    ) -> list[str]:
+        """Return how a person carries on the identified harness session."""
+        return [self.program, "--resume", harness_session_identifier]
 
-        Claude continues the newest harness session in the assignment's worktree.
-        """
-        return [self.program, "--continue"]
-
-    def _events(self, *, streamed: dict) -> list[Event]:
-        """Return the feed events one Claude event turns into."""
-        is_subagent = streamed.get("parent_tool_use_id") is not None
-        kind = streamed["type"]
+    def _read(self, *, harness_event: dict) -> HarnessOutput:
+        """Return what one parsed Claude event says."""
+        is_subagent = harness_event.get("parent_tool_use_id") is not None
+        kind = harness_event["type"]
         if kind == "system":
-            return _system(streamed=streamed)
+            return _read_system_event(harness_event=harness_event)
         if kind == "assistant":
-            return _blocks(streamed=streamed, read=_spoken, is_subagent=is_subagent)
+            events = _read_message_blocks(
+                harness_event=harness_event,
+                read_block=_read_assistant_block,
+                is_subagent=is_subagent,
+            )
+            return HarnessOutput(events=events)
         if kind == "user":
-            return _blocks(streamed=streamed, read=_failure, is_subagent=is_subagent)
+            events = _read_message_blocks(
+                harness_event=harness_event,
+                read_block=_read_tool_failure,
+                is_subagent=is_subagent,
+            )
+            return HarnessOutput(events=events)
         if kind == "result":
-            return _closing(streamed=streamed)
-        return []
+            return HarnessOutput(events=_read_round_result(harness_event=harness_event))
+        return HarnessOutput(events=[])
 
-    def _base(self, *, launch: Launch) -> list[str]:
+    def _build_base_arguments(self, *, request: AgentRoundLaunchRequest) -> list[str]:
         """Return the arguments every round shares."""
         return [
             "--print",
@@ -100,117 +126,146 @@ class Claude(Adapter):
             "--permission-mode",
             "auto",
             "--allowedTools",
-            " ".join(ALLOWED_TOOLS),
+            " ".join(CLAUDE_ALLOWED_TOOLS),
             "--name",
-            launch.assignment_id,
+            request.agent_assignment_identifier,
         ]
 
 
-CLAUDE = Claude()
+CLAUDE_ADAPTER = ClaudeHarnessAdapter()
 
 
-def _system(*, streamed: dict) -> list[Event]:
+def _read_system_event(*, harness_event: dict) -> HarnessOutput:
     """Return a system event's harness session, report, or nothing."""
-    subtype = streamed["subtype"]
+    subtype = harness_event["subtype"]
     if subtype == "init":
-        return [
-            Note(
-                label="harness session",
-                detail=f"model {streamed['model']}, id {streamed['session_id']}",
-            )
-        ]
+        identifier = harness_event["session_id"]
+        if not isinstance(identifier, str):
+            raise TypeError("Claude reported a non-text harness session identifier")
+        return HarnessOutput(
+            events=[
+                FeedNote(
+                    label="harness session",
+                    detail=f"model {harness_event['model']}, id {identifier}",
+                )
+            ],
+            harness_session_identifier=identifier,
+        )
     # A subagent reports its token usage as it finishes, and a background
     # command does not, so the usage is what tells the two events apart.
-    if subtype == "task_notification" and streamed.get("usage") is not None:
-        return [
-            Note(label="report", detail=streamed["status"], is_subagent=True),
-            Prose(text=streamed["summary"], is_subagent=True),
-        ]
+    if subtype == "task_notification" and harness_event.get("usage") is not None:
+        return HarnessOutput(
+            events=[
+                FeedNote(
+                    label="report", detail=harness_event["status"], is_subagent=True
+                ),
+                FeedProse(text=harness_event["summary"], is_subagent=True),
+            ]
+        )
     # A retried round says nothing else while it waits, and ten retries of a
     # rate limit take about three minutes, so the feed says what it waits on.
     if subtype == "api_retry":
-        return [
-            Note(
-                label="retry",
-                detail=f"{streamed['error']} ({streamed['error_status']}), "
-                f"attempt {streamed['attempt']} of {streamed['max_retries']}",
-            )
-        ]
-    return []
+        return HarnessOutput(
+            events=[
+                FeedNote(
+                    label="retry",
+                    detail=(
+                        f"{harness_event['error']} "
+                        f"({harness_event['error_status']}), attempt "
+                        f"{harness_event['attempt']} of "
+                        f"{harness_event['max_retries']}"
+                    ),
+                )
+            ]
+        )
+    return HarnessOutput(events=[])
 
 
-class _ReadsBlock(Protocol):
-    """What reads one block of a message, as `_blocks` calls it."""
+class _ReadsClaudeBlock(Protocol):
+    """Read one block from a Claude message."""
 
-    def __call__(self, *, block: dict, is_subagent: bool) -> list[Event]:
+    def __call__(self, *, block: dict, is_subagent: bool) -> list[FeedEvent]:
         """Return what one block carries."""
 
 
-def _blocks(*, streamed: dict, read: _ReadsBlock, is_subagent: bool) -> list[Event]:
+def _read_message_blocks(
+    *,
+    harness_event: dict,
+    read_block: _ReadsClaudeBlock,
+    is_subagent: bool,
+) -> list[FeedEvent]:
     """Return what every block of one message carries."""
     return [
         event
-        for block in streamed["message"]["content"]
-        for event in read(block=block, is_subagent=is_subagent)
+        for block in harness_event["message"]["content"]
+        for event in read_block(block=block, is_subagent=is_subagent)
     ]
 
 
-def _spoken(*, block: dict, is_subagent: bool) -> list[Event]:
+def _read_assistant_block(*, block: dict, is_subagent: bool) -> list[FeedEvent]:
     """Return what one block of an assistant message carries."""
     kind = block["type"]
     if kind == "text":
         # A subagent's own words reach the feed as its report, so the feed does
         # not carry them twice.
-        return [] if is_subagent else [Prose(text=block["text"])]
+        return [] if is_subagent else [FeedProse(text=block["text"])]
     if kind == "thinking":
         # Claude streams the block without the thinking in it, so the feed says
         # the agent thought and cannot say what it thought.
-        return [Note(label="thinking", is_subagent=is_subagent)]
+        return [FeedNote(label="thinking", is_subagent=is_subagent)]
     if kind == "tool_use":
         return [
-            Note(
+            FeedNote(
                 label=block["name"],
-                detail=_telling_input(given=block["input"]),
+                detail=_describe_tool_input(tool_input=block["input"]),
                 is_subagent=is_subagent,
             )
         ]
     return []
 
 
-def _failure(*, block: dict, is_subagent: bool) -> list[Event]:
+def _read_tool_failure(*, block: dict, is_subagent: bool) -> list[FeedEvent]:
     """Return the failure one block of a user message carries, if it failed."""
     if block["type"] == "tool_result" and block.get("is_error"):
         return [
-            Note(
+            FeedNote(
                 label="failed",
-                detail=_text(value=block["content"]),
+                detail=_render_value_as_text(value=block["content"]),
                 is_subagent=is_subagent,
             )
         ]
     return []
 
 
-def _closing(*, streamed: dict) -> list[Event]:
-    """Return the lines that close the round: what it used, then how it ended.
+def _read_round_result(*, harness_event: dict) -> list[FeedEvent]:
+    """Return the usage and outcome events that close the round.
 
     The subtype reads "success" even on a round that failed, so the event's own
     error flag is what the feed reports.
     """
-    used = _usage(cost=streamed["total_cost_usd"], counts=streamed["usage"])
-    if streamed.get("is_error"):
-        return [used, Note(label="failed", detail=_text(value=streamed["result"]))]
-    return [used, Note(label="result", detail=streamed["subtype"])]
+    usage_note = _compose_usage_note(
+        cost=harness_event["total_cost_usd"], counts=harness_event["usage"]
+    )
+    if harness_event.get("is_error"):
+        return [
+            usage_note,
+            FeedNote(
+                label="failed",
+                detail=_render_value_as_text(value=harness_event["result"]),
+            ),
+        ]
+    return [usage_note, FeedNote(label="result", detail=harness_event["subtype"])]
 
 
-def _usage(*, cost: float, counts: dict) -> Note:
-    """Return what the round used, in money and in tokens.
+def _compose_usage_note(*, cost: float, counts: dict) -> FeedNote:
+    """Return the round's cost and separate token counts.
 
     Each count keeps the name the event gave it, and this does not add them up.
     A cache read and a cache write each cost a different amount from a fresh
     input token, so one total would tell the reader less than the separate
     counts do.
     """
-    return Note(
+    return FeedNote(
         label="usage",
         detail=f"${cost:.4f}, "
         f"{counts['output_tokens']} output, "
@@ -220,15 +275,15 @@ def _usage(*, cost: float, counts: dict) -> Note:
     )
 
 
-def _telling_input(*, given: dict) -> str:
+def _describe_tool_input(*, tool_input: dict) -> str:
     """Return the one input that says most about what a tool call is doing."""
-    for name in TELLING_INPUTS:
-        if given.get(name):
-            return _text(value=given[name])
-    return _text(value=given)
+    for name in TOOL_INPUT_KEYS_BY_PRIORITY:
+        if tool_input.get(name):
+            return _render_value_as_text(value=tool_input[name])
+    return _render_value_as_text(value=tool_input)
 
 
-def _text(*, value: object) -> str:
+def _render_value_as_text(*, value: object) -> str:
     """Return a value out of the stream as feed text, as JSON unless it is text.
 
     A tool result's content, and a failed round's message, each arrive sometimes

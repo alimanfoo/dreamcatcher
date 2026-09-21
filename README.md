@@ -23,8 +23,6 @@ dreamcatcher reads `dreamcatcher.toml` from the root of the repository it
 watches. Commit it, so everyone watching that repo dispatches the same way.
 
 ```toml
-interval = 120
-max_agents = 1
 assignee = "@me"
 
 [[dispatch]]
@@ -39,15 +37,12 @@ model = "gpt-5.6-sol"
 effort = "xhigh"
 ```
 
-Every setting outside a `[[dispatch]]` entry has a default, so you can leave it
-out:
+`assignee` is whose issues to pick up, as a GitHub login. It defaults to `@me`,
+the account `gh` is signed in as, so you can leave it out.
 
-- `interval` is the seconds between one look at GitHub and the next. It defaults
-  to 120.
-- `max_agents` is how many agent rounds may run at once. It defaults to 1, so
-  one issue reaches a pull request before the next one starts.
-- `assignee` is whose issues to pick up, as a GitHub login. It defaults to
-  `@me`, the account `gh` is signed in as.
+If an existing `dreamcatcher.toml` contains `interval` or `max_agents`, remove
+those settings. Add `--interval` or `--max-agents` to the `run` command to keep
+any non-default values; the configuration file no longer accepts them.
 
 A `[[dispatch]]` entry says what to run for one label. Give it the label, then a
 block for each harness that can run it. Every entry needs its label and at least
@@ -74,9 +69,20 @@ assignment per labelled issue.
 dreamcatcher run --harness claude
 ```
 
-Every `interval` seconds it looks once and launches at most one round. An issue
-is dispatched when it carries exactly one dispatch label, is assigned to
-`assignee`, has no assignment here already, has no open pull request GitHub
+`--interval` sets the seconds between scheduler ticks and defaults to 120.
+`--max-agents` sets how many agents may run at once, and defaults to 1. These
+options apply to this run, so each person can choose them without changing the
+repository's shared configuration.
+
+For example, run every 30 seconds and allow four agents at once:
+
+```sh
+dreamcatcher run --harness claude --interval 30 --max-agents 4
+```
+
+The daemon runs one scheduler tick per interval and launches at most one round.
+An issue is dispatched when it carries exactly one dispatch label, is assigned
+to `assignee`, has no assignment here already, has no open pull request GitHub
 links to it, and has no open issue blocking it. The oldest such issue goes
 first. A dispatch cuts a branch and a worktree under `.dreamcatcher/`, makes and
 pushes an empty commit, and opens a linked draft pull request before it runs the
@@ -89,9 +95,18 @@ another pull request. If setup completes but the first round cannot start, the
 recorded assignment keeps its branch and pull request, and the next tick tries
 that first round again before it schedules ordinary work.
 
-Everything the daemon owns lives under `.dreamcatcher/` in the checkout, which
-ignores itself, so git never sees it. `last-tick.json` there says what the most
-recent look observed and decided, including what the daemon did not do and why.
+The daemon lock lives at `.dreamcatcher/daemon.pid`, where every state format
+shares it. All format-specific state lives under `.dreamcatcher/v3/` in the
+checkout. The top-level directory ignores itself, so git never sees any of this
+state. `scheduler.json` in the versioned root says what the most recent
+completed scheduler tick observed and decided, including what the daemon did not
+do and why. It also preserves any active global cooldown and the end of the most
+recent one. A scheduler tick that cannot complete reports its failure in the
+daemon output and leaves that last complete record in place.
+
+This is an intentional format break. Version 3 does not migrate assignments from
+an earlier format and starts with empty local state. Stop the daemon and upgrade
+between dispatch batches, when no assignment needs another round.
 
 Open work goes before new work. Before it dispatches anything, the daemon reads
 each assignment it already has and gives it whatever it needs next: a round that
@@ -108,9 +123,25 @@ purpose is still `wrap up`.
 
 Rounds die with the daemon. When `run` starts, it records any round orphaned by
 an earlier daemon as interrupted; the next round recovers that work from where
-it stopped. After any round fails, the daemon holds every launch for fifteen
-minutes, so a usage limit that lasts for hours costs a few failed rounds rather
-than a fresh worktree every couple of minutes.
+it stopped. One errored round receives an ordinary recovery opportunity and does
+not stop unrelated work. Two consecutive errored rounds put that assignment in
+fault; an interrupted or successful round breaks the sequence.
+
+When two assignments are in fault, the scheduler starts a fifteen-minute global
+cooldown and starts no agent work during it. The scheduler keeps observing and
+reporting while it waits. The cooldown survives a daemon restart, and its end
+clears the faults so that recovery can continue.
+
+If one assignment remains in fault because of a problem specific to that work,
+fix the problem and request another recovery attempt:
+
+```sh
+dreamcatcher retry GH123
+```
+
+This keeps the failed round records for diagnosis, clears the current fault, and
+makes the assignment eligible for recovery on the next scheduler tick outside a
+global cooldown. If its next two rounds both fail, it enters fault again.
 
 Only a successful wrap-up completes an assignment. A failed or interrupted
 wrap-up remains open for recovery. Once the wrap-up succeeds, the assignment no
@@ -122,62 +153,27 @@ Removing the label is how you say stop.
 One daemon watches one repo. A second `run` on the same repo refuses while the
 first is alive.
 
-The watch tower is a command per view: `board`, `assignment` and `feed`. Each
-one reads what the daemon left under `.dreamcatcher/` and asks GitHub nothing,
-so each answers whether the daemon is running or long dead. Run them from the
-same checkout.
+The CLI has three read-only views: `status`, `assignment` and `feed`. Each view
+reads the local `.dreamcatcher/` directory and never contacts GitHub.
 
-Every view keeps up with what the daemon writes while you watch it, so there is
-nothing to wrap it in.
-
-`board` and `assignment` take the whole terminal while they are going, and give
-it back when they end.
-
-`board` is never over, so it stays until you interrupt it.
-
-`assignment` and `feed` stay open for as long as the assignment has another
-round coming, so you can leave one running for a whole assignment and see every
-round of it arrive. They wait through every gap between one round and the next,
-including a gap where you have stopped the daemon and not started it again yet.
-
-Two things end them, because after either one no round is coming. One is the
-assignment completing a wrap-up round successfully. The other is an assignment
-that the latest scheduler record explicitly marks as stuck, which means that no
-tick can move it on without a person. An interrupted creation or missing first
-round is not stuck: Dreamcatcher reconciles the creation and retries the round.
-
-Interrupt any view to end it sooner.
-
-A view whose output is not a terminal, because you piped it, redirected it or
-captured it, shows what is there once and returns. You need no flag either way.
+Every view refreshes automatically in a terminal. `status` runs until you
+interrupt it. `assignment` and `feed` run until the assignment completes or
+enters fault, and you can interrupt either one sooner. If you pipe, redirect or
+capture a view, it shows the current state once and returns.
 
 ```sh
-dreamcatcher board
+dreamcatcher status
 ```
 
-That shows the board. The board is a section per standing, and the sections run
-in the order of whose turn it is:
+`status` starts with the repository name, then shows the instance, its agent
+assignments, any failed assignment setups, the available issues in dispatch
+order, and issues with open blockers.
 
-- `needs you` is an assignment with a pull request open that the agent has
-  nothing left to do on, so it is ready for you to review.
-- `agent working` is a live round, with how long it has been running, the last
-  thing it said and how long ago.
-- `waiting` is an assignment the next tick will pick up, with what it is waiting
-  on.
-- `stuck` is an assignment no tick can move on, with where to read what
-  happened.
-- `queued` is the labelled issues not dispatched yet, each with the reason it
-  has not gone.
-- `done` is the assignments whose wrap-up round succeeded.
-
-Three assignments at one issue read as three assignments at one thing, so a
-label you forgot to remove shows as what it is rather than as three unrelated
-rows.
-
-`assignment` shows one issue's newest assignment: what its dispatch settled, the
-rounds it has run newest first with each purpose, recovery flag and outcome, the
-command that resumes its harness session by hand, and the older assignments at
-the same issue.
+`assignment` shows one issue's newest assignment: its issue identifier, agent
+assignment identifier, harness session identifier, what its dispatch settled,
+the rounds it has run newest first with each purpose, recovery flag and outcome,
+the command that resumes its harness session by hand, and the older assignments
+at the same issue.
 
 ```sh
 dreamcatcher assignment GH123

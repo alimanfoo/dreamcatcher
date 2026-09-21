@@ -41,7 +41,7 @@ An **agent assignment** is Dreamcatcher's durable commission to an agent to
 implement one issue. It is the central unit of work managed by Dreamcatcher.
 
 An **agent assignment identifier** identifies one agent assignment. It combines
-the issue identifier with a timestamp, as in `GH123-20260912-1924`, and is
+the issue identifier with a timestamp, as in `GH123-20260912-192458`, and is
 distinct from the issue identifier because an issue can receive more than one
 assignment over its lifetime.
 
@@ -137,14 +137,17 @@ The **scheduler** decides what work Dreamcatcher starts and when.
 ### Status report
 
 A **status report** is Dreamcatcher's read-only account of a Dreamcatcher
-instance, its issues, and its agent assignments at a particular time.
+instance, its agent assignments, failed assignment setups, issues that are
+available for new assignments, and issues with known open blockers at a
+particular time.
 
-An **issue status** is an issue's entry in a status report. It is a derived,
-read-only account of several independent facts, not a single lifecycle state.
+An **issue observation** records the independent facts that one scheduler tick
+found for an issue. Its availability is derived from those facts.
 
 An **agent assignment status** is an assignment's single summary status in a
-status report. It is derived from the assignment record, its rounds, current
-process state, and current GitHub state.
+status report. It summarizes the assignment record, recorded rounds, live
+process state, and the latest scheduler evidence about whether another round was
+required or launched.
 
 ### Global cooldown
 
@@ -203,9 +206,9 @@ has wrapping up after a pull request is merged or closed as its purpose. A
 assignment's work. An implementation, feedback, or wrap-up round may therefore
 also be a recovery round, and two or more rounds may have the same purpose.
 
-### Issue status and availability
+### Issue observations and availability
 
-An issue status reports these independent facts, each of which can be true,
+An issue observation records these independent facts, each of which can be true,
 false, or unknown:
 
 - **Claimed here**: this Dreamcatcher instance has an open agent assignment for
@@ -220,10 +223,16 @@ elsewhere if somebody opens another pull request after Dreamcatcher creates its
 assignment. A claimed issue may also become blocked or develop a routing
 conflict after an assignment has started.
 
-An issue with a local assignment remains present in the status report even if
-its labels, assignee, or route configuration later place it outside the set of
-issues Dreamcatcher would consider for a new assignment. Selection governs new
-work; it does not make existing work disappear.
+An issue whose assignment setup was interrupted has an incomplete assignment
+setup. If a later tick can safely resume the assignment setup, claimed elsewhere
+is false. Otherwise, the reason that the assignment setup cannot resume is
+evidence that claimed elsewhere is unknown, unless an open linked pull request
+proves the fact true. The issue observation records the failed setup attempt
+separately, so the status report can show it even when another fact determines
+availability. Every later tick tries to perform the assignment setup again.
+
+An issue with a local assignment appears through its agent assignment rather
+than in the report's available issues.
 
 An issue is **available for an agent assignment** only when:
 
@@ -241,17 +250,17 @@ required fact is unknown, availability is also unknown. A failure to observe
 external state can delay work, but must never cause Dreamcatcher to create
 duplicate or improperly routed work.
 
-There is no conceptual issue queue. Available issues may be ordered when the
-scheduler chooses among them, but that transient ordering does not give an issue
-a durable queued state.
+There is no durable issue queue. The status report preserves the scheduler's
+order for available issues, which is the order in which it will consider them
+for new assignments.
 
 ### Agent assignment status
 
 An agent assignment has one of these summary statuses in a status report:
 
 - **Working**: an agent round is running.
-- **Waiting**: an agent round is required but has not started, for example
-  because capacity is full or a global cooldown is active.
+- **Waiting**: an agent round is required but has not started, or a round has
+  just ended and the scheduler has not inspected its result yet.
 - **Needs user feedback**: no agent round is currently required and the
   assignment awaits a user post, review decision, merge, or closure.
 - **Fault**: two consecutive agent rounds for this assignment have exited with
@@ -270,10 +279,13 @@ assignment can have any assignment status except complete.
 
 ### Status reports do not control work
 
-A status report may include operational facts such as whether the daemon is
-running, when the last scheduler tick occurred, current capacity, and whether a
-global cooldown is active. Its issue statuses and agent assignment statuses are
-projections derived for a person to read.
+A status report may include operational facts such as the repository identity,
+whether the daemon is running, when the last scheduler tick occurred, current
+capacity, whether a global cooldown is active, and the scheduler hold. The
+scheduler hold says why the latest tick launched nothing, such as a cooldown,
+full capacity, a failed issue listing, or a failed launch. Its issue
+observations and agent assignment statuses are projections derived for a person
+to read.
 
 The status report never schedules work and is never an input to scheduling.
 Scheduling and reporting must nevertheless interpret the same underlying facts
@@ -291,14 +303,14 @@ therefore already has a pull request before the agent starts working.
 
 Creating the durable assignment and starting its first agent round are separate
 operations, but the scheduler performs them as one scheduling action. As soon as
-assignment creation succeeds, it starts the first implementation round without
+assignment setup succeeds, it starts the first implementation round without
 waiting for another scheduler tick.
 
 ### Working through an assignment
 
 An assignment normally progresses as follows:
 
-1. Dreamcatcher opens its pull request as a draft during assignment creation.
+1. Dreamcatcher opens its pull request as a draft during assignment setup.
 2. The agent works on the implementation and may ask the user questions while it
    remains a draft.
 3. The agent marks it ready when the work is ready for the user to review.
@@ -330,6 +342,9 @@ a recovery round automatically unless the assignment has entered a fault.
 
 The scheduler creates agent assignments and starts agent rounds.
 
+If the issue listing fails, the scheduler holds every launch until a later tick
+can read the listing.
+
 Existing assignments take precedence over creating new ones. Subject to capacity
 and cooldown, the scheduler considers work in this order:
 
@@ -350,3 +365,9 @@ If two assignments enter fault, that is evidence of a shared problem and starts
 a global cooldown. When the cooldown ends, Dreamcatcher clears those faults and
 permits recovery. This deliberately simple policy prevents one
 assignment-specific failure from blocking all other work.
+
+After resolving an assignment-specific problem, the user may request a retry.
+That request clears the assignment's current fault without erasing its errored
+rounds, and the scheduler may start a recovery round on its next tick. Only
+errors at or after the later of the latest retry request and the latest
+completed global cooldown count towards a new fault.

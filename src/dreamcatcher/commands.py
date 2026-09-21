@@ -1,8 +1,4 @@
-"""Run the external commands dreamcatcher shells out to.
-
-This module also owns what the tool knows about cmd.exe, the second reader that
-a command line meets on Windows, since a command line has to survive it.
-"""
+"""Run external commands and quote Windows batch-file arguments safely."""
 
 import os
 import subprocess
@@ -31,7 +27,7 @@ os.environ["NODEFAULTCURRENTDIRECTORYINEXEPATH"] = "1"
 # What npm calls the harness CLIs that it installs on Windows. Windows runs a file
 # with one of these endings through cmd.exe, so its command line meets a second
 # reader. git and gh are real executables, so neither ever meets that.
-BATCH_ENDINGS = (".cmd", ".bat")
+WINDOWS_BATCH_SUFFIXES = (".cmd", ".bat")
 
 # What cmd.exe acts on wherever it sits, and what to call each one in a message.
 # cmd.exe expands %NAME% on the line that it parses, inside double quotes as well
@@ -47,7 +43,7 @@ BATCH_ENDINGS = (".cmd", ".bat")
 # A carriage return on its own is refused as the newline is. Reading a file turns
 # every line ending into a newline, so this meets one only where a document wrote
 # it as an escape, and one line of a prompt is what the author wrote either way.
-UNQUOTABLE = {
+UNQUOTABLE_CHARACTERS = {
     "%": "a percent sign",
     "\n": "a newline",
     "\r": "a carriage return",
@@ -55,17 +51,12 @@ UNQUOTABLE = {
 
 
 class CommandError(ReportableError):
-    """A command dreamcatcher ran is not there, or it failed."""
+    """Report a failure preparing or running an external command."""
 
 
 @dataclass(frozen=True, kw_only=True)
-class Child:
-    """A program running as a child process, with both its streams on pipes.
-
-    subprocess gives a child only the streams that the caller asked it for, so
-    reading one means asking first whether it is there. This child always has
-    both, so whoever reads them never has to ask.
-    """
+class ChildProcess:
+    """Represent a running child process with stdout and stderr pipes."""
 
     out: IO[str]
     err: IO[str]
@@ -73,35 +64,34 @@ class Child:
 
     @property
     def pid(self) -> int:
-        """The process id the operating system gave the child."""
+        """The process identifier that the operating system assigned."""
         return self.process.pid
 
     @property
     def is_running(self) -> bool:
-        """Whether the child is still running.
+        """Whether nobody has collected the child's exit status yet.
 
         The answer is no once somebody has waited for the child and collected
         the status it ended with. So a child that has ended, and that nobody
         has waited for yet, still reads as running.
 
-        A caller acts on the answer a moment after asking for it, and the
-        child can end in that moment, so an answer of yes can already be out
-        of date.
+        The child can exit after this property returns, so a true result may
+        already be stale when the caller acts on it.
         """
         return self.process.returncode is None
 
     def wait(self) -> int:
-        """Wait for the child to end, and return the status that it ended with.
+        """Wait for the child, end its contained process group, and return its status.
 
-        Whatever the child started can outlive it, so the child's whole tree is
-        ended here too, once the child itself has gone.
+        Processes still contained with the child can outlive it, so its POSIX
+        process group or Windows Job Object ends here after the child has gone.
         """
         status = self.process.wait()
-        teardown.end(pid=self.pid)
+        teardown.end_process_tree(pid=self.pid)
         return status
 
     def kill(self) -> None:
-        """End the child, and everything that the child started, outright.
+        """End the child's contained process group if it is still running.
 
         A child that has gone leaves the operating system free to give its pid
         to somebody else, so this leaves it alone. `wait` does signal at that
@@ -109,31 +99,31 @@ class Child:
         kill can come long afterwards.
         """
         if self.is_running:
-            teardown.end(pid=self.pid)
+            teardown.end_process_tree(pid=self.pid)
 
 
 def refuse_unquotable(text: str, /) -> str:
     """Return text, or raise ValueError naming every character it cannot carry.
 
-    Whoever reads text in from outside calls this, so the message can name where
-    the text came from. A ValueError is what pydantic turns into that message.
-
     The message names every character it found, rather than the first, so the
-    repo's owner fixes a setting once instead of once for each.
+    user can fix every invalid character at once.
 
     pydantic is what calls this, as the validator behind `QuotableText`, and it
     passes the text positionally, so the parameter is positional-only.
     """
-    found = [name for character, name in UNQUOTABLE.items() if character in text]
-    if found:
+    unquotable_character_names = [
+        name for character, name in UNQUOTABLE_CHARACTERS.items() if character in text
+    ]
+    if unquotable_character_names:
         raise ValueError(
-            f"cannot hold {' or '.join(found)}, because on Windows cmd.exe acts "
+            f"cannot hold {' or '.join(unquotable_character_names)}, because on "
+            "Windows cmd.exe acts "
             "on the text rather than passing it to the harness"
         )
     return text
 
 
-def locate(*, program: str) -> str:
+def locate_program(*, program: str) -> str:
     """Return the path to program on the PATH, or raise CommandError."""
     # Windows adds only .exe to a bare name, while a lookup takes every
     # extension PATHEXT names. So looking the program up here, rather than
@@ -144,10 +134,12 @@ def locate(*, program: str) -> str:
     return executable
 
 
-def run(*, program: str, arguments: Sequence[str], cwd: Path | None = None) -> str:
+def run_command(
+    *, program: str, arguments: Sequence[str], cwd: Path | None = None
+) -> str:
     """Return what the command wrote to stdout, reading it as UTF-8."""
-    finished = subprocess.run(
-        _build(program=program, arguments=arguments),
+    completed_process = subprocess.run(
+        _build_subprocess_command(program=program, arguments=arguments),
         capture_output=True,
         check=False,
         cwd=cwd,
@@ -156,71 +148,67 @@ def run(*, program: str, arguments: Sequence[str], cwd: Path | None = None) -> s
         # as the replacement character rather than as a traceback.
         errors="replace",
     )
-    if finished.returncode != 0:
+    if completed_process.returncode != 0:
         command = " ".join([program, *arguments])
-        stderr = finished.stderr.strip()
-        ending = f": {stderr}" if stderr else "."
+        stderr = completed_process.stderr.strip()
+        failure_suffix = f": {stderr}" if stderr else "."
         raise CommandError(
-            f"{command} failed with status {finished.returncode}{ending}"
+            f"{command} failed with status {completed_process.returncode}"
+            f"{failure_suffix}"
         )
-    return finished.stdout
+    return completed_process.stdout
 
 
-def spawn(
+def spawn_command(
     *,
     program: str,
     arguments: Sequence[str],
     cwd: Path,
     stdin: Path | None = None,
-) -> Child:
-    """Start the program in cwd and hand it back while it runs.
-
-    The daemon watches a round while it runs rather than waiting for it to
-    finish, so this returns the running child, with each of its two streams on
-    a pipe of its own and its output read as UTF-8.
+) -> ChildProcess:
+    """Start the program in cwd and return it with UTF-8 output pipes.
 
     A harness reads its prompt from stdin, so the caller names the file holding
     it and the child reads that file. A pipe would have the daemon writing the
     prompt while the child read it, and a prompt longer than the pipe's own
-    buffer would stall them both. So a file, rather than a pipe.
+    buffer would stall them both.
 
     A child named no file finds its stdin already at an end, so a harness
     waiting for the rest of a prompt waits no longer than that.
     """
     with ExitStack() as opening:
-        reading = (
+        stdin_stream = (
             opening.enter_context(_open_for_reading(path=stdin))
             if stdin is not None
             else subprocess.DEVNULL
         )
-        started = subprocess.Popen(
-            _build(program=program, arguments=arguments),
+        process = subprocess.Popen(
+            _build_subprocess_command(program=program, arguments=arguments),
             cwd=cwd,
-            stdin=reading,
+            stdin=stdin_stream,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             encoding="utf-8",
             # A stray byte that is not UTF-8, in a path or a message, comes
             # through as the replacement character rather than as a traceback.
             errors="replace",
-            start_new_session=teardown.OWN_SESSION,
+            start_new_session=teardown.SHOULD_START_NEW_PROCESS_SESSION,
         )
-    teardown.contain(pid=started.pid)
+    teardown.contain_process_tree(pid=process.pid)
     # This asked for both pipes above, so both are there. subprocess types them
     # for every caller, including the ones that asked for neither.
-    return Child(
-        out=cast("IO[str]", started.stdout),
-        err=cast("IO[str]", started.stderr),
-        process=started,
+    return ChildProcess(
+        out=cast("IO[str]", process.stdout),
+        err=cast("IO[str]", process.stderr),
+        process=process,
     )
 
 
 def _open_for_reading(*, path: Path) -> IO[bytes]:
     """Return the file at path, open for a child to read, or raise CommandError.
 
-    A file the tool cannot open is not a bug in the tool, and the user can act
-    on it, so it reads as a message. The bytes go to the child as they are,
-    which is what keeps a prompt's own line endings.
+    The bytes reach the child unchanged, which preserves the prompt's line
+    endings.
     """
     try:
         return path.open("rb")
@@ -228,21 +216,25 @@ def _open_for_reading(*, path: Path) -> IO[bytes]:
         raise CommandError(f"cannot read {path}: {error}.") from error
 
 
-def _build(*, program: str, arguments: Sequence[str]) -> list[str] | str:
-    """Return the command as subprocess has to be given it.
+def _build_subprocess_command(
+    *, program: str, arguments: Sequence[str]
+) -> list[str] | str:
+    """Return the command in the form that subprocess requires.
 
-    A list, which subprocess quotes for the program's own reader. A batch file
-    is the exception. Windows hands one to cmd.exe, which reads the line again
-    under its own rules, and subprocess quotes for the second reader alone. So
-    a batch file gets a line that this builds for both readers.
+    Most programs receive a list that subprocess quotes. Windows passes batch
+    files through cmd.exe, so they receive a string quoted for both readers.
     """
-    executable = locate(program=program)
-    if PurePath(executable).suffix.lower() in BATCH_ENDINGS:  # pragma: no cover
-        return " ".join(_quote(part=part) for part in (executable, *arguments))
+    executable = locate_program(program=program)
+    if (
+        PurePath(executable).suffix.lower() in WINDOWS_BATCH_SUFFIXES
+    ):  # pragma: no cover
+        return " ".join(
+            _quote_windows_argument(part=part) for part in (executable, *arguments)
+        )
     return [executable, *arguments]
 
 
-def _quote(*, part: str) -> str:
+def _quote_windows_argument(*, part: str) -> str:
     """Return the part quoted so cmd.exe and then the program read it whole.
 
     The quotes are always there, so a character that cmd.exe acts on — an

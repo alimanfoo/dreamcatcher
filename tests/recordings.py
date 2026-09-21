@@ -6,11 +6,13 @@ runs one, so both read them from here.
 
 from collections.abc import Iterable
 
-from dreamcatcher.adapters import Adapter
-from dreamcatcher.feed import Renderer
+from dreamcatcher.feed import FeedRenderer
+from dreamcatcher.harness_adapters import HarnessAdapter
 
 
-def rendered(*, adapter: Adapter, lines: Iterable[str], renderer: Renderer) -> str:
+def render_harness_recording(
+    *, adapter: HarnessAdapter, lines: Iterable[str], renderer: FeedRenderer
+) -> str:
     """Return the feed the harness's lines render as, read through adapter."""
     return "".join(
         renderer.render(event=event)

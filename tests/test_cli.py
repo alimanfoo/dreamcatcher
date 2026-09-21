@@ -4,18 +4,25 @@ from importlib.metadata import version
 
 import pytest
 from clocks import PINNED
+from conftest import configure
 from records import write_agent_assignment, write_feed, write_round
 
+from dreamcatcher.agent_assignments import read_agent_assignments_for_issue
 from dreamcatcher.agent_rounds import (
+    AgentRoundPurpose,
     AgentRoundRecord,
-    RoundPurpose,
     compose_agent_round_ending,
 )
-from dreamcatcher.cli import main
-from dreamcatcher.config import Harness
-from dreamcatcher.daemon import Daemon
-from dreamcatcher.documents import write_text
-from dreamcatcher.feed import Line
+from dreamcatcher.cli import MAX_INTERVAL_SECONDS, main
+from dreamcatcher.config import AgentHarness
+from dreamcatcher.daemon import DreamcatcherDaemon
+from dreamcatcher.documents import write_json, write_text
+from dreamcatcher.feed import FeedLine
+from dreamcatcher.scheduler import (
+    GlobalCooldown,
+    SchedulerRecord,
+    derive_assignment_fault,
+)
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158"
@@ -24,6 +31,7 @@ ASSIGNMENT_ID = "GH13-20260819-184158"
 @pytest.fixture
 def watching(tmp_path):
     """A checkout a daemon has watched, holding one assignment with a live round."""
+    configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
     write_text(text=f"{os.getpid()}\n", path=state.lock)
@@ -32,11 +40,11 @@ def watching(tmp_path):
         directory=directory,
         number=1,
         record=AgentRoundRecord(
-            number=1, started=PINNED, pid=1, purpose=RoundPurpose.IMPLEMENT
+            number=1, started=PINNED, pid=1, purpose=AgentRoundPurpose.IMPLEMENT
         ),
     )
     write_feed(
-        directory=directory, number=1, lines=[Line(at=PINNED, text="[Bash] pytest")]
+        directory=directory, number=1, lines=[FeedLine(at=PINNED, text="[Bash] pytest")]
     )
     return state
 
@@ -45,8 +53,32 @@ def watching(tmp_path):
 def started(monkeypatch):
     """Return the daemons a run started, with the tick loop held back."""
     daemons = []
-    monkeypatch.setattr(Daemon, "run", lambda daemon: daemons.append(daemon))
+    monkeypatch.setattr(
+        DreamcatcherDaemon, "run", lambda daemon: daemons.append(daemon)
+    )
     return daemons
+
+
+@pytest.fixture
+def faulted(tmp_path):
+    """A watched checkout whose only assignment has failed twice."""
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    directory = write_agent_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13)
+    for number in (1, 2):
+        ended = PINNED + timedelta(minutes=number)
+        write_round(
+            directory=directory,
+            number=number,
+            record=AgentRoundRecord(
+                number=number,
+                started=ended,
+                pid=1,
+                purpose=AgentRoundPurpose.IMPLEMENT,
+                ending=compose_agent_round_ending(at=ended, status=number),
+            ),
+        )
+    return state
 
 
 def test_version_prints_the_installed_version(capsys):
@@ -62,15 +94,15 @@ def test_a_checkout_no_daemon_has_watched_has_nothing_to_show(
 ):
     monkeypatch.chdir(tmp_path)
 
-    assert main(argv=["board"]) == 1
+    assert main(argv=["status"]) == 1
     assert "nothing to show" in capsys.readouterr().err
 
 
-def test_board_shows_every_assignment(monkeypatch, watching, capsys):
+def test_status_shows_every_assignment(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
 
-    assert main(argv=["board"]) == 0
-    assert "agent working" in capsys.readouterr().out
+    assert main(argv=["status"]) == 0
+    assert "working" in capsys.readouterr().out
 
 
 def test_assignment_shows_the_newest_assignment_at_the_issue(
@@ -97,6 +129,72 @@ def test_something_that_is_not_an_issue_reference_is_refused(capsys):
     assert "GH123" in capsys.readouterr().err
 
 
+def test_retry_clears_the_newest_assignments_fault(monkeypatch, faulted, capsys):
+    requested = PINNED + timedelta(minutes=3)
+    write_json(
+        document=SchedulerRecord(
+            at=PINNED,
+            most_recent_cooldown_ended=PINNED - timedelta(minutes=1),
+        ),
+        path=faulted.scheduler_record,
+    )
+    monkeypatch.chdir(faulted.root)
+    monkeypatch.setattr("dreamcatcher.cli.read_current_time", lambda: requested)
+
+    assert main(argv=["retry", "GH13"]) == 0
+
+    assignment = read_agent_assignments_for_issue(state=faulted, issue=13)[-1]
+    assert assignment.record.retry_requested_at == requested
+    assert not derive_assignment_fault(
+        assignment=assignment,
+        most_recent_cooldown_ended=PINNED - timedelta(minutes=1),
+    )
+    assert "next scheduler tick" in capsys.readouterr().out
+
+
+def test_retry_refuses_a_fault_an_elapsed_cooldown_cleared(
+    monkeypatch, faulted, capsys
+):
+    cooldown_ended = PINNED + timedelta(minutes=3)
+    write_json(
+        document=SchedulerRecord(
+            at=PINNED,
+            cooldown=GlobalCooldown(started=PINNED, ends=cooldown_ended),
+        ),
+        path=faulted.scheduler_record,
+    )
+    monkeypatch.chdir(faulted.root)
+    monkeypatch.setattr(
+        "dreamcatcher.cli.read_current_time",
+        lambda: cooldown_ended,
+    )
+
+    assert main(argv=["retry", "GH13"]) == 1
+
+    assignment = read_agent_assignments_for_issue(state=faulted, issue=13)[-1]
+    assert assignment.record.retry_requested_at is None
+    assert "not in fault" in capsys.readouterr().err
+
+
+def test_retry_refuses_an_issue_with_no_assignment(monkeypatch, tmp_path, capsys):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    state.path.mkdir()
+    monkeypatch.chdir(tmp_path)
+
+    assert main(argv=["retry", "GH13"]) == 1
+    assert "no assignment" in capsys.readouterr().err
+
+
+def test_retry_refuses_an_assignment_that_is_not_in_fault(
+    monkeypatch, watching, capsys
+):
+    monkeypatch.chdir(watching.root)
+
+    assert main(argv=["retry", "GH13"]) == 1
+    assert "not in fault" in capsys.readouterr().err
+
+
 def test_feed_shows_what_the_assignment_said(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
     # A following view runs until the assignment has completed its wrap-up, so this
@@ -111,7 +209,7 @@ def test_feed_shows_what_the_assignment_said(monkeypatch, watching, capsys):
             number=2,
             started=later,
             pid=1,
-            purpose=RoundPurpose.WRAP_UP,
+            purpose=AgentRoundPurpose.WRAP_UP,
             ending=compose_agent_round_ending(at=later, status=0),
         ),
     )
@@ -143,15 +241,15 @@ def test_a_round_belongs_to_the_feed_and_to_no_other_verb(capsys):
     assert "--round" in capsys.readouterr().err
 
 
-def test_the_board_takes_no_issue(capsys):
+def test_status_takes_no_issue(capsys):
     with pytest.raises(SystemExit) as exit_info:
-        main(argv=["board", "GH13"])
+        main(argv=["status", "GH13"])
 
     assert exit_info.value.code == 2
     assert "GH13" in capsys.readouterr().err
 
 
-@pytest.mark.parametrize("verb", ["run", "board", "assignment", "feed"])
+@pytest.mark.parametrize("verb", ["run", "retry", "status", "assignment", "feed"])
 def test_every_verb_describes_itself_in_its_own_help(verb, capsys):
     with pytest.raises(SystemExit) as exit_info:
         main(argv=[verb, "--help"])
@@ -177,14 +275,64 @@ def test_run_starts_a_daemon_on_the_current_directory(monkeypatch, watched, star
 
     assert main(argv=["run", "--harness", "claude"]) == 0
     assert started[0].state.root == watched
-    assert started[0].harness is Harness.CLAUDE
+    assert started[0].harness is AgentHarness.CLAUDE
+    assert started[0].interval == 120
+    assert started[0].max_agents == 1
 
 
 def test_the_harness_flag_says_what_to_run_rounds_with(monkeypatch, watched, started):
     monkeypatch.chdir(watched)
 
     assert main(argv=["run", "--harness", "codex"]) == 0
-    assert started[0].harness is Harness.CODEX
+    assert started[0].harness is AgentHarness.CODEX
+
+
+def test_run_uses_the_requested_interval_and_agent_cap(monkeypatch, watched, started):
+    monkeypatch.chdir(watched)
+
+    assert (
+        main(
+            argv=[
+                "run",
+                "--harness",
+                "claude",
+                "--interval",
+                "30",
+                "--max-agents",
+                "4",
+            ]
+        )
+        == 0
+    )
+    assert started[0].interval == 30
+    assert started[0].max_agents == 4
+
+
+@pytest.mark.parametrize(
+    ("option", "value"), [("--interval", "0"), ("--max-agents", "many")]
+)
+def test_run_refuses_a_non_positive_integer_control(option, value, capsys):
+    with pytest.raises(SystemExit) as exit_info:
+        main(argv=["run", "--harness", "claude", option, value])
+
+    assert exit_info.value.code == 2
+    assert "must be a positive integer" in capsys.readouterr().err
+
+
+def test_run_refuses_an_interval_too_large_to_wait(capsys):
+    with pytest.raises(SystemExit) as exit_info:
+        main(
+            argv=[
+                "run",
+                "--harness",
+                "claude",
+                "--interval",
+                str(MAX_INTERVAL_SECONDS + 1),
+            ]
+        )
+
+    assert exit_info.value.code == 2
+    assert "must be no greater than" in capsys.readouterr().err
 
 
 def test_a_run_with_no_harness_asks_for_one(capsys):
@@ -202,7 +350,7 @@ def test_a_harness_that_does_not_exist_is_refused(capsys):
     assert exit_info.value.code == 2
     complaint = capsys.readouterr().err
     assert "cloud" in complaint
-    assert all(harness in complaint for harness in Harness)
+    assert all(harness in complaint for harness in AgentHarness)
 
 
 def test_a_failure_the_user_must_read_is_a_message_not_a_traceback(

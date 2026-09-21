@@ -6,26 +6,29 @@ import pytest
 from conftest import POST_LIST_PATHS, POSTED_BY, PULL_REQUEST, pages
 
 from dreamcatcher.github import (
-    AnyPost,
-    Blocker,
-    BlockerState,
-    Comment,
-    InlineComment,
+    BlockingIssue,
+    ConversationComment,
+    GitHubIssueLabel,
+    GitHubUserAccount,
+    InlineReviewComment,
     Issue,
+    IssueState,
     LinkedPullRequest,
     PullRequest,
+    PullRequestReview,
+    PullRequestReviewVerdict,
     PullRequestState,
-    Review,
-    Unknown,
-    Verdict,
+    UnknownGitHubResponse,
+    UserPost,
     create_pull_request,
-    identify_account,
-    identify_repository,
-    list_blockers,
+    identify_github_account,
+    identify_github_repository,
+    list_blocking_issues,
     list_issues,
     list_linked_pull_requests,
-    list_posts,
     list_pull_requests,
+    list_user_posts,
+    read_issue,
     read_pull_request,
 )
 
@@ -53,7 +56,7 @@ def test_the_repository_comes_from_the_checkouts_own_remote(fake, tmp_path):
     gh = fake(program="gh")
     gh.replies(stdout=json.dumps({"nameWithOwner": REPOSITORY}))
 
-    assert identify_repository(root=tmp_path) == REPOSITORY
+    assert identify_github_repository(root=tmp_path) == REPOSITORY
     assert gh.calls[0].arguments == ["repo", "view", "--json", "nameWithOwner"]
     assert gh.calls[0].directory == tmp_path.resolve()
 
@@ -62,18 +65,31 @@ def test_the_signed_in_account_is_the_one_gh_names(fake):
     gh = fake(program="gh")
     gh.replies(stdout=json.dumps({"login": "alimanfoo"}))
 
-    assert identify_account() == "alimanfoo"
+    assert identify_github_account() == "alimanfoo"
     assert gh.calls[0].arguments == ["api", "user"]
 
 
 def test_a_listing_carries_each_issue_and_when_it_was_filed(fake):
     gh = fake(program="gh")
-    gh.replies(stdout=json.dumps([{"number": 8, "createdAt": "2026-08-19T18:41:58Z"}]))
+    issue = {
+        "number": 8,
+        "createdAt": "2026-08-19T18:41:58Z",
+        "state": "OPEN",
+        "assignees": [{"login": "alimanfoo"}],
+        "labels": [{"name": "dream:smith"}],
+    }
+    gh.replies(stdout=json.dumps([issue]))
 
     found = list_issues(repository=REPOSITORY, label="dream:smith", assignee="@me")
 
     assert found == [
-        Issue(number=8, created_at=datetime(2026, 8, 19, 18, 41, 58, tzinfo=UTC))
+        Issue(
+            number=8,
+            created_at=datetime(2026, 8, 19, 18, 41, 58, tzinfo=UTC),
+            state=IssueState.OPEN,
+            assignees=[GitHubUserAccount(login="alimanfoo")],
+            labels=[GitHubIssueLabel(name="dream:smith")],
+        )
     ]
     assert gh.calls[0].arguments == [
         "issue",
@@ -89,7 +105,38 @@ def test_a_listing_carries_each_issue_and_when_it_was_filed(fake):
         "--limit",
         "500",
         "--json",
-        "number,createdAt",
+        "number,createdAt,state,assignees,labels",
+    ]
+
+
+def test_one_issue_carries_its_state_assignees_and_labels(fake):
+    gh = fake(program="gh")
+    issue = {
+        "number": 8,
+        "createdAt": "2026-08-19T18:41:58Z",
+        "state": "CLOSED",
+        "assignees": [],
+        "labels": [{"name": "maintenance"}],
+    }
+    gh.replies(stdout=json.dumps(issue))
+
+    found = read_issue(repository=REPOSITORY, issue=8)
+
+    assert found == Issue(
+        number=8,
+        created_at=datetime(2026, 8, 19, 18, 41, 58, tzinfo=UTC),
+        state=IssueState.CLOSED,
+        assignees=[],
+        labels=[GitHubIssueLabel(name="maintenance")],
+    )
+    assert gh.calls[0].arguments == [
+        "issue",
+        "view",
+        "8",
+        "--repo",
+        REPOSITORY,
+        "--json",
+        "number,createdAt,state,assignees,labels",
     ]
 
 
@@ -244,7 +291,7 @@ def test_a_linked_pull_request_whose_state_cannot_be_read_is_unknown(fake):
 
     answered = list_linked_pull_requests(repository=REPOSITORY, issue=8)
 
-    assert isinstance(answered, Unknown)
+    assert isinstance(answered, UnknownGitHubResponse)
     assert "could not connect" in answered.reason
 
 
@@ -258,25 +305,47 @@ def test_an_issue_nobody_has_claimed_has_no_linked_pull_request(fake):
 def test_the_blockers_of_an_issue_come_back_with_their_states(fake):
     gh = fake(program="gh")
     gh.replies(
-        stdout=json.dumps(
-            [{"number": 7, "state": "closed"}, {"number": 8, "state": "open"}]
+        stdout=pages(
+            items=[
+                {"number": 7, "state": "closed"},
+                {"number": 8, "state": "open"},
+            ]
         )
     )
 
-    assert list_blockers(repository=REPOSITORY, issue=9) == [
-        Blocker(number=7, state=BlockerState.CLOSED),
-        Blocker(number=8, state=BlockerState.OPEN),
+    assert list_blocking_issues(repository=REPOSITORY, issue=9) == [
+        BlockingIssue(number=7, state=IssueState.CLOSED),
+        BlockingIssue(number=8, state=IssueState.OPEN),
     ]
     assert gh.calls[0].arguments == [
         "api",
-        f"repos/{REPOSITORY}/issues/9/dependencies/blocked_by",
+        f"repos/{REPOSITORY}/issues/9/dependencies/blocked_by?per_page=100",
+        "--paginate",
+        "--slurp",
     ]
 
 
-def posted() -> list[AnyPost]:
+def test_an_open_blocker_on_the_second_page_comes_back(fake):
+    gh = fake(program="gh")
+    gh.replies(
+        stdout=json.dumps(
+            [
+                [{"number": 7, "state": "closed"}],
+                [{"number": 8, "state": "open"}],
+            ]
+        )
+    )
+
+    found = list_blocking_issues(repository=REPOSITORY, issue=9)
+
+    assert isinstance(found, list)
+    assert [blocker.number for blocker in found] == [7, 8]
+
+
+def posted() -> list[UserPost]:
     """The pull request's posts, given that gh answered every one of its lists."""
-    found = list_posts(repository=REPOSITORY, pull_request=PULL_REQUEST)
-    assert not isinstance(found, Unknown)
+    found = list_user_posts(repository=REPOSITORY, pull_request=PULL_REQUEST)
+    assert not isinstance(found, UnknownGitHubResponse)
     return found
 
 
@@ -286,20 +355,20 @@ def test_a_pull_request_nobody_has_posted_on_comes_back_with_no_posts(gh_with_no
 
 def test_the_posts_of_a_pull_request_come_from_all_three_of_its_lists(gh_with_no_posts):
     gh_with_no_posts.replies(
-        stdout=pages(posts=[COMMENT]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=pages(items=[COMMENT]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
     gh_with_no_posts.replies(
-        stdout=pages(posts=[REVIEW]), to=f"api {POST_LIST_PATHS['reviews']}"
+        stdout=pages(items=[REVIEW]), to=f"api {POST_LIST_PATHS['reviews']}"
     )
     gh_with_no_posts.replies(
-        stdout=pages(posts=[INLINE_COMMENT]),
+        stdout=pages(items=[INLINE_COMMENT]),
         to=f"api {POST_LIST_PATHS['inline-comments']}",
     )
 
     assert [(type(post), post.id) for post in posted()] == [
-        (Comment, 1),
-        (Review, 2),
-        (InlineComment, 3),
+        (ConversationComment, 1),
+        (PullRequestReview, 2),
+        (InlineReviewComment, 3),
     ]
 
 
@@ -325,9 +394,9 @@ def test_a_post_that_is_not_a_document_at_all_is_unknown(gh_with_no_posts):
         stdout=json.dumps([[None]]), to=f"api {POST_LIST_PATHS['inline-comments']}"
     )
 
-    answered = list_posts(repository=REPOSITORY, pull_request=PULL_REQUEST)
+    answered = list_user_posts(repository=REPOSITORY, pull_request=PULL_REQUEST)
 
-    assert isinstance(answered, Unknown)
+    assert isinstance(answered, UnknownGitHubResponse)
     assert "cannot read" in answered.reason
 
 
@@ -335,7 +404,7 @@ def test_every_post_a_real_pull_request_carries_reads_back(gh_with_recorded_post
     found = posted()
 
     assert [type(post) for post in found] == (
-        [Comment] * 9 + [Review] * 4 + [InlineComment] * 6
+        [ConversationComment] * 9 + [PullRequestReview] * 4 + [InlineReviewComment] * 6
     )
     assert all(post.author == POSTED_BY for post in found)
 
@@ -351,16 +420,18 @@ def test_a_recorded_comment_reads_back_as_the_user_wrote_it(gh_with_recorded_pos
 def test_a_recorded_review_reads_back_when_it_was_submitted_and_its_verdict(
     gh_with_recorded_posts,
 ):
-    submitted = [post for post in posted() if isinstance(post, Review)]
+    submitted = [post for post in posted() if isinstance(post, PullRequestReview)]
 
-    assert [review.verdict for review in submitted] == [Verdict.COMMENTED] * 4
+    assert [review.verdict for review in submitted] == [
+        PullRequestReviewVerdict.COMMENTED
+    ] * 4
     assert submitted[0].written_at == "2026-09-03T22:27:20Z"
 
 
 def test_the_reviews_github_wrapped_the_inline_comments_in_say_nothing(
     gh_with_recorded_posts,
 ):
-    submitted = [post for post in posted() if isinstance(post, Review)]
+    submitted = [post for post in posted() if isinstance(post, PullRequestReview)]
 
     assert [review.is_speaking for review in submitted] == [True, False, False, False]
 
@@ -368,7 +439,7 @@ def test_the_reviews_github_wrapped_the_inline_comments_in_say_nothing(
 def test_a_recorded_inline_comment_reads_the_line_it_was_written_against(
     gh_with_recorded_posts,
 ):
-    inline = [post for post in posted() if isinstance(post, InlineComment)]
+    inline = [post for post in posted() if isinstance(post, InlineReviewComment)]
 
     # The code four of these were written against has moved since, so GitHub
     # answers no line for them and keeps the line each was written against as
@@ -386,7 +457,7 @@ def test_a_recorded_inline_comment_reads_the_line_it_was_written_against(
 def test_a_recorded_inline_comment_carries_the_diff_it_was_written_against(
     gh_with_recorded_posts,
 ):
-    inline = [post for post in posted() if isinstance(post, InlineComment)]
+    inline = [post for post in posted() if isinstance(post, InlineReviewComment)]
 
     assert inline[0].side == "RIGHT"
     assert inline[0].start_line is None
@@ -396,14 +467,17 @@ def test_a_recorded_inline_comment_carries_the_diff_it_was_written_against(
 @pytest.mark.parametrize(
     "ask",
     [
-        pytest.param(lambda: identify_repository(root=Path.cwd()), id="the repository"),
-        pytest.param(identify_account, id="the account"),
+        pytest.param(
+            lambda: identify_github_repository(root=Path.cwd()), id="the repository"
+        ),
+        pytest.param(identify_github_account, id="the account"),
         pytest.param(
             lambda: list_issues(
                 repository=REPOSITORY, label="dream:smith", assignee="@me"
             ),
             id="a listing",
         ),
+        pytest.param(lambda: read_issue(repository=REPOSITORY, issue=9), id="an issue"),
         pytest.param(
             lambda: list_pull_requests(repository=REPOSITORY, branch=BRANCH),
             id="the pull requests",
@@ -413,10 +487,11 @@ def test_a_recorded_inline_comment_carries_the_diff_it_was_written_against(
             id="the linked pull requests",
         ),
         pytest.param(
-            lambda: list_blockers(repository=REPOSITORY, issue=9), id="the blockers"
+            lambda: list_blocking_issues(repository=REPOSITORY, issue=9),
+            id="the blockers",
         ),
         pytest.param(
-            lambda: list_posts(repository=REPOSITORY, pull_request=PULL_REQUEST),
+            lambda: list_user_posts(repository=REPOSITORY, pull_request=PULL_REQUEST),
             id="the posts",
         ),
     ],
@@ -427,7 +502,7 @@ def test_a_read_that_fails_answers_unknown_with_what_gh_said(fake, ask):
 
     answered = ask()
 
-    assert isinstance(answered, Unknown)
+    assert isinstance(answered, UnknownGitHubResponse)
     assert "could not connect" in answered.reason
 
 
@@ -437,5 +512,5 @@ def test_a_read_gh_answers_strangely_is_unknown_too(fake):
 
     answered = list_issues(repository=REPOSITORY, label="dream:smith", assignee="@me")
 
-    assert isinstance(answered, Unknown)
+    assert isinstance(answered, UnknownGitHubResponse)
     assert "cannot read" in answered.reason

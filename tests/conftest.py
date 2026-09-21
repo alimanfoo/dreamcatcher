@@ -12,14 +12,11 @@ import fakes
 import psutil
 import pytest
 
-from dreamcatcher.commands import run, spawn
-from dreamcatcher.config import CONFIG_NAME
+from dreamcatcher.commands import run_command, spawn_command
+from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME
 
 ARMING = "PYTHONWARNDEFAULTENCODING"
 
-CONFIG_HEAD = """interval = 300
-
-"""
 
 # The directory holding everything the suite reads back from a recording: the
 # streams a harness wrote, and what gh answered about a pull request.
@@ -52,7 +49,7 @@ POST_LIST_PATHS = {
 }
 
 # The label that the dispatch blocks below map, as the tests name it.
-LABEL = "dream:smith"
+DISPATCH_LABEL = "dream:smith"
 
 # When the tests say an issue was filed, and a time after it.
 FILED = "2026-08-19T18:41:58Z"
@@ -73,7 +70,7 @@ model = "gpt-5.6-sol"
 effort = "xhigh"
 """
 
-CONFIG = CONFIG_HEAD + SMITH_CLAUDE + SMITH_CODEX
+CONFIG = SMITH_CLAUDE + SMITH_CODEX
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -93,7 +90,16 @@ def streamed(**fields: object) -> str:
 def listing(*, issues: Sequence[tuple[int, str]]) -> str:
     """Return what gh answers an issue listing with."""
     return json.dumps(
-        [{"number": number, "createdAt": created} for number, created in issues]
+        [
+            {
+                "number": number,
+                "createdAt": created,
+                "state": "OPEN",
+                "assignees": [{"login": POSTED_BY}],
+                "labels": [{"name": DISPATCH_LABEL}],
+            }
+            for number, created in issues
+        ]
     )
 
 
@@ -124,7 +130,7 @@ def inline_comment(**fields: object) -> dict:
         "id": 3,
         "user": {"login": POSTED_BY},
         "created_at": POSTED_AT,
-        "body": "this reads the watermark twice",
+        "body": "this reads the delivery cursor twice",
         "path": "src/dreamcatcher/relay.py",
         "subject_type": "line",
         "side": "RIGHT",
@@ -150,9 +156,9 @@ def pull_request(
     return json.dumps({"number": number, "state": state, "isDraft": is_draft})
 
 
-def pages(*, posts: Sequence[dict]) -> str:
+def pages(*, items: Sequence[dict]) -> str:
     """Return what gh answers a paginated list with: one page holding these."""
-    return json.dumps([list(posts)])
+    return json.dumps([list(items)])
 
 
 def recorded_posts(*, source: str) -> str:
@@ -163,7 +169,7 @@ def recorded_posts(*, source: str) -> str:
 
 def git(*, arguments: Sequence[str], cwd: Path) -> str:
     """Run git in cwd and return its output, through the tool's own runner."""
-    return run(program="git", arguments=arguments, cwd=cwd)
+    return run_command(program="git", arguments=arguments, cwd=cwd)
 
 
 def gone(*, pid: int) -> bool:
@@ -226,7 +232,7 @@ def cloned(upstream, tmp_path):
 @pytest.fixture
 def watched(repo):
     """Return a main checkout carrying a valid dreamcatcher.toml."""
-    (repo / CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
+    (repo / DREAMCATCHER_CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
     return repo
 
 
@@ -246,7 +252,7 @@ def fake(stand_ins, monkeypatch):
 @pytest.fixture
 def left_running(tmp_path):
     """A process standing in for a round left without a recorded ending."""
-    child = spawn(
+    child = spawn_command(
         program=sys.executable,
         arguments=["-c", "import time; time.sleep(60)"],
         cwd=tmp_path,
@@ -266,7 +272,7 @@ def gh_with_no_posts(fake):
     """
     stand_in = fake(program="gh")
     for path in POST_LIST_PATHS.values():
-        stand_in.replies(stdout=pages(posts=[]), to=f"api {path}")
+        stand_in.replies(stdout=pages(items=[]), to=f"api {path}")
     return stand_in
 
 
@@ -285,9 +291,11 @@ def harnesses(fake):
     return {program: fake(program=program) for program in ("claude", "codex")}
 
 
-def configure(*, root, head: str = CONFIG_HEAD) -> None:
+def configure(*, root, head: str = "") -> None:
     """Write a config for that checkout, with this ahead of its one route."""
-    (root / CONFIG_NAME).write_text(head + SMITH_CLAUDE + SMITH_CODEX, encoding="utf-8")
+    (root / DREAMCATCHER_CONFIG_NAME).write_text(
+        head + SMITH_CLAUDE + SMITH_CODEX, encoding="utf-8"
+    )
 
 
 @pytest.fixture
@@ -306,7 +314,7 @@ def gh(fake):
         to="pr create",
     )
     stand_in.replies(stdout=pull_request(state="OPEN", is_draft=True), to="pr view")
-    stand_in.replies(stdout="[]", to="api")
+    stand_in.replies(stdout=pages(items=[]), to="api")
     return stand_in
 
 
@@ -321,5 +329,18 @@ def offered(gh):
 def dispatching(cloned, offered, harnesses):
     """Return a checkout that can dispatch a labelled issue."""
     configure(root=cloned)
-    harnesses["claude"].streams(lines=[fakes.Line(text="what the round said\n")])
+    harnesses["claude"].streams(
+        lines=[
+            fakes.Line(
+                text=streamed(
+                    type="system",
+                    subtype="init",
+                    model="claude-opus-5",
+                    session_id="abc-123",
+                )
+                + "\n"
+            ),
+            fakes.Line(text="what the round said\n"),
+        ]
+    )
     return cloned

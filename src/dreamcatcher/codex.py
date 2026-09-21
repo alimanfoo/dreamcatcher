@@ -3,130 +3,155 @@
 from collections.abc import Sequence
 from typing import ClassVar
 
-from dreamcatcher.adapters import Adapter, Invocation, Launch
-from dreamcatcher.feed import Event, Note, Prose
+from dreamcatcher.feed import FeedEvent, FeedNote, FeedProse
+from dreamcatcher.harness_adapters import (
+    AgentRoundLaunchRequest,
+    HarnessAdapter,
+    HarnessInvocation,
+    HarnessOutput,
+    HarnessSessionIdentifier,
+)
 
 # Let the round reach the network from inside its sandbox, so it can talk to
 # GitHub.
-NETWORK_ACCESS = "sandbox_workspace_write.network_access=true"
+NETWORK_ACCESS_OVERRIDE = "sandbox_workspace_write.network_access=true"
 
 # What Codex takes where a prompt would go, to read the prompt from stdin
 # instead. Claude reads stdin as soon as its command names no prompt, so it
 # needs no word of its own for this.
-STDIN = "-"
+STDIN_ARGUMENT = "-"
 
 # What an unattended round may do without being asked. The first round gets this
 # from `--approve-for-me`, which sends every approval to Codex's own reviewer and
 # turns on the workspace-write sandbox. A resume does not keep any of that, so it
 # has to set the same permissions again itself. This is the port's list, and it is
 # how Codex avoids ever stopping to wait for a person.
-RESUME_PERMISSIONS = (
+RESUME_PERMISSION_OVERRIDES = (
     'sandbox_mode="workspace-write"',
-    NETWORK_ACCESS,
+    NETWORK_ACCESS_OVERRIDE,
     'approval_policy="on-request"',
     'approvals_reviewer="auto_review"',
 )
 
 
-class Codex(Adapter):
-    """Codex as one round of an agent assignment runs it."""
+class CodexHarnessAdapter(HarnessAdapter):
+    """Run Codex and translate its stream into feed events."""
 
     program: ClassVar[str] = "codex"
 
-    def build_first_round(self, *, launch: Launch) -> Invocation:
+    def build_first_round(
+        self, *, request: AgentRoundLaunchRequest
+    ) -> HarnessInvocation:
         """Return how to run an assignment's first round.
 
         The command does not say which directory to work in, so whoever runs
         it has to run it in the assignment's worktree.
         """
-        return Invocation(
+        return HarnessInvocation(
             program=self.program,
             arguments=[
                 "exec",
                 "--json",
                 "--approve-for-me",
-                *_settings(launch=launch),
-                *_overrides(settings=[NETWORK_ACCESS]),
-                STDIN,
+                *_build_round_settings(request=request),
+                *_build_config_overrides(settings=[NETWORK_ACCESS_OVERRIDE]),
+                STDIN_ARGUMENT,
             ],
-            prompt=launch.prompt,
+            prompt=request.prompt,
         )
 
-    def build_resumed_round(self, *, launch: Launch) -> Invocation:
-        """Return how to resume the harness session in this directory.
+    def build_resumed_round(
+        self,
+        *,
+        request: AgentRoundLaunchRequest,
+        harness_session_identifier: HarnessSessionIdentifier,
+    ) -> HarnessInvocation:
+        """Return how to resume the identified harness session.
 
         Codex forgets the model and the effort when it resumes, so this sets
         both again.
-
-        `--last` means the newest harness session, and Codex only counts the
-        harness sessions it ran in the current directory. Running this in the
-        assignment's worktree therefore picks the right harness session.
         """
-        return Invocation(
+        return HarnessInvocation(
             program=self.program,
             arguments=[
                 "exec",
                 "resume",
-                "--last",
                 "--json",
-                *_settings(launch=launch),
-                *_overrides(settings=RESUME_PERMISSIONS),
-                STDIN,
+                *_build_round_settings(request=request),
+                *_build_config_overrides(settings=RESUME_PERMISSION_OVERRIDES),
+                harness_session_identifier,
+                STDIN_ARGUMENT,
             ],
-            prompt=launch.prompt,
+            prompt=request.prompt,
         )
 
-    def build_hand_resume(self) -> list[str]:
-        """Return how a person carries on the harness session in this directory.
+    def build_hand_resume(
+        self, *, harness_session_identifier: HarnessSessionIdentifier
+    ) -> list[str]:
+        """Return how a person carries on the identified harness session.
 
         `codex resume` is Codex's interactive resume, where `codex exec resume`
-        is the headless one that every round of an assignment runs. `--last`
-        means the newest harness session that Codex ran in the current directory.
+        is the headless one that every round of an assignment runs.
         """
-        return [self.program, "resume", "--last"]
+        return [self.program, "resume", harness_session_identifier]
 
-    def _events(self, *, streamed: dict) -> list[Event]:
-        """Return the feed events one Codex event turns into.
+    def _read(self, *, harness_event: dict) -> HarnessOutput:
+        """Return what one parsed Codex event says.
 
         An event this does not handle gets no feed line. The feed writes its own
         opening line for a round, so it does not need the event that says a turn
         started. Codex reports each item three times, as it starts, as it
         changes and as it finishes, and only the last of those is complete.
         """
-        kind = streamed["type"]
+        kind = harness_event["type"]
         if kind == "thread.started":
-            return [Note(label="harness session", detail=f"id {streamed['thread_id']}")]
+            identifier = harness_event["thread_id"]
+            if not isinstance(identifier, str):
+                raise TypeError("Codex reported a non-text harness session identifier")
+            return HarnessOutput(
+                events=[FeedNote(label="harness session", detail=f"id {identifier}")],
+                harness_session_identifier=identifier,
+            )
         if kind == "item.completed":
-            return _item(item=streamed["item"])
+            return HarnessOutput(
+                events=_read_completed_item(item=harness_event["item"])
+            )
         if kind == "turn.completed":
-            return [_usage(counts=streamed["usage"])]
+            return HarnessOutput(
+                events=[_compose_usage_note(counts=harness_event["usage"])]
+            )
         # When a turn fails, Codex sends the error twice: once on its own, then
         # again as the reason the turn failed. Keeping only this second one means
         # the reader sees the failure once.
         if kind == "turn.failed":
-            return [Note(label="failed", detail=streamed["error"]["message"])]
-        return []
+            return HarnessOutput(
+                events=[
+                    FeedNote(label="failed", detail=harness_event["error"]["message"])
+                ]
+            )
+        return HarnessOutput(events=[])
 
 
-CODEX = Codex()
+CODEX_ADAPTER = CodexHarnessAdapter()
 
 
-def _settings(*, launch: Launch) -> list[str]:
+def _build_round_settings(*, request: AgentRoundLaunchRequest) -> list[str]:
     """Return the model and effort flags that every assignment round uses."""
     return [
         "--model",
-        launch.model,
-        *_overrides(settings=[f'model_reasoning_effort="{launch.effort}"']),
+        request.model,
+        *_build_config_overrides(
+            settings=[f'model_reasoning_effort="{request.effort}"']
+        ),
     ]
 
 
-def _overrides(*, settings: Sequence[str]) -> list[str]:
-    """Return each setting as the `-c setting` pair Codex expects."""
+def _build_config_overrides(*, settings: Sequence[str]) -> list[str]:
     return [part for setting in settings for part in ("-c", setting)]
 
 
-def _item(*, item: dict) -> list[Event]:
-    """Return the feed events one finished item turns into.
+def _read_completed_item(*, item: dict) -> list[FeedEvent]:
+    """Return the feed events represented by a completed Codex item.
 
     When the agent does something, the item becomes one action line. Codex's own
     name for the item is the label, and the detail is the thing the agent acted
@@ -139,42 +164,45 @@ def _item(*, item: dict) -> list[Event]:
     """
     kind = item["type"]
     if kind == "agent_message":
-        return [Prose(text=item["text"])]
+        return [FeedProse(text=item["text"])]
     if kind == "command_execution":
-        return _command(item=item)
+        return _read_command_execution(item=item)
     if kind == "file_change":
         # Codex reports all the files of one patch in a single item, so give each
         # file its own line. Putting what happened to the file in the label
         # leaves the path as the whole detail, and the feed can then cut the
         # worktree's path off the front of it.
         return [
-            Note(label=change["kind"], detail=change["path"])
+            FeedNote(label=change["kind"], detail=change["path"])
             for change in item["changes"]
         ]
     if kind == "web_search":
-        return [Note(label=kind, detail=item["query"])]
+        return [FeedNote(label=kind, detail=item["query"])]
     if kind == "error":
-        return [Note(label=kind, detail=item["message"])]
+        return [FeedNote(label=kind, detail=item["message"])]
     return []
 
 
-def _command(*, item: dict) -> list[Event]:
-    """Return the command the agent ran, and how it went.
+def _read_command_execution(*, item: dict) -> list[FeedEvent]:
+    """Return the command and any non-successful outcome that Codex reported.
 
     A command that finished cleanly says all it needs to in one line. Anything
     else gets a second line, labelled with the status Codex gave it. So a failed
     command says `failed` and a declined one says `declined`, and this does not
     have to know which statuses Codex has.
     """
-    ran = Note(label=item["type"], detail=item["command"])
+    command_note = FeedNote(label=item["type"], detail=item["command"])
     status = item["status"]
     if status == "completed":
-        return [ran]
-    return [ran, Note(label=status, detail=item["aggregated_output"])]
+        return [command_note]
+    return [
+        command_note,
+        FeedNote(label=status, detail=item["aggregated_output"]),
+    ]
 
 
-def _usage(*, counts: dict) -> Note:
-    """Return what the round used, counted in tokens.
+def _compose_usage_note(*, counts: dict) -> FeedNote:
+    """Return the round's separate token counts.
 
     Codex tells us no prices, so this reports tokens and no money. Each count
     keeps the name Codex gave it, and this does not add them up: a cached input
@@ -183,7 +211,7 @@ def _usage(*, counts: dict) -> Note:
     because Codex sends no reasoning items, so the count is the only sign in the
     feed that the model thought at all.
     """
-    return Note(
+    return FeedNote(
         label="usage",
         detail=f"{counts['output_tokens']} output, "
         f"{counts['reasoning_output_tokens']} reasoning, "

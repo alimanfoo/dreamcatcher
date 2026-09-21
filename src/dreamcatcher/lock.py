@@ -1,4 +1,4 @@
-"""Keep one daemon per repo, with a pid file the daemon holds while it runs."""
+"""Enforce one running daemon per repository with a PID file."""
 
 import os
 from collections.abc import Iterator
@@ -12,19 +12,20 @@ from dreamcatcher.errors import ReportableError
 
 
 @contextmanager
-def hold(*, path: Path) -> Iterator[None]:
-    """Hold the lock at path, and release it however the caller ends.
+def hold_daemon_lock(*, path: Path) -> Iterator[int]:
+    """Hold the daemon lock and release it when the caller exits.
 
     Raise ReportableError when a live daemon holds it.
 
     Reclaim a stale lock, one no live daemon holds.
     """
-    running = read_daemon_pid(path=path)
-    if running is not None:
-        raise ReportableError(f"dreamcatcher is already running as pid {running}.")
-    write_text(text=f"{os.getpid()}\n", path=path)
+    daemon_pid = read_daemon_pid(path=path)
+    if daemon_pid is not None:
+        raise ReportableError(f"dreamcatcher is already running as pid {daemon_pid}.")
+    pid = os.getpid()
+    write_text(text=f"{pid}\n", path=path)
     try:
-        yield
+        yield pid
     finally:
         # A release that cannot happen costs nothing, because the next run
         # reclaims a lock naming a dead pid. Letting the failure out would
@@ -34,15 +35,14 @@ def hold(*, path: Path) -> Iterator[None]:
 
 
 def read_daemon_pid(*, path: Path) -> int | None:
-    """Return the pid of the daemon holding the lock, if one still is.
+    """Return the PID when the lock names a live process, otherwise None.
 
-    A lock nobody can read as a live pid is stale. That covers a file that is
-    not there, one holding something other than a pid, and one holding a number
-    no process could have.
+    The check cannot distinguish the daemon from another process that reused
+    its PID. A missing or malformed file and a PID with no process are stale.
     """
     try:
         pid = int(path.read_text(encoding="utf-8").strip())
-        alive = pid > 0 and psutil.pid_exists(pid)
+        is_alive = pid > 0 and psutil.pid_exists(pid)
     except (OSError, ValueError, OverflowError):
         return None
-    return pid if alive else None
+    return pid if is_alive else None
