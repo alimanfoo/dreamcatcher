@@ -4,7 +4,6 @@ import argparse
 import re
 import sys
 from collections.abc import Sequence
-from importlib.metadata import version
 from pathlib import Path
 from threading import TIMEOUT_MAX
 
@@ -24,6 +23,7 @@ from dreamcatcher.scheduler import (
     read_scheduler_record,
 )
 from dreamcatcher.state import StateDirectory
+from dreamcatcher.version import DREAMCATCHER_VERSION
 
 # How a view names the issue it is about, as the issue itself is written.
 ISSUE_REFERENCE_PATTERN = re.compile(r"gh(\d+)\Z", re.IGNORECASE)
@@ -63,7 +63,7 @@ def build_cli_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="dreamcatcher", description=dreamcatcher.__doc__
     )
-    parser.add_argument("--version", action="version", version=version("dreamcatcher"))
+    parser.add_argument("--version", action="version", version=DREAMCATCHER_VERSION)
     subcommands = parser.add_subparsers(title="verbs", dest="verb", required=True)
     run_parser = subcommands.add_parser(
         "run",
@@ -96,7 +96,7 @@ def build_cli_parser() -> argparse.ArgumentParser:
         type=_parse_positive_integer,
         default=DEFAULT_MAX_AGENTS,
         metavar="N",
-        help=f"maximum agent rounds to run at once (default: {DEFAULT_MAX_AGENTS})",
+        help=f"maximum agents to run at once (default: {DEFAULT_MAX_AGENTS})",
     )
     run_parser.set_defaults(act=_run_daemon)
     retry_parser = subcommands.add_parser(
@@ -115,7 +115,7 @@ def build_cli_parser() -> argparse.ArgumentParser:
         help="show the instance, issue, and agent-assignment status",
         description=(
             "Show instance and daemon facts, each agent assignment's status, "
-            "and available issues in dispatch order. It refreshes "
+            "available issues in dispatch order, and blocked issues. It refreshes "
             "automatically until you interrupt it. "
             + HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
             + " "

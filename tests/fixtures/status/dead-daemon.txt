@@ -1,21 +1,27 @@
 alimanfoo/dreamcatcher
 
 instance
-  daemon                 not running
-  latest scheduler tick  2m ago     
-  global cooldown        none       
+  daemon                 not running  
+  harness                claude       
+  latest scheduler tick  2m ago       
+  agent capacity         0 of 1 in use
+  global cooldown        none         
 
 agent assignments
+  GH20-20260819-184158  needs user feedback  idle 2h 0m                                             
   GH9-20260819-184158   fault                two consecutive rounds failed                          
                                              (.dreamcatcher/v3/assignments/GH9-20260819-184158/round
                                              s/2/feed.txt)                                          
-  GH12-20260819-184158  complete             2 rounds                                               
   GH13-20260819-184158  waiting              the last round was interrupted                         
-  GH20-20260819-184158  needs user feedback  idle 2h 0m                                             
   GH31-20260819-184158  waiting              1 new post to answer                                   
   GH35-20260819-184158  waiting              the last round failed (exit 2)                         
   GH44-20260819-184158  waiting              no round has run yet                                   
+  GH40-20260819-184158  unknown              no current scheduler observation                       
+  GH12-20260819-184158  complete             2 rounds                                               
 
 available issues
-  GH50  dispatch label: dream:smith
-  GH51  dispatch label: dream:smith
+  GH50  dream:smith
+  GH51  dream:smith
+
+blocked issues
+  GH52  dream:smith  blocked by GH50

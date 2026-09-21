@@ -793,7 +793,7 @@ class AgentWorkScheduler:
             return record.model_copy(update={"hold": hold_reason})
         if len(self.rounds) >= self.max_agents:
             capacity_reason = (
-                f"at cap: {len(self.rounds)} of {self.max_agents} rounds running"
+                f"at cap: {len(self.rounds)} of {self.max_agents} agents running"
             )
             hold_reason = (
                 capacity_reason

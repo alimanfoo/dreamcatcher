@@ -7,7 +7,13 @@ import pytest
 from clocks import PINNED
 from conftest import REPOSITORY, configure
 from observations import observed_issue
-from records import write_agent_assignment, write_feed, write_round, write_tick
+from records import (
+    write_agent_assignment,
+    write_daemon_run,
+    write_feed,
+    write_round,
+    write_tick,
+)
 
 import dreamcatcher.scheduler as scheduler_module
 import dreamcatcher.status as status_module
@@ -18,6 +24,7 @@ from dreamcatcher.agent_rounds import (
     InterruptedAgentRoundEnding,
     compose_agent_round_ending,
 )
+from dreamcatcher.config import AgentHarness
 from dreamcatcher.documents import write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.scheduler import (
@@ -44,7 +51,7 @@ def state(tmp_path):
     """A configured state directory holding one assignment."""
     configure(root=tmp_path)
     directory = StateDirectory(root=tmp_path)
-    write_text(text="3\n", path=directory.max_agents)
+    write_daemon_run(state=directory, pid=os.getpid(), max_agents=3)
     write_agent_assignment(state=directory, identifier=ASSIGNMENT_ID, issue=13)
     return directory
 
@@ -126,12 +133,15 @@ def test_an_empty_instance_reports_unknown_capacity_and_no_work(tmp_path):
     assert found.at == LOOKED_AT
     assert found.repository is None
     assert found.daemon_pid is None
+    assert found.agent_harness is None
+    assert found.dreamcatcher_version is None
     assert found.latest_scheduler_tick is None
     assert found.scheduler_hold is None
-    assert found.max_agent_rounds is None
-    assert found.running_agent_rounds == 0
+    assert found.max_agents is None
+    assert found.running_agents == 0
     assert found.active_global_cooldown is None
-    assert found.issue_observations == []
+    assert found.available_issues == []
+    assert found.blocked_issues == []
     assert found.assignment_statuses == []
 
 
@@ -141,19 +151,35 @@ def test_the_instance_record_names_the_repository(state):
     assert report(state=state).repository == REPOSITORY
 
 
-def test_a_running_daemon_reports_its_agent_cap(running):
-    assert report(state=running).max_agent_rounds == 3
-
-
-@pytest.mark.parametrize("value", ["not a number\n", "0\n"])
-def test_an_invalid_recorded_agent_cap_is_unknown(tmp_path, value):
-    state = StateDirectory(root=tmp_path)
-    write_text(text=f"{os.getpid()}\n", path=state.lock)
-    write_text(text=value, path=state.max_agents)
+def test_the_instance_records_name_the_harness_and_version(state):
+    write_daemon_run(
+        state=state,
+        pid=os.getpid(),
+        harness=AgentHarness.CODEX,
+        version="3.0.0.beta1",
+        max_agents=3,
+    )
 
     found = report(state=state)
 
-    assert found.max_agent_rounds is None
+    assert found.agent_harness is AgentHarness.CODEX
+    assert found.dreamcatcher_version == "3.0.0.beta1"
+
+
+def test_a_live_daemon_does_not_mix_in_another_runs_facts(state):
+    write_daemon_run(
+        state=state,
+        pid=os.getpid() + 1,
+        harness=AgentHarness.CODEX,
+        max_agents=4,
+    )
+    write_text(text=f"{os.getpid()}\n", path=state.lock)
+
+    found = report(state=state)
+
+    assert found.agent_harness is None
+    assert found.dreamcatcher_version is None
+    assert found.max_agents is None
 
 
 def test_a_live_round_reports_work_and_its_latest_output(running):
@@ -164,7 +190,7 @@ def test_a_live_round_reports_work_and_its_latest_output(running):
     status = found.assignment_statuses[0]
 
     assert found.daemon_pid == os.getpid()
-    assert found.running_agent_rounds == 1
+    assert found.running_agents == 1
     assert status.value is AgentAssignmentStatusValue.WORKING
     assert status.detail == "running 1h 59m, last output 1h 58m ago"
     assert status.latest_output == "[Bash] pytest"
@@ -416,6 +442,22 @@ def test_a_tick_without_an_observation_of_the_latest_ending_is_not_current(state
     assert only_assignment(state=state).value is AgentAssignmentStatusValue.UNKNOWN
 
 
+def test_a_round_that_ends_after_its_launch_tick_waits_for_the_next_tick(state):
+    ran(state=state, number=1, ended_at=LOOKED_AT + timedelta(minutes=1))
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=LOOKED_AT,
+            launched_assignment_identifier=ASSIGNMENT_ID,
+        ),
+    )
+
+    status = only_assignment(state=state)
+
+    assert status.value is AgentAssignmentStatusValue.WAITING
+    assert status.detail == "awaiting next scheduler tick"
+
+
 def test_an_observation_is_current_when_a_round_ends_after_the_tick_begins(state):
     ran(state=state, number=1, ended_at=LOOKED_AT + timedelta(minutes=1))
     write_tick(
@@ -510,23 +552,20 @@ def test_an_active_cooldown_and_hold_are_instance_facts(running):
 
     assert found.latest_scheduler_tick == PINNED
     assert found.scheduler_hold == "global cooldown"
-    assert found.max_agent_rounds == 3
+    assert found.max_agents == 3
     assert found.active_global_cooldown == cooldown
 
 
-def test_a_stopped_daemon_has_no_current_runtime_state(state):
+def test_a_stopped_daemon_has_no_current_scheduler_hold(state):
     write_tick(
         state=state,
-        tick=SchedulerRecord(at=PINNED, hold="at cap: 1 of 1 rounds running"),
+        tick=SchedulerRecord(at=PINNED, hold="at cap: 1 of 1 agents running"),
     )
 
-    found = report(state=state)
-
-    assert found.scheduler_hold is None
-    assert found.max_agent_rounds is None
+    assert report(state=state).scheduler_hold is None
 
 
-def test_an_unavailable_issue_is_absent(state):
+def test_a_blocked_issue_is_reported_with_its_evidence(state):
     write_tick(
         state=state,
         tick=SchedulerRecord(
@@ -541,7 +580,11 @@ def test_an_unavailable_issue_is_absent(state):
         ),
     )
 
-    assert report(state=state).issue_observations == []
+    status_report = report(state=state)
+
+    assert status_report.available_issues == []
+    assert [issue.issue for issue in status_report.blocked_issues] == [20]
+    assert status_report.blocked_issues[0].blocked.evidence == "blocked by GH10"
 
 
 def test_an_open_local_assignment_removes_its_issue_from_available_work(state):
@@ -553,7 +596,7 @@ def test_an_open_local_assignment_removes_its_issue_from_available_work(state):
         ),
     )
 
-    assert report(state=state).issue_observations == []
+    assert report(state=state).available_issues == []
 
 
 def test_a_complete_local_assignment_no_longer_claims_its_observed_issue(state):
@@ -567,7 +610,7 @@ def test_a_complete_local_assignment_no_longer_claims_its_observed_issue(state):
         tick=SchedulerRecord(at=PINNED, issue_observations=[observation]),
     )
 
-    issue = report(state=state).issue_observations[0]
+    issue = report(state=state).available_issues[0]
 
     assert issue.claimed_here.value is IssueFactValue.FALSE
     assert issue.availability.value is IssueFactValue.TRUE
@@ -585,7 +628,7 @@ def test_available_issues_keep_scheduler_order_and_observation_times(state):
         ),
     )
 
-    issues = report(state=state).issue_observations
+    issues = report(state=state).available_issues
 
     assert [issue.issue for issue in issues] == [20, 21]
     assert issues[0].observed_at == PINNED
@@ -659,7 +702,7 @@ def test_a_failed_setup_reports_independently_of_an_external_claim(state):
             failure="assignment setup failed",
         )
     ]
-    assert status_report.issue_observations == []
+    assert status_report.available_issues == []
 
 
 def test_scheduling_does_not_consume_status_reports():

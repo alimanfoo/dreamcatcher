@@ -23,7 +23,8 @@ def dead_pid() -> int:
 def test_holding_the_lock_records_the_daemon_and_releasing_removes_it(tmp_path):
     lock = tmp_path / "daemon.pid"
 
-    with hold_daemon_lock(path=lock):
+    with hold_daemon_lock(path=lock) as pid:
+        assert pid == os.getpid()
         assert lock.read_text(encoding="utf-8").strip() == str(os.getpid())
 
     assert not lock.exists()

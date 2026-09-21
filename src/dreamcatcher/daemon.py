@@ -13,6 +13,7 @@ from dreamcatcher.agent_rounds import record_agent_round_interruption
 from dreamcatcher.clock import WaitForSeconds, read_current_time
 from dreamcatcher.commands import locate_program
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
+from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
@@ -28,6 +29,7 @@ from dreamcatcher.scheduler import (
     InvalidSchedulerRecordError,
 )
 from dreamcatcher.state import StateDirectory
+from dreamcatcher.version import DREAMCATCHER_VERSION
 from dreamcatcher.words import describe_time
 
 if TYPE_CHECKING:
@@ -99,9 +101,8 @@ class DreamcatcherDaemon:
         posts.
         """
         self._locate_harnesses()
-        with hold_daemon_lock(path=self.state.lock):
+        with hold_daemon_lock(path=self.state.lock) as pid:
             self.state.bootstrap()
-            write_text(text=f"{self.max_agents}\n", path=self.state.max_agents)
             repository = _require_known_github_value(
                 value=identify_github_repository(root=self.state.root),
                 question="which repository this is",
@@ -122,6 +123,15 @@ class DreamcatcherDaemon:
                 max_agents=self.max_agents,
             )
             self._sweep_orphans()
+            write_json(
+                document=DaemonRunRecord(
+                    pid=pid,
+                    harness=self.harness,
+                    version=DREAMCATCHER_VERSION,
+                    max_agents=self.max_agents,
+                ),
+                path=self.state.daemon_run_record,
+            )
             at = self.clock()
             _write_output(line=f"{describe_time(at=at)}  dreamcatcher is running")
             try:

@@ -137,16 +137,17 @@ The **scheduler** decides what work Dreamcatcher starts and when.
 ### Status report
 
 A **status report** is Dreamcatcher's read-only account of a Dreamcatcher
-instance, its agent assignments, failed assignment setups, and the issues that
-are available for new assignments at a particular time.
+instance, its agent assignments, failed assignment setups, issues that are
+available for new assignments, and issues with known open blockers at a
+particular time.
 
 An **issue observation** records the independent facts that one scheduler tick
 found for an issue. Its availability is derived from those facts.
 
 An **agent assignment status** is an assignment's single summary status in a
 status report. It summarizes the assignment record, recorded rounds, live
-process state, and the latest scheduler observation of whether another round is
-required.
+process state, and the latest scheduler evidence about whether another round was
+required or launched.
 
 ### Global cooldown
 
@@ -258,8 +259,8 @@ for new assignments.
 An agent assignment has one of these summary statuses in a status report:
 
 - **Working**: an agent round is running.
-- **Waiting**: an agent round is required but has not started, for example
-  because capacity is full or a global cooldown is active.
+- **Waiting**: an agent round is required but has not started, or a round has
+  just ended and the scheduler has not inspected its result yet.
 - **Needs user feedback**: no agent round is currently required and the
   assignment awaits a user post, review decision, merge, or closure.
 - **Fault**: two consecutive agent rounds for this assignment have exited with
@@ -282,8 +283,9 @@ A status report may include operational facts such as the repository identity,
 whether the daemon is running, when the last scheduler tick occurred, current
 capacity, whether a global cooldown is active, and the scheduler hold. The
 scheduler hold says why the latest tick launched nothing, such as a cooldown,
-full capacity, a failed issue listing, or a failed launch. Its available issues
-and agent assignment statuses are projections derived for a person to read.
+full capacity, a failed issue listing, or a failed launch. Its issue
+observations and agent assignment statuses are projections derived for a person
+to read.
 
 The status report never schedules work and is never an input to scheduling.
 Scheduling and reporting must nevertheless interpret the same underlying facts

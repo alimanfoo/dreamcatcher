@@ -16,7 +16,7 @@ from conftest import (
     gone,
 )
 from fakes import Line
-from records import write_agent_assignment, write_round
+from records import write_agent_assignment, write_daemon_run, write_round
 
 from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
@@ -26,7 +26,8 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME, AgentHarness
 from dreamcatcher.daemon import DreamcatcherDaemon
-from dreamcatcher.documents import write_json, write_text
+from dreamcatcher.daemon_runs import DaemonRunRecord
+from dreamcatcher.documents import read_json, write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.scheduler import (
     AgentAssignmentObservation,
@@ -35,6 +36,7 @@ from dreamcatcher.scheduler import (
     SchedulerRecord,
 )
 from dreamcatcher.state import StateDirectory
+from dreamcatcher.version import DREAMCATCHER_VERSION
 
 ASSIGNMENT_ID = "GH13-20260819-184158"
 
@@ -252,7 +254,15 @@ def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(
 
     assert (daemon.state.path.parent / ".gitignore").exists()
     assert daemon.state.repository.read_text(encoding="utf-8") == f"{REPOSITORY}\n"
-    assert daemon.state.max_agents.read_text(encoding="utf-8") == "1\n"
+    assert read_json(
+        model=DaemonRunRecord,
+        path=daemon.state.daemon_run_record,
+    ) == DaemonRunRecord(
+        pid=os.getpid(),
+        harness=AgentHarness.CLAUDE,
+        version=DREAMCATCHER_VERSION,
+        max_agents=1,
+    )
     assert not daemon.state.lock.exists()
 
 
@@ -261,14 +271,20 @@ def test_a_second_daemon_refuses_while_the_first_holds_the_repo(
 ):
     daemon, _, _ = idling(root=watched, max_agents=4)
     daemon.state.bootstrap()
-    write_text(text="2\n", path=daemon.state.max_agents)
+    write_daemon_run(state=daemon.state, pid=os.getpid(), max_agents=2)
     (daemon.state.path.parent / "repository").write_bytes(b"legacy\n")
     daemon.state.lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
 
     with pytest.raises(ReportableError, match=f"pid {os.getpid()}"):
         daemon.run()
 
-    assert daemon.state.max_agents.read_text(encoding="utf-8") == "2\n"
+    assert (
+        read_json(
+            model=DaemonRunRecord,
+            path=daemon.state.daemon_run_record,
+        ).max_agents
+        == 2
+    )
     assert capsys.readouterr().out == ""
 
 
@@ -461,14 +477,28 @@ def test_the_daemon_ends_the_rounds_it_holds_as_it_goes_down(dispatching, harnes
 
 
 def test_a_run_that_cannot_read_an_assignment_refuses_to_start(dispatching):
-    directory = write_agent_assignment(
-        state=StateDirectory(root=dispatching), identifier=ASSIGNMENT_ID, issue=13
+    state = StateDirectory(root=dispatching)
+    previous_run = DaemonRunRecord(
+        pid=os.getpid(),
+        harness=AgentHarness.CODEX,
+        version="2.9.0",
+        max_agents=2,
     )
+    write_json(document=previous_run, path=state.daemon_run_record)
+    directory = write_agent_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13)
     (directory / "assignment.json").write_text("{}", encoding="utf-8")
     daemon, _, _ = idling(root=dispatching, ticks=1)
 
     with pytest.raises(ReportableError, match=r"assignment\.json is not valid"):
         daemon.run()
+
+    assert (
+        read_json(
+            model=DaemonRunRecord,
+            path=state.daemon_run_record,
+        )
+        == previous_run
+    )
 
 
 def test_a_failed_tick_preserves_the_last_scheduler_record(dispatching, capsys):

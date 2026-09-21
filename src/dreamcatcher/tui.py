@@ -11,6 +11,7 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import datetime
 from time import sleep
+from typing import cast
 
 from rich.console import Console, Group, RenderableType
 from rich.live import Live
@@ -43,13 +44,13 @@ from dreamcatcher.status import (
 from dreamcatcher.words import describe_count, describe_span, describe_time
 
 # What each assignment summary is set in, so a reader can scan the status table.
-ASSIGNMENT_STATUS_STYLES = {
-    AgentAssignmentStatusValue.WORKING: "green",
-    AgentAssignmentStatusValue.WAITING: "cyan",
+ASSIGNMENT_STATUS_STYLES_IN_ATTENTION_ORDER = {
     AgentAssignmentStatusValue.NEEDS_USER_FEEDBACK: "yellow",
     AgentAssignmentStatusValue.FAULT: "red",
-    AgentAssignmentStatusValue.COMPLETE: "dim",
+    AgentAssignmentStatusValue.WORKING: "green",
+    AgentAssignmentStatusValue.WAITING: "cyan",
     AgentAssignmentStatusValue.UNKNOWN: "magenta",
+    AgentAssignmentStatusValue.COMPLETE: "dim",
 }
 
 STATUSES_THAT_END_A_VIEW = (
@@ -174,14 +175,14 @@ def _read_status_snapshot(
 
 
 def _render_status(*, report: DreamcatcherStatusReport) -> RenderableType:
-    """Render repository facts, assignments, setup failures, and available issues."""
     return _combine_renderable_parts(
         parts=[
             Text(report.repository or "repository unknown", style="bold"),
             _render_instance_status(report=report),
             _render_assignments(assignments=report.assignment_statuses),
             _render_failed_assignment_setups(setups=report.failed_assignment_setups),
-            _render_issues(issues=report.issue_observations),
+            _render_available_issues(issues=report.available_issues),
+            _render_blocked_issues(issues=report.blocked_issues),
             _describe_empty_status_report(report=report),
         ]
     )
@@ -199,7 +200,20 @@ def _render_instance_status(*, report: DreamcatcherStatusReport) -> RenderableTy
     daemon = (
         "not running"
         if report.daemon_pid is None
-        else f"running as pid {report.daemon_pid}"
+        else " ".join(
+            filter(
+                None,
+                (
+                    "running",
+                    (
+                        None
+                        if report.dreamcatcher_version is None
+                        else f"dreamcatcher v{report.dreamcatcher_version}"
+                    ),
+                    f"as pid {report.daemon_pid}",
+                ),
+            )
+        )
     )
     tick = (
         "none recorded"
@@ -213,14 +227,14 @@ def _render_instance_status(*, report: DreamcatcherStatusReport) -> RenderableTy
     )
     for name, value in (
         ("daemon", daemon),
+        ("harness", report.agent_harness),
         ("latest scheduler tick", tick),
         (
-            "agent-round capacity",
+            "agent capacity",
             (
                 None
-                if report.max_agent_rounds is None
-                else f"{report.running_agent_rounds} of "
-                f"{report.max_agent_rounds} in use"
+                if report.max_agents is None
+                else f"{report.running_agents} of {report.max_agents} in use"
             ),
         ),
         ("global cooldown", cooldown),
@@ -231,7 +245,9 @@ def _render_instance_status(*, report: DreamcatcherStatusReport) -> RenderableTy
     return _render_section(heading="instance", body=table)
 
 
-def _render_issues(*, issues: Sequence[IssueObservation]) -> RenderableType | None:
+def _render_available_issues(
+    *, issues: Sequence[IssueObservation]
+) -> RenderableType | None:
     """Render available issues in the order the scheduler will dispatch them."""
     if not issues:
         return None
@@ -239,9 +255,25 @@ def _render_issues(*, issues: Sequence[IssueObservation]) -> RenderableType | No
     for issue in issues:
         table.add_row(
             Text(f"GH{issue.issue}"),
-            Text(f"dispatch label: {', '.join(issue.dispatch_labels or [])}"),
+            Text(", ".join(issue.dispatch_labels or [])),
         )
     return _render_section(heading="available issues", body=table)
+
+
+def _render_blocked_issues(
+    *, issues: Sequence[IssueObservation]
+) -> RenderableType | None:
+    """Render blocked issues with the scheduler's recorded blocker evidence."""
+    if not issues:
+        return None
+    table = _create_table(columns=3)
+    for issue in issues:
+        table.add_row(
+            Text(f"GH{issue.issue}"),
+            Text(", ".join(issue.dispatch_labels or [])),
+            Text(cast("str", issue.blocked.evidence)),
+        )
+    return _render_section(heading="blocked issues", body=table)
 
 
 def _render_failed_assignment_setups(
@@ -259,20 +291,49 @@ def _render_failed_assignment_setups(
 def _render_assignments(
     *, assignments: Sequence[AgentAssignmentStatus]
 ) -> RenderableType | None:
-    """Render every agent assignment and its summary status."""
+    """Render assignments in attention order, preserving order within a status."""
     if not assignments:
         return None
-    table = _create_table(columns=3)
-    for status in assignments:
+    ordered = sorted(
+        assignments,
+        key=lambda status: tuple(ASSIGNMENT_STATUS_STYLES_IN_ATTENTION_ORDER).index(
+            status.value
+        ),
+    )
+    identifier_width = max(len(status.assignment.identifier) for status in ordered)
+    status_width = max(len(status.value) for status in ordered)
+    rows: list[RenderableType] = []
+    for status in ordered:
+        table = Table(box=None, show_header=False, pad_edge=False)
+        table.add_column(style="bold", width=identifier_width)
+        table.add_column(width=status_width)
+        table.add_column(overflow="fold")
         table.add_row(
             Text(status.assignment.identifier),
-            Text(str(status.value), style=ASSIGNMENT_STATUS_STYLES[status.value]),
-            _render_assignment_detail(
-                status=status,
-                prefix=_describe_running_round(status=status),
+            Text(
+                str(status.value),
+                style=ASSIGNMENT_STATUS_STYLES_IN_ATTENTION_ORDER[status.value],
+            ),
+            Text(
+                ", ".join(
+                    filter(
+                        None,
+                        (_describe_running_round(status=status), status.detail),
+                    )
+                )
             ),
         )
-    return _render_section(heading="agent assignments", body=table)
+        rows.append(table)
+        if status.latest_output is not None:
+            rows.append(
+                Text(
+                    status.latest_output,
+                    style="dim",
+                    overflow="ellipsis",
+                    no_wrap=True,
+                )
+            )
+    return _render_section(heading="agent assignments", body=Group(*rows))
 
 
 def _describe_running_round(*, status: AgentAssignmentStatus) -> str:
@@ -290,7 +351,10 @@ def _render_assignment_detail(
     style: str = "",
 ) -> RenderableType:
     """Render assignment detail behind its prefix, latest output beneath it."""
-    detail = Text(", ".join(filter(None, (prefix, status.detail))), style=style)
+    detail = Text(
+        ", ".join(filter(None, (prefix, status.detail))),
+        style=style,
+    )
     if status.latest_output is None:
         return detail
     output = Padding(
@@ -301,15 +365,18 @@ def _render_assignment_detail(
     return Group(detail, output)
 
 
-def _describe_empty_status_report(*, report: DreamcatcherStatusReport) -> Text | None:
+def _describe_empty_status_report(
+    *, report: DreamcatcherStatusReport
+) -> RenderableType | None:
     """Describe an instance that has no issue or assignment status yet."""
     if (
         report.failed_assignment_setups
-        or report.issue_observations
+        or report.available_issues
+        or report.blocked_issues
         or report.assignment_statuses
     ):
         return None
-    return Text("no issues or agent assignments recorded yet")
+    return Group(Text(), Text("no issues or agent assignments recorded yet"))
 
 
 def _create_table(*, columns: int) -> Table:
@@ -396,7 +463,7 @@ def _render_assignment(
                 status=current_status,
                 prefix=str(current_status.value),
                 continuation_indent=SECTION_PADDING[3],
-                style=ASSIGNMENT_STATUS_STYLES[current_status.value],
+                style=ASSIGNMENT_STATUS_STYLES_IN_ATTENTION_ORDER[current_status.value],
             ),
             _render_assignment_summary(state=state, status=current_status),
             _render_rounds(status=current_status),
@@ -495,7 +562,10 @@ def _render_older_assignments(
     for status in older_statuses:
         table.add_row(
             Text(f"agent assignment {status.assignment.identifier}"),
-            Text(str(status.value), style=ASSIGNMENT_STATUS_STYLES[status.value]),
+            Text(
+                str(status.value),
+                style=ASSIGNMENT_STATUS_STYLES_IN_ATTENTION_ORDER[status.value],
+            ),
             _render_assignment_detail(status=status),
         )
     return _render_section(heading="older assignments", body=table)

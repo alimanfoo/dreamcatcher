@@ -19,7 +19,9 @@ from dreamcatcher.agent_rounds import (
     ErroredAgentRoundEnding,
 )
 from dreamcatcher.clock import read_current_time
-from dreamcatcher.documents import read_text
+from dreamcatcher.config import AgentHarness
+from dreamcatcher.daemon_runs import DaemonRunRecord
+from dreamcatcher.documents import read_json, read_text
 from dreamcatcher.feed import FeedLine, read_last_feed_line
 from dreamcatcher.harness_adapters import HarnessSessionIdentifier
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
@@ -122,13 +124,16 @@ class DreamcatcherStatusReport:
     at: datetime
     repository: str | None
     daemon_pid: int | None
+    agent_harness: AgentHarness | None
+    dreamcatcher_version: str | None
     latest_scheduler_tick: datetime | None
     scheduler_hold: str | None
-    max_agent_rounds: int | None
-    running_agent_rounds: int
+    max_agents: int | None
+    running_agents: int
     active_global_cooldown: GlobalCooldown | None
     failed_assignment_setups: list[FailedAssignmentSetupStatus]
-    issue_observations: list[IssueObservation]
+    available_issues: list[IssueObservation]
+    blocked_issues: list[IssueObservation]
     assignment_statuses: list[AgentAssignmentStatus]
 
 
@@ -141,10 +146,16 @@ def read_status_report(
     assignment_statuses = reader.list_assignment_statuses(assignments=assignments)
     issue_observations = reader.list_issue_observations(assignments=assignments)
     scheduler_record = reader.scheduler_record
+    daemon_run = _read_daemon_run_record(
+        state=state,
+        daemon_pid=reader.daemon_pid,
+    )
     return DreamcatcherStatusReport(
         at=reader.at,
         repository=_read_repository(state=state),
         daemon_pid=reader.daemon_pid,
+        agent_harness=None if daemon_run is None else daemon_run.harness,
+        dreamcatcher_version=None if daemon_run is None else daemon_run.version,
         latest_scheduler_tick=(
             None if scheduler_record is None else scheduler_record.at
         ),
@@ -153,10 +164,8 @@ def read_status_report(
             if scheduler_record is None or reader.daemon_pid is None
             else scheduler_record.hold
         ),
-        max_agent_rounds=(
-            None if reader.daemon_pid is None else _read_max_agents(state=state)
-        ),
-        running_agent_rounds=sum(
+        max_agents=None if daemon_run is None else daemon_run.max_agents,
+        running_agents=sum(
             status.value is AgentAssignmentStatusValue.WORKING
             for status in assignment_statuses
         ),
@@ -171,10 +180,15 @@ def read_status_report(
             for observation in issue_observations
             if observation.setup_failure is not None
         ],
-        issue_observations=[
+        available_issues=[
             observation
             for observation in issue_observations
             if observation.availability.value is IssueFactValue.TRUE
+        ],
+        blocked_issues=[
+            observation
+            for observation in issue_observations
+            if observation.blocked.value is IssueFactValue.TRUE
         ],
         assignment_statuses=assignment_statuses,
     )
@@ -187,15 +201,16 @@ def _read_repository(*, state: StateDirectory) -> str | None:
     return read_text(path=state.repository).strip()
 
 
-def _read_max_agents(*, state: StateDirectory) -> int | None:
-    """Read the positive agent cap a running daemon recorded."""
-    if not state.max_agents.exists():
+def _read_daemon_run_record(
+    *, state: StateDirectory, daemon_pid: int | None
+) -> DaemonRunRecord | None:
+    """Read one coherent set of facts about the current or most recent run."""
+    if not state.daemon_run_record.exists():
         return None
-    try:
-        max_agents = int(read_text(path=state.max_agents).strip())
-    except ValueError:
+    record = read_json(model=DaemonRunRecord, path=state.daemon_run_record)
+    if daemon_pid is not None and record.pid != daemon_pid:
         return None
-    return max_agents if max_agents > 0 else None
+    return record
 
 
 def read_agent_assignment_statuses_for_issue(
@@ -319,6 +334,19 @@ class _StatusReportReader:
             return local_status
         observation = self.assignment_observations.get(assignment.identifier)
         if observation is None:
+            # A round can finish before the next tick replaces the launch record,
+            # leaving the launched assignment with no observation in this gap.
+            launched_assignment_identifier = (
+                None
+                if self.scheduler_record is None
+                else self.scheduler_record.launched_assignment_identifier
+            )
+            if launched_assignment_identifier == assignment.identifier:
+                return self._compose_agent_assignment_status(
+                    assignment=assignment,
+                    value=AgentAssignmentStatusValue.WAITING,
+                    detail="awaiting next scheduler tick",
+                )
             return self._compose_agent_assignment_status(
                 assignment=assignment,
                 value=AgentAssignmentStatusValue.UNKNOWN,

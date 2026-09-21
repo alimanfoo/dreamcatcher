@@ -17,7 +17,13 @@ import pytest
 from clocks import PINNED
 from conftest import DISPATCH_LABEL, FIXTURES, REPOSITORY, configure
 from observations import observed_issue
-from records import write_agent_assignment, write_feed, write_round, write_tick
+from records import (
+    write_agent_assignment,
+    write_daemon_run,
+    write_feed,
+    write_round,
+    write_tick,
+)
 from rich.console import Console
 from rich.control import Control
 from rich.text import Text
@@ -160,7 +166,7 @@ def holding(*, state):
     """Configure the instance and write the lock that its daemon holds."""
     configure(root=state.root)
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
-    write_text(text="1\n", path=state.max_agents)
+    write_daemon_run(state=state, pid=DAEMON_PID)
     write_text(text=f"{DAEMON_PID}\n", path=state.lock)
 
 
@@ -168,7 +174,7 @@ def fabricate_nothing(*, state):
     """A state directory a daemon has bootstrapped and nothing else."""
     configure(root=state.root)
     state.bootstrap()
-    write_text(text="1\n", path=state.max_agents)
+    write_daemon_run(state=state, pid=DAEMON_PID)
 
 
 def fabricate_everything(*, state):
@@ -200,6 +206,7 @@ def fabricate_everything(*, state):
     )
     written(state=state, issue=31, records=[ended(minute=1)])
     written(state=state, issue=35, records=[ended(minute=1, status=2)])
+    written(state=state, issue=40, records=[ended(minute=1)])
     written(
         state=state,
         issue=9,
@@ -266,6 +273,22 @@ def fabricate_everything(*, state):
     )
 
 
+def fabricate_status_everything(*, state):
+    """The combined status report, including output wider than its console."""
+    fabricate_everything(state=state)
+    write_feed(
+        directory=state.assignments / f"GH13-{ASSIGNMENT_TIMESTAMP}",
+        number=2,
+        lines=[
+            FeedLine(
+                at=PINNED + timedelta(minutes=31),
+                text="The agent is explaining a long change that would otherwise "
+                "wrap onto another line and move every assignment below it.",
+            )
+        ],
+    )
+
+
 def fabricate_a_failed_setup(*, state):
     """A running daemon with an assignment, a failed setup, and available work."""
     holding(state=state)
@@ -303,7 +326,7 @@ def fabricate_the_cap(*, state):
         lines=[FeedLine(at=PINNED + timedelta(minutes=31), text="[Bash] pytest")],
     )
     written(state=state, issue=20, records=[ended(minute=1)])
-    hold = "at cap: 1 of 1 rounds running"
+    hold = "at cap: 1 of 1 agents running"
     write_tick(
         state=state,
         tick=SchedulerRecord(
@@ -324,7 +347,7 @@ def fabricate_repeat_assignments(*, state):
     """Three assignments at one issue, so a repeat dispatch reads as one thing."""
     configure(root=state.root)
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
-    write_text(text="1\n", path=state.max_agents)
+    write_daemon_run(state=state, pid=DAEMON_PID)
     for stamp, rounds in (
         (
             "20260817-090000",
@@ -404,7 +427,7 @@ def fabricate_a_silent_round(*, state):
 
 STATUS_REPORTS = {
     "nothing": fabricate_nothing,
-    "everything": fabricate_everything,
+    "everything": fabricate_status_everything,
     "failed-setup": fabricate_a_failed_setup,
     "dead-daemon": fabricate_a_dead_daemon,
     "at-cap": fabricate_the_cap,
@@ -512,6 +535,42 @@ def test_identifiers_remain_whole_when_the_assignment_table_folds(tmp_path):
     assert "GH13-20260817-090000" in compact
 
 
+def test_assignments_are_rendered_in_attention_order(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    rendered = render_status_view(state=state)
+
+    identifiers = [
+        "GH20-20260819-184158",
+        "GH9-20260819-184158",
+        "GH13-20260819-184158",
+        "GH31-20260819-184158",
+        "GH35-20260819-184158",
+        "GH44-20260819-184158",
+        "GH40-20260819-184158",
+        "GH12-20260819-184158",
+    ]
+    assert [rendered.index(identifier) for identifier in identifiers] == sorted(
+        rendered.index(identifier) for identifier in identifiers
+    )
+
+
+@pytest.mark.parametrize("width", [60, 80])
+def test_status_output_fits_one_line_without_hiding_later_assignments(
+    width, tmp_path, daemon
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate_status_everything(state=state)
+
+    rendered = render_status_view(state=state, width=width)
+    output = [line for line in rendered.splitlines() if "agent is explaining" in line]
+
+    assert len(output) == 1
+    assert len(output[0]) <= width
+    assert f"GH31-{ASSIGNMENT_TIMESTAMP}" in rendered
+
+
 def test_status_nobody_is_watching_is_drawn_once_and_returns(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
@@ -524,7 +583,7 @@ def test_status_nobody_is_watching_is_drawn_once_and_returns(tmp_path, daemon):
         wait=refusing,
     )
 
-    assert "running as pid 4242" in written_to.getvalue()
+    assert "running dreamcatcher v3.0.0.beta1 as pid 4242" in written_to.getvalue()
 
 
 def test_status_a_reader_watches_keeps_up_with_what_the_daemon_writes(tmp_path, daemon):

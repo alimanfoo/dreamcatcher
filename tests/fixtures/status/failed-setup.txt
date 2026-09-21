@@ -1,10 +1,11 @@
 alimanfoo/dreamcatcher
 
 instance
-  daemon                 running as pid 4242
-  latest scheduler tick  2m ago             
-  agent-round capacity   0 of 1 in use      
-  global cooldown        none               
+  daemon                 running dreamcatcher v3.0.0.beta1 as pid 4242
+  harness                claude                                       
+  latest scheduler tick  2m ago                                       
+  agent capacity         0 of 1 in use                                
+  global cooldown        none                                         
 
 agent assignments
   GH13-20260819-184158  waiting  no round has run yet
@@ -13,4 +14,4 @@ failed assignment setups
   GH20  assignment setup failed
 
 available issues
-  GH21  dispatch label: dream:smith
+  GH21  dream:smith

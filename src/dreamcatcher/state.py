@@ -49,9 +49,9 @@ class StateDirectory:
         return self.path / "repository"
 
     @property
-    def max_agents(self) -> Path:
-        """The file through which a daemon reports its agent cap."""
-        return self.path / "max-agents"
+    def daemon_run_record(self) -> Path:
+        """The document describing the most recent daemon run."""
+        return self.path / "daemon.json"
 
     @property
     def scheduler_record(self) -> Path:

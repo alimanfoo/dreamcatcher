@@ -227,7 +227,7 @@ interface.
 
 `status.py` owns the read-only status model and constructs a
 `DreamcatcherStatusReport` containing the repository identity, instance and
-daemon facts, `FailedAssignmentSetupStatus` entries, available
+daemon facts, `FailedAssignmentSetupStatus` entries, available and blocked
 `IssueObservation` entries, and `AgentAssignmentStatus` entries.
 
 Status construction may read:
@@ -236,7 +236,7 @@ Status construction may read:
 - raw harness output and the matching harness adapter when it must recover a
   harness session identifier or build a hand-resume command;
 - current child-process state;
-- the instance's repository and capacity records;
+- the instance's repository record and daemon-run record;
 - scheduler records, including issue observations, assignment observations, the
   active global cooldown, and the latest tick;
 - the latest rendered feed output needed for a useful summary.
@@ -250,8 +250,10 @@ An `IssueObservation` represents claimed here, claimed elsewhere, blocked, and
 routing conflict as independent facts which may each be true, false, or unknown;
 its availability is derived from those facts together with whether the issue is
 open, assigned to the instance's user, and carries exactly one dispatch label.
-The report includes only available issues, in the scheduler's dispatch order. An
-`AgentAssignmentStatus` is one summary status from the ontology.
+The report includes available issues in the scheduler's dispatch order. It also
+includes issues with known open blockers, together with the scheduler's recorded
+blocker evidence. An `AgentAssignmentStatus` is one summary status from the
+ontology.
 
 A `FailedAssignmentSetupStatus` carries the issue identifier and the latest
 setup failure. The report includes it while the latest tick records a failure,
@@ -263,6 +265,11 @@ open assignment. It carries a reason, whether the relevant facts were known, and
 whether it required a round. Status reads this observation because view commands
 cannot reach GitHub. It is the last tick's interpretation kept as operational
 evidence, not authoritative assignment state.
+
+The scheduler record also names the assignment whose round the tick launched.
+That assignment has no observation in the same record. If its round ends before
+the next tick, status reports that it is waiting for that tick rather than
+reporting an unknown state.
 
 ### TUI
 
@@ -360,14 +367,14 @@ A round record persists:
 - the durable files containing its prompt, delivered posts, and output.
 
 Instance records persist the repository identity and the most recent daemon
-run's capacity. An instance-wide scheduler record persists the last tick's
-result, including its hold, issue and assignment observations, active global
-cooldown, and the time at which the most recent cooldown ended. Its
-per-assignment observations preserve operational evidence of the tick's
-interpretation rather than authoritative state. An assignment record persists
-the time of its latest user retry request. These boundaries allow fault to
-remain a derived status: ending a cooldown or requesting a retry changes which
-round errors count towards fault rather than writing an assignment status.
+run's harness, Dreamcatcher version, and capacity. An instance-wide scheduler
+record persists the last tick's result, including its hold, issue and assignment
+observations, active global cooldown, and the time at which the most recent
+cooldown ended. Its per-assignment observations preserve operational evidence of
+the tick's interpretation rather than authoritative state. An assignment record
+persists the time of its latest user retry request. These boundaries allow fault
+to remain a derived status: ending a cooldown or requesting a retry changes
+which round errors count towards fault rather than writing an assignment status.
 
 The following are derived rather than persisted as authoritative state:
 

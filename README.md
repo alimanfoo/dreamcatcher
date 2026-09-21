@@ -70,11 +70,11 @@ dreamcatcher run --harness claude
 ```
 
 `--interval` sets the seconds between scheduler ticks and defaults to 120.
-`--max-agents` sets how many agent rounds may run at once, and defaults to 1.
-These options apply to this run, so each person can choose them without changing
-the repository's shared configuration.
+`--max-agents` sets how many agents may run at once, and defaults to 1. These
+options apply to this run, so each person can choose them without changing the
+repository's shared configuration.
 
-For example, run every 30 seconds and allow four agent rounds at once:
+For example, run every 30 seconds and allow four agents at once:
 
 ```sh
 dreamcatcher run --harness claude --interval 30 --max-agents 4
@@ -166,8 +166,8 @@ dreamcatcher status
 ```
 
 `status` starts with the repository name, then shows the instance, its agent
-assignments, any failed assignment setups, and the available issues in dispatch
-order.
+assignments, any failed assignment setups, the available issues in dispatch
+order, and issues with open blockers.
 
 `assignment` shows one issue's newest assignment: its issue identifier, agent
 assignment identifier, harness session identifier, what its dispatch settled,
