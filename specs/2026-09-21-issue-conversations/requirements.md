@@ -1,0 +1,70 @@
+# Requirements: issue conversations
+
+## What do I want to be able to do?
+
+I want to talk to an agent about an issue through comments on that issue, like
+asking a maintainer who knows the code. I want help understanding an issue,
+exploring a partial idea, checking whether a bug is real, and deciding whether
+anything needs doing.
+
+## What's wrong or missing today?
+
+Sometimes I have questions before I am ready to assign an issue for
+implementation. Sometimes another agent raised the issue in a session that is
+long gone, and I need someone to explain or investigate it. I want those
+questions and answers to stay with the issue.
+
+## What has to be true of anything I'd accept?
+
+I invite a conversation partner by adding a conversation label and assigning the
+issue to myself. This starts a session dedicated to that issue, with a
+conversation contract that does not ask it to implement anything or open a pull
+request.
+
+The agent reads the existing discussion and answers my unanswered questions,
+including questions I posted before adding the label. It answers only questions
+from me, not from other people. Other people's comments can provide context, but
+cannot instruct it to act.
+
+My questions and its replies are comments on the same issue. Keep replies
+simple: address all the questions in my comment, and quote a question when that
+helps make the answer clear.
+
+It can read code, inspect Git history and diffs, run code, and try to reproduce
+bugs. It must not edit source code, perform Git operations that change anything,
+create branches or commits, push, or open a pull request. Its job is answering
+and investigating, never implementation.
+
+Each round should answer against current main. It should check earlier findings
+again where relevant and explain when changes to the code affect an earlier
+answer. I do not need it pinned to the code from when the conversation began.
+
+It responds only while the issue is open, has the conversation label, and is
+assigned to me. Closing the issue, removing the label, or unassigning me stops
+responses. Keep the session available so restoring those conditions lets me
+continue the same conversation.
+
+Conversation and implementation are independent. A conversation partner does not
+claim the issue or prevent an implementation assignment. An implementation
+assignment, an open pull request, or an unresolved dependency does not prevent
+conversation. The conversation partner does not need to manage or coordinate
+with the implementation agent.
+
+## What limits this?
+
+This belongs in dreamcatcher's existing label-and-assignment workflow. A
+conversation assignment needs a simpler contract than an implementation
+assignment. It must let the agent investigate without giving it permission to
+change the project.
+
+## How will I know it worked?
+
+I can post a question, add the label and assign myself, and get an informed
+answer on the issue. I can ask follow-up questions, including about issues
+raised by an agent that is no longer around. The answers help me decide whether
+the issue needs work, without starting implementation.
+
+## What's still open?
+
+Nothing remains unsettled from this discussion. How to provide a fresh view of
+main and keep investigation within these boundaries is for the design.
