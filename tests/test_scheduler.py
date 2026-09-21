@@ -599,7 +599,11 @@ def test_a_dispatch_whose_round_will_not_start_retries_the_prepared_assignment(
     occupied.unlink()
     offered.replies(
         stdout=json.dumps(
-            {"closedByPullRequestsReferences": [{"number": PULL_REQUEST}]}
+            {
+                "number": 8,
+                "title": "The issue title",
+                "closedByPullRequestsReferences": [{"number": PULL_REQUEST}],
+            }
         ),
         to="issue view",
     )
@@ -633,7 +637,11 @@ def test_the_next_tick_recovers_each_incomplete_creation_checkpoint(
     if checkpoint == "pull request":
         offered.replies(
             stdout=json.dumps(
-                {"closedByPullRequestsReferences": [{"number": PULL_REQUEST}]}
+                {
+                    "number": 8,
+                    "title": "The issue title",
+                    "closedByPullRequestsReferences": [{"number": PULL_REQUEST}],
+                }
             ),
             to="issue view",
         )

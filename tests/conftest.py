@@ -306,7 +306,14 @@ def gh(fake):
     stand_in.replies(stdout=json.dumps({"login": POSTED_BY}), to="api user")
     stand_in.replies(stdout="[]", to="issue list")
     stand_in.replies(
-        stdout=json.dumps({"closedByPullRequestsReferences": []}), to="issue view"
+        stdout=json.dumps(
+            {
+                "number": 8,
+                "closedByPullRequestsReferences": [],
+                "title": "The issue title",
+            }
+        ),
+        to="issue view",
     )
     stand_in.replies(stdout="[]", to="pr list")
     stand_in.replies(

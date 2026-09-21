@@ -60,7 +60,11 @@ def create_agent_assignment(*, state, route, requested_harness, issue, at):
 def linked_pull_requests(*, numbers: Sequence[int]) -> str:
     """Return what gh says when these pull requests are linked to an issue."""
     return json.dumps(
-        {"closedByPullRequestsReferences": [{"number": one} for one in numbers]}
+        {
+            "number": 12,
+            "title": "The issue title",
+            "closedByPullRequestsReferences": [{"number": one} for one in numbers],
+        }
     )
 
 
@@ -154,6 +158,21 @@ def test_an_assignment_records_what_it_was_dispatched_with(state, route):
     assert assignment.record.prompt.startswith("/dream:smith GH12\n")
     record = state.assignments / ASSIGNMENT_ID / "assignment.json"
     assert '"dispatch_label": "dream:smith"' in record.read_text(encoding="utf-8")
+
+
+def test_an_assignment_titles_its_pull_request_after_its_issue(state, route, gh):
+    create_agent_assignment(
+        state=state,
+        route=route,
+        requested_harness=AgentHarness.CLAUDE,
+        issue=12,
+        at=PINNED,
+    )
+
+    created = next(call for call in gh.calls if call.arguments[:2] == ["pr", "create"])
+    assert (
+        created.arguments[created.arguments.index("--title") + 1] == "The issue title"
+    )
 
 
 def test_an_assignment_runs_on_the_harness_the_run_named(state, route):
@@ -858,7 +877,9 @@ def test_a_created_pull_request_that_cannot_be_read_is_reconciled_next_time(
 ):
     gh.fails(stderr="gh: could not connect to github.com", to="pr view")
 
-    with pytest.raises(ReportableError, match="cannot read the pull request created"):
+    with pytest.raises(
+        ReportableError, match=f"created the pull request for {BRANCH} but cannot read"
+    ):
         create_agent_assignment(
             state=state,
             route=route,

@@ -56,8 +56,7 @@ one block.
 Write both blocks for a label either harness can run. Write one block for a
 label that belongs to one harness, and issues carrying it always go there.
 
-Point `prompt` at a skill that meets
-[dreamcatcher's dispatchable skill contract](CONTRACT.md).
+Point `prompt` at an [assignment skill](CONTRACT.md) that meets the contract.
 
 ## Commands
 

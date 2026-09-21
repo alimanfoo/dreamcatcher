@@ -52,7 +52,14 @@ def gh(fake):
     stand_in = fake(program="gh")
     stand_in.replies(stdout=listing(issues=[(8, FILED)]), to="issue list")
     stand_in.replies(
-        stdout=json.dumps({"closedByPullRequestsReferences": []}), to="issue view"
+        stdout=json.dumps(
+            {
+                "number": 8,
+                "title": "The issue title",
+                "closedByPullRequestsReferences": [],
+            }
+        ),
+        to="issue view",
     )
     stand_in.replies(stdout=pages(items=[]), to="api")
     return stand_in
@@ -222,10 +229,12 @@ def test_local_and_external_claims_can_both_be_true(gh, tmp_path):
     gh.replies(
         stdout=json.dumps(
             {
+                "number": 8,
+                "title": "The issue title",
                 "closedByPullRequestsReferences": [
                     {"number": PULL_REQUEST},
                     {"number": 28},
-                ]
+                ],
             }
         ),
         to="issue view",
@@ -282,7 +291,11 @@ def test_a_setup_failure_survives_a_failed_linked_pull_request_read(gh):
 def test_a_setup_failure_keeps_a_proven_external_claim(gh):
     gh.replies(
         stdout=json.dumps(
-            {"closedByPullRequestsReferences": [{"number": PULL_REQUEST}]}
+            {
+                "number": 8,
+                "title": "The issue title",
+                "closedByPullRequestsReferences": [{"number": PULL_REQUEST}],
+            }
         ),
         to="issue view",
     )

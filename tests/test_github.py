@@ -12,6 +12,7 @@ from dreamcatcher.github import (
     GitHubUserAccount,
     InlineReviewComment,
     Issue,
+    IssuePullRequestContext,
     IssueState,
     LinkedPullRequest,
     PullRequest,
@@ -25,10 +26,10 @@ from dreamcatcher.github import (
     identify_github_repository,
     list_blocking_issues,
     list_issues,
-    list_linked_pull_requests,
     list_pull_requests,
     list_user_posts,
     read_issue,
+    read_issue_pull_request_context,
     read_pull_request,
 )
 
@@ -186,7 +187,10 @@ def test_a_linked_draft_pull_request_is_opened_for_the_assignment_branch(fake):
         to="pr view",
     )
 
-    created = create_pull_request(repository=REPOSITORY, branch=BRANCH, issue=8)
+    context = IssuePullRequestContext(
+        issue=8, title="Use the issue title", pull_requests=[]
+    )
+    created = create_pull_request(repository=REPOSITORY, branch=BRANCH, context=context)
 
     assert created == PullRequest(number=28, state=PullRequestState.OPEN, isDraft=True)
     assert gh.calls[0].arguments == [
@@ -200,7 +204,7 @@ def test_a_linked_draft_pull_request_is_opened_for_the_assignment_branch(fake):
         BRANCH,
         "--draft",
         "--title",
-        "GH8",
+        "Use the issue title",
         "--body",
         "Closes #8",
     ]
@@ -233,10 +237,16 @@ def test_a_pull_request_is_read_by_its_persisted_identity(fake):
     ]
 
 
-def test_the_pull_requests_linked_to_an_issue_come_back(fake):
+def test_the_issue_title_and_its_linked_pull_requests_come_back_together(fake):
     gh = fake(program="gh")
     gh.replies(
-        stdout=json.dumps({"closedByPullRequestsReferences": [{"number": 28}]}),
+        stdout=json.dumps(
+            {
+                "number": 8,
+                "title": "The issue title",
+                "closedByPullRequestsReferences": [{"number": 28}],
+            }
+        ),
         to="issue view",
     )
     gh.replies(
@@ -244,9 +254,13 @@ def test_the_pull_requests_linked_to_an_issue_come_back(fake):
         to="pr view",
     )
 
-    assert list_linked_pull_requests(repository=REPOSITORY, issue=8) == [
-        LinkedPullRequest(number=28)
-    ]
+    assert read_issue_pull_request_context(
+        repository=REPOSITORY, issue=8
+    ) == IssuePullRequestContext(
+        issue=8,
+        title="The issue title",
+        pull_requests=[LinkedPullRequest(number=28)],
+    )
     assert gh.calls[0].arguments == [
         "issue",
         "view",
@@ -254,7 +268,7 @@ def test_the_pull_requests_linked_to_an_issue_come_back(fake):
         "--repo",
         REPOSITORY,
         "--json",
-        "closedByPullRequestsReferences",
+        "number,title,closedByPullRequestsReferences",
     ]
     assert gh.calls[1].arguments == [
         "pr",
@@ -270,7 +284,13 @@ def test_the_pull_requests_linked_to_an_issue_come_back(fake):
 def test_a_finished_linked_pull_request_does_not_claim_the_issue(fake):
     gh = fake(program="gh")
     gh.replies(
-        stdout=json.dumps({"closedByPullRequestsReferences": [{"number": 28}]}),
+        stdout=json.dumps(
+            {
+                "number": 8,
+                "title": "The issue title",
+                "closedByPullRequestsReferences": [{"number": 28}],
+            }
+        ),
         to="issue view",
     )
     gh.replies(
@@ -278,18 +298,26 @@ def test_a_finished_linked_pull_request_does_not_claim_the_issue(fake):
         to="pr view",
     )
 
-    assert list_linked_pull_requests(repository=REPOSITORY, issue=8) == []
+    assert read_issue_pull_request_context(
+        repository=REPOSITORY, issue=8
+    ) == IssuePullRequestContext(issue=8, title="The issue title", pull_requests=[])
 
 
 def test_a_linked_pull_request_whose_state_cannot_be_read_is_unknown(fake):
     gh = fake(program="gh")
     gh.replies(
-        stdout=json.dumps({"closedByPullRequestsReferences": [{"number": 28}]}),
+        stdout=json.dumps(
+            {
+                "number": 8,
+                "title": "The issue title",
+                "closedByPullRequestsReferences": [{"number": 28}],
+            }
+        ),
         to="issue view",
     )
     gh.fails(stderr="gh: could not connect to github.com", to="pr view")
 
-    answered = list_linked_pull_requests(repository=REPOSITORY, issue=8)
+    answered = read_issue_pull_request_context(repository=REPOSITORY, issue=8)
 
     assert isinstance(answered, UnknownGitHubResponse)
     assert "could not connect" in answered.reason
@@ -297,9 +325,19 @@ def test_a_linked_pull_request_whose_state_cannot_be_read_is_unknown(fake):
 
 def test_an_issue_nobody_has_claimed_has_no_linked_pull_request(fake):
     gh = fake(program="gh")
-    gh.replies(stdout=json.dumps({"closedByPullRequestsReferences": []}))
+    gh.replies(
+        stdout=json.dumps(
+            {
+                "number": 8,
+                "title": "The issue title",
+                "closedByPullRequestsReferences": [],
+            }
+        )
+    )
 
-    assert list_linked_pull_requests(repository=REPOSITORY, issue=8) == []
+    assert read_issue_pull_request_context(
+        repository=REPOSITORY, issue=8
+    ) == IssuePullRequestContext(issue=8, title="The issue title", pull_requests=[])
 
 
 def test_the_blockers_of_an_issue_come_back_with_their_states(fake):
@@ -483,8 +521,8 @@ def test_a_recorded_inline_comment_carries_the_diff_it_was_written_against(
             id="the pull requests",
         ),
         pytest.param(
-            lambda: list_linked_pull_requests(repository=REPOSITORY, issue=9),
-            id="the linked pull requests",
+            lambda: read_issue_pull_request_context(repository=REPOSITORY, issue=9),
+            id="the issue pull request context",
         ),
         pytest.param(
             lambda: list_blocking_issues(repository=REPOSITORY, issue=9),
