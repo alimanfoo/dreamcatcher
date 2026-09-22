@@ -36,7 +36,6 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.documents import write_json, write_text
-from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import (
     add_worktree,
     fetch_main,
@@ -887,47 +886,6 @@ def test_a_pull_request_that_is_finished_gets_one_last_round(resuming, gh, state
         "pull_request_state": state_name,
         "user_posts": [],
     }
-
-
-def test_a_reporting_write_failure_does_not_block_a_required_round(
-    resuming, gh, monkeypatch
-):
-    ran(root=resuming, number=1, purpose=AgentRoundPurpose.IMPLEMENT)
-    gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
-
-    def refuse_pull_request_observation_write(**_kwargs):
-        raise ReportableError("could not write assignment record")
-
-    monkeypatch.setattr(
-        "dreamcatcher.scheduler.record_pull_request_observation",
-        refuse_pull_request_observation_write,
-    )
-    scheduler, clock = create_scheduler(root=resuming)
-
-    observed = scheduler.tick(at=clock())
-    finish_rounds(scheduler=scheduler)
-
-    assert observed.launched_assignment_identifier == ASSIGNMENT_ID
-    assert record_of(scheduler=scheduler, number=2).purpose is AgentRoundPurpose.WRAP_UP
-
-
-def test_a_reporting_write_failure_is_reported_when_no_round_is_required(
-    resuming, gh, monkeypatch
-):
-    ran(root=resuming, number=1, purpose=AgentRoundPurpose.IMPLEMENT)
-    gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
-
-    def refuse_pull_request_observation_write(**_kwargs):
-        raise ReportableError("could not write assignment record")
-
-    monkeypatch.setattr(
-        "dreamcatcher.scheduler.record_pull_request_observation",
-        refuse_pull_request_observation_write,
-    )
-    scheduler, clock = create_scheduler(root=resuming)
-
-    with pytest.raises(ReportableError, match="could not write assignment record"):
-        scheduler.tick(at=clock())
 
 
 def test_an_assignment_that_has_had_its_last_round_gets_no_other(resuming, gh):

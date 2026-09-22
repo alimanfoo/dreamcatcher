@@ -241,7 +241,7 @@ def _compose_assignment_card(*, status: AgentAssignmentStatus) -> WebAssignmentC
     pull_request_observation = assignment.record.pull_request_observation
     if pull_request_observation is None:
         pull_request_state = None
-    elif pull_request_observation.state.value == "OPEN":
+    elif pull_request_observation.is_open:
         pull_request_state = "draft" if pull_request_observation.is_draft else "ready"
     else:
         pull_request_state = pull_request_observation.state.value.lower()

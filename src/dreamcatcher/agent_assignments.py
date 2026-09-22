@@ -86,6 +86,11 @@ class PullRequestObservation(DreamcatcherDocument):
     is_draft: bool
     observed_at: AwareDatetime
 
+    @property
+    def is_open(self) -> bool:
+        """Whether the pull request was open when observed."""
+        return self.state is PullRequestState.OPEN
+
 
 class AgentAssignmentRecord(DreamcatcherDocument):
     """Model the identities and settled settings of an agent assignment.
