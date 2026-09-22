@@ -151,6 +151,7 @@ def test_an_issue_with_no_preventing_fact_is_available(gh):
     found = observe(config=config_with_routes(labels=[DISPATCH_LABEL]))
 
     assert len(found) == 1
+    assert found[0].title == "Issue 8"
     assert derive_issue_availability(observation=found[0]).value is IssueFactValue.TRUE
 
 
@@ -363,6 +364,7 @@ def test_an_open_local_assignment_is_observed_outside_the_listing(gh, tmp_path):
         stdout=json.dumps(
             {
                 "number": 13,
+                "title": "Issue 13",
                 "createdAt": LATER,
                 "state": "CLOSED",
                 "assignees": [],
@@ -371,7 +373,7 @@ def test_an_open_local_assignment_is_observed_outside_the_listing(gh, tmp_path):
         ),
         to=(
             f"issue view 13 --repo {REPOSITORY} --json "
-            "number,createdAt,state,assignees,labels"
+            "number,title,createdAt,state,assignees,labels"
         ),
     )
 
@@ -427,6 +429,7 @@ def test_an_incomplete_setup_is_observed_outside_the_listing(gh):
         stdout=json.dumps(
             {
                 "number": 13,
+                "title": "Issue 13",
                 "createdAt": LATER,
                 "state": "CLOSED",
                 "assignees": [],
@@ -435,7 +438,7 @@ def test_an_incomplete_setup_is_observed_outside_the_listing(gh):
         ),
         to=(
             f"issue view 13 --repo {REPOSITORY} --json "
-            "number,createdAt,state,assignees,labels"
+            "number,title,createdAt,state,assignees,labels"
         ),
     )
 

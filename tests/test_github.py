@@ -74,6 +74,7 @@ def test_a_listing_carries_each_issue_and_when_it_was_filed(fake):
     gh = fake(program="gh")
     issue = {
         "number": 8,
+        "title": "The issue title",
         "createdAt": "2026-08-19T18:41:58Z",
         "state": "OPEN",
         "assignees": [{"login": "alimanfoo"}],
@@ -86,6 +87,7 @@ def test_a_listing_carries_each_issue_and_when_it_was_filed(fake):
     assert found == [
         Issue(
             number=8,
+            title="The issue title",
             created_at=datetime(2026, 8, 19, 18, 41, 58, tzinfo=UTC),
             state=IssueState.OPEN,
             assignees=[GitHubUserAccount(login="alimanfoo")],
@@ -106,7 +108,7 @@ def test_a_listing_carries_each_issue_and_when_it_was_filed(fake):
         "--limit",
         "500",
         "--json",
-        "number,createdAt,state,assignees,labels",
+        "number,title,createdAt,state,assignees,labels",
     ]
 
 
@@ -114,6 +116,7 @@ def test_one_issue_carries_its_state_assignees_and_labels(fake):
     gh = fake(program="gh")
     issue = {
         "number": 8,
+        "title": "The issue title",
         "createdAt": "2026-08-19T18:41:58Z",
         "state": "CLOSED",
         "assignees": [],
@@ -125,6 +128,7 @@ def test_one_issue_carries_its_state_assignees_and_labels(fake):
 
     assert found == Issue(
         number=8,
+        title="The issue title",
         created_at=datetime(2026, 8, 19, 18, 41, 58, tzinfo=UTC),
         state=IssueState.CLOSED,
         assignees=[],
@@ -137,7 +141,7 @@ def test_one_issue_carries_its_state_assignees_and_labels(fake):
         "--repo",
         REPOSITORY,
         "--json",
-        "number,createdAt,state,assignees,labels",
+        "number,title,createdAt,state,assignees,labels",
     ]
 
 

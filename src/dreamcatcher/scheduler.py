@@ -91,6 +91,7 @@ class IssueObservation(DreamcatcherDocument):
     """Model the independent facts observed about an issue in one tick."""
 
     issue: int
+    title: str | None = None
     created_at: datetime | None = None
     observed_at: UtcDateTime | None = None
     is_open: IssueFact
@@ -322,12 +323,14 @@ def _observe_issue(
     """Observe the independent scheduling facts for one issue."""
     if isinstance(issue_response, UnknownGitHubResponse):
         external_reason = f"cannot read issue: {issue_response.reason}"
+        title = None
         created_at = None
         is_open = _compose_unknown_issue_fact(evidence=external_reason)
         is_assigned = _compose_unknown_issue_fact(evidence=external_reason)
         dispatch_labels = None
         routing_conflict = _compose_unknown_issue_fact(evidence=external_reason)
     else:
+        title = issue_response.title
         created_at = issue_response.created_at
         is_open = _compose_known_issue_fact(
             value=issue_response.state is IssueState.OPEN,
@@ -372,6 +375,7 @@ def _observe_issue(
     )
     return IssueObservation(
         issue=issue,
+        title=title,
         created_at=created_at,
         is_open=is_open,
         is_assigned_to_user=is_assigned,

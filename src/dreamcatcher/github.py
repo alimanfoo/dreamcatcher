@@ -116,6 +116,7 @@ class Issue(GitHubResponseProjection):
     """Model the GitHub facts that scheduling observes about an issue."""
 
     number: int
+    title: str
     created_at: datetime = Field(alias="createdAt")
     state: IssueState
     assignees: list[GitHubUserAccount]
@@ -341,7 +342,7 @@ def list_issues(
             "--limit",
             ISSUE_LISTING_LIMIT,
             "--json",
-            "number,createdAt,state,assignees,labels",
+            "number,title,createdAt,state,assignees,labels",
         ],
     )
 
@@ -357,7 +358,7 @@ def read_issue(*, repository: str, issue: int) -> Issue | UnknownGitHubResponse:
             "--repo",
             repository,
             "--json",
-            "number,createdAt,state,assignees,labels",
+            "number,title,createdAt,state,assignees,labels",
         ],
     )
 
