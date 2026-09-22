@@ -12,6 +12,7 @@ from conftest import FIXTURES, REPOSITORY
 from status_fabrications import (
     LOOKED_AT,
     STATUS_REPORTS,
+    fabricate_a_silent_round,
     fabricate_everything,
     fabricate_titles_and_pull_request_states,
 )
@@ -27,12 +28,27 @@ WEB_STATUS_REPORTS = {
     **STATUS_REPORTS,
     "titles-and-pull-requests": fabricate_titles_and_pull_request_states,
 }
+WEB_ASSIGNMENT_PAGES = {
+    "complete": (fabricate_everything, "GH12-20260819-184158"),
+    "fault": (fabricate_everything, "GH9-20260819-184158"),
+    "silent-round": (fabricate_a_silent_round, "GH13-20260819-184158"),
+    "waiting-to-start": (fabricate_everything, "GH44-20260819-184158"),
+    "working": (fabricate_everything, "GH13-20260819-184158"),
+}
 
 
 def render_home(*, state: StateDirectory) -> str:
     """Render the home page against a pinned clock."""
     application = create_app(state=state, clock=lambda: LOOKED_AT)
     response = application.test_client().get("/")
+    assert response.status_code == 200
+    return response.get_data(as_text=True)
+
+
+def render_assignment(*, state: StateDirectory, identifier: str) -> str:
+    """Render one assignment page against a pinned clock."""
+    application = create_app(state=state, clock=lambda: LOOKED_AT)
+    response = application.test_client().get(f"/assignments/{identifier}")
     assert response.status_code == 200
     return response.get_data(as_text=True)
 
@@ -45,6 +61,80 @@ def test_a_state_directory_renders_as_its_golden_home(name, tmp_path, daemon):
     page = render_home(state=state)
 
     assert page == (FIXTURES / "web" / f"{name}.html").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("name", sorted(WEB_ASSIGNMENT_PAGES))
+def test_an_assignment_renders_as_its_golden_page(name, tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate, identifier = WEB_ASSIGNMENT_PAGES[name]
+    fabricate(state=state)
+
+    page = render_assignment(state=state, identifier=identifier)
+
+    assert page == (FIXTURES / "web" / "assignments" / f"{name}.html").read_text(
+        encoding="utf-8"
+    )
+
+
+def test_a_home_card_links_to_its_exact_assignment(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_home(state=state)
+
+    assert 'href="/assignments/GH13-20260819-184158"' in page
+
+
+def test_an_unknown_assignment_renders_a_404_page(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    application = create_app(state=state, clock=lambda: LOOKED_AT)
+
+    response = application.test_client().get("/assignments/GH99-20260819-184158")
+
+    assert response.status_code == 404
+    assert (
+        "No agent assignment here has identifier GH99-20260819-184158."
+        in response.get_data(as_text=True)
+    )
+
+
+def test_an_assignment_page_links_its_title_and_pull_request(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_titles_and_pull_request_states(state=state)
+
+    page = render_assignment(state=state, identifier="GH10-20260819-184158")
+
+    assert (
+        f'href="https://github.com/{REPOSITORY}/issues/10">#10 '
+        "<span>Draft assignment</span></a>" in page
+    )
+    assert f'href="https://github.com/{REPOSITORY}/pull/52">PR #52 draft</a>' in page
+
+
+def test_assignment_reporting_remains_without_a_repository_record(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_titles_and_pull_request_states(state=state)
+    state.repository.unlink()
+
+    page = render_assignment(state=state, identifier="GH10-20260819-184158")
+
+    assert '<strong class="assignment-issue">#10' in page
+    assert '<span class="pr-chip">PR #52 draft</span>' in page
+
+
+def test_the_assignment_page_preserves_and_escapes_an_unparseable_feed_line(
+    tmp_path, daemon
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    feed = state.assignments / "GH13-20260819-184158" / "rounds" / "2" / "feed.txt"
+    append_text(text="<script>alert('no')</script>\n", path=feed)
+
+    page = render_assignment(state=state, identifier="GH13-20260819-184158")
+
+    assert "&lt;script&gt;alert(&#39;no&#39;)&lt;/script&gt;" in page
+    assert "<script>alert('no')</script>" not in page
 
 
 def test_the_same_state_renders_as_the_same_home_page(tmp_path, daemon):

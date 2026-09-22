@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>alimanfoo/dreamcatcher · dreamcatcher</title>
+    <link rel="stylesheet" href="/static/matrix.css">
+    <script src="/static/vendor/htmx-2.0.10.min.js" defer></script>
+    <script src="/static/vendor/idiomorph-ext-0.7.4.min.js" defer></script>
+  </head>
+  <body hx-ext="morph">
+    
+  <main class="assignment-page">
+    <header class="site-header">
+      <div class="repository"><img class="mark" src="/static/dreamcatcher-mark-phosphor.png" alt="Dreamcatcher">alimanfoo/dreamcatcher</div>
+      <a class="assignment-navigation" href="/">&lt; all assignments</a>
+    </header>
+    <div class="assignment-content">
+      <section class="assignment-overview" aria-labelledby="assignment-heading">
+        <div class="assignment-heading">
+          <div>
+            
+              <a class="assignment-issue" href="https://github.com/alimanfoo/dreamcatcher/issues/9">#9</a>
+            
+            <h1 id="assignment-heading">GH9-20260819-184158</h1>
+          </div>
+          <span class="chip status-fault">[FAULT]</span>
+        </div>
+        <p class="assignment-detail">two consecutive rounds failed (.dreamcatcher/v3/assignments/GH9-20260819-184158/rounds/2/feed.txt)</p>
+        <dl class="assignment-facts">
+          <div><dt>pull request</dt><dd><a class="pr-chip" href="https://github.com/alimanfoo/dreamcatcher/pull/52">PR #52</a></dd></div>
+          <div><dt>branch</dt><dd>dreamcatcher-GH9-20260819-184158</dd></div>
+          <div><dt>harness</dt><dd>claude</dd></div>
+          <div><dt>harness session</dt><dd>abc-123</dd></div>
+          <div><dt>model</dt><dd>opus[1m]</dd></div>
+          <div><dt>effort</dt><dd>xhigh</dd></div>
+        </dl>
+      </section>
+      <section class="panel assignment-rounds" aria-labelledby="rounds-heading">
+        <h1 id="rounds-heading">ROUNDS <span>02</span></h1>
+        
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>round</th><th>purpose</th><th>recovery</th><th>started</th><th>duration</th><th>outcome</th></tr></thead>
+              <tbody>
+                <tr><td>2</td><td>implement</td><td>no</td><td>2026-08-19T18:43:58Z</td><td>ran 4m</td><td>errored (exit 2)</td></tr><tr><td>1</td><td>implement</td><td>no</td><td>2026-08-19T18:42:58Z</td><td>ran 4m</td><td>errored (exit 1)</td></tr>
+              </tbody>
+            </table>
+          </div>
+        
+      </section>
+      
+        <section class="panel resume-command" aria-labelledby="resume-heading">
+          <h1 id="resume-heading">RESUME HARNESS SESSION YOURSELF</h1>
+          <pre>cd .dreamcatcher/v3/worktrees/GH9-20260819-184158
+claude --resume abc-123</pre>
+        </section>
+      
+      <section class="panel assignment-feed" aria-labelledby="feed-heading">
+        <h1 id="feed-heading">FEED</h1>
+        <div id="records" class="feed-records">
+          
+            <div id="feed-round-1" class="feed-round">
+              <div class="feed-line round-boundary">
+  <time>2026-08-19T18:42:58Z</time>
+  <span class="feed-content"><span class="feed-detail">round 1: implement</span></span>
+</div>
+            </div>
+          
+            <div id="feed-round-2" class="feed-round">
+              <div class="feed-line round-boundary">
+  <time>2026-08-19T18:43:58Z</time>
+  <span class="feed-content"><span class="feed-detail">round 2: implement</span></span>
+</div>
+            </div>
+          
+        </div>
+      </section>
+    </div>
+  </main>
+
+  </body>
+</html>

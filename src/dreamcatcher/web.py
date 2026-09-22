@@ -15,8 +15,12 @@ from flask import Flask, render_template
 from werkzeug.serving import BaseWSGIServer
 
 from dreamcatcher.clock import read_current_time
-from dreamcatcher.documents import read_text
+from dreamcatcher.documents import read_lines_from, read_text
 from dreamcatcher.errors import ReportableError
+from dreamcatcher.feed import (
+    compose_agent_round_boundary,
+    read_feed_line,
+)
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
@@ -25,6 +29,7 @@ from dreamcatcher.status import (
     DreamcatcherStatusReport,
     IssueFactValue,
     IssueObservation,
+    read_agent_assignment_status,
     read_status_report,
 )
 from dreamcatcher.words import describe_span, describe_time
@@ -40,6 +45,10 @@ class _WebServerBindError(Exception):
     def __init__(self, *, error: OSError) -> None:
         super().__init__(str(error))
         self.error = error
+
+
+class _UnknownAgentAssignmentError(ReportableError):
+    pass
 
 
 class _ExclusiveWebServer(BaseWSGIServer):
@@ -88,6 +97,61 @@ class WebAssignmentCard:
 
 
 @dataclass(frozen=True, kw_only=True)
+class WebAssignmentRound:
+    """Represent one round row on an assignment page."""
+
+    number: int
+    purpose: str
+    recovery: str
+    started: str
+    duration: str
+    outcome: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class WebFeedLine:
+    """Represent one stored feed line on an assignment page."""
+
+    timestamp: str | None
+    label: str | None
+    detail: str
+    is_subagent: bool = False
+    is_boundary: bool = False
+
+
+@dataclass(frozen=True, kw_only=True)
+class WebFeedRound:
+    """Represent one round's boundary and stored feed lines."""
+
+    number: int
+    lines: tuple[WebFeedLine, ...]
+
+
+@dataclass(frozen=True, kw_only=True)
+class WebAssignmentView:
+    """Represent every value that the assignment template lays out."""
+
+    repository: str
+    github_repository_url: str | None
+    identifier: str
+    issue: int
+    title: str | None
+    status: str
+    detail: str
+    pull_request: int
+    pull_request_state: str | None
+    branch: str
+    harness: str
+    harness_session_identifier: str
+    model: str
+    effort: str
+    rounds: tuple[WebAssignmentRound, ...]
+    hand_resume_worktree: str | None
+    hand_resume_command: str | None
+    feed_rounds: tuple[WebFeedRound, ...]
+
+
+@dataclass(frozen=True, kw_only=True)
 class WebIssueRow:
     """Represent one available or blocked issue row."""
 
@@ -128,6 +192,29 @@ def create_app(
     def show_home() -> str:
         report = read_status_report(state=state, clock=clock)
         return render_template("home.html", view=_compose_home_view(report=report))
+
+    @app.get("/assignments/<identifier>")
+    def show_assignment(*, identifier: str) -> str:
+        status = read_agent_assignment_status(
+            state=state,
+            identifier=identifier,
+            clock=clock,
+        )
+        if status is None:
+            raise _UnknownAgentAssignmentError(
+                f"No agent assignment here has identifier {identifier}."
+            )
+        return render_template(
+            "assignment.html",
+            view=_compose_assignment_view(state=state, status=status),
+        )
+
+    @app.errorhandler(_UnknownAgentAssignmentError)
+    def show_unknown_assignment(
+        error: _UnknownAgentAssignmentError, /
+    ) -> tuple[str, int]:
+        """Render an unknown identifier for Flask, which passes errors by position."""
+        return render_template("error.html", message=str(error)), 404
 
     @app.errorhandler(ReportableError)
     def show_reportable_error(error: ReportableError, /) -> tuple[str, int]:
@@ -182,11 +269,23 @@ def _create_web_server(
 
 
 def _derive_starting_port(*, state: StateDirectory) -> int:
-    if not state.repository.is_file():
+    repository = _read_repository(state=state)
+    if repository is None:
         return WEB_BASE_PORT
-    repository = read_text(path=state.repository).strip()
     repository_digest = zlib.crc32(repository.encode("utf-8"))
     return WEB_BASE_PORT + repository_digest % WEB_PORT_RANGE
+
+
+def _read_repository(*, state: StateDirectory) -> str | None:
+    if not state.repository.is_file():
+        return None
+    return read_text(path=state.repository).strip()
+
+
+def _compose_github_repository_url(*, repository: str | None) -> str | None:
+    if repository is None:
+        return None
+    return f"https://github.com/{repository}"
 
 
 def _compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
@@ -208,10 +307,8 @@ def _compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
     )
     return WebHomeView(
         repository=report.repository or "repository unknown",
-        github_repository_url=(
-            None
-            if report.repository is None
-            else f"https://github.com/{report.repository}"
+        github_repository_url=_compose_github_repository_url(
+            repository=report.repository
         ),
         daemon_state="stopped" if report.daemon_pid is None else "running",
         daemon_summary=_describe_daemon(report=report),
@@ -238,13 +335,6 @@ def _compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
 
 def _compose_assignment_card(*, status: AgentAssignmentStatus) -> WebAssignmentCard:
     assignment = status.assignment
-    pull_request_observation = assignment.record.pull_request_observation
-    if pull_request_observation is None:
-        pull_request_state = None
-    elif pull_request_observation.is_open:
-        pull_request_state = "draft" if pull_request_observation.is_draft else "ready"
-    else:
-        pull_request_state = pull_request_observation.state.value.lower()
     return WebAssignmentCard(
         identifier=assignment.identifier,
         issue=assignment.record.issue,
@@ -255,8 +345,112 @@ def _compose_assignment_card(*, status: AgentAssignmentStatus) -> WebAssignmentC
         model=assignment.record.model,
         effort=assignment.record.effort,
         pull_request=assignment.record.pull_request,
-        pull_request_state=pull_request_state,
+        pull_request_state=_describe_pull_request_state(status=status),
         latest_output=status.latest_output,
+    )
+
+
+def _describe_pull_request_state(*, status: AgentAssignmentStatus) -> str | None:
+    pull_request_observation = status.assignment.record.pull_request_observation
+    if pull_request_observation is None:
+        return None
+    if pull_request_observation.is_open:
+        return "draft" if pull_request_observation.is_draft else "ready"
+    return pull_request_observation.state.value.lower()
+
+
+def _compose_assignment_view(
+    *, state: StateDirectory, status: AgentAssignmentStatus
+) -> WebAssignmentView:
+    assignment = status.assignment
+    record = assignment.record
+    repository = _read_repository(state=state)
+    hand_resume_command = status.hand_resume_command
+    return WebAssignmentView(
+        repository=repository or "repository unknown",
+        github_repository_url=_compose_github_repository_url(repository=repository),
+        identifier=assignment.identifier,
+        issue=record.issue,
+        title=record.title,
+        status=str(status.value),
+        detail=status.detail,
+        pull_request=record.pull_request,
+        pull_request_state=_describe_pull_request_state(status=status),
+        branch=record.branch,
+        harness=str(record.harness),
+        harness_session_identifier=(
+            "not recorded"
+            if status.harness_session_identifier is None
+            else status.harness_session_identifier
+        ),
+        model=record.model,
+        effort=record.effort,
+        rounds=tuple(
+            WebAssignmentRound(
+                number=round_status.record.number,
+                purpose=str(round_status.record.purpose),
+                recovery="yes" if round_status.record.is_recovery else "no",
+                started=describe_time(at=round_status.record.started),
+                duration=round_status.duration_description,
+                outcome=round_status.outcome_description,
+            )
+            for round_status in reversed(status.round_statuses)
+        ),
+        hand_resume_worktree=(
+            None
+            if hand_resume_command is None
+            else state.describe_path(path=record.worktree)
+        ),
+        hand_resume_command=(
+            None if hand_resume_command is None else " ".join(hand_resume_command)
+        ),
+        feed_rounds=_read_assignment_feed(status=status),
+    )
+
+
+def _read_assignment_feed(*, status: AgentAssignmentStatus) -> tuple[WebFeedRound, ...]:
+    assignment = status.assignment
+    feed_rounds = []
+    for record in assignment.rounds:
+        boundary = compose_agent_round_boundary(
+            number=record.number,
+            purpose=record.purpose,
+            is_recovery=record.is_recovery,
+            at=record.started,
+        )
+        written_lines, _ = read_lines_from(
+            path=assignment.compose_round_paths(number=record.number).feed,
+            position=0,
+        )
+        feed_rounds.append(
+            WebFeedRound(
+                number=record.number,
+                lines=(
+                    WebFeedLine(
+                        timestamp=describe_time(at=boundary.at),
+                        label=None,
+                        detail=boundary.text,
+                        is_boundary=True,
+                    ),
+                    *(
+                        _compose_web_feed_line(written_line=written_line)
+                        for written_line in written_lines
+                    ),
+                ),
+            )
+        )
+    return tuple(feed_rounds)
+
+
+def _compose_web_feed_line(*, written_line: str) -> WebFeedLine:
+    line = read_feed_line(written_line=written_line)
+    if line is None:
+        return WebFeedLine(timestamp=None, label=None, detail=written_line)
+    return WebFeedLine(
+        timestamp=describe_time(at=line.at),
+        label=line.label,
+        detail=line.detail,
+        is_subagent=line.is_subagent,
     )
 
 

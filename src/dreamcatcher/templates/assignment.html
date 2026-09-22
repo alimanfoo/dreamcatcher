@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block content %}
+  <main class="assignment-page">
+    <header class="site-header">
+      <div class="repository"><img class="mark" src="{{ url_for('static', filename='dreamcatcher-mark-phosphor.png') }}" alt="Dreamcatcher">{{ view.repository }}</div>
+      <a class="assignment-navigation" href="{{ url_for('show_home') }}">&lt; all assignments</a>
+    </header>
+    <div class="assignment-content">
+      <section class="assignment-overview" aria-labelledby="assignment-heading">
+        <div class="assignment-heading">
+          <div>
+            {% if view.github_repository_url %}
+              <a class="assignment-issue" href="{{ view.github_repository_url }}/issues/{{ view.issue }}">#{{ view.issue }}{% if view.title %} <span>{{ view.title }}</span>{% endif %}</a>
+            {% else %}
+              <strong class="assignment-issue">#{{ view.issue }}{% if view.title %} <span>{{ view.title }}</span>{% endif %}</strong>
+            {% endif %}
+            <h1 id="assignment-heading">{{ view.identifier }}</h1>
+          </div>
+          <span class="chip status-{{ view.status|replace(' ', '-') }}">[{{ view.status|upper }}]</span>
+        </div>
+        <p class="assignment-detail">{{ view.detail }}</p>
+        <dl class="assignment-facts">
+          <div><dt>pull request</dt><dd>{% if view.github_repository_url %}<a class="pr-chip" href="{{ view.github_repository_url }}/pull/{{ view.pull_request }}">PR #{{ view.pull_request }}{% if view.pull_request_state %} {{ view.pull_request_state }}{% endif %}</a>{% else %}<span class="pr-chip">PR #{{ view.pull_request }}{% if view.pull_request_state %} {{ view.pull_request_state }}{% endif %}</span>{% endif %}</dd></div>
+          <div><dt>branch</dt><dd>{{ view.branch }}</dd></div>
+          <div><dt>harness</dt><dd>{{ view.harness }}</dd></div>
+          <div><dt>harness session</dt><dd>{{ view.harness_session_identifier }}</dd></div>
+          <div><dt>model</dt><dd>{{ view.model }}</dd></div>
+          <div><dt>effort</dt><dd>{{ view.effort }}</dd></div>
+        </dl>
+      </section>
+      <section class="panel assignment-rounds" aria-labelledby="rounds-heading">
+        <h1 id="rounds-heading">ROUNDS <span>{{ "%02d"|format(view.rounds|length) }}</span></h1>
+        {% if view.rounds %}
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>round</th><th>purpose</th><th>recovery</th><th>started</th><th>duration</th><th>outcome</th></tr></thead>
+              <tbody>
+                {% for round in view.rounds %}<tr><td>{{ round.number }}</td><td>{{ round.purpose }}</td><td>{{ round.recovery }}</td><td>{{ round.started }}</td><td>{{ round.duration }}</td><td>{{ round.outcome }}</td></tr>{% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="empty">-- no rounds have run --</p>
+        {% endif %}
+      </section>
+      {% if view.hand_resume_command %}
+        <section class="panel resume-command" aria-labelledby="resume-heading">
+          <h1 id="resume-heading">RESUME HARNESS SESSION YOURSELF</h1>
+          <pre>cd {{ view.hand_resume_worktree }}
+{{ view.hand_resume_command }}</pre>
+        </section>
+      {% endif %}
+      <section class="panel assignment-feed" aria-labelledby="feed-heading">
+        <h1 id="feed-heading">FEED</h1>
+        <div id="records" class="feed-records">
+          {% for feed_round in view.feed_rounds %}
+            <div id="feed-round-{{ feed_round.number }}" class="feed-round">
+              {% for line in feed_round.lines %}{% include "partials/feed-line.html" %}{% endfor %}
+            </div>
+          {% else %}
+            <p class="empty">-- no feed yet --</p>
+          {% endfor %}
+        </div>
+      </section>
+    </div>
+  </main>
+{% endblock %}
