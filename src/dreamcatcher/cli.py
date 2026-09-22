@@ -8,7 +8,7 @@ from pathlib import Path
 from threading import TIMEOUT_MAX
 
 import dreamcatcher
-from dreamcatcher import tui
+from dreamcatcher import tui, web
 from dreamcatcher.agent_assignments import (
     read_agent_assignments_for_issue,
     request_agent_assignment_retry,
@@ -110,6 +110,23 @@ def build_cli_parser() -> argparse.ArgumentParser:
     )
     _add_issue_argument(parser=retry_parser)
     retry_parser.set_defaults(act=_retry_assignment)
+    web_parser = subcommands.add_parser(
+        "web",
+        help="serve the local status report in a web browser",
+        description=(
+            "Serve this repository's local status report on loopback, open it "
+            "in the default browser, and keep serving until you interrupt it. "
+            "The view reads only the local state directory and never contacts "
+            "GitHub."
+        ),
+    )
+    web_parser.add_argument(
+        "--port",
+        type=_parse_port,
+        metavar="PORT",
+        help="listen on this port exactly instead of choosing one for the repository",
+    )
+    web_parser.set_defaults(act=_show_web)
     status_parser = subcommands.add_parser(
         "status",
         help="show the instance, issue, and agent-assignment status",
@@ -199,6 +216,14 @@ def _parse_interval(value: str, /) -> int:
     return interval
 
 
+def _parse_port(value: str, /) -> int:
+    """Return a valid TCP port; argparse calls this converter positionally."""
+    port = _parse_positive_integer(value)
+    if port > web.WEB_MAX_PORT:
+        raise argparse.ArgumentTypeError(f"must be no greater than {web.WEB_MAX_PORT}")
+    return port
+
+
 def main(*, argv: Sequence[str] | None = None) -> int:
     """Run the verb that the arguments name, and return the exit status."""
     arguments = build_cli_parser().parse_args(argv)
@@ -247,6 +272,13 @@ def _retry_assignment(*, arguments: argparse.Namespace) -> None:
 def _show_status(*, arguments: argparse.Namespace) -> None:
     tui.show_status_view(
         state=_find_state_directory(root=Path.cwd()), console=tui.open_tui_console()
+    )
+
+
+def _show_web(*, arguments: argparse.Namespace) -> None:
+    web.serve_web(
+        state=_find_state_directory(root=Path.cwd()),
+        port=arguments.port,
     )
 
 

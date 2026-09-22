@@ -16,7 +16,9 @@ below says less than the design does, the design's word stands.
 card in the attention order the TUI uses, failed assignment setups, the
 available issues in dispatch order and the blocked issues with their evidence. A
 working card shows the last line its feed said. Times are shown as the TUI shows
-them, in UTC. The page carries no polling and no link to any other page.
+them, in UTC. The page carries no polling and no link to any other page. Every
+issue number is written as `#N` and links to that issue on GitHub; references in
+blocker evidence receive the same treatment.
 
 The scaffolding arrives with it. Flask joins `pyproject.toml`. `web.py` holds
 `create_app`, which takes a `StateDirectory` and a clock and returns the Flask
@@ -134,8 +136,8 @@ and row shows its title; mark a draft pull request ready on GitHub and after the
 next tick its chip says ready; a record from before this stage still renders
 until a tick fills it in.
 
-**Deferral.** Titles and pull request state in the TUI. Structured evidence for
-claimed elsewhere and blocked by, which stays prose.
+**Deferral.** Titles and pull request state in the TUI. Evidence remains prose;
+the web presentation recognises its issue references only to link them.
 
 ## Stage 3: The home page goes live
 

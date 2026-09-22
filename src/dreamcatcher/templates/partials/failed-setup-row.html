@@ -1,0 +1,4 @@
+{% from "partials/issue-reference.html" import issue_reference with context %}<article class="failed-setup-row">
+  {{ issue_reference(setup.issue) }}
+  <span>{{ setup.failure }}</span>
+</article>

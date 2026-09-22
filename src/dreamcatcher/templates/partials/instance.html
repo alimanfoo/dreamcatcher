@@ -1,0 +1,11 @@
+<section class="instance" aria-label="Instance">
+  {% if view.cooldown_message %}<p class="cooldown">!! {{ view.cooldown_message }}</p>{% endif %}
+  <dl class="facts">
+    {% for fact in view.instance_facts %}
+      <div class="fact{% if fact.is_warning %} warning{% endif %}">
+        <dt>{{ fact.label }}</dt>
+        <dd>{{ fact.value }}</dd>
+      </div>
+    {% endfor %}
+  </dl>
+</section>

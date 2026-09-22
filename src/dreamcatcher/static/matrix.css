@@ -1,0 +1,336 @@
+:root {
+  --background: #050806;
+  --bright: #d6ffe0;
+  --phosphor: #33ff66;
+  --dim: rgba(51, 255, 102, 0.55);
+  --faint: rgba(51, 255, 102, 0.45);
+  --rule: rgba(51, 255, 102, 0.28);
+  --rule-inner: rgba(51, 255, 102, 0.18);
+  --tint: rgba(51, 255, 102, 0.08);
+  --scanline: rgba(0, 0, 0, 0.24);
+  --vignette: rgba(0, 0, 0, 0.6);
+  --amber: #ffb000;
+  --shadow: 0 0 8px rgba(51, 255, 102, 0.55);
+  --font: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-size: 13px;
+  --line-height: 1.5;
+  --line: 1px;
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 6px;
+  --space-4: 8px;
+  --space-5: 10px;
+  --space-6: 12px;
+  --space-7: 14px;
+  --space-8: 16px;
+  --space-9: 18px;
+  --space-10: 22px;
+  --space-11: 24px;
+  --space-12: 28px;
+  --page-width: 1320px;
+  --letter-label: 0.14em;
+  --letter-chip: 0.06em;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  color: var(--bright);
+  background: var(--background);
+  font-family: var(--font);
+  font-size: var(--font-size);
+  line-height: var(--line-height);
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background: var(--background);
+}
+
+body::after {
+  position: fixed;
+  z-index: 10;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  background:
+    repeating-linear-gradient(
+      0deg,
+      var(--scanline) 0 var(--line),
+      transparent var(--line) var(--space-3)
+    ),
+    radial-gradient(ellipse at center, transparent 55%, var(--vignette) 100%);
+}
+
+::selection {
+  color: var(--background);
+  background: var(--phosphor);
+}
+
+.site-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-6);
+  padding: var(--space-6) var(--space-12);
+  color: var(--dim);
+  border-bottom: var(--line) solid var(--rule);
+}
+
+.repository {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  font-weight: 600;
+}
+
+.mark {
+  width: calc(var(--space-11) * 2);
+  height: auto;
+  opacity: 0.8;
+}
+
+.daemon-running {
+  color: var(--phosphor);
+}
+
+.daemon-stopped {
+  color: var(--amber);
+}
+
+main {
+  width: min(100%, var(--page-width));
+  margin: 0 auto;
+  padding: var(--space-10) var(--space-12) calc(var(--space-12) * 2);
+}
+
+.instance {
+  margin-bottom: var(--space-12);
+}
+
+.cooldown {
+  padding: var(--space-5) var(--space-7);
+  margin: 0 0 var(--space-8);
+  color: var(--amber);
+  font-weight: 700;
+  border: var(--line) solid var(--amber);
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6) 0;
+  margin: 0;
+}
+
+.fact {
+  display: flex;
+  gap: var(--space-3);
+  padding-right: var(--space-6);
+  margin-right: var(--space-6);
+  border-right: var(--line) solid var(--rule);
+}
+
+.fact dt {
+  color: var(--dim);
+}
+
+.fact dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.fact.warning dd {
+  color: var(--amber);
+}
+
+.dashboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
+  gap: var(--space-12);
+}
+
+.panel {
+  position: relative;
+  padding: var(--space-10) var(--space-8) var(--space-8);
+  border: var(--line) solid var(--rule);
+}
+
+.panel > h1 {
+  position: absolute;
+  top: calc(var(--space-5) * -1);
+  left: var(--space-6);
+  padding: 0 var(--space-4);
+  margin: 0;
+  color: var(--phosphor);
+  background: var(--background);
+  font-size: var(--font-size);
+  font-weight: 700;
+  letter-spacing: var(--letter-label);
+  text-shadow: var(--shadow);
+}
+
+.panel > h1 span {
+  color: var(--dim);
+  font-weight: 400;
+}
+
+.panel-body {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.panel-body > h2 {
+  margin: var(--space-6) 0 0;
+  color: var(--dim);
+  font-size: var(--font-size);
+  letter-spacing: var(--letter-chip);
+}
+
+.assignment-card,
+.issue-row,
+.failed-setup-row {
+  padding: var(--space-5) var(--space-7);
+  border: var(--line) solid var(--rule-inner);
+}
+
+.assignment-card.needs-feedback {
+  background: var(--tint);
+  border-color: var(--phosphor);
+}
+
+.card-heading,
+.assignment-meta,
+.failed-setup-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.issue-number {
+  color: var(--phosphor);
+  font-weight: 700;
+}
+
+.identifier {
+  font-weight: 600;
+}
+
+.chip {
+  flex: none;
+  padding: 0 var(--space-3);
+  color: var(--phosphor);
+  font-weight: 700;
+  letter-spacing: var(--letter-chip);
+}
+
+.status-needs-user-feedback,
+.issue-available {
+  color: var(--background);
+  background: var(--phosphor);
+}
+
+.status-fault {
+  color: var(--background);
+  background: var(--amber);
+}
+
+.status-waiting,
+.status-unknown,
+.status-complete,
+.issue-blocked {
+  color: var(--dim);
+}
+
+.status-working {
+  text-shadow: var(--shadow);
+}
+
+.assignment-detail,
+.latest-output,
+.labels,
+.evidence,
+.error-message {
+  margin: var(--space-3) 0 0;
+}
+
+.assignment-detail,
+.assignment-meta,
+.labels,
+.evidence {
+  color: var(--dim);
+}
+
+.latest-output {
+  overflow: hidden;
+  color: var(--bright);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.latest-output span {
+  color: var(--phosphor);
+  font-weight: 700;
+}
+
+.assignment-meta {
+  margin-top: var(--space-4);
+}
+
+.pr-chip {
+  flex: none;
+  padding: var(--space-1) var(--space-5);
+  color: var(--phosphor);
+  border: var(--line) solid var(--rule);
+}
+
+.complete-assignments summary,
+.empty {
+  color: var(--dim);
+}
+
+.complete-assignments summary {
+  padding: var(--space-4) 0;
+  cursor: pointer;
+}
+
+.complete-assignments[open] {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.failed-setup-row {
+  justify-content: flex-start;
+  color: var(--amber);
+}
+
+.empty {
+  margin: var(--space-5) 0;
+}
+
+.error-page {
+  padding-top: calc(var(--space-12) * 2);
+}
+
+@media (max-width: 700px) {
+  .site-header,
+  main {
+    padding-right: var(--space-8);
+    padding-left: var(--space-8);
+  }
+
+  .dashboard {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .card-heading,
+  .assignment-meta {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

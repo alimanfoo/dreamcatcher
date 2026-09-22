@@ -1,0 +1,8 @@
+{% from "partials/issue-reference.html" import issue_reference with context %}<article class="issue-row" aria-label="Issue #{{ issue.issue }}">
+  <div class="card-heading">
+    {{ issue_reference(issue.issue) }}
+    <span class="chip issue-{{ issue.status }}">[{{ issue.status|upper }}]</span>
+  </div>
+  {% if issue.labels %}<p class="labels">{{ issue.labels }}</p>{% endif %}
+  {% if issue.evidence %}<p class="evidence">{% for part in issue.evidence %}{% if part is integer %}{{ issue_reference(part) }}{% else %}{{ part }}{% endif %}{% endfor %}</p>{% endif %}
+</article>
