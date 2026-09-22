@@ -306,6 +306,24 @@ body::after {
   font-weight: 700;
 }
 
+.latest-output.is-replacing {
+  visibility: hidden;
+}
+
+.latest-output.is-typing {
+  animation: type-latest-output 420ms steps(32, end);
+}
+
+@keyframes type-latest-output {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+
+  to {
+    clip-path: inset(0);
+  }
+}
+
 .assignment-meta {
   margin-top: var(--space-4);
 }
@@ -589,21 +607,6 @@ body::after {
 .feed-content {
   overflow-wrap: anywhere;
   white-space: pre-wrap;
-}
-
-.feed-content.is-typing {
-  animation: type-latest-feed-output var(--typing-duration)
-    steps(var(--typing-steps), end);
-}
-
-@keyframes type-latest-feed-output {
-  from {
-    clip-path: inset(0 100% 0 0);
-  }
-
-  to {
-    clip-path: inset(0);
-  }
 }
 
 .round-boundary {
