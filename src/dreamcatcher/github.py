@@ -123,6 +123,11 @@ class Issue(GitHubResponseProjection):
     labels: list[GitHubIssueLabel]
 
 
+_ISSUE_RESPONSE_FIELDS = ",".join(
+    field.alias or name for name, field in Issue.model_fields.items()
+)
+
+
 class PullRequest(GitHubResponseProjection):
     """Model a pull request and its current state."""
 
@@ -342,7 +347,7 @@ def list_issues(
             "--limit",
             ISSUE_LISTING_LIMIT,
             "--json",
-            "number,title,createdAt,state,assignees,labels",
+            _ISSUE_RESPONSE_FIELDS,
         ],
     )
 
@@ -358,7 +363,7 @@ def read_issue(*, repository: str, issue: int) -> Issue | UnknownGitHubResponse:
             "--repo",
             repository,
             "--json",
-            "number,title,createdAt,state,assignees,labels",
+            _ISSUE_RESPONSE_FIELDS,
         ],
     )
 

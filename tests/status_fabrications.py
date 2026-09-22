@@ -427,6 +427,16 @@ def fabricate_titles_and_pull_request_states(*, state):
                     values={"blocked": IssueFactValue.TRUE},
                     evidence={"blocked": "blocked by GH20"},
                 ).model_copy(update={"title": "Blocked issue"}),
+                observed_issue(
+                    issue=22,
+                    values={"claimed_elsewhere": IssueFactValue.UNKNOWN},
+                    evidence={"claimed_elsewhere": "assignment setup failed"},
+                ).model_copy(
+                    update={
+                        "title": "Failed setup issue",
+                        "setup_failure": "assignment setup failed",
+                    }
+                ),
             ],
             assignment_observations=assignment_observations,
         ),

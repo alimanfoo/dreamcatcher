@@ -397,13 +397,7 @@ def test_a_local_assignment_remains_observed_when_the_listing_and_issue_read_fai
     state = StateDirectory(root=tmp_path)
     write_agent_assignment(state=state, identifier="GH13-20260819-184158", issue=13)
     gh.fails(stderr="gh: could not connect to github.com", to="issue list")
-    gh.fails(
-        stderr="gh: could not connect to github.com",
-        to=(
-            f"issue view 13 --repo {REPOSITORY} --json "
-            "number,createdAt,state,assignees,labels"
-        ),
-    )
+    gh.fails(stderr="gh: could not connect to github.com")
 
     found = observe_issues(
         repository=REPOSITORY,

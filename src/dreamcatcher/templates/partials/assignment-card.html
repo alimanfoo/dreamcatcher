@@ -7,6 +7,6 @@
   {% if assignment.latest_output %}<p class="latest-output"><span>[AGENT]</span> {{ assignment.latest_output }}</p>{% endif %}
   <div class="assignment-meta">
     <span>{{ assignment.harness }} · {{ assignment.model }} · {{ assignment.effort }}</span>
-    {% if view.github_pull_request_url_prefix and assignment.pull_request_state %}<a class="pr-chip" href="{{ view.github_pull_request_url_prefix }}{{ assignment.pull_request }}">PR #{{ assignment.pull_request }} {{ assignment.pull_request_state }}</a>{% else %}<span class="pr-chip">PR #{{ assignment.pull_request }}</span>{% endif %}
+    {% if view.github_repository_url and assignment.pull_request_state %}<a class="pr-chip" href="{{ view.github_repository_url }}/pull/{{ assignment.pull_request }}">PR #{{ assignment.pull_request }} {{ assignment.pull_request_state }}</a>{% else %}<span class="pr-chip">PR #{{ assignment.pull_request }}</span>{% endif %}
   </div>
 </article>

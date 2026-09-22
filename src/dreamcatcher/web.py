@@ -23,7 +23,6 @@ from dreamcatcher.status import (
     AgentAssignmentStatus,
     AgentAssignmentStatusValue,
     DreamcatcherStatusReport,
-    FailedAssignmentSetupStatus,
     IssueFactValue,
     IssueObservation,
     read_status_report,
@@ -104,15 +103,14 @@ class WebHomeView:
     """Represent every value that the home template lays out."""
 
     repository: str
-    github_issue_url_prefix: str | None
-    github_pull_request_url_prefix: str | None
+    github_repository_url: str | None
     daemon_state: str
     daemon_summary: str
     instance_facts: tuple[WebFact, ...]
     cooldown_message: str | None
     active_assignments: tuple[WebAssignmentCard, ...]
     complete_assignments: tuple[WebAssignmentCard, ...]
-    failed_setups: tuple[FailedAssignmentSetupStatus, ...]
+    failed_setups: tuple[IssueObservation, ...]
     available_issues: tuple[WebIssueRow, ...]
     blocked_issues: tuple[WebIssueRow, ...]
 
@@ -210,15 +208,10 @@ def _compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
     )
     return WebHomeView(
         repository=report.repository or "repository unknown",
-        github_issue_url_prefix=(
+        github_repository_url=(
             None
             if report.repository is None
-            else f"https://github.com/{report.repository}/issues/"
-        ),
-        github_pull_request_url_prefix=(
-            None
-            if report.repository is None
-            else f"https://github.com/{report.repository}/pull/"
+            else f"https://github.com/{report.repository}"
         ),
         daemon_state="stopped" if report.daemon_pid is None else "running",
         daemon_summary=_describe_daemon(report=report),
@@ -246,6 +239,12 @@ def _compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
 def _compose_assignment_card(*, status: AgentAssignmentStatus) -> WebAssignmentCard:
     assignment = status.assignment
     pull_request_observation = assignment.record.pull_request_observation
+    if pull_request_observation is None:
+        pull_request_state = None
+    elif pull_request_observation.state.value == "OPEN":
+        pull_request_state = "draft" if pull_request_observation.is_draft else "ready"
+    else:
+        pull_request_state = pull_request_observation.state.value.lower()
     return WebAssignmentCard(
         identifier=assignment.identifier,
         issue=assignment.record.issue,
@@ -256,14 +255,7 @@ def _compose_assignment_card(*, status: AgentAssignmentStatus) -> WebAssignmentC
         model=assignment.record.model,
         effort=assignment.record.effort,
         pull_request=assignment.record.pull_request,
-        pull_request_state=(
-            None
-            if pull_request_observation is None
-            else _describe_pull_request_state(
-                state=str(pull_request_observation.state),
-                is_draft=pull_request_observation.is_draft,
-            )
-        ),
+        pull_request_state=pull_request_state,
         latest_output=status.latest_output,
     )
 
@@ -280,12 +272,6 @@ def _compose_issue_row(*, observation: IssueObservation) -> WebIssueRow:
             evidence=observation.blocked.evidence if is_blocked else None
         ),
     )
-
-
-def _describe_pull_request_state(*, state: str, is_draft: bool) -> str:
-    if state == "OPEN":
-        return "draft" if is_draft else "ready"
-    return state.lower()
 
 
 def _compose_issue_evidence(*, evidence: str | None) -> tuple[str | int, ...]:

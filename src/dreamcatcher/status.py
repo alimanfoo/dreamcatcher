@@ -120,14 +120,6 @@ class AgentAssignmentStatus:
 
 
 @dataclass(frozen=True, kw_only=True)
-class FailedAssignmentSetupStatus:
-    """Describe an incomplete assignment setup's latest failure."""
-
-    issue: int
-    failure: str
-
-
-@dataclass(frozen=True, kw_only=True)
 class DreamcatcherStatusReport:
     """Describe one Dreamcatcher instance from its local state."""
 
@@ -141,7 +133,7 @@ class DreamcatcherStatusReport:
     max_agents: int | None
     running_agents: int
     active_global_cooldown: GlobalCooldown | None
-    failed_assignment_setups: list[FailedAssignmentSetupStatus]
+    failed_assignment_setups: list[IssueObservation]
     available_issues: list[IssueObservation]
     blocked_issues: list[IssueObservation]
     assignment_statuses: list[AgentAssignmentStatus]
@@ -183,10 +175,7 @@ def read_status_report(
             None if scheduler_record is None else scheduler_record.cooldown
         ),
         failed_assignment_setups=[
-            FailedAssignmentSetupStatus(
-                issue=observation.issue,
-                failure=observation.setup_failure,
-            )
+            observation
             for observation in issue_observations
             if observation.setup_failure is not None
         ],

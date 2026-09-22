@@ -37,7 +37,6 @@ from dreamcatcher.scheduler import (
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AgentAssignmentStatusValue,
-    FailedAssignmentSetupStatus,
     read_agent_assignment_statuses_for_issue,
     read_status_report,
 )
@@ -688,7 +687,9 @@ def test_a_failed_setup_reports_independently_of_an_external_claim(state):
         issue=20,
         values={"claimed_elsewhere": IssueFactValue.TRUE},
         evidence={"claimed_elsewhere": "a pull request is open on it: #52"},
-    ).model_copy(update={"setup_failure": "assignment setup failed"})
+    ).model_copy(
+        update={"title": "Failed issue", "setup_failure": "assignment setup failed"}
+    )
     write_tick(
         state=state,
         tick=SchedulerRecord(at=PINNED, issue_observations=[observation]),
@@ -697,10 +698,7 @@ def test_a_failed_setup_reports_independently_of_an_external_claim(state):
     status_report = report(state=state)
 
     assert status_report.failed_assignment_setups == [
-        FailedAssignmentSetupStatus(
-            issue=20,
-            failure="assignment setup failed",
-        )
+        observation.model_copy(update={"observed_at": PINNED})
     ]
     assert status_report.available_issues == []
 

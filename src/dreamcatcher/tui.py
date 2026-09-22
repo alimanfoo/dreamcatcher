@@ -37,7 +37,6 @@ from dreamcatcher.status import (
     AgentAssignmentStatus,
     AgentAssignmentStatusValue,
     DreamcatcherStatusReport,
-    FailedAssignmentSetupStatus,
     IssueObservation,
     read_agent_assignment_statuses_for_issue,
     read_status_report,
@@ -277,14 +276,14 @@ def _render_blocked_issues(
 
 
 def _render_failed_assignment_setups(
-    *, setups: Sequence[FailedAssignmentSetupStatus]
+    *, setups: Sequence[IssueObservation]
 ) -> RenderableType | None:
     """Render incomplete assignment setups with recorded failures."""
     if not setups:
         return None
     table = _create_table(columns=2)
     for setup in setups:
-        table.add_row(Text(f"GH{setup.issue}"), Text(setup.failure))
+        table.add_row(Text(f"GH{setup.issue}"), Text(cast("str", setup.setup_failure)))
     return _render_section(heading="failed assignment setups", body=table)
 
 
