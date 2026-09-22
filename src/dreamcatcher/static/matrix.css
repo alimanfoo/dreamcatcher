@@ -562,6 +562,7 @@ body::after {
 
 .feed-records {
   display: grid;
+  align-content: start;
   gap: var(--space-8);
   height: 72vh;
   min-height: 380px;

@@ -296,6 +296,11 @@ def test_round_headings_are_separated_from_the_feed_content(tmp_path):
 
     assert response.status_code == 200
     assert re.search(
+        r"\.feed-records \{[^}]*align-content: start;",
+        stylesheet,
+        re.DOTALL,
+    )
+    assert re.search(
         r"\.round-boundary \{[^}]*top: calc\(var\(--space-7\) \* -1\);"
         r"[^}]*border-bottom: var\(--line\) solid var\(--rule\);",
         stylesheet,
