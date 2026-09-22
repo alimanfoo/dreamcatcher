@@ -488,6 +488,9 @@ def _compose_instance_facts(*, report: DreamcatcherStatusReport) -> tuple[WebFac
         if report.active_global_cooldown is None
         else f"ends {describe_time(at=report.active_global_cooldown.ends)}"
     )
+    scheduler_hold = report.scheduler_hold
+    if scheduler_hold is not None and scheduler_hold.startswith("at cap:"):
+        scheduler_hold = None
     values: tuple[tuple[str, str | None, bool], ...] = (
         (
             "harness",
@@ -505,7 +508,7 @@ def _compose_instance_facts(*, report: DreamcatcherStatusReport) -> tuple[WebFac
             False,
         ),
         ("global cooldown", cooldown, report.active_global_cooldown is not None),
-        ("scheduler hold", report.scheduler_hold, report.scheduler_hold is not None),
+        ("scheduler hold", scheduler_hold, scheduler_hold is not None),
     )
     return tuple(
         WebFact(label=label, value=value, is_warning=is_warning)

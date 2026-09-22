@@ -85,6 +85,19 @@ def test_a_home_card_links_to_its_exact_assignment(tmp_path, daemon):
     assert 'href="/assignments/GH13-20260819-184158"' in page
 
 
+def test_github_links_open_in_a_new_tab(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    pages = render_home(state=state) + render_assignment(
+        state=state, identifier="GH13-20260819-184158"
+    )
+    links = re.findall(r'<a [^>]*href="https://github\.com/[^>]+>', pages)
+
+    assert links
+    assert all('target="_blank" rel="noopener noreferrer"' in link for link in links)
+
+
 def test_an_unknown_assignment_renders_a_404_page(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
@@ -106,10 +119,14 @@ def test_an_assignment_page_links_its_title_and_pull_request(tmp_path, daemon):
     page = render_assignment(state=state, identifier="GH10-20260819-184158")
 
     assert (
-        f'href="https://github.com/{REPOSITORY}/issues/10">#10 '
+        f'href="https://github.com/{REPOSITORY}/issues/10" target="_blank" '
+        'rel="noopener noreferrer">#10 '
         "<span>Draft assignment</span></a>" in page
     )
-    assert f'href="https://github.com/{REPOSITORY}/pull/52">PR #52 draft</a>' in page
+    assert (
+        f'href="https://github.com/{REPOSITORY}/pull/52" target="_blank" '
+        'rel="noopener noreferrer">PR #52 draft</a>' in page
+    )
 
 
 def test_assignment_reporting_remains_without_a_repository_record(tmp_path, daemon):
@@ -192,8 +209,12 @@ def test_issue_references_link_to_github_with_hash_notation(tmp_path, daemon):
     page = render_home(state=state)
 
     issue_url = f"https://github.com/{REPOSITORY}/issues/50"
-    assert f'href="{issue_url}">#50</a>' in page
-    assert f'blocked by <a class="issue-number" href="{issue_url}">#50</a>' in page
+    github_attributes = 'target="_blank" rel="noopener noreferrer"'
+    assert f'href="{issue_url}" {github_attributes}>#50</a>' in page
+    assert (
+        f'blocked by <a class="issue-number" href="{issue_url}" '
+        f"{github_attributes}>#50</a>" in page
+    )
     assert "blocked by GH50" not in page
 
 
@@ -204,7 +225,34 @@ def test_a_pull_request_links_to_github_before_its_state_is_observed(tmp_path, d
     page = render_home(state=state)
 
     pull_request_url = f"https://github.com/{REPOSITORY}/pull/52"
-    assert f'href="{pull_request_url}">PR #52</a>' in page
+    assert (
+        f'href="{pull_request_url}" target="_blank" '
+        'rel="noopener noreferrer">PR #52</a>' in page
+    )
+
+
+def test_dashboard_counts_use_four_digits_without_redundant_issue_headings(
+    tmp_path, daemon
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_home(state=state)
+
+    assert re.search(r"AGENT ASSIGNMENTS <span>\d{4}</span>", page)
+    assert re.search(r"ISSUES <span>\d{4}</span>", page)
+    assert "AVAILABLE ISSUES" not in page
+    assert "BLOCKED ISSUES" not in page
+
+
+def test_capacity_does_not_repeat_as_a_scheduler_hold(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    WEB_STATUS_REPORTS["at-cap"](state=state)
+
+    page = render_home(state=state)
+
+    assert "<dt>agent capacity</dt>" in page
+    assert "<dt>scheduler hold</dt>" not in page
 
 
 def test_pull_request_state_remains_without_a_repository_record(tmp_path, daemon):

@@ -9,7 +9,7 @@
       {% include "partials/instance.html" %}
       <div class="dashboard">
         <section class="panel" aria-labelledby="assignments-heading">
-          <h1 id="assignments-heading">AGENT ASSIGNMENTS <span>{{ "%02d"|format(view.active_assignments|length + view.complete_assignments|length) }}</span></h1>
+          <h1 id="assignments-heading">AGENT ASSIGNMENTS <span>{{ "%04d"|format(view.active_assignments|length + view.complete_assignments|length) }}</span></h1>
           <div class="panel-body">
             {% for assignment in view.active_assignments %}
               {% include "partials/assignment-card.html" %}
@@ -27,7 +27,7 @@
           </div>
         </section>
         <section class="panel" aria-labelledby="issues-heading">
-          <h1 id="issues-heading">ISSUES <span>{{ "%02d"|format((view.failed_setups + view.available_issues + view.blocked_issues)|map(attribute="issue")|unique|list|length) }}</span></h1>
+          <h1 id="issues-heading">ISSUES <span>{{ "%04d"|format((view.failed_setups + view.available_issues + view.blocked_issues)|map(attribute="issue")|unique|list|length) }}</span></h1>
           <div class="panel-body">
             {% if view.failed_setups %}
               <h2>FAILED ASSIGNMENT SETUPS</h2>
@@ -35,11 +35,9 @@
                 {% include "partials/failed-setup-row.html" %}
               {% endfor %}
             {% endif %}
-            {% if view.available_issues %}<h2>AVAILABLE ISSUES</h2>{% endif %}
             {% for issue in view.available_issues %}
               {% include "partials/issue-row.html" %}
             {% endfor %}
-            {% if view.blocked_issues %}<h2>BLOCKED ISSUES</h2>{% endif %}
             {% for issue in view.blocked_issues %}
               {% include "partials/issue-row.html" %}
             {% else %}
