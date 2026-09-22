@@ -10,6 +10,7 @@ from dreamcatcher.agent_assignments import (
     AgentAssignment,
     find_harness_session_identifier,
     find_open_agent_assignments_by_issue,
+    read_agent_assignment,
     read_agent_assignments,
     read_agent_assignments_for_issue,
 )
@@ -139,6 +140,16 @@ class DreamcatcherStatusReport:
     assignment_statuses: list[AgentAssignmentStatus]
 
 
+@dataclass(frozen=True, kw_only=True)
+class DreamcatcherDaemonStatus:
+    """Describe the current daemon process and the run it owns."""
+
+    pid: int | None
+    agent_harness: AgentHarness | None
+    dreamcatcher_version: str | None
+    max_agents: int | None
+
+
 def read_status_report(
     *, state: StateDirectory, clock: Callable[[], datetime] = read_current_time
 ) -> DreamcatcherStatusReport:
@@ -148,16 +159,16 @@ def read_status_report(
     assignment_statuses = reader.list_assignment_statuses(assignments=assignments)
     issue_observations = reader.list_issue_observations(assignments=assignments)
     scheduler_record = reader.scheduler_record
-    daemon_run = _read_daemon_run_record(
+    daemon = _read_dreamcatcher_daemon_status(
         state=state,
         daemon_pid=reader.daemon_pid,
     )
     return DreamcatcherStatusReport(
         at=reader.at,
-        repository=_read_repository(state=state),
-        daemon_pid=reader.daemon_pid,
-        agent_harness=None if daemon_run is None else daemon_run.harness,
-        dreamcatcher_version=None if daemon_run is None else daemon_run.version,
+        repository=read_repository(state=state),
+        daemon_pid=daemon.pid,
+        agent_harness=daemon.agent_harness,
+        dreamcatcher_version=daemon.dreamcatcher_version,
         latest_scheduler_tick=(
             None if scheduler_record is None else scheduler_record.at
         ),
@@ -166,7 +177,7 @@ def read_status_report(
             if scheduler_record is None or reader.daemon_pid is None
             else scheduler_record.hold
         ),
-        max_agents=None if daemon_run is None else daemon_run.max_agents,
+        max_agents=daemon.max_agents,
         running_agents=sum(
             status.value is AgentAssignmentStatusValue.WORKING
             for status in assignment_statuses
@@ -193,11 +204,33 @@ def read_status_report(
     )
 
 
-def _read_repository(*, state: StateDirectory) -> str | None:
+def read_repository(*, state: StateDirectory) -> str | None:
     """Read the repository name after a daemon has recorded it."""
     if not state.repository.exists():
         return None
     return read_text(path=state.repository).strip()
+
+
+def read_dreamcatcher_daemon_status(
+    *, state: StateDirectory
+) -> DreamcatcherDaemonStatus:
+    """Read the current daemon process and the run it owns."""
+    return _read_dreamcatcher_daemon_status(
+        state=state,
+        daemon_pid=read_daemon_pid(path=state.lock),
+    )
+
+
+def _read_dreamcatcher_daemon_status(
+    *, state: StateDirectory, daemon_pid: int | None
+) -> DreamcatcherDaemonStatus:
+    daemon_run = _read_daemon_run_record(state=state, daemon_pid=daemon_pid)
+    return DreamcatcherDaemonStatus(
+        pid=daemon_pid,
+        agent_harness=None if daemon_run is None else daemon_run.harness,
+        dreamcatcher_version=None if daemon_run is None else daemon_run.version,
+        max_agents=None if daemon_run is None else daemon_run.max_agents,
+    )
 
 
 def _read_daemon_run_record(
@@ -223,6 +256,20 @@ def read_agent_assignment_statuses_for_issue(
     return reader.list_assignment_statuses(
         assignments=read_agent_assignments_for_issue(state=state, issue=issue)
     )
+
+
+def read_agent_assignment_status(
+    *,
+    state: StateDirectory,
+    identifier: str,
+    clock: Callable[[], datetime] = read_current_time,
+) -> AgentAssignmentStatus | None:
+    """Read one agent assignment's status by its exact identifier."""
+    assignment = read_agent_assignment(state=state, identifier=identifier)
+    if assignment is None:
+        return None
+    reader = _StatusReportReader(state=state, clock=clock)
+    return reader.list_assignment_statuses(assignments=[assignment])[0]
 
 
 def _compose_round_duration_description(*, record: AgentRoundRecord) -> str:

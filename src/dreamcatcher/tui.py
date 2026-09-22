@@ -26,6 +26,7 @@ from dreamcatcher.documents import read_lines_from
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import (
     FEED_TIMESTAMP_GAP,
+    SUBAGENT_INDENT,
     FeedLine,
     compose_agent_round_boundary,
     describe_agent_round_start,
@@ -59,10 +60,6 @@ STATUSES_THAT_END_A_VIEW = (
 
 # How long a following view waits between refreshes for new round output.
 VIEW_REFRESH_INTERVAL = 1.0
-
-# What marks the label of a feed line, which is the harness's own word for what
-# it just did.
-FEED_NOTE_LABEL_PATTERN = r"^\s*\[[^\]]+\]"
 
 # How far a section's rows are set in from its heading.
 SECTION_PADDING = (0, 0, 0, 2)
@@ -709,7 +706,9 @@ def _render_written_feed_line(*, written_line: str) -> Text:
     if line is None:
         return Text(written_line)
     content = Text(line.text)
-    content.highlight_regex(FEED_NOTE_LABEL_PATTERN, "cyan")
+    if line.label is not None:
+        label_start = len(SUBAGENT_INDENT) if line.is_subagent else 0
+        content.stylize("cyan", label_start, label_start + len(line.label) + 2)
     return _render_feed_line(line=line, content=content)
 
 

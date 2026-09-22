@@ -37,6 +37,7 @@ from dreamcatcher.scheduler import (
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AgentAssignmentStatusValue,
+    read_agent_assignment_status,
     read_agent_assignment_statuses_for_issue,
     read_status_report,
 )
@@ -680,6 +681,75 @@ def test_reading_one_issue_returns_only_its_assignments_newest_first(state):
         "GH13-20260820-090000",
         ASSIGNMENT_ID,
     ]
+
+
+def test_reading_one_assignment_uses_its_exact_identifier(state):
+    other_identifier = "GH13-20260820-090000"
+    write_agent_assignment(
+        state=state,
+        identifier=other_identifier,
+        issue=13,
+    )
+
+    status = read_agent_assignment_status(
+        state=state,
+        identifier=other_identifier,
+        clock=lambda: LOOKED_AT,
+    )
+
+    assert status is not None
+    assert status.assignment.identifier == other_identifier
+
+
+def test_reading_an_unknown_assignment_finds_nothing(state):
+    assert (
+        read_agent_assignment_status(
+            state=state,
+            identifier="GH99-20260820-090000",
+            clock=lambda: LOOKED_AT,
+        )
+        is None
+    )
+
+
+def test_reading_an_incomplete_assignment_finds_nothing(state):
+    identifier = "GH99-20260820-090000"
+    (state.worktrees / identifier).mkdir()
+
+    assert (
+        read_agent_assignment_status(
+            state=state,
+            identifier=identifier,
+            clock=lambda: LOOKED_AT,
+        )
+        is None
+    )
+
+
+def test_reading_one_assignment_does_not_read_an_unrelated_assignment(state):
+    corrupt_identifier = "GH99-20260820-090000"
+    write_agent_assignment(
+        state=state,
+        identifier=corrupt_identifier,
+        issue=99,
+    )
+    record = state.assignments / corrupt_identifier / "assignment.json"
+    record.write_bytes(b"{")
+
+    status = read_agent_assignment_status(
+        state=state,
+        identifier=ASSIGNMENT_ID,
+        clock=lambda: LOOKED_AT,
+    )
+    unknown = read_agent_assignment_status(
+        state=state,
+        identifier="GH100-20260820-090000",
+        clock=lambda: LOOKED_AT,
+    )
+
+    assert status is not None
+    assert status.assignment.identifier == ASSIGNMENT_ID
+    assert unknown is None
 
 
 def test_a_failed_setup_reports_independently_of_an_external_claim(state):

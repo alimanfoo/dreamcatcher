@@ -12,6 +12,7 @@ from conftest import FIXTURES, REPOSITORY
 from status_fabrications import (
     LOOKED_AT,
     STATUS_REPORTS,
+    fabricate_a_silent_round,
     fabricate_everything,
     fabricate_titles_and_pull_request_states,
 )
@@ -27,12 +28,27 @@ WEB_STATUS_REPORTS = {
     **STATUS_REPORTS,
     "titles-and-pull-requests": fabricate_titles_and_pull_request_states,
 }
+WEB_ASSIGNMENT_PAGES = {
+    "complete": (fabricate_everything, "GH12-20260819-184158"),
+    "fault": (fabricate_everything, "GH9-20260819-184158"),
+    "silent-round": (fabricate_a_silent_round, "GH13-20260819-184158"),
+    "waiting-to-start": (fabricate_everything, "GH44-20260819-184158"),
+    "working": (fabricate_everything, "GH13-20260819-184158"),
+}
 
 
 def render_home(*, state: StateDirectory) -> str:
     """Render the home page against a pinned clock."""
     application = create_app(state=state, clock=lambda: LOOKED_AT)
     response = application.test_client().get("/")
+    assert response.status_code == 200
+    return response.get_data(as_text=True)
+
+
+def render_assignment(*, state: StateDirectory, identifier: str) -> str:
+    """Render one assignment page against a pinned clock."""
+    application = create_app(state=state, clock=lambda: LOOKED_AT)
+    response = application.test_client().get(f"/assignments/{identifier}")
     assert response.status_code == 200
     return response.get_data(as_text=True)
 
@@ -45,6 +61,273 @@ def test_a_state_directory_renders_as_its_golden_home(name, tmp_path, daemon):
     page = render_home(state=state)
 
     assert page == (FIXTURES / "web" / f"{name}.html").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("name", sorted(WEB_ASSIGNMENT_PAGES))
+def test_an_assignment_renders_as_its_golden_page(name, tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate, identifier = WEB_ASSIGNMENT_PAGES[name]
+    fabricate(state=state)
+
+    page = render_assignment(state=state, identifier=identifier)
+
+    assert page == (FIXTURES / "web" / "assignments" / f"{name}.html").read_text(
+        encoding="utf-8"
+    )
+
+
+def test_a_home_card_links_to_its_exact_assignment(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_home(state=state)
+
+    assignment_link = (
+        'class="assignment-open" href="/assignments/GH13-20260819-184158" '
+        'aria-label="Open assignment GH13-20260819-184158"'
+    )
+    assert assignment_link in page
+    assert page.count('href="/assignments/GH13-20260819-184158"') == 1
+    card_start = page.index('<article id="assignment-GH13-20260819-184158"')
+    card = page[card_start : page.index("</article>", card_start)]
+    assert card.index(assignment_link) < card.index('class="assignment-detail"')
+    assert card.index('class="pr-chip"') > card.index('class="assignment-detail"')
+
+
+def test_feedback_card_keeps_its_compact_actions_inside_the_heading(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_home(state=state)
+    application = create_app(state=state, clock=lambda: LOOKED_AT)
+    stylesheet = (
+        application.test_client().get("/static/matrix.css").get_data(as_text=True)
+    )
+    card_start = page.index('<article id="assignment-GH20-20260819-184158"')
+    card = page[card_start : page.index("</article>", card_start)]
+
+    assert "[NEEDS FEEDBACK]" in card
+    assert "[NEEDS USER FEEDBACK]" not in card
+    assert re.search(
+        r"\.card-heading \{[^}]*display: grid;"
+        r"[^}]*grid-template-columns: minmax\(0, 1fr\) max-content;",
+        stylesheet,
+        re.DOTALL,
+    )
+    assert re.search(
+        r"\.card-heading-actions \{[^}]*flex: none;", stylesheet, re.DOTALL
+    )
+
+
+def test_complete_assignment_cards_have_space_between_them(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_home(state=state)
+    application = create_app(state=state, clock=lambda: LOOKED_AT)
+    stylesheet = (
+        application.test_client().get("/static/matrix.css").get_data(as_text=True)
+    )
+
+    assert '<div class="complete-assignment-cards">' in page
+    assert re.search(
+        r"\.complete-assignment-cards \{[^}]*display: grid;"
+        r"[^}]*gap: var\(--space-5\);",
+        stylesheet,
+        re.DOTALL,
+    )
+
+
+def test_home_page_types_replaced_assignment_output(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    application = create_app(state=state, clock=lambda: LOOKED_AT)
+    client = application.test_client()
+
+    home_response = client.get("/")
+    script_response = client.get("/static/home.js")
+    stylesheet_response = client.get("/static/matrix.css")
+    home = home_response.get_data(as_text=True)
+    script = script_response.get_data(as_text=True)
+    stylesheet = stylesheet_response.get_data(as_text=True)
+
+    assert home_response.status_code == 200
+    assert script_response.status_code == 200
+    assert stylesheet_response.status_code == 200
+    assert 'src="/static/home.js"' in home
+    assert 'addEventListener("htmx:beforeSwap"' in script
+    assert 'querySelector(".latest-output")' in script
+    assert '"(prefers-reduced-motion: reduce)"' in script
+    assert "animation: type-latest-output 420ms steps(32, end);" in stylesheet
+
+
+def test_assignment_page_shares_the_home_page_top_bar(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    home = render_home(state=state)
+    assignment = render_assignment(
+        state=state,
+        identifier="GH13-20260819-184158",
+    )
+    header_pattern = r'<header class="site-header">.*?</header>'
+    home_headers = re.findall(header_pattern, home, re.DOTALL)
+    assignment_headers = re.findall(header_pattern, assignment, re.DOTALL)
+
+    assert len(home_headers) == 1
+    assert assignment_headers == home_headers
+
+
+def test_github_links_open_in_a_new_tab(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    pages = render_home(state=state) + render_assignment(
+        state=state, identifier="GH13-20260819-184158"
+    )
+    links = re.findall(r'<a [^>]*href="https://github\.com/[^>]+>', pages)
+
+    assert links
+    assert all('target="_blank" rel="noopener noreferrer"' in link for link in links)
+
+
+def test_an_unknown_assignment_renders_a_404_page(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    application = create_app(state=state, clock=lambda: LOOKED_AT)
+
+    response = application.test_client().get("/assignments/GH99-20260819-184158")
+
+    assert response.status_code == 404
+    assert (
+        "No agent assignment here has identifier GH99-20260819-184158."
+        in response.get_data(as_text=True)
+    )
+
+
+def test_an_assignment_page_links_its_title_and_pull_request(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_titles_and_pull_request_states(state=state)
+
+    page = render_assignment(state=state, identifier="GH10-20260819-184158")
+
+    assert (
+        f'href="https://github.com/{REPOSITORY}/issues/10" target="_blank" '
+        'rel="noopener noreferrer">#10 '
+        "<span>Draft assignment</span></a>" in page
+    )
+    assert (
+        f'href="https://github.com/{REPOSITORY}/pull/52" target="_blank" '
+        'rel="noopener noreferrer">PR #52 draft</a>' in page
+    )
+
+
+def test_assignment_rounds_link_to_the_feed_in_ascending_order(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_assignment(state=state, identifier="GH13-20260819-184158")
+    round_links = re.findall(
+        r'class="round-link" href="#feed-round-(\d+)"[^>]*>\s*'
+        r'<span class="round-number">(\d+)</span>',
+        page,
+    )
+
+    assert round_links == [("1", "01"), ("2", "02")]
+    assert 'class="assignment-workspace"' in page
+    assert 'class="feed-records"' in page
+    assert 'src="/static/assignment.js"' in page
+
+
+def test_hand_resume_command_is_a_collapsed_last_resort(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_assignment(state=state, identifier="GH9-20260819-184158")
+    application = create_app(state=state, clock=lambda: LOOKED_AT)
+    stylesheet = (
+        application.test_client().get("/static/matrix.css").get_data(as_text=True)
+    )
+
+    assert '<details class="manual-recovery">' in page
+    assert "<summary>last resort · resume by hand</summary>" in page
+    assert "Use this escape hatch only when automatic recovery is impossible." in page
+    assert 'class="panel resume-command"' not in page
+    assert "font-size: 0.9em;" in stylesheet
+
+
+def test_assignment_page_offers_a_control_that_jumps_to_the_feed_tail(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_assignment(state=state, identifier="GH13-20260819-184158")
+    application = create_app(state=state, clock=lambda: LOOKED_AT)
+    response = application.test_client().get("/static/assignment.js")
+    script = response.get_data(as_text=True)
+
+    assert (
+        '<button class="feed-tail" type="button" aria-controls="records">'
+        "TAIL ↓</button>" in page
+    )
+    assert response.status_code == 200
+    assert "top: feed.scrollHeight" in script
+
+
+def test_round_headings_are_separated_from_the_feed_content(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    application = create_app(state=state, clock=lambda: LOOKED_AT)
+
+    response = application.test_client().get("/static/matrix.css")
+    stylesheet = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert re.search(
+        r"\.round-boundary \{[^}]*top: calc\(var\(--space-7\) \* -1\);"
+        r"[^}]*border-bottom: var\(--line\) solid var\(--rule\);",
+        stylesheet,
+        re.DOTALL,
+    )
+
+
+def test_assignment_reporting_remains_without_a_repository_record(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_titles_and_pull_request_states(state=state)
+    state.repository.unlink()
+
+    page = render_assignment(state=state, identifier="GH10-20260819-184158")
+
+    assert '<strong class="assignment-issue">#10' in page
+    assert '<span class="pr-chip">PR #52 draft</span>' in page
+
+
+def test_an_assignment_page_reports_a_repository_record_that_will_not_read(
+    tmp_path, daemon
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    state.repository.unlink()
+    state.repository.mkdir()
+    application = create_app(state=state, clock=lambda: LOOKED_AT)
+
+    response = application.test_client().get("/assignments/GH13-20260819-184158")
+
+    assert response.status_code == 500
+    assert "cannot read" in response.get_data(as_text=True)
+
+
+def test_the_assignment_page_preserves_and_escapes_an_unparseable_feed_line(
+    tmp_path, daemon
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    feed = state.assignments / "GH13-20260819-184158" / "rounds" / "2" / "feed.txt"
+    append_text(text="<script>alert('no')</script>\n", path=feed)
+
+    page = render_assignment(state=state, identifier="GH13-20260819-184158")
+
+    assert "&lt;script&gt;alert(&#39;no&#39;)&lt;/script&gt;" in page
+    assert "<script>alert('no')</script>" not in page
 
 
 def test_the_same_state_renders_as_the_same_home_page(tmp_path, daemon):
@@ -87,8 +370,12 @@ def test_issue_references_link_to_github_with_hash_notation(tmp_path, daemon):
     page = render_home(state=state)
 
     issue_url = f"https://github.com/{REPOSITORY}/issues/50"
-    assert f'href="{issue_url}">#50</a>' in page
-    assert f'blocked by <a class="issue-number" href="{issue_url}">#50</a>' in page
+    github_attributes = 'target="_blank" rel="noopener noreferrer"'
+    assert f'href="{issue_url}" {github_attributes}>#50</a>' in page
+    assert (
+        f'blocked by <a class="issue-number" href="{issue_url}" '
+        f"{github_attributes}>#50</a>" in page
+    )
     assert "blocked by GH50" not in page
 
 
@@ -99,7 +386,34 @@ def test_a_pull_request_links_to_github_before_its_state_is_observed(tmp_path, d
     page = render_home(state=state)
 
     pull_request_url = f"https://github.com/{REPOSITORY}/pull/52"
-    assert f'href="{pull_request_url}">PR #52</a>' in page
+    assert (
+        f'href="{pull_request_url}" target="_blank" '
+        'rel="noopener noreferrer">PR #52</a>' in page
+    )
+
+
+def test_dashboard_counts_use_four_digits_without_redundant_issue_headings(
+    tmp_path, daemon
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_home(state=state)
+
+    assert re.search(r"AGENT ASSIGNMENTS <span>\d{4}</span>", page)
+    assert re.search(r"ISSUES <span>\d{4}</span>", page)
+    assert "AVAILABLE ISSUES" not in page
+    assert "BLOCKED ISSUES" not in page
+
+
+def test_capacity_does_not_repeat_as_a_scheduler_hold(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    WEB_STATUS_REPORTS["at-cap"](state=state)
+
+    page = render_home(state=state)
+
+    assert "<dt>agent capacity</dt>" in page
+    assert "<dt>scheduler hold</dt>" not in page
 
 
 def test_pull_request_state_remains_without_a_repository_record(tmp_path, daemon):

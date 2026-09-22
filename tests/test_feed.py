@@ -125,7 +125,43 @@ def test_a_round_boundary_names_its_purpose_and_recovery_independently(
 def test_a_written_line_reads_back_as_what_it_says_and_when():
     assert read_feed_line(
         written_line="2026-08-19T18:41:58Z  [Bash] pytest"
-    ) == FeedLine(at=PINNED, text="[Bash] pytest")
+    ) == FeedLine(
+        at=PINNED,
+        text="[Bash] pytest",
+        label="Bash",
+        detail="pytest",
+    )
+
+
+def test_a_prose_line_reads_back_as_prose():
+    assert read_feed_line(
+        written_line="2026-08-19T18:41:58Z  I will read the issue first."
+    ) == FeedLine(
+        at=PINNED,
+        text="I will read the issue first.",
+        detail="I will read the issue first.",
+    )
+
+
+def test_prose_that_begins_with_a_bracketed_word_reads_as_a_note():
+    assert read_feed_line(
+        written_line="2026-08-19T18:41:58Z  [aside] this began as prose"
+    ) == FeedLine(
+        at=PINNED,
+        text="[aside] this began as prose",
+        label="aside",
+        detail="this began as prose",
+    )
+
+
+def test_prose_with_a_bracketed_prefix_but_no_gap_remains_prose():
+    assert read_feed_line(
+        written_line="2026-08-19T18:41:58Z  [aside]this began as prose"
+    ) == FeedLine(
+        at=PINNED,
+        text="[aside]this began as prose",
+        detail="[aside]this began as prose",
+    )
 
 
 def test_a_subagents_line_reads_back_with_the_indent_that_sets_it_in():
@@ -134,7 +170,11 @@ def test_a_subagents_line_reads_back_with_the_indent_that_sets_it_in():
     )
 
     assert read_feed_line(written_line=written.rstrip("\n")) == FeedLine(
-        at=PINNED, text="  [Bash] pytest"
+        at=PINNED,
+        text="  [Bash] pytest",
+        label="Bash",
+        detail="pytest",
+        is_subagent=True,
     )
 
 
@@ -153,7 +193,10 @@ def test_the_last_line_of_a_feed_is_what_the_feed_last_said(tmp_path):
     )
 
     assert read_last_feed_line(path=written) == FeedLine(
-        at=PINNED + timedelta(minutes=1), text="[Read] pyproject"
+        at=PINNED + timedelta(minutes=1),
+        text="[Read] pyproject",
+        label="Read",
+        detail="pyproject",
     )
 
 
@@ -166,7 +209,10 @@ def test_a_write_that_never_landed_leaves_the_line_before_it_as_the_last(tmp_pat
     )
 
     assert read_last_feed_line(path=written) == FeedLine(
-        at=PINNED, text="[Bash] pytest"
+        at=PINNED,
+        text="[Bash] pytest",
+        label="Bash",
+        detail="pytest",
     )
 
 

@@ -212,6 +212,28 @@ def read_agent_assignments(*, state: StateDirectory) -> list[AgentAssignment]:
     ]
 
 
+def read_agent_assignment(
+    *, state: StateDirectory, identifier: str
+) -> AgentAssignment | None:
+    """Return the complete assignment with this exact identifier, if it exists."""
+    if not state.worktrees.is_dir():
+        return None
+    worktree = next(
+        (
+            path
+            for path in state.worktrees.iterdir()
+            if path.is_dir() and path.name == identifier
+        ),
+        None,
+    )
+    if worktree is None:
+        return None
+    directory = state.assignments / worktree.name
+    if not (directory / AGENT_ASSIGNMENT_RECORD_NAME).exists():
+        return None
+    return _read_assignment(state=state, directory=directory)
+
+
 def read_agent_assignments_for_issue(
     *, state: StateDirectory, issue: int
 ) -> list[AgentAssignment]:

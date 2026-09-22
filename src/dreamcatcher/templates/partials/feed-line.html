@@ -1,0 +1,4 @@
+<div class="feed-line{% if line.is_subagent %} subagent{% endif %}{% if line.is_boundary %} round-boundary{% endif %}">
+  {% if line.timestamp %}<time>{{ line.timestamp }}</time>{% else %}<span class="feed-timestamp-missing" aria-hidden="true"></span>{% endif %}
+  <span class="feed-content">{% if line.label %}<span class="feed-label">[{{ line.label }}]</span>{% endif %}{% if line.label and line.detail %} {% endif %}<span class="feed-detail">{{ line.detail }}</span></span>
+</div>

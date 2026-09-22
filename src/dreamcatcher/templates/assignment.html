@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block content %}
+  <main class="assignment-page">
+    {% include "partials/site-header.html" %}
+    <div class="assignment-content">
+      <a class="assignment-navigation" href="{{ url_for('show_home') }}">&lt; home</a>
+      <section class="assignment-overview" aria-labelledby="assignment-heading">
+        <div class="assignment-heading">
+          {% if view.github_repository_url %}
+            <h1 id="assignment-heading"><a class="assignment-issue" href="{{ view.github_repository_url }}/issues/{{ view.issue }}" target="_blank" rel="noopener noreferrer">#{{ view.issue }}{% if view.title %} <span>{{ view.title }}</span>{% endif %}</a></h1>
+          {% else %}
+            <h1 id="assignment-heading"><strong class="assignment-issue">#{{ view.issue }}{% if view.title %} <span>{{ view.title }}</span>{% endif %}</strong></h1>
+          {% endif %}
+          <div class="assignment-heading-actions">
+            <span class="chip status-{{ view.status|replace(' ', '-') }}">[{{ view.status|upper }}]</span>
+            {% if view.github_repository_url %}<a class="pr-chip" href="{{ view.github_repository_url }}/pull/{{ view.pull_request }}" target="_blank" rel="noopener noreferrer">PR #{{ view.pull_request }}{% if view.pull_request_state %} {{ view.pull_request_state }}{% endif %}</a>{% else %}<span class="pr-chip">PR #{{ view.pull_request }}{% if view.pull_request_state %} {{ view.pull_request_state }}{% endif %}</span>{% endif %}
+          </div>
+        </div>
+        <p class="assignment-detail">{{ view.detail }}</p>
+        <dl class="assignment-facts">
+          <div><dt>assignment</dt><dd>{{ view.identifier }}</dd></div>
+          <div><dt>branch</dt><dd>{{ view.branch }}</dd></div>
+          <div><dt>harness</dt><dd>{{ view.harness }}</dd></div>
+          <div><dt>session</dt><dd>{{ view.harness_session_identifier }}</dd></div>
+          <div><dt>model</dt><dd>{{ view.model }} · {{ view.effort }}</dd></div>
+        </dl>
+      </section>
+      <div class="assignment-workspace">
+        <div class="assignment-sidebar">
+          <aside class="panel assignment-rounds" aria-labelledby="rounds-heading">
+            <h1 id="rounds-heading">ROUNDS</h1>
+            {% for round in view.rounds %}
+              <a class="round-link" href="#feed-round-{{ round.number }}" aria-controls="feed-round-{{ round.number }}">
+                <span class="round-number">{{ "%02d"|format(round.number) }}</span>
+                <span class="round-summary">
+                  <span class="round-purpose">{{ round.purpose }}{% if round.is_recovery %} <span>(recovery)</span>{% endif %}</span>
+                  <span class="round-outcome">[{{ round.outcome|upper }}]</span>
+                  <span class="round-timing">{{ round.started }}{% if round.duration %} · {{ round.duration }}{% endif %}</span>
+                </span>
+              </a>
+            {% else %}
+              <p class="empty">-- no rounds have run --</p>
+            {% endfor %}
+          </aside>
+        </div>
+        <section class="panel assignment-feed" aria-labelledby="feed-heading">
+          <h1 id="feed-heading">FEED</h1>
+          <button class="feed-tail" type="button" aria-controls="records">TAIL ↓</button>
+          <div id="records" class="feed-records">
+            {% for feed_round in view.feed_rounds %}
+              <div id="feed-round-{{ feed_round.number }}" class="feed-round">
+                {% for line in feed_round.lines %}{% include "partials/feed-line.html" %}{% endfor %}
+              </div>
+            {% else %}
+              <p class="empty">-- no feed yet --</p>
+            {% endfor %}
+          </div>
+        </section>
+      </div>
+      {%- if view.hand_resume_command %}
+      <details class="manual-recovery">
+        <summary>last resort · resume by hand</summary>
+        <p>Dreamcatcher normally coordinates this session. Use this escape hatch only when automatic recovery is impossible.</p>
+        <pre>cd {{ view.hand_resume_worktree }}
+{{ view.hand_resume_command }}</pre>
+      </details>
+      {%- endif %}
+    </div>
+  </main>
+  <script src="{{ url_for('static', filename='assignment.js') }}"></script>
+{% endblock %}

@@ -12,9 +12,9 @@
     
   <main id="home" hx-get="/" hx-trigger="every 2s" hx-select="#home" hx-swap="morph:{callbacks:{beforeAttributeUpdated:(attribute,element)=>!(attribute==='open'&&element.matches('details'))}}">
     <header class="site-header">
-      <div class="repository"><img class="mark" src="/static/dreamcatcher-mark-phosphor.png" alt="Dreamcatcher">repository unknown</div>
-      <div class="daemon daemon-stopped">daemon STOPPED</div>
-    </header>
+  <div class="repository"><img class="mark" src="/static/dreamcatcher-mark-phosphor.png" alt="Dreamcatcher">repository unknown</div>
+  <div class="daemon daemon-stopped">daemon STOPPED</div>
+</header>
     <div class="home-content">
       <section class="instance" aria-label="Instance">
   
@@ -44,7 +44,7 @@
 </section>
       <div class="dashboard">
         <section class="panel" aria-labelledby="assignments-heading">
-          <h1 id="assignments-heading">AGENT ASSIGNMENTS <span>00</span></h1>
+          <h1 id="assignments-heading">AGENT ASSIGNMENTS <span>0000</span></h1>
           <div class="panel-body">
             
               <p class="empty">-- no agent assignments --</p>
@@ -53,10 +53,8 @@
           </div>
         </section>
         <section class="panel" aria-labelledby="issues-heading">
-          <h1 id="issues-heading">ISSUES <span>00</span></h1>
+          <h1 id="issues-heading">ISSUES <span>0000</span></h1>
           <div class="panel-body">
-            
-            
             
             
             
@@ -67,6 +65,7 @@
       </div>
     </div>
   </main>
+  <script src="/static/home.js"></script>
 
   </body>
 </html>
