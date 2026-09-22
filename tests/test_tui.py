@@ -302,7 +302,7 @@ def viewed(*, state, issue: int, width: int = WIDTH) -> str:
     return written_to.getvalue()
 
 
-def test_wrapped_latest_output_keeps_its_indent(tmp_path, daemon):
+def test_assignment_latest_output_is_indented_on_one_line(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     holding(state=state)
     directory = written(
@@ -323,17 +323,41 @@ def test_wrapped_latest_output_keeps_its_indent(tmp_path, daemon):
     )
 
     view = viewed(state=state, issue=13, width=40)
-    output = [
-        line
-        for line in view.splitlines()
-        if "agent is explaining" in line or "that needs to wrap" in line
-    ]
+    output = [line for line in view.splitlines() if "agent is explaining" in line]
 
-    assert [line.strip() for line in output] == [
-        "The agent is explaining a long change",
-        "that needs to wrap onto another line.",
-    ]
-    assert all(line.startswith("  ") and not line.startswith("   ") for line in output)
+    assert len(output) == 1
+    assert output[0].startswith("  ")
+    assert not output[0].startswith("   ")
+    assert len(output[0]) <= 40
+    assert output[0].endswith("…")
+
+
+def test_assignment_status_alone_is_coloured_and_latest_output_is_dim(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    written_to = StringIO()
+    console = Console(
+        file=written_to,
+        width=WIDTH,
+        height=HEIGHT,
+        force_terminal=False,
+        color_system="standard",
+        legacy_windows=False,
+        _environ={"TERM": "xterm"},
+        record=True,
+    )
+
+    show_assignment_view(
+        state=state,
+        issue=13,
+        console=console,
+        clock=lambda: LOOKED_AT,
+        wait=refusing,
+    )
+    rendered = console.export_text(styles=True)
+
+    assert "\x1b[32mworking\x1b[0m  round 2, running" in rendered
+    assert "\x1b[2m[Bash] pytest\x1b[0m" in rendered
 
 
 @pytest.mark.parametrize("name", sorted(ASSIGNMENTS))
