@@ -11,6 +11,12 @@ This is not an assignment. An assignment takes an issue to a pull request; a
 conversation helps the user understand and explore it. Neither owns, blocks, or
 coordinates with the other. They share execution machinery, not a lifecycle.
 
+Implementation starts after the web UI work under
+[GH153](https://github.com/alimanfoo/dreamcatcher/issues/153), specified in
+`specs/2026-09-17-web-ui/`, has landed. Conversations extend its shared
+reporting and feed models; the terminal and web remain separate presentation
+layers over the same local data.
+
 ## How it works
 
 ### One conversation from question to answer
@@ -223,13 +229,42 @@ or needing attention, with its issue and latest failure where relevant.
 Reporting reads local records and scheduler observations rather than polling
 GitHub.
 
+From the first usable delivery, include conversations in `dreamcatcher status`,
+add `dreamcatcher conversation GH123` as the detail view analogous to
+`dreamcatcher assignment GH123`, and provide a live conversation feed. The
+detail view shows the issue, chosen harness settings, saved session identifier,
+worktree, and round history with code revisions and outcomes. This gives later
+acceptance tests a place to verify session continuity, code freshness, and
+recovery without reading state files by hand.
+
+The feed shows the agent's actions and output from its saved rounds, using the
+existing local feed machinery. Select its owner explicitly with
+`dreamcatcher feed GH123 --conversation` or
+`dreamcatcher feed GH123 --assignment`. Require exactly one of these mutually
+exclusive selectors so an issue carrying both kinds of work is unambiguous.
+
+The web overview also shows conversations from the first usable delivery. Each
+links to a conversation page combining its detail view and live feed, analogous
+to the web assignment page without assignment-only facts such as a branch or PR.
+Both presentations read the same status and feed models and ask GitHub nothing.
+Use the landed web UI's rendering, polling and tail boundaries; keep
+conversation lifecycle decisions in the shared reporting layer rather than
+either presenter.
+
+As later stages add round and lifecycle behaviour, extend both presentations
+alongside it. Most UI wiring belongs to the first stage; later stages mainly
+supply additional rounds, code revisions, recovery outcomes and fault states to
+those views. Do not defer web visibility to a final integration stage.
+
 ## What changes, and what goes away
 
 Add conversation configuration, records, input, prompts, and scheduling. Extend
 GitHub access with ordinary issue-comment reading and host-owned reply posting.
 Extend Git helpers with detached-worktree creation and idle refresh. Teach the
 harness boundary about conversation permissions and final-answer capture. Extend
-status, retry, and startup/shutdown handling to conversation records.
+terminal and web status, detail views, live feed, retry, and startup/shutdown
+handling to conversation records. The web UI prerequisite's historical
+specifications remain unchanged.
 
 The current round launch request names an assignment, and its inbox and round
 purposes are implementation-specific. Separate those assumptions from the shared

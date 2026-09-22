@@ -36,6 +36,13 @@ and returns one reply, or indicates that no reply is needed. Keep replies
 simple: address the questions together, and quote a question when that helps
 make the answer clear.
 
+I can see issue conversations in `dreamcatcher status`, inspect one with
+`dreamcatcher conversation GH123`, and view its live feed to follow the agent's
+work and diagnose problems. The web UI provides the same visibility through its
+overview and a conversation page containing the details and live feed. Both
+presentation layers must be available from the first usable delivery, not added
+as finishing touches, and stay current as the capability grows.
+
 It can read code, inspect Git history and diffs, run code, and try to reproduce
 bugs. It must not edit source code, perform Git operations that change anything,
 create branches or commits, push, or open a pull request. Its job is answering
