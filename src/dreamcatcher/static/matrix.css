@@ -521,6 +521,26 @@ body::after {
   scroll-behavior: smooth;
 }
 
+.feed-tail {
+  position: absolute;
+  top: calc(var(--space-5) * -1);
+  right: var(--space-6);
+  padding: 0 var(--space-4);
+  color: var(--phosphor);
+  background: var(--background);
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: var(--letter-label);
+  text-shadow: var(--shadow);
+}
+
+.feed-tail:hover,
+.feed-tail:focus-visible {
+  color: var(--bright);
+}
+
 .feed-round {
   display: grid;
   gap: var(--space-2);
@@ -558,6 +578,7 @@ body::after {
   padding: var(--space-4) 0 var(--space-3);
   color: var(--bright);
   background: var(--background);
+  border-bottom: var(--line) solid var(--rule);
   font-weight: 700;
 }
 

@@ -168,7 +168,24 @@ def test_assignment_rounds_link_to_the_feed_in_ascending_order(tmp_path, daemon)
     assert 'src="/static/assignment.js"' in page
 
 
-def test_round_headings_cover_the_top_of_the_feed_viewport(tmp_path):
+def test_assignment_page_offers_a_control_that_jumps_to_the_feed_tail(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_assignment(state=state, identifier="GH13-20260819-184158")
+    application = create_app(state=state, clock=lambda: LOOKED_AT)
+    response = application.test_client().get("/static/assignment.js")
+    script = response.get_data(as_text=True)
+
+    assert (
+        '<button class="feed-tail" type="button" aria-controls="records">'
+        "TAIL ↓</button>" in page
+    )
+    assert response.status_code == 200
+    assert "top: feed.scrollHeight" in script
+
+
+def test_round_headings_are_separated_from_the_feed_content(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
     application = create_app(state=state, clock=lambda: LOOKED_AT)
@@ -178,7 +195,8 @@ def test_round_headings_cover_the_top_of_the_feed_viewport(tmp_path):
 
     assert response.status_code == 200
     assert re.search(
-        r"\.round-boundary \{[^}]*top: calc\(var\(--space-7\) \* -1\);",
+        r"\.round-boundary \{[^}]*top: calc\(var\(--space-7\) \* -1\);"
+        r"[^}]*border-bottom: var\(--line\) solid var\(--rule\);",
         stylesheet,
         re.DOTALL,
     )

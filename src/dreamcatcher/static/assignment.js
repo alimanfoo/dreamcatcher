@@ -1,7 +1,17 @@
 "use strict";
 
 const feed = document.querySelector(".feed-records");
+const feedTail = document.querySelector(".feed-tail");
 const roundLinks = document.querySelectorAll(".round-link");
+
+if (feed !== null && feedTail !== null) {
+  feedTail.addEventListener("click", () => {
+    feed.scrollTo({
+      top: feed.scrollHeight,
+      behavior: "instant",
+    });
+  });
+}
 
 for (const roundLink of roundLinks) {
   roundLink.addEventListener("click", (event) => {
