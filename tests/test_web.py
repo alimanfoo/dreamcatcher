@@ -71,6 +71,17 @@ def test_issue_references_link_to_github_with_hash_notation(tmp_path, daemon):
     assert "blocked by GH50" not in page
 
 
+def test_pull_request_state_remains_without_a_repository_record(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_titles_and_pull_request_states(state=state)
+    state.repository.unlink()
+
+    page = render_home(state=state)
+
+    for pull_request_state in ("draft", "ready", "merged", "closed"):
+        assert f'<span class="pr-chip">PR #52 {pull_request_state}</span>' in page
+
+
 def test_a_record_that_will_not_read_renders_an_error_page(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)

@@ -626,14 +626,9 @@ def _inspect_assignment_pull_request(
             reason=f"cannot read its pull request: {pull_request.reason}",
             is_known=False,
         )
-    record_pull_request_observation(
-        assignment=assignment,
-        pull_request=pull_request,
-        observed_at=observed_at,
-    )
     recovery_reason = assignment.describe_unfinished_round()
     if recovery_reason is not None and pull_request.state is PullRequestState.OPEN:
-        return RequiredAgentRound(
+        inspection_result: AgentAssignmentInspectionResult | None = RequiredAgentRound(
             assignment=assignment,
             plan=AgentRoundPlan(
                 purpose=_derive_round_purpose(pull_request=pull_request),
@@ -642,26 +637,38 @@ def _inspect_assignment_pull_request(
             reason=recovery_reason,
             prompt=RECOVERY_PROMPT,
         )
-    undelivered_posts = list_undelivered_user_posts(
-        repository=repository,
-        pull_request=pull_request.number,
-        account=account,
-        delivery_cursor=assignment.user_post_delivery_cursor,
-    )
-    if isinstance(undelivered_posts, UnknownGitHubResponse):
-        return compose_assignment_observation(
-            assignment=assignment,
-            reason=f"cannot tell what the user posted: {undelivered_posts.reason}",
-            is_known=False,
+    else:
+        undelivered_posts = list_undelivered_user_posts(
+            repository=repository,
+            pull_request=pull_request.number,
+            account=account,
+            delivery_cursor=assignment.user_post_delivery_cursor,
         )
-    if pull_request.state is PullRequestState.OPEN and not undelivered_posts:
-        return None
-    return _compose_resumed_round_requirement(
-        assignment=assignment,
-        pull_request=pull_request,
-        undelivered_posts=undelivered_posts,
-        recovery_reason=recovery_reason,
-    )
+        if isinstance(undelivered_posts, UnknownGitHubResponse):
+            inspection_result = compose_assignment_observation(
+                assignment=assignment,
+                reason=f"cannot tell what the user posted: {undelivered_posts.reason}",
+                is_known=False,
+            )
+        elif pull_request.state is PullRequestState.OPEN and not undelivered_posts:
+            inspection_result = None
+        else:
+            inspection_result = _compose_resumed_round_requirement(
+                assignment=assignment,
+                pull_request=pull_request,
+                undelivered_posts=undelivered_posts,
+                recovery_reason=recovery_reason,
+            )
+    try:
+        record_pull_request_observation(
+            assignment=assignment,
+            pull_request=pull_request,
+            observed_at=observed_at,
+        )
+    except ReportableError:
+        if not isinstance(inspection_result, RequiredAgentRound):
+            raise
+    return inspection_result
 
 
 def compose_initial_round_requirement(
