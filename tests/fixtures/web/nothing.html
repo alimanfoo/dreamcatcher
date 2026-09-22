@@ -10,7 +10,7 @@
   </head>
   <body hx-ext="morph">
     
-  <main id="home" hx-get="/" hx-trigger="every 2s" hx-select="#home" hx-swap="morph:{callbacks:{beforeAttributeUpdated:(attribute,element)=>attribute==='open'&&element.matches('details')}}">
+  <main id="home" hx-get="/" hx-trigger="every 2s" hx-select="#home" hx-swap="morph:{callbacks:{beforeAttributeUpdated:(attribute,element)=>!(attribute==='open'&&element.matches('details'))}}">
     <header class="site-header">
       <div class="repository"><img class="mark" src="/static/dreamcatcher-mark-phosphor.png" alt="Dreamcatcher">repository unknown</div>
       <div class="daemon daemon-stopped">daemon STOPPED</div>
