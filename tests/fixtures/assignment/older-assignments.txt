@@ -1,5 +1,5 @@
 newest agent assignment GH13-20260819-184158
-needs user feedback, idle 1h 58m
+needs user feedback  idle 1h 58m
 
 assignment
   issue identifier             GH13                                           

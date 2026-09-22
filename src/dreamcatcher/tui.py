@@ -314,55 +314,25 @@ def _render_assignments(
                 str(status.value),
                 style=ASSIGNMENT_STATUS_STYLES_IN_ATTENTION_ORDER[status.value],
             ),
-            Text(
-                ", ".join(
-                    filter(
-                        None,
-                        (_describe_running_round(status=status), status.detail),
-                    )
-                )
-            ),
+            Text(status.detail),
         )
         rows.append(table)
-        if status.latest_output is not None:
-            rows.append(
-                Text(
-                    status.latest_output,
-                    style="dim",
-                    overflow="ellipsis",
-                    no_wrap=True,
-                )
-            )
+        latest_output = _render_assignment_latest_output(status=status)
+        if latest_output is not None:
+            rows.append(latest_output)
     return _render_section(heading="agent assignments", body=Group(*rows))
 
 
-def _describe_running_round(*, status: AgentAssignmentStatus) -> str:
-    """Return the running round's number, or nothing between rounds."""
-    if status.value is not AgentAssignmentStatusValue.WORKING:
-        return ""
-    return f"round {len(status.assignment.rounds)}"
-
-
-def _render_assignment_detail(
-    *,
-    status: AgentAssignmentStatus,
-    prefix: str = "",
-    continuation_indent: int = 0,
-    style: str = "",
-) -> RenderableType:
-    """Render assignment detail behind its prefix, latest output beneath it."""
-    detail = Text(
-        ", ".join(filter(None, (prefix, status.detail))),
-        style=style,
-    )
+def _render_assignment_latest_output(*, status: AgentAssignmentStatus) -> Text | None:
+    """Render an assignment's latest output as one dimmed line."""
     if status.latest_output is None:
-        return detail
-    output = Padding(
-        Text(status.latest_output),
-        (0, 0, 0, continuation_indent),
-        expand=False,
+        return None
+    return Text(
+        status.latest_output,
+        style="dim",
+        overflow="ellipsis",
+        no_wrap=True,
     )
-    return Group(detail, output)
 
 
 def _describe_empty_status_report(
@@ -456,15 +426,25 @@ def _render_assignment(
     orders them newest first.
     """
     current_status = assignment_statuses[0]
+    status_value = str(current_status.value)
+    rendered_status = Text(f"{status_value}  {current_status.detail}")
+    rendered_status.stylize(
+        ASSIGNMENT_STATUS_STYLES_IN_ATTENTION_ORDER[current_status.value],
+        0,
+        len(status_value),
+    )
+    latest_output = _render_assignment_latest_output(status=current_status)
+    if latest_output is not None:
+        latest_output = Padding(
+            latest_output,
+            (0, 0, 0, SECTION_PADDING[3]),
+            expand=False,
+        )
     return _combine_renderable_parts(
         parts=[
             Text(f"newest agent assignment {current_status.assignment.identifier}"),
-            _render_assignment_detail(
-                status=current_status,
-                prefix=str(current_status.value),
-                continuation_indent=SECTION_PADDING[3],
-                style=ASSIGNMENT_STATUS_STYLES_IN_ATTENTION_ORDER[current_status.value],
-            ),
+            rendered_status,
+            latest_output,
             _render_assignment_summary(state=state, status=current_status),
             _render_rounds(status=current_status),
             _render_harness_resume(state=state, status=current_status),
@@ -566,7 +546,7 @@ def _render_older_assignments(
                 str(status.value),
                 style=ASSIGNMENT_STATUS_STYLES_IN_ATTENTION_ORDER[status.value],
             ),
-            _render_assignment_detail(status=status),
+            Text(status.detail),
         )
     return _render_section(heading="older assignments", body=table)
 

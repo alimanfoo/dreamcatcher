@@ -192,7 +192,7 @@ def test_a_live_round_reports_work_and_its_latest_output(running):
     assert found.daemon_pid == os.getpid()
     assert found.running_agents == 1
     assert status.value is AgentAssignmentStatusValue.WORKING
-    assert status.detail == "running 1h 59m, last output 1h 58m ago"
+    assert status.detail == "round 1, running 1h 59m, last output 1h 58m ago"
     assert status.latest_output == "[Bash] pytest"
     assert status.hand_resume_command is None
 
@@ -343,7 +343,7 @@ def test_a_live_round_that_has_said_nothing_reports_that(running):
     status = only_assignment(state=running)
 
     assert status.value is AgentAssignmentStatusValue.WORKING
-    assert status.detail == "running 1h 59m, has said nothing yet"
+    assert status.detail == "round 1, running 1h 59m, has said nothing yet"
     assert status.latest_output is None
 
 

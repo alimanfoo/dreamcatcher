@@ -446,12 +446,13 @@ class _StatusReportReader:
     ) -> tuple[str, str | None]:
         """Describe the live round and return its latest feed output."""
         since_started = describe_span(span=self.at - assignment.rounds[-1].started)
+        detail = f"round {assignment.rounds[-1].number}, running {since_started}"
         line = self._read_last_output(assignment=assignment)
         if line is None:
-            return f"running {since_started}, has said nothing yet", None
+            return f"{detail}, has said nothing yet", None
         since_last_output = describe_span(span=self.at - line.at)
         return (
-            f"running {since_started}, last output {since_last_output} ago",
+            f"{detail}, last output {since_last_output} ago",
             line.text.strip(),
         )
 
