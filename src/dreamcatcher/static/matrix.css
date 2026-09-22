@@ -476,6 +476,11 @@ body::after {
   color: var(--phosphor);
 }
 
+.feed-content {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
 .round-boundary {
   padding-top: var(--space-3);
   color: var(--bright);

@@ -10,6 +10,7 @@ from dreamcatcher.agent_assignments import (
     AgentAssignment,
     find_harness_session_identifier,
     find_open_agent_assignments_by_issue,
+    read_agent_assignment,
     read_agent_assignments,
     read_agent_assignments_for_issue,
 )
@@ -232,15 +233,7 @@ def read_agent_assignment_status(
     clock: Callable[[], datetime] = read_current_time,
 ) -> AgentAssignmentStatus | None:
     """Read one agent assignment's status by its exact identifier."""
-    assignments = read_agent_assignments(state=state)
-    assignment = next(
-        (
-            assignment
-            for assignment in assignments
-            if assignment.identifier == identifier
-        ),
-        None,
-    )
+    assignment = read_agent_assignment(state=state, identifier=identifier)
     if assignment is None:
         return None
     reader = _StatusReportReader(state=state, clock=clock)

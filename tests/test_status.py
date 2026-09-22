@@ -712,6 +712,46 @@ def test_reading_an_unknown_assignment_finds_nothing(state):
     )
 
 
+def test_reading_an_incomplete_assignment_finds_nothing(state):
+    identifier = "GH99-20260820-090000"
+    (state.worktrees / identifier).mkdir()
+
+    assert (
+        read_agent_assignment_status(
+            state=state,
+            identifier=identifier,
+            clock=lambda: LOOKED_AT,
+        )
+        is None
+    )
+
+
+def test_reading_one_assignment_does_not_read_an_unrelated_assignment(state):
+    corrupt_identifier = "GH99-20260820-090000"
+    write_agent_assignment(
+        state=state,
+        identifier=corrupt_identifier,
+        issue=99,
+    )
+    record = state.assignments / corrupt_identifier / "assignment.json"
+    record.write_bytes(b"{")
+
+    status = read_agent_assignment_status(
+        state=state,
+        identifier=ASSIGNMENT_ID,
+        clock=lambda: LOOKED_AT,
+    )
+    unknown = read_agent_assignment_status(
+        state=state,
+        identifier="GH100-20260820-090000",
+        clock=lambda: LOOKED_AT,
+    )
+
+    assert status is not None
+    assert status.assignment.identifier == ASSIGNMENT_ID
+    assert unknown is None
+
+
 def test_a_failed_setup_reports_independently_of_an_external_claim(state):
     observation = observed_issue(
         issue=20,

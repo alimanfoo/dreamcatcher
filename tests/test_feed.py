@@ -154,6 +154,16 @@ def test_prose_that_begins_with_a_bracketed_word_reads_as_a_note():
     )
 
 
+def test_prose_with_a_bracketed_prefix_but_no_gap_remains_prose():
+    assert read_feed_line(
+        written_line="2026-08-19T18:41:58Z  [aside]this began as prose"
+    ) == FeedLine(
+        at=PINNED,
+        text="[aside]this began as prose",
+        detail="[aside]this began as prose",
+    )
+
+
 def test_a_subagents_line_reads_back_with_the_indent_that_sets_it_in():
     written = create_feed_renderer().render(
         event=FeedNote(label="Bash", detail="pytest", is_subagent=True)

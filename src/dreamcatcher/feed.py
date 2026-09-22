@@ -28,7 +28,7 @@ SUBAGENT_INDENT = "  "
 # What sits between a line's stamp and what the line says.
 FEED_TIMESTAMP_GAP = "  "
 
-_FEED_NOTE_PATTERN = re.compile(r"^\[([^\]]+)\](?: ?(.*))$")
+_FEED_NOTE_PATTERN = re.compile(r"^\[([^\]]+)\](?: (.*))?$")
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -89,7 +89,7 @@ def read_feed_line(*, written_line: str) -> FeedLine | None:
         at=at,
         text=text,
         label=None if note is None else note.group(1),
-        detail=parsed_contents if note is None else note.group(2),
+        detail=parsed_contents if note is None else note.group(2) or "",
         is_subagent=is_subagent,
     )
 
