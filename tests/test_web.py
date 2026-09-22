@@ -88,6 +88,10 @@ def test_a_home_card_links_to_its_exact_assignment(tmp_path, daemon):
     )
     assert assignment_link in page
     assert page.count('href="/assignments/GH13-20260819-184158"') == 1
+    card_start = page.index('<article id="assignment-GH13-20260819-184158"')
+    card = page[card_start : page.index("</article>", card_start)]
+    assert card.index(assignment_link) < card.index('class="assignment-detail"')
+    assert card.index('class="pr-chip"') > card.index('class="assignment-detail"')
 
 
 def test_assignment_page_shares_the_home_page_top_bar(tmp_path, daemon):
@@ -182,7 +186,7 @@ def test_hand_resume_command_is_a_collapsed_last_resort(tmp_path, daemon):
     assert "<summary>last resort · resume by hand</summary>" in page
     assert "Use this escape hatch only when automatic recovery is impossible." in page
     assert 'class="panel resume-command"' not in page
-    assert "font-size: calc(var(--font-size) * 0.9);" in stylesheet
+    assert "font-size: 0.9em;" in stylesheet
 
 
 def test_assignment_page_offers_a_control_that_jumps_to_the_feed_tail(tmp_path, daemon):

@@ -310,7 +310,7 @@ body::after {
   margin-top: var(--space-4);
 }
 
-.assignment-actions {
+.card-heading-actions {
   display: flex;
   align-items: baseline;
   gap: var(--space-4);
@@ -513,7 +513,7 @@ body::after {
 .manual-recovery summary {
   color: var(--amber);
   cursor: pointer;
-  font-size: calc(var(--font-size) * 0.9);
+  font-size: 0.9em;
   font-weight: 700;
   letter-spacing: var(--letter-label);
 }
