@@ -4,6 +4,8 @@ const feed = document.querySelector(".feed-records");
 const feedTail = document.querySelector(".feed-tail");
 const assignmentSidebar = document.querySelector(".assignment-sidebar");
 let shouldFollowFeed = false;
+let currentRoundHash = null;
+let focusedRoundHash = null;
 
 if (feed !== null && feedTail !== null) {
   feedTail.addEventListener("click", () => {
@@ -21,11 +23,30 @@ if (feed !== null) {
     }
     shouldFollowFeed =
       feed.scrollHeight - feed.scrollTop - feed.clientHeight <= 1;
+    const currentRoundLink = assignmentSidebar?.querySelector(
+      '.round-link[aria-current="true"]',
+    );
+    const focusedRoundLink = document.activeElement?.closest(".round-link");
+    currentRoundHash = currentRoundLink?.hash ?? null;
+    focusedRoundHash = assignmentSidebar?.contains(focusedRoundLink)
+      ? focusedRoundLink.hash
+      : null;
   });
   feed.addEventListener("htmx:afterSwap", (event) => {
-    if (event.detail.target === feed && shouldFollowFeed) {
+    if (event.detail.target !== feed) {
+      return;
+    }
+    if (shouldFollowFeed) {
       feed.scrollTop = feed.scrollHeight;
     }
+    const currentRoundLink = assignmentSidebar?.querySelector(
+      `.round-link[href="${currentRoundHash}"]`,
+    );
+    currentRoundLink?.setAttribute("aria-current", "true");
+    const focusedRoundLink = assignmentSidebar?.querySelector(
+      `.round-link[href="${focusedRoundHash}"]`,
+    );
+    focusedRoundLink?.focus({ preventScroll: true });
   });
 }
 

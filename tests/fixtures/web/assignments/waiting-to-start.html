@@ -49,7 +49,7 @@
           <h1 id="feed-heading">FEED</h1>
           <button class="feed-tail" type="button" aria-controls="records">TAIL ↓</button>
           <input type="hidden" id="cursor" name="cursor" value="0:0">
-          <div id="records" class="feed-records" hx-get="/assignments/GH44-20260819-184158/tail" hx-trigger="every 2s" hx-include="#cursor" hx-swap="beforeend">
+          <div id="records" class="feed-records" hx-get="/assignments/GH44-20260819-184158/tail" hx-trigger="every 2s" hx-include="#cursor" hx-select=".feed-line" hx-swap="beforeend">
             
               <p id="empty-feed" class="empty">-- no feed yet --</p>
             

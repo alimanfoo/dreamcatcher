@@ -170,7 +170,7 @@ def test_assignment_page_polls_its_tail_from_the_last_complete_line(tmp_path, da
     assert (
         f'id="records" class="feed-records" '
         f'hx-get="/assignments/{identifier}/tail" hx-trigger="every 2s" '
-        'hx-include="#cursor" hx-swap="beforeend"' in page
+        'hx-include="#cursor" hx-select=".feed-line" hx-swap="beforeend"' in page
     )
 
 
@@ -214,8 +214,10 @@ def test_assignment_script_follows_only_when_the_feed_was_at_its_end(tmp_path):
     assert 'feed.addEventListener("htmx:beforeSwap"' in script
     assert 'feed.addEventListener("htmx:afterSwap"' in script
     assert "feed.scrollHeight - feed.scrollTop - feed.clientHeight <= 1" in script
-    assert "event.detail.target === feed && shouldFollowFeed" in script
+    assert "if (shouldFollowFeed)" in script
     assert 'assignmentSidebar.addEventListener("click"' in script
+    assert 'currentRoundLink?.setAttribute("aria-current", "true")' in script
+    assert "focusedRoundLink?.focus({ preventScroll: true })" in script
 
 
 def test_complete_assignment_cards_have_space_between_them(tmp_path, daemon):
@@ -322,7 +324,15 @@ def test_an_unknown_assignment_tail_renders_a_404_page(tmp_path):
 
 @pytest.mark.parametrize(
     "cursor",
-    ["", "garbage", "0:1", "01:0", "-1:0", "99:0"],
+    [
+        "",
+        "garbage",
+        "0:1",
+        "01:0",
+        "-1:0",
+        "99:0",
+        pytest.param(f"1:{'9' * 5000}", id="oversized integer"),
+    ],
 )
 def test_an_invalid_tail_cursor_renders_a_400_page(tmp_path, cursor):
     state = StateDirectory(root=tmp_path)
@@ -333,6 +343,27 @@ def test_an_invalid_tail_cursor_renders_a_400_page(tmp_path, cursor):
         state=state,
         identifier="GH60-20260819-184158",
         cursor=cursor,
+    )
+
+    assert response.status_code == 400
+    assert "The feed cursor is invalid." in response.text
+
+
+@pytest.mark.parametrize("position", [1, 99])
+def test_a_tail_cursor_must_follow_a_complete_line(tmp_path, position):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    directory = written(state=state, issue=60, records=[running(minute=1)])
+    write_feed(
+        directory=directory,
+        number=1,
+        lines=[FeedLine(at=LOOKED_AT, text="one line")],
+    )
+
+    response = _read_tail(
+        state=state,
+        identifier="GH60-20260819-184158",
+        cursor=f"1:{position}",
     )
 
     assert response.status_code == 400
@@ -387,6 +418,7 @@ def test_a_tail_returns_only_complete_lines_after_its_cursor(tmp_path):
 
     assert "the first line" in first_read.text
     assert "the second line" not in first_read.text
+    assert 'id="empty-feed"' not in first_read.text
     assert "the second line" not in incomplete_read.text
     assert _read_cursor(response=incomplete_read) == cursor
 
@@ -484,6 +516,25 @@ def test_a_tail_fragment_matches_its_golden(tmp_path, daemon):
 
     assert response.status_code == 200
     assert response.text == (FIXTURES / "web" / "tail.html").read_text(encoding="utf-8")
+
+
+def test_a_quiet_tail_has_no_appendable_text_nodes(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    written(state=state, issue=60, records=[running(minute=1)])
+
+    response = _read_tail(
+        state=state,
+        identifier="GH60-20260819-184158",
+        cursor="1:0",
+    )
+
+    assert response.text.startswith(
+        '<input type="hidden" id="cursor" name="cursor" value="1:0" '
+        'hx-swap-oob="true"><span'
+    )
+    assert "</span><aside" in response.text
+    assert response.text.endswith("</aside>")
 
 
 def test_an_assignment_page_links_its_title_and_pull_request(tmp_path, daemon):

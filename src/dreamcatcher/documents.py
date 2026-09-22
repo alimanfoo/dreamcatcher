@@ -111,6 +111,24 @@ def read_lines_from(*, path: Path, position: int) -> tuple[list[str], int]:
     ) + len(ending)
 
 
+def is_complete_line_position(*, path: Path, position: int) -> bool:
+    """Whether a byte position starts the file or follows a complete line.
+
+    A position beyond the bytes the file holds is not valid. A missing file is
+    an empty file, following the same rule as `read_lines_from`.
+
+    Raise ReportableError when the read fails, for the reason read_text does.
+    """
+    with _open_bytes(path=path) as opened:
+        file_size = opened.seek(0, SEEK_END)
+        if position < 0 or position > file_size:
+            return False
+        if position == 0:
+            return True
+        opened.seek(position - 1)
+        return opened.read(1) == b"\n"
+
+
 def read_last_line(*, path: Path) -> str | None:
     """Return the last complete line without its line ending.
 

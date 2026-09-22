@@ -16,7 +16,7 @@ from werkzeug.serving import BaseWSGIServer
 
 from dreamcatcher.agent_rounds import AgentRoundRecord
 from dreamcatcher.clock import read_current_time
-from dreamcatcher.documents import read_lines_from
+from dreamcatcher.documents import is_complete_line_position, read_lines_from
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import (
     compose_agent_round_boundary,
@@ -159,6 +159,7 @@ class WebAssignmentTail:
     status: str
     status_label: str
     rounds: tuple[WebAssignmentRound, ...]
+    has_empty_feed_placeholder: bool
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -502,10 +503,13 @@ def _decode_feed_cursor(*, value: str) -> WebFeedCursor:
     match = _FEED_CURSOR_PATTERN.fullmatch(value)
     if match is None:
         raise _InvalidFeedCursorError
-    cursor = WebFeedCursor(
-        round_number=int(match["round"]),
-        position=int(match["position"]),
-    )
+    try:
+        cursor = WebFeedCursor(
+            round_number=int(match["round"]),
+            position=int(match["position"]),
+        )
+    except ValueError:
+        raise _InvalidFeedCursorError from None
     if cursor.round_number == 0 and cursor.position != 0:
         raise _InvalidFeedCursorError
     return cursor
@@ -516,21 +520,18 @@ def _read_assignment_tail(
 ) -> WebAssignmentTail:
     assignment = status.assignment
     records_by_number = {record.number: record for record in assignment.rounds}
-    if cursor.round_number == 0:
-        number = 1
-        position = 0
-        is_opening_round = True
-    else:
-        if cursor.round_number not in records_by_number:
-            raise _InvalidFeedCursorError
-        number = cursor.round_number
-        position = cursor.position
-        is_opening_round = False
+    number, position, is_opening_round = _resolve_feed_cursor(
+        cursor=cursor,
+        records_by_number=records_by_number,
+    )
     feed_rounds = []
     next_cursor = cursor
     while (record := records_by_number.get(number)) is not None:
+        feed_path = assignment.compose_round_paths(number=number).feed
+        if not is_complete_line_position(path=feed_path, position=position):
+            raise _InvalidFeedCursorError
         written_lines, position = read_lines_from(
-            path=assignment.compose_round_paths(number=number).feed,
+            path=feed_path,
             position=position,
         )
         lines = tuple(
@@ -553,7 +554,20 @@ def _read_assignment_tail(
         status=str(status.value),
         status_label=_compose_web_status_label(status=status),
         rounds=_compose_assignment_rounds(status=status),
+        has_empty_feed_placeholder=cursor.round_number == 0,
     )
+
+
+def _resolve_feed_cursor(
+    *,
+    cursor: WebFeedCursor,
+    records_by_number: dict[int, AgentRoundRecord],
+) -> tuple[int, int, bool]:
+    if cursor.round_number == 0:
+        return 1, 0, True
+    if cursor.round_number not in records_by_number:
+        raise _InvalidFeedCursorError
+    return cursor.round_number, cursor.position, False
 
 
 def _compose_web_round_boundary(*, record: AgentRoundRecord) -> WebFeedLine:
