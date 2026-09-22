@@ -35,8 +35,8 @@ from dreamcatcher.feed import (
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
+    STATUSES_THAT_END_A_VIEW,
     AgentAssignmentStatus,
-    AgentAssignmentStatusValue,
     DreamcatcherStatusReport,
     IssueObservation,
     read_agent_assignment_statuses_for_issue,
@@ -51,11 +51,6 @@ ASSIGNMENT_STATUS_STYLES = dict(
         ("yellow", "red", "green", "cyan", "magenta", "dim"),
         strict=True,
     )
-)
-
-STATUSES_THAT_END_A_VIEW = (
-    AgentAssignmentStatusValue.FAULT,
-    AgentAssignmentStatusValue.COMPLETE,
 )
 
 # How long a following view waits between refreshes for new round output.

@@ -61,6 +61,11 @@ ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER = (
     AgentAssignmentStatusValue.COMPLETE,
 )
 
+STATUSES_THAT_END_A_VIEW = (
+    AgentAssignmentStatusValue.FAULT,
+    AgentAssignmentStatusValue.COMPLETE,
+)
+
 
 @dataclass(frozen=True, kw_only=True)
 class AgentRoundStatus:
