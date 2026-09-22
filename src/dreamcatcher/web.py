@@ -236,16 +236,11 @@ def _compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
 
 def _compose_assignment_card(*, status: AgentAssignmentStatus) -> WebAssignmentCard:
     assignment = status.assignment
-    round_prefix = (
-        f"round {len(assignment.rounds)}, "
-        if status.value is AgentAssignmentStatusValue.WORKING
-        else ""
-    )
     return WebAssignmentCard(
         identifier=assignment.identifier,
         issue=assignment.record.issue,
         status=str(status.value),
-        detail=f"{round_prefix}{status.detail}",
+        detail=status.detail,
         harness=str(assignment.record.harness),
         model=assignment.record.model,
         effort=assignment.record.effort,

@@ -53,9 +53,10 @@ USER_POSTS_PROMPT = """PR-inbox prompt for pull request #{pull_request}:
 
   {round_input}
 
-Read that JSON file. Read state before anything else. If state is MERGED or
-CLOSED, finish per your assignment's rules. Otherwise act on posts per your
-assignment's rules. End your turn when done."""
+Read that JSON file. Read pull_request_state before anything else. If
+pull_request_state is MERGED or CLOSED, finish per your assignment's rules.
+Otherwise act on user_posts per your assignment's rules. End your turn when
+done."""
 
 
 def compose_first_round_prompt(*, template: str, issue: int) -> str:
