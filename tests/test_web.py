@@ -173,11 +173,16 @@ def test_hand_resume_command_is_a_collapsed_last_resort(tmp_path, daemon):
     fabricate_everything(state=state)
 
     page = render_assignment(state=state, identifier="GH9-20260819-184158")
+    application = create_app(state=state, clock=lambda: LOOKED_AT)
+    stylesheet = (
+        application.test_client().get("/static/matrix.css").get_data(as_text=True)
+    )
 
     assert '<details class="manual-recovery">' in page
-    assert "<summary>LAST RESORT · RESUME BY HAND</summary>" in page
+    assert "<summary>last resort · resume by hand</summary>" in page
     assert "Use this escape hatch only when automatic recovery is impossible." in page
     assert 'class="panel resume-command"' not in page
+    assert "font-size: calc(var(--font-size) * 0.9);" in stylesheet
 
 
 def test_assignment_page_offers_a_control_that_jumps_to_the_feed_tail(tmp_path, daemon):

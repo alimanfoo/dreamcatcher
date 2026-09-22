@@ -513,6 +513,7 @@ body::after {
 .manual-recovery summary {
   color: var(--amber);
   cursor: pointer;
+  font-size: calc(var(--font-size) * 0.9);
   font-weight: 700;
   letter-spacing: var(--letter-label);
 }
