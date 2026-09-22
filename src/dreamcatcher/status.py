@@ -225,6 +225,28 @@ def read_agent_assignment_statuses_for_issue(
     )
 
 
+def read_agent_assignment_status(
+    *,
+    state: StateDirectory,
+    identifier: str,
+    clock: Callable[[], datetime] = read_current_time,
+) -> AgentAssignmentStatus | None:
+    """Read one agent assignment's status by its exact identifier."""
+    assignments = read_agent_assignments(state=state)
+    assignment = next(
+        (
+            assignment
+            for assignment in assignments
+            if assignment.identifier == identifier
+        ),
+        None,
+    )
+    if assignment is None:
+        return None
+    reader = _StatusReportReader(state=state, clock=clock)
+    return reader.list_assignment_statuses(assignments=[assignment])[0]
+
+
 def _compose_round_duration_description(*, record: AgentRoundRecord) -> str:
     ending = record.ending
     if ending is None or ending.outcome is AgentRoundOutcome.INTERRUPTED:
