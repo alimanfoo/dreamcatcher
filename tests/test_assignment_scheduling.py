@@ -267,6 +267,9 @@ def test_the_prompt_of_a_posts_resume_sends_the_assignment_to_the_next_rounds_in
     resume = found(state=state)
 
     assert isinstance(resume, RequiredAgentRound)
+    pull_request_state, user_posts = AgentRoundInput.model_fields
+    assert f"Read {pull_request_state} before anything else." in resume.prompt
+    assert f"act on {user_posts}" in resume.prompt
     assert f"pull request #{PULL_REQUEST}" in resume.prompt
     paths = resume.assignment.compose_round_paths(
         number=resume.assignment.next_round_number
