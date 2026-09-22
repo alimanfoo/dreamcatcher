@@ -92,6 +92,16 @@ def test_issue_references_link_to_github_with_hash_notation(tmp_path, daemon):
     assert "blocked by GH50" not in page
 
 
+def test_a_pull_request_links_to_github_before_its_state_is_observed(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_home(state=state)
+
+    pull_request_url = f"https://github.com/{REPOSITORY}/pull/52"
+    assert f'href="{pull_request_url}">PR #52</a>' in page
+
+
 def test_pull_request_state_remains_without_a_repository_record(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_titles_and_pull_request_states(state=state)

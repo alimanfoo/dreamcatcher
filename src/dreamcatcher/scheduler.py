@@ -26,6 +26,7 @@ from dreamcatcher.agent_assignments import (
     find_open_agent_assignments_by_issue,
     inspect_incomplete_assignment_setups,
     read_agent_assignments,
+    record_agent_assignment_title,
     record_harness_session_identifier,
     record_pull_request_observation,
 )
@@ -295,6 +296,20 @@ def observe_issues(
         ),
         failure=considered_issues.failure,
     )
+
+
+def _record_missing_assignment_titles(
+    *, assignments: list[AgentAssignment], observations: list[IssueObservation]
+) -> None:
+    """Record titles first learned after legacy assignments were created."""
+    open_assignments = find_open_agent_assignments_by_issue(assignments=assignments)
+    for observation in observations:
+        assignment = open_assignments.get(observation.issue)
+        if assignment is not None and observation.title is not None:
+            record_agent_assignment_title(
+                assignment=assignment,
+                title=observation.title,
+            )
 
 
 def _list_considered_issues(
@@ -794,6 +809,10 @@ class AgentWorkScheduler:
             observation.model_copy(update={"observed_at": at})
             for observation in issue_observation_result.observations
         ]
+        _record_missing_assignment_titles(
+            assignments=assignments,
+            observations=issue_observations,
+        )
         inspection_results = self._inspect_assignments(
             assignments=assignments,
             most_recent_cooldown_ended=most_recent_cooldown_ended,
