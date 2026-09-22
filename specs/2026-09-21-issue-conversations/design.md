@@ -79,11 +79,15 @@ before writing an inbox or prompt. Comments by other accounts never become agent
 context. The issue's title and body are still supplied; they describe the issue
 even when another agent or person raised it.
 
+The label and assignment enable watching; they do not themselves start a round.
+Every new batch, including the first, requires at least one eligible,
+undelivered comment. If there are none after filtering, wait without launching
+the agent. The issue title and body alone do not trigger a round.
+
 On the first round, supply the eligible existing history and ask the agent to
 answer outstanding questions. Do not build a question detector or an answered
-question ledger. The agent decides what needs a response, including whether
-there is anything to say at all. The initial invitation can therefore run a
-first round even when there are no eligible comments yet.
+question ledger. The agent decides whether the supplied comments need a response
+and can return `NO_REPLY`.
 
 Later rounds receive only newly posted eligible comments. Edits to already
 delivered comments do not trigger another round. Comments posted while an issue
@@ -196,8 +200,9 @@ At most one round runs per conversation. Running conversation and implementation
 rounds count against the same configured concurrency cap; idle sessions and
 pending publication consume no agent slot. Among conversations awaiting a new
 round, take the oldest waiting comment first, batching the other waiting
-comments on that issue. For an initial round without comments, use issue age.
-Recovery takes precedence over fresh input for that conversation.
+comments on that issue. The same ordering applies to initial and later batches;
+an issue with no eligible, undelivered comments is not a candidate for a new
+batch. Recovery takes precedence over fresh input for that conversation.
 
 When both an implementation candidate and a conversation candidate are ready,
 alternate which kind receives the next free slot. When only one kind is ready,

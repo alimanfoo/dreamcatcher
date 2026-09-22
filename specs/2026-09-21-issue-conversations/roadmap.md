@@ -23,8 +23,10 @@ not a substitute for checking what the web UI work changed.
 Add the separate conversation configuration and discover open labelled issues
 assigned to the signed-in account. Read the issue title and body plus ordinary
 issue comments, filtering other authors and marked agent comments before writing
-agent input. Freeze the eligible existing history as the initial batch; an
-invitation without comments may still start a round. Do not apply assignment
+agent input. The label and assignment enable watching, not an agent round. Only
+start the first round when at least one eligible, undelivered comment exists;
+otherwise wait. Freeze the eligible existing history as the initial batch. The
+issue title and body alone do not trigger a round. Do not apply assignment
 ownership, PR, dependency or dispatch-conflict gates.
 
 Create one conversation record and a detached worktree in a namespace excluded
@@ -81,13 +83,14 @@ the round finished, and no implementation PR is created. Leave the daemon
 running through another tick: there is no second round or duplicate answer.
 
 **Automated proof.** Cover eligibility and independence from assignment gates,
-author/marker filtering, the no-comment invitation, namespace separation,
-initial worktree revision, final-result readiness, `NO_REPLY`, missing or failed
-results, and completion without repeated launch. Exercise a failed post followed
-by success and prove the harness runs only once. Cover ordinary process cleanup
-without resumption, both owner selectors, and both presentations from the same
-fabricated states, including a failed initial attempt and pending publication.
-Existing assignment behaviour remains covered by its regression tests.
+author/marker filtering, no launch without eligible comments, namespace
+separation, initial worktree revision, final-result readiness, `NO_REPLY`,
+missing or failed results, and completion without repeated launch. Exercise a
+failed post followed by success and prove the harness runs only once. Cover
+ordinary process cleanup without resumption, both owner selectors, and both
+presentations from the same fabricated states, including a failed initial
+attempt and pending publication. Existing assignment behaviour remains covered
+by its regression tests.
 
 **Deferral.** Follow-up batches and session resumption; refreshing main after
 the initial round; automatic recovery, fault counting and conversation manual
@@ -118,8 +121,9 @@ for stage four's recovery rather than being overtaken by new input.
 Add fair admission at the point that selects a new agent round: alternate
 conversation and implementation candidates when both are ready, keeping each
 workflow's internal selection rules and the shared cap. Conversation batches use
-oldest waiting input first; an initial conversation without comments uses issue
-age. No durable scheduling queue is added.
+oldest waiting input first, for initial and later batches alike. Issues without
+eligible, undelivered comments are not candidates for new batches. No durable
+scheduling queue is added.
 
 Both UIs show further rounds in the existing conversation and keep the session
 identity visible. Feeds retain earlier output and follow across idle gaps. An

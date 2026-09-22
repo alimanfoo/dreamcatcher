@@ -17,9 +17,10 @@ questions and answers to stay with the issue.
 ## What has to be true of anything I'd accept?
 
 I invite a conversation partner by adding a conversation label and assigning the
-issue to myself. This starts a session dedicated to that issue, with a
-conversation contract that does not ask it to implement anything or open a pull
-request.
+issue to myself. This enables watching for comments; it does not itself start an
+agent round. The first eligible, undelivered comments start a session dedicated
+to that issue, with a conversation contract that does not ask it to implement
+anything or open a pull request. With no such comments, Dreamcatcher waits.
 
 Only my comments are passed to the agent. Comments from anyone else are filtered
 out before the agent sees them, including as context, to reduce the risk of
