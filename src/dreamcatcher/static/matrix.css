@@ -221,6 +221,12 @@ main {
   font-weight: 600;
 }
 
+.title {
+  color: var(--bright);
+  font-weight: 600;
+  text-wrap: pretty;
+}
+
 .chip {
   flex: none;
   padding: 0 var(--space-3);
@@ -287,6 +293,12 @@ main {
   padding: var(--space-1) var(--space-5);
   color: var(--phosphor);
   border: var(--line) solid var(--rule);
+  text-decoration: none;
+}
+
+.pr-chip:hover {
+  color: var(--bright);
+  background: var(--tint);
 }
 
 .complete-assignments summary,

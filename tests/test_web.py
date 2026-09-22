@@ -12,6 +12,7 @@ from status_fabrications import (
     LOOKED_AT,
     STATUS_REPORTS,
     fabricate_everything,
+    fabricate_titles_and_pull_request_states,
 )
 
 import dreamcatcher.web as web_module
@@ -20,6 +21,11 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.web import WEB_BASE_PORT, WEB_HOST, create_app, serve_web
+
+WEB_STATUS_REPORTS = {
+    **STATUS_REPORTS,
+    "titles-and-pull-requests": fabricate_titles_and_pull_request_states,
+}
 
 
 def render_home(*, state: StateDirectory) -> str:
@@ -30,10 +36,10 @@ def render_home(*, state: StateDirectory) -> str:
     return response.get_data(as_text=True)
 
 
-@pytest.mark.parametrize("name", sorted(STATUS_REPORTS))
+@pytest.mark.parametrize("name", sorted(WEB_STATUS_REPORTS))
 def test_a_state_directory_renders_as_its_golden_home(name, tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
-    STATUS_REPORTS[name](state=state)
+    WEB_STATUS_REPORTS[name](state=state)
 
     page = render_home(state=state)
 
@@ -63,6 +69,17 @@ def test_issue_references_link_to_github_with_hash_notation(tmp_path, daemon):
     assert f'href="{issue_url}">#50</a>' in page
     assert f'blocked by <a class="issue-number" href="{issue_url}">#50</a>' in page
     assert "blocked by GH50" not in page
+
+
+def test_pull_request_state_remains_without_a_repository_record(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_titles_and_pull_request_states(state=state)
+    state.repository.unlink()
+
+    page = render_home(state=state)
+
+    for pull_request_state in ("draft", "ready", "merged", "closed"):
+        assert f'<span class="pr-chip">PR #52 {pull_request_state}</span>' in page
 
 
 def test_a_record_that_will_not_read_renders_an_error_page(tmp_path, daemon):

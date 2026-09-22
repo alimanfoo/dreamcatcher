@@ -101,6 +101,7 @@ def listing(*, issues: Sequence[tuple[int, str]]) -> str:
         [
             {
                 "number": number,
+                "title": f"Issue {number}",
                 "createdAt": created,
                 "state": "OPEN",
                 "assignees": [{"login": POSTED_BY}],

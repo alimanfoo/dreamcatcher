@@ -6,6 +6,7 @@ about without a GitHub, an origin to cut from, or a harness to run.
 """
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
 
 from dreamcatcher import agent_assignments, agent_rounds
@@ -15,6 +16,14 @@ from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.scheduler import SchedulerRecord
 from dreamcatcher.state import StateDirectory
+
+
+@dataclass(frozen=True, kw_only=True)
+class AssignmentReporting:
+    """Provide the optional reporting facts for a fabricated assignment."""
+
+    title: str
+    pull_request_observation: agent_assignments.PullRequestObservation
 
 
 def write_daemon_run(
@@ -43,6 +52,7 @@ def write_agent_assignment(
     identifier: str,
     issue: int,
     harness_session_identifier: str | None = "abc-123",
+    reporting: AssignmentReporting | None = None,
 ) -> Path:
     """Write an assignment's worktree and its record, and return its own directory."""
     (state.worktrees / identifier).mkdir(parents=True)
@@ -50,10 +60,14 @@ def write_agent_assignment(
     write_json(
         document=agent_assignments.AgentAssignmentRecord(
             issue=issue,
+            title=None if reporting is None else reporting.title,
             dispatch_label="dream:smith",
             branch=f"{agent_assignments.AGENT_ASSIGNMENT_BRANCH_PREFIX}{identifier}",
             worktree=state.worktrees / identifier,
             pull_request=52,
+            pull_request_observation=(
+                None if reporting is None else reporting.pull_request_observation
+            ),
             harness=AgentHarness.CLAUDE,
             harness_session_identifier=harness_session_identifier,
             model="opus[1m]",

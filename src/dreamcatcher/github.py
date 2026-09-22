@@ -116,10 +116,16 @@ class Issue(GitHubResponseProjection):
     """Model the GitHub facts that scheduling observes about an issue."""
 
     number: int
+    title: str
     created_at: datetime = Field(alias="createdAt")
     state: IssueState
     assignees: list[GitHubUserAccount]
     labels: list[GitHubIssueLabel]
+
+
+_ISSUE_RESPONSE_FIELDS = ",".join(
+    field.alias or name for name, field in Issue.model_fields.items()
+)
 
 
 class PullRequest(GitHubResponseProjection):
@@ -341,7 +347,7 @@ def list_issues(
             "--limit",
             ISSUE_LISTING_LIMIT,
             "--json",
-            "number,createdAt,state,assignees,labels",
+            _ISSUE_RESPONSE_FIELDS,
         ],
     )
 
@@ -357,7 +363,7 @@ def read_issue(*, repository: str, issue: int) -> Issue | UnknownGitHubResponse:
             "--repo",
             repository,
             "--json",
-            "number,createdAt,state,assignees,labels",
+            _ISSUE_RESPONSE_FIELDS,
         ],
     )
 

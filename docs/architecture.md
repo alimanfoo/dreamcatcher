@@ -176,16 +176,17 @@ shared across boundaries is the assignment's Git worktree.
 GitHub commands. It owns projections and operations for:
 
 - repository and account identity;
-- issue state, assignees, labels, and dependencies;
+- issue title, state, assignees, labels, and dependencies;
 - linked pull requests;
 - pull-request identity, draft state, readiness, and terminal state;
 - creating the linked draft pull request; and
 - reading and normalizing user posts from comments, reviews, verdicts, and
   inline comments.
 
-An agent assignment persists its pull-request identity, not a cached copy of
-mutable pull-request state. Scheduling reads that state from GitHub when it
-needs it.
+An agent assignment persists its pull-request identity and, separately, the
+latest state and draft flag that a scheduler tick observed for reporting.
+Scheduling does not read that observation. It reads the current state from
+GitHub when it needs it.
 
 GitHub owns its documents and may add fields, so its responses remain tolerant
 projections. Documents owned by Dreamcatcher remain strict.
@@ -227,8 +228,8 @@ interface.
 
 `status.py` owns the read-only status model and constructs a
 `DreamcatcherStatusReport` containing the repository identity, instance and
-daemon facts, `FailedAssignmentSetupStatus` entries, available and blocked
-`IssueObservation` entries, and `AgentAssignmentStatus` entries.
+daemon facts, failed-setup, available and blocked `IssueObservation` entries,
+and `AgentAssignmentStatus` entries.
 
 Status construction may read:
 
@@ -255,10 +256,9 @@ includes issues with known open blockers, together with the scheduler's recorded
 blocker evidence. An `AgentAssignmentStatus` is one summary status from the
 ontology.
 
-A `FailedAssignmentSetupStatus` carries the issue identifier and the latest
-setup failure. The report includes it while the latest tick records a failure,
-independently of whether the issue is available or a linked pull request proves
-that it is claimed elsewhere.
+The report includes an issue observation among failed setups while the latest
+tick records a setup failure, independently of whether the issue is available or
+a linked pull request proves that it is claimed elsewhere.
 
 An `AgentAssignmentObservation` records the tick's interpretation of an idle
 open assignment. It carries a reason, whether the relevant facts were known, and
@@ -357,9 +357,11 @@ acknowledged work.
 An assignment record persists:
 
 - the issue and assignment identifiers;
+- the issue title captured during assignment setup;
 - the frozen dispatch route and assignment recipe selected during setup;
 - branch and worktree identity;
 - pull-request identity;
+- the latest observed pull-request state, draft flag, and observation time;
 - harness identity and, once known, its harness session identifier;
 - the time of the user's latest retry request, when one has been made; and
 - the cursor identifying the latest user post accepted for delivery.
