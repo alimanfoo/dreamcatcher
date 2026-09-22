@@ -25,6 +25,7 @@ from dreamcatcher.agent_assignments import (
     inspect_incomplete_assignment_setups,
     read_agent_assignments,
     read_agent_assignments_for_issue,
+    record_agent_assignment_title,
     record_harness_session_identifier,
     record_pull_request_observation,
 )
@@ -976,6 +977,25 @@ def test_an_assignment_records_the_harness_session_its_first_round_reports(fabri
 
     recorded = read_agent_assignments(state=fabricated)[0]
     assert recorded.record.harness_session_identifier == "abc-123"
+
+
+def test_a_legacy_assignment_records_only_the_first_issue_title(fabricated):
+    directory = write_agent_assignment(
+        state=fabricated,
+        identifier=ASSIGNMENT_ID,
+        issue=12,
+    )
+    assignment = read_agent_assignments(state=fabricated)[0]
+
+    record_agent_assignment_title(assignment=assignment, title="First title")
+    assignment = read_agent_assignments(state=fabricated)[0]
+    path = directory / "assignment.json"
+    first_recording = path.read_bytes()
+    record_agent_assignment_title(assignment=assignment, title="Later title")
+
+    recorded = read_agent_assignments(state=fabricated)[0]
+    assert recorded.record.title == "First title"
+    assert path.read_bytes() == first_recording
 
 
 def test_an_assignment_records_a_changed_pull_request_observation(fabricated):

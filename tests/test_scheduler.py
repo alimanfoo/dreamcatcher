@@ -541,6 +541,8 @@ def test_an_assignment_with_an_open_pull_request_and_nothing_new_is_not_waiting(
     resuming, gh
 ):
     ran(root=resuming, number=1, purpose=AgentRoundPurpose.IMPLEMENT)
+    issue = json.loads(listing(issues=[(13, FILED)]))[0]
+    gh.replies(stdout=json.dumps(issue), to="issue view")
     gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
     scheduler, clock = create_scheduler(root=resuming)
 
@@ -556,6 +558,7 @@ def test_an_assignment_with_an_open_pull_request_and_nothing_new_is_not_waiting(
         )
     ]
     assignment = read_agent_assignments(state=scheduler.state)[0]
+    assert assignment.record.title == "Issue 13"
     assert assignment.record.pull_request_observation == PullRequestObservation(
         state=PullRequestState.OPEN,
         is_draft=False,

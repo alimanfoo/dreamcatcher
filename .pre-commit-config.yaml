@@ -1,8 +1,6 @@
-# Every file here is a recording of something, and a hook that repaired one
-# would make a golden test assert what was never produced. A recorded stream
-# carries the characters the invisible-character check exists to reject, and a
-# rendered table's rows end in the spaces that pad them.
-exclude: ^tests/fixtures/
+# Every fixture is a recording, and every vendor file is an upstream release.
+# A hook that repaired either one would make it claim to be something it is not.
+exclude: ^(tests/fixtures/|src/dreamcatcher/static/vendor/)
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks

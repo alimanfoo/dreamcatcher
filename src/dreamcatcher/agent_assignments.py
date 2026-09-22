@@ -636,6 +636,15 @@ def record_harness_session_identifier(
     )
 
 
+def record_agent_assignment_title(*, assignment: AgentAssignment, title: str) -> None:
+    """Record the first issue title known for a legacy assignment."""
+    path = assignment.directory / AGENT_ASSIGNMENT_RECORD_NAME
+    record = read_json(model=AgentAssignmentRecord, path=path)
+    if record.title is not None:
+        return
+    write_json(document=record.model_copy(update={"title": title}), path=path)
+
+
 def record_pull_request_observation(
     *, assignment: AgentAssignment, pull_request: PullRequest, observed_at: datetime
 ) -> None:

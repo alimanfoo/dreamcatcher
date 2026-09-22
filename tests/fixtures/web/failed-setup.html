@@ -5,17 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>alimanfoo/dreamcatcher · dreamcatcher</title>
     <link rel="stylesheet" href="/static/matrix.css">
+    <script src="/static/vendor/htmx-2.0.10.min.js" defer></script>
+    <script src="/static/vendor/idiomorph-ext-0.7.4.min.js" defer></script>
   </head>
-  <body>
+  <body hx-ext="morph">
     
-  <header class="site-header">
-    <div class="repository"><img class="mark" src="/static/dreamcatcher-mark-phosphor.png" alt="Dreamcatcher">alimanfoo/dreamcatcher</div>
-    <div class="daemon daemon-running">daemon RUNNING · dreamcatcher v3.0.0.beta1 · pid 4242</div>
-  </header>
-
-    
-  <main>
-    <section class="instance" aria-label="Instance">
+  <main id="home" hx-get="/" hx-trigger="every 2s" hx-select="#home" hx-swap="morph:{callbacks:{beforeAttributeUpdated:(attribute,element)=>!(attribute==='open'&&element.matches('details'))}}">
+    <header class="site-header">
+      <div class="repository"><img class="mark" src="/static/dreamcatcher-mark-phosphor.png" alt="Dreamcatcher">alimanfoo/dreamcatcher</div>
+      <div class="daemon daemon-running">daemon RUNNING · dreamcatcher v3.0.0.beta1 · pid 4242</div>
+    </header>
+    <div class="home-content">
+      <section class="instance" aria-label="Instance">
   
   <dl class="facts">
     
@@ -41,12 +42,12 @@
     
   </dl>
 </section>
-    <div class="dashboard">
-      <section class="panel" aria-labelledby="assignments-heading">
-        <h1 id="assignments-heading">AGENT ASSIGNMENTS <span>01</span></h1>
-        <div class="panel-body">
-          
-            <article class="assignment-card" aria-label="Assignment #13 GH13-20260819-184158">
+      <div class="dashboard">
+        <section class="panel" aria-labelledby="assignments-heading">
+          <h1 id="assignments-heading">AGENT ASSIGNMENTS <span>01</span></h1>
+          <div class="panel-body">
+            
+              <article id="assignment-GH13-20260819-184158" class="assignment-card" aria-label="Assignment #13 GH13-20260819-184158">
   <div class="card-heading">
     <div><a class="issue-number" href="https://github.com/alimanfoo/dreamcatcher/issues/13">#13</a> <span class="identifier">GH13-20260819-184158</span></div>
     <span class="chip status-waiting">[WAITING]</span>
@@ -55,28 +56,28 @@
   
   <div class="assignment-meta">
     <span>claude · opus[1m] · xhigh</span>
-    <span class="pr-chip">PR #52</span>
+    <a class="pr-chip" href="https://github.com/alimanfoo/dreamcatcher/pull/52">PR #52</a>
   </div>
 </article>
-          
-          
-        </div>
-      </section>
-      <section class="panel" aria-labelledby="issues-heading">
-        <h1 id="issues-heading">ISSUES <span>02</span></h1>
-        <div class="panel-body">
-          
-            <h2>FAILED ASSIGNMENT SETUPS</h2>
             
-              <article class="failed-setup-row">
+            
+          </div>
+        </section>
+        <section class="panel" aria-labelledby="issues-heading">
+          <h1 id="issues-heading">ISSUES <span>02</span></h1>
+          <div class="panel-body">
+            
+              <h2>FAILED ASSIGNMENT SETUPS</h2>
+              
+                <article id="failed-setup-20" class="failed-setup-row">
   <a class="issue-number" href="https://github.com/alimanfoo/dreamcatcher/issues/20">#20</a>
   <span>assignment setup failed</span>
 </article>
+              
             
-          
-          <h2>AVAILABLE ISSUES</h2>
-          
-            <article class="issue-row" aria-label="Issue #21">
+            <h2>AVAILABLE ISSUES</h2>
+            
+              <article id="issue-21" class="issue-row" aria-label="Issue #21">
   <div class="card-heading">
     <a class="issue-number" href="https://github.com/alimanfoo/dreamcatcher/issues/21">#21</a>
     <span class="chip issue-available">[AVAILABLE]</span>
@@ -84,13 +85,14 @@
   <p class="labels">dream:smith</p>
   
 </article>
-          
-          
-          
             
-          
-        </div>
-      </section>
+            
+            
+              
+            
+          </div>
+        </section>
+      </div>
     </div>
   </main>
 

@@ -18,7 +18,9 @@ available issues in dispatch order and the blocked issues with their evidence. A
 working card shows the last line its feed said. Times are shown as the TUI shows
 them, in UTC. The page carries no polling and no link to any other page. Every
 issue number is written as `#N` and links to that issue on GitHub; references in
-blocker evidence receive the same treatment.
+blocker evidence receive the same treatment. A long last line remains inside its
+card and is elided on one line. The instance facts carry dividers between facts,
+never after the last fact.
 
 The scaffolding arrives with it. Flask joins `pyproject.toml`. `web.py` holds
 `create_app`, which takes a `StateDirectory` and a clock and returns the Flask
@@ -109,7 +111,9 @@ and rewrites the record atomically only when one differs, in the pattern of
 `record_harness_session_identifier`. The scheduler calls it in
 `_inspect_assignment_pull_request` after a successful `read_pull_request`, with
 the tick's time, which that function does not receive today and must be given.
-Scheduling never reads the field.
+Scheduling never reads the field. Each tick also records the first title it
+learns for an open assignment written before this stage, without replacing a
+title the assignment already holds.
 
 On the home page every card and issue row shows its title, and each card's pull
 request number links to the pull request on GitHub with a chip saying draft,
@@ -133,8 +137,8 @@ rather than the bare name, since the module must call the recording operation
 whose name contains it; so "scheduling never reads it" is checked. The web
 goldens carry the titles and chips. By hand: with a daemon running, every card
 and row shows its title; mark a draft pull request ready on GitHub and after the
-next tick its chip says ready; a record from before this stage still renders
-until a tick fills it in.
+next tick its chip says ready; a record from before this stage renders, then its
+next successful issue and pull request observations fill the title and state.
 
 **Deferral.** Titles and pull request state in the TUI. Evidence remains prose;
 the web presentation recognises its issue references only to link them.

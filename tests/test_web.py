@@ -3,6 +3,7 @@
 import errno
 import inspect
 import logging
+import re
 import socket
 from unittest.mock import MagicMock
 
@@ -46,6 +47,26 @@ def test_a_state_directory_renders_as_its_golden_home(name, tmp_path, daemon):
     assert page == (FIXTURES / "web" / f"{name}.html").read_text(encoding="utf-8")
 
 
+def test_the_same_state_renders_as_the_same_home_page(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    first_page = render_home(state=state)
+    second_page = render_home(state=state)
+
+    assert second_page == first_page
+
+
+def test_every_home_page_id_is_unique(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    identifiers = re.findall(r' id="([^"]+)"', render_home(state=state))
+
+    assert identifiers
+    assert len(identifiers) == len(set(identifiers))
+
+
 def test_the_home_page_autoescapes_feed_output(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
@@ -69,6 +90,16 @@ def test_issue_references_link_to_github_with_hash_notation(tmp_path, daemon):
     assert f'href="{issue_url}">#50</a>' in page
     assert f'blocked by <a class="issue-number" href="{issue_url}">#50</a>' in page
     assert "blocked by GH50" not in page
+
+
+def test_a_pull_request_links_to_github_before_its_state_is_observed(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_home(state=state)
+
+    pull_request_url = f"https://github.com/{REPOSITORY}/pull/52"
+    assert f'href="{pull_request_url}">PR #52</a>' in page
 
 
 def test_pull_request_state_remains_without_a_repository_record(tmp_path, daemon):
