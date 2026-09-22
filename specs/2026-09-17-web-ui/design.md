@@ -60,12 +60,12 @@ person never visits. It answers the assignment page's question "what arrived
 since here", and only the page asks it.
 
 The words on the pages are the ontology's. An assignment is working, waiting,
-needs user feedback, in fault, complete or unknown. The compact home-card chip
-shortens "needs user feedback" to "needs feedback"; the assignment page and the
-underlying status keep the full name. The issue sections are the available
-issues and the blocked issues, as the `status` view names them. The sketch's
-"Queued" and "Backlog" are not used, so a person moving between the terminal and
-the browser otherwise reads one vocabulary and the ontology is untouched.
+needs user feedback, in fault, complete or unknown. Every compact web chip
+shortens "needs user feedback" to "needs feedback"; the underlying status keeps
+the full name. The issue sections are the available issues and the blocked
+issues, as the `status` view names them. The sketch's "Queued" and "Backlog" are
+not used, so a person moving between the terminal and the browser otherwise
+reads one vocabulary and the ontology is untouched.
 
 ### The server renders and the browser reconciles
 

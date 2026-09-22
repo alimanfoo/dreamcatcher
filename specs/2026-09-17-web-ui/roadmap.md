@@ -225,13 +225,15 @@ still picked up on the poll after the ending is seen.
 The answer is the new lines rendered with the feed line partial, followed by a
 fresh cursor input and the top's rounds section and status chip, each marked
 `hx-swap-oob` so one answer appends the lines and updates the top in place. When
-the assignment's status is one with no round coming, complete or fault, and the
-poll read nothing new, the tail answers with status 286, which stops htmx
-polling. A poll that finds the assignment over but still reads new lines answers
-200 with them, and the next poll answers 286; that is the extra look the TUI's
-following views take, so output landing after the last ending still arrives.
-That set of statuses is the TUI's `STATUSES_THAT_END_A_VIEW`; it moves to
-`status.py` so both presentations read it.
+the status is needs user feedback, the assignment-page chip says needs feedback
+as the home-card chip does. When the assignment's status is one with no round
+coming, complete or fault, and the poll read nothing new, the tail answers with
+status 286, which stops htmx polling. A poll that finds the assignment over but
+still reads new lines answers 200 with them, and the next poll answers 286; that
+is the extra look the TUI's following views take, so output landing after the
+last ending still arrives. That set of statuses is the TUI's
+`STATUSES_THAT_END_A_VIEW`; it moves to `status.py` so both presentations read
+it.
 
 The page carries a hidden cursor input, the poll attributes on the records
 container with `hx-include` of the cursor and `hx-swap` of `beforeend`. There is

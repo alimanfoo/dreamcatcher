@@ -138,6 +138,7 @@ class WebAssignmentView:
     issue: int
     title: str | None
     status: str
+    status_label: str
     detail: str
     pull_request: int
     pull_request_state: str | None
@@ -335,11 +336,7 @@ def _compose_assignment_card(*, status: AgentAssignmentStatus) -> WebAssignmentC
         issue=assignment.record.issue,
         title=assignment.record.title,
         status=str(status.value),
-        status_label=(
-            "needs feedback"
-            if status.value is AgentAssignmentStatusValue.NEEDS_USER_FEEDBACK
-            else str(status.value)
-        ),
+        status_label=_compose_web_status_label(status=status),
         detail=status.detail,
         harness=str(assignment.record.harness),
         model=assignment.record.model,
@@ -379,6 +376,7 @@ def _compose_assignment_view(
         issue=record.issue,
         title=record.title,
         status=str(status.value),
+        status_label=_compose_web_status_label(status=status),
         detail=status.detail,
         pull_request=record.pull_request,
         pull_request_state=_describe_pull_request_state(status=status),
@@ -411,6 +409,14 @@ def _compose_assignment_view(
             None if hand_resume_command is None else " ".join(hand_resume_command)
         ),
         feed_rounds=_read_assignment_feed(status=status),
+    )
+
+
+def _compose_web_status_label(*, status: AgentAssignmentStatus) -> str:
+    return (
+        "needs feedback"
+        if status.value is AgentAssignmentStatusValue.NEEDS_USER_FEEDBACK
+        else str(status.value)
     )
 
 

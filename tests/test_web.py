@@ -119,6 +119,19 @@ def test_feedback_card_keeps_its_compact_actions_inside_the_heading(tmp_path, da
     )
 
 
+def test_assignment_feedback_status_uses_the_compact_label(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_assignment(
+        state=state,
+        identifier="GH20-20260819-184158",
+    )
+
+    assert "[NEEDS FEEDBACK]" in page
+    assert "[NEEDS USER FEEDBACK]" not in page
+
+
 def test_complete_assignment_cards_have_space_between_them(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
