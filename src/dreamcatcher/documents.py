@@ -112,7 +112,7 @@ def read_lines_from(*, path: Path, position: int) -> tuple[list[str], int]:
 
 
 def is_complete_line_position(*, path: Path, position: int) -> bool:
-    """Whether a byte position starts the file or follows a complete line.
+    """Return whether a byte position starts the file or follows a complete line.
 
     A position beyond the bytes the file holds is not valid. A missing file is
     an empty file, following the same rule as `read_lines_from`.
