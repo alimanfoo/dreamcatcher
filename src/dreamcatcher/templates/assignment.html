@@ -42,13 +42,6 @@
               <p class="empty">-- no rounds have run --</p>
             {% endfor %}
           </aside>
-          {% if view.hand_resume_command %}
-            <section class="panel resume-command" aria-labelledby="resume-heading">
-              <h1 id="resume-heading">RESUME SESSION</h1>
-              <pre>cd {{ view.hand_resume_worktree }}
-{{ view.hand_resume_command }}</pre>
-            </section>
-          {% endif %}
         </div>
         <section class="panel assignment-feed" aria-labelledby="feed-heading">
           <h1 id="feed-heading">FEED</h1>
@@ -64,6 +57,14 @@
           </div>
         </section>
       </div>
+      {%- if view.hand_resume_command %}
+      <details class="manual-recovery">
+        <summary>LAST RESORT · RESUME BY HAND</summary>
+        <p>Dreamcatcher normally coordinates this session. Use this escape hatch only when automatic recovery is impossible.</p>
+        <pre>cd {{ view.hand_resume_worktree }}
+{{ view.hand_resume_command }}</pre>
+      </details>
+      {%- endif %}
     </div>
   </main>
   <script src="{{ url_for('static', filename='assignment.js') }}"></script>

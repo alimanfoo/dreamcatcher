@@ -168,6 +168,18 @@ def test_assignment_rounds_link_to_the_feed_in_ascending_order(tmp_path, daemon)
     assert 'src="/static/assignment.js"' in page
 
 
+def test_hand_resume_command_is_a_collapsed_last_resort(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_assignment(state=state, identifier="GH9-20260819-184158")
+
+    assert '<details class="manual-recovery">' in page
+    assert "<summary>LAST RESORT · RESUME BY HAND</summary>" in page
+    assert "Use this escape hatch only when automatic recovery is impossible." in page
+    assert 'class="panel resume-command"' not in page
+
+
 def test_assignment_page_offers_a_control_that_jumps_to_the_feed_tail(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
