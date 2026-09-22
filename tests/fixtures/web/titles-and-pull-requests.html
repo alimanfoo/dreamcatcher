@@ -10,14 +10,13 @@
   </head>
   <body hx-ext="morph">
     
-  <header class="site-header">
-    <div class="repository"><img class="mark" src="/static/dreamcatcher-mark-phosphor.png" alt="Dreamcatcher">alimanfoo/dreamcatcher</div>
-    <div class="daemon daemon-running">daemon RUNNING · dreamcatcher v3.0.0.beta1 · pid 4242</div>
-  </header>
-
-    
   <main id="home" hx-get="/" hx-trigger="every 2s" hx-select="#home" hx-swap="morph">
-    <section class="instance" aria-label="Instance">
+    <header class="site-header">
+      <div class="repository"><img class="mark" src="/static/dreamcatcher-mark-phosphor.png" alt="Dreamcatcher">alimanfoo/dreamcatcher</div>
+      <div class="daemon daemon-running">daemon RUNNING · dreamcatcher v3.0.0.beta1 · pid 4242</div>
+    </header>
+    <div class="home-content">
+      <section class="instance" aria-label="Instance">
   
   <dl class="facts">
     
@@ -43,12 +42,12 @@
     
   </dl>
 </section>
-    <div class="dashboard">
-      <section class="panel" aria-labelledby="assignments-heading">
-        <h1 id="assignments-heading">AGENT ASSIGNMENTS <span>05</span></h1>
-        <div class="panel-body">
-          
-            <article id="assignment-GH10-20260819-184158" class="assignment-card" aria-label="Assignment #10 GH10-20260819-184158">
+      <div class="dashboard">
+        <section class="panel" aria-labelledby="assignments-heading">
+          <h1 id="assignments-heading">AGENT ASSIGNMENTS <span>05</span></h1>
+          <div class="panel-body">
+            
+              <article id="assignment-GH10-20260819-184158" class="assignment-card" aria-label="Assignment #10 GH10-20260819-184158">
   <div class="card-heading">
     <div><a class="issue-number" href="https://github.com/alimanfoo/dreamcatcher/issues/10">#10</a> <span class="title">Draft assignment</span></div>
     <span class="chip status-waiting">[WAITING]</span>
@@ -60,8 +59,8 @@
     <a class="pr-chip" href="https://github.com/alimanfoo/dreamcatcher/pull/52">PR #52 draft</a>
   </div>
 </article>
-          
-            <article id="assignment-GH11-20260819-184158" class="assignment-card" aria-label="Assignment #11 GH11-20260819-184158">
+            
+              <article id="assignment-GH11-20260819-184158" class="assignment-card" aria-label="Assignment #11 GH11-20260819-184158">
   <div class="card-heading">
     <div><a class="issue-number" href="https://github.com/alimanfoo/dreamcatcher/issues/11">#11</a> <span class="title">Ready assignment</span></div>
     <span class="chip status-waiting">[WAITING]</span>
@@ -73,8 +72,8 @@
     <a class="pr-chip" href="https://github.com/alimanfoo/dreamcatcher/pull/52">PR #52 ready</a>
   </div>
 </article>
-          
-            <article id="assignment-GH12-20260819-184158" class="assignment-card" aria-label="Assignment #12 GH12-20260819-184158">
+            
+              <article id="assignment-GH12-20260819-184158" class="assignment-card" aria-label="Assignment #12 GH12-20260819-184158">
   <div class="card-heading">
     <div><a class="issue-number" href="https://github.com/alimanfoo/dreamcatcher/issues/12">#12</a> <span class="title">Merged assignment</span></div>
     <span class="chip status-waiting">[WAITING]</span>
@@ -86,8 +85,8 @@
     <a class="pr-chip" href="https://github.com/alimanfoo/dreamcatcher/pull/52">PR #52 merged</a>
   </div>
 </article>
-          
-            <article id="assignment-GH13-20260819-184158" class="assignment-card" aria-label="Assignment #13 GH13-20260819-184158">
+            
+              <article id="assignment-GH13-20260819-184158" class="assignment-card" aria-label="Assignment #13 GH13-20260819-184158">
   <div class="card-heading">
     <div><a class="issue-number" href="https://github.com/alimanfoo/dreamcatcher/issues/13">#13</a> <span class="title">Closed assignment</span></div>
     <span class="chip status-waiting">[WAITING]</span>
@@ -99,8 +98,8 @@
     <a class="pr-chip" href="https://github.com/alimanfoo/dreamcatcher/pull/52">PR #52 closed</a>
   </div>
 </article>
-          
-            <article id="assignment-GH14-20260819-184158" class="assignment-card" aria-label="Assignment #14 GH14-20260819-184158">
+            
+              <article id="assignment-GH14-20260819-184158" class="assignment-card" aria-label="Assignment #14 GH14-20260819-184158">
   <div class="card-heading">
     <div><a class="issue-number" href="https://github.com/alimanfoo/dreamcatcher/issues/14">#14</a> <span class="identifier">GH14-20260819-184158</span></div>
     <span class="chip status-waiting">[WAITING]</span>
@@ -112,25 +111,25 @@
     <span class="pr-chip">PR #52</span>
   </div>
 </article>
-          
-          
-        </div>
-      </section>
-      <section class="panel" aria-labelledby="issues-heading">
-        <h1 id="issues-heading">ISSUES <span>03</span></h1>
-        <div class="panel-body">
-          
-            <h2>FAILED ASSIGNMENT SETUPS</h2>
             
-              <article id="failed-setup-22" class="failed-setup-row">
+            
+          </div>
+        </section>
+        <section class="panel" aria-labelledby="issues-heading">
+          <h1 id="issues-heading">ISSUES <span>03</span></h1>
+          <div class="panel-body">
+            
+              <h2>FAILED ASSIGNMENT SETUPS</h2>
+              
+                <article id="failed-setup-22" class="failed-setup-row">
   <div><a class="issue-number" href="https://github.com/alimanfoo/dreamcatcher/issues/22">#22</a> <span class="title">Failed setup issue</span></div>
   <span>assignment setup failed</span>
 </article>
+              
             
-          
-          <h2>AVAILABLE ISSUES</h2>
-          
-            <article id="issue-20" class="issue-row" aria-label="Issue #20">
+            <h2>AVAILABLE ISSUES</h2>
+            
+              <article id="issue-20" class="issue-row" aria-label="Issue #20">
   <div class="card-heading">
     <div><a class="issue-number" href="https://github.com/alimanfoo/dreamcatcher/issues/20">#20</a> <span class="title">Available issue</span></div>
     <span class="chip issue-available">[AVAILABLE]</span>
@@ -138,10 +137,10 @@
   <p class="labels">dream:smith</p>
   
 </article>
-          
-          <h2>BLOCKED ISSUES</h2>
-          
-            <article id="issue-21" class="issue-row" aria-label="Issue #21">
+            
+            <h2>BLOCKED ISSUES</h2>
+            
+              <article id="issue-21" class="issue-row" aria-label="Issue #21">
   <div class="card-heading">
     <div><a class="issue-number" href="https://github.com/alimanfoo/dreamcatcher/issues/21">#21</a> <span class="title">Blocked issue</span></div>
     <span class="chip issue-blocked">[BLOCKED]</span>
@@ -149,9 +148,10 @@
   <p class="labels">dream:smith</p>
   <p class="evidence">blocked by <a class="issue-number" href="https://github.com/alimanfoo/dreamcatcher/issues/20">#20</a></p>
 </article>
-          
-        </div>
-      </section>
+            
+          </div>
+        </section>
+      </div>
     </div>
   </main>
 

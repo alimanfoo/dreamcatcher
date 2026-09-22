@@ -102,7 +102,8 @@ body::after {
   color: var(--amber);
 }
 
-main {
+.home-content,
+.error-page {
   width: min(100%, var(--page-width));
   margin: 0 auto;
   padding: var(--space-10) var(--space-12) calc(var(--space-12) * 2);
@@ -331,7 +332,8 @@ main {
 
 @media (max-width: 700px) {
   .site-header,
-  main {
+  .home-content,
+  .error-page {
     padding-right: var(--space-8);
     padding-left: var(--space-8);
   }

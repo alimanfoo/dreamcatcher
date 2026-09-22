@@ -1,6 +1,6 @@
 # Vendored browser dependencies
 
-These files are pinned upstream releases. Do not edit them. Replace a file whole from its source when updating it, then update this table.
+The JavaScript and licence files are pinned upstream releases. Do not edit them. Replace a file whole from its source when updating it, then update this table.
 
 | File | Version | Source | SHA-256 |
 | --- | --- | --- | --- |
