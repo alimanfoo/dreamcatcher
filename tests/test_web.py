@@ -90,6 +90,23 @@ def test_a_home_card_links_to_its_exact_assignment(tmp_path, daemon):
     assert page.count('href="/assignments/GH13-20260819-184158"') == 1
 
 
+def test_assignment_page_shares_the_home_page_top_bar(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    home = render_home(state=state)
+    assignment = render_assignment(
+        state=state,
+        identifier="GH13-20260819-184158",
+    )
+    header_pattern = r'<header class="site-header">.*?</header>'
+    home_headers = re.findall(header_pattern, home, re.DOTALL)
+    assignment_headers = re.findall(header_pattern, assignment, re.DOTALL)
+
+    assert len(home_headers) == 1
+    assert assignment_headers == home_headers
+
+
 def test_github_links_open_in_a_new_tab(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)

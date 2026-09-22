@@ -1,0 +1,4 @@
+<header class="site-header">
+  <div class="repository"><img class="mark" src="{{ url_for('static', filename='dreamcatcher-mark-phosphor.png') }}" alt="Dreamcatcher">{{ view.repository }}</div>
+  <div class="daemon daemon-{{ view.daemon_state }}">{{ view.daemon_summary }}</div>
+</header>

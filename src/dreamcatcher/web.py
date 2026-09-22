@@ -30,6 +30,7 @@ from dreamcatcher.status import (
     IssueFactValue,
     IssueObservation,
     read_agent_assignment_status,
+    read_dreamcatcher_daemon_status,
     read_repository,
     read_status_report,
 )
@@ -130,6 +131,8 @@ class WebAssignmentView:
 
     repository: str
     github_repository_url: str | None
+    daemon_state: str
+    daemon_summary: str
     identifier: str
     issue: int
     title: str | None
@@ -299,7 +302,10 @@ def _compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
             repository=report.repository
         ),
         daemon_state="stopped" if report.daemon_pid is None else "running",
-        daemon_summary=_describe_daemon(report=report),
+        daemon_summary=_describe_daemon(
+            daemon_pid=report.daemon_pid,
+            dreamcatcher_version=report.dreamcatcher_version,
+        ),
         instance_facts=_compose_instance_facts(report=report),
         cooldown_message=(
             None
@@ -353,10 +359,16 @@ def _compose_assignment_view(
     assignment = status.assignment
     record = assignment.record
     repository = read_repository(state=state)
+    daemon = read_dreamcatcher_daemon_status(state=state)
     hand_resume_command = status.hand_resume_command
     return WebAssignmentView(
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
+        daemon_state="stopped" if daemon.pid is None else "running",
+        daemon_summary=_describe_daemon(
+            daemon_pid=daemon.pid,
+            dreamcatcher_version=daemon.dreamcatcher_version,
+        ),
         identifier=assignment.identifier,
         issue=record.issue,
         title=record.title,
@@ -466,15 +478,17 @@ def _compose_issue_evidence(*, evidence: str | None) -> tuple[str | int, ...]:
     )
 
 
-def _describe_daemon(*, report: DreamcatcherStatusReport) -> str:
-    if report.daemon_pid is None:
+def _describe_daemon(
+    *, daemon_pid: int | None, dreamcatcher_version: str | None
+) -> str:
+    if daemon_pid is None:
         return "daemon STOPPED"
     version = (
         ""
-        if report.dreamcatcher_version is None
-        else f"dreamcatcher v{report.dreamcatcher_version} · "
+        if dreamcatcher_version is None
+        else f"dreamcatcher v{dreamcatcher_version} · "
     )
-    return f"daemon RUNNING · {version}pid {report.daemon_pid}"
+    return f"daemon RUNNING · {version}pid {daemon_pid}"
 
 
 def _compose_instance_facts(*, report: DreamcatcherStatusReport) -> tuple[WebFact, ...]:
