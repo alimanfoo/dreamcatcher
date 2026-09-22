@@ -7,3 +7,7 @@ uv.lock linguist-generated=true
 # A recorded stream is read back byte for byte by a golden test, so no checkout
 # rewrites its line endings.
 tests/fixtures/** -text
+
+# Vendored release files are checked against upstream by checksum, so a
+# checkout must not rewrite their line endings.
+src/dreamcatcher/static/vendor/** -text

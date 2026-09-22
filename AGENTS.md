@@ -99,6 +99,11 @@ uv run pre-commit run --all-files
   one makes a golden test assert something that was never produced.
   `.pre-commit-config.yaml` excludes that path from every hook, and
   `.gitattributes` keeps its line endings.
+- Never edit a file under `src/dreamcatcher/static/vendor/`. Each browser
+  dependency carries its version in its filename, its licence beside it, and its
+  source and SHA-256 in that directory's README. Replace the upstream file whole
+  when updating it. `.pre-commit-config.yaml` excludes the directory from every
+  hook, and `.gitattributes` keeps its line endings.
 - Put every golden under `tests/fixtures/`, and nowhere else, because that is
   the one path no hook rewrites. A rendered table's rows end in the spaces that
   pad them, and the trailing-whitespace hook would take those away anywhere
