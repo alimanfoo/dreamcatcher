@@ -5,8 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>alimanfoo/dreamcatcher · dreamcatcher</title>
     <link rel="stylesheet" href="/static/matrix.css">
+    <script src="/static/vendor/htmx-2.0.10.min.js" defer></script>
+    <script src="/static/vendor/idiomorph-ext-0.7.4.min.js" defer></script>
   </head>
-  <body>
+  <body hx-ext="morph">
     
   <header class="site-header">
     <div class="repository"><img class="mark" src="/static/dreamcatcher-mark-phosphor.png" alt="Dreamcatcher">alimanfoo/dreamcatcher</div>
@@ -14,7 +16,7 @@
   </header>
 
     
-  <main>
+  <main id="home" hx-get="/" hx-trigger="every 2s" hx-select="#home" hx-swap="morph">
     <section class="instance" aria-label="Instance">
   
   <dl class="facts">
@@ -46,7 +48,7 @@
         <h1 id="assignments-heading">AGENT ASSIGNMENTS <span>03</span></h1>
         <div class="panel-body">
           
-            <article class="assignment-card needs-feedback" aria-label="Assignment #13 GH13-20260819-184158">
+            <article id="assignment-GH13-20260819-184158" class="assignment-card needs-feedback" aria-label="Assignment #13 GH13-20260819-184158">
   <div class="card-heading">
     <div><a class="issue-number" href="https://github.com/alimanfoo/dreamcatcher/issues/13">#13</a> <span class="identifier">GH13-20260819-184158</span></div>
     <span class="chip status-needs-user-feedback">[NEEDS USER FEEDBACK]</span>
@@ -63,7 +65,7 @@
             <details class="complete-assignments">
               <summary>+ 2 complete</summary>
               
-                <article class="assignment-card" aria-label="Assignment #13 GH13-20260818-090000">
+                <article id="assignment-GH13-20260818-090000" class="assignment-card" aria-label="Assignment #13 GH13-20260818-090000">
   <div class="card-heading">
     <div><a class="issue-number" href="https://github.com/alimanfoo/dreamcatcher/issues/13">#13</a> <span class="identifier">GH13-20260818-090000</span></div>
     <span class="chip status-complete">[COMPLETE]</span>
@@ -76,7 +78,7 @@
   </div>
 </article>
               
-                <article class="assignment-card" aria-label="Assignment #13 GH13-20260817-090000">
+                <article id="assignment-GH13-20260817-090000" class="assignment-card" aria-label="Assignment #13 GH13-20260817-090000">
   <div class="card-heading">
     <div><a class="issue-number" href="https://github.com/alimanfoo/dreamcatcher/issues/13">#13</a> <span class="identifier">GH13-20260817-090000</span></div>
     <span class="chip status-complete">[COMPLETE]</span>

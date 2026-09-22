@@ -6,7 +6,7 @@
   </header>
 {% endblock %}
 {% block content %}
-  <main>
+  <main id="home" hx-get="{{ url_for('show_home') }}" hx-trigger="every 2s" hx-select="#home" hx-swap="morph">
     {% include "partials/instance.html" %}
     <div class="dashboard">
       <section class="panel" aria-labelledby="assignments-heading">

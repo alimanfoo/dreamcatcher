@@ -3,6 +3,7 @@
 import errno
 import inspect
 import logging
+import re
 import socket
 from unittest.mock import MagicMock
 
@@ -44,6 +45,26 @@ def test_a_state_directory_renders_as_its_golden_home(name, tmp_path, daemon):
     page = render_home(state=state)
 
     assert page == (FIXTURES / "web" / f"{name}.html").read_text(encoding="utf-8")
+
+
+def test_the_same_state_renders_as_the_same_home_page(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    first_page = render_home(state=state)
+    second_page = render_home(state=state)
+
+    assert second_page == first_page
+
+
+def test_every_home_page_id_is_unique(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    identifiers = re.findall(r' id="([^"]+)"', render_home(state=state))
+
+    assert identifiers
+    assert len(identifiers) == len(set(identifiers))
 
 
 def test_the_home_page_autoescapes_feed_output(tmp_path, daemon):
