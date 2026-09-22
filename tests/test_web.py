@@ -108,9 +108,33 @@ def test_feedback_card_keeps_its_compact_actions_inside_the_heading(tmp_path, da
 
     assert "[NEEDS FEEDBACK]" in card
     assert "[NEEDS USER FEEDBACK]" not in card
-    assert re.search(r"\.card-heading \{[^}]*flex-wrap: wrap;", stylesheet, re.DOTALL)
+    assert re.search(
+        r"\.card-heading \{[^}]*display: grid;"
+        r"[^}]*grid-template-columns: minmax\(0, 1fr\) max-content;",
+        stylesheet,
+        re.DOTALL,
+    )
     assert re.search(
         r"\.card-heading-actions \{[^}]*flex: none;", stylesheet, re.DOTALL
+    )
+
+
+def test_complete_assignment_cards_have_space_between_them(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_home(state=state)
+    application = create_app(state=state, clock=lambda: LOOKED_AT)
+    stylesheet = (
+        application.test_client().get("/static/matrix.css").get_data(as_text=True)
+    )
+
+    assert '<div class="complete-assignment-cards">' in page
+    assert re.search(
+        r"\.complete-assignment-cards \{[^}]*display: grid;"
+        r"[^}]*gap: var\(--space-5\);",
+        stylesheet,
+        re.DOTALL,
     )
 
 

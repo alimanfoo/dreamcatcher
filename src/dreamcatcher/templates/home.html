@@ -16,9 +16,11 @@
             {% if view.complete_assignments %}
               <details class="complete-assignments">
                 <summary>+ {{ view.complete_assignments|length }} complete</summary>
-                {% for assignment in view.complete_assignments %}
-                  {% include "partials/assignment-card.html" %}
-                {% endfor %}
+                <div class="complete-assignment-cards">
+                  {%- for assignment in view.complete_assignments %}
+                    {% include "partials/assignment-card.html" %}
+                  {%- endfor %}
+                </div>
               </details>
             {% endif %}
           </div>

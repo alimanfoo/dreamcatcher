@@ -223,7 +223,8 @@ body::after {
 }
 
 .card-heading {
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
 }
 
 .card-heading > :first-child {
@@ -373,7 +374,7 @@ body::after {
   cursor: pointer;
 }
 
-.complete-assignments[open] {
+.complete-assignment-cards {
   display: grid;
   gap: var(--space-5);
 }
@@ -653,7 +654,6 @@ body::after {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .card-heading,
   .assignment-meta,
   .assignment-heading {
     align-items: flex-start;
