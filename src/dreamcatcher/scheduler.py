@@ -27,6 +27,7 @@ from dreamcatcher.agent_assignments import (
     inspect_incomplete_assignment_setups,
     read_agent_assignments,
     record_harness_session_identifier,
+    record_pull_request_observation,
 )
 from dreamcatcher.agent_rounds import (
     AgentRound,
@@ -585,6 +586,7 @@ def inspect_agent_assignment(
     account: str,
     assignment: AgentAssignment,
     most_recent_cooldown_ended: datetime | None,
+    observed_at: datetime,
 ) -> AgentAssignmentInspectionResult | None:
     """Return what one assignment needs after reading any external facts."""
     if not assignment.rounds:
@@ -603,11 +605,16 @@ def inspect_agent_assignment(
         repository=repository,
         account=account,
         assignment=assignment,
+        observed_at=observed_at,
     )
 
 
 def _inspect_assignment_pull_request(
-    *, repository: str, account: str, assignment: AgentAssignment
+    *,
+    repository: str,
+    account: str,
+    assignment: AgentAssignment,
+    observed_at: datetime,
 ) -> AgentAssignmentInspectionResult | None:
     """Return what an assignment needs from its pull request and posts."""
     pull_request = read_pull_request(
@@ -619,6 +626,11 @@ def _inspect_assignment_pull_request(
             reason=f"cannot read its pull request: {pull_request.reason}",
             is_known=False,
         )
+    record_pull_request_observation(
+        assignment=assignment,
+        pull_request=pull_request,
+        observed_at=observed_at,
+    )
     recovery_reason = assignment.describe_unfinished_round()
     if recovery_reason is not None and pull_request.state is PullRequestState.OPEN:
         return RequiredAgentRound(
@@ -785,6 +797,7 @@ class AgentWorkScheduler:
         inspection_results = self._inspect_assignments(
             assignments=assignments,
             most_recent_cooldown_ended=most_recent_cooldown_ended,
+            observed_at=at,
         )
         cooldown = _start_cooldown_if_required(
             active=cooldown,
@@ -850,6 +863,7 @@ class AgentWorkScheduler:
         *,
         assignments: list[AgentAssignment],
         most_recent_cooldown_ended: datetime | None,
+        observed_at: datetime,
     ) -> list[AgentAssignmentInspectionResult]:
         """Return what each assignment needs next, and what each is waiting on."""
         inspection_results: list[AgentAssignmentInspectionResult] = []
@@ -862,6 +876,7 @@ class AgentWorkScheduler:
                 account=self.account,
                 assignment=assignment,
                 most_recent_cooldown_ended=most_recent_cooldown_ended,
+                observed_at=observed_at,
             )
             if inspection_result is not None:
                 inspection_results.append(inspection_result)

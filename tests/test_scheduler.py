@@ -1,5 +1,6 @@
 """Scheduling decisions and launch operations."""
 
+import inspect
 import json
 from datetime import UTC, datetime, timedelta, timezone
 
@@ -24,7 +25,9 @@ from fakes import Line
 from pydantic import ValidationError
 from records import write_agent_assignment, write_round
 
+import dreamcatcher.scheduler as scheduler_module
 from dreamcatcher.agent_assignments import (
+    PullRequestObservation,
     read_agent_assignments,
     request_agent_assignment_retry,
 )
@@ -41,6 +44,7 @@ from dreamcatcher.git import (
     make_empty_commit,
     push_branch,
 )
+from dreamcatcher.github import PullRequestState
 from dreamcatcher.prompts import RECOVERY_PROMPT
 from dreamcatcher.scheduler import (
     AgentAssignmentObservation,
@@ -553,6 +557,16 @@ def test_an_assignment_with_an_open_pull_request_and_nothing_new_is_not_waiting(
             is_round_required=False,
         )
     ]
+    assignment = read_agent_assignments(state=scheduler.state)[0]
+    assert assignment.record.pull_request_observation == PullRequestObservation(
+        state=PullRequestState.OPEN,
+        is_draft=False,
+        observed_at=PINNED,
+    )
+
+
+def test_scheduling_does_not_read_the_persisted_pull_request_observation():
+    assert ".pull_request_observation" not in inspect.getsource(scheduler_module)
 
 
 def test_an_assignment_that_has_run_no_round_at_all_gets_its_first(dispatching):

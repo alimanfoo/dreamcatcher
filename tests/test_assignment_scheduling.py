@@ -99,6 +99,7 @@ def found(
         account=POSTED_BY,
         assignment=assignment,
         most_recent_cooldown_ended=None,
+        observed_at=PINNED,
     )
 
 

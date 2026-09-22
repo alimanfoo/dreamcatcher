@@ -176,16 +176,17 @@ shared across boundaries is the assignment's Git worktree.
 GitHub commands. It owns projections and operations for:
 
 - repository and account identity;
-- issue state, assignees, labels, and dependencies;
+- issue title, state, assignees, labels, and dependencies;
 - linked pull requests;
 - pull-request identity, draft state, readiness, and terminal state;
 - creating the linked draft pull request; and
 - reading and normalizing user posts from comments, reviews, verdicts, and
   inline comments.
 
-An agent assignment persists its pull-request identity, not a cached copy of
-mutable pull-request state. Scheduling reads that state from GitHub when it
-needs it.
+An agent assignment persists its pull-request identity and, separately, the
+latest state and draft flag that a scheduler tick observed for reporting.
+Scheduling does not read that observation. It reads the current state from
+GitHub when it needs it.
 
 GitHub owns its documents and may add fields, so its responses remain tolerant
 projections. Documents owned by Dreamcatcher remain strict.
@@ -357,9 +358,11 @@ acknowledged work.
 An assignment record persists:
 
 - the issue and assignment identifiers;
+- the issue title captured during assignment setup;
 - the frozen dispatch route and assignment recipe selected during setup;
 - branch and worktree identity;
 - pull-request identity;
+- the latest observed pull-request state, draft flag, and observation time;
 - harness identity and, once known, its harness session identifier;
 - the time of the user's latest retry request, when one has been made; and
 - the cursor identifying the latest user post accepted for delivery.

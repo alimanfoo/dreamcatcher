@@ -79,21 +79,31 @@ AGENT_ROUNDS_DIRECTORY_NAME = "rounds"
 USER_POST_DELIVERY_CURSOR_NAME = "watermark"
 
 
+class PullRequestObservation(DreamcatcherDocument):
+    """Model the latest pull request state observed for reporting."""
+
+    state: PullRequestState
+    is_draft: bool
+    observed_at: AwareDatetime
+
+
 class AgentAssignmentRecord(DreamcatcherDocument):
     """Model the identities and settled settings of an agent assignment.
 
     The dispatch settles the assignment recipe and identities. The first round
     adds the harness session identifier when the harness reports it, and a retry
     request records its time. Every round reads this record, so later config
-    edits do not change an assignment in progress. Pull request state stays on
-    GitHub.
+    edits do not change an assignment in progress. The latest pull request
+    observation supports reporting; scheduling still reads GitHub.
     """
 
     issue: int
+    title: str | None = None
     dispatch_label: str
     branch: str
     worktree: Path
     pull_request: int
+    pull_request_observation: PullRequestObservation | None = None
     harness: AgentHarness
     harness_session_identifier: HarnessSessionIdentifier | None = None
     retry_requested_at: AwareDatetime | None = None
@@ -367,15 +377,21 @@ class AgentAssignmentCreator:
         if not has_commits_since_main(worktree=worktree):
             make_empty_commit(worktree=worktree, message=f"GH{issue}")
         push_branch(root=self.state.root, branch=branch)
-        pull_request = _find_or_create_pull_request(
+        title, pull_request = _find_or_create_pull_request(
             repository=self.repository, branch=branch, issue=issue
         )
         record = AgentAssignmentRecord(
             issue=issue,
+            title=title,
             dispatch_label=route.label,
             branch=branch,
             worktree=worktree,
-            pull_request=pull_request,
+            pull_request=pull_request.number,
+            pull_request_observation=PullRequestObservation(
+                state=pull_request.state,
+                is_draft=pull_request.is_draft,
+                observed_at=at,
+            ),
             harness=selected_harness,
             model=recipe.model,
             effort=recipe.effort,
@@ -411,8 +427,10 @@ def _check_worktree_branch(
         )
 
 
-def _find_or_create_pull_request(*, repository: str, branch: str, issue: int) -> int:
-    """Return the branch's existing pull request or create its draft."""
+def _find_or_create_pull_request(
+    *, repository: str, branch: str, issue: int
+) -> tuple[str, PullRequest]:
+    """Return the issue title and branch's existing or newly created draft."""
     branch_pull_request = _find_branch_pull_request(
         repository=repository, branch=branch
     )
@@ -420,18 +438,20 @@ def _find_or_create_pull_request(*, repository: str, branch: str, issue: int) ->
         repository=repository, issue=issue
     )
     if branch_pull_request is not None:
-        return _adopt_pull_request(
+        pull_request = _adopt_pull_request(
             pull_request=branch_pull_request,
             linked=pull_request_context.pull_requests,
             branch=branch,
             issue=issue,
         )
-    _refuse_linked_pull_requests(
-        linked=pull_request_context.pull_requests, branch=branch, issue=issue
-    )
-    return _create_assignment_pull_request(
-        repository=repository, branch=branch, context=pull_request_context
-    )
+    else:
+        _refuse_linked_pull_requests(
+            linked=pull_request_context.pull_requests, branch=branch, issue=issue
+        )
+        pull_request = _create_assignment_pull_request(
+            repository=repository, branch=branch, context=pull_request_context
+        )
+    return pull_request_context.title, pull_request
 
 
 def _find_branch_pull_request(*, repository: str, branch: str) -> PullRequest | None:
@@ -465,7 +485,7 @@ def _adopt_pull_request(
     linked: list[LinkedPullRequest],
     branch: str,
     issue: int,
-) -> int:
+) -> PullRequest:
     """Return the branch's linked open draft pull request."""
     if pull_request.state is not PullRequestState.OPEN:
         raise ReportableError(
@@ -492,7 +512,7 @@ def _adopt_pull_request(
     _refuse_linked_pull_requests(
         linked=unrelated_pull_requests, branch=branch, issue=issue
     )
-    return pull_request.number
+    return pull_request
 
 
 def _refuse_linked_pull_requests(
@@ -511,7 +531,7 @@ def _refuse_linked_pull_requests(
 
 def _create_assignment_pull_request(
     *, repository: str, branch: str, context: IssuePullRequestContext
-) -> int:
+) -> PullRequest:
     """Create and return the assignment branch's open draft pull request."""
     pull_request = create_pull_request(
         repository=repository, branch=branch, context=context
@@ -523,7 +543,7 @@ def _create_assignment_pull_request(
             f"pull request #{pull_request.number} for {branch} was not created as "
             "an open draft."
         )
-    return pull_request.number
+    return pull_request
 
 
 def _read_assignment(*, state: StateDirectory, directory: Path) -> AgentAssignment:
@@ -606,6 +626,33 @@ def record_harness_session_identifier(
     write_json(
         document=record.model_copy(
             update={"harness_session_identifier": safe_identifier}
+        ),
+        path=path,
+    )
+
+
+def record_pull_request_observation(
+    *, assignment: AgentAssignment, pull_request: PullRequest, observed_at: datetime
+) -> None:
+    """Record a pull request state when it differs from the latest observation."""
+    path = assignment.directory / AGENT_ASSIGNMENT_RECORD_NAME
+    record = read_json(model=AgentAssignmentRecord, path=path)
+    recorded = record.pull_request_observation
+    if (
+        recorded is not None
+        and recorded.state is pull_request.state
+        and recorded.is_draft == pull_request.is_draft
+    ):
+        return
+    write_json(
+        document=record.model_copy(
+            update={
+                "pull_request_observation": PullRequestObservation(
+                    state=pull_request.state,
+                    is_draft=pull_request.is_draft,
+                    observed_at=observed_at,
+                )
+            }
         ),
         path=path,
     )

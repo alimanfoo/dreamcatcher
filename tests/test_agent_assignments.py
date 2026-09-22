@@ -19,12 +19,14 @@ from dreamcatcher.agent_assignments import (
     USER_POST_DELIVERY_CURSOR_NAME,
     AgentAssignmentCreator,
     AgentAssignmentRecord,
+    PullRequestObservation,
     advance_user_post_delivery_cursor,
     find_open_agent_assignments_by_issue,
     inspect_incomplete_assignment_setups,
     read_agent_assignments,
     read_agent_assignments_for_issue,
     record_harness_session_identifier,
+    record_pull_request_observation,
 )
 from dreamcatcher.agent_rounds import (
     AgentRoundPaths,
@@ -42,6 +44,7 @@ from dreamcatcher.config import (
 from dreamcatcher.documents import write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import add_worktree, fetch_main, make_empty_commit, push_branch
+from dreamcatcher.github import PullRequest, PullRequestState
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH12-20260819-184158"
@@ -150,8 +153,14 @@ def test_an_assignment_records_what_it_was_dispatched_with(state, route):
 
     assert written(state=state) == assignment.record
     assert assignment.record.issue == 12
+    assert assignment.record.title == "The issue title"
     assert assignment.record.dispatch_label == "dream:smith"
     assert assignment.record.pull_request == PULL_REQUEST
+    assert assignment.record.pull_request_observation == PullRequestObservation(
+        state=PullRequestState.OPEN,
+        is_draft=True,
+        observed_at=PINNED,
+    )
     assert assignment.record.harness == AgentHarness.CLAUDE
     assert assignment.record.model == "opus[1m]"
     assert assignment.record.effort == "xhigh"
@@ -933,6 +942,26 @@ def test_an_assignment_reads_back_as_it_was_dispatched(state, route):
     assert read_agent_assignments(state=state) == [created]
 
 
+def test_an_assignment_record_from_before_titles_and_pull_request_observations_reads(
+    fabricated,
+):
+    directory = write_agent_assignment(
+        state=fabricated,
+        identifier=ASSIGNMENT_ID,
+        issue=12,
+    )
+    path = directory / "assignment.json"
+    document = json.loads(path.read_text(encoding="utf-8"))
+    del document["title"]
+    del document["pull_request_observation"]
+    path.write_bytes((json.dumps(document) + "\n").encode())
+
+    record = read_agent_assignments(state=fabricated)[0].record
+
+    assert record.title is None
+    assert record.pull_request_observation is None
+
+
 def test_an_assignment_records_the_harness_session_its_first_round_reports(fabricated):
     write_agent_assignment(
         state=fabricated,
@@ -947,6 +976,66 @@ def test_an_assignment_records_the_harness_session_its_first_round_reports(fabri
 
     recorded = read_agent_assignments(state=fabricated)[0]
     assert recorded.record.harness_session_identifier == "abc-123"
+
+
+def test_an_assignment_records_a_changed_pull_request_observation(fabricated):
+    write_agent_assignment(state=fabricated, identifier=ASSIGNMENT_ID, issue=12)
+    assignment = read_agent_assignments(state=fabricated)[0]
+    record_pull_request_observation(
+        assignment=assignment,
+        pull_request=PullRequest(
+            number=PULL_REQUEST,
+            state=PullRequestState.OPEN,
+            is_draft=True,
+        ),
+        observed_at=PINNED,
+    )
+
+    record_pull_request_observation(
+        assignment=assignment,
+        pull_request=PullRequest(
+            number=PULL_REQUEST,
+            state=PullRequestState.OPEN,
+            is_draft=False,
+        ),
+        observed_at=PINNED + timedelta(minutes=1),
+    )
+
+    recorded = read_agent_assignments(state=fabricated)[0]
+    assert recorded.record.pull_request_observation == PullRequestObservation(
+        state=PullRequestState.OPEN,
+        is_draft=False,
+        observed_at=PINNED + timedelta(minutes=1),
+    )
+
+
+def test_an_unchanged_pull_request_observation_leaves_the_record_untouched(fabricated):
+    directory = write_agent_assignment(
+        state=fabricated,
+        identifier=ASSIGNMENT_ID,
+        issue=12,
+    )
+    assignment = read_agent_assignments(state=fabricated)[0]
+    pull_request = PullRequest(
+        number=PULL_REQUEST,
+        state=PullRequestState.OPEN,
+        is_draft=True,
+    )
+    record_pull_request_observation(
+        assignment=assignment,
+        pull_request=pull_request,
+        observed_at=PINNED,
+    )
+    path = directory / "assignment.json"
+    before = path.read_bytes()
+
+    record_pull_request_observation(
+        assignment=assignment,
+        pull_request=pull_request,
+        observed_at=PINNED + timedelta(minutes=1),
+    )
+
+    assert path.read_bytes() == before
 
 
 def test_an_assignment_refuses_a_different_harness_session(fabricated):
