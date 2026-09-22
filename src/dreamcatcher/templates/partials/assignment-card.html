@@ -1,12 +1,12 @@
 {% from "partials/issue-reference.html" import issue_reference with context %}<article class="assignment-card{% if assignment.status == 'needs user feedback' %} needs-feedback{% endif %}" aria-label="Assignment #{{ assignment.issue }} {{ assignment.identifier }}">
   <div class="card-heading">
-    <div>{{ issue_reference(assignment.issue) }} <span class="identifier">{{ assignment.identifier }}</span></div>
+    <div>{{ issue_reference(assignment.issue) }} <span class="{% if assignment.title %}title{% else %}identifier{% endif %}">{{ assignment.title or assignment.identifier }}</span></div>
     <span class="chip status-{{ assignment.status|replace(' ', '-') }}">[{{ assignment.status|upper }}]</span>
   </div>
   <p class="assignment-detail">{{ assignment.detail }}</p>
   {% if assignment.latest_output %}<p class="latest-output"><span>[AGENT]</span> {{ assignment.latest_output }}</p>{% endif %}
   <div class="assignment-meta">
     <span>{{ assignment.harness }} · {{ assignment.model }} · {{ assignment.effort }}</span>
-    <span class="pr-chip">PR #{{ assignment.pull_request }}</span>
+    {% if view.github_pull_request_url_prefix and assignment.pull_request_state %}<a class="pr-chip" href="{{ view.github_pull_request_url_prefix }}{{ assignment.pull_request }}">PR #{{ assignment.pull_request }} {{ assignment.pull_request_state }}</a>{% else %}<span class="pr-chip">PR #{{ assignment.pull_request }}</span>{% endif %}
   </div>
 </article>

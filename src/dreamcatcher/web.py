@@ -73,16 +73,18 @@ class WebFact:
 
 @dataclass(frozen=True, kw_only=True)
 class WebAssignmentCard:
-    """Represent one assignment card without presentation decisions."""
+    """Represent the values rendered in one assignment card."""
 
     identifier: str
     issue: int
+    title: str | None
     status: str
     detail: str
     harness: str
     model: str
     effort: str
     pull_request: int
+    pull_request_state: str | None
     latest_output: str | None
 
 
@@ -91,6 +93,7 @@ class WebIssueRow:
     """Represent one available or blocked issue row."""
 
     issue: int
+    title: str | None
     labels: str
     status: str
     evidence: tuple[str | int, ...]
@@ -102,6 +105,7 @@ class WebHomeView:
 
     repository: str
     github_issue_url_prefix: str | None
+    github_pull_request_url_prefix: str | None
     daemon_state: str
     daemon_summary: str
     instance_facts: tuple[WebFact, ...]
@@ -211,6 +215,11 @@ def _compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
             if report.repository is None
             else f"https://github.com/{report.repository}/issues/"
         ),
+        github_pull_request_url_prefix=(
+            None
+            if report.repository is None
+            else f"https://github.com/{report.repository}/pull/"
+        ),
         daemon_state="stopped" if report.daemon_pid is None else "running",
         daemon_summary=_describe_daemon(report=report),
         instance_facts=_compose_instance_facts(report=report),
@@ -236,15 +245,25 @@ def _compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
 
 def _compose_assignment_card(*, status: AgentAssignmentStatus) -> WebAssignmentCard:
     assignment = status.assignment
+    pull_request_observation = assignment.record.pull_request_observation
     return WebAssignmentCard(
         identifier=assignment.identifier,
         issue=assignment.record.issue,
+        title=assignment.record.title,
         status=str(status.value),
         detail=status.detail,
         harness=str(assignment.record.harness),
         model=assignment.record.model,
         effort=assignment.record.effort,
         pull_request=assignment.record.pull_request,
+        pull_request_state=(
+            None
+            if pull_request_observation is None
+            else _describe_pull_request_state(
+                state=str(pull_request_observation.state),
+                is_draft=pull_request_observation.is_draft,
+            )
+        ),
         latest_output=status.latest_output,
     )
 
@@ -254,12 +273,19 @@ def _compose_issue_row(*, observation: IssueObservation) -> WebIssueRow:
     status = "blocked" if is_blocked else "available"
     return WebIssueRow(
         issue=observation.issue,
+        title=observation.title,
         labels=", ".join(observation.dispatch_labels or []),
         status=status,
         evidence=_compose_issue_evidence(
             evidence=observation.blocked.evidence if is_blocked else None
         ),
     )
+
+
+def _describe_pull_request_state(*, state: str, is_draft: bool) -> str:
+    if state == "OPEN":
+        return "draft" if is_draft else "ready"
+    return state.lower()
 
 
 def _compose_issue_evidence(*, evidence: str | None) -> tuple[str | int, ...]:

@@ -1,6 +1,6 @@
 {% from "partials/issue-reference.html" import issue_reference with context %}<article class="issue-row" aria-label="Issue #{{ issue.issue }}">
   <div class="card-heading">
-    {{ issue_reference(issue.issue) }}
+    {% if issue.title %}<div>{{ issue_reference(issue.issue) }} <span class="title">{{ issue.title }}</span></div>{% else %}{{ issue_reference(issue.issue) }}{% endif %}
     <span class="chip issue-{{ issue.status }}">[{{ issue.status|upper }}]</span>
   </div>
   {% if issue.labels %}<p class="labels">{{ issue.labels }}</p>{% endif %}

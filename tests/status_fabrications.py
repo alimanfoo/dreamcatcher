@@ -7,6 +7,7 @@ from clocks import PINNED
 from conftest import DAEMON_PID, DISPATCH_LABEL, REPOSITORY, configure
 from observations import observed_issue
 from records import (
+    AssignmentReporting,
     write_agent_assignment,
     write_daemon_run,
     write_feed,
@@ -14,6 +15,7 @@ from records import (
     write_tick,
 )
 
+from dreamcatcher.agent_assignments import PullRequestObservation
 from dreamcatcher.agent_rounds import (
     AgentRoundPurpose,
     AgentRoundRecord,
@@ -21,6 +23,7 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.documents import write_text
 from dreamcatcher.feed import FeedLine
+from dreamcatcher.github import PullRequestState
 from dreamcatcher.scheduler import (
     NO_ROUND_HAS_RUN,
     AgentAssignmentObservation,
@@ -363,6 +366,69 @@ def fabricate_a_silent_round(*, state):
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
             launched_assignment_identifier=f"GH13-{ASSIGNMENT_TIMESTAMP}",
+        ),
+    )
+
+
+def fabricate_titles_and_pull_request_states(*, state):
+    """Write assignments and issues carrying every web reporting fact."""
+    holding(state=state)
+    assignment_observations = []
+    for issue, title, pull_request_state, is_draft in (
+        (10, "Draft assignment", PullRequestState.OPEN, True),
+        (11, "Ready assignment", PullRequestState.OPEN, False),
+        (12, "Merged assignment", PullRequestState.MERGED, False),
+        (13, "Closed assignment", PullRequestState.CLOSED, False),
+    ):
+        write_agent_assignment(
+            state=state,
+            identifier=f"GH{issue}-{ASSIGNMENT_TIMESTAMP}",
+            issue=issue,
+            reporting=AssignmentReporting(
+                title=title,
+                pull_request_observation=PullRequestObservation(
+                    state=pull_request_state,
+                    is_draft=is_draft,
+                    observed_at=PINNED,
+                ),
+            ),
+            harness_session_identifier=None,
+        )
+        assignment_observations.append(
+            AgentAssignmentObservation(
+                assignment_identifier=f"GH{issue}-{ASSIGNMENT_TIMESTAMP}",
+                issue=issue,
+                reason=NO_ROUND_HAS_RUN,
+            )
+        )
+    write_agent_assignment(
+        state=state,
+        identifier=f"GH14-{ASSIGNMENT_TIMESTAMP}",
+        issue=14,
+        harness_session_identifier=None,
+    )
+    assignment_observations.append(
+        AgentAssignmentObservation(
+            assignment_identifier=f"GH14-{ASSIGNMENT_TIMESTAMP}",
+            issue=14,
+            reason=NO_ROUND_HAS_RUN,
+        )
+    )
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED + timedelta(hours=1, minutes=58),
+            issue_observations=[
+                observed_issue(issue=20).model_copy(
+                    update={"title": "Available issue"}
+                ),
+                observed_issue(
+                    issue=21,
+                    values={"blocked": IssueFactValue.TRUE},
+                    evidence={"blocked": "blocked by GH20"},
+                ).model_copy(update={"title": "Blocked issue"}),
+            ],
+            assignment_observations=assignment_observations,
         ),
     )
 
