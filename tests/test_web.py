@@ -202,6 +202,25 @@ def test_assignment_page_offers_a_control_that_jumps_to_the_feed_tail(tmp_path, 
     assert "top: feed.scrollHeight" in script
 
 
+def test_assignment_page_types_its_latest_feed_output(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    application = create_app(state=state, clock=lambda: LOOKED_AT)
+    client = application.test_client()
+
+    script_response = client.get("/static/assignment.js")
+    stylesheet_response = client.get("/static/matrix.css")
+    script = script_response.get_data(as_text=True)
+    stylesheet = stylesheet_response.get_data(as_text=True)
+
+    assert script_response.status_code == 200
+    assert stylesheet_response.status_code == 200
+    assert '".feed-line:not(.round-boundary) .feed-content"' in script
+    assert '"(prefers-reduced-motion: reduce)"' in script
+    assert 'classList.add("is-typing")' in script
+    assert "@keyframes type-latest-feed-output" in stylesheet
+
+
 def test_round_headings_are_separated_from_the_feed_content(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
