@@ -123,6 +123,21 @@ def test_assignment_reporting_remains_without_a_repository_record(tmp_path, daem
     assert '<span class="pr-chip">PR #52 draft</span>' in page
 
 
+def test_an_assignment_page_reports_a_repository_record_that_will_not_read(
+    tmp_path, daemon
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    state.repository.unlink()
+    state.repository.mkdir()
+    application = create_app(state=state, clock=lambda: LOOKED_AT)
+
+    response = application.test_client().get("/assignments/GH13-20260819-184158")
+
+    assert response.status_code == 500
+    assert "cannot read" in response.get_data(as_text=True)
+
+
 def test_the_assignment_page_preserves_and_escapes_an_unparseable_feed_line(
     tmp_path, daemon
 ):

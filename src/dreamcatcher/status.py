@@ -154,7 +154,7 @@ def read_status_report(
     )
     return DreamcatcherStatusReport(
         at=reader.at,
-        repository=_read_repository(state=state),
+        repository=read_repository(state=state),
         daemon_pid=reader.daemon_pid,
         agent_harness=None if daemon_run is None else daemon_run.harness,
         dreamcatcher_version=None if daemon_run is None else daemon_run.version,
@@ -193,7 +193,7 @@ def read_status_report(
     )
 
 
-def _read_repository(*, state: StateDirectory) -> str | None:
+def read_repository(*, state: StateDirectory) -> str | None:
     """Read the repository name after a daemon has recorded it."""
     if not state.repository.exists():
         return None

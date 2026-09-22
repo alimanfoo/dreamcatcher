@@ -15,7 +15,7 @@ from flask import Flask, render_template
 from werkzeug.serving import BaseWSGIServer
 
 from dreamcatcher.clock import read_current_time
-from dreamcatcher.documents import read_lines_from, read_text
+from dreamcatcher.documents import read_lines_from
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import (
     compose_agent_round_boundary,
@@ -30,6 +30,7 @@ from dreamcatcher.status import (
     IssueFactValue,
     IssueObservation,
     read_agent_assignment_status,
+    read_repository,
     read_status_report,
 )
 from dreamcatcher.words import describe_span, describe_time
@@ -45,10 +46,6 @@ class _WebServerBindError(Exception):
     def __init__(self, *, error: OSError) -> None:
         super().__init__(str(error))
         self.error = error
-
-
-class _UnknownAgentAssignmentError(ReportableError):
-    pass
 
 
 class _ExclusiveWebServer(BaseWSGIServer):
@@ -194,27 +191,24 @@ def create_app(
         return render_template("home.html", view=_compose_home_view(report=report))
 
     @app.get("/assignments/<identifier>")
-    def show_assignment(*, identifier: str) -> str:
+    def show_assignment(*, identifier: str) -> str | tuple[str, int]:
         status = read_agent_assignment_status(
             state=state,
             identifier=identifier,
             clock=clock,
         )
         if status is None:
-            raise _UnknownAgentAssignmentError(
-                f"No agent assignment here has identifier {identifier}."
+            return (
+                render_template(
+                    "error.html",
+                    message=f"No agent assignment here has identifier {identifier}.",
+                ),
+                404,
             )
         return render_template(
             "assignment.html",
             view=_compose_assignment_view(state=state, status=status),
         )
-
-    @app.errorhandler(_UnknownAgentAssignmentError)
-    def show_unknown_assignment(
-        error: _UnknownAgentAssignmentError, /
-    ) -> tuple[str, int]:
-        """Render an unknown identifier for Flask, which passes errors by position."""
-        return render_template("error.html", message=str(error)), 404
 
     @app.errorhandler(ReportableError)
     def show_reportable_error(error: ReportableError, /) -> tuple[str, int]:
@@ -269,17 +263,11 @@ def _create_web_server(
 
 
 def _derive_starting_port(*, state: StateDirectory) -> int:
-    repository = _read_repository(state=state)
+    repository = read_repository(state=state)
     if repository is None:
         return WEB_BASE_PORT
     repository_digest = zlib.crc32(repository.encode("utf-8"))
     return WEB_BASE_PORT + repository_digest % WEB_PORT_RANGE
-
-
-def _read_repository(*, state: StateDirectory) -> str | None:
-    if not state.repository.is_file():
-        return None
-    return read_text(path=state.repository).strip()
 
 
 def _compose_github_repository_url(*, repository: str | None) -> str | None:
@@ -364,7 +352,7 @@ def _compose_assignment_view(
 ) -> WebAssignmentView:
     assignment = status.assignment
     record = assignment.record
-    repository = _read_repository(state=state)
+    repository = read_repository(state=state)
     hand_resume_command = status.hand_resume_command
     return WebAssignmentView(
         repository=repository or "repository unknown",
