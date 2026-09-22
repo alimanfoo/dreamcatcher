@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-  <main id="home" hx-get="{{ url_for('show_home') }}" hx-trigger="every 2s" hx-select="#home" hx-swap="morph">
+  <main id="home" hx-get="{{ url_for('show_home') }}" hx-trigger="every 2s" hx-select="#home" hx-swap="morph:{callbacks:{beforeAttributeUpdated:(attribute,element)=>attribute==='open'&&element.matches('details')}}">
     <header class="site-header">
       <div class="repository"><img class="mark" src="{{ url_for('static', filename='dreamcatcher-mark-phosphor.png') }}" alt="Dreamcatcher">{{ view.repository }}</div>
       <div class="daemon daemon-{{ view.daemon_state }}">{{ view.daemon_summary }}</div>
