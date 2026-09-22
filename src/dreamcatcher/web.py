@@ -14,7 +14,6 @@ from webbrowser import open as open_browser
 from flask import Flask, render_template, request
 from werkzeug.serving import BaseWSGIServer
 
-from dreamcatcher.agent_assignments import AgentAssignment
 from dreamcatcher.agent_rounds import AgentRoundRecord
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.documents import read_lines_from
@@ -269,7 +268,7 @@ def create_app(
             )
         try:
             cursor = _decode_feed_cursor(value=request.args.get("cursor", ""))
-            tail = _compose_assignment_tail(status=status, cursor=cursor)
+            tail = _read_assignment_tail(status=status, cursor=cursor)
         except _InvalidFeedCursorError:
             return (
                 render_template("error.html", message="The feed cursor is invalid."),
@@ -512,25 +511,10 @@ def _decode_feed_cursor(*, value: str) -> WebFeedCursor:
     return cursor
 
 
-def _compose_assignment_tail(
+def _read_assignment_tail(
     *, status: AgentAssignmentStatus, cursor: WebFeedCursor
 ) -> WebAssignmentTail:
-    feed_rounds, next_cursor = _read_assignment_tail(
-        assignment=status.assignment,
-        cursor=cursor,
-    )
-    return WebAssignmentTail(
-        cursor=_encode_feed_cursor(cursor=next_cursor),
-        feed_rounds=feed_rounds,
-        status=str(status.value),
-        status_label=_compose_web_status_label(status=status),
-        rounds=_compose_assignment_rounds(status=status),
-    )
-
-
-def _read_assignment_tail(
-    *, assignment: AgentAssignment, cursor: WebFeedCursor
-) -> tuple[tuple[WebFeedRound, ...], WebFeedCursor]:
+    assignment = status.assignment
     records_by_number = {record.number: record for record in assignment.rounds}
     if cursor.round_number == 0:
         number = 1
@@ -563,7 +547,13 @@ def _read_assignment_tail(
         number += 1
         position = 0
         is_opening_round = True
-    return tuple(feed_rounds), next_cursor
+    return WebAssignmentTail(
+        cursor=_encode_feed_cursor(cursor=next_cursor),
+        feed_rounds=tuple(feed_rounds),
+        status=str(status.value),
+        status_label=_compose_web_status_label(status=status),
+        rounds=_compose_assignment_rounds(status=status),
+    )
 
 
 def _compose_web_round_boundary(*, record: AgentRoundRecord) -> WebFeedLine:
