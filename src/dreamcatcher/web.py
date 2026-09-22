@@ -11,9 +11,11 @@ from datetime import datetime
 from typing import Protocol
 from webbrowser import open as open_browser
 
-from flask import Flask, render_template
+from flask import Flask, render_template, request
 from werkzeug.serving import BaseWSGIServer
 
+from dreamcatcher.agent_assignments import AgentAssignment
+from dreamcatcher.agent_rounds import AgentRoundRecord
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.documents import read_lines_from
 from dreamcatcher.errors import ReportableError
@@ -24,6 +26,7 @@ from dreamcatcher.feed import (
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
+    STATUSES_THAT_END_A_VIEW,
     AgentAssignmentStatus,
     AgentAssignmentStatusValue,
     DreamcatcherStatusReport,
@@ -41,12 +44,18 @@ WEB_BASE_PORT = 8100
 WEB_PORT_RANGE = 400
 WEB_MAX_PORT = 65535
 _ISSUE_REFERENCE_PATTERN = re.compile(r"(?<!\w)(?:GH|#)(\d+)\b(?!-)")
+_FEED_CURSOR_PATTERN = re.compile(r"(?P<round>0|[1-9]\d*):(?P<position>\d+)")
+_HTMX_STOP_POLLING_STATUS = 286
 
 
 class _WebServerBindError(Exception):
     def __init__(self, *, error: OSError) -> None:
         super().__init__(str(error))
         self.error = error
+
+
+class _InvalidFeedCursorError(Exception):
+    pass
 
 
 class _ExclusiveWebServer(BaseWSGIServer):
@@ -124,6 +133,25 @@ class WebFeedRound:
 
     number: int
     lines: tuple[WebFeedLine, ...]
+
+
+@dataclass(frozen=True, kw_only=True)
+class WebFeedCursor:
+    """Identify the next feed byte to read within an assignment round."""
+
+    round_number: int
+    position: int
+
+
+@dataclass(frozen=True, kw_only=True)
+class WebAssignmentTail:
+    """Represent one incremental assignment-feed response."""
+
+    cursor: str
+    feed_rounds: tuple[WebFeedRound, ...]
+    status: str
+    status_label: str
+    rounds: tuple[WebAssignmentRound, ...]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -214,6 +242,36 @@ def create_app(
             "assignment.html",
             view=_compose_assignment_view(state=state, status=status),
         )
+
+    @app.get("/assignments/<identifier>/tail")
+    def show_assignment_tail(*, identifier: str) -> str | tuple[str, int]:
+        status = read_agent_assignment_status(
+            state=state,
+            identifier=identifier,
+            clock=clock,
+        )
+        if status is None:
+            return (
+                render_template(
+                    "error.html",
+                    message=f"No agent assignment here has identifier {identifier}.",
+                ),
+                404,
+            )
+        try:
+            cursor = _decode_feed_cursor(value=request.args.get("cursor", ""))
+            tail = _compose_assignment_tail(status=status, cursor=cursor)
+        except _InvalidFeedCursorError:
+            return (
+                render_template("error.html", message="The feed cursor is invalid."),
+                400,
+            )
+        response_status = (
+            _HTMX_STOP_POLLING_STATUS
+            if not tail.feed_rounds and status.value in STATUSES_THAT_END_A_VIEW
+            else 200
+        )
+        return render_template("tail.html", tail=tail), response_status
 
     @app.errorhandler(ReportableError)
     def show_reportable_error(error: ReportableError, /) -> tuple[str, int]:
@@ -389,17 +447,7 @@ def _compose_assignment_view(
         ),
         model=record.model,
         effort=record.effort,
-        rounds=tuple(
-            WebAssignmentRound(
-                number=round_status.record.number,
-                purpose=str(round_status.record.purpose),
-                is_recovery=round_status.record.is_recovery,
-                started=describe_time(at=round_status.record.started),
-                duration=round_status.duration_description,
-                outcome=round_status.outcome_description,
-            )
-            for round_status in status.round_statuses
-        ),
+        rounds=_compose_assignment_rounds(status=status),
         hand_resume_worktree=(
             None
             if hand_resume_command is None
@@ -420,16 +468,112 @@ def _compose_web_status_label(*, status: AgentAssignmentStatus) -> str:
     )
 
 
+def _compose_assignment_rounds(
+    *, status: AgentAssignmentStatus
+) -> tuple[WebAssignmentRound, ...]:
+    return tuple(
+        WebAssignmentRound(
+            number=round_status.record.number,
+            purpose=str(round_status.record.purpose),
+            is_recovery=round_status.record.is_recovery,
+            started=describe_time(at=round_status.record.started),
+            duration=round_status.duration_description,
+            outcome=round_status.outcome_description,
+        )
+        for round_status in status.round_statuses
+    )
+
+
+def _encode_feed_cursor(*, cursor: WebFeedCursor) -> str:
+    return f"{cursor.round_number}:{cursor.position}"
+
+
+def _decode_feed_cursor(*, value: str) -> WebFeedCursor:
+    match = _FEED_CURSOR_PATTERN.fullmatch(value)
+    if match is None:
+        raise _InvalidFeedCursorError
+    cursor = WebFeedCursor(
+        round_number=int(match["round"]),
+        position=int(match["position"]),
+    )
+    if cursor.round_number == 0 and cursor.position != 0:
+        raise _InvalidFeedCursorError
+    return cursor
+
+
+def _compose_assignment_tail(
+    *, status: AgentAssignmentStatus, cursor: WebFeedCursor
+) -> WebAssignmentTail:
+    feed_rounds, next_cursor = _read_assignment_tail(
+        assignment=status.assignment,
+        cursor=cursor,
+    )
+    return WebAssignmentTail(
+        cursor=_encode_feed_cursor(cursor=next_cursor),
+        feed_rounds=feed_rounds,
+        status=str(status.value),
+        status_label=_compose_web_status_label(status=status),
+        rounds=_compose_assignment_rounds(status=status),
+    )
+
+
+def _read_assignment_tail(
+    *, assignment: AgentAssignment, cursor: WebFeedCursor
+) -> tuple[tuple[WebFeedRound, ...], WebFeedCursor]:
+    records_by_number = {record.number: record for record in assignment.rounds}
+    if cursor.round_number == 0:
+        number = 1
+        position = 0
+        is_opening_round = True
+    else:
+        if cursor.round_number not in records_by_number:
+            raise _InvalidFeedCursorError
+        number = cursor.round_number
+        position = cursor.position
+        is_opening_round = False
+    feed_rounds = []
+    next_cursor = cursor
+    while (record := records_by_number.get(number)) is not None:
+        written_lines, position = read_lines_from(
+            path=assignment.compose_round_paths(number=number).feed,
+            position=position,
+        )
+        lines = tuple(
+            _compose_web_feed_line(written_line=written_line)
+            for written_line in written_lines
+        )
+        if is_opening_round:
+            lines = (_compose_web_round_boundary(record=record), *lines)
+        if lines:
+            feed_rounds.append(WebFeedRound(number=number, lines=lines))
+        next_cursor = WebFeedCursor(round_number=number, position=position)
+        if written_lines or record.ending is None:
+            break
+        number += 1
+        position = 0
+        is_opening_round = True
+    return tuple(feed_rounds), next_cursor
+
+
+def _compose_web_round_boundary(*, record: AgentRoundRecord) -> WebFeedLine:
+    boundary = compose_agent_round_boundary(
+        number=record.number,
+        purpose=record.purpose,
+        is_recovery=record.is_recovery,
+        at=record.started,
+    )
+    return WebFeedLine(
+        timestamp=describe_time(at=boundary.at),
+        label=None,
+        detail=boundary.text,
+        is_boundary=True,
+    )
+
+
 def _read_assignment_feed(*, status: AgentAssignmentStatus) -> tuple[WebFeedRound, ...]:
     assignment = status.assignment
     feed_rounds = []
     for record in assignment.rounds:
-        boundary = compose_agent_round_boundary(
-            number=record.number,
-            purpose=record.purpose,
-            is_recovery=record.is_recovery,
-            at=record.started,
-        )
         written_lines, _ = read_lines_from(
             path=assignment.compose_round_paths(number=record.number).feed,
             position=0,
@@ -438,12 +582,7 @@ def _read_assignment_feed(*, status: AgentAssignmentStatus) -> tuple[WebFeedRoun
             WebFeedRound(
                 number=record.number,
                 lines=(
-                    WebFeedLine(
-                        timestamp=describe_time(at=boundary.at),
-                        label=None,
-                        detail=boundary.text,
-                        is_boundary=True,
-                    ),
+                    _compose_web_round_boundary(record=record),
                     *(
                         _compose_web_feed_line(written_line=written_line)
                         for written_line in written_lines

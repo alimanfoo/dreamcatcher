@@ -9,15 +9,21 @@ from unittest.mock import MagicMock
 
 import pytest
 from conftest import FIXTURES, REPOSITORY
+from records import write_feed, write_round
 from status_fabrications import (
     LOOKED_AT,
     STATUS_REPORTS,
+    ended,
     fabricate_a_silent_round,
     fabricate_everything,
     fabricate_titles_and_pull_request_states,
+    running,
+    written,
 )
+from werkzeug.test import TestResponse
 
 import dreamcatcher.web as web_module
+from dreamcatcher.agent_assignments import read_agent_assignment
 from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
@@ -51,6 +57,26 @@ def render_assignment(*, state: StateDirectory, identifier: str) -> str:
     response = application.test_client().get(f"/assignments/{identifier}")
     assert response.status_code == 200
     return response.get_data(as_text=True)
+
+
+def _read_tail(*, state: StateDirectory, identifier: str, cursor: str) -> TestResponse:
+    application = create_app(state=state, clock=lambda: LOOKED_AT)
+    return application.test_client().get(
+        f"/assignments/{identifier}/tail",
+        query_string={"cursor": cursor},
+    )
+
+
+def _feed_path(*, state: StateDirectory, identifier: str, number: int):
+    assignment = read_agent_assignment(state=state, identifier=identifier)
+    assert assignment is not None
+    return assignment.compose_round_paths(number=number).feed
+
+
+def _read_cursor(*, response: TestResponse) -> str:
+    match = re.search(r'id="cursor"[^>]*value="([^"]+)"', response.text)
+    assert match is not None
+    return match[1]
 
 
 @pytest.mark.parametrize("name", sorted(WEB_STATUS_REPORTS))
@@ -216,6 +242,187 @@ def test_an_unknown_assignment_renders_a_404_page(tmp_path):
         "No agent assignment here has identifier GH99-20260819-184158."
         in response.get_data(as_text=True)
     )
+
+
+def test_an_unknown_assignment_tail_renders_a_404_page(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+
+    response = _read_tail(
+        state=state,
+        identifier="GH99-20260819-184158",
+        cursor="0:0",
+    )
+
+    assert response.status_code == 404
+    assert (
+        "No agent assignment here has identifier GH99-20260819-184158." in response.text
+    )
+
+
+@pytest.mark.parametrize(
+    "cursor",
+    ["", "garbage", "0:1", "01:0", "-1:0", "99:0"],
+)
+def test_an_invalid_tail_cursor_renders_a_400_page(tmp_path, cursor):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    written(state=state, issue=60, records=[])
+
+    response = _read_tail(
+        state=state,
+        identifier="GH60-20260819-184158",
+        cursor=cursor,
+    )
+
+    assert response.status_code == 400
+    assert "The feed cursor is invalid." in response.text
+
+
+def test_a_tail_before_any_round_opens_the_first_round_when_it_arrives(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    directory = written(state=state, issue=60, records=[])
+    identifier = "GH60-20260819-184158"
+
+    waiting = _read_tail(state=state, identifier=identifier, cursor="0:0")
+
+    assert waiting.status_code == 200
+    assert 'value="0:0"' in waiting.text
+    assert "round 1:" not in waiting.text
+
+    write_round(directory=directory, number=1, record=running(minute=1))
+    write_feed(
+        directory=directory,
+        number=1,
+        lines=[FeedLine(at=LOOKED_AT, text="the first line")],
+    )
+    started = _read_tail(state=state, identifier=identifier, cursor="0:0")
+
+    assert started.status_code == 200
+    assert started.text.count("round 1: implement") == 1
+    assert "the first line" in started.text
+    assert _read_cursor(response=started).startswith("1:")
+
+
+def test_a_tail_returns_only_complete_lines_after_its_cursor(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    directory = written(state=state, issue=60, records=[running(minute=1)])
+    identifier = "GH60-20260819-184158"
+    first = FeedLine(at=LOOKED_AT, text="the first line")
+    second = FeedLine(at=LOOKED_AT, text="the second line")
+    write_feed(directory=directory, number=1, lines=[first])
+
+    first_read = _read_tail(state=state, identifier=identifier, cursor="1:0")
+    cursor = _read_cursor(response=first_read)
+    feed_path = _feed_path(state=state, identifier=identifier, number=1)
+    append_text(text=second.render().removesuffix("\n"), path=feed_path)
+    incomplete_read = _read_tail(
+        state=state,
+        identifier=identifier,
+        cursor=cursor,
+    )
+
+    assert "the first line" in first_read.text
+    assert "the second line" not in first_read.text
+    assert "the second line" not in incomplete_read.text
+    assert _read_cursor(response=incomplete_read) == cursor
+
+    append_text(text="\n", path=feed_path)
+    complete_read = _read_tail(
+        state=state,
+        identifier=identifier,
+        cursor=cursor,
+    )
+
+    assert "the first line" not in complete_read.text
+    assert "the second line" in complete_read.text
+    assert _read_cursor(response=complete_read) != cursor
+
+
+def test_an_ended_round_moves_to_the_next_round_after_an_empty_read(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    directory = written(
+        state=state,
+        issue=60,
+        records=[ended(minute=1), running(minute=10, number=2)],
+    )
+    identifier = "GH60-20260819-184158"
+    write_feed(
+        directory=directory,
+        number=1,
+        lines=[FeedLine(at=LOOKED_AT, text="already read")],
+    )
+    write_feed(
+        directory=directory,
+        number=2,
+        lines=[FeedLine(at=LOOKED_AT, text="new round output")],
+    )
+    first_feed = _feed_path(state=state, identifier=identifier, number=1)
+
+    response = _read_tail(
+        state=state,
+        identifier=identifier,
+        cursor=f"1:{first_feed.stat().st_size}",
+    )
+
+    assert response.status_code == 200
+    assert "already read" not in response.text
+    assert response.text.count("round 2: implement") == 1
+    assert "new round output" in response.text
+    assert _read_cursor(response=response).startswith("2:")
+
+
+def test_a_terminal_tail_returns_late_output_before_it_stops(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH12-20260819-184158"
+    feed_path = _feed_path(state=state, identifier=identifier, number=2)
+    append_text(
+        text=FeedLine(at=LOOKED_AT, text="late output").render(),
+        path=feed_path,
+    )
+
+    output = _read_tail(state=state, identifier=identifier, cursor="2:0")
+    stopped = _read_tail(
+        state=state,
+        identifier=identifier,
+        cursor=_read_cursor(response=output),
+    )
+
+    assert output.status_code == 200
+    assert "late output" in output.text
+    assert stopped.status_code == 286
+
+
+def test_a_faulted_tail_stops_when_it_reads_nothing_new(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    response = _read_tail(
+        state=state,
+        identifier="GH9-20260819-184158",
+        cursor="2:0",
+    )
+
+    assert response.status_code == 286
+
+
+def test_a_tail_fragment_matches_its_golden(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_a_silent_round(state=state)
+    identifier = "GH13-20260819-184158"
+    first_feed = _feed_path(state=state, identifier=identifier, number=1)
+    response = _read_tail(
+        state=state,
+        identifier=identifier,
+        cursor=f"1:{first_feed.stat().st_size}",
+    )
+
+    assert response.status_code == 200
+    assert response.text == (FIXTURES / "web" / "tail.html").read_text(encoding="utf-8")
 
 
 def test_an_assignment_page_links_its_title_and_pull_request(tmp_path, daemon):

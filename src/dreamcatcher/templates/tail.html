@@ -1,0 +1,8 @@
+{% for feed_round in tail.feed_rounds %}
+  <div class="feed-round-tail" data-round="{{ feed_round.number }}">
+    {% for line in feed_round.lines %}{% include "partials/feed-line.html" %}{% endfor %}
+  </div>
+{% endfor %}
+<input type="hidden" id="cursor" name="cursor" value="{{ tail.cursor }}" hx-swap-oob="true">
+{% with view=tail, is_tail=true %}{% include "partials/assignment-status.html" %}{% endwith %}
+{% with view=tail, is_tail=true %}{% include "partials/assignment-rounds.html" %}{% endwith %}

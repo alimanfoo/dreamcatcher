@@ -1,0 +1,15 @@
+<aside id="assignment-rounds" class="panel assignment-rounds" aria-labelledby="rounds-heading"{% if is_tail|default(false) %} hx-swap-oob="true"{% endif %}>
+  <h1 id="rounds-heading">ROUNDS</h1>
+  {% for round in view.rounds %}
+    <a class="round-link" href="#feed-round-{{ round.number }}" aria-controls="feed-round-{{ round.number }}">
+      <span class="round-number">{{ "%02d"|format(round.number) }}</span>
+      <span class="round-summary">
+        <span class="round-purpose">{{ round.purpose }}{% if round.is_recovery %} <span>(recovery)</span>{% endif %}</span>
+        <span class="round-outcome">[{{ round.outcome|upper }}]</span>
+        <span class="round-timing">{{ round.started }}{% if round.duration %} · {{ round.duration }}{% endif %}</span>
+      </span>
+    </a>
+  {% else %}
+    <p class="empty">-- no rounds have run --</p>
+  {% endfor %}
+</aside>
