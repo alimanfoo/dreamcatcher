@@ -9,14 +9,15 @@ order or dependencies with the user instead of restructuring the roadmap itself.
 ## Stage 1: A visible first answer with Claude
 
 **Delivery.** Post a question, add the conversation label, and assign the issue
-to yourself. Dreamcatcher starts one Claude investigation and publishes its
-final answer on that issue. This stage delivers the initial exchange described
-in `design.md`, not a preliminary refactor or a separate demonstration command.
+to yourself. Dreamcatcher runs the first round of an issue conversation with
+Claude and publishes its final answer on that issue. This stage delivers the
+initial exchange described in `design.md`, not a preliminary refactor or a
+separate demonstration command.
 
 This stage starts after the web UI work under
 [GH153](https://github.com/alimanfoo/dreamcatcher/issues/153) has landed. Read
 `specs/2026-09-17-web-ui/design.md`, its roadmap, and the landed implementation
-before changing either presentation. The issue-conversation reading guide
+before changing either presentation. The issue conversation reading guide
 describes the earlier code; it is a navigation aid, not a substitute for
 checking what the web UI work changed.
 
@@ -35,7 +36,7 @@ without resending the initial batch. Respect the existing shared agent cap and
 active global cooldown, but leave fair selection between the two workflows to
 stage two.
 
-Provide the investigation-only contract and prompts, with the practical
+Provide the issue conversation contract and prompts, with the practical
 conversation permissions in the design. Claude returns final Markdown or
 `NO_REPLY`. Capture the final result separately from progress output and wait
 for capture to finish before publication. Dreamcatcher saves the answer, appends
@@ -192,11 +193,11 @@ against a newer revision.
 
 ## Stage 4: Continue interrupted work
 
-**Delivery.** Resume interrupted or failed investigations in their existing
-session, with the saved batch and code revision. Do not fetch main, collect a
-new batch, or reconstruct earlier replies to recover an unfinished round.
-Eligibility loss does not cancel already-started work or its eventual reply.
-Recovery takes precedence over fresh input for that conversation.
+**Delivery.** Resume interrupted or failed issue conversation rounds in their
+existing sessions, with the saved batch and code revision. Do not fetch main,
+collect a new batch, or reconstruct earlier replies to recover an unfinished
+round. Eligibility loss does not cancel already-started work or its eventual
+reply. Recovery takes precedence over fresh input for that conversation.
 
 Two consecutive errored attempts put a conversation in fault. Include failures
 before process launch in that accounting; interruption is not an error. Extend
@@ -219,13 +220,13 @@ include conversation faults, and extend the retry command's target selection.
 Add recovery/fault facts to the shared status/detail models and render them in
 the existing terminal and web views. Preserve assignment lifecycle semantics.
 
-**Acceptance test.** Start an investigation and stop the daemon while its feed
-shows the agent working. With the daemon stopped, inspect the conversation in
-the terminal and browser: its interrupted round, session ID and code revision
-remain visible. Restart the daemon. Both overviews show it running again, both
-detail views identify the recovery round with the same session and revision, and
-the feeds show continued work. The question receives its answer on GitHub
-without being posted again by the user.
+**Acceptance test.** Start an issue conversation round and stop the daemon while
+its feed shows the agent working. With the daemon stopped, inspect the
+conversation in the terminal and browser: its interrupted round, session ID and
+code revision remain visible. Restart the daemon. Both overviews show it running
+again, both detail views identify the recovery round with the same session and
+revision, and the feeds show continued work. The question receives its answer on
+GitHub without being posted again by the user.
 
 **Automated proof.** Cover daemon shutdown and orphan reconciliation,
 same-session recovery, frozen input/revision despite changed main, queued
@@ -246,9 +247,9 @@ skipped during recovery.
 ## Stage 5: Conversations with Codex
 
 **Delivery.** The complete conversation lifecycle works with Codex as well as
-Claude. Add Codex's investigation launch settings and final-answer capture for
-first, resumed and recovery rounds. Capture its final message separately from
-progress, apply the same Markdown/`NO_REPLY` protocol, and use the existing
+Claude. Add Codex's issue conversation launch settings and final-answer capture
+for first, resumed and recovery rounds. Capture its final message separately
+from progress, apply the same Markdown/`NO_REPLY` protocol, and use the existing
 conversation publisher and lifecycle rather than duplicating them.
 
 New conversations use their configured harness. Existing conversations retain
@@ -265,13 +266,12 @@ conversation scheduler, worktree lifecycle and publisher remain shared.
 issue, ask a question and then post a contextual follow-up after the first
 answer. Both overviews identify a Codex conversation. The terminal and web
 detail views show two rounds using the same Codex session, and the feeds show
-both investigations. GitHub contains the initial answer and a contextual
-follow-up. Use a fresh issue so a saved Claude session is not being asked to
-change harness.
+both rounds. GitHub contains the initial answer and a contextual follow-up. Use
+a fresh issue so a saved Claude session is not being asked to change harness.
 
 **Automated proof.** Exercise the same conversation contract with Codex: initial
-and resumed output capture, `NO_REPLY`, failed or missing final output,
-investigation settings on every launch path, preserved session and revision
+and resumed output capture, `NO_REPLY`, failed or missing final output, issue
+conversation settings on every launch path, preserved session and revision
 during recovery, and publication without relaunch. Existing Claude conversations
 and implementation assignments through either harness remain covered. Confirm
 the real CLI's first/resume final-output behaviour during adapter verification;

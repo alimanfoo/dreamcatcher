@@ -5,7 +5,7 @@
 An issue conversation is a saved harness session dedicated to discussing one
 GitHub issue. The user invites it by adding a configured conversation label and
 assigning the issue to themselves. Dreamcatcher supplies their comments, runs an
-investigation round, and posts the final answer on the issue.
+round of that conversation, and posts the final answer on the issue.
 
 This is not an assignment. An assignment takes an issue to a pull request; a
 conversation helps the user understand and explore it. Neither owns, blocks, or
@@ -29,7 +29,7 @@ Dreamcatcher's agent-comment marker, survive.
 
 Dreamcatcher creates a conversation record and a detached worktree at current
 `origin/main`. When an agent slot is available, it saves the input batch and
-starts the configured harness with the issue-conversation instructions. The
+starts the configured harness with the issue conversation instructions. The
 agent reads code, investigates the question, and returns Markdown ready to post.
 Dreamcatcher saves that final answer and posts one marked comment on GH58. The
 process ends; the harness session and worktree remain available.
@@ -105,7 +105,7 @@ does not reread GitHub to reconstruct questions or reconcile replies. A crash at
 the launch/persistence boundary can repeat input. Exactly-once delivery is not a
 requirement.
 
-### Worktree and investigation contract
+### Worktree and issue conversation contract
 
 Each conversation has a dedicated detached Git worktree in Dreamcatcher's
 managed worktree area, under a conversation-specific namespace excluded from
@@ -127,7 +127,7 @@ Do not force away unexpected source changes to refresh a worktree. Report an
 update blocked by local changes rather than deleting them. This is a normal
 setup failure, not a new source-change recovery mechanism.
 
-The new issue-conversation skill contract says: no implementation in this
+The new issue conversation skill contract says: no implementation in this
 session. Read source and Git history, run code, and reproduce bugs as needed; do
 not edit project source or mutate Git or GitHub. Use agent-managed scratch space
 when investigation needs temporary files. Dreamcatcher does not provision or
@@ -304,8 +304,8 @@ Host-owned posting makes the skill simpler and keeps intermediate output off the
 issue. A Markdown answer or `NO_REPLY` is enough. Rare duplicate posts are
 cheaper to tolerate than a reconciliation protocol.
 
-The investigation contract is not a hard isolation guarantee. Building a new
-cross-platform sandbox would outweigh this feature; use the harness controls
+The issue conversation contract is not a hard isolation guarantee. Building a
+new cross-platform sandbox would outweigh this feature; use the harness controls
 where practical and be honest about their limits.
 
 ## What's still open

@@ -85,4 +85,5 @@ the issue needs work, without starting implementation.
 ## What's still open?
 
 Nothing remains unsettled from this discussion. The accompanying design
-describes code freshness, recovery, delivery, and the investigation boundary.
+describes code freshness, recovery, delivery, and the no-implementation
+boundary.
