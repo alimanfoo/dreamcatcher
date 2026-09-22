@@ -16,10 +16,9 @@ separate demonstration command.
 
 This stage starts after the web UI work under
 [GH153](https://github.com/alimanfoo/dreamcatcher/issues/153) has landed. Read
-`specs/2026-09-17-web-ui/design.md`, its roadmap, and the landed implementation
-before changing either presentation. The issue conversation reading guide
-describes the earlier code; it is a navigation aid, not a substitute for
-checking what the web UI work changed.
+the landed implementation before changing either presentation. The issue
+conversation reading guide describes the earlier code; it is a navigation aid,
+not a substitute for checking what the web UI work changed.
 
 Add the separate conversation configuration and discover open labelled issues
 assigned to the signed-in account. Read the issue title and body plus ordinary
