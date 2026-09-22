@@ -359,85 +359,139 @@ body::after {
 
 .assignment-content {
   display: grid;
-  gap: var(--space-12);
+  gap: var(--space-9);
 }
 
 .assignment-overview {
-  padding-bottom: var(--space-8);
-  border-bottom: var(--line) solid var(--rule);
+  display: grid;
+  gap: var(--space-5);
 }
 
 .assignment-heading {
   display: flex;
-  align-items: flex-start;
+  flex-wrap: wrap;
+  align-items: baseline;
   justify-content: space-between;
-  gap: var(--space-8);
+  gap: var(--space-6);
 }
 
 .assignment-heading h1 {
-  margin: var(--space-2) 0 0;
-  color: var(--phosphor);
+  margin: 0;
   font-size: calc(var(--font-size) * 1.45);
-  letter-spacing: var(--letter-label);
-  text-shadow: var(--shadow);
+}
+
+.assignment-heading-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-5);
 }
 
 .assignment-issue {
-  color: var(--bright);
+  color: var(--phosphor);
   font-weight: 700;
 }
 
 .assignment-issue span {
+  color: var(--bright);
   font-weight: 600;
 }
 
 .assignment-facts {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: var(--space-7) var(--space-10);
-  margin: var(--space-10) 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) 0;
+  margin: 0;
 }
 
 .assignment-facts > div {
+  display: flex;
+  gap: var(--space-3);
   min-width: 0;
+  padding-right: var(--space-6);
+  margin-right: var(--space-6);
+  border-right: var(--line) solid var(--rule);
+}
+
+.assignment-facts > div:last-child {
+  padding-right: 0;
+  margin-right: 0;
+  border-right: 0;
 }
 
 .assignment-facts dt {
-  color: var(--dim);
+  color: var(--phosphor);
   font-weight: 400;
 }
 
 .assignment-facts dd {
   overflow-wrap: anywhere;
-  margin: var(--space-2) 0 0;
+  margin: 0;
 }
 
-.assignment-rounds,
-.resume-command,
-.assignment-feed {
-  padding-top: var(--space-11);
+.assignment-workspace {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+  gap: var(--space-11);
+  align-items: start;
 }
 
-.table-scroll {
-  overflow-x: auto;
+.assignment-sidebar {
+  position: sticky;
+  top: var(--space-8);
+  display: grid;
+  gap: var(--space-7);
 }
 
-.assignment-rounds table {
-  width: 100%;
-  border-collapse: collapse;
-  white-space: nowrap;
+.assignment-rounds {
+  padding-right: 0;
+  padding-left: 0;
 }
 
-.assignment-rounds th,
-.assignment-rounds td {
-  padding: var(--space-3) var(--space-6) var(--space-3) 0;
-  text-align: left;
-  border-bottom: var(--line) solid var(--rule-inner);
+.round-link {
+  display: grid;
+  grid-template-columns: 3ch minmax(0, 1fr);
+  gap: var(--space-5);
+  padding: var(--space-4) var(--space-7);
+  color: inherit;
+  border-left: 2px solid transparent;
+  text-decoration: none;
 }
 
-.assignment-rounds th {
+.round-link:hover,
+.round-link[aria-current="true"] {
+  background: var(--tint);
+  border-left-color: var(--phosphor);
+}
+
+.round-number,
+.round-timing,
+.round-purpose span {
   color: var(--dim);
-  font-weight: 400;
+}
+
+.round-link[aria-current="true"] .round-number {
+  color: var(--phosphor);
+}
+
+.round-number,
+.round-purpose,
+.round-outcome {
+  font-weight: 700;
+}
+
+.round-summary {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.round-purpose {
+  color: var(--bright);
+}
+
+.round-outcome {
+  color: var(--phosphor);
 }
 
 .resume-command pre {
@@ -450,11 +504,17 @@ body::after {
 .feed-records {
   display: grid;
   gap: var(--space-8);
+  height: 72vh;
+  min-height: 380px;
+  padding: var(--space-7) var(--space-9) var(--space-9);
+  overflow: auto;
+  scroll-behavior: smooth;
 }
 
 .feed-round {
   display: grid;
   gap: var(--space-2);
+  scroll-margin-top: var(--space-3);
 }
 
 .feed-line {
@@ -482,9 +542,23 @@ body::after {
 }
 
 .round-boundary {
-  padding-top: var(--space-3);
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  padding: var(--space-4) 0 var(--space-3);
   color: var(--bright);
+  background: var(--background);
   font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .assignment-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .assignment-sidebar {
+    position: static;
+  }
 }
 
 @media (max-width: 700px) {
@@ -510,5 +584,10 @@ body::after {
   .feed-line {
     grid-template-columns: 1fr;
     gap: 0;
+  }
+
+  .feed-records {
+    padding-right: var(--space-7);
+    padding-left: var(--space-7);
   }
 }

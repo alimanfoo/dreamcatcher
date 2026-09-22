@@ -99,7 +99,7 @@ class WebAssignmentRound:
 
     number: int
     purpose: str
-    recovery: str
+    is_recovery: bool
     started: str
     duration: str
     outcome: str
@@ -377,12 +377,12 @@ def _compose_assignment_view(
             WebAssignmentRound(
                 number=round_status.record.number,
                 purpose=str(round_status.record.purpose),
-                recovery="yes" if round_status.record.is_recovery else "no",
+                is_recovery=round_status.record.is_recovery,
                 started=describe_time(at=round_status.record.started),
                 duration=round_status.duration_description,
                 outcome=round_status.outcome_description,
             )
-            for round_status in reversed(status.round_statuses)
+            for round_status in status.round_statuses
         ),
         hand_resume_worktree=(
             None

@@ -129,6 +129,23 @@ def test_an_assignment_page_links_its_title_and_pull_request(tmp_path, daemon):
     )
 
 
+def test_assignment_rounds_link_to_the_feed_in_ascending_order(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_assignment(state=state, identifier="GH13-20260819-184158")
+    round_links = re.findall(
+        r'class="round-link" href="#feed-round-(\d+)"[^>]*>\s*'
+        r'<span class="round-number">(\d+)</span>',
+        page,
+    )
+
+    assert round_links == [("1", "01"), ("2", "02")]
+    assert 'class="assignment-workspace"' in page
+    assert 'class="feed-records"' in page
+    assert 'src="/static/assignment.js"' in page
+
+
 def test_assignment_reporting_remains_without_a_repository_record(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_titles_and_pull_request_states(state=state)
