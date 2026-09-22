@@ -18,7 +18,9 @@ available issues in dispatch order and the blocked issues with their evidence. A
 working card shows the last line its feed said. Times are shown as the TUI shows
 them, in UTC. The page carries no polling and no link to any other page. Every
 issue number is written as `#N` and links to that issue on GitHub; references in
-blocker evidence receive the same treatment.
+blocker evidence receive the same treatment. A long last line remains inside its
+card and is elided on one line. The instance facts carry dividers between facts,
+never after the last fact.
 
 The scaffolding arrives with it. Flask joins `pyproject.toml`. `web.py` holds
 `create_app`, which takes a `StateDirectory` and a clock and returns the Flask

@@ -149,6 +149,12 @@ body::after {
   color: var(--amber);
 }
 
+.fact:last-child {
+  padding-right: 0;
+  margin-right: 0;
+  border-right: 0;
+}
+
 .dashboard {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
@@ -157,6 +163,7 @@ body::after {
 
 .panel {
   position: relative;
+  min-width: 0;
   padding: var(--space-10) var(--space-8) var(--space-8);
   border: var(--line) solid var(--rule);
 }
@@ -195,6 +202,7 @@ body::after {
 .assignment-card,
 .issue-row,
 .failed-setup-row {
+  min-width: 0;
   padding: var(--space-5) var(--space-7);
   border: var(--line) solid var(--rule-inner);
 }
