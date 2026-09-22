@@ -158,6 +158,66 @@ def test_assignment_feedback_status_uses_the_compact_label(tmp_path, daemon):
     assert "[NEEDS USER FEEDBACK]" not in page
 
 
+def test_assignment_page_polls_its_tail_from_the_last_complete_line(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH13-20260819-184158"
+    feed_path = _feed_path(state=state, identifier=identifier, number=2)
+
+    page = render_assignment(state=state, identifier=identifier)
+
+    assert f'id="cursor" name="cursor" value="2:{feed_path.stat().st_size}"' in page
+    assert (
+        f'id="records" class="feed-records" '
+        f'hx-get="/assignments/{identifier}/tail" hx-trigger="every 2s" '
+        'hx-include="#cursor" hx-swap="beforeend"' in page
+    )
+
+
+def test_assignment_page_before_its_first_round_starts_at_the_first_cursor(
+    tmp_path, daemon
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_assignment(
+        state=state,
+        identifier="GH44-20260819-184158",
+    )
+
+    assert 'id="cursor" name="cursor" value="0:0"' in page
+    assert '<p id="empty-feed" class="empty">-- no feed yet --</p>' in page
+
+
+def test_assignment_page_ids_are_unique(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_assignment(
+        state=state,
+        identifier="GH13-20260819-184158",
+    )
+    identifiers = re.findall(r'\bid="([^"]+)"', page)
+
+    assert len(identifiers) == len(set(identifiers))
+
+
+def test_assignment_script_follows_only_when_the_feed_was_at_its_end(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    application = create_app(state=state, clock=lambda: LOOKED_AT)
+
+    response = application.test_client().get("/static/assignment.js")
+    script = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert 'feed.addEventListener("htmx:beforeSwap"' in script
+    assert 'feed.addEventListener("htmx:afterSwap"' in script
+    assert "feed.scrollHeight - feed.scrollTop - feed.clientHeight <= 1" in script
+    assert "event.detail.target === feed && shouldFollowFeed" in script
+    assert 'assignmentSidebar.addEventListener("click"' in script
+
+
 def test_complete_assignment_cards_have_space_between_them(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
@@ -302,6 +362,7 @@ def test_a_tail_before_any_round_opens_the_first_round_when_it_arrives(tmp_path)
     assert started.status_code == 200
     assert started.text.count("round 1: implement") == 1
     assert "the first line" in started.text
+    assert 'id="empty-feed" hx-swap-oob="delete"' in started.text
     assert _read_cursor(response=started).startswith("1:")
 
 

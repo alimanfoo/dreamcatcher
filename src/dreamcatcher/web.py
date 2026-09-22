@@ -136,6 +136,14 @@ class WebFeedRound:
 
 
 @dataclass(frozen=True, kw_only=True)
+class WebAssignmentFeed:
+    """Represent the complete feed and the cursor after its last line."""
+
+    rounds: tuple[WebFeedRound, ...]
+    cursor: str
+
+
+@dataclass(frozen=True, kw_only=True)
 class WebFeedCursor:
     """Identify the next feed byte to read within an assignment round."""
 
@@ -179,6 +187,7 @@ class WebAssignmentView:
     hand_resume_worktree: str | None
     hand_resume_command: str | None
     feed_rounds: tuple[WebFeedRound, ...]
+    feed_cursor: str
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -422,6 +431,7 @@ def _compose_assignment_view(
     repository = read_repository(state=state)
     daemon = read_dreamcatcher_daemon_status(state=state)
     hand_resume_command = status.hand_resume_command
+    feed = _read_assignment_feed(status=status)
     return WebAssignmentView(
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
@@ -456,7 +466,8 @@ def _compose_assignment_view(
         hand_resume_command=(
             None if hand_resume_command is None else " ".join(hand_resume_command)
         ),
-        feed_rounds=_read_assignment_feed(status=status),
+        feed_rounds=feed.rounds,
+        feed_cursor=feed.cursor,
     )
 
 
@@ -570,14 +581,16 @@ def _compose_web_round_boundary(*, record: AgentRoundRecord) -> WebFeedLine:
     )
 
 
-def _read_assignment_feed(*, status: AgentAssignmentStatus) -> tuple[WebFeedRound, ...]:
+def _read_assignment_feed(*, status: AgentAssignmentStatus) -> WebAssignmentFeed:
     assignment = status.assignment
     feed_rounds = []
+    cursor = WebFeedCursor(round_number=0, position=0)
     for record in assignment.rounds:
-        written_lines, _ = read_lines_from(
+        written_lines, position = read_lines_from(
             path=assignment.compose_round_paths(number=record.number).feed,
             position=0,
         )
+        cursor = WebFeedCursor(round_number=record.number, position=position)
         feed_rounds.append(
             WebFeedRound(
                 number=record.number,
@@ -590,7 +603,10 @@ def _read_assignment_feed(*, status: AgentAssignmentStatus) -> tuple[WebFeedRoun
                 ),
             )
         )
-    return tuple(feed_rounds)
+    return WebAssignmentFeed(
+        rounds=tuple(feed_rounds),
+        cursor=_encode_feed_cursor(cursor=cursor),
+    )
 
 
 def _compose_web_feed_line(*, written_line: str) -> WebFeedLine:

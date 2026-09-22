@@ -48,9 +48,10 @@
         <section class="panel assignment-feed" aria-labelledby="feed-heading">
           <h1 id="feed-heading">FEED</h1>
           <button class="feed-tail" type="button" aria-controls="records">TAIL ↓</button>
-          <div id="records" class="feed-records">
+          <input type="hidden" id="cursor" name="cursor" value="0:0">
+          <div id="records" class="feed-records" hx-get="/assignments/GH44-20260819-184158/tail" hx-trigger="every 2s" hx-include="#cursor" hx-swap="beforeend">
             
-              <p class="empty">-- no feed yet --</p>
+              <p id="empty-feed" class="empty">-- no feed yet --</p>
             
           </div>
         </section>

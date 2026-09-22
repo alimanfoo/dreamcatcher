@@ -64,21 +64,18 @@
         <section class="panel assignment-feed" aria-labelledby="feed-heading">
           <h1 id="feed-heading">FEED</h1>
           <button class="feed-tail" type="button" aria-controls="records">TAIL ↓</button>
-          <div id="records" class="feed-records">
+          <input type="hidden" id="cursor" name="cursor" value="2:0">
+          <div id="records" class="feed-records" hx-get="/assignments/GH9-20260819-184158/tail" hx-trigger="every 2s" hx-include="#cursor" hx-swap="beforeend">
             
-              <div id="feed-round-1" class="feed-round">
-                <div class="feed-line round-boundary">
+              <div id="feed-round-1" class="feed-line round-boundary">
   <time>2026-08-19T18:42:58Z</time>
   <span class="feed-content"><span class="feed-detail">round 1: implement</span></span>
 </div>
-              </div>
             
-              <div id="feed-round-2" class="feed-round">
-                <div class="feed-line round-boundary">
+              <div id="feed-round-2" class="feed-line round-boundary">
   <time>2026-08-19T18:43:58Z</time>
   <span class="feed-content"><span class="feed-detail">round 2: implement</span></span>
 </div>
-              </div>
             
           </div>
         </section>

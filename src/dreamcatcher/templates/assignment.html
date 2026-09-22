@@ -32,13 +32,12 @@
         <section class="panel assignment-feed" aria-labelledby="feed-heading">
           <h1 id="feed-heading">FEED</h1>
           <button class="feed-tail" type="button" aria-controls="records">TAIL ↓</button>
-          <div id="records" class="feed-records">
+          <input type="hidden" id="cursor" name="cursor" value="{{ view.feed_cursor }}">
+          <div id="records" class="feed-records" hx-get="{{ url_for('show_assignment_tail', identifier=view.identifier) }}" hx-trigger="every 2s" hx-include="#cursor" hx-swap="beforeend">
             {% for feed_round in view.feed_rounds %}
-              <div id="feed-round-{{ feed_round.number }}" class="feed-round">
-                {% for line in feed_round.lines %}{% include "partials/feed-line.html" %}{% endfor %}
-              </div>
+              {% for line in feed_round.lines %}{% include "partials/feed-line.html" %}{% endfor %}
             {% else %}
-              <p class="empty">-- no feed yet --</p>
+              <p id="empty-feed" class="empty">-- no feed yet --</p>
             {% endfor %}
           </div>
         </section>
