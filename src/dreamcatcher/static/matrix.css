@@ -227,14 +227,12 @@ body::after {
   font-weight: 700;
 }
 
-.assignment-title-link,
 .assignment-navigation,
 .assignment-issue {
   color: inherit;
   text-decoration: none;
 }
 
-.assignment-title-link:hover,
 .assignment-navigation:hover,
 .assignment-issue:hover {
   color: var(--phosphor);
@@ -312,7 +310,14 @@ body::after {
   margin-top: var(--space-4);
 }
 
-.pr-chip {
+.assignment-actions {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+}
+
+.pr-chip,
+.assignment-open {
   flex: none;
   padding: var(--space-1) var(--space-5);
   color: var(--phosphor);
@@ -320,9 +325,14 @@ body::after {
   text-decoration: none;
 }
 
-.pr-chip:hover {
+.pr-chip:hover,
+.assignment-open:hover {
   color: var(--bright);
   background: var(--tint);
+}
+
+.assignment-open {
+  font-weight: 700;
 }
 
 .complete-assignments summary,

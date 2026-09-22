@@ -82,7 +82,12 @@ def test_a_home_card_links_to_its_exact_assignment(tmp_path, daemon):
 
     page = render_home(state=state)
 
-    assert 'href="/assignments/GH13-20260819-184158"' in page
+    assignment_link = (
+        'class="assignment-open" href="/assignments/GH13-20260819-184158" '
+        'aria-label="Open assignment GH13-20260819-184158"'
+    )
+    assert assignment_link in page
+    assert page.count('href="/assignments/GH13-20260819-184158"') == 1
 
 
 def test_github_links_open_in_a_new_tab(tmp_path, daemon):
