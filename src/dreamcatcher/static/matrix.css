@@ -554,7 +554,7 @@ body::after {
 .round-boundary {
   position: sticky;
   z-index: 1;
-  top: 0;
+  top: calc(var(--space-7) * -1);
   padding: var(--space-4) 0 var(--space-3);
   color: var(--bright);
   background: var(--background);

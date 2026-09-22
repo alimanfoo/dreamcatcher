@@ -151,6 +151,22 @@ def test_assignment_rounds_link_to_the_feed_in_ascending_order(tmp_path, daemon)
     assert 'src="/static/assignment.js"' in page
 
 
+def test_round_headings_cover_the_top_of_the_feed_viewport(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    application = create_app(state=state, clock=lambda: LOOKED_AT)
+
+    response = application.test_client().get("/static/matrix.css")
+    stylesheet = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert re.search(
+        r"\.round-boundary \{[^}]*top: calc\(var\(--space-7\) \* -1\);",
+        stylesheet,
+        re.DOTALL,
+    )
+
+
 def test_assignment_reporting_remains_without_a_repository_record(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_titles_and_pull_request_states(state=state)
