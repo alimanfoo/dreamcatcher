@@ -89,8 +89,8 @@ body::after {
 }
 
 .mark {
-  width: var(--space-12);
-  height: var(--space-12);
+  width: calc(var(--space-12) + var(--space-4));
+  height: calc(var(--space-12) + var(--space-4));
   opacity: 0.8;
 }
 
@@ -214,6 +214,7 @@ main {
 
 .issue-number {
   color: var(--phosphor);
+  font-weight: 700;
 }
 
 .identifier {

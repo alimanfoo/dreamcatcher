@@ -81,7 +81,7 @@ Derived values:
 
 - Full-width, `padding: 12px 28px`, bottom rule
   `1px solid rgba(51,255,102,0.28)`, flex space-between, wraps.
-- Left: mark `assets/dreamcatcher-mark-phosphor.png` at 30×30, `opacity: 0.8`,
+- Left: mark `assets/dreamcatcher-mark-phosphor.png` at 36×36, `opacity: 0.8`,
   `alt="Dreamcatcher"` (no wordmark — keep it subtle); then repo and user in
   DIM.
 - Right (DIM): `daemon RUNNING pid 48213` (state uppercase in `#33FF66`), then

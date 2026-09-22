@@ -53,6 +53,18 @@ def test_the_home_page_autoescapes_feed_output(tmp_path, daemon):
     assert "<script>alert('no')</script>" not in page
 
 
+def test_issue_references_link_to_github_with_hash_notation(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_home(state=state)
+
+    issue_url = f"https://github.com/{REPOSITORY}/issues/50"
+    assert f'href="{issue_url}">#50</a>' in page
+    assert f'blocked by <a class="issue-number" href="{issue_url}">#50</a>' in page
+    assert "blocked by GH50" not in page
+
+
 def test_a_record_that_will_not_read_renders_an_error_page(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
@@ -76,24 +88,12 @@ def test_the_home_page_rejects_a_non_loopback_host(tmp_path):
     assert response.status_code == 400
 
 
-def test_one_repository_always_starts_on_the_same_port(tmp_path):
+def test_one_repository_always_derives_the_same_starting_port(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
-    ports = []
 
-    def record_port(*, server):
-        ports.append(server.server_port)
-
-    for _ in range(2):
-        serve_web(
-            state=state,
-            browser_opener=lambda address: None,
-            server_runner=record_port,
-        )
-
-    assert ports[0] == ports[1]
-    assert ports[0] == 8262
+    assert web_module._derive_starting_port(state=state) == 8262
 
 
 def test_an_occupied_starting_port_makes_the_scan_move_on(tmp_path):

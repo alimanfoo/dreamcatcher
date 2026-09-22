@@ -1,6 +1,6 @@
-<article class="assignment-card{% if assignment.status == 'needs user feedback' %} needs-feedback{% endif %}" aria-label="Assignment #{{ assignment.issue }} {{ assignment.identifier }}">
+{% from "partials/issue-reference.html" import issue_reference with context %}<article class="assignment-card{% if assignment.status == 'needs user feedback' %} needs-feedback{% endif %}" aria-label="Assignment #{{ assignment.issue }} {{ assignment.identifier }}">
   <div class="card-heading">
-    <div><strong class="issue-number">#{{ assignment.issue }}</strong> <span class="identifier">{{ assignment.identifier }}</span></div>
+    <div>{{ issue_reference(assignment.issue) }} <span class="identifier">{{ assignment.identifier }}</span></div>
     <span class="chip status-{{ assignment.status|replace(' ', '-') }}">[{{ assignment.status|upper }}]</span>
   </div>
   <p class="assignment-detail">{{ assignment.detail }}</p>

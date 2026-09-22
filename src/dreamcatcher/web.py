@@ -2,6 +2,7 @@
 
 import errno
 import logging
+import re
 import zlib
 from collections.abc import Callable
 from contextlib import suppress
@@ -33,6 +34,7 @@ WEB_HOST = "127.0.0.1"
 WEB_BASE_PORT = 8100
 WEB_PORT_RANGE = 400
 WEB_MAX_PORT = 65535
+_ISSUE_REFERENCE_PATTERN = re.compile(r"(?<!\w)(?:GH|#)(\d+)\b(?!-)")
 
 
 class _WebServerBindError(Exception):
@@ -91,7 +93,7 @@ class WebIssueRow:
     issue: int
     labels: str
     status: str
-    evidence: str | None
+    evidence: tuple[str | int, ...]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -99,6 +101,7 @@ class WebHomeView:
     """Represent every value that the home template lays out."""
 
     repository: str
+    github_issue_url_prefix: str | None
     daemon_state: str
     daemon_summary: str
     instance_facts: tuple[WebFact, ...]
@@ -203,6 +206,11 @@ def _compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
     )
     return WebHomeView(
         repository=report.repository or "repository unknown",
+        github_issue_url_prefix=(
+            None
+            if report.repository is None
+            else f"https://github.com/{report.repository}/issues/"
+        ),
         daemon_state="stopped" if report.daemon_pid is None else "running",
         daemon_summary=_describe_daemon(report=report),
         instance_facts=_compose_instance_facts(report=report),
@@ -253,7 +261,19 @@ def _compose_issue_row(*, observation: IssueObservation) -> WebIssueRow:
         issue=observation.issue,
         labels=", ".join(observation.dispatch_labels or []),
         status=status,
-        evidence=observation.blocked.evidence if is_blocked else None,
+        evidence=_compose_issue_evidence(
+            evidence=observation.blocked.evidence if is_blocked else None
+        ),
+    )
+
+
+def _compose_issue_evidence(*, evidence: str | None) -> tuple[str | int, ...]:
+    if evidence is None:
+        return ()
+    return tuple(
+        int(part) if index % 2 else part
+        for index, part in enumerate(_ISSUE_REFERENCE_PATTERN.split(evidence))
+        if part
     )
 
 
