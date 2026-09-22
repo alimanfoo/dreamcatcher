@@ -89,8 +89,8 @@ body::after {
 }
 
 .mark {
-  width: calc(var(--space-12) + var(--space-4));
-  height: calc(var(--space-12) + var(--space-4));
+  width: calc(var(--space-11) * 2);
+  height: auto;
   opacity: 0.8;
 }
 
