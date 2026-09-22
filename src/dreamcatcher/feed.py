@@ -7,6 +7,7 @@ renderer turns those events into lines. So a reader sees the same feed
 whichever harness ran, and an adapter never writes a line itself.
 """
 
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -27,17 +28,22 @@ SUBAGENT_INDENT = "  "
 # What sits between a line's stamp and what the line says.
 FEED_TIMESTAMP_GAP = "  "
 
+_FEED_NOTE_PATTERN = re.compile(r"^\[([^\]]+)\](?: ?(.*))$")
+
 
 @dataclass(frozen=True, kw_only=True)
 class FeedLine:
     """Model one timestamped line of a feed.
 
-    The text is everything the line holds after its stamp, so a subagent's
-    line keeps the indent that sets it in from the rest.
+    The text is everything the line holds after its stamp. Parsed lines also
+    carry their semantic parts while keeping the exact text that was written.
     """
 
     at: datetime
     text: str
+    label: str | None = None
+    detail: str = ""
+    is_subagent: bool = False
 
     def render(self) -> str:
         """Return the line as a feed holds it, the line ending included."""
@@ -75,7 +81,17 @@ def read_feed_line(*, written_line: str) -> FeedLine | None:
         at = datetime.strptime(timestamp, UTC_TIMESTAMP_FORMAT).replace(tzinfo=UTC)
     except ValueError:
         return None
-    return FeedLine(at=at, text=text)
+    is_subagent = text.startswith(SUBAGENT_INDENT)
+    contents = text.removeprefix(SUBAGENT_INDENT)
+    parsed_contents = contents.removesuffix("\n")
+    note = _FEED_NOTE_PATTERN.fullmatch(parsed_contents)
+    return FeedLine(
+        at=at,
+        text=text,
+        label=None if note is None else note.group(1),
+        detail=parsed_contents if note is None else note.group(2),
+        is_subagent=is_subagent,
+    )
 
 
 def read_last_feed_line(*, path: Path) -> FeedLine | None:
