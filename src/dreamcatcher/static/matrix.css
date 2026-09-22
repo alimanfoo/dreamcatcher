@@ -222,6 +222,15 @@ body::after {
   gap: var(--space-4);
 }
 
+.card-heading {
+  flex-wrap: wrap;
+}
+
+.card-heading > :first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .issue-number {
   color: var(--phosphor);
   font-weight: 700;
@@ -330,6 +339,7 @@ body::after {
 
 .card-heading-actions {
   display: flex;
+  flex: none;
   align-items: baseline;
   gap: var(--space-4);
 }

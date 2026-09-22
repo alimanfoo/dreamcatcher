@@ -85,6 +85,7 @@ class WebAssignmentCard:
     issue: int
     title: str | None
     status: str
+    status_label: str
     detail: str
     harness: str
     model: str
@@ -334,6 +335,11 @@ def _compose_assignment_card(*, status: AgentAssignmentStatus) -> WebAssignmentC
         issue=assignment.record.issue,
         title=assignment.record.title,
         status=str(status.value),
+        status_label=(
+            "needs feedback"
+            if status.value is AgentAssignmentStatusValue.NEEDS_USER_FEEDBACK
+            else str(status.value)
+        ),
         detail=status.detail,
         harness=str(assignment.record.harness),
         model=assignment.record.model,

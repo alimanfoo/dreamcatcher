@@ -94,6 +94,26 @@ def test_a_home_card_links_to_its_exact_assignment(tmp_path, daemon):
     assert card.index('class="pr-chip"') > card.index('class="assignment-detail"')
 
 
+def test_feedback_card_keeps_its_compact_actions_inside_the_heading(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_home(state=state)
+    application = create_app(state=state, clock=lambda: LOOKED_AT)
+    stylesheet = (
+        application.test_client().get("/static/matrix.css").get_data(as_text=True)
+    )
+    card_start = page.index('<article id="assignment-GH20-20260819-184158"')
+    card = page[card_start : page.index("</article>", card_start)]
+
+    assert "[NEEDS FEEDBACK]" in card
+    assert "[NEEDS USER FEEDBACK]" not in card
+    assert re.search(r"\.card-heading \{[^}]*flex-wrap: wrap;", stylesheet, re.DOTALL)
+    assert re.search(
+        r"\.card-heading-actions \{[^}]*flex: none;", stylesheet, re.DOTALL
+    )
+
+
 def test_home_page_types_replaced_assignment_output(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
