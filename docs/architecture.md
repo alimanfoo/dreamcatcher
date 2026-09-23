@@ -65,11 +65,11 @@ A scheduler tick that fails before returning one is reported in daemon output
 and leaves the last complete scheduler record in place. An invalid scheduler
 record ends the daemon because retrying cannot repair the document.
 
-If the issue listing fails, the tick returns a `SchedulerRecord` with the
-failure as its hold and launches nothing, including rounds for existing
-assignments. A later tick must read the listing before any launch can proceed.
-This conservative rule prevents work from starting while the scheduler lacks
-current external facts.
+If an issue read fails, the tick records the failure as its hold and prevents
+launches in the workflow that depends on those facts. An assignment issue read
+does not prevent an issue conversation from starting, and a conversation issue
+read does not prevent assignment work from starting. A later tick retries the
+failed read.
 
 The scheduler uses two distinct lower-level operations: creating an agent
 assignment and starting an agent round. When it selects an available issue, it

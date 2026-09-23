@@ -62,6 +62,13 @@ Stage 1 gives an issue conversation one initial round. The saved final answer is
 either published once on the issue or is `NO_REPLY`, which means no post is
 needed. Follow-up rounds and automatic recovery are outside this stage.
 
+### Agent work and agent work identifier
+
+**Agent work** is either an agent assignment or an issue conversation. Its
+**agent work identifier** is the agent assignment identifier for an assignment,
+or the issue identifier prefixed with `conversation-`, as in
+`conversation-GH123`, for an issue conversation.
+
 ### Agent harness and harness session
 
 An **agent harness** is a program, such as Claude Code or Codex, through which
@@ -69,7 +76,7 @@ Dreamcatcher runs an agent.
 
 A **harness session** is the continuing context maintained by the agent harness
 for one agent assignment or issue conversation. The harness supplies its own
-**harness session identifier**, which is distinct from Dreamcatcher's work
+**harness session identifier**, which is distinct from the agent work
 identifier.
 
 ### Assignment skill
@@ -389,10 +396,10 @@ a recovery round automatically unless the assignment has entered a fault.
 
 ### Scheduling work
 
-The scheduler creates agent assignments and starts agent rounds.
-
-If the issue listing fails, the scheduler holds every launch until a later tick
-can read the listing.
+The scheduler creates agent assignments, starts agent rounds, and publishes
+issue conversation answers. A failed issue read prevents launches in the
+workflow that depends on those facts without preventing work in the other
+workflow.
 
 Existing assignments take precedence over creating new ones. Subject to capacity
 and cooldown, the scheduler considers work in this order:
@@ -400,9 +407,10 @@ and cooldown, the scheduler considers work in this order:
 1. recover an interrupted or first-time errored round;
 2. wrap up an assignment whose pull request has been merged or closed;
 3. start a round to address new user posts on an existing assignment;
-4. create an assignment for an available issue and immediately start its first
+4. start the oldest eligible initial issue conversation;
+5. create an assignment for an available issue and immediately start its first
    implementation round; and
-5. otherwise do nothing.
+6. otherwise do nothing.
 
 ### Handling errors and global cooldown
 
