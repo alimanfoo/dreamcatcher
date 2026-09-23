@@ -236,7 +236,9 @@ def test_assignment_script_follows_only_when_the_feed_was_at_its_end(tmp_path):
     assert 'feed.addEventListener("htmx:beforeSwap"' in script
     assert 'feed.addEventListener("htmx:afterSwap"' in script
     assert "feed.scrollHeight - feed.scrollTop - feed.clientHeight <= 1" in script
-    assert "if (shouldFollowFeed)" in script
+    assert (
+        "if (shouldFollowFeed && nextFeedLineRevealAt <= performance.now())" in script
+    )
     assert 'assignmentSidebar.addEventListener("click"' in script
     assert 'currentRoundLink?.setAttribute("aria-current", "true")' in script
     assert "focusedRoundLink?.focus({ preventScroll: true })" in script
@@ -310,7 +312,10 @@ def test_home_page_types_replaced_assignment_output(tmp_path):
     assert 'addEventListener("htmx:beforeSwap"' in script
     assert 'querySelector(".latest-output")' in script
     assert '"(prefers-reduced-motion: reduce)"' in script
-    assert "animation: type-latest-output 420ms steps(32, end);" in stylesheet
+    assert (
+        "animation: type-output var(--output-typing-duration) steps(32, end);"
+        in stylesheet
+    )
 
 
 def test_assignment_page_shares_the_home_page_top_bar(tmp_path, daemon):

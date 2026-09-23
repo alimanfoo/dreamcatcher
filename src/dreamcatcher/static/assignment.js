@@ -3,14 +3,70 @@
 const feed = document.querySelector(".feed-records");
 const feedTail = document.querySelector(".feed-tail");
 const assignmentSidebar = document.querySelector(".assignment-sidebar");
+const outputTypingDuration = Number.parseFloat(
+  getComputedStyle(document.documentElement).getPropertyValue(
+    "--output-typing-duration",
+  ),
+);
 let shouldFollowFeed = false;
+let feedLineCountBeforeSwap = 0;
+let nextFeedLineRevealAt = 0;
 let currentRoundHash = null;
 let focusedRoundHash = null;
 
+function typeNewFeedLines() {
+  const newFeedLines = [...feed.querySelectorAll(".feed-line")].slice(
+    feedLineCountBeforeSwap,
+  );
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    nextFeedLineRevealAt = performance.now();
+    return;
+  }
+  if (newFeedLines.length === 0) {
+    return;
+  }
+  const now = performance.now();
+  const firstRevealAt = Math.max(now, nextFeedLineRevealAt);
+  for (const [index, line] of newFeedLines.entries()) {
+    const delay = firstRevealAt - now + index * outputTypingDuration;
+    line.style.setProperty("--feed-line-reveal-delay", `${delay}ms`);
+    line.classList.add("is-typing");
+    line.addEventListener(
+      "animationstart",
+      () => {
+        if (!shouldFollowFeed) {
+          return;
+        }
+        const feedBottom = feed.getBoundingClientRect().bottom;
+        const lineBottom = line.getBoundingClientRect().bottom;
+        feed.scrollTop += Math.max(0, lineBottom - feedBottom);
+      },
+      { once: true },
+    );
+  }
+  nextFeedLineRevealAt =
+    firstRevealAt + newFeedLines.length * outputTypingDuration;
+}
+
 if (feed !== null) {
   feed.scrollTop = feed.scrollHeight;
+  feed.addEventListener(
+    "pointerdown",
+    () => {
+      shouldFollowFeed = false;
+    },
+    { passive: true },
+  );
+  feed.addEventListener(
+    "wheel",
+    () => {
+      shouldFollowFeed = false;
+    },
+    { passive: true },
+  );
   if (feedTail !== null) {
     feedTail.addEventListener("click", () => {
+      shouldFollowFeed = true;
       feed.scrollTo({
         top: feed.scrollHeight,
         behavior: "instant",
@@ -21,8 +77,11 @@ if (feed !== null) {
     if (event.detail.target !== feed) {
       return;
     }
-    shouldFollowFeed =
-      feed.scrollHeight - feed.scrollTop - feed.clientHeight <= 1;
+    if (nextFeedLineRevealAt <= performance.now()) {
+      shouldFollowFeed =
+        feed.scrollHeight - feed.scrollTop - feed.clientHeight <= 1;
+    }
+    feedLineCountBeforeSwap = feed.querySelectorAll(".feed-line").length;
     const currentRoundLink = assignmentSidebar?.querySelector(
       '.round-link[aria-current="true"]',
     );
@@ -36,7 +95,8 @@ if (feed !== null) {
     if (event.detail.target !== feed) {
       return;
     }
-    if (shouldFollowFeed) {
+    typeNewFeedLines();
+    if (shouldFollowFeed && nextFeedLineRevealAt <= performance.now()) {
       feed.scrollTop = feed.scrollHeight;
     }
     const currentRoundLink = assignmentSidebar?.querySelector(
@@ -61,6 +121,7 @@ if (assignmentSidebar !== null) {
       return;
     }
     event.preventDefault();
+    shouldFollowFeed = false;
     for (const otherLink of assignmentSidebar.querySelectorAll(".round-link")) {
       otherLink.removeAttribute("aria-current");
     }

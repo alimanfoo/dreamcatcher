@@ -30,6 +30,7 @@
   --page-width: 1320px;
   --letter-label: 0.14em;
   --letter-chip: 0.06em;
+  --output-typing-duration: 420ms;
 }
 
 * {
@@ -320,11 +321,12 @@ body::after {
   visibility: hidden;
 }
 
-.latest-output.is-typing {
-  animation: type-latest-output 420ms steps(32, end);
+.latest-output.is-typing,
+.feed-line.is-typing {
+  animation: type-output var(--output-typing-duration) steps(32, end);
 }
 
-@keyframes type-latest-output {
+@keyframes type-output {
   from {
     clip-path: inset(0 100% 0 0);
   }
@@ -594,6 +596,18 @@ body::after {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
   gap: var(--space-6);
+}
+
+.feed-line.is-typing {
+  animation-delay: var(--feed-line-reveal-delay);
+  animation-fill-mode: backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .latest-output.is-typing,
+  .feed-line.is-typing {
+    animation: none;
+  }
 }
 
 .feed-line time,
