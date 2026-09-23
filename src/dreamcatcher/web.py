@@ -46,7 +46,8 @@ _ISSUE_REFERENCE_PATTERN = re.compile(r"(?<!\w)(?:GH|#)(\d+)\b(?!-)")
 _FEED_CURSOR_PATTERN = re.compile(r"(?P<round>0|[1-9]\d*):(?P<position>\d+)")
 _HTMX_STOP_POLLING_STATUS = 286
 _DEFAULT_WEB_THEME = "matrix"
-_WEB_THEMES = (_DEFAULT_WEB_THEME, "nature")
+_WEB_THEME_MARKS = {_DEFAULT_WEB_THEME: "phosphor", "nature": "ink"}
+_WEB_THEMES = tuple(_WEB_THEME_MARKS)
 
 
 class _WebServerBindError(Exception):
@@ -310,7 +311,11 @@ def _configure_web_theme(*, app: Flask) -> None:
             theme = remembered_theme
         else:
             theme = _DEFAULT_WEB_THEME
-        return {"theme": theme, "themes": _WEB_THEMES}
+        return {
+            "mark": _WEB_THEME_MARKS[theme],
+            "theme": theme,
+            "themes": _WEB_THEMES,
+        }
 
     @app.after_request
     def remember_web_theme(response: Response, /) -> Response:

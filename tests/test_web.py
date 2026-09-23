@@ -129,7 +129,7 @@ def test_a_home_card_links_to_its_exact_assignment(tmp_path, daemon):
     assignment_link = (
         'class="assignment-open" href="/assignments/GH13-20260819-184158" '
         'target="_blank" rel="noopener noreferrer" '
-        'aria-label="Open assignment GH13-20260819-184158"'
+        'aria-label="Open assignment GH13-20260819-184158 (opens in new tab)"'
     )
     assert assignment_link in page
     assert page.count('href="/assignments/GH13-20260819-184158"') == 1
@@ -362,8 +362,10 @@ def test_a_theme_choice_is_validated_and_remembered(tmp_path):
     remembered = client.get("/")
 
     assert 'href="/static/nature.css"' in selected.text
+    assert 'href="/static/dreamcatcher-mark-ink.png"' in selected.text
     assert "theme=nature;" in selected.headers["Set-Cookie"]
     assert 'href="/static/nature.css"' in remembered.text
+    assert 'href="/static/dreamcatcher-mark-ink.png"' in remembered.text
 
 
 def test_an_unknown_theme_uses_matrix_without_being_remembered(tmp_path):

@@ -46,7 +46,7 @@ body::after {
 }
 
 *:focus-visible {
-  outline: 2px solid #8a9a78;
+  outline: 2px solid #526348;
   outline-offset: 2px;
 }
 

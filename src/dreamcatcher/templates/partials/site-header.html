@@ -1,5 +1,5 @@
 <header class="site-header">
-  <div class="repository"><img class="mark" src="{{ url_for('static', filename='dreamcatcher-mark-' ~ ('ink' if theme == 'nature' else 'phosphor') ~ '.png') }}" alt="Dreamcatcher">{% if view.github_repository_url %}<a class="repository-link" href="{{ view.github_repository_url }}" target="_blank" rel="noopener noreferrer">{{ view.repository }}</a>{% else %}<span>{{ view.repository }}</span>{% endif %}</div>
+  <div class="repository"><img class="mark" src="{{ url_for('static', filename='dreamcatcher-mark-' ~ mark ~ '.png') }}" alt="Dreamcatcher">{% if view.github_repository_url %}<a class="repository-link" href="{{ view.github_repository_url }}" target="_blank" rel="noopener noreferrer">{{ view.repository }}</a>{% else %}<span>{{ view.repository }}</span>{% endif %}</div>
   <div class="site-actions">
     <div class="daemon daemon-{{ view.daemon_state }}">{{ view.daemon_summary }}</div>
     <nav class="theme-switch" aria-label="Theme">
