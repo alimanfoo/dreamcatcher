@@ -12,7 +12,7 @@ from functools import partial
 from typing import Protocol, cast
 from webbrowser import open as open_browser
 
-from flask import Flask, render_template, request
+from flask import Flask, Response, render_template, request
 from werkzeug.serving import BaseWSGIServer
 
 from dreamcatcher.agent_rounds import (
@@ -54,6 +54,9 @@ WEB_MAX_PORT = 65535
 _ISSUE_REFERENCE_PATTERN = re.compile(r"(?<!\w)(?:GH|#)(\d+)\b(?!-)")
 _FEED_CURSOR_PATTERN = re.compile(r"(?P<round>0|[1-9]\d*):(?P<position>\d+)")
 _HTMX_STOP_POLLING_STATUS = 286
+_DEFAULT_WEB_THEME = "matrix"
+_WEB_THEME_MARKS = {_DEFAULT_WEB_THEME: "phosphor", "nature": "ink"}
+_WEB_THEMES = tuple(_WEB_THEME_MARKS)
 
 
 class _WebServerBindError(Exception):
@@ -300,6 +303,7 @@ def create_app(
     """
     app = Flask(__name__)
     app.config["TRUSTED_HOSTS"] = [WEB_HOST, "localhost"]
+    _configure_web_theme(app=app)
     routes = (
         ("/", "show_home", partial(_show_home, state=state, clock=clock, zone=zone)),
         (
@@ -492,6 +496,32 @@ def _invalid_feed_cursor_response() -> tuple[str, int]:
 def _show_reportable_error(error: ReportableError, /) -> tuple[str, int]:
     """Render a named read failure for Flask, which passes the error by position."""
     return render_template("error.html", message=str(error)), 500
+
+
+def _configure_web_theme(*, app: Flask) -> None:
+    @app.context_processor
+    def add_web_theme() -> dict[str, object]:
+        requested_theme = request.args.get("theme")
+        remembered_theme = request.cookies.get("theme")
+        if requested_theme in _WEB_THEMES:
+            theme = requested_theme
+        elif remembered_theme in _WEB_THEMES:
+            theme = remembered_theme
+        else:
+            theme = _DEFAULT_WEB_THEME
+        return {
+            "mark": _WEB_THEME_MARKS[theme],
+            "theme": theme,
+            "themes": _WEB_THEMES,
+        }
+
+    @app.after_request
+    def remember_web_theme(response: Response, /) -> Response:
+        """Remember a valid theme selected through a browser request."""
+        requested_theme = request.args.get("theme")
+        if requested_theme in _WEB_THEMES:
+            response.set_cookie("theme", requested_theme, samesite="Lax")
+        return response
 
 
 def _run_server(*, server: BaseWSGIServer) -> None:

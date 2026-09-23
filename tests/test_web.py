@@ -128,7 +128,8 @@ def test_a_home_card_links_to_its_exact_assignment(tmp_path, daemon):
 
     assignment_link = (
         'class="assignment-open" href="/assignments/GH13-20260819-184158" '
-        'aria-label="Open assignment GH13-20260819-184158"'
+        'target="_blank" rel="noopener noreferrer" '
+        'aria-label="Open assignment GH13-20260819-184158 (opens in new tab)"'
     )
     assert assignment_link in page
     assert page.count('href="/assignments/GH13-20260819-184158"') == 1
@@ -152,7 +153,7 @@ def test_feedback_card_keeps_its_compact_actions_inside_the_heading(tmp_path, da
     card_start = page.index('<article id="assignment-GH20-20260819-184158"')
     card = page[card_start : page.index("</article>", card_start)]
 
-    assert "[NEEDS FEEDBACK]" in card
+    assert '<span class="chip status-needs-user-feedback">needs feedback</span>' in card
     assert "[NEEDS USER FEEDBACK]" not in card
     assert re.search(
         r"\.card-heading \{[^}]*display: grid;"
@@ -174,7 +175,10 @@ def test_assignment_feedback_status_uses_the_compact_label(tmp_path, daemon):
         identifier="GH20-20260819-184158",
     )
 
-    assert "[NEEDS FEEDBACK]" in page
+    assert (
+        '<span id="assignment-status" '
+        'class="chip status-needs-user-feedback">needs feedback</span>'
+    ) in page
     assert "[NEEDS USER FEEDBACK]" not in page
 
 
@@ -236,7 +240,9 @@ def test_assignment_script_follows_only_when_the_feed_was_at_its_end(tmp_path):
     assert 'feed.addEventListener("htmx:beforeSwap"' in script
     assert 'feed.addEventListener("htmx:afterSwap"' in script
     assert "feed.scrollHeight - feed.scrollTop - feed.clientHeight <= 1" in script
-    assert "if (shouldFollowFeed)" in script
+    assert (
+        "if (shouldFollowFeed && nextFeedLineRevealAt <= performance.now())" in script
+    )
     assert 'assignmentSidebar.addEventListener("click"' in script
     assert 'currentRoundLink?.setAttribute("aria-current", "true")' in script
     assert "focusedRoundLink?.focus({ preventScroll: true })" in script
@@ -310,7 +316,10 @@ def test_home_page_types_replaced_assignment_output(tmp_path):
     assert 'addEventListener("htmx:beforeSwap"' in script
     assert 'querySelector(".latest-output")' in script
     assert '"(prefers-reduced-motion: reduce)"' in script
-    assert "animation: type-latest-output 420ms steps(32, end);" in stylesheet
+    assert (
+        "animation: type-output var(--output-typing-duration) steps(32, end);"
+        in stylesheet
+    )
 
 
 def test_assignment_page_shares_the_home_page_top_bar(tmp_path, daemon):
@@ -330,6 +339,49 @@ def test_assignment_page_shares_the_home_page_top_bar(tmp_path, daemon):
     assert assignment_headers == home_headers
 
 
+def test_every_complete_page_uses_the_dreamcatcher_mark_as_its_favicon(
+    tmp_path, daemon
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    app = create_app(state=state)
+
+    pages = (
+        render_home(state=state),
+        render_assignment(state=state, identifier="GH13-20260819-184158"),
+        app.test_client().get("/assignments/unknown").text,
+    )
+
+    favicon = (
+        '<link rel="icon" type="image/png" '
+        'href="/static/dreamcatcher-mark-phosphor.png">'
+    )
+    assert all(favicon in page for page in pages)
+
+
+def test_a_theme_choice_is_validated_and_remembered(tmp_path):
+    app = create_app(state=StateDirectory(root=tmp_path))
+    client = app.test_client()
+
+    selected = client.get("/?theme=nature")
+    remembered = client.get("/")
+
+    assert 'href="/static/nature.css"' in selected.text
+    assert 'href="/static/dreamcatcher-mark-ink.png"' in selected.text
+    assert "theme=nature;" in selected.headers["Set-Cookie"]
+    assert 'href="/static/nature.css"' in remembered.text
+    assert 'href="/static/dreamcatcher-mark-ink.png"' in remembered.text
+
+
+def test_an_unknown_theme_uses_matrix_without_being_remembered(tmp_path):
+    app = create_app(state=StateDirectory(root=tmp_path))
+
+    response = app.test_client().get("/?theme=unknown")
+
+    assert 'href="/static/nature.css"' not in response.text
+    assert "Set-Cookie" not in response.headers
+
+
 def test_github_links_open_in_a_new_tab(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
@@ -341,6 +393,11 @@ def test_github_links_open_in_a_new_tab(tmp_path, daemon):
 
     assert links
     assert all('target="_blank" rel="noopener noreferrer"' in link for link in links)
+    assert (
+        '<a class="repository-link" '
+        'href="https://github.com/alimanfoo/dreamcatcher" '
+        'target="_blank" rel="noopener noreferrer">alimanfoo/dreamcatcher</a>'
+    ) in pages
 
 
 def test_an_unknown_assignment_renders_a_404_page(tmp_path):
