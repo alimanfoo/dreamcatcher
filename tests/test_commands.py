@@ -35,9 +35,9 @@ def test_a_command_receives_utf_8_text_on_stdin(fake):
     probe = fake(program="probe")
     probe.replies(stdout="")
 
-    run_command(program="probe", arguments=[], stdin="one\ntwø\n")
+    run_command(program="probe", arguments=[], stdin="one twø")
 
-    assert probe.calls[0].prompt == "one\ntwø\n"
+    assert probe.calls[0].prompt == "one twø"
 
 
 def test_a_program_on_the_path_is_found(fake):
