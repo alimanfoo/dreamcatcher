@@ -4,7 +4,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>alimanfoo/dreamcatcher · dreamcatcher</title>
+    <link rel="icon" type="image/png" href="/static/dreamcatcher-mark-phosphor.png">
     <link rel="stylesheet" href="/static/matrix.css">
+
     <script src="/static/vendor/htmx-2.0.10.min.js" defer></script>
     <script src="/static/vendor/idiomorph-ext-0.7.4.min.js" defer></script>
   </head>
@@ -12,8 +14,17 @@
     
   <main id="home" hx-get="/" hx-trigger="every 2s" hx-select="#home" hx-swap="morph:{callbacks:{beforeAttributeUpdated:(attribute,element)=>!(attribute==='open'&&element.matches('details'))}}">
     <header class="site-header">
-  <div class="repository"><img class="mark" src="/static/dreamcatcher-mark-phosphor.png" alt="Dreamcatcher">alimanfoo/dreamcatcher</div>
-  <div class="daemon daemon-running">daemon RUNNING · dreamcatcher v3.0.0.beta1 · pid 4242</div>
+  <div class="repository"><img class="mark" src="/static/dreamcatcher-mark-phosphor.png" alt="Dreamcatcher"><a class="repository-link" href="https://github.com/alimanfoo/dreamcatcher" target="_blank" rel="noopener noreferrer">alimanfoo/dreamcatcher</a></div>
+  <div class="site-actions">
+    <div class="daemon daemon-running">daemon RUNNING · dreamcatcher v3.0.0.beta1 · pid 4242</div>
+    <nav class="theme-switch" aria-label="Theme">
+
+      <a class="theme-choice" href="?theme=matrix" aria-current="page">Matrix</a>
+
+      <a class="theme-choice" href="?theme=nature">Nature</a>
+
+    </nav>
+  </div>
 </header>
     <div class="home-content">
       <section class="instance" aria-label="Instance">
@@ -51,8 +62,8 @@
   <div class="card-heading">
     <div><a class="issue-number" href="https://github.com/alimanfoo/dreamcatcher/issues/13" target="_blank" rel="noopener noreferrer">#13</a> <span class="identifier">GH13-20260819-184158</span></div>
     <span class="card-heading-actions">
-      <span class="chip status-working">[WORKING]</span>
-      <a class="assignment-open" href="/assignments/GH13-20260819-184158" aria-label="Open assignment GH13-20260819-184158">&gt;</a>
+      <span class="chip status-working">working</span>
+      <a class="assignment-open" href="/assignments/GH13-20260819-184158" target="_blank" rel="noopener noreferrer" aria-label="Open assignment GH13-20260819-184158 (opens in new tab)">&gt;</a>
     </span>
   </div>
   <p class="assignment-detail">round 2, running 1h 30m, has said nothing yet</p>
