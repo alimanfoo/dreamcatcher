@@ -1,13 +1,22 @@
 from datetime import timedelta
 
 import pytest
-from clocks import PINNED
+from clocks import DISPLAY_TIME_ZONE, PINNED
 
-from dreamcatcher.words import describe_count, describe_span, describe_time
+from dreamcatcher.words import (
+    describe_count,
+    describe_span,
+    describe_time,
+    format_utc_timestamp,
+)
 
 
-def test_a_time_is_written_the_one_way_the_tool_writes_one():
-    assert describe_time(at=PINNED) == "2026-08-19T18:41:58Z"
+def test_a_utc_timestamp_is_written_the_one_way_the_tool_stores_one():
+    assert format_utc_timestamp(at=PINNED) == "2026-08-19T18:41:58Z"
+
+
+def test_a_time_is_described_in_the_given_zone_without_a_suffix():
+    assert describe_time(at=PINNED, zone=DISPLAY_TIME_ZONE) == "2026-08-20 02:41:58"
 
 
 @pytest.mark.parametrize(

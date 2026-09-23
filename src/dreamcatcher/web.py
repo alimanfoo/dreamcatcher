@@ -7,7 +7,7 @@ import zlib
 from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, tzinfo
 from typing import Protocol, cast
 from webbrowser import open as open_browser
 
@@ -222,15 +222,21 @@ def create_app(
     *,
     state: StateDirectory,
     clock: Callable[[], datetime] = read_current_time,
+    zone: tzinfo | None = None,
 ) -> Flask:
-    """Create the read-only web application for one local state directory."""
+    """Create the read-only web application for one local state directory.
+
+    Page times use the machine's local zone when zone is None.
+    """
     app = Flask(__name__)
     app.config["TRUSTED_HOSTS"] = [WEB_HOST, "localhost"]
 
     @app.get("/")
     def show_home() -> str:
         report = read_status_report(state=state, clock=clock)
-        return render_template("home.html", view=_compose_home_view(report=report))
+        return render_template(
+            "home.html", view=_compose_home_view(report=report, zone=zone)
+        )
 
     @app.get("/assignments/<identifier>")
     def show_assignment(*, identifier: str) -> str | tuple[str, int]:
@@ -249,7 +255,7 @@ def create_app(
             )
         return render_template(
             "assignment.html",
-            view=_compose_assignment_view(state=state, status=status),
+            view=_compose_assignment_view(state=state, status=status, zone=zone),
         )
 
     @app.get("/assignments/<identifier>/tail")
@@ -269,7 +275,7 @@ def create_app(
             )
         try:
             cursor = _decode_feed_cursor(value=request.args.get("cursor", ""))
-            tail = _read_assignment_tail(status=status, cursor=cursor)
+            tail = _read_assignment_tail(status=status, cursor=cursor, zone=zone)
         except _InvalidFeedCursorError:
             return (
                 render_template("error.html", message="The feed cursor is invalid."),
@@ -300,10 +306,14 @@ def serve_web(
     port: int | None = None,
     browser_opener: Callable[[str], object] = open_browser,
     server_runner: WebServerRunner = _run_server,
+    zone: tzinfo | None = None,
 ) -> None:
-    """Serve one local status page, open it, and run until interrupted."""
+    """Serve one local status page, open it, and run until interrupted.
+
+    Page times use the machine's local zone when zone is None.
+    """
     logging.getLogger("werkzeug").setLevel(logging.ERROR)
-    application = create_app(state=state)
+    application = create_app(state=state, zone=zone)
     server = _create_web_server(state=state, port=port, application=application)
     address = f"http://{WEB_HOST}:{server.server_port}/"
     try:
@@ -348,7 +358,14 @@ def _compose_github_repository_url(*, repository: str | None) -> str | None:
     return f"https://github.com/{repository}"
 
 
-def _compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
+def _compose_home_view(
+    *, report: DreamcatcherStatusReport, zone: tzinfo | None
+) -> WebHomeView:
+    cooldown_end = (
+        None
+        if report.active_global_cooldown is None
+        else describe_time(at=report.active_global_cooldown.ends, zone=zone)
+    )
     active_statuses = sorted(
         (
             status
@@ -384,14 +401,11 @@ def _compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
             daemon_pid=report.daemon_pid,
             dreamcatcher_version=report.dreamcatcher_version,
         ),
-        instance_facts=_compose_instance_facts(report=report),
+        instance_facts=_compose_instance_facts(
+            report=report, cooldown_end=cooldown_end
+        ),
         cooldown_message=(
-            None
-            if report.active_global_cooldown is None
-            else (
-                "Global cooldown ends "
-                f"{describe_time(at=report.active_global_cooldown.ends)}"
-            )
+            None if cooldown_end is None else f"Global cooldown ends {cooldown_end}"
         ),
         active_assignments=active_assignments,
         complete_assignments=complete_assignments,
@@ -446,14 +460,17 @@ def _describe_pull_request_state(*, status: AgentAssignmentStatus) -> str | None
 
 
 def _compose_assignment_view(
-    *, state: StateDirectory, status: AgentAssignmentStatus
+    *,
+    state: StateDirectory,
+    status: AgentAssignmentStatus,
+    zone: tzinfo | None,
 ) -> WebAssignmentView:
     assignment = status.assignment
     record = assignment.record
     repository = read_repository(state=state)
     daemon = read_dreamcatcher_daemon_status(state=state)
     hand_resume_command = status.hand_resume_command
-    feed = _read_assignment_feed(status=status)
+    feed = _read_assignment_feed(status=status, zone=zone)
     return WebAssignmentView(
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
@@ -479,7 +496,7 @@ def _compose_assignment_view(
         ),
         model=record.model,
         effort=record.effort,
-        rounds=_compose_assignment_rounds(status=status),
+        rounds=_compose_assignment_rounds(status=status, zone=zone),
         hand_resume_worktree=(
             None
             if hand_resume_command is None
@@ -502,14 +519,14 @@ def _compose_web_status_label(*, status: AgentAssignmentStatus) -> str:
 
 
 def _compose_assignment_rounds(
-    *, status: AgentAssignmentStatus
+    *, status: AgentAssignmentStatus, zone: tzinfo | None
 ) -> tuple[WebAssignmentRound, ...]:
     return tuple(
         WebAssignmentRound(
             number=round_status.record.number,
             purpose=str(round_status.record.purpose),
             is_recovery=round_status.record.is_recovery,
-            started=describe_time(at=round_status.record.started),
+            started=describe_time(at=round_status.record.started, zone=zone),
             duration=round_status.duration_description,
             outcome=round_status.outcome_description,
         )
@@ -538,7 +555,10 @@ def _decode_feed_cursor(*, value: str) -> WebFeedCursor:
 
 
 def _read_assignment_tail(
-    *, status: AgentAssignmentStatus, cursor: WebFeedCursor
+    *,
+    status: AgentAssignmentStatus,
+    cursor: WebFeedCursor,
+    zone: tzinfo | None,
 ) -> WebAssignmentTail:
     assignment = status.assignment
     records_by_number = {record.number: record for record in assignment.rounds}
@@ -557,11 +577,11 @@ def _read_assignment_tail(
             position=position,
         )
         lines = tuple(
-            _compose_web_feed_line(written_line=written_line)
+            _compose_web_feed_line(written_line=written_line, zone=zone)
             for written_line in written_lines
         )
         if is_opening_round:
-            lines = (_compose_web_round_boundary(record=record), *lines)
+            lines = (_compose_web_round_boundary(record=record, zone=zone), *lines)
         if lines:
             feed_rounds.append(WebFeedRound(number=number, lines=lines))
         next_cursor = WebFeedCursor(round_number=number, position=position)
@@ -575,7 +595,7 @@ def _read_assignment_tail(
         feed_rounds=tuple(feed_rounds),
         status=str(status.value),
         status_label=_compose_web_status_label(status=status),
-        rounds=_compose_assignment_rounds(status=status),
+        rounds=_compose_assignment_rounds(status=status, zone=zone),
         has_empty_feed_placeholder=cursor.round_number == 0,
     )
 
@@ -592,7 +612,9 @@ def _resolve_feed_cursor(
     return cursor.round_number, cursor.position, False
 
 
-def _compose_web_round_boundary(*, record: AgentRoundRecord) -> WebFeedLine:
+def _compose_web_round_boundary(
+    *, record: AgentRoundRecord, zone: tzinfo | None
+) -> WebFeedLine:
     boundary = compose_agent_round_boundary(
         number=record.number,
         purpose=record.purpose,
@@ -600,14 +622,16 @@ def _compose_web_round_boundary(*, record: AgentRoundRecord) -> WebFeedLine:
         at=record.started,
     )
     return WebFeedLine(
-        timestamp=describe_time(at=boundary.at),
+        timestamp=describe_time(at=boundary.at, zone=zone),
         label=None,
         detail=boundary.text,
         is_boundary=True,
     )
 
 
-def _read_assignment_feed(*, status: AgentAssignmentStatus) -> WebAssignmentFeed:
+def _read_assignment_feed(
+    *, status: AgentAssignmentStatus, zone: tzinfo | None
+) -> WebAssignmentFeed:
     assignment = status.assignment
     feed_rounds = []
     cursor = WebFeedCursor(round_number=0, position=0)
@@ -621,9 +645,9 @@ def _read_assignment_feed(*, status: AgentAssignmentStatus) -> WebAssignmentFeed
             WebFeedRound(
                 number=record.number,
                 lines=(
-                    _compose_web_round_boundary(record=record),
+                    _compose_web_round_boundary(record=record, zone=zone),
                     *(
-                        _compose_web_feed_line(written_line=written_line)
+                        _compose_web_feed_line(written_line=written_line, zone=zone)
                         for written_line in written_lines
                     ),
                 ),
@@ -635,12 +659,12 @@ def _read_assignment_feed(*, status: AgentAssignmentStatus) -> WebAssignmentFeed
     )
 
 
-def _compose_web_feed_line(*, written_line: str) -> WebFeedLine:
+def _compose_web_feed_line(*, written_line: str, zone: tzinfo | None) -> WebFeedLine:
     line = read_feed_line(written_line=written_line)
     if line is None:
         return WebFeedLine(timestamp=None, label=None, detail=written_line)
     return WebFeedLine(
-        timestamp=describe_time(at=line.at),
+        timestamp=describe_time(at=line.at, zone=zone),
         label=line.label,
         detail=line.detail,
         is_subagent=line.is_subagent,
@@ -684,17 +708,15 @@ def _describe_daemon(
     return f"daemon RUNNING · {version}pid {daemon_pid}"
 
 
-def _compose_instance_facts(*, report: DreamcatcherStatusReport) -> tuple[WebFact, ...]:
+def _compose_instance_facts(
+    *, report: DreamcatcherStatusReport, cooldown_end: str | None
+) -> tuple[WebFact, ...]:
     tick = (
         "none recorded"
         if report.latest_scheduler_tick is None
         else f"{describe_span(span=report.at - report.latest_scheduler_tick)} ago"
     )
-    cooldown = (
-        "none"
-        if report.active_global_cooldown is None
-        else f"ends {describe_time(at=report.active_global_cooldown.ends)}"
-    )
+    cooldown = "none" if cooldown_end is None else f"ends {cooldown_end}"
     scheduler_hold = report.scheduler_hold
     if scheduler_hold is not None and scheduler_hold.startswith("at cap:"):
         scheduler_hold = None

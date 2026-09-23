@@ -15,7 +15,7 @@ from pathlib import Path, PurePath
 
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.documents import read_last_line
-from dreamcatcher.words import UTC_TIMESTAMP_FORMAT, describe_time
+from dreamcatcher.words import UTC_TIMESTAMP_FORMAT, format_utc_timestamp
 
 # A note's detail can be as long as a whole file, so the line is clipped. The
 # figure is the port's, wide enough for a command or a path.
@@ -47,7 +47,7 @@ class FeedLine:
 
     def render(self) -> str:
         """Return the line as a feed holds it, the line ending included."""
-        return f"{describe_time(at=self.at)}{FEED_TIMESTAMP_GAP}{self.text}\n"
+        return f"{format_utc_timestamp(at=self.at)}{FEED_TIMESTAMP_GAP}{self.text}\n"
 
 
 def compose_agent_round_boundary(

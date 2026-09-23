@@ -16,6 +16,7 @@ from dreamcatcher.commands import run_command, spawn_command
 from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME
 
 ARMING = "PYTHONWARNDEFAULTENCODING"
+REGENERATE_VIEW_GOLDENS_OPTION = "--regenerate-view-goldens"
 
 
 # The directory holding everything the suite reads back from a recording: the
@@ -81,6 +82,15 @@ def daemon(monkeypatch):
     monkeypatch.setattr(psutil, "pid_exists", lambda pid: pid == DAEMON_PID)
 
 
+def pytest_addoption(parser: pytest.Parser, /) -> None:
+    """Add the view-golden regeneration option that pytest calls by position."""
+    parser.addoption(
+        REGENERATE_VIEW_GOLDENS_OPTION,
+        action="store_true",
+        help="rewrite every rendered-view golden before checking it",
+    )
+
+
 def pytest_configure(config: pytest.Config) -> None:
     """Stop before collection when the interpreter is not arming the gate."""
     if os.environ.get(ARMING) != "1":
@@ -88,6 +98,15 @@ def pytest_configure(config: pytest.Config) -> None:
             f"Set {ARMING}=1 when you run pytest. Without it the interpreter "
             "never emits EncodingWarning, so the UTF-8 gate is inert."
         )
+
+
+def assert_matches_view_golden(
+    *, rendered: str, path: Path, config: pytest.Config
+) -> None:
+    """Check a rendered view, rewriting its golden when explicitly requested."""
+    if config.getoption(REGENERATE_VIEW_GOLDENS_OPTION):
+        path.write_bytes(rendered.encode("utf-8"))
+    assert rendered == path.read_text(encoding="utf-8")
 
 
 def streamed(**fields: object) -> str:

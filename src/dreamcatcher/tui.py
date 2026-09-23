@@ -9,7 +9,7 @@ lines and preserves terminal scrollback. Color is added only during rendering.
 from collections.abc import Callable, Iterable, Sequence
 from contextlib import suppress
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, tzinfo
 from time import sleep
 from typing import cast
 
@@ -58,6 +58,18 @@ VIEW_REFRESH_INTERVAL = 1.0
 
 # How far a section's rows are set in from its heading.
 SECTION_PADDING = (0, 0, 0, 2)
+
+
+@dataclass(frozen=True, kw_only=True)
+class ViewTiming:
+    """Provide the clock, waits, and display zone for one TUI view."""
+
+    clock: Callable[[], datetime] = read_current_time
+    wait: WaitForSeconds = sleep
+    zone: tzinfo | None = None
+
+
+DEFAULT_VIEW_TIMING = ViewTiming()
 
 
 def open_tui_console() -> Console:
@@ -138,38 +150,44 @@ def show_status_view(
     *,
     state: StateDirectory,
     console: Console,
-    clock: Callable[[], datetime] = read_current_time,
-    wait: WaitForSeconds = sleep,
+    timing: ViewTiming = DEFAULT_VIEW_TIMING,
 ) -> None:
     """Show instance, issue, and assignment status until interrupted.
 
     A non-terminal or dumb terminal renders one report and returns.
+    Times use timing's zone, or the machine's local zone when it is None.
     """
     _refresh_live_view(
         console=console,
-        read_snapshot=lambda: _read_status_snapshot(state=state, clock=clock),
-        wait=wait,
+        read_snapshot=lambda: _read_status_snapshot(
+            state=state, clock=timing.clock, zone=timing.zone
+        ),
+        wait=timing.wait,
     )
 
 
 def _read_status_snapshot(
-    *, state: StateDirectory, clock: Callable[[], datetime]
+    *, state: StateDirectory, clock: Callable[[], datetime], zone: tzinfo | None
 ) -> _ViewSnapshot:
     """Return the current status report as a view that never ends itself.
 
     A daemon can start, a tick can run, or a round can begin after any refresh.
     """
     return _ViewSnapshot(
-        renderable=_render_status(report=read_status_report(state=state, clock=clock)),
+        renderable=_render_status(
+            report=read_status_report(state=state, clock=clock), zone=zone
+        ),
         is_over=False,
     )
 
 
-def _render_status(*, report: DreamcatcherStatusReport) -> RenderableType:
+def _render_status(
+    *, report: DreamcatcherStatusReport, zone: tzinfo | None
+) -> RenderableType:
     return _combine_renderable_parts(
         parts=[
             Text(report.repository or "repository unknown", style="bold"),
-            _render_instance_status(report=report),
+            _render_instance_status(report=report, zone=zone),
             _render_assignments(assignments=report.assignment_statuses),
             _render_failed_assignment_setups(setups=report.failed_assignment_setups),
             _render_available_issues(issues=report.available_issues),
@@ -185,7 +203,9 @@ def _combine_renderable_parts(
     return Group(*(part for part in parts if part is not None))
 
 
-def _render_instance_status(*, report: DreamcatcherStatusReport) -> RenderableType:
+def _render_instance_status(
+    *, report: DreamcatcherStatusReport, zone: tzinfo | None
+) -> RenderableType:
     """Render the daemon, scheduler, capacity, and cooldown facts."""
     table = _create_table(columns=2)
     daemon = (
@@ -214,7 +234,7 @@ def _render_instance_status(*, report: DreamcatcherStatusReport) -> RenderableTy
     cooldown = (
         "none"
         if report.active_global_cooldown is None
-        else f"ends {describe_time(at=report.active_global_cooldown.ends)}"
+        else f"ends {describe_time(at=report.active_global_cooldown.ends, zone=zone)}"
     )
     for name, value in (
         ("daemon", daemon),
@@ -370,25 +390,29 @@ def show_assignment_view(
     state: StateDirectory,
     issue: int,
     console: Console,
-    clock: Callable[[], datetime] = read_current_time,
-    wait: WaitForSeconds = sleep,
+    timing: ViewTiming = DEFAULT_VIEW_TIMING,
 ) -> None:
     """Show the issue's newest assignment until it completes or enters fault.
 
     The view remains open between rounds. A non-terminal or dumb terminal
     renders one snapshot and returns.
+    Times use timing's zone, or the machine's local zone when it is None.
     """
     _refresh_live_view(
         console=console,
         read_snapshot=lambda: _read_assignment_snapshot(
-            state=state, issue=issue, clock=clock
+            state=state, issue=issue, clock=timing.clock, zone=timing.zone
         ),
-        wait=wait,
+        wait=timing.wait,
     )
 
 
 def _read_assignment_snapshot(
-    *, state: StateDirectory, issue: int, clock: Callable[[], datetime]
+    *,
+    state: StateDirectory,
+    issue: int,
+    clock: Callable[[], datetime],
+    zone: tzinfo | None,
 ) -> _ViewSnapshot:
     """Return the newest assignment and whether its view is over.
 
@@ -402,14 +426,17 @@ def _read_assignment_snapshot(
     )
     return _ViewSnapshot(
         renderable=_render_assignment(
-            state=state, assignment_statuses=assignment_statuses
+            state=state, assignment_statuses=assignment_statuses, zone=zone
         ),
         is_over=assignment_statuses[0].value in STATUSES_THAT_END_A_VIEW,
     )
 
 
 def _render_assignment(
-    *, state: StateDirectory, assignment_statuses: list[AgentAssignmentStatus]
+    *,
+    state: StateDirectory,
+    assignment_statuses: list[AgentAssignmentStatus],
+    zone: tzinfo | None,
 ) -> RenderableType:
     """Render the newest assignment with older assignments beneath it.
 
@@ -437,7 +464,7 @@ def _render_assignment(
             rendered_status,
             latest_output,
             _render_assignment_summary(state=state, status=current_status),
-            _render_rounds(status=current_status),
+            _render_rounds(status=current_status, zone=zone),
             _render_harness_resume(state=state, status=current_status),
             _render_older_assignments(older_statuses=assignment_statuses[1:]),
         ]
@@ -472,7 +499,9 @@ def _render_assignment_summary(
     return _render_section(heading="assignment", body=table)
 
 
-def _render_rounds(*, status: AgentAssignmentStatus) -> RenderableType | None:
+def _render_rounds(
+    *, status: AgentAssignmentStatus, zone: tzinfo | None
+) -> RenderableType | None:
     """Return the rounds the assignment has run, newest first.
 
     Each row keeps the round number accepted by `feed --round`. An assignment
@@ -491,7 +520,7 @@ def _render_rounds(*, status: AgentAssignmentStatus) -> RenderableType | None:
                     is_recovery=record.is_recovery,
                 )
             ),
-            Text(describe_time(at=record.started)),
+            Text(describe_time(at=record.started, zone=zone)),
             Text(round_status.duration_description),
             Text(round_status.outcome_description),
         )
@@ -548,7 +577,7 @@ def show_feed_view(
     issue: int,
     console: Console,
     round_number: int | None = None,
-    wait: WaitForSeconds = sleep,
+    timing: ViewTiming = DEFAULT_VIEW_TIMING,
 ) -> None:
     """Show and follow the newest assignment's feed.
 
@@ -558,13 +587,18 @@ def show_feed_view(
 
     Every feed line carries its own timestamp, so the view needs no clock. A
     non-terminal or dumb terminal shows the current contents once and returns.
+    Times use timing's zone, or the machine's local zone when it is None.
     """
     if round_number is not None:
         _show_one_round(
-            state=state, issue=issue, number=round_number, console=console, wait=wait
+            state=state,
+            issue=issue,
+            number=round_number,
+            console=console,
+            timing=timing,
         )
         return
-    view = _FeedView(console=console)
+    view = _FeedView(console=console, zone=timing.zone)
 
     def refresh_feed() -> bool:
         """Show output since the previous refresh and return whether it is over."""
@@ -573,7 +607,9 @@ def show_feed_view(
         view.show_new_output(assignment=assignment, records=assignment.rounds)
         return status.value in STATUSES_THAT_END_A_VIEW
 
-    _refresh_until_view_ends(console=console, refresh_view=refresh_feed, wait=wait)
+    _refresh_until_view_ends(
+        console=console, refresh_view=refresh_feed, wait=timing.wait
+    )
 
 
 def _show_one_round(
@@ -582,14 +618,14 @@ def _show_one_round(
     issue: int,
     number: int,
     console: Console,
-    wait: WaitForSeconds,
+    timing: ViewTiming,
 ) -> None:
     """Show one round of the newest assignment until the round ends.
 
     Raise ReportableError when the assignment has no round with the requested
     number.
     """
-    view = _FeedView(console=console)
+    view = _FeedView(console=console, zone=timing.zone)
 
     def refresh_round_feed() -> bool:
         """Show output since the previous refresh and return whether it has ended."""
@@ -610,7 +646,7 @@ def _show_one_round(
         return record.ending is not None
 
     _refresh_until_view_ends(
-        console=console, refresh_view=refresh_round_feed, wait=wait
+        console=console, refresh_view=refresh_round_feed, wait=timing.wait
     )
 
 
@@ -645,6 +681,7 @@ class _FeedView:
     """
 
     console: Console
+    zone: tzinfo | None
     positions: dict[int, int] = field(default_factory=dict)
 
     def show_new_output(
@@ -675,6 +712,7 @@ class _FeedView:
             _render_feed_line(
                 line=round_heading,
                 content=Text(round_heading.text, style="bold"),
+                zone=self.zone,
             )
         )
         self.positions[record.number] = 0
@@ -688,11 +726,13 @@ class _FeedView:
             path=feed_path, position=self.positions[round_number]
         )
         for line in new_lines:
-            self.console.print(_render_written_feed_line(written_line=line))
+            self.console.print(
+                _render_written_feed_line(written_line=line, zone=self.zone)
+            )
         self.positions[round_number] = new_position
 
 
-def _render_written_feed_line(*, written_line: str) -> Text:
+def _render_written_feed_line(*, written_line: str, zone: tzinfo | None) -> Text:
     """Return one line of a feed as it reads on a console.
 
     An unparseable line is returned unchanged.
@@ -704,10 +744,10 @@ def _render_written_feed_line(*, written_line: str) -> Text:
     if line.label is not None:
         label_start = len(SUBAGENT_INDENT) if line.is_subagent else 0
         content.stylize("cyan", label_start, label_start + len(line.label) + 2)
-    return _render_feed_line(line=line, content=content)
+    return _render_feed_line(line=line, content=content, zone=zone)
 
 
-def _render_feed_line(*, line: FeedLine, content: Text) -> Text:
+def _render_feed_line(*, line: FeedLine, content: Text, zone: tzinfo | None) -> Text:
     return Text.assemble(
-        (describe_time(at=line.at), "dim"), FEED_TIMESTAMP_GAP, content
+        (describe_time(at=line.at, zone=zone), "dim"), FEED_TIMESTAMP_GAP, content
     )

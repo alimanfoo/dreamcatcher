@@ -985,7 +985,7 @@ def test_two_faulted_assignments_start_a_global_cooldown(dispatching):
     assert observed.cooldown == GlobalCooldown(
         started=PINNED, ends=PINNED + timedelta(minutes=15)
     )
-    assert "next attempt at 18:56:58 UTC" in held(observed=observed)
+    assert held(observed=observed) == "global cooldown"
     assert [one.assignment_identifier for one in observed.assignment_observations] == [
         ASSIGNMENT_ID,
         SECOND_ASSIGNMENT_ID,

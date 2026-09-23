@@ -6,7 +6,7 @@ from io import BytesIO, TextIOWrapper
 
 import psutil
 import pytest
-from clocks import PINNED, Ticking
+from clocks import DISPLAY_TIME_ZONE, PINNED, Ticking
 from conftest import (
     POST_LIST_PATHS,
     POSTED_BY,
@@ -102,6 +102,7 @@ def idling(
         harness=AgentHarness.CLAUDE,
         interval=300,
         max_agents=max_agents,
+        zone=DISPLAY_TIME_ZONE,
     )
     daemon.clock = ticking
     daemon.wait = waiting
@@ -142,7 +143,7 @@ def test_the_daemon_reports_when_it_has_started_before_its_first_tick(
 
     def verify_report(*, scheduler, at):
         assert (
-            capsys.readouterr().out == "2026-08-19T18:41:58Z  dreamcatcher is running\n"
+            capsys.readouterr().out == "2026-08-20 02:41:58  dreamcatcher is running\n"
         )
         raise KeyboardInterrupt
 
@@ -161,8 +162,8 @@ def test_the_daemon_flushes_every_report(watched, harnesses, gh, monkeypatch):
     daemon.run()
 
     assert reports == [
-        ("2026-08-19T18:41:58Z  dreamcatcher is running", True),
-        ("2026-08-19T18:41:58Z  nothing launched", True),
+        ("2026-08-20 02:41:58  dreamcatcher is running", True),
+        ("2026-08-20 02:41:58  nothing launched", True),
     ]
 
 
@@ -196,9 +197,9 @@ def test_every_tick_records_when_it_ran(watched, harnesses, gh, capsys):
     assert len(ticking.readings) == 2
     assert SchedulerRecord.model_validate_json(recorded).at == ticking.readings[-1]
     assert capsys.readouterr().out == (
-        "2026-08-19T18:41:58Z  dreamcatcher is running\n"
-        "2026-08-19T18:41:58Z  nothing launched\n"
-        "2026-08-19T18:46:58Z  nothing launched\n"
+        "2026-08-20 02:41:58  dreamcatcher is running\n"
+        "2026-08-20 02:41:58  nothing launched\n"
+        "2026-08-20 02:46:58  nothing launched\n"
     )
 
 
@@ -241,7 +242,34 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
     assert f'"assignment_identifier": "{ASSIGNMENT_ID}"' in written_record
     assert (
         capsys.readouterr().out
-        == f"2026-08-19T18:41:58Z  launched round for {ASSIGNMENT_ID}\n"
+        == f"2026-08-20 02:41:58  launched round for {ASSIGNMENT_ID}\n"
+    )
+
+
+def test_a_cooldown_report_names_its_local_end(watched, capsys, monkeypatch):
+    daemon, _, _ = idling(root=watched, ticks=1)
+    scheduler = AgentWorkScheduler(
+        repository=REPOSITORY,
+        account=POSTED_BY,
+        config=daemon.config,
+        state=daemon.state,
+        harness=daemon.harness,
+        clock=daemon.clock,
+        rounds=daemon.rounds,
+    )
+    scheduler_record = SchedulerRecord(
+        at=PINNED,
+        hold="global cooldown",
+        cooldown=GlobalCooldown(started=PINNED, ends=PINNED + timedelta(minutes=15)),
+    )
+
+    monkeypatch.setattr(scheduler, "tick", lambda *, at: scheduler_record)
+
+    daemon.run_scheduler_cycle(scheduler=scheduler, at=PINNED)
+
+    assert capsys.readouterr().out == (
+        "2026-08-20 02:41:58  held: global cooldown — next attempt at "
+        "2026-08-20 02:56:58\n"
     )
 
 
@@ -414,7 +442,7 @@ def test_a_tick_whose_listing_failed_records_what_it_could_not_read(
     assert recorded(daemon=daemon).issue_observations == []
     output = capsys.readouterr().out
     assert output.startswith(
-        "2026-08-19T18:41:58Z  dreamcatcher is running\n2026-08-19T18:41:58Z  held: "
+        "2026-08-20 02:41:58  dreamcatcher is running\n2026-08-20 02:41:58  held: "
     )
     assert output.endswith("gh: could not connect to github.com gh: try again\n")
     assert output.count("\n") == 2
