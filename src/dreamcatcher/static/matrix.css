@@ -599,10 +599,15 @@ body::after {
 }
 
 .feed-line.is-typing {
-  animation-delay: calc(
-    var(--feed-line-reveal-order) * var(--output-typing-duration)
-  );
+  animation-delay: var(--feed-line-reveal-delay);
   animation-fill-mode: backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .latest-output.is-typing,
+  .feed-line.is-typing {
+    animation: none;
+  }
 }
 
 .feed-line time,
