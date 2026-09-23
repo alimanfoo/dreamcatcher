@@ -39,6 +39,7 @@ from dreamcatcher.feed import FeedEvent, FeedNote, FeedProse, FeedRenderer
 from dreamcatcher.github import ConversationComment, PullRequestState, UserPost
 from dreamcatcher.harness_adapters import (
     AgentRoundLaunchRequest,
+    AgentWorkKind,
     HarnessAdapter,
     HarnessInvocation,
     HarnessSessionIdentifier,
@@ -62,7 +63,7 @@ class AgentRoundOutputReader:
 
     harness_adapter: HarnessAdapter
     record_harness_session_identifier: HarnessSessionIdentifierRecorder
-    final_output: Path | None = None
+    final_output_path: Path | None = None
 
     def read(self, *, line: str) -> list[FeedEvent]:
         """Record durable values and return one line's feed events."""
@@ -70,54 +71,9 @@ class AgentRoundOutputReader:
         identifier = output.harness_session_identifier
         if identifier is not None:
             self.record_harness_session_identifier(identifier=identifier)
-        if output.final_output is not None and self.final_output is not None:
-            write_text(text=output.final_output, path=self.final_output)
+        if output.final_output is not None and self.final_output_path is not None:
+            write_text(text=output.final_output, path=self.final_output_path)
         return output.events
-
-
-@dataclass(frozen=True, kw_only=True)
-class AgentRoundStartRequest:
-    """Describe everything that the round boundary needs to start a round."""
-
-    harness: AgentHarness
-    launch_request: AgentRoundLaunchRequest
-    harness_session_identifier: HarnessSessionIdentifier | None
-    record_harness_session_identifier: HarnessSessionIdentifierRecorder
-    paths: "AgentRoundPaths"
-    plan: "AgentRoundPlan | IssueConversationRoundPlan"
-
-
-def start_agent_round(
-    *,
-    request: AgentRoundStartRequest,
-    clock: Callable[[], datetime] = read_current_time,
-) -> "AgentRound":
-    """Start a first or resumed round through its owner's harness."""
-    harness_adapter = HARNESS_ADAPTERS[request.harness]
-    if request.harness_session_identifier is None:
-        invocation = harness_adapter.build_first_round(request=request.launch_request)
-    else:
-        invocation = harness_adapter.build_resumed_round(
-            request=request.launch_request,
-            harness_session_identifier=request.harness_session_identifier,
-        )
-    return AgentRound(
-        output_reader=AgentRoundOutputReader(
-            harness_adapter=harness_adapter,
-            record_harness_session_identifier=(
-                request.record_harness_session_identifier
-            ),
-            final_output=(
-                request.paths.final_output
-                if request.plan.requires_final_output
-                else None
-            ),
-        ),
-        invocation=invocation,
-        paths=request.paths,
-        plan=request.plan,
-        clock=clock,
-    )
 
 
 class AgentRoundPurpose(StrEnum):
@@ -225,7 +181,7 @@ def _record_agent_round_ending(
     return ended_record
 
 
-class AgentRoundInput(DreamcatcherDocument):
+class AgentAssignmentRoundInput(DreamcatcherDocument):
     """Model the pull request state and user posts delivered to a round."""
 
     pull_request_state: PullRequestState
@@ -243,23 +199,60 @@ class IssueConversationInput(DreamcatcherDocument):
 
 
 @dataclass(frozen=True, kw_only=True)
-class AgentRoundPlan:
+class AgentRoundPlan[RoundInputT: DreamcatcherDocument]:
     """Describe the decisions and input that a new round executes."""
 
     purpose: AgentRoundPurpose
     is_recovery: bool
-    input: AgentRoundInput | None = None
-    requires_final_output: bool = False
+    input: RoundInputT | None = None
 
 
 @dataclass(frozen=True, kw_only=True)
-class IssueConversationRoundPlan:
-    """Describe one issue-conversation round and its frozen input."""
+class AgentRoundStartRequest:
+    """Describe everything that the round boundary needs to start a round."""
 
-    purpose: AgentRoundPurpose
-    is_recovery: bool
-    input: IssueConversationInput
-    requires_final_output: bool = True
+    harness: AgentHarness
+    launch_request: AgentRoundLaunchRequest
+    harness_session_identifier: HarnessSessionIdentifier | None
+    record_harness_session_identifier: HarnessSessionIdentifierRecorder
+    paths: "AgentRoundPaths"
+    plan: (
+        AgentRoundPlan[AgentAssignmentRoundInput]
+        | AgentRoundPlan[IssueConversationInput]
+    )
+
+
+def start_agent_round(
+    *,
+    request: AgentRoundStartRequest,
+    clock: Callable[[], datetime] = read_current_time,
+) -> "AgentRound":
+    """Start a first or resumed round through its owner's harness."""
+    harness_adapter = HARNESS_ADAPTERS[request.harness]
+    if request.harness_session_identifier is None:
+        invocation = harness_adapter.build_first_round(request=request.launch_request)
+    else:
+        invocation = harness_adapter.build_resumed_round(
+            request=request.launch_request,
+            harness_session_identifier=request.harness_session_identifier,
+        )
+    return AgentRound(
+        output_reader=AgentRoundOutputReader(
+            harness_adapter=harness_adapter,
+            record_harness_session_identifier=(
+                request.record_harness_session_identifier
+            ),
+            final_output_path=(
+                request.paths.final_output
+                if request.launch_request.work_kind is AgentWorkKind.CONVERSATION
+                else None
+            ),
+        ),
+        invocation=invocation,
+        paths=request.paths,
+        plan=request.plan,
+        clock=clock,
+    )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -370,7 +363,8 @@ class AgentRound:
         output_reader: AgentRoundOutputReader,
         invocation: HarnessInvocation,
         paths: AgentRoundPaths,
-        plan: AgentRoundPlan | IssueConversationRoundPlan,
+        plan: AgentRoundPlan[AgentAssignmentRoundInput]
+        | AgentRoundPlan[IssueConversationInput],
         clock: Callable[[], datetime] = read_current_time,
     ) -> None:
         """Run the invocation as a round at the paths it was given.
@@ -387,7 +381,6 @@ class AgentRound:
         self.feed_renderer = FeedRenderer(worktree=paths.worktree, clock=clock)
         self.started_at = clock()
         self.is_interrupted = False
-        self.requires_final_output = plan.requires_final_output
         self._round_ended = Flag()
         self._feed_write_lock = Lock()
         if plan.input is not None:
@@ -507,7 +500,7 @@ class AgentRound:
         """
         try:
             status = self.harness_process.wait()
-            if self.requires_final_output:
+            if self.output_reader.final_output_path is not None:
                 for stream_reader in self._stream_readers:
                     stream_reader.join()
                 if status == 0 and not self._has_final_output():

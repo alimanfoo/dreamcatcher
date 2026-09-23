@@ -206,8 +206,7 @@ def build_cli_parser() -> argparse.ArgumentParser:
         metavar="N",
         help=(
             "show the feed of that round alone, ending when that round "
-            "ends. The assignment view's round list is where you find the "
-            "number"
+            "ends. The selected work's detail view lists its round numbers"
         ),
     )
     feed_parser.set_defaults(act=_show_feed)

@@ -59,7 +59,7 @@ from dreamcatcher.github import (
 )
 from dreamcatcher.harness_adapters import (
     HarnessSessionIdentifier,
-    refuse_invalid_harness_session_identifier,
+    refuse_reportable_harness_session_identifier,
 )
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.state import StateDirectory
@@ -627,8 +627,8 @@ def find_harness_session_identifier(
     for line in lines:
         identifier = harness_adapter.read_output(line=line).harness_session_identifier
         if identifier is not None:
-            return _refuse_harness_session_identifier(
-                assignment=assignment, identifier=identifier
+            return refuse_reportable_harness_session_identifier(
+                agent_work_identifier=assignment.identifier, identifier=identifier
             )
     return None
 
@@ -637,8 +637,8 @@ def record_harness_session_identifier(
     *, assignment: AgentAssignment, identifier: str
 ) -> None:
     """Record the harness session that every round of the assignment continues."""
-    safe_identifier = _refuse_harness_session_identifier(
-        assignment=assignment, identifier=identifier
+    safe_identifier = refuse_reportable_harness_session_identifier(
+        agent_work_identifier=assignment.identifier, identifier=identifier
     )
     path = assignment.directory / AGENT_ASSIGNMENT_RECORD_NAME
     record = read_json(model=AgentAssignmentRecord, path=path)
@@ -692,22 +692,6 @@ def record_pull_request_observation(
         ),
         path=path,
     )
-
-
-def _refuse_harness_session_identifier(
-    *, assignment: AgentAssignment, identifier: str
-) -> str:
-    """Return an identifier safe for a harness command line, or report why not."""
-    if not identifier:
-        raise ReportableError(
-            f"{assignment.identifier}'s harness session identifier is empty."
-        )
-    try:
-        return refuse_invalid_harness_session_identifier(identifier)
-    except ValueError as error:
-        raise ReportableError(
-            f"{assignment.identifier}'s harness session identifier {error}."
-        ) from error
 
 
 def _discard_worktree_and_branch(

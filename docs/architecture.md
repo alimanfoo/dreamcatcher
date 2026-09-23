@@ -171,22 +171,22 @@ run.
 round process for both assignments and conversations. It should provide
 operations to:
 
-- record the next number that the assignment allocated;
+- record the next number that its owner allocated;
 - record the round's purpose and whether it is recovery;
-- write the prompt and any relayed user posts;
+- write the prompt and any delivered input;
 - ask a harness adapter to build the invocation;
-- start that invocation in the assignment's worktree;
+- start that invocation in its owner's worktree;
 - stream and render its output;
 - record a successful or errored ending;
 - interrupt the process tree safely; and
 - record an interruption when the daemon finds a round record that an earlier
   daemon left without an ending.
 
-An `AgentRoundInput` is the document that a resumed assignment round receives
-beside its prompt. It carries the pull request state and any relayed user posts.
-An `IssueConversationInput` freezes the issue, trusted comments and code
-revision for a conversation round. A conversation plan requires a separate
-captured final result before the round can end successfully.
+An `AgentAssignmentRoundInput` is the document that a resumed assignment round
+receives beside its prompt. It carries the pull request state and any relayed
+user posts. An `IssueConversationInput` freezes the issue, trusted comments and
+code revision for a conversation round. The conversation launch kind requires a
+separate captured final result before the round can end successfully.
 
 The scheduler decides which purpose and recovery flag a new round has. The round
 boundary executes and records that decision; it does not inspect the pull
@@ -195,8 +195,8 @@ request or select later work.
 A round is running while it has no terminal outcome and its process is alive.
 Successful, errored, and interrupted are terminal outcomes.
 
-A round may have an internal collection of file paths, but the domain object
-shared across boundaries is the assignment's Git worktree.
+A round may have an internal collection of file paths, but its owner remains the
+domain object shared across boundaries.
 
 ### GitHub
 

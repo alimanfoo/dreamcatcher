@@ -448,7 +448,7 @@ def test_a_round_that_ends_after_its_launch_tick_waits_for_the_next_tick(state):
         state=state,
         tick=SchedulerRecord(
             at=LOOKED_AT,
-            launched_assignment_identifier=ASSIGNMENT_ID,
+            launched_agent_work_identifier=ASSIGNMENT_ID,
         ),
     )
 

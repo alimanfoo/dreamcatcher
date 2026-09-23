@@ -217,13 +217,13 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
         account=POSTED_BY,
         config=daemon.config,
         state=daemon.state,
-        harness=daemon.harness,
+        requested_assignment_harness=daemon.harness,
         clock=daemon.clock,
         rounds=daemon.rounds,
     )
     scheduler_record = SchedulerRecord(
         at=PINNED,
-        launched_assignment_identifier=ASSIGNMENT_ID,
+        launched_agent_work_identifier=ASSIGNMENT_ID,
         assignment_observations=[
             AgentAssignmentObservation(
                 assignment_identifier=ASSIGNMENT_ID,
@@ -243,7 +243,7 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
 
     assert recorded(daemon=daemon) == scheduler_record
     written_record = daemon.state.scheduler_record.read_text(encoding="utf-8")
-    assert f'"launched_assignment_identifier": "{ASSIGNMENT_ID}"' in written_record
+    assert f'"launched_agent_work_identifier": "{ASSIGNMENT_ID}"' in written_record
     assert f'"assignment_identifier": "{ASSIGNMENT_ID}"' in written_record
     assert (
         capsys.readouterr().out
@@ -258,13 +258,13 @@ def test_a_conversation_launch_is_recorded_and_reported(watched, capsys, monkeyp
         account=POSTED_BY,
         config=daemon.config,
         state=daemon.state,
-        harness=daemon.harness,
+        requested_assignment_harness=daemon.harness,
         clock=daemon.clock,
         rounds=daemon.rounds,
     )
     scheduler_record = SchedulerRecord(
         at=PINNED,
-        launched_conversation_identifier="conversation-GH8",
+        launched_agent_work_identifier="conversation-GH8",
     )
     monkeypatch.setattr(scheduler, "tick", lambda *, at: scheduler_record)
 
@@ -283,7 +283,7 @@ def test_a_cooldown_report_names_its_local_end(watched, capsys, monkeypatch):
         account=POSTED_BY,
         config=daemon.config,
         state=daemon.state,
-        harness=daemon.harness,
+        requested_assignment_harness=daemon.harness,
         clock=daemon.clock,
         rounds=daemon.rounds,
     )
@@ -602,7 +602,7 @@ def test_a_failed_tick_preserves_the_last_scheduler_record(dispatching, capsys):
         account=POSTED_BY,
         config=daemon.config,
         state=daemon.state,
-        harness=daemon.harness,
+        requested_assignment_harness=daemon.harness,
         clock=daemon.clock,
         rounds=daemon.rounds,
     )

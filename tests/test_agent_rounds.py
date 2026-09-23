@@ -22,8 +22,8 @@ from recordings import render_harness_recording
 
 from dreamcatcher.agent_rounds import (
     AGENT_ROUND_RECORD_NAME,
+    AgentAssignmentRoundInput,
     AgentRound,
-    AgentRoundInput,
     AgentRoundOutcome,
     AgentRoundOutputReader,
     AgentRoundPaths,
@@ -49,6 +49,7 @@ from dreamcatcher.github import (
 )
 from dreamcatcher.harness_adapters import (
     AgentRoundLaunchRequest,
+    AgentWorkKind,
     HarnessAdapter,
     HarnessInvocation,
     HarnessOutput,
@@ -101,13 +102,11 @@ def round_harness(
     *,
     harness_adapter: HarnessAdapter = CLAUDE_ADAPTER,
     record=ignore_harness_session_identifier,
-    final_output=None,
 ) -> AgentRoundOutputReader:
     """Return the harness boundary used by one round test."""
     return AgentRoundOutputReader(
         harness_adapter=harness_adapter,
         record_harness_session_identifier=record,
-        final_output=final_output,
     )
 
 
@@ -303,7 +302,7 @@ def test_a_round_writes_the_pull_request_state_and_user_posts_it_was_given(
         plan=AgentRoundPlan(
             purpose=PURPOSE,
             is_recovery=False,
-            input=AgentRoundInput(
+            input=AgentAssignmentRoundInput(
                 pull_request_state=PullRequestState.OPEN, user_posts=posts
             ),
         ),
@@ -515,15 +514,23 @@ def test_a_round_saves_its_required_final_output_before_it_ends(
             "cache_creation_input_tokens": 0,
         },
     )
-    fake(program="harness").replies(stdout=f"{final_result}\n")
+    fake(program="claude").replies(stdout=f"{final_result}\n")
     paths = compose_round_paths(worktree=worktree, directory=directory)
 
-    running = AgentRound(
-        output_reader=round_harness(final_output=paths.final_output),
-        invocation=HarnessInvocation(program="harness", arguments=[], prompt=PROMPT),
-        paths=paths,
-        plan=AgentRoundPlan(
-            purpose=PURPOSE, is_recovery=False, requires_final_output=True
+    running = start_agent_round(
+        request=AgentRoundStartRequest(
+            harness=AgentHarness.CLAUDE,
+            launch_request=AgentRoundLaunchRequest(
+                agent_work_identifier="conversation-GH9",
+                model="opus[1m]",
+                effort="xhigh",
+                prompt=PROMPT,
+                work_kind=AgentWorkKind.CONVERSATION,
+            ),
+            harness_session_identifier=None,
+            record_harness_session_identifier=ignore_harness_session_identifier,
+            paths=paths,
+            plan=AgentRoundPlan(purpose=AgentRoundPurpose.DISCUSS, is_recovery=False),
         ),
         clock=pinned,
     )
@@ -552,15 +559,23 @@ def test_a_required_final_output_that_is_missing_or_empty_fails_the_round(
                 "cache_creation_input_tokens": 0,
             },
         )
-    fake(program="harness").replies(stdout=f"{stdout}\n" if stdout else "")
+    fake(program="claude").replies(stdout=f"{stdout}\n" if stdout else "")
     paths = compose_round_paths(worktree=worktree, directory=directory)
 
-    running = AgentRound(
-        output_reader=round_harness(final_output=paths.final_output),
-        invocation=HarnessInvocation(program="harness", arguments=[], prompt=PROMPT),
-        paths=paths,
-        plan=AgentRoundPlan(
-            purpose=PURPOSE, is_recovery=False, requires_final_output=True
+    running = start_agent_round(
+        request=AgentRoundStartRequest(
+            harness=AgentHarness.CLAUDE,
+            launch_request=AgentRoundLaunchRequest(
+                agent_work_identifier="conversation-GH9",
+                model="opus[1m]",
+                effort="xhigh",
+                prompt=PROMPT,
+                work_kind=AgentWorkKind.CONVERSATION,
+            ),
+            harness_session_identifier=None,
+            record_harness_session_identifier=ignore_harness_session_identifier,
+            paths=paths,
+            plan=AgentRoundPlan(purpose=AgentRoundPurpose.DISCUSS, is_recovery=False),
         ),
         clock=pinned,
     )

@@ -3,6 +3,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from threading import Lock
 
 from pydantic import AwareDatetime
 
@@ -11,7 +12,11 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     IssueConversationInput,
 )
-from dreamcatcher.config import AgentHarness, IssueConversationConfig
+from dreamcatcher.config import (
+    IssueConversationConfig,
+    IssueConversationHarness,
+    QuotableText,
+)
 from dreamcatcher.documents import DreamcatcherDocument, read_json, write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import (
@@ -23,7 +28,7 @@ from dreamcatcher.git import (
 from dreamcatcher.github import ConversationComment, Issue
 from dreamcatcher.harness_adapters import (
     HarnessSessionIdentifier,
-    refuse_invalid_harness_session_identifier,
+    refuse_reportable_harness_session_identifier,
 )
 from dreamcatcher.prompts import AGENT_POST_MARKER
 from dreamcatcher.state import StateDirectory
@@ -49,10 +54,10 @@ class IssueConversationRecord(DreamcatcherDocument):
     label: str
     worktree: Path
     revision: str
-    harness: AgentHarness
+    harness: IssueConversationHarness
     harness_session_identifier: HarnessSessionIdentifier | None = None
-    model: str
-    effort: str
+    model: QuotableText
+    effort: QuotableText
     prompt: str
     delivery_cursor: IssueCommentCursor | None = None
 
@@ -81,6 +86,9 @@ class IssueConversation:
     directory: Path
     record: IssueConversationRecord
     rounds: list[AgentRoundRecord] = field(default_factory=list)
+    _record_lock: Lock = field(
+        default_factory=Lock, init=False, repr=False, compare=False
+    )
 
     @property
     def identifier(self) -> str:
@@ -202,36 +210,36 @@ def advance_issue_comment_delivery_cursor(
     *, conversation: IssueConversation, newest: ConversationComment
 ) -> None:
     """Record the newest issue comment accepted for delivery."""
-    _write_conversation_record(
-        conversation=conversation,
-        record=conversation.record.model_copy(
-            update={
+    with conversation._record_lock:
+        _update_issue_conversation_record(
+            conversation=conversation,
+            updates={
                 "delivery_cursor": IssueCommentCursor(
                     written_at=newest.written_at, id=newest.id
                 )
-            }
-        ),
-    )
+            },
+        )
 
 
 def record_issue_conversation_session_identifier(
     *, conversation: IssueConversation, identifier: str
 ) -> None:
     """Record the harness session identifier reported by the first round."""
-    validated = refuse_invalid_harness_session_identifier(identifier)
-    recorded = conversation.record.harness_session_identifier
-    if recorded is not None and recorded != validated:
-        raise ReportableError(
-            f"Conversation {conversation.identifier} reported harness session "
-            f"{validated}, after it already reported {recorded}."
-        )
-    if recorded is None:
-        _write_conversation_record(
-            conversation=conversation,
-            record=conversation.record.model_copy(
-                update={"harness_session_identifier": validated}
-            ),
-        )
+    validated = refuse_reportable_harness_session_identifier(
+        agent_work_identifier=conversation.identifier, identifier=identifier
+    )
+    with conversation._record_lock:
+        recorded = conversation.record.harness_session_identifier
+        if recorded is not None and recorded != validated:
+            raise ReportableError(
+                f"Conversation {conversation.identifier} reported harness session "
+                f"{validated}, after it already reported {recorded}."
+            )
+        if recorded is None:
+            _update_issue_conversation_record(
+                conversation=conversation,
+                updates={"harness_session_identifier": validated},
+            )
 
 
 def save_issue_conversation_reply(
@@ -289,11 +297,15 @@ def _read_issue_conversation(
     )
 
 
-def _write_conversation_record(
-    *, conversation: IssueConversation, record: IssueConversationRecord
+def _update_issue_conversation_record(
+    *,
+    conversation: IssueConversation,
+    updates: dict[str, object],
 ) -> None:
+    """Apply field updates while the caller holds the conversation's record lock."""
+    updated = conversation.record.model_copy(update=updates)
     write_json(
-        document=record,
+        document=updated,
         path=conversation.directory / ISSUE_CONVERSATION_RECORD_NAME,
     )
-    object.__setattr__(conversation, "record", record)
+    object.__setattr__(conversation, "record", updated)

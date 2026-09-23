@@ -387,28 +387,19 @@ def _show_assignment_tail(
             ),
             404,
         )
-    try:
-        cursor = _decode_feed_cursor(value=request.args.get("cursor", ""))
-        tail = _read_agent_tail(
-            owner=status.assignment,
-            context=WebAgentTailContext(
-                status=str(status.value),
-                status_label=_compose_assignment_status_label(status=status),
-                rounds=_compose_agent_rounds(
-                    round_statuses=status.round_statuses, zone=zone
-                ),
+    return _show_agent_tail(
+        owner=status.assignment,
+        context=WebAgentTailContext(
+            status=str(status.value),
+            status_label=_compose_assignment_status_label(status=status),
+            rounds=_compose_agent_rounds(
+                round_statuses=status.round_statuses, zone=zone
             ),
-            cursor=cursor,
-            zone=zone,
-        )
-    except _InvalidFeedCursorError:
-        return _invalid_feed_cursor_response()
-    response_status = (
-        _HTMX_STOP_POLLING_STATUS
-        if not tail.feed_rounds and status.value in STATUSES_THAT_END_A_VIEW
-        else 200
+        ),
+        is_terminal=status.value in STATUSES_THAT_END_A_VIEW,
+        status_id="assignment-status",
+        zone=zone,
     )
-    return render_template("tail.html", tail=tail), response_status
 
 
 def _show_conversation(
@@ -439,29 +430,47 @@ def _show_conversation_tail(
     status = read_issue_conversation_status(state=state, issue=issue, clock=clock)
     if status is None:
         return _missing_conversation_response(issue=issue)
+    return _show_agent_tail(
+        owner=status.conversation,
+        context=WebAgentTailContext(
+            status=str(status.value),
+            status_label=str(status.value),
+            rounds=_compose_agent_rounds(
+                round_statuses=status.round_statuses, zone=zone
+            ),
+        ),
+        is_terminal=status.value in CONVERSATION_STATUSES_THAT_END_A_VIEW,
+        status_id="conversation-status",
+        zone=zone,
+    )
+
+
+def _show_agent_tail(
+    *,
+    owner: _WebFeedOwner,
+    context: WebAgentTailContext,
+    is_terminal: bool,
+    status_id: str,
+    zone: tzinfo | None,
+) -> str | tuple[str, int]:
+    """Render incremental feed output for an assignment or conversation."""
     try:
         cursor = _decode_feed_cursor(value=request.args.get("cursor", ""))
         tail = _read_agent_tail(
-            owner=status.conversation,
-            context=WebAgentTailContext(
-                status=str(status.value),
-                status_label=str(status.value),
-                rounds=_compose_agent_rounds(
-                    round_statuses=status.round_statuses, zone=zone
-                ),
-            ),
+            owner=owner,
+            context=context,
             cursor=cursor,
             zone=zone,
         )
     except _InvalidFeedCursorError:
         return _invalid_feed_cursor_response()
     response_status = (
-        _HTMX_STOP_POLLING_STATUS
-        if not tail.feed_rounds
-        and status.value in CONVERSATION_STATUSES_THAT_END_A_VIEW
-        else 200
+        _HTMX_STOP_POLLING_STATUS if not tail.feed_rounds and is_terminal else 200
     )
-    return render_template("conversation-tail.html", tail=tail), response_status
+    return (
+        render_template("tail.html", tail=tail, status_id=status_id),
+        response_status,
+    )
 
 
 def _missing_conversation_response(*, issue: int) -> tuple[str, int]:

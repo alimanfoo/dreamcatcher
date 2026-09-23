@@ -19,6 +19,7 @@ from typing import Annotated, ClassVar
 from pydantic import AfterValidator
 
 from dreamcatcher.commands import refuse_unquotable
+from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedEvent, FeedProse
 
 
@@ -31,6 +32,22 @@ def refuse_invalid_harness_session_identifier(identifier: str, /) -> str:
             "digits, hyphens, or underscores"
         )
     return safe_identifier
+
+
+def refuse_reportable_harness_session_identifier(
+    *, agent_work_identifier: str, identifier: str
+) -> str:
+    """Return a safe session identifier, or report why its owner cannot use it."""
+    if not identifier:
+        raise ReportableError(
+            f"{agent_work_identifier}'s harness session identifier is empty."
+        )
+    try:
+        return refuse_invalid_harness_session_identifier(identifier)
+    except ValueError as error:
+        raise ReportableError(
+            f"{agent_work_identifier}'s harness session identifier {error}."
+        ) from error
 
 
 HarnessSessionIdentifier = Annotated[

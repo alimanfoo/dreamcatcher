@@ -123,7 +123,7 @@ class DreamcatcherDaemon:
                 account=account,
                 config=self.config,
                 state=self.state,
-                harness=self.harness,
+                requested_assignment_harness=self.harness,
                 clock=self.clock,
                 rounds=self.rounds,
                 max_agents=self.max_agents,
@@ -180,14 +180,9 @@ class DreamcatcherDaemon:
             )
             return
         write_json(document=scheduler_record, path=self.state.scheduler_record)
-        if scheduler_record.launched_assignment_identifier is not None:
+        if scheduler_record.launched_agent_work_identifier is not None:
             outcome_description = (
-                f"launched round for {scheduler_record.launched_assignment_identifier}"
-            )
-        elif scheduler_record.launched_conversation_identifier is not None:
-            outcome_description = (
-                "launched round for "
-                f"{scheduler_record.launched_conversation_identifier}"
+                f"launched round for {scheduler_record.launched_agent_work_identifier}"
             )
         elif scheduler_record.hold is not None:
             hold_description = " ".join(scheduler_record.hold.split())

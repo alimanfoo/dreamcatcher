@@ -559,12 +559,12 @@ class _StatusReportReader:
         if observation is None:
             # A round can finish before the next tick replaces the launch record,
             # leaving the launched assignment with no observation in this gap.
-            launched_assignment_identifier = (
+            launched_agent_work_identifier = (
                 None
                 if self.scheduler_record is None
-                else self.scheduler_record.launched_assignment_identifier
+                else self.scheduler_record.launched_agent_work_identifier
             )
-            if launched_assignment_identifier == assignment.identifier:
+            if launched_agent_work_identifier == assignment.identifier:
                 return self._compose_agent_assignment_status(
                     assignment=assignment,
                     value=AgentAssignmentStatusValue.WAITING,

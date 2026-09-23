@@ -12,7 +12,7 @@
             <h1 id="conversation-heading"><strong class="assignment-issue">#{{ view.issue }} <span>{{ view.title }}</span></strong></h1>
           {% endif %}
           <div class="assignment-heading-actions">
-            {% include "partials/conversation-status.html" %}
+            {% with status_id="conversation-status" %}{% include "partials/agent-work-status.html" %}{% endwith %}
           </div>
         </div>
         <p class="assignment-detail">{{ view.detail }}</p>

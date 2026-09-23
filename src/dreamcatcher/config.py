@@ -29,6 +29,20 @@ class AgentHarness(StrEnum):
     CODEX = "codex"
 
 
+def refuse_unsupported_issue_conversation_harness(
+    harness: AgentHarness, /
+) -> AgentHarness:
+    """Return the conversation harness supported in this stage, or refuse it."""
+    if harness is not AgentHarness.CLAUDE:
+        raise ValueError("Codex issue conversations are not supported yet")
+    return harness
+
+
+IssueConversationHarness = Annotated[
+    AgentHarness, AfterValidator(refuse_unsupported_issue_conversation_harness)
+]
+
+
 class AgentAssignmentRecipe(DreamcatcherDocument):
     """Describe how one harness runs assignments for a dispatch label."""
 
@@ -41,17 +55,10 @@ class IssueConversationConfig(DreamcatcherDocument):
     """Configure one repository's issue-conversation partner."""
 
     label: str
-    harness: AgentHarness
+    harness: IssueConversationHarness
     prompt: str
     model: QuotableText
     effort: QuotableText
-
-    @model_validator(mode="after")
-    def _require_claude(self) -> Self:
-        """Refuse conversation harnesses that this stage cannot run."""
-        if self.harness is not AgentHarness.CLAUDE:
-            raise ValueError("Codex issue conversations are not supported yet")
-        return self
 
 
 class DispatchRoute(DreamcatcherDocument):

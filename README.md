@@ -74,8 +74,9 @@ record. The prompt may use `{issue}` and must follow the
 ## Commands
 
 `run` is the daemon. Start it from the repository's main checkout, and name the
-harness to run rounds with. It keeps going in the foreground, dispatching an
-assignment per labelled issue.
+harness requested for assignment rounds. Conversation rounds use the harness
+saved from their separate configuration. The daemon keeps going in the
+foreground, dispatching an assignment per labelled issue.
 
 ```sh
 dreamcatcher run --harness claude
@@ -137,17 +138,18 @@ saved, marked as Dreamcatcher output and posted back to the issue. `NO_REPLY`
 finishes without a post. A failed post is retried from the saved answer without
 running Claude again. This first stage does not run follow-up rounds.
 
-Every round records its number, purpose (`implement`, `address feedback` or
-`wrap up`), whether it is recovering an earlier round, and its outcome
-(`running`, `successful`, `errored` or `interrupted`). Purpose and recovery are
-independent: for example, a failed wrap-up is followed by a recovery round whose
-purpose is still `wrap up`.
+Every round records its number, purpose, whether it is recovering an earlier
+round, and its outcome (`running`, `successful`, `errored` or `interrupted`).
+Purpose and recovery are independent for assignments: for example, a failed
+wrap-up is followed by a recovery round whose purpose is still `wrap up`.
 
 Rounds die with the daemon. When `run` starts, it records any round orphaned by
-an earlier daemon as interrupted; the next round recovers that work from where
-it stopped. One errored round receives an ordinary recovery opportunity and does
-not stop unrelated work. Two consecutive errored rounds put that assignment in
-fault; an interrupted or successful round breaks the sequence.
+an earlier daemon as interrupted. An assignment's next round recovers that work
+from where it stopped. One errored assignment round receives an ordinary
+recovery opportunity and does not stop unrelated work. Two consecutive errored
+rounds put that assignment in fault; an interrupted or successful round breaks
+the sequence. This first conversation stage records interrupted and failed
+rounds but does not recover them automatically.
 
 When two assignments are in fault, the scheduler starts a fifteen-minute global
 cooldown and starts no agent work during it. The scheduler keeps observing and
@@ -239,7 +241,7 @@ dreamcatcher feed GH123 --conversation
 
 `--round 2` narrows the feed to one round. One named round is all that view
 shows, so it ends when that round ends rather than stay open for the round after
-it. The round list of the assignment view is where you find the number.
+it. The selected assignment or conversation view lists its round numbers.
 
 ```sh
 dreamcatcher feed GH123 --assignment --round 2

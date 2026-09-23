@@ -32,14 +32,13 @@ from dreamcatcher.agent_assignments import (
     record_pull_request_observation,
 )
 from dreamcatcher.agent_rounds import (
+    AgentAssignmentRoundInput,
     AgentRound,
-    AgentRoundInput,
     AgentRoundOutcome,
     AgentRoundPlan,
     AgentRoundPurpose,
     AgentRoundStartRequest,
     ErroredAgentRoundEnding,
-    IssueConversationRoundPlan,
     start_agent_round,
 )
 from dreamcatcher.config import (
@@ -167,8 +166,7 @@ class SchedulerRecord(DreamcatcherDocument):
 
     at: UtcDateTime
     hold: str | None = None
-    launched_assignment_identifier: str | None = None
-    launched_conversation_identifier: str | None = None
+    launched_agent_work_identifier: str | None = None
     issue_observations: list[IssueObservation] = Field(default_factory=list)
     assignment_observations: list[AgentAssignmentObservation] = Field(
         default_factory=list
@@ -176,13 +174,42 @@ class SchedulerRecord(DreamcatcherDocument):
     cooldown: GlobalCooldown | None = None
     most_recent_cooldown_ended: UtcDateTime | None = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def _read_legacy_launched_identifiers(
+        cls, value: dict[str, object], /
+    ) -> dict[str, object]:
+        """Read scheduler records written before launches had one owner-neutral key."""
+        data = dict(value)
+        assignment = data.pop("launched_assignment_identifier", None)
+        conversation = data.pop("launched_conversation_identifier", None)
+        if "launched_agent_work_identifier" not in data:
+            data["launched_agent_work_identifier"] = assignment or conversation
+        return data
+
+    @property
+    def launched_assignment_identifier(self) -> str | None:
+        """The launched identifier when it belongs to an assignment."""
+        identifier = self.launched_agent_work_identifier
+        if identifier is None or identifier.startswith("conversation-"):
+            return None
+        return identifier
+
+    @property
+    def launched_conversation_identifier(self) -> str | None:
+        """The launched identifier when it belongs to a conversation."""
+        identifier = self.launched_agent_work_identifier
+        if identifier is not None and identifier.startswith("conversation-"):
+            return identifier
+        return None
+
 
 @dataclass(frozen=True, kw_only=True)
 class RequiredAgentRound:
     """Describe the next round that an assignment requires."""
 
     assignment: AgentAssignment
-    plan: AgentRoundPlan
+    plan: AgentRoundPlan[AgentAssignmentRoundInput]
     reason: str
     prompt: str
 
@@ -746,7 +773,7 @@ def _compose_resumed_round_requirement(
         plan=AgentRoundPlan(
             purpose=_derive_round_purpose(pull_request=pull_request),
             is_recovery=recovery_reason is not None,
-            input=AgentRoundInput(
+            input=AgentAssignmentRoundInput(
                 pull_request_state=pull_request.state, user_posts=undelivered_posts
             ),
         ),
@@ -920,7 +947,7 @@ class AgentWorkScheduler:
     account: str
     config: DreamcatcherConfig
     state: StateDirectory
-    harness: AgentHarness
+    requested_assignment_harness: AgentHarness
     clock: Callable[[], datetime]
     rounds: dict[str, AgentRound]
     max_agents: int = DEFAULT_MAX_AGENTS
@@ -933,8 +960,8 @@ class AgentWorkScheduler:
         next tick tries again.
 
         Every tick observes relevant issues so that status stays current while
-        open work runs or waits for capacity. A failed issue listing prevents a
-        launch.
+        open work runs or waits for capacity. A failed read prevents launches
+        in the workflow that depends on it without holding the other workflow.
 
         A global cooldown prevents every launch but does not prevent reads, so
         assignment observations remain current while the cooldown is active.
@@ -946,13 +973,13 @@ class AgentWorkScheduler:
             if previous_record is None
             else previous_record.most_recent_cooldown_ended
         )
-        ended_assignment_identifiers = [
-            assignment_identifier
-            for assignment_identifier, running in self.rounds.items()
+        ended_agent_work_identifiers = [
+            agent_work_identifier
+            for agent_work_identifier, running in self.rounds.items()
             if not running.is_alive
         ]
-        for assignment_identifier in ended_assignment_identifiers:
-            del self.rounds[assignment_identifier]
+        for agent_work_identifier in ended_agent_work_identifiers:
+            del self.rounds[agent_work_identifier]
         assignments = read_agent_assignments(state=self.state)
         conversations = read_issue_conversations(state=self.state)
         publication_failure = _publish_issue_conversation_replies(
@@ -975,16 +1002,16 @@ class AgentWorkScheduler:
                 state=self.state, repository=self.repository
             ),
         )
+        assignment_failure = (
+            None
+            if issue_observation_result.failure is None
+            else f"could not refresh issues: {issue_observation_result.failure}"
+        )
+        conversation_failure = _combine_scheduler_failures(
+            failures=[conversation_candidates.failure, publication_failure]
+        )
         scheduler_failure = _combine_scheduler_failures(
-            failures=[
-                (
-                    None
-                    if issue_observation_result.failure is None
-                    else f"could not refresh issues: {issue_observation_result.failure}"
-                ),
-                conversation_candidates.failure,
-                publication_failure,
-            ]
+            failures=[assignment_failure, conversation_failure]
         )
         issue_observations = [
             observation.model_copy(update={"observed_at": at})
@@ -1037,13 +1064,29 @@ class AgentWorkScheduler:
                     ),
                 }
             )
-        if scheduler_failure is not None:
-            return record.model_copy(update={"hold": scheduler_failure})
+        return self._launch_available_work(
+            record=record,
+            inspection_results=inspection_results,
+            conversation_candidates=conversation_candidates,
+            assignment_failure=assignment_failure,
+            scheduler_failure=scheduler_failure,
+        )
+
+    def _launch_available_work(
+        self,
+        *,
+        record: SchedulerRecord,
+        inspection_results: list[AgentAssignmentInspectionResult],
+        conversation_candidates: IssueConversationCandidateResult,
+        assignment_failure: str | None,
+        scheduler_failure: str | None,
+    ) -> SchedulerRecord:
+        """Launch the highest-priority work whose own observations succeeded."""
         prioritized_rounds = prioritize_required_rounds(
             required_rounds=[
                 result
                 for result in inspection_results
-                if isinstance(result, RequiredAgentRound)
+                if isinstance(result, RequiredAgentRound) and assignment_failure is None
             ]
         )
         if prioritized_rounds:
@@ -1057,9 +1100,16 @@ class AgentWorkScheduler:
                 record=record,
                 candidate=conversation_candidates.candidates[0],
             )
-        return self._dispatch_oldest_issue(
-            record=record,
-        )
+        if assignment_failure is None:
+            dispatched = self._dispatch_oldest_issue(record=record)
+            if (
+                dispatched.launched_agent_work_identifier is not None
+                or dispatched.hold is not None
+            ):
+                return dispatched
+        if scheduler_failure is not None:
+            return record.model_copy(update={"hold": scheduler_failure})
+        return record
 
     def _inspect_assignments(
         self,
@@ -1117,7 +1167,7 @@ class AgentWorkScheduler:
         ]
         return record.model_copy(
             update={
-                "launched_assignment_identifier": required.assignment.identifier,
+                "launched_agent_work_identifier": required.assignment.identifier,
                 "assignment_observations": list_assignment_observations(
                     inspection_results=remaining_results
                 ),
@@ -1207,7 +1257,7 @@ class AgentWorkScheduler:
                         conversation=conversation,
                     ),
                     paths=paths,
-                    plan=IssueConversationRoundPlan(
+                    plan=AgentRoundPlan(
                         purpose=AgentRoundPurpose.DISCUSS,
                         is_recovery=False,
                         input=round_input,
@@ -1222,7 +1272,7 @@ class AgentWorkScheduler:
         except ReportableError as failure:
             return record.model_copy(update={"hold": str(failure)})
         return record.model_copy(
-            update={"launched_conversation_identifier": conversation.identifier}
+            update={"launched_agent_work_identifier": conversation.identifier}
         )
 
     def _dispatch_oldest_issue(
@@ -1247,7 +1297,7 @@ class AgentWorkScheduler:
         except ReportableError as failure:
             return record.model_copy(update={"hold": str(failure)})
         return record.model_copy(
-            update={"launched_assignment_identifier": assignment_identifier}
+            update={"launched_agent_work_identifier": assignment_identifier}
         )
 
     def _launch_assignment(self, *, issue: int, label: str, at: datetime) -> str:
@@ -1258,7 +1308,7 @@ class AgentWorkScheduler:
         )
         assignment = creator.create(
             route=self.config.dispatch_routes[label],
-            requested_harness=self.harness,
+            requested_harness=self.requested_assignment_harness,
             issue=issue,
             at=at,
         )

@@ -19,7 +19,7 @@ from dreamcatcher.agent_assignments import (
     read_agent_assignments,
 )
 from dreamcatcher.agent_rounds import (
-    AgentRoundInput,
+    AgentAssignmentRoundInput,
     AgentRoundPlan,
     AgentRoundPurpose,
     AgentRoundRecord,
@@ -268,7 +268,7 @@ def test_the_prompt_of_a_posts_resume_sends_the_assignment_to_the_next_rounds_in
     resume = found(state=state)
 
     assert isinstance(resume, RequiredAgentRound)
-    pull_request_state, user_posts = AgentRoundInput.model_fields
+    pull_request_state, user_posts = AgentAssignmentRoundInput.model_fields
     assert f"Read {pull_request_state} before anything else." in resume.prompt
     assert f"act on {user_posts}" in resume.prompt
     assert f"pull request #{PULL_REQUEST}" in resume.prompt
@@ -292,7 +292,7 @@ def test_a_pull_request_that_is_finished_calls_for_one_last_round(
     assert isinstance(resume, RequiredAgentRound)
     assert resume.plan.purpose is AgentRoundPurpose.WRAP_UP
     assert resume.reason == f"the pull request is {state_name.lower()}"
-    assert resume.plan.input == AgentRoundInput(
+    assert resume.plan.input == AgentAssignmentRoundInput(
         pull_request_state=state_name, user_posts=[]
     )
 

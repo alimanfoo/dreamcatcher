@@ -49,7 +49,7 @@ def conversation_scheduler(cloned, gh):
         account=POSTED_BY,
         config=read_dreamcatcher_config(root=cloned),
         state=StateDirectory(root=cloned),
-        harness=AgentHarness.CLAUDE,
+        requested_assignment_harness=AgentHarness.CLAUDE,
         clock=clock,
         rounds={},
     )
