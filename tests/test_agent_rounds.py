@@ -15,6 +15,7 @@ from conftest import (
     comment,
     inline_comment,
     review,
+    streamed,
 )
 from fakes import Line, Stream, recorded
 from recordings import render_harness_recording
@@ -100,11 +101,13 @@ def round_harness(
     *,
     harness_adapter: HarnessAdapter = CLAUDE_ADAPTER,
     record=ignore_harness_session_identifier,
+    final_output=None,
 ) -> AgentRoundOutputReader:
     """Return the harness boundary used by one round test."""
     return AgentRoundOutputReader(
         harness_adapter=harness_adapter,
         record_harness_session_identifier=record,
+        final_output=final_output,
     )
 
 
@@ -494,6 +497,79 @@ def test_a_round_that_finished_says_how_it_ended(fake, worktree, directory):
         ending=compose_agent_round_ending(at=PINNED, status=2),
     )
     assert record.outcome is AgentRoundOutcome.ERRORED
+
+
+def test_a_round_saves_its_required_final_output_before_it_ends(
+    fake, worktree, directory
+):
+    final_result = streamed(
+        type="result",
+        subtype="success",
+        is_error=False,
+        result="The answer.\n",
+        total_cost_usd=0.0,
+        usage={
+            "output_tokens": 1,
+            "input_tokens": 1,
+            "cache_read_input_tokens": 0,
+            "cache_creation_input_tokens": 0,
+        },
+    )
+    fake(program="harness").replies(stdout=f"{final_result}\n")
+    paths = compose_round_paths(worktree=worktree, directory=directory)
+
+    running = AgentRound(
+        output_reader=round_harness(final_output=paths.final_output),
+        invocation=HarnessInvocation(program="harness", arguments=[], prompt=PROMPT),
+        paths=paths,
+        plan=AgentRoundPlan(
+            purpose=PURPOSE, is_recovery=False, requires_final_output=True
+        ),
+        clock=pinned,
+    )
+    running.wait()
+
+    assert paths.final_output.read_text(encoding="utf-8") == "The answer.\n"
+    assert written(path=paths.record).outcome is AgentRoundOutcome.SUCCESSFUL
+
+
+@pytest.mark.parametrize("result", [None, "   \n"])
+def test_a_required_final_output_that_is_missing_or_empty_fails_the_round(
+    fake, worktree, directory, result
+):
+    stdout = ""
+    if result is not None:
+        stdout = streamed(
+            type="result",
+            subtype="success",
+            is_error=False,
+            result=result,
+            total_cost_usd=0.0,
+            usage={
+                "output_tokens": 1,
+                "input_tokens": 1,
+                "cache_read_input_tokens": 0,
+                "cache_creation_input_tokens": 0,
+            },
+        )
+    fake(program="harness").replies(stdout=f"{stdout}\n" if stdout else "")
+    paths = compose_round_paths(worktree=worktree, directory=directory)
+
+    running = AgentRound(
+        output_reader=round_harness(final_output=paths.final_output),
+        invocation=HarnessInvocation(program="harness", arguments=[], prompt=PROMPT),
+        paths=paths,
+        plan=AgentRoundPlan(
+            purpose=PURPOSE, is_recovery=False, requires_final_output=True
+        ),
+        clock=pinned,
+    )
+    running.wait()
+
+    assert written(path=paths.record).outcome is AgentRoundOutcome.ERRORED
+    assert "[failed] the harness returned no final output" in paths.feed.read_text(
+        encoding="utf-8"
+    )
 
 
 def test_an_errored_ending_refuses_a_success_status():

@@ -13,6 +13,7 @@ import json
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Annotated, ClassVar
 
 from pydantic import AfterValidator
@@ -37,6 +38,13 @@ HarnessSessionIdentifier = Annotated[
 ]
 
 
+class AgentWorkKind(StrEnum):
+    """Identify the contract and permissions for one kind of agent work."""
+
+    ASSIGNMENT = "assignment"
+    CONVERSATION = "conversation"
+
+
 @dataclass(frozen=True, kw_only=True)
 class AgentRoundLaunchRequest:
     """Describe the settled agent-work settings and prompt for one round.
@@ -49,6 +57,7 @@ class AgentRoundLaunchRequest:
     model: str
     effort: str
     prompt: str
+    work_kind: AgentWorkKind = AgentWorkKind.ASSIGNMENT
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -66,10 +75,11 @@ class HarnessInvocation:
 
 @dataclass(frozen=True, kw_only=True)
 class HarnessOutput:
-    """Describe the feed events and harness session identifier in one output line."""
+    """Describe the durable information in one harness output line."""
 
     events: list[FeedEvent]
     harness_session_identifier: str | None = None
+    final_output: str | None = None
 
 
 class HarnessAdapter(ABC):

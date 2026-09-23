@@ -1,6 +1,6 @@
 """Run agent rounds and persist their inputs, output, and outcomes.
 
-A round runs a harness command in an assignment's worktree. It writes into a
+A round runs a harness command in its owner's worktree. It writes into a
 numbered directory of its own.
 
 `prompt.txt` supplies the harness's stdin. A resumed round's `inbox.json` holds
@@ -30,11 +30,12 @@ from dreamcatcher.documents import (
     DreamcatcherDocument,
     append_text,
     read_json,
+    read_text,
     write_json,
     write_text,
 )
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.feed import FeedEvent, FeedProse, FeedRenderer
+from dreamcatcher.feed import FeedEvent, FeedNote, FeedProse, FeedRenderer
 from dreamcatcher.github import PullRequestState, UserPost
 from dreamcatcher.harness_adapters import (
     AgentRoundLaunchRequest,
@@ -57,17 +58,20 @@ class HarnessSessionIdentifierRecorder(Protocol):
 
 @dataclass(frozen=True, kw_only=True)
 class AgentRoundOutputReader:
-    """Read harness output and record the session identifier it reports."""
+    """Read harness output and record the durable values it reports."""
 
     harness_adapter: HarnessAdapter
     record_harness_session_identifier: HarnessSessionIdentifierRecorder
+    final_output: Path | None = None
 
     def read(self, *, line: str) -> list[FeedEvent]:
-        """Record the session identifier and return one line's feed events."""
+        """Record durable values and return one line's feed events."""
         output = self.harness_adapter.read_output(line=line)
         identifier = output.harness_session_identifier
         if identifier is not None:
             self.record_harness_session_identifier(identifier=identifier)
+        if output.final_output is not None and self.final_output is not None:
+            write_text(text=output.final_output, path=self.final_output)
         return output.events
 
 
@@ -88,7 +92,7 @@ def start_agent_round(
     request: AgentRoundStartRequest,
     clock: Callable[[], datetime] = read_current_time,
 ) -> "AgentRound":
-    """Start a first or resumed round through the assignment's harness."""
+    """Start a first or resumed round through its owner's harness."""
     harness_adapter = HARNESS_ADAPTERS[request.harness]
     if request.harness_session_identifier is None:
         invocation = harness_adapter.build_first_round(request=request.launch_request)
@@ -102,6 +106,11 @@ def start_agent_round(
             harness_adapter=harness_adapter,
             record_harness_session_identifier=(
                 request.record_harness_session_identifier
+            ),
+            final_output=(
+                request.paths.final_output
+                if request.plan.requires_final_output
+                else None
             ),
         ),
         invocation=invocation,
@@ -229,14 +238,15 @@ class AgentRoundPlan:
     purpose: AgentRoundPurpose
     is_recovery: bool
     input: AgentRoundInput | None = None
+    requires_final_output: bool = False
 
 
 @dataclass(frozen=True, kw_only=True)
 class AgentRoundPaths:
     """Provide the worktree and file paths for a numbered round.
 
-    The round runs in its assignment's worktree and writes into the directory
-    its number selects under the assignment's rounds directory. Keeping the
+    The round runs in its owner's worktree and writes into the directory its
+    number selects under that owner's rounds directory. Keeping the
     number beside that parent makes one value authoritative for both the path
     and the record the round writes.
 
@@ -276,6 +286,11 @@ class AgentRoundPaths:
     def round_input(self) -> Path:
         """The file holding the pull request state and user posts for the round."""
         return self.directory / "inbox.json"
+
+    @property
+    def final_output(self) -> Path:
+        """The file holding the harness's final result for its host to publish."""
+        return self.directory / "final.md"
 
 
 class AgentRoundReader:
@@ -351,6 +366,7 @@ class AgentRound:
         self.feed_renderer = FeedRenderer(worktree=paths.worktree, clock=clock)
         self.started_at = clock()
         self.is_interrupted = False
+        self.requires_final_output = plan.requires_final_output
         self._round_ended = Flag()
         self._feed_write_lock = Lock()
         if plan.input is not None:
@@ -470,6 +486,20 @@ class AgentRound:
         """
         try:
             status = self.harness_process.wait()
+            if self.requires_final_output:
+                for stream_reader in self._stream_readers:
+                    stream_reader.join()
+                if status == 0 and not self._has_final_output():
+                    status = 1
+                    self._append_feed_events(
+                        line="",
+                        events=[
+                            FeedNote(
+                                label="failed",
+                                detail="the harness returned no final output",
+                            )
+                        ],
+                    )
             if self.is_interrupted:
                 self.record = record_agent_round_interruption(
                     record=self.record, path=self.paths.record
@@ -487,6 +517,12 @@ class AgentRound:
             self._round_ended.set()
             for stream_reader in self._stream_readers:
                 stream_reader.join()
+
+    def _has_final_output(self) -> bool:
+        """Return whether a required non-empty final output has landed."""
+        return self.paths.final_output.is_file() and bool(
+            read_text(path=self.paths.final_output).strip()
+        )
 
     def _append_feed_events(self, *, line: str, events: list[FeedEvent]) -> None:
         """Append one output line's events while holding the feed write lock.
