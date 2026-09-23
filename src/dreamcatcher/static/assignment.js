@@ -121,6 +121,7 @@ if (assignmentSidebar !== null) {
       return;
     }
     event.preventDefault();
+    shouldFollowFeed = false;
     for (const otherLink of assignmentSidebar.querySelectorAll(".round-link")) {
       otherLink.removeAttribute("aria-current");
     }

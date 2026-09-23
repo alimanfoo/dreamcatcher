@@ -236,7 +236,9 @@ def test_assignment_script_follows_only_when_the_feed_was_at_its_end(tmp_path):
     assert 'feed.addEventListener("htmx:beforeSwap"' in script
     assert 'feed.addEventListener("htmx:afterSwap"' in script
     assert "feed.scrollHeight - feed.scrollTop - feed.clientHeight <= 1" in script
-    assert "if (shouldFollowFeed)" in script
+    assert (
+        "if (shouldFollowFeed && nextFeedLineRevealAt <= performance.now())" in script
+    )
     assert 'assignmentSidebar.addEventListener("click"' in script
     assert 'currentRoundLink?.setAttribute("aria-current", "true")' in script
     assert "focusedRoundLink?.focus({ preventScroll: true })" in script
