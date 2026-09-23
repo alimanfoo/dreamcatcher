@@ -98,8 +98,8 @@ checksum, so a reviewer checks a file against its release rather than reading
 it. They are pinned and never edited. A CDN would work as well, but a vendored
 file cannot change under us and tells no third party who is looking at the page.
 
-The one script of our own is a few lines that keep the feed scrolled to its end,
-described below.
+The small scripts of our own keep the feed scrolled to its end and reveal new
+output with the Matrix theme's typing effect, described below.
 
 ### The home page repaints
 
@@ -188,9 +188,15 @@ working, and the rounds section already shows the latest round running.
 **The reader's place is kept.** While the reader is at the bottom, every
 appended line scrolls the container to the bottom. If they scroll up to read
 something, appending leaves them where they are, until they return to the
-bottom. This is the one behaviour htmx does not carry, and it is the one script
-of our own: a listener on the swap that notes whether the container was at its
-end before, and scrolls it after.
+bottom. A listener on the swap notes whether the container was at its end
+before, and scrolls it after.
+
+**New lines are revealed in arrival order.** Every line that a tail poll appends
+uses the same quick left-to-right typing effect as the latest output on an
+assignment card. When one poll returns several lines, the script queues them and
+reveals each line after the previous line finishes. Lines from the first page
+render are already visible. A reader who prefers reduced motion sees every new
+line immediately.
 
 The whole feed is always there. A capped feed with a "show earlier" link was
 considered and rejected: being able to scroll back through everything an

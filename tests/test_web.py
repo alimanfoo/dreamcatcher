@@ -242,6 +242,31 @@ def test_assignment_script_follows_only_when_the_feed_was_at_its_end(tmp_path):
     assert "focusedRoundLink?.focus({ preventScroll: true })" in script
 
 
+def test_assignment_page_types_appended_feed_lines_in_order(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    application = create_app(
+        state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
+    )
+    client = application.test_client()
+
+    script_response = client.get("/static/assignment.js")
+    stylesheet_response = client.get("/static/matrix.css")
+    script = script_response.get_data(as_text=True)
+    stylesheet = stylesheet_response.get_data(as_text=True)
+
+    assert script_response.status_code == 200
+    assert stylesheet_response.status_code == 200
+    assert 'feed.querySelectorAll(".feed-line")' in script
+    assert 'line.classList.add("is-awaiting-reveal")' in script
+    assert "queuedFeedLines.push(...newFeedLines)" in script
+    assert 'line.addEventListener(\n    "animationend"' in script
+    assert '"(prefers-reduced-motion: reduce)"' in script
+    assert ".feed-line.is-awaiting-reveal" in stylesheet
+    assert ".feed-line.is-typing" in stylesheet
+    assert "animation: type-output 420ms steps(32, end);" in stylesheet
+
+
 def test_complete_assignment_cards_have_space_between_them(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
@@ -310,7 +335,7 @@ def test_home_page_types_replaced_assignment_output(tmp_path):
     assert 'addEventListener("htmx:beforeSwap"' in script
     assert 'querySelector(".latest-output")' in script
     assert '"(prefers-reduced-motion: reduce)"' in script
-    assert "animation: type-latest-output 420ms steps(32, end);" in stylesheet
+    assert "animation: type-output 420ms steps(32, end);" in stylesheet
 
 
 def test_assignment_page_shares_the_home_page_top_bar(tmp_path, daemon):

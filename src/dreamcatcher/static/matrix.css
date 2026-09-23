@@ -320,11 +320,12 @@ body::after {
   visibility: hidden;
 }
 
-.latest-output.is-typing {
-  animation: type-latest-output 420ms steps(32, end);
+.latest-output.is-typing,
+.feed-line.is-typing {
+  animation: type-output 420ms steps(32, end);
 }
 
-@keyframes type-latest-output {
+@keyframes type-output {
   from {
     clip-path: inset(0 100% 0 0);
   }
@@ -594,6 +595,10 @@ body::after {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
   gap: var(--space-6);
+}
+
+.feed-line.is-awaiting-reveal {
+  visibility: hidden;
 }
 
 .feed-line time,

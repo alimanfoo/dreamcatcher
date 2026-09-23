@@ -3,9 +3,48 @@
 const feed = document.querySelector(".feed-records");
 const feedTail = document.querySelector(".feed-tail");
 const assignmentSidebar = document.querySelector(".assignment-sidebar");
+const queuedFeedLines = [];
 let shouldFollowFeed = false;
+let feedLineCountBeforeSwap = 0;
+let isRevealingFeedLine = false;
 let currentRoundHash = null;
 let focusedRoundHash = null;
+
+function revealNextFeedLine() {
+  if (isRevealingFeedLine || queuedFeedLines.length === 0) {
+    return;
+  }
+  const line = queuedFeedLines.shift();
+  isRevealingFeedLine = true;
+  line.classList.remove("is-awaiting-reveal");
+  line.classList.add("is-typing");
+  line.addEventListener(
+    "animationend",
+    () => {
+      line.classList.remove("is-typing");
+      isRevealingFeedLine = false;
+      revealNextFeedLine();
+    },
+    { once: true },
+  );
+}
+
+function queueNewFeedLines() {
+  const newFeedLines = [...feed.querySelectorAll(".feed-line")].slice(
+    feedLineCountBeforeSwap,
+  );
+  if (
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+    newFeedLines.length === 0
+  ) {
+    return;
+  }
+  for (const line of newFeedLines) {
+    line.classList.add("is-awaiting-reveal");
+  }
+  queuedFeedLines.push(...newFeedLines);
+  revealNextFeedLine();
+}
 
 if (feed !== null) {
   feed.scrollTop = feed.scrollHeight;
@@ -23,6 +62,7 @@ if (feed !== null) {
     }
     shouldFollowFeed =
       feed.scrollHeight - feed.scrollTop - feed.clientHeight <= 1;
+    feedLineCountBeforeSwap = feed.querySelectorAll(".feed-line").length;
     const currentRoundLink = assignmentSidebar?.querySelector(
       '.round-link[aria-current="true"]',
     );
@@ -36,6 +76,7 @@ if (feed !== null) {
     if (event.detail.target !== feed) {
       return;
     }
+    queueNewFeedLines();
     if (shouldFollowFeed) {
       feed.scrollTop = feed.scrollHeight;
     }
