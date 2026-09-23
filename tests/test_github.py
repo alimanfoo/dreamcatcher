@@ -177,7 +177,9 @@ def test_an_issue_comment_is_posted_as_one_body(fake):
     gh.replies(stdout=json.dumps({"id": 91}))
 
     posted = post_issue_comment(
-        repository=REPOSITORY, issue=8, body="The answer.\n\n<!-- dreamcatcher -->"
+        repository=REPOSITORY,
+        issue=8,
+        body="@alimanfoo, the answer.\n\n<!-- dreamcatcher -->",
     )
 
     assert not isinstance(posted, UnknownGitHubResponse)
@@ -187,8 +189,8 @@ def test_an_issue_comment_is_posted_as_one_body(fake):
         f"repos/{REPOSITORY}/issues/8/comments",
         "--method",
         "POST",
-        "--field",
-        "body=The answer.\n\n<!-- dreamcatcher -->",
+        "--raw-field",
+        "body=@alimanfoo, the answer.\n\n<!-- dreamcatcher -->",
     ]
 
 

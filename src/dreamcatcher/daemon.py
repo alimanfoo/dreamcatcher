@@ -184,6 +184,9 @@ class DreamcatcherDaemon:
             outcome_description = (
                 f"launched round for {scheduler_record.launched_agent_work_identifier}"
             )
+            if scheduler_record.hold is not None:
+                hold_description = " ".join(scheduler_record.hold.split())
+                outcome_description = f"{outcome_description}; held: {hold_description}"
         elif scheduler_record.hold is not None:
             hold_description = " ".join(scheduler_record.hold.split())
             if scheduler_record.cooldown is not None and hold_description.startswith(

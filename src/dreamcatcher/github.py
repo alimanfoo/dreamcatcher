@@ -552,7 +552,7 @@ def post_issue_comment(
             f"repos/{repository}/issues/{issue}/comments",
             "--method",
             "POST",
-            "--field",
+            "--raw-field",
             f"body={body}",
         ],
     )

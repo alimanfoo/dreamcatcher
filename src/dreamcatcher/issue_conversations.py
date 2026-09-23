@@ -1,5 +1,6 @@
 """Persist issue conversations and prepare their trusted input."""
 
+from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -12,6 +13,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     IssueConversationInput,
 )
+from dreamcatcher.commands import CommandError
 from dreamcatcher.config import (
     IssueConversationConfig,
     IssueConversationHarness,
@@ -24,6 +26,7 @@ from dreamcatcher.git import (
     fetch_main,
     is_linked_worktree,
     read_worktree_revision,
+    remove_worktree,
 )
 from dreamcatcher.github import ConversationComment, Issue
 from dreamcatcher.harness_adapters import (
@@ -154,18 +157,23 @@ def create_issue_conversation(
             f"worktree already exists at {state.describe_path(path=worktree)}."
         )
     add_detached_worktree(root=state.root, path=worktree)
-    record = IssueConversationRecord(
-        issue=issue.number,
-        title=issue.title,
-        label=config.label,
-        worktree=worktree,
-        revision=read_worktree_revision(worktree=worktree),
-        harness=config.harness,
-        model=config.model,
-        effort=config.effort,
-        prompt=config.prompt,
-    )
-    write_json(document=record, path=directory / ISSUE_CONVERSATION_RECORD_NAME)
+    try:
+        record = IssueConversationRecord(
+            issue=issue.number,
+            title=issue.title,
+            label=config.label,
+            worktree=worktree,
+            revision=read_worktree_revision(worktree=worktree),
+            harness=config.harness,
+            model=config.model,
+            effort=config.effort,
+            prompt=config.prompt,
+        )
+        write_json(document=record, path=directory / ISSUE_CONVERSATION_RECORD_NAME)
+    except ReportableError:
+        with suppress(CommandError):
+            remove_worktree(root=state.root, path=worktree)
+        raise
     return IssueConversation(directory=directory, record=record)
 
 
@@ -219,6 +227,25 @@ def advance_issue_comment_delivery_cursor(
                 )
             },
         )
+
+
+def restore_issue_comment_delivery_cursor(*, conversation: IssueConversation) -> None:
+    """Restore a missing cursor from the initial round's durable input."""
+    if conversation.record.delivery_cursor is not None or not conversation.rounds:
+        return
+    first_round = conversation.rounds[0]
+    round_input = read_json(
+        model=IssueConversationInput,
+        path=conversation.compose_round_paths(number=first_round.number).round_input,
+    )
+    if not round_input.comments:
+        raise ReportableError(
+            f"Conversation {conversation.identifier} round {first_round.number} "
+            "has no delivered issue comments."
+        )
+    advance_issue_comment_delivery_cursor(
+        conversation=conversation, newest=round_input.comments[-1]
+    )
 
 
 def record_issue_conversation_session_identifier(

@@ -265,6 +265,7 @@ def test_a_conversation_launch_is_recorded_and_reported(watched, capsys, monkeyp
     scheduler_record = SchedulerRecord(
         at=PINNED,
         launched_agent_work_identifier="conversation-GH8",
+        hold="could not refresh assignments",
     )
     monkeypatch.setattr(scheduler, "tick", lambda *, at: scheduler_record)
 
@@ -272,7 +273,8 @@ def test_a_conversation_launch_is_recorded_and_reported(watched, capsys, monkeyp
 
     assert recorded(daemon=daemon) == scheduler_record
     assert capsys.readouterr().out == (
-        "2026-08-20 02:41:58  launched round for conversation-GH8\n"
+        "2026-08-20 02:41:58  launched round for conversation-GH8; "
+        "held: could not refresh assignments\n"
     )
 
 

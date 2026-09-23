@@ -720,6 +720,33 @@ def test_a_round_a_straggler_outlives_still_records_an_ending(
     )
 
 
+def test_a_final_output_round_a_straggler_outlives_still_records_an_ending(
+    monkeypatch, worktree, directory, straggler
+):
+    monkeypatch.setattr(
+        "dreamcatcher.agent_rounds.FINAL_OUTPUT_CAPTURE_TIMEOUT_SECONDS", 0.01
+    )
+    paths = compose_round_paths(worktree=worktree, directory=directory)
+    running = AgentRound(
+        output_reader=AgentRoundOutputReader(
+            harness_adapter=CLAUDE_ADAPTER,
+            record_harness_session_identifier=ignore_harness_session_identifier,
+            final_output_path=paths.final_output,
+        ),
+        invocation=HarnessInvocation(
+            program=sys.executable,
+            arguments=["-c", LEAVES_A_STRAGGLER, str(straggler)],
+            prompt=PROMPT,
+        ),
+        paths=paths,
+        plan=AgentRoundPlan(purpose=AgentRoundPurpose.DISCUSS, is_recovery=False),
+        clock=pinned,
+    )
+
+    assert within(seconds=30, holds=lambda: not running.is_alive)
+    assert written(path=paths.record).outcome is AgentRoundOutcome.ERRORED
+
+
 def test_a_round_a_straggler_outlives_still_stops(worktree, directory, straggler):
     running = AgentRound(
         output_reader=round_harness(),

@@ -3,11 +3,15 @@ from datetime import UTC, datetime
 import pytest
 from clocks import PINNED
 
-from dreamcatcher.agent_rounds import AgentRoundPurpose, AgentRoundRecord
+from dreamcatcher.agent_rounds import (
+    AgentRoundPurpose,
+    AgentRoundRecord,
+    IssueConversationInput,
+)
 from dreamcatcher.config import AgentHarness, IssueConversationConfig
 from dreamcatcher.documents import write_json
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.git import add_detached_worktree
+from dreamcatcher.git import add_detached_worktree, is_linked_worktree
 from dreamcatcher.github import (
     ConversationComment,
     GitHubIssueLabel,
@@ -29,6 +33,7 @@ from dreamcatcher.issue_conversations import (
     read_issue_conversations,
     record_issue_conversation_reply_publication,
     record_issue_conversation_session_identifier,
+    restore_issue_comment_delivery_cursor,
     save_issue_conversation_reply,
 )
 from dreamcatcher.prompts import AGENT_POST_MARKER
@@ -135,6 +140,26 @@ def test_an_unrecorded_conversation_worktree_is_not_forced_away(cloned):
     assert "its unrecorded worktree already exists" in str(error.value)
 
 
+def test_a_failed_conversation_setup_removes_the_worktree_it_added(cloned, monkeypatch):
+    state = StateDirectory(root=cloned)
+    path = state.conversation_worktrees / "GH8"
+
+    def fail_revision_read(*, worktree):
+        raise ReportableError(f"cannot read the revision at {worktree}")
+
+    monkeypatch.setattr(
+        "dreamcatcher.issue_conversations.read_worktree_revision",
+        fail_revision_read,
+    )
+
+    with pytest.raises(ReportableError, match="cannot read the revision"):
+        create_issue_conversation(
+            state=state, config=conversation_config(), issue=issue()
+        )
+
+    assert not is_linked_worktree(path=path)
+
+
 def test_a_conversation_record_must_name_its_directory(tmp_path):
     state = StateDirectory(root=tmp_path)
     conversation = write_conversation(state=state)
@@ -227,6 +252,71 @@ def test_a_conversation_records_delivery_session_and_round_paths(tmp_path):
             conversation=conversation, identifier="other-456"
         )
     assert "after it already reported abc-123" in str(error.value)
+
+
+def test_a_missing_delivery_cursor_is_restored_from_the_round_input(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    conversation = write_conversation(state=state)
+    paths = conversation.compose_round_paths(number=1)
+    delivered = comment(identifier=3, body="Question")
+    write_json(
+        document=IssueConversationInput(
+            issue=8,
+            title="Why does this happen?",
+            body="Explain the scheduler.",
+            comments=[delivered],
+            revision="abc123",
+        ),
+        path=paths.round_input,
+    )
+    write_json(
+        document=AgentRoundRecord(
+            number=1,
+            purpose=AgentRoundPurpose.DISCUSS,
+            started=PINNED,
+            pid=123,
+        ),
+        path=paths.record,
+    )
+    reread = read_issue_conversation(state=state, issue=8)
+    assert reread is not None
+
+    restore_issue_comment_delivery_cursor(conversation=reread)
+
+    assert reread.record.delivery_cursor == IssueCommentCursor(
+        written_at=delivered.written_at, id=delivered.id
+    )
+    restore_issue_comment_delivery_cursor(conversation=reread)
+
+
+def test_a_missing_delivery_cursor_refuses_a_round_without_comments(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    conversation = write_conversation(state=state)
+    paths = conversation.compose_round_paths(number=1)
+    write_json(
+        document=IssueConversationInput(
+            issue=8,
+            title="Why does this happen?",
+            body="Explain the scheduler.",
+            comments=[],
+            revision="abc123",
+        ),
+        path=paths.round_input,
+    )
+    write_json(
+        document=AgentRoundRecord(
+            number=1,
+            purpose=AgentRoundPurpose.DISCUSS,
+            started=PINNED,
+            pid=123,
+        ),
+        path=paths.record,
+    )
+    reread = read_issue_conversation(state=state, issue=8)
+    assert reread is not None
+
+    with pytest.raises(ReportableError, match="has no delivered issue comments"):
+        restore_issue_comment_delivery_cursor(conversation=reread)
 
 
 def test_a_reply_is_saved_before_its_publication_is_recorded(tmp_path):

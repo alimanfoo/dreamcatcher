@@ -82,6 +82,15 @@ def test_a_conversation_round_denies_implementation_and_github_tools():
     assert invocation.arguments[denied_at + 1] == " ".join(
         CLAUDE_CONVERSATION_DISALLOWED_TOOLS
     )
+    assert {
+        "PowerShell",
+        "Bash(gh:*)",
+        "Bash(git cherry-pick:*)",
+        "Bash(git restore:*)",
+        "Bash(git rm:*)",
+        "Bash(git stash:*)",
+        "Bash(git tag:*)",
+    } <= set(CLAUDE_CONVERSATION_DISALLOWED_TOOLS)
 
 
 def test_a_person_continues_the_harness_session_where_it_ran():

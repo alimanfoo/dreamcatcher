@@ -2,6 +2,7 @@
 
 from datetime import timedelta
 
+import pytest
 from clocks import DISPLAY_TIME_ZONE, PINNED
 from conftest import REPOSITORY
 from records import write_feed, write_issue_conversation, write_round
@@ -24,8 +25,14 @@ from dreamcatcher.web import create_app
 LOOKED_AT = PINNED + timedelta(hours=2)
 
 
-def fabricate_conversation(*, state: StateDirectory, has_round: bool = True) -> None:
-    """Write one published initial conversation exchange."""
+def fabricate_conversation(
+    *,
+    state: StateDirectory,
+    has_round: bool = True,
+    status: int = 0,
+    is_published: bool = True,
+) -> None:
+    """Write one initial conversation exchange."""
     directory = write_issue_conversation(state=state, issue=8)
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
     if not has_round:
@@ -39,7 +46,7 @@ def fabricate_conversation(*, state: StateDirectory, has_round: bool = True) -> 
             started=PINNED,
             pid=1,
             ending=compose_agent_round_ending(
-                at=PINNED + timedelta(minutes=4), status=0
+                at=PINNED + timedelta(minutes=4), status=status
             ),
         ),
     )
@@ -50,14 +57,16 @@ def fabricate_conversation(*, state: StateDirectory, has_round: bool = True) -> 
     )
     conversation = read_issue_conversation(state=state, issue=8)
     assert conversation is not None
-    save_issue_conversation_reply(
-        conversation=conversation, number=1, body="The answer."
-    )
-    record_issue_conversation_reply_publication(
-        conversation=conversation,
-        number=1,
-        at=PINNED + timedelta(minutes=5),
-    )
+    if status == 0:
+        save_issue_conversation_reply(
+            conversation=conversation, number=1, body="The answer."
+        )
+        if is_published:
+            record_issue_conversation_reply_publication(
+                conversation=conversation,
+                number=1,
+                at=PINNED + timedelta(minutes=5),
+            )
 
 
 def application(*, state: StateDirectory):
@@ -97,6 +106,24 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
     assert "discuss" in page
     assert "I found the answer." in page
     assert 'hx-get="/conversations/8/tail"' in page
+
+
+@pytest.mark.parametrize(
+    ("status", "is_published", "expected"),
+    [
+        (2, False, "status-needs-attention"),
+        (0, False, "status-awaiting-publication"),
+    ],
+)
+def test_conversation_page_shows_failed_and_pending_states(
+    tmp_path, status, is_published, expected
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state, status=status, is_published=is_published)
+
+    page = application(state=state).test_client().get("/conversations/8").text
+
+    assert expected in page
 
 
 def test_conversation_before_its_first_round_has_an_empty_feed(tmp_path):

@@ -31,8 +31,10 @@ from dreamcatcher.tui import (
 )
 
 
-def conversation_state(*, root) -> StateDirectory:
-    """Return state containing one finished, published conversation."""
+def conversation_state(
+    *, root, status: int = 0, is_published: bool = True
+) -> StateDirectory:
+    """Return state containing one finished conversation."""
     state = StateDirectory(root=root)
     directory = write_issue_conversation(state=state, issue=8)
     write_round(
@@ -44,7 +46,7 @@ def conversation_state(*, root) -> StateDirectory:
             started=PINNED,
             pid=1,
             ending=compose_agent_round_ending(
-                at=PINNED + timedelta(minutes=4), status=0
+                at=PINNED + timedelta(minutes=4), status=status
             ),
         ),
     )
@@ -55,14 +57,16 @@ def conversation_state(*, root) -> StateDirectory:
     )
     conversation = read_issue_conversation(state=state, issue=8)
     assert conversation is not None
-    save_issue_conversation_reply(
-        conversation=conversation, number=1, body="The answer."
-    )
-    record_issue_conversation_reply_publication(
-        conversation=conversation,
-        number=1,
-        at=PINNED + timedelta(minutes=5),
-    )
+    if status == 0:
+        save_issue_conversation_reply(
+            conversation=conversation, number=1, body="The answer."
+        )
+        if is_published:
+            record_issue_conversation_reply_publication(
+                conversation=conversation,
+                number=1,
+                at=PINNED + timedelta(minutes=5),
+            )
     return state
 
 
@@ -107,6 +111,29 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
     assert "opus[1m]" in shown
     assert "discuss" in shown
     assert "successful" in shown
+
+
+@pytest.mark.parametrize(
+    ("status", "is_published", "expected"),
+    [
+        (2, False, "needs attention"),
+        (0, False, "awaiting publication"),
+    ],
+)
+def test_conversation_detail_shows_failed_and_pending_states(
+    tmp_path, status, is_published, expected
+):
+    state = conversation_state(root=tmp_path, status=status, is_published=is_published)
+    console, written = rendered_console()
+
+    show_conversation_view(
+        state=state,
+        issue=8,
+        console=console,
+        timing=ViewTiming(clock=lambda: PINNED),
+    )
+
+    assert expected in written.getvalue()
 
 
 def test_conversation_feed_shows_its_saved_activity(tmp_path):
