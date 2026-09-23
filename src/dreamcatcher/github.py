@@ -1,5 +1,6 @@
 """Operate on GitHub data through the gh command-line client."""
 
+import json
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -552,9 +553,10 @@ def post_issue_comment(
             f"repos/{repository}/issues/{issue}/comments",
             "--method",
             "POST",
-            "--raw-field",
-            f"body={body}",
+            "--input",
+            "-",
         ],
+        stdin=json.dumps({"body": body}),
     )
 
 
@@ -585,6 +587,7 @@ def _read_github_response[ReadT](
     response_adapter: TypeAdapter[ReadT],
     arguments: Sequence[str],
     cwd: Path | None = None,
+    stdin: str | None = None,
 ) -> ReadT | UnknownGitHubResponse:
     """Return validated gh output, or an unknown response when the read fails.
 
@@ -593,7 +596,9 @@ def _read_github_response[ReadT](
     reaches a caller as data.
     """
     try:
-        raw_response = run_command(program="gh", arguments=arguments, cwd=cwd)
+        raw_response = run_command(
+            program="gh", arguments=arguments, cwd=cwd, stdin=stdin
+        )
     except CommandError as error:
         return UnknownGitHubResponse(reason=str(error))
     try:

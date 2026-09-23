@@ -189,9 +189,12 @@ def test_an_issue_comment_is_posted_as_one_body(fake):
         f"repos/{REPOSITORY}/issues/8/comments",
         "--method",
         "POST",
-        "--raw-field",
-        "body=@alimanfoo, the answer.\n\n<!-- dreamcatcher -->",
+        "--input",
+        "-",
     ]
+    assert json.loads(gh.calls[0].prompt) == {
+        "body": "@alimanfoo, the answer.\n\n<!-- dreamcatcher -->"
+    }
 
 
 def test_the_pull_requests_of_a_branch_come_back_with_their_states(fake):

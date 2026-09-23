@@ -193,10 +193,8 @@ def test_an_initial_conversation_freezes_input_runs_claude_and_publishes_once(
     assert len(harnesses["claude"].calls) == 1
     post_calls = [call for call in gh.calls if call.arguments[:4] == POST_PATH.split()]
     assert len(post_calls) == 1
-    assert (
-        post_calls[0]
-        .arguments[-1]
-        .endswith(f"The scheduler waits for work.\n\n{AGENT_POST_MARKER}")
+    assert json.loads(post_calls[0].prompt)["body"].endswith(
+        f"The scheduler waits for work.\n\n{AGENT_POST_MARKER}"
     )
     assert not any(call.arguments[:2] == ["pr", "create"] for call in gh.calls)
 
