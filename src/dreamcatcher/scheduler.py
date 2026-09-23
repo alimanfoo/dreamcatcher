@@ -1,7 +1,8 @@
 """Schedule agent work for one Dreamcatcher instance.
 
-Each tick reads local assignments, observes relevant issues on GitHub, applies
-the concurrency cap and global cooldown, and launches at most one round.
+Each tick reads local agent work, observes relevant issues on GitHub, publishes
+saved conversation answers, applies the concurrency cap and global cooldown,
+and launches at most one round.
 
 Within existing work, a missing first round comes first, followed by recovery,
 wrap-up, and user feedback. After issue observation succeeds, the scheduler
@@ -33,16 +34,23 @@ from dreamcatcher.agent_assignments import (
 from dreamcatcher.agent_rounds import (
     AgentRound,
     AgentRoundInput,
+    AgentRoundOutcome,
     AgentRoundPlan,
     AgentRoundPurpose,
     AgentRoundStartRequest,
     ErroredAgentRoundEnding,
+    IssueConversationRoundPlan,
     start_agent_round,
 )
-from dreamcatcher.config import AgentHarness, DreamcatcherConfig
-from dreamcatcher.documents import DreamcatcherDocument, read_json
+from dreamcatcher.config import (
+    AgentHarness,
+    DreamcatcherConfig,
+    IssueConversationConfig,
+)
+from dreamcatcher.documents import DreamcatcherDocument, read_json, read_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
+    ConversationComment,
     Issue,
     IssueState,
     PullRequest,
@@ -50,13 +58,32 @@ from dreamcatcher.github import (
     UnknownGitHubResponse,
     UserPost,
     list_blocking_issues,
+    list_issue_comments,
     list_issues,
+    post_issue_comment,
     read_issue,
     read_issue_pull_request_context,
     read_pull_request,
 )
-from dreamcatcher.harness_adapters import AgentRoundLaunchRequest
-from dreamcatcher.prompts import RECOVERY_PROMPT, compose_user_posts_prompt
+from dreamcatcher.harness_adapters import AgentRoundLaunchRequest, AgentWorkKind
+from dreamcatcher.issue_conversations import (
+    IssueConversation,
+    advance_issue_comment_delivery_cursor,
+    compose_issue_conversation_input,
+    create_issue_conversation,
+    list_undelivered_issue_comments,
+    read_issue_conversation_reply,
+    read_issue_conversations,
+    record_issue_conversation_reply_publication,
+    record_issue_conversation_session_identifier,
+    save_issue_conversation_reply,
+)
+from dreamcatcher.prompts import (
+    AGENT_POST_MARKER,
+    RECOVERY_PROMPT,
+    compose_issue_conversation_prompt,
+    compose_user_posts_prompt,
+)
 from dreamcatcher.relay import list_undelivered_user_posts
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.words import describe_count
@@ -141,6 +168,7 @@ class SchedulerRecord(DreamcatcherDocument):
     at: UtcDateTime
     hold: str | None = None
     launched_assignment_identifier: str | None = None
+    launched_conversation_identifier: str | None = None
     issue_observations: list[IssueObservation] = Field(default_factory=list)
     assignment_observations: list[AgentAssignmentObservation] = Field(
         default_factory=list
@@ -157,6 +185,24 @@ class RequiredAgentRound:
     plan: AgentRoundPlan
     reason: str
     prompt: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class IssueConversationCandidate:
+    """Describe an eligible issue with trusted comments waiting."""
+
+    issue: Issue
+    comments: list[ConversationComment]
+    conversation: IssueConversation | None
+    config: IssueConversationConfig
+
+
+@dataclass(frozen=True, kw_only=True)
+class IssueConversationCandidateResult:
+    """Collect initial conversation candidates and any failed read."""
+
+    candidates: list[IssueConversationCandidate]
+    failure: str | None = None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -748,6 +794,124 @@ def compose_assignment_observation(
     )
 
 
+def _list_initial_issue_conversation_candidates(
+    *,
+    repository: str,
+    account: str,
+    config: DreamcatcherConfig,
+    conversations: list[IssueConversation],
+) -> IssueConversationCandidateResult:
+    """Return eligible issues whose first trusted comment batch is waiting."""
+    conversation_config = config.conversation
+    if conversation_config is None:
+        return IssueConversationCandidateResult(candidates=[])
+    issue_response = list_issues(
+        repository=repository,
+        label=conversation_config.label,
+        assignee=account,
+    )
+    if isinstance(issue_response, UnknownGitHubResponse):
+        return IssueConversationCandidateResult(
+            candidates=[],
+            failure=f"could not list issue conversations: {issue_response.reason}",
+        )
+    conversations_by_issue = {
+        conversation.record.issue: conversation for conversation in conversations
+    }
+    candidates: list[IssueConversationCandidate] = []
+    for issue in sorted(
+        issue_response, key=lambda item: (item.created_at, item.number)
+    ):
+        conversation = conversations_by_issue.get(issue.number)
+        if conversation is not None and conversation.rounds:
+            continue
+        comment_response = list_issue_comments(
+            repository=repository,
+            issue=issue.number,
+        )
+        if isinstance(comment_response, UnknownGitHubResponse):
+            return IssueConversationCandidateResult(
+                candidates=candidates,
+                failure=(
+                    f"could not read comments for GH{issue.number}: "
+                    f"{comment_response.reason}"
+                ),
+            )
+        cursor = None if conversation is None else conversation.record.delivery_cursor
+        comments = list_undelivered_issue_comments(
+            comments=comment_response,
+            account=account,
+            cursor=cursor,
+        )
+        if comments:
+            candidates.append(
+                IssueConversationCandidate(
+                    issue=issue,
+                    comments=comments,
+                    conversation=conversation,
+                    config=conversation_config,
+                )
+            )
+    return IssueConversationCandidateResult(
+        candidates=sorted(
+            candidates,
+            key=lambda candidate: (
+                candidate.comments[0].written_at,
+                candidate.comments[0].id,
+            ),
+        )
+    )
+
+
+def _publish_issue_conversation_replies(
+    *, repository: str, conversations: list[IssueConversation], at: datetime
+) -> str | None:
+    """Save successful final answers and publish each answer still waiting."""
+    for conversation in conversations:
+        if not conversation.rounds:
+            continue
+        record = conversation.rounds[-1]
+        reply = read_issue_conversation_reply(
+            conversation=conversation,
+            number=record.number,
+        )
+        if reply is None:
+            if record.outcome is not AgentRoundOutcome.SUCCESSFUL:
+                continue
+            final_output = read_text(
+                path=conversation.compose_round_paths(number=record.number).final_output
+            )
+            reply = save_issue_conversation_reply(
+                conversation=conversation,
+                number=record.number,
+                body=final_output,
+            )
+        if reply.is_complete:
+            continue
+        response = post_issue_comment(
+            repository=repository,
+            issue=conversation.record.issue,
+            body=f"{reply.body}\n\n{AGENT_POST_MARKER}",
+        )
+        if isinstance(response, UnknownGitHubResponse):
+            return (
+                f"could not publish the answer for GH{conversation.record.issue}: "
+                f"{response.reason}"
+            )
+        record_issue_conversation_reply_publication(
+            conversation=conversation,
+            number=record.number,
+            at=at,
+        )
+    return None
+
+
+def _combine_scheduler_failures(*, failures: list[str | None]) -> str | None:
+    """Join independent scheduler read or publication failures."""
+    present = [failure for failure in failures if failure is not None]
+    return "; ".join(present) if present else None
+
+
 @dataclass(kw_only=True)
 class AgentWorkScheduler:
     """Choose and start the work for one Dreamcatcher instance."""
@@ -790,6 +954,18 @@ class AgentWorkScheduler:
         for assignment_identifier in ended_assignment_identifiers:
             del self.rounds[assignment_identifier]
         assignments = read_agent_assignments(state=self.state)
+        conversations = read_issue_conversations(state=self.state)
+        publication_failure = _publish_issue_conversation_replies(
+            repository=self.repository,
+            conversations=conversations,
+            at=at,
+        )
+        conversation_candidates = _list_initial_issue_conversation_candidates(
+            repository=self.repository,
+            account=self.account,
+            config=self.config,
+            conversations=conversations,
+        )
         issue_observation_result = observe_issues(
             repository=self.repository,
             account=self.account,
@@ -799,7 +975,17 @@ class AgentWorkScheduler:
                 state=self.state, repository=self.repository
             ),
         )
-        issue_failure = issue_observation_result.failure
+        scheduler_failure = _combine_scheduler_failures(
+            failures=[
+                (
+                    None
+                    if issue_observation_result.failure is None
+                    else f"could not refresh issues: {issue_observation_result.failure}"
+                ),
+                conversation_candidates.failure,
+                publication_failure,
+            ]
+        )
         issue_observations = [
             observation.model_copy(update={"observed_at": at})
             for observation in issue_observation_result.observations
@@ -830,10 +1016,8 @@ class AgentWorkScheduler:
         )
         if cooldown is not None:
             hold_reason = "global cooldown"
-            if issue_failure is not None:
-                hold_reason = (
-                    f"{hold_reason}; could not refresh issues: {issue_failure}"
-                )
+            if scheduler_failure is not None:
+                hold_reason = f"{hold_reason}; {scheduler_failure}"
             return record.model_copy(update={"hold": hold_reason})
         if len(self.rounds) >= self.max_agents:
             capacity_reason = (
@@ -841,8 +1025,8 @@ class AgentWorkScheduler:
             )
             hold_reason = (
                 capacity_reason
-                if issue_failure is None
-                else f"{capacity_reason}; could not refresh issues: {issue_failure}"
+                if scheduler_failure is None
+                else f"{capacity_reason}; {scheduler_failure}"
             )
             return record.model_copy(
                 update={
@@ -853,8 +1037,8 @@ class AgentWorkScheduler:
                     ),
                 }
             )
-        if issue_failure is not None:
-            return record.model_copy(update={"hold": issue_failure})
+        if scheduler_failure is not None:
+            return record.model_copy(update={"hold": scheduler_failure})
         prioritized_rounds = prioritize_required_rounds(
             required_rounds=[
                 result
@@ -867,6 +1051,11 @@ class AgentWorkScheduler:
                 record=record,
                 required=prioritized_rounds[0],
                 inspection_results=inspection_results,
+            )
+        if conversation_candidates.candidates:
+            return self._launch_conversation_round(
+                record=record,
+                candidate=conversation_candidates.candidates[0],
             )
         return self._dispatch_oldest_issue(
             record=record,
@@ -977,6 +1166,64 @@ class AgentWorkScheduler:
                 assignment=assignment,
                 newest=round_input.user_posts[-1].written_at,
             )
+
+    def _launch_conversation_round(
+        self,
+        *,
+        record: SchedulerRecord,
+        candidate: IssueConversationCandidate,
+    ) -> SchedulerRecord:
+        """Create a conversation as needed and start its initial round."""
+        try:
+            conversation = candidate.conversation or create_issue_conversation(
+                state=self.state,
+                config=candidate.config,
+                issue=candidate.issue,
+            )
+            round_input = compose_issue_conversation_input(
+                issue=candidate.issue,
+                comments=candidate.comments,
+                revision=conversation.record.revision,
+            )
+            number = conversation.next_round_number
+            paths = conversation.compose_round_paths(number=number)
+            self.rounds[conversation.identifier] = start_agent_round(
+                request=AgentRoundStartRequest(
+                    harness=conversation.record.harness,
+                    launch_request=AgentRoundLaunchRequest(
+                        agent_work_identifier=conversation.identifier,
+                        model=conversation.record.model,
+                        effort=conversation.record.effort,
+                        prompt=compose_issue_conversation_prompt(
+                            template=conversation.record.prompt,
+                            issue=conversation.record.issue,
+                            round_input=paths.round_input,
+                        ),
+                        work_kind=AgentWorkKind.CONVERSATION,
+                    ),
+                    harness_session_identifier=None,
+                    record_harness_session_identifier=partial(
+                        record_issue_conversation_session_identifier,
+                        conversation=conversation,
+                    ),
+                    paths=paths,
+                    plan=IssueConversationRoundPlan(
+                        purpose=AgentRoundPurpose.DISCUSS,
+                        is_recovery=False,
+                        input=round_input,
+                    ),
+                ),
+                clock=self.clock,
+            )
+            advance_issue_comment_delivery_cursor(
+                conversation=conversation,
+                newest=candidate.comments[-1],
+            )
+        except ReportableError as failure:
+            return record.model_copy(update={"hold": str(failure)})
+        return record.model_copy(
+            update={"launched_conversation_identifier": conversation.identifier}
+        )
 
     def _dispatch_oldest_issue(
         self,

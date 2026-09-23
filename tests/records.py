@@ -9,7 +9,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from dreamcatcher import agent_assignments, agent_rounds
+from dreamcatcher import agent_assignments, agent_rounds, issue_conversations
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import write_json, write_text
@@ -75,6 +75,34 @@ def write_agent_assignment(
             prompt=f"/dream:smith GH{issue}",
         ),
         path=directory / agent_assignments.AGENT_ASSIGNMENT_RECORD_NAME,
+    )
+    return directory
+
+
+def write_issue_conversation(
+    *,
+    state: StateDirectory,
+    issue: int,
+    harness_session_identifier: str | None = "conversation-session",
+) -> Path:
+    """Write a conversation worktree and record, and return its directory."""
+    worktree = state.conversation_worktrees / f"GH{issue}"
+    worktree.mkdir(parents=True)
+    directory = state.conversations / f"GH{issue}"
+    write_json(
+        document=issue_conversations.IssueConversationRecord(
+            issue=issue,
+            title=f"Issue {issue}",
+            label="dream:conversation",
+            worktree=worktree,
+            revision="abc123",
+            harness=AgentHarness.CLAUDE,
+            harness_session_identifier=harness_session_identifier,
+            model="opus[1m]",
+            effort="xhigh",
+            prompt=f"/dream:conversation GH{issue}",
+        ),
+        path=directory / issue_conversations.ISSUE_CONVERSATION_RECORD_NAME,
     )
     return directory
 

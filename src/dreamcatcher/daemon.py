@@ -22,6 +22,7 @@ from dreamcatcher.github import (
     identify_github_repository,
 )
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
+from dreamcatcher.issue_conversations import read_issue_conversations
 from dreamcatcher.lock import hold_daemon_lock
 from dreamcatcher.scheduler import (
     DEFAULT_MAX_AGENTS,
@@ -85,9 +86,9 @@ class DreamcatcherDaemon:
         self.state = StateDirectory(root=root)
         self.clock: Callable[[], datetime] = read_current_time
         self.wait: WaitForSeconds = sleep
-        # The rounds this daemon is running, by the identifier of the assignment each
-        # belongs to. They are what the cap counts, and what the daemon ends as
-        # it goes down.
+        # The rounds this daemon is running, by their assignment or conversation
+        # identifier. They are what the cap counts, and what the daemon ends as it
+        # goes down.
         self.rounds: dict[str, AgentRound] = {}
 
     def run(self) -> None:
@@ -183,6 +184,11 @@ class DreamcatcherDaemon:
             outcome_description = (
                 f"launched round for {scheduler_record.launched_assignment_identifier}"
             )
+        elif scheduler_record.launched_conversation_identifier is not None:
+            outcome_description = (
+                "launched round for "
+                f"{scheduler_record.launched_conversation_identifier}"
+            )
         elif scheduler_record.hold is not None:
             hold_description = " ".join(scheduler_record.hold.split())
             if scheduler_record.cooldown is not None and hold_description.startswith(
@@ -232,15 +238,17 @@ class DreamcatcherDaemon:
         Windows Job Objects empty when the earlier daemon closes its last
         handle, so termination there is already complete.
         """
-        for assignment in read_agent_assignments(state=self.state):
-            for record in assignment.rounds:
+        agent_work = [
+            *read_agent_assignments(state=self.state),
+            *read_issue_conversations(state=self.state),
+        ]
+        for owner in agent_work:
+            for record in owner.rounds:
                 if record.ending is None:
                     teardown.end_process_tree(pid=record.pid)
                     record_agent_round_interruption(
                         record=record,
-                        path=assignment.compose_round_paths(
-                            number=record.number
-                        ).record,
+                        path=owner.compose_round_paths(number=record.number).record,
                     )
 
 

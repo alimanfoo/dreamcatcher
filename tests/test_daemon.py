@@ -16,7 +16,12 @@ from conftest import (
     gone,
 )
 from fakes import Line
-from records import write_agent_assignment, write_daemon_run, write_round
+from records import (
+    write_agent_assignment,
+    write_daemon_run,
+    write_issue_conversation,
+    write_round,
+)
 
 from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
@@ -246,6 +251,31 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
     )
 
 
+def test_a_conversation_launch_is_recorded_and_reported(watched, capsys, monkeypatch):
+    daemon, _, _ = idling(root=watched, ticks=1)
+    scheduler = AgentWorkScheduler(
+        repository=REPOSITORY,
+        account=POSTED_BY,
+        config=daemon.config,
+        state=daemon.state,
+        harness=daemon.harness,
+        clock=daemon.clock,
+        rounds=daemon.rounds,
+    )
+    scheduler_record = SchedulerRecord(
+        at=PINNED,
+        launched_conversation_identifier="conversation-GH8",
+    )
+    monkeypatch.setattr(scheduler, "tick", lambda *, at: scheduler_record)
+
+    daemon.run_scheduler_cycle(scheduler=scheduler, at=PINNED)
+
+    assert recorded(daemon=daemon) == scheduler_record
+    assert capsys.readouterr().out == (
+        "2026-08-20 02:41:58  launched round for conversation-GH8\n"
+    )
+
+
 def test_a_cooldown_report_names_its_local_end(watched, capsys, monkeypatch):
     daemon, _, _ = idling(root=watched, ticks=1)
     scheduler = AgentWorkScheduler(
@@ -377,6 +407,31 @@ def test_a_round_the_daemon_before_this_one_left_running_is_ended(
         number=1,
         record=AgentRoundRecord(
             number=1, started=PINNED, pid=left_running.pid, purpose=PURPOSE
+        ),
+    )
+    daemon, _, _ = idling(root=watched)
+
+    daemon.run()
+
+    assert gone(pid=left_running.pid)
+    record = AgentRoundRecord.model_validate_json(
+        (directory / "rounds" / "1" / "round.json").read_text(encoding="utf-8")
+    )
+    assert record.outcome is AgentRoundOutcome.INTERRUPTED
+
+
+def test_a_conversation_round_left_running_is_ended(
+    watched, harnesses, gh, left_running
+):
+    directory = write_issue_conversation(state=StateDirectory(root=watched), issue=8)
+    write_round(
+        directory=directory,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            started=PINNED,
+            pid=left_running.pid,
+            purpose=AgentRoundPurpose.DISCUSS,
         ),
     )
     daemon, _, _ = idling(root=watched)
