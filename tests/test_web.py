@@ -5,12 +5,13 @@ import inspect
 import logging
 import re
 import socket
+from datetime import timedelta
 from unittest.mock import MagicMock
 
 import pytest
-from clocks import DISPLAY_TIME_ZONE
+from clocks import DISPLAY_TIME_ZONE, PINNED
 from conftest import FIXTURES, REPOSITORY, assert_matches_view_golden
-from records import write_feed, write_round
+from records import write_feed, write_round, write_tick
 from status_fabrications import (
     LOOKED_AT,
     STATUS_REPORTS,
@@ -29,6 +30,7 @@ from dreamcatcher.agent_rounds import AgentRoundPurpose
 from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
+from dreamcatcher.scheduler import GlobalCooldown, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.web import WEB_BASE_PORT, WEB_HOST, create_app, serve_web
 
@@ -833,6 +835,27 @@ def test_capacity_does_not_repeat_as_a_scheduler_hold(tmp_path, daemon):
 
     assert "<dt>agent capacity</dt>" in page
     assert "<dt>scheduler hold</dt>" not in page
+
+
+def test_active_cooldown_uses_the_display_zone(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            hold="global cooldown",
+            cooldown=GlobalCooldown(
+                started=LOOKED_AT, ends=LOOKED_AT + timedelta(minutes=15)
+            ),
+        ),
+    )
+
+    page = render_home(state=state)
+
+    assert "Global cooldown ends 2026-08-20 04:56:58" in page
+    assert "<dd>ends 2026-08-20 04:56:58</dd>" in page
+    assert "2026-08-19 20:56:58" not in page
 
 
 def test_pull_request_state_remains_without_a_repository_record(tmp_path, daemon):

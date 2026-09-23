@@ -246,6 +246,33 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
     )
 
 
+def test_a_cooldown_report_names_its_local_end(watched, capsys, monkeypatch):
+    daemon, _, _ = idling(root=watched, ticks=1)
+    scheduler = AgentWorkScheduler(
+        repository=REPOSITORY,
+        account=POSTED_BY,
+        config=daemon.config,
+        state=daemon.state,
+        harness=daemon.harness,
+        clock=daemon.clock,
+        rounds=daemon.rounds,
+    )
+    scheduler_record = SchedulerRecord(
+        at=PINNED,
+        hold="global cooldown",
+        cooldown=GlobalCooldown(started=PINNED, ends=PINNED + timedelta(minutes=15)),
+    )
+
+    monkeypatch.setattr(scheduler, "tick", lambda *, at: scheduler_record)
+
+    daemon.run_scheduler_cycle(scheduler=scheduler, at=PINNED)
+
+    assert capsys.readouterr().out == (
+        "2026-08-20 02:41:58  held: global cooldown — next attempt at "
+        "2026-08-20 02:56:58\n"
+    )
+
+
 def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(
     watched, harnesses, gh
 ):

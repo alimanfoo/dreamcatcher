@@ -184,7 +184,19 @@ class DreamcatcherDaemon:
                 f"launched round for {scheduler_record.launched_assignment_identifier}"
             )
         elif scheduler_record.hold is not None:
-            outcome_description = f"held: {' '.join(scheduler_record.hold.split())}"
+            hold_description = " ".join(scheduler_record.hold.split())
+            if scheduler_record.cooldown is not None and hold_description.startswith(
+                "global cooldown"
+            ):
+                cooldown_end = describe_time(
+                    at=scheduler_record.cooldown.ends, zone=self.zone
+                )
+                hold_description = hold_description.replace(
+                    "global cooldown",
+                    f"global cooldown — next attempt at {cooldown_end}",
+                    1,
+                )
+            outcome_description = f"held: {hold_description}"
         else:
             outcome_description = "nothing launched"
         _write_output(

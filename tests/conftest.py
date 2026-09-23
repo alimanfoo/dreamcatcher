@@ -105,7 +105,7 @@ def assert_matches_view_golden(
 ) -> None:
     """Check a rendered view, rewriting its golden when explicitly requested."""
     if config.getoption(REGENERATE_VIEW_GOLDENS_OPTION):
-        path.write_bytes(rendered.encode())
+        path.write_bytes(rendered.encode("utf-8"))
     assert rendered == path.read_text(encoding="utf-8")
 
 
