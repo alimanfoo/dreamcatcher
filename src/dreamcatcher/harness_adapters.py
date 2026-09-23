@@ -39,14 +39,13 @@ HarnessSessionIdentifier = Annotated[
 
 @dataclass(frozen=True, kw_only=True)
 class AgentRoundLaunchRequest:
-    """Describe the settled assignment settings and prompt for one round.
+    """Describe the settled agent-work settings and prompt for one round.
 
-    The dispatch fixes the agent assignment identifier, model, and effort.
-    Every round of that assignment runs with them. The prompt is this round's
-    own.
+    The work owner fixes the identifier, model, and effort. Every round for
+    that owner runs with them. The prompt is this round's own.
     """
 
-    agent_assignment_identifier: str
+    agent_work_identifier: str
     model: str
     effort: str
     prompt: str

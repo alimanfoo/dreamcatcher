@@ -8,7 +8,7 @@ from dreamcatcher.feed import FeedNote, FeedProse
 from dreamcatcher.harness_adapters import AgentRoundLaunchRequest, HarnessInvocation
 
 ROUND_LAUNCH_REQUEST = AgentRoundLaunchRequest(
-    agent_assignment_identifier="GH9-20260819-184158",
+    agent_work_identifier="GH9-20260819-184158",
     model="opus[1m]",
     effort="xhigh",
     prompt="/dream:smith GH9",

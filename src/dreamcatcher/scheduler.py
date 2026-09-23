@@ -955,7 +955,7 @@ class AgentWorkScheduler:
             request=AgentRoundStartRequest(
                 harness=assignment.record.harness,
                 launch_request=AgentRoundLaunchRequest(
-                    agent_assignment_identifier=assignment.identifier,
+                    agent_work_identifier=assignment.identifier,
                     model=assignment.record.model,
                     effort=assignment.record.effort,
                     prompt=required.prompt,

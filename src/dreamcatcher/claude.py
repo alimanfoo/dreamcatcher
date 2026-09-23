@@ -128,7 +128,7 @@ class ClaudeHarnessAdapter(HarnessAdapter):
             "--allowedTools",
             " ".join(CLAUDE_ALLOWED_TOOLS),
             "--name",
-            request.agent_assignment_identifier,
+            request.agent_work_identifier,
         ]
 
 

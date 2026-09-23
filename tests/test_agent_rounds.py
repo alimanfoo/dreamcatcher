@@ -232,7 +232,7 @@ def test_a_first_round_builds_its_harness_invocation(fake, worktree, directory):
         request=AgentRoundStartRequest(
             harness=AgentHarness.CLAUDE,
             launch_request=AgentRoundLaunchRequest(
-                agent_assignment_identifier="GH9-20260819-184158",
+                agent_work_identifier="GH9-20260819-184158",
                 model="opus[1m]",
                 effort="xhigh",
                 prompt=PROMPT,
@@ -259,7 +259,7 @@ def test_a_resumed_round_builds_its_harness_invocation(fake, worktree, directory
         request=AgentRoundStartRequest(
             harness=AgentHarness.CLAUDE,
             launch_request=AgentRoundLaunchRequest(
-                agent_assignment_identifier="GH9-20260819-184158",
+                agent_work_identifier="GH9-20260819-184158",
                 model="opus[1m]",
                 effort="xhigh",
                 prompt=PROMPT,
