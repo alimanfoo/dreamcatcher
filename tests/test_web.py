@@ -334,6 +334,26 @@ def test_assignment_page_shares_the_home_page_top_bar(tmp_path, daemon):
     assert assignment_headers == home_headers
 
 
+def test_every_complete_page_uses_the_dreamcatcher_mark_as_its_favicon(
+    tmp_path, daemon
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    app = create_app(state=state)
+
+    pages = (
+        render_home(state=state),
+        render_assignment(state=state, identifier="GH13-20260819-184158"),
+        app.test_client().get("/assignments/unknown").text,
+    )
+
+    favicon = (
+        '<link rel="icon" type="image/png" '
+        'href="/static/dreamcatcher-mark-phosphor.png">'
+    )
+    assert all(favicon in page for page in pages)
+
+
 def test_a_theme_choice_is_validated_and_remembered(tmp_path):
     app = create_app(state=StateDirectory(root=tmp_path))
     client = app.test_client()

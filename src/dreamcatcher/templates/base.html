@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ view.repository if view is defined else "dreamcatcher" }} · dreamcatcher</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='dreamcatcher-mark-phosphor.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='matrix.css') }}">
 {% if theme == "nature" %}
     <link rel="stylesheet" href="{{ url_for('static', filename='nature.css') }}">
