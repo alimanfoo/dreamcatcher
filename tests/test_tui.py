@@ -39,9 +39,11 @@ from dreamcatcher.agent_rounds import AgentRoundPurpose
 from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.tui import (
     VIEW_REFRESH_INTERVAL,
+    FeedSelection,
     ViewTiming,
     _render_feed_line,
     _render_written_feed_line,
@@ -464,7 +466,7 @@ def followed(*, state, issue: int, wait=refusing) -> str:
     written_to = StringIO()
     show_feed_view(
         state=state,
-        issue=issue,
+        selection=FeedSelection(issue=issue, owner_kind=AgentWorkKind.ASSIGNMENT),
         console=pinned(written_to=written_to, is_terminal=True),
         timing=create_view_timing(wait=wait),
     )
@@ -480,7 +482,7 @@ def test_a_feed_nobody_is_watching_shows_what_is_there_and_returns(tmp_path, dae
     # that followed for as long as this assignment runs could be none of those.
     show_feed_view(
         state=state,
-        issue=13,
+        selection=FeedSelection(issue=13, owner_kind=AgentWorkKind.ASSIGNMENT),
         console=pinned(written_to=written_to),
         timing=create_view_timing(),
     )
@@ -731,7 +733,7 @@ def viewed_round(
     written_to = StringIO()
     show_feed_view(
         state=state,
-        issue=issue,
+        selection=FeedSelection(issue=issue, owner_kind=AgentWorkKind.ASSIGNMENT),
         console=pinned(written_to=written_to, is_terminal=is_terminal),
         round_number=number,
         timing=create_view_timing(wait=wait),
