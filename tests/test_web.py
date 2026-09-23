@@ -8,7 +8,7 @@ import socket
 from unittest.mock import MagicMock
 
 import pytest
-from conftest import FIXTURES, REPOSITORY
+from conftest import FIXTURES, REPOSITORY, assert_matches_view_golden
 from records import write_feed, write_round
 from status_fabrications import (
     LOOKED_AT,
@@ -81,25 +81,33 @@ def _read_cursor(*, response: TestResponse) -> str:
 
 
 @pytest.mark.parametrize("name", sorted(WEB_STATUS_REPORTS))
-def test_a_state_directory_renders_as_its_golden_home(name, tmp_path, daemon):
+def test_a_state_directory_renders_as_its_golden_home(
+    name, tmp_path, daemon, pytestconfig
+):
     state = StateDirectory(root=tmp_path)
     WEB_STATUS_REPORTS[name](state=state)
 
     page = render_home(state=state)
 
-    assert page == (FIXTURES / "web" / f"{name}.html").read_text(encoding="utf-8")
+    assert_matches_view_golden(
+        rendered=page,
+        path=FIXTURES / "web" / f"{name}.html",
+        config=pytestconfig,
+    )
 
 
 @pytest.mark.parametrize("name", sorted(WEB_ASSIGNMENT_PAGES))
-def test_an_assignment_renders_as_its_golden_page(name, tmp_path, daemon):
+def test_an_assignment_renders_as_its_golden_page(name, tmp_path, daemon, pytestconfig):
     state = StateDirectory(root=tmp_path)
     fabricate, identifier = WEB_ASSIGNMENT_PAGES[name]
     fabricate(state=state)
 
     page = render_assignment(state=state, identifier=identifier)
 
-    assert page == (FIXTURES / "web" / "assignments" / f"{name}.html").read_text(
-        encoding="utf-8"
+    assert_matches_view_golden(
+        rendered=page,
+        path=FIXTURES / "web" / "assignments" / f"{name}.html",
+        config=pytestconfig,
     )
 
 
@@ -529,7 +537,7 @@ def test_a_faulted_tail_stops_when_it_reads_nothing_new(tmp_path, daemon):
     assert response.status_code == 286
 
 
-def test_a_tail_fragment_matches_its_golden(tmp_path, daemon):
+def test_a_tail_fragment_matches_its_golden(tmp_path, daemon, pytestconfig):
     state = StateDirectory(root=tmp_path)
     fabricate_a_silent_round(state=state)
     identifier = "GH13-20260819-184158"
@@ -541,7 +549,11 @@ def test_a_tail_fragment_matches_its_golden(tmp_path, daemon):
     )
 
     assert response.status_code == 200
-    assert response.text == (FIXTURES / "web" / "tail.html").read_text(encoding="utf-8")
+    assert_matches_view_golden(
+        rendered=response.text,
+        path=FIXTURES / "web" / "tail.html",
+        config=pytestconfig,
+    )
 
 
 def test_a_quiet_tail_has_no_appendable_text_nodes(tmp_path):

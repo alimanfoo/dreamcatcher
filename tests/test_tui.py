@@ -13,7 +13,7 @@ from io import StringIO
 
 import pytest
 from clocks import PINNED
-from conftest import FIXTURES
+from conftest import FIXTURES, assert_matches_view_golden
 from records import write_feed, write_round
 from rich.console import Console
 from rich.control import Control
@@ -142,13 +142,19 @@ def render_status_view(*, state, width: int = WIDTH) -> str:
 
 
 @pytest.mark.parametrize("name", sorted(STATUS_REPORTS))
-def test_a_state_directory_renders_as_its_golden_status(name, tmp_path, daemon):
+def test_a_state_directory_renders_as_its_golden_status(
+    name, tmp_path, daemon, pytestconfig
+):
     state = StateDirectory(root=tmp_path)
     STATUS_REPORTS[name](state=state)
 
     status = render_status_view(state=state)
 
-    assert status == (FIXTURES / "status" / f"{name}.txt").read_text(encoding="utf-8")
+    assert_matches_view_golden(
+        rendered=status,
+        path=FIXTURES / "status" / f"{name}.txt",
+        config=pytestconfig,
+    )
 
 
 def test_identifiers_remain_whole_when_the_assignment_table_folds(tmp_path):
@@ -361,14 +367,18 @@ def test_assignment_status_alone_is_coloured_and_latest_output_is_dim(tmp_path, 
 
 
 @pytest.mark.parametrize("name", sorted(ASSIGNMENTS))
-def test_an_assignment_renders_as_its_golden_view(name, tmp_path, daemon):
+def test_an_assignment_renders_as_its_golden_view(name, tmp_path, daemon, pytestconfig):
     state = StateDirectory(root=tmp_path)
     fabricate, issue = ASSIGNMENTS[name]
     fabricate(state=state)
 
     view = viewed(state=state, issue=issue)
 
-    assert view == (FIXTURES / "assignment" / f"{name}.txt").read_text(encoding="utf-8")
+    assert_matches_view_golden(
+        rendered=view,
+        path=FIXTURES / "assignment" / f"{name}.txt",
+        config=pytestconfig,
+    )
 
 
 def test_an_assignment_view_shows_the_round_that_starts_while_it_is_open(
@@ -476,14 +486,18 @@ def test_a_feed_nobody_is_watching_shows_what_is_there_and_returns(tmp_path, dae
 
 
 @pytest.mark.parametrize("name", sorted(FEEDS))
-def test_a_feed_renders_as_its_golden_view(name, tmp_path, daemon):
+def test_a_feed_renders_as_its_golden_view(name, tmp_path, daemon, pytestconfig):
     state = StateDirectory(root=tmp_path)
     fabricate, issue = FEEDS[name]
     fabricate(state=state)
 
     feed = followed(state=state, issue=issue, wait=interrupting)
 
-    assert feed == (FIXTURES / "feed" / f"{name}.txt").read_text(encoding="utf-8")
+    assert_matches_view_golden(
+        rendered=feed,
+        path=FIXTURES / "feed" / f"{name}.txt",
+        config=pytestconfig,
+    )
 
 
 def test_only_a_feed_lines_stamp_is_dim():
