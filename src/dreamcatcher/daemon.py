@@ -34,7 +34,7 @@ from dreamcatcher.words import describe_time
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from datetime import datetime
+    from datetime import datetime, tzinfo
     from pathlib import Path
 
     from dreamcatcher.agent_rounds import AgentRound
@@ -66,8 +66,12 @@ class DreamcatcherDaemon:
         harness: AgentHarness,
         interval: int = DEFAULT_INTERVAL_SECONDS,
         max_agents: int = DEFAULT_MAX_AGENTS,
+        zone: tzinfo | None = None,
     ) -> None:
-        """Configure the daemon for the main checkout at root."""
+        """Configure the daemon for the main checkout at root.
+
+        Report times use the machine's local zone when zone is None.
+        """
         if not (root / ".git").is_dir():
             raise ReportableError(
                 f"Start dreamcatcher from a repository's main checkout. "
@@ -76,6 +80,7 @@ class DreamcatcherDaemon:
         self.harness = harness
         self.interval = interval
         self.max_agents = max_agents
+        self.zone = zone
         self.config = read_dreamcatcher_config(root=root)
         self.state = StateDirectory(root=root)
         self.clock: Callable[[], datetime] = read_current_time
@@ -133,7 +138,9 @@ class DreamcatcherDaemon:
                 path=self.state.daemon_run_record,
             )
             at = self.clock()
-            _write_output(line=f"{describe_time(at=at)}  dreamcatcher is running")
+            _write_output(
+                line=f"{describe_time(at=at, zone=self.zone)}  dreamcatcher is running"
+            )
             try:
                 with suppress(KeyboardInterrupt):
                     while True:
@@ -167,7 +174,9 @@ class DreamcatcherDaemon:
             raise
         except ReportableError as failure:
             reason = " ".join(str(failure).split())
-            _write_output(line=f"{describe_time(at=at)}  held: {reason}")
+            _write_output(
+                line=f"{describe_time(at=at, zone=self.zone)}  held: {reason}"
+            )
             return
         write_json(document=scheduler_record, path=self.state.scheduler_record)
         if scheduler_record.launched_assignment_identifier is not None:
@@ -179,7 +188,10 @@ class DreamcatcherDaemon:
         else:
             outcome_description = "nothing launched"
         _write_output(
-            line=(f"{describe_time(at=scheduler_record.at)}  {outcome_description}")
+            line=(
+                f"{describe_time(at=scheduler_record.at, zone=self.zone)}  "
+                f"{outcome_description}"
+            )
         )
 
     def _locate_harnesses(self) -> None:

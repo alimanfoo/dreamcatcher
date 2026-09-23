@@ -8,6 +8,7 @@ import socket
 from unittest.mock import MagicMock
 
 import pytest
+from clocks import DISPLAY_TIME_ZONE
 from conftest import FIXTURES, REPOSITORY, assert_matches_view_golden
 from records import write_feed, write_round
 from status_fabrications import (
@@ -46,7 +47,9 @@ WEB_ASSIGNMENT_PAGES = {
 
 def render_home(*, state: StateDirectory) -> str:
     """Render the home page against a pinned clock."""
-    application = create_app(state=state, clock=lambda: LOOKED_AT)
+    application = create_app(
+        state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
+    )
     response = application.test_client().get("/")
     assert response.status_code == 200
     return response.get_data(as_text=True)
@@ -54,14 +57,18 @@ def render_home(*, state: StateDirectory) -> str:
 
 def render_assignment(*, state: StateDirectory, identifier: str) -> str:
     """Render one assignment page against a pinned clock."""
-    application = create_app(state=state, clock=lambda: LOOKED_AT)
+    application = create_app(
+        state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
+    )
     response = application.test_client().get(f"/assignments/{identifier}")
     assert response.status_code == 200
     return response.get_data(as_text=True)
 
 
 def _read_tail(*, state: StateDirectory, identifier: str, cursor: str) -> TestResponse:
-    application = create_app(state=state, clock=lambda: LOOKED_AT)
+    application = create_app(
+        state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
+    )
     return application.test_client().get(
         f"/assignments/{identifier}/tail",
         query_string={"cursor": cursor},
@@ -134,7 +141,9 @@ def test_feedback_card_keeps_its_compact_actions_inside_the_heading(tmp_path, da
     fabricate_everything(state=state)
 
     page = render_home(state=state)
-    application = create_app(state=state, clock=lambda: LOOKED_AT)
+    application = create_app(
+        state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
+    )
     stylesheet = (
         application.test_client().get("/static/matrix.css").get_data(as_text=True)
     )
@@ -214,7 +223,9 @@ def test_assignment_page_ids_are_unique(tmp_path, daemon):
 def test_assignment_script_follows_only_when_the_feed_was_at_its_end(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    application = create_app(state=state, clock=lambda: LOOKED_AT)
+    application = create_app(
+        state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
+    )
 
     response = application.test_client().get("/static/assignment.js")
     script = response.get_data(as_text=True)
@@ -234,7 +245,9 @@ def test_complete_assignment_cards_have_space_between_them(tmp_path, daemon):
     fabricate_everything(state=state)
 
     page = render_home(state=state)
-    application = create_app(state=state, clock=lambda: LOOKED_AT)
+    application = create_app(
+        state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
+    )
     stylesheet = (
         application.test_client().get("/static/matrix.css").get_data(as_text=True)
     )
@@ -276,7 +289,9 @@ def test_complete_assignments_are_ordered_by_most_recent_completion(tmp_path):
 def test_home_page_types_replaced_assignment_output(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    application = create_app(state=state, clock=lambda: LOOKED_AT)
+    application = create_app(
+        state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
+    )
     client = application.test_client()
 
     home_response = client.get("/")
@@ -329,7 +344,9 @@ def test_github_links_open_in_a_new_tab(tmp_path, daemon):
 def test_an_unknown_assignment_renders_a_404_page(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    application = create_app(state=state, clock=lambda: LOOKED_AT)
+    application = create_app(
+        state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
+    )
 
     response = application.test_client().get("/assignments/GH99-20260819-184158")
 
@@ -614,7 +631,9 @@ def test_hand_resume_command_is_a_collapsed_last_resort(tmp_path, daemon):
     fabricate_everything(state=state)
 
     page = render_assignment(state=state, identifier="GH9-20260819-184158")
-    application = create_app(state=state, clock=lambda: LOOKED_AT)
+    application = create_app(
+        state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
+    )
     stylesheet = (
         application.test_client().get("/static/matrix.css").get_data(as_text=True)
     )
@@ -631,7 +650,9 @@ def test_assignment_page_offers_a_control_that_jumps_to_the_feed_tail(tmp_path, 
     fabricate_everything(state=state)
 
     page = render_assignment(state=state, identifier="GH13-20260819-184158")
-    application = create_app(state=state, clock=lambda: LOOKED_AT)
+    application = create_app(
+        state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
+    )
     response = application.test_client().get("/static/assignment.js")
     script = response.get_data(as_text=True)
 
@@ -647,7 +668,9 @@ def test_assignment_page_offers_a_control_that_jumps_to_the_feed_tail(tmp_path, 
 def test_assignment_feed_fits_in_the_initial_viewport(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    application = create_app(state=state, clock=lambda: LOOKED_AT)
+    application = create_app(
+        state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
+    )
 
     response = application.test_client().get("/static/matrix.css")
     stylesheet = response.get_data(as_text=True)
@@ -663,7 +686,9 @@ def test_assignment_feed_fits_in_the_initial_viewport(tmp_path):
 def test_round_headings_are_separated_from_the_feed_content(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    application = create_app(state=state, clock=lambda: LOOKED_AT)
+    application = create_app(
+        state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
+    )
 
     response = application.test_client().get("/static/matrix.css")
     stylesheet = response.get_data(as_text=True)
@@ -700,7 +725,9 @@ def test_an_assignment_page_reports_a_repository_record_that_will_not_read(
     fabricate_everything(state=state)
     state.repository.unlink()
     state.repository.mkdir()
-    application = create_app(state=state, clock=lambda: LOOKED_AT)
+    application = create_app(
+        state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
+    )
 
     response = application.test_client().get("/assignments/GH13-20260819-184158")
 
@@ -824,7 +851,9 @@ def test_a_record_that_will_not_read_renders_an_error_page(tmp_path, daemon):
     fabricate_everything(state=state)
     record = state.assignments / "GH13-20260819-184158" / "assignment.json"
     write_text(text="not json\n", path=record)
-    application = create_app(state=state, clock=lambda: LOOKED_AT)
+    application = create_app(
+        state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
+    )
 
     response = application.test_client().get("/")
 
@@ -835,7 +864,9 @@ def test_a_record_that_will_not_read_renders_an_error_page(tmp_path, daemon):
 def test_the_home_page_rejects_a_non_loopback_host(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    application = create_app(state=state, clock=lambda: LOOKED_AT)
+    application = create_app(
+        state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
+    )
 
     response = application.test_client().get("/", headers={"Host": "attacker.test"})
 

@@ -5,9 +5,10 @@ in this project passes one of these in instead.
 """
 
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 
 PINNED = datetime(2026, 8, 19, 18, 41, 58, tzinfo=UTC)
+DISPLAY_TIME_ZONE = timezone(timedelta(hours=8))
 
 
 @dataclass(kw_only=True)

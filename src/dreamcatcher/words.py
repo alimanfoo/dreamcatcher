@@ -1,18 +1,28 @@
-"""Format shared time, duration, and count values for display."""
+"""Format shared timestamps, durations, and count values."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, tzinfo
 
 # How a time is written wherever the tool writes one.
 UTC_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+DISPLAY_TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 SECONDS_PER_MINUTE = 60
 MINUTES_PER_HOUR = 60
 HOURS_PER_DAY = 24
 
 
-def describe_time(*, at: datetime) -> str:
-    """Return the time in Dreamcatcher's UTC timestamp format."""
+def format_utc_timestamp(*, at: datetime) -> str:
+    """Format a timestamp for persistent storage in UTC."""
     return f"{at.astimezone(UTC):{UTC_TIMESTAMP_FORMAT}}"
+
+
+def describe_time(*, at: datetime, zone: tzinfo | None) -> str:
+    """Describe a time in the given zone without a zone suffix.
+
+    None selects the machine's local zone, including the offset at the time
+    being described.
+    """
+    return f"{at.astimezone(zone):{DISPLAY_TIME_FORMAT}}"
 
 
 def describe_span(*, span: timedelta) -> str:
