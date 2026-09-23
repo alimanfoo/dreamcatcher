@@ -30,6 +30,7 @@
   --page-width: 1320px;
   --letter-label: 0.14em;
   --letter-chip: 0.06em;
+  --output-typing-duration: 420ms;
 }
 
 * {
@@ -322,7 +323,7 @@ body::after {
 
 .latest-output.is-typing,
 .feed-line.is-typing {
-  animation: type-output 420ms steps(32, end);
+  animation: type-output var(--output-typing-duration) steps(32, end);
 }
 
 @keyframes type-output {
@@ -597,8 +598,11 @@ body::after {
   gap: var(--space-6);
 }
 
-.feed-line.is-awaiting-reveal {
-  visibility: hidden;
+.feed-line.is-typing {
+  animation-delay: calc(
+    var(--feed-line-reveal-order) * var(--output-typing-duration)
+  );
+  animation-fill-mode: backwards;
 }
 
 .feed-line time,

@@ -3,33 +3,12 @@
 const feed = document.querySelector(".feed-records");
 const feedTail = document.querySelector(".feed-tail");
 const assignmentSidebar = document.querySelector(".assignment-sidebar");
-const queuedFeedLines = [];
 let shouldFollowFeed = false;
 let feedLineCountBeforeSwap = 0;
-let isRevealingFeedLine = false;
 let currentRoundHash = null;
 let focusedRoundHash = null;
 
-function revealNextFeedLine() {
-  if (isRevealingFeedLine || queuedFeedLines.length === 0) {
-    return;
-  }
-  const line = queuedFeedLines.shift();
-  isRevealingFeedLine = true;
-  line.classList.remove("is-awaiting-reveal");
-  line.classList.add("is-typing");
-  line.addEventListener(
-    "animationend",
-    () => {
-      line.classList.remove("is-typing");
-      isRevealingFeedLine = false;
-      revealNextFeedLine();
-    },
-    { once: true },
-  );
-}
-
-function queueNewFeedLines() {
+function typeNewFeedLines() {
   const newFeedLines = [...feed.querySelectorAll(".feed-line")].slice(
     feedLineCountBeforeSwap,
   );
@@ -39,11 +18,10 @@ function queueNewFeedLines() {
   ) {
     return;
   }
-  for (const line of newFeedLines) {
-    line.classList.add("is-awaiting-reveal");
+  for (const [index, line] of newFeedLines.entries()) {
+    line.style.setProperty("--feed-line-reveal-order", index);
+    line.classList.add("is-typing");
   }
-  queuedFeedLines.push(...newFeedLines);
-  revealNextFeedLine();
 }
 
 if (feed !== null) {
@@ -76,7 +54,7 @@ if (feed !== null) {
     if (event.detail.target !== feed) {
       return;
     }
-    queueNewFeedLines();
+    typeNewFeedLines();
     if (shouldFollowFeed) {
       feed.scrollTop = feed.scrollHeight;
     }
