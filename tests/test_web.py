@@ -152,7 +152,7 @@ def test_feedback_card_keeps_its_compact_actions_inside_the_heading(tmp_path, da
     card_start = page.index('<article id="assignment-GH20-20260819-184158"')
     card = page[card_start : page.index("</article>", card_start)]
 
-    assert "[NEEDS FEEDBACK]" in card
+    assert '<span class="chip status-needs-user-feedback">needs feedback</span>' in card
     assert "[NEEDS USER FEEDBACK]" not in card
     assert re.search(
         r"\.card-heading \{[^}]*display: grid;"
@@ -174,7 +174,10 @@ def test_assignment_feedback_status_uses_the_compact_label(tmp_path, daemon):
         identifier="GH20-20260819-184158",
     )
 
-    assert "[NEEDS FEEDBACK]" in page
+    assert (
+        '<span id="assignment-status" '
+        'class="chip status-needs-user-feedback">needs feedback</span>'
+    ) in page
     assert "[NEEDS USER FEEDBACK]" not in page
 
 
@@ -328,6 +331,30 @@ def test_assignment_page_shares_the_home_page_top_bar(tmp_path, daemon):
 
     assert len(home_headers) == 1
     assert assignment_headers == home_headers
+
+
+def test_a_theme_choice_is_validated_and_remembered(tmp_path):
+    app = create_app(state=StateDirectory(root=tmp_path))
+    client = app.test_client()
+
+    selected = client.get("/?theme=nature")
+    remembered = client.get("/")
+
+    assert 'data-theme="nature"' in selected.text
+    assert 'href="/static/nature.css"' in selected.text
+    assert "theme=nature;" in selected.headers["Set-Cookie"]
+    assert 'data-theme="nature"' in remembered.text
+    assert 'href="/static/nature.css"' in remembered.text
+
+
+def test_an_unknown_theme_uses_matrix_without_being_remembered(tmp_path):
+    app = create_app(state=StateDirectory(root=tmp_path))
+
+    response = app.test_client().get("/?theme=unknown")
+
+    assert 'data-theme="matrix"' in response.text
+    assert 'href="/static/nature.css"' not in response.text
+    assert "Set-Cookie" not in response.headers
 
 
 def test_github_links_open_in_a_new_tab(tmp_path, daemon):

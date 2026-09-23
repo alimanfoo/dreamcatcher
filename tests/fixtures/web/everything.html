@@ -1,10 +1,11 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="matrix">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>alimanfoo/dreamcatcher · dreamcatcher</title>
     <link rel="stylesheet" href="/static/matrix.css">
+
     <script src="/static/vendor/htmx-2.0.10.min.js" defer></script>
     <script src="/static/vendor/idiomorph-ext-0.7.4.min.js" defer></script>
   </head>
@@ -13,7 +14,13 @@
   <main id="home" hx-get="/" hx-trigger="every 2s" hx-select="#home" hx-swap="morph:{callbacks:{beforeAttributeUpdated:(attribute,element)=>!(attribute==='open'&&element.matches('details'))}}">
     <header class="site-header">
   <div class="repository"><img class="mark" src="/static/dreamcatcher-mark-phosphor.png" alt="Dreamcatcher">alimanfoo/dreamcatcher</div>
-  <div class="daemon daemon-running">daemon RUNNING · dreamcatcher v3.0.0.beta1 · pid 4242</div>
+  <div class="site-actions">
+    <div class="daemon daemon-running">daemon RUNNING · dreamcatcher v3.0.0.beta1 · pid 4242</div>
+    <nav class="theme-switch" aria-label="Theme">
+      <a class="theme-choice active" href="?theme=matrix" aria-current="page">Matrix</a>
+      <a class="theme-choice" href="?theme=nature">Nature</a>
+    </nav>
+  </div>
 </header>
     <div class="home-content">
       <section class="instance" aria-label="Instance">
@@ -51,7 +58,7 @@
   <div class="card-heading">
     <div><a class="issue-number" href="https://github.com/alimanfoo/dreamcatcher/issues/20" target="_blank" rel="noopener noreferrer">#20</a> <span class="identifier">GH20-20260819-184158</span></div>
     <span class="card-heading-actions">
-      <span class="chip status-needs-user-feedback">[NEEDS FEEDBACK]</span>
+      <span class="chip status-needs-user-feedback">needs feedback</span>
       <a class="assignment-open" href="/assignments/GH20-20260819-184158" aria-label="Open assignment GH20-20260819-184158">&gt;</a>
     </span>
   </div>
@@ -67,7 +74,7 @@
   <div class="card-heading">
     <div><a class="issue-number" href="https://github.com/alimanfoo/dreamcatcher/issues/9" target="_blank" rel="noopener noreferrer">#9</a> <span class="identifier">GH9-20260819-184158</span></div>
     <span class="card-heading-actions">
-      <span class="chip status-fault">[FAULT]</span>
+      <span class="chip status-fault">fault</span>
       <a class="assignment-open" href="/assignments/GH9-20260819-184158" aria-label="Open assignment GH9-20260819-184158">&gt;</a>
     </span>
   </div>
@@ -83,12 +90,12 @@
   <div class="card-heading">
     <div><a class="issue-number" href="https://github.com/alimanfoo/dreamcatcher/issues/13" target="_blank" rel="noopener noreferrer">#13</a> <span class="identifier">GH13-20260819-184158</span></div>
     <span class="card-heading-actions">
-      <span class="chip status-working">[WORKING]</span>
+      <span class="chip status-working">working</span>
       <a class="assignment-open" href="/assignments/GH13-20260819-184158" aria-label="Open assignment GH13-20260819-184158">&gt;</a>
     </span>
   </div>
   <p class="assignment-detail">round 2, running 1h 30m, last output 1h 29m ago</p>
-  <p class="latest-output"><span>[AGENT]</span> The agent is explaining a long change that would otherwise wrap onto another line and move every assignment below it.</p>
+  <p class="latest-output"><span>agent</span> The agent is explaining a long change that would otherwise wrap onto another line and move every assignment below it.</p>
   <div class="assignment-meta">
     <span>claude · opus[1m] · xhigh</span>
     <a class="pr-chip" href="https://github.com/alimanfoo/dreamcatcher/pull/52" target="_blank" rel="noopener noreferrer">PR #52</a>
@@ -99,7 +106,7 @@
   <div class="card-heading">
     <div><a class="issue-number" href="https://github.com/alimanfoo/dreamcatcher/issues/31" target="_blank" rel="noopener noreferrer">#31</a> <span class="identifier">GH31-20260819-184158</span></div>
     <span class="card-heading-actions">
-      <span class="chip status-waiting">[WAITING]</span>
+      <span class="chip status-waiting">waiting</span>
       <a class="assignment-open" href="/assignments/GH31-20260819-184158" aria-label="Open assignment GH31-20260819-184158">&gt;</a>
     </span>
   </div>
@@ -115,7 +122,7 @@
   <div class="card-heading">
     <div><a class="issue-number" href="https://github.com/alimanfoo/dreamcatcher/issues/35" target="_blank" rel="noopener noreferrer">#35</a> <span class="identifier">GH35-20260819-184158</span></div>
     <span class="card-heading-actions">
-      <span class="chip status-waiting">[WAITING]</span>
+      <span class="chip status-waiting">waiting</span>
       <a class="assignment-open" href="/assignments/GH35-20260819-184158" aria-label="Open assignment GH35-20260819-184158">&gt;</a>
     </span>
   </div>
@@ -131,7 +138,7 @@
   <div class="card-heading">
     <div><a class="issue-number" href="https://github.com/alimanfoo/dreamcatcher/issues/44" target="_blank" rel="noopener noreferrer">#44</a> <span class="identifier">GH44-20260819-184158</span></div>
     <span class="card-heading-actions">
-      <span class="chip status-waiting">[WAITING]</span>
+      <span class="chip status-waiting">waiting</span>
       <a class="assignment-open" href="/assignments/GH44-20260819-184158" aria-label="Open assignment GH44-20260819-184158">&gt;</a>
     </span>
   </div>
@@ -147,7 +154,7 @@
   <div class="card-heading">
     <div><a class="issue-number" href="https://github.com/alimanfoo/dreamcatcher/issues/40" target="_blank" rel="noopener noreferrer">#40</a> <span class="identifier">GH40-20260819-184158</span></div>
     <span class="card-heading-actions">
-      <span class="chip status-unknown">[UNKNOWN]</span>
+      <span class="chip status-unknown">unknown</span>
       <a class="assignment-open" href="/assignments/GH40-20260819-184158" aria-label="Open assignment GH40-20260819-184158">&gt;</a>
     </span>
   </div>
@@ -167,7 +174,7 @@
   <div class="card-heading">
     <div><a class="issue-number" href="https://github.com/alimanfoo/dreamcatcher/issues/12" target="_blank" rel="noopener noreferrer">#12</a> <span class="identifier">GH12-20260819-184158</span></div>
     <span class="card-heading-actions">
-      <span class="chip status-complete">[COMPLETE]</span>
+      <span class="chip status-complete">complete</span>
       <a class="assignment-open" href="/assignments/GH12-20260819-184158" aria-label="Open assignment GH12-20260819-184158">&gt;</a>
     </span>
   </div>
@@ -191,7 +198,7 @@
               <article id="issue-50" class="issue-row" aria-label="Issue #50">
   <div class="card-heading">
     <a class="issue-number" href="https://github.com/alimanfoo/dreamcatcher/issues/50" target="_blank" rel="noopener noreferrer">#50</a>
-    <span class="chip issue-available">[AVAILABLE]</span>
+    <span class="chip issue-available">available</span>
   </div>
   <p class="labels">dream:smith</p>
   
@@ -200,7 +207,7 @@
               <article id="issue-51" class="issue-row" aria-label="Issue #51">
   <div class="card-heading">
     <a class="issue-number" href="https://github.com/alimanfoo/dreamcatcher/issues/51" target="_blank" rel="noopener noreferrer">#51</a>
-    <span class="chip issue-available">[AVAILABLE]</span>
+    <span class="chip issue-available">available</span>
   </div>
   <p class="labels">dream:smith</p>
   
@@ -210,7 +217,7 @@
               <article id="issue-52" class="issue-row" aria-label="Issue #52">
   <div class="card-heading">
     <a class="issue-number" href="https://github.com/alimanfoo/dreamcatcher/issues/52" target="_blank" rel="noopener noreferrer">#52</a>
-    <span class="chip issue-blocked">[BLOCKED]</span>
+    <span class="chip issue-blocked">blocked</span>
   </div>
   <p class="labels">dream:smith</p>
   <p class="evidence">blocked by <a class="issue-number" href="https://github.com/alimanfoo/dreamcatcher/issues/50" target="_blank" rel="noopener noreferrer">#50</a></p>

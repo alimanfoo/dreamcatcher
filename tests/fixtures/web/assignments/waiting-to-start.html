@@ -1,10 +1,11 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="matrix">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>alimanfoo/dreamcatcher · dreamcatcher</title>
     <link rel="stylesheet" href="/static/matrix.css">
+
     <script src="/static/vendor/htmx-2.0.10.min.js" defer></script>
     <script src="/static/vendor/idiomorph-ext-0.7.4.min.js" defer></script>
   </head>
@@ -13,7 +14,13 @@
   <main class="assignment-page">
     <header class="site-header">
   <div class="repository"><img class="mark" src="/static/dreamcatcher-mark-phosphor.png" alt="Dreamcatcher">alimanfoo/dreamcatcher</div>
-  <div class="daemon daemon-running">daemon RUNNING · dreamcatcher v3.0.0.beta1 · pid 4242</div>
+  <div class="site-actions">
+    <div class="daemon daemon-running">daemon RUNNING · dreamcatcher v3.0.0.beta1 · pid 4242</div>
+    <nav class="theme-switch" aria-label="Theme">
+      <a class="theme-choice active" href="?theme=matrix" aria-current="page">Matrix</a>
+      <a class="theme-choice" href="?theme=nature">Nature</a>
+    </nav>
+  </div>
 </header>
     <div class="assignment-content">
       <a class="assignment-navigation" href="/">&lt; home</a>
@@ -23,7 +30,7 @@
             <h1 id="assignment-heading"><a class="assignment-issue" href="https://github.com/alimanfoo/dreamcatcher/issues/44" target="_blank" rel="noopener noreferrer">#44</a></h1>
           
           <div class="assignment-heading-actions">
-            <span id="assignment-status" class="chip status-waiting">[WAITING]</span>
+            <span id="assignment-status" class="chip status-waiting">waiting</span>
             <a class="pr-chip" href="https://github.com/alimanfoo/dreamcatcher/pull/52" target="_blank" rel="noopener noreferrer">PR #52</a>
           </div>
         </div>

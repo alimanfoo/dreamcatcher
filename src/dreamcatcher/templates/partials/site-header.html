@@ -1,4 +1,10 @@
 <header class="site-header">
-  <div class="repository"><img class="mark" src="{{ url_for('static', filename='dreamcatcher-mark-phosphor.png') }}" alt="Dreamcatcher">{{ view.repository }}</div>
-  <div class="daemon daemon-{{ view.daemon_state }}">{{ view.daemon_summary }}</div>
+  <div class="repository"><img class="mark" src="{{ url_for('static', filename='dreamcatcher-mark-' ~ ('ink' if theme == 'nature' else 'phosphor') ~ '.png') }}" alt="Dreamcatcher">{{ view.repository }}</div>
+  <div class="site-actions">
+    <div class="daemon daemon-{{ view.daemon_state }}">{{ view.daemon_summary }}</div>
+    <nav class="theme-switch" aria-label="Theme">
+      <a class="theme-choice{% if theme == 'matrix' %} active{% endif %}" href="?theme=matrix"{% if theme == 'matrix' %} aria-current="page"{% endif %}>Matrix</a>
+      <a class="theme-choice{% if theme == 'nature' %} active{% endif %}" href="?theme=nature"{% if theme == 'nature' %} aria-current="page"{% endif %}>Nature</a>
+    </nav>
+  </div>
 </header>

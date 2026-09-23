@@ -11,7 +11,7 @@ from datetime import datetime, tzinfo
 from typing import Protocol, cast
 from webbrowser import open as open_browser
 
-from flask import Flask, render_template, request
+from flask import Flask, Response, render_template, request
 from werkzeug.serving import BaseWSGIServer
 
 from dreamcatcher.agent_rounds import AgentRoundRecord, SuccessfulAgentRoundEnding
@@ -45,6 +45,8 @@ WEB_MAX_PORT = 65535
 _ISSUE_REFERENCE_PATTERN = re.compile(r"(?<!\w)(?:GH|#)(\d+)\b(?!-)")
 _FEED_CURSOR_PATTERN = re.compile(r"(?P<round>0|[1-9]\d*):(?P<position>\d+)")
 _HTMX_STOP_POLLING_STATUS = 286
+_DEFAULT_WEB_THEME = "matrix"
+_WEB_THEMES = frozenset({_DEFAULT_WEB_THEME, "nature"})
 
 
 class _WebServerBindError(Exception):
@@ -230,6 +232,7 @@ def create_app(
     """
     app = Flask(__name__)
     app.config["TRUSTED_HOSTS"] = [WEB_HOST, "localhost"]
+    _configure_web_theme(app=app)
 
     @app.get("/")
     def show_home() -> str:
@@ -294,6 +297,30 @@ def create_app(
         return render_template("error.html", message=str(error)), 500
 
     return app
+
+
+def _configure_web_theme(*, app: Flask) -> None:
+    @app.context_processor
+    def add_web_theme() -> dict[str, str]:
+        return {"theme": _read_web_theme()}
+
+    @app.after_request
+    def remember_web_theme(response: Response, /) -> Response:
+        """Remember a valid theme selected through a browser request."""
+        requested_theme = request.args.get("theme")
+        if requested_theme in _WEB_THEMES:
+            response.set_cookie("theme", requested_theme, samesite="Lax")
+        return response
+
+
+def _read_web_theme() -> str:
+    requested_theme = request.args.get("theme")
+    if requested_theme in _WEB_THEMES:
+        return requested_theme
+    remembered_theme = request.cookies.get("theme")
+    if remembered_theme in _WEB_THEMES:
+        return remembered_theme
+    return _DEFAULT_WEB_THEME
 
 
 def _run_server(*, server: BaseWSGIServer) -> None:

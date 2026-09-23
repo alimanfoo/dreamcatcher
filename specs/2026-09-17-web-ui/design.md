@@ -23,8 +23,9 @@ daemon.
 The design sketches under `design-v2/` were made with a design tool before this
 document, as a way of seeing what the pages might be. Where this document and
 those sketches differ, this document is the design. In particular, the sketch's
-data model, its structured feed records, its "Queued" and "Backlog" wording, its
-second theme and its browser-side rendering are not part of this phase.
+data model, its structured feed records, its "Queued" and "Backlog" wording and
+its browser-side rendering are not part of this phase. The second theme was
+added after the first version shipped, with its motion left out.
 
 ## How it works
 
@@ -316,17 +317,17 @@ Interrupting it ends it without a message, as interrupting a live view does. It
 takes no other option. A `--no-browser` for a machine reached over SSH is the
 obvious next one and can arrive when somebody needs it.
 
-### One theme
+### Two themes
 
-The pages ship with one stylesheet, the Matrix theme of the sketches: monospace
-text in phosphor green on near-black, with a scanline overlay done in CSS. It
-loads no font and runs no script. The colours and spacing are CSS custom
-properties on the root, so a second theme is a second stylesheet over the same
-markup, and a theme switch would be a link that sets a cookie the template reads
-to choose the stylesheet, with no script and nothing for a morph to disturb.
-Neither is built in this phase. The Nature theme of the sketches, with its
-fonts, its sun computed from the clock and its breeze animating every card, is
-filed as a follow-up once there is a page to dress.
+The pages share one set of markup and offer the Matrix and Nature themes from a
+switch in the header. A query parameter selects a theme, and a cookie remembers
+the validated choice across pages and refreshes. The switch is made of links, so
+it needs no script and a morph cannot disturb it.
+
+The Matrix stylesheet supplies the shared layout and the original phosphor
+theme. The Nature stylesheet changes only the presentation: sand, sage and clay
+colours, soft surfaces, rounded chips, a paper texture and a fixed sun. It uses
+local font fallbacks and has no breeze, moving sun or other theme animation.
 
 ### Errors
 
@@ -367,12 +368,13 @@ dependencies at all.
 ## What changes, and what goes away
 
 New: `web.py`; `templates/` and `static/` beside it, with `static/vendor/`; the
-`web` verb and its `--port`; `title` on the issue observation and the assignment
-record; `pull_request_observation` on the assignment record and the assignment
-operation that records it; `title` in the GitHub issue projection and the two
-`gh` calls that read issues; the feed line parse in `feed.py`; a zone parameter
-wherever a time is shown; a documented way to regenerate the goldens, which
-moving every shown time to the local zone needs and issue 104 asks for.
+`web` verb and its `--port`; the Matrix and Nature themes and their switch;
+`title` on the issue observation and the assignment record;
+`pull_request_observation` on the assignment record and the assignment operation
+that records it; `title` in the GitHub issue projection and the two `gh` calls
+that read issues; the feed line parse in `feed.py`; a zone parameter wherever a
+time is shown; a documented way to regenerate the goldens, which moving every
+shown time to the local zone needs and issue 104 asks for.
 
 Changed: the TUI shows local time; the TUI reads the feed label through
 `feed.py` instead of its own regex; the status model carries as fields what it
@@ -434,17 +436,15 @@ above.
 flag between them. Deriving the starting point from the repository's name costs
 two lines and gives each repository a stable address without one.
 
-**Why one theme?** The Nature theme is a stylesheet plus behaviour: fonts to
-load, a solar position to compute and a breeze to animate. The Matrix theme is a
-stylesheet. Shipping one first puts the structure in place and lets the second
-be judged against a real page.
+**Why is the Nature theme still?** A fixed sun and still cards carry the visual
+identity without adding a clock model or continuous movement. The original
+motion can be reconsidered if readers find that it adds more than it distracts.
 
 ## Documents to file
 
 - A structured feed: one JSON record per event with its full detail, written by
   the round beside or instead of the text, the terminal feed rendered from it,
   and a state format bump to version 4.
-- The Nature theme, as a second stylesheet and whatever behaviour it keeps.
 - `--no-browser`.
 - Structured evidence on issue observations, so the blocked-by and claimed-
   elsewhere facts can carry issue and pull request numbers rather than prose.

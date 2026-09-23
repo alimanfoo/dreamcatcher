@@ -1,10 +1,11 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="matrix">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>alimanfoo/dreamcatcher · dreamcatcher</title>
     <link rel="stylesheet" href="/static/matrix.css">
+
     <script src="/static/vendor/htmx-2.0.10.min.js" defer></script>
     <script src="/static/vendor/idiomorph-ext-0.7.4.min.js" defer></script>
   </head>
@@ -13,7 +14,13 @@
   <main class="assignment-page">
     <header class="site-header">
   <div class="repository"><img class="mark" src="/static/dreamcatcher-mark-phosphor.png" alt="Dreamcatcher">alimanfoo/dreamcatcher</div>
-  <div class="daemon daemon-running">daemon RUNNING · dreamcatcher v3.0.0.beta1 · pid 4242</div>
+  <div class="site-actions">
+    <div class="daemon daemon-running">daemon RUNNING · dreamcatcher v3.0.0.beta1 · pid 4242</div>
+    <nav class="theme-switch" aria-label="Theme">
+      <a class="theme-choice active" href="?theme=matrix" aria-current="page">Matrix</a>
+      <a class="theme-choice" href="?theme=nature">Nature</a>
+    </nav>
+  </div>
 </header>
     <div class="assignment-content">
       <a class="assignment-navigation" href="/">&lt; home</a>
@@ -23,7 +30,7 @@
             <h1 id="assignment-heading"><a class="assignment-issue" href="https://github.com/alimanfoo/dreamcatcher/issues/13" target="_blank" rel="noopener noreferrer">#13</a></h1>
           
           <div class="assignment-heading-actions">
-            <span id="assignment-status" class="chip status-working">[WORKING]</span>
+            <span id="assignment-status" class="chip status-working">working</span>
             <a class="pr-chip" href="https://github.com/alimanfoo/dreamcatcher/pull/52" target="_blank" rel="noopener noreferrer">PR #52</a>
           </div>
         </div>
@@ -45,7 +52,7 @@
       <span class="round-number">01</span>
       <span class="round-summary">
         <span class="round-purpose">implement</span>
-        <span class="round-outcome">[SUCCESSFUL]</span>
+        <span class="round-outcome outcome-successful">successful</span>
         <span class="round-timing">2026-08-20 02:42:58 · ran 4m</span>
       </span>
     </a>
@@ -54,7 +61,7 @@
       <span class="round-number">02</span>
       <span class="round-summary">
         <span class="round-purpose">address feedback <span>(recovery)</span></span>
-        <span class="round-outcome">[RUNNING]</span>
+        <span class="round-outcome outcome-running">running</span>
         <span class="round-timing">2026-08-20 03:11:58</span>
       </span>
     </a>
@@ -72,25 +79,25 @@
   <span class="feed-content"><span class="feed-detail">round 1: implement</span></span>
 </div><div class="feed-line">
   <time>2026-08-20 02:42:58</time>
-  <span class="feed-content"><span class="feed-label">[harness session]</span> <span class="feed-detail">model opus[1m], id 7f3c9a</span></span>
+  <span class="feed-content"><span class="feed-label">harness session</span> <span class="feed-detail">model opus[1m], id 7f3c9a</span></span>
 </div><div class="feed-line">
   <time>2026-08-20 02:43:58</time>
   <span class="feed-content"><span class="feed-detail">I will read the issue first.</span></span>
 </div><div class="feed-line">
   <time>2026-08-20 02:43:58</time>
-  <span class="feed-content"><span class="feed-label">[Read]</span> <span class="feed-detail">specs/2026-08-17-skeleton/plan.md</span></span>
+  <span class="feed-content"><span class="feed-label">Read</span> <span class="feed-detail">specs/2026-08-17-skeleton/plan.md</span></span>
 </div><div class="feed-line subagent">
   <time>2026-08-20 02:44:58</time>
-  <span class="feed-content"><span class="feed-label">[Bash]</span> <span class="feed-detail">ls</span></span>
+  <span class="feed-content"><span class="feed-label">Bash</span> <span class="feed-detail">ls</span></span>
 </div><div class="feed-line">
   <time>2026-08-20 02:44:58</time>
-  <span class="feed-content"><span class="feed-label">[failed]</span> <span class="feed-detail">no such file or directory</span></span>
+  <span class="feed-content"><span class="feed-label">failed</span> <span class="feed-detail">no such file or directory</span></span>
 </div><div class="feed-line">
   <time>2026-08-20 02:46:58</time>
-  <span class="feed-content"><span class="feed-label">[usage]</span> <span class="feed-detail">$0.1772, 455 output, 8 input, 123529 cache read, 8606 cache write</span></span>
+  <span class="feed-content"><span class="feed-label">usage</span> <span class="feed-detail">$0.1772, 455 output, 8 input, 123529 cache read, 8606 cache write</span></span>
 </div><div class="feed-line">
   <time>2026-08-20 02:46:58</time>
-  <span class="feed-content"><span class="feed-label">[result]</span> <span class="feed-detail">success</span></span>
+  <span class="feed-content"><span class="feed-label">result</span> <span class="feed-detail">success</span></span>
 </div>
             
               <div id="feed-round-2" class="feed-line round-boundary">
@@ -98,7 +105,7 @@
   <span class="feed-content"><span class="feed-detail">round 2: address feedback (recovery)</span></span>
 </div><div class="feed-line">
   <time>2026-08-20 03:12:58</time>
-  <span class="feed-content"><span class="feed-label">[Bash]</span> <span class="feed-detail">pytest</span></span>
+  <span class="feed-content"><span class="feed-label">Bash</span> <span class="feed-detail">pytest</span></span>
 </div>
             
           </div>

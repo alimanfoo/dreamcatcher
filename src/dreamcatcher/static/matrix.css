@@ -81,6 +81,35 @@ body::after {
   border-bottom: var(--line) solid var(--rule);
 }
 
+.site-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-9);
+}
+
+.theme-switch {
+  display: inline-flex;
+  border: var(--line) solid var(--rule);
+}
+
+.theme-choice {
+  padding: var(--space-1) var(--space-4);
+  color: var(--phosphor);
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.theme-choice:hover {
+  color: var(--bright);
+  background: var(--tint);
+}
+
+.theme-choice.active {
+  color: var(--background);
+  background: var(--phosphor);
+}
+
 .repository {
   display: flex;
   align-items: center;
@@ -265,6 +294,21 @@ body::after {
   color: var(--phosphor);
   font-weight: 700;
   letter-spacing: var(--letter-chip);
+  text-transform: uppercase;
+}
+
+.chip::before,
+.latest-output > span::before,
+.feed-label::before,
+.round-outcome::before {
+  content: "[";
+}
+
+.chip::after,
+.latest-output > span::after,
+.feed-label::after,
+.round-outcome::after {
+  content: "]";
 }
 
 .status-needs-user-feedback,
@@ -314,6 +358,7 @@ body::after {
 .latest-output span {
   color: var(--phosphor);
   font-weight: 700;
+  text-transform: uppercase;
 }
 
 .latest-output.is-replacing {
@@ -531,6 +576,7 @@ body::after {
 
 .round-outcome {
   color: var(--phosphor);
+  text-transform: uppercase;
 }
 
 .manual-recovery {
@@ -607,6 +653,7 @@ body::after {
 
 .feed-label {
   color: var(--phosphor);
+  text-transform: uppercase;
 }
 
 .feed-content {
