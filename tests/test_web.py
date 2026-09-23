@@ -128,6 +128,7 @@ def test_a_home_card_links_to_its_exact_assignment(tmp_path, daemon):
 
     assignment_link = (
         'class="assignment-open" href="/assignments/GH13-20260819-184158" '
+        'target="_blank" rel="noopener noreferrer" '
         'aria-label="Open assignment GH13-20260819-184158"'
     )
     assert assignment_link in page
@@ -368,6 +369,11 @@ def test_github_links_open_in_a_new_tab(tmp_path, daemon):
 
     assert links
     assert all('target="_blank" rel="noopener noreferrer"' in link for link in links)
+    assert (
+        '<a class="repository-link" '
+        'href="https://github.com/alimanfoo/dreamcatcher" '
+        'target="_blank" rel="noopener noreferrer">alimanfoo/dreamcatcher</a>'
+    ) in pages
 
 
 def test_an_unknown_assignment_renders_a_404_page(tmp_path):

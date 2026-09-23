@@ -64,6 +64,11 @@ body::after {
   font-weight: 400;
 }
 
+.repository-link:hover {
+  color: var(--bright);
+  text-shadow: none;
+}
+
 .mark {
   width: 54px;
   opacity: 0.85;
