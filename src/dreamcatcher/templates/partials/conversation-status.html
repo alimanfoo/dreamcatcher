@@ -1,0 +1,1 @@
+<span id="conversation-status" class="chip status-{{ view.status|replace(' ', '-') }}"{% if is_tail|default(false) %} hx-swap-oob="true"{% endif %}>[{{ view.status_label|default(view.status)|upper }}]</span>

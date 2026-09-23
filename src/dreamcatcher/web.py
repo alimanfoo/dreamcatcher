@@ -8,13 +8,18 @@ from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime, tzinfo
+from functools import partial
 from typing import Protocol, cast
 from webbrowser import open as open_browser
 
 from flask import Flask, render_template, request
 from werkzeug.serving import BaseWSGIServer
 
-from dreamcatcher.agent_rounds import AgentRoundRecord, SuccessfulAgentRoundEnding
+from dreamcatcher.agent_rounds import (
+    AgentRoundPaths,
+    AgentRoundRecord,
+    SuccessfulAgentRoundEnding,
+)
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.documents import is_complete_line_position, read_lines_from
 from dreamcatcher.errors import ReportableError
@@ -25,14 +30,18 @@ from dreamcatcher.feed import (
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
+    CONVERSATION_STATUSES_THAT_END_A_VIEW,
     STATUSES_THAT_END_A_VIEW,
     AgentAssignmentStatus,
     AgentAssignmentStatusValue,
+    AgentRoundStatus,
     DreamcatcherStatusReport,
+    IssueConversationStatus,
     IssueFactValue,
     IssueObservation,
     read_agent_assignment_status,
     read_dreamcatcher_daemon_status,
+    read_issue_conversation_status,
     read_repository,
     read_status_report,
 )
@@ -104,8 +113,22 @@ class WebAssignmentCard:
 
 
 @dataclass(frozen=True, kw_only=True)
-class WebAssignmentRound:
-    """Represent one round row on an assignment page."""
+class WebConversationCard:
+    """Represent the values rendered in one issue-conversation card."""
+
+    issue: int
+    title: str
+    status: str
+    detail: str
+    harness: str
+    model: str
+    effort: str
+    latest_output: str | None
+
+
+@dataclass(frozen=True, kw_only=True)
+class WebAgentRound:
+    """Represent one round row on an agent-work page."""
 
     number: int
     purpose: str
@@ -135,8 +158,8 @@ class WebFeedRound:
 
 
 @dataclass(frozen=True, kw_only=True)
-class WebAssignmentFeed:
-    """Represent the complete feed and the cursor after its last line."""
+class WebAgentFeed:
+    """Represent a complete agent feed and the cursor after its last line."""
 
     rounds: tuple[WebFeedRound, ...]
     cursor: str
@@ -151,15 +174,24 @@ class WebFeedCursor:
 
 
 @dataclass(frozen=True, kw_only=True)
-class WebAssignmentTail:
-    """Represent one incremental assignment-feed response."""
+class WebAgentTail:
+    """Represent one incremental agent-feed response."""
 
     cursor: str
     feed_rounds: tuple[WebFeedRound, ...]
     status: str
     status_label: str
-    rounds: tuple[WebAssignmentRound, ...]
+    rounds: tuple[WebAgentRound, ...]
     has_empty_feed_placeholder: bool
+
+
+@dataclass(frozen=True, kw_only=True)
+class WebAgentTailContext:
+    """Provide status values alongside one incremental feed read."""
+
+    status: str
+    status_label: str
+    rounds: tuple[WebAgentRound, ...]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -183,7 +215,7 @@ class WebAssignmentView:
     harness_session_identifier: str
     model: str
     effort: str
-    rounds: tuple[WebAssignmentRound, ...]
+    rounds: tuple[WebAgentRound, ...]
     hand_resume_worktree: str | None
     hand_resume_command: str | None
     feed_rounds: tuple[WebFeedRound, ...]
@@ -202,6 +234,30 @@ class WebIssueRow:
 
 
 @dataclass(frozen=True, kw_only=True)
+class WebConversationView:
+    """Represent every value that the conversation template lays out."""
+
+    repository: str
+    github_repository_url: str | None
+    daemon_state: str
+    daemon_summary: str
+    issue: int
+    title: str
+    status: str
+    detail: str
+    label: str
+    worktree: str
+    revision: str
+    harness: str
+    harness_session_identifier: str
+    model: str
+    effort: str
+    rounds: tuple[WebAgentRound, ...]
+    feed_rounds: tuple[WebFeedRound, ...]
+    feed_cursor: str
+
+
+@dataclass(frozen=True, kw_only=True)
 class WebHomeView:
     """Represent every value that the home template lays out."""
 
@@ -211,11 +267,25 @@ class WebHomeView:
     daemon_summary: str
     instance_facts: tuple[WebFact, ...]
     cooldown_message: str | None
+    conversations: tuple[WebConversationCard, ...]
     active_assignments: tuple[WebAssignmentCard, ...]
     complete_assignments: tuple[WebAssignmentCard, ...]
     failed_setups: tuple[IssueObservation, ...]
     available_issues: tuple[WebIssueRow, ...]
     blocked_issues: tuple[WebIssueRow, ...]
+
+
+class _WebFeedOwner(Protocol):
+    """Provide the saved rounds and paths that a web feed reads."""
+
+    @property
+    def rounds(self) -> list[AgentRoundRecord]:
+        """The saved round records in their run order."""
+        ...
+
+    def compose_round_paths(self, *, number: int) -> AgentRoundPaths:
+        """Return the paths of one numbered round."""
+        ...
 
 
 def create_app(
@@ -230,70 +300,189 @@ def create_app(
     """
     app = Flask(__name__)
     app.config["TRUSTED_HOSTS"] = [WEB_HOST, "localhost"]
-
-    @app.get("/")
-    def show_home() -> str:
-        report = read_status_report(state=state, clock=clock)
-        return render_template(
-            "home.html", view=_compose_home_view(report=report, zone=zone)
-        )
-
-    @app.get("/assignments/<identifier>")
-    def show_assignment(*, identifier: str) -> str | tuple[str, int]:
-        status = read_agent_assignment_status(
-            state=state,
-            identifier=identifier,
-            clock=clock,
-        )
-        if status is None:
-            return (
-                render_template(
-                    "error.html",
-                    message=f"No agent assignment here has identifier {identifier}.",
-                ),
-                404,
-            )
-        return render_template(
-            "assignment.html",
-            view=_compose_assignment_view(state=state, status=status, zone=zone),
-        )
-
-    @app.get("/assignments/<identifier>/tail")
-    def show_assignment_tail(*, identifier: str) -> str | tuple[str, int]:
-        status = read_agent_assignment_status(
-            state=state,
-            identifier=identifier,
-            clock=clock,
-        )
-        if status is None:
-            return (
-                render_template(
-                    "error.html",
-                    message=f"No agent assignment here has identifier {identifier}.",
-                ),
-                404,
-            )
-        try:
-            cursor = _decode_feed_cursor(value=request.args.get("cursor", ""))
-            tail = _read_assignment_tail(status=status, cursor=cursor, zone=zone)
-        except _InvalidFeedCursorError:
-            return (
-                render_template("error.html", message="The feed cursor is invalid."),
-                400,
-            )
-        response_status = (
-            _HTMX_STOP_POLLING_STATUS
-            if not tail.feed_rounds and status.value in STATUSES_THAT_END_A_VIEW
-            else 200
-        )
-        return render_template("tail.html", tail=tail), response_status
-
-    @app.errorhandler(ReportableError)
-    def show_reportable_error(error: ReportableError, /) -> tuple[str, int]:
-        """Render a named read failure for Flask, which passes the error by position."""
-        return render_template("error.html", message=str(error)), 500
-
+    routes = (
+        ("/", "show_home", partial(_show_home, state=state, clock=clock, zone=zone)),
+        (
+            "/assignments/<identifier>",
+            "show_assignment",
+            partial(_show_assignment, state=state, clock=clock, zone=zone),
+        ),
+        (
+            "/assignments/<identifier>/tail",
+            "show_assignment_tail",
+            partial(_show_assignment_tail, state=state, clock=clock, zone=zone),
+        ),
+        (
+            "/conversations/<int:issue>",
+            "show_conversation",
+            partial(_show_conversation, state=state, clock=clock, zone=zone),
+        ),
+        (
+            "/conversations/<int:issue>/tail",
+            "show_conversation_tail",
+            partial(_show_conversation_tail, state=state, clock=clock, zone=zone),
+        ),
+    )
+    for rule, endpoint, view_func in routes:
+        app.add_url_rule(rule, endpoint=endpoint, view_func=view_func, methods=["GET"])
+    app.register_error_handler(ReportableError, _show_reportable_error)
     return app
+
+
+def _show_home(
+    *, state: StateDirectory, clock: Callable[[], datetime], zone: tzinfo | None
+) -> str:
+    """Render the local status overview."""
+    report = read_status_report(state=state, clock=clock)
+    return render_template(
+        "home.html", view=_compose_home_view(report=report, zone=zone)
+    )
+
+
+def _show_assignment(
+    *,
+    state: StateDirectory,
+    clock: Callable[[], datetime],
+    zone: tzinfo | None,
+    identifier: str,
+) -> str | tuple[str, int]:
+    """Render one assignment page, or a missing response."""
+    status = read_agent_assignment_status(
+        state=state,
+        identifier=identifier,
+        clock=clock,
+    )
+    if status is None:
+        return (
+            render_template(
+                "error.html",
+                message=f"No agent assignment here has identifier {identifier}.",
+            ),
+            404,
+        )
+    return render_template(
+        "assignment.html",
+        view=_compose_assignment_view(state=state, status=status, zone=zone),
+    )
+
+
+def _show_assignment_tail(
+    *,
+    state: StateDirectory,
+    clock: Callable[[], datetime],
+    zone: tzinfo | None,
+    identifier: str,
+) -> str | tuple[str, int]:
+    """Render assignment feed output written after the requested cursor."""
+    status = read_agent_assignment_status(
+        state=state,
+        identifier=identifier,
+        clock=clock,
+    )
+    if status is None:
+        return (
+            render_template(
+                "error.html",
+                message=f"No agent assignment here has identifier {identifier}.",
+            ),
+            404,
+        )
+    try:
+        cursor = _decode_feed_cursor(value=request.args.get("cursor", ""))
+        tail = _read_agent_tail(
+            owner=status.assignment,
+            context=WebAgentTailContext(
+                status=str(status.value),
+                status_label=_compose_assignment_status_label(status=status),
+                rounds=_compose_agent_rounds(
+                    round_statuses=status.round_statuses, zone=zone
+                ),
+            ),
+            cursor=cursor,
+            zone=zone,
+        )
+    except _InvalidFeedCursorError:
+        return _invalid_feed_cursor_response()
+    response_status = (
+        _HTMX_STOP_POLLING_STATUS
+        if not tail.feed_rounds and status.value in STATUSES_THAT_END_A_VIEW
+        else 200
+    )
+    return render_template("tail.html", tail=tail), response_status
+
+
+def _show_conversation(
+    *,
+    state: StateDirectory,
+    clock: Callable[[], datetime],
+    zone: tzinfo | None,
+    issue: int,
+) -> str | tuple[str, int]:
+    """Render one issue-conversation page, or a missing response."""
+    status = read_issue_conversation_status(state=state, issue=issue, clock=clock)
+    if status is None:
+        return _missing_conversation_response(issue=issue)
+    return render_template(
+        "conversation.html",
+        view=_compose_conversation_view(state=state, status=status, zone=zone),
+    )
+
+
+def _show_conversation_tail(
+    *,
+    state: StateDirectory,
+    clock: Callable[[], datetime],
+    zone: tzinfo | None,
+    issue: int,
+) -> str | tuple[str, int]:
+    """Render conversation feed output written after the requested cursor."""
+    status = read_issue_conversation_status(state=state, issue=issue, clock=clock)
+    if status is None:
+        return _missing_conversation_response(issue=issue)
+    try:
+        cursor = _decode_feed_cursor(value=request.args.get("cursor", ""))
+        tail = _read_agent_tail(
+            owner=status.conversation,
+            context=WebAgentTailContext(
+                status=str(status.value),
+                status_label=str(status.value),
+                rounds=_compose_agent_rounds(
+                    round_statuses=status.round_statuses, zone=zone
+                ),
+            ),
+            cursor=cursor,
+            zone=zone,
+        )
+    except _InvalidFeedCursorError:
+        return _invalid_feed_cursor_response()
+    response_status = (
+        _HTMX_STOP_POLLING_STATUS
+        if not tail.feed_rounds
+        and status.value in CONVERSATION_STATUSES_THAT_END_A_VIEW
+        else 200
+    )
+    return render_template("conversation-tail.html", tail=tail), response_status
+
+
+def _missing_conversation_response(*, issue: int) -> tuple[str, int]:
+    """Render the response for an issue with no saved conversation."""
+    return (
+        render_template(
+            "error.html",
+            message=f"No issue conversation here is for GH{issue}.",
+        ),
+        404,
+    )
+
+
+def _invalid_feed_cursor_response() -> tuple[str, int]:
+    """Render the response for a malformed or stale feed cursor."""
+    return render_template("error.html", message="The feed cursor is invalid."), 400
+
+
+def _show_reportable_error(error: ReportableError, /) -> tuple[str, int]:
+    """Render a named read failure for Flask, which passes the error by position."""
+    return render_template("error.html", message=str(error)), 500
 
 
 def _run_server(*, server: BaseWSGIServer) -> None:
@@ -407,6 +596,10 @@ def _compose_home_view(
         cooldown_message=(
             None if cooldown_end is None else f"Global cooldown ends {cooldown_end}"
         ),
+        conversations=tuple(
+            _compose_conversation_card(status=status)
+            for status in report.conversation_statuses
+        ),
         active_assignments=active_assignments,
         complete_assignments=complete_assignments,
         failed_setups=tuple(report.failed_assignment_setups),
@@ -439,13 +632,30 @@ def _compose_assignment_card(*, status: AgentAssignmentStatus) -> WebAssignmentC
         issue=assignment.record.issue,
         title=assignment.record.title,
         status=str(status.value),
-        status_label=_compose_web_status_label(status=status),
+        status_label=_compose_assignment_status_label(status=status),
         detail=status.detail,
         harness=str(assignment.record.harness),
         model=assignment.record.model,
         effort=assignment.record.effort,
         pull_request=assignment.record.pull_request,
         pull_request_state=_describe_pull_request_state(status=status),
+        latest_output=status.latest_output,
+    )
+
+
+def _compose_conversation_card(
+    *, status: IssueConversationStatus
+) -> WebConversationCard:
+    """Return the values shown for one issue conversation on the home page."""
+    record = status.conversation.record
+    return WebConversationCard(
+        issue=record.issue,
+        title=record.title,
+        status=str(status.value),
+        detail=status.detail,
+        harness=str(record.harness),
+        model=record.model,
+        effort=record.effort,
         latest_output=status.latest_output,
     )
 
@@ -470,7 +680,7 @@ def _compose_assignment_view(
     repository = read_repository(state=state)
     daemon = read_dreamcatcher_daemon_status(state=state)
     hand_resume_command = status.hand_resume_command
-    feed = _read_assignment_feed(status=status, zone=zone)
+    feed = _read_agent_feed(owner=assignment, zone=zone)
     return WebAssignmentView(
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
@@ -483,7 +693,7 @@ def _compose_assignment_view(
         issue=record.issue,
         title=record.title,
         status=str(status.value),
-        status_label=_compose_web_status_label(status=status),
+        status_label=_compose_assignment_status_label(status=status),
         detail=status.detail,
         pull_request=record.pull_request,
         pull_request_state=_describe_pull_request_state(status=status),
@@ -496,7 +706,7 @@ def _compose_assignment_view(
         ),
         model=record.model,
         effort=record.effort,
-        rounds=_compose_assignment_rounds(status=status, zone=zone),
+        rounds=_compose_agent_rounds(round_statuses=status.round_statuses, zone=zone),
         hand_resume_worktree=(
             None
             if hand_resume_command is None
@@ -510,7 +720,46 @@ def _compose_assignment_view(
     )
 
 
-def _compose_web_status_label(*, status: AgentAssignmentStatus) -> str:
+def _compose_conversation_view(
+    *,
+    state: StateDirectory,
+    status: IssueConversationStatus,
+    zone: tzinfo | None,
+) -> WebConversationView:
+    """Return the values shown on one issue-conversation page."""
+    conversation = status.conversation
+    record = conversation.record
+    repository = read_repository(state=state)
+    daemon = read_dreamcatcher_daemon_status(state=state)
+    feed = _read_agent_feed(owner=conversation, zone=zone)
+    return WebConversationView(
+        repository=repository or "repository unknown",
+        github_repository_url=_compose_github_repository_url(repository=repository),
+        daemon_state="stopped" if daemon.pid is None else "running",
+        daemon_summary=_describe_daemon(
+            daemon_pid=daemon.pid,
+            dreamcatcher_version=daemon.dreamcatcher_version,
+        ),
+        issue=record.issue,
+        title=record.title,
+        status=str(status.value),
+        detail=status.detail,
+        label=record.label,
+        worktree=state.describe_path(path=record.worktree),
+        revision=record.revision,
+        harness=str(record.harness),
+        harness_session_identifier=(
+            record.harness_session_identifier or "not recorded"
+        ),
+        model=record.model,
+        effort=record.effort,
+        rounds=_compose_agent_rounds(round_statuses=status.round_statuses, zone=zone),
+        feed_rounds=feed.rounds,
+        feed_cursor=feed.cursor,
+    )
+
+
+def _compose_assignment_status_label(*, status: AgentAssignmentStatus) -> str:
     return (
         "needs feedback"
         if status.value is AgentAssignmentStatusValue.NEEDS_USER_FEEDBACK
@@ -518,11 +767,11 @@ def _compose_web_status_label(*, status: AgentAssignmentStatus) -> str:
     )
 
 
-def _compose_assignment_rounds(
-    *, status: AgentAssignmentStatus, zone: tzinfo | None
-) -> tuple[WebAssignmentRound, ...]:
+def _compose_agent_rounds(
+    *, round_statuses: list[AgentRoundStatus], zone: tzinfo | None
+) -> tuple[WebAgentRound, ...]:
     return tuple(
-        WebAssignmentRound(
+        WebAgentRound(
             number=round_status.record.number,
             purpose=str(round_status.record.purpose),
             is_recovery=round_status.record.is_recovery,
@@ -530,7 +779,7 @@ def _compose_assignment_rounds(
             duration=round_status.duration_description,
             outcome=round_status.outcome_description,
         )
-        for round_status in status.round_statuses
+        for round_status in round_statuses
     )
 
 
@@ -554,14 +803,15 @@ def _decode_feed_cursor(*, value: str) -> WebFeedCursor:
     return cursor
 
 
-def _read_assignment_tail(
+def _read_agent_tail(
     *,
-    status: AgentAssignmentStatus,
+    owner: _WebFeedOwner,
+    context: WebAgentTailContext,
     cursor: WebFeedCursor,
     zone: tzinfo | None,
-) -> WebAssignmentTail:
-    assignment = status.assignment
-    records_by_number = {record.number: record for record in assignment.rounds}
+) -> WebAgentTail:
+    """Read feed output written after one cursor for any agent work."""
+    records_by_number = {record.number: record for record in owner.rounds}
     number, position, is_opening_round = _resolve_feed_cursor(
         cursor=cursor,
         records_by_number=records_by_number,
@@ -569,7 +819,7 @@ def _read_assignment_tail(
     feed_rounds = []
     next_cursor = cursor
     while (record := records_by_number.get(number)) is not None:
-        feed_path = assignment.compose_round_paths(number=number).feed
+        feed_path = owner.compose_round_paths(number=number).feed
         if not is_complete_line_position(path=feed_path, position=position):
             raise _InvalidFeedCursorError
         written_lines, position = read_lines_from(
@@ -590,12 +840,12 @@ def _read_assignment_tail(
         number += 1
         position = 0
         is_opening_round = True
-    return WebAssignmentTail(
+    return WebAgentTail(
         cursor=_encode_feed_cursor(cursor=next_cursor),
         feed_rounds=tuple(feed_rounds),
-        status=str(status.value),
-        status_label=_compose_web_status_label(status=status),
-        rounds=_compose_assignment_rounds(status=status, zone=zone),
+        status=context.status,
+        status_label=context.status_label,
+        rounds=context.rounds,
         has_empty_feed_placeholder=cursor.round_number == 0,
     )
 
@@ -629,15 +879,13 @@ def _compose_web_round_boundary(
     )
 
 
-def _read_assignment_feed(
-    *, status: AgentAssignmentStatus, zone: tzinfo | None
-) -> WebAssignmentFeed:
-    assignment = status.assignment
+def _read_agent_feed(*, owner: _WebFeedOwner, zone: tzinfo | None) -> WebAgentFeed:
+    """Read the complete saved feed for any agent work."""
     feed_rounds = []
     cursor = WebFeedCursor(round_number=0, position=0)
-    for record in assignment.rounds:
+    for record in owner.rounds:
         written_lines, position = read_lines_from(
-            path=assignment.compose_round_paths(number=record.number).feed,
+            path=owner.compose_round_paths(number=record.number).feed,
             position=0,
         )
         cursor = WebFeedCursor(round_number=record.number, position=position)
@@ -653,7 +901,7 @@ def _read_assignment_feed(
                 ),
             )
         )
-    return WebAssignmentFeed(
+    return WebAgentFeed(
         rounds=tuple(feed_rounds),
         cursor=_encode_feed_cursor(cursor=cursor),
     )

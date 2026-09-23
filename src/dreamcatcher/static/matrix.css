@@ -273,7 +273,8 @@ body::after {
   background: var(--phosphor);
 }
 
-.status-fault {
+.status-fault,
+.status-needs-attention {
   color: var(--background);
   background: var(--amber);
 }
@@ -281,11 +282,14 @@ body::after {
 .status-waiting,
 .status-unknown,
 .status-complete,
+.status-inactive,
 .issue-blocked {
   color: var(--dim);
 }
 
-.status-working {
+.status-working,
+.status-running,
+.status-awaiting-publication {
   text-shadow: var(--shadow);
 }
 

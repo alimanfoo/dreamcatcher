@@ -5,6 +5,16 @@
     <div class="home-content">
       {% include "partials/instance.html" %}
       <div class="dashboard">
+        {%- if view.conversations %}
+          <section class="panel" aria-labelledby="conversations-heading">
+            <h1 id="conversations-heading">ISSUE CONVERSATIONS <span>{{ "%04d"|format(view.conversations|length) }}</span></h1>
+            <div class="panel-body">
+              {% for conversation in view.conversations %}
+                {% include "partials/conversation-card.html" %}
+              {% endfor %}
+            </div>
+          </section>
+        {% endif %}
         <section class="panel" aria-labelledby="assignments-heading">
           <h1 id="assignments-heading">AGENT ASSIGNMENTS <span>{{ "%04d"|format(view.active_assignments|length + view.complete_assignments|length) }}</span></h1>
           <div class="panel-body">
