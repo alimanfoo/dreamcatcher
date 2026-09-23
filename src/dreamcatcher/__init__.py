@@ -1,1 +1,1 @@
-"""Carry labelled issues to pull requests with autonomous agent assignments."""
+"""Manage labelled issues through agent conversations and assignments."""

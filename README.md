@@ -1,8 +1,8 @@
 # dreamcatcher
 
-dreamcatcher watches a repository for labelled issues, dispatches an autonomous
-coding assignment for each, and carries each issue to a pull request for you to
-review and merge.
+dreamcatcher watches a repository for labelled issues, answers configured issue
+conversations, dispatches autonomous coding assignments, and carries each
+assignment to a pull request for you to review and merge.
 
 ## Install
 
@@ -24,6 +24,13 @@ watches. Commit it, so everyone watching that repo dispatches the same way.
 
 ```toml
 assignee = "@me"
+
+[conversation]
+label = "dream:conversation"
+harness = "claude"
+prompt = "/dream:conversation GH{issue}"
+model = "opus[1m]"
+effort = "xhigh"
 
 [[dispatch]]
 label = "dream:smith"
@@ -57,6 +64,12 @@ Write both blocks for a label either harness can run. Write one block for a
 label that belongs to one harness, and issues carrying it always go there.
 
 Point `prompt` at an [assignment skill](CONTRACT.md) that meets the contract.
+
+The optional `[conversation]` block watches a separate label for questions on
+open issues assigned to the account `gh` is signed in as. Stage 1 supports
+Claude only. Its prompt, model and effort are frozen into each conversation
+record. The prompt may use `{issue}` and must follow the
+[issue-conversation contract](CONTRACT.md#issue-conversation-instructions).
 
 ## Commands
 
@@ -114,6 +127,16 @@ round, and a pull request you have posted on gets a round that addresses your
 feedback. Only when no assignment needs anything does the daemon dispatch a new
 issue.
 
+With `[conversation]` configured, the daemon also watches assigned open issues
+carrying its label. The issue title and body alone do not start an agent. Once
+the signed-in account posts an ordinary, unmarked issue comment, Dreamcatcher
+freezes the issue and trusted comment history, creates a detached worktree at
+the fetched main revision, and runs one Claude round. The round shares the
+daemon's agent cap and global cooldown with assignments. Its final Markdown is
+saved, marked as Dreamcatcher output and posted back to the issue. `NO_REPLY`
+finishes without a post. A failed post is retried from the saved answer without
+running Claude again. This first stage does not run follow-up rounds.
+
 Every round records its number, purpose (`implement`, `address feedback` or
 `wrap up`), whether it is recovering an earlier round, and its outcome
 (`running`, `successful`, `errored` or `interrupted`). Purpose and recovery are
@@ -170,22 +193,22 @@ port is already in use.
 dreamcatcher web --port 8123
 ```
 
-The CLI also has three terminal read-only views: `status`, `assignment` and
-`feed`. Each view reads the local `.dreamcatcher/` directory and never contacts
-GitHub.
+The CLI also has four terminal read-only views: `status`, `assignment`,
+`conversation` and `feed`. Each view reads the local `.dreamcatcher/` directory
+and never contacts GitHub.
 
 Every view refreshes automatically in a terminal. `status` runs until you
-interrupt it. `assignment` and `feed` run until the assignment completes or
-enters fault, and you can interrupt either one sooner. If you pipe, redirect or
-capture a view, it shows the current state once and returns.
+interrupt it. Detail and feed views run until the selected work finishes or
+needs attention, and you can interrupt either one sooner. If you pipe, redirect
+or capture a view, it shows the current state once and returns.
 
 ```sh
 dreamcatcher status
 ```
 
-`status` starts with the repository name, then shows the instance, its agent
-assignments, any failed assignment setups, the available issues in dispatch
-order, and issues with open blockers.
+`status` starts with the repository name, then shows the instance, its issue
+conversations and agent assignments, any failed assignment setups, the available
+issues in dispatch order, and issues with open blockers.
 
 `assignment` shows one issue's newest assignment: its issue identifier, agent
 assignment identifier, harness session identifier, what its dispatch settled,
@@ -197,12 +220,21 @@ at the same issue.
 dreamcatcher assignment GH123
 ```
 
-`feed` shows what the agent said, as it says it. It shows every round's feed in
-order. A feed is a log rather than a picture of a state, so it is printed as it
-is read and you keep your scrollback.
+`conversation` shows the issue conversation's chosen settings, harness session,
+detached worktree, code revision, round outcome and current state.
 
 ```sh
-dreamcatcher feed GH123
+dreamcatcher conversation GH123
+```
+
+`feed` shows what the selected agent said, as it said it. Name exactly one owner
+so an issue with both kinds of work is unambiguous. A feed is a log rather than
+a picture of a state, so it is printed as it is read and you keep your
+scrollback.
+
+```sh
+dreamcatcher feed GH123 --assignment
+dreamcatcher feed GH123 --conversation
 ```
 
 `--round 2` narrows the feed to one round. One named round is all that view
@@ -210,5 +242,5 @@ shows, so it ends when that round ends rather than stay open for the round after
 it. The round list of the assignment view is where you find the number.
 
 ```sh
-dreamcatcher feed GH123 --round 2
+dreamcatcher feed GH123 --assignment --round 2
 ```

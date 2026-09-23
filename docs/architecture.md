@@ -38,8 +38,8 @@ domain phrase into a class. In particular, it should:
 - wait for the run's requested interval between ticks; and
 - stop active child processes during shutdown.
 
-The daemon does not decide which issue or assignment deserves work. It knows
-that scheduling happens, but not the scheduling priorities.
+The daemon does not decide which issue, assignment or conversation deserves
+work. It knows that scheduling happens, but not the scheduling priorities.
 
 ### Scheduling
 
@@ -49,13 +49,16 @@ One scheduler tick:
 
 1. observes the relevant local, process, configuration, and GitHub facts;
 2. reconciles incomplete assignment setup;
-3. applies the run's requested capacity and global-cooldown constraints;
-4. finds the highest-priority existing assignment that requires an agent round,
+3. saves and publishes any successful conversation answer still waiting;
+4. applies the run's requested capacity and global-cooldown constraints;
+5. finds the highest-priority existing assignment that requires an agent round,
    considering recovery need, a terminal pull request, and unrelayed user posts
    in that order;
-5. otherwise finds the oldest issue available for an agent assignment;
-6. performs at most one scheduling action; and
-7. returns a `SchedulerRecord` for operational reporting.
+6. otherwise starts the oldest eligible initial issue conversation, when one is
+   configured;
+7. otherwise finds the oldest issue available for an agent assignment;
+8. performs at most one scheduling action; and
+9. returns a `SchedulerRecord` for operational reporting.
 
 The daemon persists the returned `SchedulerRecord` and reports it in its output.
 A scheduler tick that fails before returning one is reported in daemon output
@@ -92,6 +95,27 @@ report or presentation model.
 
 Scheduling priority is derived from current facts rather than persisted as a
 queue.
+
+### Issue conversations
+
+`issue_conversations.py` owns conversation records and their durable operations.
+An initial conversation freezes its issue title, body, trusted comment batch and
+fetched main revision, then runs in a detached worktree. Conversation worktrees
+live outside assignment discovery and never acquire implementation branches or
+pull requests.
+
+The signed-in GitHub account, rather than the configured dispatch assignee,
+identifies trusted issue comments. Marked Dreamcatcher comments, comments by
+other accounts and blank comments are excluded. The delivery cursor is advanced
+after the round starts, so the initial batch cannot be selected again merely
+because its label and assignment remain on the issue.
+
+Stage 1 schedules one initial Claude round per conversation. A successful final
+result is saved as the reply record. `NO_REPLY` completes publication without a
+GitHub post; any other saved answer is posted with the agent marker. An
+uncertain or failed post is tried again on a later tick from that saved record,
+without another harness invocation. Failed and interrupted initial rounds remain
+visible and are not automatically resumed in this stage.
 
 ### Agent assignments
 
@@ -144,7 +168,8 @@ run.
 ### Agent rounds
 
 `agent_rounds.py` owns agent-round records and the supervised lifetime of a
-round process. It should provide operations to:
+round process for both assignments and conversations. It should provide
+operations to:
 
 - record the next number that the assignment allocated;
 - record the round's purpose and whether it is recovery;
@@ -157,8 +182,11 @@ round process. It should provide operations to:
 - record an interruption when the daemon finds a round record that an earlier
   daemon left without an ending.
 
-An `AgentRoundInput` is the document that a resumed round receives beside its
-prompt. It carries the pull request state and any relayed user posts.
+An `AgentRoundInput` is the document that a resumed assignment round receives
+beside its prompt. It carries the pull request state and any relayed user posts.
+An `IssueConversationInput` freezes the issue, trusted comments and code
+revision for a conversation round. A conversation plan requires a separate
+captured final result before the round can end successfully.
 
 The scheduler decides which purpose and recovery flag a new round has. The round
 boundary executes and records that decision; it does not inspect the pull
@@ -180,6 +208,7 @@ GitHub commands. It owns projections and operations for:
 - linked pull requests;
 - pull-request identity, draft state, readiness, and terminal state;
 - creating the linked draft pull request; and
+- reading ordinary issue comments and posting a conversation answer; and
 - reading and normalizing user posts from comments, reviews, verdicts, and
   inline comments.
 
@@ -229,11 +258,12 @@ interface.
 `status.py` owns the read-only status model and constructs a
 `DreamcatcherStatusReport` containing the repository identity, instance and
 daemon facts, failed-setup, available and blocked `IssueObservation` entries,
-and `AgentAssignmentStatus` entries.
+`IssueConversationStatus` entries, and `AgentAssignmentStatus` entries.
 
 Status construction may read:
 
 - assignment and round records;
+- conversation, reply and conversation-round records;
 - raw harness output and the matching harness adapter when it must recover a
   harness session identifier or build a hand-resume command;
 - current child-process state;
@@ -266,10 +296,10 @@ whether it required a round. Status reads this observation because view commands
 cannot reach GitHub. It is the last tick's interpretation kept as operational
 evidence, not authoritative assignment state.
 
-The scheduler record also names the assignment whose round the tick launched.
-That assignment has no observation in the same record. If its round ends before
-the next tick, status reports that it is waiting for that tick rather than
-reporting an unknown state.
+The scheduler record also names the assignment or conversation whose round the
+tick launched. A launched assignment has no observation in the same record. If
+its round ends before the next tick, status reports that it is waiting for that
+tick rather than reporting an unknown state.
 
 ### TUI
 
@@ -291,6 +321,10 @@ maps one dispatch label to one or more harness-specific `AgentAssignmentRecipe`
 objects, each of which supplies the model, effort, and initial prompt used to
 start agent work through that harness. The initial prompt normally invokes an
 assignment skill.
+
+The optional conversation block separately fixes one label, Claude harness,
+model, effort and prompt for issue conversations. Conversation discovery does
+not treat that label as a dispatch route.
 
 The repository configuration carries choices that everyone working in the
 repository shares. The daemon interval and agent cap belong to one person's run,
@@ -318,10 +352,12 @@ The on-disk layout follows ownership:
 - instance-wide operational records live at the versioned root;
 - each assignment owns its durable record, delivery cursor, and numbered round
   records;
-- each round owns its prompt, raw output, rendered feed, and any delivered user
-  posts; and
-- worktrees live in a separate collection under the versioned root, keyed by
-  assignment identifier.
+- each conversation owns its durable record, issue-comment delivery cursor,
+  numbered round records and saved replies;
+- each round owns its prompt, raw output, rendered feed, final output when
+  required, and any delivered input; and
+- assignment and conversation worktrees live in separate collections under the
+  versioned root.
 
 `documents.py` remains the only way Dreamcatcher reads and writes documents it
 owns. Every structured document has a strict model and every replacement write
@@ -368,12 +404,18 @@ An assignment record persists:
 
 A round record persists:
 
-- its assignment-scoped number;
+- its owner-scoped number;
 - purpose and recovery flag;
 - start time and process identifier;
 - its terminal outcome, when known, and any observed end time and exit status;
   and
-- the durable files containing its prompt, delivered posts, and output.
+- the durable files containing its prompt, delivered input, output, and any
+  required final result.
+
+A conversation record persists its issue and title, label, detached worktree and
+revision, chosen harness settings, harness session identifier, and newest
+trusted issue comment accepted for delivery. Its reply record persists the final
+body and, once known, publication time.
 
 Instance records persist the repository identity and the most recent daemon
 run's harness, Dreamcatcher version, and capacity. An instance-wide scheduler
@@ -392,8 +434,10 @@ The following are derived rather than persisted as authoritative state:
   agent assignment;
 - whether an assignment is complete or in fault;
 - whether an assignment requires an agent round or needs user feedback;
+- whether a conversation is running, awaiting publication, inactive, or needs
+  attention;
 - what round purpose and recovery flag are required next; and
-- every agent assignment status shown in a status report.
+- every issue conversation and agent assignment status shown in a status report.
 
 Mutable external facts, including issue state, assignees, labels, dependencies,
 linked pull requests, pull-request draft/readiness/terminal state, and user

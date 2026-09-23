@@ -70,9 +70,9 @@ def build_cli_parser() -> argparse.ArgumentParser:
         "run",
         help="run the dreamcatcher daemon",
         description=(
-            "Watch this repository for labelled issues, dispatch an agent "
-            "assignment for each, and carry every assignment on until its pull "
-            "request is ready for you to review. One daemon watches one "
+            "Watch this repository for labelled issue conversations and agent "
+            "assignments, and carry every assignment on until its pull request "
+            "is ready for you to review. One daemon watches one "
             "repo, so a second run on this one refuses while the first is "
             "alive."
         ),
@@ -130,9 +130,9 @@ def build_cli_parser() -> argparse.ArgumentParser:
     web_parser.set_defaults(act=_show_web)
     status_parser = subcommands.add_parser(
         "status",
-        help="show the instance, issue, and agent-assignment status",
+        help="show the instance, conversation, issue, and assignment status",
         description=(
-            "Show instance and daemon facts, each agent assignment's status, "
+            "Show instance and daemon facts, each conversation and assignment, "
             "available issues in dispatch order, and blocked issues. It refreshes "
             "automatically until you interrupt it. "
             + HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
