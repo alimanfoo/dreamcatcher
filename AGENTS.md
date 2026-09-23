@@ -111,13 +111,13 @@ Regenerate every rendered-view golden after a presentation change with the
 encoding warning variable set as described above:
 
 ```sh
-PYTHONWARNDEFAULTENCODING=1 uv run pytest tests/test_tui.py tests/test_web.py --no-cov --regenerate-view-goldens
+PYTHONWARNDEFAULTENCODING=1 uv run pytest --regenerate-view-goldens
 ```
 
 On Windows PowerShell:
 
 ```powershell
-$env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest tests/test_tui.py tests/test_web.py --no-cov --regenerate-view-goldens
+$env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest --regenerate-view-goldens
 ```
 
 ### Errors and documents
@@ -233,6 +233,7 @@ $env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest tests/test_tui.py tests/test
 
 ### Cross-platform code and tests
 
+- Store every time in UTC and show every time in the viewer's local zone.
 - Every path is cross-platform: Windows, macOS, and Linux are all first-class.
   Force UTF-8 on every subprocess and file operation. Ruff's
   `unspecified-encoding` rule catches a file opened without `encoding=`. Ruff

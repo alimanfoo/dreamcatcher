@@ -547,11 +547,6 @@ def _start_cooldown_if_required(
     return GlobalCooldown(started=at, ends=at + GLOBAL_COOLDOWN_DURATION)
 
 
-def _describe_cooldown(*, cooldown: GlobalCooldown) -> str:
-    """Describe when the active global cooldown permits another launch."""
-    return f"global cooldown — next attempt at {cooldown.ends:%H:%M:%S} UTC"
-
-
 def prioritize_required_rounds(
     *, required_rounds: list[RequiredAgentRound]
 ) -> list[RequiredAgentRound]:
@@ -834,7 +829,7 @@ class AgentWorkScheduler:
             assignment_observations=assignment_observations,
         )
         if cooldown is not None:
-            hold_reason = _describe_cooldown(cooldown=cooldown)
+            hold_reason = "global cooldown"
             if issue_failure is not None:
                 hold_reason = (
                     f"{hold_reason}; could not refresh issues: {issue_failure}"

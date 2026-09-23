@@ -361,6 +361,11 @@ def _compose_github_repository_url(*, repository: str | None) -> str | None:
 def _compose_home_view(
     *, report: DreamcatcherStatusReport, zone: tzinfo | None
 ) -> WebHomeView:
+    cooldown_end = (
+        None
+        if report.active_global_cooldown is None
+        else describe_time(at=report.active_global_cooldown.ends, zone=zone)
+    )
     active_statuses = sorted(
         (
             status
@@ -396,14 +401,11 @@ def _compose_home_view(
             daemon_pid=report.daemon_pid,
             dreamcatcher_version=report.dreamcatcher_version,
         ),
-        instance_facts=_compose_instance_facts(report=report, zone=zone),
+        instance_facts=_compose_instance_facts(
+            report=report, cooldown_end=cooldown_end
+        ),
         cooldown_message=(
-            None
-            if report.active_global_cooldown is None
-            else (
-                "Global cooldown ends "
-                f"{describe_time(at=report.active_global_cooldown.ends, zone=zone)}"
-            )
+            None if cooldown_end is None else f"Global cooldown ends {cooldown_end}"
         ),
         active_assignments=active_assignments,
         complete_assignments=complete_assignments,
@@ -707,18 +709,14 @@ def _describe_daemon(
 
 
 def _compose_instance_facts(
-    *, report: DreamcatcherStatusReport, zone: tzinfo | None
+    *, report: DreamcatcherStatusReport, cooldown_end: str | None
 ) -> tuple[WebFact, ...]:
     tick = (
         "none recorded"
         if report.latest_scheduler_tick is None
         else f"{describe_span(span=report.at - report.latest_scheduler_tick)} ago"
     )
-    cooldown = (
-        "none"
-        if report.active_global_cooldown is None
-        else f"ends {describe_time(at=report.active_global_cooldown.ends, zone=zone)}"
-    )
+    cooldown = "none" if cooldown_end is None else f"ends {cooldown_end}"
     scheduler_hold = report.scheduler_hold
     if scheduler_hold is not None and scheduler_hold.startswith("at cap:"):
         scheduler_hold = None
