@@ -7,16 +7,16 @@ let shouldFollowFeed = false;
 let currentRoundHash = null;
 let focusedRoundHash = null;
 
-if (feed !== null && feedTail !== null) {
-  feedTail.addEventListener("click", () => {
-    feed.scrollTo({
-      top: feed.scrollHeight,
-      behavior: "instant",
-    });
-  });
-}
-
 if (feed !== null) {
+  feed.scrollTop = feed.scrollHeight;
+  if (feedTail !== null) {
+    feedTail.addEventListener("click", () => {
+      feed.scrollTo({
+        top: feed.scrollHeight,
+        behavior: "instant",
+      });
+    });
+  }
   feed.addEventListener("htmx:beforeSwap", (event) => {
     if (event.detail.target !== feed) {
       return;

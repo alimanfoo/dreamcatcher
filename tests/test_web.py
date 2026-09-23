@@ -602,7 +602,24 @@ def test_assignment_page_offers_a_control_that_jumps_to_the_feed_tail(tmp_path, 
         "TAIL ↓</button>" in page
     )
     assert response.status_code == 200
+    assert "feed.scrollTop = feed.scrollHeight" in script
     assert "top: feed.scrollHeight" in script
+
+
+def test_assignment_feed_fits_in_the_initial_viewport(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    application = create_app(state=state, clock=lambda: LOOKED_AT)
+
+    response = application.test_client().get("/static/matrix.css")
+    stylesheet = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert re.search(
+        r"\.feed-records \{[^}]*height: clamp\(240px, 50vh, 520px\);",
+        stylesheet,
+        re.DOTALL,
+    )
 
 
 def test_round_headings_are_separated_from_the_feed_content(tmp_path):
