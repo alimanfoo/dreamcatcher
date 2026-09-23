@@ -23,7 +23,7 @@
             <h1 id="assignment-heading"><a class="assignment-issue" href="https://github.com/alimanfoo/dreamcatcher/issues/12" target="_blank" rel="noopener noreferrer">#12</a></h1>
           
           <div class="assignment-heading-actions">
-            <span class="chip status-complete">[COMPLETE]</span>
+            <span id="assignment-status" class="chip status-complete">[COMPLETE]</span>
             <a class="pr-chip" href="https://github.com/alimanfoo/dreamcatcher/pull/52" target="_blank" rel="noopener noreferrer">PR #52</a>
           </div>
         </div>
@@ -38,47 +38,44 @@
       </section>
       <div class="assignment-workspace">
         <div class="assignment-sidebar">
-          <aside class="panel assignment-rounds" aria-labelledby="rounds-heading">
-            <h1 id="rounds-heading">ROUNDS</h1>
-            
-              <a class="round-link" href="#feed-round-1" aria-controls="feed-round-1">
-                <span class="round-number">01</span>
-                <span class="round-summary">
-                  <span class="round-purpose">implement</span>
-                  <span class="round-outcome">[SUCCESSFUL]</span>
-                  <span class="round-timing">2026-08-19T18:42:58Z · ran 4m</span>
-                </span>
-              </a>
-            
-              <a class="round-link" href="#feed-round-2" aria-controls="feed-round-2">
-                <span class="round-number">02</span>
-                <span class="round-summary">
-                  <span class="round-purpose">wrap up</span>
-                  <span class="round-outcome">[SUCCESSFUL]</span>
-                  <span class="round-timing">2026-08-19T18:43:58Z · ran 4m</span>
-                </span>
-              </a>
-            
-          </aside>
+          <aside id="assignment-rounds" class="panel assignment-rounds" aria-labelledby="rounds-heading">
+  <h1 id="rounds-heading">ROUNDS</h1>
+  
+    <a class="round-link" href="#feed-round-1" aria-controls="feed-round-1">
+      <span class="round-number">01</span>
+      <span class="round-summary">
+        <span class="round-purpose">implement</span>
+        <span class="round-outcome">[SUCCESSFUL]</span>
+        <span class="round-timing">2026-08-19T18:42:58Z · ran 4m</span>
+      </span>
+    </a>
+  
+    <a class="round-link" href="#feed-round-2" aria-controls="feed-round-2">
+      <span class="round-number">02</span>
+      <span class="round-summary">
+        <span class="round-purpose">wrap up</span>
+        <span class="round-outcome">[SUCCESSFUL]</span>
+        <span class="round-timing">2026-08-19T18:43:58Z · ran 4m</span>
+      </span>
+    </a>
+  
+</aside>
         </div>
         <section class="panel assignment-feed" aria-labelledby="feed-heading">
           <h1 id="feed-heading">FEED</h1>
           <button class="feed-tail" type="button" aria-controls="records">TAIL ↓</button>
-          <div id="records" class="feed-records">
+          <input type="hidden" id="cursor" name="cursor" value="2:0">
+          <div id="records" class="feed-records" hx-get="/assignments/GH12-20260819-184158/tail" hx-trigger="every 2s" hx-include="#cursor" hx-select=".feed-line" hx-swap="beforeend">
             
-              <div id="feed-round-1" class="feed-round">
-                <div class="feed-line round-boundary">
+              <div id="feed-round-1" class="feed-line round-boundary">
   <time>2026-08-19T18:42:58Z</time>
   <span class="feed-content"><span class="feed-detail">round 1: implement</span></span>
 </div>
-              </div>
             
-              <div id="feed-round-2" class="feed-round">
-                <div class="feed-line round-boundary">
+              <div id="feed-round-2" class="feed-line round-boundary">
   <time>2026-08-19T18:43:58Z</time>
   <span class="feed-content"><span class="feed-detail">round 2: wrap up</span></span>
 </div>
-              </div>
             
           </div>
         </section>

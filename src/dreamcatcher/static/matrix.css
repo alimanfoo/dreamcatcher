@@ -562,9 +562,9 @@ body::after {
 
 .feed-records {
   display: grid;
-  gap: var(--space-8);
-  height: 72vh;
-  min-height: 380px;
+  align-content: start;
+  gap: var(--space-2);
+  height: clamp(240px, 50vh, 520px);
   padding: var(--space-7) var(--space-9) var(--space-9);
   overflow: auto;
   scroll-behavior: smooth;
@@ -588,12 +588,6 @@ body::after {
 .feed-tail:hover,
 .feed-tail:focus-visible {
   color: var(--bright);
-}
-
-.feed-round {
-  display: grid;
-  gap: var(--space-2);
-  scroll-margin-top: var(--space-3);
 }
 
 .feed-line {
@@ -629,6 +623,12 @@ body::after {
   background: var(--background);
   border-bottom: var(--line) solid var(--rule);
   font-weight: 700;
+  margin-top: var(--space-6);
+  scroll-margin-top: var(--space-3);
+}
+
+.round-boundary:first-child {
+  margin-top: 0;
 }
 
 @media (max-width: 900px) {

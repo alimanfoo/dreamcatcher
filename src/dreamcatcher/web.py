@@ -8,14 +8,15 @@ from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Protocol
+from typing import Protocol, cast
 from webbrowser import open as open_browser
 
-from flask import Flask, render_template
+from flask import Flask, render_template, request
 from werkzeug.serving import BaseWSGIServer
 
+from dreamcatcher.agent_rounds import AgentRoundRecord, SuccessfulAgentRoundEnding
 from dreamcatcher.clock import read_current_time
-from dreamcatcher.documents import read_lines_from
+from dreamcatcher.documents import is_complete_line_position, read_lines_from
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import (
     compose_agent_round_boundary,
@@ -24,6 +25,7 @@ from dreamcatcher.feed import (
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
+    STATUSES_THAT_END_A_VIEW,
     AgentAssignmentStatus,
     AgentAssignmentStatusValue,
     DreamcatcherStatusReport,
@@ -41,12 +43,18 @@ WEB_BASE_PORT = 8100
 WEB_PORT_RANGE = 400
 WEB_MAX_PORT = 65535
 _ISSUE_REFERENCE_PATTERN = re.compile(r"(?<!\w)(?:GH|#)(\d+)\b(?!-)")
+_FEED_CURSOR_PATTERN = re.compile(r"(?P<round>0|[1-9]\d*):(?P<position>\d+)")
+_HTMX_STOP_POLLING_STATUS = 286
 
 
 class _WebServerBindError(Exception):
     def __init__(self, *, error: OSError) -> None:
         super().__init__(str(error))
         self.error = error
+
+
+class _InvalidFeedCursorError(Exception):
+    pass
 
 
 class _ExclusiveWebServer(BaseWSGIServer):
@@ -127,6 +135,34 @@ class WebFeedRound:
 
 
 @dataclass(frozen=True, kw_only=True)
+class WebAssignmentFeed:
+    """Represent the complete feed and the cursor after its last line."""
+
+    rounds: tuple[WebFeedRound, ...]
+    cursor: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class WebFeedCursor:
+    """Identify the next feed byte to read within an assignment round."""
+
+    round_number: int
+    position: int
+
+
+@dataclass(frozen=True, kw_only=True)
+class WebAssignmentTail:
+    """Represent one incremental assignment-feed response."""
+
+    cursor: str
+    feed_rounds: tuple[WebFeedRound, ...]
+    status: str
+    status_label: str
+    rounds: tuple[WebAssignmentRound, ...]
+    has_empty_feed_placeholder: bool
+
+
+@dataclass(frozen=True, kw_only=True)
 class WebAssignmentView:
     """Represent every value that the assignment template lays out."""
 
@@ -138,6 +174,7 @@ class WebAssignmentView:
     issue: int
     title: str | None
     status: str
+    status_label: str
     detail: str
     pull_request: int
     pull_request_state: str | None
@@ -150,6 +187,7 @@ class WebAssignmentView:
     hand_resume_worktree: str | None
     hand_resume_command: str | None
     feed_rounds: tuple[WebFeedRound, ...]
+    feed_cursor: str
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -213,6 +251,36 @@ def create_app(
             "assignment.html",
             view=_compose_assignment_view(state=state, status=status),
         )
+
+    @app.get("/assignments/<identifier>/tail")
+    def show_assignment_tail(*, identifier: str) -> str | tuple[str, int]:
+        status = read_agent_assignment_status(
+            state=state,
+            identifier=identifier,
+            clock=clock,
+        )
+        if status is None:
+            return (
+                render_template(
+                    "error.html",
+                    message=f"No agent assignment here has identifier {identifier}.",
+                ),
+                404,
+            )
+        try:
+            cursor = _decode_feed_cursor(value=request.args.get("cursor", ""))
+            tail = _read_assignment_tail(status=status, cursor=cursor)
+        except _InvalidFeedCursorError:
+            return (
+                render_template("error.html", message="The feed cursor is invalid."),
+                400,
+            )
+        response_status = (
+            _HTMX_STOP_POLLING_STATUS
+            if not tail.feed_rounds and status.value in STATUSES_THAT_END_A_VIEW
+            else 200
+        )
+        return render_template("tail.html", tail=tail), response_status
 
     @app.errorhandler(ReportableError)
     def show_reportable_error(error: ReportableError, /) -> tuple[str, int]:
@@ -281,21 +349,30 @@ def _compose_github_repository_url(*, repository: str | None) -> str | None:
 
 
 def _compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
-    ordered_statuses = sorted(
-        report.assignment_statuses,
+    active_statuses = sorted(
+        (
+            status
+            for status in report.assignment_statuses
+            if status.value is not AgentAssignmentStatusValue.COMPLETE
+        ),
         key=lambda status: ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER.index(
             status.value
         ),
     )
+    complete_statuses = sorted(
+        (
+            status
+            for status in report.assignment_statuses
+            if status.value is AgentAssignmentStatusValue.COMPLETE
+        ),
+        key=_read_assignment_completion_time,
+        reverse=True,
+    )
     complete_assignments = tuple(
-        _compose_assignment_card(status=status)
-        for status in ordered_statuses
-        if status.value is AgentAssignmentStatusValue.COMPLETE
+        _compose_assignment_card(status=status) for status in complete_statuses
     )
     active_assignments = tuple(
-        _compose_assignment_card(status=status)
-        for status in ordered_statuses
-        if status.value is not AgentAssignmentStatusValue.COMPLETE
+        _compose_assignment_card(status=status) for status in active_statuses
     )
     return WebHomeView(
         repository=report.repository or "repository unknown",
@@ -328,6 +405,19 @@ def _compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
     )
 
 
+def _read_assignment_completion_time(status: AgentAssignmentStatus, /) -> datetime:
+    """Return the completion time for sorted, which passes items by position.
+
+    The caller selects complete statuses, whose final round has a successful
+    ending.
+    """
+    ending = cast(
+        "SuccessfulAgentRoundEnding",
+        status.assignment.rounds[-1].ending,
+    )
+    return ending.at
+
+
 def _compose_assignment_card(*, status: AgentAssignmentStatus) -> WebAssignmentCard:
     assignment = status.assignment
     return WebAssignmentCard(
@@ -335,11 +425,7 @@ def _compose_assignment_card(*, status: AgentAssignmentStatus) -> WebAssignmentC
         issue=assignment.record.issue,
         title=assignment.record.title,
         status=str(status.value),
-        status_label=(
-            "needs feedback"
-            if status.value is AgentAssignmentStatusValue.NEEDS_USER_FEEDBACK
-            else str(status.value)
-        ),
+        status_label=_compose_web_status_label(status=status),
         detail=status.detail,
         harness=str(assignment.record.harness),
         model=assignment.record.model,
@@ -367,6 +453,7 @@ def _compose_assignment_view(
     repository = read_repository(state=state)
     daemon = read_dreamcatcher_daemon_status(state=state)
     hand_resume_command = status.hand_resume_command
+    feed = _read_assignment_feed(status=status)
     return WebAssignmentView(
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
@@ -379,6 +466,7 @@ def _compose_assignment_view(
         issue=record.issue,
         title=record.title,
         status=str(status.value),
+        status_label=_compose_web_status_label(status=status),
         detail=status.detail,
         pull_request=record.pull_request,
         pull_request_state=_describe_pull_request_state(status=status),
@@ -391,17 +479,7 @@ def _compose_assignment_view(
         ),
         model=record.model,
         effort=record.effort,
-        rounds=tuple(
-            WebAssignmentRound(
-                number=round_status.record.number,
-                purpose=str(round_status.record.purpose),
-                is_recovery=round_status.record.is_recovery,
-                started=describe_time(at=round_status.record.started),
-                duration=round_status.duration_description,
-                outcome=round_status.outcome_description,
-            )
-            for round_status in status.round_statuses
-        ),
+        rounds=_compose_assignment_rounds(status=status),
         hand_resume_worktree=(
             None
             if hand_resume_command is None
@@ -410,34 +488,140 @@ def _compose_assignment_view(
         hand_resume_command=(
             None if hand_resume_command is None else " ".join(hand_resume_command)
         ),
-        feed_rounds=_read_assignment_feed(status=status),
+        feed_rounds=feed.rounds,
+        feed_cursor=feed.cursor,
     )
 
 
-def _read_assignment_feed(*, status: AgentAssignmentStatus) -> tuple[WebFeedRound, ...]:
+def _compose_web_status_label(*, status: AgentAssignmentStatus) -> str:
+    return (
+        "needs feedback"
+        if status.value is AgentAssignmentStatusValue.NEEDS_USER_FEEDBACK
+        else str(status.value)
+    )
+
+
+def _compose_assignment_rounds(
+    *, status: AgentAssignmentStatus
+) -> tuple[WebAssignmentRound, ...]:
+    return tuple(
+        WebAssignmentRound(
+            number=round_status.record.number,
+            purpose=str(round_status.record.purpose),
+            is_recovery=round_status.record.is_recovery,
+            started=describe_time(at=round_status.record.started),
+            duration=round_status.duration_description,
+            outcome=round_status.outcome_description,
+        )
+        for round_status in status.round_statuses
+    )
+
+
+def _encode_feed_cursor(*, cursor: WebFeedCursor) -> str:
+    return f"{cursor.round_number}:{cursor.position}"
+
+
+def _decode_feed_cursor(*, value: str) -> WebFeedCursor:
+    match = _FEED_CURSOR_PATTERN.fullmatch(value)
+    if match is None:
+        raise _InvalidFeedCursorError
+    try:
+        cursor = WebFeedCursor(
+            round_number=int(match["round"]),
+            position=int(match["position"]),
+        )
+    except ValueError:
+        raise _InvalidFeedCursorError from None
+    if cursor.round_number == 0 and cursor.position != 0:
+        raise _InvalidFeedCursorError
+    return cursor
+
+
+def _read_assignment_tail(
+    *, status: AgentAssignmentStatus, cursor: WebFeedCursor
+) -> WebAssignmentTail:
+    assignment = status.assignment
+    records_by_number = {record.number: record for record in assignment.rounds}
+    number, position, is_opening_round = _resolve_feed_cursor(
+        cursor=cursor,
+        records_by_number=records_by_number,
+    )
+    feed_rounds = []
+    next_cursor = cursor
+    while (record := records_by_number.get(number)) is not None:
+        feed_path = assignment.compose_round_paths(number=number).feed
+        if not is_complete_line_position(path=feed_path, position=position):
+            raise _InvalidFeedCursorError
+        written_lines, position = read_lines_from(
+            path=feed_path,
+            position=position,
+        )
+        lines = tuple(
+            _compose_web_feed_line(written_line=written_line)
+            for written_line in written_lines
+        )
+        if is_opening_round:
+            lines = (_compose_web_round_boundary(record=record), *lines)
+        if lines:
+            feed_rounds.append(WebFeedRound(number=number, lines=lines))
+        next_cursor = WebFeedCursor(round_number=number, position=position)
+        if written_lines or record.ending is None:
+            break
+        number += 1
+        position = 0
+        is_opening_round = True
+    return WebAssignmentTail(
+        cursor=_encode_feed_cursor(cursor=next_cursor),
+        feed_rounds=tuple(feed_rounds),
+        status=str(status.value),
+        status_label=_compose_web_status_label(status=status),
+        rounds=_compose_assignment_rounds(status=status),
+        has_empty_feed_placeholder=cursor.round_number == 0,
+    )
+
+
+def _resolve_feed_cursor(
+    *,
+    cursor: WebFeedCursor,
+    records_by_number: dict[int, AgentRoundRecord],
+) -> tuple[int, int, bool]:
+    if cursor.round_number == 0:
+        return 1, 0, True
+    if cursor.round_number not in records_by_number:
+        raise _InvalidFeedCursorError
+    return cursor.round_number, cursor.position, False
+
+
+def _compose_web_round_boundary(*, record: AgentRoundRecord) -> WebFeedLine:
+    boundary = compose_agent_round_boundary(
+        number=record.number,
+        purpose=record.purpose,
+        is_recovery=record.is_recovery,
+        at=record.started,
+    )
+    return WebFeedLine(
+        timestamp=describe_time(at=boundary.at),
+        label=None,
+        detail=boundary.text,
+        is_boundary=True,
+    )
+
+
+def _read_assignment_feed(*, status: AgentAssignmentStatus) -> WebAssignmentFeed:
     assignment = status.assignment
     feed_rounds = []
+    cursor = WebFeedCursor(round_number=0, position=0)
     for record in assignment.rounds:
-        boundary = compose_agent_round_boundary(
-            number=record.number,
-            purpose=record.purpose,
-            is_recovery=record.is_recovery,
-            at=record.started,
-        )
-        written_lines, _ = read_lines_from(
+        written_lines, position = read_lines_from(
             path=assignment.compose_round_paths(number=record.number).feed,
             position=0,
         )
+        cursor = WebFeedCursor(round_number=record.number, position=position)
         feed_rounds.append(
             WebFeedRound(
                 number=record.number,
                 lines=(
-                    WebFeedLine(
-                        timestamp=describe_time(at=boundary.at),
-                        label=None,
-                        detail=boundary.text,
-                        is_boundary=True,
-                    ),
+                    _compose_web_round_boundary(record=record),
                     *(
                         _compose_web_feed_line(written_line=written_line)
                         for written_line in written_lines
@@ -445,7 +629,10 @@ def _read_assignment_feed(*, status: AgentAssignmentStatus) -> tuple[WebFeedRoun
                 ),
             )
         )
-    return tuple(feed_rounds)
+    return WebAssignmentFeed(
+        rounds=tuple(feed_rounds),
+        cursor=_encode_feed_cursor(cursor=cursor),
+    )
 
 
 def _compose_web_feed_line(*, written_line: str) -> WebFeedLine:

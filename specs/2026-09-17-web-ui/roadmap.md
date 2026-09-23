@@ -225,20 +225,24 @@ still picked up on the poll after the ending is seen.
 The answer is the new lines rendered with the feed line partial, followed by a
 fresh cursor input and the top's rounds section and status chip, each marked
 `hx-swap-oob` so one answer appends the lines and updates the top in place. When
-the assignment's status is one with no round coming, complete or fault, and the
-poll read nothing new, the tail answers with status 286, which stops htmx
-polling. A poll that finds the assignment over but still reads new lines answers
-200 with them, and the next poll answers 286; that is the extra look the TUI's
-following views take, so output landing after the last ending still arrives.
-That set of statuses is the TUI's `STATUSES_THAT_END_A_VIEW`; it moves to
-`status.py` so both presentations read it.
+the status is needs user feedback, the assignment-page chip says needs feedback
+as the home-card chip does. When the assignment's status is one with no round
+coming, complete or fault, and the poll read nothing new, the tail answers with
+status 286, which stops htmx polling. A poll that finds the assignment over but
+still reads new lines answers 200 with them, and the next poll answers 286; that
+is the extra look the TUI's following views take, so output landing after the
+last ending still arrives. That set of statuses is the TUI's
+`STATUSES_THAT_END_A_VIEW`; it moves to `status.py` so both presentations read
+it.
 
 The page carries a hidden cursor input, the poll attributes on the records
 container with `hx-include` of the cursor and `hx-swap` of `beforeend`. There is
 no live marker; the status chip and the rounds section already say a round is
-running. One script of our own, under `static/`, listens for htmx's swap events
-on the records container: before a swap it notes whether the container was
-scrolled to its end, and after one it scrolls to the end if it was.
+running. The records box is short enough to fit below the assignment facts in
+the initial desktop viewport. One script of our own, under `static/`, scrolls
+the records to their end when the page opens, then listens for htmx's swap
+events on the records container: before a swap it notes whether the container
+was scrolled to its end, and after one it scrolls to the end if it was.
 
 **Proof.** A tail from a cursor returns only the lines that landed since it, and
 the cursor it returns reads on from there. A line with no ending is neither
@@ -248,9 +252,10 @@ recorded. A complete assignment and a faulted one answer 286 once a poll reads
 nothing new, and 200 with the lines on a poll that still reads some. A cursor
 that will not decode answers 400. An assignment with no round yet answers its
 first round's heading and lines once that round starts. Goldens cover a tail
-fragment. By hand: watch a live round scroll, scroll up and see the page leave
-you there, return to the bottom and see it follow, and see the status chip turn
-to complete when the assignment does.
+fragment. By hand: watch a live round open with the feed's tail visible without
+clicking or scrolling the page, scroll up and see the page leave you there,
+return to the bottom and see it follow, and see the status chip turn to complete
+when the assignment does.
 
 **Deferral.** Local time.
 

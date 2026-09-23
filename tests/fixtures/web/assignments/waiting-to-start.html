@@ -23,7 +23,7 @@
             <h1 id="assignment-heading"><a class="assignment-issue" href="https://github.com/alimanfoo/dreamcatcher/issues/44" target="_blank" rel="noopener noreferrer">#44</a></h1>
           
           <div class="assignment-heading-actions">
-            <span class="chip status-waiting">[WAITING]</span>
+            <span id="assignment-status" class="chip status-waiting">[WAITING]</span>
             <a class="pr-chip" href="https://github.com/alimanfoo/dreamcatcher/pull/52" target="_blank" rel="noopener noreferrer">PR #52</a>
           </div>
         </div>
@@ -38,19 +38,20 @@
       </section>
       <div class="assignment-workspace">
         <div class="assignment-sidebar">
-          <aside class="panel assignment-rounds" aria-labelledby="rounds-heading">
-            <h1 id="rounds-heading">ROUNDS</h1>
-            
-              <p class="empty">-- no rounds have run --</p>
-            
-          </aside>
+          <aside id="assignment-rounds" class="panel assignment-rounds" aria-labelledby="rounds-heading">
+  <h1 id="rounds-heading">ROUNDS</h1>
+  
+    <p class="empty">-- no rounds have run --</p>
+  
+</aside>
         </div>
         <section class="panel assignment-feed" aria-labelledby="feed-heading">
           <h1 id="feed-heading">FEED</h1>
           <button class="feed-tail" type="button" aria-controls="records">TAIL ↓</button>
-          <div id="records" class="feed-records">
+          <input type="hidden" id="cursor" name="cursor" value="0:0">
+          <div id="records" class="feed-records" hx-get="/assignments/GH44-20260819-184158/tail" hx-trigger="every 2s" hx-include="#cursor" hx-select=".feed-line" hx-swap="beforeend">
             
-              <p class="empty">-- no feed yet --</p>
+              <p id="empty-feed" class="empty">-- no feed yet --</p>
             
           </div>
         </section>

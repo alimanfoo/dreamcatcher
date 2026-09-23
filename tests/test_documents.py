@@ -6,6 +6,7 @@ from dreamcatcher.documents import (
     BACKWARD_READ_SIZE,
     DreamcatcherDocument,
     append_text,
+    is_complete_line_position,
     read_json,
     read_last_line,
     read_lines_from,
@@ -123,6 +124,30 @@ def test_a_file_with_nothing_in_it_holds_no_lines(tmp_path):
 
 def test_a_file_that_is_not_there_holds_no_lines(tmp_path):
     assert read_lines_from(path=tmp_path / "feed.txt", position=0) == ([], 0)
+
+
+@pytest.mark.parametrize(
+    ("written", "position", "expected"),
+    [
+        ("first\nsecond\n", 0, True),
+        ("first\nsecond\n", 6, True),
+        ("first\nsecond\n", 1, False),
+        ("first\nsecond\n", -1, False),
+        ("first\nsecond\n", 99, False),
+    ],
+)
+def test_a_complete_line_position_is_recognised(tmp_path, written, position, expected):
+    assert (
+        is_complete_line_position(
+            path=growing(path=tmp_path, written=written),
+            position=position,
+        )
+        is expected
+    )
+
+
+def test_position_zero_is_valid_for_a_file_that_is_not_there(tmp_path):
+    assert is_complete_line_position(path=tmp_path / "feed.txt", position=0)
 
 
 def test_a_file_of_lines_that_is_not_utf_8_says_so(tmp_path):
