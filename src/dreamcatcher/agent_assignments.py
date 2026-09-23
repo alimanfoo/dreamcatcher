@@ -41,7 +41,7 @@ from dreamcatcher.git import (
     delete_branch,
     fetch_main,
     has_commits_since_main,
-    is_assignment_worktree,
+    is_linked_worktree,
     make_empty_commit,
     push_branch,
     read_worktree_branch,
@@ -296,7 +296,7 @@ def _find_incomplete_assignment_identifiers(
     identifiers_by_issue: dict[int, list[str]] = {}
     for path in state.worktrees.glob("GH*-*"):
         if (
-            not is_assignment_worktree(path=path)
+            not is_linked_worktree(path=path)
             or (state.assignments / path.name / AGENT_ASSIGNMENT_RECORD_NAME).exists()
         ):
             continue
@@ -389,7 +389,7 @@ class AgentAssignmentCreator:
         )
         branch = f"{AGENT_ASSIGNMENT_BRANCH_PREFIX}{identifier}"
         worktree = self.state.worktrees / identifier
-        if is_assignment_worktree(path=worktree):
+        if is_linked_worktree(path=worktree):
             _check_worktree_branch(
                 state=self.state, identifier=identifier, branch=branch
             )

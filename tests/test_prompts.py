@@ -13,6 +13,7 @@ from dreamcatcher.prompts import (
     AGENT_POST_MARKER,
     RECOVERY_PROMPT,
     compose_first_round_prompt,
+    compose_issue_conversation_prompt,
     compose_user_posts_prompt,
 )
 
@@ -61,7 +62,21 @@ def test_the_prompt_that_hands_over_user_posts_names_the_pull_request_and_the_fi
     assert composed.endswith(AGENT_POST_INSTRUCTIONS)
 
 
-def test_every_prompt_the_daemon_composes_asks_for_the_marker():
+def test_the_issue_conversation_prompt_names_its_input_and_host_boundary(tmp_path):
+    inbox = tmp_path / "inbox.json"
+
+    composed = compose_issue_conversation_prompt(
+        template="/dream:conversation GH{issue}", issue=52, round_input=inbox
+    )
+
+    assert composed.startswith("/dream:conversation GH52")
+    assert str(inbox) in composed
+    assert "mutate Git, mutate GitHub" in composed
+    assert composed.endswith("or exactly NO_REPLY when no\nreply is needed.")
+    assert AGENT_POST_MARKER not in composed
+
+
+def test_every_assignment_prompt_the_daemon_composes_asks_for_the_marker():
     composed = [
         compose_first_round_prompt(template="/dream:smith GH12", issue=12),
         RECOVERY_PROMPT,

@@ -36,7 +36,7 @@ from dreamcatcher.documents import (
 )
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedEvent, FeedNote, FeedProse, FeedRenderer
-from dreamcatcher.github import PullRequestState, UserPost
+from dreamcatcher.github import ConversationComment, PullRequestState, UserPost
 from dreamcatcher.harness_adapters import (
     AgentRoundLaunchRequest,
     HarnessAdapter,
@@ -84,7 +84,7 @@ class AgentRoundStartRequest:
     harness_session_identifier: HarnessSessionIdentifier | None
     record_harness_session_identifier: HarnessSessionIdentifierRecorder
     paths: "AgentRoundPaths"
-    plan: "AgentRoundPlan"
+    plan: "AgentRoundPlan | IssueConversationRoundPlan"
 
 
 def start_agent_round(
@@ -126,6 +126,7 @@ class AgentRoundPurpose(StrEnum):
     IMPLEMENT = "implement"
     ADDRESS_FEEDBACK = "address feedback"
     WRAP_UP = "wrap up"
+    DISCUSS = "discuss"
 
 
 class AgentRoundOutcome(StrEnum):
@@ -231,6 +232,16 @@ class AgentRoundInput(DreamcatcherDocument):
     user_posts: list[UserPost]
 
 
+class IssueConversationInput(DreamcatcherDocument):
+    """Model the trusted issue input frozen for one conversation round."""
+
+    issue: int
+    title: str
+    body: str
+    comments: list[ConversationComment]
+    revision: str
+
+
 @dataclass(frozen=True, kw_only=True)
 class AgentRoundPlan:
     """Describe the decisions and input that a new round executes."""
@@ -239,6 +250,16 @@ class AgentRoundPlan:
     is_recovery: bool
     input: AgentRoundInput | None = None
     requires_final_output: bool = False
+
+
+@dataclass(frozen=True, kw_only=True)
+class IssueConversationRoundPlan:
+    """Describe one issue-conversation round and its frozen input."""
+
+    purpose: AgentRoundPurpose
+    is_recovery: bool
+    input: IssueConversationInput
+    requires_final_output: bool = True
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -349,7 +370,7 @@ class AgentRound:
         output_reader: AgentRoundOutputReader,
         invocation: HarnessInvocation,
         paths: AgentRoundPaths,
-        plan: AgentRoundPlan,
+        plan: AgentRoundPlan | IssueConversationRoundPlan,
         clock: Callable[[], datetime] = read_current_time,
     ) -> None:
         """Run the invocation as a round at the paths it was given.
