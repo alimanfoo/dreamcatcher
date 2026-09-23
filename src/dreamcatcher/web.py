@@ -8,13 +8,13 @@ from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Protocol
+from typing import Protocol, cast
 from webbrowser import open as open_browser
 
 from flask import Flask, render_template, request
 from werkzeug.serving import BaseWSGIServer
 
-from dreamcatcher.agent_rounds import AgentRoundRecord
+from dreamcatcher.agent_rounds import AgentRoundRecord, SuccessfulAgentRoundEnding
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.documents import is_complete_line_position, read_lines_from
 from dreamcatcher.errors import ReportableError
@@ -349,21 +349,30 @@ def _compose_github_repository_url(*, repository: str | None) -> str | None:
 
 
 def _compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
-    ordered_statuses = sorted(
-        report.assignment_statuses,
+    active_statuses = sorted(
+        (
+            status
+            for status in report.assignment_statuses
+            if status.value is not AgentAssignmentStatusValue.COMPLETE
+        ),
         key=lambda status: ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER.index(
             status.value
         ),
     )
+    complete_statuses = sorted(
+        (
+            status
+            for status in report.assignment_statuses
+            if status.value is AgentAssignmentStatusValue.COMPLETE
+        ),
+        key=_read_assignment_completion_time,
+        reverse=True,
+    )
     complete_assignments = tuple(
-        _compose_assignment_card(status=status)
-        for status in ordered_statuses
-        if status.value is AgentAssignmentStatusValue.COMPLETE
+        _compose_assignment_card(status=status) for status in complete_statuses
     )
     active_assignments = tuple(
-        _compose_assignment_card(status=status)
-        for status in ordered_statuses
-        if status.value is not AgentAssignmentStatusValue.COMPLETE
+        _compose_assignment_card(status=status) for status in active_statuses
     )
     return WebHomeView(
         repository=report.repository or "repository unknown",
@@ -394,6 +403,19 @@ def _compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
             _compose_issue_row(observation=issue) for issue in report.blocked_issues
         ),
     )
+
+
+def _read_assignment_completion_time(status: AgentAssignmentStatus, /) -> datetime:
+    """Return the completion time for sorted, which passes items by position.
+
+    The caller selects complete statuses, whose final round has a successful
+    ending.
+    """
+    ending = cast(
+        "SuccessfulAgentRoundEnding",
+        status.assignment.rounds[-1].ending,
+    )
+    return ending.at
 
 
 def _compose_assignment_card(*, status: AgentAssignmentStatus) -> WebAssignmentCard:

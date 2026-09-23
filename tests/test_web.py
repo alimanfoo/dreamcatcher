@@ -24,6 +24,7 @@ from werkzeug.test import TestResponse
 
 import dreamcatcher.web as web_module
 from dreamcatcher.agent_assignments import read_agent_assignment
+from dreamcatcher.agent_rounds import AgentRoundPurpose
 from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
@@ -237,6 +238,31 @@ def test_complete_assignment_cards_have_space_between_them(tmp_path, daemon):
         stylesheet,
         re.DOTALL,
     )
+
+
+def test_complete_assignments_are_ordered_by_most_recent_completion(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    written(
+        state=state,
+        issue=10,
+        records=[
+            ended(minute=1),
+            ended(minute=2, number=2, purpose=AgentRoundPurpose.WRAP_UP),
+        ],
+    )
+    written(
+        state=state,
+        issue=20,
+        records=[
+            ended(minute=1),
+            ended(minute=20, number=2, purpose=AgentRoundPurpose.WRAP_UP),
+        ],
+    )
+
+    page = render_home(state=state)
+
+    assert page.index("assignment-GH20-") < page.index("assignment-GH10-")
 
 
 def test_home_page_types_replaced_assignment_output(tmp_path):
