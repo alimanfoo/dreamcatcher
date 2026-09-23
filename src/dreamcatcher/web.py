@@ -46,7 +46,7 @@ _ISSUE_REFERENCE_PATTERN = re.compile(r"(?<!\w)(?:GH|#)(\d+)\b(?!-)")
 _FEED_CURSOR_PATTERN = re.compile(r"(?P<round>0|[1-9]\d*):(?P<position>\d+)")
 _HTMX_STOP_POLLING_STATUS = 286
 _DEFAULT_WEB_THEME = "matrix"
-_WEB_THEMES = frozenset({_DEFAULT_WEB_THEME, "nature"})
+_WEB_THEMES = (_DEFAULT_WEB_THEME, "nature")
 
 
 class _WebServerBindError(Exception):
@@ -301,8 +301,16 @@ def create_app(
 
 def _configure_web_theme(*, app: Flask) -> None:
     @app.context_processor
-    def add_web_theme() -> dict[str, str]:
-        return {"theme": _read_web_theme()}
+    def add_web_theme() -> dict[str, object]:
+        requested_theme = request.args.get("theme")
+        remembered_theme = request.cookies.get("theme")
+        if requested_theme in _WEB_THEMES:
+            theme = requested_theme
+        elif remembered_theme in _WEB_THEMES:
+            theme = remembered_theme
+        else:
+            theme = _DEFAULT_WEB_THEME
+        return {"theme": theme, "themes": _WEB_THEMES}
 
     @app.after_request
     def remember_web_theme(response: Response, /) -> Response:
@@ -311,16 +319,6 @@ def _configure_web_theme(*, app: Flask) -> None:
         if requested_theme in _WEB_THEMES:
             response.set_cookie("theme", requested_theme, samesite="Lax")
         return response
-
-
-def _read_web_theme() -> str:
-    requested_theme = request.args.get("theme")
-    if requested_theme in _WEB_THEMES:
-        return requested_theme
-    remembered_theme = request.cookies.get("theme")
-    if remembered_theme in _WEB_THEMES:
-        return remembered_theme
-    return _DEFAULT_WEB_THEME
 
 
 def _run_server(*, server: BaseWSGIServer) -> None:

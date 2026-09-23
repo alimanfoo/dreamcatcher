@@ -119,7 +119,7 @@ body::after {
   background: rgba(251, 247, 239, 0.45);
 }
 
-.theme-choice.active {
+.theme-choice[aria-current="page"] {
   color: var(--bright);
   font-weight: 500;
   background: rgba(251, 247, 239, 0.9);

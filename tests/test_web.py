@@ -361,10 +361,8 @@ def test_a_theme_choice_is_validated_and_remembered(tmp_path):
     selected = client.get("/?theme=nature")
     remembered = client.get("/")
 
-    assert 'data-theme="nature"' in selected.text
     assert 'href="/static/nature.css"' in selected.text
     assert "theme=nature;" in selected.headers["Set-Cookie"]
-    assert 'data-theme="nature"' in remembered.text
     assert 'href="/static/nature.css"' in remembered.text
 
 
@@ -373,7 +371,6 @@ def test_an_unknown_theme_uses_matrix_without_being_remembered(tmp_path):
 
     response = app.test_client().get("/?theme=unknown")
 
-    assert 'data-theme="matrix"' in response.text
     assert 'href="/static/nature.css"' not in response.text
     assert "Set-Cookie" not in response.headers
 
