@@ -235,7 +235,11 @@ def test_assignment_script_follows_only_when_the_feed_was_at_its_end(tmp_path):
     assert response.status_code == 200
     assert 'feed.addEventListener("htmx:beforeSwap"' in script
     assert 'feed.addEventListener("htmx:afterSwap"' in script
-    assert "feed.scrollHeight - feed.scrollTop - feed.clientHeight <= 1" in script
+    assert re.search(
+        r"shouldFollowFeed \|\|=\s+feed\.scrollHeight - feed\.scrollTop "
+        r"- feed\.clientHeight <= 1;",
+        script,
+    )
     assert (
         "if (shouldFollowFeed && nextFeedLineRevealAt <= performance.now())" in script
     )
