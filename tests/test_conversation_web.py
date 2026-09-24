@@ -5,20 +5,22 @@ from datetime import timedelta
 import pytest
 from clocks import DISPLAY_TIME_ZONE, PINNED
 from conftest import REPOSITORY
-from records import write_feed, write_issue_conversation, write_round
+from records import write_feed, write_issue_conversation, write_round, write_tick
 
 from dreamcatcher.agent_rounds import (
     AgentRoundPurpose,
     AgentRoundRecord,
+    IssueConversationInput,
     compose_agent_round_ending,
 )
-from dreamcatcher.documents import append_text, write_text
+from dreamcatcher.documents import append_text, write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.issue_conversations import (
     read_issue_conversation,
     record_issue_conversation_reply_publication,
     save_issue_conversation_reply,
 )
+from dreamcatcher.scheduler import IssueFact, IssueFactValue, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.web import create_app
 
@@ -31,10 +33,22 @@ def fabricate_conversation(
     has_round: bool = True,
     status: int = 0,
     is_published: bool = True,
+    is_eligible: bool = False,
 ) -> None:
     """Write one initial conversation exchange."""
     directory = write_issue_conversation(state=state, issue=8)
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            conversation_eligibility={
+                8: IssueFact(
+                    value=(IssueFactValue.TRUE if is_eligible else IssueFactValue.FALSE)
+                ),
+            },
+        ),
+    )
     if not has_round:
         return
     write_round(
@@ -49,6 +63,23 @@ def fabricate_conversation(
                 at=PINNED + timedelta(minutes=4), status=status
             ),
         ),
+    )
+    write_json(
+        document=IssueConversationInput(
+            issue=8,
+            title="Issue 8",
+            body="Explain it.",
+            comments=[
+                {
+                    "id": 1,
+                    "body": "Please explain.",
+                    "author": "alice",
+                    "written_at": "2026-09-23T01:00:00Z",
+                }
+            ],
+            revision="abc123",
+        ),
+        path=(directory / "rounds" / "1" / "inbox.json"),
     )
     write_feed(
         directory=directory,
@@ -87,7 +118,7 @@ def test_home_lists_a_conversation_and_links_to_its_page(tmp_path):
     assert "Conversations" in page
     assert 'id="conversation-GH8"' in page
     assert 'href="/conversations/8"' in page
-    assert "initial answer published" in page
+    assert "issue is not eligible for conversation" in page
 
 
 def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
@@ -182,7 +213,7 @@ def test_a_finished_conversation_stops_empty_tail_polling(tmp_path):
 
 def test_a_waiting_conversation_keeps_empty_tail_polling(tmp_path):
     state = StateDirectory(root=tmp_path)
-    fabricate_conversation(state=state, has_round=False)
+    fabricate_conversation(state=state, has_round=False, is_eligible=True)
 
     response = (
         application(state=state)
@@ -191,6 +222,85 @@ def test_a_waiting_conversation_keeps_empty_tail_polling(tmp_path):
     )
 
     assert response.status_code == 200
+
+
+def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state, is_eligible=True)
+    conversation = read_issue_conversation(state=state, issue=8)
+    assert conversation is not None
+    first_feed = conversation.compose_round_paths(number=1).feed
+    directory = state.conversations / "GH8"
+    write_round(
+        directory=directory,
+        number=2,
+        record=AgentRoundRecord(
+            number=2,
+            purpose=AgentRoundPurpose.DISCUSS,
+            started=PINNED + timedelta(minutes=6),
+            pid=2,
+            ending=compose_agent_round_ending(
+                at=PINNED + timedelta(minutes=10), status=0
+            ),
+        ),
+    )
+    write_json(
+        document=IssueConversationInput(
+            issue=8,
+            title="Issue 8",
+            body="Explain it.",
+            comments=[
+                {
+                    "id": 2,
+                    "body": "What evidence supports that?",
+                    "author": "alice",
+                    "written_at": "2026-09-23T02:00:00Z",
+                }
+            ],
+            revision="abc123",
+        ),
+        path=(directory / "rounds" / "2" / "inbox.json"),
+    )
+    write_feed(
+        directory=directory,
+        number=2,
+        lines=[FeedLine(at=LOOKED_AT, text="I found the follow-up answer.")],
+    )
+    conversation = read_issue_conversation(state=state, issue=8)
+    assert conversation is not None
+    save_issue_conversation_reply(
+        conversation=conversation, number=2, body="The follow-up answer."
+    )
+    record_issue_conversation_reply_publication(
+        conversation=conversation,
+        number=2,
+        at=PINNED + timedelta(minutes=11),
+    )
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            conversation_eligibility={
+                8: IssueFact(value=IssueFactValue.FALSE),
+            },
+        ),
+    )
+
+    response = (
+        application(state=state)
+        .test_client()
+        .get(
+            "/conversations/8/tail",
+            query_string={"cursor": f"1:{first_feed.stat().st_size}"},
+        )
+    )
+
+    assert response.status_code == 200
+    assert "I found the answer." not in response.text
+    assert 'id="conversation-detail"' in response.text
+    assert "issue is not eligible for conversation" in response.text
+    assert response.text.count("round 2: discuss") == 1
+    assert response.text.count("I found the follow-up answer.") == 1
 
 
 def test_conversation_tail_refuses_an_invalid_cursor(tmp_path):

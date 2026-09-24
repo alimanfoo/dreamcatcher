@@ -15,7 +15,7 @@
             {% with status_id="conversation-status" %}{% include "partials/agent-work-status.html" %}{% endwith %}
           </div>
         </div>
-        <p class="assignment-detail">{{ view.detail }}</p>
+        <p id="conversation-detail" class="assignment-detail">{{ view.detail }}</p>
         <dl class="assignment-facts">
           <div><dt>label</dt><dd>{{ view.label }}</dd></div>
           <div><dt>worktree</dt><dd>{{ view.worktree }}</dd></div>

@@ -165,8 +165,8 @@ def build_cli_parser() -> argparse.ArgumentParser:
         help="show one issue conversation, in detail",
         description=(
             "Show an issue conversation's chosen settings, session, worktree, "
-            "code revision, and initial round. It keeps up until the initial "
-            "exchange finishes or needs attention. "
+            "code revision, and rounds. It keeps up until the conversation "
+            "becomes inactive or needs attention. "
             + HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
             + " "
             + HELP_WHEN_NOTHING_WATCHES

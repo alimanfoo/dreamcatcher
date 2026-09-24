@@ -54,13 +54,15 @@ communication channel between the agent and the user.
 
 An **issue conversation** is Dreamcatcher's durable commission to an agent to
 answer the user on an issue without implementing a change. It owns a detached
-worktree at a recorded main revision, one harness session, its issue-comment
-delivery cursor, and its agent rounds. The issue remains its communication
-channel; it has no implementation branch or pull request.
+worktree at a recorded main revision, one harness session, and its agent rounds.
+Each round input records the comment batch delivered in that round. The issue
+remains its communication channel; it has no implementation branch or pull
+request.
 
-Stage 1 gives an issue conversation one initial round. The saved final answer is
-either published once on the issue or is `NO_REPLY`, which means no post is
-needed. Follow-up rounds and automatic recovery are outside this stage.
+An issue conversation starts with one initial round. Each later eligible comment
+batch resumes the same harness session in another round. Every saved final
+answer is either published once on the issue or is `NO_REPLY`, which means no
+post is needed. Automatic recovery is not supported yet.
 
 ### Agent work and agent work identifier
 
@@ -307,17 +309,16 @@ assignment can have any assignment status except complete.
 
 An issue conversation has one of these summary statuses:
 
-- **Running**: its initial agent round is running.
-- **Waiting**: its durable record exists but the initial round has not started.
-- **Awaiting publication**: the initial round succeeded, but its answer has not
+- **Running**: an agent round is running.
+- **Waiting**: the issue is eligible and the conversation is waiting for its
+  first round or for another comment, or current eligibility is unknown.
+- **Awaiting publication**: the latest round succeeded, but its answer has not
   yet been recorded as published.
-- **Needs attention**: the initial round errored or was interrupted, and stage 1
-  will not resume it automatically.
-- **Inactive**: the initial answer was published or the agent returned
-  `NO_REPLY`.
+- **Needs attention**: the latest round errored or was interrupted, and
+  Dreamcatcher will not resume it automatically yet.
+- **Inactive**: the issue is not currently eligible for new comment batches.
 
 These statuses are derived reporting projections, not persisted lifecycle state.
-Inactive does not promise that follow-up comments are supported.
 
 ### Status reports do not control work
 
@@ -350,17 +351,24 @@ waiting for another scheduler tick.
 
 ### Starting an issue conversation
 
-An open issue becomes an initial conversation candidate when it carries the
-configured conversation label, is assigned to the signed-in account, and has at
-least one eligible comment from that account. Issue title and body alone do not
-start a round. Assignment ownership, linked pull requests, dependencies and
-dispatch-label conflicts do not govern conversation eligibility.
+An open issue becomes a conversation candidate when it carries the configured
+conversation label, is assigned to the signed-in account, and has at least one
+eligible comment from that account after the newest comment in its latest round
+input. Issue title and body alone do not start a round. Assignment ownership,
+linked pull requests, dependencies and dispatch-label conflicts do not govern
+conversation eligibility.
 
 Dreamcatcher fetches main, creates a detached worktree, records its revision and
 the chosen conversation settings, freezes the issue and eligible comment batch,
 then starts the initial `discuss` round. The round shares the daemon's capacity
 and global cooldown with assignment rounds. A successful final result is saved
 before publication, so posting can be retried without rerunning the agent.
+
+After publication, another eligible comment batch resumes the same harness
+session in another `discuss` round. Comments that arrive while a round runs or
+an answer awaits publication stay beyond the latest round input. Closing the
+issue, removing its conversation label or unassigning the signed-in account
+makes the saved conversation inactive without deleting it.
 
 ### Working through an assignment
 
@@ -401,16 +409,17 @@ issue conversation answers. A failed issue read prevents launches in the
 workflow that depends on those facts without preventing work in the other
 workflow.
 
-Existing assignments take precedence over creating new ones. Subject to capacity
-and cooldown, the scheduler considers work in this order:
+Existing assignments take precedence over new ones, ranked in this order:
 
-1. recover an interrupted or first-time errored round;
+1. recover an interrupted or first-time errored assignment round;
 2. wrap up an assignment whose pull request has been merged or closed;
-3. start a round to address new user posts on an existing assignment;
-4. start the oldest eligible initial issue conversation;
-5. create an assignment for an available issue and immediately start its first
-   implementation round; and
-6. otherwise do nothing.
+3. start an assignment round for new user posts; and
+4. create an assignment for the oldest available issue.
+
+Conversation candidates are ordered by their oldest waiting comment. When both
+an assignment candidate and a conversation candidate are ready, the scheduler
+alternates which kind receives the next free slot. When only one kind is ready,
+it proceeds without waiting for the other.
 
 ### Handling errors and global cooldown
 

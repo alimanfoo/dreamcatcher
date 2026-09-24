@@ -16,8 +16,10 @@ from records import (
 from dreamcatcher.agent_rounds import (
     AgentRoundPurpose,
     AgentRoundRecord,
+    IssueConversationInput,
     compose_agent_round_ending,
 )
+from dreamcatcher.documents import write_json
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.issue_conversations import (
     NO_REPLY,
@@ -25,7 +27,7 @@ from dreamcatcher.issue_conversations import (
     record_issue_conversation_reply_publication,
     save_issue_conversation_reply,
 )
-from dreamcatcher.scheduler import SchedulerRecord
+from dreamcatcher.scheduler import IssueFact, IssueFactValue, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     IssueConversationStatusValue,
@@ -42,6 +44,15 @@ def conversation_state(tmp_path):
     state = StateDirectory(root=tmp_path)
     write_daemon_run(state=state, pid=os.getpid())
     write_issue_conversation(state=state, issue=8)
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            conversation_eligibility={
+                8: IssueFact(value=IssueFactValue.TRUE),
+            },
+        ),
+    )
     return state
 
 
@@ -52,8 +63,9 @@ def conversation_round(*, state: StateDirectory, status: int | None = 0) -> None
         if status is None
         else compose_agent_round_ending(at=PINNED + timedelta(minutes=4), status=status)
     )
+    directory = state.conversations / "GH8"
     write_round(
-        directory=state.conversations / "GH8",
+        directory=directory,
         number=1,
         record=AgentRoundRecord(
             number=1,
@@ -62,6 +74,25 @@ def conversation_round(*, state: StateDirectory, status: int | None = 0) -> None
             pid=1,
             ending=ending,
         ),
+    )
+    conversation = read_issue_conversation(state=state, issue=8)
+    assert conversation is not None
+    write_json(
+        document=IssueConversationInput(
+            issue=8,
+            title="Issue 8",
+            body="Explain it.",
+            comments=[
+                {
+                    "id": 1,
+                    "body": "Please explain.",
+                    "author": "alice",
+                    "written_at": "2026-09-23T01:00:00Z",
+                }
+            ],
+            revision="abc123",
+        ),
+        path=conversation.compose_round_paths(number=1).round_input,
     )
 
 
@@ -104,6 +135,62 @@ def test_a_conversation_with_no_round_is_waiting(conversation_state):
     assert found.value is IssueConversationStatusValue.WAITING
     assert found.detail == "initial round has not started"
     assert found.round_statuses == []
+
+
+def test_an_ineligible_conversation_with_no_round_is_inactive(conversation_state):
+    write_tick(
+        state=conversation_state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            conversation_eligibility={
+                8: IssueFact(value=IssueFactValue.FALSE),
+            },
+        ),
+    )
+
+    found = status(state=conversation_state)
+
+    assert found.value is IssueConversationStatusValue.INACTIVE
+    assert found.detail == "issue is not eligible for conversation"
+
+
+def test_a_conversation_with_unknown_eligibility_is_waiting(conversation_state):
+    write_tick(
+        state=conversation_state,
+        tick=SchedulerRecord(at=PINNED),
+    )
+
+    found = status(state=conversation_state)
+
+    assert found.value is IssueConversationStatusValue.WAITING
+    assert found.detail == "issue conversation eligibility is unknown"
+
+
+def test_an_unrecorded_round_input_needs_attention(conversation_state):
+    conversation = read_issue_conversation(state=conversation_state, issue=8)
+    assert conversation is not None
+    write_json(
+        document=IssueConversationInput(
+            issue=8,
+            title="Issue 8",
+            body="Explain it.",
+            comments=[
+                {
+                    "id": 1,
+                    "body": "Please explain.",
+                    "author": "alice",
+                    "written_at": "2026-09-23T01:00:00Z",
+                }
+            ],
+            revision="abc123",
+        ),
+        path=conversation.compose_round_paths(number=1).round_input,
+    )
+
+    found = status(state=conversation_state)
+
+    assert found.value is IssueConversationStatusValue.NEEDS_ATTENTION
+    assert found.detail == "round 1 input exists without a round record"
 
 
 def test_a_live_conversation_round_counts_capacity_and_shows_latest_output(
@@ -184,17 +271,17 @@ def test_a_successful_answer_not_yet_published_is_waiting(conversation_state, is
     found = status(state=conversation_state)
 
     assert found.value is IssueConversationStatusValue.AWAITING_PUBLICATION
-    assert found.detail == "initial answer is waiting to be published"
+    assert found.detail == "round 1 answer is waiting to be published"
 
 
-def test_a_published_initial_answer_is_inactive(conversation_state):
+def test_a_published_answer_waits_for_new_comments(conversation_state):
     conversation_round(state=conversation_state)
     save_reply(state=conversation_state, body="The answer.", is_published=True)
 
     found = status(state=conversation_state)
 
-    assert found.value is IssueConversationStatusValue.INACTIVE
-    assert found.detail == "initial answer published"
+    assert found.value is IssueConversationStatusValue.WAITING
+    assert found.detail == "waiting for new comments after round 1"
     assert found.round_statuses[0].duration_description == "ran 4m"
 
 
@@ -204,5 +291,66 @@ def test_no_reply_finishes_the_initial_exchange(conversation_state):
 
     found = status(state=conversation_state)
 
+    assert found.value is IssueConversationStatusValue.WAITING
+    assert found.detail == "waiting for new comments after round 1"
+
+
+def test_a_finished_ineligible_conversation_is_inactive(conversation_state):
+    conversation_round(state=conversation_state)
+    save_reply(state=conversation_state, body="The answer.", is_published=True)
+    write_tick(
+        state=conversation_state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            conversation_eligibility={
+                8: IssueFact(value=IssueFactValue.FALSE),
+            },
+        ),
+    )
+
+    found = status(state=conversation_state)
+
     assert found.value is IssueConversationStatusValue.INACTIVE
-    assert found.detail == "initial round finished with no reply"
+    assert found.detail == "issue is not eligible for conversation"
+
+
+def test_a_finished_conversation_with_unknown_eligibility_waits(
+    conversation_state,
+):
+    conversation_round(state=conversation_state)
+    save_reply(state=conversation_state, body="The answer.", is_published=True)
+    write_tick(
+        state=conversation_state,
+        tick=SchedulerRecord(at=PINNED),
+    )
+
+    found = status(state=conversation_state)
+
+    assert found.value is IssueConversationStatusValue.WAITING
+    assert found.detail == "issue conversation eligibility is unknown"
+
+
+def test_an_unreadable_delivered_input_needs_attention(conversation_state):
+    conversation_round(state=conversation_state)
+    save_reply(state=conversation_state, body="The answer.", is_published=True)
+    conversation = read_issue_conversation(state=conversation_state, issue=8)
+    assert conversation is not None
+    conversation.compose_round_paths(number=1).round_input.write_bytes(b"not json")
+
+    found = status(state=conversation_state)
+
+    assert found.value is IssueConversationStatusValue.NEEDS_ATTENTION
+    assert "inbox.json is not valid" in found.detail
+
+
+def test_an_unreadable_saved_reply_needs_attention(conversation_state):
+    conversation_round(state=conversation_state)
+    save_reply(state=conversation_state, body="The answer.", is_published=True)
+    conversation = read_issue_conversation(state=conversation_state, issue=8)
+    assert conversation is not None
+    conversation.compose_reply_path(number=1).write_bytes(b"not json")
+
+    found = status(state=conversation_state)
+
+    assert found.value is IssueConversationStatusValue.NEEDS_ATTENTION
+    assert "reply.json is not valid" in found.detail

@@ -51,12 +51,11 @@ One scheduler tick:
 2. reconciles incomplete assignment setup;
 3. saves and publishes any successful conversation answer still waiting;
 4. applies the run's requested capacity and global-cooldown constraints;
-5. finds the highest-priority existing assignment that requires an agent round,
-   considering recovery need, a terminal pull request, and unrelayed user posts
-   in that order;
-6. otherwise starts the oldest eligible initial issue conversation, when one is
-   configured;
-7. otherwise finds the oldest issue available for an agent assignment;
+5. finds the highest-priority assignment candidate, considering existing
+   assignment rounds before dispatch of the oldest available issue;
+6. finds the conversation candidate with the oldest waiting comment;
+7. alternates between the two kinds when both have candidates, without changing
+   either kind's internal order;
 8. performs at most one scheduling action; and
 9. returns a `SchedulerRecord` for operational reporting.
 
@@ -106,16 +105,22 @@ pull requests.
 
 The signed-in GitHub account, rather than the configured dispatch assignee,
 identifies trusted issue comments. Marked Dreamcatcher comments, comments by
-other accounts and blank comments are excluded. The delivery cursor is advanced
-after the round starts, so the initial batch cannot be selected again merely
-because its label and assignment remain on the issue.
+other accounts and blank comments are excluded. Each durable round input records
+the delivered batch, so the newest comment in the latest input is the delivery
+position and a batch cannot be selected again.
 
-Stage 1 schedules one initial Claude round per conversation. A successful final
-result is saved as the reply record. `NO_REPLY` completes publication without a
-GitHub post; any other saved answer is posted with the agent marker. An
-uncertain or failed post is tried again on a later tick from that saved record,
-without another harness invocation. Failed and interrupted initial rounds remain
-visible and are not automatically resumed in this stage.
+The first eligible batch starts one Claude session. Each later eligible batch
+resumes that session with current issue text, newly delivered comments and the
+initial worktree revision. A conversation accepts no new batch while a round is
+running, its answer awaits publication, or its latest round failed or was
+interrupted. Comments posted during those intervals remain beyond the latest
+round input.
+
+A successful final result is saved as the reply record. `NO_REPLY` completes
+publication without a GitHub post; any other saved answer is posted with the
+agent marker. An uncertain or failed post is tried again on a later tick from
+that saved record, without another harness invocation. Failed and interrupted
+rounds remain visible and are not automatically resumed yet.
 
 ### Agent assignments
 
@@ -296,10 +301,17 @@ whether it required a round. Status reads this observation because view commands
 cannot reach GitHub. It is the last tick's interpretation kept as operational
 evidence, not authoritative assignment state.
 
+The scheduler record maps each saved conversation to an `IssueFact` describing
+whether GitHub's eligible-issue query contained it. Status uses that evidence to
+distinguish an eligible conversation waiting for comments from an inactive
+conversation, without contacting GitHub itself.
+
 The scheduler record also names the assignment or conversation whose round the
-tick launched. A launched assignment has no observation in the same record. If
-its round ends before the next tick, status reports that it is waiting for that
-tick rather than reporting an unknown state.
+tick launched. Alternation advances when a kind is selected, including when its
+start fails, and begins afresh after a daemon restart. A launched assignment has
+no observation in the same record. If its round ends before the next tick,
+status reports that it is waiting for that tick rather than reporting an unknown
+state.
 
 ### TUI
 
@@ -352,8 +364,8 @@ The on-disk layout follows ownership:
 - instance-wide operational records live at the versioned root;
 - each assignment owns its durable record, delivery cursor, and numbered round
   records;
-- each conversation owns its durable record, issue-comment delivery cursor,
-  numbered round records and saved replies;
+- each conversation owns its durable record, numbered round records and saved
+  replies;
 - each round owns its prompt, raw output, rendered feed, final output when
   required, and any delivered input; and
 - assignment and conversation worktrees live in separate collections under the
@@ -413,19 +425,20 @@ A round record persists:
   required final result.
 
 A conversation record persists its issue and title, label, detached worktree and
-revision, chosen harness settings, harness session identifier, and newest
-trusted issue comment accepted for delivery. Its reply record persists the final
-body and, once known, publication time.
+revision, chosen harness settings, and harness session identifier. Its latest
+round input identifies the newest trusted issue comment accepted for delivery.
+Its reply record persists the final body and, once known, publication time.
 
 Instance records persist the repository identity and the most recent daemon
 run's harness, Dreamcatcher version, and capacity. An instance-wide scheduler
-record persists the last tick's result, including its hold, issue and assignment
-observations, active global cooldown, and the time at which the most recent
-cooldown ended. Its per-assignment observations preserve operational evidence of
-the tick's interpretation rather than authoritative state. An assignment record
-persists the time of its latest user retry request. These boundaries allow fault
-to remain a derived status: ending a cooldown or requesting a retry changes
-which round errors count towards fault rather than writing an assignment status.
+record persists the last tick's result, including its hold, issue, assignment
+and conversation observations, active global cooldown, and the time at which the
+most recent cooldown ended. Its per-work observations preserve operational
+evidence of the tick's interpretation rather than authoritative state. An
+assignment record persists the time of its latest user retry request. These
+boundaries allow fault to remain a derived status: ending a cooldown or
+requesting a retry changes which round errors count towards fault rather than
+writing an assignment status.
 
 The following are derived rather than persisted as authoritative state:
 
@@ -434,8 +447,8 @@ The following are derived rather than persisted as authoritative state:
   agent assignment;
 - whether an assignment is complete or in fault;
 - whether an assignment requires an agent round or needs user feedback;
-- whether a conversation is running, awaiting publication, inactive, or needs
-  attention;
+- whether a conversation is running, waiting, awaiting publication, inactive, or
+  needs attention;
 - what round purpose and recovery flag are required next; and
 - every issue conversation and agent assignment status shown in a status report.
 

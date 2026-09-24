@@ -1,4 +1,4 @@
-"""Scheduling and publication of initial issue conversations."""
+"""Scheduling and publication of issue conversations."""
 
 import json
 from datetime import timedelta
@@ -6,9 +6,22 @@ from unittest.mock import Mock
 
 import pytest
 from clocks import PINNED, Ticking
-from conftest import POSTED_BY, REPOSITORY, comment, configure, pages, streamed
+from conftest import (
+    FILED,
+    POSTED_BY,
+    REPOSITORY,
+    comment,
+    configure,
+    listing,
+    pages,
+    streamed,
+)
 from fakes import Line
-from records import write_agent_assignment, write_issue_conversation, write_round
+from records import (
+    write_agent_assignment,
+    write_issue_conversation,
+    write_round,
+)
 
 from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
@@ -22,13 +35,19 @@ from dreamcatcher.documents import read_json, write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import add_detached_worktree
 from dreamcatcher.issue_conversations import (
+    ISSUE_CONVERSATION_RECORD_NAME,
     NO_REPLY,
     read_issue_conversation,
     read_issue_conversation_reply,
     save_issue_conversation_reply,
 )
 from dreamcatcher.prompts import AGENT_POST_MARKER
-from dreamcatcher.scheduler import AgentWorkScheduler, GlobalCooldown, SchedulerRecord
+from dreamcatcher.scheduler import (
+    AgentWorkScheduler,
+    GlobalCooldown,
+    IssueFactValue,
+    SchedulerRecord,
+)
 from dreamcatcher.state import StateDirectory
 
 CONVERSATION_CONFIG = """[conversation]
@@ -62,15 +81,22 @@ def conversation_scheduler(cloned, gh):
         running.stop()
 
 
-def offer_conversation(*, gh, comments: list[dict], issue: int = 8) -> None:
+def offer_conversation(
+    *,
+    gh,
+    comments: list[dict],
+    issue: int = 8,
+    title: str = "Why does this happen?",
+    body: str = "Explain the scheduler.",
+) -> None:
     """Have GitHub offer one assigned conversation issue and its comments."""
     gh.replies(
         stdout=json.dumps(
             [
                 {
                     "number": issue,
-                    "title": "Why does this happen?",
-                    "body": "Explain the scheduler.",
+                    "title": title,
+                    "body": body,
                     "createdAt": "2026-09-22T01:00:00Z",
                     "state": "OPEN",
                     "assignees": [{"login": POSTED_BY}],
@@ -90,7 +116,11 @@ def offer_conversation(*, gh, comments: list[dict], issue: int = 8) -> None:
 
 
 def answer(
-    *, harnesses, body: str = "The scheduler waits for work.", status: int = 0
+    *,
+    harnesses,
+    body: str = "The scheduler waits for work.",
+    status: int = 0,
+    delay: float = 0,
 ) -> None:
     """Have Claude identify its session and finish with one final result."""
     harnesses["claude"].streams(
@@ -122,12 +152,19 @@ def answer(
             ),
         ],
         status=status,
+        delay=delay,
     )
 
 
 def ask(*, identifier: int = 1, body: str = "Please explain.") -> dict:
     """Return one trusted ordinary issue comment."""
     return comment(id=identifier, created_at=ASKED, body=body)
+
+
+def count_comment_reads(*, gh) -> int:
+    """Return how often GitHub was asked for the conversation's comments."""
+    expected = COMMENT_PATH.split()
+    return sum(call.arguments[: len(expected)] == expected for call in gh.calls)
 
 
 def finish(*, scheduler: AgentWorkScheduler) -> None:
@@ -174,8 +211,6 @@ def test_an_initial_conversation_freezes_input_runs_claude_and_publishes_once(
     conversation = read_issue_conversation(state=scheduler.state, issue=8)
     assert conversation is not None
     assert conversation.record.harness_session_identifier == "conversation-session"
-    assert conversation.record.delivery_cursor is not None
-    assert conversation.record.delivery_cursor.id == 1
     assert conversation.rounds[0].purpose is AgentRoundPurpose.DISCUSS
     assert conversation.rounds[0].outcome is AgentRoundOutcome.SUCCESSFUL
     paths = conversation.compose_round_paths(number=1)
@@ -197,6 +232,131 @@ def test_an_initial_conversation_freezes_input_runs_claude_and_publishes_once(
         f"The scheduler waits for work.\n\n{AGENT_POST_MARKER}"
     )
     assert not any(call.arguments[:2] == ["pr", "create"] for call in gh.calls)
+
+
+def test_a_follow_up_resumes_the_session_with_only_new_comments(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    offer_conversation(gh=gh, comments=[ask()])
+    answer(harnesses=harnesses, body="The first answer.")
+    gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
+    scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+    scheduler.tick(at=clock())
+    offer_conversation(
+        gh=gh,
+        comments=[ask(), ask(identifier=2, body="What evidence supports that?")],
+        title="What now happens?",
+        body="Explain the current scheduler.",
+    )
+    answer(harnesses=harnesses, body="The follow-up answer.")
+
+    launched = scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+    scheduler.tick(at=clock())
+
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert launched.launched_conversation_identifier == "conversation-GH8"
+    assert conversation is not None
+    assert len(conversation.rounds) == 2
+    follow_up = read_json(
+        model=IssueConversationInput,
+        path=conversation.compose_round_paths(number=2).round_input,
+    )
+    assert follow_up.title == "What now happens?"
+    assert follow_up.body == "Explain the current scheduler."
+    assert [item.body for item in follow_up.comments] == [
+        "What evidence supports that?"
+    ]
+    assert follow_up.revision == conversation.record.revision
+    resumed = harnesses["claude"].calls[1]
+    assert resumed.arguments[-2:] == ["--resume", "conversation-session"]
+    assert resumed.prompt.startswith("Issue-conversation input for GH8:")
+    assert "/dream:conversation" not in resumed.prompt
+    assert (
+        len([call for call in gh.calls if call.arguments[:4] == POST_PATH.split()]) == 2
+    )
+
+
+def test_comments_queued_during_a_round_wait_without_another_comment_read(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    offer_conversation(gh=gh, comments=[ask()])
+    answer(harnesses=harnesses, delay=10)
+    scheduler.tick(at=clock())
+    comment_reads_before = count_comment_reads(gh=gh)
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.hold == "at cap: 1 of 1 agents running"
+    assert count_comment_reads(gh=gh) == comment_reads_before
+
+
+def test_ready_assignment_rounds_and_conversations_alternate(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    for issue in (13, 14):
+        write_agent_assignment(
+            state=scheduler.state,
+            identifier=f"GH{issue}-20260923-010000",
+            issue=issue,
+        )
+    offer_conversation(gh=gh, comments=[ask()])
+    harnesses["claude"].replies(stdout="")
+
+    assignment_launch = scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+    answer(harnesses=harnesses)
+    conversation_launch = scheduler.tick(at=clock())
+
+    assert assignment_launch.launched_assignment_identifier == "GH13-20260923-010000"
+    assert conversation_launch.launched_conversation_identifier == "conversation-GH8"
+
+
+def test_after_a_conversation_round_the_next_round_dispatches_an_assignment(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    offer_conversation(gh=gh, comments=[ask()])
+    answer(harnesses=harnesses)
+    gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
+    scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+    scheduler.tick(at=clock())
+    offer_conversation(gh=gh, comments=[ask(), ask(identifier=2)])
+    gh.replies(stdout=listing(issues=[(8, FILED)]), to="issue list")
+    harnesses["claude"].replies(stdout="")
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.launched_assignment_identifier is not None
+
+
+def test_after_a_failed_assignment_start_the_next_round_is_a_conversation(
+    conversation_scheduler, harnesses, monkeypatch
+):
+    scheduler, clock, gh = conversation_scheduler
+    write_agent_assignment(
+        state=scheduler.state,
+        identifier="GH13-20260923-010000",
+        issue=13,
+    )
+    offer_conversation(gh=gh, comments=[ask()])
+    answer(harnesses=harnesses)
+    monkeypatch.setattr(
+        scheduler,
+        "_launch_required_round",
+        Mock(side_effect=ReportableError("could not start assignment")),
+    )
+
+    failed = scheduler.tick(at=clock())
+    launched = scheduler.tick(at=clock())
+
+    assert failed.hold == "could not start assignment"
+    assert launched.launched_conversation_identifier == "conversation-GH8"
 
 
 def test_an_issue_without_a_trusted_unmarked_comment_does_not_start(
@@ -227,6 +387,7 @@ def test_a_conversation_waits_for_shared_capacity(conversation_scheduler, harnes
 
     assert observed.hold == "at cap: 1 of 1 agents running"
     assert harnesses["claude"].calls == []
+    assert count_comment_reads(gh=gh) == 0
 
 
 def test_a_conversation_waits_for_the_active_global_cooldown(
@@ -268,6 +429,7 @@ def test_a_failed_publication_retries_the_saved_answer_without_another_round(
     assert saved.published_at is None
     assert failed.hold is not None
     assert failed.hold.startswith("could not publish the answer for GH8")
+    assert count_comment_reads(gh=gh) == 1
 
     gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
     retried = scheduler.tick(at=clock())
@@ -334,6 +496,30 @@ def test_one_failed_reply_read_does_not_starve_another_conversation(
     assert publish.call_count == 2
 
 
+def test_an_unreadable_reply_does_not_block_assignment_work(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    save_pending_reply(state=scheduler.state, issue=8)
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    conversation.compose_reply_path(number=1).write_bytes(b"not json")
+    offer_conversation(gh=gh, comments=[ask()])
+    assignment_identifier = "GH13-20260923-010000"
+    write_agent_assignment(
+        state=scheduler.state,
+        identifier=assignment_identifier,
+        issue=13,
+    )
+    harnesses["claude"].replies(stdout="")
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.launched_assignment_identifier == assignment_identifier
+    assert observed.hold is not None
+    assert "could not inspect saved conversation GH8" in observed.hold
+
+
 def test_no_reply_completes_without_posting_a_comment(
     conversation_scheduler, harnesses
 ):
@@ -369,11 +555,42 @@ def test_an_errored_round_is_visible_but_not_published(
     assert conversation is not None
     assert conversation.rounds[0].outcome is AgentRoundOutcome.ERRORED
     assert read_issue_conversation_reply(conversation=conversation, number=1) is None
+    assert count_comment_reads(gh=gh) == 1
     assert not any(call.arguments[:4] == POST_PATH.split() for call in gh.calls)
+
+
+def test_a_follow_up_refuses_to_replace_a_missing_saved_session(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    offer_conversation(gh=gh, comments=[ask()])
+    answer(harnesses=harnesses)
+    gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
+    scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+    scheduler.tick(at=clock())
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    write_json(
+        document=conversation.record.model_copy(
+            update={"harness_session_identifier": None}
+        ),
+        path=conversation.directory / ISSUE_CONVERSATION_RECORD_NAME,
+    )
+    offer_conversation(gh=gh, comments=[ask(), ask(identifier=2)])
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.hold is not None
+    assert observed.hold.startswith(
+        "Could not resume conversation-GH8: its first round did not report"
+    )
+    assert len(harnesses["claude"].calls) == 1
 
 
 def test_a_failed_conversation_listing_holds_launches(conversation_scheduler):
     scheduler, clock, gh = conversation_scheduler
+    write_issue_conversation(state=scheduler.state, issue=8)
     gh.fails(
         stderr="network unavailable",
         to=(
@@ -386,6 +603,72 @@ def test_a_failed_conversation_listing_holds_launches(conversation_scheduler):
 
     assert observed.hold is not None
     assert observed.hold.startswith("could not list issue conversations")
+    assert observed.conversation_eligibility[8].value is IssueFactValue.UNKNOWN
+
+
+def test_an_ineligible_saved_conversation_is_not_polled(conversation_scheduler):
+    scheduler, clock, gh = conversation_scheduler
+    write_issue_conversation(state=scheduler.state, issue=8)
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.conversation_eligibility[8].value is IssueFactValue.FALSE
+    assert count_comment_reads(gh=gh) == 0
+
+
+def test_rediscovery_delivers_comments_posted_while_a_conversation_was_inactive(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    offer_conversation(gh=gh, comments=[ask()])
+    answer(harnesses=harnesses, body="The first answer.")
+    gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
+    scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+    scheduler.tick(at=clock())
+    comment_reads_before = count_comment_reads(gh=gh)
+    gh.replies(
+        stdout="[]",
+        to=(
+            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
+            "--label dream:conversation"
+        ),
+    )
+
+    inactive = scheduler.tick(at=clock())
+
+    assert inactive.conversation_eligibility[8].value is IssueFactValue.FALSE
+    assert count_comment_reads(gh=gh) == comment_reads_before
+    offer_conversation(
+        gh=gh,
+        comments=[ask(), ask(identifier=2, body="A question posted while inactive")],
+    )
+    answer(harnesses=harnesses, body="The later answer.")
+
+    rediscovered = scheduler.tick(at=clock())
+
+    assert rediscovered.launched_conversation_identifier == "conversation-GH8"
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    later_input = read_json(
+        model=IssueConversationInput,
+        path=conversation.compose_round_paths(number=2).round_input,
+    )
+    assert [item.body for item in later_input.comments] == [
+        "A question posted while inactive"
+    ]
+
+
+def test_removing_conversation_configuration_makes_saved_work_inactive(
+    conversation_scheduler,
+):
+    scheduler, clock, _ = conversation_scheduler
+    write_issue_conversation(state=scheduler.state, issue=8)
+    scheduler.config = scheduler.config.model_copy(update={"conversation": None})
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.conversation_eligibility[8].value is IssueFactValue.FALSE
 
 
 def test_a_conversation_failure_remains_visible_when_an_assignment_launches(
@@ -423,27 +706,47 @@ def test_a_failed_comment_listing_holds_launches(conversation_scheduler):
     assert observed.hold.startswith("could not read comments for GH8")
 
 
-def test_a_failed_delivery_cursor_restore_is_a_scheduler_hold(
+def test_a_failed_delivery_cursor_read_is_a_scheduler_hold(
     conversation_scheduler, monkeypatch
 ):
     scheduler, clock, gh = conversation_scheduler
     write_issue_conversation(state=scheduler.state, issue=8)
-    gh.replies(
-        stdout="[]",
-        to=(
-            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
-            "--label dream:conversation"
-        ),
-    )
+    offer_conversation(gh=gh, comments=[])
     monkeypatch.setattr(
-        "dreamcatcher.scheduler.restore_issue_comment_delivery_cursor",
-        Mock(side_effect=ReportableError("could not write the conversation record")),
+        "dreamcatcher.scheduler.read_issue_comment_delivery_cursor",
+        Mock(side_effect=ReportableError("could not read the round input")),
     )
 
     observed = scheduler.tick(at=clock())
 
     assert observed.hold is not None
-    assert observed.hold.startswith("could not restore delivered comments for GH8")
+    assert observed.hold.startswith("could not read delivered comments for GH8")
+
+
+def test_an_unrecorded_round_input_is_not_delivered_again(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    write_issue_conversation(state=scheduler.state, issue=8)
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    write_json(
+        document=IssueConversationInput(
+            issue=8,
+            title="Why does this happen?",
+            body="Explain the scheduler.",
+            comments=[ask()],
+            revision="abc123",
+        ),
+        path=conversation.compose_round_paths(number=1).round_input,
+    )
+    offer_conversation(gh=gh, comments=[ask()])
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.hold is not None
+    assert "has input for round 1 without a round record" in observed.hold
+    assert harnesses["claude"].calls == []
 
 
 def test_a_partial_comment_scan_does_not_launch_or_starve_later_reads(
@@ -496,6 +799,7 @@ def test_an_existing_empty_conversation_can_start(conversation_scheduler, harnes
     observed = scheduler.tick(at=clock())
 
     assert observed.launched_conversation_identifier == "conversation-GH8"
+    assert observed.conversation_eligibility[8].value is IssueFactValue.TRUE
 
 
 def test_a_conversation_setup_failure_is_a_scheduler_hold(conversation_scheduler):

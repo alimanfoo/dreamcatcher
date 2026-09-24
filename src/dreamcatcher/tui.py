@@ -487,7 +487,7 @@ def show_conversation_view(
     console: Console,
     timing: ViewTiming = DEFAULT_VIEW_TIMING,
 ) -> None:
-    """Show one issue conversation until its initial exchange finishes."""
+    """Show one issue conversation until it becomes inactive or needs attention."""
     _refresh_live_view(
         console=console,
         read_snapshot=lambda: _read_conversation_snapshot(
@@ -504,7 +504,7 @@ def _read_conversation_snapshot(
     clock: Callable[[], datetime],
     zone: tzinfo | None,
 ) -> _ViewSnapshot:
-    """Return one conversation and whether its initial exchange is over."""
+    """Return one conversation snapshot and whether its live view is over."""
     status = _find_conversation_status_for_issue(state=state, issue=issue, clock=clock)
     return _ViewSnapshot(
         renderable=_render_conversation(state=state, status=status, zone=zone),

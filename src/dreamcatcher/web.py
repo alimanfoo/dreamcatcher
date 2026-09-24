@@ -184,6 +184,7 @@ class WebAgentTail:
     feed_rounds: tuple[WebFeedRound, ...]
     status: str
     status_label: str
+    detail: str | None
     rounds: tuple[WebAgentRound, ...]
     has_empty_feed_placeholder: bool
 
@@ -195,6 +196,7 @@ class WebAgentTailContext:
     status: str
     status_label: str
     rounds: tuple[WebAgentRound, ...]
+    detail: str | None = None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -439,6 +441,7 @@ def _show_conversation_tail(
         context=WebAgentTailContext(
             status=str(status.value),
             status_label=str(status.value),
+            detail=status.detail,
             rounds=_compose_agent_rounds(
                 round_statuses=status.round_statuses, zone=zone
             ),
@@ -884,6 +887,7 @@ def _read_agent_tail(
         feed_rounds=tuple(feed_rounds),
         status=context.status,
         status_label=context.status_label,
+        detail=context.detail,
         rounds=context.rounds,
         has_empty_feed_placeholder=cursor.round_number == 0,
     )
