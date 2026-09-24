@@ -175,18 +175,18 @@ survive.
 **Delivery.** The route `/assignments/<identifier>` renders one agent
 assignment. Its top carries what the `assignment` view shows: the issue number
 and title linked to GitHub, the assignment identifier, the status chip and its
-detail, the pull request chip, the branch, the harness and its session
-identifier, the model and effort, a table of the rounds it has run with each
-round's number, purpose, recovery flag, start, duration and outcome, and the
-hand-resume command when the status model provides one. The round descriptions
-are the strings the status model already composes; this stage promotes nothing,
-and the design says promotion happens only where a page needs a fact no
-description gives. Below the top is the whole feed: every round in order, each
-opened by the heading `compose_agent_round_boundary` produces, each line
-rendered as its stamp, its label as a tag when it has one, and its text with a
-subagent's indent preserved. Home cards link to the page. An identifier no
-assignment here has renders a page carrying a reportable message with
-status 404. The page polls nothing; the reader reloads it by hand.
+detail, the pull request chip, the harness and its session identifier, the model
+and effort, a table of the rounds it has run with each round's number, purpose,
+recovery flag, start, duration and outcome, and the hand-resume command when the
+status model provides one. The round descriptions are the strings the status
+model already composes; this stage promotes nothing, and the design says
+promotion happens only where a page needs a fact no description gives. Below the
+top is the whole feed: every round in order, each opened by the heading
+`compose_agent_round_boundary` produces, each line rendered as its stamp, its
+label as a tag when it has one, and its text with a subagent's indent preserved.
+Home cards link to the page. An identifier no assignment here has renders a page
+carrying a reportable message with status 404. The page polls nothing; the
+reader reloads it by hand.
 
 The status module gains a read of one assignment's status by identifier, beside
 the existing read by issue, since the page is one assignment and not an issue's

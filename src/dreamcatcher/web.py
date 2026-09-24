@@ -215,7 +215,6 @@ class WebAssignmentView:
     detail: str
     pull_request: int
     pull_request_state: str | None
-    branch: str
     harness: str
     harness_session_identifier: str
     model: str
@@ -739,7 +738,6 @@ def _compose_assignment_view(
         detail=status.detail,
         pull_request=record.pull_request,
         pull_request_state=_describe_pull_request_state(status=status),
-        branch=record.branch,
         harness=str(record.harness),
         harness_session_identifier=(
             "not recorded"
