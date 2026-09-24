@@ -12,7 +12,7 @@
               {% include "partials/assignment-card.html" %}
             {% endfor %}
             {% if view.failed_setups %}
-              <h2>Failed assignment setups</h2>
+              <p class="assignment-group-label">Failed assignment setups</p>
               {% for setup in view.failed_setups %}
                 {% include "partials/failed-setup-row.html" %}
               {% endfor %}
@@ -36,16 +36,16 @@
             {% if not view.active_assignments and not view.complete_assignments and not view.failed_setups and not view.available_issues and not view.blocked_issues %}<p class="empty">-- no assignment work --</p>{% endif %}
           </div>
         </section>
-        <section class="panel" aria-labelledby="conversations-heading">
-          <h1 id="conversations-heading">Conversations</h1>
-          <div class="panel-body">
-            {% for conversation in view.conversations %}
-              {% include "partials/conversation-card.html" %}
-            {% else %}
-              <p class="empty">-- no conversations --</p>
-            {% endfor %}
-          </div>
-        </section>
+        {% if view.conversations %}
+          <section class="panel" aria-labelledby="conversations-heading">
+            <h1 id="conversations-heading">Conversations</h1>
+            <div class="panel-body">
+              {% for conversation in view.conversations %}
+                {% include "partials/conversation-card.html" %}
+              {% endfor %}
+            </div>
+          </section>
+        {% endif %}
       </div>
     </div>
   </main>

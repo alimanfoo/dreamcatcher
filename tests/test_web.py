@@ -874,16 +874,15 @@ def test_a_pull_request_links_to_github_before_its_state_is_observed(tmp_path, d
     )
 
 
-def test_dashboard_groups_assignment_work_beside_conversations(tmp_path, daemon):
+def test_dashboard_groups_issues_with_assignments(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
     page = render_home(state=state)
 
-    assert page.index('id="assignments-heading"') < page.index(
-        'id="conversations-heading"'
-    )
+    assert page.index('id="assignments-heading"') < page.index('id="issue-50"')
     assert 'id="issues-heading"' not in page
+    assert 'id="conversations-heading"' not in page
 
 
 def test_capacity_does_not_repeat_as_a_scheduler_hold(tmp_path, daemon):

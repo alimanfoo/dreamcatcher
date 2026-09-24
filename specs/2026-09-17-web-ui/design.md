@@ -32,17 +32,15 @@ added after the first version shipped, with its motion left out.
 ### Two pages and a tail
 
 **The home page**, at `/`, is the status report. It shows the instance facts the
-`status` view shows today, then presents two panels: Assignments on the left and
-Conversations on the right. The Assignments panel holds active agent assignments
-in the same attention order, failed assignment setups, available issues in
-dispatch order, issues with open blockers, and completed assignments most
-recently completed first. This puts assignment work that is underway or upcoming
-in one place. Two things appear that the `status` view lacks: the title of every
-issue and assignment, and the state of each assignment's pull request, draft or
-ready, merged or closed, beside a link to it. Every working assignment shows the
-last line its feed said, as the `status` view does. Every issue reference uses
-`#N` and links to the issue on GitHub, including a reference embedded in blocker
-evidence.
+`status` view shows today, the active agent assignments in the same attention
+order, completed assignments most recently completed first, any failed
+assignment setups, the available issues in dispatch order, and the issues with
+open blockers. Two things appear that the `status` view lacks: the title of
+every issue and assignment, and the state of each assignment's pull request,
+draft or ready, merged or closed, beside a link to it. Every working assignment
+shows the last line its feed said, as the `status` view does. Every issue
+reference uses `#N` and links to the issue on GitHub, including a reference
+embedded in blocker evidence.
 
 **The assignment page**, at `/assignments/GH142-20260916-180412`, shows one
 agent assignment and nothing else. At the top is what the `assignment` view
@@ -66,10 +64,10 @@ since here", and only the page asks it.
 The words on the pages are the ontology's. An assignment is working, waiting,
 needs user feedback, in fault, complete or unknown. Every compact web chip
 shortens "needs user feedback" to "needs feedback"; the underlying status keeps
-the full name. The issue cards in the Assignments panel are the available issues
-and the blocked issues, as the `status` view names them. The sketch's "Queued"
-and "Backlog" are not used, so a person moving between the terminal and the
-browser otherwise reads one vocabulary and the ontology is untouched.
+the full name. The issue sections are the available issues and the blocked
+issues, as the `status` view names them. The sketch's "Queued" and "Backlog" are
+not used, so a person moving between the terminal and the browser otherwise
+reads one vocabulary and the ontology is untouched.
 
 ### The server renders and the browser reconciles
 

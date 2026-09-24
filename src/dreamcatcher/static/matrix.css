@@ -229,7 +229,7 @@ body::after {
   gap: var(--space-5);
 }
 
-.panel-body > h2 {
+.assignment-group-label {
   margin: var(--space-6) 0 0;
   color: var(--dim);
   font-size: var(--font-size);

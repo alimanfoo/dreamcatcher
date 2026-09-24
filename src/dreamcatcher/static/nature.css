@@ -236,7 +236,7 @@ body::after {
   gap: 14px;
 }
 
-.panel-body > h2 {
+.assignment-group-label {
   color: var(--dim);
   font-size: 12px;
   letter-spacing: 0.14em;
