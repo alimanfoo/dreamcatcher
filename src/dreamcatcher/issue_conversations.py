@@ -229,6 +229,33 @@ def compose_issue_conversation_input(
     )
 
 
+def read_issue_conversation_input(
+    *, conversation: IssueConversation, number: int
+) -> IssueConversationInput:
+    """Read and validate the durable input for one conversation round."""
+    round_input = read_json(
+        model=IssueConversationInput,
+        path=conversation.compose_round_paths(number=number).round_input,
+    )
+    if not round_input.comments:
+        raise ReportableError(
+            f"Conversation {conversation.identifier} round {number} "
+            "has no delivered issue comments."
+        )
+    if round_input.issue != conversation.record.issue:
+        raise ReportableError(
+            f"Conversation {conversation.identifier} round {number} "
+            f"input names GH{round_input.issue}."
+        )
+    positions = [(comment.written_at, comment.id) for comment in round_input.comments]
+    if positions != sorted(set(positions)):
+        raise ReportableError(
+            f"Conversation {conversation.identifier} round {number} "
+            "comments are not strictly ordered."
+        )
+    return round_input
+
+
 def read_issue_comment_delivery_cursor(
     *, conversation: IssueConversation
 ) -> IssueCommentCursor | None:
@@ -236,26 +263,10 @@ def read_issue_comment_delivery_cursor(
     if not conversation.rounds:
         return None
     latest_round = conversation.rounds[-1]
-    round_input = read_json(
-        model=IssueConversationInput,
-        path=conversation.compose_round_paths(number=latest_round.number).round_input,
+    round_input = read_issue_conversation_input(
+        conversation=conversation,
+        number=latest_round.number,
     )
-    if not round_input.comments:
-        raise ReportableError(
-            f"Conversation {conversation.identifier} round {latest_round.number} "
-            "has no delivered issue comments."
-        )
-    if round_input.issue != conversation.record.issue:
-        raise ReportableError(
-            f"Conversation {conversation.identifier} round {latest_round.number} "
-            f"input names GH{round_input.issue}."
-        )
-    positions = [(comment.written_at, comment.id) for comment in round_input.comments]
-    if positions != sorted(set(positions)):
-        raise ReportableError(
-            f"Conversation {conversation.identifier} round {latest_round.number} "
-            "comments are not strictly ordered."
-        )
     newest = round_input.comments[-1]
     return IssueCommentCursor(
         written_at=newest.written_at,
