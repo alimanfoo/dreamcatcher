@@ -874,18 +874,15 @@ def test_a_pull_request_links_to_github_before_its_state_is_observed(tmp_path, d
     )
 
 
-def test_dashboard_counts_use_four_digits_without_redundant_issue_headings(
-    tmp_path, daemon
-):
+def test_dashboard_groups_issues_with_assignments(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
     page = render_home(state=state)
 
-    assert re.search(r"Assignments <span>\d{4}</span>", page)
-    assert re.search(r"Issues <span>\d{4}</span>", page)
-    assert "AVAILABLE ISSUES" not in page
-    assert "BLOCKED ISSUES" not in page
+    assert page.index('id="assignments-heading"') < page.index('id="issue-50"')
+    assert 'id="issues-heading"' not in page
+    assert 'id="conversations-heading"' not in page
 
 
 def test_capacity_does_not_repeat_as_a_scheduler_hold(tmp_path, daemon):

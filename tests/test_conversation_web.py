@@ -6,6 +6,7 @@ import pytest
 from clocks import DISPLAY_TIME_ZONE, PINNED
 from conftest import REPOSITORY
 from records import write_feed, write_issue_conversation, write_round, write_tick
+from status_fabrications import fabricate_everything
 
 from dreamcatcher.agent_rounds import (
     AgentRoundPurpose,
@@ -111,10 +112,15 @@ def application(*, state: StateDirectory):
 
 def test_home_lists_a_conversation_and_links_to_its_page(tmp_path):
     state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
     fabricate_conversation(state=state)
 
     page = application(state=state).test_client().get("/").text
 
+    assert page.index('id="assignments-heading"') < page.index(
+        'id="conversations-heading"'
+    )
+    assert 'class="assignment-card' in page
     assert "Conversations" in page
     assert 'id="conversation-GH8"' in page
     assert 'href="/conversations/8"' in page

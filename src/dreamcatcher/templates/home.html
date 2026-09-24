@@ -5,23 +5,23 @@
     <div class="home-content">
       {% include "partials/instance.html" %}
       <div class="dashboard">
-        {%- if view.conversations %}
-          <section class="panel" aria-labelledby="conversations-heading">
-            <h1 id="conversations-heading">Conversations <span>{{ "%04d"|format(view.conversations|length) }}</span></h1>
-            <div class="panel-body">
-              {% for conversation in view.conversations %}
-                {% include "partials/conversation-card.html" %}
-              {% endfor %}
-            </div>
-          </section>
-        {% endif %}
         <section class="panel" aria-labelledby="assignments-heading">
-          <h1 id="assignments-heading">Assignments <span>{{ "%04d"|format(view.active_assignments|length + view.complete_assignments|length) }}</span></h1>
+          <h1 id="assignments-heading">Assignments</h1>
           <div class="panel-body">
             {% for assignment in view.active_assignments %}
               {% include "partials/assignment-card.html" %}
-            {% else %}
-              {% if not view.complete_assignments %}<p class="empty">-- no agent assignments --</p>{% endif %}
+            {% endfor %}
+            {% if view.failed_setups %}
+              <p class="assignment-group-label">Failed assignment setups</p>
+              {% for setup in view.failed_setups %}
+                {% include "partials/failed-setup-row.html" %}
+              {% endfor %}
+            {% endif %}
+            {% for issue in view.available_issues %}
+              {% include "partials/issue-row.html" %}
+            {% endfor %}
+            {% for issue in view.blocked_issues %}
+              {% include "partials/issue-row.html" %}
             {% endfor %}
             {% if view.complete_assignments %}
               <details class="complete-assignments">
@@ -33,27 +33,19 @@
                 </div>
               </details>
             {% endif %}
+            {% if not view.active_assignments and not view.complete_assignments and not view.failed_setups and not view.available_issues and not view.blocked_issues %}<p class="empty">-- no assignment work --</p>{% endif %}
           </div>
         </section>
-        <section class="panel" aria-labelledby="issues-heading">
-          <h1 id="issues-heading">Issues <span>{{ "%04d"|format((view.failed_setups + view.available_issues + view.blocked_issues)|map(attribute="issue")|unique|list|length) }}</span></h1>
-          <div class="panel-body">
-            {% if view.failed_setups %}
-              <h2>Failed assignment setups</h2>
-              {% for setup in view.failed_setups %}
-                {% include "partials/failed-setup-row.html" %}
+        {% if view.conversations %}
+          <section class="panel" aria-labelledby="conversations-heading">
+            <h1 id="conversations-heading">Conversations</h1>
+            <div class="panel-body">
+              {% for conversation in view.conversations %}
+                {% include "partials/conversation-card.html" %}
               {% endfor %}
-            {% endif %}
-            {% for issue in view.available_issues %}
-              {% include "partials/issue-row.html" %}
-            {% endfor %}
-            {% for issue in view.blocked_issues %}
-              {% include "partials/issue-row.html" %}
-            {% else %}
-              {% if not view.available_issues and not view.failed_setups %}<p class="empty">-- no available or blocked issues --</p>{% endif %}
-            {% endfor %}
-          </div>
-        </section>
+            </div>
+          </section>
+        {% endif %}
       </div>
     </div>
   </main>

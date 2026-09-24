@@ -251,9 +251,12 @@ exclusive selectors so an issue carrying both kinds of work is unambiguous.
 The web overview also shows conversations from the first usable delivery. Each
 links to a conversation page combining its detail view and live feed, analogous
 to the web assignment page without assignment-only facts such as a branch or PR.
-Both presentations read the same status and feed models and ask GitHub nothing.
-Use the landed web UI's rendering, polling and tail boundaries; keep
-conversation lifecycle decisions in the shared reporting layer rather than
+When conversations exist, the home page keeps Assignments on the left and
+Conversations on the right. The Assignments panel also holds failed assignment
+setups, available issues and blocked issues, so every stage of assignment work
+stays together. Both presentations read the same status and feed models and ask
+GitHub nothing. Use the landed web UI's rendering, polling and tail boundaries;
+keep conversation lifecycle decisions in the shared reporting layer rather than
 either presenter.
 
 As later stages add round and lifecycle behaviour, extend both presentations
