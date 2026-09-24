@@ -316,7 +316,7 @@ def test_ready_assignment_rounds_and_conversations_alternate(
     assert conversation_launch.launched_conversation_identifier == "conversation-GH8"
 
 
-def test_a_conversation_admission_gives_the_next_shared_turn_to_dispatch(
+def test_selecting_a_conversation_gives_the_next_shared_turn_to_dispatch(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
