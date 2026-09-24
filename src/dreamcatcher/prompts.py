@@ -1,8 +1,4 @@
-"""Compose prompts for agent rounds.
-
-Every composed prompt includes the marker that prevents the relay from treating
-an agent's GitHub posts as user input.
-"""
+"""Compose assignment and issue-conversation prompts for agent rounds."""
 
 from pathlib import Path
 
@@ -58,9 +54,7 @@ pull_request_state is MERGED or CLOSED, finish per your assignment's rules.
 Otherwise act on user_posts per your assignment's rules. End your turn when
 done."""
 
-ISSUE_CONVERSATION_PROMPT = """{instructions}
-
-Issue-conversation input for GH{issue}:
+_ISSUE_CONVERSATION_ROUND_PROMPT = """Issue-conversation input for GH{issue}:
 
   {round_input}
 
@@ -102,8 +96,25 @@ def compose_issue_conversation_prompt(
     *, template: str, issue: int, round_input: Path
 ) -> str:
     """Return the first prompt that directs a conversation to its saved input."""
-    return ISSUE_CONVERSATION_PROMPT.format(
-        instructions=template.replace(ISSUE_PLACEHOLDER, str(issue)),
+    instructions = template.replace(ISSUE_PLACEHOLDER, str(issue))
+    round_prompt = _compose_issue_conversation_round_prompt(
+        issue=issue, round_input=round_input
+    )
+    return f"{instructions}\n\n{round_prompt}"
+
+
+def compose_issue_conversation_follow_up_prompt(
+    *, issue: int, round_input: Path
+) -> str:
+    """Return a resumed prompt that directs a conversation to its new input."""
+    return _compose_issue_conversation_round_prompt(
+        issue=issue,
+        round_input=round_input,
+    )
+
+
+def _compose_issue_conversation_round_prompt(*, issue: int, round_input: Path) -> str:
+    return _ISSUE_CONVERSATION_ROUND_PROMPT.format(
         issue=issue,
         round_input=round_input,
     )

@@ -81,6 +81,7 @@ from dreamcatcher.issue_conversations import (
 from dreamcatcher.prompts import (
     AGENT_POST_MARKER,
     RECOVERY_PROMPT,
+    compose_issue_conversation_follow_up_prompt,
     compose_issue_conversation_prompt,
     compose_user_posts_prompt,
 )
@@ -227,7 +228,7 @@ class IssueConversationCandidate:
 
 @dataclass(frozen=True, kw_only=True)
 class IssueConversationCandidateResult:
-    """Collect initial conversation candidates and any failed read."""
+    """Collect conversation candidates and any failed read."""
 
     candidates: list[IssueConversationCandidate]
     failure: str | None = None
@@ -822,14 +823,14 @@ def compose_assignment_observation(
     )
 
 
-def _list_initial_issue_conversation_candidates(
+def _list_issue_conversation_candidates(
     *,
     repository: str,
     account: str,
     config: DreamcatcherConfig,
     conversations: list[IssueConversation],
 ) -> IssueConversationCandidateResult:
-    """Return eligible issues whose first trusted comment batch is waiting."""
+    """Return eligible issues whose next trusted comment batch is waiting."""
     conversation_config = config.conversation
     if conversation_config is None:
         return IssueConversationCandidateResult(candidates=[])
@@ -852,7 +853,9 @@ def _list_initial_issue_conversation_candidates(
         issue_response, key=lambda item: (item.created_at, item.number)
     ):
         conversation = conversations_by_issue.get(issue.number)
-        if conversation is not None and conversation.rounds:
+        if conversation is not None and not _is_conversation_ready_for_input(
+            conversation=conversation
+        ):
             continue
         comment_response = list_issue_comments(
             repository=repository,
@@ -889,6 +892,20 @@ def _list_initial_issue_conversation_candidates(
         ),
         failure=_combine_scheduler_failures(failures=failures),
     )
+
+
+def _is_conversation_ready_for_input(*, conversation: IssueConversation) -> bool:
+    """Return whether a conversation can accept another comment batch."""
+    if not conversation.rounds:
+        return True
+    latest = conversation.rounds[-1]
+    if latest.outcome is not AgentRoundOutcome.SUCCESSFUL:
+        return False
+    reply = read_issue_conversation_reply(
+        conversation=conversation,
+        number=latest.number,
+    )
+    return reply is not None and reply.is_complete
 
 
 def _publish_issue_conversation_replies(
@@ -1028,7 +1045,7 @@ class AgentWorkScheduler:
             conversations=conversations,
             at=at,
         )
-        conversation_candidates = _list_initial_issue_conversation_candidates(
+        conversation_candidates = _list_issue_conversation_candidates(
             repository=self.repository,
             account=self.account,
             config=self.config,
@@ -1273,7 +1290,7 @@ class AgentWorkScheduler:
         record: SchedulerRecord,
         candidate: IssueConversationCandidate,
     ) -> SchedulerRecord:
-        """Create a conversation as needed and start its initial round."""
+        """Create a conversation as needed and start its next round."""
         try:
             conversation = candidate.conversation or create_issue_conversation(
                 state=self.state,
@@ -1287,6 +1304,25 @@ class AgentWorkScheduler:
             )
             number = conversation.next_round_number
             paths = conversation.compose_round_paths(number=number)
+            harness_session_identifier = None
+            prompt = compose_issue_conversation_prompt(
+                template=conversation.record.prompt,
+                issue=conversation.record.issue,
+                round_input=paths.round_input,
+            )
+            if conversation.rounds:
+                harness_session_identifier = (
+                    conversation.record.harness_session_identifier
+                )
+                if harness_session_identifier is None:
+                    raise ReportableError(
+                        f"Could not resume {conversation.identifier}: its first "
+                        "round did not report a harness session identifier."
+                    )
+                prompt = compose_issue_conversation_follow_up_prompt(
+                    issue=conversation.record.issue,
+                    round_input=paths.round_input,
+                )
             self.rounds[conversation.identifier] = start_agent_round(
                 request=AgentRoundStartRequest(
                     harness=conversation.record.harness,
@@ -1294,14 +1330,10 @@ class AgentWorkScheduler:
                         agent_work_identifier=conversation.identifier,
                         model=conversation.record.model,
                         effort=conversation.record.effort,
-                        prompt=compose_issue_conversation_prompt(
-                            template=conversation.record.prompt,
-                            issue=conversation.record.issue,
-                            round_input=paths.round_input,
-                        ),
+                        prompt=prompt,
                         work_kind=AgentWorkKind.CONVERSATION,
                     ),
-                    harness_session_identifier=None,
+                    harness_session_identifier=harness_session_identifier,
                     record_harness_session_identifier=partial(
                         record_issue_conversation_session_identifier,
                         conversation=conversation,
