@@ -221,7 +221,7 @@ def test_an_initial_conversation_freezes_input_runs_claude_and_publishes_once(
     assert frozen.body == "Explain the scheduler."
     assert [item.body for item in frozen.comments] == ["Please explain."]
     assert frozen.previous_revision is None
-    assert frozen.revision == conversation.record.revision
+    assert frozen.revision == read_worktree_revision(worktree=conversation.worktree)
     assert paths.final_output.read_text(encoding="utf-8") == (
         "The scheduler waits for work."
     )
@@ -273,7 +273,6 @@ def test_a_follow_up_resumes_the_session_with_only_new_comments(
         "What evidence supports that?"
     ]
     assert follow_up.previous_revision == follow_up.revision
-    assert follow_up.revision == conversation.record.revision
     resumed = harnesses["claude"].calls[1]
     assert resumed.arguments[-2:] == ["--resume", "conversation-session"]
     assert resumed.prompt.startswith("Issue-conversation input for GH8:")
@@ -293,7 +292,10 @@ def test_a_follow_up_refreshes_to_changed_main(conversation_scheduler, harnesses
     scheduler.tick(at=clock())
     conversation = read_issue_conversation(state=scheduler.state, issue=8)
     assert conversation is not None
-    previous_revision = conversation.record.revision
+    previous_revision = read_json(
+        model=IssueConversationInput,
+        path=conversation.compose_round_paths(number=1).round_input,
+    ).revision
     (scheduler.state.root / "README.md").write_text(
         "what main holds now\n", encoding="utf-8"
     )
@@ -317,10 +319,7 @@ def test_a_follow_up_refreshes_to_changed_main(conversation_scheduler, harnesses
     )
     assert follow_up.previous_revision == previous_revision
     assert follow_up.revision != previous_revision
-    assert follow_up.revision == conversation.record.revision
-    assert follow_up.revision == read_worktree_revision(
-        worktree=conversation.record.worktree
-    )
+    assert follow_up.revision == read_worktree_revision(worktree=conversation.worktree)
 
 
 def test_a_failed_conversation_refresh_leaves_the_batch_waiting(
@@ -338,7 +337,7 @@ def test_a_failed_conversation_refresh_leaves_the_batch_waiting(
         comments=[ask(), ask(identifier=2, body="Does the answer still hold?")],
     )
     monkeypatch.setattr(
-        "dreamcatcher.scheduler.refresh_issue_conversation_worktree",
+        "dreamcatcher.issue_conversations.refresh_detached_worktree",
         Mock(side_effect=ReportableError("could not fetch main")),
     )
 
@@ -362,7 +361,7 @@ def test_comments_queued_during_a_round_wait_without_another_comment_read(
     comment_reads_before = count_comment_reads(gh=gh)
     refresh = Mock()
     monkeypatch.setattr(
-        "dreamcatcher.scheduler.refresh_issue_conversation_worktree",
+        "dreamcatcher.issue_conversations.refresh_detached_worktree",
         refresh,
     )
 
@@ -879,6 +878,10 @@ def test_an_existing_empty_conversation_can_start(conversation_scheduler, harnes
 
     assert observed.launched_conversation_identifier == "conversation-GH8"
     assert observed.conversation_eligibility[8].value is IssueFactValue.TRUE
+    assert (
+        git(arguments=["branch", "--show-current"], cwd=scheduler.state.root).strip()
+        == "main"
+    )
 
 
 def test_a_conversation_setup_failure_is_a_scheduler_hold(conversation_scheduler):

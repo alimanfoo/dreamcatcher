@@ -56,8 +56,6 @@ class IssueConversationRecord(DreamcatcherDocument):
     issue: int
     title: str
     label: str
-    worktree: Path
-    revision: str
     harness: IssueConversationHarness
     harness_session_identifier: HarnessSessionIdentifier | None = None
     model: QuotableText
@@ -66,12 +64,14 @@ class IssueConversationRecord(DreamcatcherDocument):
 
     @model_validator(mode="before")
     @classmethod
-    def _discard_legacy_delivery_cursor(cls, value: object, /) -> object:
-        """Read records written before round inputs became the delivery ledger."""
+    def _discard_legacy_fields(cls, value: object, /) -> object:
+        """Read records written before derived paths and round revisions."""
         if not isinstance(value, dict):
             return value
         data = dict(value)
         data.pop("delivery_cursor", None)
+        data.pop("revision", None)
+        data.pop("worktree", None)
         return data
 
 
@@ -97,6 +97,7 @@ class IssueConversation:
     """Represent one persisted issue conversation as it currently reads."""
 
     directory: Path
+    worktree: Path
     record: IssueConversationRecord
     rounds: list[AgentRoundRecord] = field(default_factory=list)
     _record_lock: Lock = field(
@@ -122,7 +123,7 @@ class IssueConversation:
     def compose_round_paths(self, *, number: int) -> AgentRoundPaths:
         """Return the paths for one numbered conversation round."""
         return AgentRoundPaths(
-            worktree=self.record.worktree,
+            worktree=self.worktree,
             rounds_directory=(
                 self.directory / ISSUE_CONVERSATION_ROUNDS_DIRECTORY_NAME
             ),
@@ -178,8 +179,6 @@ def create_issue_conversation(
             issue=issue.number,
             title=issue.title,
             label=config.label,
-            worktree=worktree,
-            revision=read_worktree_revision(worktree=worktree),
             harness=config.harness,
             model=config.model,
             effort=config.effort,
@@ -190,7 +189,7 @@ def create_issue_conversation(
         with suppress(CommandError):
             remove_worktree(root=state.root, path=worktree)
         raise
-    return IssueConversation(directory=directory, record=record)
+    return IssueConversation(directory=directory, worktree=worktree, record=record)
 
 
 def list_undelivered_issue_comments(
@@ -214,14 +213,25 @@ def list_undelivered_issue_comments(
     )
 
 
-def compose_issue_conversation_input(
+def prepare_issue_conversation_input(
     *,
+    state: StateDirectory,
+    conversation: IssueConversation,
     issue: Issue,
     comments: list[ConversationComment],
-    previous_revision: str | None,
-    revision: str,
 ) -> IssueConversationInput:
-    """Freeze one issue and its trusted comment batch as round input."""
+    """Refresh as needed and freeze one issue's trusted round input."""
+    previous_revision = None
+    revision = read_worktree_revision(worktree=conversation.worktree)
+    if conversation.rounds:
+        previous_revision = read_issue_conversation_input(
+            conversation=conversation,
+            number=conversation.rounds[-1].number,
+        ).revision
+        revision = refresh_detached_worktree(
+            root=state.root,
+            worktree=conversation.worktree,
+        )
     return IssueConversationInput(
         issue=issue.number,
         title=issue.title,
@@ -230,22 +240,6 @@ def compose_issue_conversation_input(
         previous_revision=previous_revision,
         revision=revision,
     )
-
-
-def refresh_issue_conversation_worktree(
-    *, state: StateDirectory, conversation: IssueConversation
-) -> str:
-    """Refresh an idle conversation worktree and record its new revision."""
-    revision = refresh_detached_worktree(
-        root=state.root,
-        worktree=conversation.record.worktree,
-    )
-    with conversation._record_lock:
-        _update_issue_conversation_record(
-            conversation=conversation,
-            updates={"revision": revision},
-        )
-    return revision
 
 
 def read_issue_conversation_input(
@@ -373,6 +367,7 @@ def _read_issue_conversation(
         )
     return IssueConversation(
         directory=directory,
+        worktree=state.conversation_worktrees / directory.name,
         record=record,
         rounds=state.round_reader.read_records(
             directory=directory / ISSUE_CONVERSATION_ROUNDS_DIRECTORY_NAME

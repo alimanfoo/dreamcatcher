@@ -535,8 +535,7 @@ def _render_conversation(
         ("issue identifier", f"GH{record.issue}"),
         ("title", record.title),
         ("conversation label", record.label),
-        ("worktree", state.describe_path(path=record.worktree)),
-        ("code revision", record.revision),
+        ("worktree", state.describe_path(path=conversation.worktree)),
         ("agent harness", record.harness),
         (
             "harness session identifier",

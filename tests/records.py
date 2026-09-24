@@ -94,8 +94,6 @@ def write_issue_conversation(
             issue=issue,
             title=f"Issue {issue}",
             label="dream:conversation",
-            worktree=worktree,
-            revision="abc123",
             harness=AgentHarness.CLAUDE,
             harness_session_identifier=harness_session_identifier,
             model="opus[1m]",

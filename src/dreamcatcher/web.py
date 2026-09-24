@@ -258,7 +258,6 @@ class WebConversationView:
     detail: str
     label: str
     worktree: str
-    revision: str
     harness: str
     harness_session_identifier: str
     model: str
@@ -793,8 +792,7 @@ def _compose_conversation_view(
         status=str(status.value),
         detail=status.detail,
         label=record.label,
-        worktree=state.describe_path(path=record.worktree),
-        revision=record.revision,
+        worktree=state.describe_path(path=conversation.worktree),
         harness=str(record.harness),
         harness_session_identifier=(
             record.harness_session_identifier or "not recorded"

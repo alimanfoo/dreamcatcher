@@ -1,3 +1,4 @@
+import json
 from datetime import UTC, datetime
 
 import pytest
@@ -24,10 +25,10 @@ from dreamcatcher.issue_conversations import (
     IssueCommentCursor,
     IssueConversation,
     IssueConversationRecord,
-    compose_issue_conversation_input,
     create_issue_conversation,
     describe_issue_conversation_revision,
     list_undelivered_issue_comments,
+    prepare_issue_conversation_input,
     read_issue_comment_delivery_cursor,
     read_issue_conversation,
     read_issue_conversation_reply,
@@ -70,8 +71,6 @@ def write_conversation(*, state: StateDirectory, number: int = 8) -> IssueConver
         issue=number,
         title="Why does this happen?",
         label="dream:conversation",
-        worktree=state.conversation_worktrees / f"GH{number}",
-        revision="abc123",
         harness=AgentHarness.CLAUDE,
         model="opus[1m]",
         effort="xhigh",
@@ -113,9 +112,8 @@ def test_a_conversation_gets_a_detached_worktree_at_fetched_main(cloned):
     )
 
     assert created.identifier == "conversation-GH8"
-    assert created.record.worktree == state.conversation_worktrees / "GH8"
-    assert created.record.worktree.joinpath(".git").is_file()
-    assert created.record.revision
+    assert created.worktree == state.conversation_worktrees / "GH8"
+    assert created.worktree.joinpath(".git").is_file()
     assert created.record.title == "Why does this happen?"
     assert not state.worktrees.exists()
     assert read_issue_conversations(state=state) == [created]
@@ -144,20 +142,34 @@ def test_a_failed_conversation_setup_removes_the_worktree_it_added(cloned, monke
     state = StateDirectory(root=cloned)
     path = state.conversation_worktrees / "GH8"
 
-    def fail_revision_read(*, worktree):
-        raise ReportableError(f"cannot read the revision at {worktree}")
+    def fail_record_write(*, document, path):
+        raise ReportableError(f"cannot write the record at {path}")
 
     monkeypatch.setattr(
-        "dreamcatcher.issue_conversations.read_worktree_revision",
-        fail_revision_read,
+        "dreamcatcher.issue_conversations.write_json",
+        fail_record_write,
     )
 
-    with pytest.raises(ReportableError, match="cannot read the revision"):
+    with pytest.raises(ReportableError, match="cannot write the record"):
         create_issue_conversation(
             state=state, config=conversation_config(), issue=issue()
         )
 
     assert not is_linked_worktree(path=path)
+
+
+def test_a_conversation_derives_its_worktree_from_managed_state(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    conversation = write_conversation(state=state)
+    legacy_record = conversation.record.model_dump(mode="json")
+    legacy_record.update({"worktree": str(tmp_path), "revision": "stale123"})
+    record_path = conversation.directory / ISSUE_CONVERSATION_RECORD_NAME
+    record_path.write_bytes((json.dumps(legacy_record) + "\n").encode())
+
+    reread = read_issue_conversation(state=state, issue=8)
+
+    assert reread is not None
+    assert reread.worktree == state.conversation_worktrees / "GH8"
 
 
 def test_a_conversation_record_must_name_its_directory(tmp_path):
@@ -209,20 +221,25 @@ def test_only_new_unmarked_comments_from_the_account_are_delivered():
     ] == [1, 3, 4]
 
 
-def test_round_input_freezes_the_issue_comments_and_revision():
-    frozen = compose_issue_conversation_input(
+def test_round_input_freezes_the_issue_comments_and_revision(cloned):
+    state = StateDirectory(root=cloned)
+    conversation = create_issue_conversation(
+        state=state, config=conversation_config(), issue=issue()
+    )
+
+    frozen = prepare_issue_conversation_input(
+        state=state,
+        conversation=conversation,
         issue=issue(),
         comments=[comment(identifier=1, body="Please explain.")],
-        previous_revision="before123",
-        revision="abc123",
     )
 
     assert frozen.issue == 8
     assert frozen.title == "Why does this happen?"
     assert frozen.body == "Explain the scheduler."
     assert frozen.comments[0].body == "Please explain."
-    assert frozen.previous_revision == "before123"
-    assert frozen.revision == "abc123"
+    assert frozen.previous_revision is None
+    assert frozen.revision
 
 
 @pytest.mark.parametrize(
@@ -236,8 +253,10 @@ def test_round_input_freezes_the_issue_comments_and_revision():
 def test_a_conversation_revision_description_names_its_transition(
     previous, current, expected
 ):
-    round_input = compose_issue_conversation_input(
-        issue=issue(),
+    round_input = IssueConversationInput(
+        issue=8,
+        title="Why does this happen?",
+        body="Explain the scheduler.",
         comments=[comment(identifier=1, body="Please explain.")],
         previous_revision=previous,
         revision=current,

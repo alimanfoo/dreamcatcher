@@ -428,11 +428,11 @@ A round record persists:
 - the durable files containing its prompt, delivered input, output, and any
   required final result.
 
-A conversation record persists its issue and title, label, detached worktree and
-latest checked-out revision, chosen harness settings, and harness session
-identifier. Each round input persists its investigated revision, the previous
-round's investigated revision, and the trusted comments accepted for delivery.
-Its reply record persists the final body and, once known, publication time.
+A conversation record persists its issue and title, label, chosen harness
+settings, and harness session identifier. The issue derives the managed worktree
+path. Each round input persists its investigated revision, the previous round's
+investigated revision, and the trusted comments accepted for delivery. Its reply
+record persists the final body and, once known, publication time.
 
 Instance records persist the repository identity and the most recent daemon
 run's harness, Dreamcatcher version, and capacity. An instance-wide scheduler
