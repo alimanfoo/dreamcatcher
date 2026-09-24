@@ -106,8 +106,9 @@ running per conversation. Comments arriving during a round wait for the next
 batch. Do not accept another batch while the preceding answer is unposted.
 
 Use the design's creation-time-and-ID delivery cursor and ignore edits to
-delivered comments. Supply current issue title/body with each batch, but do not
-make an issue-body edit alone a trigger. Marker filtering prevents answers from
+delivered comments. Supply issue title/body to the first batch; resumed rounds
+retain them in the harness transcript and receive only new comments. Do not make
+an issue-body edit alone a trigger. Marker filtering prevents answers from
 triggering new rounds. Never refresh the worktree in this stage: follow-ups use
 its initial revision until stage three.
 
@@ -160,20 +161,21 @@ round runner, publisher and presentation surfaces this stage continues.
 ## Stage 3: Follow changes on main
 
 **Delivery.** Before a new batch, fetch main and update the idle conversation
-worktree to that revision. Record the revision with the batch and tell the agent
-the previous and current revisions so it can revisit relevant earlier findings.
-Keep the session; replace neither its transcript nor its identity. A running
-round's checkout does not move.
+worktree to that revision. Record the revision with the batch. The resumed
+transcript already holds the revision from earlier rounds. Keep the session;
+replace neither its transcript nor its identity. A running round's checkout does
+not move.
 
-Report failed refreshes rather than answer against stale main, and do not force
-away unexpected local changes. Show the investigated revision for each round in
-both detail views and identify revision changes in the feed.
+Discard tracked, untracked and ignored local changes before moving to fetched
+main rather than asking the user to repair a managed worktree. Show the
+investigated revision for each round in both detail views and identify revision
+changes in the feed.
 
 **Change surface.** Extend `git.py` with safe detached-worktree refresh and call
 it from conversation preparation before accepting a new batch. Extend the round
-input and prompt with previous/current revision context. Add the corresponding
-shared reporting facts and small terminal/web presentation changes. No change to
-comment routing or assignment worktree handling is needed.
+input with current revision context. Add the corresponding shared reporting
+facts and small terminal/web presentation changes. No change to comment routing
+or assignment worktree handling is needed.
 
 **Acceptance test.** Ask about a small function in the test repository, merge a
 change to that function on main, then ask the same conversation, "Does your
@@ -184,7 +186,7 @@ GitHub answer reflects the new behaviour and explains its effect on the earlier
 answer.
 
 **Automated proof.** Cover changed and unchanged main, fetch/update failure,
-unexpected local changes without destructive cleanup, and no refresh while a
+cleanup of tracked, untracked and ignored local changes, and no refresh while a
 round runs. Verify that the saved input and both presentations report the exact
 revision investigated, not a later moving remote ref.
 

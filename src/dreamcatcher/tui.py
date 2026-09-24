@@ -531,8 +531,7 @@ def _render_conversation(
         ("issue identifier", f"GH{record.issue}"),
         ("title", record.title),
         ("conversation label", record.label),
-        ("worktree", state.describe_path(path=record.worktree)),
-        ("code revision", record.revision),
+        ("worktree", state.describe_path(path=conversation.worktree)),
         ("agent harness", record.harness),
         (
             "harness session identifier",
@@ -662,10 +661,11 @@ def _render_round_statuses(
     """Return agent round statuses newest first."""
     if not round_statuses:
         return None
-    table = _create_table(columns=5)
+    shows_revision = any(status.revision is not None for status in round_statuses)
+    table = _create_table(columns=6 if shows_revision else 5)
     for round_status in reversed(round_statuses):
         record = round_status.record
-        table.add_row(
+        cells = [
             Text(str(record.number)),
             Text(
                 describe_agent_round_start(
@@ -673,10 +673,17 @@ def _render_round_statuses(
                     is_recovery=record.is_recovery,
                 )
             ),
-            Text(describe_time(at=record.started, zone=zone)),
-            Text(round_status.duration_description),
-            Text(round_status.outcome_description),
+        ]
+        if shows_revision:
+            cells.append(Text(round_status.revision or ""))
+        cells.extend(
+            [
+                Text(describe_time(at=record.started, zone=zone)),
+                Text(round_status.duration_description),
+                Text(round_status.outcome_description),
+            ]
         )
+        table.add_row(*cells)
     return _render_section(heading="rounds", body=table)
 
 
@@ -755,13 +762,17 @@ def show_feed_view(
 
     def refresh_feed() -> bool:
         """Show output since the previous refresh and return whether it is over."""
-        owner, is_over = _find_feed_owner(
+        snapshot = _find_feed_owner(
             state=state,
             issue=selection.issue,
             owner_kind=selection.owner_kind,
         )
-        view.show_new_output(owner=owner, records=owner.rounds)
-        return is_over
+        view.show_new_output(
+            owner=snapshot.owner,
+            records=snapshot.owner.rounds,
+            round_details=snapshot.round_details,
+        )
+        return snapshot.is_over
 
     _refresh_until_view_ends(
         console=console, refresh_view=refresh_feed, wait=timing.wait
@@ -785,11 +796,12 @@ def _show_one_round(
 
     def refresh_round_feed() -> bool:
         """Show output since the previous refresh and return whether it has ended."""
-        owner, _ = _find_feed_owner(
+        snapshot = _find_feed_owner(
             state=state,
             issue=selection.issue,
             owner_kind=selection.owner_kind,
         )
+        owner = snapshot.owner
         record = next(
             (record for record in owner.rounds if record.number == number), None
         )
@@ -799,7 +811,11 @@ def _show_one_round(
                 f"{describe_count(number=len(owner.rounds), noun='round')}, "
                 f"so it has no round {number}."
             )
-        view.show_new_output(owner=owner, records=[record])
+        view.show_new_output(
+            owner=owner,
+            records=[record],
+            round_details=snapshot.round_details,
+        )
         return record.ending is not None
 
     _refresh_until_view_ends(
@@ -842,18 +858,36 @@ def _find_conversation_status_for_issue(
     return status
 
 
+@dataclass(frozen=True, kw_only=True)
+class _FeedOwnerSnapshot:
+    """Hold one feed owner and the status-derived context for its headings."""
+
+    owner: AgentAssignment | IssueConversation
+    is_over: bool
+    round_details: dict[int, str]
+
+
 def _find_feed_owner(
     *, state: StateDirectory, issue: int, owner_kind: AgentWorkKind
-) -> tuple[AgentAssignment | IssueConversation, bool]:
+) -> _FeedOwnerSnapshot:
     """Return the selected feed owner and whether more output can reach it."""
     if owner_kind is AgentWorkKind.CONVERSATION:
         status = _find_conversation_status_for_issue(state=state, issue=issue)
-        return (
-            status.conversation,
-            status.value in CONVERSATION_STATUSES_THAT_END_A_VIEW,
+        return _FeedOwnerSnapshot(
+            owner=status.conversation,
+            is_over=status.value in CONVERSATION_STATUSES_THAT_END_A_VIEW,
+            round_details={
+                round_status.record.number: round_status.revision_description
+                for round_status in status.round_statuses
+                if round_status.revision_description is not None
+            },
         )
     status = _find_assignment_statuses_for_issue(state=state, issue=issue)[0]
-    return status.assignment, status.value in STATUSES_THAT_END_A_VIEW
+    return _FeedOwnerSnapshot(
+        owner=status.assignment,
+        is_over=status.value in STATUSES_THAT_END_A_VIEW,
+        round_details={},
+    )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -873,14 +907,22 @@ class _FeedView:
         *,
         owner: AgentAssignment | IssueConversation,
         records: Iterable[AgentRoundRecord],
+        round_details: dict[int, str],
     ) -> None:
         """Show agent output written since the previous refresh."""
         for record in records:
             if record.number not in self.positions:
-                self._show_round_heading(record=record)
+                self._show_round_heading(
+                    record=record, detail=round_details.get(record.number)
+                )
             self._show_new_lines(owner=owner, round_number=record.number)
 
-    def _show_round_heading(self, *, record: AgentRoundRecord) -> None:
+    def _show_round_heading(
+        self,
+        *,
+        record: AgentRoundRecord,
+        detail: str | None,
+    ) -> None:
         """Show the line that opens a round, saying what caused it.
 
         A feed holds one round, so the stitch between two of them lands in no
@@ -894,6 +936,7 @@ class _FeedView:
             purpose=record.purpose,
             is_recovery=record.is_recovery,
             at=record.started,
+            detail=detail,
         )
         self.console.print(
             _render_feed_line(

@@ -109,12 +109,13 @@ other accounts and blank comments are excluded. Each durable round input records
 the delivered batch, so the newest comment in the latest input is the delivery
 position and a batch cannot be selected again.
 
-The first eligible batch starts one Claude session. Each later eligible batch
-resumes that session with current issue text, newly delivered comments and the
-initial worktree revision. A conversation accepts no new batch while a round is
-running, its answer awaits publication, or its latest round failed or was
-interrupted. Comments posted during those intervals remain beyond the latest
-round input.
+The first eligible batch starts one Claude session with the issue title, body
+and trusted comment history. Each later eligible batch resumes that session with
+only newly delivered comments. The scheduler first fetches main and asks Git to
+discard local changes and move the detached worktree to that revision. Each
+round input records its investigated revision. Comments posted before the
+current answer is published remain beyond the latest round input, and a failed
+or interrupted round needs attention before another batch can start.
 
 A successful final result is saved as the reply record. `NO_REPLY` completes
 publication without a GitHub post; any other saved answer is posted with the
@@ -190,8 +191,8 @@ operations to:
 An `AgentAssignmentRoundInput` is the document that a resumed assignment round
 receives beside its prompt. It carries the pull request state and any relayed
 user posts. An `IssueConversationInput` freezes the issue, trusted comments and
-code revision for a conversation round. The conversation launch kind requires a
-separate captured final result before the round can end successfully.
+investigated revision for a conversation round. A conversation round must also
+capture a separate final result before it can end successfully.
 
 The scheduler decides which purpose and recovery flag a new round has. The round
 boundary executes and records that decision; it does not inspect the pull
@@ -424,10 +425,12 @@ A round record persists:
 - the durable files containing its prompt, delivered input, output, and any
   required final result.
 
-A conversation record persists its issue and title, label, detached worktree and
-revision, chosen harness settings, and harness session identifier. Its latest
-round input identifies the newest trusted issue comment accepted for delivery.
-Its reply record persists the final body and, once known, publication time.
+A conversation record persists its issue and title, label, chosen harness
+settings, and harness session identifier. The issue derives the managed worktree
+path. Each round input persists its investigated revision and the trusted
+comments accepted for delivery; the first also persists the issue title and
+body. Its reply record persists the final body and, once known, publication
+time.
 
 Instance records persist the repository identity and the most recent daemon
 run's harness, Dreamcatcher version, and capacity. An instance-wide scheduler

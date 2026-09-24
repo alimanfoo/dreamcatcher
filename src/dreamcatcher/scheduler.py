@@ -67,9 +67,9 @@ from dreamcatcher.github import (
 from dreamcatcher.harness_adapters import AgentRoundLaunchRequest, AgentWorkKind
 from dreamcatcher.issue_conversations import (
     IssueConversation,
-    compose_issue_conversation_input,
     create_issue_conversation,
     list_undelivered_issue_comments,
+    prepare_issue_conversation_input,
     read_issue_comment_delivery_cursor,
     read_issue_conversation_reply,
     read_issue_conversations,
@@ -1375,10 +1375,11 @@ class AgentWorkScheduler:
                 config=candidate.config,
                 issue=candidate.issue,
             )
-            round_input = compose_issue_conversation_input(
+            round_input = prepare_issue_conversation_input(
+                state=self.state,
+                conversation=conversation,
                 issue=candidate.issue,
                 comments=candidate.comments,
-                revision=conversation.record.revision,
             )
             number = conversation.next_round_number
             paths = conversation.compose_round_paths(number=number)

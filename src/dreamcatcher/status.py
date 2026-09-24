@@ -29,8 +29,10 @@ from dreamcatcher.harness_adapters import HarnessSessionIdentifier
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.issue_conversations import (
     IssueConversation,
+    describe_issue_conversation_revision,
     read_issue_comment_delivery_cursor,
     read_issue_conversation,
+    read_issue_conversation_input,
     read_issue_conversation_reply,
     read_issue_conversations,
 )
@@ -97,6 +99,8 @@ class AgentRoundStatus:
     record: AgentRoundRecord
     duration_description: str
     outcome_description: str
+    revision: str | None = None
+    revision_description: str | None = None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -162,20 +166,42 @@ class IssueConversationStatus:
     def round_statuses(self) -> list[AgentRoundStatus]:
         """The derived status of every round in conversation order."""
         conversation = self.conversation
-        return [
-            AgentRoundStatus(
-                record=record,
-                duration_description=_compose_round_duration_description(record=record),
-                outcome_description=_describe_round_outcome(
+        statuses: list[AgentRoundStatus] = []
+        previous_revision = None
+        for record in conversation.rounds:
+            revision = None
+            revision_description = None
+            try:
+                round_input = read_issue_conversation_input(
+                    conversation=conversation,
+                    number=record.number,
+                )
+                revision = round_input.revision
+                revision_description = describe_issue_conversation_revision(
+                    previous_revision=previous_revision,
+                    revision=revision,
+                )
+                previous_revision = revision
+            except ReportableError:
+                pass
+            statuses.append(
+                AgentRoundStatus(
                     record=record,
-                    is_running=(
-                        self.value is IssueConversationStatusValue.RUNNING
-                        and record.number == conversation.rounds[-1].number
+                    duration_description=_compose_round_duration_description(
+                        record=record
                     ),
-                ),
+                    outcome_description=_describe_round_outcome(
+                        record=record,
+                        is_running=(
+                            self.value is IssueConversationStatusValue.RUNNING
+                            and record.number == conversation.rounds[-1].number
+                        ),
+                    ),
+                    revision=revision,
+                    revision_description=revision_description,
+                )
             )
-            for record in conversation.rounds
-        ]
+        return statuses
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -489,6 +515,17 @@ class _StatusReportReader:
             return self._read_conversation_without_rounds(
                 conversation=conversation,
                 eligibility=eligibility_value,
+            )
+        try:
+            for record in conversation.rounds:
+                read_issue_conversation_input(
+                    conversation=conversation, number=record.number
+                )
+        except ReportableError as failure:
+            return self._compose_issue_conversation_status(
+                conversation=conversation,
+                value=IssueConversationStatusValue.NEEDS_ATTENTION,
+                detail=str(failure),
             )
         latest = conversation.rounds[-1]
         if latest.ending is None:

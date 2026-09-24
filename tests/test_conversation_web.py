@@ -130,6 +130,37 @@ def test_home_lists_a_conversation_and_links_to_its_page(tmp_path):
 def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
+    directory = state.conversations / "GH8"
+    write_round(
+        directory=directory,
+        number=2,
+        record=AgentRoundRecord(
+            number=2,
+            purpose=AgentRoundPurpose.DISCUSS,
+            started=PINNED + timedelta(minutes=6),
+            pid=2,
+            ending=compose_agent_round_ending(
+                at=PINNED + timedelta(minutes=10), status=0
+            ),
+        ),
+    )
+    write_json(
+        document=IssueConversationInput(
+            issue=8,
+            title="Issue 8",
+            body="Explain it.",
+            comments=[
+                {
+                    "id": 2,
+                    "body": "Does that still hold?",
+                    "author": "alice",
+                    "written_at": "2026-09-23T02:00:00Z",
+                }
+            ],
+            revision="def456",
+        ),
+        path=(directory / "rounds" / "2" / "inbox.json"),
+    )
 
     response = application(state=state).test_client().get("/conversations/8")
 
@@ -139,10 +170,26 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
     assert "Issue 8" in page
     assert "conversation-session" in page
     assert "abc123" in page
+    assert "def456" in page
+    assert "code revision abc123 -&gt; def456" in page
     assert "opus[1m] · xhigh" in page
     assert "discuss" in page
     assert "I found the answer." in page
     assert 'hx-get="/conversations/8/tail"' in page
+
+
+def test_conversation_page_shows_attention_for_an_unreadable_input(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state)
+    conversation = read_issue_conversation(state=state, issue=8)
+    assert conversation is not None
+    conversation.compose_round_paths(number=1).round_input.write_bytes(b"not json")
+
+    response = application(state=state).test_client().get("/conversations/8")
+
+    assert response.status_code == 200
+    assert "needs attention" in response.text
+    assert "inbox.json is not valid" in response.text
 
 
 @pytest.mark.parametrize(
@@ -263,7 +310,7 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
                     "written_at": "2026-09-23T02:00:00Z",
                 }
             ],
-            revision="abc123",
+            revision="def456",
         ),
         path=(directory / "rounds" / "2" / "inbox.json"),
     )
@@ -306,6 +353,7 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
     assert 'id="conversation-detail"' in response.text
     assert "issue is not eligible for conversation" in response.text
     assert response.text.count("round 2: discuss") == 1
+    assert response.text.count("code revision abc123 -&gt; def456") == 1
     assert response.text.count("I found the follow-up answer.") == 1
 
 

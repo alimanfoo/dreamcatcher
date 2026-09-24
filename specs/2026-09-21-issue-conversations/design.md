@@ -35,10 +35,12 @@ Dreamcatcher saves that final answer and posts one marked comment on GH58. The
 process ends; the harness session and worktree remain available.
 
 A later question starts another round in the same session. Before that new
-batch, Dreamcatcher refreshes the worktree to current main and tells the agent
-both the current revision and the previous investigated revision. Questions
-arriving while a round runs wait for the next batch. Recovery continues the
-unfinished batch in the same session and at the same code revision.
+batch, Dreamcatcher refreshes the worktree to current main and records the
+investigated revision. The resumed transcript already contains the earlier issue
+text and revisions, so the new input carries only the new comments and current
+revision. Questions arriving while a round runs wait for the next batch.
+Recovery continues the unfinished batch in the same session and at the same code
+revision.
 
 ### Invitation and discovery
 
@@ -127,9 +129,10 @@ revision with its input, and tell the agent which revision it is investigating.
 When the revision changes between batches, the agent checks earlier conclusions
 where relevant. No separate change-summary service is needed.
 
-Do not force away unexpected source changes to refresh a worktree. Report an
-update blocked by local changes rather than deleting them. This is a normal
-setup failure, not a new source-change recovery mechanism.
+Reset tracked files and remove untracked and ignored files before moving the
+worktree to fetched main. The conversation agent is forbidden to edit the
+worktree, so anything it nevertheless leaves there is disposable investigation
+state and must not make the user repair a managed worktree.
 
 The new issue conversation skill contract says: no implementation in this
 session. Read source and Git history, run code, and reproduce bugs as needed; do
@@ -179,11 +182,13 @@ publication protocol.
 
 ### Sessions, recovery, and capacity
 
-A conversation record holds issue identity, chosen launch settings, worktree
-location, harness session ID, delivery cursor, and any retry request. Numbered
-round records hold the saved batch and revision, prompt, process outcome, raw
-output, feed, and final answer/publication state. Use the existing atomic
-document writers and validated document models.
+A conversation record holds issue identity, chosen launch settings, and the
+harness session ID. Its issue number derives the worktree's location in managed
+state. Numbered round records hold process identity and outcome; their durable
+inputs hold each saved comment batch, its investigated revision, and the prior
+round's revision. The round directory also holds its prompt, raw output, feed,
+and final answer/publication state. Use the existing atomic document writers and
+validated document models.
 
 The harness owns the conversation transcript. Every later invocation resumes
 that session. Recover an interrupted or failed round by asking it to continue

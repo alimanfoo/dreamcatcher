@@ -108,13 +108,15 @@ issue. It must accept the issue number in the same `GH123` form as an assignment
 skill. Dreamcatcher adds the operational contract around the configured prompt
 and names a JSON input file for the agent to read.
 
-That input contains:
+Every input contains:
 
-- `issue`, `title` and `body` from the watched issue;
+- `issue`, identifying the watched issue;
 - `comments`, containing the signed-in user's eligible issue comments in order;
-  and
 - `revision`, identifying the fetched main commit checked out in the detached
   worktree.
+
+The first input also contains the issue's `title` and `body`. Later rounds keep
+those in their resumed harness transcript and receive only new comments.
 
 The agent must answer the saved question from the checked-out code and return
 its final answer as Markdown in the harness's final result. It returns exactly
@@ -124,7 +126,9 @@ activity are feed records, not the answer.
 The first round receives every eligible existing comment. Each later round
 resumes the same harness session and receives only eligible comments after the
 newest comment in the latest durable round input. The agent should use its
-existing transcript when a new question refers to an earlier answer.
+existing transcript when a new question refers to an earlier answer. Before a
+later round starts, Dreamcatcher asks Git to update the idle worktree to fetched
+main, discarding every local worktree change left by the earlier investigation.
 
 An issue conversation is read-only work. Its instructions must not tell the
 agent to edit the worktree, create a branch, commit or push, open a pull

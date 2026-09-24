@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from threading import Lock
 
-from pydantic import AwareDatetime, model_validator
+from pydantic import AwareDatetime
 
 from dreamcatcher.agent_rounds import (
     AgentRoundPaths,
@@ -25,7 +25,7 @@ from dreamcatcher.git import (
     add_detached_worktree,
     fetch_main,
     is_linked_worktree,
-    read_worktree_revision,
+    refresh_detached_worktree,
     remove_worktree,
 )
 from dreamcatcher.github import ConversationComment, Issue
@@ -55,23 +55,11 @@ class IssueConversationRecord(DreamcatcherDocument):
     issue: int
     title: str
     label: str
-    worktree: Path
-    revision: str
     harness: IssueConversationHarness
     harness_session_identifier: HarnessSessionIdentifier | None = None
     model: QuotableText
     effort: QuotableText
     prompt: str
-
-    @model_validator(mode="before")
-    @classmethod
-    def _discard_legacy_delivery_cursor(cls, value: object, /) -> object:
-        """Read records written before round inputs became the delivery ledger."""
-        if not isinstance(value, dict):
-            return value
-        data = dict(value)
-        data.pop("delivery_cursor", None)
-        return data
 
 
 class IssueConversationReply(DreamcatcherDocument):
@@ -96,6 +84,7 @@ class IssueConversation:
     """Represent one persisted issue conversation as it currently reads."""
 
     directory: Path
+    worktree: Path
     record: IssueConversationRecord
     rounds: list[AgentRoundRecord] = field(default_factory=list)
     _record_lock: Lock = field(
@@ -121,7 +110,7 @@ class IssueConversation:
     def compose_round_paths(self, *, number: int) -> AgentRoundPaths:
         """Return the paths for one numbered conversation round."""
         return AgentRoundPaths(
-            worktree=self.record.worktree,
+            worktree=self.worktree,
             rounds_directory=(
                 self.directory / ISSUE_CONVERSATION_ROUNDS_DIRECTORY_NAME
             ),
@@ -177,8 +166,6 @@ def create_issue_conversation(
             issue=issue.number,
             title=issue.title,
             label=config.label,
-            worktree=worktree,
-            revision=read_worktree_revision(worktree=worktree),
             harness=config.harness,
             model=config.model,
             effort=config.effort,
@@ -189,7 +176,7 @@ def create_issue_conversation(
         with suppress(CommandError):
             remove_worktree(root=state.root, path=worktree)
         raise
-    return IssueConversation(directory=directory, record=record)
+    return IssueConversation(directory=directory, worktree=worktree, record=record)
 
 
 def list_undelivered_issue_comments(
@@ -213,20 +200,86 @@ def list_undelivered_issue_comments(
     )
 
 
-def compose_issue_conversation_input(
+def prepare_issue_conversation_input(
     *,
+    state: StateDirectory,
+    conversation: IssueConversation,
     issue: Issue,
     comments: list[ConversationComment],
-    revision: str,
 ) -> IssueConversationInput:
-    """Freeze one issue and its trusted comment batch as round input."""
+    """Refresh the worktree and freeze one issue's trusted round input."""
+    expected_revision = None
+    if conversation.rounds:
+        expected_revision = read_issue_conversation_input(
+            conversation=conversation,
+            number=conversation.rounds[-1].number,
+        ).revision
+    revision = refresh_detached_worktree(
+        root=state.root,
+        worktree=conversation.worktree,
+        expected_revision=expected_revision,
+    )
+    is_initial = not conversation.rounds
     return IssueConversationInput(
         issue=issue.number,
-        title=issue.title,
-        body=issue.body,
+        title=issue.title if is_initial else None,
+        body=issue.body if is_initial else None,
         comments=comments,
         revision=revision,
     )
+
+
+def read_issue_conversation_input(
+    *, conversation: IssueConversation, number: int
+) -> IssueConversationInput:
+    """Read and validate the durable input for one conversation round."""
+    round_input = _read_issue_conversation_input_document(
+        conversation=conversation, number=number
+    )
+    if number == 1 and (round_input.title is None or round_input.body is None):
+        raise ReportableError(
+            f"Conversation {conversation.identifier} round 1 input does not "
+            "contain its initial issue title and body."
+        )
+    return round_input
+
+
+def _read_issue_conversation_input_document(
+    *, conversation: IssueConversation, number: int
+) -> IssueConversationInput:
+    """Read and validate one round input without comparing adjacent rounds."""
+    round_input = read_json(
+        model=IssueConversationInput,
+        path=conversation.compose_round_paths(number=number).round_input,
+    )
+    if not round_input.comments:
+        raise ReportableError(
+            f"Conversation {conversation.identifier} round {number} "
+            "has no delivered issue comments."
+        )
+    if round_input.issue != conversation.record.issue:
+        raise ReportableError(
+            f"Conversation {conversation.identifier} round {number} "
+            f"input names GH{round_input.issue}."
+        )
+    positions = [(comment.written_at, comment.id) for comment in round_input.comments]
+    if positions != sorted(set(positions)):
+        raise ReportableError(
+            f"Conversation {conversation.identifier} round {number} "
+            "comments are not strictly ordered."
+        )
+    return round_input
+
+
+def describe_issue_conversation_revision(
+    *, previous_revision: str | None, revision: str
+) -> str:
+    """Describe the revision investigated by one conversation round."""
+    if previous_revision is None:
+        return f"code revision {revision}"
+    if previous_revision == revision:
+        return f"code revision {revision} (unchanged)"
+    return f"code revision {previous_revision} -> {revision}"
 
 
 def read_issue_comment_delivery_cursor(
@@ -236,26 +289,10 @@ def read_issue_comment_delivery_cursor(
     if not conversation.rounds:
         return None
     latest_round = conversation.rounds[-1]
-    round_input = read_json(
-        model=IssueConversationInput,
-        path=conversation.compose_round_paths(number=latest_round.number).round_input,
+    round_input = read_issue_conversation_input(
+        conversation=conversation,
+        number=latest_round.number,
     )
-    if not round_input.comments:
-        raise ReportableError(
-            f"Conversation {conversation.identifier} round {latest_round.number} "
-            "has no delivered issue comments."
-        )
-    if round_input.issue != conversation.record.issue:
-        raise ReportableError(
-            f"Conversation {conversation.identifier} round {latest_round.number} "
-            f"input names GH{round_input.issue}."
-        )
-    positions = [(comment.written_at, comment.id) for comment in round_input.comments]
-    if positions != sorted(set(positions)):
-        raise ReportableError(
-            f"Conversation {conversation.identifier} round {latest_round.number} "
-            "comments are not strictly ordered."
-        )
     newest = round_input.comments[-1]
     return IssueCommentCursor(
         written_at=newest.written_at,
@@ -332,6 +369,7 @@ def _read_issue_conversation(
         )
     return IssueConversation(
         directory=directory,
+        worktree=state.conversation_worktrees / directory.name,
         record=record,
         rounds=state.round_reader.read_records(
             directory=directory / ISSUE_CONVERSATION_ROUNDS_DIRECTORY_NAME

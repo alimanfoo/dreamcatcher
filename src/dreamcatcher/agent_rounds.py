@@ -214,8 +214,8 @@ class IssueConversationInput(DreamcatcherDocument):
     """Model the trusted issue input frozen for one conversation round."""
 
     issue: int
-    title: str
-    body: str
+    title: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    body: str | None = Field(default=None, exclude_if=lambda value: value is None)
     comments: list[ConversationComment]
     revision: str
 
