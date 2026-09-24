@@ -1,5 +1,12 @@
 assignee = "@me"
 
+[conversation]
+label = "scout"
+harness = "claude"
+prompt = "Answer questions on GH{issue}."
+model = "opus[1m]"
+effort = "high"
+
 [[dispatch]]
 label = "dream:smith"
 [dispatch.claude]
