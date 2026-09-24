@@ -368,12 +368,14 @@ body::after {
 }
 
 .latest-output > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
+  display: inline;
   color: #5f7052;
   font-weight: 500;
   text-transform: lowercase;
+}
+
+.latest-output > span::before {
+  margin-right: 7px;
 }
 
 .card-heading-actions,
