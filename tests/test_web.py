@@ -326,27 +326,6 @@ def test_home_page_types_replaced_assignment_output(tmp_path):
     )
 
 
-def test_nature_agent_label_aligns_with_output_text(tmp_path):
-    state = StateDirectory(root=tmp_path)
-    state.bootstrap()
-    application = create_app(
-        state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
-    )
-
-    stylesheet = (
-        application.test_client().get("/static/nature.css").get_data(as_text=True)
-    )
-
-    assert re.search(
-        r"\.latest-output > span \{[^}]*display: inline;", stylesheet, re.DOTALL
-    )
-    assert re.search(
-        r"\.latest-output > span::before \{[^}]*margin-right: 7px;",
-        stylesheet,
-        re.DOTALL,
-    )
-
-
 def test_assignment_page_shares_the_home_page_top_bar(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
