@@ -122,9 +122,8 @@ nothing of GitHub. After the harness exits successfully and its final result has
 been captured, the round posts that result with the agent marker, then records
 its ending. It therefore keeps its agent slot while it posts, and no new batch
 starts until the answer is out. `NO_REPLY` posts nothing. A failed post makes
-the round errored, with the failure noted in its feed. The scheduler posts
-nothing. Failed and interrupted rounds remain visible and are not automatically
-resumed yet.
+the round errored, with the failure noted in its feed. Failed and interrupted
+rounds remain visible and are not automatically resumed yet.
 
 ### Agent assignments
 

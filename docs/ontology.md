@@ -406,10 +406,9 @@ a recovery round automatically unless the assignment has entered a fault.
 
 ### Scheduling work
 
-The scheduler creates agent assignments and starts agent rounds. A conversation
-round posts its own answer, so the scheduler posts nothing. A failed issue read
-prevents launches in the workflow that depends on those facts without preventing
-work in the other workflow.
+The scheduler creates agent assignments and starts agent rounds. A failed issue
+read prevents launches in the workflow that depends on those facts without
+preventing work in the other workflow.
 
 Existing assignments take precedence over new ones, ranked in this order:
 

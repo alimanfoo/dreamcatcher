@@ -299,7 +299,7 @@ def record_issue_conversation_session_identifier(
             )
 
 
-def publish_issue_conversation_answer(
+def post_issue_conversation_answer(
     *, repository: str, issue: int, final_output: str
 ) -> None:
     """Post a round's final output on its issue as one marked comment.

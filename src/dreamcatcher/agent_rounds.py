@@ -70,7 +70,7 @@ class FinalOutputPublisher(Protocol):
 
 @dataclass(frozen=True, kw_only=True)
 class FinalOutputRequirement:
-    """Say where a round saves the final output it requires, and who publishes it."""
+    """The file where a round saves its required final output, and its publisher."""
 
     path: Path
     publish: FinalOutputPublisher
@@ -547,7 +547,7 @@ class AgentRound:
         is written before the stream readers finish.
         """
         try:
-            status = self._settle_exit_status(status=self.harness_process.wait())
+            status = self._publish_final_output(status=self.harness_process.wait())
             if self.is_interrupted:
                 self.record = record_agent_round_interruption(
                     record=self.record, path=self.paths.record
@@ -566,7 +566,7 @@ class AgentRound:
             for stream_reader in self._stream_readers:
                 stream_reader.join()
 
-    def _settle_exit_status(self, *, status: int) -> int:
+    def _publish_final_output(self, *, status: int) -> int:
         """Publish a successful round's final output and return the status to record.
 
         A round that requires a final output fails when that output is missing

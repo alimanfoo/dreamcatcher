@@ -67,8 +67,8 @@ from dreamcatcher.issue_conversations import (
     IssueConversation,
     create_issue_conversation,
     list_undelivered_issue_comments,
+    post_issue_conversation_answer,
     prepare_issue_conversation_input,
-    publish_issue_conversation_answer,
     read_issue_comment_delivery_cursor,
     read_issue_conversations,
     record_issue_conversation_session_identifier,
@@ -1332,7 +1332,7 @@ class AgentWorkScheduler:
                         conversation=conversation,
                     ),
                     publish_final_output=partial(
-                        publish_issue_conversation_answer,
+                        post_issue_conversation_answer,
                         repository=self.repository,
                         issue=conversation.record.issue,
                     ),

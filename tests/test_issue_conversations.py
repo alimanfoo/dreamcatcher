@@ -28,8 +28,8 @@ from dreamcatcher.issue_conversations import (
     create_issue_conversation,
     describe_issue_conversation_revision,
     list_undelivered_issue_comments,
+    post_issue_conversation_answer,
     prepare_issue_conversation_input,
-    publish_issue_conversation_answer,
     read_issue_comment_delivery_cursor,
     read_issue_conversation,
     read_issue_conversation_input,
@@ -447,7 +447,7 @@ def test_an_answer_is_posted_trimmed_and_marked(fake):
     gh = fake(program="gh")
     gh.replies(stdout=json.dumps({"id": 91}))
 
-    publish_issue_conversation_answer(
+    post_issue_conversation_answer(
         repository="alimanfoo/dreamcatcher", issue=8, final_output="  The answer.\n"
     )
 
@@ -459,7 +459,7 @@ def test_an_answer_is_posted_trimmed_and_marked(fake):
 def test_no_reply_posts_nothing(fake):
     gh = fake(program="gh")
 
-    publish_issue_conversation_answer(
+    post_issue_conversation_answer(
         repository="alimanfoo/dreamcatcher", issue=8, final_output=" NO_REPLY\n"
     )
 
@@ -470,7 +470,7 @@ def test_an_answer_github_refuses_is_reportable(fake):
     fake(program="gh").fails(stderr="issue is locked")
 
     with pytest.raises(ReportableError) as error:
-        publish_issue_conversation_answer(
+        post_issue_conversation_answer(
             repository="alimanfoo/dreamcatcher", issue=8, final_output="The answer."
         )
 
