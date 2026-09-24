@@ -45,11 +45,11 @@ embedded in blocker evidence.
 **The assignment page**, at `/assignments/GH142-20260916-180412`, shows one
 agent assignment and nothing else. At the top is what the `assignment` view
 shows: the issue and its title, the assignment identifier, the status, the pull
-request with its state, the branch, the harness and its session identifier, the
-model and effort the dispatch settled, the rounds it has run with each purpose,
-recovery flag and outcome, and the command that resumes its harness session by
-hand. Below that is the whole feed, every round in order, following live while
-the assignment has more to say.
+request with its state, the harness and its session identifier, the model and
+effort the dispatch settled, the rounds it has run with each purpose, recovery
+flag and outcome, and the command that resumes its harness session by hand.
+Below that is the whole feed, every round in order, following live while the
+assignment has more to say.
 
 A page is addressed by agent assignment identifier rather than by issue. The TUI
 takes an issue because that is what a person types, and picks the newest
