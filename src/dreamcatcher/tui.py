@@ -40,6 +40,7 @@ from dreamcatcher.status import (
     CONVERSATION_STATUSES_THAT_END_A_VIEW,
     STATUSES_THAT_END_A_VIEW,
     AgentAssignmentStatus,
+    AgentAssignmentStatusValue,
     AgentRoundStatus,
     DreamcatcherStatusReport,
     IssueConversationStatus,
@@ -329,16 +330,39 @@ def _render_assignments(
     """Render assignments in attention order, preserving order within a status."""
     if not assignments:
         return None
+    completed = list(
+        filter(
+            lambda status: status.value is AgentAssignmentStatusValue.COMPLETE,
+            assignments,
+        )
+    )
     ordered = sorted(
-        assignments,
+        filter(
+            lambda status: status.value is not AgentAssignmentStatusValue.COMPLETE,
+            assignments,
+        ),
         key=lambda status: ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER.index(
             status.value
         ),
     )
-    identifier_width = max(len(status.assignment.identifier) for status in ordered)
-    status_width = max(len(status.value) for status in ordered)
+    rows = _render_assignment_rows(assignments=ordered)
+    if completed:
+        rows.append(
+            Text(describe_count(number=len(completed), noun="completed assignment"))
+        )
+    return _render_section(heading="agent assignments", body=Group(*rows))
+
+
+def _render_assignment_rows(
+    *, assignments: Sequence[AgentAssignmentStatus]
+) -> list[RenderableType]:
+    """Render the detailed rows for non-complete assignments."""
+    if not assignments:
+        return []
+    identifier_width = max(len(status.assignment.identifier) for status in assignments)
+    status_width = max(len(status.value) for status in assignments)
     rows: list[RenderableType] = []
-    for status in ordered:
+    for status in assignments:
         table = Table(box=None, show_header=False, pad_edge=False)
         table.add_column(style="bold", width=identifier_width)
         table.add_column(width=status_width)
@@ -355,7 +379,7 @@ def _render_assignments(
         latest_output = _render_assignment_latest_output(status=status)
         if latest_output is not None:
             rows.append(latest_output)
-    return _render_section(heading="agent assignments", body=Group(*rows))
+    return rows
 
 
 def _render_conversations(

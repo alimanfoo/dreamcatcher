@@ -169,15 +169,15 @@ def test_a_state_directory_renders_as_its_golden_status(
 
 
 def test_identifiers_remain_whole_when_the_assignment_table_folds(tmp_path):
-    """Two assignments at one issue differ only in their identifier times."""
+    """Keep the active assignment identifier whole when the table folds."""
     state = StateDirectory(root=tmp_path)
     fabricate_repeat_assignments(state=state)
 
     status = render_status_view(state=state, width=55)
 
     compact = "".join(status.split())
-    assert "GH13-20260818-090000" in compact
-    assert "GH13-20260817-090000" in compact
+    assert "GH13-20260819-184158" in compact
+    assert "2completedassignments" in compact
 
 
 def test_assignments_are_rendered_in_attention_order(tmp_path, daemon):
@@ -194,11 +194,11 @@ def test_assignments_are_rendered_in_attention_order(tmp_path, daemon):
         "GH35-20260819-184158",
         "GH44-20260819-184158",
         "GH40-20260819-184158",
-        "GH12-20260819-184158",
     ]
     assert [rendered.index(identifier) for identifier in identifiers] == sorted(
         rendered.index(identifier) for identifier in identifiers
     )
+    assert "1 completed assignment" in rendered
 
 
 @pytest.mark.parametrize("width", [60, 80])
@@ -214,6 +214,30 @@ def test_status_output_fits_one_line_without_hiding_later_assignments(
     assert len(output) == 1
     assert len(output[0]) <= width
     assert f"GH31-{ASSIGNMENT_TIMESTAMP}" in rendered
+
+
+def test_completed_assignments_are_summarized(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_repeat_assignments(state=state)
+
+    rendered = render_status_view(state=state)
+
+    assert "2 completed assignments" in rendered
+    assert "GH13-20260818-090000" not in rendered
+    assert "GH13-20260817-090000" not in rendered
+
+
+def test_only_completed_assignments_are_summarized(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    completed_round = ended(minute=1, purpose=AgentRoundPurpose.WRAP_UP)
+    written(state=state, issue=12, records=[completed_round])
+    written(state=state, issue=13, records=[completed_round])
+
+    rendered = render_status_view(state=state)
+
+    assert "2 completed assignments" in rendered
+    assert "GH12-20260819-184158" not in rendered
+    assert "GH13-20260819-184158" not in rendered
 
 
 def test_status_nobody_is_watching_is_drawn_once_and_returns(tmp_path, daemon):

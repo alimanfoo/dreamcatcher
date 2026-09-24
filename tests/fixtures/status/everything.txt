@@ -18,7 +18,7 @@ agent assignments
   GH35-20260819-184158  waiting              the last round failed (exit 2)                         
   GH44-20260819-184158  waiting              no round has run yet                                   
   GH40-20260819-184158  unknown              no current scheduler observation                       
-  GH12-20260819-184158  complete             2 rounds                                               
+  1 completed assignment                                                                            
 
 available issues
   GH50  dream:smith
