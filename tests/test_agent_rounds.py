@@ -605,6 +605,25 @@ def test_a_round_whose_harness_failed_publishes_nothing(fake, worktree, director
     publish.assert_not_called()
 
 
+def test_a_round_interrupted_as_its_harness_succeeds_publishes_nothing(
+    fake, worktree, directory
+):
+    fake(program="claude").streams(
+        lines=[Line(text=stream_final_result(result="The answer."))], delay=1
+    )
+    paths = compose_round_paths(worktree=worktree, directory=directory)
+    publish = Mock()
+
+    running = start_publishing_round(paths=paths, publish=publish)
+    # The race that `_interrupt` records: the harness exits cleanly just as
+    # somebody stops the round.
+    running.is_interrupted = True
+    running.wait()
+
+    assert written(path=paths.record).outcome is AgentRoundOutcome.INTERRUPTED
+    publish.assert_not_called()
+
+
 def test_an_errored_ending_refuses_a_success_status():
     with pytest.raises(ValueError, match="cannot have exit status 0"):
         ErroredAgentRoundEnding(at=PINNED, status=0)
