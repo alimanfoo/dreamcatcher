@@ -227,6 +227,19 @@ def test_completed_assignments_are_summarized(tmp_path, daemon):
     assert "GH13-20260817-090000" not in rendered
 
 
+def test_only_completed_assignments_are_summarized(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    completed_round = ended(minute=1, purpose=AgentRoundPurpose.WRAP_UP)
+    written(state=state, issue=12, records=[completed_round])
+    written(state=state, issue=13, records=[completed_round])
+
+    rendered = render_status_view(state=state)
+
+    assert "2 completed assignments" in rendered
+    assert "GH12-20260819-184158" not in rendered
+    assert "GH13-20260819-184158" not in rendered
+
+
 def test_status_nobody_is_watching_is_drawn_once_and_returns(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
