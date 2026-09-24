@@ -51,7 +51,7 @@ One scheduler tick:
 2. reconciles incomplete assignment setup;
 3. saves and publishes any successful conversation answer still waiting;
 4. applies the run's requested capacity and global-cooldown constraints;
-5. finds the highest-priority implementation candidate, considering existing
+5. finds the highest-priority assignment candidate, considering existing
    assignment rounds before dispatch of the oldest available issue;
 6. finds the conversation candidate with the oldest waiting comment;
 7. alternates between the two kinds when both have candidates, without changing
@@ -105,14 +105,16 @@ pull requests.
 
 The signed-in GitHub account, rather than the configured dispatch assignee,
 identifies trusted issue comments. Marked Dreamcatcher comments, comments by
-other accounts and blank comments are excluded. The delivery cursor is advanced
-after each round starts, so a delivered batch cannot be selected again.
+other accounts and blank comments are excluded. Each durable round input records
+the delivered batch, so the newest comment in the latest input is the delivery
+position and a batch cannot be selected again.
 
 The first eligible batch starts one Claude session. Each later eligible batch
 resumes that session with current issue text, newly delivered comments and the
 initial worktree revision. A conversation accepts no new batch while a round is
 running, its answer awaits publication, or its latest round failed or was
-interrupted. Comments posted during those intervals remain beyond the cursor.
+interrupted. Comments posted during those intervals remain beyond the latest
+round input.
 
 A successful final result is saved as the reply record. `NO_REPLY` completes
 publication without a GitHub post; any other saved answer is posted with the
@@ -299,15 +301,16 @@ whether it required a round. Status reads this observation because view commands
 cannot reach GitHub. It is the last tick's interpretation kept as operational
 evidence, not authoritative assignment state.
 
-An `IssueConversationObservation` records whether GitHub's eligible-issue query
-contained each saved conversation. Status uses that evidence to distinguish an
-eligible conversation waiting for comments from an inactive conversation,
-without contacting GitHub itself.
+The scheduler record maps each saved conversation to an `IssueFact` describing
+whether GitHub's eligible-issue query contained it. Status uses that evidence to
+distinguish an eligible conversation waiting for comments from an inactive
+conversation, without contacting GitHub itself.
 
 The scheduler record also names the assignment or conversation whose round the
-tick launched. A launched assignment has no observation in the same record. If
-its round ends before the next tick, status reports that it is waiting for that
-tick rather than reporting an unknown state.
+tick launched and retains the last selected work kind so alternation survives a
+daemon restart or a failed start. A launched assignment has no observation in
+the same record. If its round ends before the next tick, status reports that it
+is waiting for that tick rather than reporting an unknown state.
 
 ### TUI
 
@@ -360,8 +363,8 @@ The on-disk layout follows ownership:
 - instance-wide operational records live at the versioned root;
 - each assignment owns its durable record, delivery cursor, and numbered round
   records;
-- each conversation owns its durable record, issue-comment delivery cursor,
-  numbered round records and saved replies;
+- each conversation owns its durable record, numbered round records and saved
+  replies;
 - each round owns its prompt, raw output, rendered feed, final output when
   required, and any delivered input; and
 - assignment and conversation worktrees live in separate collections under the

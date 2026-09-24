@@ -54,9 +54,10 @@ communication channel between the agent and the user.
 
 An **issue conversation** is Dreamcatcher's durable commission to an agent to
 answer the user on an issue without implementing a change. It owns a detached
-worktree at a recorded main revision, one harness session, its issue-comment
-delivery cursor, and its agent rounds. The issue remains its communication
-channel; it has no implementation branch or pull request.
+worktree at a recorded main revision, one harness session, and its agent rounds.
+Each round input records the comment batch delivered in that round. The issue
+remains its communication channel; it has no implementation branch or pull
+request.
 
 An issue conversation starts with one initial round. Each later eligible comment
 batch resumes the same harness session in another round. Every saved final
@@ -352,10 +353,10 @@ waiting for another scheduler tick.
 
 An open issue becomes a conversation candidate when it carries the configured
 conversation label, is assigned to the signed-in account, and has at least one
-eligible comment from that account after the saved delivery cursor. Issue title
-and body alone do not start a round. Assignment ownership, linked pull requests,
-dependencies and dispatch-label conflicts do not govern conversation
-eligibility.
+eligible comment from that account after the newest comment in its latest round
+input. Issue title and body alone do not start a round. Assignment ownership,
+linked pull requests, dependencies and dispatch-label conflicts do not govern
+conversation eligibility.
 
 Dreamcatcher fetches main, creates a detached worktree, records its revision and
 the chosen conversation settings, freezes the issue and eligible comment batch,
@@ -365,9 +366,9 @@ before publication, so posting can be retried without rerunning the agent.
 
 After publication, another eligible comment batch resumes the same harness
 session in another `discuss` round. Comments that arrive while a round runs or
-an answer awaits publication stay beyond the cursor. Closing the issue, removing
-its conversation label or unassigning the signed-in account makes the saved
-conversation inactive without deleting it.
+an answer awaits publication stay beyond the latest round input. Closing the
+issue, removing its conversation label or unassigning the signed-in account
+makes the saved conversation inactive without deleting it.
 
 ### Working through an assignment
 
@@ -408,9 +409,7 @@ issue conversation answers. A failed issue read prevents launches in the
 workflow that depends on those facts without preventing work in the other
 workflow.
 
-Within implementation work, existing assignments take precedence over creating
-new ones. Subject to capacity and cooldown, the scheduler ranks implementation
-work in this order:
+Existing assignments take precedence over new ones, ranked in this order:
 
 1. recover an interrupted or first-time errored assignment round;
 2. wrap up an assignment whose pull request has been merged or closed;
@@ -418,9 +417,9 @@ work in this order:
 4. create an assignment for the oldest available issue.
 
 Conversation candidates are ordered by their oldest waiting comment. When both
-an implementation candidate and a conversation candidate are ready, the
-scheduler alternates which kind receives the next free slot. When only one kind
-is ready, it proceeds without waiting for the other.
+an assignment candidate and a conversation candidate are ready, the scheduler
+alternates which kind receives the next free slot. When only one kind is ready,
+it proceeds without waiting for the other.
 
 ### Handling errors and global cooldown
 

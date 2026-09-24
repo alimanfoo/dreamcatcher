@@ -21,7 +21,7 @@ from dreamcatcher.issue_conversations import (
     record_issue_conversation_reply_publication,
     save_issue_conversation_reply,
 )
-from dreamcatcher.scheduler import IssueConversationObservation, SchedulerRecord
+from dreamcatcher.scheduler import IssueFact, IssueFactValue, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.tui import (
     FeedSelection,
@@ -76,9 +76,11 @@ def conversation_state(
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
-            conversation_observations=[
-                IssueConversationObservation(issue=8, is_eligible=is_eligible)
-            ],
+            conversation_eligibility={
+                8: IssueFact(
+                    value=(IssueFactValue.TRUE if is_eligible else IssueFactValue.FALSE)
+                ),
+            },
         ),
     )
     return state
@@ -213,9 +215,9 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
             state=state,
             tick=SchedulerRecord(
                 at=PINNED,
-                conversation_observations=[
-                    IssueConversationObservation(issue=8, is_eligible=False)
-                ],
+                conversation_eligibility={
+                    8: IssueFact(value=IssueFactValue.FALSE),
+                },
             ),
         )
 

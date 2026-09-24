@@ -25,7 +25,7 @@ from dreamcatcher.issue_conversations import (
     record_issue_conversation_reply_publication,
     save_issue_conversation_reply,
 )
-from dreamcatcher.scheduler import IssueConversationObservation, SchedulerRecord
+from dreamcatcher.scheduler import IssueFact, IssueFactValue, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     IssueConversationStatusValue,
@@ -46,9 +46,9 @@ def conversation_state(tmp_path):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
-            conversation_observations=[
-                IssueConversationObservation(issue=8, is_eligible=True)
-            ],
+            conversation_eligibility={
+                8: IssueFact(value=IssueFactValue.TRUE),
+            },
         ),
     )
     return state
@@ -120,9 +120,9 @@ def test_an_ineligible_conversation_with_no_round_is_inactive(conversation_state
         state=conversation_state,
         tick=SchedulerRecord(
             at=PINNED,
-            conversation_observations=[
-                IssueConversationObservation(issue=8, is_eligible=False)
-            ],
+            conversation_eligibility={
+                8: IssueFact(value=IssueFactValue.FALSE),
+            },
         ),
     )
 
@@ -253,9 +253,9 @@ def test_a_finished_ineligible_conversation_is_inactive(conversation_state):
         state=conversation_state,
         tick=SchedulerRecord(
             at=PINNED,
-            conversation_observations=[
-                IssueConversationObservation(issue=8, is_eligible=False)
-            ],
+            conversation_eligibility={
+                8: IssueFact(value=IssueFactValue.FALSE),
+            },
         ),
     )
 

@@ -97,23 +97,14 @@ def compose_issue_conversation_prompt(
 ) -> str:
     """Return the first prompt that directs a conversation to its saved input."""
     instructions = template.replace(ISSUE_PLACEHOLDER, str(issue))
-    round_prompt = _compose_issue_conversation_round_prompt(
+    round_prompt = compose_issue_conversation_round_prompt(
         issue=issue, round_input=round_input
     )
     return f"{instructions}\n\n{round_prompt}"
 
 
-def compose_issue_conversation_follow_up_prompt(
-    *, issue: int, round_input: Path
-) -> str:
-    """Return a resumed prompt that directs a conversation to its new input."""
-    return _compose_issue_conversation_round_prompt(
-        issue=issue,
-        round_input=round_input,
-    )
-
-
-def _compose_issue_conversation_round_prompt(*, issue: int, round_input: Path) -> str:
+def compose_issue_conversation_round_prompt(*, issue: int, round_input: Path) -> str:
+    """Return the prompt that directs a conversation round to its saved input."""
     return _ISSUE_CONVERSATION_ROUND_PROMPT.format(
         issue=issue,
         round_input=round_input,

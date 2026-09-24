@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from threading import Lock
 
-from pydantic import AwareDatetime
+from pydantic import AwareDatetime, model_validator
 
 from dreamcatcher.agent_rounds import (
     AgentRoundPaths,
@@ -62,7 +62,16 @@ class IssueConversationRecord(DreamcatcherDocument):
     model: QuotableText
     effort: QuotableText
     prompt: str
-    delivery_cursor: IssueCommentCursor | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _discard_legacy_delivery_cursor(
+        cls, value: dict[str, object], /
+    ) -> dict[str, object]:
+        """Read records written before round inputs became the delivery ledger."""
+        data = dict(value)
+        data.pop("delivery_cursor", None)
+        return data
 
 
 class IssueConversationReply(DreamcatcherDocument):
@@ -214,37 +223,26 @@ def compose_issue_conversation_input(
     )
 
 
-def advance_issue_comment_delivery_cursor(
-    *, conversation: IssueConversation, newest: ConversationComment
-) -> None:
-    """Record the newest issue comment accepted for delivery."""
-    with conversation._record_lock:
-        _update_issue_conversation_record(
-            conversation=conversation,
-            updates={
-                "delivery_cursor": IssueCommentCursor(
-                    written_at=newest.written_at, id=newest.id
-                )
-            },
-        )
-
-
-def restore_issue_comment_delivery_cursor(*, conversation: IssueConversation) -> None:
-    """Restore a missing cursor from the initial round's durable input."""
-    if conversation.record.delivery_cursor is not None or not conversation.rounds:
-        return
-    first_round = conversation.rounds[0]
+def read_issue_comment_delivery_cursor(
+    *, conversation: IssueConversation
+) -> IssueCommentCursor | None:
+    """Return the newest comment saved in the latest durable round input."""
+    if not conversation.rounds:
+        return None
+    latest_round = conversation.rounds[-1]
     round_input = read_json(
         model=IssueConversationInput,
-        path=conversation.compose_round_paths(number=first_round.number).round_input,
+        path=conversation.compose_round_paths(number=latest_round.number).round_input,
     )
     if not round_input.comments:
         raise ReportableError(
-            f"Conversation {conversation.identifier} round {first_round.number} "
+            f"Conversation {conversation.identifier} round {latest_round.number} "
             "has no delivered issue comments."
         )
-    advance_issue_comment_delivery_cursor(
-        conversation=conversation, newest=round_input.comments[-1]
+    newest = round_input.comments[-1]
+    return IssueCommentCursor(
+        written_at=newest.written_at,
+        id=newest.id,
     )
 
 

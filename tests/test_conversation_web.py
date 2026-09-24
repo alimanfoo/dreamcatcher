@@ -19,7 +19,7 @@ from dreamcatcher.issue_conversations import (
     record_issue_conversation_reply_publication,
     save_issue_conversation_reply,
 )
-from dreamcatcher.scheduler import IssueConversationObservation, SchedulerRecord
+from dreamcatcher.scheduler import IssueFact, IssueFactValue, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.web import create_app
 
@@ -41,9 +41,11 @@ def fabricate_conversation(
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
-            conversation_observations=[
-                IssueConversationObservation(issue=8, is_eligible=is_eligible)
-            ],
+            conversation_eligibility={
+                8: IssueFact(
+                    value=(IssueFactValue.TRUE if is_eligible else IssueFactValue.FALSE)
+                ),
+            },
         ),
     )
     if not has_round:

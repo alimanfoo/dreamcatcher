@@ -13,8 +13,8 @@ from dreamcatcher.prompts import (
     AGENT_POST_MARKER,
     RECOVERY_PROMPT,
     compose_first_round_prompt,
-    compose_issue_conversation_follow_up_prompt,
     compose_issue_conversation_prompt,
+    compose_issue_conversation_round_prompt,
     compose_user_posts_prompt,
 )
 
@@ -77,10 +77,10 @@ def test_the_issue_conversation_prompt_names_its_input_and_host_boundary(tmp_pat
     assert AGENT_POST_MARKER not in composed
 
 
-def test_the_issue_conversation_follow_up_names_only_its_new_input(tmp_path):
+def test_the_issue_conversation_round_prompt_names_only_its_new_input(tmp_path):
     inbox = tmp_path / "inbox.json"
 
-    composed = compose_issue_conversation_follow_up_prompt(issue=52, round_input=inbox)
+    composed = compose_issue_conversation_round_prompt(issue=52, round_input=inbox)
 
     assert composed.startswith("Issue-conversation input for GH52:")
     assert str(inbox) in composed

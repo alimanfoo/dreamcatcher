@@ -389,13 +389,10 @@ class _StatusReportReader:
                 for observation in self.scheduler_record.assignment_observations
             }
         )
-        self.conversation_eligibility: dict[int, bool | None] = (
+        self.conversation_eligibility: dict[int, IssueFact] = (
             {}
             if self.scheduler_record is None
-            else {
-                observation.issue: observation.is_eligible
-                for observation in self.scheduler_record.conversation_observations
-            }
+            else self.scheduler_record.conversation_eligibility
         )
 
     def list_issue_observations(
@@ -473,9 +470,12 @@ class _StatusReportReader:
         self, *, conversation: IssueConversation
     ) -> IssueConversationStatus:
         """Derive one issue conversation's summary from its local records."""
-        is_eligible = self.conversation_eligibility.get(conversation.record.issue)
+        eligibility = self.conversation_eligibility.get(conversation.record.issue)
+        eligibility_value = (
+            IssueFactValue.UNKNOWN if eligibility is None else eligibility.value
+        )
         if not conversation.rounds:
-            if is_eligible is False:
+            if eligibility_value is IssueFactValue.FALSE:
                 return self._compose_issue_conversation_status(
                     conversation=conversation,
                     value=IssueConversationStatusValue.INACTIVE,
@@ -486,7 +486,7 @@ class _StatusReportReader:
                 value=IssueConversationStatusValue.WAITING,
                 detail=(
                     "initial round has not started"
-                    if is_eligible is True
+                    if eligibility_value is IssueFactValue.TRUE
                     else "issue conversation eligibility is unknown"
                 ),
             )
@@ -510,17 +510,17 @@ class _StatusReportReader:
             )
         return self._read_idle_conversation_status(
             conversation=conversation,
-            is_eligible=is_eligible,
+            eligibility=eligibility_value,
         )
 
     def _read_idle_conversation_status(
         self,
         *,
         conversation: IssueConversation,
-        is_eligible: bool | None,
+        eligibility: IssueFactValue,
     ) -> IssueConversationStatus:
         """Describe a conversation whose latest answer is complete."""
-        if is_eligible is False:
+        if eligibility is IssueFactValue.FALSE:
             return self._compose_issue_conversation_status(
                 conversation=conversation,
                 value=IssueConversationStatusValue.INACTIVE,
@@ -531,7 +531,7 @@ class _StatusReportReader:
             value=IssueConversationStatusValue.WAITING,
             detail=(
                 f"waiting for new comments after round {conversation.rounds[-1].number}"
-                if is_eligible is True
+                if eligibility is IssueFactValue.TRUE
                 else "issue conversation eligibility is unknown"
             ),
         )

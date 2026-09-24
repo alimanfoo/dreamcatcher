@@ -123,8 +123,8 @@ activity are feed records, not the answer.
 
 The first round receives every eligible existing comment. Each later round
 resumes the same harness session and receives only eligible comments after the
-saved delivery cursor. The agent should use its existing transcript when a new
-question refers to an earlier answer.
+newest comment in the latest durable round input. The agent should use its
+existing transcript when a new question refers to an earlier answer.
 
 An issue conversation is read-only work. Its instructions must not tell the
 agent to edit the worktree, create a branch, commit or push, open a pull

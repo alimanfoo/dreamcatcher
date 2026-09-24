@@ -121,11 +121,11 @@ This is an intentional format break. Version 3 does not migrate assignments from
 an earlier format and starts with empty local state. Stop the daemon and upgrade
 between dispatch batches, when no assignment needs another round.
 
-Within implementation work, open assignments go before new assignments. A round
-that did not finish is recovered, a merged or closed pull request gets a wrap-up
-round, and a pull request you have posted on gets a round that addresses your
-feedback. When implementation work and an issue conversation are both ready, the
-daemon alternates which kind receives the next free agent slot.
+Open assignments go before new assignments. A round that did not finish is
+recovered, a merged or closed pull request gets a wrap-up round, and a pull
+request you have posted on gets a round that addresses your feedback. When
+assignment work and an issue conversation are both ready, the daemon alternates
+which kind receives the next free agent slot.
 
 With `[conversation]` configured, the daemon also watches assigned open issues
 carrying its label. The issue title and body alone do not start an agent. Once
@@ -137,8 +137,8 @@ saved, marked as Dreamcatcher output and posted back to the issue. `NO_REPLY`
 finishes without a post. A failed post is retried from the saved answer without
 running Claude again. A later eligible comment resumes the same Claude session
 with the current issue title and body and only the comments after the saved
-delivery cursor. The worktree stays at its initial revision for these follow-up
-rounds.
+input of the latest round. The worktree stays at its initial revision for these
+follow-up rounds.
 
 Closing the issue, removing the conversation label or removing the signed-in
 account as assignee stops comment collection. Dreamcatcher keeps the saved

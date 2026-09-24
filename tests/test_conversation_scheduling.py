@@ -17,7 +17,12 @@ from conftest import (
     streamed,
 )
 from fakes import Line
-from records import write_agent_assignment, write_issue_conversation, write_round
+from records import (
+    write_agent_assignment,
+    write_issue_conversation,
+    write_round,
+    write_tick,
+)
 
 from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
@@ -38,7 +43,12 @@ from dreamcatcher.issue_conversations import (
     save_issue_conversation_reply,
 )
 from dreamcatcher.prompts import AGENT_POST_MARKER
-from dreamcatcher.scheduler import AgentWorkScheduler, GlobalCooldown, SchedulerRecord
+from dreamcatcher.scheduler import (
+    AgentWorkScheduler,
+    GlobalCooldown,
+    IssueFactValue,
+    SchedulerRecord,
+)
 from dreamcatcher.state import StateDirectory
 
 CONVERSATION_CONFIG = """[conversation]
@@ -202,8 +212,6 @@ def test_an_initial_conversation_freezes_input_runs_claude_and_publishes_once(
     conversation = read_issue_conversation(state=scheduler.state, issue=8)
     assert conversation is not None
     assert conversation.record.harness_session_identifier == "conversation-session"
-    assert conversation.record.delivery_cursor is not None
-    assert conversation.record.delivery_cursor.id == 1
     assert conversation.rounds[0].purpose is AgentRoundPurpose.DISCUSS
     assert conversation.rounds[0].outcome is AgentRoundOutcome.SUCCESSFUL
     paths = conversation.compose_round_paths(number=1)
@@ -287,7 +295,7 @@ def test_comments_queued_during_a_round_wait_without_another_comment_read(
     assert count_comment_reads(gh=gh) == comment_reads_before
 
 
-def test_ready_assignment_rounds_and_conversations_alternate(
+def test_ready_assignment_rounds_and_conversations_alternate_across_a_restart(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
@@ -301,9 +309,19 @@ def test_ready_assignment_rounds_and_conversations_alternate(
     harnesses["claude"].replies(stdout="")
 
     assignment_launch = scheduler.tick(at=clock())
+    write_tick(state=scheduler.state, tick=assignment_launch)
     finish(scheduler=scheduler)
     answer(harnesses=harnesses)
-    conversation_launch = scheduler.tick(at=clock())
+    restarted = AgentWorkScheduler(
+        repository=scheduler.repository,
+        account=scheduler.account,
+        config=scheduler.config,
+        state=scheduler.state,
+        requested_assignment_harness=scheduler.requested_assignment_harness,
+        clock=scheduler.clock,
+        rounds=scheduler.rounds,
+    )
+    conversation_launch = restarted.tick(at=clock())
 
     assert assignment_launch.launched_assignment_identifier == "GH13-20260923-010000"
     assert conversation_launch.launched_conversation_identifier == "conversation-GH8"
@@ -316,7 +334,8 @@ def test_a_conversation_admission_gives_the_next_shared_turn_to_dispatch(
     offer_conversation(gh=gh, comments=[ask()])
     answer(harnesses=harnesses)
     gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
-    scheduler.tick(at=clock())
+    launched = scheduler.tick(at=clock())
+    write_tick(state=scheduler.state, tick=launched)
     finish(scheduler=scheduler)
     scheduler.tick(at=clock())
     offer_conversation(gh=gh, comments=[ask(), ask(identifier=2)])
@@ -326,6 +345,31 @@ def test_a_conversation_admission_gives_the_next_shared_turn_to_dispatch(
     observed = scheduler.tick(at=clock())
 
     assert observed.launched_assignment_identifier is not None
+
+
+def test_a_failed_assignment_start_gives_the_next_turn_to_a_conversation(
+    conversation_scheduler, harnesses, monkeypatch
+):
+    scheduler, clock, gh = conversation_scheduler
+    write_agent_assignment(
+        state=scheduler.state,
+        identifier="GH13-20260923-010000",
+        issue=13,
+    )
+    offer_conversation(gh=gh, comments=[ask()])
+    answer(harnesses=harnesses)
+    monkeypatch.setattr(
+        scheduler,
+        "_launch_required_round",
+        Mock(side_effect=ReportableError("could not start assignment")),
+    )
+
+    failed = scheduler.tick(at=clock())
+    write_tick(state=scheduler.state, tick=failed)
+    launched = scheduler.tick(at=clock())
+
+    assert failed.hold == "could not start assignment"
+    assert launched.launched_conversation_identifier == "conversation-GH8"
 
 
 def test_an_issue_without_a_trusted_unmarked_comment_does_not_start(
@@ -547,7 +591,7 @@ def test_a_failed_conversation_listing_holds_launches(conversation_scheduler):
 
     assert observed.hold is not None
     assert observed.hold.startswith("could not list issue conversations")
-    assert observed.conversation_observations[0].is_eligible is None
+    assert observed.conversation_eligibility[8].value is IssueFactValue.UNKNOWN
 
 
 def test_an_ineligible_saved_conversation_is_not_polled(conversation_scheduler):
@@ -556,7 +600,7 @@ def test_an_ineligible_saved_conversation_is_not_polled(conversation_scheduler):
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.conversation_observations[0].is_eligible is False
+    assert observed.conversation_eligibility[8].value is IssueFactValue.FALSE
     assert count_comment_reads(gh=gh) == 0
 
 
@@ -569,7 +613,7 @@ def test_removing_conversation_configuration_makes_saved_work_inactive(
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.conversation_observations[0].is_eligible is False
+    assert observed.conversation_eligibility[8].value is IssueFactValue.FALSE
 
 
 def test_a_conversation_failure_remains_visible_when_an_assignment_launches(
@@ -607,27 +651,21 @@ def test_a_failed_comment_listing_holds_launches(conversation_scheduler):
     assert observed.hold.startswith("could not read comments for GH8")
 
 
-def test_a_failed_delivery_cursor_restore_is_a_scheduler_hold(
+def test_a_failed_delivery_cursor_read_is_a_scheduler_hold(
     conversation_scheduler, monkeypatch
 ):
     scheduler, clock, gh = conversation_scheduler
     write_issue_conversation(state=scheduler.state, issue=8)
-    gh.replies(
-        stdout="[]",
-        to=(
-            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
-            "--label dream:conversation"
-        ),
-    )
+    offer_conversation(gh=gh, comments=[])
     monkeypatch.setattr(
-        "dreamcatcher.scheduler.restore_issue_comment_delivery_cursor",
-        Mock(side_effect=ReportableError("could not write the conversation record")),
+        "dreamcatcher.scheduler.read_issue_comment_delivery_cursor",
+        Mock(side_effect=ReportableError("could not read the round input")),
     )
 
     observed = scheduler.tick(at=clock())
 
     assert observed.hold is not None
-    assert observed.hold.startswith("could not restore delivered comments for GH8")
+    assert observed.hold.startswith("could not read delivered comments for GH8")
 
 
 def test_a_partial_comment_scan_does_not_launch_or_starve_later_reads(
@@ -680,7 +718,7 @@ def test_an_existing_empty_conversation_can_start(conversation_scheduler, harnes
     observed = scheduler.tick(at=clock())
 
     assert observed.launched_conversation_identifier == "conversation-GH8"
-    assert observed.conversation_observations[0].is_eligible is True
+    assert observed.conversation_eligibility[8].value is IssueFactValue.TRUE
 
 
 def test_a_conversation_setup_failure_is_a_scheduler_hold(conversation_scheduler):

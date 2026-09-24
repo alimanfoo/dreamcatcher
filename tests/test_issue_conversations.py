@@ -24,16 +24,15 @@ from dreamcatcher.issue_conversations import (
     IssueCommentCursor,
     IssueConversation,
     IssueConversationRecord,
-    advance_issue_comment_delivery_cursor,
     compose_issue_conversation_input,
     create_issue_conversation,
     list_undelivered_issue_comments,
+    read_issue_comment_delivery_cursor,
     read_issue_conversation,
     read_issue_conversation_reply,
     read_issue_conversations,
     record_issue_conversation_reply_publication,
     record_issue_conversation_session_identifier,
-    restore_issue_comment_delivery_cursor,
     save_issue_conversation_reply,
 )
 from dreamcatcher.prompts import AGENT_POST_MARKER
@@ -213,13 +212,10 @@ def test_round_input_freezes_the_issue_comments_and_revision():
     assert frozen.revision == "abc123"
 
 
-def test_a_conversation_records_delivery_session_and_round_paths(tmp_path):
+def test_a_conversation_records_its_session_and_round_paths(tmp_path):
     state = StateDirectory(root=tmp_path)
     conversation = write_conversation(state=state)
 
-    advance_issue_comment_delivery_cursor(
-        conversation=conversation, newest=comment(identifier=3, body="Question")
-    )
     record_issue_conversation_session_identifier(
         conversation=conversation, identifier="abc-123"
     )
@@ -227,9 +223,6 @@ def test_a_conversation_records_delivery_session_and_round_paths(tmp_path):
         conversation=conversation, identifier="abc-123"
     )
 
-    assert conversation.record.delivery_cursor == IssueCommentCursor(
-        written_at="2026-09-23T01:00:00Z", id=3
-    )
     assert conversation.record.harness_session_identifier == "abc-123"
     assert conversation.next_round_number == 1
     paths = conversation.compose_round_paths(number=1)
@@ -254,42 +247,39 @@ def test_a_conversation_records_delivery_session_and_round_paths(tmp_path):
     assert "after it already reported abc-123" in str(error.value)
 
 
-def test_a_missing_delivery_cursor_is_restored_from_the_round_input(tmp_path):
+def test_the_delivery_cursor_comes_from_the_latest_round_input(tmp_path):
     state = StateDirectory(root=tmp_path)
     conversation = write_conversation(state=state)
-    paths = conversation.compose_round_paths(number=1)
-    delivered = comment(identifier=3, body="Question")
-    write_json(
-        document=IssueConversationInput(
-            issue=8,
-            title="Why does this happen?",
-            body="Explain the scheduler.",
-            comments=[delivered],
-            revision="abc123",
-        ),
-        path=paths.round_input,
-    )
-    write_json(
-        document=AgentRoundRecord(
-            number=1,
-            purpose=AgentRoundPurpose.DISCUSS,
-            started=PINNED,
-            pid=123,
-        ),
-        path=paths.record,
-    )
+    for number, identifier in ((1, 3), (2, 4)):
+        paths = conversation.compose_round_paths(number=number)
+        write_json(
+            document=IssueConversationInput(
+                issue=8,
+                title="Why does this happen?",
+                body="Explain the scheduler.",
+                comments=[comment(identifier=identifier, body="Question")],
+                revision="abc123",
+            ),
+            path=paths.round_input,
+        )
+        write_json(
+            document=AgentRoundRecord(
+                number=number,
+                purpose=AgentRoundPurpose.DISCUSS,
+                started=PINNED,
+                pid=123,
+            ),
+            path=paths.record,
+        )
     reread = read_issue_conversation(state=state, issue=8)
     assert reread is not None
 
-    restore_issue_comment_delivery_cursor(conversation=reread)
+    cursor = read_issue_comment_delivery_cursor(conversation=reread)
 
-    assert reread.record.delivery_cursor == IssueCommentCursor(
-        written_at=delivered.written_at, id=delivered.id
-    )
-    restore_issue_comment_delivery_cursor(conversation=reread)
+    assert cursor == IssueCommentCursor(written_at="2026-09-23T01:00:00Z", id=4)
 
 
-def test_a_missing_delivery_cursor_refuses_a_round_without_comments(tmp_path):
+def test_the_delivery_cursor_refuses_a_round_without_comments(tmp_path):
     state = StateDirectory(root=tmp_path)
     conversation = write_conversation(state=state)
     paths = conversation.compose_round_paths(number=1)
@@ -316,7 +306,7 @@ def test_a_missing_delivery_cursor_refuses_a_round_without_comments(tmp_path):
     assert reread is not None
 
     with pytest.raises(ReportableError, match="has no delivered issue comments"):
-        restore_issue_comment_delivery_cursor(conversation=reread)
+        read_issue_comment_delivery_cursor(conversation=reread)
 
 
 def test_a_reply_is_saved_before_its_publication_is_recorded(tmp_path):
