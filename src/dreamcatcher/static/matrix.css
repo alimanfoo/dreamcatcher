@@ -224,17 +224,12 @@ body::after {
   text-transform: uppercase;
 }
 
-.panel > h1 span {
-  color: var(--dim);
-  font-weight: 400;
-}
-
 .panel-body {
   display: grid;
   gap: var(--space-5);
 }
 
-.panel-body > h2 {
+.assignment-group-label {
   margin: var(--space-6) 0 0;
   color: var(--dim);
   font-size: var(--font-size);
