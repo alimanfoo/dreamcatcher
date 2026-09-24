@@ -725,6 +725,7 @@ def test_assignment_page_offers_a_control_that_jumps_to_the_feed_tail(tmp_path, 
     )
     assert response.status_code == 200
     assert "feed.scrollTop = feed.scrollHeight" in script
+    assert 'feedTail?.toggleAttribute("hidden", shouldFollowFeed)' in script
     assert "top: feed.scrollHeight" in script
 
 

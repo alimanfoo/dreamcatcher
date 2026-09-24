@@ -14,6 +14,10 @@ let nextFeedLineRevealAt = 0;
 let currentRoundHash = null;
 let focusedRoundHash = null;
 
+function updateFeedTailVisibility() {
+  feedTail?.toggleAttribute("hidden", shouldFollowFeed);
+}
+
 function typeNewFeedLines() {
   const newFeedLines = [...feed.querySelectorAll(".feed-line")].slice(
     feedLineCountBeforeSwap,
@@ -50,10 +54,13 @@ function typeNewFeedLines() {
 
 if (feed !== null) {
   feed.scrollTop = feed.scrollHeight;
+  shouldFollowFeed = true;
+  updateFeedTailVisibility();
   feed.addEventListener(
     "pointerdown",
     () => {
       shouldFollowFeed = false;
+      updateFeedTailVisibility();
     },
     { passive: true },
   );
@@ -61,12 +68,14 @@ if (feed !== null) {
     "wheel",
     () => {
       shouldFollowFeed = false;
+      updateFeedTailVisibility();
     },
     { passive: true },
   );
   if (feedTail !== null) {
     feedTail.addEventListener("click", () => {
       shouldFollowFeed = true;
+      updateFeedTailVisibility();
       feed.scrollTo({
         top: feed.scrollHeight,
         behavior: "instant",
@@ -80,6 +89,7 @@ if (feed !== null) {
     if (nextFeedLineRevealAt <= performance.now()) {
       shouldFollowFeed ||=
         feed.scrollHeight - feed.scrollTop - feed.clientHeight <= 1;
+      updateFeedTailVisibility();
     }
     feedLineCountBeforeSwap = feed.querySelectorAll(".feed-line").length;
     const currentRoundLink = assignmentSidebar?.querySelector(
