@@ -316,7 +316,7 @@ def test_ready_assignment_rounds_and_conversations_alternate(
     assert conversation_launch.launched_conversation_identifier == "conversation-GH8"
 
 
-def test_selecting_a_conversation_gives_the_next_shared_turn_to_dispatch(
+def test_after_a_conversation_round_the_next_round_dispatches_an_assignment(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
@@ -335,7 +335,7 @@ def test_selecting_a_conversation_gives_the_next_shared_turn_to_dispatch(
     assert observed.launched_assignment_identifier is not None
 
 
-def test_a_failed_assignment_start_gives_the_next_turn_to_a_conversation(
+def test_after_a_failed_assignment_start_the_next_round_is_a_conversation(
     conversation_scheduler, harnesses, monkeypatch
 ):
     scheduler, clock, gh = conversation_scheduler
