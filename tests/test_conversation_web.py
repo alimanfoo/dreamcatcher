@@ -173,6 +173,20 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
     assert 'hx-get="/conversations/8/tail"' in page
 
 
+def test_conversation_page_shows_attention_for_an_unreadable_input(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state)
+    conversation = read_issue_conversation(state=state, issue=8)
+    assert conversation is not None
+    conversation.compose_round_paths(number=1).round_input.write_bytes(b"not json")
+
+    response = application(state=state).test_client().get("/conversations/8")
+
+    assert response.status_code == 200
+    assert "needs attention" in response.text
+    assert "inbox.json is not valid" in response.text
+
+
 @pytest.mark.parametrize(
     ("status", "is_published", "expected"),
     [

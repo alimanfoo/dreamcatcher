@@ -871,6 +871,14 @@ def test_a_partial_comment_scan_does_not_launch_or_starve_later_reads(
 def test_an_existing_empty_conversation_can_start(conversation_scheduler, harnesses):
     scheduler, clock, gh = conversation_scheduler
     write_issue_conversation(state=scheduler.state, issue=8)
+    worktree = scheduler.state.conversation_worktrees / "GH8"
+    worktree.rmdir()
+    add_detached_worktree(root=scheduler.state.root, path=worktree)
+    (scheduler.state.root / "README.md").write_text(
+        "new main before retry\n", encoding="utf-8"
+    )
+    commit(path=scheduler.state.root, message="advance main before retry")
+    git(arguments=["push", "origin", "main"], cwd=scheduler.state.root)
     offer_conversation(gh=gh, comments=[ask()])
     answer(harnesses=harnesses)
 
@@ -878,6 +886,33 @@ def test_an_existing_empty_conversation_can_start(conversation_scheduler, harnes
 
     assert observed.launched_conversation_identifier == "conversation-GH8"
     assert observed.conversation_eligibility[8].value is IssueFactValue.TRUE
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    round_input = read_json(
+        model=IssueConversationInput,
+        path=conversation.compose_round_paths(number=1).round_input,
+    )
+    assert round_input.revision == read_worktree_revision(worktree=worktree)
+    assert (worktree / "README.md").read_text(encoding="utf-8") == (
+        "new main before retry\n"
+    )
+    assert (
+        git(arguments=["branch", "--show-current"], cwd=scheduler.state.root).strip()
+        == "main"
+    )
+
+
+def test_a_missing_empty_conversation_worktree_holds_without_detaching_main(
+    conversation_scheduler,
+):
+    scheduler, clock, gh = conversation_scheduler
+    write_issue_conversation(state=scheduler.state, issue=8)
+    offer_conversation(gh=gh, comments=[ask()])
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.hold is not None
+    assert "it is not a linked worktree" in observed.hold
     assert (
         git(arguments=["branch", "--show-current"], cwd=scheduler.state.root).strip()
         == "main"

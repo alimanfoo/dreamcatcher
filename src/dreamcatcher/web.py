@@ -27,11 +27,6 @@ from dreamcatcher.feed import (
     compose_agent_round_boundary,
     read_feed_line,
 )
-from dreamcatcher.issue_conversations import (
-    IssueConversation,
-    describe_issue_conversation_revision,
-    read_issue_conversation_input,
-)
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
@@ -145,6 +140,7 @@ class WebAgentRound:
     duration: str
     outcome: str
     revision: str | None
+    revision_description: str | None = None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -778,7 +774,8 @@ def _compose_conversation_view(
     record = conversation.record
     repository = read_repository(state=state)
     daemon = read_dreamcatcher_daemon_status(state=state)
-    feed = _read_agent_feed(owner=conversation, zone=zone)
+    rounds = _compose_agent_rounds(round_statuses=status.round_statuses, zone=zone)
+    feed = _read_agent_feed(owner=conversation, zone=zone, rounds=rounds)
     return WebConversationView(
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
@@ -799,7 +796,7 @@ def _compose_conversation_view(
         ),
         model=record.model,
         effort=record.effort,
-        rounds=_compose_agent_rounds(round_statuses=status.round_statuses, zone=zone),
+        rounds=rounds,
         feed_rounds=feed.rounds,
         feed_cursor=feed.cursor,
     )
@@ -825,6 +822,7 @@ def _compose_agent_rounds(
             duration=round_status.duration_description,
             outcome=round_status.outcome_description,
             revision=round_status.revision,
+            revision_description=round_status.revision_description,
         )
         for round_status in round_statuses
     )
@@ -879,7 +877,13 @@ def _read_agent_tail(
         )
         if is_opening_round:
             lines = (
-                _compose_web_round_boundary(owner=owner, record=record, zone=zone),
+                _compose_web_round_boundary(
+                    record=record,
+                    zone=zone,
+                    detail=_find_round_revision_description(
+                        rounds=context.rounds, number=record.number
+                    ),
+                ),
                 *lines,
             )
         if lines:
@@ -914,16 +918,8 @@ def _resolve_feed_cursor(
 
 
 def _compose_web_round_boundary(
-    *, owner: _WebFeedOwner, record: AgentRoundRecord, zone: tzinfo | None
+    *, record: AgentRoundRecord, zone: tzinfo | None, detail: str | None = None
 ) -> WebFeedLine:
-    detail = None
-    if isinstance(owner, IssueConversation):
-        detail = describe_issue_conversation_revision(
-            round_input=read_issue_conversation_input(
-                conversation=owner,
-                number=record.number,
-            )
-        )
     boundary = compose_agent_round_boundary(
         number=record.number,
         purpose=record.purpose,
@@ -939,7 +935,12 @@ def _compose_web_round_boundary(
     )
 
 
-def _read_agent_feed(*, owner: _WebFeedOwner, zone: tzinfo | None) -> WebAgentFeed:
+def _read_agent_feed(
+    *,
+    owner: _WebFeedOwner,
+    zone: tzinfo | None,
+    rounds: tuple[WebAgentRound, ...] = (),
+) -> WebAgentFeed:
     """Read the complete saved feed for any agent work."""
     feed_rounds = []
     cursor = WebFeedCursor(round_number=0, position=0)
@@ -954,9 +955,11 @@ def _read_agent_feed(*, owner: _WebFeedOwner, zone: tzinfo | None) -> WebAgentFe
                 number=record.number,
                 lines=(
                     _compose_web_round_boundary(
-                        owner=owner,
                         record=record,
                         zone=zone,
+                        detail=_find_round_revision_description(
+                            rounds=rounds, number=record.number
+                        ),
                     ),
                     *(
                         _compose_web_feed_line(written_line=written_line, zone=zone)
@@ -968,6 +971,16 @@ def _read_agent_feed(*, owner: _WebFeedOwner, zone: tzinfo | None) -> WebAgentFe
     return WebAgentFeed(
         rounds=tuple(feed_rounds),
         cursor=_encode_feed_cursor(cursor=cursor),
+    )
+
+
+def _find_round_revision_description(
+    *, rounds: tuple[WebAgentRound, ...], number: int
+) -> str | None:
+    """Return one web round's revision description when it has one."""
+    return next(
+        (round_.revision_description for round_ in rounds if round_.number == number),
+        None,
     )
 
 

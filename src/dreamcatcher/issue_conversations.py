@@ -25,7 +25,6 @@ from dreamcatcher.git import (
     add_detached_worktree,
     fetch_main,
     is_linked_worktree,
-    read_worktree_revision,
     refresh_detached_worktree,
     remove_worktree,
 )
@@ -220,18 +219,18 @@ def prepare_issue_conversation_input(
     issue: Issue,
     comments: list[ConversationComment],
 ) -> IssueConversationInput:
-    """Refresh as needed and freeze one issue's trusted round input."""
+    """Refresh the worktree and freeze one issue's trusted round input."""
     previous_revision = None
-    revision = read_worktree_revision(worktree=conversation.worktree)
     if conversation.rounds:
         previous_revision = read_issue_conversation_input(
             conversation=conversation,
             number=conversation.rounds[-1].number,
         ).revision
-        revision = refresh_detached_worktree(
-            root=state.root,
-            worktree=conversation.worktree,
-        )
+    revision = refresh_detached_worktree(
+        root=state.root,
+        worktree=conversation.worktree,
+        expected_revision=previous_revision,
+    )
     return IssueConversationInput(
         issue=issue.number,
         title=issue.title,
@@ -246,6 +245,35 @@ def read_issue_conversation_input(
     *, conversation: IssueConversation, number: int
 ) -> IssueConversationInput:
     """Read and validate the durable input for one conversation round."""
+    round_input = _read_issue_conversation_input_document(
+        conversation=conversation, number=number
+    )
+    previous_revision = round_input.previous_revision
+    if number == 1:
+        if previous_revision is not None:
+            raise ReportableError(
+                f"Conversation {conversation.identifier} round 1 input names "
+                "a previous revision."
+            )
+        return round_input
+    preceding = _read_issue_conversation_input_document(
+        conversation=conversation, number=number - 1
+    )
+    if "previous_revision" not in round_input.model_fields_set:
+        return round_input.model_copy(update={"previous_revision": preceding.revision})
+    if previous_revision != preceding.revision:
+        raise ReportableError(
+            f"Conversation {conversation.identifier} round {number} input "
+            f"names previous revision {previous_revision!r}, but round "
+            f"{number - 1} used {preceding.revision}."
+        )
+    return round_input
+
+
+def _read_issue_conversation_input_document(
+    *, conversation: IssueConversation, number: int
+) -> IssueConversationInput:
+    """Read and validate one round input without comparing adjacent rounds."""
     round_input = read_json(
         model=IssueConversationInput,
         path=conversation.compose_round_paths(number=number).round_input,

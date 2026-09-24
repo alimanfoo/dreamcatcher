@@ -102,6 +102,53 @@ def test_a_detached_worktree_with_local_changes_is_not_refreshed(cloned):
     assert unexpected.read_text(encoding="utf-8") == "keep this\n"
 
 
+def test_a_missing_linked_worktree_is_not_refreshed(cloned):
+    path = cloned / ".dreamcatcher" / "v3" / "conversation-worktrees" / "GH8"
+    path.mkdir(parents=True)
+
+    with pytest.raises(ReportableError, match="it is not a linked worktree"):
+        refresh_detached_worktree(root=cloned, worktree=path)
+
+    assert read_worktree_branch(worktree=cloned) == "main"
+
+
+def test_an_unexpected_detached_revision_is_not_abandoned(cloned):
+    path = cloned / ".dreamcatcher" / "v3" / "conversation-worktrees" / "GH8"
+    add_detached_worktree(root=cloned, path=path)
+    expected = read_worktree_revision(worktree=path)
+    make_empty_commit(worktree=path, message="unexpected work")
+    unexpected = read_worktree_revision(worktree=path)
+
+    with pytest.raises(ReportableError, match=f"expected {expected}"):
+        refresh_detached_worktree(
+            root=cloned,
+            worktree=path,
+            expected_revision=expected,
+        )
+
+    assert read_worktree_revision(worktree=path) == unexpected
+
+
+def test_a_refresh_does_not_overwrite_an_ignored_file(cloned):
+    ignored = "generated.txt"
+    (cloned / ".gitignore").write_text(f"{ignored}\n", encoding="utf-8")
+    commit(path=cloned, message="ignore generated file")
+    git(arguments=["push", "origin", "main"], cwd=cloned)
+    path = cloned / ".dreamcatcher" / "v3" / "conversation-worktrees" / "GH8"
+    add_detached_worktree(root=cloned, path=path)
+    generated = path / ignored
+    generated.write_text("keep this\n", encoding="utf-8")
+    (cloned / ".gitignore").write_text("", encoding="utf-8")
+    (cloned / ignored).write_text("from main\n", encoding="utf-8")
+    commit(path=cloned, message="track generated file")
+    git(arguments=["push", "origin", "main"], cwd=cloned)
+
+    with pytest.raises(CommandError):
+        refresh_detached_worktree(root=cloned, worktree=path)
+
+    assert generated.read_text(encoding="utf-8") == "keep this\n"
+
+
 def test_a_worktree_git_refuses_says_what_git_said(cloned):
     path = assignment_worktree(root=cloned)
     add_worktree(root=cloned, path=path, branch=BRANCH)

@@ -179,11 +179,13 @@ publication protocol.
 
 ### Sessions, recovery, and capacity
 
-A conversation record holds issue identity, chosen launch settings, worktree
-location, harness session ID, delivery cursor, and any retry request. Numbered
-round records hold the saved batch and revision, prompt, process outcome, raw
-output, feed, and final answer/publication state. Use the existing atomic
-document writers and validated document models.
+A conversation record holds issue identity, chosen launch settings, and the
+harness session ID. Its issue number derives the worktree's location in managed
+state. Numbered round records hold process identity and outcome; their durable
+inputs hold each saved comment batch, its investigated revision, and the prior
+round's revision. The round directory also holds its prompt, raw output, feed,
+and final answer/publication state. Use the existing atomic document writers and
+validated document models.
 
 The harness owns the conversation transcript. Every later invocation resumes
 that session. Recover an interrupted or failed round by asking it to continue

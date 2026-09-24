@@ -31,6 +31,7 @@ from dreamcatcher.issue_conversations import (
     prepare_issue_conversation_input,
     read_issue_comment_delivery_cursor,
     read_issue_conversation,
+    read_issue_conversation_input,
     read_issue_conversation_reply,
     read_issue_conversations,
     record_issue_conversation_reply_publication,
@@ -265,6 +266,72 @@ def test_a_conversation_revision_description_names_its_transition(
     assert describe_issue_conversation_revision(round_input=round_input) == expected
 
 
+def test_a_legacy_follow_up_derives_its_previous_revision(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    conversation = write_conversation(state=state)
+    for number, revision in ((1, "abc123"), (2, "def456")):
+        document = {
+            "issue": 8,
+            "title": "Why does this happen?",
+            "body": "Explain the scheduler.",
+            "comments": [
+                comment(identifier=number, body="Question").model_dump(mode="json")
+            ],
+            "revision": revision,
+        }
+        path = conversation.compose_round_paths(number=number).round_input
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes((json.dumps(document) + "\n").encode())
+
+    found = read_issue_conversation_input(conversation=conversation, number=2)
+
+    assert found.previous_revision == "abc123"
+
+
+def test_a_follow_up_rejects_the_wrong_previous_revision(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    conversation = write_conversation(state=state)
+    for number, previous, revision in (
+        (1, None, "abc123"),
+        (2, "wrong123", "def456"),
+    ):
+        path = conversation.compose_round_paths(number=number).round_input
+        write_json(
+            document=IssueConversationInput(
+                issue=8,
+                title="Why does this happen?",
+                body="Explain the scheduler.",
+                comments=[comment(identifier=number, body="Question")],
+                previous_revision=previous,
+                revision=revision,
+            ),
+            path=path,
+        )
+
+    with pytest.raises(ReportableError, match="round 1 used abc123"):
+        read_issue_conversation_input(conversation=conversation, number=2)
+
+
+def test_an_initial_round_rejects_a_previous_revision(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    conversation = write_conversation(state=state)
+    path = conversation.compose_round_paths(number=1).round_input
+    write_json(
+        document=IssueConversationInput(
+            issue=8,
+            title="Why does this happen?",
+            body="Explain the scheduler.",
+            comments=[comment(identifier=1, body="Question")],
+            previous_revision="unexpected123",
+            revision="abc123",
+        ),
+        path=path,
+    )
+
+    with pytest.raises(ReportableError, match="round 1 input names"):
+        read_issue_conversation_input(conversation=conversation, number=1)
+
+
 def test_a_conversation_records_its_session_and_round_paths(tmp_path):
     state = StateDirectory(root=tmp_path)
     conversation = write_conversation(state=state)
@@ -311,6 +378,7 @@ def test_the_delivery_cursor_comes_from_the_latest_round_input(tmp_path):
                 title="Why does this happen?",
                 body="Explain the scheduler.",
                 comments=[comment(identifier=identifier, body="Question")],
+                previous_revision=None if number == 1 else "abc123",
                 revision="abc123",
             ),
             path=paths.round_input,

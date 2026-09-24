@@ -181,6 +181,25 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
     assert "successful" in shown
 
 
+def test_conversation_detail_shows_attention_for_an_unreadable_input(tmp_path):
+    state = conversation_state(root=tmp_path)
+    conversation = read_issue_conversation(state=state, issue=8)
+    assert conversation is not None
+    conversation.compose_round_paths(number=1).round_input.write_bytes(b"not json")
+    console, written = rendered_console()
+
+    show_conversation_view(
+        state=state,
+        issue=8,
+        console=console,
+        timing=ViewTiming(clock=lambda: PINNED),
+    )
+
+    shown = written.getvalue()
+    assert "needs attention" in shown
+    assert "inbox.json is not valid" in shown
+
+
 @pytest.mark.parametrize(
     ("status", "is_published", "expected"),
     [

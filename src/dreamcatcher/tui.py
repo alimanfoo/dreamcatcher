@@ -33,11 +33,7 @@ from dreamcatcher.feed import (
     read_feed_line,
 )
 from dreamcatcher.harness_adapters import AgentWorkKind
-from dreamcatcher.issue_conversations import (
-    IssueConversation,
-    describe_issue_conversation_revision,
-    read_issue_conversation_input,
-)
+from dreamcatcher.issue_conversations import IssueConversation
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
@@ -766,13 +762,17 @@ def show_feed_view(
 
     def refresh_feed() -> bool:
         """Show output since the previous refresh and return whether it is over."""
-        owner, is_over = _find_feed_owner(
+        snapshot = _find_feed_owner(
             state=state,
             issue=selection.issue,
             owner_kind=selection.owner_kind,
         )
-        view.show_new_output(owner=owner, records=owner.rounds)
-        return is_over
+        view.show_new_output(
+            owner=snapshot.owner,
+            records=snapshot.owner.rounds,
+            round_details=snapshot.round_details,
+        )
+        return snapshot.is_over
 
     _refresh_until_view_ends(
         console=console, refresh_view=refresh_feed, wait=timing.wait
@@ -796,11 +796,12 @@ def _show_one_round(
 
     def refresh_round_feed() -> bool:
         """Show output since the previous refresh and return whether it has ended."""
-        owner, _ = _find_feed_owner(
+        snapshot = _find_feed_owner(
             state=state,
             issue=selection.issue,
             owner_kind=selection.owner_kind,
         )
+        owner = snapshot.owner
         record = next(
             (record for record in owner.rounds if record.number == number), None
         )
@@ -810,7 +811,11 @@ def _show_one_round(
                 f"{describe_count(number=len(owner.rounds), noun='round')}, "
                 f"so it has no round {number}."
             )
-        view.show_new_output(owner=owner, records=[record])
+        view.show_new_output(
+            owner=owner,
+            records=[record],
+            round_details=snapshot.round_details,
+        )
         return record.ending is not None
 
     _refresh_until_view_ends(
@@ -853,18 +858,36 @@ def _find_conversation_status_for_issue(
     return status
 
 
+@dataclass(frozen=True, kw_only=True)
+class _FeedOwnerSnapshot:
+    """Hold one feed owner and the status-derived context for its headings."""
+
+    owner: AgentAssignment | IssueConversation
+    is_over: bool
+    round_details: dict[int, str]
+
+
 def _find_feed_owner(
     *, state: StateDirectory, issue: int, owner_kind: AgentWorkKind
-) -> tuple[AgentAssignment | IssueConversation, bool]:
+) -> _FeedOwnerSnapshot:
     """Return the selected feed owner and whether more output can reach it."""
     if owner_kind is AgentWorkKind.CONVERSATION:
         status = _find_conversation_status_for_issue(state=state, issue=issue)
-        return (
-            status.conversation,
-            status.value in CONVERSATION_STATUSES_THAT_END_A_VIEW,
+        return _FeedOwnerSnapshot(
+            owner=status.conversation,
+            is_over=status.value in CONVERSATION_STATUSES_THAT_END_A_VIEW,
+            round_details={
+                round_status.record.number: round_status.revision_description
+                for round_status in status.round_statuses
+                if round_status.revision_description is not None
+            },
         )
     status = _find_assignment_statuses_for_issue(state=state, issue=issue)[0]
-    return status.assignment, status.value in STATUSES_THAT_END_A_VIEW
+    return _FeedOwnerSnapshot(
+        owner=status.assignment,
+        is_over=status.value in STATUSES_THAT_END_A_VIEW,
+        round_details={},
+    )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -884,18 +907,21 @@ class _FeedView:
         *,
         owner: AgentAssignment | IssueConversation,
         records: Iterable[AgentRoundRecord],
+        round_details: dict[int, str],
     ) -> None:
         """Show agent output written since the previous refresh."""
         for record in records:
             if record.number not in self.positions:
-                self._show_round_heading(owner=owner, record=record)
+                self._show_round_heading(
+                    record=record, detail=round_details.get(record.number)
+                )
             self._show_new_lines(owner=owner, round_number=record.number)
 
     def _show_round_heading(
         self,
         *,
-        owner: AgentAssignment | IssueConversation,
         record: AgentRoundRecord,
+        detail: str | None,
     ) -> None:
         """Show the line that opens a round, saying what caused it.
 
@@ -905,14 +931,6 @@ class _FeedView:
         """
         if self.positions:
             self.console.print()
-        detail = None
-        if isinstance(owner, IssueConversation):
-            detail = describe_issue_conversation_revision(
-                round_input=read_issue_conversation_input(
-                    conversation=owner,
-                    number=record.number,
-                )
-            )
         round_heading = compose_agent_round_boundary(
             number=record.number,
             purpose=record.purpose,
