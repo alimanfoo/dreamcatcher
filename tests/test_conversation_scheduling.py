@@ -6,7 +6,16 @@ from unittest.mock import Mock
 
 import pytest
 from clocks import PINNED, Ticking
-from conftest import POSTED_BY, REPOSITORY, comment, configure, pages, streamed
+from conftest import (
+    FILED,
+    POSTED_BY,
+    REPOSITORY,
+    comment,
+    configure,
+    listing,
+    pages,
+    streamed,
+)
 from fakes import Line
 from records import write_agent_assignment, write_issue_conversation, write_round
 
@@ -276,6 +285,47 @@ def test_comments_queued_during_a_round_wait_without_another_comment_read(
 
     assert observed.hold == "at cap: 1 of 1 agents running"
     assert count_comment_reads(gh=gh) == comment_reads_before
+
+
+def test_ready_assignment_rounds_and_conversations_alternate(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    for issue in (13, 14):
+        write_agent_assignment(
+            state=scheduler.state,
+            identifier=f"GH{issue}-20260923-010000",
+            issue=issue,
+        )
+    offer_conversation(gh=gh, comments=[ask()])
+    harnesses["claude"].replies(stdout="")
+
+    assignment_launch = scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+    answer(harnesses=harnesses)
+    conversation_launch = scheduler.tick(at=clock())
+
+    assert assignment_launch.launched_assignment_identifier == "GH13-20260923-010000"
+    assert conversation_launch.launched_conversation_identifier == "conversation-GH8"
+
+
+def test_a_conversation_admission_gives_the_next_shared_turn_to_dispatch(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    offer_conversation(gh=gh, comments=[ask()])
+    answer(harnesses=harnesses)
+    gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
+    scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+    scheduler.tick(at=clock())
+    offer_conversation(gh=gh, comments=[ask(), ask(identifier=2)])
+    gh.replies(stdout=listing(issues=[(8, FILED)]), to="issue list")
+    harnesses["claude"].replies(stdout="")
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.launched_assignment_identifier is not None
 
 
 def test_an_issue_without_a_trusted_unmarked_comment_does_not_start(

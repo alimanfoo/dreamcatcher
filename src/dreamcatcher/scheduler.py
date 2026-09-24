@@ -4,18 +4,18 @@ Each tick reads local agent work, observes relevant issues on GitHub, publishes
 saved conversation answers, applies the concurrency cap and global cooldown,
 and launches at most one round.
 
-Within existing work, a missing first round comes first, followed by recovery,
-wrap-up, and user feedback. After issue observation succeeds, the scheduler
-dispatches the oldest available issue only when no assignment requires a round
-and neither capacity nor cooldown prevents a launch.
+Within assignment work, a missing first round comes first, followed by recovery,
+wrap-up, user feedback, and dispatch of the oldest available issue. Conversation
+work uses its oldest waiting comment. When both kinds are ready, the scheduler
+alternates which kind receives the next free slot.
 """
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from functools import partial
-from typing import Annotated, Self
+from typing import Annotated, Self, cast
 
 from pydantic import AfterValidator, AwareDatetime, Field, model_validator
 
@@ -994,6 +994,18 @@ def _combine_scheduler_failures(*, failures: list[str | None]) -> str | None:
     return "; ".join(present) if present else None
 
 
+def _find_oldest_available_issue(*, record: SchedulerRecord) -> IssueObservation | None:
+    """Return the first issue that the scheduler observed as available."""
+    return next(
+        (
+            observation
+            for observation in record.issue_observations
+            if observation.availability.value is IssueFactValue.TRUE
+        ),
+        None,
+    )
+
+
 @dataclass(kw_only=True)
 class AgentWorkScheduler:
     """Choose and start the work for one Dreamcatcher instance."""
@@ -1006,6 +1018,9 @@ class AgentWorkScheduler:
     clock: Callable[[], datetime]
     rounds: dict[str, AgentRound]
     max_agents: int = DEFAULT_MAX_AGENTS
+    _last_launched_work_kind: AgentWorkKind | None = field(
+        default=None, init=False, repr=False
+    )
 
     def tick(self, *, at: datetime) -> SchedulerRecord:
         """Inspect current work and launch at most one agent round.
@@ -1143,7 +1158,7 @@ class AgentWorkScheduler:
         assignment_failure: str | None,
         scheduler_failure: str | None,
     ) -> SchedulerRecord:
-        """Launch the highest-priority work whose own observations succeeded."""
+        """Launch one candidate while alternating between ready work kinds."""
         if scheduler_failure is not None:
             record = record.model_copy(update={"hold": scheduler_failure})
         prioritized_rounds = prioritize_required_rounds(
@@ -1153,28 +1168,54 @@ class AgentWorkScheduler:
                 if isinstance(result, RequiredAgentRound) and assignment_failure is None
             ]
         )
-        if prioritized_rounds:
-            return self._launch_assignment_round(
+        available_issue = (
+            None
+            if assignment_failure is not None
+            else _find_oldest_available_issue(record=record)
+        )
+        is_assignment_ready = bool(prioritized_rounds) or available_issue is not None
+        is_conversation_ready = conversation_candidates.failure is None and bool(
+            conversation_candidates.candidates
+        )
+        work_kind = self._choose_work_kind(
+            is_assignment_ready=is_assignment_ready,
+            is_conversation_ready=is_conversation_ready,
+        )
+        if work_kind is AgentWorkKind.ASSIGNMENT and prioritized_rounds:
+            launched = self._launch_assignment_round(
                 record=record,
                 required=prioritized_rounds[0],
                 inspection_results=inspection_results,
             )
-        if (
-            conversation_candidates.failure is None
-            and conversation_candidates.candidates
-        ):
-            return self._launch_conversation_round(
+        elif work_kind is AgentWorkKind.ASSIGNMENT:
+            launched = self._dispatch_issue(
+                record=record,
+                issue=cast("IssueObservation", available_issue),
+            )
+        elif work_kind is AgentWorkKind.CONVERSATION:
+            launched = self._launch_conversation_round(
                 record=record,
                 candidate=conversation_candidates.candidates[0],
             )
-        if assignment_failure is None:
-            dispatched = self._dispatch_oldest_issue(record=record)
-            if (
-                dispatched.launched_agent_work_identifier is not None
-                or dispatched.hold is not None
-            ):
-                return dispatched
-        return record
+        else:
+            return record
+        if launched.launched_agent_work_identifier is not None:
+            self._last_launched_work_kind = work_kind
+        return launched
+
+    def _choose_work_kind(
+        self, *, is_assignment_ready: bool, is_conversation_ready: bool
+    ) -> AgentWorkKind | None:
+        """Choose the next kind without changing either kind's internal order."""
+        if is_assignment_ready and is_conversation_ready:
+            if self._last_launched_work_kind is AgentWorkKind.ASSIGNMENT:
+                return AgentWorkKind.CONVERSATION
+            return AgentWorkKind.ASSIGNMENT
+        if is_assignment_ready:
+            return AgentWorkKind.ASSIGNMENT
+        if is_conversation_ready:
+            return AgentWorkKind.CONVERSATION
+        return None
 
     def _inspect_assignments(
         self,
@@ -1363,24 +1404,17 @@ class AgentWorkScheduler:
             update={"launched_agent_work_identifier": conversation.identifier}
         )
 
-    def _dispatch_oldest_issue(
+    def _dispatch_issue(
         self,
         *,
         record: SchedulerRecord,
+        issue: IssueObservation,
     ) -> SchedulerRecord:
-        """Dispatch the oldest issue whose independent facts make it available."""
-        eligible = [
-            observation
-            for observation in record.issue_observations
-            if observation.availability.value is IssueFactValue.TRUE
-        ]
-        if not eligible:
-            return record
-        oldest = eligible[0]
-        labels = oldest.dispatch_labels or []
+        """Dispatch one issue whose independent facts make it available."""
+        labels = issue.dispatch_labels or []
         try:
             assignment_identifier = self._launch_assignment(
-                issue=oldest.issue, label=labels[0], at=record.at
+                issue=issue.issue, label=labels[0], at=record.at
             )
         except ReportableError as failure:
             return record.model_copy(
