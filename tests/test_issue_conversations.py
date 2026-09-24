@@ -159,20 +159,6 @@ def test_a_failed_conversation_setup_removes_the_worktree_it_added(cloned, monke
     assert not is_linked_worktree(path=path)
 
 
-def test_a_conversation_derives_its_worktree_from_managed_state(tmp_path):
-    state = StateDirectory(root=tmp_path)
-    conversation = write_conversation(state=state)
-    legacy_record = conversation.record.model_dump(mode="json")
-    legacy_record.update({"worktree": str(tmp_path), "revision": "stale123"})
-    record_path = conversation.directory / ISSUE_CONVERSATION_RECORD_NAME
-    record_path.write_bytes((json.dumps(legacy_record) + "\n").encode())
-
-    reread = read_issue_conversation(state=state, issue=8)
-
-    assert reread is not None
-    assert reread.worktree == state.conversation_worktrees / "GH8"
-
-
 def test_a_conversation_record_must_name_its_directory(tmp_path):
     state = StateDirectory(root=tmp_path)
     conversation = write_conversation(state=state)

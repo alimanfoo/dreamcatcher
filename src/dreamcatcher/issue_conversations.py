@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from threading import Lock
 
-from pydantic import AwareDatetime, model_validator
+from pydantic import AwareDatetime
 
 from dreamcatcher.agent_rounds import (
     AgentRoundPaths,
@@ -60,21 +60,6 @@ class IssueConversationRecord(DreamcatcherDocument):
     model: QuotableText
     effort: QuotableText
     prompt: str
-
-    @model_validator(mode="before")
-    @classmethod
-    def _discard_obsolete_fields(cls, value: object, /) -> object:
-        """Read records from before delivery and revision state moved elsewhere."""
-        if not isinstance(value, dict):
-            return value
-        data = dict(value)
-        # Released records stored the delivery cursor and live worktree state
-        # here. Round inputs now own delivery and revision history, while the
-        # issue number derives the managed worktree path.
-        data.pop("delivery_cursor", None)
-        data.pop("revision", None)
-        data.pop("worktree", None)
-        return data
 
 
 class IssueConversationReply(DreamcatcherDocument):
