@@ -88,12 +88,12 @@ def test_a_clean_detached_worktree_refreshes_to_fetched_main(cloned):
     assert (path / "README.md").read_text(encoding="utf-8") == "what changed\n"
 
 
-def test_a_refresh_carries_non_conflicting_local_changes(cloned):
+def test_a_refresh_discards_non_conflicting_local_changes(cloned):
     path = cloned / ".dreamcatcher" / "v3" / "conversation-worktrees" / "GH8"
     add_detached_worktree(root=cloned, path=path)
     earlier_revision = read_worktree_revision(worktree=path)
     unexpected = path / "unexpected.txt"
-    unexpected.write_bytes(b"keep this\n")
+    unexpected.write_bytes(b"discard this\n")
     (cloned / "README.md").write_bytes(b"what changed\n")
     commit(path=cloned, message="change main")
     git(arguments=["push", "origin", "main"], cwd=cloned)
@@ -105,11 +105,11 @@ def test_a_refresh_carries_non_conflicting_local_changes(cloned):
     )
 
     assert revision != earlier_revision
-    assert unexpected.read_text(encoding="utf-8") == "keep this\n"
+    assert not unexpected.exists()
     assert (path / "README.md").read_text(encoding="utf-8") == "what changed\n"
 
 
-def test_a_conflicting_local_change_waits_for_the_user_then_retries(cloned):
+def test_a_refresh_discards_a_conflicting_local_change(cloned):
     path = cloned / ".dreamcatcher" / "v3" / "conversation-worktrees" / "GH8"
     add_detached_worktree(root=cloned, path=path)
     earlier_revision = read_worktree_revision(worktree=path)
@@ -119,18 +119,6 @@ def test_a_conflicting_local_change_waits_for_the_user_then_retries(cloned):
     commit(path=cloned, message="change main")
     git(arguments=["push", "origin", "main"], cwd=cloned)
 
-    with pytest.raises(ReportableError, match="Resolve its local changes") as error:
-        refresh_detached_worktree(
-            root=cloned,
-            worktree=path,
-            expected_revision=earlier_revision,
-        )
-
-    assert str(path) in str(error.value)
-    assert read_worktree_revision(worktree=path) == earlier_revision
-    assert readme.read_text(encoding="utf-8") == "local experiment\n"
-
-    git(arguments=["restore", "README.md"], cwd=path)
     revision = refresh_detached_worktree(
         root=cloned,
         worktree=path,
@@ -168,7 +156,7 @@ def test_an_unexpected_detached_revision_is_not_abandoned(cloned):
     assert read_worktree_revision(worktree=path) == unexpected
 
 
-def test_a_refresh_does_not_overwrite_an_ignored_file(cloned):
+def test_a_refresh_discards_an_ignored_file(cloned):
     ignored = "generated.txt"
     (cloned / ".gitignore").write_bytes(f"{ignored}\n".encode())
     commit(path=cloned, message="ignore generated file")
@@ -176,16 +164,15 @@ def test_a_refresh_does_not_overwrite_an_ignored_file(cloned):
     path = cloned / ".dreamcatcher" / "v3" / "conversation-worktrees" / "GH8"
     add_detached_worktree(root=cloned, path=path)
     generated = path / ignored
-    generated.write_bytes(b"keep this\n")
-    (cloned / ".gitignore").write_bytes(b"")
-    (cloned / ignored).write_bytes(b"from main\n")
-    commit(path=cloned, message="track generated file")
+    generated.write_bytes(b"discard this\n")
+    (cloned / "README.md").write_bytes(b"what changed\n")
+    commit(path=cloned, message="change main")
     git(arguments=["push", "origin", "main"], cwd=cloned)
 
-    with pytest.raises(ReportableError, match="Resolve its local changes"):
-        refresh_detached_worktree(root=cloned, worktree=path)
+    refresh_detached_worktree(root=cloned, worktree=path)
 
-    assert generated.read_text(encoding="utf-8") == "keep this\n"
+    assert not generated.exists()
+    assert (path / "README.md").read_text(encoding="utf-8") == "what changed\n"
 
 
 def test_a_worktree_git_refuses_says_what_git_said(cloned):

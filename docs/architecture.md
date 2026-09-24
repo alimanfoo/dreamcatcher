@@ -112,12 +112,10 @@ position and a batch cannot be selected again.
 The first eligible batch starts one Claude session with the issue title, body
 and trusted comment history. Each later eligible batch resumes that session with
 only newly delivered comments. The scheduler first fetches main and asks Git to
-move the detached worktree to that revision. Git carries non-conflicting local
-investigation work forward; a conflict leaves the batch waiting until the user
-resolves it, then a later tick retries. Each round input records its
-investigated revision. Comments posted before the current answer is published
-remain beyond the latest round input, and a failed or interrupted round needs
-attention before another batch can start.
+discard local changes and move the detached worktree to that revision. Each
+round input records its investigated revision. Comments posted before the
+current answer is published remain beyond the latest round input, and a failed
+or interrupted round needs attention before another batch can start.
 
 A successful final result is saved as the reply record. `NO_REPLY` completes
 publication without a GitHub post; any other saved answer is posted with the

@@ -128,9 +128,7 @@ resumes the same harness session and receives only eligible comments after the
 newest comment in the latest durable round input. The agent should use its
 existing transcript when a new question refers to an earlier answer. Before a
 later round starts, Dreamcatcher asks Git to update the idle worktree to fetched
-main. Git carries non-conflicting local investigation work across that update. A
-conflict leaves the batch waiting; after the user resolves it in the worktree,
-the next scheduler tick retries the refresh.
+main, discarding every local worktree change left by the earlier investigation.
 
 An issue conversation is read-only work. Its instructions must not tell the
 agent to edit the worktree, create a branch, commit or push, open a pull

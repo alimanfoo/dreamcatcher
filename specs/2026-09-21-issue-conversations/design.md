@@ -129,10 +129,10 @@ revision with its input, and tell the agent which revision it is investigating.
 When the revision changes between batches, the agent checks earlier conclusions
 where relevant. No separate change-summary service is needed.
 
-Do not force away unexpected source changes to refresh a worktree. Let Git carry
-non-conflicting local investigation work forward. When changes conflict with the
-fetched revision, report the worktree path and leave the batch waiting; the user
-can resolve the conflict there and let a later scheduler tick retry.
+Reset tracked files and remove untracked and ignored files before moving the
+worktree to fetched main. The conversation agent is forbidden to edit the
+worktree, so anything it nevertheless leaves there is disposable investigation
+state and must not make the user repair a managed worktree.
 
 The new issue conversation skill contract says: no implementation in this
 session. Read source and Git history, run code, and reproduce bugs as needed; do

@@ -166,10 +166,10 @@ transcript already holds the revision from earlier rounds. Keep the session;
 replace neither its transcript nor its identity. A running round's checkout does
 not move.
 
-Report conflicting refreshes rather than answer against stale main, carry
-non-conflicting local investigation work forward, and do not force changes away.
-Show the investigated revision for each round in both detail views and identify
-revision changes in the feed.
+Discard tracked, untracked and ignored local changes before moving to fetched
+main rather than asking the user to repair a managed worktree. Show the
+investigated revision for each round in both detail views and identify revision
+changes in the feed.
 
 **Change surface.** Extend `git.py` with safe detached-worktree refresh and call
 it from conversation preparation before accepting a new batch. Extend the round
@@ -186,10 +186,9 @@ GitHub answer reflects the new behaviour and explains its effect on the earlier
 answer.
 
 **Automated proof.** Cover changed and unchanged main, fetch/update failure,
-non-conflicting and conflicting local changes without destructive cleanup, and
-no refresh while a round runs. Verify that the saved input and both
-presentations report the exact revision investigated, not a later moving remote
-ref.
+cleanup of tracked, untracked and ignored local changes, and no refresh while a
+round runs. Verify that the saved input and both presentations report the exact
+revision investigated, not a later moving remote ref.
 
 **Deferral.** Recovering interrupted or failed work; conversation fault/retry
 handling; Codex conversations.

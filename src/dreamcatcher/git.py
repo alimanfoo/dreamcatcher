@@ -8,7 +8,7 @@ got.
 
 from pathlib import Path
 
-from dreamcatcher.commands import CommandError, run_command
+from dreamcatcher.commands import run_command
 from dreamcatcher.errors import ReportableError
 
 
@@ -40,10 +40,8 @@ def refresh_detached_worktree(
 ) -> str:
     """Move a detached worktree to fetched main and return its revision.
 
-    Git carries local changes that do not conflict with the fetched revision.
-    Conflicts leave the worktree untouched and tell the user where to resolve
-    them. When given, the expected revision protects an unexpected clean
-    checkout from being abandoned.
+    Discard every local worktree change before moving it. When given, the
+    expected revision protects an unexpected commit from being abandoned.
     """
     if not is_linked_worktree(path=worktree):
         raise ReportableError(
@@ -58,22 +56,13 @@ def refresh_detached_worktree(
                 f"is {revision}, expected {expected_revision}."
             )
     fetch_main(root=root)
-    try:
-        run_command(
-            program="git",
-            arguments=[
-                "checkout",
-                "--no-overwrite-ignore",
-                "--detach",
-                "origin/main",
-            ],
-            cwd=worktree,
-        )
-    except CommandError as failure:
-        raise ReportableError(
-            f"Could not refresh detached worktree at {worktree}. Resolve its local "
-            f"changes, then let Dreamcatcher retry. {failure}"
-        ) from failure
+    run_command(program="git", arguments=["reset", "--hard", "HEAD"], cwd=worktree)
+    run_command(program="git", arguments=["clean", "-ffdx"], cwd=worktree)
+    run_command(
+        program="git",
+        arguments=["checkout", "--force", "--detach", "origin/main"],
+        cwd=worktree,
+    )
     return read_worktree_revision(worktree=worktree)
 
 

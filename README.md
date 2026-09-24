@@ -139,7 +139,7 @@ saved, marked as Dreamcatcher output and posted back to the issue. `NO_REPLY`
 finishes without a post. A failed post is retried from the saved answer without
 running Claude again. A later eligible comment resumes the same Claude session
 with only the new comments and updates its worktree to current main without
-discarding non-conflicting local investigation work.
+asking the user to clean up investigation files.
 
 Closing the issue, removing the conversation label or removing the signed-in
 account as assignee stops comment collection. Dreamcatcher keeps the saved
