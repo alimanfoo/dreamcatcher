@@ -183,7 +183,6 @@ class SchedulerRecord(DreamcatcherDocument):
         if not isinstance(value, dict):
             return value
         data = dict(value)
-        data.pop("last_selected_work_kind", None)
         assignment = data.pop("launched_assignment_identifier", None)
         conversation = data.pop("launched_conversation_identifier", None)
         if "launched_agent_work_identifier" not in data:
