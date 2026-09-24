@@ -149,6 +149,13 @@ class AgentAssignmentObservation(DreamcatcherDocument):
     is_round_required: bool = True
 
 
+class IssueConversationObservation(DreamcatcherDocument):
+    """Model whether one saved conversation was eligible during a tick."""
+
+    issue: int
+    is_eligible: bool | None
+
+
 class GlobalCooldown(DreamcatcherDocument):
     """Model an interval during which the scheduler starts no agent work."""
 
@@ -171,6 +178,9 @@ class SchedulerRecord(DreamcatcherDocument):
     launched_agent_work_identifier: str | None = None
     issue_observations: list[IssueObservation] = Field(default_factory=list)
     assignment_observations: list[AgentAssignmentObservation] = Field(
+        default_factory=list
+    )
+    conversation_observations: list[IssueConversationObservation] = Field(
         default_factory=list
     )
     cooldown: GlobalCooldown | None = None
@@ -228,9 +238,10 @@ class IssueConversationCandidate:
 
 @dataclass(frozen=True, kw_only=True)
 class IssueConversationCandidateResult:
-    """Collect conversation candidates and any failed read."""
+    """Collect conversation observations, candidates, and any failed read."""
 
     candidates: list[IssueConversationCandidate]
+    observations: list[IssueConversationObservation]
     failure: str | None = None
 
 
@@ -833,7 +844,16 @@ def _list_issue_conversation_candidates(
     """Return eligible issues whose next trusted comment batch is waiting."""
     conversation_config = config.conversation
     if conversation_config is None:
-        return IssueConversationCandidateResult(candidates=[])
+        return IssueConversationCandidateResult(
+            candidates=[],
+            observations=[
+                IssueConversationObservation(
+                    issue=conversation.record.issue,
+                    is_eligible=False,
+                )
+                for conversation in conversations
+            ],
+        )
     issue_response = list_issues(
         repository=repository,
         label=conversation_config.label,
@@ -842,8 +862,16 @@ def _list_issue_conversation_candidates(
     if isinstance(issue_response, UnknownGitHubResponse):
         return IssueConversationCandidateResult(
             candidates=[],
+            observations=[
+                IssueConversationObservation(
+                    issue=conversation.record.issue,
+                    is_eligible=None,
+                )
+                for conversation in conversations
+            ],
             failure=f"could not list issue conversations: {issue_response.reason}",
         )
+    eligible_issue_numbers = {issue.number for issue in issue_response}
     conversations_by_issue = {
         conversation.record.issue: conversation for conversation in conversations
     }
@@ -890,6 +918,13 @@ def _list_issue_conversation_candidates(
                 candidate.comments[0].id,
             ),
         ),
+        observations=[
+            IssueConversationObservation(
+                issue=conversation.record.issue,
+                is_eligible=conversation.record.issue in eligible_issue_numbers,
+            )
+            for conversation in conversations
+        ],
         failure=_combine_scheduler_failures(failures=failures),
     )
 
@@ -1117,6 +1152,7 @@ class AgentWorkScheduler:
             most_recent_cooldown_ended=most_recent_cooldown_ended,
             issue_observations=issue_observations,
             assignment_observations=assignment_observations,
+            conversation_observations=conversation_candidates.observations,
         )
         if cooldown is not None:
             hold_reason = "global cooldown"

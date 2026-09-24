@@ -534,6 +534,7 @@ def test_a_follow_up_refuses_to_replace_a_missing_saved_session(
 
 def test_a_failed_conversation_listing_holds_launches(conversation_scheduler):
     scheduler, clock, gh = conversation_scheduler
+    write_issue_conversation(state=scheduler.state, issue=8)
     gh.fails(
         stderr="network unavailable",
         to=(
@@ -546,6 +547,29 @@ def test_a_failed_conversation_listing_holds_launches(conversation_scheduler):
 
     assert observed.hold is not None
     assert observed.hold.startswith("could not list issue conversations")
+    assert observed.conversation_observations[0].is_eligible is None
+
+
+def test_an_ineligible_saved_conversation_is_not_polled(conversation_scheduler):
+    scheduler, clock, gh = conversation_scheduler
+    write_issue_conversation(state=scheduler.state, issue=8)
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.conversation_observations[0].is_eligible is False
+    assert count_comment_reads(gh=gh) == 0
+
+
+def test_removing_conversation_configuration_makes_saved_work_inactive(
+    conversation_scheduler,
+):
+    scheduler, clock, _ = conversation_scheduler
+    write_issue_conversation(state=scheduler.state, issue=8)
+    scheduler.config = scheduler.config.model_copy(update={"conversation": None})
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.conversation_observations[0].is_eligible is False
 
 
 def test_a_conversation_failure_remains_visible_when_an_assignment_launches(
@@ -656,6 +680,7 @@ def test_an_existing_empty_conversation_can_start(conversation_scheduler, harnes
     observed = scheduler.tick(at=clock())
 
     assert observed.launched_conversation_identifier == "conversation-GH8"
+    assert observed.conversation_observations[0].is_eligible is True
 
 
 def test_a_conversation_setup_failure_is_a_scheduler_hold(conversation_scheduler):

@@ -389,6 +389,14 @@ class _StatusReportReader:
                 for observation in self.scheduler_record.assignment_observations
             }
         )
+        self.conversation_eligibility: dict[int, bool | None] = (
+            {}
+            if self.scheduler_record is None
+            else {
+                observation.issue: observation.is_eligible
+                for observation in self.scheduler_record.conversation_observations
+            }
+        )
 
     def list_issue_observations(
         self, *, assignments: list[AgentAssignment]
@@ -465,11 +473,22 @@ class _StatusReportReader:
         self, *, conversation: IssueConversation
     ) -> IssueConversationStatus:
         """Derive one issue conversation's summary from its local records."""
+        is_eligible = self.conversation_eligibility.get(conversation.record.issue)
         if not conversation.rounds:
+            if is_eligible is False:
+                return self._compose_issue_conversation_status(
+                    conversation=conversation,
+                    value=IssueConversationStatusValue.INACTIVE,
+                    detail="issue is not eligible for conversation",
+                )
             return self._compose_issue_conversation_status(
                 conversation=conversation,
                 value=IssueConversationStatusValue.WAITING,
-                detail="initial round has not started",
+                detail=(
+                    "initial round has not started"
+                    if is_eligible is True
+                    else "issue conversation eligibility is unknown"
+                ),
             )
         latest = conversation.rounds[-1]
         if latest.ending is None:
@@ -487,15 +506,33 @@ class _StatusReportReader:
             return self._compose_issue_conversation_status(
                 conversation=conversation,
                 value=IssueConversationStatusValue.AWAITING_PUBLICATION,
-                detail="initial answer is waiting to be published",
+                detail=f"round {latest.number} answer is waiting to be published",
+            )
+        return self._read_idle_conversation_status(
+            conversation=conversation,
+            is_eligible=is_eligible,
+        )
+
+    def _read_idle_conversation_status(
+        self,
+        *,
+        conversation: IssueConversation,
+        is_eligible: bool | None,
+    ) -> IssueConversationStatus:
+        """Describe a conversation whose latest answer is complete."""
+        if is_eligible is False:
+            return self._compose_issue_conversation_status(
+                conversation=conversation,
+                value=IssueConversationStatusValue.INACTIVE,
+                detail="issue is not eligible for conversation",
             )
         return self._compose_issue_conversation_status(
             conversation=conversation,
-            value=IssueConversationStatusValue.INACTIVE,
+            value=IssueConversationStatusValue.WAITING,
             detail=(
-                "initial round finished with no reply"
-                if reply.is_no_reply
-                else "initial answer published"
+                f"waiting for new comments after round {conversation.rounds[-1].number}"
+                if is_eligible is True
+                else "issue conversation eligibility is unknown"
             ),
         )
 

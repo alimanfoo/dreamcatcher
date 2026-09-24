@@ -5,7 +5,7 @@ from io import StringIO
 
 import pytest
 from clocks import PINNED
-from records import write_feed, write_issue_conversation, write_round
+from records import write_feed, write_issue_conversation, write_round, write_tick
 from rich.console import Console
 
 from dreamcatcher.agent_rounds import (
@@ -21,6 +21,7 @@ from dreamcatcher.issue_conversations import (
     record_issue_conversation_reply_publication,
     save_issue_conversation_reply,
 )
+from dreamcatcher.scheduler import IssueConversationObservation, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.tui import (
     FeedSelection,
@@ -32,7 +33,11 @@ from dreamcatcher.tui import (
 
 
 def conversation_state(
-    *, root, status: int = 0, is_published: bool = True
+    *,
+    root,
+    status: int = 0,
+    is_published: bool = True,
+    is_eligible: bool = False,
 ) -> StateDirectory:
     """Return state containing one finished conversation."""
     state = StateDirectory(root=root)
@@ -67,6 +72,15 @@ def conversation_state(
                 number=1,
                 at=PINNED + timedelta(minutes=5),
             )
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            conversation_observations=[
+                IssueConversationObservation(issue=8, is_eligible=is_eligible)
+            ],
+        ),
+    )
     return state
 
 
@@ -90,7 +104,7 @@ def test_status_lists_the_issue_conversation(tmp_path):
     assert "issue conversations" in shown
     assert "GH8" in shown
     assert "inactive" in shown
-    assert "initial answer published" in shown
+    assert "issue is not eligible for conversation" in shown
 
 
 def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path):
@@ -150,6 +164,73 @@ def test_conversation_feed_shows_its_saved_activity(tmp_path):
     shown = written.getvalue()
     assert "round 1: discuss" in shown
     assert "I found the answer." in shown
+
+
+def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
+    tmp_path,
+):
+    state = conversation_state(root=tmp_path, is_eligible=True)
+    written = StringIO()
+    console = Console(
+        file=written,
+        width=100,
+        color_system=None,
+        force_terminal=True,
+    )
+
+    def wait(seconds, /):
+        assert seconds > 0
+        directory = state.conversations / "GH8"
+        write_round(
+            directory=directory,
+            number=2,
+            record=AgentRoundRecord(
+                number=2,
+                purpose=AgentRoundPurpose.DISCUSS,
+                started=PINNED + timedelta(minutes=6),
+                pid=2,
+                ending=compose_agent_round_ending(
+                    at=PINNED + timedelta(minutes=10), status=0
+                ),
+            ),
+        )
+        write_feed(
+            directory=directory,
+            number=2,
+            lines=[FeedLine(at=PINNED, text="I found the follow-up answer.")],
+        )
+        conversation = read_issue_conversation(state=state, issue=8)
+        assert conversation is not None
+        save_issue_conversation_reply(
+            conversation=conversation, number=2, body="The follow-up answer."
+        )
+        record_issue_conversation_reply_publication(
+            conversation=conversation,
+            number=2,
+            at=PINNED + timedelta(minutes=11),
+        )
+        write_tick(
+            state=state,
+            tick=SchedulerRecord(
+                at=PINNED,
+                conversation_observations=[
+                    IssueConversationObservation(issue=8, is_eligible=False)
+                ],
+            ),
+        )
+
+    show_feed_view(
+        state=state,
+        selection=FeedSelection(issue=8, owner_kind=AgentWorkKind.CONVERSATION),
+        console=console,
+        timing=ViewTiming(clock=lambda: PINNED, wait=wait),
+    )
+
+    shown = written.getvalue()
+    assert shown.count("round 1: discuss") == 1
+    assert shown.count("I found the answer.") == 1
+    assert shown.count("round 2: discuss") == 1
+    assert shown.count("I found the follow-up answer.") == 1
 
 
 def test_conversation_feed_can_select_one_round(tmp_path):

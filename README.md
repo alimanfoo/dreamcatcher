@@ -66,9 +66,9 @@ label that belongs to one harness, and issues carrying it always go there.
 Point `prompt` at an [assignment skill](CONTRACT.md) that meets the contract.
 
 The optional `[conversation]` block watches a separate label for questions on
-open issues assigned to the account `gh` is signed in as. Stage 1 supports
-Claude only. Its prompt, model and effort are frozen into each conversation
-record. The prompt may use `{issue}` and must follow the
+open issues assigned to the account `gh` is signed in as. Issue conversations
+currently support Claude only. Their prompt, model and effort are frozen into
+each conversation record. The prompt may use `{issue}` and must follow the
 [issue-conversation contract](CONTRACT.md#issue-conversation-instructions).
 
 ## Commands
@@ -121,12 +121,11 @@ This is an intentional format break. Version 3 does not migrate assignments from
 an earlier format and starts with empty local state. Stop the daemon and upgrade
 between dispatch batches, when no assignment needs another round.
 
-Open work goes before new work. Before it dispatches anything, the daemon reads
-each assignment it already has and gives it whatever it needs next: a round that
-did not finish is recovered, a merged or closed pull request gets a wrap-up
+Within implementation work, open assignments go before new assignments. A round
+that did not finish is recovered, a merged or closed pull request gets a wrap-up
 round, and a pull request you have posted on gets a round that addresses your
-feedback. Only when no assignment needs anything does the daemon dispatch a new
-issue.
+feedback. When implementation work and an issue conversation are both ready, the
+daemon alternates which kind receives the next free agent slot.
 
 With `[conversation]` configured, the daemon also watches assigned open issues
 carrying its label. The issue title and body alone do not start an agent. Once
@@ -136,7 +135,15 @@ the fetched main revision, and runs one Claude round. The round shares the
 daemon's agent cap and global cooldown with assignments. Its final Markdown is
 saved, marked as Dreamcatcher output and posted back to the issue. `NO_REPLY`
 finishes without a post. A failed post is retried from the saved answer without
-running Claude again. This first stage does not run follow-up rounds.
+running Claude again. A later eligible comment resumes the same Claude session
+with the current issue title and body and only the comments after the saved
+delivery cursor. The worktree stays at its initial revision for these follow-up
+rounds.
+
+Closing the issue, removing the conversation label or removing the signed-in
+account as assignee stops comment collection. Dreamcatcher keeps the saved
+conversation, and comments posted while it is inactive become available if the
+issue becomes eligible again. A running round may finish and publish its answer.
 
 Every round records its number, purpose, whether it is recovering an earlier
 round, and its outcome (`running`, `successful`, `errored` or `interrupted`).
@@ -148,8 +155,8 @@ an earlier daemon as interrupted. An assignment's next round recovers that work
 from where it stopped. One errored assignment round receives an ordinary
 recovery opportunity and does not stop unrelated work. Two consecutive errored
 rounds put that assignment in fault; an interrupted or successful round breaks
-the sequence. This first conversation stage records interrupted and failed
-rounds but does not recover them automatically.
+the sequence. Issue conversations record interrupted and failed rounds but do
+not recover them automatically yet.
 
 When two assignments are in fault, the scheduler starts a fifteen-minute global
 cooldown and starts no agent work during it. The scheduler keeps observing and

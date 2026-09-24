@@ -121,11 +121,17 @@ its final answer as Markdown in the harness's final result. It returns exactly
 `NO_REPLY` when no issue comment should be posted. Progress output and tool
 activity are feed records, not the answer.
 
+The first round receives every eligible existing comment. Each later round
+resumes the same harness session and receives only eligible comments after the
+saved delivery cursor. The agent should use its existing transcript when a new
+question refers to an earlier answer.
+
 An issue conversation is read-only work. Its instructions must not tell the
 agent to edit the worktree, create a branch, commit or push, open a pull
 request, change the issue, post to GitHub, or contact the user elsewhere.
 Dreamcatcher owns publication: after a successful round it saves the final
 result, appends its agent marker, posts the answer, and records the publication.
 
-Stage 1 runs one initial Claude round. The conversation prompt must not promise
-follow-up exchanges or recovery that this stage does not yet schedule.
+Issue conversations currently run through Claude. The conversation prompt may
+support follow-up exchanges, but it must not promise automatic recovery that
+Dreamcatcher does not yet schedule.

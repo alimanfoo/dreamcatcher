@@ -25,7 +25,7 @@ from dreamcatcher.issue_conversations import (
     record_issue_conversation_reply_publication,
     save_issue_conversation_reply,
 )
-from dreamcatcher.scheduler import SchedulerRecord
+from dreamcatcher.scheduler import IssueConversationObservation, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     IssueConversationStatusValue,
@@ -42,6 +42,15 @@ def conversation_state(tmp_path):
     state = StateDirectory(root=tmp_path)
     write_daemon_run(state=state, pid=os.getpid())
     write_issue_conversation(state=state, issue=8)
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            conversation_observations=[
+                IssueConversationObservation(issue=8, is_eligible=True)
+            ],
+        ),
+    )
     return state
 
 
@@ -104,6 +113,35 @@ def test_a_conversation_with_no_round_is_waiting(conversation_state):
     assert found.value is IssueConversationStatusValue.WAITING
     assert found.detail == "initial round has not started"
     assert found.round_statuses == []
+
+
+def test_an_ineligible_conversation_with_no_round_is_inactive(conversation_state):
+    write_tick(
+        state=conversation_state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            conversation_observations=[
+                IssueConversationObservation(issue=8, is_eligible=False)
+            ],
+        ),
+    )
+
+    found = status(state=conversation_state)
+
+    assert found.value is IssueConversationStatusValue.INACTIVE
+    assert found.detail == "issue is not eligible for conversation"
+
+
+def test_a_conversation_with_unknown_eligibility_is_waiting(conversation_state):
+    write_tick(
+        state=conversation_state,
+        tick=SchedulerRecord(at=PINNED),
+    )
+
+    found = status(state=conversation_state)
+
+    assert found.value is IssueConversationStatusValue.WAITING
+    assert found.detail == "issue conversation eligibility is unknown"
 
 
 def test_a_live_conversation_round_counts_capacity_and_shows_latest_output(
@@ -184,17 +222,17 @@ def test_a_successful_answer_not_yet_published_is_waiting(conversation_state, is
     found = status(state=conversation_state)
 
     assert found.value is IssueConversationStatusValue.AWAITING_PUBLICATION
-    assert found.detail == "initial answer is waiting to be published"
+    assert found.detail == "round 1 answer is waiting to be published"
 
 
-def test_a_published_initial_answer_is_inactive(conversation_state):
+def test_a_published_answer_waits_for_new_comments(conversation_state):
     conversation_round(state=conversation_state)
     save_reply(state=conversation_state, body="The answer.", is_published=True)
 
     found = status(state=conversation_state)
 
-    assert found.value is IssueConversationStatusValue.INACTIVE
-    assert found.detail == "initial answer published"
+    assert found.value is IssueConversationStatusValue.WAITING
+    assert found.detail == "waiting for new comments after round 1"
     assert found.round_statuses[0].duration_description == "ran 4m"
 
 
@@ -204,5 +242,40 @@ def test_no_reply_finishes_the_initial_exchange(conversation_state):
 
     found = status(state=conversation_state)
 
+    assert found.value is IssueConversationStatusValue.WAITING
+    assert found.detail == "waiting for new comments after round 1"
+
+
+def test_a_finished_ineligible_conversation_is_inactive(conversation_state):
+    conversation_round(state=conversation_state)
+    save_reply(state=conversation_state, body="The answer.", is_published=True)
+    write_tick(
+        state=conversation_state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            conversation_observations=[
+                IssueConversationObservation(issue=8, is_eligible=False)
+            ],
+        ),
+    )
+
+    found = status(state=conversation_state)
+
     assert found.value is IssueConversationStatusValue.INACTIVE
-    assert found.detail == "initial round finished with no reply"
+    assert found.detail == "issue is not eligible for conversation"
+
+
+def test_a_finished_conversation_with_unknown_eligibility_waits(
+    conversation_state,
+):
+    conversation_round(state=conversation_state)
+    save_reply(state=conversation_state, body="The answer.", is_published=True)
+    write_tick(
+        state=conversation_state,
+        tick=SchedulerRecord(at=PINNED),
+    )
+
+    found = status(state=conversation_state)
+
+    assert found.value is IssueConversationStatusValue.WAITING
+    assert found.detail == "issue conversation eligibility is unknown"
