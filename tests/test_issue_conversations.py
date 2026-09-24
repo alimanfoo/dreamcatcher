@@ -29,6 +29,7 @@ from dreamcatcher.issue_conversations import (
     describe_issue_conversation_revision,
     list_undelivered_issue_comments,
     prepare_issue_conversation_input,
+    publish_issue_conversation_answer,
     read_issue_comment_delivery_cursor,
     read_issue_conversation,
     read_issue_conversation_input,
@@ -484,3 +485,38 @@ def test_publication_requires_a_saved_reply(tmp_path):
         )
 
     assert "has no saved reply to publish" in str(error.value)
+
+
+def test_an_answer_is_posted_trimmed_and_marked(fake):
+    gh = fake(program="gh")
+    gh.replies(stdout=json.dumps({"id": 91}))
+
+    publish_issue_conversation_answer(
+        repository="alimanfoo/dreamcatcher", issue=8, final_output="  The answer.\n"
+    )
+
+    assert json.loads(gh.calls[0].prompt) == {
+        "body": f"The answer.\n\n{AGENT_POST_MARKER}"
+    }
+
+
+def test_no_reply_posts_nothing(fake):
+    gh = fake(program="gh")
+
+    publish_issue_conversation_answer(
+        repository="alimanfoo/dreamcatcher", issue=8, final_output=" NO_REPLY\n"
+    )
+
+    assert gh.calls == []
+
+
+def test_an_answer_github_refuses_is_reportable(fake):
+    fake(program="gh").fails(stderr="issue is locked")
+
+    with pytest.raises(ReportableError) as error:
+        publish_issue_conversation_answer(
+            repository="alimanfoo/dreamcatcher", issue=8, final_output="The answer."
+        )
+
+    assert str(error.value).startswith("could not post the answer on GH8: ")
+    assert "issue is locked" in str(error.value)

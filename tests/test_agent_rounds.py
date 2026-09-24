@@ -4,6 +4,7 @@ from contextlib import suppress
 from threading import Thread
 from time import monotonic, sleep
 from typing import cast
+from unittest.mock import Mock
 
 import psutil
 import pytest
@@ -32,6 +33,8 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     AgentRoundStartRequest,
     ErroredAgentRoundEnding,
+    FinalOutputPublisher,
+    FinalOutputRequirement,
     InterruptedAgentRoundEnding,
     compose_agent_round_ending,
     record_agent_round_interruption,
@@ -241,6 +244,7 @@ def test_a_first_round_builds_its_harness_invocation(fake, worktree, directory):
             ),
             harness_session_identifier=None,
             record_harness_session_identifier=ignore_harness_session_identifier,
+            publish_final_output=None,
             paths=compose_round_paths(worktree=worktree, directory=directory),
             plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
         ),
@@ -268,6 +272,7 @@ def test_a_resumed_round_builds_its_harness_invocation(fake, worktree, directory
             ),
             harness_session_identifier="abc-123",
             record_harness_session_identifier=ignore_harness_session_identifier,
+            publish_final_output=None,
             paths=compose_round_paths(worktree=worktree, directory=directory),
             plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=True),
         ),
@@ -498,14 +503,13 @@ def test_a_round_that_finished_says_how_it_ended(fake, worktree, directory):
     assert record.outcome is AgentRoundOutcome.ERRORED
 
 
-def test_a_round_saves_its_required_final_output_before_it_ends(
-    fake, worktree, directory
-):
+def stream_final_result(*, result: str) -> str:
+    """Return the stdout of a Claude round that ends with one final result."""
     final_result = streamed(
         type="result",
         subtype="success",
         is_error=False,
-        result="The answer.\n",
+        result=result,
         total_cost_usd=0.0,
         usage={
             "output_tokens": 1,
@@ -514,10 +518,14 @@ def test_a_round_saves_its_required_final_output_before_it_ends(
             "cache_creation_input_tokens": 0,
         },
     )
-    fake(program="claude").replies(stdout=f"{final_result}\n")
-    paths = compose_round_paths(worktree=worktree, directory=directory)
+    return f"{final_result}\n"
 
-    running = start_agent_round(
+
+def start_publishing_round(
+    *, paths: AgentRoundPaths, publish: FinalOutputPublisher
+) -> AgentRound:
+    """Start a conversation round that publishes its final output."""
+    return start_agent_round(
         request=AgentRoundStartRequest(
             harness=AgentHarness.CLAUDE,
             launch_request=AgentRoundLaunchRequest(
@@ -529,14 +537,26 @@ def test_a_round_saves_its_required_final_output_before_it_ends(
             ),
             harness_session_identifier=None,
             record_harness_session_identifier=ignore_harness_session_identifier,
+            publish_final_output=publish,
             paths=paths,
             plan=AgentRoundPlan(purpose=AgentRoundPurpose.DISCUSS, is_recovery=False),
         ),
         clock=pinned,
     )
-    running.wait()
+
+
+def test_a_round_publishes_its_final_output_before_it_ends(fake, worktree, directory):
+    fake(program="claude").replies(stdout=stream_final_result(result="The answer.\n"))
+    paths = compose_round_paths(worktree=worktree, directory=directory)
+    published: list[tuple[str, AgentRoundOutcome]] = []
+
+    def publish(*, final_output: str) -> None:
+        published.append((final_output, written(path=paths.record).outcome))
+
+    start_publishing_round(paths=paths, publish=publish).wait()
 
     assert paths.final_output.read_text(encoding="utf-8") == "The answer.\n"
+    assert published == [("The answer.\n", AgentRoundOutcome.RUNNING)]
     assert written(path=paths.record).outcome is AgentRoundOutcome.SUCCESSFUL
 
 
@@ -544,47 +564,45 @@ def test_a_round_saves_its_required_final_output_before_it_ends(
 def test_a_required_final_output_that_is_missing_or_empty_fails_the_round(
     fake, worktree, directory, result
 ):
-    stdout = ""
-    if result is not None:
-        stdout = streamed(
-            type="result",
-            subtype="success",
-            is_error=False,
-            result=result,
-            total_cost_usd=0.0,
-            usage={
-                "output_tokens": 1,
-                "input_tokens": 1,
-                "cache_read_input_tokens": 0,
-                "cache_creation_input_tokens": 0,
-            },
-        )
-    fake(program="claude").replies(stdout=f"{stdout}\n" if stdout else "")
-    paths = compose_round_paths(worktree=worktree, directory=directory)
-
-    running = start_agent_round(
-        request=AgentRoundStartRequest(
-            harness=AgentHarness.CLAUDE,
-            launch_request=AgentRoundLaunchRequest(
-                agent_work_identifier="conversation-GH9",
-                model="opus[1m]",
-                effort="xhigh",
-                prompt=PROMPT,
-                work_kind=AgentWorkKind.CONVERSATION,
-            ),
-            harness_session_identifier=None,
-            record_harness_session_identifier=ignore_harness_session_identifier,
-            paths=paths,
-            plan=AgentRoundPlan(purpose=AgentRoundPurpose.DISCUSS, is_recovery=False),
-        ),
-        clock=pinned,
+    fake(program="claude").replies(
+        stdout="" if result is None else stream_final_result(result=result)
     )
-    running.wait()
+    paths = compose_round_paths(worktree=worktree, directory=directory)
+    publish = Mock()
+
+    start_publishing_round(paths=paths, publish=publish).wait()
 
     assert written(path=paths.record).outcome is AgentRoundOutcome.ERRORED
     assert "[failed] the harness returned no final output" in paths.feed.read_text(
         encoding="utf-8"
     )
+    publish.assert_not_called()
+
+
+def test_a_failed_publication_fails_the_round_and_says_why(fake, worktree, directory):
+    fake(program="claude").replies(stdout=stream_final_result(result="The answer."))
+    paths = compose_round_paths(worktree=worktree, directory=directory)
+    publish = Mock(side_effect=ReportableError("could not post the answer on GH9"))
+
+    start_publishing_round(paths=paths, publish=publish).wait()
+
+    assert written(path=paths.record).outcome is AgentRoundOutcome.ERRORED
+    assert "[failed] could not post the answer on GH9" in paths.feed.read_text(
+        encoding="utf-8"
+    )
+
+
+def test_a_round_whose_harness_failed_publishes_nothing(fake, worktree, directory):
+    fake(program="claude").streams(
+        lines=[Line(text=stream_final_result(result="The answer."))], status=2
+    )
+    paths = compose_round_paths(worktree=worktree, directory=directory)
+    publish = Mock()
+
+    start_publishing_round(paths=paths, publish=publish).wait()
+
+    assert written(path=paths.record).outcome is AgentRoundOutcome.ERRORED
+    publish.assert_not_called()
 
 
 def test_an_errored_ending_refuses_a_success_status():
@@ -731,7 +749,9 @@ def test_a_final_output_round_a_straggler_outlives_still_records_an_ending(
         output_reader=AgentRoundOutputReader(
             harness_adapter=CLAUDE_ADAPTER,
             record_harness_session_identifier=ignore_harness_session_identifier,
-            final_output_path=paths.final_output,
+            final_output_requirement=FinalOutputRequirement(
+                path=paths.final_output, publish=Mock()
+            ),
         ),
         invocation=HarnessInvocation(
             program=sys.executable,

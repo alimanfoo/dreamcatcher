@@ -28,7 +28,12 @@ from dreamcatcher.git import (
     refresh_detached_worktree,
     remove_worktree,
 )
-from dreamcatcher.github import ConversationComment, Issue
+from dreamcatcher.github import (
+    ConversationComment,
+    Issue,
+    UnknownGitHubResponse,
+    post_issue_comment,
+)
 from dreamcatcher.harness_adapters import (
     HarnessSessionIdentifier,
     refuse_reportable_harness_session_identifier,
@@ -319,6 +324,28 @@ def record_issue_conversation_session_identifier(
                 conversation=conversation,
                 updates={"harness_session_identifier": validated},
             )
+
+
+def publish_issue_conversation_answer(
+    *, repository: str, issue: int, final_output: str
+) -> None:
+    """Post a round's final output on its issue as one marked comment.
+
+    `NO_REPLY` posts nothing. A comment that GitHub does not accept raises a
+    `ReportableError`.
+    """
+    answer = final_output.strip()
+    if answer == NO_REPLY:
+        return
+    response = post_issue_comment(
+        repository=repository,
+        issue=issue,
+        body=f"{answer}\n\n{AGENT_POST_MARKER}",
+    )
+    if isinstance(response, UnknownGitHubResponse):
+        raise ReportableError(
+            f"could not post the answer on GH{issue}: {response.reason}"
+        )
 
 
 def save_issue_conversation_reply(
