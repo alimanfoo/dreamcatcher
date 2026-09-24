@@ -78,7 +78,7 @@ if (feed !== null) {
       return;
     }
     if (nextFeedLineRevealAt <= performance.now()) {
-      shouldFollowFeed =
+      shouldFollowFeed ||=
         feed.scrollHeight - feed.scrollTop - feed.clientHeight <= 1;
     }
     feedLineCountBeforeSwap = feed.querySelectorAll(".feed-line").length;
