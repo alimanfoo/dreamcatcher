@@ -327,8 +327,10 @@ it needs no script and a morph cannot disturb it.
 
 The Matrix stylesheet supplies the shared layout and the original phosphor
 theme. The Nature stylesheet changes only the presentation: sand, sage and clay
-colours, soft surfaces, rounded chips, a paper texture and a fixed sun. It uses
-local font fallbacks and has no breeze, moving sun or other theme animation.
+colours, soft surfaces, rounded chips, a paper texture and a sun that follows
+the viewer's local clock. It uses local font fallbacks and has no breeze or
+other theme animation. The sun moves from left to right between 6am and 6pm, and
+is hidden outside those hours.
 
 ### Errors
 
@@ -437,9 +439,9 @@ above.
 flag between them. Deriving the starting point from the repository's name costs
 two lines and gives each repository a stable address without one.
 
-**Why is the Nature theme still?** A fixed sun and still cards carry the visual
-identity without adding a clock model or continuous movement. The original
-motion can be reconsidered if readers find that it adds more than it distracts.
+**Why do the Nature theme's cards stay still?** A simple local-clock sun adds a
+little movement without animating the cards or needing a solar model. It is
+hidden overnight and crosses the top of the page from 6am to 6pm.
 
 ## Documents to file
 

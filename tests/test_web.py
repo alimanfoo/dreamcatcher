@@ -369,12 +369,21 @@ def test_a_theme_choice_is_validated_and_remembered(tmp_path):
 
     selected = client.get("/?theme=nature")
     remembered = client.get("/")
+    stylesheet = client.get("/static/nature.css").get_data(as_text=True)
+    script = client.get("/static/nature.js").get_data(as_text=True)
 
     assert 'href="/static/nature.css"' in selected.text
+    assert 'src="/static/nature.js"' in selected.text
     assert 'href="/static/dreamcatcher-mark-ink.png"' in selected.text
     assert "theme=nature;" in selected.headers["Set-Cookie"]
     assert 'href="/static/nature.css"' in remembered.text
+    assert 'src="/static/nature.js"' in remembered.text
     assert 'href="/static/dreamcatcher-mark-ink.png"' in remembered.text
+    assert "circle at var(--sun-x) 6%" in stylesheet
+    assert "opacity: var(--sun-opacity);" in stylesheet
+    assert "const sunrise = 6 * 60;" in script
+    assert "const sunset = 18 * 60;" in script
+    assert 'style.setProperty("--sun-x", `${sunPosition}%`);' in script
 
 
 def test_an_unknown_theme_uses_matrix_without_being_remembered(tmp_path):
