@@ -1039,7 +1039,6 @@ def _compose_instance_facts(
         if report.latest_scheduler_tick is None
         else f"{describe_span(span=report.at - report.latest_scheduler_tick)} ago"
     )
-    cooldown = "none" if cooldown_end is None else f"ends {cooldown_end}"
     scheduler_hold = report.scheduler_hold
     if scheduler_hold is not None and scheduler_hold.startswith("at cap:"):
         scheduler_hold = None
@@ -1059,7 +1058,11 @@ def _compose_instance_facts(
             ),
             False,
         ),
-        ("global cooldown", cooldown, report.active_global_cooldown is not None),
+        (
+            "global cooldown",
+            None if cooldown_end is None else f"ends {cooldown_end}",
+            True,
+        ),
         ("scheduler hold", scheduler_hold, scheduler_hold is not None),
     )
     return tuple(

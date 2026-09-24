@@ -40,7 +40,8 @@ every issue and assignment, and the state of each assignment's pull request,
 draft or ready, merged or closed, beside a link to it. Every working assignment
 shows the last line its feed said, as the `status` view does. Every issue
 reference uses `#N` and links to the issue on GitHub, including a reference
-embedded in blocker evidence.
+embedded in blocker evidence. The global-cooldown fact appears only while a
+global cooldown is active.
 
 **The assignment page**, at `/assignments/GH142-20260916-180412`, shows one
 agent assignment and nothing else. At the top is what the `assignment` view

@@ -917,6 +917,15 @@ def test_active_cooldown_uses_the_display_zone(tmp_path, daemon):
     assert "2026-08-19 20:56:58" not in page
 
 
+def test_an_inactive_cooldown_is_not_shown(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_home(state=state)
+
+    assert "global cooldown" not in page
+
+
 def test_pull_request_state_remains_without_a_repository_record(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_titles_and_pull_request_states(state=state)
