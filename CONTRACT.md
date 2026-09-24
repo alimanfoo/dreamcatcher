@@ -112,7 +112,8 @@ That input contains:
 
 - `issue`, `title` and `body` from the watched issue;
 - `comments`, containing the signed-in user's eligible issue comments in order;
-  and
+- `previous_revision`, identifying the commit that the previous round
+  investigated, or `null` for the first round; and
 - `revision`, identifying the fetched main commit checked out in the detached
   worktree.
 
@@ -124,7 +125,10 @@ activity are feed records, not the answer.
 The first round receives every eligible existing comment. Each later round
 resumes the same harness session and receives only eligible comments after the
 newest comment in the latest durable round input. The agent should use its
-existing transcript when a new question refers to an earlier answer.
+existing transcript when a new question refers to an earlier answer. Before a
+later round starts, Dreamcatcher refreshes a clean idle worktree to fetched
+main. The agent should revisit earlier findings when `previous_revision` and
+`revision` differ.
 
 An issue conversation is read-only work. Its instructions must not tell the
 agent to edit the worktree, create a branch, commit or push, open a pull

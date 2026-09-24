@@ -110,8 +110,11 @@ the delivered batch, so the newest comment in the latest input is the delivery
 position and a batch cannot be selected again.
 
 The first eligible batch starts one Claude session. Each later eligible batch
-resumes that session with current issue text, newly delivered comments and the
-initial worktree revision. A conversation accepts no new batch while a round is
+resumes that session with current issue text and newly delivered comments. The
+scheduler first fetches main and moves the clean detached worktree to the
+fetched revision. Local worktree changes make that refresh fail instead of being
+discarded. Each round input records both its investigated revision and the
+previous round's revision. A conversation accepts no new batch while a round is
 running, its answer awaits publication, or its latest round failed or was
 interrupted. Comments posted during those intervals remain beyond the latest
 round input.
@@ -189,9 +192,10 @@ operations to:
 
 An `AgentAssignmentRoundInput` is the document that a resumed assignment round
 receives beside its prompt. It carries the pull request state and any relayed
-user posts. An `IssueConversationInput` freezes the issue, trusted comments and
-code revision for a conversation round. The conversation launch kind requires a
-separate captured final result before the round can end successfully.
+user posts. An `IssueConversationInput` freezes the issue, trusted comments,
+investigated revision and previous investigated revision for a conversation
+round. The conversation launch kind requires a separate captured final result
+before the round can end successfully.
 
 The scheduler decides which purpose and recovery flag a new round has. The round
 boundary executes and records that decision; it does not inspect the pull
@@ -425,8 +429,9 @@ A round record persists:
   required final result.
 
 A conversation record persists its issue and title, label, detached worktree and
-revision, chosen harness settings, and harness session identifier. Its latest
-round input identifies the newest trusted issue comment accepted for delivery.
+latest checked-out revision, chosen harness settings, and harness session
+identifier. Each round input persists its investigated revision, the previous
+round's investigated revision, and the trusted comments accepted for delivery.
 Its reply record persists the final body and, once known, publication time.
 
 Instance records persist the repository identity and the most recent daemon

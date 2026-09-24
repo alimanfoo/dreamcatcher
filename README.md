@@ -139,8 +139,11 @@ saved, marked as Dreamcatcher output and posted back to the issue. `NO_REPLY`
 finishes without a post. A failed post is retried from the saved answer without
 running Claude again. A later eligible comment resumes the same Claude session
 with the current issue title and body and only the comments after the saved
-input of the latest round. The worktree stays at its initial revision for these
-follow-up rounds.
+input of the latest round. Before each follow-up, Dreamcatcher fetches main and
+moves the clean detached worktree to that revision. It refuses a refresh when
+the worktree has local changes, so it never discards unexpected investigation
+work. Each round records the exact revision that it investigated and the
+previous round's revision.
 
 Closing the issue, removing the conversation label or removing the signed-in
 account as assignee stops comment collection. Dreamcatcher keeps the saved
