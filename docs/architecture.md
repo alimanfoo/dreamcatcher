@@ -425,9 +425,9 @@ A round record persists:
   required final result.
 
 A conversation record persists its issue and title, label, detached worktree and
-revision, chosen harness settings, harness session identifier, and newest
-trusted issue comment accepted for delivery. Its reply record persists the final
-body and, once known, publication time.
+revision, chosen harness settings, and harness session identifier. Its latest
+round input identifies the newest trusted issue comment accepted for delivery.
+Its reply record persists the final body and, once known, publication time.
 
 Instance records persist the repository identity and the most recent daemon
 run's harness, Dreamcatcher version, and capacity. An instance-wide scheduler
