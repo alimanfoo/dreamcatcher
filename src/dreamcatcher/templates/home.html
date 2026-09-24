@@ -6,7 +6,7 @@
       {% include "partials/instance.html" %}
       <div class="dashboard">
         <section class="panel" aria-labelledby="assignments-heading">
-          <h1 id="assignments-heading">Assignments <span>{{ "%04d"|format(view.active_assignments|length + view.complete_assignments|length + (view.failed_setups + view.available_issues + view.blocked_issues)|map(attribute="issue")|unique|list|length) }}</span></h1>
+          <h1 id="assignments-heading">Assignments</h1>
           <div class="panel-body">
             {% for assignment in view.active_assignments %}
               {% include "partials/assignment-card.html" %}
@@ -37,7 +37,7 @@
           </div>
         </section>
         <section class="panel" aria-labelledby="conversations-heading">
-          <h1 id="conversations-heading">Conversations <span>{{ "%04d"|format(view.conversations|length) }}</span></h1>
+          <h1 id="conversations-heading">Conversations</h1>
           <div class="panel-body">
             {% for conversation in view.conversations %}
               {% include "partials/conversation-card.html" %}

@@ -224,11 +224,6 @@ body::after {
   text-transform: uppercase;
 }
 
-.panel > h1 span {
-  color: var(--dim);
-  font-weight: 400;
-}
-
 .panel-body {
   display: grid;
   gap: var(--space-5);

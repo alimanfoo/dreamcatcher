@@ -232,12 +232,6 @@ body::after {
   text-transform: capitalize;
 }
 
-.panel > h1 span {
-  color: var(--dim);
-  font-family: var(--font);
-  font-size: 15px;
-}
-
 .panel-body {
   gap: 14px;
 }

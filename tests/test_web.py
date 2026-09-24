@@ -880,8 +880,6 @@ def test_dashboard_groups_assignment_work_beside_conversations(tmp_path, daemon)
 
     page = render_home(state=state)
 
-    assert "Assignments <span>0011</span>" in page
-    assert "Conversations <span>0000</span>" in page
     assert page.index('id="assignments-heading"') < page.index(
         'id="conversations-heading"'
     )
