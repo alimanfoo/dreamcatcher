@@ -1,5 +1,9 @@
 # Design: issue conversations
 
+_Revised on 2026-09-24, after stage 3 of the roadmap landed. The roadmap's
+[revision after stage 3](roadmap.md#revision-after-stage-3) says what changed
+and why._
+
 ## What we're building
 
 An issue conversation is a saved harness session dedicated to discussing one
@@ -31,8 +35,8 @@ Dreamcatcher creates a conversation record and a detached worktree at current
 `origin/main`. When an agent slot is available, it saves the input batch and
 starts the configured harness with the issue conversation instructions. The
 agent reads code, investigates the question, and returns Markdown ready to post.
-Dreamcatcher saves that final answer and posts one marked comment on GH58. The
-process ends; the harness session and worktree remain available.
+When the round ends, it posts that final answer as one marked comment on GH58.
+The process ends; the harness session and worktree remain available.
 
 A later question starts another round in the same session. Before that new
 batch, Dreamcatcher refreshes the worktree to current main and records the
@@ -45,10 +49,14 @@ revision.
 ### Invitation and discovery
 
 Add an optional conversation configuration, separate from implementation
-dispatch routes. It supplies one label and the harness, model, effort, and
-initial instructions. Multiple conversation types are not part of this design.
-Save the chosen settings when a conversation starts; a configuration change does
-not silently switch an existing conversation to a different harness.
+dispatch routes. It supplies one label and, as a dispatch route does, a block
+per harness holding the model, effort and initial instructions. The daemon's
+requested harness chooses between the blocks by the dispatch route's rule, so a
+configuration with one block runs that harness whatever the daemon names.
+Multiple conversation types are not part of this design. Save the chosen
+settings when a conversation starts; neither a configuration change nor a
+different requested harness switches an existing conversation to a different
+harness.
 
 Conversation discovery asks for open issues bearing that label and assigned to
 the signed-in GitHub user. That same account supplies the permitted comment
@@ -68,10 +76,13 @@ removing the label, or removing the user as assignee stops new input collection.
 There is no separate poll of previously eligible or closed issues. Restoring
 eligibility makes the issue appear in the normal discovery query again.
 
-Eligibility controls taking new batches, not cancelling work already accepted. A
-started round can finish, recover, and post its answer after the issue becomes
-ineligible. Retain its session, cursor, worktree, and round records when it goes
-inactive. No automatic expiry or cleanup policy is added here.
+Eligibility controls taking new batches, not cancelling a running round: a round
+that has started finishes and posts its answer after the issue becomes
+ineligible. An interrupted or errored round recovers only while the issue is
+eligible, as an assignment recovers only while its pull request is open, and
+restoring eligibility lets the recovery go ahead. Retain the session, cursor,
+worktree and round records while the issue is ineligible. No automatic expiry or
+cleanup policy is added here.
 
 ### Input and comment delivery
 
@@ -165,20 +176,25 @@ output, and reasoning remain in the local feed. Extract the actual final answer
 at the harness boundary, not by scraping the human-readable feed: Claude's
 successful result carries its result text; Codex provides a last-message output
 file. Preserve the raw stream for diagnosis and session-ID recovery. Ensure
-final-output capture has completed before making a reply available to the
-publisher; process exit alone is not proof that stream readers have finished.
-Missing final text is a round failure, not an implicit `NO_REPLY`.
+final-output capture has completed before posting; process exit alone is not
+proof that stream readers have finished. Missing final text is a round failure,
+not an implicit `NO_REPLY`.
 
-Save the final answer before attempting publication. `NO_REPLY` finishes the
-batch without a GitHub call. Otherwise, Dreamcatcher appends its marker and
-posts an issue comment, then records publication success. A failed post keeps
-the saved answer for retry without invoking the agent again. No new batch runs
-until the preceding answer is posted or the round has returned `NO_REPLY`.
+The round publishes its own answer. `NO_REPLY` finishes the batch without a
+GitHub call. Otherwise the round appends Dreamcatcher's marker and posts an
+issue comment before it records its ending, so the round keeps its agent slot
+while it posts and no new batch starts until the answer is out. The shared round
+runner knows nothing of GitHub: the conversation launcher gives it a callback
+that posts to the issue. A failed post makes the round errored, with the failure
+noted in its feed, and recovery runs it again like any other errored round. If
+the daemon dies between the harness exiting and the post, the round is
+interrupted and recovers the same way. There is no saved reply record and no
+retry of the post on later ticks.
 
 GitHub may accept a post before Dreamcatcher loses the response or crashes.
-Retrying can then duplicate the comment. Accept that rare duplicate; do not add
-remote reply reconciliation, per-question acknowledgements, or an exactly-once
-publication protocol.
+Recovering the round can then duplicate the comment. Accept that rare duplicate;
+do not add remote reply reconciliation, per-question acknowledgements, or an
+exactly-once publication protocol.
 
 ### Sessions, recovery, and capacity
 
@@ -186,9 +202,9 @@ A conversation record holds issue identity, chosen launch settings, and the
 harness session ID. Its issue number derives the worktree's location in managed
 state. Numbered round records hold process identity and outcome; their durable
 inputs hold each saved comment batch, its investigated revision, and the prior
-round's revision. The round directory also holds its prompt, raw output, feed,
-and final answer/publication state. Use the existing atomic document writers and
-validated document models.
+round's revision. The round directory also holds its prompt, raw output, feed
+and final output. Use the existing atomic document writers and validated
+document models.
 
 The harness owns the conversation transcript. Every later invocation resumes
 that session. Recover an interrupted or failed round by asking it to continue
@@ -202,12 +218,12 @@ owner is an assignment. Do not introduce a broad workflow framework merely to
 share a process runner.
 
 At most one round runs per conversation. Running conversation and implementation
-rounds count against the same configured concurrency cap; idle sessions and
-pending publication consume no agent slot. Among conversations awaiting a new
-round, take the oldest waiting comment first, batching the other waiting
-comments on that issue. The same ordering applies to initial and later batches;
-an issue with no eligible, undelivered comments is not a candidate for a new
-batch. Recovery takes precedence over fresh input for that conversation.
+rounds count against the same configured concurrency cap; idle sessions consume
+no agent slot. Among conversations awaiting a new round, take the oldest waiting
+comment first, batching the other waiting comments on that issue. The same
+ordering applies to initial and later batches; an issue with no eligible,
+undelivered comments is not a candidate for a new batch. Recovery takes
+precedence over fresh input for that conversation.
 
 When both an implementation candidate and a conversation candidate are ready,
 alternate which kind receives the next free slot. When only one kind is ready,
@@ -215,29 +231,32 @@ it can use the available capacity. Keep each kind's internal selection rules;
 this shared turn-taking rule prevents either from starving the other. It needs
 no durable queue or persisted turn-taking state across daemon restarts.
 
-After two consecutive errored attempts, stop automatic recovery for that
-conversation and report that it needs attention. Reuse the existing local retry
-pattern so the user can continue the saved work after addressing the problem.
-Record failed conversation launch attempts too: a failure before spawning the
-process, including a refused or unavailable session resume, counts toward that
-same two-attempt threshold. Do not copy the assignment path's scheduler-only
-hold for such failures, which would leave them outside fault counting.
-Interrupted attempts are not errors. Extend the existing global cooldown to
-count faulted assignments and conversations together: any two trigger the
-fifteen-minute cooldown, during which no agent rounds start. On expiry, clear
-all faults by excluding pre-cooldown errors from fault derivation; retain the
-failure history and let unfinished work retry. A lone fault does not trigger
-cooldown and still requires manual retry unless another fault triggers it. There
-is no per-conversation timer or special rate-limit classifier.
+Conversations join the assignment fault rules rather than copying them. Two
+consecutive errored rounds since the latest retry or cooldown end put a
+conversation in fault, and automatic recovery stops. Interrupted rounds are not
+errors. A failure before the process starts, including a refused or unavailable
+session resume, goes into the scheduler hold and is tried again on the next
+tick, as it is for an assignment; it is not a round and does not count toward a
+fault. `dreamcatcher retry GH123` clears whatever is in fault at that issue: its
+newest assignment, its conversation or both. It refuses only when nothing there
+is in fault. The global cooldown counts faulted assignments and conversations
+together, and its start, its expiry and a lone fault work as they do for
+assignments. There is no per-conversation timer or special rate-limit
+classifier.
 
-Do not add a special missing-session recovery mechanism. Publishing retries use
-the saved answer and never become extra agent rounds.
+Do not add a special missing-session recovery mechanism.
 
-Status and logs distinguish conversations from assignments. Show whether a
-conversation is inactive, waiting for comments, running, awaiting publication,
-or needing attention, with its issue and latest failure where relevant.
-Reporting reads local records and scheduler observations rather than polling
-GitHub.
+Status and logs distinguish conversations from assignments, but a conversation
+uses the assignment status words wherever they fit: working, waiting, fault and
+unknown. Where an assignment would need user feedback, a conversation is idle,
+since a conversation at rest has already posted its answer and asks nothing of
+the user. Every eligible issue appears as a conversation from the first tick
+that sees it, whether or not a conversation record exists yet. Once the issue is
+ineligible, the conversation appears only while a round is running. The
+scheduler reads each eligible issue's comments on every tick, whether or not an
+agent is free, so status can tell waiting from idle. Show the issue and latest
+failure where relevant. Reporting reads local records and scheduler observations
+rather than polling GitHub.
 
 From the first usable delivery, include conversations in `dreamcatcher status`,
 add `dreamcatcher conversation GH123` as the detail view analogous to
@@ -324,5 +343,6 @@ where practical and be honest about their limits.
 ## What's still open
 
 No design choices remain open. Independent reviews found no further cuts or
-blocking buildability gaps; the worktree-discovery and pre-launch-failure
-clarifications are included above.
+blocking buildability gaps, and the worktree-discovery clarification is included
+above. The revision after stage 3 replaced the earlier rule for failures before
+launch with the assignment path's scheduler hold.

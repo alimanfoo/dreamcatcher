@@ -58,9 +58,10 @@ the conversation began.
 Dreamcatcher watches for comments and takes new batches only while the issue is
 open, has the conversation label, and is assigned to me. Closing the issue,
 removing the label, or unassigning me stops Dreamcatcher watching it for
-comments. An already-started round can continue, recover, and post its answer.
-Keep the saved session so the conversation can resume if the issue becomes
-eligible again, without polling comments on ineligible issues.
+comments. A round already running can finish and post its answer, and
+interrupted or failed work recovers once the issue is eligible again. Keep the
+saved session so the conversation can resume if the issue becomes eligible
+again, without polling comments on ineligible issues.
 
 Conversation and implementation are independent. A conversation partner does not
 claim the issue or prevent an implementation assignment. An implementation
