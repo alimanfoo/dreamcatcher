@@ -247,16 +247,34 @@ classifier.
 Do not add a special missing-session recovery mechanism.
 
 Status and logs distinguish conversations from assignments, but a conversation
-uses the assignment status words wherever they fit: working, waiting, fault and
-unknown. Where an assignment would need user feedback, a conversation is idle,
-since a conversation at rest has already posted its answer and asks nothing of
-the user. Every eligible issue appears as a conversation from the first tick
-that sees it, whether or not a conversation record exists yet. Once the issue is
-ineligible, the conversation appears only while a round is running. The
+uses the assignment status words wherever they mean the same thing. Each status
+says whose move it is and whether anything is happening, and the detail line
+gives the reason.
+
+| Conversation status | Meaning                                                                                                                                                                                                       | Assignment counterpart |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| Working             | A round is running.                                                                                                                                                                                           | Working                |
+| Waiting             | A round is due but has not started: comments wait to be answered, the first batch included, or an interrupted or errored round waits to be recovered. A free agent slot, or the end of a cooldown, starts it. | Waiting                |
+| Idle                | No round is due: the latest answer is posted, or the user has not commented yet.                                                                                                                              | Needs user feedback    |
+| Fault               | Two consecutive rounds have errored, and automatic recovery has stopped until the user retries or a cooldown ends.                                                                                            | Fault                  |
+| Unknown             | Dreamcatcher cannot tell whether the issue is eligible or whether comments wait.                                                                                                                              | Unknown                |
+
+Idle differs from needs user feedback on purpose. An assignment at rest has a
+pull request waiting for review, so it asks something of the user. A
+conversation at rest has already posted its answer, so it asks nothing. A
+conversation has no complete status: removing the label, unassigning the user or
+closing the issue takes the conversation off the status report instead.
+
+Every eligible issue appears as a conversation from the first tick that sees it,
+whether or not a conversation record exists yet. So a conversation has no
+counterpart to an available issue, and blocked issues and failed setups do not
+apply to it. Once the issue is ineligible, the conversation appears only while a
+round is running, and its detail view shows it as idle with the reason. The
 scheduler reads each eligible issue's comments on every tick, whether or not an
-agent is free, so status can tell waiting from idle. Show the issue and latest
-failure where relevant. Reporting reads local records and scheduler observations
-rather than polling GitHub.
+agent is free, so status can tell waiting from idle. Conversations are listed as
+fault, working, waiting, unknown and then idle, since idle is not a call to
+action. Show the issue and latest failure where relevant. Reporting reads local
+records and scheduler observations rather than polling GitHub.
 
 From the first usable delivery, include conversations in `dreamcatcher status`,
 add `dreamcatcher conversation GH123` as the detail view analogous to
