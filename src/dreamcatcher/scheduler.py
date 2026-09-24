@@ -722,7 +722,10 @@ def _inspect_assignment_pull_request(
         return RequiredAgentRound(
             assignment=assignment,
             plan=AgentRoundPlan(
-                purpose=_derive_round_purpose(pull_request=pull_request),
+                purpose=derive_round_purpose(
+                    is_open=pull_request.state is PullRequestState.OPEN,
+                    is_draft=pull_request.is_draft,
+                ),
                 is_recovery=True,
             ),
             reason=recovery_reason,
@@ -774,7 +777,10 @@ def _compose_resumed_round_requirement(
     return RequiredAgentRound(
         assignment=assignment,
         plan=AgentRoundPlan(
-            purpose=_derive_round_purpose(pull_request=pull_request),
+            purpose=derive_round_purpose(
+                is_open=pull_request.state is PullRequestState.OPEN,
+                is_draft=pull_request.is_draft,
+            ),
             is_recovery=recovery_reason is not None,
             input=AgentAssignmentRoundInput(
                 pull_request_state=pull_request.state, user_posts=undelivered_posts
@@ -798,11 +804,11 @@ def _compose_resumed_round_requirement(
     )
 
 
-def _derive_round_purpose(*, pull_request: PullRequest) -> AgentRoundPurpose:
+def derive_round_purpose(*, is_open: bool, is_draft: bool) -> AgentRoundPurpose:
     """Return the purpose that the pull request currently requires."""
-    if pull_request.state is not PullRequestState.OPEN:
+    if not is_open:
         return AgentRoundPurpose.WRAP_UP
-    if pull_request.is_draft:
+    if is_draft:
         return AgentRoundPurpose.IMPLEMENT
     return AgentRoundPurpose.ADDRESS_FEEDBACK
 
