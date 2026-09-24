@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from functools import partial
-from typing import Annotated, Self, cast
+from typing import Annotated, Protocol, Self, cast
 
 from pydantic import AfterValidator, AwareDatetime, Field, model_validator
 
@@ -722,10 +722,7 @@ def _inspect_assignment_pull_request(
         return RequiredAgentRound(
             assignment=assignment,
             plan=AgentRoundPlan(
-                purpose=derive_round_purpose(
-                    is_open=pull_request.state is PullRequestState.OPEN,
-                    is_draft=pull_request.is_draft,
-                ),
+                purpose=derive_round_purpose(pull_request=pull_request),
                 is_recovery=True,
             ),
             reason=recovery_reason,
@@ -777,10 +774,7 @@ def _compose_resumed_round_requirement(
     return RequiredAgentRound(
         assignment=assignment,
         plan=AgentRoundPlan(
-            purpose=derive_round_purpose(
-                is_open=pull_request.state is PullRequestState.OPEN,
-                is_draft=pull_request.is_draft,
-            ),
+            purpose=derive_round_purpose(pull_request=pull_request),
             is_recovery=recovery_reason is not None,
             input=AgentAssignmentRoundInput(
                 pull_request_state=pull_request.state, user_posts=undelivered_posts
@@ -804,11 +798,23 @@ def _compose_resumed_round_requirement(
     )
 
 
-def derive_round_purpose(*, is_open: bool, is_draft: bool) -> AgentRoundPurpose:
+class _PullRequestRoundFacts(Protocol):
+    """Describe the pull-request facts that choose a round purpose."""
+
+    @property
+    def is_open(self) -> bool:
+        """Whether the pull request is open."""
+
+    @property
+    def is_draft(self) -> bool:
+        """Whether the pull request is a draft."""
+
+
+def derive_round_purpose(*, pull_request: _PullRequestRoundFacts) -> AgentRoundPurpose:
     """Return the purpose that the pull request currently requires."""
-    if not is_open:
+    if not pull_request.is_open:
         return AgentRoundPurpose.WRAP_UP
-    if is_draft:
+    if pull_request.is_draft:
         return AgentRoundPurpose.IMPLEMENT
     return AgentRoundPurpose.ADDRESS_FEEDBACK
 

@@ -784,10 +784,7 @@ class _StatusReportReader:
         purpose = (
             record.purpose
             if pull_request is None
-            else derive_round_purpose(
-                is_open=pull_request.is_open,
-                is_draft=pull_request.is_draft,
-            )
+            else derive_round_purpose(pull_request=pull_request)
         )
         description = describe_agent_round_start(
             purpose=purpose,
