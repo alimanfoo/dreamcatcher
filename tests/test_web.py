@@ -856,7 +856,8 @@ def test_issue_references_link_to_github_with_hash_notation(tmp_path, daemon):
     github_attributes = 'target="_blank" rel="noopener noreferrer"'
     assert f'href="{issue_url}" {github_attributes}>#50</a>' in page
     assert (
-        f'blocked by <a class="issue-number" href="{issue_url}" '
+        '<span class="chip issue-blocked">blocked by '
+        f'<a class="issue-number" href="{issue_url}" '
         f"{github_attributes}>#50</a>" in page
     )
     assert "blocked by GH50" not in page
