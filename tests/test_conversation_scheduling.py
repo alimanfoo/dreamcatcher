@@ -11,7 +11,9 @@ from conftest import (
     POSTED_BY,
     REPOSITORY,
     comment,
+    commit,
     configure,
+    git,
     listing,
     pages,
     streamed,
@@ -33,7 +35,7 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.documents import read_json, write_json
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.git import add_detached_worktree
+from dreamcatcher.git import add_detached_worktree, read_worktree_revision
 from dreamcatcher.issue_conversations import (
     ISSUE_CONVERSATION_RECORD_NAME,
     NO_REPLY,
@@ -218,6 +220,7 @@ def test_an_initial_conversation_freezes_input_runs_claude_and_publishes_once(
     assert frozen.title == "Why does this happen?"
     assert frozen.body == "Explain the scheduler."
     assert [item.body for item in frozen.comments] == ["Please explain."]
+    assert frozen.previous_revision is None
     assert frozen.revision == conversation.record.revision
     assert paths.final_output.read_text(encoding="utf-8") == (
         "The scheduler waits for work."
@@ -269,6 +272,7 @@ def test_a_follow_up_resumes_the_session_with_only_new_comments(
     assert [item.body for item in follow_up.comments] == [
         "What evidence supports that?"
     ]
+    assert follow_up.previous_revision == follow_up.revision
     assert follow_up.revision == conversation.record.revision
     resumed = harnesses["claude"].calls[1]
     assert resumed.arguments[-2:] == ["--resume", "conversation-session"]
@@ -279,19 +283,94 @@ def test_a_follow_up_resumes_the_session_with_only_new_comments(
     )
 
 
+def test_a_follow_up_refreshes_to_changed_main(conversation_scheduler, harnesses):
+    scheduler, clock, gh = conversation_scheduler
+    offer_conversation(gh=gh, comments=[ask()])
+    answer(harnesses=harnesses, body="The first answer.")
+    gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
+    scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+    scheduler.tick(at=clock())
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    previous_revision = conversation.record.revision
+    (scheduler.state.root / "README.md").write_text(
+        "what main holds now\n", encoding="utf-8"
+    )
+    commit(path=scheduler.state.root, message="change main")
+    git(arguments=["push", "origin", "main"], cwd=scheduler.state.root)
+    offer_conversation(
+        gh=gh,
+        comments=[ask(), ask(identifier=2, body="Does the answer still hold?")],
+    )
+    answer(harnesses=harnesses, body="The changed answer.")
+
+    launched = scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+
+    assert launched.launched_conversation_identifier == "conversation-GH8"
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    follow_up = read_json(
+        model=IssueConversationInput,
+        path=conversation.compose_round_paths(number=2).round_input,
+    )
+    assert follow_up.previous_revision == previous_revision
+    assert follow_up.revision != previous_revision
+    assert follow_up.revision == conversation.record.revision
+    assert follow_up.revision == read_worktree_revision(
+        worktree=conversation.record.worktree
+    )
+
+
+def test_a_failed_conversation_refresh_leaves_the_batch_waiting(
+    conversation_scheduler, harnesses, monkeypatch
+):
+    scheduler, clock, gh = conversation_scheduler
+    offer_conversation(gh=gh, comments=[ask()])
+    answer(harnesses=harnesses, body="The first answer.")
+    gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
+    scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+    scheduler.tick(at=clock())
+    offer_conversation(
+        gh=gh,
+        comments=[ask(), ask(identifier=2, body="Does the answer still hold?")],
+    )
+    monkeypatch.setattr(
+        "dreamcatcher.scheduler.refresh_issue_conversation_worktree",
+        Mock(side_effect=ReportableError("could not fetch main")),
+    )
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.hold == "could not fetch main"
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    assert len(conversation.rounds) == 1
+    assert not conversation.compose_round_paths(number=2).round_input.exists()
+    assert len(harnesses["claude"].calls) == 1
+
+
 def test_comments_queued_during_a_round_wait_without_another_comment_read(
-    conversation_scheduler, harnesses
+    conversation_scheduler, harnesses, monkeypatch
 ):
     scheduler, clock, gh = conversation_scheduler
     offer_conversation(gh=gh, comments=[ask()])
     answer(harnesses=harnesses, delay=10)
     scheduler.tick(at=clock())
     comment_reads_before = count_comment_reads(gh=gh)
+    refresh = Mock()
+    monkeypatch.setattr(
+        "dreamcatcher.scheduler.refresh_issue_conversation_worktree",
+        refresh,
+    )
 
     observed = scheduler.tick(at=clock())
 
     assert observed.hold == "at cap: 1 of 1 agents running"
     assert count_comment_reads(gh=gh) == comment_reads_before
+    refresh.assert_not_called()
 
 
 def test_ready_assignment_rounds_and_conversations_alternate(

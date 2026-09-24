@@ -71,10 +71,12 @@ from dreamcatcher.issue_conversations import (
     create_issue_conversation,
     list_undelivered_issue_comments,
     read_issue_comment_delivery_cursor,
+    read_issue_conversation_input,
     read_issue_conversation_reply,
     read_issue_conversations,
     record_issue_conversation_reply_publication,
     record_issue_conversation_session_identifier,
+    refresh_issue_conversation_worktree,
     save_issue_conversation_reply,
 )
 from dreamcatcher.prompts import (
@@ -1375,9 +1377,21 @@ class AgentWorkScheduler:
                 config=candidate.config,
                 issue=candidate.issue,
             )
+            previous_revision = None
+            if candidate.conversation is not None:
+                if conversation.rounds:
+                    previous_revision = read_issue_conversation_input(
+                        conversation=conversation,
+                        number=conversation.rounds[-1].number,
+                    ).revision
+                refresh_issue_conversation_worktree(
+                    state=self.state,
+                    conversation=conversation,
+                )
             round_input = compose_issue_conversation_input(
                 issue=candidate.issue,
                 comments=candidate.comments,
+                previous_revision=previous_revision,
                 revision=conversation.record.revision,
             )
             number = conversation.next_round_number

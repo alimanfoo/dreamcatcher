@@ -217,6 +217,7 @@ class IssueConversationInput(DreamcatcherDocument):
     title: str
     body: str
     comments: list[ConversationComment]
+    previous_revision: str | None = None
     revision: str
 
 

@@ -1,9 +1,10 @@
 from pathlib import Path
 
 import pytest
-from conftest import git
+from conftest import commit, git
 
 from dreamcatcher.commands import CommandError
+from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import (
     add_detached_worktree,
     add_worktree,
@@ -14,6 +15,7 @@ from dreamcatcher.git import (
     push_branch,
     read_worktree_branch,
     read_worktree_revision,
+    refresh_detached_worktree,
     remove_worktree,
 )
 
@@ -68,6 +70,36 @@ def test_a_detached_worktree_lands_at_origins_main_revision(cloned):
         read_worktree_revision(worktree=path)
         == git(arguments=["rev-parse", "origin/main"], cwd=cloned).strip()
     )
+
+
+def test_a_clean_detached_worktree_refreshes_to_fetched_main(cloned):
+    path = cloned / ".dreamcatcher" / "v3" / "conversation-worktrees" / "GH8"
+    add_detached_worktree(root=cloned, path=path)
+    earlier_revision = read_worktree_revision(worktree=path)
+    (cloned / "README.md").write_text("what changed\n", encoding="utf-8")
+    commit(path=cloned, message="change main")
+    git(arguments=["push", "origin", "main"], cwd=cloned)
+
+    revision = refresh_detached_worktree(root=cloned, worktree=path)
+
+    assert revision != earlier_revision
+    assert revision == git(arguments=["rev-parse", "origin/main"], cwd=cloned).strip()
+    assert read_worktree_revision(worktree=path) == revision
+    assert (path / "README.md").read_text(encoding="utf-8") == "what changed\n"
+
+
+def test_a_detached_worktree_with_local_changes_is_not_refreshed(cloned):
+    path = cloned / ".dreamcatcher" / "v3" / "conversation-worktrees" / "GH8"
+    add_detached_worktree(root=cloned, path=path)
+    revision = read_worktree_revision(worktree=path)
+    unexpected = path / "unexpected.txt"
+    unexpected.write_text("keep this\n", encoding="utf-8")
+
+    with pytest.raises(ReportableError, match="it has local changes"):
+        refresh_detached_worktree(root=cloned, worktree=path)
+
+    assert read_worktree_revision(worktree=path) == revision
+    assert unexpected.read_text(encoding="utf-8") == "keep this\n"
 
 
 def test_a_worktree_git_refuses_says_what_git_said(cloned):

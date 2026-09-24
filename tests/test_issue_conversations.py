@@ -212,6 +212,7 @@ def test_round_input_freezes_the_issue_comments_and_revision():
     frozen = compose_issue_conversation_input(
         issue=issue(),
         comments=[comment(identifier=1, body="Please explain.")],
+        previous_revision="before123",
         revision="abc123",
     )
 
@@ -219,6 +220,7 @@ def test_round_input_freezes_the_issue_comments_and_revision():
     assert frozen.title == "Why does this happen?"
     assert frozen.body == "Explain the scheduler."
     assert frozen.comments[0].body == "Please explain."
+    assert frozen.previous_revision == "before123"
     assert frozen.revision == "abc123"
 
 

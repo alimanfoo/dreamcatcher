@@ -26,6 +26,7 @@ from dreamcatcher.git import (
     fetch_main,
     is_linked_worktree,
     read_worktree_revision,
+    refresh_detached_worktree,
     remove_worktree,
 )
 from dreamcatcher.github import ConversationComment, Issue
@@ -217,6 +218,7 @@ def compose_issue_conversation_input(
     *,
     issue: Issue,
     comments: list[ConversationComment],
+    previous_revision: str | None,
     revision: str,
 ) -> IssueConversationInput:
     """Freeze one issue and its trusted comment batch as round input."""
@@ -225,8 +227,25 @@ def compose_issue_conversation_input(
         title=issue.title,
         body=issue.body,
         comments=comments,
+        previous_revision=previous_revision,
         revision=revision,
     )
+
+
+def refresh_issue_conversation_worktree(
+    *, state: StateDirectory, conversation: IssueConversation
+) -> str:
+    """Refresh an idle conversation worktree and record its new revision."""
+    revision = refresh_detached_worktree(
+        root=state.root,
+        worktree=conversation.record.worktree,
+    )
+    with conversation._record_lock:
+        _update_issue_conversation_record(
+            conversation=conversation,
+            updates={"revision": revision},
+        )
+    return revision
 
 
 def read_issue_conversation_input(

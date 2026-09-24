@@ -9,6 +9,7 @@ got.
 from pathlib import Path
 
 from dreamcatcher.commands import run_command
+from dreamcatcher.errors import ReportableError
 
 
 def fetch_main(*, root: Path) -> None:
@@ -32,6 +33,30 @@ def add_detached_worktree(*, root: Path, path: Path) -> None:
         arguments=["worktree", "add", "--detach", str(path), "origin/main"],
         cwd=root,
     )
+
+
+def refresh_detached_worktree(*, root: Path, worktree: Path) -> str:
+    """Move a clean detached worktree to fetched main and return its revision.
+
+    Refuse tracked or untracked changes rather than carrying or discarding work
+    that Dreamcatcher did not put there.
+    """
+    fetch_main(root=root)
+    changes = run_command(
+        program="git",
+        arguments=["status", "--porcelain", "--untracked-files=all"],
+        cwd=worktree,
+    )
+    if changes:
+        raise ReportableError(
+            f"Could not refresh detached worktree at {worktree}: it has local changes."
+        )
+    run_command(
+        program="git",
+        arguments=["checkout", "--detach", "origin/main"],
+        cwd=worktree,
+    )
+    return read_worktree_revision(worktree=worktree)
 
 
 def is_linked_worktree(*, path: Path) -> bool:
