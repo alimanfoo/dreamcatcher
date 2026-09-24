@@ -513,6 +513,17 @@ class _StatusReportReader:
                 conversation=conversation,
                 eligibility=eligibility_value,
             )
+        try:
+            for record in conversation.rounds:
+                read_issue_conversation_input(
+                    conversation=conversation, number=record.number
+                )
+        except ReportableError as failure:
+            return self._compose_issue_conversation_status(
+                conversation=conversation,
+                value=IssueConversationStatusValue.NEEDS_ATTENTION,
+                detail=str(failure),
+            )
         latest = conversation.rounds[-1]
         if latest.ending is None:
             return self._read_unfinished_conversation_status(conversation=conversation)

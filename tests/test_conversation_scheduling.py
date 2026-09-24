@@ -296,9 +296,7 @@ def test_a_follow_up_refreshes_to_changed_main(conversation_scheduler, harnesses
         model=IssueConversationInput,
         path=conversation.compose_round_paths(number=1).round_input,
     ).revision
-    (scheduler.state.root / "README.md").write_text(
-        "what main holds now\n", encoding="utf-8"
-    )
+    (scheduler.state.root / "README.md").write_bytes(b"what main holds now\n")
     commit(path=scheduler.state.root, message="change main")
     git(arguments=["push", "origin", "main"], cwd=scheduler.state.root)
     offer_conversation(
@@ -874,9 +872,7 @@ def test_an_existing_empty_conversation_can_start(conversation_scheduler, harnes
     worktree = scheduler.state.conversation_worktrees / "GH8"
     worktree.rmdir()
     add_detached_worktree(root=scheduler.state.root, path=worktree)
-    (scheduler.state.root / "README.md").write_text(
-        "new main before retry\n", encoding="utf-8"
-    )
+    (scheduler.state.root / "README.md").write_bytes(b"new main before retry\n")
     commit(path=scheduler.state.root, message="advance main before retry")
     git(arguments=["push", "origin", "main"], cwd=scheduler.state.root)
     offer_conversation(gh=gh, comments=[ask()])

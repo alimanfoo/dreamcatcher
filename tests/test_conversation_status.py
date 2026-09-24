@@ -259,6 +259,18 @@ def test_an_errored_conversation_needs_attention(conversation_state):
     assert found.detail == "errored (exit 2)"
 
 
+def test_an_errored_conversation_reports_an_unreadable_input(conversation_state):
+    conversation_round(state=conversation_state, status=2)
+    conversation = read_issue_conversation(state=conversation_state, issue=8)
+    assert conversation is not None
+    conversation.compose_round_paths(number=1).round_input.write_bytes(b"not json")
+
+    found = status(state=conversation_state)
+
+    assert found.value is IssueConversationStatusValue.NEEDS_ATTENTION
+    assert "inbox.json is not valid" in found.detail
+
+
 @pytest.mark.parametrize("is_saved", [False, True])
 def test_a_successful_answer_not_yet_published_is_waiting(conversation_state, is_saved):
     conversation_round(state=conversation_state)

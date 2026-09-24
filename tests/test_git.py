@@ -76,7 +76,7 @@ def test_a_clean_detached_worktree_refreshes_to_fetched_main(cloned):
     path = cloned / ".dreamcatcher" / "v3" / "conversation-worktrees" / "GH8"
     add_detached_worktree(root=cloned, path=path)
     earlier_revision = read_worktree_revision(worktree=path)
-    (cloned / "README.md").write_text("what changed\n", encoding="utf-8")
+    (cloned / "README.md").write_bytes(b"what changed\n")
     commit(path=cloned, message="change main")
     git(arguments=["push", "origin", "main"], cwd=cloned)
 
@@ -93,7 +93,7 @@ def test_a_detached_worktree_with_local_changes_is_not_refreshed(cloned):
     add_detached_worktree(root=cloned, path=path)
     revision = read_worktree_revision(worktree=path)
     unexpected = path / "unexpected.txt"
-    unexpected.write_text("keep this\n", encoding="utf-8")
+    unexpected.write_bytes(b"keep this\n")
 
     with pytest.raises(ReportableError, match="it has local changes"):
         refresh_detached_worktree(root=cloned, worktree=path)
@@ -131,15 +131,15 @@ def test_an_unexpected_detached_revision_is_not_abandoned(cloned):
 
 def test_a_refresh_does_not_overwrite_an_ignored_file(cloned):
     ignored = "generated.txt"
-    (cloned / ".gitignore").write_text(f"{ignored}\n", encoding="utf-8")
+    (cloned / ".gitignore").write_bytes(f"{ignored}\n".encode())
     commit(path=cloned, message="ignore generated file")
     git(arguments=["push", "origin", "main"], cwd=cloned)
     path = cloned / ".dreamcatcher" / "v3" / "conversation-worktrees" / "GH8"
     add_detached_worktree(root=cloned, path=path)
     generated = path / ignored
-    generated.write_text("keep this\n", encoding="utf-8")
-    (cloned / ".gitignore").write_text("", encoding="utf-8")
-    (cloned / ignored).write_text("from main\n", encoding="utf-8")
+    generated.write_bytes(b"keep this\n")
+    (cloned / ".gitignore").write_bytes(b"")
+    (cloned / ignored).write_bytes(b"from main\n")
     commit(path=cloned, message="track generated file")
     git(arguments=["push", "origin", "main"], cwd=cloned)
 
