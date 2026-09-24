@@ -50,14 +50,34 @@ assignment over its lifetime.
 The assignment's **pull request** is both the proposed change and the primary
 communication channel between the agent and the user.
 
+### Issue conversation
+
+An **issue conversation** is Dreamcatcher's durable commission to an agent to
+answer the user on an issue without implementing a change. It owns a detached
+worktree at a recorded main revision, one harness session, its issue-comment
+delivery cursor, and its agent rounds. The issue remains its communication
+channel; it has no implementation branch or pull request.
+
+Stage 1 gives an issue conversation one initial round. The saved final answer is
+either published once on the issue or is `NO_REPLY`, which means no post is
+needed. Follow-up rounds and automatic recovery are outside this stage.
+
+### Agent work and agent work identifier
+
+**Agent work** is either an agent assignment or an issue conversation. Its
+**agent work identifier** is the agent assignment identifier for an assignment,
+or the issue identifier prefixed with `conversation-`, as in
+`conversation-GH123`, for an issue conversation.
+
 ### Agent harness and harness session
 
 An **agent harness** is a program, such as Claude Code or Codex, through which
 Dreamcatcher runs an agent.
 
-A **harness session** is the continuing conversation maintained by the agent
-harness for one agent assignment. The harness supplies its own **harness session
-identifier**, which is distinct from Dreamcatcher's agent assignment identifier.
+A **harness session** is the continuing context maintained by the agent harness
+for one agent assignment or issue conversation. The harness supplies its own
+**harness session identifier**, which is distinct from the agent work
+identifier.
 
 ### Assignment skill
 
@@ -85,14 +105,15 @@ the harnesses Dreamcatcher supports or for only some of them.
 
 ### Agent round
 
-An **agent round** is one bounded activation of an assignment's harness session.
-Its core is a contiguous sequence of actions taken by the agent within that
-harness session. It begins when Dreamcatcher starts or resumes the harness with
-a prompt, and ends when that invocation exits or is interrupted.
+An **agent round** is one bounded activation of an assignment's or issue
+conversation's harness session. Its core is a contiguous sequence of actions
+taken by the agent within that harness session. It begins when Dreamcatcher
+starts or resumes the harness with a prompt, and ends when that invocation exits
+or is interrupted.
 
 An agent round is a Dreamcatcher concept. It is not a model turn, a tool call,
 or the harness session itself. An agent round has a number which identifies its
-position within one agent assignment.
+position within one assignment or issue conversation.
 
 ### Round purpose
 
@@ -103,6 +124,7 @@ Every agent round has one **round purpose** from this set:
   review.
 - **Wrap up**: finish an assignment whose pull request has been merged or
   closed.
+- **Discuss**: answer the user in an issue conversation.
 
 ### Round outcome
 
@@ -137,9 +159,9 @@ The **scheduler** decides what work Dreamcatcher starts and when.
 ### Status report
 
 A **status report** is Dreamcatcher's read-only account of a Dreamcatcher
-instance, its agent assignments, failed assignment setups, issues that are
-available for new assignments, and issues with known open blockers at a
-particular time.
+instance, its issue conversations, agent assignments, failed assignment setups,
+issues that are available for new assignments, and issues with known open
+blockers at a particular time.
 
 An **issue observation** records the independent facts that one scheduler tick
 found for an issue. Its availability is derived from those facts.
@@ -148,6 +170,10 @@ An **agent assignment status** is an assignment's single summary status in a
 status report. It summarizes the assignment record, recorded rounds, live
 process state, and the latest scheduler evidence about whether another round was
 required or launched.
+
+An **issue conversation status** is a conversation's single summary status in a
+status report. It is derived from the conversation record, its latest round, the
+daemon process and the reply's publication state.
 
 ### Global cooldown
 
@@ -277,6 +303,22 @@ separate concepts even though they contribute to the summary.
 An issue that is claimed here has a corresponding open assignment. That
 assignment can have any assignment status except complete.
 
+### Issue conversation status
+
+An issue conversation has one of these summary statuses:
+
+- **Running**: its initial agent round is running.
+- **Waiting**: its durable record exists but the initial round has not started.
+- **Awaiting publication**: the initial round succeeded, but its answer has not
+  yet been recorded as published.
+- **Needs attention**: the initial round errored or was interrupted, and stage 1
+  will not resume it automatically.
+- **Inactive**: the initial answer was published or the agent returned
+  `NO_REPLY`.
+
+These statuses are derived reporting projections, not persisted lifecycle state.
+Inactive does not promise that follow-up comments are supported.
+
 ### Status reports do not control work
 
 A status report may include operational facts such as the repository identity,
@@ -284,8 +326,8 @@ whether the daemon is running, when the last scheduler tick occurred, current
 capacity, whether a global cooldown is active, and the scheduler hold. The
 scheduler hold says why the latest tick launched nothing, such as a cooldown,
 full capacity, a failed issue listing, or a failed launch. Its issue
-observations and agent assignment statuses are projections derived for a person
-to read.
+observations, issue conversation statuses and agent assignment statuses are
+projections derived for a person to read.
 
 The status report never schedules work and is never an input to scheduling.
 Scheduling and reporting must nevertheless interpret the same underlying facts
@@ -305,6 +347,20 @@ Creating the durable assignment and starting its first agent round are separate
 operations, but the scheduler performs them as one scheduling action. As soon as
 assignment setup succeeds, it starts the first implementation round without
 waiting for another scheduler tick.
+
+### Starting an issue conversation
+
+An open issue becomes an initial conversation candidate when it carries the
+configured conversation label, is assigned to the signed-in account, and has at
+least one eligible comment from that account. Issue title and body alone do not
+start a round. Assignment ownership, linked pull requests, dependencies and
+dispatch-label conflicts do not govern conversation eligibility.
+
+Dreamcatcher fetches main, creates a detached worktree, records its revision and
+the chosen conversation settings, freezes the issue and eligible comment batch,
+then starts the initial `discuss` round. The round shares the daemon's capacity
+and global cooldown with assignment rounds. A successful final result is saved
+before publication, so posting can be retried without rerunning the agent.
 
 ### Working through an assignment
 
@@ -340,10 +396,10 @@ a recovery round automatically unless the assignment has entered a fault.
 
 ### Scheduling work
 
-The scheduler creates agent assignments and starts agent rounds.
-
-If the issue listing fails, the scheduler holds every launch until a later tick
-can read the listing.
+The scheduler creates agent assignments, starts agent rounds, and publishes
+issue conversation answers. A failed issue read prevents launches in the
+workflow that depends on those facts without preventing work in the other
+workflow.
 
 Existing assignments take precedence over creating new ones. Subject to capacity
 and cooldown, the scheduler considers work in this order:
@@ -351,9 +407,10 @@ and cooldown, the scheduler considers work in this order:
 1. recover an interrupted or first-time errored round;
 2. wrap up an assignment whose pull request has been merged or closed;
 3. start a round to address new user posts on an existing assignment;
-4. create an assignment for an available issue and immediately start its first
+4. start the oldest eligible initial issue conversation;
+5. create an assignment for an available issue and immediately start its first
    implementation round; and
-5. otherwise do nothing.
+6. otherwise do nothing.
 
 ### Handling errors and global cooldown
 

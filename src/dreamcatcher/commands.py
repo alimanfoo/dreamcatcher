@@ -132,14 +132,19 @@ def locate_program(*, program: str) -> str:
 
 
 def run_command(
-    *, program: str, arguments: Sequence[str], cwd: Path | None = None
+    *,
+    program: str,
+    arguments: Sequence[str],
+    cwd: Path | None = None,
+    stdin: str | None = None,
 ) -> str:
-    """Return what the command wrote to stdout, reading it as UTF-8."""
+    """Return the command's UTF-8 stdout, optionally supplying text on stdin."""
     completed_process = subprocess.run(
         _build_subprocess_command(program=program, arguments=arguments),
         capture_output=True,
         check=False,
         cwd=cwd,
+        input=stdin,
         encoding="utf-8",
         # A stray byte that is not UTF-8, in a path or a message, comes through
         # as the replacement character rather than as a traceback.

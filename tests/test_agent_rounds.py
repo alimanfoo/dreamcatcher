@@ -15,14 +15,15 @@ from conftest import (
     comment,
     inline_comment,
     review,
+    streamed,
 )
 from fakes import Line, Stream, recorded
 from recordings import render_harness_recording
 
 from dreamcatcher.agent_rounds import (
     AGENT_ROUND_RECORD_NAME,
+    AgentAssignmentRoundInput,
     AgentRound,
-    AgentRoundInput,
     AgentRoundOutcome,
     AgentRoundOutputReader,
     AgentRoundPaths,
@@ -48,6 +49,7 @@ from dreamcatcher.github import (
 )
 from dreamcatcher.harness_adapters import (
     AgentRoundLaunchRequest,
+    AgentWorkKind,
     HarnessAdapter,
     HarnessInvocation,
     HarnessOutput,
@@ -232,7 +234,7 @@ def test_a_first_round_builds_its_harness_invocation(fake, worktree, directory):
         request=AgentRoundStartRequest(
             harness=AgentHarness.CLAUDE,
             launch_request=AgentRoundLaunchRequest(
-                agent_assignment_identifier="GH9-20260819-184158",
+                agent_work_identifier="GH9-20260819-184158",
                 model="opus[1m]",
                 effort="xhigh",
                 prompt=PROMPT,
@@ -259,7 +261,7 @@ def test_a_resumed_round_builds_its_harness_invocation(fake, worktree, directory
         request=AgentRoundStartRequest(
             harness=AgentHarness.CLAUDE,
             launch_request=AgentRoundLaunchRequest(
-                agent_assignment_identifier="GH9-20260819-184158",
+                agent_work_identifier="GH9-20260819-184158",
                 model="opus[1m]",
                 effort="xhigh",
                 prompt=PROMPT,
@@ -300,7 +302,7 @@ def test_a_round_writes_the_pull_request_state_and_user_posts_it_was_given(
         plan=AgentRoundPlan(
             purpose=PURPOSE,
             is_recovery=False,
-            input=AgentRoundInput(
+            input=AgentAssignmentRoundInput(
                 pull_request_state=PullRequestState.OPEN, user_posts=posts
             ),
         ),
@@ -496,6 +498,95 @@ def test_a_round_that_finished_says_how_it_ended(fake, worktree, directory):
     assert record.outcome is AgentRoundOutcome.ERRORED
 
 
+def test_a_round_saves_its_required_final_output_before_it_ends(
+    fake, worktree, directory
+):
+    final_result = streamed(
+        type="result",
+        subtype="success",
+        is_error=False,
+        result="The answer.\n",
+        total_cost_usd=0.0,
+        usage={
+            "output_tokens": 1,
+            "input_tokens": 1,
+            "cache_read_input_tokens": 0,
+            "cache_creation_input_tokens": 0,
+        },
+    )
+    fake(program="claude").replies(stdout=f"{final_result}\n")
+    paths = compose_round_paths(worktree=worktree, directory=directory)
+
+    running = start_agent_round(
+        request=AgentRoundStartRequest(
+            harness=AgentHarness.CLAUDE,
+            launch_request=AgentRoundLaunchRequest(
+                agent_work_identifier="conversation-GH9",
+                model="opus[1m]",
+                effort="xhigh",
+                prompt=PROMPT,
+                work_kind=AgentWorkKind.CONVERSATION,
+            ),
+            harness_session_identifier=None,
+            record_harness_session_identifier=ignore_harness_session_identifier,
+            paths=paths,
+            plan=AgentRoundPlan(purpose=AgentRoundPurpose.DISCUSS, is_recovery=False),
+        ),
+        clock=pinned,
+    )
+    running.wait()
+
+    assert paths.final_output.read_text(encoding="utf-8") == "The answer.\n"
+    assert written(path=paths.record).outcome is AgentRoundOutcome.SUCCESSFUL
+
+
+@pytest.mark.parametrize("result", [None, "   \n"])
+def test_a_required_final_output_that_is_missing_or_empty_fails_the_round(
+    fake, worktree, directory, result
+):
+    stdout = ""
+    if result is not None:
+        stdout = streamed(
+            type="result",
+            subtype="success",
+            is_error=False,
+            result=result,
+            total_cost_usd=0.0,
+            usage={
+                "output_tokens": 1,
+                "input_tokens": 1,
+                "cache_read_input_tokens": 0,
+                "cache_creation_input_tokens": 0,
+            },
+        )
+    fake(program="claude").replies(stdout=f"{stdout}\n" if stdout else "")
+    paths = compose_round_paths(worktree=worktree, directory=directory)
+
+    running = start_agent_round(
+        request=AgentRoundStartRequest(
+            harness=AgentHarness.CLAUDE,
+            launch_request=AgentRoundLaunchRequest(
+                agent_work_identifier="conversation-GH9",
+                model="opus[1m]",
+                effort="xhigh",
+                prompt=PROMPT,
+                work_kind=AgentWorkKind.CONVERSATION,
+            ),
+            harness_session_identifier=None,
+            record_harness_session_identifier=ignore_harness_session_identifier,
+            paths=paths,
+            plan=AgentRoundPlan(purpose=AgentRoundPurpose.DISCUSS, is_recovery=False),
+        ),
+        clock=pinned,
+    )
+    running.wait()
+
+    assert written(path=paths.record).outcome is AgentRoundOutcome.ERRORED
+    assert "[failed] the harness returned no final output" in paths.feed.read_text(
+        encoding="utf-8"
+    )
+
+
 def test_an_errored_ending_refuses_a_success_status():
     with pytest.raises(ValueError, match="cannot have exit status 0"):
         ErroredAgentRoundEnding(at=PINNED, status=0)
@@ -627,6 +718,33 @@ def test_a_round_a_straggler_outlives_still_records_an_ending(
         is_recovery=False,
         ending=compose_agent_round_ending(at=PINNED, status=0),
     )
+
+
+def test_a_final_output_round_a_straggler_outlives_still_records_an_ending(
+    monkeypatch, worktree, directory, straggler
+):
+    monkeypatch.setattr(
+        "dreamcatcher.agent_rounds.FINAL_OUTPUT_CAPTURE_TIMEOUT_SECONDS", 0.01
+    )
+    paths = compose_round_paths(worktree=worktree, directory=directory)
+    running = AgentRound(
+        output_reader=AgentRoundOutputReader(
+            harness_adapter=CLAUDE_ADAPTER,
+            record_harness_session_identifier=ignore_harness_session_identifier,
+            final_output_path=paths.final_output,
+        ),
+        invocation=HarnessInvocation(
+            program=sys.executable,
+            arguments=["-c", LEAVES_A_STRAGGLER, str(straggler)],
+            prompt=PROMPT,
+        ),
+        paths=paths,
+        plan=AgentRoundPlan(purpose=AgentRoundPurpose.DISCUSS, is_recovery=False),
+        clock=pinned,
+    )
+
+    assert within(seconds=30, holds=lambda: not running.is_alive)
+    assert written(path=paths.record).outcome is AgentRoundOutcome.ERRORED
 
 
 def test_a_round_a_straggler_outlives_still_stops(worktree, directory, straggler):

@@ -1,4 +1,4 @@
-# Assignment skills
+# Agent-facing contracts
 
 dreamcatcher watches a GitHub repository for issues that have been labelled for
 implementation by an agent. The repository owner can configure which labels are
@@ -100,3 +100,32 @@ merged or closed pull request receives the user-posts prompt instead, whose
 An assignment skill needs nothing of its own for recovery. The resumed agent
 still has its own transcript, and dreamcatcher's prompt is enough to carry it
 on.
+
+## Issue conversation instructions
+
+An issue-conversation prompt asks an agent to answer a question on a GitHub
+issue. It must accept the issue number in the same `GH123` form as an assignment
+skill. Dreamcatcher adds the operational contract around the configured prompt
+and names a JSON input file for the agent to read.
+
+That input contains:
+
+- `issue`, `title` and `body` from the watched issue;
+- `comments`, containing the signed-in user's eligible issue comments in order;
+  and
+- `revision`, identifying the fetched main commit checked out in the detached
+  worktree.
+
+The agent must answer the saved question from the checked-out code and return
+its final answer as Markdown in the harness's final result. It returns exactly
+`NO_REPLY` when no issue comment should be posted. Progress output and tool
+activity are feed records, not the answer.
+
+An issue conversation is read-only work. Its instructions must not tell the
+agent to edit the worktree, create a branch, commit or push, open a pull
+request, change the issue, post to GitHub, or contact the user elsewhere.
+Dreamcatcher owns publication: after a successful round it saves the final
+result, appends its agent marker, posts the answer, and records the publication.
+
+Stage 1 runs one initial Claude round. The conversation prompt must not promise
+follow-up exchanges or recovery that this stage does not yet schedule.

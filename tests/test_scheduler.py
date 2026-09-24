@@ -86,7 +86,7 @@ def create_scheduler(
         account=POSTED_BY,
         config=read_dreamcatcher_config(root=root),
         state=StateDirectory(root=root),
-        harness=AgentHarness.CLAUDE,
+        requested_assignment_harness=AgentHarness.CLAUDE,
         clock=clock,
         rounds={},
         max_agents=max_agents,
@@ -110,6 +110,31 @@ def held(*, observed: SchedulerRecord) -> str:
 def observed_issues(*, tick: SchedulerRecord) -> list[int]:
     """Return the issue numbers that one tick observed in dispatch order."""
     return [observation.issue for observation in tick.issue_observations]
+
+
+@pytest.mark.parametrize(
+    ("legacy_fields", "expected"),
+    [
+        (
+            {
+                "launched_assignment_identifier": ASSIGNMENT_ID,
+                "launched_conversation_identifier": None,
+            },
+            ASSIGNMENT_ID,
+        ),
+        (
+            {
+                "launched_assignment_identifier": None,
+                "launched_conversation_identifier": "conversation-GH8",
+            },
+            "conversation-GH8",
+        ),
+    ],
+)
+def test_a_scheduler_record_reads_an_owner_specific_launch_key(legacy_fields, expected):
+    record = SchedulerRecord.model_validate({"at": PINNED, **legacy_fields})
+
+    assert record.launched_agent_work_identifier == expected
 
 
 def availability_values(*, tick: SchedulerRecord) -> list[IssueFactValue]:

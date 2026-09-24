@@ -29,9 +29,33 @@ class AgentHarness(StrEnum):
     CODEX = "codex"
 
 
+def refuse_unsupported_issue_conversation_harness(
+    harness: AgentHarness, /
+) -> AgentHarness:
+    """Return the conversation harness supported in this stage, or refuse it."""
+    if harness is not AgentHarness.CLAUDE:
+        raise ValueError("Codex issue conversations are not supported yet")
+    return harness
+
+
+IssueConversationHarness = Annotated[
+    AgentHarness, AfterValidator(refuse_unsupported_issue_conversation_harness)
+]
+
+
 class AgentAssignmentRecipe(DreamcatcherDocument):
     """Describe how one harness runs assignments for a dispatch label."""
 
+    prompt: str
+    model: QuotableText
+    effort: QuotableText
+
+
+class IssueConversationConfig(DreamcatcherDocument):
+    """Configure one repository's issue-conversation partner."""
+
+    label: str
+    harness: IssueConversationHarness
     prompt: str
     model: QuotableText
     effort: QuotableText
@@ -83,6 +107,7 @@ class DreamcatcherConfig(DreamcatcherDocument):
 
     assignee: str = "@me"
     dispatch: list[DispatchRoute] = Field(min_length=1)
+    conversation: IssueConversationConfig | None = None
 
     @property
     def dispatch_routes(self) -> dict[str, DispatchRoute]:
@@ -100,9 +125,12 @@ class DreamcatcherConfig(DreamcatcherDocument):
         A route with one harness selects it regardless of the daemon's requested
         harness.
         """
-        return {
+        harnesses = {
             harness for route in self.dispatch for harness in route.assignment_recipes
         }
+        if self.conversation is not None:
+            harnesses.add(self.conversation.harness)
+        return harnesses
 
     def identify_dispatch_labels(self, *, labels: list[str]) -> list[str]:
         """Return the configured dispatch labels among the observed labels."""

@@ -3,12 +3,21 @@ from collections.abc import Sequence
 import pytest
 from conftest import streamed
 
-from dreamcatcher.claude import CLAUDE_ADAPTER, CLAUDE_ALLOWED_TOOLS
+from dreamcatcher.claude import (
+    CLAUDE_ADAPTER,
+    CLAUDE_ASSIGNMENT_ALLOWED_TOOLS,
+    CLAUDE_CONVERSATION_DISALLOWED_TOOLS,
+)
 from dreamcatcher.feed import FeedNote, FeedProse
-from dreamcatcher.harness_adapters import AgentRoundLaunchRequest, HarnessInvocation
+from dreamcatcher.harness_adapters import (
+    AgentRoundLaunchRequest,
+    AgentWorkKind,
+    HarnessInvocation,
+    HarnessOutput,
+)
 
 ROUND_LAUNCH_REQUEST = AgentRoundLaunchRequest(
-    agent_assignment_identifier="GH9-20260819-184158",
+    agent_work_identifier="GH9-20260819-184158",
     model="opus[1m]",
     effort="xhigh",
     prompt="/dream:smith GH9",
@@ -22,7 +31,7 @@ CLAUDE_BASE_ARGUMENTS = [
     "--permission-mode",
     "auto",
     "--allowedTools",
-    " ".join(CLAUDE_ALLOWED_TOOLS),
+    " ".join(CLAUDE_ASSIGNMENT_ALLOWED_TOOLS),
     "--name",
     "GH9-20260819-184158",
 ]
@@ -55,6 +64,33 @@ def test_a_resume_continues_the_harness_session_and_replays_no_settings():
         arguments=[*CLAUDE_BASE_ARGUMENTS, "--resume", "abc-123"],
         prompt="/dream:smith GH9",
     )
+
+
+def test_a_conversation_round_denies_implementation_and_github_tools():
+    request = AgentRoundLaunchRequest(
+        agent_work_identifier="conversation-GH9",
+        model="opus[1m]",
+        effort="xhigh",
+        prompt="answer the question",
+        work_kind=AgentWorkKind.CONVERSATION,
+    )
+
+    invocation = CLAUDE_ADAPTER.build_first_round(request=request)
+
+    assert "--allowedTools" not in invocation.arguments
+    denied_at = invocation.arguments.index("--disallowedTools")
+    assert invocation.arguments[denied_at + 1] == " ".join(
+        CLAUDE_CONVERSATION_DISALLOWED_TOOLS
+    )
+    assert {
+        "PowerShell",
+        "Bash(gh:*)",
+        "Bash(git cherry-pick:*)",
+        "Bash(git restore:*)",
+        "Bash(git rm:*)",
+        "Bash(git stash:*)",
+        "Bash(git tag:*)",
+    } <= set(CLAUDE_CONVERSATION_DISALLOWED_TOOLS)
 
 
 def test_a_person_continues_the_harness_session_where_it_ran():
@@ -277,6 +313,22 @@ def test_a_round_that_ended_well_says_what_it_spent_and_how_it_ended():
         SPEND,
         FeedNote(label="result", detail="success"),
     ]
+
+
+def test_a_successful_round_exposes_its_final_output_separately():
+    line = streamed(
+        type="result",
+        subtype="success",
+        is_error=False,
+        result="The answer.",
+        total_cost_usd=0.0825951,
+        usage=SPENT,
+    )
+
+    assert CLAUDE_ADAPTER.read_output(line=line) == HarnessOutput(
+        events=[SPEND, FeedNote(label="result", detail="success")],
+        final_output="The answer.",
+    )
 
 
 def test_a_round_that_failed_closes_with_what_went_wrong():

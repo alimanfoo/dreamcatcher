@@ -5,7 +5,12 @@ from importlib.metadata import version
 import pytest
 from clocks import PINNED
 from conftest import configure
-from records import write_agent_assignment, write_feed, write_round
+from records import (
+    write_agent_assignment,
+    write_feed,
+    write_issue_conversation,
+    write_round,
+)
 
 from dreamcatcher import web
 from dreamcatcher.agent_assignments import read_agent_assignments_for_issue
@@ -244,15 +249,63 @@ def test_feed_shows_what_the_assignment_said(monkeypatch, watching, capsys):
         ),
     )
 
-    assert main(argv=["feed", "GH13"]) == 0
+    assert main(argv=["feed", "GH13", "--assignment"]) == 0
     assert "round 1: implement" in capsys.readouterr().out
 
 
 def test_feed_naming_a_round_shows_that_rounds_feed(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
 
-    assert main(argv=["feed", "GH13", "--round", "1"]) == 0
+    assert main(argv=["feed", "GH13", "--assignment", "--round", "1"]) == 0
     assert "round 1: implement" in capsys.readouterr().out
+
+
+def test_conversation_shows_its_local_detail(monkeypatch, watching, capsys):
+    write_issue_conversation(state=watching, issue=8)
+    monkeypatch.chdir(watching.root)
+
+    assert main(argv=["conversation", "GH8"]) == 0
+    assert "issue conversation GH8" in capsys.readouterr().out
+
+
+def test_feed_shows_what_the_conversation_said(monkeypatch, watching, capsys):
+    directory = write_issue_conversation(state=watching, issue=8)
+    write_round(
+        directory=directory,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            started=PINNED,
+            pid=1,
+            purpose=AgentRoundPurpose.DISCUSS,
+            ending=compose_agent_round_ending(at=PINNED, status=0),
+        ),
+    )
+    write_feed(
+        directory=directory,
+        number=1,
+        lines=[FeedLine(at=PINNED, text="The answer.")],
+    )
+    monkeypatch.chdir(watching.root)
+
+    assert main(argv=["feed", "GH8", "--conversation"]) == 0
+    assert "The answer." in capsys.readouterr().out
+
+
+def test_feed_requires_one_owner_selector(capsys):
+    with pytest.raises(SystemExit) as exit_info:
+        main(argv=["feed", "GH13"])
+
+    assert exit_info.value.code == 2
+    assert "--assignment --conversation" in capsys.readouterr().err
+
+
+def test_feed_refuses_two_owner_selectors(capsys):
+    with pytest.raises(SystemExit) as exit_info:
+        main(argv=["feed", "GH13", "--assignment", "--conversation"])
+
+    assert exit_info.value.code == 2
+    assert "not allowed with argument" in capsys.readouterr().err
 
 
 def test_a_feed_with_no_issue_to_show_asks_for_one(capsys):

@@ -17,6 +17,7 @@ from dreamcatcher.clock import read_current_time
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS, DreamcatcherDaemon
 from dreamcatcher.errors import ReportableError
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler import (
     DEFAULT_MAX_AGENTS,
     derive_assignment_fault,
@@ -69,9 +70,9 @@ def build_cli_parser() -> argparse.ArgumentParser:
         "run",
         help="run the dreamcatcher daemon",
         description=(
-            "Watch this repository for labelled issues, dispatch an agent "
-            "assignment for each, and carry every assignment on until its pull "
-            "request is ready for you to review. One daemon watches one "
+            "Watch this repository for labelled issue conversations and agent "
+            "assignments, and carry every assignment on until its pull request "
+            "is ready for you to review. One daemon watches one "
             "repo, so a second run on this one refuses while the first is "
             "alive."
         ),
@@ -129,9 +130,9 @@ def build_cli_parser() -> argparse.ArgumentParser:
     web_parser.set_defaults(act=_show_web)
     status_parser = subcommands.add_parser(
         "status",
-        help="show the instance, issue, and agent-assignment status",
+        help="show the instance, conversation, issue, and assignment status",
         description=(
-            "Show instance and daemon facts, each agent assignment's status, "
+            "Show instance and daemon facts, each conversation and assignment, "
             "available issues in dispatch order, and blocked issues. It refreshes "
             "automatically until you interrupt it. "
             + HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
@@ -159,27 +160,53 @@ def build_cli_parser() -> argparse.ArgumentParser:
     )
     _add_issue_argument(parser=assignment_parser)
     assignment_parser.set_defaults(act=_show_assignment)
+    conversation_parser = subcommands.add_parser(
+        "conversation",
+        help="show one issue conversation, in detail",
+        description=(
+            "Show an issue conversation's chosen settings, session, worktree, "
+            "code revision, and initial round. It keeps up until the initial "
+            "exchange finishes or needs attention. "
+            + HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
+            + " "
+            + HELP_WHEN_NOTHING_WATCHES
+        ),
+    )
+    _add_issue_argument(parser=conversation_parser)
+    conversation_parser.set_defaults(act=_show_conversation)
     feed_parser = subcommands.add_parser(
         "feed",
         help="show what the agent said, as it says it",
         description=(
             "Show the agent's actions and outputs from every round of "
-            "the issue's newest assignment, and keep showing what arrives for "
-            "as long as the assignment has another round coming. "
-            + HELP_WHEN_A_VIEW_ENDS
-            + " "
+            "the selected assignment or conversation, and keep showing what "
+            "arrives until that work is over or needs attention. "
             + HELP_WHEN_NOTHING_WATCHES
         ),
     )
     _add_issue_argument(parser=feed_parser)
+    owner_group = feed_parser.add_mutually_exclusive_group(required=True)
+    owner_group.add_argument(
+        "--assignment",
+        dest="owner_kind",
+        action="store_const",
+        const=AgentWorkKind.ASSIGNMENT,
+        help="show the newest assignment at the issue",
+    )
+    owner_group.add_argument(
+        "--conversation",
+        dest="owner_kind",
+        action="store_const",
+        const=AgentWorkKind.CONVERSATION,
+        help="show the issue conversation",
+    )
     feed_parser.add_argument(
         "--round",
         type=int,
         metavar="N",
         help=(
             "show the feed of that round alone, ending when that round "
-            "ends. The assignment view's round list is where you find the "
-            "number"
+            "ends. The selected work's detail view lists its round numbers"
         ),
     )
     feed_parser.set_defaults(act=_show_feed)
@@ -290,10 +317,21 @@ def _show_assignment(*, arguments: argparse.Namespace) -> None:
     )
 
 
+def _show_conversation(*, arguments: argparse.Namespace) -> None:
+    tui.show_conversation_view(
+        state=_find_state_directory(root=Path.cwd()),
+        issue=arguments.issue,
+        console=tui.open_tui_console(),
+    )
+
+
 def _show_feed(*, arguments: argparse.Namespace) -> None:
     tui.show_feed_view(
         state=_find_state_directory(root=Path.cwd()),
-        issue=arguments.issue,
+        selection=tui.FeedSelection(
+            issue=arguments.issue,
+            owner_kind=arguments.owner_kind,
+        ),
         console=tui.open_tui_console(),
         round_number=arguments.round,
     )

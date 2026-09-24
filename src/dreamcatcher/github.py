@@ -1,5 +1,6 @@
 """Operate on GitHub data through the gh command-line client."""
 
+import json
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -117,6 +118,7 @@ class Issue(GitHubResponseProjection):
 
     number: int
     title: str
+    body: str = ""
     created_at: datetime = Field(alias="createdAt")
     state: IssueState
     assignees: list[GitHubUserAccount]
@@ -204,9 +206,15 @@ class _UserPostProjection(GitHubResponseProjection):
 
 
 class ConversationComment(_UserPostProjection):
-    """Model a comment in the pull request conversation."""
+    """Model an ordinary comment in an issue or pull request conversation."""
 
     kind: Literal["comment"] = "comment"
+
+
+class PostedIssueComment(GitHubResponseProjection):
+    """Identify an issue comment that GitHub accepted."""
+
+    id: int
 
 
 class PullRequestReview(_UserPostProjection):
@@ -284,6 +292,7 @@ GITHUB_ISSUE_PULL_REQUEST_CONTEXT_RESPONSE_ADAPTER = TypeAdapter(
     IssuePullRequestContext
 )
 GITHUB_CONVERSATION_COMMENT_PAGES_ADAPTER = TypeAdapter(list[list[ConversationComment]])
+GITHUB_POSTED_ISSUE_COMMENT_ADAPTER = TypeAdapter(PostedIssueComment)
 GITHUB_PULL_REQUEST_REVIEW_PAGES_ADAPTER = TypeAdapter(list[list[PullRequestReview]])
 GITHUB_INLINE_REVIEW_COMMENT_PAGES_ADAPTER = TypeAdapter(
     list[list[InlineReviewComment]]
@@ -523,6 +532,34 @@ def list_user_posts(
     return user_posts
 
 
+def list_issue_comments(
+    *, repository: str, issue: int
+) -> list[ConversationComment] | UnknownGitHubResponse:
+    """Return every ordinary comment on one issue."""
+    return _read_github_pages(
+        response_adapter=GITHUB_CONVERSATION_COMMENT_PAGES_ADAPTER,
+        endpoint=f"repos/{repository}/issues/{issue}/comments",
+    )
+
+
+def post_issue_comment(
+    *, repository: str, issue: int, body: str
+) -> PostedIssueComment | UnknownGitHubResponse:
+    """Post one comment on an issue and return its GitHub identity."""
+    return _read_github_response(
+        response_adapter=GITHUB_POSTED_ISSUE_COMMENT_ADAPTER,
+        arguments=[
+            "api",
+            f"repos/{repository}/issues/{issue}/comments",
+            "--method",
+            "POST",
+            "--input",
+            "-",
+        ],
+        stdin=json.dumps({"body": body}),
+    )
+
+
 def _read_github_pages[ItemT](
     *, response_adapter: TypeAdapter[list[list[ItemT]]], endpoint: str
 ) -> list[ItemT] | UnknownGitHubResponse:
@@ -550,6 +587,7 @@ def _read_github_response[ReadT](
     response_adapter: TypeAdapter[ReadT],
     arguments: Sequence[str],
     cwd: Path | None = None,
+    stdin: str | None = None,
 ) -> ReadT | UnknownGitHubResponse:
     """Return validated gh output, or an unknown response when the read fails.
 
@@ -558,7 +596,9 @@ def _read_github_response[ReadT](
     reaches a caller as data.
     """
     try:
-        raw_response = run_command(program="gh", arguments=arguments, cwd=cwd)
+        raw_response = run_command(
+            program="gh", arguments=arguments, cwd=cwd, stdin=stdin
+        )
     except CommandError as error:
         return UnknownGitHubResponse(reason=str(error))
     try:

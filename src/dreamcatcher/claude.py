@@ -6,16 +6,17 @@ from typing import ClassVar, Protocol
 from dreamcatcher.feed import FeedEvent, FeedNote, FeedProse
 from dreamcatcher.harness_adapters import (
     AgentRoundLaunchRequest,
+    AgentWorkKind,
     HarnessAdapter,
     HarnessInvocation,
     HarnessOutput,
     HarnessSessionIdentifier,
 )
 
-# What an unattended round may do without being asked, and nothing else. The
-# round runs under `--permission-mode auto`, so this list is Claude's whole
-# answer to never stalling for a human. It is the port's list.
-CLAUDE_ALLOWED_TOOLS = (
+# What an unattended assignment round may do without being asked. The round
+# runs under `--permission-mode auto`, so this list keeps the port from
+# stalling while it implements and publishes work.
+CLAUDE_ASSIGNMENT_ALLOWED_TOOLS = (
     "Bash(gh pr create:*)",
     "Bash(gh pr comment:*)",
     "Bash(gh pr edit:*)",
@@ -25,6 +26,46 @@ CLAUDE_ALLOWED_TOOLS = (
     "Bash(gh issue comment:*)",
     "Bash(git commit:*)",
     "Bash(git push:*)",
+)
+
+# Conversation rounds may investigate with ordinary read and command tools,
+# but these denials keep the implementation and GitHub mutations that the
+# conversation contract forbids out of unattended permission handling.
+CLAUDE_CONVERSATION_DISALLOWED_TOOLS = (
+    "Edit",
+    "Write",
+    "NotebookEdit",
+    "PowerShell",
+    "Bash(gh:*)",
+    "Bash(git add:*)",
+    "Bash(git am:*)",
+    "Bash(git apply:*)",
+    "Bash(git bisect:*)",
+    "Bash(git branch:*)",
+    "Bash(git cherry-pick:*)",
+    "Bash(git checkout:*)",
+    "Bash(git clean:*)",
+    "Bash(git clone:*)",
+    "Bash(git commit:*)",
+    "Bash(git fetch:*)",
+    "Bash(git init:*)",
+    "Bash(git merge:*)",
+    "Bash(git mv:*)",
+    "Bash(git notes:*)",
+    "Bash(git pull:*)",
+    "Bash(git push:*)",
+    "Bash(git rebase:*)",
+    "Bash(git remote:*)",
+    "Bash(git replace:*)",
+    "Bash(git reset:*)",
+    "Bash(git restore:*)",
+    "Bash(git revert:*)",
+    "Bash(git rm:*)",
+    "Bash(git stash:*)",
+    "Bash(git submodule:*)",
+    "Bash(git switch:*)",
+    "Bash(git tag:*)",
+    "Bash(git worktree:*)",
 )
 
 # The inputs of a tool call that say most about it, most telling first. The
@@ -113,11 +154,21 @@ class ClaudeHarnessAdapter(HarnessAdapter):
             )
             return HarnessOutput(events=events)
         if kind == "result":
-            return HarnessOutput(events=_read_round_result(harness_event=harness_event))
+            return _read_round_result(harness_event=harness_event)
         return HarnessOutput(events=[])
 
     def _build_base_arguments(self, *, request: AgentRoundLaunchRequest) -> list[str]:
         """Return the arguments every round shares."""
+        if request.work_kind is AgentWorkKind.CONVERSATION:
+            permissions = [
+                "--disallowedTools",
+                " ".join(CLAUDE_CONVERSATION_DISALLOWED_TOOLS),
+            ]
+        else:
+            permissions = [
+                "--allowedTools",
+                " ".join(CLAUDE_ASSIGNMENT_ALLOWED_TOOLS),
+            ]
         return [
             "--print",
             "--output-format",
@@ -125,10 +176,9 @@ class ClaudeHarnessAdapter(HarnessAdapter):
             "--verbose",
             "--permission-mode",
             "auto",
-            "--allowedTools",
-            " ".join(CLAUDE_ALLOWED_TOOLS),
+            *permissions,
             "--name",
-            request.agent_assignment_identifier,
+            request.agent_work_identifier,
         ]
 
 
@@ -237,8 +287,8 @@ def _read_tool_failure(*, block: dict, is_subagent: bool) -> list[FeedEvent]:
     return []
 
 
-def _read_round_result(*, harness_event: dict) -> list[FeedEvent]:
-    """Return the usage and outcome events that close the round.
+def _read_round_result(*, harness_event: dict) -> HarnessOutput:
+    """Return the usage, outcome, and final text that close the round.
 
     The subtype reads "success" even on a round that failed, so the event's own
     error flag is what the feed reports.
@@ -247,14 +297,20 @@ def _read_round_result(*, harness_event: dict) -> list[FeedEvent]:
         cost=harness_event["total_cost_usd"], counts=harness_event["usage"]
     )
     if harness_event.get("is_error"):
-        return [
-            usage_note,
-            FeedNote(
-                label="failed",
-                detail=_render_value_as_text(value=harness_event["result"]),
-            ),
-        ]
-    return [usage_note, FeedNote(label="result", detail=harness_event["subtype"])]
+        return HarnessOutput(
+            events=[
+                usage_note,
+                FeedNote(
+                    label="failed",
+                    detail=_render_value_as_text(value=harness_event["result"]),
+                ),
+            ]
+        )
+    result = harness_event.get("result")
+    return HarnessOutput(
+        events=[usage_note, FeedNote(label="result", detail=harness_event["subtype"])],
+        final_output=result if isinstance(result, str) else None,
+    )
 
 
 def _compose_usage_note(*, cost: float, counts: dict) -> FeedNote:

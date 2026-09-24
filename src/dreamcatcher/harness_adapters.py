@@ -13,11 +13,13 @@ import json
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Annotated, ClassVar
 
 from pydantic import AfterValidator
 
 from dreamcatcher.commands import refuse_unquotable
+from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedEvent, FeedProse
 
 
@@ -32,24 +34,47 @@ def refuse_invalid_harness_session_identifier(identifier: str, /) -> str:
     return safe_identifier
 
 
+def refuse_reportable_harness_session_identifier(
+    *, agent_work_identifier: str, identifier: str
+) -> str:
+    """Return a safe session identifier, or report why its owner cannot use it."""
+    if not identifier:
+        raise ReportableError(
+            f"{agent_work_identifier}'s harness session identifier is empty."
+        )
+    try:
+        return refuse_invalid_harness_session_identifier(identifier)
+    except ValueError as error:
+        raise ReportableError(
+            f"{agent_work_identifier}'s harness session identifier {error}."
+        ) from error
+
+
 HarnessSessionIdentifier = Annotated[
     str, AfterValidator(refuse_invalid_harness_session_identifier)
 ]
 
 
+class AgentWorkKind(StrEnum):
+    """Identify the contract and permissions for one kind of agent work."""
+
+    ASSIGNMENT = "assignment"
+    CONVERSATION = "conversation"
+
+
 @dataclass(frozen=True, kw_only=True)
 class AgentRoundLaunchRequest:
-    """Describe the settled assignment settings and prompt for one round.
+    """Describe the settled agent-work settings and prompt for one round.
 
-    The dispatch fixes the agent assignment identifier, model, and effort.
-    Every round of that assignment runs with them. The prompt is this round's
-    own.
+    The work owner fixes the identifier, model, and effort. Every round for
+    that owner runs with them. The prompt is this round's own.
     """
 
-    agent_assignment_identifier: str
+    agent_work_identifier: str
     model: str
     effort: str
     prompt: str
+    work_kind: AgentWorkKind = AgentWorkKind.ASSIGNMENT
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -67,10 +92,11 @@ class HarnessInvocation:
 
 @dataclass(frozen=True, kw_only=True)
 class HarnessOutput:
-    """Describe the feed events and harness session identifier in one output line."""
+    """Describe the durable information in one harness output line."""
 
     events: list[FeedEvent]
     harness_session_identifier: str | None = None
+    final_output: str | None = None
 
 
 class HarnessAdapter(ABC):

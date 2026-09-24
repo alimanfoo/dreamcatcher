@@ -31,6 +31,15 @@ def test_a_command_runs_where_it_is_told(fake, tmp_path):
     assert probe.calls[0].directory == tmp_path.resolve()
 
 
+def test_a_command_receives_utf_8_text_on_stdin(fake):
+    probe = fake(program="probe")
+    probe.replies(stdout="")
+
+    run_command(program="probe", arguments=[], stdin="one twø")
+
+    assert probe.calls[0].prompt == "one twø"
+
+
 def test_a_program_on_the_path_is_found(fake):
     fake(program="probe")
 

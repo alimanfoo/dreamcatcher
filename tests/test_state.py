@@ -42,6 +42,8 @@ def test_the_daemon_files_use_the_versioned_root_and_shared_lock(tmp_path):
     assert state.scheduler_record == state.path / "scheduler.json"
     assert state.worktrees == state.path / "worktrees"
     assert state.assignments == state.path / "assignments"
+    assert state.conversation_worktrees == state.path / "conversation-worktrees"
+    assert state.conversations == state.path / "conversations"
 
 
 def test_a_path_the_checkout_holds_reads_from_the_checkout(tmp_path):

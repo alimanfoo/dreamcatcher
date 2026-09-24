@@ -25,9 +25,25 @@ def add_worktree(*, root: Path, path: Path, branch: str) -> None:
     )
 
 
-def is_assignment_worktree(*, path: Path) -> bool:
+def add_detached_worktree(*, root: Path, path: Path) -> None:
+    """Create a detached worktree at origin/main."""
+    run_command(
+        program="git",
+        arguments=["worktree", "add", "--detach", str(path), "origin/main"],
+        cwd=root,
+    )
+
+
+def is_linked_worktree(*, path: Path) -> bool:
     """Return whether the path is a linked worktree."""
     return (path / ".git").is_file()
+
+
+def read_worktree_revision(*, worktree: Path) -> str:
+    """Return the exact commit checked out in a worktree."""
+    return run_command(
+        program="git", arguments=["rev-parse", "HEAD"], cwd=worktree
+    ).strip()
 
 
 def read_worktree_branch(*, worktree: Path) -> str:

@@ -58,6 +58,21 @@ pull_request_state is MERGED or CLOSED, finish per your assignment's rules.
 Otherwise act on user_posts per your assignment's rules. End your turn when
 done."""
 
+ISSUE_CONVERSATION_PROMPT = """{instructions}
+
+Issue-conversation input for GH{issue}:
+
+  {round_input}
+
+Read that JSON file and answer the user's comments together. You may read the
+source and Git history, run code, and reproduce a suspected bug. Do not edit
+project source, mutate Git, mutate GitHub, or implement a change. Do not fetch
+issue comments yourself or post a reply. Dreamcatcher supplies the comments and
+publishes your final output.
+
+Return Markdown ready for Dreamcatcher to post, or exactly NO_REPLY when no
+reply is needed."""
+
 
 def compose_first_round_prompt(*, template: str, issue: int) -> str:
     """Return the first-round prompt for an issue.
@@ -80,4 +95,15 @@ def compose_user_posts_prompt(*, pull_request: int, round_input: Path) -> str:
             round_input=round_input,
         )
         + AGENT_POST_INSTRUCTIONS
+    )
+
+
+def compose_issue_conversation_prompt(
+    *, template: str, issue: int, round_input: Path
+) -> str:
+    """Return the first prompt that directs a conversation to its saved input."""
+    return ISSUE_CONVERSATION_PROMPT.format(
+        instructions=template.replace(ISSUE_PLACEHOLDER, str(issue)),
+        issue=issue,
+        round_input=round_input,
     )

@@ -373,7 +373,7 @@ def test_an_open_local_assignment_is_observed_outside_the_listing(gh, tmp_path):
         ),
         to=(
             f"issue view 13 --repo {REPOSITORY} --json "
-            "number,title,createdAt,state,assignees,labels"
+            "number,title,body,createdAt,state,assignees,labels"
         ),
     )
 
@@ -432,7 +432,7 @@ def test_an_incomplete_setup_is_observed_outside_the_listing(gh):
         ),
         to=(
             f"issue view 13 --repo {REPOSITORY} --json "
-            "number,title,createdAt,state,assignees,labels"
+            "number,title,body,createdAt,state,assignees,labels"
         ),
     )
 

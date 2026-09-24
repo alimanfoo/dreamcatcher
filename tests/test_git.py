@@ -5,6 +5,7 @@ from conftest import git
 
 from dreamcatcher.commands import CommandError
 from dreamcatcher.git import (
+    add_detached_worktree,
     add_worktree,
     delete_branch,
     fetch_main,
@@ -12,6 +13,7 @@ from dreamcatcher.git import (
     make_empty_commit,
     push_branch,
     read_worktree_branch,
+    read_worktree_revision,
     remove_worktree,
 )
 
@@ -53,6 +55,19 @@ def test_a_worktree_lands_where_it_is_asked_for_on_its_own_branch(cloned):
     assert BRANCH in git(arguments=["branch", "--list", BRANCH], cwd=cloned)
     assert path in worktrees(root=cloned)
     assert read_worktree_branch(worktree=path) == BRANCH
+
+
+def test_a_detached_worktree_lands_at_origins_main_revision(cloned):
+    path = cloned / ".dreamcatcher" / "v3" / "conversation-worktrees" / "GH8"
+
+    add_detached_worktree(root=cloned, path=path)
+
+    assert path in worktrees(root=cloned)
+    assert read_worktree_branch(worktree=path) == ""
+    assert (
+        read_worktree_revision(worktree=path)
+        == git(arguments=["rev-parse", "origin/main"], cwd=cloned).strip()
+    )
 
 
 def test_a_worktree_git_refuses_says_what_git_said(cloned):

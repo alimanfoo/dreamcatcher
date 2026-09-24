@@ -25,9 +25,11 @@ from dreamcatcher.github import (
     identify_github_account,
     identify_github_repository,
     list_blocking_issues,
+    list_issue_comments,
     list_issues,
     list_pull_requests,
     list_user_posts,
+    post_issue_comment,
     read_issue,
     read_issue_pull_request_context,
     read_pull_request,
@@ -75,6 +77,7 @@ def test_a_listing_carries_each_issue_and_when_it_was_filed(fake):
     issue = {
         "number": 8,
         "title": "The issue title",
+        "body": "The issue body",
         "createdAt": "2026-08-19T18:41:58Z",
         "state": "OPEN",
         "assignees": [{"login": "alimanfoo"}],
@@ -88,6 +91,7 @@ def test_a_listing_carries_each_issue_and_when_it_was_filed(fake):
         Issue(
             number=8,
             title="The issue title",
+            body="The issue body",
             created_at=datetime(2026, 8, 19, 18, 41, 58, tzinfo=UTC),
             state=IssueState.OPEN,
             assignees=[GitHubUserAccount(login="alimanfoo")],
@@ -108,7 +112,7 @@ def test_a_listing_carries_each_issue_and_when_it_was_filed(fake):
         "--limit",
         "500",
         "--json",
-        "number,title,createdAt,state,assignees,labels",
+        "number,title,body,createdAt,state,assignees,labels",
     ]
 
 
@@ -141,8 +145,56 @@ def test_one_issue_carries_its_state_assignees_and_labels(fake):
         "--repo",
         REPOSITORY,
         "--json",
-        "number,title,createdAt,state,assignees,labels",
+        "number,title,body,createdAt,state,assignees,labels",
     ]
+
+
+def test_an_issues_ordinary_comments_are_read_from_every_page(fake):
+    gh = fake(program="gh")
+    gh.replies(
+        stdout=pages(
+            items=[
+                COMMENT | {"body": "First"},
+                COMMENT | {"id": 2, "body": "Second"},
+            ]
+        )
+    )
+
+    found = list_issue_comments(repository=REPOSITORY, issue=8)
+
+    assert not isinstance(found, UnknownGitHubResponse)
+    assert [comment.body for comment in found] == ["First", "Second"]
+    assert gh.calls[0].arguments == [
+        "api",
+        f"repos/{REPOSITORY}/issues/8/comments?per_page=100",
+        "--paginate",
+        "--slurp",
+    ]
+
+
+def test_an_issue_comment_is_posted_as_one_body(fake):
+    gh = fake(program="gh")
+    gh.replies(stdout=json.dumps({"id": 91}))
+
+    posted = post_issue_comment(
+        repository=REPOSITORY,
+        issue=8,
+        body="@alimanfoo, the answer.\n\n<!-- dreamcatcher -->",
+    )
+
+    assert not isinstance(posted, UnknownGitHubResponse)
+    assert posted.id == 91
+    assert gh.calls[0].arguments == [
+        "api",
+        f"repos/{REPOSITORY}/issues/8/comments",
+        "--method",
+        "POST",
+        "--input",
+        "-",
+    ]
+    assert json.loads(gh.calls[0].prompt) == {
+        "body": "@alimanfoo, the answer.\n\n<!-- dreamcatcher -->"
+    }
 
 
 def test_the_pull_requests_of_a_branch_come_back_with_their_states(fake):

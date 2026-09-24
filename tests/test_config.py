@@ -7,6 +7,7 @@ from dreamcatcher.config import (
     DREAMCATCHER_CONFIG_NAME,
     AgentAssignmentRecipe,
     AgentHarness,
+    IssueConversationConfig,
     read_dreamcatcher_config,
 )
 from dreamcatcher.errors import ReportableError
@@ -19,6 +20,15 @@ CLAUDE_RECIPE = AgentAssignmentRecipe(
 CODEX_RECIPE = AgentAssignmentRecipe(
     prompt="$dream:smith GH{issue}", model="gpt-5.6-sol", effort="xhigh"
 )
+
+CONVERSATION = """
+[conversation]
+label = "dream:conversation"
+harness = "claude"
+prompt = "/dream:conversation GH{issue}"
+model = "opus[1m]"
+effort = "xhigh"
+"""
 
 
 def write_config(*, root: Path, text: str) -> None:
@@ -36,6 +46,34 @@ def test_a_valid_config_reads_back(tmp_path):
         AgentHarness.CLAUDE: CLAUDE_RECIPE,
         AgentHarness.CODEX: CODEX_RECIPE,
     }
+    assert config.conversation is None
+
+
+def test_an_issue_conversation_is_configured_separately(tmp_path):
+    write_config(root=tmp_path, text=CONFIG + CONVERSATION)
+
+    config = read_dreamcatcher_config(root=tmp_path)
+
+    assert config.conversation == IssueConversationConfig(
+        label="dream:conversation",
+        harness=AgentHarness.CLAUDE,
+        prompt="/dream:conversation GH{issue}",
+        model="opus[1m]",
+        effort="xhigh",
+    )
+    assert config.routed_harnesses == {AgentHarness.CLAUDE, AgentHarness.CODEX}
+
+
+def test_a_codex_issue_conversation_is_refused_until_it_is_supported(tmp_path):
+    write_config(
+        root=tmp_path,
+        text=(CONFIG + CONVERSATION).replace('harness = "claude"', 'harness = "codex"'),
+    )
+
+    with pytest.raises(ReportableError) as error:
+        read_dreamcatcher_config(root=tmp_path)
+
+    assert "Codex issue conversations are not supported yet" in str(error.value)
 
 
 def test_the_repository_setting_the_design_gives_a_default_has_it(tmp_path):

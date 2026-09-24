@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+  <main class="assignment-page">
+    {% include "partials/site-header.html" %}
+    <div class="assignment-content">
+      <a class="assignment-navigation" href="{{ url_for('show_home') }}">&lt; home</a>
+      <section class="assignment-overview" aria-labelledby="conversation-heading">
+        <div class="assignment-heading">
+          {% if view.github_repository_url %}
+            <h1 id="conversation-heading"><a class="assignment-issue" href="{{ view.github_repository_url }}/issues/{{ view.issue }}" target="_blank" rel="noopener noreferrer">#{{ view.issue }} <span>{{ view.title }}</span></a></h1>
+          {% else %}
+            <h1 id="conversation-heading"><strong class="assignment-issue">#{{ view.issue }} <span>{{ view.title }}</span></strong></h1>
+          {% endif %}
+          <div class="assignment-heading-actions">
+            {% with status_id="conversation-status" %}{% include "partials/agent-work-status.html" %}{% endwith %}
+          </div>
+        </div>
+        <p class="assignment-detail">{{ view.detail }}</p>
+        <dl class="assignment-facts">
+          <div><dt>label</dt><dd>{{ view.label }}</dd></div>
+          <div><dt>worktree</dt><dd>{{ view.worktree }}</dd></div>
+          <div><dt>revision</dt><dd>{{ view.revision }}</dd></div>
+          <div><dt>harness</dt><dd>{{ view.harness }}</dd></div>
+          <div><dt>session</dt><dd>{{ view.harness_session_identifier }}</dd></div>
+          <div><dt>model</dt><dd>{{ view.model }} · {{ view.effort }}</dd></div>
+        </dl>
+      </section>
+      <div class="assignment-workspace">
+        <div class="assignment-sidebar">
+          {% include "partials/assignment-rounds.html" %}
+        </div>
+        <section class="panel assignment-feed" aria-labelledby="feed-heading">
+          <h1 id="feed-heading">FEED</h1>
+          <button class="feed-tail" type="button" aria-controls="records">TAIL ↓</button>
+          <input type="hidden" id="cursor" name="cursor" value="{{ view.feed_cursor }}">
+          <div id="records" class="feed-records" hx-get="{{ url_for('show_conversation_tail', issue=view.issue) }}" hx-trigger="every 2s" hx-include="#cursor" hx-select=".feed-line" hx-swap="beforeend">
+            {% for feed_round in view.feed_rounds %}
+              {% for line in feed_round.lines %}{% include "partials/feed-line.html" %}{% endfor %}
+            {% else %}
+              <p id="empty-feed" class="empty">-- no feed yet --</p>
+            {% endfor %}
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+  <script src="{{ url_for('static', filename='assignment.js') }}"></script>
+{% endblock %}

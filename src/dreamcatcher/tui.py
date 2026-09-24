@@ -32,14 +32,21 @@ from dreamcatcher.feed import (
     describe_agent_round_start,
     read_feed_line,
 )
+from dreamcatcher.harness_adapters import AgentWorkKind
+from dreamcatcher.issue_conversations import IssueConversation
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
+    CONVERSATION_STATUSES_THAT_END_A_VIEW,
     STATUSES_THAT_END_A_VIEW,
     AgentAssignmentStatus,
+    AgentRoundStatus,
     DreamcatcherStatusReport,
+    IssueConversationStatus,
+    IssueConversationStatusValue,
     IssueObservation,
     read_agent_assignment_statuses_for_issue,
+    read_issue_conversation_status,
     read_status_report,
 )
 from dreamcatcher.words import describe_count, describe_span, describe_time
@@ -52,6 +59,14 @@ ASSIGNMENT_STATUS_STYLES = dict(
         strict=True,
     )
 )
+
+CONVERSATION_STATUS_STYLES = {
+    IssueConversationStatusValue.NEEDS_ATTENTION: "red",
+    IssueConversationStatusValue.RUNNING: "green",
+    IssueConversationStatusValue.AWAITING_PUBLICATION: "yellow",
+    IssueConversationStatusValue.WAITING: "cyan",
+    IssueConversationStatusValue.INACTIVE: "dim",
+}
 
 # How long a following view waits between refreshes for new round output.
 VIEW_REFRESH_INTERVAL = 1.0
@@ -70,6 +85,14 @@ class ViewTiming:
 
 
 DEFAULT_VIEW_TIMING = ViewTiming()
+
+
+@dataclass(frozen=True, kw_only=True)
+class FeedSelection:
+    """Select the assignment or conversation feed at one issue."""
+
+    issue: int
+    owner_kind: AgentWorkKind
 
 
 def open_tui_console() -> Console:
@@ -188,6 +211,7 @@ def _render_status(
         parts=[
             Text(report.repository or "repository unknown", style="bold"),
             _render_instance_status(report=report, zone=zone),
+            _render_conversations(conversations=report.conversation_statuses),
             _render_assignments(assignments=report.assignment_statuses),
             _render_failed_assignment_setups(setups=report.failed_assignment_setups),
             _render_available_issues(issues=report.available_issues),
@@ -334,12 +358,36 @@ def _render_assignments(
     return _render_section(heading="agent assignments", body=Group(*rows))
 
 
+def _render_conversations(
+    *, conversations: Sequence[IssueConversationStatus]
+) -> RenderableType | None:
+    """Render issue conversations in issue order."""
+    if not conversations:
+        return None
+    table = _create_table(columns=3)
+    for status in conversations:
+        table.add_row(
+            Text(f"GH{status.conversation.record.issue}"),
+            Text(
+                str(status.value),
+                style=CONVERSATION_STATUS_STYLES[status.value],
+            ),
+            Text(status.detail),
+        )
+    return _render_section(heading="issue conversations", body=table)
+
+
 def _render_assignment_latest_output(*, status: AgentAssignmentStatus) -> Text | None:
     """Render an assignment's latest output as one dimmed line."""
-    if status.latest_output is None:
+    return _render_latest_output(latest_output=status.latest_output)
+
+
+def _render_latest_output(*, latest_output: str | None) -> Text | None:
+    """Render agent work's latest output as one dimmed line."""
+    if latest_output is None:
         return None
     return Text(
-        status.latest_output,
+        latest_output,
         style="dim",
         overflow="ellipsis",
         no_wrap=True,
@@ -355,6 +403,7 @@ def _describe_empty_status_report(
         or report.available_issues
         or report.blocked_issues
         or report.assignment_statuses
+        or report.conversation_statuses
     ):
         return None
     return Group(Text(), Text("no issues or agent assignments recorded yet"))
@@ -404,6 +453,79 @@ def show_assignment_view(
             state=state, issue=issue, clock=timing.clock, zone=timing.zone
         ),
         wait=timing.wait,
+    )
+
+
+def show_conversation_view(
+    *,
+    state: StateDirectory,
+    issue: int,
+    console: Console,
+    timing: ViewTiming = DEFAULT_VIEW_TIMING,
+) -> None:
+    """Show one issue conversation until its initial exchange finishes."""
+    _refresh_live_view(
+        console=console,
+        read_snapshot=lambda: _read_conversation_snapshot(
+            state=state, issue=issue, clock=timing.clock, zone=timing.zone
+        ),
+        wait=timing.wait,
+    )
+
+
+def _read_conversation_snapshot(
+    *,
+    state: StateDirectory,
+    issue: int,
+    clock: Callable[[], datetime],
+    zone: tzinfo | None,
+) -> _ViewSnapshot:
+    """Return one conversation and whether its initial exchange is over."""
+    status = _find_conversation_status_for_issue(state=state, issue=issue, clock=clock)
+    return _ViewSnapshot(
+        renderable=_render_conversation(state=state, status=status, zone=zone),
+        is_over=status.value in CONVERSATION_STATUSES_THAT_END_A_VIEW,
+    )
+
+
+def _render_conversation(
+    *,
+    state: StateDirectory,
+    status: IssueConversationStatus,
+    zone: tzinfo | None,
+) -> RenderableType:
+    """Render one issue conversation and its saved rounds."""
+    conversation = status.conversation
+    record = conversation.record
+    status_value = str(status.value)
+    rendered_status = Text(f"{status_value}  {status.detail}")
+    rendered_status.stylize(
+        CONVERSATION_STATUS_STYLES[status.value], 0, len(status_value)
+    )
+    table = _create_table(columns=2)
+    for name, value in (
+        ("issue identifier", f"GH{record.issue}"),
+        ("title", record.title),
+        ("conversation label", record.label),
+        ("worktree", state.describe_path(path=record.worktree)),
+        ("code revision", record.revision),
+        ("agent harness", record.harness),
+        (
+            "harness session identifier",
+            record.harness_session_identifier or "not recorded",
+        ),
+        ("model", record.model),
+        ("effort", record.effort),
+    ):
+        table.add_row(Text(name), Text(str(value)))
+    return _combine_renderable_parts(
+        parts=[
+            Text(f"issue conversation GH{record.issue}"),
+            rendered_status,
+            _render_latest_output(latest_output=status.latest_output),
+            _render_section(heading="conversation", body=table),
+            _render_round_statuses(round_statuses=status.round_statuses, zone=zone),
+        ]
     )
 
 
@@ -507,10 +629,17 @@ def _render_rounds(
     Each row keeps the round number accepted by `feed --round`. An assignment
     with no rounds returns no section.
     """
-    if not status.round_statuses:
+    return _render_round_statuses(round_statuses=status.round_statuses, zone=zone)
+
+
+def _render_round_statuses(
+    *, round_statuses: Sequence[AgentRoundStatus], zone: tzinfo | None
+) -> RenderableType | None:
+    """Return agent round statuses newest first."""
+    if not round_statuses:
         return None
     table = _create_table(columns=5)
-    for round_status in reversed(status.round_statuses):
+    for round_status in reversed(round_statuses):
         record = round_status.record
         table.add_row(
             Text(str(record.number)),
@@ -574,12 +703,12 @@ def _render_older_assignments(
 def show_feed_view(
     *,
     state: StateDirectory,
-    issue: int,
+    selection: FeedSelection,
     console: Console,
     round_number: int | None = None,
     timing: ViewTiming = DEFAULT_VIEW_TIMING,
 ) -> None:
-    """Show and follow the newest assignment's feed.
+    """Show and follow the explicitly selected agent work's feed.
 
     Naming a round limits the view to that round and ends when the round ends.
     Without a round number, the view follows new rounds across the gaps between
@@ -592,7 +721,7 @@ def show_feed_view(
     if round_number is not None:
         _show_one_round(
             state=state,
-            issue=issue,
+            selection=selection,
             number=round_number,
             console=console,
             timing=timing,
@@ -602,10 +731,13 @@ def show_feed_view(
 
     def refresh_feed() -> bool:
         """Show output since the previous refresh and return whether it is over."""
-        status = _find_assignment_statuses_for_issue(state=state, issue=issue)[0]
-        assignment = status.assignment
-        view.show_new_output(assignment=assignment, records=assignment.rounds)
-        return status.value in STATUSES_THAT_END_A_VIEW
+        owner, is_over = _find_feed_owner(
+            state=state,
+            issue=selection.issue,
+            owner_kind=selection.owner_kind,
+        )
+        view.show_new_output(owner=owner, records=owner.rounds)
+        return is_over
 
     _refresh_until_view_ends(
         console=console, refresh_view=refresh_feed, wait=timing.wait
@@ -615,12 +747,12 @@ def show_feed_view(
 def _show_one_round(
     *,
     state: StateDirectory,
-    issue: int,
+    selection: FeedSelection,
     number: int,
     console: Console,
     timing: ViewTiming,
 ) -> None:
-    """Show one round of the newest assignment until the round ends.
+    """Show one round of the selected agent work until the round ends.
 
     Raise ReportableError when the assignment has no round with the requested
     number.
@@ -629,20 +761,21 @@ def _show_one_round(
 
     def refresh_round_feed() -> bool:
         """Show output since the previous refresh and return whether it has ended."""
-        assignment = _find_assignment_statuses_for_issue(
+        owner, _ = _find_feed_owner(
             state=state,
-            issue=issue,
-        )[0].assignment
+            issue=selection.issue,
+            owner_kind=selection.owner_kind,
+        )
         record = next(
-            (record for record in assignment.rounds if record.number == number), None
+            (record for record in owner.rounds if record.number == number), None
         )
         if record is None:
             raise ReportableError(
-                f"{assignment.identifier} has run "
-                f"{describe_count(number=len(assignment.rounds), noun='round')}, "
+                f"{owner.identifier} has run "
+                f"{describe_count(number=len(owner.rounds), noun='round')}, "
                 f"so it has no round {number}."
             )
-        view.show_new_output(assignment=assignment, records=[record])
+        view.show_new_output(owner=owner, records=[record])
         return record.ending is not None
 
     _refresh_until_view_ends(
@@ -672,9 +805,36 @@ def _find_assignment_statuses_for_issue(
     return assignment_statuses
 
 
+def _find_conversation_status_for_issue(
+    *,
+    state: StateDirectory,
+    issue: int,
+    clock: Callable[[], datetime] = read_current_time,
+) -> IssueConversationStatus:
+    """Return the issue's conversation status, or refuse if none."""
+    status = read_issue_conversation_status(state=state, issue=issue, clock=clock)
+    if status is None:
+        raise ReportableError(f"No conversation here for GH{issue}.")
+    return status
+
+
+def _find_feed_owner(
+    *, state: StateDirectory, issue: int, owner_kind: AgentWorkKind
+) -> tuple[AgentAssignment | IssueConversation, bool]:
+    """Return the selected feed owner and whether more output can reach it."""
+    if owner_kind is AgentWorkKind.CONVERSATION:
+        status = _find_conversation_status_for_issue(state=state, issue=issue)
+        return (
+            status.conversation,
+            status.value in CONVERSATION_STATUSES_THAT_END_A_VIEW,
+        )
+    status = _find_assignment_statuses_for_issue(state=state, issue=issue)[0]
+    return status.assignment, status.value in STATUSES_THAT_END_A_VIEW
+
+
 @dataclass(frozen=True, kw_only=True)
 class _FeedView:
-    """Track how far a console has read each round of an assignment feed.
+    """Track how far a console has read each round of an agent-work feed.
 
     Each refresh resumes from the stored byte position. A round without a stored
     position first receives its heading.
@@ -685,13 +845,16 @@ class _FeedView:
     positions: dict[int, int] = field(default_factory=dict)
 
     def show_new_output(
-        self, *, assignment: AgentAssignment, records: Iterable[AgentRoundRecord]
+        self,
+        *,
+        owner: AgentAssignment | IssueConversation,
+        records: Iterable[AgentRoundRecord],
     ) -> None:
-        """Show assignment output written since the previous refresh."""
+        """Show agent output written since the previous refresh."""
         for record in records:
             if record.number not in self.positions:
                 self._show_round_heading(record=record)
-            self._show_new_lines(assignment=assignment, round_number=record.number)
+            self._show_new_lines(owner=owner, round_number=record.number)
 
     def _show_round_heading(self, *, record: AgentRoundRecord) -> None:
         """Show the line that opens a round, saying what caused it.
@@ -718,10 +881,13 @@ class _FeedView:
         self.positions[record.number] = 0
 
     def _show_new_lines(
-        self, *, assignment: AgentAssignment, round_number: int
+        self,
+        *,
+        owner: AgentAssignment | IssueConversation,
+        round_number: int,
     ) -> None:
         """Show lines the round wrote since the previous refresh."""
-        feed_path = assignment.compose_round_paths(number=round_number).feed
+        feed_path = owner.compose_round_paths(number=round_number).feed
         new_lines, new_position = read_lines_from(
             path=feed_path, position=self.positions[round_number]
         )

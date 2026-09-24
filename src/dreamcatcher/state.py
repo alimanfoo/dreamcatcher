@@ -74,6 +74,16 @@ class StateDirectory:
         """The directory holding each assignment's files by identifier."""
         return self.path / "assignments"
 
+    @property
+    def conversation_worktrees(self) -> Path:
+        """The directory holding detached issue-conversation worktrees."""
+        return self.path / "conversation-worktrees"
+
+    @property
+    def conversations(self) -> Path:
+        """The directory holding issue conversations by issue identifier."""
+        return self.path / "conversations"
+
     def describe_path(self, *, path: Path) -> str:
         """Return a portable path relative to the checkout when possible."""
         if path.is_relative_to(self.root):
