@@ -7,7 +7,7 @@
       <div class="dashboard">
         {%- if view.conversations %}
           <section class="panel" aria-labelledby="conversations-heading">
-            <h1 id="conversations-heading">Issue conversations <span>{{ "%04d"|format(view.conversations|length) }}</span></h1>
+            <h1 id="conversations-heading">Conversations <span>{{ "%04d"|format(view.conversations|length) }}</span></h1>
             <div class="panel-body">
               {% for conversation in view.conversations %}
                 {% include "partials/conversation-card.html" %}

@@ -84,7 +84,7 @@ def test_home_lists_a_conversation_and_links_to_its_page(tmp_path):
 
     page = application(state=state).test_client().get("/").text
 
-    assert "Issue conversations" in page
+    assert "Conversations" in page
     assert 'id="conversation-GH8"' in page
     assert 'href="/conversations/8"' in page
     assert "initial answer published" in page
