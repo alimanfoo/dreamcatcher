@@ -8,7 +8,7 @@ got.
 
 from pathlib import Path
 
-from dreamcatcher.commands import run_command
+from dreamcatcher.commands import CommandError, run_command
 from dreamcatcher.errors import ReportableError
 
 
@@ -38,11 +38,12 @@ def add_detached_worktree(*, root: Path, path: Path) -> None:
 def refresh_detached_worktree(
     *, root: Path, worktree: Path, expected_revision: str | None = None
 ) -> str:
-    """Move a clean detached worktree to fetched main and return its revision.
+    """Move a detached worktree to fetched main and return its revision.
 
-    Refuse tracked or untracked changes rather than carrying or discarding work
-    that Dreamcatcher did not put there. When given, the expected revision also
-    protects an unexpected clean checkout from being abandoned.
+    Git carries local changes that do not conflict with the fetched revision.
+    Conflicts leave the worktree untouched and tell the user where to resolve
+    them. When given, the expected revision protects an unexpected clean
+    checkout from being abandoned.
     """
     if not is_linked_worktree(path=worktree):
         raise ReportableError(
@@ -57,20 +58,22 @@ def refresh_detached_worktree(
                 f"is {revision}, expected {expected_revision}."
             )
     fetch_main(root=root)
-    changes = run_command(
-        program="git",
-        arguments=["status", "--porcelain", "--untracked-files=all"],
-        cwd=worktree,
-    )
-    if changes:
-        raise ReportableError(
-            f"Could not refresh detached worktree at {worktree}: it has local changes."
+    try:
+        run_command(
+            program="git",
+            arguments=[
+                "checkout",
+                "--no-overwrite-ignore",
+                "--detach",
+                "origin/main",
+            ],
+            cwd=worktree,
         )
-    run_command(
-        program="git",
-        arguments=["checkout", "--no-overwrite-ignore", "--detach", "origin/main"],
-        cwd=worktree,
-    )
+    except CommandError as failure:
+        raise ReportableError(
+            f"Could not refresh detached worktree at {worktree}. Resolve its local "
+            f"changes, then let Dreamcatcher retry. {failure}"
+        ) from failure
     return read_worktree_revision(worktree=worktree)
 
 

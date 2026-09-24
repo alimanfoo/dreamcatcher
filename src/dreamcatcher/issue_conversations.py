@@ -63,11 +63,14 @@ class IssueConversationRecord(DreamcatcherDocument):
 
     @model_validator(mode="before")
     @classmethod
-    def _discard_legacy_fields(cls, value: object, /) -> object:
-        """Read records written before derived paths and round revisions."""
+    def _discard_obsolete_fields(cls, value: object, /) -> object:
+        """Read records from before delivery and revision state moved elsewhere."""
         if not isinstance(value, dict):
             return value
         data = dict(value)
+        # Released records stored the delivery cursor and live worktree state
+        # here. Round inputs now own delivery and revision history, while the
+        # issue number derives the managed worktree path.
         data.pop("delivery_cursor", None)
         data.pop("revision", None)
         data.pop("worktree", None)
@@ -220,23 +223,23 @@ def prepare_issue_conversation_input(
     comments: list[ConversationComment],
 ) -> IssueConversationInput:
     """Refresh the worktree and freeze one issue's trusted round input."""
-    previous_revision = None
+    expected_revision = None
     if conversation.rounds:
-        previous_revision = read_issue_conversation_input(
+        expected_revision = read_issue_conversation_input(
             conversation=conversation,
             number=conversation.rounds[-1].number,
         ).revision
     revision = refresh_detached_worktree(
         root=state.root,
         worktree=conversation.worktree,
-        expected_revision=previous_revision,
+        expected_revision=expected_revision,
     )
+    is_initial = not conversation.rounds
     return IssueConversationInput(
         issue=issue.number,
-        title=issue.title,
-        body=issue.body,
+        title=issue.title if is_initial else None,
+        body=issue.body if is_initial else None,
         comments=comments,
-        previous_revision=previous_revision,
         revision=revision,
     )
 
@@ -248,24 +251,10 @@ def read_issue_conversation_input(
     round_input = _read_issue_conversation_input_document(
         conversation=conversation, number=number
     )
-    previous_revision = round_input.previous_revision
-    if number == 1:
-        if previous_revision is not None:
-            raise ReportableError(
-                f"Conversation {conversation.identifier} round 1 input names "
-                "a previous revision."
-            )
-        return round_input
-    preceding = _read_issue_conversation_input_document(
-        conversation=conversation, number=number - 1
-    )
-    if "previous_revision" not in round_input.model_fields_set:
-        return round_input.model_copy(update={"previous_revision": preceding.revision})
-    if previous_revision != preceding.revision:
+    if number == 1 and (round_input.title is None or round_input.body is None):
         raise ReportableError(
-            f"Conversation {conversation.identifier} round {number} input "
-            f"names previous revision {previous_revision!r}, but round "
-            f"{number - 1} used {preceding.revision}."
+            f"Conversation {conversation.identifier} round 1 input does not "
+            "contain its initial issue title and body."
         )
     return round_input
 
@@ -297,15 +286,15 @@ def _read_issue_conversation_input_document(
     return round_input
 
 
-def describe_issue_conversation_revision(*, round_input: IssueConversationInput) -> str:
+def describe_issue_conversation_revision(
+    *, previous_revision: str | None, revision: str
+) -> str:
     """Describe the revision investigated by one conversation round."""
-    previous = round_input.previous_revision
-    current = round_input.revision
-    if previous is None:
-        return f"code revision {current}"
-    if previous == current:
-        return f"code revision {current} (unchanged)"
-    return f"code revision {previous} -> {current}"
+    if previous_revision is None:
+        return f"code revision {revision}"
+    if previous_revision == revision:
+        return f"code revision {revision} (unchanged)"
+    return f"code revision {previous_revision} -> {revision}"
 
 
 def read_issue_comment_delivery_cursor(

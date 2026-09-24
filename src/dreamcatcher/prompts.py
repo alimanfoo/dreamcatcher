@@ -63,8 +63,6 @@ source and Git history, run code, and reproduce a suspected bug. Do not edit
 project source, mutate Git, mutate GitHub, or implement a change. Do not fetch
 issue comments yourself or post a reply. Dreamcatcher supplies the comments and
 publishes your final output. The `revision` field names the checked-out commit.
-On later rounds, `previous_revision` names the commit investigated by the
-previous round; revisit earlier findings where a revision change affects them.
 
 Return Markdown ready for Dreamcatcher to post, or exactly NO_REPLY when no
 reply is needed."""

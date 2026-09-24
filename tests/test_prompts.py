@@ -86,7 +86,7 @@ def test_the_issue_conversation_round_prompt_names_only_its_new_input(tmp_path):
     assert str(inbox) in composed
     assert "/dream:conversation" not in composed
     assert "mutate Git, mutate GitHub" in composed
-    assert "previous_revision" in composed
+    assert "revision" in composed
 
 
 def test_every_assignment_prompt_the_daemon_composes_asks_for_the_marker():

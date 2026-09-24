@@ -220,7 +220,6 @@ def test_an_initial_conversation_freezes_input_runs_claude_and_publishes_once(
     assert frozen.title == "Why does this happen?"
     assert frozen.body == "Explain the scheduler."
     assert [item.body for item in frozen.comments] == ["Please explain."]
-    assert frozen.previous_revision is None
     assert frozen.revision == read_worktree_revision(worktree=conversation.worktree)
     assert paths.final_output.read_text(encoding="utf-8") == (
         "The scheduler waits for work."
@@ -267,12 +266,18 @@ def test_a_follow_up_resumes_the_session_with_only_new_comments(
         model=IssueConversationInput,
         path=conversation.compose_round_paths(number=2).round_input,
     )
-    assert follow_up.title == "What now happens?"
-    assert follow_up.body == "Explain the current scheduler."
+    assert follow_up.title is None
+    assert follow_up.body is None
     assert [item.body for item in follow_up.comments] == [
         "What evidence supports that?"
     ]
-    assert follow_up.previous_revision == follow_up.revision
+    saved_follow_up = json.loads(
+        conversation.compose_round_paths(number=2).round_input.read_text(
+            encoding="utf-8"
+        )
+    )
+    assert "title" not in saved_follow_up
+    assert "body" not in saved_follow_up
     resumed = harnesses["claude"].calls[1]
     assert resumed.arguments[-2:] == ["--resume", "conversation-session"]
     assert resumed.prompt.startswith("Issue-conversation input for GH8:")
@@ -315,7 +320,6 @@ def test_a_follow_up_refreshes_to_changed_main(conversation_scheduler, harnesses
         model=IssueConversationInput,
         path=conversation.compose_round_paths(number=2).round_input,
     )
-    assert follow_up.previous_revision == previous_revision
     assert follow_up.revision != previous_revision
     assert follow_up.revision == read_worktree_revision(worktree=conversation.worktree)
 

@@ -239,7 +239,6 @@ def test_round_input_freezes_the_issue_comments_and_revision(cloned):
     assert frozen.title == "Why does this happen?"
     assert frozen.body == "Explain the scheduler."
     assert frozen.comments[0].body == "Please explain."
-    assert frozen.previous_revision is None
     assert frozen.revision
 
 
@@ -254,82 +253,72 @@ def test_round_input_freezes_the_issue_comments_and_revision(cloned):
 def test_a_conversation_revision_description_names_its_transition(
     previous, current, expected
 ):
-    round_input = IssueConversationInput(
-        issue=8,
-        title="Why does this happen?",
-        body="Explain the scheduler.",
-        comments=[comment(identifier=1, body="Please explain.")],
-        previous_revision=previous,
-        revision=current,
+    assert (
+        describe_issue_conversation_revision(
+            previous_revision=previous,
+            revision=current,
+        )
+        == expected
     )
 
-    assert describe_issue_conversation_revision(round_input=round_input) == expected
 
-
-def test_a_legacy_follow_up_derives_its_previous_revision(tmp_path):
-    state = StateDirectory(root=tmp_path)
-    conversation = write_conversation(state=state)
-    for number, revision in ((1, "abc123"), (2, "def456")):
-        document = {
-            "issue": 8,
-            "title": "Why does this happen?",
-            "body": "Explain the scheduler.",
-            "comments": [
-                comment(identifier=number, body="Question").model_dump(mode="json")
-            ],
-            "revision": revision,
-        }
-        path = conversation.compose_round_paths(number=number).round_input
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes((json.dumps(document) + "\n").encode())
-
-    found = read_issue_conversation_input(conversation=conversation, number=2)
-
-    assert found.previous_revision == "abc123"
-
-
-def test_a_follow_up_rejects_the_wrong_previous_revision(tmp_path):
-    state = StateDirectory(root=tmp_path)
-    conversation = write_conversation(state=state)
-    for number, previous, revision in (
-        (1, None, "abc123"),
-        (2, "wrong123", "def456"),
-    ):
-        path = conversation.compose_round_paths(number=number).round_input
-        write_json(
-            document=IssueConversationInput(
-                issue=8,
-                title="Why does this happen?",
-                body="Explain the scheduler.",
-                comments=[comment(identifier=number, body="Question")],
-                previous_revision=previous,
-                revision=revision,
-            ),
-            path=path,
-        )
-
-    with pytest.raises(ReportableError, match="round 1 used abc123"):
-        read_issue_conversation_input(conversation=conversation, number=2)
-
-
-def test_an_initial_round_rejects_a_previous_revision(tmp_path):
+def test_an_initial_round_requires_the_issue_text(tmp_path):
     state = StateDirectory(root=tmp_path)
     conversation = write_conversation(state=state)
     path = conversation.compose_round_paths(number=1).round_input
     write_json(
         document=IssueConversationInput(
             issue=8,
-            title="Why does this happen?",
-            body="Explain the scheduler.",
             comments=[comment(identifier=1, body="Question")],
-            previous_revision="unexpected123",
             revision="abc123",
         ),
         path=path,
     )
 
-    with pytest.raises(ReportableError, match="round 1 input names"):
+    with pytest.raises(ReportableError, match="initial issue title and body"):
         read_issue_conversation_input(conversation=conversation, number=1)
+
+
+def test_a_follow_up_can_omit_the_issue_text(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    conversation = write_conversation(state=state)
+    path = conversation.compose_round_paths(number=2).round_input
+    write_json(
+        document=IssueConversationInput(
+            issue=8,
+            comments=[comment(identifier=2, body="Question")],
+            revision="def456",
+        ),
+        path=path,
+    )
+
+    found = read_issue_conversation_input(conversation=conversation, number=2)
+
+    assert found.title is None
+    assert found.body is None
+    assert "title" not in json.loads(path.read_text(encoding="utf-8"))
+    assert "body" not in json.loads(path.read_text(encoding="utf-8"))
+
+
+def test_a_follow_up_from_an_earlier_version_can_keep_issue_text(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    conversation = write_conversation(state=state)
+    path = conversation.compose_round_paths(number=2).round_input
+    write_json(
+        document=IssueConversationInput(
+            issue=8,
+            title="Why does this happen?",
+            body="Explain the scheduler.",
+            comments=[comment(identifier=2, body="Question")],
+            revision="def456",
+        ),
+        path=path,
+    )
+
+    found = read_issue_conversation_input(conversation=conversation, number=2)
+
+    assert found.title == "Why does this happen?"
+    assert found.body == "Explain the scheduler."
 
 
 def test_a_conversation_records_its_session_and_round_paths(tmp_path):
@@ -378,7 +367,6 @@ def test_the_delivery_cursor_comes_from_the_latest_round_input(tmp_path):
                 title="Why does this happen?",
                 body="Explain the scheduler.",
                 comments=[comment(identifier=identifier, body="Question")],
-                previous_revision=None if number == 1 else "abc123",
                 revision="abc123",
             ),
             path=paths.round_input,

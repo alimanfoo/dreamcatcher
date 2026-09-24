@@ -35,10 +35,12 @@ Dreamcatcher saves that final answer and posts one marked comment on GH58. The
 process ends; the harness session and worktree remain available.
 
 A later question starts another round in the same session. Before that new
-batch, Dreamcatcher refreshes the worktree to current main and tells the agent
-both the current revision and the previous investigated revision. Questions
-arriving while a round runs wait for the next batch. Recovery continues the
-unfinished batch in the same session and at the same code revision.
+batch, Dreamcatcher refreshes the worktree to current main and records the
+investigated revision. The resumed transcript already contains the earlier issue
+text and revisions, so the new input carries only the new comments and current
+revision. Questions arriving while a round runs wait for the next batch.
+Recovery continues the unfinished batch in the same session and at the same code
+revision.
 
 ### Invitation and discovery
 
@@ -127,9 +129,10 @@ revision with its input, and tell the agent which revision it is investigating.
 When the revision changes between batches, the agent checks earlier conclusions
 where relevant. No separate change-summary service is needed.
 
-Do not force away unexpected source changes to refresh a worktree. Report an
-update blocked by local changes rather than deleting them. This is a normal
-setup failure, not a new source-change recovery mechanism.
+Do not force away unexpected source changes to refresh a worktree. Let Git carry
+non-conflicting local investigation work forward. When changes conflict with the
+fetched revision, report the worktree path and leave the batch waiting; the user
+can resolve the conflict there and let a later scheduler tick retry.
 
 The new issue conversation skill contract says: no implementation in this
 session. Read source and Git history, run code, and reproduce bugs as needed; do

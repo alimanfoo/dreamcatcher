@@ -360,15 +360,16 @@ conversation eligibility.
 
 Dreamcatcher fetches main, creates a detached worktree, records its revision and
 the chosen conversation settings, freezes the issue and eligible comment batch,
-then starts the initial `discuss` round. The round shares the daemon's capacity
-and global cooldown with assignment rounds. A successful final result is saved
-before publication, so posting can be retried without rerunning the agent.
+then starts the initial conversation round. The round shares the daemon's
+capacity and global cooldown with assignment rounds. A successful final result
+is saved before publication, so posting can be retried without rerunning the
+agent.
 
 After publication, another eligible comment batch resumes the same harness
-session in another `discuss` round. Before it accepts that batch, Dreamcatcher
-fetches main and moves the clean detached worktree to the fetched revision. The
-new round input records that revision and the previous round's revision. Local
-worktree changes block the refresh instead of being discarded. Comments that
+session in another conversation round. Before it accepts that batch,
+Dreamcatcher fetches main and asks Git to move the detached worktree to the
+fetched revision. Non-conflicting local changes remain in the worktree; a
+conflict leaves the batch waiting until the user resolves it. Comments that
 arrive while a round runs or an answer awaits publication stay beyond the latest
 round input. Closing the issue, removing its conversation label or unassigning
 the signed-in account makes the saved conversation inactive without deleting it.

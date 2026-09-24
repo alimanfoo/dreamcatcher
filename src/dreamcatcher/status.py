@@ -167,6 +167,7 @@ class IssueConversationStatus:
         """The derived status of every round in conversation order."""
         conversation = self.conversation
         statuses: list[AgentRoundStatus] = []
+        previous_revision = None
         for record in conversation.rounds:
             revision = None
             revision_description = None
@@ -177,8 +178,10 @@ class IssueConversationStatus:
                 )
                 revision = round_input.revision
                 revision_description = describe_issue_conversation_revision(
-                    round_input=round_input
+                    previous_revision=previous_revision,
+                    revision=revision,
                 )
+                previous_revision = revision
             except ReportableError:
                 pass
             statuses.append(

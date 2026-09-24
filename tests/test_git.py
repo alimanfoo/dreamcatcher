@@ -88,18 +88,57 @@ def test_a_clean_detached_worktree_refreshes_to_fetched_main(cloned):
     assert (path / "README.md").read_text(encoding="utf-8") == "what changed\n"
 
 
-def test_a_detached_worktree_with_local_changes_is_not_refreshed(cloned):
+def test_a_refresh_carries_non_conflicting_local_changes(cloned):
     path = cloned / ".dreamcatcher" / "v3" / "conversation-worktrees" / "GH8"
     add_detached_worktree(root=cloned, path=path)
-    revision = read_worktree_revision(worktree=path)
+    earlier_revision = read_worktree_revision(worktree=path)
     unexpected = path / "unexpected.txt"
     unexpected.write_bytes(b"keep this\n")
+    (cloned / "README.md").write_bytes(b"what changed\n")
+    commit(path=cloned, message="change main")
+    git(arguments=["push", "origin", "main"], cwd=cloned)
 
-    with pytest.raises(ReportableError, match="it has local changes"):
-        refresh_detached_worktree(root=cloned, worktree=path)
+    revision = refresh_detached_worktree(
+        root=cloned,
+        worktree=path,
+        expected_revision=earlier_revision,
+    )
 
-    assert read_worktree_revision(worktree=path) == revision
+    assert revision != earlier_revision
     assert unexpected.read_text(encoding="utf-8") == "keep this\n"
+    assert (path / "README.md").read_text(encoding="utf-8") == "what changed\n"
+
+
+def test_a_conflicting_local_change_waits_for_the_user_then_retries(cloned):
+    path = cloned / ".dreamcatcher" / "v3" / "conversation-worktrees" / "GH8"
+    add_detached_worktree(root=cloned, path=path)
+    earlier_revision = read_worktree_revision(worktree=path)
+    readme = path / "README.md"
+    readme.write_bytes(b"local experiment\n")
+    (cloned / "README.md").write_bytes(b"what main holds now\n")
+    commit(path=cloned, message="change main")
+    git(arguments=["push", "origin", "main"], cwd=cloned)
+
+    with pytest.raises(ReportableError, match="Resolve its local changes") as error:
+        refresh_detached_worktree(
+            root=cloned,
+            worktree=path,
+            expected_revision=earlier_revision,
+        )
+
+    assert str(path) in str(error.value)
+    assert read_worktree_revision(worktree=path) == earlier_revision
+    assert readme.read_text(encoding="utf-8") == "local experiment\n"
+
+    git(arguments=["restore", "README.md"], cwd=path)
+    revision = refresh_detached_worktree(
+        root=cloned,
+        worktree=path,
+        expected_revision=earlier_revision,
+    )
+
+    assert revision != earlier_revision
+    assert readme.read_text(encoding="utf-8") == "what main holds now\n"
 
 
 def test_a_missing_linked_worktree_is_not_refreshed(cloned):
@@ -143,7 +182,7 @@ def test_a_refresh_does_not_overwrite_an_ignored_file(cloned):
     commit(path=cloned, message="track generated file")
     git(arguments=["push", "origin", "main"], cwd=cloned)
 
-    with pytest.raises(CommandError):
+    with pytest.raises(ReportableError, match="Resolve its local changes"):
         refresh_detached_worktree(root=cloned, worktree=path)
 
     assert generated.read_text(encoding="utf-8") == "keep this\n"

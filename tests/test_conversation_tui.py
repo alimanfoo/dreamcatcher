@@ -157,7 +157,6 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
                     "written_at": "2026-09-23T02:00:00Z",
                 }
             ],
-            previous_revision="abc123",
             revision="def456",
         ),
         path=(directory / "rounds" / "2" / "inbox.json"),
@@ -280,7 +279,6 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
                         "written_at": "2026-09-23T02:00:00Z",
                     }
                 ],
-                previous_revision="abc123",
                 revision="def456",
             ),
             path=(directory / "rounds" / "2" / "inbox.json"),
