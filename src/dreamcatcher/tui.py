@@ -64,7 +64,6 @@ ASSIGNMENT_STATUS_STYLES = dict(
 CONVERSATION_STATUS_STYLES = {
     IssueConversationStatusValue.NEEDS_ATTENTION: "red",
     IssueConversationStatusValue.RUNNING: "green",
-    IssueConversationStatusValue.AWAITING_PUBLICATION: "yellow",
     IssueConversationStatusValue.WAITING: "cyan",
     IssueConversationStatusValue.INACTIVE: "dim",
 }

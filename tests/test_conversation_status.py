@@ -21,12 +21,7 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.documents import write_json
 from dreamcatcher.feed import FeedLine
-from dreamcatcher.issue_conversations import (
-    NO_REPLY,
-    read_issue_conversation,
-    record_issue_conversation_reply_publication,
-    save_issue_conversation_reply,
-)
+from dreamcatcher.issue_conversations import read_issue_conversation
 from dreamcatcher.scheduler import IssueFact, IssueFactValue, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
@@ -103,23 +98,6 @@ def status(*, state: StateDirectory):
     )
     assert found is not None
     return found
-
-
-def save_reply(*, state: StateDirectory, body: str, is_published: bool) -> None:
-    """Save the initial reply and optionally record its publication."""
-    conversation = read_issue_conversation(state=state, issue=8)
-    assert conversation is not None
-    save_issue_conversation_reply(
-        conversation=conversation,
-        number=1,
-        body=body,
-    )
-    if is_published:
-        record_issue_conversation_reply_publication(
-            conversation=conversation,
-            number=1,
-            at=LOOKED_AT,
-        )
 
 
 def test_a_missing_conversation_has_no_status(tmp_path):
@@ -271,25 +249,8 @@ def test_an_errored_conversation_reports_an_unreadable_input(conversation_state)
     assert "inbox.json is not valid" in found.detail
 
 
-@pytest.mark.parametrize("is_saved", [False, True])
-def test_a_successful_answer_not_yet_published_is_waiting(conversation_state, is_saved):
+def test_a_posted_answer_waits_for_new_comments(conversation_state):
     conversation_round(state=conversation_state)
-    if is_saved:
-        save_reply(
-            state=conversation_state,
-            body="The answer.",
-            is_published=False,
-        )
-
-    found = status(state=conversation_state)
-
-    assert found.value is IssueConversationStatusValue.AWAITING_PUBLICATION
-    assert found.detail == "round 1 answer is waiting to be published"
-
-
-def test_a_published_answer_waits_for_new_comments(conversation_state):
-    conversation_round(state=conversation_state)
-    save_reply(state=conversation_state, body="The answer.", is_published=True)
 
     found = status(state=conversation_state)
 
@@ -298,19 +259,8 @@ def test_a_published_answer_waits_for_new_comments(conversation_state):
     assert found.round_statuses[0].duration_description == "ran 4m"
 
 
-def test_no_reply_finishes_the_initial_exchange(conversation_state):
-    conversation_round(state=conversation_state)
-    save_reply(state=conversation_state, body=NO_REPLY, is_published=False)
-
-    found = status(state=conversation_state)
-
-    assert found.value is IssueConversationStatusValue.WAITING
-    assert found.detail == "waiting for new comments after round 1"
-
-
 def test_a_finished_ineligible_conversation_is_inactive(conversation_state):
     conversation_round(state=conversation_state)
-    save_reply(state=conversation_state, body="The answer.", is_published=True)
     write_tick(
         state=conversation_state,
         tick=SchedulerRecord(
@@ -331,7 +281,6 @@ def test_a_finished_conversation_with_unknown_eligibility_waits(
     conversation_state,
 ):
     conversation_round(state=conversation_state)
-    save_reply(state=conversation_state, body="The answer.", is_published=True)
     write_tick(
         state=conversation_state,
         tick=SchedulerRecord(at=PINNED),
@@ -345,7 +294,6 @@ def test_a_finished_conversation_with_unknown_eligibility_waits(
 
 def test_an_unreadable_delivered_input_needs_attention(conversation_state):
     conversation_round(state=conversation_state)
-    save_reply(state=conversation_state, body="The answer.", is_published=True)
     conversation = read_issue_conversation(state=conversation_state, issue=8)
     assert conversation is not None
     conversation.compose_round_paths(number=1).round_input.write_bytes(b"not json")
@@ -354,16 +302,3 @@ def test_an_unreadable_delivered_input_needs_attention(conversation_state):
 
     assert found.value is IssueConversationStatusValue.NEEDS_ATTENTION
     assert "inbox.json is not valid" in found.detail
-
-
-def test_an_unreadable_saved_reply_needs_attention(conversation_state):
-    conversation_round(state=conversation_state)
-    save_reply(state=conversation_state, body="The answer.", is_published=True)
-    conversation = read_issue_conversation(state=conversation_state, issue=8)
-    assert conversation is not None
-    conversation.compose_reply_path(number=1).write_bytes(b"not json")
-
-    found = status(state=conversation_state)
-
-    assert found.value is IssueConversationStatusValue.NEEDS_ATTENTION
-    assert "reply.json is not valid" in found.detail

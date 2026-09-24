@@ -2,11 +2,8 @@
 
 from contextlib import suppress
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 from threading import Lock
-
-from pydantic import AwareDatetime
 
 from dreamcatcher.agent_rounds import (
     AgentRoundPaths,
@@ -43,7 +40,6 @@ from dreamcatcher.state import StateDirectory
 
 ISSUE_CONVERSATION_RECORD_NAME = "conversation.json"
 ISSUE_CONVERSATION_ROUNDS_DIRECTORY_NAME = "rounds"
-ISSUE_CONVERSATION_REPLY_NAME = "reply.json"
 NO_REPLY = "NO_REPLY"
 
 
@@ -65,23 +61,6 @@ class IssueConversationRecord(DreamcatcherDocument):
     model: QuotableText
     effort: QuotableText
     prompt: str
-
-
-class IssueConversationReply(DreamcatcherDocument):
-    """Model a saved final answer and its GitHub publication."""
-
-    body: str
-    published_at: AwareDatetime | None = None
-
-    @property
-    def is_no_reply(self) -> bool:
-        """Whether the agent explicitly said that no reply is needed."""
-        return self.body == NO_REPLY
-
-    @property
-    def is_complete(self) -> bool:
-        """Whether this answer needs no further publication attempt."""
-        return self.is_no_reply or self.published_at is not None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -120,12 +99,6 @@ class IssueConversation:
                 self.directory / ISSUE_CONVERSATION_ROUNDS_DIRECTORY_NAME
             ),
             number=number,
-        )
-
-    def compose_reply_path(self, *, number: int) -> Path:
-        """Return the path of one round's saved reply record."""
-        return self.compose_round_paths(number=number).directory / (
-            ISSUE_CONVERSATION_REPLY_NAME
         )
 
 
@@ -346,40 +319,6 @@ def publish_issue_conversation_answer(
         raise ReportableError(
             f"could not post the answer on GH{issue}: {response.reason}"
         )
-
-
-def save_issue_conversation_reply(
-    *, conversation: IssueConversation, number: int, body: str
-) -> IssueConversationReply:
-    """Save and return one round's final answer before publication."""
-    reply = IssueConversationReply(body=body.strip())
-    write_json(document=reply, path=conversation.compose_reply_path(number=number))
-    return reply
-
-
-def read_issue_conversation_reply(
-    *, conversation: IssueConversation, number: int
-) -> IssueConversationReply | None:
-    """Return one round's saved reply when it exists."""
-    path = conversation.compose_reply_path(number=number)
-    if not path.is_file():
-        return None
-    return read_json(model=IssueConversationReply, path=path)
-
-
-def record_issue_conversation_reply_publication(
-    *, conversation: IssueConversation, number: int, at: datetime
-) -> IssueConversationReply:
-    """Record that GitHub accepted one saved answer."""
-    reply = read_issue_conversation_reply(conversation=conversation, number=number)
-    if reply is None:
-        raise ReportableError(
-            f"Conversation {conversation.identifier} round {number} has no saved "
-            "reply to publish."
-        )
-    published = reply.model_copy(update={"published_at": at})
-    write_json(document=published, path=conversation.compose_reply_path(number=number))
-    return published
 
 
 def _read_issue_conversation(

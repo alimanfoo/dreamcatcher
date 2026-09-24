@@ -18,11 +18,7 @@ from dreamcatcher.documents import write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.harness_adapters import AgentWorkKind
-from dreamcatcher.issue_conversations import (
-    read_issue_conversation,
-    record_issue_conversation_reply_publication,
-    save_issue_conversation_reply,
-)
+from dreamcatcher.issue_conversations import read_issue_conversation
 from dreamcatcher.scheduler import IssueFact, IssueFactValue, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.tui import (
@@ -38,7 +34,6 @@ def conversation_state(
     *,
     root,
     status: int = 0,
-    is_published: bool = True,
     is_eligible: bool = False,
 ) -> StateDirectory:
     """Return state containing one finished conversation."""
@@ -79,18 +74,6 @@ def conversation_state(
         number=1,
         lines=[FeedLine(at=PINNED, text="I found the answer.")],
     )
-    conversation = read_issue_conversation(state=state, issue=8)
-    assert conversation is not None
-    if status == 0:
-        save_issue_conversation_reply(
-            conversation=conversation, number=1, body="The answer."
-        )
-        if is_published:
-            record_issue_conversation_reply_publication(
-                conversation=conversation,
-                number=1,
-                at=PINNED + timedelta(minutes=5),
-            )
     write_tick(
         state=state,
         tick=SchedulerRecord(
@@ -199,17 +182,8 @@ def test_conversation_detail_shows_attention_for_an_unreadable_input(tmp_path):
     assert "inbox.json is not valid" in shown
 
 
-@pytest.mark.parametrize(
-    ("status", "is_published", "expected"),
-    [
-        (2, False, "needs attention"),
-        (0, False, "awaiting publication"),
-    ],
-)
-def test_conversation_detail_shows_failed_and_pending_states(
-    tmp_path, status, is_published, expected
-):
-    state = conversation_state(root=tmp_path, status=status, is_published=is_published)
+def test_conversation_detail_shows_a_failed_round(tmp_path):
+    state = conversation_state(root=tmp_path, status=2)
     console, written = rendered_console()
 
     show_conversation_view(
@@ -219,7 +193,7 @@ def test_conversation_detail_shows_failed_and_pending_states(
         timing=ViewTiming(clock=lambda: PINNED),
     )
 
-    assert expected in written.getvalue()
+    assert "needs attention" in written.getvalue()
 
 
 def test_conversation_feed_shows_its_saved_activity(tmp_path):
@@ -287,16 +261,6 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
             directory=directory,
             number=2,
             lines=[FeedLine(at=PINNED, text="I found the follow-up answer.")],
-        )
-        conversation = read_issue_conversation(state=state, issue=8)
-        assert conversation is not None
-        save_issue_conversation_reply(
-            conversation=conversation, number=2, body="The follow-up answer."
-        )
-        record_issue_conversation_reply_publication(
-            conversation=conversation,
-            number=2,
-            at=PINNED + timedelta(minutes=11),
         )
         write_tick(
             state=state,

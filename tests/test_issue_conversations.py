@@ -33,11 +33,8 @@ from dreamcatcher.issue_conversations import (
     read_issue_comment_delivery_cursor,
     read_issue_conversation,
     read_issue_conversation_input,
-    read_issue_conversation_reply,
     read_issue_conversations,
-    record_issue_conversation_reply_publication,
     record_issue_conversation_session_identifier,
-    save_issue_conversation_reply,
 )
 from dreamcatcher.prompts import AGENT_POST_MARKER
 from dreamcatcher.state import StateDirectory
@@ -334,7 +331,6 @@ def test_a_conversation_records_its_session_and_round_paths(tmp_path):
     reread = read_issue_conversation(state=StateDirectory(root=tmp_path), issue=8)
     assert reread is not None
     assert reread.next_round_number == 2
-    assert reread.compose_reply_path(number=1) == paths.directory / "reply.json"
 
     with pytest.raises(ReportableError) as error:
         record_issue_conversation_session_identifier(
@@ -445,46 +441,6 @@ def test_the_delivery_cursor_refuses_inconsistent_round_input(
 
     with pytest.raises(ReportableError, match=message):
         read_issue_comment_delivery_cursor(conversation=reread)
-
-
-def test_a_reply_is_saved_before_its_publication_is_recorded(tmp_path):
-    conversation = write_conversation(state=StateDirectory(root=tmp_path))
-
-    assert read_issue_conversation_reply(conversation=conversation, number=1) is None
-    reply = save_issue_conversation_reply(
-        conversation=conversation, number=1, body="  The answer.\n"
-    )
-
-    assert reply.body == "The answer."
-    assert not reply.is_no_reply
-    assert not reply.is_complete
-    published = record_issue_conversation_reply_publication(
-        conversation=conversation, number=1, at=PINNED
-    )
-    assert published.published_at == PINNED
-    assert published.is_complete
-
-
-def test_no_reply_completes_without_publication(tmp_path):
-    conversation = write_conversation(state=StateDirectory(root=tmp_path))
-
-    reply = save_issue_conversation_reply(
-        conversation=conversation, number=1, body=" NO_REPLY\n"
-    )
-
-    assert reply.is_no_reply
-    assert reply.is_complete
-
-
-def test_publication_requires_a_saved_reply(tmp_path):
-    conversation = write_conversation(state=StateDirectory(root=tmp_path))
-
-    with pytest.raises(ReportableError) as error:
-        record_issue_conversation_reply_publication(
-            conversation=conversation, number=1, at=PINNED
-        )
-
-    assert "has no saved reply to publish" in str(error.value)
 
 
 def test_an_answer_is_posted_trimmed_and_marked(fake):

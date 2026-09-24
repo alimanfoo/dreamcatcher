@@ -340,8 +340,7 @@ body::after {
 }
 
 .status-working,
-.status-running,
-.status-awaiting-publication {
+.status-running {
   text-shadow: var(--shadow);
 }
 
