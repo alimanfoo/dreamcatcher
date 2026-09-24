@@ -1,7 +1,7 @@
 assignee = "@me"
 
 [conversation]
-label = "scout"
+label = "agent:conversation"
 harness = "claude"
 prompt = "Answer questions on GH{issue}."
 model = "opus[1m]"
