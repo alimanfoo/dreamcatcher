@@ -107,6 +107,7 @@ class WebAssignmentCard:
     status: str
     status_label: str
     detail: str
+    dispatch_label: str
     harness: str
     model: str
     effort: str
@@ -676,6 +677,7 @@ def _compose_assignment_card(*, status: AgentAssignmentStatus) -> WebAssignmentC
         status=str(status.value),
         status_label=_compose_assignment_status_label(status=status),
         detail=status.detail,
+        dispatch_label=assignment.record.dispatch_label,
         harness=str(assignment.record.harness),
         model=assignment.record.model,
         effort=assignment.record.effort,
