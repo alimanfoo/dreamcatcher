@@ -26,11 +26,11 @@ watches. Commit it, so everyone watching that repo dispatches the same way.
 assignee = "@me"
 
 [conversation]
-label = "dream:conversation"
+label = "agent:conversation"
 harness = "claude"
-prompt = "/dream:conversation GH{issue}"
+prompt = "Answer questions on GH{issue}."
 model = "opus[1m]"
-effort = "xhigh"
+effort = "high"
 
 [[dispatch]]
 label = "dream:smith"
@@ -68,7 +68,9 @@ Point `prompt` at an [assignment skill](CONTRACT.md) that meets the contract.
 The optional `[conversation]` block watches a separate label for questions on
 open issues assigned to the account `gh` is signed in as. Stage 1 supports
 Claude only. Its prompt, model and effort are frozen into each conversation
-record. The prompt may use `{issue}` and must follow the
+record. Its prompt says what answer to produce, so a plain sentence is enough,
+though it can name a suitable skill when one is available. The prompt may use
+`{issue}` and must follow the
 [issue-conversation contract](CONTRACT.md#issue-conversation-instructions).
 
 ## Commands
