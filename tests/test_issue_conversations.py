@@ -26,6 +26,7 @@ from dreamcatcher.issue_conversations import (
     IssueConversationRecord,
     compose_issue_conversation_input,
     create_issue_conversation,
+    describe_issue_conversation_revision,
     list_undelivered_issue_comments,
     read_issue_comment_delivery_cursor,
     read_issue_conversation,
@@ -222,6 +223,27 @@ def test_round_input_freezes_the_issue_comments_and_revision():
     assert frozen.comments[0].body == "Please explain."
     assert frozen.previous_revision == "before123"
     assert frozen.revision == "abc123"
+
+
+@pytest.mark.parametrize(
+    ("previous", "current", "expected"),
+    [
+        (None, "abc123", "code revision abc123"),
+        ("abc123", "abc123", "code revision abc123 (unchanged)"),
+        ("abc123", "def456", "code revision abc123 -> def456"),
+    ],
+)
+def test_a_conversation_revision_description_names_its_transition(
+    previous, current, expected
+):
+    round_input = compose_issue_conversation_input(
+        issue=issue(),
+        comments=[comment(identifier=1, body="Please explain.")],
+        previous_revision=previous,
+        revision=current,
+    )
+
+    assert describe_issue_conversation_revision(round_input=round_input) == expected
 
 
 def test_a_conversation_records_its_session_and_round_paths(tmp_path):

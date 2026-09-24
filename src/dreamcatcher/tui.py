@@ -33,7 +33,11 @@ from dreamcatcher.feed import (
     read_feed_line,
 )
 from dreamcatcher.harness_adapters import AgentWorkKind
-from dreamcatcher.issue_conversations import IssueConversation
+from dreamcatcher.issue_conversations import (
+    IssueConversation,
+    describe_issue_conversation_revision,
+    read_issue_conversation_input,
+)
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
@@ -662,10 +666,11 @@ def _render_round_statuses(
     """Return agent round statuses newest first."""
     if not round_statuses:
         return None
-    table = _create_table(columns=5)
+    shows_revision = any(status.revision is not None for status in round_statuses)
+    table = _create_table(columns=6 if shows_revision else 5)
     for round_status in reversed(round_statuses):
         record = round_status.record
-        table.add_row(
+        cells = [
             Text(str(record.number)),
             Text(
                 describe_agent_round_start(
@@ -673,10 +678,17 @@ def _render_round_statuses(
                     is_recovery=record.is_recovery,
                 )
             ),
-            Text(describe_time(at=record.started, zone=zone)),
-            Text(round_status.duration_description),
-            Text(round_status.outcome_description),
+        ]
+        if shows_revision:
+            cells.append(Text(round_status.revision or ""))
+        cells.extend(
+            [
+                Text(describe_time(at=record.started, zone=zone)),
+                Text(round_status.duration_description),
+                Text(round_status.outcome_description),
+            ]
         )
+        table.add_row(*cells)
     return _render_section(heading="rounds", body=table)
 
 
@@ -877,10 +889,15 @@ class _FeedView:
         """Show agent output written since the previous refresh."""
         for record in records:
             if record.number not in self.positions:
-                self._show_round_heading(record=record)
+                self._show_round_heading(owner=owner, record=record)
             self._show_new_lines(owner=owner, round_number=record.number)
 
-    def _show_round_heading(self, *, record: AgentRoundRecord) -> None:
+    def _show_round_heading(
+        self,
+        *,
+        owner: AgentAssignment | IssueConversation,
+        record: AgentRoundRecord,
+    ) -> None:
         """Show the line that opens a round, saying what caused it.
 
         A feed holds one round, so the stitch between two of them lands in no
@@ -889,11 +906,20 @@ class _FeedView:
         """
         if self.positions:
             self.console.print()
+        detail = None
+        if isinstance(owner, IssueConversation):
+            detail = describe_issue_conversation_revision(
+                round_input=read_issue_conversation_input(
+                    conversation=owner,
+                    number=record.number,
+                )
+            )
         round_heading = compose_agent_round_boundary(
             number=record.number,
             purpose=record.purpose,
             is_recovery=record.is_recovery,
             at=record.started,
+            detail=detail,
         )
         self.console.print(
             _render_feed_line(

@@ -122,6 +122,18 @@ def test_a_round_boundary_names_its_purpose_and_recovery_independently(
     )
 
 
+def test_a_round_boundary_can_name_the_rounds_detail():
+    boundary = compose_agent_round_boundary(
+        number=2,
+        purpose="discuss",
+        is_recovery=False,
+        at=PINNED,
+        detail="code revision abc123 -> def456",
+    )
+
+    assert boundary.text == ("round 2: discuss; code revision abc123 -> def456")
+
+
 def test_a_written_line_reads_back_as_what_it_says_and_when():
     assert read_feed_line(
         written_line="2026-08-19T18:41:58Z  [Bash] pytest"

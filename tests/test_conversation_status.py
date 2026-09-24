@@ -222,6 +222,7 @@ def test_a_live_conversation_round_counts_capacity_and_shows_latest_output(
     assert found.latest_output == "I am reading the scheduler."
     assert found.observed_at == PINNED
     assert found.round_statuses[0].outcome_description == "running"
+    assert found.round_statuses[0].revision == "abc123"
 
 
 def test_a_live_conversation_that_has_said_nothing_reports_that(

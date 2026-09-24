@@ -27,6 +27,11 @@ from dreamcatcher.feed import (
     compose_agent_round_boundary,
     read_feed_line,
 )
+from dreamcatcher.issue_conversations import (
+    IssueConversation,
+    describe_issue_conversation_revision,
+    read_issue_conversation_input,
+)
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
@@ -139,6 +144,7 @@ class WebAgentRound:
     started: str
     duration: str
     outcome: str
+    revision: str | None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -820,6 +826,7 @@ def _compose_agent_rounds(
             started=describe_time(at=round_status.record.started, zone=zone),
             duration=round_status.duration_description,
             outcome=round_status.outcome_description,
+            revision=round_status.revision,
         )
         for round_status in round_statuses
     )
@@ -873,7 +880,10 @@ def _read_agent_tail(
             for written_line in written_lines
         )
         if is_opening_round:
-            lines = (_compose_web_round_boundary(record=record, zone=zone), *lines)
+            lines = (
+                _compose_web_round_boundary(owner=owner, record=record, zone=zone),
+                *lines,
+            )
         if lines:
             feed_rounds.append(WebFeedRound(number=number, lines=lines))
         next_cursor = WebFeedCursor(round_number=number, position=position)
@@ -906,13 +916,22 @@ def _resolve_feed_cursor(
 
 
 def _compose_web_round_boundary(
-    *, record: AgentRoundRecord, zone: tzinfo | None
+    *, owner: _WebFeedOwner, record: AgentRoundRecord, zone: tzinfo | None
 ) -> WebFeedLine:
+    detail = None
+    if isinstance(owner, IssueConversation):
+        detail = describe_issue_conversation_revision(
+            round_input=read_issue_conversation_input(
+                conversation=owner,
+                number=record.number,
+            )
+        )
     boundary = compose_agent_round_boundary(
         number=record.number,
         purpose=record.purpose,
         is_recovery=record.is_recovery,
         at=record.started,
+        detail=detail,
     )
     return WebFeedLine(
         timestamp=describe_time(at=boundary.at, zone=zone),
@@ -936,7 +955,11 @@ def _read_agent_feed(*, owner: _WebFeedOwner, zone: tzinfo | None) -> WebAgentFe
             WebFeedRound(
                 number=record.number,
                 lines=(
-                    _compose_web_round_boundary(record=record, zone=zone),
+                    _compose_web_round_boundary(
+                        owner=owner,
+                        record=record,
+                        zone=zone,
+                    ),
                     *(
                         _compose_web_feed_line(written_line=written_line, zone=zone)
                         for written_line in written_lines

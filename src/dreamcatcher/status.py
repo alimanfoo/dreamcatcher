@@ -31,6 +31,7 @@ from dreamcatcher.issue_conversations import (
     IssueConversation,
     read_issue_comment_delivery_cursor,
     read_issue_conversation,
+    read_issue_conversation_input,
     read_issue_conversation_reply,
     read_issue_conversations,
 )
@@ -97,6 +98,7 @@ class AgentRoundStatus:
     record: AgentRoundRecord
     duration_description: str
     outcome_description: str
+    revision: str | None = None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -162,20 +164,29 @@ class IssueConversationStatus:
     def round_statuses(self) -> list[AgentRoundStatus]:
         """The derived status of every round in conversation order."""
         conversation = self.conversation
-        return [
-            AgentRoundStatus(
-                record=record,
-                duration_description=_compose_round_duration_description(record=record),
-                outcome_description=_describe_round_outcome(
-                    record=record,
-                    is_running=(
-                        self.value is IssueConversationStatusValue.RUNNING
-                        and record.number == conversation.rounds[-1].number
-                    ),
-                ),
+        statuses: list[AgentRoundStatus] = []
+        for record in conversation.rounds:
+            round_input = read_issue_conversation_input(
+                conversation=conversation,
+                number=record.number,
             )
-            for record in conversation.rounds
-        ]
+            statuses.append(
+                AgentRoundStatus(
+                    record=record,
+                    duration_description=_compose_round_duration_description(
+                        record=record
+                    ),
+                    outcome_description=_describe_round_outcome(
+                        record=record,
+                        is_running=(
+                            self.value is IssueConversationStatusValue.RUNNING
+                            and record.number == conversation.rounds[-1].number
+                        ),
+                    ),
+                    revision=round_input.revision,
+                )
+            )
+        return statuses
 
 
 @dataclass(frozen=True, kw_only=True)

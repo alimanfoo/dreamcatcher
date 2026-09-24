@@ -275,6 +275,17 @@ def read_issue_conversation_input(
     return round_input
 
 
+def describe_issue_conversation_revision(*, round_input: IssueConversationInput) -> str:
+    """Describe the revision investigated by one conversation round."""
+    previous = round_input.previous_revision
+    current = round_input.revision
+    if previous is None:
+        return f"code revision {current}"
+    if previous == current:
+        return f"code revision {current} (unchanged)"
+    return f"code revision {previous} -> {current}"
+
+
 def read_issue_comment_delivery_cursor(
     *, conversation: IssueConversation
 ) -> IssueCommentCursor | None:
