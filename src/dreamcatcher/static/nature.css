@@ -24,7 +24,7 @@ body {
   color: var(--bright);
   background:
     radial-gradient(
-      circle at 27% 7%,
+      circle at 86% 6%,
       rgba(255, 250, 232, 0.95) 0,
       rgba(255, 236, 170, 0.72) 6vmin,
       rgba(255, 226, 150, 0.32) 18vmin,
@@ -178,6 +178,7 @@ body::after {
 
 .fact,
 .assignment-facts > div {
+  align-items: baseline;
   gap: 8px;
   padding-right: 16px;
   margin-right: 16px;
@@ -563,8 +564,8 @@ body::after {
 }
 
 .feed-records {
-  height: 72vh;
-  min-height: 380px;
+  height: 52vh;
+  min-height: 320px;
   padding: 6px 24px 20px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12.5px;
