@@ -30,7 +30,7 @@
           {% include "partials/assignment-rounds.html" %}
         </div>
         <section class="panel assignment-feed" aria-labelledby="feed-heading">
-          <h1 id="feed-heading">FEED</h1>
+          <h1 id="feed-heading">Feed</h1>
           <button class="feed-tail" type="button" aria-controls="records">TAIL ↓</button>
           <input type="hidden" id="cursor" name="cursor" value="{{ view.feed_cursor }}">
           <div id="records" class="feed-records" hx-get="{{ url_for('show_assignment_tail', identifier=view.identifier) }}" hx-trigger="every 2s" hx-include="#cursor" hx-select=".feed-line" hx-swap="beforeend">

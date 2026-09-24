@@ -882,8 +882,8 @@ def test_dashboard_counts_use_four_digits_without_redundant_issue_headings(
 
     page = render_home(state=state)
 
-    assert re.search(r"AGENT ASSIGNMENTS <span>\d{4}</span>", page)
-    assert re.search(r"ISSUES <span>\d{4}</span>", page)
+    assert re.search(r"Assignments <span>\d{4}</span>", page)
+    assert re.search(r"Issues <span>\d{4}</span>", page)
     assert "AVAILABLE ISSUES" not in page
     assert "BLOCKED ISSUES" not in page
 

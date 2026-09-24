@@ -221,6 +221,7 @@ body::after {
   font-weight: 700;
   letter-spacing: var(--letter-label);
   text-shadow: var(--shadow);
+  text-transform: uppercase;
 }
 
 .panel > h1 span {
@@ -238,6 +239,7 @@ body::after {
   color: var(--dim);
   font-size: var(--font-size);
   letter-spacing: var(--letter-chip);
+  text-transform: uppercase;
 }
 
 .assignment-card,
