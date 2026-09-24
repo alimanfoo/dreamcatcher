@@ -524,25 +524,7 @@ class AgentRound:
         is written before the stream readers finish.
         """
         try:
-            status = self.harness_process.wait()
-            if (
-                self.output_reader.final_output_path is not None
-                and status == 0
-                and (
-                    not self.output_reader.wait_for_final_output()
-                    or not self._has_final_output()
-                )
-            ):
-                status = 1
-                self._append_feed_events(
-                    line="",
-                    events=[
-                        FeedNote(
-                            label="failed",
-                            detail="the harness returned no final output",
-                        )
-                    ],
-                )
+            status = self._settle_exit_status(status=self.harness_process.wait())
             if self.is_interrupted:
                 self.record = record_agent_round_interruption(
                     record=self.record, path=self.paths.record
@@ -560,6 +542,26 @@ class AgentRound:
             self._round_ended.set()
             for stream_reader in self._stream_readers:
                 stream_reader.join()
+
+    def _settle_exit_status(self, *, status: int) -> int:
+        """Return the exit status to record for a harness that exited with status.
+
+        A successful exit fails the round when the round requires a final output
+        and none landed, and the feed says so.
+        """
+        if (
+            self.output_reader.final_output_path is None
+            or status != 0
+            or (self.output_reader.wait_for_final_output() and self._has_final_output())
+        ):
+            return status
+        self._append_feed_events(
+            line="",
+            events=[
+                FeedNote(label="failed", detail="the harness returned no final output")
+            ],
+        )
+        return 1
 
     def _has_final_output(self) -> bool:
         """Return whether a required non-empty final output has landed."""
