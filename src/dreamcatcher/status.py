@@ -23,11 +23,13 @@ from dreamcatcher.clock import read_current_time
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import read_json, read_text
+from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine, read_last_feed_line
 from dreamcatcher.harness_adapters import HarnessSessionIdentifier
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.issue_conversations import (
     IssueConversation,
+    read_issue_comment_delivery_cursor,
     read_issue_conversation,
     read_issue_conversation_reply,
     read_issue_conversations,
@@ -474,21 +476,19 @@ class _StatusReportReader:
         eligibility_value = (
             IssueFactValue.UNKNOWN if eligibility is None else eligibility.value
         )
-        if not conversation.rounds:
-            if eligibility_value is IssueFactValue.FALSE:
-                return self._compose_issue_conversation_status(
-                    conversation=conversation,
-                    value=IssueConversationStatusValue.INACTIVE,
-                    detail="issue is not eligible for conversation",
-                )
+        if conversation.unrecorded_round_input is not None:
             return self._compose_issue_conversation_status(
                 conversation=conversation,
-                value=IssueConversationStatusValue.WAITING,
+                value=IssueConversationStatusValue.NEEDS_ATTENTION,
                 detail=(
-                    "initial round has not started"
-                    if eligibility_value is IssueFactValue.TRUE
-                    else "issue conversation eligibility is unknown"
+                    f"round {conversation.next_round_number} input exists without "
+                    "a round record"
                 ),
+            )
+        if not conversation.rounds:
+            return self._read_conversation_without_rounds(
+                conversation=conversation,
+                eligibility=eligibility_value,
             )
         latest = conversation.rounds[-1]
         if latest.ending is None:
@@ -499,18 +499,62 @@ class _StatusReportReader:
                 value=IssueConversationStatusValue.NEEDS_ATTENTION,
                 detail=_describe_round_outcome(record=latest, is_running=False),
             )
-        reply = read_issue_conversation_reply(
-            conversation=conversation, number=latest.number
+        return self._read_successful_conversation_status(
+            conversation=conversation,
+            eligibility=eligibility_value,
         )
-        if reply is None or not reply.is_complete:
+
+    def _read_conversation_without_rounds(
+        self,
+        *,
+        conversation: IssueConversation,
+        eligibility: IssueFactValue,
+    ) -> IssueConversationStatus:
+        """Describe a saved conversation before its first round record."""
+        if eligibility is IssueFactValue.FALSE:
             return self._compose_issue_conversation_status(
                 conversation=conversation,
-                value=IssueConversationStatusValue.AWAITING_PUBLICATION,
-                detail=f"round {latest.number} answer is waiting to be published",
+                value=IssueConversationStatusValue.INACTIVE,
+                detail="issue is not eligible for conversation",
+            )
+        return self._compose_issue_conversation_status(
+            conversation=conversation,
+            value=IssueConversationStatusValue.WAITING,
+            detail=(
+                "initial round has not started"
+                if eligibility is IssueFactValue.TRUE
+                else "issue conversation eligibility is unknown"
+            ),
+        )
+
+    def _read_successful_conversation_status(
+        self,
+        *,
+        conversation: IssueConversation,
+        eligibility: IssueFactValue,
+    ) -> IssueConversationStatus:
+        """Describe a conversation whose latest round succeeded."""
+        latest = conversation.rounds[-1]
+        try:
+            reply = read_issue_conversation_reply(
+                conversation=conversation, number=latest.number
+            )
+            if reply is None or not reply.is_complete:
+                return self._compose_issue_conversation_status(
+                    conversation=conversation,
+                    value=IssueConversationStatusValue.AWAITING_PUBLICATION,
+                    detail=f"round {latest.number} answer is waiting to be published",
+                )
+            read_issue_comment_delivery_cursor(conversation=conversation)
+        except ReportableError as failure:
+            return self._compose_issue_conversation_status(
+                conversation=conversation,
+                value=IssueConversationStatusValue.NEEDS_ATTENTION,
+                detail=str(failure),
             )
         return self._read_idle_conversation_status(
             conversation=conversation,
-            eligibility=eligibility_value,
+            eligibility=eligibility,
         )
 
     def _read_idle_conversation_status(

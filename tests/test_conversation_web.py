@@ -10,9 +10,10 @@ from records import write_feed, write_issue_conversation, write_round, write_tic
 from dreamcatcher.agent_rounds import (
     AgentRoundPurpose,
     AgentRoundRecord,
+    IssueConversationInput,
     compose_agent_round_ending,
 )
-from dreamcatcher.documents import append_text, write_text
+from dreamcatcher.documents import append_text, write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.issue_conversations import (
     read_issue_conversation,
@@ -62,6 +63,23 @@ def fabricate_conversation(
                 at=PINNED + timedelta(minutes=4), status=status
             ),
         ),
+    )
+    write_json(
+        document=IssueConversationInput(
+            issue=8,
+            title="Issue 8",
+            body="Explain it.",
+            comments=[
+                {
+                    "id": 1,
+                    "body": "Please explain.",
+                    "author": "alice",
+                    "written_at": "2026-09-23T01:00:00Z",
+                }
+            ],
+            revision="abc123",
+        ),
+        path=(directory / "rounds" / "1" / "inbox.json"),
     )
     write_feed(
         directory=directory,
@@ -208,7 +226,7 @@ def test_a_waiting_conversation_keeps_empty_tail_polling(tmp_path):
 
 def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_path):
     state = StateDirectory(root=tmp_path)
-    fabricate_conversation(state=state)
+    fabricate_conversation(state=state, is_eligible=True)
     conversation = read_issue_conversation(state=state, issue=8)
     assert conversation is not None
     first_feed = conversation.compose_round_paths(number=1).feed
@@ -226,6 +244,23 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
             ),
         ),
     )
+    write_json(
+        document=IssueConversationInput(
+            issue=8,
+            title="Issue 8",
+            body="Explain it.",
+            comments=[
+                {
+                    "id": 2,
+                    "body": "What evidence supports that?",
+                    "author": "alice",
+                    "written_at": "2026-09-23T02:00:00Z",
+                }
+            ],
+            revision="abc123",
+        ),
+        path=(directory / "rounds" / "2" / "inbox.json"),
+    )
     write_feed(
         directory=directory,
         number=2,
@@ -241,6 +276,15 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
         number=2,
         at=PINNED + timedelta(minutes=11),
     )
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            conversation_eligibility={
+                8: IssueFact(value=IssueFactValue.FALSE),
+            },
+        ),
+    )
 
     response = (
         application(state=state)
@@ -253,6 +297,8 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
 
     assert response.status_code == 200
     assert "I found the answer." not in response.text
+    assert 'id="conversation-detail"' in response.text
+    assert "issue is not eligible for conversation" in response.text
     assert response.text.count("round 2: discuss") == 1
     assert response.text.count("I found the follow-up answer.") == 1
 

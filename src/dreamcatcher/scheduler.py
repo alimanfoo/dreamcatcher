@@ -11,7 +11,7 @@ alternates which kind receives the next free slot.
 """
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from functools import partial
@@ -173,17 +173,17 @@ class SchedulerRecord(DreamcatcherDocument):
         default_factory=list
     )
     conversation_eligibility: dict[int, IssueFact] = Field(default_factory=dict)
-    last_selected_work_kind: AgentWorkKind | None = None
     cooldown: GlobalCooldown | None = None
     most_recent_cooldown_ended: UtcDateTime | None = None
 
     @model_validator(mode="before")
     @classmethod
-    def _read_legacy_launched_identifiers(
-        cls, value: dict[str, object], /
-    ) -> dict[str, object]:
+    def _read_legacy_launched_identifiers(cls, value: object, /) -> object:
         """Read scheduler records written before launches had one owner-neutral key."""
+        if not isinstance(value, dict):
+            return value
         data = dict(value)
+        data.pop("last_selected_work_kind", None)
         assignment = data.pop("launched_assignment_identifier", None)
         conversation = data.pop("launched_conversation_identifier", None)
         if "launched_agent_work_identifier" not in data:
@@ -831,6 +831,7 @@ def _list_issue_conversation_candidates(
     account: str,
     config: DreamcatcherConfig,
     conversations: list[IssueConversation],
+    should_read_comments: bool,
 ) -> IssueConversationCandidateResult:
     """Return eligible issues whose next trusted comment batch is waiting."""
     conversation_config = config.conversation
@@ -859,6 +860,17 @@ def _list_issue_conversation_candidates(
             failure=f"could not list issue conversations: {issue_response.reason}",
         )
     eligible_issue_numbers = {issue.number for issue in issue_response}
+    eligibility = {
+        conversation.record.issue: _compose_known_issue_fact(
+            value=conversation.record.issue in eligible_issue_numbers
+        )
+        for conversation in conversations
+    }
+    if not should_read_comments:
+        return IssueConversationCandidateResult(
+            candidates=[],
+            eligibility=eligibility,
+        )
     conversations_by_issue = {
         conversation.record.issue: conversation for conversation in conversations
     }
@@ -886,12 +898,7 @@ def _list_issue_conversation_candidates(
                 candidate.comments[0].id,
             ),
         ),
-        eligibility={
-            conversation.record.issue: _compose_known_issue_fact(
-                value=conversation.record.issue in eligible_issue_numbers
-            )
-            for conversation in conversations
-        },
+        eligibility=eligibility,
         failure=_combine_scheduler_failures(failures=failures),
     )
 
@@ -905,10 +912,13 @@ def _inspect_issue_conversation_candidate(
     conversation: IssueConversation | None,
 ) -> tuple[IssueConversationCandidate | None, str | None]:
     """Return one ready candidate or the failed read that prevented it."""
-    if conversation is not None and not _is_conversation_ready_for_input(
-        conversation=conversation
-    ):
-        return None, None
+    try:
+        if conversation is not None and not _is_conversation_ready_for_input(
+            conversation=conversation
+        ):
+            return None, None
+    except ReportableError as failure:
+        return None, f"could not inspect saved conversation GH{issue.number}: {failure}"
     comment_response = list_issue_comments(repository=repository, issue=issue.number)
     if isinstance(comment_response, UnknownGitHubResponse):
         return (
@@ -946,6 +956,11 @@ def _inspect_issue_conversation_candidate(
 
 def _is_conversation_ready_for_input(*, conversation: IssueConversation) -> bool:
     """Return whether a conversation can accept another comment batch."""
+    if conversation.unrecorded_round_input is not None:
+        raise ReportableError(
+            f"Conversation {conversation.identifier} has input for round "
+            f"{conversation.next_round_number} without a round record."
+        )
     if not conversation.rounds:
         return True
     latest = conversation.rounds[-1]
@@ -1052,6 +1067,9 @@ class AgentWorkScheduler:
     clock: Callable[[], datetime]
     rounds: dict[str, AgentRound]
     max_agents: int = DEFAULT_MAX_AGENTS
+    _last_selected_work_kind: AgentWorkKind | None = field(
+        default=None, init=False, repr=False
+    )
 
     def tick(self, *, at: datetime) -> SchedulerRecord:
         """Inspect current work and launch at most one agent round.
@@ -1074,9 +1092,6 @@ class AgentWorkScheduler:
             if previous_record is None
             else previous_record.most_recent_cooldown_ended
         )
-        last_selected_work_kind = (
-            None if previous_record is None else previous_record.last_selected_work_kind
-        )
         ended_agent_work_identifiers = [
             agent_work_identifier
             for agent_work_identifier, running in self.rounds.items()
@@ -1091,12 +1106,6 @@ class AgentWorkScheduler:
             conversations=conversations,
             at=at,
         )
-        conversation_candidates = _list_issue_conversation_candidates(
-            repository=self.repository,
-            account=self.account,
-            config=self.config,
-            conversations=conversations,
-        )
         issue_observation_result = observe_issues(
             repository=self.repository,
             account=self.account,
@@ -1110,15 +1119,6 @@ class AgentWorkScheduler:
             None
             if issue_observation_result.failure is None
             else f"could not refresh issues: {issue_observation_result.failure}"
-        )
-        conversation_failure = _combine_scheduler_failures(
-            failures=[
-                conversation_candidates.failure,
-                publication_failure,
-            ]
-        )
-        scheduler_failure = _combine_scheduler_failures(
-            failures=[assignment_failure, conversation_failure]
         )
         issue_observations = [
             observation.model_copy(update={"observed_at": at})
@@ -1138,6 +1138,24 @@ class AgentWorkScheduler:
             inspection_results=inspection_results,
             at=at,
         )
+        conversation_candidates = _list_issue_conversation_candidates(
+            repository=self.repository,
+            account=self.account,
+            config=self.config,
+            conversations=conversations,
+            should_read_comments=(
+                cooldown is None and len(self.rounds) < self.max_agents
+            ),
+        )
+        conversation_failure = _combine_scheduler_failures(
+            failures=[
+                conversation_candidates.failure,
+                publication_failure,
+            ]
+        )
+        scheduler_failure = _combine_scheduler_failures(
+            failures=[assignment_failure, conversation_failure]
+        )
         assignment_observations = list_assignment_observations(
             inspection_results=inspection_results
         )
@@ -1148,7 +1166,6 @@ class AgentWorkScheduler:
             issue_observations=issue_observations,
             assignment_observations=assignment_observations,
             conversation_eligibility=conversation_candidates.eligibility,
-            last_selected_work_kind=last_selected_work_kind,
         )
         if cooldown is not None:
             hold_reason = "global cooldown"
@@ -1212,7 +1229,7 @@ class AgentWorkScheduler:
         if is_assignment_ready and is_conversation_ready:
             work_kind = (
                 AgentWorkKind.CONVERSATION
-                if record.last_selected_work_kind is AgentWorkKind.ASSIGNMENT
+                if self._last_selected_work_kind is AgentWorkKind.ASSIGNMENT
                 else AgentWorkKind.ASSIGNMENT
             )
         elif is_assignment_ready:
@@ -1221,7 +1238,7 @@ class AgentWorkScheduler:
             work_kind = AgentWorkKind.CONVERSATION
         else:
             return record
-        record = record.model_copy(update={"last_selected_work_kind": work_kind})
+        self._last_selected_work_kind = work_kind
         if work_kind is AgentWorkKind.ASSIGNMENT and prioritized_rounds:
             return self._launch_assignment_round(
                 record=record,

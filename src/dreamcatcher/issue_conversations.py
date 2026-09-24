@@ -65,10 +65,10 @@ class IssueConversationRecord(DreamcatcherDocument):
 
     @model_validator(mode="before")
     @classmethod
-    def _discard_legacy_delivery_cursor(
-        cls, value: dict[str, object], /
-    ) -> dict[str, object]:
+    def _discard_legacy_delivery_cursor(cls, value: object, /) -> object:
         """Read records written before round inputs became the delivery ledger."""
+        if not isinstance(value, dict):
+            return value
         data = dict(value)
         data.pop("delivery_cursor", None)
         return data
@@ -111,6 +111,12 @@ class IssueConversation:
     def next_round_number(self) -> int:
         """The number that the conversation's next round will carry."""
         return self.rounds[-1].number + 1 if self.rounds else 1
+
+    @property
+    def unrecorded_round_input(self) -> Path | None:
+        """The next round's input when no corresponding round record exists."""
+        path = self.compose_round_paths(number=self.next_round_number).round_input
+        return path if path.is_file() else None
 
     def compose_round_paths(self, *, number: int) -> AgentRoundPaths:
         """Return the paths for one numbered conversation round."""
@@ -238,6 +244,17 @@ def read_issue_comment_delivery_cursor(
         raise ReportableError(
             f"Conversation {conversation.identifier} round {latest_round.number} "
             "has no delivered issue comments."
+        )
+    if round_input.issue != conversation.record.issue:
+        raise ReportableError(
+            f"Conversation {conversation.identifier} round {latest_round.number} "
+            f"input names GH{round_input.issue}."
+        )
+    positions = [(comment.written_at, comment.id) for comment in round_input.comments]
+    if positions != sorted(set(positions)):
+        raise ReportableError(
+            f"Conversation {conversation.identifier} round {latest_round.number} "
+            "comments are not strictly ordered."
         )
     newest = round_input.comments[-1]
     return IssueCommentCursor(

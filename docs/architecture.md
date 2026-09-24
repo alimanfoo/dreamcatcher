@@ -307,10 +307,11 @@ distinguish an eligible conversation waiting for comments from an inactive
 conversation, without contacting GitHub itself.
 
 The scheduler record also names the assignment or conversation whose round the
-tick launched and retains the last selected work kind so alternation survives a
-daemon restart or a failed start. A launched assignment has no observation in
-the same record. If its round ends before the next tick, status reports that it
-is waiting for that tick rather than reporting an unknown state.
+tick launched. Alternation advances when a kind is selected, including when its
+start fails, and begins afresh after a daemon restart. A launched assignment has
+no observation in the same record. If its round ends before the next tick,
+status reports that it is waiting for that tick rather than reporting an unknown
+state.
 
 ### TUI
 

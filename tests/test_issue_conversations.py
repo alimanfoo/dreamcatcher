@@ -174,6 +174,16 @@ def test_a_conversation_record_must_name_its_directory(tmp_path):
     assert "records GH8, but its directory is GH9" in str(error.value)
 
 
+def test_a_non_object_conversation_record_is_reportable(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    record = state.conversations / "GH8" / ISSUE_CONVERSATION_RECORD_NAME
+    record.parent.mkdir(parents=True)
+    record.write_bytes(b"null")
+
+    with pytest.raises(ReportableError):
+        read_issue_conversation(state=state, issue=8)
+
+
 def test_only_new_unmarked_comments_from_the_account_are_delivered():
     cursor = IssueCommentCursor(written_at="2026-09-23T01:00:00Z", id=2)
     comments = [
@@ -306,6 +316,48 @@ def test_the_delivery_cursor_refuses_a_round_without_comments(tmp_path):
     assert reread is not None
 
     with pytest.raises(ReportableError, match="has no delivered issue comments"):
+        read_issue_comment_delivery_cursor(conversation=reread)
+
+
+@pytest.mark.parametrize(
+    ("input_issue", "comment_identifiers", "message"),
+    [
+        (9, [3], "input names GH9"),
+        (8, [4, 3], "comments are not strictly ordered"),
+    ],
+)
+def test_the_delivery_cursor_refuses_inconsistent_round_input(
+    tmp_path, input_issue, comment_identifiers, message
+):
+    state = StateDirectory(root=tmp_path)
+    conversation = write_conversation(state=state)
+    paths = conversation.compose_round_paths(number=1)
+    write_json(
+        document=IssueConversationInput(
+            issue=input_issue,
+            title="Why does this happen?",
+            body="Explain the scheduler.",
+            comments=[
+                comment(identifier=identifier, body="Question")
+                for identifier in comment_identifiers
+            ],
+            revision="abc123",
+        ),
+        path=paths.round_input,
+    )
+    write_json(
+        document=AgentRoundRecord(
+            number=1,
+            purpose=AgentRoundPurpose.DISCUSS,
+            started=PINNED,
+            pid=123,
+        ),
+        path=paths.record,
+    )
+    reread = read_issue_conversation(state=state, issue=8)
+    assert reread is not None
+
+    with pytest.raises(ReportableError, match=message):
         read_issue_comment_delivery_cursor(conversation=reread)
 
 

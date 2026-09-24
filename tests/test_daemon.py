@@ -616,10 +616,11 @@ def test_a_failed_tick_preserves_the_last_scheduler_record(dispatching, capsys):
     assert "assignment.json is not valid" in output
 
 
-def test_an_invalid_scheduler_record_ends_the_run(watched, harnesses, gh):
+@pytest.mark.parametrize("record", ["{}", "null"])
+def test_an_invalid_scheduler_record_ends_the_run(watched, harnesses, gh, record):
     daemon, _, _ = idling(root=watched)
     daemon.state.bootstrap()
-    write_text(text="{}", path=daemon.state.scheduler_record)
+    write_text(text=record, path=daemon.state.scheduler_record)
 
     with pytest.raises(ReportableError, match=r"scheduler\.json is not valid"):
         daemon.run()

@@ -11,8 +11,10 @@ from rich.console import Console
 from dreamcatcher.agent_rounds import (
     AgentRoundPurpose,
     AgentRoundRecord,
+    IssueConversationInput,
     compose_agent_round_ending,
 )
+from dreamcatcher.documents import write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.harness_adapters import AgentWorkKind
@@ -54,6 +56,23 @@ def conversation_state(
                 at=PINNED + timedelta(minutes=4), status=status
             ),
         ),
+    )
+    write_json(
+        document=IssueConversationInput(
+            issue=8,
+            title="Issue 8",
+            body="Explain it.",
+            comments=[
+                {
+                    "id": 1,
+                    "body": "Please explain.",
+                    "author": "alice",
+                    "written_at": "2026-09-23T01:00:00Z",
+                }
+            ],
+            revision="abc123",
+        ),
+        path=(directory / "rounds" / "1" / "inbox.json"),
     )
     write_feed(
         directory=directory,
@@ -195,6 +214,23 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
                     at=PINNED + timedelta(minutes=10), status=0
                 ),
             ),
+        )
+        write_json(
+            document=IssueConversationInput(
+                issue=8,
+                title="Issue 8",
+                body="Explain it.",
+                comments=[
+                    {
+                        "id": 2,
+                        "body": "What evidence supports that?",
+                        "author": "alice",
+                        "written_at": "2026-09-23T02:00:00Z",
+                    }
+                ],
+                revision="abc123",
+            ),
+            path=(directory / "rounds" / "2" / "inbox.json"),
         )
         write_feed(
             directory=directory,

@@ -16,8 +16,10 @@ from records import (
 from dreamcatcher.agent_rounds import (
     AgentRoundPurpose,
     AgentRoundRecord,
+    IssueConversationInput,
     compose_agent_round_ending,
 )
+from dreamcatcher.documents import write_json
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.issue_conversations import (
     NO_REPLY,
@@ -61,8 +63,9 @@ def conversation_round(*, state: StateDirectory, status: int | None = 0) -> None
         if status is None
         else compose_agent_round_ending(at=PINNED + timedelta(minutes=4), status=status)
     )
+    directory = state.conversations / "GH8"
     write_round(
-        directory=state.conversations / "GH8",
+        directory=directory,
         number=1,
         record=AgentRoundRecord(
             number=1,
@@ -71,6 +74,25 @@ def conversation_round(*, state: StateDirectory, status: int | None = 0) -> None
             pid=1,
             ending=ending,
         ),
+    )
+    conversation = read_issue_conversation(state=state, issue=8)
+    assert conversation is not None
+    write_json(
+        document=IssueConversationInput(
+            issue=8,
+            title="Issue 8",
+            body="Explain it.",
+            comments=[
+                {
+                    "id": 1,
+                    "body": "Please explain.",
+                    "author": "alice",
+                    "written_at": "2026-09-23T01:00:00Z",
+                }
+            ],
+            revision="abc123",
+        ),
+        path=conversation.compose_round_paths(number=1).round_input,
     )
 
 
@@ -142,6 +164,33 @@ def test_a_conversation_with_unknown_eligibility_is_waiting(conversation_state):
 
     assert found.value is IssueConversationStatusValue.WAITING
     assert found.detail == "issue conversation eligibility is unknown"
+
+
+def test_an_unrecorded_round_input_needs_attention(conversation_state):
+    conversation = read_issue_conversation(state=conversation_state, issue=8)
+    assert conversation is not None
+    write_json(
+        document=IssueConversationInput(
+            issue=8,
+            title="Issue 8",
+            body="Explain it.",
+            comments=[
+                {
+                    "id": 1,
+                    "body": "Please explain.",
+                    "author": "alice",
+                    "written_at": "2026-09-23T01:00:00Z",
+                }
+            ],
+            revision="abc123",
+        ),
+        path=conversation.compose_round_paths(number=1).round_input,
+    )
+
+    found = status(state=conversation_state)
+
+    assert found.value is IssueConversationStatusValue.NEEDS_ATTENTION
+    assert found.detail == "round 1 input exists without a round record"
 
 
 def test_a_live_conversation_round_counts_capacity_and_shows_latest_output(
@@ -279,3 +328,29 @@ def test_a_finished_conversation_with_unknown_eligibility_waits(
 
     assert found.value is IssueConversationStatusValue.WAITING
     assert found.detail == "issue conversation eligibility is unknown"
+
+
+def test_an_unreadable_delivered_input_needs_attention(conversation_state):
+    conversation_round(state=conversation_state)
+    save_reply(state=conversation_state, body="The answer.", is_published=True)
+    conversation = read_issue_conversation(state=conversation_state, issue=8)
+    assert conversation is not None
+    conversation.compose_round_paths(number=1).round_input.write_bytes(b"not json")
+
+    found = status(state=conversation_state)
+
+    assert found.value is IssueConversationStatusValue.NEEDS_ATTENTION
+    assert "inbox.json is not valid" in found.detail
+
+
+def test_an_unreadable_saved_reply_needs_attention(conversation_state):
+    conversation_round(state=conversation_state)
+    save_reply(state=conversation_state, body="The answer.", is_published=True)
+    conversation = read_issue_conversation(state=conversation_state, issue=8)
+    assert conversation is not None
+    conversation.compose_reply_path(number=1).write_bytes(b"not json")
+
+    found = status(state=conversation_state)
+
+    assert found.value is IssueConversationStatusValue.NEEDS_ATTENTION
+    assert "reply.json is not valid" in found.detail
