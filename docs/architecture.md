@@ -125,9 +125,7 @@ recovery starts a new session with the configured prompt and the same input. A
 selected batch that was never recorded establishes no delivery position and may
 be replaced by the next fresh selection.
 
-Every tick reads the comments of every eligible conversation issue, even when no
-agent is free, and records for each issue whether comments wait to be answered.
-The free-agent check gates only the launch, as it does for assignments.
+Fresh-batch candidates are polled before the capacity check.
 
 A conversation round posts its own answer. The conversation launcher gives the
 round a finisher that posts to the issue, so the shared round runner knows

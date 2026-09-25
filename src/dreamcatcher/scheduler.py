@@ -5,7 +5,7 @@ the concurrency cap and global cooldown, and launches at most one round.
 
 Within assignment work, a missing first round comes first, followed by recovery,
 wrap-up, user feedback, and dispatch of the oldest available issue. Conversation
-work uses its oldest waiting comment. When both kinds are ready, the scheduler
+recovery precedes fresh batches. When both kinds are ready, the scheduler
 alternates which kind receives the next free slot.
 """
 
@@ -227,16 +227,7 @@ class NewIssueConversationRoundCandidate:
     config: IssueConversationConfig
 
 
-@dataclass(frozen=True, kw_only=True)
-class RequiredIssueConversationRecovery:
-    """Describe an eligible conversation with unfinished work to recover."""
-
-    conversation: IssueConversation
-
-
-type IssueConversationCandidate = (
-    NewIssueConversationRoundCandidate | RequiredIssueConversationRecovery
-)
+type IssueConversationCandidate = NewIssueConversationRoundCandidate | IssueConversation
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -245,7 +236,6 @@ class IssueConversationCandidateResult:
 
     candidates: list[IssueConversationCandidate]
     observations: list[IssueConversationObservation]
-    fault_count: int = 0
     failure: str | None = None
 
 
@@ -253,7 +243,6 @@ class IssueConversationCandidateResult:
 class _IssueConversationInspection:
     observation: IssueConversationObservation
     candidate: IssueConversationCandidate | None
-    is_faulted: bool = False
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -923,7 +912,6 @@ def _list_issue_conversation_candidates(
     candidates: list[IssueConversationCandidate] = []
     observations: list[IssueConversationObservation] = []
     failures: list[str | None] = []
-    fault_count = 0
     for issue in sorted(
         issue_response, key=lambda item: (item.created_at, item.number)
     ):
@@ -935,7 +923,6 @@ def _list_issue_conversation_candidates(
             conversation=conversation,
         )
         observations.append(inspection.observation)
-        fault_count += inspection.is_faulted
         if inspection.candidate is not None:
             candidates.append(inspection.candidate)
         elif _is_conversation_ready_for_input(conversation=conversation):
@@ -943,7 +930,6 @@ def _list_issue_conversation_candidates(
     return IssueConversationCandidateResult(
         candidates=sorted(candidates, key=_rank_issue_conversation_candidate),
         observations=observations,
-        fault_count=fault_count,
         failure=_combine_scheduler_failures(failures=failures),
     )
 
@@ -968,7 +954,6 @@ def _inspect_issue_conversation(
                 has_comments_to_answer=_compose_known_issue_fact(value=False),
             ),
             candidate=None,
-            is_faulted=True,
         )
     if (
         conversation is not None
@@ -982,9 +967,7 @@ def _inspect_issue_conversation(
                 title=issue.title,
                 has_comments_to_answer=_compose_known_issue_fact(value=False),
             ),
-            candidate=RequiredIssueConversationRecovery(
-                conversation=conversation,
-            ),
+            candidate=conversation,
         )
     try:
         comments = _list_comments_to_answer(
@@ -1027,8 +1010,8 @@ def _rank_issue_conversation_candidate(
     candidate: IssueConversationCandidate, /
 ) -> tuple[int, str, int]:
     """Rank recovery before fresh batches, then fresh batches oldest first."""
-    if isinstance(candidate, RequiredIssueConversationRecovery):
-        return (0, "", candidate.conversation.record.issue)
+    if isinstance(candidate, IssueConversation):
+        return (0, "", candidate.record.issue)
     first_comment = candidate.comments[0]
     return (1, first_comment.written_at, first_comment.id)
 
@@ -1037,8 +1020,8 @@ def _prepare_issue_conversation_round(
     *, state: StateDirectory, candidate: IssueConversationCandidate
 ) -> _PreparedIssueConversationRound:
     """Prepare either a fresh conversation batch or unfinished work."""
-    if isinstance(candidate, RequiredIssueConversationRecovery):
-        return _prepare_issue_conversation_recovery(candidate=candidate)
+    if isinstance(candidate, IssueConversation):
+        return _prepare_issue_conversation_recovery(conversation=candidate)
     conversation = candidate.conversation or create_issue_conversation(
         state=state,
         config=candidate.config,
@@ -1078,10 +1061,9 @@ def _prepare_issue_conversation_round(
 
 
 def _prepare_issue_conversation_recovery(
-    *, candidate: RequiredIssueConversationRecovery
+    *, conversation: IssueConversation
 ) -> _PreparedIssueConversationRound:
     """Prepare a recovery from the latest round's saved input and session."""
-    conversation = candidate.conversation
     latest_round = conversation.rounds[-1]
     round_input = read_issue_conversation_input(
         conversation=conversation,
@@ -1254,6 +1236,14 @@ class AgentWorkScheduler:
                 else previous_record.conversation_observations
             ),
         )
+        conversation_fault_count = sum(
+            derive_agent_work_fault(
+                rounds=conversation.rounds,
+                retry_requested_at=conversation.record.retry_requested_at,
+                most_recent_cooldown_ended=most_recent_cooldown_ended,
+            )
+            for conversation in conversations
+        )
         cooldown = _start_cooldown_if_required(
             active=cooldown,
             fault_count=(
@@ -1261,7 +1251,7 @@ class AgentWorkScheduler:
                     isinstance(result, FaultedAgentAssignment)
                     for result in inspection_results
                 )
-                + conversation_candidates.fault_count
+                + conversation_fault_count
             ),
             at=at,
         )

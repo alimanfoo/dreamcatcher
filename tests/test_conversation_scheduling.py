@@ -960,6 +960,30 @@ def test_an_ineligible_conversation_does_not_recover_its_errored_round(
     assert harnesses["claude"].calls == []
 
 
+def test_ineligible_conversation_faults_start_the_global_cooldown(
+    conversation_scheduler,
+):
+    scheduler, clock, gh = conversation_scheduler
+    fault_started = clock()
+    for issue in (8, 9):
+        write_faulted_conversation(
+            state=scheduler.state,
+            issue=issue,
+            at=fault_started,
+        )
+    tick_at = clock()
+
+    observed = scheduler.tick(at=tick_at)
+
+    assert observed.cooldown == GlobalCooldown(
+        started=tick_at,
+        ends=tick_at + timedelta(minutes=15),
+    )
+    assert observed.hold == "global cooldown"
+    assert observed.conversation_observations == []
+    assert count_comment_reads(gh=gh) == 0
+
+
 def test_a_recovery_whose_saved_input_cannot_be_read_holds_the_tick(
     conversation_scheduler, harnesses
 ):
