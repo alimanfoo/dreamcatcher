@@ -331,17 +331,18 @@ def _select_retry_owner(
     *, state: StateDirectory, issue: int, owner_kind: AgentWorkKind | None
 ) -> AgentAssignment | IssueConversation:
     """Return the requested local work owner, refusing an ambiguous issue."""
+    if owner_kind is AgentWorkKind.CONVERSATION:
+        conversation = read_issue_conversation(state=state, issue=issue)
+        if conversation is None:
+            raise ReportableError(f"GH{issue} has no issue conversation to retry.")
+        return conversation
     assignments = read_agent_assignments_for_issue(state=state, issue=issue)
     assignment = assignments[-1] if assignments else None
-    conversation = read_issue_conversation(state=state, issue=issue)
     if owner_kind is AgentWorkKind.ASSIGNMENT:
         if assignment is None:
             raise ReportableError(f"GH{issue} has no assignment to retry.")
         return assignment
-    if owner_kind is AgentWorkKind.CONVERSATION:
-        if conversation is None:
-            raise ReportableError(f"GH{issue} has no issue conversation to retry.")
-        return conversation
+    conversation = read_issue_conversation(state=state, issue=issue)
     if assignment is not None and conversation is not None:
         raise ReportableError(
             f"GH{issue} has both an assignment and an issue conversation. "

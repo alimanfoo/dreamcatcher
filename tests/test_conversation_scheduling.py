@@ -648,7 +648,9 @@ def test_an_errored_round_recovers_the_saved_batch_and_revision(
     launched = scheduler.tick(at=clock())
     comment_reads_when_recovery_launched = count_comment_reads(gh=gh)
     finish(scheduler=scheduler)
-    scheduler.tick(at=clock())
+    answer(harnesses=harnesses, body="The later answer.")
+    follow_up = scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
 
     conversation = read_issue_conversation(state=scheduler.state, issue=8)
     assert conversation is not None
@@ -660,8 +662,14 @@ def test_an_errored_round_recovers_the_saved_batch_and_revision(
         model=IssueConversationInput,
         path=conversation.compose_round_paths(number=2).round_input,
     )
+    follow_up_input = read_json(
+        model=IssueConversationInput,
+        path=conversation.compose_round_paths(number=3).round_input,
+    )
     assert recovered_input == first_input
+    assert [comment.id for comment in follow_up_input.comments] == [2]
     assert launched.launched_conversation_identifier == "conversation-GH8"
+    assert follow_up.launched_conversation_identifier == "conversation-GH8"
     resumed = harnesses["claude"].calls[1]
     assert resumed.arguments[-2:] == ["--resume", "conversation-session"]
     assert resumed.prompt.startswith(
@@ -761,6 +769,98 @@ def test_two_failed_conversation_attempts_wait_for_a_user_retry(
     assert retried.launched_conversation_identifier == "conversation-GH8"
     assert conversation.rounds[-1].is_recovery
     assert len(harnesses["claude"].calls) == 3
+
+
+def test_an_initial_prelaunch_failure_recovers_without_a_session(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    directory = write_issue_conversation(
+        state=scheduler.state,
+        issue=8,
+        harness_session_identifier=None,
+    )
+    write_round(
+        directory=directory,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            purpose=AgentRoundPurpose.DISCUSS,
+            started=clock(),
+            ending=ErroredAgentRoundEnding(
+                at=clock(),
+                reason="the harness was unavailable",
+            ),
+        ),
+    )
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    write_json(
+        document=IssueConversationInput(
+            issue=8,
+            title="Why does this happen?",
+            body="Explain the scheduler.",
+            comments=[ask()],
+            revision="abc123",
+        ),
+        path=conversation.compose_round_paths(number=1).round_input,
+    )
+    offer_conversation(gh=gh, comments=[])
+    answer(harnesses=harnesses)
+
+    launched = scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    assert launched.launched_conversation_identifier == "conversation-GH8"
+    assert conversation.rounds[-1].is_recovery
+    assert "--resume" not in harnesses["claude"].calls[0].arguments
+
+
+def test_two_prelaunch_failures_put_a_conversation_in_fault(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    directory = write_issue_conversation(state=scheduler.state, issue=8)
+    for number in (1, 2):
+        write_round(
+            directory=directory,
+            number=number,
+            record=AgentRoundRecord(
+                number=number,
+                purpose=AgentRoundPurpose.DISCUSS,
+                started=clock(),
+                ending=ErroredAgentRoundEnding(
+                    at=clock(),
+                    reason="the harness was unavailable",
+                ),
+            ),
+        )
+        conversation = read_issue_conversation(state=scheduler.state, issue=8)
+        assert conversation is not None
+        write_json(
+            document=IssueConversationInput(
+                issue=8,
+                title="Why does this happen?",
+                body="Explain the scheduler.",
+                comments=[ask()],
+                revision="abc123",
+            ),
+            path=conversation.compose_round_paths(number=number).round_input,
+        )
+    offer_conversation(gh=gh, comments=[])
+
+    observed = scheduler.tick(at=clock())
+
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    assert derive_issue_conversation_fault(
+        conversation=conversation,
+        most_recent_cooldown_ended=None,
+    )
+    assert observed.launched_agent_work_identifier is None
+    assert harnesses["claude"].calls == []
 
 
 def test_a_follow_up_refuses_to_replace_a_missing_saved_session(
@@ -940,30 +1040,42 @@ def test_a_failed_delivery_cursor_read_is_a_scheduler_hold(
     assert observed.hold.startswith("could not read delivered comments for GH8")
 
 
-def test_an_unrecorded_round_input_is_not_delivered_again(
+def test_an_unrecorded_round_input_is_recovered_without_redelivery(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
     write_issue_conversation(state=scheduler.state, issue=8)
     conversation = read_issue_conversation(state=scheduler.state, issue=8)
     assert conversation is not None
+    saved_input = IssueConversationInput(
+        issue=8,
+        title="Why does this happen?",
+        body="Explain the scheduler.",
+        comments=[ask()],
+        revision="abc123",
+    )
     write_json(
-        document=IssueConversationInput(
-            issue=8,
-            title="Why does this happen?",
-            body="Explain the scheduler.",
-            comments=[ask()],
-            revision="abc123",
-        ),
+        document=saved_input,
         path=conversation.compose_round_paths(number=1).round_input,
     )
     offer_conversation(gh=gh, comments=[ask()])
+    answer(harnesses=harnesses)
 
     observed = scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
 
-    assert observed.hold is not None
-    assert "has input for round 1 without a round record" in observed.hold
-    assert harnesses["claude"].calls == []
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    assert observed.launched_conversation_identifier == "conversation-GH8"
+    assert conversation.rounds[0].is_recovery
+    assert (
+        read_json(
+            model=IssueConversationInput,
+            path=conversation.compose_round_paths(number=1).round_input,
+        )
+        == saved_input
+    )
+    assert count_comment_reads(gh=gh) == 0
 
 
 def test_a_partial_comment_scan_does_not_launch_or_starve_later_reads(
@@ -1101,6 +1213,66 @@ def test_the_oldest_waiting_comment_selects_the_conversation(
             items=[ask(identifier=2) | {"created_at": "2026-09-23T02:00:00Z"}]
         ),
         to=f"api repos/{REPOSITORY}/issues/8/comments?per_page=100",
+    )
+    gh.replies(
+        stdout=pages(
+            items=[ask(identifier=1) | {"created_at": "2026-09-23T01:00:00Z"}]
+        ),
+        to=f"api repos/{REPOSITORY}/issues/9/comments?per_page=100",
+    )
+    answer(harnesses=harnesses)
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.launched_conversation_identifier == "conversation-GH9"
+
+
+def test_an_older_fresh_comment_precedes_another_conversations_recovery(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    directory = write_issue_conversation(state=scheduler.state, issue=8)
+    write_round(
+        directory=directory,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            purpose=AgentRoundPurpose.DISCUSS,
+            started=clock(),
+            pid=1,
+            ending=compose_agent_round_ending(at=clock(), status=2),
+        ),
+    )
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    write_json(
+        document=IssueConversationInput(
+            issue=8,
+            title="Issue 8",
+            body="Explain it.",
+            comments=[ask(identifier=2) | {"created_at": "2026-09-23T02:00:00Z"}],
+            revision="abc123",
+        ),
+        path=conversation.compose_round_paths(number=1).round_input,
+    )
+    issue_list = [
+        {
+            "number": number,
+            "title": f"Issue {number}",
+            "body": "Explain it.",
+            "createdAt": "2026-09-21T01:00:00Z",
+            "state": "OPEN",
+            "assignees": [{"login": POSTED_BY}],
+            "labels": [{"name": "dream:conversation"}],
+        }
+        for number in (8, 9)
+    ]
+    gh.replies(
+        stdout=json.dumps(issue_list),
+        to=(
+            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
+            "--label dream:conversation"
+        ),
     )
     gh.replies(
         stdout=pages(

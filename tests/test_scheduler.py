@@ -32,6 +32,7 @@ from dreamcatcher.agent_assignments import (
 from dreamcatcher.agent_rounds import (
     AgentRoundPurpose,
     AgentRoundRecord,
+    IssueConversationInput,
     compose_agent_round_ending,
 )
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
@@ -258,6 +259,23 @@ def write_faulted_conversation(*, root, issue: int) -> None:
                 pid=1,
                 ending=compose_agent_round_ending(at=started, status=status),
             ),
+        )
+        write_json(
+            document=IssueConversationInput(
+                issue=issue,
+                title=f"Issue {issue}",
+                body="Explain it.",
+                comments=[
+                    {
+                        "id": 1,
+                        "body": "Please explain.",
+                        "author": POSTED_BY,
+                        "written_at": "2026-09-23T01:00:00Z",
+                    }
+                ],
+                revision="abc123",
+            ),
+            path=directory / "rounds" / str(number) / "inbox.json",
         )
 
 
@@ -1068,10 +1086,8 @@ def test_an_assignment_and_conversation_fault_start_the_shared_cooldown(
 
 
 def test_an_active_global_cooldown_survives_a_scheduler_restart(dispatching):
-    write_faulted_assignment(root=dispatching, identifier=ASSIGNMENT_ID, issue=13)
-    write_faulted_assignment(
-        root=dispatching, identifier=SECOND_ASSIGNMENT_ID, issue=14
-    )
+    write_faulted_conversation(root=dispatching, issue=13)
+    write_faulted_conversation(root=dispatching, issue=14)
     first, first_clock = create_scheduler(root=dispatching)
     state = StateDirectory(root=dispatching)
     started = first.tick(at=first_clock())
@@ -1081,7 +1097,7 @@ def test_an_active_global_cooldown_survives_a_scheduler_restart(dispatching):
     observed = restarted.tick(at=restarted_clock())
 
     assert observed.cooldown == started.cooldown
-    assert observed.launched_assignment_identifier is None
+    assert observed.launched_agent_work_identifier is None
 
 
 def test_a_cooldown_reports_an_issue_listing_failure(dispatching, offered):
@@ -1137,6 +1153,36 @@ def test_the_cooldown_boundary_clears_faults_and_permits_recovery(dispatching):
 
     assert following.most_recent_cooldown_ended == PINNED
     assert following.launched_assignment_identifier == SECOND_ASSIGNMENT_ID
+
+
+def test_the_cooldown_boundary_clears_conversation_faults(dispatching):
+    write_faulted_conversation(root=dispatching, issue=13)
+    write_faulted_conversation(root=dispatching, issue=14)
+    state = StateDirectory(root=dispatching)
+    write_json(
+        document=SchedulerRecord(
+            at=PINNED - timedelta(minutes=15),
+            cooldown=GlobalCooldown(
+                started=PINNED - timedelta(minutes=15), ends=PINNED
+            ),
+        ),
+        path=state.scheduler_record,
+    )
+    scheduler, clock = create_scheduler(root=dispatching)
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.cooldown is None
+    assert observed.most_recent_cooldown_ended == PINNED
+    assert observed.launched_assignment_identifier == DISPATCHED_ASSIGNMENT_ID
+
+    finish_rounds(scheduler=scheduler)
+    write_json(document=observed, path=state.scheduler_record)
+
+    following = scheduler.tick(at=clock())
+
+    assert following.most_recent_cooldown_ended == PINNED
+    assert following.launched_conversation_identifier == "conversation-GH13"
 
 
 def test_a_cooldown_normalizes_aware_datetimes_to_utc():

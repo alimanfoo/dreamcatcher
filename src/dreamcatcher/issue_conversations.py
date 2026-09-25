@@ -253,11 +253,6 @@ def _read_issue_conversation_input_document(
         model=IssueConversationInput,
         path=conversation.compose_round_paths(number=number).round_input,
     )
-    if not round_input.comments:
-        raise ReportableError(
-            f"Conversation {conversation.identifier} round {number} "
-            "has no delivered issue comments."
-        )
     if round_input.issue != conversation.record.issue:
         raise ReportableError(
             f"Conversation {conversation.identifier} round {number} "

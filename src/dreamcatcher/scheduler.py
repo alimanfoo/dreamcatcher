@@ -259,6 +259,9 @@ class IssueConversationInspectionResult:
     failure: str | None = None
 
 
+type IssueConversationWork = IssueConversationCandidate | RequiredIssueConversationRound
+
+
 @dataclass(frozen=True, kw_only=True)
 class _AgentWorkReadFailures:
     """Collect the read failures that constrain launch selection."""
@@ -900,13 +903,14 @@ def compose_issue_conversation_recovery_requirement(
     *, conversation: IssueConversation
 ) -> RequiredIssueConversationRound | None:
     """Return the recovery round required by unfinished conversation work."""
-    reason = describe_unfinished_agent_round(rounds=conversation.rounds)
-    if reason is None:
-        return None
-    latest = conversation.rounds[-1]
+    input_number = conversation.next_round_number
+    if conversation.unrecorded_round_input is None:
+        if describe_unfinished_agent_round(rounds=conversation.rounds) is None:
+            return None
+        input_number = conversation.rounds[-1].number
     round_input = read_issue_conversation_input(
         conversation=conversation,
-        number=latest.number,
+        number=input_number,
     )
     paths = conversation.compose_round_paths(number=conversation.next_round_number)
     return RequiredIssueConversationRound(
@@ -1052,13 +1056,30 @@ def _inspect_issue_conversation_candidate(
     )
 
 
+def _select_issue_conversation_work(
+    *,
+    required_rounds: list[RequiredIssueConversationRound],
+    candidates: list[IssueConversationCandidate],
+) -> IssueConversationWork | None:
+    """Return the conversation work holding the oldest accepted comment."""
+    work: list[IssueConversationWork] = [*required_rounds, *candidates]
+    return min(work, key=_rank_issue_conversation_work) if work else None
+
+
+def _rank_issue_conversation_work(work: IssueConversationWork, /) -> tuple[str, int]:
+    if isinstance(work, IssueConversationCandidate):
+        comments = work.comments
+    else:
+        round_input = cast("IssueConversationInput", work.plan.input)
+        comments = round_input.comments
+    first = comments[0]
+    return first.written_at, first.id
+
+
 def _is_conversation_ready_for_input(*, conversation: IssueConversation) -> bool:
     """Return whether a conversation can accept another comment batch."""
     if conversation.unrecorded_round_input is not None:
-        raise ReportableError(
-            f"Conversation {conversation.identifier} has input for round "
-            f"{conversation.next_round_number} without a round record."
-        )
+        return False
     if not conversation.rounds:
         return True
     latest = conversation.rounds[-1]
@@ -1338,11 +1359,16 @@ class AgentWorkScheduler:
             if failures.assignment is not None
             else _find_oldest_available_issue(record=record)
         )
-        is_assignment_ready = bool(prioritized_rounds) or available_issue is not None
-        is_conversation_ready = bool(conversation_inspection.required_rounds) or (
-            conversation_candidates.failure is None
-            and bool(conversation_candidates.candidates)
+        conversation_work = _select_issue_conversation_work(
+            required_rounds=conversation_inspection.required_rounds,
+            candidates=(
+                []
+                if conversation_candidates.failure is not None
+                else conversation_candidates.candidates
+            ),
         )
+        is_assignment_ready = bool(prioritized_rounds) or available_issue is not None
+        is_conversation_ready = conversation_work is not None
         work_kind = _select_agent_work_kind(
             last_selected=self._last_selected_work_kind,
             is_assignment_ready=is_assignment_ready,
@@ -1362,14 +1388,14 @@ class AgentWorkScheduler:
                 record=record,
                 issue=cast("IssueObservation", available_issue),
             )
-        if conversation_inspection.required_rounds:
+        if isinstance(conversation_work, RequiredIssueConversationRound):
             return self._launch_required_conversation_round(
                 record=record,
-                required=conversation_inspection.required_rounds[0],
+                required=conversation_work,
             )
         return self._launch_conversation_round(
             record=record,
-            candidate=conversation_candidates.candidates[0],
+            candidate=cast("IssueConversationCandidate", conversation_work),
         )
 
     def _inspect_assignments(
@@ -1589,11 +1615,7 @@ class AgentWorkScheduler:
         prompt: str,
     ) -> SchedulerRecord:
         """Start or durably fail one prepared issue-conversation attempt."""
-        harness_session_identifier = (
-            conversation.record.harness_session_identifier
-            if conversation.rounds
-            else None
-        )
+        harness_session_identifier = conversation.record.harness_session_identifier
         request = AgentRoundStartRequest(
             harness=conversation.record.harness,
             launch_request=AgentRoundLaunchRequest(
@@ -1614,7 +1636,10 @@ class AgentWorkScheduler:
             plan=plan,
         )
         try:
-            if conversation.rounds and harness_session_identifier is None:
+            if (
+                any(round.pid is not None for round in conversation.rounds)
+                and harness_session_identifier is None
+            ):
                 raise ReportableError(
                     f"Could not resume {conversation.identifier}: its first "
                     "round did not report a harness session identifier."

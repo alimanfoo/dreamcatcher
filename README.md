@@ -142,8 +142,9 @@ running Claude again. A later eligible comment resumes the same Claude session
 with only the new comments and updates its worktree to current main without
 asking the user to clean up investigation files. If a conversation round is
 interrupted or errors, its recovery resumes the same session with the same saved
-comment batch and code revision. It does not fetch main or accept later comments
-until that work finishes.
+comment batch and code revision. If the failed attempt never acquired a process
+or session, recovery retries a first invocation from that saved work. It does
+not fetch main or accept later comments until that work finishes.
 
 Closing the issue, removing the conversation label or removing the signed-in
 account as assignee stops comment collection. Dreamcatcher keeps the saved

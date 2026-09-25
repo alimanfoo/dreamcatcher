@@ -142,9 +142,11 @@ class ErroredAgentRoundEnding(DreamcatcherDocument):
 
     @model_validator(mode="after")
     def _require_error_evidence(self) -> "ErroredAgentRoundEnding":
-        """Require either an exit status or a reason from before launch."""
-        if self.status is None and self.reason is None:
-            raise ValueError("an errored round needs an exit status or reason")
+        """Require exactly one non-empty kind of error evidence."""
+        if (self.status is None) == (self.reason is None):
+            raise ValueError("an errored round needs exactly one exit status or reason")
+        if self.reason is not None and not self.reason.strip():
+            raise ValueError("an errored round reason cannot be blank")
         return self
 
 
@@ -181,9 +183,21 @@ class AgentRoundRecord(DreamcatcherDocument):
 
     @model_validator(mode="after")
     def _require_a_running_process(self) -> "AgentRoundRecord":
-        """Require a process identifier until the round has a terminal ending."""
-        if self.pid is None and self.ending is None:
+        """Keep process-backed and pre-launch endings distinct."""
+        if self.ending is None:
+            if self.pid is not None:
+                return self
             raise ValueError("a running round needs a process identifier")
+        is_launch_failure = (
+            isinstance(self.ending, ErroredAgentRoundEnding)
+            and self.ending.reason is not None
+        )
+        if self.pid is None and not is_launch_failure:
+            raise ValueError(
+                "a terminal round without a process must be a launch failure"
+            )
+        if self.pid is not None and is_launch_failure:
+            raise ValueError("a launch failure cannot have a process identifier")
         return self
 
     @property
@@ -247,7 +261,7 @@ class IssueConversationInput(DreamcatcherDocument):
     issue: int
     title: str | None = Field(default=None, exclude_if=lambda value: value is None)
     body: str | None = Field(default=None, exclude_if=lambda value: value is None)
-    comments: list[ConversationComment]
+    comments: list[ConversationComment] = Field(min_length=1)
     revision: str
 
 

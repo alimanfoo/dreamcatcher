@@ -126,10 +126,12 @@ posted before the current answer is published remain beyond the latest round
 input.
 
 An interrupted or errored round instead resumes the same session from its saved
-input and revision. Recovery is chosen from local state before a GitHub issue
-read, does not fetch main or reset the worktree, and remains required when the
-issue is ineligible for fresh comment work. A second consecutive error derives a
-conversation fault and prevents ordinary recovery.
+input and revision. A prelaunch attempt that acquired no process or session
+retries a first invocation from that saved input. Recovery does not collect
+another comment batch for that conversation, fetch main or reset the worktree,
+and remains required when the issue is ineligible for fresh comment work. A
+second consecutive error derives a conversation fault and prevents ordinary
+recovery.
 
 A successful final result is saved as the reply record. `NO_REPLY` completes
 publication without a GitHub post; any other saved answer is posted with the

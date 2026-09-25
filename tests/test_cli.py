@@ -13,7 +13,10 @@ from records import (
 )
 
 from dreamcatcher import web
-from dreamcatcher.agent_assignments import read_agent_assignments_for_issue
+from dreamcatcher.agent_assignments import (
+    AGENT_ASSIGNMENT_RECORD_NAME,
+    read_agent_assignments_for_issue,
+)
 from dreamcatcher.agent_rounds import (
     AgentRoundPurpose,
     AgentRoundRecord,
@@ -24,7 +27,10 @@ from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
-from dreamcatcher.issue_conversations import read_issue_conversation
+from dreamcatcher.issue_conversations import (
+    ISSUE_CONVERSATION_RECORD_NAME,
+    read_issue_conversation,
+)
 from dreamcatcher.scheduler import (
     GlobalCooldown,
     SchedulerRecord,
@@ -237,6 +243,28 @@ def test_retry_clears_an_issue_conversations_fault(
         most_recent_cooldown_ended=None,
     )
     assert "conversation-GH13 can recover" in capsys.readouterr().out
+
+
+def test_explicit_conversation_retry_does_not_read_an_assignment(
+    monkeypatch, faulted_conversation
+):
+    directory = write_agent_assignment(
+        state=faulted_conversation,
+        identifier=ASSIGNMENT_ID,
+        issue=13,
+    )
+    (directory / AGENT_ASSIGNMENT_RECORD_NAME).write_bytes(b"not json")
+    monkeypatch.chdir(faulted_conversation.root)
+
+    assert main(argv=["retry", "GH13", "--conversation"]) == 0
+
+
+def test_explicit_assignment_retry_does_not_read_a_conversation(monkeypatch, faulted):
+    directory = write_issue_conversation(state=faulted, issue=13)
+    (directory / ISSUE_CONVERSATION_RECORD_NAME).write_bytes(b"not json")
+    monkeypatch.chdir(faulted.root)
+
+    assert main(argv=["retry", "GH13", "--assignment"]) == 0
 
 
 def test_retry_requires_an_owner_when_the_issue_has_both(monkeypatch, faulted, capsys):

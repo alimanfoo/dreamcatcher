@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 
 import pytest
 from clocks import PINNED
+from pydantic import ValidationError
 
 from dreamcatcher.agent_rounds import (
     AgentRoundPurpose,
@@ -400,34 +401,15 @@ def test_the_delivery_cursor_comes_from_the_latest_round_input(tmp_path):
     assert cursor == IssueCommentCursor(written_at="2026-09-23T01:00:00Z", id=4)
 
 
-def test_the_delivery_cursor_refuses_a_round_without_comments(tmp_path):
-    state = StateDirectory(root=tmp_path)
-    conversation = write_conversation(state=state)
-    paths = conversation.compose_round_paths(number=1)
-    write_json(
-        document=IssueConversationInput(
+def test_conversation_input_requires_a_delivered_comment():
+    with pytest.raises(ValidationError, match="List should have at least 1 item"):
+        IssueConversationInput(
             issue=8,
             title="Why does this happen?",
             body="Explain the scheduler.",
             comments=[],
             revision="abc123",
-        ),
-        path=paths.round_input,
-    )
-    write_json(
-        document=AgentRoundRecord(
-            number=1,
-            purpose=AgentRoundPurpose.DISCUSS,
-            started=PINNED,
-            pid=123,
-        ),
-        path=paths.record,
-    )
-    reread = read_issue_conversation(state=state, issue=8)
-    assert reread is not None
-
-    with pytest.raises(ReportableError, match="has no delivered issue comments"):
-        read_issue_comment_delivery_cursor(conversation=reread)
+        )
 
 
 @pytest.mark.parametrize(

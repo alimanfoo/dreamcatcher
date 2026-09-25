@@ -509,13 +509,8 @@ class _StatusReportReader:
             IssueFactValue.UNKNOWN if eligibility is None else eligibility.value
         )
         if conversation.unrecorded_round_input is not None:
-            return self._compose_issue_conversation_status(
-                conversation=conversation,
-                value=IssueConversationStatusValue.NEEDS_ATTENTION,
-                detail=(
-                    f"round {conversation.next_round_number} input exists without "
-                    "a round record"
-                ),
+            return self._read_unrecorded_conversation_input_status(
+                conversation=conversation
             )
         if not conversation.rounds:
             return self._read_conversation_without_rounds(
@@ -543,6 +538,29 @@ class _StatusReportReader:
         return self._read_successful_conversation_status(
             conversation=conversation,
             eligibility=eligibility_value,
+        )
+
+    def _read_unrecorded_conversation_input_status(
+        self, *, conversation: IssueConversation
+    ) -> IssueConversationStatus:
+        """Report whether saved input can be adopted by a recovery round."""
+        try:
+            read_issue_conversation_input(
+                conversation=conversation,
+                number=conversation.next_round_number,
+            )
+        except ReportableError as failure:
+            return self._compose_issue_conversation_status(
+                conversation=conversation,
+                value=IssueConversationStatusValue.NEEDS_ATTENTION,
+                detail=str(failure),
+            )
+        return self._compose_issue_conversation_status(
+            conversation=conversation,
+            value=IssueConversationStatusValue.WAITING,
+            detail=(
+                f"round {conversation.next_round_number} input is waiting for recovery"
+            ),
         )
 
     def _read_failed_conversation_status(

@@ -61,9 +61,10 @@ request.
 
 An issue conversation starts with one initial round. Each later eligible comment
 batch resumes the same harness session in another round. Every saved final
-answer is either published once on the issue or is `NO_REPLY`, which means no
-post is needed. An interrupted or errored round is recovered with its saved
-input and revision before the conversation accepts another comment batch.
+answer is published on the issue or is `NO_REPLY`, which means no post is
+needed. Publication is retried until recorded; a lost GitHub response can rarely
+produce a duplicate post. An interrupted or errored round is recovered with its
+saved input and revision before the conversation accepts another comment batch.
 
 ### Agent work and agent work identifier
 
@@ -375,8 +376,10 @@ agent.
 If a round is interrupted or exits with an error, Dreamcatcher schedules a
 recovery before it fetches main or collects another comment batch. Recovery
 resumes the same harness session with the saved input and investigated revision,
-even when the issue is no longer eligible for fresh conversation work. Two
-consecutive errored rounds place the conversation in fault.
+even when the issue is no longer eligible for fresh conversation work. A failed
+attempt that acquired no process or session instead retries a first invocation
+from its saved input. Two consecutive errored rounds place the conversation in
+fault.
 
 After publication, another eligible comment batch resumes the same harness
 session in another conversation round. Before it accepts that batch,

@@ -595,13 +595,44 @@ def test_an_errored_ending_refuses_a_success_status():
 
 
 def test_an_errored_ending_requires_an_exit_status_or_reason():
-    with pytest.raises(ValueError, match="needs an exit status or reason"):
+    with pytest.raises(ValueError, match="needs exactly one exit status or reason"):
         ErroredAgentRoundEnding(at=PINNED)
+
+
+def test_an_errored_ending_refuses_two_kinds_of_evidence():
+    with pytest.raises(ValueError, match="needs exactly one exit status or reason"):
+        ErroredAgentRoundEnding(at=PINNED, status=2, reason="could not start")
+
+
+def test_an_errored_ending_refuses_a_blank_reason():
+    with pytest.raises(ValueError, match="reason cannot be blank"):
+        ErroredAgentRoundEnding(at=PINNED, reason="  ")
 
 
 def test_a_running_round_requires_a_process_identifier():
     with pytest.raises(ValueError, match="needs a process identifier"):
         AgentRoundRecord(number=1, purpose=PURPOSE, started=PINNED)
+
+
+def test_a_process_ending_requires_a_process_identifier():
+    with pytest.raises(ValueError, match="without a process must be a launch failure"):
+        AgentRoundRecord(
+            number=1,
+            purpose=PURPOSE,
+            started=PINNED,
+            ending=compose_agent_round_ending(at=PINNED, status=0),
+        )
+
+
+def test_a_launch_failure_refuses_a_process_identifier():
+    with pytest.raises(ValueError, match="cannot have a process identifier"):
+        AgentRoundRecord(
+            number=1,
+            purpose=PURPOSE,
+            started=PINNED,
+            pid=1,
+            ending=ErroredAgentRoundEnding(at=PINNED, reason="could not start"),
+        )
 
 
 @pytest.mark.parametrize("has_input", [True, False])

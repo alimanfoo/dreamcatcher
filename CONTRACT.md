@@ -138,6 +138,7 @@ result, appends its agent marker, posts the answer, and records the publication.
 
 Issue conversations currently run through Claude. After an interrupted or
 errored round, Dreamcatcher resumes the same session with the saved input batch
-and investigated revision before it delivers any later comments. The recovery
-prompt tells the agent to continue the unfinished answer; it must not treat the
-input as a new question.
+and investigated revision before it delivers any later comments. When a failed
+attempt never acquired a process or session, it retries a first invocation from
+that saved input instead. The recovery prompt tells the agent to continue the
+unfinished answer; it must not treat the input as a new question.

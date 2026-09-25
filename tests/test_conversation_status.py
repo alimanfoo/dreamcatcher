@@ -86,7 +86,7 @@ def conversation_round(
             number=number,
             purpose=AgentRoundPurpose.DISCUSS,
             started=started,
-            pid=1,
+            pid=None if reason is not None else 1,
             ending=ending,
             is_recovery=is_recovery,
         ),
@@ -182,7 +182,7 @@ def test_a_conversation_with_unknown_eligibility_is_waiting(conversation_state):
     assert found.detail == "issue conversation eligibility is unknown"
 
 
-def test_an_unrecorded_round_input_needs_attention(conversation_state):
+def test_an_unrecorded_round_input_waits_for_recovery(conversation_state):
     conversation = read_issue_conversation(state=conversation_state, issue=8)
     assert conversation is not None
     write_json(
@@ -205,8 +205,21 @@ def test_an_unrecorded_round_input_needs_attention(conversation_state):
 
     found = status(state=conversation_state)
 
+    assert found.value is IssueConversationStatusValue.WAITING
+    assert found.detail == "round 1 input is waiting for recovery"
+
+
+def test_an_unreadable_unrecorded_round_input_needs_attention(conversation_state):
+    conversation = read_issue_conversation(state=conversation_state, issue=8)
+    assert conversation is not None
+    paths = conversation.compose_round_paths(number=1)
+    paths.directory.mkdir(parents=True)
+    paths.round_input.write_bytes(b"not json")
+
+    found = status(state=conversation_state)
+
     assert found.value is IssueConversationStatusValue.NEEDS_ATTENTION
-    assert found.detail == "round 1 input exists without a round record"
+    assert "inbox.json is not valid" in found.detail
 
 
 def test_a_live_conversation_round_counts_capacity_and_shows_latest_output(
