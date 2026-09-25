@@ -186,24 +186,6 @@ class SchedulerRecord(DreamcatcherDocument):
     cooldown: GlobalCooldown | None = None
     most_recent_cooldown_ended: UtcDateTime | None = None
 
-    @model_validator(mode="before")
-    @classmethod
-    def _read_legacy_fields(cls, value: object, /) -> object:
-        """Read scheduler records written by earlier versions; pydantic calls this.
-
-        Launches once had a key per owner, and conversations once recorded only
-        their eligibility, which the next tick's observations replace.
-        """
-        if not isinstance(value, dict):
-            return value
-        data = dict(value)
-        data.pop("conversation_eligibility", None)
-        assignment = data.pop("launched_assignment_identifier", None)
-        conversation = data.pop("launched_conversation_identifier", None)
-        if "launched_agent_work_identifier" not in data:
-            data["launched_agent_work_identifier"] = assignment or conversation
-        return data
-
     @property
     def launched_assignment_identifier(self) -> str | None:
         """The launched identifier when it belongs to an assignment."""

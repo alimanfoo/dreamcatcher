@@ -119,6 +119,10 @@ do and why. It also preserves any active global cooldown and the end of the most
 recent one. A scheduler tick that cannot complete reports its failure in the
 daemon output and leaves that last complete record in place.
 
+`scheduler.json` is not migrated between versions. If an upgraded daemon refuses
+it as an invalid scheduler record, delete the file and start the daemon again.
+The next tick writes a new one, though an active global cooldown is lost.
+
 This is an intentional format break. Version 3 does not migrate assignments from
 an earlier format and starts with empty local state. Stop the daemon and upgrade
 between dispatch batches, when no assignment needs another round.
