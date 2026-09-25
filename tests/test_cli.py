@@ -1,6 +1,7 @@
 import os
 from datetime import timedelta
 from importlib.metadata import version
+from unittest.mock import Mock
 
 import pytest
 from clocks import PINNED
@@ -24,6 +25,7 @@ from dreamcatcher.cli import MAX_INTERVAL_SECONDS, main
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.documents import write_json, write_text
+from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.issue_conversations import read_issue_conversation
 from dreamcatcher.scheduler import (
@@ -249,6 +251,31 @@ def test_retry_clears_assignment_and_conversation_faults(monkeypatch, faulted, c
     output = capsys.readouterr().out
     assert assignment.identifier in output
     assert conversation.identifier in output
+
+
+def test_retry_reports_when_only_the_assignment_retry_was_saved(
+    monkeypatch, faulted, capsys
+):
+    write_faulted_conversation(state=faulted, issue=13)
+    requested = PINNED + timedelta(minutes=3)
+    monkeypatch.chdir(faulted.root)
+    monkeypatch.setattr("dreamcatcher.cli.read_current_time", lambda: requested)
+    monkeypatch.setattr(
+        "dreamcatcher.cli.request_issue_conversation_retry",
+        Mock(side_effect=ReportableError("conversation record is read-only")),
+    )
+
+    assert main(argv=["retry", "GH13"]) == 1
+
+    assignment = read_agent_assignments_for_issue(state=faulted, issue=13)[-1]
+    conversation = read_issue_conversation(state=faulted, issue=13)
+    assert conversation is not None
+    assert assignment.record.retry_requested_at == requested
+    assert conversation.record.retry_requested_at is None
+    error = capsys.readouterr().err
+    assert f"{assignment.identifier} can recover" in error
+    assert "conversation-GH13 could not be retried" in error
+    assert "conversation record is read-only" in error
 
 
 def test_retry_refuses_a_fault_an_elapsed_cooldown_cleared(

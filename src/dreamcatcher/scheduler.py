@@ -69,6 +69,7 @@ from dreamcatcher.harness_adapters import AgentRoundLaunchRequest, AgentWorkKind
 from dreamcatcher.issue_conversations import (
     IssueConversation,
     create_issue_conversation,
+    find_issue_conversation_harness_session_identifier,
     list_undelivered_issue_comments,
     post_issue_conversation_answer,
     prepare_issue_conversation_input,
@@ -76,6 +77,7 @@ from dreamcatcher.issue_conversations import (
     read_issue_conversation_input,
     read_issue_conversations,
     record_issue_conversation_session_identifier,
+    require_issue_conversation_revision,
 )
 from dreamcatcher.prompts import (
     ISSUE_CONVERSATION_RECOVERY_PROMPT,
@@ -1041,7 +1043,9 @@ def _prepare_issue_conversation_round(
         round_input=paths.round_input,
     )
     if conversation.rounds:
-        harness_session_identifier = conversation.record.harness_session_identifier
+        harness_session_identifier = find_issue_conversation_harness_session_identifier(
+            conversation=conversation
+        )
         if harness_session_identifier is None:
             raise ReportableError(
                 f"Could not resume {conversation.identifier}: its first round did "
@@ -1069,7 +1073,13 @@ def _prepare_issue_conversation_recovery(
         conversation=conversation,
         number=latest_round.number,
     )
-    harness_session_identifier = conversation.record.harness_session_identifier
+    require_issue_conversation_revision(
+        conversation=conversation,
+        expected=round_input.revision,
+    )
+    harness_session_identifier = find_issue_conversation_harness_session_identifier(
+        conversation=conversation
+    )
     if harness_session_identifier is None:
         next_input = conversation.compose_round_paths(
             number=conversation.next_round_number
@@ -1325,8 +1335,9 @@ class AgentWorkScheduler:
             else _find_oldest_available_issue(record=record)
         )
         is_assignment_ready = bool(prioritized_rounds) or available_issue is not None
-        is_conversation_ready = conversation_candidates.failure is None and bool(
-            conversation_candidates.candidates
+        is_conversation_ready = bool(conversation_candidates.candidates) and (
+            conversation_candidates.failure is None
+            or isinstance(conversation_candidates.candidates[0], IssueConversation)
         )
         if is_assignment_ready and is_conversation_ready:
             work_kind = (

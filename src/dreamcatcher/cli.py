@@ -304,10 +304,23 @@ def _retry_agent_work(*, arguments: argparse.Namespace) -> None:
         retry_requested_at=conversation.record.retry_requested_at,
         most_recent_cooldown_ended=most_recent_cooldown_ended,
     ):
-        request_issue_conversation_retry(
-            conversation=conversation,
-            at=current_time,
-        )
+        if retried:
+            try:
+                request_issue_conversation_retry(
+                    conversation=conversation,
+                    at=current_time,
+                )
+            except ReportableError as failure:
+                recovered = ", ".join(retried)
+                raise ReportableError(
+                    f"{recovered} can recover on the next scheduler tick, but "
+                    f"{conversation.identifier} could not be retried: {failure}"
+                ) from failure
+        else:
+            request_issue_conversation_retry(
+                conversation=conversation,
+                at=current_time,
+            )
         retried.append(conversation.identifier)
     if not retried:
         raise ReportableError(f"GH{arguments.issue} has no agent work in fault.")

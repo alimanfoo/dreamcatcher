@@ -104,6 +104,36 @@ def conversation_round(
     write_final_output(directory=directory, number=1, text=final_output)
 
 
+def write_second_conversation_error(*, state: StateDirectory) -> None:
+    """Write a recovery round that errors after the fixture's first round."""
+    conversation = read_issue_conversation(state=state, issue=8)
+    assert conversation is not None
+    first_input = read_json(
+        model=IssueConversationInput,
+        path=conversation.compose_round_paths(number=1).round_input,
+    )
+    write_round(
+        directory=conversation.directory,
+        number=2,
+        record=AgentRoundRecord(
+            number=2,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
+            is_recovery=True,
+            started=PINNED + timedelta(minutes=5),
+            pid=2,
+            ending=compose_agent_round_ending(
+                at=PINNED + timedelta(minutes=8),
+                status=2,
+                failure=None,
+            ),
+        ),
+    )
+    write_json(
+        document=first_input.model_copy(update={"title": None, "body": None}),
+        path=conversation.compose_round_paths(number=2).round_input,
+    )
+
+
 def observe(
     *,
     state: StateDirectory,
@@ -309,38 +339,35 @@ def test_an_errored_round_waits_to_be_recovered(conversation_state):
 
 def test_two_current_errors_put_a_conversation_in_fault(conversation_state):
     conversation_round(state=conversation_state, status=2)
-    conversation = read_issue_conversation(state=conversation_state, issue=8)
-    assert conversation is not None
-    first_input = read_json(
-        model=IssueConversationInput,
-        path=conversation.compose_round_paths(number=1).round_input,
-    )
-    write_round(
-        directory=conversation.directory,
-        number=2,
-        record=AgentRoundRecord(
-            number=2,
-            purpose=IssueConversationRoundPurpose.DISCUSS,
-            is_recovery=True,
-            started=PINNED + timedelta(minutes=5),
-            pid=2,
-            ending=compose_agent_round_ending(
-                at=PINNED + timedelta(minutes=8),
-                status=2,
-                failure=None,
-            ),
-        ),
-    )
-    write_json(
-        document=first_input.model_copy(update={"title": None, "body": None}),
-        path=conversation.compose_round_paths(number=2).round_input,
-    )
+    write_second_conversation_error(state=conversation_state)
 
     found = status(state=conversation_state)
 
     assert found.value is IssueConversationStatusValue.FAULT
     assert found.detail == "round 2 errored (exit 2)"
     assert found.is_over
+
+
+def test_an_unknown_observation_takes_precedence_over_a_conversation_fault(
+    conversation_state,
+):
+    conversation_round(state=conversation_state, status=2)
+    write_second_conversation_error(state=conversation_state)
+    evidence = "could not read comments for GH8: network unavailable"
+    observe(
+        state=conversation_state,
+        observations=[
+            observed_conversation(
+                value=IssueFactValue.UNKNOWN,
+                evidence=evidence,
+            )
+        ],
+    )
+
+    found = status(state=conversation_state)
+
+    assert found.value is IssueConversationStatusValue.UNKNOWN
+    assert found.detail == evidence
 
 
 @pytest.mark.parametrize(

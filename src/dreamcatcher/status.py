@@ -683,6 +683,11 @@ class _StatusReportReader:
                 value=IssueConversationStatusValue.IDLE,
                 detail="issue is not eligible for conversation",
             )
+        if observation.has_comments_to_answer.value is IssueFactValue.UNKNOWN:
+            return _summarize_observed_conversation(
+                observation=observation,
+                conversation=conversation,
+            )
         if derive_agent_work_fault(
             rounds=conversation.rounds,
             retry_requested_at=conversation.record.retry_requested_at,

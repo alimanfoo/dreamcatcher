@@ -30,7 +30,6 @@ from dreamcatcher.config import AgentHarness, DispatchRoute
 from dreamcatcher.documents import (
     DreamcatcherDocument,
     read_json,
-    read_lines_from,
     read_text,
     write_json,
     write_text,
@@ -61,7 +60,7 @@ from dreamcatcher.harness_adapters import (
     HarnessSessionIdentifier,
     refuse_reportable_harness_session_identifier,
 )
-from dreamcatcher.harnesses import HARNESS_ADAPTERS
+from dreamcatcher.harnesses import find_harness_session_identifier_in_output
 from dreamcatcher.state import StateDirectory
 
 # What an assignment's branch is called, before its identifier. The prefix keeps
@@ -620,17 +619,11 @@ def find_harness_session_identifier(
     """Return the recorded or recoverable harness session identifier."""
     if assignment.record.harness_session_identifier is not None:
         return assignment.record.harness_session_identifier
-    harness_adapter = HARNESS_ADAPTERS[assignment.record.harness]
-    lines, _ = read_lines_from(
-        path=assignment.compose_round_paths(number=1).raw_output, position=0
+    return find_harness_session_identifier_in_output(
+        harness=assignment.record.harness,
+        agent_work_identifier=assignment.identifier,
+        raw_output=assignment.compose_round_paths(number=1).raw_output,
     )
-    for line in lines:
-        identifier = harness_adapter.read_output(line=line).harness_session_identifier
-        if identifier is not None:
-            return refuse_reportable_harness_session_identifier(
-                agent_work_identifier=assignment.identifier, identifier=identifier
-            )
-    return None
 
 
 def record_harness_session_identifier(

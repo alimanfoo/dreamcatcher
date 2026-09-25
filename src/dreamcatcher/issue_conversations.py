@@ -25,6 +25,7 @@ from dreamcatcher.git import (
     add_detached_worktree,
     fetch_main,
     is_linked_worktree,
+    read_worktree_revision,
     refresh_detached_worktree,
     remove_worktree,
 )
@@ -38,6 +39,7 @@ from dreamcatcher.harness_adapters import (
     HarnessSessionIdentifier,
     refuse_reportable_harness_session_identifier,
 )
+from dreamcatcher.harnesses import find_harness_session_identifier_in_output
 from dreamcatcher.prompts import AGENT_POST_MARKER
 from dreamcatcher.state import StateDirectory
 
@@ -184,8 +186,8 @@ def prepare_issue_conversation_input(
     comments: list[ConversationComment],
 ) -> IssueConversationInput:
     """Refresh the worktree and freeze one issue's trusted round input."""
-    expected_revision = None
-    if conversation.rounds:
+    expected_revision = _read_unrecorded_input_revision(conversation=conversation)
+    if expected_revision is None and conversation.rounds:
         expected_revision = read_issue_conversation_input(
             conversation=conversation,
             number=conversation.rounds[-1].number,
@@ -205,6 +207,23 @@ def prepare_issue_conversation_input(
     )
 
 
+def _read_unrecorded_input_revision(*, conversation: IssueConversation) -> str | None:
+    """Return a pending input's revision when its worktree still has it."""
+    number = conversation.next_round_number
+    path = conversation.compose_round_paths(number=number).round_input
+    if not path.exists():
+        return None
+    try:
+        round_input = read_issue_conversation_input(
+            conversation=conversation,
+            number=number,
+        )
+    except ReportableError:
+        return None
+    revision = read_worktree_revision(worktree=conversation.worktree)
+    return round_input.revision if revision == round_input.revision else None
+
+
 def read_issue_conversation_input(
     *, conversation: IssueConversation, number: int
 ) -> IssueConversationInput:
@@ -218,6 +237,31 @@ def read_issue_conversation_input(
             "contain its initial issue title and body."
         )
     return round_input
+
+
+def find_issue_conversation_harness_session_identifier(
+    *, conversation: IssueConversation
+) -> HarnessSessionIdentifier | None:
+    """Return the recorded or recoverable harness session identifier."""
+    if conversation.record.harness_session_identifier is not None:
+        return conversation.record.harness_session_identifier
+    return find_harness_session_identifier_in_output(
+        harness=conversation.record.harness,
+        agent_work_identifier=conversation.identifier,
+        raw_output=conversation.compose_round_paths(number=1).raw_output,
+    )
+
+
+def require_issue_conversation_revision(
+    *, conversation: IssueConversation, expected: str
+) -> None:
+    """Require a conversation worktree to remain at its saved revision."""
+    revision = read_worktree_revision(worktree=conversation.worktree)
+    if revision != expected:
+        raise ReportableError(
+            f"Could not recover {conversation.identifier}: its worktree revision "
+            f"is {revision}, expected {expected}."
+        )
 
 
 def _read_issue_conversation_input_document(
