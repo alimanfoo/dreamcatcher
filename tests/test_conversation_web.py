@@ -1,11 +1,18 @@
 """Render issue conversations in the local web interface."""
 
+import os
 from datetime import timedelta
 
 from clocks import DISPLAY_TIME_ZONE, PINNED
 from conftest import REPOSITORY
 from observations import observed_conversation
-from records import write_feed, write_issue_conversation, write_round, write_tick
+from records import (
+    write_feed,
+    write_issue_conversation,
+    write_round,
+    write_running_conversation,
+    write_tick,
+)
 from status_fabrications import fabricate_everything
 
 from dreamcatcher.agent_rounds import (
@@ -217,9 +224,28 @@ def test_conversation_tail_returns_new_output_and_advances_its_cursor(tmp_path):
     assert 'id="conversation-status"' in response.text
 
 
-def test_a_finished_conversation_stops_empty_tail_polling(tmp_path):
+def test_an_ineligible_conversation_stops_empty_tail_polling(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
+    conversation = read_issue_conversation(state=state, issue=8)
+    assert conversation is not None
+    feed = conversation.compose_round_paths(number=1).feed
+
+    response = (
+        application(state=state)
+        .test_client()
+        .get(
+            "/conversations/8/tail",
+            query_string={"cursor": f"1:{feed.stat().st_size}"},
+        )
+    )
+
+    assert response.status_code == 286
+
+
+def test_a_faulted_conversation_stops_empty_tail_polling(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state, status=2, is_eligible=True)
     conversation = read_issue_conversation(state=state, issue=8)
     assert conversation is not None
     feed = conversation.compose_round_paths(number=1).feed
@@ -390,6 +416,8 @@ def test_conversation_page_before_its_record_shows_its_issue_and_polls(tmp_path)
 def test_home_lists_conversations_in_attention_order(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state, status=2)
+    write_running_conversation(state=state, issue=11, started=PINNED)
+    state.lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
     write_tick(
         state=state,
         tick=SchedulerRecord(
@@ -400,6 +428,10 @@ def test_home_lists_conversations_in_attention_order(tmp_path):
                 observed_conversation(
                     issue=10, value=IssueFactValue.TRUE, evidence="1 comment to answer"
                 ),
+                observed_conversation(issue=11),
+                observed_conversation(
+                    issue=12, value=IssueFactValue.UNKNOWN, evidence="cannot tell"
+                ),
             ],
         ),
     )
@@ -408,6 +440,10 @@ def test_home_lists_conversations_in_attention_order(tmp_path):
 
     assert (
         page.index('id="conversation-GH8"')
+        < page.index('id="conversation-GH11"')
         < page.index('id="conversation-GH10"')
+        < page.index('id="conversation-GH12"')
         < page.index('id="conversation-GH9"')
     )
+    assert "status-working" in page
+    assert "status-unknown" in page

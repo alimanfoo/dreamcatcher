@@ -906,3 +906,47 @@ def test_the_oldest_waiting_comment_selects_the_conversation(
     observed = scheduler.tick(at=clock())
 
     assert observed.launched_conversation_identifier == "conversation-GH9"
+
+
+def test_a_failed_read_at_a_busy_conversation_does_not_hold_a_ready_one(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    offer_conversation(gh=gh, comments=[ask()])
+    answer(harnesses=harnesses, status=2)
+    scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+    gh.replies(
+        stdout=json.dumps(
+            [
+                {
+                    "number": number,
+                    "title": f"Issue {number}",
+                    "body": "Explain it.",
+                    "createdAt": f"2026-09-{number + 13:02d}T01:00:00Z",
+                    "state": "OPEN",
+                    "assignees": [{"login": POSTED_BY}],
+                    "labels": [{"name": "dream:conversation"}],
+                }
+                for number in (8, 9)
+            ]
+        ),
+        to=(
+            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
+            "--label dream:conversation"
+        ),
+    )
+    gh.fails(stderr="network unavailable", to=COMMENT_PATH)
+    gh.replies(
+        stdout=pages(items=[ask(identifier=2)]),
+        to=f"api repos/{REPOSITORY}/issues/9/comments?per_page=100",
+    )
+    answer(harnesses=harnesses)
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.hold is None
+    assert observed.launched_conversation_identifier == "conversation-GH9"
+    assert observed.conversation_observations[0].has_comments_to_answer.value is (
+        IssueFactValue.UNKNOWN
+    )

@@ -65,9 +65,9 @@ class AgentAssignmentStatusValue(StrEnum):
 class IssueConversationStatusValue(StrEnum):
     """List the summary statuses of an issue conversation.
 
-    Each word means what it means for an assignment. Idle stands where an
-    assignment has needs user feedback: a conversation at rest has posted its
-    answer, so it asks nothing of the user.
+    Each word means what it means for an assignment. Idle takes the place of
+    needs user feedback, because a conversation at rest has posted its answer
+    and asks nothing of the user.
     """
 
     WORKING = "working"

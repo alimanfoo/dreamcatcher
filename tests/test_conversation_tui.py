@@ -1,12 +1,19 @@
 """Render issue conversations in terminal views."""
 
+import os
 from datetime import timedelta
 from io import StringIO
 
 import pytest
 from clocks import PINNED
 from observations import observed_conversation
-from records import write_feed, write_issue_conversation, write_round, write_tick
+from records import (
+    write_feed,
+    write_issue_conversation,
+    write_round,
+    write_running_conversation,
+    write_tick,
+)
 from rich.console import Console
 
 from dreamcatcher.agent_rounds import (
@@ -385,6 +392,8 @@ def test_a_conversation_feed_before_its_first_round_says_so(tmp_path):
 
 def test_conversations_are_listed_in_attention_order(tmp_path):
     state = conversation_state(root=tmp_path, status=2)
+    write_running_conversation(state=state, issue=11, started=PINNED)
+    state.lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
     write_tick(
         state=state,
         tick=SchedulerRecord(
@@ -394,6 +403,10 @@ def test_conversations_are_listed_in_attention_order(tmp_path):
                 observed_conversation(issue=9),
                 observed_conversation(
                     issue=10, value=IssueFactValue.TRUE, evidence="1 comment to answer"
+                ),
+                observed_conversation(issue=11),
+                observed_conversation(
+                    issue=12, value=IssueFactValue.UNKNOWN, evidence="cannot tell"
                 ),
             ],
         ),
@@ -407,4 +420,72 @@ def test_conversations_are_listed_in_attention_order(tmp_path):
     )
 
     shown = written.getvalue()
-    assert shown.index("GH8") < shown.index("GH10") < shown.index("GH9")
+    assert (
+        shown.index("GH8")
+        < shown.index("GH11")
+        < shown.index("GH10")
+        < shown.index("GH12")
+        < shown.index("GH9")
+    )
+    assert "working" in shown
+    assert "unknown" in shown
+
+
+def watched_console() -> tuple[Console, StringIO]:
+    """Return a plain console that says it is a terminal, so a view follows."""
+    written = StringIO()
+    return (
+        Console(
+            file=written,
+            width=100,
+            height=40,
+            force_terminal=True,
+            color_system=None,
+            legacy_windows=False,
+            _environ={"TERM": "xterm"},
+        ),
+        written,
+    )
+
+
+def refusing(seconds, /):
+    """A wait that a view with nothing more to show must never reach."""
+    raise AssertionError("the view waited for something that was not coming")
+
+
+@pytest.mark.parametrize(
+    ("status", "is_eligible"),
+    [(2, True), (0, False)],
+    ids=["fault", "off-the-report"],
+)
+def test_a_conversation_view_that_is_over_never_waits(tmp_path, status, is_eligible):
+    state = conversation_state(root=tmp_path, status=status, is_eligible=is_eligible)
+    console, written = watched_console()
+
+    show_conversation_view(
+        state=state,
+        issue=8,
+        console=console,
+        timing=ViewTiming(clock=lambda: PINNED, wait=refusing),
+    )
+
+    assert "issue conversation GH8" in written.getvalue()
+
+
+def test_a_conversation_view_of_an_idle_conversation_keeps_watching(tmp_path):
+    state = conversation_state(root=tmp_path, is_eligible=True)
+    console, _ = watched_console()
+    waits = []
+
+    def interrupting(seconds, /):
+        waits.append(seconds)
+        raise KeyboardInterrupt
+
+    show_conversation_view(
+        state=state,
+        issue=8,
+        console=console,
+        timing=ViewTiming(clock=lambda: PINNED, wait=interrupting),
+    )
+
+    assert waits

@@ -852,7 +852,8 @@ def _list_issue_conversation_candidates(
 
     Every eligible issue's comments are read, whether or not an agent is free
     to answer them, so that status can tell a waiting conversation from an
-    idle one.
+    idle one. A failed read holds launches only where the conversation could
+    take a new batch.
     """
     conversation_config = config.conversation
     if conversation_config is None:
@@ -883,19 +884,23 @@ def _list_issue_conversation_candidates(
     }
     candidates: list[IssueConversationCandidate] = []
     observations: list[IssueConversationObservation] = []
+    failures: list[str | None] = []
     for issue in sorted(
         issue_response, key=lambda item: (item.created_at, item.number)
     ):
+        conversation = conversations_by_issue.get(issue.number)
         observation, candidate = _inspect_issue_conversation(
             repository=repository,
             account=account,
             config=conversation_config,
             issue=issue,
-            conversation=conversations_by_issue.get(issue.number),
+            conversation=conversation,
         )
         observations.append(observation)
         if candidate is not None:
             candidates.append(candidate)
+        elif _is_conversation_ready_for_input(conversation=conversation):
+            failures.append(observation.has_comments_to_answer.evidence)
     return IssueConversationCandidateResult(
         candidates=sorted(
             candidates,
@@ -905,13 +910,7 @@ def _list_issue_conversation_candidates(
             ),
         ),
         observations=observations,
-        failure=_combine_scheduler_failures(
-            failures=[
-                observation.has_comments_to_answer.evidence
-                for observation in observations
-                if observation.has_comments_to_answer.value is IssueFactValue.UNKNOWN
-            ]
-        ),
+        failure=_combine_scheduler_failures(failures=failures),
     )
 
 
