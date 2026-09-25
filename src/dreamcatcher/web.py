@@ -1047,10 +1047,14 @@ def _compose_instance_facts(
         ),
         (
             "next update in",
-            describe_countdown(
-                at=report.at,
-                since=report.latest_scheduler_tick,
-                span_seconds=report.scheduler_interval_seconds,
+            (
+                None
+                if report.daemon_pid is None
+                else describe_countdown(
+                    at=report.at,
+                    since=report.latest_scheduler_tick,
+                    span_seconds=report.scheduler_interval_seconds,
+                )
             ),
             False,
         ),

@@ -168,6 +168,15 @@ def test_a_state_directory_renders_as_its_golden_status(
     )
 
 
+def test_next_update_is_left_out_when_no_daemon_is_running(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    STATUS_REPORTS["nothing"](state=state)
+
+    status = render_status_view(state=state)
+
+    assert "next update in" not in status
+
+
 def test_identifiers_remain_whole_when_the_assignment_table_folds(tmp_path):
     """Keep the active assignment identifier whole when the table folds."""
     state = StateDirectory(root=tmp_path)

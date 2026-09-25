@@ -897,6 +897,15 @@ def test_capacity_does_not_repeat_as_a_scheduler_hold(tmp_path, daemon):
     assert "<dt>scheduler hold</dt>" not in page
 
 
+def test_next_update_is_left_out_when_no_daemon_is_running(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    WEB_STATUS_REPORTS["nothing"](state=state)
+
+    page = render_home(state=state)
+
+    assert "<dt>next update in</dt>" not in page
+
+
 def test_active_cooldown_uses_the_display_zone(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)

@@ -251,10 +251,14 @@ def _render_instance_status(
             )
         )
     )
-    tick = describe_countdown(
-        at=report.at,
-        since=report.latest_scheduler_tick,
-        span_seconds=report.scheduler_interval_seconds,
+    tick = (
+        None
+        if report.daemon_pid is None
+        else describe_countdown(
+            at=report.at,
+            since=report.latest_scheduler_tick,
+            span_seconds=report.scheduler_interval_seconds,
+        )
     )
     cooldown = (
         "none"

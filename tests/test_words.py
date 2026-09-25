@@ -5,6 +5,7 @@ from clocks import DISPLAY_TIME_ZONE, PINNED
 
 from dreamcatcher.words import (
     describe_count,
+    describe_countdown,
     describe_span,
     describe_time,
     format_utc_timestamp,
@@ -42,3 +43,26 @@ def test_a_span_reads_in_the_largest_unit_that_says_it(span, described):
 )
 def test_a_count_reads_for_one_or_for_more_than_one(number, described):
     assert describe_count(number=number, noun="round") == described
+
+
+def test_a_countdown_reads_the_time_left_before_the_span_elapses():
+    described = describe_countdown(
+        at=PINNED + timedelta(seconds=80), since=PINNED, span_seconds=120
+    )
+
+    assert described == "40s"
+
+
+def test_a_countdown_floors_at_zero_once_the_span_has_passed():
+    described = describe_countdown(
+        at=PINNED + timedelta(seconds=121), since=PINNED, span_seconds=120
+    )
+
+    assert described == "0s"
+
+
+@pytest.mark.parametrize(
+    ("since", "span_seconds"), [(None, 120), (PINNED, None), (None, None)]
+)
+def test_a_countdown_is_unknown_without_both_a_start_and_a_span(since, span_seconds):
+    assert describe_countdown(at=PINNED, since=since, span_seconds=span_seconds) is None
