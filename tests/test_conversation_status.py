@@ -9,6 +9,7 @@ from observations import observed_conversation
 from records import (
     write_daemon_run,
     write_feed,
+    write_final_output,
     write_issue_conversation,
     write_round,
     write_tick,
@@ -54,12 +55,20 @@ def conversation_state(tmp_path):
     return state
 
 
-def conversation_round(*, state: StateDirectory, status: int | None = 0) -> None:
+def conversation_round(
+    *,
+    state: StateDirectory,
+    status: int | None = 0,
+    failure: str | None = None,
+    final_output: str = "The answer.",
+) -> None:
     """Write the conversation's initial round with the requested process status."""
     ending = (
         None
         if status is None
-        else compose_agent_round_ending(at=PINNED + timedelta(minutes=4), status=status)
+        else compose_agent_round_ending(
+            at=PINNED + timedelta(minutes=4), status=status, failure=failure
+        )
     )
     directory = state.conversations / "GH8"
     write_round(
@@ -92,6 +101,7 @@ def conversation_round(*, state: StateDirectory, status: int | None = 0) -> None
         ),
         path=conversation.compose_round_paths(number=1).round_input,
     )
+    write_final_output(directory=directory, number=1, text=final_output)
 
 
 def observe(
@@ -297,6 +307,23 @@ def test_an_errored_round_waits_to_be_recovered(conversation_state):
     assert not found.is_over
 
 
+@pytest.mark.parametrize(
+    "failure",
+    [
+        "could not post the answer on GH8: network unavailable",
+        "the harness returned no final output",
+    ],
+)
+def test_a_round_that_could_not_be_finished_says_why(conversation_state, failure):
+    conversation_round(state=conversation_state, failure=failure)
+
+    found = status(state=conversation_state)
+
+    assert found.value is IssueConversationStatusValue.WAITING
+    assert found.detail == f"round 1 errored: {failure}"
+    assert found.round_statuses[0].outcome_description == "errored"
+
+
 def test_a_round_to_recover_comes_before_comments_to_answer(conversation_state):
     conversation_round(state=conversation_state, status=2)
     observe(
@@ -326,6 +353,15 @@ def test_an_errored_round_at_an_ineligible_issue_leaves_the_report(
     assert found.value is IssueConversationStatusValue.IDLE
     assert found.detail == "issue is not eligible for conversation"
     assert report.conversation_statuses == []
+
+
+def test_a_round_that_needed_no_reply_says_so(conversation_state):
+    conversation_round(state=conversation_state, final_output="NO_REPLY\n")
+
+    found = status(state=conversation_state)
+
+    assert found.value is IssueConversationStatusValue.IDLE
+    assert found.detail == "round 1, no reply needed, ran 4m"
 
 
 def test_an_unreadable_round_input_still_shows_the_round(conversation_state):

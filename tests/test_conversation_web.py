@@ -8,6 +8,7 @@ from conftest import REPOSITORY
 from observations import observed_conversation
 from records import (
     write_feed,
+    write_final_output,
     write_issue_conversation,
     write_round,
     write_running_conversation,
@@ -87,6 +88,7 @@ def fabricate_conversation(
         number=1,
         lines=[FeedLine(at=PINNED, text="I found the answer.")],
     )
+    write_final_output(directory=directory, number=1, text="The answer.")
 
 
 def application(*, state: StateDirectory):

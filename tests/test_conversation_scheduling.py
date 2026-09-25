@@ -26,6 +26,7 @@ from records import (
 
 from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
+    ErroredAgentRoundEnding,
     IssueConversationInput,
     IssueConversationRoundPurpose,
 )
@@ -515,7 +516,11 @@ def test_a_failed_post_errors_the_round_and_starts_no_new_batch(
 
     conversation = read_issue_conversation(state=scheduler.state, issue=8)
     assert conversation is not None
-    assert conversation.rounds[0].outcome is AgentRoundOutcome.ERRORED
+    ending = conversation.rounds[0].ending
+    assert isinstance(ending, ErroredAgentRoundEnding)
+    assert ending.status == 0
+    assert ending.reason is not None
+    assert ending.reason.startswith("could not post the answer on GH8: ")
     feed = conversation.compose_round_paths(number=1).feed.read_text(encoding="utf-8")
     assert "[failed] could not post the answer on GH8: " in feed
     assert observed.hold is None

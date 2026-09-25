@@ -31,6 +31,7 @@ from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.issue_conversations import (
     IssueConversation,
     describe_issue_conversation_revision,
+    is_no_reply,
     read_issue_conversation,
     read_issue_conversation_input,
     read_issue_conversations,
@@ -472,17 +473,27 @@ def _describe_unfinished_conversation_round(
     latest = conversation.rounds[-1]
     if latest.outcome is AgentRoundOutcome.SUCCESSFUL:
         return None
+    ending = latest.ending
+    if isinstance(ending, ErroredAgentRoundEnding) and ending.reason is not None:
+        return f"round {latest.number} errored: {ending.reason}"
     outcome = _describe_round_outcome(record=latest, is_running=False)
     return f"round {latest.number} {outcome}"
 
 
 def _describe_idle_conversation(*, conversation: IssueConversation | None) -> str:
-    """Describe a conversation that has answered every comment it was given."""
+    """Describe a conversation that has answered every comment it was given.
+
+    Its latest round succeeded, so that round's final output was saved.
+    """
     if conversation is None or not conversation.rounds:
         return "no comments yet"
     latest = conversation.rounds[-1]
+    final_output = read_text(
+        path=conversation.compose_round_paths(number=latest.number).final_output
+    )
+    answer = "no reply needed" if is_no_reply(final_output=final_output) else "answered"
     duration = _compose_round_duration_description(record=latest)
-    return f"round {latest.number}, answered, {duration}"
+    return f"round {latest.number}, {answer}, {duration}"
 
 
 def _compose_round_duration_description(*, record: AgentRoundRecord) -> str:
@@ -497,9 +508,13 @@ def _describe_round_outcome(*, record: AgentRoundRecord, is_running: bool) -> st
 
     A round that recorded no ending never finished. It is running when a daemon
     is still there to run it, and interrupted once that daemon has gone, since
-    a round cannot outlive its daemon.
+    a round cannot outlive its daemon. A round that errored for a reason, after
+    its harness exited cleanly, reads as errored alone, since its exit status
+    says nothing and its reason is too long for a list of rounds.
     """
     if isinstance(record.ending, ErroredAgentRoundEnding):
+        if record.ending.reason is not None:
+            return str(AgentRoundOutcome.ERRORED)
         return f"errored (exit {record.ending.status})"
     if record.ending is None and not is_running:
         return str(AgentRoundOutcome.INTERRUPTED)

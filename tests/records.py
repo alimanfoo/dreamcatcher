@@ -173,3 +173,10 @@ def write_running_conversation(
         ),
         path=_round_paths(directory=directory, number=1).round_input,
     )
+
+
+def write_final_output(*, directory: Path, number: int, text: str) -> None:
+    """Write the final output that one round of the work at this directory reported."""
+    write_text(
+        text=text, path=_round_paths(directory=directory, number=number).final_output
+    )

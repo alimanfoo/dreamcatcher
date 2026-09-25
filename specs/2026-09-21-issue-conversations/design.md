@@ -186,10 +186,10 @@ issue comment before it records its ending, so the round keeps its agent slot
 while it posts and no new batch starts until the answer is out. The shared round
 runner knows nothing of GitHub: the conversation launcher gives it a callback
 that posts to the issue. A failed post makes the round errored, with the failure
-noted in its feed, and recovery runs it again like any other errored round. If
-the daemon dies between the harness exiting and the post, the round is
-interrupted and recovers the same way. There is no saved reply record and no
-retry of the post on later ticks.
+as its reason and noted in its feed, and recovery runs it again like any other
+errored round. If the daemon dies between the harness exiting and the post, the
+round is interrupted and recovers the same way. There is no saved reply record
+and no retry of the post on later ticks.
 
 GitHub may accept a post before Dreamcatcher loses the response or crashes.
 Recovering the round can then duplicate the comment. Accept that rare duplicate;

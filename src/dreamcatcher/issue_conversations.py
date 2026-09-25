@@ -299,6 +299,11 @@ def record_issue_conversation_session_identifier(
             )
 
 
+def is_no_reply(*, final_output: str) -> bool:
+    """Return whether a round's final output declines to post an answer."""
+    return final_output.strip() == NO_REPLY
+
+
 def post_issue_conversation_answer(
     *, repository: str, issue: int, final_output: str | None
 ) -> None:
@@ -311,7 +316,7 @@ def post_issue_conversation_answer(
     answer = (final_output or "").strip()
     if not answer:
         raise ReportableError("the harness returned no final output")
-    if answer == NO_REPLY:
+    if is_no_reply(final_output=answer):
         return
     response = post_issue_comment(
         repository=repository,

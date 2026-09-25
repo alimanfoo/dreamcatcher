@@ -9,6 +9,7 @@ from clocks import PINNED
 from observations import observed_conversation
 from records import (
     write_feed,
+    write_final_output,
     write_issue_conversation,
     write_round,
     write_running_conversation,
@@ -81,6 +82,7 @@ def conversation_state(
         number=1,
         lines=[FeedLine(at=PINNED, text="I found the answer.")],
     )
+    write_final_output(directory=directory, number=1, text="The answer.")
     write_tick(
         state=state,
         tick=SchedulerRecord(

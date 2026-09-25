@@ -126,8 +126,9 @@ nothing of GitHub. After the harness exits successfully, the round hands its
 final result to that finisher, which posts it with the agent marker, and then
 the round records its ending. It therefore keeps its agent slot while it posts,
 and no new batch starts until the answer is out. `NO_REPLY` posts nothing. A
-missing final result or a failed post makes the round errored, with the failure
-noted in its feed. Failed and interrupted rounds remain visible and are not
+missing final result or a failed post makes the round errored. The ending keeps
+the harness's clean exit status and gives the failure as its reason, and the
+feed notes it too. Failed and interrupted rounds remain visible and are not
 automatically resumed yet.
 
 ### Agent assignments
@@ -440,8 +441,8 @@ A round record persists:
 - its owner-scoped number;
 - purpose and recovery flag;
 - start time and process identifier;
-- its terminal outcome, when known, and any observed end time and exit status;
-  and
+- its terminal outcome, when known, any observed end time and exit status, and
+  the reason an owner could not finish it; and
 - the durable files containing its prompt, delivered input, output, and any
   final result the harness reports.
 
