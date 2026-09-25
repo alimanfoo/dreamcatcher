@@ -683,6 +683,33 @@ def test_an_assignment_page_links_its_title_and_pull_request(tmp_path, daemon):
     )
 
 
+def test_assignment_heading_keeps_its_chips_in_the_top_right(tmp_path):
+    application = create_app(
+        state=StateDirectory(root=tmp_path),
+        clock=lambda: LOOKED_AT,
+        zone=DISPLAY_TIME_ZONE,
+    )
+    stylesheet = (
+        application.test_client().get("/static/matrix.css").get_data(as_text=True)
+    )
+
+    assert re.search(
+        r"\.assignment-heading \{[^}]*display: grid;"
+        r"[^}]*grid-template-columns: minmax\(0, 1fr\) max-content;"
+        r"[^}]*align-items: start;",
+        stylesheet,
+        re.DOTALL,
+    )
+    assert re.search(
+        r"\.assignment-heading h1 \{[^}]*min-width: 0;", stylesheet, re.DOTALL
+    )
+    assert re.search(
+        r"\.assignment-heading-actions \{[^}]*flex-wrap: nowrap;",
+        stylesheet,
+        re.DOTALL,
+    )
+
+
 def test_assignment_rounds_link_to_the_feed_in_ascending_order(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
