@@ -7,11 +7,7 @@ instance
   agent capacity   0 of 1 working                               
   global cooldown  none                                         
 
-agent assignments
+assignments
   GH13-20260819-184158  waiting  next round, implement
-
-failed assignment setups
-  GH20  assignment setup failed
-
-available issues
-  GH21  dream:smith
+  GH20  assignment setup failed                       
+  GH21  dream:smith  available                        

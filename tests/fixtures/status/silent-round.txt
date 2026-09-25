@@ -7,5 +7,5 @@ instance
   agent capacity   1 of 1 working                               
   global cooldown  none                                         
 
-agent assignments
+assignments
   GH13-20260819-184158  working  round 2, address feedback, running 1h 30m, has said nothing yet
