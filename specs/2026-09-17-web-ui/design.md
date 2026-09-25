@@ -40,7 +40,8 @@ every issue and assignment, and the state of each assignment's pull request,
 draft or ready, merged or closed, beside a link to it. Every working assignment
 shows the last line its feed said, as the `status` view does. Every issue
 reference uses `#N` and links to the issue on GitHub, including a reference
-embedded in blocker evidence.
+embedded in blocker evidence. The global-cooldown fact appears only while a
+global cooldown is active.
 
 **The assignment page**, at `/assignments/GH142-20260916-180412`, shows one
 agent assignment and nothing else. At the top is what the `assignment` view
@@ -326,8 +327,10 @@ it needs no script and a morph cannot disturb it.
 
 The Matrix stylesheet supplies the shared layout and the original phosphor
 theme. The Nature stylesheet changes only the presentation: sand, sage and clay
-colours, soft surfaces, rounded chips, a paper texture and a fixed sun. It uses
-local font fallbacks and has no breeze, moving sun or other theme animation.
+colours, soft surfaces, rounded chips, a paper texture and a sun that follows
+the viewer's local clock. It uses local font fallbacks and has no breeze or
+other theme animation. The sun moves from left to right between 6am and 6pm, and
+is hidden outside those hours.
 
 ### Errors
 
@@ -436,9 +439,9 @@ above.
 flag between them. Deriving the starting point from the repository's name costs
 two lines and gives each repository a stable address without one.
 
-**Why is the Nature theme still?** A fixed sun and still cards carry the visual
-identity without adding a clock model or continuous movement. The original
-motion can be reconsidered if readers find that it adds more than it distracts.
+**Why do the Nature theme's cards stay still?** A simple local-clock sun adds a
+little movement without animating the cards or needing a solar model. It is
+hidden overnight and crosses the top of the page from 6am to 6pm.
 
 ## Documents to file
 

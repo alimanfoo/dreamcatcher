@@ -6,6 +6,10 @@ it delivers the stage when earlier work or implementation discoveries justify
 that change. It should raise any change to the roadmap's stages, boundaries,
 order or dependencies with the user instead of restructuring the roadmap itself.
 
+The design was revised after stage 3 landed. Read the
+[revision after stage 3](#revision-after-stage-3) before working on stage 4
+or 5.
+
 ## Stage 1: A visible first answer with Claude
 
 **Delivery.** Post a question, add the conversation label, and assign the issue
@@ -106,8 +110,9 @@ running per conversation. Comments arriving during a round wait for the next
 batch. Do not accept another batch while the preceding answer is unposted.
 
 Use the design's creation-time-and-ID delivery cursor and ignore edits to
-delivered comments. Supply current issue title/body with each batch, but do not
-make an issue-body edit alone a trigger. Marker filtering prevents answers from
+delivered comments. Supply issue title/body to the first batch; resumed rounds
+retain them in the harness transcript and receive only new comments. Do not make
+an issue-body edit alone a trigger. Marker filtering prevents answers from
 triggering new rounds. Never refresh the worktree in this stage: follow-ups use
 its initial revision until stage three.
 
@@ -160,20 +165,21 @@ round runner, publisher and presentation surfaces this stage continues.
 ## Stage 3: Follow changes on main
 
 **Delivery.** Before a new batch, fetch main and update the idle conversation
-worktree to that revision. Record the revision with the batch and tell the agent
-the previous and current revisions so it can revisit relevant earlier findings.
-Keep the session; replace neither its transcript nor its identity. A running
-round's checkout does not move.
+worktree to that revision. Record the revision with the batch. The resumed
+transcript already holds the revision from earlier rounds. Keep the session;
+replace neither its transcript nor its identity. A running round's checkout does
+not move.
 
-Report failed refreshes rather than answer against stale main, and do not force
-away unexpected local changes. Show the investigated revision for each round in
-both detail views and identify revision changes in the feed.
+Discard tracked, untracked and ignored local changes before moving to fetched
+main rather than asking the user to repair a managed worktree. Show the
+investigated revision for each round in both detail views and identify revision
+changes in the feed.
 
 **Change surface.** Extend `git.py` with safe detached-worktree refresh and call
 it from conversation preparation before accepting a new batch. Extend the round
-input and prompt with previous/current revision context. Add the corresponding
-shared reporting facts and small terminal/web presentation changes. No change to
-comment routing or assignment worktree handling is needed.
+input with current revision context. Add the corresponding shared reporting
+facts and small terminal/web presentation changes. No change to comment routing
+or assignment worktree handling is needed.
 
 **Acceptance test.** Ask about a small function in the test repository, merge a
 change to that function on main, then ask the same conversation, "Does your
@@ -184,7 +190,7 @@ GitHub answer reflects the new behaviour and explains its effect on the earlier
 answer.
 
 **Automated proof.** Cover changed and unchanged main, fetch/update failure,
-unexpected local changes without destructive cleanup, and no refresh while a
+cleanup of tracked, untracked and ignored local changes, and no refresh while a
 round runs. Verify that the saved input and both presentations report the exact
 revision investigated, not a later moving remote ref.
 
@@ -194,94 +200,157 @@ handling; Codex conversations.
 **Dependency.** Stage two supplies the successful follow-up path to prepare
 against a newer revision.
 
+## Revision after stage 3
+
+On 2026-09-24, after stage 3 landed, we paused and revised the design before
+starting stage 4. Testing the delivered stages showed that the conversation path
+had grown its own versions of things the assignment path already does, and that
+they made a conversation harder to follow than an assignment. The revision
+brings conversations back in line with assignments wherever a conversation has
+no need to differ.
+
+Stages 1 to 3 are left as they were written. They record what those stages set
+out to do, and parts of them no longer describe the design. Where one of them
+disagrees with `design.md`, `requirements.md` or stages 4 and 5, the later text
+wins. Stages 4 and 5 were rewritten in this revision, and `design.md` and
+`requirements.md` were corrected to match. So there is a deliberate break
+between stages 3 and 4: stage 4 does not build on everything stages 1 to 3
+describe.
+
+The revision changes four things:
+
+- **The round posts its own answer.** A conversation round posts its final
+  answer when it ends, and a failed post makes the round errored. There is no
+  saved reply, no retry of the post on later ticks and no awaiting-publication
+  status. [GH250](https://github.com/alimanfoo/dreamcatcher/issues/250) makes
+  this change.
+- **Conversation statuses match assignment statuses.** A conversation is
+  working, waiting, idle, fault or unknown, and appears as soon as its issue is
+  eligible. Once the issue is ineligible, it appears only while a round is
+  running. [GH254](https://github.com/alimanfoo/dreamcatcher/issues/254) makes
+  this change.
+- **Recovery, faults, retry and the cooldown follow the assignment rules.** A
+  failure before a round's process starts goes into the scheduler hold, as it
+  does for an assignment, rather than counting as an errored attempt. An
+  unfinished round recovers only while the issue is eligible, as an assignment
+  recovers only while its pull request is open. `dreamcatcher retry GH123`
+  clears whatever is in fault at the issue. Stage 4 makes this change.
+- **The conversation config has a block per harness,** as a dispatch route does,
+  and the daemon's `--harness` chooses between them by the same rule. Stage 5
+  makes this change.
+
+GH250 and GH254 are not roadmap stages. They land in that order before stage 4,
+and stage 4 depends on both.
+
 ## Stage 4: Continue interrupted work
 
-**Delivery.** Resume interrupted or failed issue conversation rounds in their
-existing sessions, with the saved batch and code revision. Do not fetch main,
-collect a new batch, or reconstruct earlier replies to recover an unfinished
-round. Eligibility loss does not cancel already-started work or its eventual
-reply. Recovery takes precedence over fresh input for that conversation.
+_Rewritten in the [revision after stage 3](#revision-after-stage-3). Read that
+section first._
 
-Two consecutive errored attempts put a conversation in fault. Include failures
-before process launch in that accounting; interruption is not an error. Extend
-manual retry so it can explicitly select the conversation when the issue also
-has an assignment. Reuse one global cooldown: any two faulted assignments or
-conversations trigger it, no rounds start during it, and expiry clears all
-faults for retry while retaining their history. A lone fault still needs manual
-retry unless another fault triggers cooldown. Do not add per-conversation
-timers, rate-limit classification or a special replacement-session mechanism.
+**Delivery.** Resume an interrupted or errored conversation round in its
+existing session, with that round's saved input and code revision, as an
+assignment recovers its unfinished round. Do not fetch main, collect a new batch
+or reconstruct earlier replies to recover. Recovery takes precedence over fresh
+input for that conversation. It happens only while the issue is eligible, and
+restoring eligibility lets it go ahead. Give conversations their own recovery
+prompt: the assignment's `RECOVERY_PROMPT` tells the agent how to mark its own
+GitHub posts, and a conversation agent posts nothing.
 
-Extend both UIs with recovery outcomes, faults and their reasons, and shared
-cooldown state. Keep the saved session and revision inspectable while the daemon
-is stopped. Normal saved-answer publication retries remain the stage-one path,
-not extra agent rounds.
+A failed post of a round's answer makes the round errored (GH250), so recovery
+runs the round again with the same input and posts again.
 
-**Change surface.** Extend conversation inspection and attempt recording,
-recovery prompt composition, and the daemon's orphan reconciliation/resumption
-path. Extend fault derivation and the scheduler's existing global cooldown to
-include conversation faults, and extend the retry command's target selection.
-Add recovery/fault facts to the shared status/detail models and render them in
-the existing terminal and web views. Preserve assignment lifecycle semantics.
+Conversations join the assignment fault rules. Two consecutive errored rounds
+since the latest retry or cooldown end put a conversation in fault, and
+automatic recovery stops. An interrupted round is not an error. A failure before
+the process starts goes into the scheduler hold and is tried again on the next
+tick, as it is for an assignment; it is not a round and does not count toward a
+fault. `dreamcatcher retry GH123` clears whatever is in fault at that issue: its
+newest assignment, its conversation or both. It refuses only when nothing there
+is in fault. The global cooldown counts faulted assignments and conversations
+together, and otherwise works as it does today.
+
+The statuses from GH254 already cover this. A round waiting to be recovered
+makes the conversation waiting, with a detail such as "round 2 interrupted, will
+resume" or "round 2 failed, will retry", and two errors in a row make it a
+fault. The round history marks recovery rounds.
+
+**Change surface.** Generalize `derive_assignment_fault` so that it covers a
+conversation's rounds and retry time too, rather than copying it, and add a
+retry time to the conversation record. Extend the scheduler's conversation
+inspection to require a recovery round, `_start_cooldown_if_required` to count
+conversation faults, and the retry command to find what is in fault at the
+issue. Add the conversation recovery prompt. The daemon's orphan sweep already
+marks unfinished conversation rounds interrupted.
 
 **Acceptance test.** Start an issue conversation round and stop the daemon while
 its feed shows the agent working. With the daemon stopped, inspect the
 conversation in the terminal and browser: its interrupted round, session ID and
-code revision remain visible. Restart the daemon. Both overviews show it running
+code revision remain visible. Restart the daemon. Both overviews show it working
 again, both detail views identify the recovery round with the same session and
 revision, and the feeds show continued work. The question receives its answer on
 GitHub without being posted again by the user.
 
-**Automated proof.** Cover daemon shutdown and orphan reconciliation,
-same-session recovery, frozen input/revision despite changed main, queued
-comments not overtaking recovery, and recovery after eligibility loss. Cover
-errored and interrupted attempts, pre-launch failures, manual retry targeting,
-two conversations or a conversation plus assignment triggering the same
-cooldown, expiry clearing all faults, and the lone-fault caveat. Retain the
-ordinary publication-failure tests rather than requiring manual fault injection
-for acceptance. Check both UIs against the resulting saved states.
+**Automated proof.** Cover same-session recovery after orphan reconciliation,
+input and revision held despite a changed main, queued comments not overtaking
+recovery, and no recovery while the issue is ineligible. Cover errored and
+interrupted rounds, a failed post counting as an errored round, and a failure
+before launch going to the scheduler hold. Cover retry clearing a conversation's
+fault, an assignment's or both, two conversations or a conversation and an
+assignment starting the same cooldown, and expiry clearing all faults. Check
+both UIs against the resulting saved states.
 
 **Deferral.** Codex conversations.
 
-**Dependency.** Stage two provides session resumption and stage one provides
-saved attempts and process cleanup. Recovery itself does not require stage
-three; placing it afterwards also verifies that the normal refresh path is
-skipped during recovery.
+**Dependency.** GH250 and GH254. Stage two provides session resumption, and
+stage one provides saved rounds and process cleanup.
 
 ## Stage 5: Conversations with Codex
 
-**Delivery.** The complete conversation lifecycle works with Codex as well as
-Claude. Add Codex's issue conversation launch settings and final-answer capture
-for first, resumed and recovery rounds. Capture its final message separately
-from progress, apply the same Markdown/`NO_REPLY` protocol, and use the existing
-conversation publisher and lifecycle rather than duplicating them.
+_Rewritten in the [revision after stage 3](#revision-after-stage-3). Read that
+section first._
 
-New conversations use their configured harness. Existing conversations retain
-their recorded harness and settings. Both UIs show the correct harness, session
-identity and feed through the presentation paths already built.
+**Delivery.** The whole conversation lifecycle works with Codex as well as
+Claude. Give the conversation config a block per harness, as a dispatch route
+has. `[conversation]` keeps its `label`, and `[conversation.claude]` and
+`[conversation.codex]` each hold a prompt, model and effort. The daemon's
+`--harness` chooses between them by the rule a dispatch route uses, so a config
+with one block runs that harness whatever the daemon names. A conversation
+records its harness when it is created and keeps it, since a session cannot move
+between harnesses.
 
-**Change surface.** Extend `codex.py` and the necessary adapter/launch boundary
-for conversation permissions and final-message capture; remove the temporary
-conversation-only support restriction from stage one. Extend harness contract
-tests and any presenter cases that expose a harness-specific assumption. The
-conversation scheduler, worktree lifecycle and publisher remain shared.
+Add Codex's conversation permissions and final-answer capture for first, resumed
+and recovery rounds. Capture the final message separately from progress, apply
+the same Markdown and `NO_REPLY` protocol, and post through the same
+round-ending callback as Claude (GH250).
 
-**Acceptance test.** Configure Codex for new conversations. On a fresh eligible
-issue, ask a question and then post a contextual follow-up after the first
-answer. Both overviews identify a Codex conversation. The terminal and web
-detail views show two rounds using the same Codex session, and the feeds show
-both rounds. GitHub contains the initial answer and a contextual follow-up. Use
-a fresh issue so a saved Claude session is not being asked to change harness.
+**Change surface.** Replace the `harness` field of `IssueConversationConfig`
+with per-harness blocks, reusing the dispatch route's recipe model and
+`choose_harness` rule rather than copying them, and remove the Claude-only
+restriction on conversations. Update this repository's `dreamcatcher.toml`.
+Extend `codex.py` with conversation permissions and final-message capture.
+Choose the Codex sandbox and approval settings that come closest to the Claude
+conversation permissions, and say on the pull request what they allow. Codex
+resume already works for assignments. Extend the harness contract tests and any
+presenter cases that assume Claude.
 
-**Automated proof.** Exercise the same conversation contract with Codex: initial
-and resumed output capture, `NO_REPLY`, failed or missing final output, issue
-conversation settings on every launch path, preserved session and revision
-during recovery, and publication without relaunch. Existing Claude conversations
-and implementation assignments through either harness remain covered. Confirm
-the real CLI's first/resume final-output behaviour during adapter verification;
-do not change recorded harness fixtures by hand.
+**Acceptance test.** Configure both harness blocks and run the daemon with
+`--harness codex`. On a fresh eligible issue, ask a question and then post a
+follow-up that refers to the first answer. Both overviews identify a Codex
+conversation. The terminal and web detail views show two rounds using the same
+Codex session, and the feeds show both rounds. GitHub holds the first answer and
+a follow-up answer that uses its context. A conversation started earlier with
+Claude keeps using Claude.
+
+**Automated proof.** Exercise the conversation contract with Codex: first and
+resumed output capture, `NO_REPLY`, failed or missing final output, conversation
+permissions on every launch path, and session and revision held during recovery.
+Cover harness choice for a config with one block and with two, and an existing
+conversation keeping its recorded harness. Existing Claude conversations and
+implementation assignments through either harness remain covered. Confirm the
+real CLI's first and resumed final-output behaviour during adapter verification,
+and do not change recorded harness fixtures by hand.
 
 **Deferral.** None of the agreed design.
 
-**Dependency.** Its adapter work could begin after stage one, but this stage is
-deliberately last so its acceptance and automated tests establish parity against
-the lifecycle delivered by stages two through four, not a second moving target.
+**Dependency.** Stage 4. This stage is deliberately last, so its tests establish
+parity against the whole lifecycle rather than a moving target.

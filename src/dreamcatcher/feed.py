@@ -51,7 +51,12 @@ class FeedLine:
 
 
 def compose_agent_round_boundary(
-    *, number: int, purpose: str, is_recovery: bool, at: datetime
+    *,
+    number: int,
+    purpose: str,
+    is_recovery: bool,
+    at: datetime,
+    detail: str | None = None,
 ) -> FeedLine:
     """Return the line that opens a round, saying what work it advances.
 
@@ -60,6 +65,8 @@ def compose_agent_round_boundary(
     stamped with the time that round started.
     """
     description = describe_agent_round_start(purpose=purpose, is_recovery=is_recovery)
+    if detail is not None:
+        description = f"{description}; {detail}"
     return FeedLine(at=at, text=f"round {number}: {description}")
 
 

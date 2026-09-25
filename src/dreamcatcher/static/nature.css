@@ -12,6 +12,8 @@
   --font: "Alegreya Sans", Avenir, "Segoe UI", sans-serif;
   --font-size: 15px;
   --line-height: 1.5;
+  --sun-opacity: 1;
+  --sun-x: 50%;
 }
 
 html {
@@ -22,16 +24,24 @@ html {
 
 body {
   color: var(--bright);
-  background:
-    radial-gradient(
-      circle at 86% 6%,
-      rgba(255, 250, 232, 0.95) 0,
-      rgba(255, 236, 170, 0.72) 6vmin,
-      rgba(255, 226, 150, 0.32) 18vmin,
-      rgba(255, 226, 150, 0) 38vmin
-    ),
-    linear-gradient(180deg, #e3dfe4 0%, #ece5da 34%, #efe6d6 100%);
+  background: linear-gradient(180deg, #e3dfe4 0%, #ece5da 34%, #efe6d6 100%);
   background-attachment: fixed;
+}
+
+body::before {
+  position: fixed;
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at var(--sun-x) 6%,
+    rgba(255, 250, 232, 0.95) 0,
+    rgba(255, 236, 170, 0.72) 6vmin,
+    rgba(255, 226, 150, 0.32) 18vmin,
+    rgba(255, 226, 150, 0) 38vmin
+  );
+  content: "";
+  opacity: var(--sun-opacity);
 }
 
 body::after {

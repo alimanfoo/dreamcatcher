@@ -9,20 +9,16 @@ from records import write_feed, write_issue_conversation, write_round, write_tic
 from rich.console import Console
 
 from dreamcatcher.agent_rounds import (
-    AgentRoundPurpose,
     AgentRoundRecord,
     IssueConversationInput,
+    IssueConversationRoundPurpose,
     compose_agent_round_ending,
 )
 from dreamcatcher.documents import write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.harness_adapters import AgentWorkKind
-from dreamcatcher.issue_conversations import (
-    read_issue_conversation,
-    record_issue_conversation_reply_publication,
-    save_issue_conversation_reply,
-)
+from dreamcatcher.issue_conversations import read_issue_conversation
 from dreamcatcher.scheduler import IssueFact, IssueFactValue, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.tui import (
@@ -38,7 +34,6 @@ def conversation_state(
     *,
     root,
     status: int = 0,
-    is_published: bool = True,
     is_eligible: bool = False,
 ) -> StateDirectory:
     """Return state containing one finished conversation."""
@@ -49,7 +44,7 @@ def conversation_state(
         number=1,
         record=AgentRoundRecord(
             number=1,
-            purpose=AgentRoundPurpose.DISCUSS,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=1,
             ending=compose_agent_round_ending(
@@ -79,18 +74,6 @@ def conversation_state(
         number=1,
         lines=[FeedLine(at=PINNED, text="I found the answer.")],
     )
-    conversation = read_issue_conversation(state=state, issue=8)
-    assert conversation is not None
-    if status == 0:
-        save_issue_conversation_reply(
-            conversation=conversation, number=1, body="The answer."
-        )
-        if is_published:
-            record_issue_conversation_reply_publication(
-                conversation=conversation,
-                number=1,
-                at=PINNED + timedelta(minutes=5),
-            )
     write_tick(
         state=state,
         tick=SchedulerRecord(
@@ -130,6 +113,37 @@ def test_status_lists_the_issue_conversation(tmp_path):
 
 def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path):
     state = conversation_state(root=tmp_path)
+    directory = state.conversations / "GH8"
+    write_round(
+        directory=directory,
+        number=2,
+        record=AgentRoundRecord(
+            number=2,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
+            started=PINNED + timedelta(minutes=6),
+            pid=2,
+            ending=compose_agent_round_ending(
+                at=PINNED + timedelta(minutes=10), status=0
+            ),
+        ),
+    )
+    write_json(
+        document=IssueConversationInput(
+            issue=8,
+            title="Issue 8",
+            body="Explain it.",
+            comments=[
+                {
+                    "id": 2,
+                    "body": "Does that still hold?",
+                    "author": "alice",
+                    "written_at": "2026-09-23T02:00:00Z",
+                }
+            ],
+            revision="def456",
+        ),
+        path=(directory / "rounds" / "2" / "inbox.json"),
+    )
     console, written = rendered_console()
 
     show_conversation_view(
@@ -143,22 +157,17 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
     assert "issue conversation GH8" in shown
     assert "conversation-session" in shown
     assert "abc123" in shown
+    assert "def456" in shown
     assert "opus[1m]" in shown
     assert "discuss" in shown
     assert "successful" in shown
 
 
-@pytest.mark.parametrize(
-    ("status", "is_published", "expected"),
-    [
-        (2, False, "needs attention"),
-        (0, False, "awaiting publication"),
-    ],
-)
-def test_conversation_detail_shows_failed_and_pending_states(
-    tmp_path, status, is_published, expected
-):
-    state = conversation_state(root=tmp_path, status=status, is_published=is_published)
+def test_conversation_detail_shows_attention_for_an_unreadable_input(tmp_path):
+    state = conversation_state(root=tmp_path)
+    conversation = read_issue_conversation(state=state, issue=8)
+    assert conversation is not None
+    conversation.compose_round_paths(number=1).round_input.write_bytes(b"not json")
     console, written = rendered_console()
 
     show_conversation_view(
@@ -168,7 +177,23 @@ def test_conversation_detail_shows_failed_and_pending_states(
         timing=ViewTiming(clock=lambda: PINNED),
     )
 
-    assert expected in written.getvalue()
+    shown = written.getvalue()
+    assert "needs attention" in shown
+    assert "inbox.json is not valid" in shown
+
+
+def test_conversation_detail_shows_a_failed_round(tmp_path):
+    state = conversation_state(root=tmp_path, status=2)
+    console, written = rendered_console()
+
+    show_conversation_view(
+        state=state,
+        issue=8,
+        console=console,
+        timing=ViewTiming(clock=lambda: PINNED),
+    )
+
+    assert "needs attention" in written.getvalue()
 
 
 def test_conversation_feed_shows_its_saved_activity(tmp_path):
@@ -207,7 +232,7 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
             number=2,
             record=AgentRoundRecord(
                 number=2,
-                purpose=AgentRoundPurpose.DISCUSS,
+                purpose=IssueConversationRoundPurpose.DISCUSS,
                 started=PINNED + timedelta(minutes=6),
                 pid=2,
                 ending=compose_agent_round_ending(
@@ -228,7 +253,7 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
                         "written_at": "2026-09-23T02:00:00Z",
                     }
                 ],
-                revision="abc123",
+                revision="def456",
             ),
             path=(directory / "rounds" / "2" / "inbox.json"),
         )
@@ -236,16 +261,6 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
             directory=directory,
             number=2,
             lines=[FeedLine(at=PINNED, text="I found the follow-up answer.")],
-        )
-        conversation = read_issue_conversation(state=state, issue=8)
-        assert conversation is not None
-        save_issue_conversation_reply(
-            conversation=conversation, number=2, body="The follow-up answer."
-        )
-        record_issue_conversation_reply_publication(
-            conversation=conversation,
-            number=2,
-            at=PINNED + timedelta(minutes=11),
         )
         write_tick(
             state=state,
@@ -268,6 +283,7 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
     assert shown.count("round 1: discuss") == 1
     assert shown.count("I found the answer.") == 1
     assert shown.count("round 2: discuss") == 1
+    assert shown.count("code revision abc123 -> def456") == 1
     assert shown.count("I found the follow-up answer.") == 1
 
 

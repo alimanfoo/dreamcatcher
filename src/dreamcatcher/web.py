@@ -107,6 +107,7 @@ class WebAssignmentCard:
     status: str
     status_label: str
     detail: str
+    dispatch_label: str
     harness: str
     model: str
     effort: str
@@ -139,6 +140,8 @@ class WebAgentRound:
     started: str
     duration: str
     outcome: str
+    revision: str | None
+    revision_description: str | None = None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -251,7 +254,6 @@ class WebConversationView:
     detail: str
     label: str
     worktree: str
-    revision: str
     harness: str
     harness_session_identifier: str
     model: str
@@ -675,6 +677,7 @@ def _compose_assignment_card(*, status: AgentAssignmentStatus) -> WebAssignmentC
         status=str(status.value),
         status_label=_compose_assignment_status_label(status=status),
         detail=status.detail,
+        dispatch_label=assignment.record.dispatch_label,
         harness=str(assignment.record.harness),
         model=assignment.record.model,
         effort=assignment.record.effort,
@@ -771,7 +774,8 @@ def _compose_conversation_view(
     record = conversation.record
     repository = read_repository(state=state)
     daemon = read_dreamcatcher_daemon_status(state=state)
-    feed = _read_agent_feed(owner=conversation, zone=zone)
+    rounds = _compose_agent_rounds(round_statuses=status.round_statuses, zone=zone)
+    feed = _read_agent_feed(owner=conversation, zone=zone, rounds=rounds)
     return WebConversationView(
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
@@ -785,15 +789,14 @@ def _compose_conversation_view(
         status=str(status.value),
         detail=status.detail,
         label=record.label,
-        worktree=state.describe_path(path=record.worktree),
-        revision=record.revision,
+        worktree=state.describe_path(path=conversation.worktree),
         harness=str(record.harness),
         harness_session_identifier=(
             record.harness_session_identifier or "not recorded"
         ),
         model=record.model,
         effort=record.effort,
-        rounds=_compose_agent_rounds(round_statuses=status.round_statuses, zone=zone),
+        rounds=rounds,
         feed_rounds=feed.rounds,
         feed_cursor=feed.cursor,
     )
@@ -818,6 +821,8 @@ def _compose_agent_rounds(
             started=describe_time(at=round_status.record.started, zone=zone),
             duration=round_status.duration_description,
             outcome=round_status.outcome_description,
+            revision=round_status.revision,
+            revision_description=round_status.revision_description,
         )
         for round_status in round_statuses
     )
@@ -871,7 +876,16 @@ def _read_agent_tail(
             for written_line in written_lines
         )
         if is_opening_round:
-            lines = (_compose_web_round_boundary(record=record, zone=zone), *lines)
+            lines = (
+                _compose_web_round_boundary(
+                    record=record,
+                    zone=zone,
+                    detail=_find_round_revision_description(
+                        rounds=context.rounds, number=record.number
+                    ),
+                ),
+                *lines,
+            )
         if lines:
             feed_rounds.append(WebFeedRound(number=number, lines=lines))
         next_cursor = WebFeedCursor(round_number=number, position=position)
@@ -904,13 +918,14 @@ def _resolve_feed_cursor(
 
 
 def _compose_web_round_boundary(
-    *, record: AgentRoundRecord, zone: tzinfo | None
+    *, record: AgentRoundRecord, zone: tzinfo | None, detail: str | None = None
 ) -> WebFeedLine:
     boundary = compose_agent_round_boundary(
         number=record.number,
         purpose=record.purpose,
         is_recovery=record.is_recovery,
         at=record.started,
+        detail=detail,
     )
     return WebFeedLine(
         timestamp=describe_time(at=boundary.at, zone=zone),
@@ -920,7 +935,12 @@ def _compose_web_round_boundary(
     )
 
 
-def _read_agent_feed(*, owner: _WebFeedOwner, zone: tzinfo | None) -> WebAgentFeed:
+def _read_agent_feed(
+    *,
+    owner: _WebFeedOwner,
+    zone: tzinfo | None,
+    rounds: tuple[WebAgentRound, ...] = (),
+) -> WebAgentFeed:
     """Read the complete saved feed for any agent work."""
     feed_rounds = []
     cursor = WebFeedCursor(round_number=0, position=0)
@@ -934,7 +954,13 @@ def _read_agent_feed(*, owner: _WebFeedOwner, zone: tzinfo | None) -> WebAgentFe
             WebFeedRound(
                 number=record.number,
                 lines=(
-                    _compose_web_round_boundary(record=record, zone=zone),
+                    _compose_web_round_boundary(
+                        record=record,
+                        zone=zone,
+                        detail=_find_round_revision_description(
+                            rounds=rounds, number=record.number
+                        ),
+                    ),
                     *(
                         _compose_web_feed_line(written_line=written_line, zone=zone)
                         for written_line in written_lines
@@ -945,6 +971,16 @@ def _read_agent_feed(*, owner: _WebFeedOwner, zone: tzinfo | None) -> WebAgentFe
     return WebAgentFeed(
         rounds=tuple(feed_rounds),
         cursor=_encode_feed_cursor(cursor=cursor),
+    )
+
+
+def _find_round_revision_description(
+    *, rounds: tuple[WebAgentRound, ...], number: int
+) -> str | None:
+    """Return one web round's revision description when it has one."""
+    return next(
+        (round_.revision_description for round_ in rounds if round_.number == number),
+        None,
     )
 
 
@@ -1005,7 +1041,6 @@ def _compose_instance_facts(
         if report.latest_scheduler_tick is None
         else f"{describe_span(span=report.at - report.latest_scheduler_tick)} ago"
     )
-    cooldown = "none" if cooldown_end is None else f"ends {cooldown_end}"
     scheduler_hold = report.scheduler_hold
     if scheduler_hold is not None and scheduler_hold.startswith("at cap:"):
         scheduler_hold = None
@@ -1025,7 +1060,11 @@ def _compose_instance_facts(
             ),
             False,
         ),
-        ("global cooldown", cooldown, report.active_global_cooldown is not None),
+        (
+            "global cooldown",
+            None if cooldown_end is None else f"ends {cooldown_end}",
+            True,
+        ),
         ("scheduler hold", scheduler_hold, scheduler_hold is not None),
     )
     return tuple(

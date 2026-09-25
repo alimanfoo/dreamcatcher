@@ -1,12 +1,13 @@
+import json
 from datetime import UTC, datetime
 
 import pytest
 from clocks import PINNED
 
 from dreamcatcher.agent_rounds import (
-    AgentRoundPurpose,
     AgentRoundRecord,
     IssueConversationInput,
+    IssueConversationRoundPurpose,
 )
 from dreamcatcher.config import AgentHarness, IssueConversationConfig
 from dreamcatcher.documents import write_json
@@ -24,16 +25,16 @@ from dreamcatcher.issue_conversations import (
     IssueCommentCursor,
     IssueConversation,
     IssueConversationRecord,
-    compose_issue_conversation_input,
     create_issue_conversation,
+    describe_issue_conversation_revision,
     list_undelivered_issue_comments,
+    post_issue_conversation_answer,
+    prepare_issue_conversation_input,
     read_issue_comment_delivery_cursor,
     read_issue_conversation,
-    read_issue_conversation_reply,
+    read_issue_conversation_input,
     read_issue_conversations,
-    record_issue_conversation_reply_publication,
     record_issue_conversation_session_identifier,
-    save_issue_conversation_reply,
 )
 from dreamcatcher.prompts import AGENT_POST_MARKER
 from dreamcatcher.state import StateDirectory
@@ -69,8 +70,6 @@ def write_conversation(*, state: StateDirectory, number: int = 8) -> IssueConver
         issue=number,
         title="Why does this happen?",
         label="dream:conversation",
-        worktree=state.conversation_worktrees / f"GH{number}",
-        revision="abc123",
         harness=AgentHarness.CLAUDE,
         model="opus[1m]",
         effort="xhigh",
@@ -112,9 +111,8 @@ def test_a_conversation_gets_a_detached_worktree_at_fetched_main(cloned):
     )
 
     assert created.identifier == "conversation-GH8"
-    assert created.record.worktree == state.conversation_worktrees / "GH8"
-    assert created.record.worktree.joinpath(".git").is_file()
-    assert created.record.revision
+    assert created.worktree == state.conversation_worktrees / "GH8"
+    assert created.worktree.joinpath(".git").is_file()
     assert created.record.title == "Why does this happen?"
     assert not state.worktrees.exists()
     assert read_issue_conversations(state=state) == [created]
@@ -143,15 +141,15 @@ def test_a_failed_conversation_setup_removes_the_worktree_it_added(cloned, monke
     state = StateDirectory(root=cloned)
     path = state.conversation_worktrees / "GH8"
 
-    def fail_revision_read(*, worktree):
-        raise ReportableError(f"cannot read the revision at {worktree}")
+    def fail_record_write(*, document, path):
+        raise ReportableError(f"cannot write the record at {path}")
 
     monkeypatch.setattr(
-        "dreamcatcher.issue_conversations.read_worktree_revision",
-        fail_revision_read,
+        "dreamcatcher.issue_conversations.write_json",
+        fail_record_write,
     )
 
-    with pytest.raises(ReportableError, match="cannot read the revision"):
+    with pytest.raises(ReportableError, match="cannot write the record"):
         create_issue_conversation(
             state=state, config=conversation_config(), issue=issue()
         )
@@ -208,18 +206,103 @@ def test_only_new_unmarked_comments_from_the_account_are_delivered():
     ] == [1, 3, 4]
 
 
-def test_round_input_freezes_the_issue_comments_and_revision():
-    frozen = compose_issue_conversation_input(
+def test_round_input_freezes_the_issue_comments_and_revision(cloned):
+    state = StateDirectory(root=cloned)
+    conversation = create_issue_conversation(
+        state=state, config=conversation_config(), issue=issue()
+    )
+
+    frozen = prepare_issue_conversation_input(
+        state=state,
+        conversation=conversation,
         issue=issue(),
         comments=[comment(identifier=1, body="Please explain.")],
-        revision="abc123",
     )
 
     assert frozen.issue == 8
     assert frozen.title == "Why does this happen?"
     assert frozen.body == "Explain the scheduler."
     assert frozen.comments[0].body == "Please explain."
-    assert frozen.revision == "abc123"
+    assert frozen.revision
+
+
+@pytest.mark.parametrize(
+    ("previous", "current", "expected"),
+    [
+        (None, "abc123", "code revision abc123"),
+        ("abc123", "abc123", "code revision abc123 (unchanged)"),
+        ("abc123", "def456", "code revision abc123 -> def456"),
+    ],
+)
+def test_a_conversation_revision_description_names_its_transition(
+    previous, current, expected
+):
+    assert (
+        describe_issue_conversation_revision(
+            previous_revision=previous,
+            revision=current,
+        )
+        == expected
+    )
+
+
+def test_an_initial_round_requires_the_issue_text(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    conversation = write_conversation(state=state)
+    path = conversation.compose_round_paths(number=1).round_input
+    write_json(
+        document=IssueConversationInput(
+            issue=8,
+            comments=[comment(identifier=1, body="Question")],
+            revision="abc123",
+        ),
+        path=path,
+    )
+
+    with pytest.raises(ReportableError, match="initial issue title and body"):
+        read_issue_conversation_input(conversation=conversation, number=1)
+
+
+def test_a_follow_up_can_omit_the_issue_text(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    conversation = write_conversation(state=state)
+    path = conversation.compose_round_paths(number=2).round_input
+    write_json(
+        document=IssueConversationInput(
+            issue=8,
+            comments=[comment(identifier=2, body="Question")],
+            revision="def456",
+        ),
+        path=path,
+    )
+
+    found = read_issue_conversation_input(conversation=conversation, number=2)
+
+    assert found.title is None
+    assert found.body is None
+    assert "title" not in json.loads(path.read_text(encoding="utf-8"))
+    assert "body" not in json.loads(path.read_text(encoding="utf-8"))
+
+
+def test_a_follow_up_from_an_earlier_version_can_keep_issue_text(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    conversation = write_conversation(state=state)
+    path = conversation.compose_round_paths(number=2).round_input
+    write_json(
+        document=IssueConversationInput(
+            issue=8,
+            title="Why does this happen?",
+            body="Explain the scheduler.",
+            comments=[comment(identifier=2, body="Question")],
+            revision="def456",
+        ),
+        path=path,
+    )
+
+    found = read_issue_conversation_input(conversation=conversation, number=2)
+
+    assert found.title == "Why does this happen?"
+    assert found.body == "Explain the scheduler."
 
 
 def test_a_conversation_records_its_session_and_round_paths(tmp_path):
@@ -239,7 +322,7 @@ def test_a_conversation_records_its_session_and_round_paths(tmp_path):
     write_json(
         document=AgentRoundRecord(
             number=1,
-            purpose=AgentRoundPurpose.DISCUSS,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=123,
         ),
@@ -248,7 +331,6 @@ def test_a_conversation_records_its_session_and_round_paths(tmp_path):
     reread = read_issue_conversation(state=StateDirectory(root=tmp_path), issue=8)
     assert reread is not None
     assert reread.next_round_number == 2
-    assert reread.compose_reply_path(number=1) == paths.directory / "reply.json"
 
     with pytest.raises(ReportableError) as error:
         record_issue_conversation_session_identifier(
@@ -275,7 +357,7 @@ def test_the_delivery_cursor_comes_from_the_latest_round_input(tmp_path):
         write_json(
             document=AgentRoundRecord(
                 number=number,
-                purpose=AgentRoundPurpose.DISCUSS,
+                purpose=IssueConversationRoundPurpose.DISCUSS,
                 started=PINNED,
                 pid=123,
             ),
@@ -306,7 +388,7 @@ def test_the_delivery_cursor_refuses_a_round_without_comments(tmp_path):
     write_json(
         document=AgentRoundRecord(
             number=1,
-            purpose=AgentRoundPurpose.DISCUSS,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=123,
         ),
@@ -348,7 +430,7 @@ def test_the_delivery_cursor_refuses_inconsistent_round_input(
     write_json(
         document=AgentRoundRecord(
             number=1,
-            purpose=AgentRoundPurpose.DISCUSS,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=123,
         ),
@@ -361,41 +443,48 @@ def test_the_delivery_cursor_refuses_inconsistent_round_input(
         read_issue_comment_delivery_cursor(conversation=reread)
 
 
-def test_a_reply_is_saved_before_its_publication_is_recorded(tmp_path):
-    conversation = write_conversation(state=StateDirectory(root=tmp_path))
+def test_an_answer_is_posted_trimmed_and_marked(fake):
+    gh = fake(program="gh")
+    gh.replies(stdout=json.dumps({"id": 91}))
 
-    assert read_issue_conversation_reply(conversation=conversation, number=1) is None
-    reply = save_issue_conversation_reply(
-        conversation=conversation, number=1, body="  The answer.\n"
+    post_issue_conversation_answer(
+        repository="alimanfoo/dreamcatcher", issue=8, final_output="  The answer.\n"
     )
 
-    assert reply.body == "The answer."
-    assert not reply.is_no_reply
-    assert not reply.is_complete
-    published = record_issue_conversation_reply_publication(
-        conversation=conversation, number=1, at=PINNED
-    )
-    assert published.published_at == PINNED
-    assert published.is_complete
+    assert json.loads(gh.calls[0].prompt) == {
+        "body": f"The answer.\n\n{AGENT_POST_MARKER}"
+    }
 
 
-def test_no_reply_completes_without_publication(tmp_path):
-    conversation = write_conversation(state=StateDirectory(root=tmp_path))
+def test_no_reply_posts_nothing(fake):
+    gh = fake(program="gh")
 
-    reply = save_issue_conversation_reply(
-        conversation=conversation, number=1, body=" NO_REPLY\n"
+    post_issue_conversation_answer(
+        repository="alimanfoo/dreamcatcher", issue=8, final_output=" NO_REPLY\n"
     )
 
-    assert reply.is_no_reply
-    assert reply.is_complete
+    assert gh.calls == []
 
 
-def test_publication_requires_a_saved_reply(tmp_path):
-    conversation = write_conversation(state=StateDirectory(root=tmp_path))
+@pytest.mark.parametrize("final_output", [None, "   \n"])
+def test_a_missing_or_empty_answer_is_reportable(fake, final_output):
+    gh = fake(program="gh")
 
-    with pytest.raises(ReportableError) as error:
-        record_issue_conversation_reply_publication(
-            conversation=conversation, number=1, at=PINNED
+    with pytest.raises(ReportableError, match="the harness returned no final output"):
+        post_issue_conversation_answer(
+            repository="alimanfoo/dreamcatcher", issue=8, final_output=final_output
         )
 
-    assert "has no saved reply to publish" in str(error.value)
+    assert gh.calls == []
+
+
+def test_an_answer_github_refuses_is_reportable(fake):
+    fake(program="gh").fails(stderr="issue is locked")
+
+    with pytest.raises(ReportableError) as error:
+        post_issue_conversation_answer(
+            repository="alimanfoo/dreamcatcher", issue=8, final_output="The answer."
+        )
+
+    assert str(error.value).startswith("could not post the answer on GH8: ")
+    assert "issue is locked" in str(error.value)

@@ -2,11 +2,8 @@
 
 from contextlib import suppress
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 from threading import Lock
-
-from pydantic import AwareDatetime, model_validator
 
 from dreamcatcher.agent_rounds import (
     AgentRoundPaths,
@@ -25,10 +22,15 @@ from dreamcatcher.git import (
     add_detached_worktree,
     fetch_main,
     is_linked_worktree,
-    read_worktree_revision,
+    refresh_detached_worktree,
     remove_worktree,
 )
-from dreamcatcher.github import ConversationComment, Issue
+from dreamcatcher.github import (
+    ConversationComment,
+    Issue,
+    UnknownGitHubResponse,
+    post_issue_comment,
+)
 from dreamcatcher.harness_adapters import (
     HarnessSessionIdentifier,
     refuse_reportable_harness_session_identifier,
@@ -38,7 +40,6 @@ from dreamcatcher.state import StateDirectory
 
 ISSUE_CONVERSATION_RECORD_NAME = "conversation.json"
 ISSUE_CONVERSATION_ROUNDS_DIRECTORY_NAME = "rounds"
-ISSUE_CONVERSATION_REPLY_NAME = "reply.json"
 NO_REPLY = "NO_REPLY"
 
 
@@ -55,40 +56,11 @@ class IssueConversationRecord(DreamcatcherDocument):
     issue: int
     title: str
     label: str
-    worktree: Path
-    revision: str
     harness: IssueConversationHarness
     harness_session_identifier: HarnessSessionIdentifier | None = None
     model: QuotableText
     effort: QuotableText
     prompt: str
-
-    @model_validator(mode="before")
-    @classmethod
-    def _discard_legacy_delivery_cursor(cls, value: object, /) -> object:
-        """Read records written before round inputs became the delivery ledger."""
-        if not isinstance(value, dict):
-            return value
-        data = dict(value)
-        data.pop("delivery_cursor", None)
-        return data
-
-
-class IssueConversationReply(DreamcatcherDocument):
-    """Model a saved final answer and its GitHub publication."""
-
-    body: str
-    published_at: AwareDatetime | None = None
-
-    @property
-    def is_no_reply(self) -> bool:
-        """Whether the agent explicitly said that no reply is needed."""
-        return self.body == NO_REPLY
-
-    @property
-    def is_complete(self) -> bool:
-        """Whether this answer needs no further publication attempt."""
-        return self.is_no_reply or self.published_at is not None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -96,6 +68,7 @@ class IssueConversation:
     """Represent one persisted issue conversation as it currently reads."""
 
     directory: Path
+    worktree: Path
     record: IssueConversationRecord
     rounds: list[AgentRoundRecord] = field(default_factory=list)
     _record_lock: Lock = field(
@@ -121,17 +94,11 @@ class IssueConversation:
     def compose_round_paths(self, *, number: int) -> AgentRoundPaths:
         """Return the paths for one numbered conversation round."""
         return AgentRoundPaths(
-            worktree=self.record.worktree,
+            worktree=self.worktree,
             rounds_directory=(
                 self.directory / ISSUE_CONVERSATION_ROUNDS_DIRECTORY_NAME
             ),
             number=number,
-        )
-
-    def compose_reply_path(self, *, number: int) -> Path:
-        """Return the path of one round's saved reply record."""
-        return self.compose_round_paths(number=number).directory / (
-            ISSUE_CONVERSATION_REPLY_NAME
         )
 
 
@@ -177,8 +144,6 @@ def create_issue_conversation(
             issue=issue.number,
             title=issue.title,
             label=config.label,
-            worktree=worktree,
-            revision=read_worktree_revision(worktree=worktree),
             harness=config.harness,
             model=config.model,
             effort=config.effort,
@@ -189,7 +154,7 @@ def create_issue_conversation(
         with suppress(CommandError):
             remove_worktree(root=state.root, path=worktree)
         raise
-    return IssueConversation(directory=directory, record=record)
+    return IssueConversation(directory=directory, worktree=worktree, record=record)
 
 
 def list_undelivered_issue_comments(
@@ -213,20 +178,86 @@ def list_undelivered_issue_comments(
     )
 
 
-def compose_issue_conversation_input(
+def prepare_issue_conversation_input(
     *,
+    state: StateDirectory,
+    conversation: IssueConversation,
     issue: Issue,
     comments: list[ConversationComment],
-    revision: str,
 ) -> IssueConversationInput:
-    """Freeze one issue and its trusted comment batch as round input."""
+    """Refresh the worktree and freeze one issue's trusted round input."""
+    expected_revision = None
+    if conversation.rounds:
+        expected_revision = read_issue_conversation_input(
+            conversation=conversation,
+            number=conversation.rounds[-1].number,
+        ).revision
+    revision = refresh_detached_worktree(
+        root=state.root,
+        worktree=conversation.worktree,
+        expected_revision=expected_revision,
+    )
+    is_initial = not conversation.rounds
     return IssueConversationInput(
         issue=issue.number,
-        title=issue.title,
-        body=issue.body,
+        title=issue.title if is_initial else None,
+        body=issue.body if is_initial else None,
         comments=comments,
         revision=revision,
     )
+
+
+def read_issue_conversation_input(
+    *, conversation: IssueConversation, number: int
+) -> IssueConversationInput:
+    """Read and validate the durable input for one conversation round."""
+    round_input = _read_issue_conversation_input_document(
+        conversation=conversation, number=number
+    )
+    if number == 1 and (round_input.title is None or round_input.body is None):
+        raise ReportableError(
+            f"Conversation {conversation.identifier} round 1 input does not "
+            "contain its initial issue title and body."
+        )
+    return round_input
+
+
+def _read_issue_conversation_input_document(
+    *, conversation: IssueConversation, number: int
+) -> IssueConversationInput:
+    """Read and validate one round input without comparing adjacent rounds."""
+    round_input = read_json(
+        model=IssueConversationInput,
+        path=conversation.compose_round_paths(number=number).round_input,
+    )
+    if not round_input.comments:
+        raise ReportableError(
+            f"Conversation {conversation.identifier} round {number} "
+            "has no delivered issue comments."
+        )
+    if round_input.issue != conversation.record.issue:
+        raise ReportableError(
+            f"Conversation {conversation.identifier} round {number} "
+            f"input names GH{round_input.issue}."
+        )
+    positions = [(comment.written_at, comment.id) for comment in round_input.comments]
+    if positions != sorted(set(positions)):
+        raise ReportableError(
+            f"Conversation {conversation.identifier} round {number} "
+            "comments are not strictly ordered."
+        )
+    return round_input
+
+
+def describe_issue_conversation_revision(
+    *, previous_revision: str | None, revision: str
+) -> str:
+    """Describe the revision investigated by one conversation round."""
+    if previous_revision is None:
+        return f"code revision {revision}"
+    if previous_revision == revision:
+        return f"code revision {revision} (unchanged)"
+    return f"code revision {previous_revision} -> {revision}"
 
 
 def read_issue_comment_delivery_cursor(
@@ -236,26 +267,10 @@ def read_issue_comment_delivery_cursor(
     if not conversation.rounds:
         return None
     latest_round = conversation.rounds[-1]
-    round_input = read_json(
-        model=IssueConversationInput,
-        path=conversation.compose_round_paths(number=latest_round.number).round_input,
+    round_input = read_issue_conversation_input(
+        conversation=conversation,
+        number=latest_round.number,
     )
-    if not round_input.comments:
-        raise ReportableError(
-            f"Conversation {conversation.identifier} round {latest_round.number} "
-            "has no delivered issue comments."
-        )
-    if round_input.issue != conversation.record.issue:
-        raise ReportableError(
-            f"Conversation {conversation.identifier} round {latest_round.number} "
-            f"input names GH{round_input.issue}."
-        )
-    positions = [(comment.written_at, comment.id) for comment in round_input.comments]
-    if positions != sorted(set(positions)):
-        raise ReportableError(
-            f"Conversation {conversation.identifier} round {latest_round.number} "
-            "comments are not strictly ordered."
-        )
     newest = round_input.comments[-1]
     return IssueCommentCursor(
         written_at=newest.written_at,
@@ -284,38 +299,29 @@ def record_issue_conversation_session_identifier(
             )
 
 
-def save_issue_conversation_reply(
-    *, conversation: IssueConversation, number: int, body: str
-) -> IssueConversationReply:
-    """Save and return one round's final answer before publication."""
-    reply = IssueConversationReply(body=body.strip())
-    write_json(document=reply, path=conversation.compose_reply_path(number=number))
-    return reply
+def post_issue_conversation_answer(
+    *, repository: str, issue: int, final_output: str | None
+) -> None:
+    """Post a conversation round's final output on its issue as one marked comment.
 
-
-def read_issue_conversation_reply(
-    *, conversation: IssueConversation, number: int
-) -> IssueConversationReply | None:
-    """Return one round's saved reply when it exists."""
-    path = conversation.compose_reply_path(number=number)
-    if not path.is_file():
-        return None
-    return read_json(model=IssueConversationReply, path=path)
-
-
-def record_issue_conversation_reply_publication(
-    *, conversation: IssueConversation, number: int, at: datetime
-) -> IssueConversationReply:
-    """Record that GitHub accepted one saved answer."""
-    reply = read_issue_conversation_reply(conversation=conversation, number=number)
-    if reply is None:
+    Every conversation round must answer, so a missing or empty final output
+    raises a `ReportableError`, as does a comment that GitHub does not accept.
+    `NO_REPLY` posts nothing.
+    """
+    answer = (final_output or "").strip()
+    if not answer:
+        raise ReportableError("the harness returned no final output")
+    if answer == NO_REPLY:
+        return
+    response = post_issue_comment(
+        repository=repository,
+        issue=issue,
+        body=f"{answer}\n\n{AGENT_POST_MARKER}",
+    )
+    if isinstance(response, UnknownGitHubResponse):
         raise ReportableError(
-            f"Conversation {conversation.identifier} round {number} has no saved "
-            "reply to publish."
+            f"could not post the answer on GH{issue}: {response.reason}"
         )
-    published = reply.model_copy(update={"published_at": at})
-    write_json(document=published, path=conversation.compose_reply_path(number=number))
-    return published
 
 
 def _read_issue_conversation(
@@ -332,6 +338,7 @@ def _read_issue_conversation(
         )
     return IssueConversation(
         directory=directory,
+        worktree=state.conversation_worktrees / directory.name,
         record=record,
         rounds=state.round_reader.read_records(
             directory=directory / ISSUE_CONVERSATION_ROUNDS_DIRECTORY_NAME
