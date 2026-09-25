@@ -329,3 +329,42 @@ def test_an_unreadable_delivered_input_is_a_fault(conversation_state):
 
     assert found.value is IssueConversationStatusValue.FAULT
     assert "inbox.json is not valid" in found.detail
+
+
+def test_an_eligible_issue_is_a_conversation_before_its_record_exists(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    observe(
+        state=state,
+        observations=[
+            observed_conversation(
+                issue=9, value=IssueFactValue.TRUE, evidence="1 comment to answer"
+            )
+        ],
+    )
+
+    report = read_status_report(state=state, clock=lambda: LOOKED_AT)
+    found = read_issue_conversation_status(state=state, issue=9)
+
+    assert found is not None
+    assert report.conversation_statuses == [found]
+    assert found.conversation is None
+    assert found.issue == 9
+    assert found.title == "Issue 9"
+    assert found.value is IssueConversationStatusValue.WAITING
+    assert found.detail == "1 comment to answer"
+    assert found.round_statuses == []
+
+
+def test_an_eligible_issue_nobody_has_commented_on_is_idle(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    observe(state=state, observations=[observed_conversation(issue=9)])
+
+    found = read_issue_conversation_status(state=state, issue=9)
+
+    assert found is not None
+    assert found.value is IssueConversationStatusValue.IDLE
+    assert found.detail == "no comments yet"
+
+
+def test_an_unobserved_issue_with_no_record_has_no_conversation(conversation_state):
+    assert read_issue_conversation_status(state=conversation_state, issue=9) is None

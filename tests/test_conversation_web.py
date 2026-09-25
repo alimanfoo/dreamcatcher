@@ -19,7 +19,7 @@ from dreamcatcher.feed import FeedLine
 from dreamcatcher.issue_conversations import (
     read_issue_conversation,
 )
-from dreamcatcher.scheduler import SchedulerRecord
+from dreamcatcher.scheduler import IssueFactValue, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.web import create_app
 
@@ -341,3 +341,47 @@ def test_missing_conversation_pages_answer_not_found(tmp_path):
     assert page.status_code == 404
     assert tail.status_code == 404
     assert "No issue conversation here is for GH8" in page.text
+
+
+def fabricate_unsaved_conversation(*, state: StateDirectory) -> None:
+    """Write a tick that observed GH9 with a comment to answer and no record."""
+    write_text(text=f"{REPOSITORY}\n", path=state.repository)
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            conversation_observations=[
+                observed_conversation(
+                    issue=9, value=IssueFactValue.TRUE, evidence="1 comment to answer"
+                )
+            ],
+        ),
+    )
+
+
+def test_home_lists_an_eligible_issue_before_its_conversation_is_saved(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_unsaved_conversation(state=state)
+
+    page = application(state=state).test_client().get("/").text
+
+    assert 'id="conversation-GH9"' in page
+    assert 'href="/conversations/9"' in page
+    assert "1 comment to answer" in page
+    assert "assignment-meta" not in page
+
+
+def test_conversation_page_before_its_record_shows_its_issue_and_polls(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_unsaved_conversation(state=state)
+    client = application(state=state).test_client()
+
+    page = client.get("/conversations/9")
+    tail = client.get("/conversations/9/tail", query_string={"cursor": "0:0"})
+
+    assert page.status_code == 200
+    assert "Issue 9" in page.text
+    assert "assignment-facts" not in page.text
+    assert "-- no feed yet --" in page.text
+    assert tail.status_code == 200
+    assert 'value="0:0"' in tail.text

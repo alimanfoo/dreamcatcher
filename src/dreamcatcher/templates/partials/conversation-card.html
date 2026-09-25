@@ -8,7 +8,9 @@
   </div>
   <p class="assignment-detail">{{ conversation.detail }}</p>
   {% if conversation.latest_output %}<p class="latest-output"><span>[AGENT]</span> {{ conversation.latest_output }}</p>{% endif %}
-  <div class="assignment-meta">
-    <span>{{ conversation.harness }} · {{ conversation.model }} · {{ conversation.effort }}</span>
-  </div>
+  {% if conversation.settings %}
+    <div class="assignment-meta">
+      <span>{{ conversation.settings }}</span>
+    </div>
+  {% endif %}
 </article>

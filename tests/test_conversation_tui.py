@@ -20,7 +20,7 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.issue_conversations import read_issue_conversation
-from dreamcatcher.scheduler import SchedulerRecord
+from dreamcatcher.scheduler import IssueFactValue, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.tui import (
     FeedSelection,
@@ -318,4 +318,66 @@ def test_a_missing_conversation_round_says_how_many_exist(tmp_path):
             selection=FeedSelection(issue=8, owner_kind=AgentWorkKind.CONVERSATION),
             console=console,
             round_number=2,
+        )
+
+
+def unsaved_conversation_state(*, root) -> StateDirectory:
+    """Return state whose latest tick observed GH9 with a comment to answer."""
+    state = StateDirectory(root=root)
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            conversation_observations=[
+                observed_conversation(
+                    issue=9, value=IssueFactValue.TRUE, evidence="1 comment to answer"
+                )
+            ],
+        ),
+    )
+    return state
+
+
+def test_status_lists_an_eligible_issue_before_its_conversation_is_saved(tmp_path):
+    state = unsaved_conversation_state(root=tmp_path)
+    console, written = rendered_console()
+
+    show_status_view(
+        state=state,
+        console=console,
+        timing=ViewTiming(clock=lambda: PINNED),
+    )
+
+    shown = written.getvalue()
+    assert "GH9" in shown
+    assert "waiting" in shown
+    assert "1 comment to answer" in shown
+
+
+def test_conversation_detail_before_its_first_round_shows_its_issue(tmp_path):
+    state = unsaved_conversation_state(root=tmp_path)
+    console, written = rendered_console()
+
+    show_conversation_view(
+        state=state,
+        issue=9,
+        console=console,
+        timing=ViewTiming(clock=lambda: PINNED),
+    )
+
+    shown = written.getvalue()
+    assert "issue conversation GH9" in shown
+    assert "Issue 9" in shown
+    assert "agent harness" not in shown
+
+
+def test_a_conversation_feed_before_its_first_round_says_so(tmp_path):
+    state = unsaved_conversation_state(root=tmp_path)
+    console, _ = rendered_console()
+
+    with pytest.raises(ReportableError, match="GH9 has not run a round yet"):
+        show_feed_view(
+            state=state,
+            selection=FeedSelection(issue=9, owner_kind=AgentWorkKind.CONVERSATION),
+            console=console,
         )

@@ -104,6 +104,15 @@ class AgentRoundStatus:
 
 
 @dataclass(frozen=True, kw_only=True)
+class _ConversationSummary:
+    """Hold the status, detail and latest output derived for one conversation."""
+
+    value: IssueConversationStatusValue
+    detail: str
+    latest_output: str | None = None
+
+
+@dataclass(frozen=True, kw_only=True)
 class AgentAssignmentStatus:
     """Describe an agent assignment's derived summary status."""
 
@@ -154,9 +163,15 @@ class AgentAssignmentStatus:
 
 @dataclass(frozen=True, kw_only=True)
 class IssueConversationStatus:
-    """Describe an issue conversation's derived summary status."""
+    """Describe an issue conversation's derived summary status.
 
-    conversation: IssueConversation
+    An eligible issue has a conversation from the first tick that observes it,
+    but no saved conversation until its first round launches.
+    """
+
+    issue: int
+    title: str
+    conversation: IssueConversation | None
     value: IssueConversationStatusValue
     detail: str
     latest_output: str | None
@@ -176,6 +191,8 @@ class IssueConversationStatus:
     def round_statuses(self) -> list[AgentRoundStatus]:
         """The derived status of every round in conversation order."""
         conversation = self.conversation
+        if conversation is None:
+            return []
         statuses: list[AgentRoundStatus] = []
         previous_revision = None
         for record in conversation.rounds:
@@ -385,17 +402,46 @@ def read_issue_conversation_status(
     issue: int,
     clock: Callable[[], datetime] = read_current_time,
 ) -> IssueConversationStatus | None:
-    """Read one issue conversation's status by its issue number."""
+    """Read one issue conversation's status by its issue number.
+
+    An issue has a conversation once it has a saved conversation or the latest
+    tick observed it as eligible.
+    """
     conversation = read_issue_conversation(state=state, issue=issue)
-    if conversation is None:
-        return None
     reader = _StatusReportReader(state=state, clock=clock)
-    return reader.list_conversation_statuses(conversations=[conversation])[0]
+    if conversation is not None:
+        return reader.read_conversation_status(conversation=conversation)
+    observation = reader.conversation_observations.get(issue)
+    if observation is None:
+        return None
+    return reader.read_unsaved_conversation_status(observation=observation)
 
 
-def _describe_idle_conversation(*, conversation: IssueConversation) -> str:
+def _summarize_observed_conversation(
+    *,
+    observation: IssueConversationObservation,
+    conversation: IssueConversation | None,
+) -> _ConversationSummary:
+    """Return what an eligible issue's comments say about its conversation."""
+    has_comments_to_answer = observation.has_comments_to_answer
+    if has_comments_to_answer.value is IssueFactValue.FALSE:
+        return _ConversationSummary(
+            value=IssueConversationStatusValue.IDLE,
+            detail=_describe_idle_conversation(conversation=conversation),
+        )
+    return _ConversationSummary(
+        value=(
+            IssueConversationStatusValue.WAITING
+            if has_comments_to_answer.value is IssueFactValue.TRUE
+            else IssueConversationStatusValue.UNKNOWN
+        ),
+        detail=cast("str", has_comments_to_answer.evidence),
+    )
+
+
+def _describe_idle_conversation(*, conversation: IssueConversation | None) -> str:
     """Describe a conversation that has answered every comment it was given."""
-    if not conversation.rounds:
+    if conversation is None or not conversation.rounds:
         return "no comments yet"
     latest = conversation.rounds[-1]
     duration = _compose_round_duration_description(record=latest)
@@ -512,32 +558,77 @@ class _StatusReportReader:
     def list_conversation_statuses(
         self, *, conversations: list[IssueConversation]
     ) -> list[IssueConversationStatus]:
-        """Return issue conversation statuses in ascending issue order."""
-        return [
-            self._read_conversation_status(conversation=conversation)
-            for conversation in sorted(
-                conversations, key=lambda item: item.record.issue
-            )
-        ]
+        """Return issue conversation statuses in ascending issue order.
 
-    def _read_conversation_status(
+        Every saved conversation has a status, and so does every issue that the
+        latest tick observed but that has no saved conversation yet.
+        """
+        saved_issues = {conversation.record.issue for conversation in conversations}
+        statuses = [
+            self.read_conversation_status(conversation=conversation)
+            for conversation in conversations
+        ]
+        statuses.extend(
+            self.read_unsaved_conversation_status(observation=observation)
+            for observation in self.conversation_observations.values()
+            if observation.issue not in saved_issues
+        )
+        return sorted(statuses, key=lambda status: status.issue)
+
+    def read_conversation_status(
         self, *, conversation: IssueConversation
     ) -> IssueConversationStatus:
-        """Derive one issue conversation's summary from its local records.
+        """Derive a saved conversation's summary from its records and latest tick."""
+        return self._compose_issue_conversation_status(
+            issue=conversation.record.issue,
+            title=conversation.record.title,
+            conversation=conversation,
+            summary=self._summarize_conversation(conversation=conversation),
+        )
+
+    def read_unsaved_conversation_status(
+        self, *, observation: IssueConversationObservation
+    ) -> IssueConversationStatus:
+        """Derive the summary of an observed issue with no saved conversation yet."""
+        return self._compose_issue_conversation_status(
+            issue=observation.issue,
+            title=observation.title,
+            conversation=None,
+            summary=_summarize_observed_conversation(
+                observation=observation, conversation=None
+            ),
+        )
+
+    def _summarize_conversation(
+        self, *, conversation: IssueConversation
+    ) -> _ConversationSummary:
+        """Return what a saved conversation's records and latest tick say.
 
         The first status that applies wins: fault, working, then what the latest
-        tick observed at the issue.
+        tick observed at the issue. An issue that the tick did not observe is not
+        eligible.
         """
         fault = self._describe_conversation_fault(conversation=conversation)
         if fault is not None:
-            return self._compose_issue_conversation_status(
-                conversation=conversation,
-                value=IssueConversationStatusValue.FAULT,
-                detail=fault,
+            return _ConversationSummary(
+                value=IssueConversationStatusValue.FAULT, detail=fault
             )
         if conversation.rounds and conversation.rounds[-1].ending is None:
-            return self._read_working_conversation_status(conversation=conversation)
-        return self._read_observed_conversation_status(conversation=conversation)
+            return self._summarize_working_conversation(conversation=conversation)
+        if self.scheduler_record is None:
+            return _ConversationSummary(
+                value=IssueConversationStatusValue.UNKNOWN,
+                detail="no current scheduler observation",
+            )
+        observation = self.conversation_observations.get(conversation.record.issue)
+        if observation is None:
+            return _ConversationSummary(
+                value=IssueConversationStatusValue.IDLE,
+                detail="issue is closed, unlabelled or unassigned",
+            )
+        return _summarize_observed_conversation(
+            observation=observation, conversation=conversation
+        )
 
     def _describe_conversation_fault(
         self, *, conversation: IssueConversation
@@ -568,47 +659,9 @@ class _StatusReportReader:
         outcome = _describe_round_outcome(record=latest, is_running=False)
         return f"round {latest.number} {outcome}"
 
-    def _read_observed_conversation_status(
+    def _summarize_working_conversation(
         self, *, conversation: IssueConversation
-    ) -> IssueConversationStatus:
-        """Describe a conversation that no round is running for.
-
-        The latest tick's observation of the issue says whether comments wait.
-        An issue that the tick did not observe is not eligible.
-        """
-        if self.scheduler_record is None:
-            return self._compose_issue_conversation_status(
-                conversation=conversation,
-                value=IssueConversationStatusValue.UNKNOWN,
-                detail="no current scheduler observation",
-            )
-        observation = self.conversation_observations.get(conversation.record.issue)
-        if observation is None:
-            return self._compose_issue_conversation_status(
-                conversation=conversation,
-                value=IssueConversationStatusValue.IDLE,
-                detail="issue is closed, unlabelled or unassigned",
-            )
-        has_comments_to_answer = observation.has_comments_to_answer
-        if has_comments_to_answer.value is IssueFactValue.FALSE:
-            return self._compose_issue_conversation_status(
-                conversation=conversation,
-                value=IssueConversationStatusValue.IDLE,
-                detail=_describe_idle_conversation(conversation=conversation),
-            )
-        return self._compose_issue_conversation_status(
-            conversation=conversation,
-            value=(
-                IssueConversationStatusValue.WAITING
-                if has_comments_to_answer.value is IssueFactValue.TRUE
-                else IssueConversationStatusValue.UNKNOWN
-            ),
-            detail=cast("str", has_comments_to_answer.evidence),
-        )
-
-    def _read_working_conversation_status(
-        self, *, conversation: IssueConversation
-    ) -> IssueConversationStatus:
+    ) -> _ConversationSummary:
         """Describe the conversation's running round and its latest output."""
         latest = conversation.rounds[-1]
         line = read_last_feed_line(
@@ -617,14 +670,12 @@ class _StatusReportReader:
         since_started = describe_span(span=self.at - latest.started)
         detail = f"round {latest.number}, running {since_started}"
         if line is None:
-            return self._compose_issue_conversation_status(
-                conversation=conversation,
+            return _ConversationSummary(
                 value=IssueConversationStatusValue.WORKING,
                 detail=f"{detail}, has said nothing yet",
             )
         since_output = describe_span(span=self.at - line.at)
-        return self._compose_issue_conversation_status(
-            conversation=conversation,
+        return _ConversationSummary(
             value=IssueConversationStatusValue.WORKING,
             detail=f"{detail}, last output {since_output} ago",
             latest_output=line.text.strip(),
@@ -633,10 +684,10 @@ class _StatusReportReader:
     def _compose_issue_conversation_status(
         self,
         *,
-        conversation: IssueConversation,
-        value: IssueConversationStatusValue,
-        detail: str,
-        latest_output: str | None = None,
+        issue: int,
+        title: str,
+        conversation: IssueConversation | None,
+        summary: _ConversationSummary,
     ) -> IssueConversationStatus:
         """Return a summary status from the conversation's current facts.
 
@@ -644,17 +695,19 @@ class _StatusReportReader:
         while the latest tick observed its issue, or when there is no tick yet.
         """
         return IssueConversationStatus(
+            issue=issue,
+            title=title,
             conversation=conversation,
-            value=value,
-            detail=detail,
-            latest_output=latest_output,
+            value=summary.value,
+            detail=summary.detail,
+            latest_output=summary.latest_output,
             observed_at=(
                 None if self.scheduler_record is None else self.scheduler_record.at
             ),
             is_listed=(
-                value is IssueConversationStatusValue.WORKING
+                summary.value is IssueConversationStatusValue.WORKING
                 or self.scheduler_record is None
-                or conversation.record.issue in self.conversation_observations
+                or issue in self.conversation_observations
             ),
         )
 

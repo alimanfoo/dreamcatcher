@@ -390,7 +390,7 @@ def _render_conversations(
     table = _create_table(columns=3)
     for status in conversations:
         table.add_row(
-            Text(f"GH{status.conversation.record.issue}"),
+            Text(f"GH{status.issue}"),
             Text(
                 str(status.value),
                 style=CONVERSATION_STATUS_STYLES[status.value],
@@ -521,32 +521,42 @@ def _render_conversation(
     status: IssueConversationStatus,
     zone: tzinfo | None,
 ) -> RenderableType:
-    """Render one issue conversation and its saved rounds."""
+    """Render one issue conversation and its saved rounds.
+
+    A conversation settles its settings when its first round launches, so one
+    with no saved conversation yet shows only its issue.
+    """
     conversation = status.conversation
-    record = conversation.record
     status_value = str(status.value)
     rendered_status = Text(f"{status_value}  {status.detail}")
     rendered_status.stylize(
         CONVERSATION_STATUS_STYLES[status.value], 0, len(status_value)
     )
+    facts: list[tuple[str, object]] = [
+        ("issue identifier", f"GH{status.issue}"),
+        ("title", status.title),
+    ]
+    if conversation is not None:
+        record = conversation.record
+        facts.extend(
+            [
+                ("conversation label", record.label),
+                ("worktree", state.describe_path(path=conversation.worktree)),
+                ("agent harness", record.harness),
+                (
+                    "harness session identifier",
+                    record.harness_session_identifier or "not recorded",
+                ),
+                ("model", record.model),
+                ("effort", record.effort),
+            ]
+        )
     table = _create_table(columns=2)
-    for name, value in (
-        ("issue identifier", f"GH{record.issue}"),
-        ("title", record.title),
-        ("conversation label", record.label),
-        ("worktree", state.describe_path(path=conversation.worktree)),
-        ("agent harness", record.harness),
-        (
-            "harness session identifier",
-            record.harness_session_identifier or "not recorded",
-        ),
-        ("model", record.model),
-        ("effort", record.effort),
-    ):
+    for name, value in facts:
         table.add_row(Text(name), Text(str(value)))
     return _combine_renderable_parts(
         parts=[
-            Text(f"issue conversation GH{record.issue}"),
+            Text(f"issue conversation GH{status.issue}"),
             rendered_status,
             _render_latest_output(latest_output=status.latest_output),
             _render_section(heading="conversation", body=table),
@@ -873,9 +883,16 @@ class _FeedOwnerSnapshot:
 def _find_feed_owner(
     *, state: StateDirectory, issue: int, owner_kind: AgentWorkKind
 ) -> _FeedOwnerSnapshot:
-    """Return the selected feed owner and whether more output can reach it."""
+    """Return the selected feed owner and whether more output can reach it.
+
+    Refuse a conversation that has not run a round, since it has no feed yet.
+    """
     if owner_kind is AgentWorkKind.CONVERSATION:
         status = _find_conversation_status_for_issue(state=state, issue=issue)
+        if status.conversation is None:
+            raise ReportableError(
+                f"The conversation at GH{issue} has not run a round yet."
+            )
         return _FeedOwnerSnapshot(
             owner=status.conversation,
             is_over=status.is_over,
