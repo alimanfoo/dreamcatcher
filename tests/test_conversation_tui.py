@@ -26,7 +26,6 @@ from dreamcatcher.documents import write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.harness_adapters import AgentWorkKind
-from dreamcatcher.issue_conversations import read_issue_conversation
 from dreamcatcher.scheduler import IssueFactValue, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.tui import (
@@ -167,27 +166,8 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
     assert "successful" in shown
 
 
-def test_conversation_detail_shows_a_fault_for_an_unreadable_input(tmp_path):
-    state = conversation_state(root=tmp_path)
-    conversation = read_issue_conversation(state=state, issue=8)
-    assert conversation is not None
-    conversation.compose_round_paths(number=1).round_input.write_bytes(b"not json")
-    console, written = rendered_console()
-
-    show_conversation_view(
-        state=state,
-        issue=8,
-        console=console,
-        timing=ViewTiming(clock=lambda: PINNED),
-    )
-
-    shown = written.getvalue()
-    assert "fault" in shown
-    assert "inbox.json is not valid" in shown
-
-
 def test_conversation_detail_shows_a_failed_round(tmp_path):
-    state = conversation_state(root=tmp_path, status=2)
+    state = conversation_state(root=tmp_path, status=2, is_eligible=True)
     console, written = rendered_console()
 
     show_conversation_view(
@@ -197,7 +177,7 @@ def test_conversation_detail_shows_a_failed_round(tmp_path):
         timing=ViewTiming(clock=lambda: PINNED),
     )
 
-    assert "fault  round 1 errored (exit 2)" in written.getvalue()
+    assert "waiting  round 1 errored (exit 2)" in written.getvalue()
 
 
 def test_conversation_feed_shows_its_saved_activity(tmp_path):
@@ -391,7 +371,7 @@ def test_a_conversation_feed_before_its_first_round_says_so(tmp_path):
 
 
 def test_conversations_are_listed_in_attention_order(tmp_path):
-    state = conversation_state(root=tmp_path, status=2)
+    state = conversation_state(root=tmp_path)
     write_running_conversation(state=state, issue=11, started=PINNED)
     state.lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
     write_tick(
@@ -421,10 +401,10 @@ def test_conversations_are_listed_in_attention_order(tmp_path):
 
     shown = written.getvalue()
     assert (
-        shown.index("GH8")
-        < shown.index("GH11")
+        shown.index("GH11")
         < shown.index("GH10")
         < shown.index("GH12")
+        < shown.index("GH8")
         < shown.index("GH9")
     )
     assert "working" in shown
@@ -453,13 +433,9 @@ def refusing(seconds, /):
     raise AssertionError("the view waited for something that was not coming")
 
 
-@pytest.mark.parametrize(
-    ("status", "is_eligible"),
-    [(2, True), (0, False)],
-    ids=["fault", "off-the-report"],
-)
-def test_a_conversation_view_that_is_over_never_waits(tmp_path, status, is_eligible):
-    state = conversation_state(root=tmp_path, status=status, is_eligible=is_eligible)
+@pytest.mark.parametrize("status", [0, 2], ids=["answered", "errored"])
+def test_a_conversation_view_off_the_report_never_waits(tmp_path, status):
+    state = conversation_state(root=tmp_path, status=status)
     console, written = watched_console()
 
     show_conversation_view(

@@ -113,8 +113,8 @@ and trusted comment history. Each later eligible batch resumes that session with
 only newly delivered comments. The scheduler first fetches main and asks Git to
 discard local changes and move the detached worktree to that revision. Each
 round input records its investigated revision. Comments posted while a round
-runs remain beyond the latest round input, and a failed or interrupted round is
-a fault, so no batch starts after it.
+runs remain beyond the latest round input. A failed or interrupted round waits
+to be recovered, so no batch starts after it, and nothing recovers it yet.
 
 Every tick reads the comments of every eligible conversation issue, even when no
 agent is free, and records for each issue whether comments wait to be answered.

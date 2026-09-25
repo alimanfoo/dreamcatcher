@@ -166,7 +166,7 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
     assert 'hx-get="/conversations/8/tail"' in page
 
 
-def test_conversation_page_shows_a_fault_for_an_unreadable_input(tmp_path):
+def test_conversation_page_with_an_unreadable_input_still_renders(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
     conversation = read_issue_conversation(state=state, issue=8)
@@ -176,17 +176,17 @@ def test_conversation_page_shows_a_fault_for_an_unreadable_input(tmp_path):
     response = application(state=state).test_client().get("/conversations/8")
 
     assert response.status_code == 200
-    assert "status-fault" in response.text
-    assert "inbox.json is not valid" in response.text
+    assert "I found the answer." in response.text
 
 
-def test_conversation_page_shows_a_failed_round(tmp_path):
+def test_conversation_page_shows_a_failed_round_waiting_to_be_recovered(tmp_path):
     state = StateDirectory(root=tmp_path)
-    fabricate_conversation(state=state, status=2)
+    fabricate_conversation(state=state, status=2, is_eligible=True)
 
     page = application(state=state).test_client().get("/conversations/8").text
 
-    assert "status-fault" in page
+    assert "status-waiting" in page
+    assert "round 1 errored (exit 2)" in page
 
 
 def test_conversation_before_its_first_round_has_an_empty_feed(tmp_path):
@@ -227,25 +227,6 @@ def test_conversation_tail_returns_new_output_and_advances_its_cursor(tmp_path):
 def test_an_ineligible_conversation_stops_empty_tail_polling(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
-    conversation = read_issue_conversation(state=state, issue=8)
-    assert conversation is not None
-    feed = conversation.compose_round_paths(number=1).feed
-
-    response = (
-        application(state=state)
-        .test_client()
-        .get(
-            "/conversations/8/tail",
-            query_string={"cursor": f"1:{feed.stat().st_size}"},
-        )
-    )
-
-    assert response.status_code == 286
-
-
-def test_a_faulted_conversation_stops_empty_tail_polling(tmp_path):
-    state = StateDirectory(root=tmp_path)
-    fabricate_conversation(state=state, status=2, is_eligible=True)
     conversation = read_issue_conversation(state=state, issue=8)
     assert conversation is not None
     feed = conversation.compose_round_paths(number=1).feed
@@ -415,7 +396,7 @@ def test_conversation_page_before_its_record_shows_its_issue_and_polls(tmp_path)
 
 def test_home_lists_conversations_in_attention_order(tmp_path):
     state = StateDirectory(root=tmp_path)
-    fabricate_conversation(state=state, status=2)
+    fabricate_conversation(state=state)
     write_running_conversation(state=state, issue=11, started=PINNED)
     state.lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
     write_tick(
@@ -439,10 +420,10 @@ def test_home_lists_conversations_in_attention_order(tmp_path):
     page = application(state=state).test_client().get("/").text
 
     assert (
-        page.index('id="conversation-GH8"')
-        < page.index('id="conversation-GH11"')
+        page.index('id="conversation-GH11"')
         < page.index('id="conversation-GH10"')
         < page.index('id="conversation-GH12"')
+        < page.index('id="conversation-GH8"')
         < page.index('id="conversation-GH9"')
     )
     assert "status-working" in page

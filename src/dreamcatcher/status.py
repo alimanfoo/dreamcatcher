@@ -67,7 +67,9 @@ class IssueConversationStatusValue(StrEnum):
 
     Each word means what it means for an assignment. Idle takes the place of
     needs user feedback, because a conversation at rest has posted its answer
-    and asks nothing of the user.
+    and asks nothing of the user. Fault takes two consecutive errored rounds,
+    and nothing recovers a conversation round yet, so no conversation reaches
+    it.
     """
 
     WORKING = "working"
@@ -191,7 +193,7 @@ class IssueConversationStatus:
     def is_over(self) -> bool:
         """Whether nothing more can happen until the user acts.
 
-        Nothing resumes a faulted conversation yet, and one that the status
+        A faulted conversation waits for the user to act, and one that the status
         report no longer lists waits for its issue to be eligible again.
         """
         return self.value is IssueConversationStatusValue.FAULT or not self.is_listed
@@ -429,21 +431,49 @@ def _summarize_observed_conversation(
     observation: IssueConversationObservation,
     conversation: IssueConversation | None,
 ) -> _ConversationSummary:
-    """Return what an eligible issue's comments say about its conversation."""
+    """Return what an eligible issue says about its conversation.
+
+    Unknown comments come first, then a round waiting to be recovered, then
+    comments waiting to be answered.
+    """
     has_comments_to_answer = observation.has_comments_to_answer
-    if has_comments_to_answer.value is IssueFactValue.FALSE:
+    if has_comments_to_answer.value is IssueFactValue.UNKNOWN:
         return _ConversationSummary(
-            value=IssueConversationStatusValue.IDLE,
-            detail=_describe_idle_conversation(conversation=conversation),
+            value=IssueConversationStatusValue.UNKNOWN,
+            detail=cast("str", has_comments_to_answer.evidence),
+        )
+    unfinished_round = _describe_unfinished_conversation_round(
+        conversation=conversation
+    )
+    if unfinished_round is not None:
+        return _ConversationSummary(
+            value=IssueConversationStatusValue.WAITING, detail=unfinished_round
+        )
+    if has_comments_to_answer.value is IssueFactValue.TRUE:
+        return _ConversationSummary(
+            value=IssueConversationStatusValue.WAITING,
+            detail=cast("str", has_comments_to_answer.evidence),
         )
     return _ConversationSummary(
-        value=(
-            IssueConversationStatusValue.WAITING
-            if has_comments_to_answer.value is IssueFactValue.TRUE
-            else IssueConversationStatusValue.UNKNOWN
-        ),
-        detail=cast("str", has_comments_to_answer.evidence),
+        value=IssueConversationStatusValue.IDLE,
+        detail=_describe_idle_conversation(conversation=conversation),
     )
+
+
+def _describe_unfinished_conversation_round(
+    *, conversation: IssueConversation | None
+) -> str | None:
+    """Describe the conversation's latest round if it errored or was interrupted.
+
+    A round with no ending that no daemon is running was interrupted.
+    """
+    if conversation is None or not conversation.rounds:
+        return None
+    latest = conversation.rounds[-1]
+    if latest.outcome is AgentRoundOutcome.SUCCESSFUL:
+        return None
+    outcome = _describe_round_outcome(record=latest, is_running=False)
+    return f"round {latest.number} {outcome}"
 
 
 def _describe_idle_conversation(*, conversation: IssueConversation | None) -> str:
@@ -611,16 +641,15 @@ class _StatusReportReader:
     ) -> _ConversationSummary:
         """Return what a saved conversation's records and latest tick say.
 
-        The first status that applies wins: fault, working, then what the latest
-        tick observed at the issue. An issue that the tick did not observe is not
+        The first status that applies wins: working, then what the latest tick
+        observed at the issue. An issue that the tick did not observe is not
         eligible.
         """
-        fault = self._describe_conversation_fault(conversation=conversation)
-        if fault is not None:
-            return _ConversationSummary(
-                value=IssueConversationStatusValue.FAULT, detail=fault
-            )
-        if conversation.rounds and conversation.rounds[-1].ending is None:
+        if (
+            conversation.rounds
+            and conversation.rounds[-1].ending is None
+            and self.daemon_pid is not None
+        ):
             return self._summarize_working_conversation(conversation=conversation)
         if self.scheduler_record is None:
             return _ConversationSummary(
@@ -636,35 +665,6 @@ class _StatusReportReader:
         return _summarize_observed_conversation(
             observation=observation, conversation=conversation
         )
-
-    def _describe_conversation_fault(
-        self, *, conversation: IssueConversation
-    ) -> str | None:
-        """Describe what stops the conversation until the user acts, if anything.
-
-        Nothing recovers a conversation round yet, so every round that did not
-        succeed is a fault, as is round input that cannot be read.
-        """
-        if conversation.unrecorded_round_input is not None:
-            return (
-                f"round {conversation.next_round_number} input exists without "
-                "a round record"
-            )
-        try:
-            for record in conversation.rounds:
-                read_issue_conversation_input(
-                    conversation=conversation, number=record.number
-                )
-        except ReportableError as failure:
-            return str(failure)
-        if not conversation.rounds:
-            return None
-        latest = conversation.rounds[-1]
-        is_running = latest.ending is None and self.daemon_pid is not None
-        if latest.outcome is AgentRoundOutcome.SUCCESSFUL or is_running:
-            return None
-        outcome = _describe_round_outcome(record=latest, is_running=False)
-        return f"round {latest.number} {outcome}"
 
     def _summarize_working_conversation(
         self, *, conversation: IssueConversation

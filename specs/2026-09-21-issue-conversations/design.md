@@ -244,10 +244,6 @@ together, and its start, its expiry and a lone fault work as they do for
 assignments. There is no per-conversation timer or special rate-limit
 classifier.
 
-Until stage 4 adds recovery, nothing resumes a conversation round, so any one
-errored or interrupted round puts a conversation in fault, as does round input
-that cannot be read.
-
 Do not add a special missing-session recovery mechanism.
 
 Status and logs distinguish conversations from assignments, but a conversation

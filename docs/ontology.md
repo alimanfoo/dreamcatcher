@@ -318,13 +318,16 @@ the agent assignment status that means the same thing:
 
 - **Working**: an agent round is running. Its counterpart is working.
 - **Waiting**: a round is due but has not started, because comments wait to be
-  answered, the first batch included. A free agent slot, or the end of a
-  cooldown, starts it. Its counterpart is waiting.
+  answered, the first batch included, or because the latest round errored or was
+  interrupted and waits to be recovered. A free agent slot, or the end of a
+  cooldown, starts it. Nothing recovers a conversation round yet, so a
+  conversation whose round errored or was interrupted stays waiting. Its
+  counterpart is waiting.
 - **Idle**: no round is due, because the latest answer is posted or the user has
   not commented yet. Its counterpart is needs user feedback.
-- **Fault**: the latest round errored or was interrupted, or a round's input
-  cannot be read. Dreamcatcher does not resume a conversation round
-  automatically yet. Its counterpart is fault.
+- **Fault**: two consecutive rounds have errored, and automatic recovery has
+  stopped. Nothing recovers a conversation round yet, so no conversation reaches
+  fault. Its counterpart is fault.
 - **Unknown**: Dreamcatcher cannot tell whether the issue is eligible or whether
   comments wait. Its counterpart is unknown.
 

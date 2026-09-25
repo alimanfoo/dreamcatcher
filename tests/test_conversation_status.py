@@ -195,7 +195,9 @@ def test_an_ineligible_conversation_is_idle_and_leaves_the_report(
     assert report.conversation_statuses == []
 
 
-def test_an_unrecorded_round_input_is_a_fault(conversation_state):
+def test_an_unrecorded_round_input_shows_what_the_scheduler_reported(
+    conversation_state,
+):
     conversation = read_issue_conversation(state=conversation_state, issue=8)
     assert conversation is not None
     write_json(
@@ -215,11 +217,21 @@ def test_an_unrecorded_round_input_is_a_fault(conversation_state):
         ),
         path=conversation.compose_round_paths(number=1).round_input,
     )
+    failure = (
+        "could not inspect saved conversation GH8: Conversation conversation-GH8 "
+        "has input for round 1 without a round record."
+    )
+    observe(
+        state=conversation_state,
+        observations=[
+            observed_conversation(value=IssueFactValue.UNKNOWN, evidence=failure)
+        ],
+    )
 
     found = status(state=conversation_state)
 
-    assert found.value is IssueConversationStatusValue.FAULT
-    assert found.detail == "round 1 input exists without a round record"
+    assert found.value is IssueConversationStatusValue.UNKNOWN
+    assert found.detail == failure
 
 
 def test_a_live_round_keeps_an_ineligible_conversation_on_the_report(
@@ -265,47 +277,68 @@ def test_a_live_conversation_that_has_said_nothing_reports_that(
     assert found.latest_output is None
 
 
-def test_an_unended_round_with_no_daemon_is_a_fault(conversation_state):
+def test_an_unended_round_with_no_daemon_waits_to_be_recovered(conversation_state):
     conversation_round(state=conversation_state, status=None)
 
     found = status(state=conversation_state)
 
-    assert found.value is IssueConversationStatusValue.FAULT
+    assert found.value is IssueConversationStatusValue.WAITING
     assert found.detail == "round 1 interrupted"
     assert found.round_statuses[0].outcome_description == "interrupted"
 
 
-def test_an_errored_round_is_a_fault(conversation_state):
+def test_an_errored_round_waits_to_be_recovered(conversation_state):
     conversation_round(state=conversation_state, status=2)
 
     found = status(state=conversation_state)
 
-    assert found.value is IssueConversationStatusValue.FAULT
+    assert found.value is IssueConversationStatusValue.WAITING
     assert found.detail == "round 1 errored (exit 2)"
-    assert found.is_over
+    assert not found.is_over
 
 
-def test_a_fault_at_an_ineligible_issue_leaves_the_report(conversation_state):
+def test_a_round_to_recover_comes_before_comments_to_answer(conversation_state):
+    conversation_round(state=conversation_state, status=2)
+    observe(
+        state=conversation_state,
+        observations=[
+            observed_conversation(
+                value=IssueFactValue.TRUE, evidence="1 comment to answer"
+            )
+        ],
+    )
+
+    found = status(state=conversation_state)
+
+    assert found.value is IssueConversationStatusValue.WAITING
+    assert found.detail == "round 1 errored (exit 2)"
+
+
+def test_an_errored_round_at_an_ineligible_issue_leaves_the_report(
+    conversation_state,
+):
     conversation_round(state=conversation_state, status=2)
     observe(state=conversation_state, observations=[])
 
     found = status(state=conversation_state)
     report = read_status_report(state=conversation_state, clock=lambda: LOOKED_AT)
 
-    assert found.value is IssueConversationStatusValue.FAULT
+    assert found.value is IssueConversationStatusValue.IDLE
+    assert found.detail == "issue is not eligible for conversation"
     assert report.conversation_statuses == []
 
 
-def test_an_errored_conversation_reports_an_unreadable_input(conversation_state):
-    conversation_round(state=conversation_state, status=2)
+def test_an_unreadable_round_input_still_shows_the_round(conversation_state):
+    conversation_round(state=conversation_state)
     conversation = read_issue_conversation(state=conversation_state, issue=8)
     assert conversation is not None
     conversation.compose_round_paths(number=1).round_input.write_bytes(b"not json")
 
     found = status(state=conversation_state)
 
-    assert found.value is IssueConversationStatusValue.FAULT
-    assert "inbox.json is not valid" in found.detail
+    assert found.value is IssueConversationStatusValue.IDLE
+    assert found.round_statuses[0].revision is None
+    assert found.round_statuses[0].outcome_description == "successful"
 
 
 def test_a_posted_answer_leaves_the_conversation_idle(conversation_state):
@@ -317,18 +350,6 @@ def test_a_posted_answer_leaves_the_conversation_idle(conversation_state):
     assert found.detail == "round 1, answered, ran 4m"
     assert not found.is_over
     assert found.round_statuses[0].duration_description == "ran 4m"
-
-
-def test_an_unreadable_delivered_input_is_a_fault(conversation_state):
-    conversation_round(state=conversation_state)
-    conversation = read_issue_conversation(state=conversation_state, issue=8)
-    assert conversation is not None
-    conversation.compose_round_paths(number=1).round_input.write_bytes(b"not json")
-
-    found = status(state=conversation_state)
-
-    assert found.value is IssueConversationStatusValue.FAULT
-    assert "inbox.json is not valid" in found.detail
 
 
 def test_an_eligible_issue_is_a_conversation_before_its_record_exists(tmp_path):

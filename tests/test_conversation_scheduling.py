@@ -761,6 +761,9 @@ def test_an_unrecorded_round_input_is_not_delivered_again(
 
     assert observed.hold is not None
     assert "has input for round 1 without a round record" in observed.hold
+    assert observed.conversation_observations[0].has_comments_to_answer == IssueFact(
+        value=IssueFactValue.UNKNOWN, evidence=observed.hold
+    )
     assert harnesses["claude"].calls == []
 
 

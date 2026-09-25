@@ -157,7 +157,7 @@ from where it stopped. One errored assignment round receives an ordinary
 recovery opportunity and does not stop unrelated work. Two consecutive errored
 rounds put that assignment in fault; an interrupted or successful round breaks
 the sequence. Issue conversations record interrupted and failed rounds but do
-not recover them automatically yet.
+not recover them automatically yet, so such a conversation shows as waiting.
 
 When two assignments are in fault, the scheduler starts a fifteen-minute global
 cooldown and starts no agent work during it. The scheduler keeps observing and
