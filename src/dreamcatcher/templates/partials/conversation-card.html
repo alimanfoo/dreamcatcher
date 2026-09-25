@@ -7,7 +7,7 @@
     </span>
   </div>
   <p class="assignment-detail">{{ conversation.detail }}</p>
-  {% if conversation.latest_output %}<p class="latest-output"><span>[AGENT]</span> {{ conversation.latest_output }}</p>{% endif %}
+  {% if conversation.latest_output %}<p class="latest-output"><span>agent</span> {{ conversation.latest_output }}</p>{% endif %}
   {% if conversation.settings %}
     <div class="assignment-meta">
       <span>{{ conversation.settings }}</span>

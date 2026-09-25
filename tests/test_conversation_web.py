@@ -401,6 +401,11 @@ def test_home_lists_conversations_in_attention_order(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
     write_running_conversation(state=state, issue=11, started=PINNED)
+    write_feed(
+        directory=state.conversations / "GH11",
+        number=1,
+        lines=[FeedLine(at=PINNED, text="Still working.")],
+    )
     state.lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
     write_tick(
         state=state,
@@ -431,3 +436,4 @@ def test_home_lists_conversations_in_attention_order(tmp_path):
     )
     assert "status-working" in page
     assert "status-unknown" in page
+    assert '<p class="latest-output"><span>agent</span> Still working.</p>' in page
