@@ -4,11 +4,11 @@ instance
   daemon           running dreamcatcher v3.0.0.beta1 as pid 4242
   harness          claude                                       
   next update in   0s                                           
-  agent capacity   1 of 1 in use                                
+  agent capacity   1 of 1 working                               
   global cooldown  none                                         
   scheduler hold   at cap: 1 of 1 agents running                
 
 agent assignments
-  GH13-20260819-184158  working  round 1, running 1h 30m, last output 1h 29m ago
-  [Bash] pytest                                                                 
-  GH20-20260819-184158  waiting  at cap: 1 of 1 agents running                  
+  GH13-20260819-184158  working  round 1, implement, running 1h 30m, last output 1h 29m ago
+  [Bash] pytest                                                                            
+  GH20-20260819-184158  waiting  next round, implement                                     

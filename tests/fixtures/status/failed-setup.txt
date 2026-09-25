@@ -4,11 +4,11 @@ instance
   daemon           running dreamcatcher v3.0.0.beta1 as pid 4242
   harness          claude                                       
   next update in   0s                                           
-  agent capacity   0 of 1 in use                                
+  agent capacity   0 of 1 working                               
   global cooldown  none                                         
 
 agent assignments
-  GH13-20260819-184158  waiting  no round has run yet
+  GH13-20260819-184158  waiting  next round, implement
 
 failed assignment setups
   GH20  assignment setup failed

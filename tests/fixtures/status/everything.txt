@@ -4,7 +4,7 @@ instance
   daemon           running dreamcatcher v3.0.0.beta1 as pid 4242
   harness          claude                                       
   next update in   0s                                           
-  agent capacity   1 of 1 in use                                
+  agent capacity   1 of 1 working                               
   global cooldown  none                                         
 
 agent assignments
@@ -12,11 +12,12 @@ agent assignments
   GH9-20260819-184158   fault                two consecutive rounds failed                          
                                              (.dreamcatcher/v3/assignments/GH9-20260819-184158/round
                                              s/2/feed.txt)                                          
-  GH13-20260819-184158  working              round 2, running 1h 30m, last output 1h 29m ago        
+  GH13-20260819-184158  working              round 2, address feedback (recovery), running 1h 30m,  
+                                             last output 1h 29m ago                                 
   The agent is explaining a long change that would otherwise wrap onto another line and move every …
-  GH31-20260819-184158  waiting              1 new post to answer                                   
-  GH35-20260819-184158  waiting              the last round failed (exit 2)                         
-  GH44-20260819-184158  waiting              no round has run yet                                   
+  GH31-20260819-184158  waiting              next round, implement                                  
+  GH35-20260819-184158  waiting              next round, implement (recovery)                       
+  GH44-20260819-184158  waiting              next round, implement                                  
   GH40-20260819-184158  unknown              no current scheduler observation                       
   1 completed assignment                                                                            
 
