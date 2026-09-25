@@ -139,6 +139,7 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
             purpose=AgentRoundPurpose.DISCUSS,
             started=PINNED + timedelta(minutes=6),
             pid=2,
+            is_recovery=True,
             ending=compose_agent_round_ending(
                 at=PINNED + timedelta(minutes=10), status=0
             ),
@@ -173,7 +174,7 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
     assert "def456" in page
     assert "code revision abc123 -&gt; def456" in page
     assert "opus[1m] · xhigh" in page
-    assert "discuss" in page
+    assert "discuss (recovery)" in page
     assert "I found the answer." in page
     assert 'hx-get="/conversations/8/tail"' in page
 
@@ -195,7 +196,7 @@ def test_conversation_page_shows_attention_for_an_unreadable_input(tmp_path):
 @pytest.mark.parametrize(
     ("status", "is_published", "expected"),
     [
-        (2, False, "status-needs-attention"),
+        (2, False, "status-waiting"),
         (0, False, "status-awaiting-publication"),
     ],
 )
@@ -208,6 +209,49 @@ def test_conversation_page_shows_failed_and_pending_states(
     page = application(state=state).test_client().get("/conversations/8").text
 
     assert expected in page
+
+
+def test_conversation_page_shows_a_fault_and_recovery_round(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state, status=2)
+    directory = state.conversations / "GH8"
+    write_round(
+        directory=directory,
+        number=2,
+        record=AgentRoundRecord(
+            number=2,
+            purpose=AgentRoundPurpose.DISCUSS,
+            started=PINNED + timedelta(minutes=6),
+            pid=2,
+            is_recovery=True,
+            ending=compose_agent_round_ending(
+                at=PINNED + timedelta(minutes=10), status=2
+            ),
+        ),
+    )
+    write_json(
+        document=IssueConversationInput(
+            issue=8,
+            title="Issue 8",
+            body="Explain it.",
+            comments=[
+                {
+                    "id": 1,
+                    "body": "Please explain.",
+                    "author": "alice",
+                    "written_at": "2026-09-23T01:00:00Z",
+                }
+            ],
+            revision="abc123",
+        ),
+        path=directory / "rounds" / "2" / "inbox.json",
+    )
+
+    page = application(state=state).test_client().get("/conversations/8").text
+
+    assert "status-fault" in page
+    assert "two consecutive rounds failed" in page
+    assert "discuss (recovery)" in page
 
 
 def test_conversation_before_its_first_round_has_an_empty_feed(tmp_path):

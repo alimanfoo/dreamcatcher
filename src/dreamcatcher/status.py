@@ -45,6 +45,7 @@ from dreamcatcher.scheduler import (
     IssueFactValue,
     IssueObservation,
     derive_assignment_fault,
+    derive_issue_conversation_fault,
     read_scheduler_record,
 )
 from dreamcatcher.state import StateDirectory
@@ -68,6 +69,7 @@ class IssueConversationStatusValue(StrEnum):
     RUNNING = "running"
     WAITING = "waiting"
     AWAITING_PUBLICATION = "awaiting publication"
+    FAULT = "fault"
     NEEDS_ATTENTION = "needs attention"
     INACTIVE = "inactive"
 
@@ -87,6 +89,7 @@ STATUSES_THAT_END_A_VIEW = (
 )
 
 CONVERSATION_STATUSES_THAT_END_A_VIEW = (
+    IssueConversationStatusValue.FAULT,
     IssueConversationStatusValue.NEEDS_ATTENTION,
     IssueConversationStatusValue.INACTIVE,
 )
@@ -533,14 +536,41 @@ class _StatusReportReader:
         if latest.ending is None:
             return self._read_unfinished_conversation_status(conversation=conversation)
         if latest.outcome is not AgentRoundOutcome.SUCCESSFUL:
-            return self._compose_issue_conversation_status(
+            return self._read_failed_conversation_status(
                 conversation=conversation,
-                value=IssueConversationStatusValue.NEEDS_ATTENTION,
-                detail=_describe_round_outcome(record=latest, is_running=False),
             )
         return self._read_successful_conversation_status(
             conversation=conversation,
             eligibility=eligibility_value,
+        )
+
+    def _read_failed_conversation_status(
+        self, *, conversation: IssueConversation
+    ) -> IssueConversationStatus:
+        """Describe a conversation whose latest agent round failed."""
+        latest = conversation.rounds[-1]
+        reason = conversation.describe_unfinished_round() or _describe_round_outcome(
+            record=latest,
+            is_running=False,
+        )
+        is_fault = derive_issue_conversation_fault(
+            conversation=conversation,
+            most_recent_cooldown_ended=(
+                None
+                if self.scheduler_record is None
+                else self.scheduler_record.most_recent_cooldown_ended
+            ),
+        )
+        if is_fault:
+            return self._compose_issue_conversation_status(
+                conversation=conversation,
+                value=IssueConversationStatusValue.FAULT,
+                detail=f"two consecutive rounds failed; {reason}",
+            )
+        return self._compose_issue_conversation_status(
+            conversation=conversation,
+            value=IssueConversationStatusValue.WAITING,
+            detail=f"{reason}; waiting for recovery",
         )
 
     def _read_conversation_without_rounds(
@@ -627,8 +657,8 @@ class _StatusReportReader:
         if self.daemon_pid is None:
             return self._compose_issue_conversation_status(
                 conversation=conversation,
-                value=IssueConversationStatusValue.NEEDS_ATTENTION,
-                detail=f"round {latest.number} was interrupted",
+                value=IssueConversationStatusValue.WAITING,
+                detail=f"round {latest.number} was interrupted; waiting for recovery",
             )
         line = read_last_feed_line(
             path=conversation.compose_round_paths(number=latest.number).feed

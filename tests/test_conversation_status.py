@@ -58,30 +58,37 @@ def conversation_state(tmp_path):
 
 
 def conversation_round(
-    *, state: StateDirectory, status: int | None = 0, reason: str | None = None
+    *,
+    state: StateDirectory,
+    number: int = 1,
+    status: int | None = 0,
+    reason: str | None = None,
+    is_recovery: bool = False,
 ) -> None:
-    """Write the conversation's initial round with the requested process status."""
+    """Write one conversation round with the requested process status."""
+    started = PINNED + timedelta(minutes=(number - 1) * 6)
     ending = (
-        ErroredAgentRoundEnding(at=PINNED + timedelta(minutes=4), reason=reason)
+        ErroredAgentRoundEnding(at=started + timedelta(minutes=4), reason=reason)
         if reason is not None
         else (
             None
             if status is None
             else compose_agent_round_ending(
-                at=PINNED + timedelta(minutes=4), status=status
+                at=started + timedelta(minutes=4), status=status
             )
         )
     )
     directory = state.conversations / "GH8"
     write_round(
         directory=directory,
-        number=1,
+        number=number,
         record=AgentRoundRecord(
-            number=1,
+            number=number,
             purpose=AgentRoundPurpose.DISCUSS,
-            started=PINNED,
+            started=started,
             pid=1,
             ending=ending,
+            is_recovery=is_recovery,
         ),
     )
     conversation = read_issue_conversation(state=state, issue=8)
@@ -93,15 +100,15 @@ def conversation_round(
             body="Explain it.",
             comments=[
                 {
-                    "id": 1,
+                    "id": number,
                     "body": "Please explain.",
                     "author": "alice",
                     "written_at": "2026-09-23T01:00:00Z",
                 }
             ],
-            revision="abc123",
+            revision="abc123" if number == 1 else "def456",
         ),
-        path=conversation.compose_round_paths(number=1).round_input,
+        path=conversation.compose_round_paths(number=number).round_input,
     )
 
 
@@ -247,25 +254,25 @@ def test_a_live_conversation_that_has_said_nothing_reports_that(
     assert found.latest_output is None
 
 
-def test_an_unended_conversation_with_no_daemon_needs_attention(
+def test_an_unended_conversation_with_no_daemon_waits_for_recovery(
     conversation_state,
 ):
     conversation_round(state=conversation_state, status=None)
 
     found = status(state=conversation_state)
 
-    assert found.value is IssueConversationStatusValue.NEEDS_ATTENTION
-    assert found.detail == "round 1 was interrupted"
+    assert found.value is IssueConversationStatusValue.WAITING
+    assert found.detail == "round 1 was interrupted; waiting for recovery"
     assert found.round_statuses[0].outcome_description == "interrupted"
 
 
-def test_an_errored_conversation_needs_attention(conversation_state):
+def test_an_errored_conversation_waits_for_recovery(conversation_state):
     conversation_round(state=conversation_state, status=2)
 
     found = status(state=conversation_state)
 
-    assert found.value is IssueConversationStatusValue.NEEDS_ATTENTION
-    assert found.detail == "errored (exit 2)"
+    assert found.value is IssueConversationStatusValue.WAITING
+    assert found.detail == "the last round failed (exit 2); waiting for recovery"
 
 
 def test_a_conversation_launch_failure_reports_its_reason(conversation_state):
@@ -276,8 +283,54 @@ def test_a_conversation_launch_failure_reports_its_reason(conversation_state):
 
     found = status(state=conversation_state)
 
-    assert found.value is IssueConversationStatusValue.NEEDS_ATTENTION
-    assert found.detail == "errored (the harness was unavailable)"
+    assert found.value is IssueConversationStatusValue.WAITING
+    assert found.detail == (
+        "the last round could not start: the harness was unavailable; "
+        "waiting for recovery"
+    )
+    assert found.round_statuses[0].outcome_description == (
+        "errored (the harness was unavailable)"
+    )
+
+
+def test_two_errored_conversation_rounds_report_a_fault(conversation_state):
+    conversation_round(state=conversation_state, status=2)
+    conversation_round(
+        state=conversation_state,
+        number=2,
+        status=2,
+        is_recovery=True,
+    )
+
+    found = status(state=conversation_state)
+
+    assert found.value is IssueConversationStatusValue.FAULT
+    assert (
+        found.detail == "two consecutive rounds failed; the last round failed (exit 2)"
+    )
+    assert found.round_statuses[1].record.is_recovery is True
+
+
+def test_a_cooldown_boundary_clears_a_conversation_fault(conversation_state):
+    conversation_round(state=conversation_state, status=2)
+    conversation_round(
+        state=conversation_state,
+        number=2,
+        status=2,
+        is_recovery=True,
+    )
+    write_tick(
+        state=conversation_state,
+        tick=SchedulerRecord(
+            at=PINNED + timedelta(minutes=11),
+            most_recent_cooldown_ended=PINNED + timedelta(minutes=11),
+        ),
+    )
+
+    found = status(state=conversation_state)
+
+    assert found.value is IssueConversationStatusValue.WAITING
+    assert found.detail == "the last round failed (exit 2); waiting for recovery"
 
 
 def test_an_errored_conversation_reports_an_unreadable_input(conversation_state):

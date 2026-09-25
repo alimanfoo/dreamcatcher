@@ -139,6 +139,7 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
             purpose=AgentRoundPurpose.DISCUSS,
             started=PINNED + timedelta(minutes=6),
             pid=2,
+            is_recovery=True,
             ending=compose_agent_round_ending(
                 at=PINNED + timedelta(minutes=10), status=0
             ),
@@ -176,7 +177,7 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
     assert "abc123" in shown
     assert "def456" in shown
     assert "opus[1m]" in shown
-    assert "discuss" in shown
+    assert "discuss (recovery)" in shown
     assert "successful" in shown
 
 
@@ -202,7 +203,7 @@ def test_conversation_detail_shows_attention_for_an_unreadable_input(tmp_path):
 @pytest.mark.parametrize(
     ("status", "is_published", "expected"),
     [
-        (2, False, "needs attention"),
+        (2, False, "waiting"),
         (0, False, "awaiting publication"),
     ],
 )
@@ -220,6 +221,55 @@ def test_conversation_detail_shows_failed_and_pending_states(
     )
 
     assert expected in written.getvalue()
+
+
+def test_conversation_detail_shows_a_fault_and_recovery_round(tmp_path):
+    state = conversation_state(root=tmp_path, status=2)
+    directory = state.conversations / "GH8"
+    write_round(
+        directory=directory,
+        number=2,
+        record=AgentRoundRecord(
+            number=2,
+            purpose=AgentRoundPurpose.DISCUSS,
+            started=PINNED + timedelta(minutes=6),
+            pid=2,
+            is_recovery=True,
+            ending=compose_agent_round_ending(
+                at=PINNED + timedelta(minutes=10), status=2
+            ),
+        ),
+    )
+    write_json(
+        document=IssueConversationInput(
+            issue=8,
+            title="Issue 8",
+            body="Explain it.",
+            comments=[
+                {
+                    "id": 1,
+                    "body": "Please explain.",
+                    "author": "alice",
+                    "written_at": "2026-09-23T01:00:00Z",
+                }
+            ],
+            revision="abc123",
+        ),
+        path=directory / "rounds" / "2" / "inbox.json",
+    )
+    console, written = rendered_console()
+
+    show_conversation_view(
+        state=state,
+        issue=8,
+        console=console,
+        timing=ViewTiming(clock=lambda: PINNED),
+    )
+
+    shown = written.getvalue()
+    assert "fault" in shown
+    assert "two consecutive rounds failed" in shown
+    assert "discuss (recovery)" in shown
 
 
 def test_conversation_feed_shows_its_saved_activity(tmp_path):

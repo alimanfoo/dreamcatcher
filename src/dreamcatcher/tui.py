@@ -62,6 +62,7 @@ ASSIGNMENT_STATUS_STYLES = dict(
 )
 
 CONVERSATION_STATUS_STYLES = {
+    IssueConversationStatusValue.FAULT: "red",
     IssueConversationStatusValue.NEEDS_ATTENTION: "red",
     IssueConversationStatusValue.RUNNING: "green",
     IssueConversationStatusValue.AWAITING_PUBLICATION: "yellow",
@@ -487,7 +488,7 @@ def show_conversation_view(
     console: Console,
     timing: ViewTiming = DEFAULT_VIEW_TIMING,
 ) -> None:
-    """Show one issue conversation until it becomes inactive or needs attention."""
+    """Show one issue conversation until it becomes inactive, faulty, or unreadable."""
     _refresh_live_view(
         console=console,
         read_snapshot=lambda: _read_conversation_snapshot(
