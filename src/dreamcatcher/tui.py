@@ -270,7 +270,7 @@ def _render_instance_status(
             (
                 None
                 if report.max_agents is None
-                else f"{report.running_agents} of {report.max_agents} in use"
+                else f"{report.running_agents} of {report.max_agents} working"
             ),
         ),
         ("global cooldown", cooldown),

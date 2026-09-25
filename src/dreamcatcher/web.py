@@ -1024,13 +1024,13 @@ def _describe_daemon(
     *, daemon_pid: int | None, dreamcatcher_version: str | None
 ) -> str:
     if daemon_pid is None:
-        return "daemon STOPPED"
+        return "daemon stopped"
     version = (
         ""
         if dreamcatcher_version is None
         else f"dreamcatcher v{dreamcatcher_version} · "
     )
-    return f"daemon RUNNING · {version}pid {daemon_pid}"
+    return f"daemon running · {version}pid {daemon_pid}"
 
 
 def _compose_instance_facts(
@@ -1056,7 +1056,7 @@ def _compose_instance_facts(
             (
                 None
                 if report.max_agents is None
-                else f"{report.running_agents} of {report.max_agents} in use"
+                else f"{report.running_agents} of {report.max_agents} working"
             ),
             False,
         ),
