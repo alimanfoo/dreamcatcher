@@ -2,6 +2,7 @@
 
 from contextlib import suppress
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from threading import Lock
 
@@ -53,7 +54,7 @@ class IssueCommentCursor(DreamcatcherDocument):
 
 
 class IssueConversationRecord(DreamcatcherDocument):
-    """Model one issue conversation's identity and settled settings."""
+    """Model one issue conversation's identity, settings, and retry boundary."""
 
     issue: int
     title: str
@@ -294,6 +295,17 @@ def record_issue_conversation_session_identifier(
                 conversation=conversation,
                 updates={"harness_session_identifier": validated},
             )
+
+
+def request_issue_conversation_retry(
+    *, conversation: IssueConversation, at: datetime
+) -> None:
+    """Record when the user asked a faulted conversation to recover again."""
+    with conversation._record_lock:
+        _update_issue_conversation_record(
+            conversation=conversation,
+            updates={"retry_requested_at": at},
+        )
 
 
 def is_no_reply(*, final_output: str) -> bool:

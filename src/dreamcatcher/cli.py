@@ -18,6 +18,10 @@ from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS, DreamcatcherDaemon
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import AgentWorkKind
+from dreamcatcher.issue_conversations import (
+    read_issue_conversation,
+    request_issue_conversation_retry,
+)
 from dreamcatcher.scheduler import (
     DEFAULT_MAX_AGENTS,
     derive_agent_work_fault,
@@ -102,15 +106,16 @@ def build_cli_parser() -> argparse.ArgumentParser:
     run_parser.set_defaults(act=_run_daemon)
     retry_parser = subcommands.add_parser(
         "retry",
-        help="retry a faulted assignment after fixing its problem",
+        help="retry faulted work at an issue after fixing its problem",
         description=(
-            "Clear the newest assignment's fault after you have fixed what "
-            "caused its rounds to fail. The daemon may recover it on the next "
-            "scheduler tick outside a global cooldown."
+            "Clear the current faults of the newest assignment and issue "
+            "conversation after you have fixed what caused their rounds to "
+            "fail. The daemon may recover them on the next scheduler tick "
+            "outside a global cooldown."
         ),
     )
     _add_issue_argument(parser=retry_parser)
-    retry_parser.set_defaults(act=_retry_assignment)
+    retry_parser.set_defaults(act=_retry_agent_work)
     web_parser = subcommands.add_parser(
         "web",
         help="serve the local status report in a web browser",
@@ -271,15 +276,14 @@ def _run_daemon(*, arguments: argparse.Namespace) -> None:
     ).run()
 
 
-def _retry_assignment(*, arguments: argparse.Namespace) -> None:
-    """Clear the newest assignment's fault so the daemon may recover it."""
+def _retry_agent_work(*, arguments: argparse.Namespace) -> None:
+    """Clear every current fault at an issue so the daemon may recover it."""
     state = _find_state_directory(root=Path.cwd())
     issue_assignments = read_agent_assignments_for_issue(
         state=state, issue=arguments.issue
     )
-    if not issue_assignments:
-        raise ReportableError(f"GH{arguments.issue} has no assignment to retry.")
-    assignment = issue_assignments[-1]
+    assignment = issue_assignments[-1] if issue_assignments else None
+    conversation = read_issue_conversation(state=state, issue=arguments.issue)
     current_time = read_current_time()
     scheduler_record = read_scheduler_record(state=state, at=current_time)
     most_recent_cooldown_ended = (
@@ -287,14 +291,27 @@ def _retry_assignment(*, arguments: argparse.Namespace) -> None:
         if scheduler_record is None
         else scheduler_record.most_recent_cooldown_ended
     )
-    if not derive_agent_work_fault(
+    retried: list[str] = []
+    if assignment is not None and derive_agent_work_fault(
         rounds=assignment.rounds,
         retry_requested_at=assignment.record.retry_requested_at,
         most_recent_cooldown_ended=most_recent_cooldown_ended,
     ):
-        raise ReportableError(f"{assignment.identifier} is not in fault.")
-    request_agent_assignment_retry(assignment=assignment, at=current_time)
-    print(f"{assignment.identifier} can recover on the next scheduler tick.")
+        request_agent_assignment_retry(assignment=assignment, at=current_time)
+        retried.append(assignment.identifier)
+    if conversation is not None and derive_agent_work_fault(
+        rounds=conversation.rounds,
+        retry_requested_at=conversation.record.retry_requested_at,
+        most_recent_cooldown_ended=most_recent_cooldown_ended,
+    ):
+        request_issue_conversation_retry(
+            conversation=conversation,
+            at=current_time,
+        )
+        retried.append(conversation.identifier)
+    if not retried:
+        raise ReportableError(f"GH{arguments.issue} has no agent work in fault.")
+    print(f"{', '.join(retried)} can recover on the next scheduler tick.")
 
 
 def _show_status(*, arguments: argparse.Namespace) -> None:

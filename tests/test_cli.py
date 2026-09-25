@@ -25,6 +25,7 @@ from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
+from dreamcatcher.issue_conversations import read_issue_conversation
 from dreamcatcher.scheduler import (
     GlobalCooldown,
     SchedulerRecord,
@@ -33,6 +34,25 @@ from dreamcatcher.scheduler import (
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158"
+
+
+def write_faulted_conversation(*, state: StateDirectory, issue: int) -> None:
+    """Write a conversation whose latest two rounds errored."""
+    directory = write_issue_conversation(state=state, issue=issue)
+    for number in (1, 2):
+        ended = PINNED + timedelta(minutes=number)
+        write_round(
+            directory=directory,
+            number=number,
+            record=AgentRoundRecord(
+                number=number,
+                started=ended,
+                pid=1,
+                purpose=IssueConversationRoundPurpose.DISCUSS,
+                is_recovery=number > 1,
+                ending=compose_agent_round_ending(at=ended, status=number),
+            ),
+        )
 
 
 @pytest.fixture
@@ -192,6 +212,45 @@ def test_retry_clears_the_newest_assignments_fault(monkeypatch, faulted, capsys)
     assert "next scheduler tick" in capsys.readouterr().out
 
 
+def test_retry_clears_a_conversations_fault(monkeypatch, tmp_path, capsys):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    write_faulted_conversation(state=state, issue=13)
+    requested = PINNED + timedelta(minutes=3)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("dreamcatcher.cli.read_current_time", lambda: requested)
+
+    assert main(argv=["retry", "GH13"]) == 0
+
+    conversation = read_issue_conversation(state=state, issue=13)
+    assert conversation is not None
+    assert conversation.record.retry_requested_at == requested
+    assert not derive_agent_work_fault(
+        rounds=conversation.rounds,
+        retry_requested_at=conversation.record.retry_requested_at,
+        most_recent_cooldown_ended=None,
+    )
+    assert "conversation-GH13" in capsys.readouterr().out
+
+
+def test_retry_clears_assignment_and_conversation_faults(monkeypatch, faulted, capsys):
+    write_faulted_conversation(state=faulted, issue=13)
+    requested = PINNED + timedelta(minutes=3)
+    monkeypatch.chdir(faulted.root)
+    monkeypatch.setattr("dreamcatcher.cli.read_current_time", lambda: requested)
+
+    assert main(argv=["retry", "GH13"]) == 0
+
+    assignment = read_agent_assignments_for_issue(state=faulted, issue=13)[-1]
+    conversation = read_issue_conversation(state=faulted, issue=13)
+    assert conversation is not None
+    assert assignment.record.retry_requested_at == requested
+    assert conversation.record.retry_requested_at == requested
+    output = capsys.readouterr().out
+    assert assignment.identifier in output
+    assert conversation.identifier in output
+
+
 def test_retry_refuses_a_fault_an_elapsed_cooldown_cleared(
     monkeypatch, faulted, capsys
 ):
@@ -213,26 +272,24 @@ def test_retry_refuses_a_fault_an_elapsed_cooldown_cleared(
 
     assignment = read_agent_assignments_for_issue(state=faulted, issue=13)[-1]
     assert assignment.record.retry_requested_at is None
-    assert "not in fault" in capsys.readouterr().err
+    assert "no agent work in fault" in capsys.readouterr().err
 
 
-def test_retry_refuses_an_issue_with_no_assignment(monkeypatch, tmp_path, capsys):
+def test_retry_refuses_an_issue_with_no_agent_work(monkeypatch, tmp_path, capsys):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
     state.path.mkdir()
     monkeypatch.chdir(tmp_path)
 
     assert main(argv=["retry", "GH13"]) == 1
-    assert "no assignment" in capsys.readouterr().err
+    assert "no agent work in fault" in capsys.readouterr().err
 
 
-def test_retry_refuses_an_assignment_that_is_not_in_fault(
-    monkeypatch, watching, capsys
-):
+def test_retry_refuses_an_issue_with_no_work_in_fault(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
 
     assert main(argv=["retry", "GH13"]) == 1
-    assert "not in fault" in capsys.readouterr().err
+    assert "no agent work in fault" in capsys.readouterr().err
 
 
 def test_feed_shows_what_the_assignment_said(monkeypatch, watching, capsys):
