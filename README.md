@@ -134,17 +134,17 @@ carrying its label. The issue title and body alone do not start an agent. Once
 the signed-in account posts an ordinary, unmarked issue comment, Dreamcatcher
 freezes the issue and trusted comment history, creates a detached worktree at
 the fetched main revision, and runs one Claude round. The round shares the
-daemon's agent cap and global cooldown with assignments. Its final Markdown is
-saved, marked as Dreamcatcher output and posted back to the issue. `NO_REPLY`
-finishes without a post. A failed post is retried from the saved answer without
-running Claude again. A later eligible comment resumes the same Claude session
-with only the new comments and updates its worktree to current main without
-asking the user to clean up investigation files.
+daemon's agent cap and global cooldown with assignments. The round marks its
+final Markdown as Dreamcatcher output and posts it back to the issue. `NO_REPLY`
+finishes without a post. A failed post makes the round errored. A later eligible
+comment resumes the same Claude session with only the new comments and updates
+its worktree to current main without asking the user to clean up investigation
+files.
 
 Closing the issue, removing the conversation label or removing the signed-in
 account as assignee stops comment collection. Dreamcatcher keeps the saved
-conversation, and comments posted while it is inactive become available if the
-issue becomes eligible again. A running round may finish and publish its answer.
+conversation, and comments posted while the issue is ineligible become available
+if it becomes eligible again. A running round may finish and publish its answer.
 
 Every round records its number, purpose, whether it is recovering an earlier
 round, and its outcome (`running`, `successful`, `errored` or `interrupted`).
@@ -157,7 +157,7 @@ from where it stopped. One errored assignment round receives an ordinary
 recovery opportunity and does not stop unrelated work. Two consecutive errored
 rounds put that assignment in fault; an interrupted or successful round breaks
 the sequence. Issue conversations record interrupted and failed rounds but do
-not recover them automatically yet.
+not recover them automatically yet, so such a conversation shows as waiting.
 
 When two assignments are in fault, the scheduler starts a fifteen-minute global
 cooldown and starts no agent work during it. The scheduler keeps observing and
@@ -208,9 +208,10 @@ The CLI also has four terminal read-only views: `status`, `assignment`,
 and never contacts GitHub.
 
 Every view refreshes automatically in a terminal. `status` runs until you
-interrupt it. Detail and feed views run until the selected work finishes or
-needs attention, and you can interrupt either one sooner. If you pipe, redirect
-or capture a view, it shows the current state once and returns.
+interrupt it. Detail and feed views run until the selected work completes,
+enters fault or leaves the status report, and you can interrupt either one
+sooner. If you pipe, redirect or capture a view, it shows the current state once
+and returns.
 
 ```sh
 dreamcatcher status
@@ -219,6 +220,11 @@ dreamcatcher status
 `status` starts with the repository name, then shows the instance, its issue
 conversations and agent assignments, any failed assignment setups, the available
 issues in dispatch order, and issues with open blockers.
+
+An issue conversation is working, waiting, idle, fault or unknown. It is listed
+from the first tick that sees its issue eligible, before its first round, and
+leaves the list once the issue is ineligible and no round runs. A conversation
+that has answered its comments is idle, since it asks nothing of you.
 
 `assignment` shows one issue's newest assignment: its issue identifier, agent
 assignment identifier, harness session identifier, what its dispatch settled,

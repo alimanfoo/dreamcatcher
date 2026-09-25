@@ -1,27 +1,33 @@
 """Render issue conversations in the local web interface."""
 
+import os
 from datetime import timedelta
 
-import pytest
 from clocks import DISPLAY_TIME_ZONE, PINNED
 from conftest import REPOSITORY
-from records import write_feed, write_issue_conversation, write_round, write_tick
+from observations import observed_conversation
+from records import (
+    write_feed,
+    write_final_output,
+    write_issue_conversation,
+    write_round,
+    write_running_conversation,
+    write_tick,
+)
 from status_fabrications import fabricate_everything
 
 from dreamcatcher.agent_rounds import (
-    AgentRoundPurpose,
     AgentRoundRecord,
     IssueConversationInput,
+    IssueConversationRoundPurpose,
     compose_agent_round_ending,
 )
 from dreamcatcher.documents import append_text, write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.issue_conversations import (
     read_issue_conversation,
-    record_issue_conversation_reply_publication,
-    save_issue_conversation_reply,
 )
-from dreamcatcher.scheduler import IssueFact, IssueFactValue, SchedulerRecord
+from dreamcatcher.scheduler import IssueFactValue, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.web import create_app
 
@@ -33,7 +39,6 @@ def fabricate_conversation(
     state: StateDirectory,
     has_round: bool = True,
     status: int = 0,
-    is_published: bool = True,
     is_eligible: bool = False,
 ) -> None:
     """Write one initial conversation exchange."""
@@ -43,11 +48,7 @@ def fabricate_conversation(
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
-            conversation_eligibility={
-                8: IssueFact(
-                    value=(IssueFactValue.TRUE if is_eligible else IssueFactValue.FALSE)
-                ),
-            },
+            conversation_observations=[observed_conversation()] if is_eligible else [],
         ),
     )
     if not has_round:
@@ -57,7 +58,7 @@ def fabricate_conversation(
         number=1,
         record=AgentRoundRecord(
             number=1,
-            purpose=AgentRoundPurpose.DISCUSS,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=1,
             ending=compose_agent_round_ending(
@@ -87,18 +88,7 @@ def fabricate_conversation(
         number=1,
         lines=[FeedLine(at=PINNED, text="I found the answer.")],
     )
-    conversation = read_issue_conversation(state=state, issue=8)
-    assert conversation is not None
-    if status == 0:
-        save_issue_conversation_reply(
-            conversation=conversation, number=1, body="The answer."
-        )
-        if is_published:
-            record_issue_conversation_reply_publication(
-                conversation=conversation,
-                number=1,
-                at=PINNED + timedelta(minutes=5),
-            )
+    write_final_output(directory=directory, number=1, text="The answer.")
 
 
 def application(*, state: StateDirectory):
@@ -113,7 +103,7 @@ def application(*, state: StateDirectory):
 def test_home_lists_a_conversation_and_links_to_its_page(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    fabricate_conversation(state=state)
+    fabricate_conversation(state=state, is_eligible=True)
 
     page = application(state=state).test_client().get("/").text
 
@@ -124,7 +114,7 @@ def test_home_lists_a_conversation_and_links_to_its_page(tmp_path):
     assert "Conversations" in page
     assert 'id="conversation-GH8"' in page
     assert 'href="/conversations/8"' in page
-    assert "issue is not eligible for conversation" in page
+    assert "round 1, answered, ran 4m" in page
 
 
 def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
@@ -136,7 +126,7 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
         number=2,
         record=AgentRoundRecord(
             number=2,
-            purpose=AgentRoundPurpose.DISCUSS,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
             started=PINNED + timedelta(minutes=6),
             pid=2,
             ending=compose_agent_round_ending(
@@ -178,7 +168,7 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
     assert 'hx-get="/conversations/8/tail"' in page
 
 
-def test_conversation_page_shows_attention_for_an_unreadable_input(tmp_path):
+def test_conversation_page_with_an_unreadable_input_still_renders(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
     conversation = read_issue_conversation(state=state, issue=8)
@@ -188,26 +178,17 @@ def test_conversation_page_shows_attention_for_an_unreadable_input(tmp_path):
     response = application(state=state).test_client().get("/conversations/8")
 
     assert response.status_code == 200
-    assert "needs attention" in response.text
-    assert "inbox.json is not valid" in response.text
+    assert "I found the answer." in response.text
 
 
-@pytest.mark.parametrize(
-    ("status", "is_published", "expected"),
-    [
-        (2, False, "status-needs-attention"),
-        (0, False, "status-awaiting-publication"),
-    ],
-)
-def test_conversation_page_shows_failed_and_pending_states(
-    tmp_path, status, is_published, expected
-):
+def test_conversation_page_shows_a_failed_round_waiting_to_be_recovered(tmp_path):
     state = StateDirectory(root=tmp_path)
-    fabricate_conversation(state=state, status=status, is_published=is_published)
+    fabricate_conversation(state=state, status=2, is_eligible=True)
 
     page = application(state=state).test_client().get("/conversations/8").text
 
-    assert expected in page
+    assert "status-waiting" in page
+    assert "round 1 errored (exit 2)" in page
 
 
 def test_conversation_before_its_first_round_has_an_empty_feed(tmp_path):
@@ -245,7 +226,7 @@ def test_conversation_tail_returns_new_output_and_advances_its_cursor(tmp_path):
     assert 'id="conversation-status"' in response.text
 
 
-def test_a_finished_conversation_stops_empty_tail_polling(tmp_path):
+def test_an_ineligible_conversation_stops_empty_tail_polling(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
     conversation = read_issue_conversation(state=state, issue=8)
@@ -289,7 +270,7 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
         number=2,
         record=AgentRoundRecord(
             number=2,
-            purpose=AgentRoundPurpose.DISCUSS,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
             started=PINNED + timedelta(minutes=6),
             pid=2,
             ending=compose_agent_round_ending(
@@ -319,23 +300,11 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
         number=2,
         lines=[FeedLine(at=LOOKED_AT, text="I found the follow-up answer.")],
     )
-    conversation = read_issue_conversation(state=state, issue=8)
-    assert conversation is not None
-    save_issue_conversation_reply(
-        conversation=conversation, number=2, body="The follow-up answer."
-    )
-    record_issue_conversation_reply_publication(
-        conversation=conversation,
-        number=2,
-        at=PINNED + timedelta(minutes=11),
-    )
     write_tick(
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
-            conversation_eligibility={
-                8: IssueFact(value=IssueFactValue.FALSE),
-            },
+            conversation_observations=[],
         ),
     )
 
@@ -381,3 +350,83 @@ def test_missing_conversation_pages_answer_not_found(tmp_path):
     assert page.status_code == 404
     assert tail.status_code == 404
     assert "No issue conversation here is for GH8" in page.text
+
+
+def fabricate_unsaved_conversation(*, state: StateDirectory) -> None:
+    """Write a tick that observed GH9 with a comment to answer and no record."""
+    write_text(text=f"{REPOSITORY}\n", path=state.repository)
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            conversation_observations=[
+                observed_conversation(
+                    issue=9, value=IssueFactValue.TRUE, evidence="1 comment to answer"
+                )
+            ],
+        ),
+    )
+
+
+def test_home_lists_an_eligible_issue_before_its_conversation_is_saved(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_unsaved_conversation(state=state)
+
+    page = application(state=state).test_client().get("/").text
+
+    assert 'id="conversation-GH9"' in page
+    assert 'href="/conversations/9"' in page
+    assert "1 comment to answer" in page
+    assert "assignment-meta" not in page
+
+
+def test_conversation_page_before_its_record_shows_its_issue_and_polls(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_unsaved_conversation(state=state)
+    client = application(state=state).test_client()
+
+    page = client.get("/conversations/9")
+    tail = client.get("/conversations/9/tail", query_string={"cursor": "0:0"})
+
+    assert page.status_code == 200
+    assert "Issue 9" in page.text
+    assert "assignment-facts" not in page.text
+    assert "-- no feed yet --" in page.text
+    assert tail.status_code == 200
+    assert 'value="0:0"' in tail.text
+
+
+def test_home_lists_conversations_in_attention_order(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state)
+    write_running_conversation(state=state, issue=11, started=PINNED)
+    state.lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            conversation_observations=[
+                observed_conversation(issue=8),
+                observed_conversation(issue=9),
+                observed_conversation(
+                    issue=10, value=IssueFactValue.TRUE, evidence="1 comment to answer"
+                ),
+                observed_conversation(issue=11),
+                observed_conversation(
+                    issue=12, value=IssueFactValue.UNKNOWN, evidence="cannot tell"
+                ),
+            ],
+        ),
+    )
+
+    page = application(state=state).test_client().get("/").text
+
+    assert (
+        page.index('id="conversation-GH11"')
+        < page.index('id="conversation-GH10"')
+        < page.index('id="conversation-GH12"')
+        < page.index('id="conversation-GH8"')
+        < page.index('id="conversation-GH9"')
+    )
+    assert "status-working" in page
+    assert "status-unknown" in page

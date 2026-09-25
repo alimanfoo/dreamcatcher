@@ -26,7 +26,9 @@ from werkzeug.test import TestResponse
 
 import dreamcatcher.web as web_module
 from dreamcatcher.agent_assignments import read_agent_assignment
-from dreamcatcher.agent_rounds import AgentRoundPurpose
+from dreamcatcher.agent_rounds import (
+    AgentAssignmentRoundPurpose,
+)
 from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
@@ -281,7 +283,7 @@ def test_complete_assignments_are_ordered_by_most_recent_completion(tmp_path):
         issue=10,
         records=[
             ended(minute=1),
-            ended(minute=2, number=2, purpose=AgentRoundPurpose.WRAP_UP),
+            ended(minute=2, number=2, purpose=AgentAssignmentRoundPurpose.WRAP_UP),
         ],
     )
     written(
@@ -289,7 +291,7 @@ def test_complete_assignments_are_ordered_by_most_recent_completion(tmp_path):
         issue=20,
         records=[
             ended(minute=1),
-            ended(minute=20, number=2, purpose=AgentRoundPurpose.WRAP_UP),
+            ended(minute=20, number=2, purpose=AgentAssignmentRoundPurpose.WRAP_UP),
         ],
     )
 
@@ -906,6 +908,15 @@ def test_capacity_does_not_repeat_as_a_scheduler_hold(tmp_path, daemon):
     assert "<dt>scheduler hold</dt>" not in page
 
 
+def test_next_update_is_left_out_when_no_daemon_is_running(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    WEB_STATUS_REPORTS["nothing"](state=state)
+
+    page = render_home(state=state)
+
+    assert "<dt>next update in</dt>" not in page
+
+
 def test_active_cooldown_uses_the_display_zone(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
@@ -923,7 +934,7 @@ def test_active_cooldown_uses_the_display_zone(tmp_path, daemon):
     page = render_home(state=state)
 
     assert "Global cooldown ends 2026-08-20 04:56:58" in page
-    assert "<dd>ends 2026-08-20 04:56:58</dd>" in page
+    assert "<dt>global cooldown</dt>" not in page
     assert "2026-08-19 20:56:58" not in page
 
 

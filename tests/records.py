@@ -7,10 +7,12 @@ about without a GitHub, an origin to cut from, or a harness to run.
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
 from dreamcatcher import agent_assignments, agent_rounds, issue_conversations
 from dreamcatcher.config import AgentHarness
+from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
 from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
@@ -41,6 +43,7 @@ def write_daemon_run(
             harness=harness,
             version=version,
             max_agents=max_agents,
+            interval_seconds=DEFAULT_INTERVAL_SECONDS,
         ),
         path=state.daemon_run_record,
     )
@@ -134,4 +137,48 @@ def _round_paths(*, directory: Path, number: int) -> agent_rounds.AgentRoundPath
         worktree=directory,
         rounds_directory=directory / agent_assignments.AGENT_ROUNDS_DIRECTORY_NAME,
         number=number,
+    )
+
+
+def write_running_conversation(
+    *, state: StateDirectory, issue: int, started: datetime
+) -> None:
+    """Write a conversation whose first round has started and not ended.
+
+    The round reads as running only while the state's lock names a live daemon.
+    """
+    directory = write_issue_conversation(state=state, issue=issue)
+    write_round(
+        directory=directory,
+        number=1,
+        record=agent_rounds.AgentRoundRecord(
+            number=1,
+            purpose=agent_rounds.IssueConversationRoundPurpose.DISCUSS,
+            started=started,
+            pid=1,
+        ),
+    )
+    write_json(
+        document=agent_rounds.IssueConversationInput(
+            issue=issue,
+            title=f"Issue {issue}",
+            body="Explain it.",
+            comments=[
+                {
+                    "id": 1,
+                    "body": "Please explain.",
+                    "author": "alice",
+                    "written_at": "2026-09-23T01:00:00Z",
+                }
+            ],
+            revision="abc123",
+        ),
+        path=_round_paths(directory=directory, number=1).round_input,
+    )
+
+
+def write_final_output(*, directory: Path, number: int, text: str) -> None:
+    """Write the final output that one round of the work at this directory reported."""
+    write_text(
+        text=text, path=_round_paths(directory=directory, number=number).final_output
     )

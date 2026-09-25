@@ -16,13 +16,13 @@
           </div>
         </div>
         <p id="conversation-detail" class="assignment-detail">{{ view.detail }}</p>
-        <dl class="assignment-facts">
-          <div><dt>label</dt><dd>{{ view.label }}</dd></div>
-          <div><dt>worktree</dt><dd>{{ view.worktree }}</dd></div>
-          <div><dt>harness</dt><dd>{{ view.harness }}</dd></div>
-          <div><dt>session</dt><dd>{{ view.harness_session_identifier }}</dd></div>
-          <div><dt>model</dt><dd>{{ view.model }} · {{ view.effort }}</dd></div>
-        </dl>
+        {% if view.facts %}
+          <dl class="assignment-facts">
+            {% for fact in view.facts %}
+              <div><dt>{{ fact.label }}</dt><dd>{{ fact.value }}</dd></div>
+            {% endfor %}
+          </dl>
+        {% endif %}
       </section>
       <div class="assignment-workspace">
         <div class="assignment-sidebar">

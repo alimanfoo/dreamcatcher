@@ -1,11 +1,11 @@
 alimanfoo/dreamcatcher
 
 instance
-  daemon                 running dreamcatcher v3.0.0.beta1 as pid 4242
-  harness                claude                                       
-  latest scheduler tick  2m ago                                       
-  agent capacity         1 of 1 in use                                
-  global cooldown        none                                         
+  daemon           running dreamcatcher v3.0.0.beta1 as pid 4242
+  harness          claude                                       
+  next update in   0s                                           
+  agent capacity   1 of 1 working                               
+  global cooldown  none                                         
 
 assignments
-  GH13-20260819-184158  working  round 2, running 1h 30m, has said nothing yet
+  GH13-20260819-184158  working  round 2, address feedback, running 1h 30m, has said nothing yet
