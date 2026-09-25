@@ -9,6 +9,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     ErroredAgentRoundEnding,
     IssueConversationInput,
+    describe_unfinished_agent_round,
 )
 from dreamcatcher.config import AgentHarness, IssueConversationConfig
 from dreamcatcher.documents import write_json
@@ -204,7 +205,7 @@ def test_a_conversation_describes_a_round_that_failed_before_launch(tmp_path):
     found = read_issue_conversation(state=state, issue=8)
 
     assert found is not None
-    assert found.describe_unfinished_round() == (
+    assert describe_unfinished_agent_round(rounds=found.rounds) == (
         "the last round could not start: the harness was unavailable"
     )
 

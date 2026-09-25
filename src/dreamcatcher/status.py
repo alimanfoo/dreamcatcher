@@ -18,6 +18,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
     AgentRoundRecord,
     ErroredAgentRoundEnding,
+    describe_unfinished_agent_round,
 )
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.config import AgentHarness
@@ -549,10 +550,9 @@ class _StatusReportReader:
     ) -> IssueConversationStatus:
         """Describe a conversation whose latest agent round failed."""
         latest = conversation.rounds[-1]
-        reason = conversation.describe_unfinished_round() or _describe_round_outcome(
-            record=latest,
-            is_running=False,
-        )
+        reason = describe_unfinished_agent_round(
+            rounds=conversation.rounds
+        ) or _describe_round_outcome(record=latest, is_running=False)
         is_fault = derive_issue_conversation_fault(
             conversation=conversation,
             most_recent_cooldown_ended=(
@@ -764,7 +764,7 @@ class _StatusReportReader:
                     reason="two consecutive rounds failed",
                 ),
             )
-        unfinished_round = assignment.describe_unfinished_round()
+        unfinished_round = describe_unfinished_agent_round(rounds=assignment.rounds)
         if unfinished_round is not None:
             if self.daemon_pid is not None and assignment.rounds[-1].ending is None:
                 detail, latest_output = self._describe_running_assignment(

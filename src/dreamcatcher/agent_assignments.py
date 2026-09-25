@@ -22,8 +22,6 @@ from dreamcatcher.agent_rounds import (
     AgentRoundPaths,
     AgentRoundPurpose,
     AgentRoundRecord,
-    ErroredAgentRoundEnding,
-    InterruptedAgentRoundEnding,
 )
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import AgentHarness, DispatchRoute
@@ -149,21 +147,6 @@ class AgentAssignment:
             round.purpose is AgentRoundPurpose.WRAP_UP
             and round.outcome is AgentRoundOutcome.SUCCESSFUL
         )
-
-    def describe_unfinished_round(self) -> str | None:
-        """Describe an interrupted or errored final round, if one exists.
-
-        A record with no ending is a round the daemon has not reconciled yet,
-        and an interrupted or errored ending says that the work stopped short.
-        """
-        if not self.rounds:
-            return None
-        ending = self.rounds[-1].ending
-        if ending is None or isinstance(ending, InterruptedAgentRoundEnding):
-            return "the last round was interrupted"
-        if isinstance(ending, ErroredAgentRoundEnding):
-            return f"the last round failed (exit {ending.status})"
-        return None
 
     def compose_round_paths(self, *, number: int) -> AgentRoundPaths:
         """Return the worktree and file paths for a numbered round.

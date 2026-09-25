@@ -35,6 +35,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     InterruptedAgentRoundEnding,
     compose_agent_round_ending,
+    describe_unfinished_agent_round,
 )
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import (
@@ -309,14 +310,17 @@ def test_a_round_an_assignment_has_run_is_found_by_the_number_it_ran_as(fabricat
 def test_an_assignment_that_has_run_no_round_has_left_nothing_unfinished(fabricated):
     assignment = standing(state=fabricated, rounds=[])
 
-    assert assignment.describe_unfinished_round() is None
+    assert describe_unfinished_agent_round(rounds=assignment.rounds) is None
     assert not assignment.is_complete
 
 
 def test_an_assignment_whose_last_round_was_interrupted_says_so(fabricated):
     assignment = standing(state=fabricated, rounds=[running()])
 
-    assert assignment.describe_unfinished_round() == "the last round was interrupted"
+    assert (
+        describe_unfinished_agent_round(rounds=assignment.rounds)
+        == "the last round was interrupted"
+    )
 
 
 def test_an_assignment_whose_last_round_failed_says_the_status_it_failed_with(
@@ -324,7 +328,10 @@ def test_an_assignment_whose_last_round_failed_says_the_status_it_failed_with(
 ):
     assignment = standing(state=fabricated, rounds=[ended(status=2)])
 
-    assert assignment.describe_unfinished_round() == "the last round failed (exit 2)"
+    assert (
+        describe_unfinished_agent_round(rounds=assignment.rounds)
+        == "the last round failed (exit 2)"
+    )
 
 
 def test_an_assignment_whose_last_round_ended_well_has_left_nothing_unfinished(
@@ -335,7 +342,7 @@ def test_an_assignment_whose_last_round_ended_well_has_left_nothing_unfinished(
         rounds=[ended(status=1), ended(status=0, minute=1, number=2)],
     )
 
-    assert assignment.describe_unfinished_round() is None
+    assert describe_unfinished_agent_round(rounds=assignment.rounds) is None
 
 
 def test_a_successful_wrap_up_completes_an_assignment(fabricated):

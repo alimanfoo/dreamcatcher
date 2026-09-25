@@ -41,6 +41,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundStartRequest,
     ErroredAgentRoundEnding,
     IssueConversationInput,
+    describe_unfinished_agent_round,
     record_agent_round_launch_failure,
     start_agent_round,
 )
@@ -246,16 +247,7 @@ class RequiredIssueConversationRound:
 
     conversation: IssueConversation
     plan: AgentRoundPlan[IssueConversationInput]
-    reason: str
     prompt: str
-
-
-@dataclass(frozen=True, kw_only=True)
-class FaultedIssueConversation:
-    """Describe a conversation whose errors stop ordinary recovery."""
-
-    conversation: IssueConversation
-    reason: str
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -263,7 +255,7 @@ class IssueConversationInspectionResult:
     """Collect locally required rounds, faults, and failed reads."""
 
     required_rounds: list[RequiredIssueConversationRound]
-    faults: list[FaultedIssueConversation]
+    fault_count: int
     failure: str | None = None
 
 
@@ -692,19 +684,13 @@ class InvalidSchedulerRecordError(ReportableError):
 def _start_cooldown_if_required(
     *,
     active: GlobalCooldown | None,
-    inspection_results: list[AgentAssignmentInspectionResult],
-    conversation_faults: list[FaultedIssueConversation],
+    fault_count: int,
     at: datetime,
 ) -> GlobalCooldown | None:
     """Start a cooldown when two agent-work owners are currently in fault."""
     if active is not None:
         return active
-    faults = [
-        result
-        for result in inspection_results
-        if isinstance(result, FaultedAgentAssignment)
-    ]
-    if len(faults) + len(conversation_faults) < 2:
+    if fault_count < 2:
         return None
     return GlobalCooldown(started=at, ends=at + GLOBAL_COOLDOWN_DURATION)
 
@@ -803,7 +789,7 @@ def _inspect_assignment_pull_request(
         pull_request=pull_request,
         observed_at=observed_at,
     )
-    recovery_reason = assignment.describe_unfinished_round()
+    recovery_reason = describe_unfinished_agent_round(rounds=assignment.rounds)
     if recovery_reason is not None and pull_request.state is PullRequestState.OPEN:
         return RequiredAgentRound(
             assignment=assignment,
@@ -914,7 +900,7 @@ def compose_issue_conversation_recovery_requirement(
     *, conversation: IssueConversation
 ) -> RequiredIssueConversationRound | None:
     """Return the recovery round required by unfinished conversation work."""
-    reason = conversation.describe_unfinished_round()
+    reason = describe_unfinished_agent_round(rounds=conversation.rounds)
     if reason is None:
         return None
     latest = conversation.rounds[-1]
@@ -930,7 +916,6 @@ def compose_issue_conversation_recovery_requirement(
             is_recovery=True,
             input=round_input,
         ),
-        reason=reason,
         prompt=compose_issue_conversation_recovery_prompt(
             issue=conversation.record.issue,
             round_input=paths.round_input,
@@ -1252,8 +1237,13 @@ class AgentWorkScheduler:
         )
         cooldown = _start_cooldown_if_required(
             active=cooldown,
-            inspection_results=inspection_results,
-            conversation_faults=conversation_inspection.faults,
+            fault_count=(
+                sum(
+                    isinstance(result, FaultedAgentAssignment)
+                    for result in inspection_results
+                )
+                + conversation_inspection.fault_count
+            ),
             at=at,
         )
         conversation_candidates = _list_issue_conversation_candidates(
@@ -1422,7 +1412,7 @@ class AgentWorkScheduler:
     ) -> IssueConversationInspectionResult:
         """Return recovery rounds derived only from saved conversation state."""
         required_rounds: list[RequiredIssueConversationRound] = []
-        faults: list[FaultedIssueConversation] = []
+        fault_count = 0
         failures: list[str | None] = []
         for conversation in conversations:
             if conversation.identifier in self.rounds:
@@ -1431,12 +1421,7 @@ class AgentWorkScheduler:
                 conversation=conversation,
                 most_recent_cooldown_ended=most_recent_cooldown_ended,
             ):
-                faults.append(
-                    FaultedIssueConversation(
-                        conversation=conversation,
-                        reason="two consecutive rounds failed",
-                    )
-                )
+                fault_count += 1
                 continue
             try:
                 required = compose_issue_conversation_recovery_requirement(
@@ -1451,7 +1436,7 @@ class AgentWorkScheduler:
                 required_rounds.append(required)
         return IssueConversationInspectionResult(
             required_rounds=required_rounds,
-            faults=faults,
+            fault_count=fault_count,
             failure=_combine_scheduler_failures(failures=failures),
         )
 

@@ -12,7 +12,7 @@ The daemon watches a round rather than waiting for it, so a round reads its own
 streams on threads of its own, and records its own ending on another.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
@@ -192,6 +192,22 @@ class AgentRoundRecord(DreamcatcherDocument):
         if self.ending is None:
             return AgentRoundOutcome.RUNNING
         return self.ending.outcome
+
+
+def describe_unfinished_agent_round(
+    *, rounds: Sequence[AgentRoundRecord]
+) -> str | None:
+    """Describe an interrupted or errored final round, if one exists."""
+    if not rounds:
+        return None
+    ending = rounds[-1].ending
+    if ending is None or isinstance(ending, InterruptedAgentRoundEnding):
+        return "the last round was interrupted"
+    if not isinstance(ending, ErroredAgentRoundEnding):
+        return None
+    if ending.reason is not None:
+        return f"the last round could not start: {ending.reason}"
+    return f"the last round failed (exit {ending.status})"
 
 
 def record_agent_round_interruption(
