@@ -48,7 +48,7 @@ from dreamcatcher.scheduler import (
     IssueFact,
     IssueFactValue,
     IssueObservation,
-    derive_assignment_fault,
+    derive_agent_work_fault,
     derive_round_purpose,
     read_scheduler_record,
 )
@@ -795,8 +795,9 @@ class _StatusReportReader:
             if self.scheduler_record is None
             else self.scheduler_record.most_recent_cooldown_ended
         )
-        if derive_assignment_fault(
-            assignment=assignment,
+        if derive_agent_work_fault(
+            rounds=assignment.rounds,
+            retry_requested_at=assignment.record.retry_requested_at,
             most_recent_cooldown_ended=most_recent_cooldown_ended,
         ):
             return self._compose_agent_assignment_status(

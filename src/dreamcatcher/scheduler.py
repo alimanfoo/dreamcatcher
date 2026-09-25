@@ -36,6 +36,7 @@ from dreamcatcher.agent_rounds import (
     AgentRound,
     AgentRoundOutcome,
     AgentRoundPlan,
+    AgentRoundRecord,
     AgentRoundStartRequest,
     ErroredAgentRoundEnding,
     IssueConversationRoundPurpose,
@@ -549,22 +550,25 @@ def _compose_unknown_issue_fact(*, evidence: str) -> IssueFact:
     return IssueFact(value=IssueFactValue.UNKNOWN, evidence=evidence)
 
 
-def derive_assignment_fault(
-    *, assignment: AgentAssignment, most_recent_cooldown_ended: datetime | None
+def derive_agent_work_fault(
+    *,
+    rounds: list[AgentRoundRecord],
+    retry_requested_at: datetime | None,
+    most_recent_cooldown_ended: datetime | None,
 ) -> bool:
-    """Derive whether an assignment has two current consecutive errors."""
-    if len(assignment.rounds) < 2:
+    """Derive whether agent work has two current consecutive errors."""
+    if len(rounds) < 2:
         return False
     boundaries = [
         boundary
         for boundary in (
             most_recent_cooldown_ended,
-            assignment.record.retry_requested_at,
+            retry_requested_at,
         )
         if boundary is not None
     ]
     most_recent_fault_boundary = max(boundaries, default=None)
-    latest_endings = [record.ending for record in assignment.rounds[-2:]]
+    latest_endings = [record.ending for record in rounds[-2:]]
     return all(
         isinstance(ending, ErroredAgentRoundEnding)
         and (
@@ -676,8 +680,9 @@ def inspect_agent_assignment(
         return compose_initial_round_requirement(assignment=assignment)
     if assignment.is_complete:
         return None
-    if derive_assignment_fault(
-        assignment=assignment,
+    if derive_agent_work_fault(
+        rounds=assignment.rounds,
+        retry_requested_at=assignment.record.retry_requested_at,
         most_recent_cooldown_ended=most_recent_cooldown_ended,
     ):
         return FaultedAgentAssignment(

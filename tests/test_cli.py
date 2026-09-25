@@ -28,7 +28,7 @@ from dreamcatcher.feed import FeedLine
 from dreamcatcher.scheduler import (
     GlobalCooldown,
     SchedulerRecord,
-    derive_assignment_fault,
+    derive_agent_work_fault,
 )
 from dreamcatcher.state import StateDirectory
 
@@ -184,8 +184,9 @@ def test_retry_clears_the_newest_assignments_fault(monkeypatch, faulted, capsys)
 
     assignment = read_agent_assignments_for_issue(state=faulted, issue=13)[-1]
     assert assignment.record.retry_requested_at == requested
-    assert not derive_assignment_fault(
-        assignment=assignment,
+    assert not derive_agent_work_fault(
+        rounds=assignment.rounds,
+        retry_requested_at=assignment.record.retry_requested_at,
         most_recent_cooldown_ended=PINNED - timedelta(minutes=1),
     )
     assert "next scheduler tick" in capsys.readouterr().out

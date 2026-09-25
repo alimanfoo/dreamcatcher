@@ -20,7 +20,7 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler import (
     DEFAULT_MAX_AGENTS,
-    derive_assignment_fault,
+    derive_agent_work_fault,
     read_scheduler_record,
 )
 from dreamcatcher.state import StateDirectory
@@ -287,8 +287,9 @@ def _retry_assignment(*, arguments: argparse.Namespace) -> None:
         if scheduler_record is None
         else scheduler_record.most_recent_cooldown_ended
     )
-    if not derive_assignment_fault(
-        assignment=assignment,
+    if not derive_agent_work_fault(
+        rounds=assignment.rounds,
+        retry_requested_at=assignment.record.retry_requested_at,
         most_recent_cooldown_ended=most_recent_cooldown_ended,
     ):
         raise ReportableError(f"{assignment.identifier} is not in fault.")
