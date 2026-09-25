@@ -453,7 +453,6 @@ The following are derived rather than persisted as authoritative state:
   agent assignment;
 - whether an assignment is complete or in fault;
 - whether an assignment requires an agent round or needs user feedback;
-- whether a conversation is running, waiting, inactive, or needs attention;
 - what round purpose and recovery flag are required next; and
 - every issue conversation and agent assignment status shown in a status report.
 
