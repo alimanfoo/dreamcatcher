@@ -39,6 +39,11 @@ end your turn when the work is done."""
     + AGENT_POST_INSTRUCTIONS
 )
 
+# A conversation agent does not post on GitHub, so its recovery prompt carries
+# no agent-post marker instructions.
+ISSUE_CONVERSATION_RECOVERY_PROMPT = """Your previous round did not finish. Carry
+on from where it stopped, and return the answer when the work is done."""
+
 # What a round resumed from the pull request asks for. It ports from the catcher
 # this tool replaces, word for word. The user's own words are never in it: the
 # posts go to a file, and this names the file. The file also says where the

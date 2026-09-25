@@ -39,6 +39,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     AgentRoundStartRequest,
     ErroredAgentRoundEnding,
+    IssueConversationInput,
     IssueConversationRoundPurpose,
     start_agent_round,
 )
@@ -72,10 +73,12 @@ from dreamcatcher.issue_conversations import (
     post_issue_conversation_answer,
     prepare_issue_conversation_input,
     read_issue_comment_delivery_cursor,
+    read_issue_conversation_input,
     read_issue_conversations,
     record_issue_conversation_session_identifier,
 )
 from dreamcatcher.prompts import (
+    ISSUE_CONVERSATION_RECOVERY_PROMPT,
     RECOVERY_PROMPT,
     compose_issue_conversation_prompt,
     compose_issue_conversation_round_prompt,
@@ -215,7 +218,7 @@ class RequiredAgentRound:
 
 
 @dataclass(frozen=True, kw_only=True)
-class IssueConversationCandidate:
+class NewIssueConversationRoundCandidate:
     """Describe an eligible issue with trusted comments waiting."""
 
     issue: Issue
@@ -225,12 +228,47 @@ class IssueConversationCandidate:
 
 
 @dataclass(frozen=True, kw_only=True)
+class RequiredIssueConversationRecovery:
+    """Describe an eligible conversation with unfinished work to recover."""
+
+    conversation: IssueConversation
+
+
+type IssueConversationCandidate = (
+    NewIssueConversationRoundCandidate | RequiredIssueConversationRecovery
+)
+
+
+@dataclass(frozen=True, kw_only=True)
 class IssueConversationCandidateResult:
     """Collect conversation observations, candidates, and any failed read."""
 
     candidates: list[IssueConversationCandidate]
     observations: list[IssueConversationObservation]
     failure: str | None = None
+
+
+@dataclass(frozen=True, kw_only=True)
+class _IssueConversationInspection:
+    observation: IssueConversationObservation
+    candidate: IssueConversationCandidate | None
+
+
+@dataclass(frozen=True, kw_only=True)
+class _IssueConversationCandidateContext:
+    repository: str
+    account: str
+    config: DreamcatcherConfig
+    most_recent_cooldown_ended: datetime | None
+
+
+@dataclass(frozen=True, kw_only=True)
+class _PreparedIssueConversationRound:
+    conversation: IssueConversation
+    round_input: IssueConversationInput
+    prompt: str
+    harness_session_identifier: str | None
+    is_recovery: bool
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -844,28 +882,27 @@ def compose_assignment_observation(
 
 def _list_issue_conversation_candidates(
     *,
-    repository: str,
-    account: str,
-    config: DreamcatcherConfig,
+    context: _IssueConversationCandidateContext,
     conversations: list[IssueConversation],
     previous_observations: list[IssueConversationObservation],
 ) -> IssueConversationCandidateResult:
     """Observe every eligible issue and return those ready for a new batch.
 
-    Every eligible issue's comments are read, whether or not an agent is free
-    to answer them, so that status can tell a waiting conversation from an
-    idle one. A failed read holds launches only where the conversation could
-    take a new batch. When eligible issues cannot be listed, the previous
-    tick's issues are observed again with an unknown fact, so the ones the
-    user took off the report stay off it.
+    Comments are read for every eligible issue that can accept a fresh batch,
+    whether or not an agent is free, so that status can tell waiting from idle.
+    Recovery uses the saved batch and does not read new comments. A failed read
+    holds launches only where the conversation could take a new batch. When
+    eligible issues cannot be listed, the previous tick's issues are observed
+    again with an unknown fact, so the ones the user took off the report stay
+    off it.
     """
-    conversation_config = config.conversation
+    conversation_config = context.config.conversation
     if conversation_config is None:
         return IssueConversationCandidateResult(candidates=[], observations=[])
     issue_response = list_issues(
-        repository=repository,
+        repository=context.repository,
         label=conversation_config.label,
-        assignee=account,
+        assignee=context.account,
     )
     if isinstance(issue_response, UnknownGitHubResponse):
         failure = f"could not list issue conversations: {issue_response.reason}"
@@ -893,26 +930,19 @@ def _list_issue_conversation_candidates(
         issue_response, key=lambda item: (item.created_at, item.number)
     ):
         conversation = conversations_by_issue.get(issue.number)
-        observation, candidate = _inspect_issue_conversation(
-            repository=repository,
-            account=account,
+        inspection = _inspect_issue_conversation(
+            context=context,
             config=conversation_config,
             issue=issue,
             conversation=conversation,
         )
-        observations.append(observation)
-        if candidate is not None:
-            candidates.append(candidate)
+        observations.append(inspection.observation)
+        if inspection.candidate is not None:
+            candidates.append(inspection.candidate)
         elif _is_conversation_ready_for_input(conversation=conversation):
-            failures.append(observation.has_comments_to_answer.evidence)
+            failures.append(inspection.observation.has_comments_to_answer.evidence)
     return IssueConversationCandidateResult(
-        candidates=sorted(
-            candidates,
-            key=lambda candidate: (
-                candidate.comments[0].written_at,
-                candidate.comments[0].id,
-            ),
-        ),
+        candidates=sorted(candidates, key=_rank_issue_conversation_candidate),
         observations=observations,
         failure=_combine_scheduler_failures(failures=failures),
     )
@@ -920,17 +950,45 @@ def _list_issue_conversation_candidates(
 
 def _inspect_issue_conversation(
     *,
-    repository: str,
-    account: str,
+    context: _IssueConversationCandidateContext,
     config: IssueConversationConfig,
     issue: Issue,
     conversation: IssueConversation | None,
-) -> tuple[IssueConversationObservation, IssueConversationCandidate | None]:
+) -> _IssueConversationInspection:
     """Observe one eligible issue, and return a candidate when it is ready."""
+    if conversation is not None and derive_agent_work_fault(
+        rounds=conversation.rounds,
+        retry_requested_at=conversation.record.retry_requested_at,
+        most_recent_cooldown_ended=context.most_recent_cooldown_ended,
+    ):
+        return _IssueConversationInspection(
+            observation=IssueConversationObservation(
+                issue=issue.number,
+                title=issue.title,
+                has_comments_to_answer=_compose_known_issue_fact(value=False),
+            ),
+            candidate=None,
+        )
+    if (
+        conversation is not None
+        and conversation.rounds
+        and conversation.rounds[-1].outcome
+        in {AgentRoundOutcome.ERRORED, AgentRoundOutcome.INTERRUPTED}
+    ):
+        return _IssueConversationInspection(
+            observation=IssueConversationObservation(
+                issue=issue.number,
+                title=issue.title,
+                has_comments_to_answer=_compose_known_issue_fact(value=False),
+            ),
+            candidate=RequiredIssueConversationRecovery(
+                conversation=conversation,
+            ),
+        )
     try:
         comments = _list_comments_to_answer(
-            repository=repository,
-            account=account,
+            repository=context.repository,
+            account=context.account,
             issue=issue.number,
             conversation=conversation,
         )
@@ -952,12 +1010,100 @@ def _inspect_issue_conversation(
         has_comments_to_answer=has_comments_to_answer,
     )
     if not comments or not _is_conversation_ready_for_input(conversation=conversation):
-        return observation, None
-    return observation, IssueConversationCandidate(
-        issue=issue,
-        comments=comments,
+        return _IssueConversationInspection(observation=observation, candidate=None)
+    return _IssueConversationInspection(
+        observation=observation,
+        candidate=NewIssueConversationRoundCandidate(
+            issue=issue,
+            comments=comments,
+            conversation=conversation,
+            config=config,
+        ),
+    )
+
+
+def _rank_issue_conversation_candidate(
+    candidate: IssueConversationCandidate, /
+) -> tuple[int, str, int]:
+    """Rank recovery before fresh batches, then fresh batches oldest first."""
+    if isinstance(candidate, RequiredIssueConversationRecovery):
+        return (0, "", candidate.conversation.record.issue)
+    first_comment = candidate.comments[0]
+    return (1, first_comment.written_at, first_comment.id)
+
+
+def _prepare_issue_conversation_round(
+    *, state: StateDirectory, candidate: IssueConversationCandidate
+) -> _PreparedIssueConversationRound:
+    """Prepare either a fresh conversation batch or unfinished work."""
+    if isinstance(candidate, RequiredIssueConversationRecovery):
+        return _prepare_issue_conversation_recovery(candidate=candidate)
+    conversation = candidate.conversation or create_issue_conversation(
+        state=state,
+        config=candidate.config,
+        issue=candidate.issue,
+    )
+    round_input = prepare_issue_conversation_input(
+        state=state,
         conversation=conversation,
-        config=config,
+        issue=candidate.issue,
+        comments=candidate.comments,
+    )
+    paths = conversation.compose_round_paths(number=conversation.next_round_number)
+    harness_session_identifier = None
+    prompt = compose_issue_conversation_prompt(
+        template=conversation.record.prompt,
+        issue=conversation.record.issue,
+        round_input=paths.round_input,
+    )
+    if conversation.rounds:
+        harness_session_identifier = conversation.record.harness_session_identifier
+        if harness_session_identifier is None:
+            raise ReportableError(
+                f"Could not resume {conversation.identifier}: its first round did "
+                "not report a harness session identifier."
+            )
+        prompt = compose_issue_conversation_round_prompt(
+            issue=conversation.record.issue,
+            round_input=paths.round_input,
+        )
+    return _PreparedIssueConversationRound(
+        conversation=conversation,
+        round_input=round_input,
+        prompt=prompt,
+        harness_session_identifier=harness_session_identifier,
+        is_recovery=False,
+    )
+
+
+def _prepare_issue_conversation_recovery(
+    *, candidate: RequiredIssueConversationRecovery
+) -> _PreparedIssueConversationRound:
+    """Prepare a recovery from the latest round's saved input and session."""
+    conversation = candidate.conversation
+    latest_round = conversation.rounds[-1]
+    round_input = read_issue_conversation_input(
+        conversation=conversation,
+        number=latest_round.number,
+    )
+    harness_session_identifier = conversation.record.harness_session_identifier
+    if harness_session_identifier is None:
+        next_input = conversation.compose_round_paths(
+            number=conversation.next_round_number
+        ).round_input
+        prompt = compose_issue_conversation_prompt(
+            template=conversation.record.prompt,
+            issue=conversation.record.issue,
+            round_input=next_input,
+        )
+    else:
+        prompt = ISSUE_CONVERSATION_RECOVERY_PROMPT
+    return _PreparedIssueConversationRound(
+        conversation=conversation,
+        round_input=round_input,
+        prompt=prompt,
+        harness_session_identifier=harness_session_identifier,
+        is_recovery=True,
     )
 
 
@@ -972,12 +1118,6 @@ def _list_comments_to_answer(
 
     Raise a `ReportableError` naming the issue when a read fails.
     """
-    if conversation is not None and conversation.unrecorded_round_input is not None:
-        raise ReportableError(
-            f"could not inspect saved conversation GH{issue}: "
-            f"Conversation {conversation.identifier} has input for round "
-            f"{conversation.next_round_number} without a round record."
-        )
     comment_response = list_issue_comments(repository=repository, issue=issue)
     if isinstance(comment_response, UnknownGitHubResponse):
         raise ReportableError(
@@ -1105,9 +1245,12 @@ class AgentWorkScheduler:
             at=at,
         )
         conversation_candidates = _list_issue_conversation_candidates(
-            repository=self.repository,
-            account=self.account,
-            config=self.config,
+            context=_IssueConversationCandidateContext(
+                repository=self.repository,
+                account=self.account,
+                config=self.config,
+                most_recent_cooldown_ended=most_recent_cooldown_ended,
+            ),
             conversations=conversations,
             previous_observations=(
                 []
@@ -1332,44 +1475,15 @@ class AgentWorkScheduler:
         record: SchedulerRecord,
         candidate: IssueConversationCandidate,
     ) -> SchedulerRecord:
-        """Create a conversation as needed and start its next round.
-
-        Once the round has started, its issue has no comments left to answer,
-        since the round holds every one of them.
-        """
+        """Prepare a conversation's required work and start its next round."""
         try:
-            conversation = candidate.conversation or create_issue_conversation(
+            prepared = _prepare_issue_conversation_round(
                 state=self.state,
-                config=candidate.config,
-                issue=candidate.issue,
+                candidate=candidate,
             )
-            round_input = prepare_issue_conversation_input(
-                state=self.state,
-                conversation=conversation,
-                issue=candidate.issue,
-                comments=candidate.comments,
-            )
+            conversation = prepared.conversation
             number = conversation.next_round_number
             paths = conversation.compose_round_paths(number=number)
-            harness_session_identifier = None
-            prompt = compose_issue_conversation_prompt(
-                template=conversation.record.prompt,
-                issue=conversation.record.issue,
-                round_input=paths.round_input,
-            )
-            if conversation.rounds:
-                harness_session_identifier = (
-                    conversation.record.harness_session_identifier
-                )
-                if harness_session_identifier is None:
-                    raise ReportableError(
-                        f"Could not resume {conversation.identifier}: its first "
-                        "round did not report a harness session identifier."
-                    )
-                prompt = compose_issue_conversation_round_prompt(
-                    issue=conversation.record.issue,
-                    round_input=paths.round_input,
-                )
             self.rounds[conversation.identifier] = start_agent_round(
                 request=AgentRoundStartRequest(
                     harness=conversation.record.harness,
@@ -1377,10 +1491,10 @@ class AgentWorkScheduler:
                         agent_work_identifier=conversation.identifier,
                         model=conversation.record.model,
                         effort=conversation.record.effort,
-                        prompt=prompt,
+                        prompt=prepared.prompt,
                         work_kind=AgentWorkKind.CONVERSATION,
                     ),
-                    harness_session_identifier=harness_session_identifier,
+                    harness_session_identifier=(prepared.harness_session_identifier),
                     record_harness_session_identifier=partial(
                         record_issue_conversation_session_identifier,
                         conversation=conversation,
@@ -1393,8 +1507,8 @@ class AgentWorkScheduler:
                     paths=paths,
                     plan=AgentRoundPlan(
                         purpose=IssueConversationRoundPurpose.DISCUSS,
-                        is_recovery=False,
-                        input=round_input,
+                        is_recovery=prepared.is_recovery,
+                        input=prepared.round_input,
                     ),
                 ),
                 clock=self.clock,

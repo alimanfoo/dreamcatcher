@@ -191,6 +191,47 @@ def test_conversation_page_shows_a_failed_round_waiting_to_be_recovered(tmp_path
     assert "round 1 errored (exit 2)" in page
 
 
+def test_conversation_page_shows_two_errors_as_a_fault(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state, status=2, is_eligible=True)
+    directory = state.conversations / "GH8"
+    write_round(
+        directory=directory,
+        number=2,
+        record=AgentRoundRecord(
+            number=2,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
+            is_recovery=True,
+            started=PINNED + timedelta(minutes=5),
+            pid=2,
+            ending=compose_agent_round_ending(
+                at=PINNED + timedelta(minutes=8), status=2
+            ),
+        ),
+    )
+    write_json(
+        document=IssueConversationInput(
+            issue=8,
+            comments=[
+                {
+                    "id": 1,
+                    "body": "Please explain.",
+                    "author": "alice",
+                    "written_at": "2026-09-23T01:00:00Z",
+                }
+            ],
+            revision="abc123",
+        ),
+        path=directory / "rounds" / "2" / "inbox.json",
+    )
+
+    page = application(state=state).test_client().get("/conversations/8").text
+
+    assert "status-fault" in page
+    assert "round 2 errored (exit 2)" in page
+    assert "(recovery)" in page
+
+
 def test_conversation_before_its_first_round_has_an_empty_feed(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state, has_round=False)

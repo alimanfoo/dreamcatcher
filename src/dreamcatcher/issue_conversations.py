@@ -5,6 +5,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from threading import Lock
 
+from pydantic import AwareDatetime
+
 from dreamcatcher.agent_rounds import (
     AgentRoundPaths,
     AgentRoundRecord,
@@ -58,6 +60,7 @@ class IssueConversationRecord(DreamcatcherDocument):
     label: str
     harness: IssueConversationHarness
     harness_session_identifier: HarnessSessionIdentifier | None = None
+    retry_requested_at: AwareDatetime | None = None
     model: QuotableText
     effort: QuotableText
     prompt: str
@@ -84,12 +87,6 @@ class IssueConversation:
     def next_round_number(self) -> int:
         """The number that the conversation's next round will carry."""
         return self.rounds[-1].number + 1 if self.rounds else 1
-
-    @property
-    def unrecorded_round_input(self) -> Path | None:
-        """The next round's input when no corresponding round record exists."""
-        path = self.compose_round_paths(number=self.next_round_number).round_input
-        return path if path.is_file() else None
 
     def compose_round_paths(self, *, number: int) -> AgentRoundPaths:
         """Return the paths for one numbered conversation round."""
