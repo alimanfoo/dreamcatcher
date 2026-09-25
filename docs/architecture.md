@@ -311,15 +311,22 @@ whether it required a round. Status reads this observation because view commands
 cannot reach GitHub. It is the last tick's interpretation kept as operational
 evidence, not authoritative assignment state.
 
-An `IssueConversationObservation` records the tick's view of one eligible
-conversation issue: its title, and an `IssueFact` saying whether comments wait
-to be answered. The tick observes every eligible issue, whether or not a
-conversation record exists yet, so status lists a conversation from the first
-tick that sees its issue. An issue that the tick did not observe is not
-eligible, and its conversation leaves the report once no round runs for it. When
-the tick cannot list eligible issues, it observes the previous tick's issues
-again with an unknown fact. An `IssueConversationStatus` is one summary status
-from the ontology.
+The scheduler record holds one `IssueConversationObservation` for each eligible
+conversation issue. Each observation records:
+
+- the issue and its title; and
+- an `IssueFact` that says whether comments wait to be answered.
+
+The tick observes an eligible issue even when it has no conversation record yet.
+So status lists a conversation from the first tick that sees its issue.
+
+An issue with no observation is not eligible. Status stops listing its
+conversation once no round runs for it.
+
+If the tick cannot list the eligible issues, it copies the previous tick's
+observations and marks each fact unknown.
+
+An `IssueConversationStatus` is one summary status from the ontology.
 
 The scheduler record also names the assignment or conversation whose round the
 tick launched. Alternation advances when a kind is selected, including when its
