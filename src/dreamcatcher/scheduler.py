@@ -1006,21 +1006,6 @@ def _is_conversation_ready_for_input(*, conversation: IssueConversation | None) 
     return conversation.rounds[-1].outcome is AgentRoundOutcome.SUCCESSFUL
 
 
-def _describe_conversation_wait(
-    *, observations: list[IssueConversationObservation], reason: str
-) -> list[IssueConversationObservation]:
-    """Say what keeps each issue that has comments to answer waiting."""
-    described: list[IssueConversationObservation] = []
-    for observation in observations:
-        fact = observation.has_comments_to_answer
-        if fact.value is IssueFactValue.TRUE:
-            fact = fact.model_copy(update={"evidence": f"{fact.evidence}, {reason}"})
-        described.append(
-            observation.model_copy(update={"has_comments_to_answer": fact})
-        )
-    return described
-
-
 def _combine_scheduler_failures(*, failures: list[str | None]) -> str | None:
     """Join independent scheduler failures."""
     present = [failure for failure in failures if failure is not None]
@@ -1147,15 +1132,7 @@ class AgentWorkScheduler:
             hold_reason = "global cooldown"
             if scheduler_failure is not None:
                 hold_reason = f"{hold_reason}; {scheduler_failure}"
-            return record.model_copy(
-                update={
-                    "hold": hold_reason,
-                    "conversation_observations": _describe_conversation_wait(
-                        observations=record.conversation_observations,
-                        reason="waiting for the global cooldown to end",
-                    ),
-                }
-            )
+            return record.model_copy(update={"hold": hold_reason})
         if len(self.rounds) >= self.max_agents:
             capacity_reason = (
                 f"at cap: {len(self.rounds)} of {self.max_agents} agents running"
@@ -1171,10 +1148,6 @@ class AgentWorkScheduler:
                     "assignment_observations": list_assignment_observations(
                         inspection_results=inspection_results,
                         required_reason=capacity_reason,
-                    ),
-                    "conversation_observations": _describe_conversation_wait(
-                        observations=record.conversation_observations,
-                        reason="waiting for a free agent",
                     ),
                 }
             )

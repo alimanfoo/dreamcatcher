@@ -138,7 +138,7 @@ def test_a_conversation_with_comments_to_answer_is_waiting(conversation_state):
         observations=[
             observed_conversation(
                 value=IssueFactValue.TRUE,
-                evidence="2 comments to answer, waiting for a free agent",
+                evidence="2 comments to answer",
             )
         ],
     )
@@ -146,7 +146,7 @@ def test_a_conversation_with_comments_to_answer_is_waiting(conversation_state):
     found = status(state=conversation_state)
 
     assert found.value is IssueConversationStatusValue.WAITING
-    assert found.detail == "2 comments to answer, waiting for a free agent"
+    assert found.detail == "2 comments to answer"
 
 
 def test_a_conversation_whose_comments_cannot_be_read_is_unknown(

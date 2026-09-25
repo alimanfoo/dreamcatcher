@@ -352,7 +352,7 @@ def test_comments_posted_during_a_round_wait_for_a_free_agent(
     assert observed.hold == "at cap: 1 of 1 agents running"
     assert observed.conversation_observations[0].has_comments_to_answer == IssueFact(
         value=IssueFactValue.TRUE,
-        evidence="1 comment to answer, waiting for a free agent",
+        evidence="1 comment to answer",
     )
     assert count_comment_reads(gh=gh) == 2
     refresh.assert_not_called()
@@ -471,7 +471,7 @@ def test_a_conversation_waits_for_shared_capacity(conversation_scheduler, harnes
     assert observed.hold == "at cap: 1 of 1 agents running"
     assert observed.conversation_observations[0].has_comments_to_answer == IssueFact(
         value=IssueFactValue.TRUE,
-        evidence="1 comment to answer, waiting for a free agent",
+        evidence="1 comment to answer",
     )
     assert harnesses["claude"].calls == []
 
@@ -495,7 +495,7 @@ def test_a_conversation_waits_for_the_active_global_cooldown(
     assert observed.hold == "global cooldown"
     assert observed.conversation_observations[0].has_comments_to_answer == IssueFact(
         value=IssueFactValue.TRUE,
-        evidence="1 comment to answer, waiting for the global cooldown to end",
+        evidence="1 comment to answer",
     )
     assert harnesses["claude"].calls == []
 
