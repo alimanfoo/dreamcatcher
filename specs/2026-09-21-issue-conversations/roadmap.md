@@ -259,6 +259,16 @@ GitHub posts, and a conversation agent posts nothing.
 A failed post of a round's answer makes the round errored (GH250), so recovery
 runs the round again with the same input and posts again.
 
+Two cases need no recovery machinery of their own. A conversation whose harness
+never reported a session identifier, because its first round stopped before it
+could, has no session to resume or replace. Its recovery is a new first round,
+in a fresh session, with the first-round prompt, including the conversation's
+configured instructions, and the saved input. The recovery prompt is only for a
+resumed session. Input saved without a round record belongs to a batch that
+never started. The delivery position comes from the latest recorded round, so
+the next batch collects the same comments again and overwrites the file. That
+input is not recovered, and it is not reported as a problem.
+
 Conversations join the assignment fault rules. Two consecutive errored rounds
 since the latest retry or cooldown end put a conversation in fault, and
 automatic recovery stops. An interrupted round is not an error. A failure before
@@ -279,8 +289,10 @@ conversation's rounds and retry time too, rather than copying it, and add a
 retry time to the conversation record. Extend the scheduler's conversation
 inspection to require a recovery round, `_start_cooldown_if_required` to count
 conversation faults, and the retry command to find what is in fault at the
-issue. Add the conversation recovery prompt. The daemon's orphan sweep already
-marks unfinished conversation rounds interrupted.
+issue. Add the conversation recovery prompt. Remove the check in
+`_list_comments_to_answer` that makes a conversation unknown when it has input
+without a round record. The daemon's orphan sweep already marks unfinished
+conversation rounds interrupted.
 
 **Acceptance test.** Start an issue conversation round and stop the daemon while
 its feed shows the agent working. With the daemon stopped, inspect the
@@ -294,10 +306,13 @@ GitHub without being posted again by the user.
 input and revision held despite a changed main, queued comments not overtaking
 recovery, and no recovery while the issue is ineligible. Cover errored and
 interrupted rounds, a failed post counting as an errored round, and a failure
-before launch going to the scheduler hold. Cover retry clearing a conversation's
-fault, an assignment's or both, two conversations or a conversation and an
-assignment starting the same cooldown, and expiry clearing all faults. Check
-both UIs against the resulting saved states.
+before launch going to the scheduler hold. Cover a first round that stopped
+before its harness reported a session identifier recovering as a new first round
+with the configured instructions, and input without a round record being
+replaced by the next batch. Cover retry clearing a conversation's fault, an
+assignment's or both, two conversations or a conversation and an assignment
+starting the same cooldown, and expiry clearing all faults. Check both UIs
+against the resulting saved states.
 
 **Deferral.** Codex conversations.
 
