@@ -44,6 +44,7 @@ from dreamcatcher.status import (
     AgentRoundStatus,
     DreamcatcherStatusReport,
     IssueConversationStatus,
+    IssueFactValue,
     IssueObservation,
     read_agent_assignment_statuses_for_issue,
     read_issue_conversation_status,
@@ -325,24 +326,8 @@ def _render_assignments(
             Text(cast("str", setup.setup_failure)),
         ),
     )
-    rows += _render_issue_group(
-        heading="available issues",
-        issues=available_issues,
-        columns=2,
-        build_row=lambda issue: (
-            Text(f"GH{issue.issue}"),
-            Text(", ".join(issue.dispatch_labels or [])),
-        ),
-    )
-    rows += _render_issue_group(
-        heading="blocked issues",
-        issues=blocked_issues,
-        columns=3,
-        build_row=lambda issue: (
-            Text(f"GH{issue.issue}"),
-            Text(", ".join(issue.dispatch_labels or [])),
-            Text(cast("str", issue.blocked.evidence)),
-        ),
+    rows += _render_open_issues(
+        available_issues=available_issues, blocked_issues=blocked_issues
     )
     if completed:
         rows.append(
@@ -365,6 +350,30 @@ def _render_issue_group(
     for issue in issues:
         table.add_row(*build_row(issue))
     return [Text(heading, style="bold"), table]
+
+
+def _render_open_issues(
+    *,
+    available_issues: Sequence[IssueObservation],
+    blocked_issues: Sequence[IssueObservation],
+) -> list[RenderableType]:
+    """Render available and blocked issues as one table, status inline per row."""
+    issues = [*available_issues, *blocked_issues]
+    if not issues:
+        return []
+    table = _create_table(columns=3)
+    for issue in issues:
+        status = (
+            cast("str", issue.blocked.evidence)
+            if issue.blocked.value is IssueFactValue.TRUE
+            else "available"
+        )
+        table.add_row(
+            Text(f"GH{issue.issue}"),
+            Text(", ".join(issue.dispatch_labels or [])),
+            Text(status),
+        )
+    return [table]
 
 
 def _render_assignment_rows(

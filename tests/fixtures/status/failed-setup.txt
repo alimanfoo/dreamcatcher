@@ -11,5 +11,4 @@ assignments
   GH13-20260819-184158  waiting  next round, implement
   failed assignment setups                            
   GH20  assignment setup failed                       
-  available issues                                    
-  GH21  dream:smith                                   
+  GH21  dream:smith  available                        

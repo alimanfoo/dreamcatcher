@@ -19,9 +19,7 @@ assignments
   GH35-20260819-184158  waiting              next round, implement (recovery)                       
   GH44-20260819-184158  waiting              next round, implement                                  
   GH40-20260819-184158  unknown              no current scheduler observation                       
-  available issues                                                                                  
-  GH50  dream:smith                                                                                 
-  GH51  dream:smith                                                                                 
-  blocked issues                                                                                    
+  GH50  dream:smith  available                                                                      
+  GH51  dream:smith  available                                                                      
   GH52  dream:smith  blocked by GH50                                                                
   1 completed assignment                                                                            
