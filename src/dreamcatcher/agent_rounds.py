@@ -20,9 +20,9 @@ from enum import StrEnum
 from pathlib import Path
 from threading import Event as Flag
 from threading import Lock, Thread
-from typing import Annotated, Literal, Protocol
+from typing import Annotated, Literal, Protocol, Self
 
-from pydantic import Field, PositiveInt, field_validator
+from pydantic import Field, PositiveInt, model_validator
 
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.commands import spawn_command
@@ -127,19 +127,23 @@ class SuccessfulAgentRoundEnding(DreamcatcherDocument):
 
 
 class ErroredAgentRoundEnding(DreamcatcherDocument):
-    """An agent round ending with an error exit."""
+    """An agent round ending with an error exit, or a failure after a clean one.
+
+    A round whose harness exited cleanly errors when its owner cannot finish it,
+    and its reason says why.
+    """
 
     outcome: Literal[AgentRoundOutcome.ERRORED] = AgentRoundOutcome.ERRORED
     at: datetime
     status: int
+    reason: str | None = None
 
-    @field_validator("status")
-    @classmethod
-    def _refuse_success(cls, status: int, /) -> int:
-        """Keep a successful exit out of an errored ending."""
-        if status == 0:
-            raise ValueError("an errored round cannot have exit status 0")
-        return status
+    @model_validator(mode="after")
+    def _refuse_unexplained_success(self) -> Self:
+        """Keep a clean exit out of an errored ending that gives no reason."""
+        if self.status == 0 and self.reason is None:
+            raise ValueError("an errored round cannot have exit status 0 and no reason")
+        return self
 
 
 class InterruptedAgentRoundEnding(DreamcatcherDocument):
@@ -155,9 +159,15 @@ type AgentRoundEnding = Annotated[
 
 
 def compose_agent_round_ending(
-    *, at: datetime, status: int
+    *, at: datetime, status: int, failure: str | None = None
 ) -> SuccessfulAgentRoundEnding | ErroredAgentRoundEnding:
-    """Return the terminal outcome observed when a harness exited."""
+    """Return the terminal outcome observed when a harness exited.
+
+    A failure is what stopped the owner finishing a round whose harness exited
+    cleanly, and it errors the round.
+    """
+    if failure is not None:
+        return ErroredAgentRoundEnding(at=at, status=status, reason=failure)
     if status == 0:
         return SuccessfulAgentRoundEnding(at=at)
     return ErroredAgentRoundEnding(at=at, status=status)
@@ -531,7 +541,8 @@ class AgentRound:
         is written before the stream readers finish.
         """
         try:
-            status = self._finish_round(status=self.harness_process.wait())
+            status = self.harness_process.wait()
+            failure = self._finish_round(status=status)
             if self.is_interrupted:
                 self.record = record_agent_round_interruption(
                     record=self.record, path=self.paths.record
@@ -539,7 +550,9 @@ class AgentRound:
             else:
                 self.record = _record_agent_round_ending(
                     record=self.record,
-                    ending=compose_agent_round_ending(at=self.clock(), status=status),
+                    ending=compose_agent_round_ending(
+                        at=self.clock(), status=status, failure=failure
+                    ),
                     path=self.paths.record,
                 )
         finally:
@@ -550,22 +563,22 @@ class AgentRound:
             for stream_reader in self._stream_readers:
                 stream_reader.join()
 
-    def _finish_round(self, *, status: int) -> int:
-        """Let the owner finish a successful round, and return the status to record.
+    def _finish_round(self, *, status: int) -> str | None:
+        """Let the owner finish a successful round, and return why it could not.
 
-        A finisher that raises fails the round, and the feed says why. An
+        A finisher that raises fails the round, and the feed says why too. An
         interrupted round is not finished.
         """
         if self.finish_round is None or status != 0 or self.is_interrupted:
-            return status
+            return None
         try:
             self.finish_round(final_output=self._read_final_output())
         except ReportableError as failure:
             self._append_feed_events(
                 line="", events=[FeedNote(label="failed", detail=str(failure))]
             )
-            return 1
-        return status
+            return str(failure)
+        return None
 
     def _read_final_output(self) -> str | None:
         """Return the harness's final output, once it has had time to land."""

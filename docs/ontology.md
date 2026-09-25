@@ -179,8 +179,9 @@ process state, and the latest scheduler evidence about whether another round was
 required or launched.
 
 An **issue conversation status** is a conversation's single summary status in a
-status report. It is derived from the conversation record, its latest round and
-the daemon process.
+status report. It is derived from the conversation record, its latest round, the
+daemon process, and the latest scheduler evidence about whether its issue is
+eligible and whether comments wait to be answered.
 
 ### Global cooldown
 
@@ -312,14 +313,35 @@ assignment can have any assignment status except complete.
 
 ### Issue conversation status
 
-An issue conversation has one of these summary statuses:
+An issue conversation has one of these summary statuses. Each uses the word of
+the agent assignment status that means the same thing:
 
-- **Running**: an agent round is running.
-- **Waiting**: the issue is eligible and the conversation is waiting for its
-  first round or for another comment, or current eligibility is unknown.
-- **Needs attention**: the latest round errored or was interrupted, and
-  Dreamcatcher will not resume it automatically yet.
-- **Inactive**: the issue is not currently eligible for new comment batches.
+- **Working**: an agent round is running. Its counterpart is working.
+- **Waiting**: a round is due but has not started, because comments wait to be
+  answered, the first batch included, or because the latest round errored or was
+  interrupted and waits to be recovered. A free agent slot, or the end of a
+  cooldown, starts it. Nothing recovers a conversation round yet, so a
+  conversation whose round errored or was interrupted stays waiting. Its
+  counterpart is waiting.
+- **Idle**: no round is due, because the latest answer is posted or the user has
+  not commented yet. Its counterpart is needs user feedback.
+- **Fault**: two consecutive rounds have errored, and automatic recovery has
+  stopped. Nothing recovers a conversation round yet, so no conversation reaches
+  fault. Its counterpart is fault.
+- **Unknown**: Dreamcatcher cannot tell whether the issue is eligible or whether
+  comments wait. Its counterpart is unknown.
+
+Idle differs from needs user feedback on purpose. An assignment at rest has a
+pull request waiting for review, so it asks something of the user. A
+conversation at rest has already posted its answer, so it asks nothing. A
+conversation has no complete status.
+
+Every eligible issue has a conversation status from the first scheduler tick
+that observes it, whether or not a conversation record exists yet. Once the
+issue is not eligible, the status report lists its conversation only while a
+round runs. The conversation's own view still shows it, as idle with the reason.
+Conversations are listed as fault, working, waiting, unknown and then idle,
+since idle is not a call to action.
 
 These statuses are derived reporting projections, not persisted lifecycle state.
 
@@ -374,7 +396,9 @@ Dreamcatcher fetches main and asks Git to move the detached worktree to the
 fetched revision, discarding local changes left by the earlier investigation.
 Comments that arrive while a round runs stay beyond the latest round input.
 Closing the issue, removing its conversation label or unassigning the signed-in
-account makes the saved conversation inactive without deleting it.
+account stops new comment batches and takes the conversation off the status
+report once no round runs for it. The saved conversation is kept, and making the
+issue eligible again brings it back.
 
 ### Working through an assignment
 

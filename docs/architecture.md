@@ -113,8 +113,12 @@ and trusted comment history. Each later eligible batch resumes that session with
 only newly delivered comments. The scheduler first fetches main and asks Git to
 discard local changes and move the detached worktree to that revision. Each
 round input records its investigated revision. Comments posted while a round
-runs remain beyond the latest round input, and a failed or interrupted round
-needs attention before another batch can start.
+runs remain beyond the latest round input. A failed or interrupted round waits
+to be recovered, so no batch starts after it, and nothing recovers it yet.
+
+Every tick reads the comments of every eligible conversation issue, even when no
+agent is free, and records for each issue whether comments wait to be answered.
+The free-agent check gates only the launch, as it does for assignments.
 
 A conversation round posts its own answer. The conversation launcher gives the
 round a finisher that posts to the issue, so the shared round runner knows
@@ -122,8 +126,9 @@ nothing of GitHub. After the harness exits successfully, the round hands its
 final result to that finisher, which posts it with the agent marker, and then
 the round records its ending. It therefore keeps its agent slot while it posts,
 and no new batch starts until the answer is out. `NO_REPLY` posts nothing. A
-missing final result or a failed post makes the round errored, with the failure
-noted in its feed. Failed and interrupted rounds remain visible and are not
+missing final result or a failed post makes the round errored. The ending keeps
+the harness's clean exit status and gives the failure as its reason, and the
+feed notes it too. Failed and interrupted rounds remain visible and are not
 automatically resumed yet.
 
 ### Agent assignments
@@ -279,8 +284,8 @@ Status construction may read:
   harness session identifier or build a hand-resume command;
 - current child-process state;
 - the instance's repository record and daemon-run record;
-- scheduler records, including issue observations, assignment observations, the
-  active global cooldown, and the latest tick;
+- scheduler records, including issue observations, assignment and conversation
+  observations, the active global cooldown, and the latest tick;
 - the latest rendered feed output needed for a useful summary.
 
 It may call the scheduler's pure interpretation functions, but it cannot invoke
@@ -307,10 +312,22 @@ whether it required a round. Status reads this observation because view commands
 cannot reach GitHub. It is the last tick's interpretation kept as operational
 evidence, not authoritative assignment state.
 
-The scheduler record maps each saved conversation to an `IssueFact` describing
-whether GitHub's eligible-issue query contained it. Status uses that evidence to
-distinguish an eligible conversation waiting for comments from an inactive
-conversation, without contacting GitHub itself.
+The scheduler record holds one `IssueConversationObservation` for each eligible
+conversation issue. Each observation records:
+
+- the issue and its title; and
+- an `IssueFact` that says whether comments wait to be answered.
+
+The tick observes an eligible issue even when it has no conversation record yet.
+So status lists a conversation from the first tick that sees its issue.
+
+An issue with no observation is not eligible. Status stops listing its
+conversation once no round runs for it.
+
+If the tick cannot list the eligible issues, it copies the previous tick's
+observations and marks each fact unknown.
+
+An `IssueConversationStatus` is one summary status from the ontology.
 
 The scheduler record also names the assignment or conversation whose round the
 tick launched. Alternation advances when a kind is selected, including when its
@@ -424,8 +441,8 @@ A round record persists:
 - its owner-scoped number;
 - purpose and recovery flag;
 - start time and process identifier;
-- its terminal outcome, when known, and any observed end time and exit status;
-  and
+- its terminal outcome, when known, any observed end time and exit status, and
+  the reason an owner could not finish it; and
 - the durable files containing its prompt, delivered input, output, and any
   final result the harness reports.
 

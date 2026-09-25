@@ -113,31 +113,6 @@ def observed_issues(*, tick: SchedulerRecord) -> list[int]:
     return [observation.issue for observation in tick.issue_observations]
 
 
-@pytest.mark.parametrize(
-    ("legacy_fields", "expected"),
-    [
-        (
-            {
-                "launched_assignment_identifier": ASSIGNMENT_ID,
-                "launched_conversation_identifier": None,
-            },
-            ASSIGNMENT_ID,
-        ),
-        (
-            {
-                "launched_assignment_identifier": None,
-                "launched_conversation_identifier": "conversation-GH8",
-            },
-            "conversation-GH8",
-        ),
-    ],
-)
-def test_a_scheduler_record_reads_an_owner_specific_launch_key(legacy_fields, expected):
-    record = SchedulerRecord.model_validate({"at": PINNED, **legacy_fields})
-
-    assert record.launched_agent_work_identifier == expected
-
-
 def availability_values(*, tick: SchedulerRecord) -> list[IssueFactValue]:
     """Return each observed issue's derived availability in dispatch order."""
     return [

@@ -591,7 +591,9 @@ def test_a_finisher_that_fails_fails_the_round_and_says_why(fake, worktree, dire
 
     start_conversation_round(paths=paths, finish_round=finish_round).wait()
 
-    assert written(path=paths.record).outcome is AgentRoundOutcome.ERRORED
+    assert written(path=paths.record).ending == ErroredAgentRoundEnding(
+        at=PINNED, status=0, reason="could not post the answer on GH9"
+    )
     assert "[failed] could not post the answer on GH9" in paths.feed.read_text(
         encoding="utf-8"
     )
@@ -629,8 +631,8 @@ def test_a_round_interrupted_as_its_harness_succeeds_is_not_finished(
     finish_round.assert_not_called()
 
 
-def test_an_errored_ending_refuses_a_success_status():
-    with pytest.raises(ValueError, match="cannot have exit status 0"):
+def test_an_errored_ending_refuses_a_success_status_without_a_reason():
+    with pytest.raises(ValueError, match="cannot have exit status 0 and no reason"):
         ErroredAgentRoundEnding(at=PINNED, status=0)
 
 
