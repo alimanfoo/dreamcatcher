@@ -25,6 +25,7 @@ from dreamcatcher.agent_rounds import (
     compose_agent_round_ending,
 )
 from dreamcatcher.config import AgentHarness
+from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
 from dreamcatcher.documents import write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.scheduler import (
@@ -136,6 +137,7 @@ def test_an_empty_instance_reports_unknown_capacity_and_no_work(tmp_path):
     assert found.agent_harness is None
     assert found.dreamcatcher_version is None
     assert found.latest_scheduler_tick is None
+    assert found.scheduler_interval_seconds is None
     assert found.scheduler_hold is None
     assert found.max_agents is None
     assert found.running_agents == 0
@@ -551,6 +553,7 @@ def test_an_active_cooldown_and_hold_are_instance_facts(running):
     found = report(state=running)
 
     assert found.latest_scheduler_tick == PINNED
+    assert found.scheduler_interval_seconds == DEFAULT_INTERVAL_SECONDS
     assert found.scheduler_hold == "global cooldown"
     assert found.max_agents == 3
     assert found.active_global_cooldown == cooldown

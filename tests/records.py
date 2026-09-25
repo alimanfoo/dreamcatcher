@@ -11,6 +11,7 @@ from pathlib import Path
 
 from dreamcatcher import agent_assignments, agent_rounds, issue_conversations
 from dreamcatcher.config import AgentHarness
+from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
 from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
@@ -41,6 +42,7 @@ def write_daemon_run(
             harness=harness,
             version=version,
             max_agents=max_agents,
+            interval_seconds=DEFAULT_INTERVAL_SECONDS,
         ),
         path=state.daemon_run_record,
     )

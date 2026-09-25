@@ -322,6 +322,7 @@ def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(
         harness=AgentHarness.CLAUDE,
         version=DREAMCATCHER_VERSION,
         max_agents=1,
+        interval_seconds=300,
     )
     assert not daemon.state.lock.exists()
 
@@ -568,6 +569,7 @@ def test_a_run_that_cannot_read_an_assignment_refuses_to_start(dispatching):
         harness=AgentHarness.CODEX,
         version="2.9.0",
         max_agents=2,
+        interval_seconds=300,
     )
     write_json(document=previous_run, path=state.daemon_run_record)
     directory = write_agent_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13)

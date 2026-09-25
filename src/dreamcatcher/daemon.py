@@ -135,6 +135,7 @@ class DreamcatcherDaemon:
                     harness=self.harness,
                     version=DREAMCATCHER_VERSION,
                     max_agents=self.max_agents,
+                    interval_seconds=self.interval,
                 ),
                 path=self.state.daemon_run_record,
             )

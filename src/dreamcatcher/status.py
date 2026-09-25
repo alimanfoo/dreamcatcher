@@ -214,6 +214,7 @@ class DreamcatcherStatusReport:
     agent_harness: AgentHarness | None
     dreamcatcher_version: str | None
     latest_scheduler_tick: datetime | None
+    scheduler_interval_seconds: int | None
     scheduler_hold: str | None
     max_agents: int | None
     running_agents: int
@@ -233,6 +234,7 @@ class DreamcatcherDaemonStatus:
     agent_harness: AgentHarness | None
     dreamcatcher_version: str | None
     max_agents: int | None
+    interval_seconds: int | None
 
 
 def read_status_report(
@@ -260,6 +262,7 @@ def read_status_report(
         latest_scheduler_tick=(
             None if scheduler_record is None else scheduler_record.at
         ),
+        scheduler_interval_seconds=daemon.interval_seconds,
         scheduler_hold=(
             None
             if scheduler_record is None or reader.daemon_pid is None
@@ -323,6 +326,7 @@ def _read_dreamcatcher_daemon_status(
         agent_harness=None if daemon_run is None else daemon_run.harness,
         dreamcatcher_version=None if daemon_run is None else daemon_run.version,
         max_agents=None if daemon_run is None else daemon_run.max_agents,
+        interval_seconds=None if daemon_run is None else daemon_run.interval_seconds,
     )
 
 

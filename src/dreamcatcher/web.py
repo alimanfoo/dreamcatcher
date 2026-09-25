@@ -45,7 +45,7 @@ from dreamcatcher.status import (
     read_repository,
     read_status_report,
 )
-from dreamcatcher.words import describe_span, describe_time
+from dreamcatcher.words import describe_countdown, describe_time
 
 WEB_HOST = "127.0.0.1"
 WEB_BASE_PORT = 8100
@@ -1036,11 +1036,6 @@ def _describe_daemon(
 def _compose_instance_facts(
     *, report: DreamcatcherStatusReport, cooldown_end: str | None
 ) -> tuple[WebFact, ...]:
-    tick = (
-        "none recorded"
-        if report.latest_scheduler_tick is None
-        else f"{describe_span(span=report.at - report.latest_scheduler_tick)} ago"
-    )
     scheduler_hold = report.scheduler_hold
     if scheduler_hold is not None and scheduler_hold.startswith("at cap:"):
         scheduler_hold = None
@@ -1050,7 +1045,15 @@ def _compose_instance_facts(
             None if report.agent_harness is None else str(report.agent_harness),
             False,
         ),
-        ("latest scheduler tick", tick, False),
+        (
+            "next update in",
+            describe_countdown(
+                at=report.at,
+                since=report.latest_scheduler_tick,
+                span_seconds=report.scheduler_interval_seconds,
+            ),
+            False,
+        ),
         (
             "agent capacity",
             (
