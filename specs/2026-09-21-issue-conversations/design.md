@@ -120,7 +120,10 @@ its delivery position. An interrupted or failed round is resumed before any new
 batch is accepted. Its saved input and harness context are sufficient; recovery
 does not reread GitHub to reconstruct questions or reconcile replies. A crash at
 the launch/persistence boundary can repeat input. Exactly-once delivery is not a
-requirement.
+requirement. Input saved without a round record belongs to a batch that never
+started. The delivery position comes from the latest recorded round, so the next
+batch collects those comments again and overwrites the file. That input is not
+recovered.
 
 ### Worktree and issue conversation contract
 
@@ -210,7 +213,11 @@ The harness owns the conversation transcript. Every later invocation resumes
 that session. Recover an interrupted or failed round by asking it to continue
 the unfinished work, retaining its input and code revision. No separate summary
 memory, answer ledger, or transcript reconstruction is needed. A harness that
-cannot resume reports a normal failure; do not silently replace the session.
+cannot resume reports a normal failure; do not silently replace the session. A
+conversation whose harness never reported a session identifier has no session to
+resume or replace. Its recovery is a new first round, in a fresh session, with
+the first-round prompt, including the configured instructions, and the saved
+input.
 
 Reuse process supervision, session-ID capture, shutdown, and orphan recovery.
 Extend these mechanics to conversation-owned rounds without pretending their
