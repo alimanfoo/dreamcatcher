@@ -1,8 +1,7 @@
 """Schedule agent work for one Dreamcatcher instance.
 
-Each tick reads local agent work, observes relevant issues on GitHub, publishes
-saved conversation answers, applies the concurrency cap and global cooldown,
-and launches at most one round.
+Each tick reads local agent work, observes relevant issues on GitHub, applies
+the concurrency cap and global cooldown, and launches at most one round.
 
 Within assignment work, a missing first round comes first, followed by recovery,
 wrap-up, user feedback, and dispatch of the oldest available issue. Conversation
@@ -33,12 +32,13 @@ from dreamcatcher.agent_assignments import (
 )
 from dreamcatcher.agent_rounds import (
     AgentAssignmentRoundInput,
+    AgentAssignmentRoundPurpose,
     AgentRound,
     AgentRoundOutcome,
     AgentRoundPlan,
-    AgentRoundPurpose,
     AgentRoundStartRequest,
     ErroredAgentRoundEnding,
+    IssueConversationRoundPurpose,
     start_agent_round,
 )
 from dreamcatcher.config import (
@@ -46,7 +46,7 @@ from dreamcatcher.config import (
     DreamcatcherConfig,
     IssueConversationConfig,
 )
-from dreamcatcher.documents import DreamcatcherDocument, read_json, read_text
+from dreamcatcher.documents import DreamcatcherDocument, read_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
     ConversationComment,
@@ -59,7 +59,6 @@ from dreamcatcher.github import (
     list_blocking_issues,
     list_issue_comments,
     list_issues,
-    post_issue_comment,
     read_issue,
     read_issue_pull_request_context,
     read_pull_request,
@@ -69,16 +68,13 @@ from dreamcatcher.issue_conversations import (
     IssueConversation,
     create_issue_conversation,
     list_undelivered_issue_comments,
+    post_issue_conversation_answer,
     prepare_issue_conversation_input,
     read_issue_comment_delivery_cursor,
-    read_issue_conversation_reply,
     read_issue_conversations,
-    record_issue_conversation_reply_publication,
     record_issue_conversation_session_identifier,
-    save_issue_conversation_reply,
 )
 from dreamcatcher.prompts import (
-    AGENT_POST_MARKER,
     RECOVERY_PROMPT,
     compose_issue_conversation_prompt,
     compose_issue_conversation_round_prompt,
@@ -635,7 +631,7 @@ def _rank_required_round(required: RequiredAgentRound, /) -> int:
         return 0
     if required.plan.is_recovery:
         return 1
-    if required.plan.purpose is AgentRoundPurpose.WRAP_UP:
+    if required.plan.purpose is AgentAssignmentRoundPurpose.WRAP_UP:
         return 2
     return 3
 
@@ -756,7 +752,9 @@ def compose_initial_round_requirement(
     """Return the first round that a recorded assignment requires."""
     return RequiredAgentRound(
         assignment=assignment,
-        plan=AgentRoundPlan(purpose=AgentRoundPurpose.IMPLEMENT, is_recovery=False),
+        plan=AgentRoundPlan(
+            purpose=AgentAssignmentRoundPurpose.IMPLEMENT, is_recovery=False
+        ),
         reason=NO_ROUND_HAS_RUN,
         prompt=assignment.record.prompt,
     )
@@ -798,13 +796,13 @@ def _compose_resumed_round_requirement(
     )
 
 
-def _derive_round_purpose(*, pull_request: PullRequest) -> AgentRoundPurpose:
+def _derive_round_purpose(*, pull_request: PullRequest) -> AgentAssignmentRoundPurpose:
     """Return the purpose that the pull request currently requires."""
     if pull_request.state is not PullRequestState.OPEN:
-        return AgentRoundPurpose.WRAP_UP
+        return AgentAssignmentRoundPurpose.WRAP_UP
     if pull_request.is_draft:
-        return AgentRoundPurpose.IMPLEMENT
-    return AgentRoundPurpose.ADDRESS_FEEDBACK
+        return AgentAssignmentRoundPurpose.IMPLEMENT
+    return AgentAssignmentRoundPurpose.ADDRESS_FEEDBACK
 
 
 def compose_assignment_observation(
@@ -962,82 +960,11 @@ def _is_conversation_ready_for_input(*, conversation: IssueConversation) -> bool
         )
     if not conversation.rounds:
         return True
-    latest = conversation.rounds[-1]
-    if latest.outcome is not AgentRoundOutcome.SUCCESSFUL:
-        return False
-    reply = read_issue_conversation_reply(
-        conversation=conversation,
-        number=latest.number,
-    )
-    return reply is not None and reply.is_complete
-
-
-def _publish_issue_conversation_replies(
-    *, repository: str, conversations: list[IssueConversation], at: datetime
-) -> str | None:
-    """Save successful final answers and publish each answer still waiting."""
-    failures: list[str | None] = []
-    for conversation in conversations:
-        try:
-            failures.append(
-                _publish_issue_conversation_reply(
-                    repository=repository,
-                    conversation=conversation,
-                    at=at,
-                )
-            )
-        except ReportableError as failure:
-            failures.append(
-                f"could not publish the answer for GH{conversation.record.issue}: "
-                f"{failure}"
-            )
-    return _combine_scheduler_failures(failures=failures)
-
-
-def _publish_issue_conversation_reply(
-    *, repository: str, conversation: IssueConversation, at: datetime
-) -> str | None:
-    """Publish one conversation's saved or newly completed answer."""
-    if not conversation.rounds:
-        return None
-    record = conversation.rounds[-1]
-    reply = read_issue_conversation_reply(
-        conversation=conversation,
-        number=record.number,
-    )
-    if reply is None:
-        if record.outcome is not AgentRoundOutcome.SUCCESSFUL:
-            return None
-        final_output = read_text(
-            path=conversation.compose_round_paths(number=record.number).final_output
-        )
-        reply = save_issue_conversation_reply(
-            conversation=conversation,
-            number=record.number,
-            body=final_output,
-        )
-    if reply.is_complete:
-        return None
-    response = post_issue_comment(
-        repository=repository,
-        issue=conversation.record.issue,
-        body=f"{reply.body}\n\n{AGENT_POST_MARKER}",
-    )
-    if isinstance(response, UnknownGitHubResponse):
-        return (
-            f"could not publish the answer for GH{conversation.record.issue}: "
-            f"{response.reason}"
-        )
-    record_issue_conversation_reply_publication(
-        conversation=conversation,
-        number=record.number,
-        at=at,
-    )
-    return None
+    return conversation.rounds[-1].outcome is AgentRoundOutcome.SUCCESSFUL
 
 
 def _combine_scheduler_failures(*, failures: list[str | None]) -> str | None:
-    """Join independent scheduler read or publication failures."""
+    """Join independent scheduler failures."""
     present = [failure for failure in failures if failure is not None]
     return "; ".join(present) if present else None
 
@@ -1100,11 +1027,6 @@ class AgentWorkScheduler:
             del self.rounds[agent_work_identifier]
         assignments = read_agent_assignments(state=self.state)
         conversations = read_issue_conversations(state=self.state)
-        publication_failure = _publish_issue_conversation_replies(
-            repository=self.repository,
-            conversations=conversations,
-            at=at,
-        )
         issue_observation_result = observe_issues(
             repository=self.repository,
             account=self.account,
@@ -1146,14 +1068,8 @@ class AgentWorkScheduler:
                 cooldown is None and len(self.rounds) < self.max_agents
             ),
         )
-        conversation_failure = _combine_scheduler_failures(
-            failures=[
-                conversation_candidates.failure,
-                publication_failure,
-            ]
-        )
         scheduler_failure = _combine_scheduler_failures(
-            failures=[assignment_failure, conversation_failure]
+            failures=[assignment_failure, conversation_candidates.failure]
         )
         assignment_observations = list_assignment_observations(
             inspection_results=inspection_results
@@ -1348,6 +1264,7 @@ class AgentWorkScheduler:
                 record_harness_session_identifier=partial(
                     record_harness_session_identifier, assignment=assignment
                 ),
+                finish_round=None,
                 paths=assignment.compose_round_paths(
                     number=assignment.next_round_number
                 ),
@@ -1417,9 +1334,14 @@ class AgentWorkScheduler:
                         record_issue_conversation_session_identifier,
                         conversation=conversation,
                     ),
+                    finish_round=partial(
+                        post_issue_conversation_answer,
+                        repository=self.repository,
+                        issue=conversation.record.issue,
+                    ),
                     paths=paths,
                     plan=AgentRoundPlan(
-                        purpose=AgentRoundPurpose.DISCUSS,
+                        purpose=IssueConversationRoundPurpose.DISCUSS,
                         is_recovery=False,
                         input=round_input,
                     ),

@@ -19,7 +19,7 @@ import dreamcatcher.scheduler as scheduler_module
 import dreamcatcher.status as status_module
 import dreamcatcher.tui as tui_module
 from dreamcatcher.agent_rounds import (
-    AgentRoundPurpose,
+    AgentAssignmentRoundPurpose,
     AgentRoundRecord,
     InterruptedAgentRoundEnding,
     compose_agent_round_ending,
@@ -67,7 +67,7 @@ def ran(
     *,
     state: StateDirectory,
     number: int,
-    purpose: AgentRoundPurpose = AgentRoundPurpose.IMPLEMENT,
+    purpose: AgentAssignmentRoundPurpose = AgentAssignmentRoundPurpose.IMPLEMENT,
     status: int | None = 0,
     ended_at=PINNED,
 ) -> None:
@@ -221,7 +221,7 @@ def test_a_terminal_round_status_describes_its_outcome_and_duration(
         number=1,
         record=AgentRoundRecord(
             number=1,
-            purpose=AgentRoundPurpose.IMPLEMENT,
+            purpose=AgentAssignmentRoundPurpose.IMPLEMENT,
             started=PINNED,
             pid=1,
             ending=ending,
@@ -265,7 +265,7 @@ def test_status_recovers_the_harness_session_and_builds_its_resume_command(tmp_p
         number=1,
         record=AgentRoundRecord(
             number=1,
-            purpose=AgentRoundPurpose.IMPLEMENT,
+            purpose=AgentAssignmentRoundPurpose.IMPLEMENT,
             started=PINNED,
             pid=1,
             ending=compose_agent_round_ending(
@@ -322,7 +322,7 @@ def test_status_with_no_harness_session_has_no_resume_command(tmp_path):
         number=1,
         record=AgentRoundRecord(
             number=1,
-            purpose=AgentRoundPurpose.IMPLEMENT,
+            purpose=AgentAssignmentRoundPurpose.IMPLEMENT,
             started=PINNED,
             pid=1,
             ending=compose_agent_round_ending(
@@ -365,7 +365,7 @@ def test_an_unfinished_round_waits_for_recovery(state, round_status, detail):
 
 def test_a_successful_wrap_up_is_complete(state):
     ran(state=state, number=1)
-    ran(state=state, number=2, purpose=AgentRoundPurpose.WRAP_UP)
+    ran(state=state, number=2, purpose=AgentAssignmentRoundPurpose.WRAP_UP)
 
     status = only_assignment(state=state)
 
@@ -600,7 +600,7 @@ def test_an_open_local_assignment_removes_its_issue_from_available_work(state):
 
 
 def test_a_complete_local_assignment_no_longer_claims_its_observed_issue(state):
-    ran(state=state, number=1, purpose=AgentRoundPurpose.WRAP_UP)
+    ran(state=state, number=1, purpose=AgentAssignmentRoundPurpose.WRAP_UP)
     observation = observed_issue(
         issue=13,
         values={"claimed_here": IssueFactValue.TRUE},

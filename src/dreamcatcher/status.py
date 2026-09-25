@@ -30,10 +30,8 @@ from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.issue_conversations import (
     IssueConversation,
     describe_issue_conversation_revision,
-    read_issue_comment_delivery_cursor,
     read_issue_conversation,
     read_issue_conversation_input,
-    read_issue_conversation_reply,
     read_issue_conversations,
 )
 from dreamcatcher.lock import read_daemon_pid
@@ -67,7 +65,6 @@ class IssueConversationStatusValue(StrEnum):
 
     RUNNING = "running"
     WAITING = "waiting"
-    AWAITING_PUBLICATION = "awaiting publication"
     NEEDS_ATTENTION = "needs attention"
     INACTIVE = "inactive"
 
@@ -536,7 +533,7 @@ class _StatusReportReader:
                 value=IssueConversationStatusValue.NEEDS_ATTENTION,
                 detail=_describe_round_outcome(record=latest, is_running=False),
             )
-        return self._read_successful_conversation_status(
+        return self._read_idle_conversation_status(
             conversation=conversation,
             eligibility=eligibility_value,
         )
@@ -564,43 +561,13 @@ class _StatusReportReader:
             ),
         )
 
-    def _read_successful_conversation_status(
-        self,
-        *,
-        conversation: IssueConversation,
-        eligibility: IssueFactValue,
-    ) -> IssueConversationStatus:
-        """Describe a conversation whose latest round succeeded."""
-        latest = conversation.rounds[-1]
-        try:
-            reply = read_issue_conversation_reply(
-                conversation=conversation, number=latest.number
-            )
-            if reply is None or not reply.is_complete:
-                return self._compose_issue_conversation_status(
-                    conversation=conversation,
-                    value=IssueConversationStatusValue.AWAITING_PUBLICATION,
-                    detail=f"round {latest.number} answer is waiting to be published",
-                )
-            read_issue_comment_delivery_cursor(conversation=conversation)
-        except ReportableError as failure:
-            return self._compose_issue_conversation_status(
-                conversation=conversation,
-                value=IssueConversationStatusValue.NEEDS_ATTENTION,
-                detail=str(failure),
-            )
-        return self._read_idle_conversation_status(
-            conversation=conversation,
-            eligibility=eligibility,
-        )
-
     def _read_idle_conversation_status(
         self,
         *,
         conversation: IssueConversation,
         eligibility: IssueFactValue,
     ) -> IssueConversationStatus:
-        """Describe a conversation whose latest answer is complete."""
+        """Describe a conversation whose latest round succeeded."""
         if eligibility is IssueFactValue.FALSE:
             return self._compose_issue_conversation_status(
                 conversation=conversation,

@@ -24,9 +24,10 @@ from records import (
 )
 
 from dreamcatcher.agent_rounds import (
+    AgentAssignmentRoundPurpose,
     AgentRoundOutcome,
-    AgentRoundPurpose,
     AgentRoundRecord,
+    IssueConversationRoundPurpose,
     compose_agent_round_ending,
 )
 from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME, AgentHarness
@@ -46,7 +47,7 @@ from dreamcatcher.version import DREAMCATCHER_VERSION
 ASSIGNMENT_ID = "GH13-20260819-184158"
 
 # What every round the tests here write down says woke it.
-PURPOSE = AgentRoundPurpose.IMPLEMENT
+PURPOSE = AgentAssignmentRoundPurpose.IMPLEMENT
 
 # How long a scripted harness waits after its first line, so a round the daemon
 # launched is certainly still running at the next tick. The waits these tests
@@ -433,7 +434,7 @@ def test_a_conversation_round_left_running_is_ended(
             number=1,
             started=PINNED,
             pid=left_running.pid,
-            purpose=AgentRoundPurpose.DISCUSS,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
         ),
     )
     daemon, _, _ = idling(root=watched)

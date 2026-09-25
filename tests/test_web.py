@@ -26,7 +26,9 @@ from werkzeug.test import TestResponse
 
 import dreamcatcher.web as web_module
 from dreamcatcher.agent_assignments import read_agent_assignment
-from dreamcatcher.agent_rounds import AgentRoundPurpose
+from dreamcatcher.agent_rounds import (
+    AgentAssignmentRoundPurpose,
+)
 from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
@@ -281,7 +283,7 @@ def test_complete_assignments_are_ordered_by_most_recent_completion(tmp_path):
         issue=10,
         records=[
             ended(minute=1),
-            ended(minute=2, number=2, purpose=AgentRoundPurpose.WRAP_UP),
+            ended(minute=2, number=2, purpose=AgentAssignmentRoundPurpose.WRAP_UP),
         ],
     )
     written(
@@ -289,7 +291,7 @@ def test_complete_assignments_are_ordered_by_most_recent_completion(tmp_path):
         issue=20,
         records=[
             ended(minute=1),
-            ended(minute=20, number=2, purpose=AgentRoundPurpose.WRAP_UP),
+            ended(minute=20, number=2, purpose=AgentAssignmentRoundPurpose.WRAP_UP),
         ],
     )
 

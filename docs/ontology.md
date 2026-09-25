@@ -60,9 +60,10 @@ remains its communication channel; it has no implementation branch or pull
 request.
 
 An issue conversation starts with one initial round. Each later eligible comment
-batch resumes the same harness session in another round. Every saved final
-answer is either published once on the issue or is `NO_REPLY`, which means no
-post is needed. Automatic recovery is not supported yet.
+batch resumes the same harness session in another round. Each successful round
+posts its final answer on the issue before it ends, unless the answer is
+`NO_REPLY`, which means no post is needed. Automatic recovery is not supported
+yet.
 
 ### Agent work and agent work identifier
 
@@ -119,13 +120,17 @@ position within one assignment or issue conversation.
 
 ### Round purpose
 
-Every agent round has one **round purpose** from this set:
+Every agent round has one **round purpose**. An assignment round has one of
+these:
 
 - **Implement**: advance an assignment whose pull request is still a draft.
 - **Address feedback**: respond after the pull request is ready for the user to
   review.
 - **Wrap up**: finish an assignment whose pull request has been merged or
   closed.
+
+An issue conversation round always has the same purpose:
+
 - **Discuss**: answer the user in an issue conversation.
 
 ### Round outcome
@@ -174,8 +179,8 @@ process state, and the latest scheduler evidence about whether another round was
 required or launched.
 
 An **issue conversation status** is a conversation's single summary status in a
-status report. It is derived from the conversation record, its latest round, the
-daemon process and the reply's publication state.
+status report. It is derived from the conversation record, its latest round and
+the daemon process.
 
 ### Global cooldown
 
@@ -312,8 +317,6 @@ An issue conversation has one of these summary statuses:
 - **Running**: an agent round is running.
 - **Waiting**: the issue is eligible and the conversation is waiting for its
   first round or for another comment, or current eligibility is unknown.
-- **Awaiting publication**: the latest round succeeded, but its answer has not
-  yet been recorded as published.
 - **Needs attention**: the latest round errored or was interrupted, and
   Dreamcatcher will not resume it automatically yet.
 - **Inactive**: the issue is not currently eligible for new comment batches.
@@ -361,18 +364,17 @@ conversation eligibility.
 Dreamcatcher fetches main, creates a detached worktree, records its revision and
 the chosen conversation settings, freezes the issue and eligible comment batch,
 then starts the initial conversation round. The round shares the daemon's
-capacity and global cooldown with assignment rounds. A successful final result
-is saved before publication, so posting can be retried without rerunning the
-agent.
+capacity and global cooldown with assignment rounds. The round posts its final
+result on the issue before it records its ending. A failed post makes the round
+errored.
 
-After publication, another eligible comment batch resumes the same harness
+After the round ends, another eligible comment batch resumes the same harness
 session in another conversation round. Before it accepts that batch,
 Dreamcatcher fetches main and asks Git to move the detached worktree to the
 fetched revision, discarding local changes left by the earlier investigation.
-Comments that arrive while a round runs or an answer awaits publication stay
-beyond the latest round input. Closing the issue, removing its conversation
-label or unassigning the signed-in account makes the saved conversation inactive
-without deleting it.
+Comments that arrive while a round runs stay beyond the latest round input.
+Closing the issue, removing its conversation label or unassigning the signed-in
+account makes the saved conversation inactive without deleting it.
 
 ### Working through an assignment
 
@@ -408,10 +410,9 @@ a recovery round automatically unless the assignment has entered a fault.
 
 ### Scheduling work
 
-The scheduler creates agent assignments, starts agent rounds, and publishes
-issue conversation answers. A failed issue read prevents launches in the
-workflow that depends on those facts without preventing work in the other
-workflow.
+The scheduler creates agent assignments and starts agent rounds. A failed issue
+read prevents launches in the workflow that depends on those facts without
+preventing work in the other workflow.
 
 Existing assignments take precedence over new ones, ranked in this order:
 

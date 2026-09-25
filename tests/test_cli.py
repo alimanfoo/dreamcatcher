@@ -15,8 +15,9 @@ from records import (
 from dreamcatcher import web
 from dreamcatcher.agent_assignments import read_agent_assignments_for_issue
 from dreamcatcher.agent_rounds import (
-    AgentRoundPurpose,
+    AgentAssignmentRoundPurpose,
     AgentRoundRecord,
+    IssueConversationRoundPurpose,
     compose_agent_round_ending,
 )
 from dreamcatcher.cli import MAX_INTERVAL_SECONDS, main
@@ -46,7 +47,10 @@ def watching(tmp_path):
         directory=directory,
         number=1,
         record=AgentRoundRecord(
-            number=1, started=PINNED, pid=1, purpose=AgentRoundPurpose.IMPLEMENT
+            number=1,
+            started=PINNED,
+            pid=1,
+            purpose=AgentAssignmentRoundPurpose.IMPLEMENT,
         ),
     )
     write_feed(
@@ -80,7 +84,7 @@ def faulted(tmp_path):
                 number=number,
                 started=ended,
                 pid=1,
-                purpose=AgentRoundPurpose.IMPLEMENT,
+                purpose=AgentAssignmentRoundPurpose.IMPLEMENT,
                 ending=compose_agent_round_ending(at=ended, status=number),
             ),
         )
@@ -244,7 +248,7 @@ def test_feed_shows_what_the_assignment_said(monkeypatch, watching, capsys):
             number=2,
             started=later,
             pid=1,
-            purpose=AgentRoundPurpose.WRAP_UP,
+            purpose=AgentAssignmentRoundPurpose.WRAP_UP,
             ending=compose_agent_round_ending(at=later, status=0),
         ),
     )
@@ -277,7 +281,7 @@ def test_feed_shows_what_the_conversation_said(monkeypatch, watching, capsys):
             number=1,
             started=PINNED,
             pid=1,
-            purpose=AgentRoundPurpose.DISCUSS,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
             ending=compose_agent_round_ending(at=PINNED, status=0),
         ),
     )
