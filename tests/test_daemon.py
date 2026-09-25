@@ -24,9 +24,10 @@ from records import (
 )
 
 from dreamcatcher.agent_rounds import (
+    AgentAssignmentRoundPurpose,
     AgentRoundOutcome,
-    AgentRoundPurpose,
     AgentRoundRecord,
+    IssueConversationRoundPurpose,
     compose_agent_round_ending,
 )
 from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME, AgentHarness
@@ -46,7 +47,7 @@ from dreamcatcher.version import DREAMCATCHER_VERSION
 ASSIGNMENT_ID = "GH13-20260819-184158"
 
 # What every round the tests here write down says woke it.
-PURPOSE = AgentRoundPurpose.IMPLEMENT
+PURPOSE = AgentAssignmentRoundPurpose.IMPLEMENT
 
 # How long a scripted harness waits after its first line, so a round the daemon
 # launched is certainly still running at the next tick. The waits these tests
@@ -322,6 +323,7 @@ def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(
         harness=AgentHarness.CLAUDE,
         version=DREAMCATCHER_VERSION,
         max_agents=1,
+        interval_seconds=300,
     )
     assert not daemon.state.lock.exists()
 
@@ -433,7 +435,7 @@ def test_a_conversation_round_left_running_is_ended(
             number=1,
             started=PINNED,
             pid=left_running.pid,
-            purpose=AgentRoundPurpose.DISCUSS,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
         ),
     )
     daemon, _, _ = idling(root=watched)
@@ -568,6 +570,7 @@ def test_a_run_that_cannot_read_an_assignment_refuses_to_start(dispatching):
         harness=AgentHarness.CODEX,
         version="2.9.0",
         max_agents=2,
+        interval_seconds=300,
     )
     write_json(document=previous_run, path=state.daemon_run_record)
     directory = write_agent_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13)

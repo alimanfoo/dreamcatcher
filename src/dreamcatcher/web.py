@@ -9,6 +9,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime, tzinfo
 from functools import partial
+from pathlib import Path
 from typing import Protocol, cast
 from webbrowser import open as open_browser
 
@@ -27,10 +28,11 @@ from dreamcatcher.feed import (
     compose_agent_round_boundary,
     read_feed_line,
 )
+from dreamcatcher.issue_conversations import IssueConversation
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
-    CONVERSATION_STATUSES_THAT_END_A_VIEW,
+    CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER,
     STATUSES_THAT_END_A_VIEW,
     AgentAssignmentStatus,
     AgentAssignmentStatusValue,
@@ -45,7 +47,7 @@ from dreamcatcher.status import (
     read_repository,
     read_status_report,
 )
-from dreamcatcher.words import describe_span, describe_time
+from dreamcatcher.words import describe_countdown, describe_time
 
 WEB_HOST = "127.0.0.1"
 WEB_BASE_PORT = 8100
@@ -124,9 +126,7 @@ class WebConversationCard:
     title: str
     status: str
     detail: str
-    harness: str
-    model: str
-    effort: str
+    settings: str | None
     latest_output: str | None
 
 
@@ -252,12 +252,7 @@ class WebConversationView:
     title: str
     status: str
     detail: str
-    label: str
-    worktree: str
-    harness: str
-    harness_session_identifier: str
-    model: str
-    effort: str
+    facts: tuple[WebFact, ...]
     rounds: tuple[WebAgentRound, ...]
     feed_rounds: tuple[WebFeedRound, ...]
     feed_cursor: str
@@ -292,6 +287,14 @@ class _WebFeedOwner(Protocol):
     def compose_round_paths(self, *, number: int) -> AgentRoundPaths:
         """Return the paths of one numbered round."""
         ...
+
+
+@dataclass(frozen=True, kw_only=True)
+class _WebRoundFeed:
+    """Pair one saved round with the feed it wrote."""
+
+    record: AgentRoundRecord
+    feed: Path
 
 
 def create_app(
@@ -447,7 +450,7 @@ def _show_conversation_tail(
                 round_statuses=status.round_statuses, zone=zone
             ),
         ),
-        is_terminal=status.value in CONVERSATION_STATUSES_THAT_END_A_VIEW,
+        is_terminal=status.is_over,
         status_id="conversation-status",
         zone=zone,
     )
@@ -455,7 +458,7 @@ def _show_conversation_tail(
 
 def _show_agent_tail(
     *,
-    owner: _WebFeedOwner,
+    owner: _WebFeedOwner | None,
     context: WebAgentTailContext,
     is_terminal: bool,
     status_id: str,
@@ -482,7 +485,11 @@ def _show_agent_tail(
 
 
 def _missing_conversation_response(*, issue: int) -> tuple[str, int]:
-    """Render the response for an issue with no saved conversation."""
+    """Render the response for an issue with no conversation.
+
+    An issue has a conversation once it has a saved conversation or the latest
+    tick observed it as eligible.
+    """
     return (
         render_template(
             "error.html",
@@ -633,15 +640,18 @@ def _compose_home_view(
             daemon_pid=report.daemon_pid,
             dreamcatcher_version=report.dreamcatcher_version,
         ),
-        instance_facts=_compose_instance_facts(
-            report=report, cooldown_end=cooldown_end
-        ),
+        instance_facts=_compose_instance_facts(report=report),
         cooldown_message=(
             None if cooldown_end is None else f"Global cooldown ends {cooldown_end}"
         ),
         conversations=tuple(
             _compose_conversation_card(status=status)
-            for status in report.conversation_statuses
+            for status in sorted(
+                report.conversation_statuses,
+                key=lambda status: CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER.index(
+                    status.value
+                ),
+            )
         ),
         active_assignments=active_assignments,
         complete_assignments=complete_assignments,
@@ -690,16 +700,27 @@ def _compose_assignment_card(*, status: AgentAssignmentStatus) -> WebAssignmentC
 def _compose_conversation_card(
     *, status: IssueConversationStatus
 ) -> WebConversationCard:
-    """Return the values shown for one issue conversation on the home page."""
-    record = status.conversation.record
+    """Return the values shown for one issue conversation on the home page.
+
+    A conversation settles its settings when its first round launches.
+    """
+    conversation = status.conversation
     return WebConversationCard(
-        issue=record.issue,
-        title=record.title,
+        issue=status.issue,
+        title=status.title,
         status=str(status.value),
         detail=status.detail,
-        harness=str(record.harness),
-        model=record.model,
-        effort=record.effort,
+        settings=(
+            None
+            if conversation is None
+            else " · ".join(
+                [
+                    str(conversation.record.harness),
+                    conversation.record.model,
+                    conversation.record.effort,
+                ]
+            )
+        ),
         latest_output=status.latest_output,
     )
 
@@ -771,7 +792,6 @@ def _compose_conversation_view(
 ) -> WebConversationView:
     """Return the values shown on one issue-conversation page."""
     conversation = status.conversation
-    record = conversation.record
     repository = read_repository(state=state)
     daemon = read_dreamcatcher_daemon_status(state=state)
     rounds = _compose_agent_rounds(round_statuses=status.round_statuses, zone=zone)
@@ -784,21 +804,36 @@ def _compose_conversation_view(
             daemon_pid=daemon.pid,
             dreamcatcher_version=daemon.dreamcatcher_version,
         ),
-        issue=record.issue,
-        title=record.title,
+        issue=status.issue,
+        title=status.title,
         status=str(status.value),
         detail=status.detail,
-        label=record.label,
-        worktree=state.describe_path(path=conversation.worktree),
-        harness=str(record.harness),
-        harness_session_identifier=(
-            record.harness_session_identifier or "not recorded"
+        facts=(
+            ()
+            if conversation is None
+            else _compose_conversation_facts(state=state, conversation=conversation)
         ),
-        model=record.model,
-        effort=record.effort,
         rounds=rounds,
         feed_rounds=feed.rounds,
         feed_cursor=feed.cursor,
+    )
+
+
+def _compose_conversation_facts(
+    *, state: StateDirectory, conversation: IssueConversation
+) -> tuple[WebFact, ...]:
+    """Return the settings that a conversation settled at its first round."""
+    record = conversation.record
+    return (
+        WebFact(label="label", value=record.label),
+        WebFact(
+            label="worktree", value=state.describe_path(path=conversation.worktree)
+        ),
+        WebFact(label="harness", value=str(record.harness)),
+        WebFact(
+            label="session", value=record.harness_session_identifier or "not recorded"
+        ),
+        WebFact(label="model", value=f"{record.model} · {record.effort}"),
     )
 
 
@@ -850,21 +885,22 @@ def _decode_feed_cursor(*, value: str) -> WebFeedCursor:
 
 def _read_agent_tail(
     *,
-    owner: _WebFeedOwner,
+    owner: _WebFeedOwner | None,
     context: WebAgentTailContext,
     cursor: WebFeedCursor,
     zone: tzinfo | None,
 ) -> WebAgentTail:
     """Read feed output written after one cursor for any agent work."""
-    records_by_number = {record.number: record for record in owner.rounds}
+    round_feeds = _list_round_feeds(owner=owner)
     number, position, is_opening_round = _resolve_feed_cursor(
         cursor=cursor,
-        records_by_number=records_by_number,
+        round_feeds=round_feeds,
     )
     feed_rounds = []
     next_cursor = cursor
-    while (record := records_by_number.get(number)) is not None:
-        feed_path = owner.compose_round_paths(number=number).feed
+    while (round_feed := round_feeds.get(number)) is not None:
+        record = round_feed.record
+        feed_path = round_feed.feed
         if not is_complete_line_position(path=feed_path, position=position):
             raise _InvalidFeedCursorError
         written_lines, position = read_lines_from(
@@ -908,11 +944,11 @@ def _read_agent_tail(
 def _resolve_feed_cursor(
     *,
     cursor: WebFeedCursor,
-    records_by_number: dict[int, AgentRoundRecord],
+    round_feeds: dict[int, _WebRoundFeed],
 ) -> tuple[int, int, bool]:
     if cursor.round_number == 0:
         return 1, 0, True
-    if cursor.round_number not in records_by_number:
+    if cursor.round_number not in round_feeds:
         raise _InvalidFeedCursorError
     return cursor.round_number, cursor.position, False
 
@@ -935,20 +971,33 @@ def _compose_web_round_boundary(
     )
 
 
+def _list_round_feeds(*, owner: _WebFeedOwner | None) -> dict[int, _WebRoundFeed]:
+    """Return every saved round of the agent work with its feed, by number.
+
+    Agent work with no saved record yet has run no round.
+    """
+    if owner is None:
+        return {}
+    return {
+        record.number: _WebRoundFeed(
+            record=record, feed=owner.compose_round_paths(number=record.number).feed
+        )
+        for record in owner.rounds
+    }
+
+
 def _read_agent_feed(
     *,
-    owner: _WebFeedOwner,
+    owner: _WebFeedOwner | None,
     zone: tzinfo | None,
     rounds: tuple[WebAgentRound, ...] = (),
 ) -> WebAgentFeed:
     """Read the complete saved feed for any agent work."""
     feed_rounds = []
     cursor = WebFeedCursor(round_number=0, position=0)
-    for record in owner.rounds:
-        written_lines, position = read_lines_from(
-            path=owner.compose_round_paths(number=record.number).feed,
-            position=0,
-        )
+    for round_feed in _list_round_feeds(owner=owner).values():
+        record = round_feed.record
+        written_lines, position = read_lines_from(path=round_feed.feed, position=0)
         cursor = WebFeedCursor(round_number=record.number, position=position)
         feed_rounds.append(
             WebFeedRound(
@@ -1024,23 +1073,16 @@ def _describe_daemon(
     *, daemon_pid: int | None, dreamcatcher_version: str | None
 ) -> str:
     if daemon_pid is None:
-        return "daemon STOPPED"
+        return "daemon stopped"
     version = (
         ""
         if dreamcatcher_version is None
         else f"dreamcatcher v{dreamcatcher_version} · "
     )
-    return f"daemon RUNNING · {version}pid {daemon_pid}"
+    return f"daemon running · {version}pid {daemon_pid}"
 
 
-def _compose_instance_facts(
-    *, report: DreamcatcherStatusReport, cooldown_end: str | None
-) -> tuple[WebFact, ...]:
-    tick = (
-        "none recorded"
-        if report.latest_scheduler_tick is None
-        else f"{describe_span(span=report.at - report.latest_scheduler_tick)} ago"
-    )
+def _compose_instance_facts(*, report: DreamcatcherStatusReport) -> tuple[WebFact, ...]:
     scheduler_hold = report.scheduler_hold
     if scheduler_hold is not None and scheduler_hold.startswith("at cap:"):
         scheduler_hold = None
@@ -1050,20 +1092,27 @@ def _compose_instance_facts(
             None if report.agent_harness is None else str(report.agent_harness),
             False,
         ),
-        ("latest scheduler tick", tick, False),
+        (
+            "next update in",
+            (
+                None
+                if report.daemon_pid is None
+                else describe_countdown(
+                    at=report.at,
+                    since=report.latest_scheduler_tick,
+                    span_seconds=report.scheduler_interval_seconds,
+                )
+            ),
+            False,
+        ),
         (
             "agent capacity",
             (
                 None
                 if report.max_agents is None
-                else f"{report.running_agents} of {report.max_agents} in use"
+                else f"{report.running_agents} of {report.max_agents} working"
             ),
             False,
-        ),
-        (
-            "global cooldown",
-            None if cooldown_end is None else f"ends {cooldown_end}",
-            True,
         ),
         ("scheduler hold", scheduler_hold, scheduler_hold is not None),
     )

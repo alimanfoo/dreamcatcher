@@ -1,29 +1,33 @@
 """Render issue conversations in terminal views."""
 
+import os
 from datetime import timedelta
 from io import StringIO
 
 import pytest
 from clocks import PINNED
-from records import write_feed, write_issue_conversation, write_round, write_tick
+from observations import observed_conversation
+from records import (
+    write_feed,
+    write_final_output,
+    write_issue_conversation,
+    write_round,
+    write_running_conversation,
+    write_tick,
+)
 from rich.console import Console
 
 from dreamcatcher.agent_rounds import (
-    AgentRoundPurpose,
     AgentRoundRecord,
     IssueConversationInput,
+    IssueConversationRoundPurpose,
     compose_agent_round_ending,
 )
 from dreamcatcher.documents import write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.harness_adapters import AgentWorkKind
-from dreamcatcher.issue_conversations import (
-    read_issue_conversation,
-    record_issue_conversation_reply_publication,
-    save_issue_conversation_reply,
-)
-from dreamcatcher.scheduler import IssueFact, IssueFactValue, SchedulerRecord
+from dreamcatcher.scheduler import IssueFactValue, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.tui import (
     FeedSelection,
@@ -38,7 +42,6 @@ def conversation_state(
     *,
     root,
     status: int = 0,
-    is_published: bool = True,
     is_eligible: bool = False,
 ) -> StateDirectory:
     """Return state containing one finished conversation."""
@@ -49,7 +52,7 @@ def conversation_state(
         number=1,
         record=AgentRoundRecord(
             number=1,
-            purpose=AgentRoundPurpose.DISCUSS,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=1,
             ending=compose_agent_round_ending(
@@ -79,27 +82,12 @@ def conversation_state(
         number=1,
         lines=[FeedLine(at=PINNED, text="I found the answer.")],
     )
-    conversation = read_issue_conversation(state=state, issue=8)
-    assert conversation is not None
-    if status == 0:
-        save_issue_conversation_reply(
-            conversation=conversation, number=1, body="The answer."
-        )
-        if is_published:
-            record_issue_conversation_reply_publication(
-                conversation=conversation,
-                number=1,
-                at=PINNED + timedelta(minutes=5),
-            )
+    write_final_output(directory=directory, number=1, text="The answer.")
     write_tick(
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
-            conversation_eligibility={
-                8: IssueFact(
-                    value=(IssueFactValue.TRUE if is_eligible else IssueFactValue.FALSE)
-                ),
-            },
+            conversation_observations=[observed_conversation()] if is_eligible else [],
         ),
     )
     return state
@@ -112,7 +100,7 @@ def rendered_console() -> tuple[Console, StringIO]:
 
 
 def test_status_lists_the_issue_conversation(tmp_path):
-    state = conversation_state(root=tmp_path)
+    state = conversation_state(root=tmp_path, is_eligible=True)
     console, written = rendered_console()
 
     show_status_view(
@@ -124,8 +112,8 @@ def test_status_lists_the_issue_conversation(tmp_path):
     shown = written.getvalue()
     assert "issue conversations" in shown
     assert "GH8" in shown
-    assert "inactive" in shown
-    assert "issue is not eligible for conversation" in shown
+    assert "idle" in shown
+    assert "round 1, answered, ran 4m" in shown
 
 
 def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path):
@@ -136,7 +124,7 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
         number=2,
         record=AgentRoundRecord(
             number=2,
-            purpose=AgentRoundPurpose.DISCUSS,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
             started=PINNED + timedelta(minutes=6),
             pid=2,
             is_recovery=True,
@@ -181,11 +169,8 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
     assert "successful" in shown
 
 
-def test_conversation_detail_shows_attention_for_an_unreadable_input(tmp_path):
-    state = conversation_state(root=tmp_path)
-    conversation = read_issue_conversation(state=state, issue=8)
-    assert conversation is not None
-    conversation.compose_round_paths(number=1).round_input.write_bytes(b"not json")
+def test_conversation_detail_shows_a_failed_round(tmp_path):
+    state = conversation_state(root=tmp_path, status=2, is_eligible=True)
     console, written = rendered_console()
 
     show_conversation_view(
@@ -195,32 +180,7 @@ def test_conversation_detail_shows_attention_for_an_unreadable_input(tmp_path):
         timing=ViewTiming(clock=lambda: PINNED),
     )
 
-    shown = written.getvalue()
-    assert "needs attention" in shown
-    assert "inbox.json is not valid" in shown
-
-
-@pytest.mark.parametrize(
-    ("status", "is_published", "expected"),
-    [
-        (2, False, "waiting"),
-        (0, False, "awaiting publication"),
-    ],
-)
-def test_conversation_detail_shows_failed_and_pending_states(
-    tmp_path, status, is_published, expected
-):
-    state = conversation_state(root=tmp_path, status=status, is_published=is_published)
-    console, written = rendered_console()
-
-    show_conversation_view(
-        state=state,
-        issue=8,
-        console=console,
-        timing=ViewTiming(clock=lambda: PINNED),
-    )
-
-    assert expected in written.getvalue()
+    assert "waiting  round 1 errored (exit 2)" in written.getvalue()
 
 
 def test_conversation_detail_shows_a_fault_and_recovery_round(tmp_path):
@@ -231,7 +191,7 @@ def test_conversation_detail_shows_a_fault_and_recovery_round(tmp_path):
         number=2,
         record=AgentRoundRecord(
             number=2,
-            purpose=AgentRoundPurpose.DISCUSS,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
             started=PINNED + timedelta(minutes=6),
             pid=2,
             is_recovery=True,
@@ -308,7 +268,7 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
             number=2,
             record=AgentRoundRecord(
                 number=2,
-                purpose=AgentRoundPurpose.DISCUSS,
+                purpose=IssueConversationRoundPurpose.DISCUSS,
                 started=PINNED + timedelta(minutes=6),
                 pid=2,
                 ending=compose_agent_round_ending(
@@ -338,23 +298,11 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
             number=2,
             lines=[FeedLine(at=PINNED, text="I found the follow-up answer.")],
         )
-        conversation = read_issue_conversation(state=state, issue=8)
-        assert conversation is not None
-        save_issue_conversation_reply(
-            conversation=conversation, number=2, body="The follow-up answer."
-        )
-        record_issue_conversation_reply_publication(
-            conversation=conversation,
-            number=2,
-            at=PINNED + timedelta(minutes=11),
-        )
         write_tick(
             state=state,
             tick=SchedulerRecord(
                 at=PINNED,
-                conversation_eligibility={
-                    8: IssueFact(value=IssueFactValue.FALSE),
-                },
+                conversation_observations=[],
             ),
         )
 
@@ -410,3 +358,161 @@ def test_a_missing_conversation_round_says_how_many_exist(tmp_path):
             console=console,
             round_number=2,
         )
+
+
+def unsaved_conversation_state(*, root) -> StateDirectory:
+    """Return state whose latest tick observed GH9 with a comment to answer."""
+    state = StateDirectory(root=root)
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            conversation_observations=[
+                observed_conversation(
+                    issue=9, value=IssueFactValue.TRUE, evidence="1 comment to answer"
+                )
+            ],
+        ),
+    )
+    return state
+
+
+def test_status_lists_an_eligible_issue_before_its_conversation_is_saved(tmp_path):
+    state = unsaved_conversation_state(root=tmp_path)
+    console, written = rendered_console()
+
+    show_status_view(
+        state=state,
+        console=console,
+        timing=ViewTiming(clock=lambda: PINNED),
+    )
+
+    shown = written.getvalue()
+    assert "GH9" in shown
+    assert "waiting" in shown
+    assert "1 comment to answer" in shown
+
+
+def test_conversation_detail_before_its_first_round_shows_its_issue(tmp_path):
+    state = unsaved_conversation_state(root=tmp_path)
+    console, written = rendered_console()
+
+    show_conversation_view(
+        state=state,
+        issue=9,
+        console=console,
+        timing=ViewTiming(clock=lambda: PINNED),
+    )
+
+    shown = written.getvalue()
+    assert "issue conversation GH9" in shown
+    assert "Issue 9" in shown
+    assert "agent harness" not in shown
+
+
+def test_a_conversation_feed_before_its_first_round_says_so(tmp_path):
+    state = unsaved_conversation_state(root=tmp_path)
+    console, _ = rendered_console()
+
+    with pytest.raises(ReportableError, match="GH9 has not run a round yet"):
+        show_feed_view(
+            state=state,
+            selection=FeedSelection(issue=9, owner_kind=AgentWorkKind.CONVERSATION),
+            console=console,
+        )
+
+
+def test_conversations_are_listed_in_attention_order(tmp_path):
+    state = conversation_state(root=tmp_path)
+    write_running_conversation(state=state, issue=11, started=PINNED)
+    state.lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            conversation_observations=[
+                observed_conversation(issue=8),
+                observed_conversation(issue=9),
+                observed_conversation(
+                    issue=10, value=IssueFactValue.TRUE, evidence="1 comment to answer"
+                ),
+                observed_conversation(issue=11),
+                observed_conversation(
+                    issue=12, value=IssueFactValue.UNKNOWN, evidence="cannot tell"
+                ),
+            ],
+        ),
+    )
+    console, written = rendered_console()
+
+    show_status_view(
+        state=state,
+        console=console,
+        timing=ViewTiming(clock=lambda: PINNED),
+    )
+
+    shown = written.getvalue()
+    assert (
+        shown.index("GH11")
+        < shown.index("GH10")
+        < shown.index("GH12")
+        < shown.index("GH8")
+        < shown.index("GH9")
+    )
+    assert "working" in shown
+    assert "unknown" in shown
+
+
+def watched_console() -> tuple[Console, StringIO]:
+    """Return a plain console that says it is a terminal, so a view follows."""
+    written = StringIO()
+    return (
+        Console(
+            file=written,
+            width=100,
+            height=40,
+            force_terminal=True,
+            color_system=None,
+            legacy_windows=False,
+            _environ={"TERM": "xterm"},
+        ),
+        written,
+    )
+
+
+def refusing(seconds, /):
+    """A wait that a view with nothing more to show must never reach."""
+    raise AssertionError("the view waited for something that was not coming")
+
+
+def test_an_idle_conversation_view_off_the_report_never_waits(tmp_path):
+    state = conversation_state(root=tmp_path, status=0)
+    console, written = watched_console()
+
+    show_conversation_view(
+        state=state,
+        issue=8,
+        console=console,
+        timing=ViewTiming(clock=lambda: PINNED, wait=refusing),
+    )
+
+    assert "issue conversation GH8" in written.getvalue()
+
+
+def test_a_conversation_view_of_an_idle_conversation_keeps_watching(tmp_path):
+    state = conversation_state(root=tmp_path, is_eligible=True)
+    console, _ = watched_console()
+    waits = []
+
+    def interrupting(seconds, /):
+        waits.append(seconds)
+        raise KeyboardInterrupt
+
+    show_conversation_view(
+        state=state,
+        issue=8,
+        console=console,
+        timing=ViewTiming(clock=lambda: PINNED, wait=interrupting),
+    )
+
+    assert waits

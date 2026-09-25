@@ -28,7 +28,12 @@ from dreamcatcher.git import (
     refresh_detached_worktree,
     remove_worktree,
 )
-from dreamcatcher.github import ConversationComment, Issue
+from dreamcatcher.github import (
+    ConversationComment,
+    Issue,
+    UnknownGitHubResponse,
+    post_issue_comment,
+)
 from dreamcatcher.harness_adapters import (
     HarnessSessionIdentifier,
     refuse_reportable_harness_session_identifier,
@@ -38,7 +43,6 @@ from dreamcatcher.state import StateDirectory
 
 ISSUE_CONVERSATION_RECORD_NAME = "conversation.json"
 ISSUE_CONVERSATION_ROUNDS_DIRECTORY_NAME = "rounds"
-ISSUE_CONVERSATION_REPLY_NAME = "reply.json"
 NO_REPLY = "NO_REPLY"
 
 
@@ -61,23 +65,6 @@ class IssueConversationRecord(DreamcatcherDocument):
     model: QuotableText
     effort: QuotableText
     prompt: str
-
-
-class IssueConversationReply(DreamcatcherDocument):
-    """Model a saved final answer and its GitHub publication."""
-
-    body: str
-    published_at: AwareDatetime | None = None
-
-    @property
-    def is_no_reply(self) -> bool:
-        """Whether the agent explicitly said that no reply is needed."""
-        return self.body == NO_REPLY
-
-    @property
-    def is_complete(self) -> bool:
-        """Whether this answer needs no further publication attempt."""
-        return self.is_no_reply or self.published_at is not None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -116,12 +103,6 @@ class IssueConversation:
                 self.directory / ISSUE_CONVERSATION_ROUNDS_DIRECTORY_NAME
             ),
             number=number,
-        )
-
-    def compose_reply_path(self, *, number: int) -> Path:
-        """Return the path of one round's saved reply record."""
-        return self.compose_round_paths(number=number).directory / (
-            ISSUE_CONVERSATION_REPLY_NAME
         )
 
 
@@ -328,38 +309,34 @@ def request_issue_conversation_retry(
         )
 
 
-def save_issue_conversation_reply(
-    *, conversation: IssueConversation, number: int, body: str
-) -> IssueConversationReply:
-    """Save and return one round's final answer before publication."""
-    reply = IssueConversationReply(body=body.strip())
-    write_json(document=reply, path=conversation.compose_reply_path(number=number))
-    return reply
+def is_no_reply(*, final_output: str) -> bool:
+    """Return whether a round's final output declines to post an answer."""
+    return final_output.strip() == NO_REPLY
 
 
-def read_issue_conversation_reply(
-    *, conversation: IssueConversation, number: int
-) -> IssueConversationReply | None:
-    """Return one round's saved reply when it exists."""
-    path = conversation.compose_reply_path(number=number)
-    if not path.is_file():
-        return None
-    return read_json(model=IssueConversationReply, path=path)
+def post_issue_conversation_answer(
+    *, repository: str, issue: int, final_output: str | None
+) -> None:
+    """Post a conversation round's final output on its issue as one marked comment.
 
-
-def record_issue_conversation_reply_publication(
-    *, conversation: IssueConversation, number: int, at: datetime
-) -> IssueConversationReply:
-    """Record that GitHub accepted one saved answer."""
-    reply = read_issue_conversation_reply(conversation=conversation, number=number)
-    if reply is None:
+    Every conversation round must answer, so a missing or empty final output
+    raises a `ReportableError`, as does a comment that GitHub does not accept.
+    `NO_REPLY` posts nothing.
+    """
+    answer = (final_output or "").strip()
+    if not answer:
+        raise ReportableError("the harness returned no final output")
+    if is_no_reply(final_output=answer):
+        return
+    response = post_issue_comment(
+        repository=repository,
+        issue=issue,
+        body=f"{answer}\n\n{AGENT_POST_MARKER}",
+    )
+    if isinstance(response, UnknownGitHubResponse):
         raise ReportableError(
-            f"Conversation {conversation.identifier} round {number} has no saved "
-            "reply to publish."
+            f"could not post the answer on GH{issue}: {response.reason}"
         )
-    published = reply.model_copy(update={"published_at": at})
-    write_json(document=published, path=conversation.compose_reply_path(number=number))
-    return published
 
 
 def _read_issue_conversation(

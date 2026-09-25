@@ -43,6 +43,23 @@ def describe_span(*, span: timedelta) -> str:
     return f"{hours // HOURS_PER_DAY}d {hours % HOURS_PER_DAY}h"
 
 
+def describe_countdown(
+    *, at: datetime, since: datetime | None, span_seconds: int | None
+) -> str | None:
+    """Describe the time remaining until span_seconds after since.
+
+    Returns None when since or span_seconds is absent, so a caller with
+    nothing to count down from can leave the fact out rather than show it.
+    The remaining time floors at zero rather than reading negative once
+    span_seconds has fully elapsed.
+    """
+    if since is None or span_seconds is None:
+        return None
+    elapsed = at - since
+    remaining = max(timedelta(), timedelta(seconds=span_seconds) - elapsed)
+    return describe_span(span=remaining)
+
+
 def describe_count(*, number: int, noun: str) -> str:
     """Return a count with the noun pluralized when needed.
 

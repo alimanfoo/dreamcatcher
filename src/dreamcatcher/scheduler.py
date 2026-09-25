@@ -1,8 +1,7 @@
 """Schedule agent work for one Dreamcatcher instance.
 
-Each tick reads local agent work, observes relevant issues on GitHub, publishes
-saved conversation answers, applies the concurrency cap and global cooldown,
-and launches at most one round.
+Each tick reads local agent work, observes relevant issues on GitHub, applies
+the concurrency cap and global cooldown, and launches at most one round.
 
 Within assignment work, a missing first round comes first, followed by recovery,
 wrap-up, user feedback, and dispatch of the oldest available issue. Conversation
@@ -15,7 +14,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from functools import partial
-from typing import Annotated, Self, cast
+from typing import Annotated, Protocol, Self, cast
 
 from pydantic import AfterValidator, AwareDatetime, Field, model_validator
 
@@ -33,14 +32,15 @@ from dreamcatcher.agent_assignments import (
 )
 from dreamcatcher.agent_rounds import (
     AgentAssignmentRoundInput,
+    AgentAssignmentRoundPurpose,
     AgentRound,
     AgentRoundOutcome,
     AgentRoundPlan,
-    AgentRoundPurpose,
     AgentRoundRecord,
     AgentRoundStartRequest,
     ErroredAgentRoundEnding,
     IssueConversationInput,
+    IssueConversationRoundPurpose,
     describe_unfinished_agent_round,
     record_agent_round_launch_failure,
     start_agent_round,
@@ -50,7 +50,7 @@ from dreamcatcher.config import (
     DreamcatcherConfig,
     IssueConversationConfig,
 )
-from dreamcatcher.documents import DreamcatcherDocument, read_json, read_text
+from dreamcatcher.documents import DreamcatcherDocument, read_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
     ConversationComment,
@@ -63,7 +63,6 @@ from dreamcatcher.github import (
     list_blocking_issues,
     list_issue_comments,
     list_issues,
-    post_issue_comment,
     read_issue,
     read_issue_pull_request_context,
     read_pull_request,
@@ -73,17 +72,14 @@ from dreamcatcher.issue_conversations import (
     IssueConversation,
     create_issue_conversation,
     list_undelivered_issue_comments,
+    post_issue_conversation_answer,
     prepare_issue_conversation_input,
     read_issue_comment_delivery_cursor,
     read_issue_conversation_input,
-    read_issue_conversation_reply,
     read_issue_conversations,
-    record_issue_conversation_reply_publication,
     record_issue_conversation_session_identifier,
-    save_issue_conversation_reply,
 )
 from dreamcatcher.prompts import (
-    AGENT_POST_MARKER,
     RECOVERY_PROMPT,
     compose_issue_conversation_prompt,
     compose_issue_conversation_recovery_prompt,
@@ -154,6 +150,18 @@ class AgentAssignmentObservation(DreamcatcherDocument):
     is_round_required: bool = True
 
 
+class IssueConversationObservation(DreamcatcherDocument):
+    """Model what the scheduler found for one conversation issue in one tick.
+
+    The scheduler observes every eligible issue. When it cannot list eligible
+    issues, it observes the previous tick's issues again with an unknown fact.
+    """
+
+    issue: int
+    title: str
+    has_comments_to_answer: IssueFact
+
+
 class GlobalCooldown(DreamcatcherDocument):
     """Model an interval during which the scheduler starts no agent work."""
 
@@ -178,22 +186,11 @@ class SchedulerRecord(DreamcatcherDocument):
     assignment_observations: list[AgentAssignmentObservation] = Field(
         default_factory=list
     )
-    conversation_eligibility: dict[int, IssueFact] = Field(default_factory=dict)
+    conversation_observations: list[IssueConversationObservation] = Field(
+        default_factory=list
+    )
     cooldown: GlobalCooldown | None = None
     most_recent_cooldown_ended: UtcDateTime | None = None
-
-    @model_validator(mode="before")
-    @classmethod
-    def _read_legacy_launched_identifiers(cls, value: object, /) -> object:
-        """Read scheduler records written before launches had one owner-neutral key."""
-        if not isinstance(value, dict):
-            return value
-        data = dict(value)
-        assignment = data.pop("launched_assignment_identifier", None)
-        conversation = data.pop("launched_conversation_identifier", None)
-        if "launched_agent_work_identifier" not in data:
-            data["launched_agent_work_identifier"] = assignment or conversation
-        return data
 
     @property
     def launched_assignment_identifier(self) -> str | None:
@@ -237,7 +234,7 @@ class IssueConversationCandidateResult:
     """Collect conversation observations, candidates, and any failed read."""
 
     candidates: list[IssueConversationCandidate]
-    eligibility: dict[int, IssueFact]
+    observations: list[IssueConversationObservation]
     failure: str | None = None
 
 
@@ -710,7 +707,7 @@ def _rank_required_round(required: RequiredAgentRound, /) -> int:
         return 0
     if required.plan.is_recovery:
         return 1
-    if required.plan.purpose is AgentRoundPurpose.WRAP_UP:
+    if required.plan.purpose is AgentAssignmentRoundPurpose.WRAP_UP:
         return 2
     return 3
 
@@ -797,7 +794,7 @@ def _inspect_assignment_pull_request(
         return RequiredAgentRound(
             assignment=assignment,
             plan=AgentRoundPlan(
-                purpose=_derive_round_purpose(pull_request=pull_request),
+                purpose=derive_round_purpose(pull_request=pull_request),
                 is_recovery=True,
             ),
             reason=recovery_reason,
@@ -831,7 +828,9 @@ def compose_initial_round_requirement(
     """Return the first round that a recorded assignment requires."""
     return RequiredAgentRound(
         assignment=assignment,
-        plan=AgentRoundPlan(purpose=AgentRoundPurpose.IMPLEMENT, is_recovery=False),
+        plan=AgentRoundPlan(
+            purpose=AgentAssignmentRoundPurpose.IMPLEMENT, is_recovery=False
+        ),
         reason=NO_ROUND_HAS_RUN,
         prompt=assignment.record.prompt,
     )
@@ -849,7 +848,7 @@ def _compose_resumed_round_requirement(
     return RequiredAgentRound(
         assignment=assignment,
         plan=AgentRoundPlan(
-            purpose=_derive_round_purpose(pull_request=pull_request),
+            purpose=derive_round_purpose(pull_request=pull_request),
             is_recovery=recovery_reason is not None,
             input=AgentAssignmentRoundInput(
                 pull_request_state=pull_request.state, user_posts=undelivered_posts
@@ -873,13 +872,27 @@ def _compose_resumed_round_requirement(
     )
 
 
-def _derive_round_purpose(*, pull_request: PullRequest) -> AgentRoundPurpose:
+class _PullRequestRoundFacts(Protocol):
+    """Describe the pull-request facts that choose a round purpose."""
+
+    @property
+    def is_open(self) -> bool:
+        """Whether the pull request is open."""
+
+    @property
+    def is_draft(self) -> bool:
+        """Whether the pull request is a draft."""
+
+
+def derive_round_purpose(
+    *, pull_request: _PullRequestRoundFacts
+) -> AgentAssignmentRoundPurpose:
     """Return the purpose that the pull request currently requires."""
-    if pull_request.state is not PullRequestState.OPEN:
-        return AgentRoundPurpose.WRAP_UP
+    if not pull_request.is_open:
+        return AgentAssignmentRoundPurpose.WRAP_UP
     if pull_request.is_draft:
-        return AgentRoundPurpose.IMPLEMENT
-    return AgentRoundPurpose.ADDRESS_FEEDBACK
+        return AgentAssignmentRoundPurpose.IMPLEMENT
+    return AgentAssignmentRoundPurpose.ADDRESS_FEEDBACK
 
 
 def compose_assignment_observation(
@@ -916,7 +929,7 @@ def compose_issue_conversation_recovery_requirement(
     return RequiredIssueConversationRound(
         conversation=conversation,
         plan=AgentRoundPlan(
-            purpose=AgentRoundPurpose.DISCUSS,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
             is_recovery=True,
             input=round_input,
         ),
@@ -933,65 +946,63 @@ def _list_issue_conversation_candidates(
     account: str,
     config: DreamcatcherConfig,
     conversations: list[IssueConversation],
-    should_read_comments: bool,
+    previous_observations: list[IssueConversationObservation],
 ) -> IssueConversationCandidateResult:
-    """Return eligible issues whose next trusted comment batch is waiting."""
+    """Observe every eligible issue and return those ready for a new batch.
+
+    Every eligible issue's comments are read, whether or not an agent is free
+    to answer them, so that status can tell a waiting conversation from an
+    idle one. A failed read holds launches only where the conversation could
+    take a new batch. When eligible issues cannot be listed, the previous
+    tick's issues are observed again with an unknown fact, so the ones the
+    user took off the report stay off it.
+    """
     conversation_config = config.conversation
     if conversation_config is None:
-        return IssueConversationCandidateResult(
-            candidates=[],
-            eligibility={
-                conversation.record.issue: _compose_known_issue_fact(value=False)
-                for conversation in conversations
-            },
-        )
+        return IssueConversationCandidateResult(candidates=[], observations=[])
     issue_response = list_issues(
         repository=repository,
         label=conversation_config.label,
         assignee=account,
     )
     if isinstance(issue_response, UnknownGitHubResponse):
+        failure = f"could not list issue conversations: {issue_response.reason}"
         return IssueConversationCandidateResult(
             candidates=[],
-            eligibility={
-                conversation.record.issue: _compose_unknown_issue_fact(
-                    evidence=issue_response.reason
+            observations=[
+                observation.model_copy(
+                    update={
+                        "has_comments_to_answer": _compose_unknown_issue_fact(
+                            evidence=failure
+                        )
+                    }
                 )
-                for conversation in conversations
-            },
-            failure=f"could not list issue conversations: {issue_response.reason}",
-        )
-    eligible_issue_numbers = {issue.number for issue in issue_response}
-    eligibility = {
-        conversation.record.issue: _compose_known_issue_fact(
-            value=conversation.record.issue in eligible_issue_numbers
-        )
-        for conversation in conversations
-    }
-    if not should_read_comments:
-        return IssueConversationCandidateResult(
-            candidates=[],
-            eligibility=eligibility,
+                for observation in previous_observations
+            ],
+            failure=failure,
         )
     conversations_by_issue = {
         conversation.record.issue: conversation for conversation in conversations
     }
     candidates: list[IssueConversationCandidate] = []
+    observations: list[IssueConversationObservation] = []
     failures: list[str | None] = []
     for issue in sorted(
         issue_response, key=lambda item: (item.created_at, item.number)
     ):
         conversation = conversations_by_issue.get(issue.number)
-        candidate, failure = _inspect_issue_conversation_candidate(
+        observation, candidate = _inspect_issue_conversation(
             repository=repository,
             account=account,
             config=conversation_config,
             issue=issue,
             conversation=conversation,
         )
-        failures.append(failure)
+        observations.append(observation)
         if candidate is not None:
             candidates.append(candidate)
+        elif _is_conversation_ready_for_input(conversation=conversation):
+            failures.append(observation.has_comments_to_answer.evidence)
     return IssueConversationCandidateResult(
         candidates=sorted(
             candidates,
@@ -1000,32 +1011,78 @@ def _list_issue_conversation_candidates(
                 candidate.comments[0].id,
             ),
         ),
-        eligibility=eligibility,
+        observations=observations,
         failure=_combine_scheduler_failures(failures=failures),
     )
 
 
-def _inspect_issue_conversation_candidate(
+def _inspect_issue_conversation(
     *,
     repository: str,
     account: str,
     config: IssueConversationConfig,
     issue: Issue,
     conversation: IssueConversation | None,
-) -> tuple[IssueConversationCandidate | None, str | None]:
-    """Return one ready candidate or the failed read that prevented it."""
-    try:
-        if conversation is not None and not _is_conversation_ready_for_input(
-            conversation=conversation
-        ):
-            return None, None
-    except ReportableError as failure:
-        return None, f"could not inspect saved conversation GH{issue.number}: {failure}"
-    comment_response = list_issue_comments(repository=repository, issue=issue.number)
-    if isinstance(comment_response, UnknownGitHubResponse):
+) -> tuple[IssueConversationObservation, IssueConversationCandidate | None]:
+    """Observe one eligible issue, and return a candidate when it is ready."""
+    if not _is_conversation_ready_for_input(conversation=conversation):
         return (
+            IssueConversationObservation(
+                issue=issue.number,
+                title=issue.title,
+                has_comments_to_answer=_compose_known_issue_fact(value=False),
+            ),
             None,
-            f"could not read comments for GH{issue.number}: {comment_response.reason}",
+        )
+    try:
+        comments = _list_comments_to_answer(
+            repository=repository,
+            account=account,
+            issue=issue.number,
+            conversation=conversation,
+        )
+    except ReportableError as failure:
+        has_comments_to_answer = _compose_unknown_issue_fact(evidence=str(failure))
+        comments = []
+    else:
+        has_comments_to_answer = _compose_known_issue_fact(
+            value=bool(comments),
+            evidence=(
+                f"{describe_count(number=len(comments), noun='comment')} to answer"
+                if comments
+                else None
+            ),
+        )
+    observation = IssueConversationObservation(
+        issue=issue.number,
+        title=issue.title,
+        has_comments_to_answer=has_comments_to_answer,
+    )
+    if not comments or not _is_conversation_ready_for_input(conversation=conversation):
+        return observation, None
+    return observation, IssueConversationCandidate(
+        issue=issue,
+        comments=comments,
+        conversation=conversation,
+        config=config,
+    )
+
+
+def _list_comments_to_answer(
+    *,
+    repository: str,
+    account: str,
+    issue: int,
+    conversation: IssueConversation | None,
+) -> list[ConversationComment]:
+    """Return the trusted comments that no round has been given yet.
+
+    Raise a `ReportableError` naming the issue when a read fails.
+    """
+    comment_response = list_issue_comments(repository=repository, issue=issue)
+    if isinstance(comment_response, UnknownGitHubResponse):
+        raise ReportableError(
+            f"could not read comments for GH{issue}: {comment_response.reason}"
         )
     try:
         cursor = (
@@ -1034,25 +1091,13 @@ def _inspect_issue_conversation_candidate(
             else read_issue_comment_delivery_cursor(conversation=conversation)
         )
     except ReportableError as failure:
-        return (
-            None,
-            f"could not read delivered comments for GH{issue.number}: {failure}",
-        )
-    comments = list_undelivered_issue_comments(
+        raise ReportableError(
+            f"could not read delivered comments for GH{issue}: {failure}"
+        ) from failure
+    return list_undelivered_issue_comments(
         comments=comment_response,
         account=account,
         cursor=cursor,
-    )
-    if not comments:
-        return None, None
-    return (
-        IssueConversationCandidate(
-            issue=issue,
-            comments=comments,
-            conversation=conversation,
-            config=config,
-        ),
-        None,
     )
 
 
@@ -1076,88 +1121,19 @@ def _rank_issue_conversation_work(work: IssueConversationWork, /) -> tuple[str, 
     return first.written_at, first.id
 
 
-def _is_conversation_ready_for_input(*, conversation: IssueConversation) -> bool:
+def _is_conversation_ready_for_input(*, conversation: IssueConversation | None) -> bool:
     """Return whether a conversation can accept another comment batch."""
+    if conversation is None:
+        return True
     if conversation.unrecorded_round_input is not None:
         return False
     if not conversation.rounds:
         return True
-    latest = conversation.rounds[-1]
-    if latest.outcome is not AgentRoundOutcome.SUCCESSFUL:
-        return False
-    reply = read_issue_conversation_reply(
-        conversation=conversation,
-        number=latest.number,
-    )
-    return reply is not None and reply.is_complete
-
-
-def _publish_issue_conversation_replies(
-    *, repository: str, conversations: list[IssueConversation], at: datetime
-) -> str | None:
-    """Save successful final answers and publish each answer still waiting."""
-    failures: list[str | None] = []
-    for conversation in conversations:
-        try:
-            failures.append(
-                _publish_issue_conversation_reply(
-                    repository=repository,
-                    conversation=conversation,
-                    at=at,
-                )
-            )
-        except ReportableError as failure:
-            failures.append(
-                f"could not publish the answer for GH{conversation.record.issue}: "
-                f"{failure}"
-            )
-    return _combine_scheduler_failures(failures=failures)
-
-
-def _publish_issue_conversation_reply(
-    *, repository: str, conversation: IssueConversation, at: datetime
-) -> str | None:
-    """Publish one conversation's saved or newly completed answer."""
-    if not conversation.rounds:
-        return None
-    record = conversation.rounds[-1]
-    reply = read_issue_conversation_reply(
-        conversation=conversation,
-        number=record.number,
-    )
-    if reply is None:
-        if record.outcome is not AgentRoundOutcome.SUCCESSFUL:
-            return None
-        final_output = read_text(
-            path=conversation.compose_round_paths(number=record.number).final_output
-        )
-        reply = save_issue_conversation_reply(
-            conversation=conversation,
-            number=record.number,
-            body=final_output,
-        )
-    if reply.is_complete:
-        return None
-    response = post_issue_comment(
-        repository=repository,
-        issue=conversation.record.issue,
-        body=f"{reply.body}\n\n{AGENT_POST_MARKER}",
-    )
-    if isinstance(response, UnknownGitHubResponse):
-        return (
-            f"could not publish the answer for GH{conversation.record.issue}: "
-            f"{response.reason}"
-        )
-    record_issue_conversation_reply_publication(
-        conversation=conversation,
-        number=record.number,
-        at=at,
-    )
-    return None
+    return conversation.rounds[-1].outcome is AgentRoundOutcome.SUCCESSFUL
 
 
 def _combine_scheduler_failures(*, failures: list[str | None]) -> str | None:
-    """Join independent scheduler read or publication failures."""
+    """Join independent scheduler failures."""
     present = [failure for failure in failures if failure is not None]
     return "; ".join(present) if present else None
 
@@ -1202,7 +1178,8 @@ class AgentWorkScheduler:
         in the workflow that depends on it without holding the other workflow.
 
         A global cooldown prevents every launch but does not prevent reads, so
-        assignment observations remain current while the cooldown is active.
+        assignment and conversation observations remain current while the
+        cooldown is active.
         """
         previous_record = read_scheduler_record(state=self.state, at=at)
         cooldown = None if previous_record is None else previous_record.cooldown
@@ -1220,11 +1197,6 @@ class AgentWorkScheduler:
             del self.rounds[agent_work_identifier]
         assignments = read_agent_assignments(state=self.state)
         conversations = read_issue_conversations(state=self.state)
-        publication_failure = _publish_issue_conversation_replies(
-            repository=self.repository,
-            conversations=conversations,
-            at=at,
-        )
         issue_observation_result = observe_issues(
             repository=self.repository,
             account=self.account,
@@ -1272,21 +1244,17 @@ class AgentWorkScheduler:
             account=self.account,
             config=self.config,
             conversations=conversations,
-            should_read_comments=(
-                cooldown is None and len(self.rounds) < self.max_agents
+            previous_observations=(
+                []
+                if previous_record is None
+                else previous_record.conversation_observations
             ),
-        )
-        conversation_failure = _combine_scheduler_failures(
-            failures=[
-                conversation_candidates.failure,
-                publication_failure,
-            ]
         )
         scheduler_failure = _combine_scheduler_failures(
             failures=[
                 assignment_failure,
                 conversation_inspection.failure,
-                conversation_failure,
+                conversation_candidates.failure,
             ]
         )
         assignment_observations = list_assignment_observations(
@@ -1298,7 +1266,7 @@ class AgentWorkScheduler:
             most_recent_cooldown_ended=most_recent_cooldown_ended,
             issue_observations=issue_observations,
             assignment_observations=assignment_observations,
-            conversation_eligibility=conversation_candidates.eligibility,
+            conversation_observations=conversation_candidates.observations,
         )
         if cooldown is not None:
             hold_reason = "global cooldown"
@@ -1528,6 +1496,7 @@ class AgentWorkScheduler:
                 record_harness_session_identifier=partial(
                     record_harness_session_identifier, assignment=assignment
                 ),
+                finish_round=None,
                 paths=assignment.compose_round_paths(
                     number=assignment.next_round_number
                 ),
@@ -1548,7 +1517,11 @@ class AgentWorkScheduler:
         record: SchedulerRecord,
         candidate: IssueConversationCandidate,
     ) -> SchedulerRecord:
-        """Create a conversation as needed and start its next round."""
+        """Create a conversation as needed and start its next round.
+
+        Once the round has started, its issue has no comments left to answer,
+        since the round holds every one of them.
+        """
         try:
             conversation = candidate.conversation or create_issue_conversation(
                 state=self.state,
@@ -1585,7 +1558,7 @@ class AgentWorkScheduler:
             record=record,
             conversation=conversation,
             plan=AgentRoundPlan(
-                purpose=AgentRoundPurpose.DISCUSS,
+                purpose=IssueConversationRoundPurpose.DISCUSS,
                 is_recovery=False,
                 input=round_input,
             ),
@@ -1630,6 +1603,11 @@ class AgentWorkScheduler:
                 record_issue_conversation_session_identifier,
                 conversation=conversation,
             ),
+            finish_round=partial(
+                post_issue_conversation_answer,
+                repository=self.repository,
+                issue=conversation.record.issue,
+            ),
             paths=conversation.compose_round_paths(
                 number=conversation.next_round_number
             ),
@@ -1662,7 +1640,21 @@ class AgentWorkScheduler:
                 }
             )
         return record.model_copy(
-            update={"launched_agent_work_identifier": conversation.identifier}
+            update={
+                "launched_agent_work_identifier": conversation.identifier,
+                "conversation_observations": [
+                    observation.model_copy(
+                        update={
+                            "has_comments_to_answer": _compose_known_issue_fact(
+                                value=False
+                            )
+                        }
+                    )
+                    if observation.issue == conversation.record.issue
+                    else observation
+                    for observation in record.conversation_observations
+                ],
+            }
         )
 
     def _dispatch_issue(

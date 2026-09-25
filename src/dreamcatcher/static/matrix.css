@@ -325,8 +325,7 @@ body::after {
   background: var(--phosphor);
 }
 
-.status-fault,
-.status-needs-attention {
+.status-fault {
   color: var(--background);
   background: var(--amber);
 }
@@ -334,14 +333,12 @@ body::after {
 .status-waiting,
 .status-unknown,
 .status-complete,
-.status-inactive,
+.status-idle,
 .issue-blocked {
   color: var(--dim);
 }
 
-.status-working,
-.status-running,
-.status-awaiting-publication {
+.status-working {
   text-shadow: var(--shadow);
 }
 
@@ -465,21 +462,21 @@ body::after {
 }
 
 .assignment-heading {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: start;
   gap: var(--space-6);
 }
 
 .assignment-heading h1 {
+  min-width: 0;
   margin: 0;
   font-size: calc(var(--font-size) * 1.45);
 }
 
 .assignment-heading-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: baseline;
   gap: var(--space-5);
 }
@@ -727,9 +724,8 @@ body::after {
   }
 
   .assignment-meta,
-  .assignment-heading {
+  .assignment-heading-actions {
     align-items: flex-start;
-    flex-direction: column;
   }
 
   .feed-line {

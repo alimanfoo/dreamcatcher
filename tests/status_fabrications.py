@@ -17,7 +17,7 @@ from records import (
 
 from dreamcatcher.agent_assignments import PullRequestObservation
 from dreamcatcher.agent_rounds import (
-    AgentRoundPurpose,
+    AgentAssignmentRoundPurpose,
     AgentRoundRecord,
     compose_agent_round_ending,
 )
@@ -79,7 +79,7 @@ def ended(
     minute: int,
     number: int = 1,
     status: int = 0,
-    purpose: AgentRoundPurpose = AgentRoundPurpose.IMPLEMENT,
+    purpose: AgentAssignmentRoundPurpose = AgentAssignmentRoundPurpose.IMPLEMENT,
 ):
     """Return a round that started that minute and ran for four minutes."""
     started = PINNED + timedelta(minutes=minute)
@@ -98,7 +98,7 @@ def running(
     *,
     minute: int,
     number: int = 1,
-    purpose: AgentRoundPurpose = AgentRoundPurpose.IMPLEMENT,
+    purpose: AgentAssignmentRoundPurpose = AgentAssignmentRoundPurpose.IMPLEMENT,
     is_recovery: bool = False,
 ):
     """Return a round that started that minute and is still running."""
@@ -137,7 +137,7 @@ def fabricate_everything(*, state):
             running(
                 minute=30,
                 number=2,
-                purpose=AgentRoundPurpose.ADDRESS_FEEDBACK,
+                purpose=AgentAssignmentRoundPurpose.ADDRESS_FEEDBACK,
                 is_recovery=True,
             ),
         ],
@@ -166,7 +166,7 @@ def fabricate_everything(*, state):
         issue=12,
         records=[
             ended(minute=1),
-            ended(minute=2, number=2, purpose=AgentRoundPurpose.WRAP_UP),
+            ended(minute=2, number=2, purpose=AgentAssignmentRoundPurpose.WRAP_UP),
         ],
     )
     written(state=state, issue=44, records=[])
@@ -302,14 +302,14 @@ def fabricate_repeat_assignments(*, state):
             "20260817-090000",
             (
                 ended(minute=1),
-                ended(minute=2, number=2, purpose=AgentRoundPurpose.WRAP_UP),
+                ended(minute=2, number=2, purpose=AgentAssignmentRoundPurpose.WRAP_UP),
             ),
         ),
         (
             "20260818-090000",
             (
                 ended(minute=1),
-                ended(minute=2, number=2, purpose=AgentRoundPurpose.WRAP_UP),
+                ended(minute=2, number=2, purpose=AgentAssignmentRoundPurpose.WRAP_UP),
             ),
         ),
         ("20260819-184158", (ended(minute=1),)),
@@ -353,7 +353,11 @@ def fabricate_a_silent_round(*, state):
         issue=13,
         records=[
             ended(minute=1),
-            running(minute=30, number=2, purpose=AgentRoundPurpose.ADDRESS_FEEDBACK),
+            running(
+                minute=30,
+                number=2,
+                purpose=AgentAssignmentRoundPurpose.ADDRESS_FEEDBACK,
+            ),
         ],
     )
     write_feed(

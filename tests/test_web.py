@@ -26,7 +26,9 @@ from werkzeug.test import TestResponse
 
 import dreamcatcher.web as web_module
 from dreamcatcher.agent_assignments import read_agent_assignment
-from dreamcatcher.agent_rounds import AgentRoundPurpose
+from dreamcatcher.agent_rounds import (
+    AgentAssignmentRoundPurpose,
+)
 from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
@@ -281,7 +283,7 @@ def test_complete_assignments_are_ordered_by_most_recent_completion(tmp_path):
         issue=10,
         records=[
             ended(minute=1),
-            ended(minute=2, number=2, purpose=AgentRoundPurpose.WRAP_UP),
+            ended(minute=2, number=2, purpose=AgentAssignmentRoundPurpose.WRAP_UP),
         ],
     )
     written(
@@ -289,7 +291,7 @@ def test_complete_assignments_are_ordered_by_most_recent_completion(tmp_path):
         issue=20,
         records=[
             ended(minute=1),
-            ended(minute=20, number=2, purpose=AgentRoundPurpose.WRAP_UP),
+            ended(minute=20, number=2, purpose=AgentAssignmentRoundPurpose.WRAP_UP),
         ],
     )
 
@@ -369,12 +371,21 @@ def test_a_theme_choice_is_validated_and_remembered(tmp_path):
 
     selected = client.get("/?theme=nature")
     remembered = client.get("/")
+    stylesheet = client.get("/static/nature.css").get_data(as_text=True)
+    script = client.get("/static/nature.js").get_data(as_text=True)
 
     assert 'href="/static/nature.css"' in selected.text
+    assert 'src="/static/nature.js"' in selected.text
     assert 'href="/static/dreamcatcher-mark-ink.png"' in selected.text
     assert "theme=nature;" in selected.headers["Set-Cookie"]
     assert 'href="/static/nature.css"' in remembered.text
+    assert 'src="/static/nature.js"' in remembered.text
     assert 'href="/static/dreamcatcher-mark-ink.png"' in remembered.text
+    assert "circle at var(--sun-x) 6%" in stylesheet
+    assert "opacity: var(--sun-opacity);" in stylesheet
+    assert "const sunrise = 6 * 60;" in script
+    assert "const sunset = 18 * 60;" in script
+    assert 'style.setProperty("--sun-x", `${sunPosition}%`);' in script
 
 
 def test_an_unknown_theme_uses_matrix_without_being_remembered(tmp_path):
@@ -672,6 +683,33 @@ def test_an_assignment_page_links_its_title_and_pull_request(tmp_path, daemon):
     )
 
 
+def test_assignment_heading_keeps_its_chips_in_the_top_right(tmp_path):
+    application = create_app(
+        state=StateDirectory(root=tmp_path),
+        clock=lambda: LOOKED_AT,
+        zone=DISPLAY_TIME_ZONE,
+    )
+    stylesheet = (
+        application.test_client().get("/static/matrix.css").get_data(as_text=True)
+    )
+
+    assert re.search(
+        r"\.assignment-heading \{[^}]*display: grid;"
+        r"[^}]*grid-template-columns: minmax\(0, 1fr\) max-content;"
+        r"[^}]*align-items: start;",
+        stylesheet,
+        re.DOTALL,
+    )
+    assert re.search(
+        r"\.assignment-heading h1 \{[^}]*min-width: 0;", stylesheet, re.DOTALL
+    )
+    assert re.search(
+        r"\.assignment-heading-actions \{[^}]*flex-wrap: nowrap;",
+        stylesheet,
+        re.DOTALL,
+    )
+
+
 def test_assignment_rounds_link_to_the_feed_in_ascending_order(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
@@ -897,6 +935,15 @@ def test_capacity_does_not_repeat_as_a_scheduler_hold(tmp_path, daemon):
     assert "<dt>scheduler hold</dt>" not in page
 
 
+def test_next_update_is_left_out_when_no_daemon_is_running(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    WEB_STATUS_REPORTS["nothing"](state=state)
+
+    page = render_home(state=state)
+
+    assert "<dt>next update in</dt>" not in page
+
+
 def test_active_cooldown_uses_the_display_zone(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
@@ -914,7 +961,7 @@ def test_active_cooldown_uses_the_display_zone(tmp_path, daemon):
     page = render_home(state=state)
 
     assert "Global cooldown ends 2026-08-20 04:56:58" in page
-    assert "<dd>ends 2026-08-20 04:56:58</dd>" in page
+    assert "<dt>global cooldown</dt>" not in page
     assert "2026-08-19 20:56:58" not in page
 
 

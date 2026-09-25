@@ -157,9 +157,10 @@ Empty states: `-- no open assignments --`,
 `main`: max-width 1320, `padding: 18px 28px 56px`, gap 20px.
 
 - Back button `< HOME` — `#33FF66`, 700, `letter-spacing: 0.06em`, hover BRIGHT.
-- Title row (baseline-aligned, wraps, gap 14px): `h1` 18px/1.3 700 BRIGHT with
-  `#129` link prefix (`margin-right: 10px`); status chip; PR chip (same rules as
-  Home).
+- Title row (top-aligned, two columns, gap 14px): `h1` 18px/1.3 700 BRIGHT with
+  `#129` link prefix (`margin-right: 10px`) and a title that wraps in the
+  flexible left column; status and PR chips stay at the top right in a fixed
+  action column (same rules as Home).
 - Meta strip (same style as facts strip):
   `assignment GH129-20260915-0912 │ branch … │ harness … │ session … │ recipe claude-opus-4 · high │ route agent:implement`.
   Values BRIGHT, labels DIM.

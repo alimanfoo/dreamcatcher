@@ -18,9 +18,9 @@ from pydantic import AwareDatetime
 
 from dreamcatcher import prompts
 from dreamcatcher.agent_rounds import (
+    AgentAssignmentRoundPurpose,
     AgentRoundOutcome,
     AgentRoundPaths,
-    AgentRoundPurpose,
     AgentRoundRecord,
 )
 from dreamcatcher.commands import CommandError
@@ -144,7 +144,7 @@ class AgentAssignment:
             return False
         round = self.rounds[-1]
         return (
-            round.purpose is AgentRoundPurpose.WRAP_UP
+            round.purpose is AgentAssignmentRoundPurpose.WRAP_UP
             and round.outcome is AgentRoundOutcome.SUCCESSFUL
         )
 

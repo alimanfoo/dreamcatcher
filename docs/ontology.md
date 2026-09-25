@@ -60,11 +60,12 @@ remains its communication channel; it has no implementation branch or pull
 request.
 
 An issue conversation starts with one initial round. Each later eligible comment
-batch resumes the same harness session in another round. Every saved final
-answer is published on the issue or is `NO_REPLY`, which means no post is
-needed. Publication is retried until recorded; a lost GitHub response can rarely
-produce a duplicate post. An interrupted or errored round is recovered with its
-saved input and revision before the conversation accepts another comment batch.
+batch resumes the same harness session in another round. Each successful round
+posts its final answer on the issue before it ends, unless the answer is
+`NO_REPLY`, which means no post is needed. An interrupted or errored round is
+recovered with its saved input and revision before the conversation accepts
+another comment batch. A lost GitHub response can rarely produce a duplicate
+post when recovery repeats an answer that GitHub accepted.
 
 ### Agent work and agent work identifier
 
@@ -121,13 +122,17 @@ position within one assignment or issue conversation.
 
 ### Round purpose
 
-Every agent round has one **round purpose** from this set:
+Every agent round has one **round purpose**. An assignment round has one of
+these:
 
 - **Implement**: advance an assignment whose pull request is still a draft.
 - **Address feedback**: respond after the pull request is ready for the user to
   review.
 - **Wrap up**: finish an assignment whose pull request has been merged or
   closed.
+
+An issue conversation round always has the same purpose:
+
 - **Discuss**: answer the user in an issue conversation.
 
 ### Round outcome
@@ -180,7 +185,8 @@ required or launched.
 
 An **issue conversation status** is a conversation's single summary status in a
 status report. It is derived from the conversation record, its latest round, the
-daemon process and the reply's publication state.
+daemon process, and the latest scheduler evidence about whether its issue is
+eligible and whether comments wait to be answered.
 
 ### Global cooldown
 
@@ -313,19 +319,32 @@ assignment can have any assignment status except complete.
 
 ### Issue conversation status
 
-An issue conversation has one of these summary statuses:
+An issue conversation has one of these summary statuses. Each uses the word of
+the agent assignment status that means the same thing:
 
-- **Running**: an agent round is running.
-- **Waiting**: the issue is eligible and the conversation is waiting for its
-  first round or another comment, current eligibility is unknown, or an
-  interrupted or first-time errored round is waiting for recovery.
-- **Awaiting publication**: the latest round succeeded, but its answer has not
-  yet been recorded as published.
-- **Fault**: two consecutive conversation rounds have exited with errors and
-  ordinary recovery has stopped.
-- **Needs attention**: a conversation document is missing, unreadable, or
-  inconsistent, so Dreamcatcher cannot safely continue it.
-- **Inactive**: the issue is not currently eligible for new comment batches.
+- **Working**: an agent round is running. Its counterpart is working.
+- **Waiting**: a round is due but has not started, because comments wait to be
+  answered, the first batch included, or because the latest round errored or was
+  interrupted and waits to be recovered. A free agent slot or the end of a
+  cooldown starts it. Its counterpart is waiting.
+- **Idle**: no round is due, because the latest answer is posted or the user has
+  not commented yet. Its counterpart is needs user feedback.
+- **Fault**: two consecutive rounds have errored, and automatic recovery has
+  stopped. Its counterpart is fault.
+- **Unknown**: Dreamcatcher cannot tell whether the issue is eligible or whether
+  comments wait. Its counterpart is unknown.
+
+Idle differs from needs user feedback on purpose. An assignment at rest has a
+pull request waiting for review, so it asks something of the user. A
+conversation at rest has already posted its answer, so it asks nothing. A
+conversation has no complete status.
+
+Every eligible issue has a conversation status from the first scheduler tick
+that observes it, whether or not a conversation record exists yet. Once the
+issue is not eligible, the status report continues to list locally recoverable
+or faulted work but omits a successful idle conversation. The conversation's own
+view still shows it, as idle with the reason. Conversations are listed as fault,
+working, waiting, unknown and then idle, since idle is not a call to action.
 
 These statuses are derived reporting projections, not persisted lifecycle state.
 
@@ -370,9 +389,9 @@ conversation eligibility.
 Dreamcatcher fetches main, creates a detached worktree, records its revision and
 the chosen conversation settings, freezes the issue and eligible comment batch,
 then starts the initial conversation round. The round shares the daemon's
-capacity and global cooldown with assignment rounds. A successful final result
-is saved before publication, so posting can be retried without rerunning the
-agent.
+capacity and global cooldown with assignment rounds. The round posts its final
+result on the issue before it records its ending. A failed post makes the round
+errored.
 
 If a round is interrupted or exits with an error, Dreamcatcher schedules a
 recovery before it fetches main or collects another comment batch. Recovery
@@ -382,14 +401,15 @@ attempt that acquired no process or session instead retries a first invocation
 from its saved input. Two consecutive errored rounds place the conversation in
 fault.
 
-After publication, another eligible comment batch resumes the same harness
-session in another conversation round. Before it accepts that batch,
+After a successful round, another eligible comment batch resumes the same
+harness session in another conversation round. Before it accepts that batch,
 Dreamcatcher fetches main and asks Git to move the detached worktree to the
 fetched revision, discarding local changes left by the earlier investigation.
-Comments that arrive while a round runs or an answer awaits publication stay
-beyond the latest round input. Closing the issue, removing its conversation
-label or unassigning the signed-in account makes the saved conversation inactive
-without deleting it.
+Comments that arrive while a round runs stay beyond the latest round input.
+Closing the issue, removing its conversation label or unassigning the signed-in
+account stops new comment batches and takes the conversation off the status
+report once no round runs for it. The saved conversation is kept, and making the
+issue eligible again brings it back.
 
 ### Working through an assignment
 
@@ -425,10 +445,9 @@ a recovery round automatically unless the assignment has entered a fault.
 
 ### Scheduling work
 
-The scheduler creates agent assignments, starts agent rounds, and publishes
-issue conversation answers. A failed issue read prevents launches in the
-workflow that depends on those facts without preventing work in the other
-workflow.
+The scheduler creates agent assignments and starts agent rounds. A failed issue
+read prevents launches in the workflow that depends on those facts without
+preventing work in the other workflow.
 
 Existing assignments take precedence over new ones, ranked in this order:
 

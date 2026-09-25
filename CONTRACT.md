@@ -133,8 +133,9 @@ main, discarding every local worktree change left by the earlier investigation.
 An issue conversation is read-only work. Its instructions must not tell the
 agent to edit the worktree, create a branch, commit or push, open a pull
 request, change the issue, post to GitHub, or contact the user elsewhere.
-Dreamcatcher owns publication: after a successful round it saves the final
-result, appends its agent marker, posts the answer, and records the publication.
+Dreamcatcher owns publication: when the harness exits successfully, the round
+appends the agent marker to the final result and posts it before the round ends.
+A failed post makes the round errored.
 
 Issue conversations currently run through Claude. After an interrupted or
 errored round, Dreamcatcher resumes the same session with the saved input batch

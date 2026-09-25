@@ -5,7 +5,12 @@ from datetime import UTC, datetime
 
 from conftest import DISPATCH_LABEL
 
-from dreamcatcher.scheduler import IssueFact, IssueFactValue, IssueObservation
+from dreamcatcher.scheduler import (
+    IssueConversationObservation,
+    IssueFact,
+    IssueFactValue,
+    IssueObservation,
+)
 
 OBSERVED_AT = datetime(2026, 8, 19, 18, 41, 58, tzinfo=UTC)
 
@@ -55,4 +60,21 @@ def observed_issue(
             value=fact_values["routing_conflict"],
             evidence=fact_evidence.get("routing_conflict"),
         ),
+    )
+
+
+def observed_conversation(
+    *,
+    issue: int = 8,
+    value: IssueFactValue = IssueFactValue.FALSE,
+    evidence: str | None = None,
+) -> IssueConversationObservation:
+    """Return what a tick found at an eligible conversation issue.
+
+    The title matches the one `records.write_issue_conversation` saves.
+    """
+    return IssueConversationObservation(
+        issue=issue,
+        title=f"Issue {issue}",
+        has_comments_to_answer=IssueFact(value=value, evidence=evidence),
     )

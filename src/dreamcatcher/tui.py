@@ -37,20 +37,20 @@ from dreamcatcher.issue_conversations import IssueConversation
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
-    CONVERSATION_STATUSES_THAT_END_A_VIEW,
+    CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER,
     STATUSES_THAT_END_A_VIEW,
     AgentAssignmentStatus,
     AgentAssignmentStatusValue,
     AgentRoundStatus,
     DreamcatcherStatusReport,
     IssueConversationStatus,
-    IssueConversationStatusValue,
+    IssueFactValue,
     IssueObservation,
     read_agent_assignment_statuses_for_issue,
     read_issue_conversation_status,
     read_status_report,
 )
-from dreamcatcher.words import describe_count, describe_span, describe_time
+from dreamcatcher.words import describe_count, describe_countdown, describe_time
 
 # What each assignment summary is set in, so a reader can scan the status table.
 ASSIGNMENT_STATUS_STYLES = dict(
@@ -61,14 +61,13 @@ ASSIGNMENT_STATUS_STYLES = dict(
     )
 )
 
-CONVERSATION_STATUS_STYLES = {
-    IssueConversationStatusValue.FAULT: "red",
-    IssueConversationStatusValue.NEEDS_ATTENTION: "red",
-    IssueConversationStatusValue.RUNNING: "green",
-    IssueConversationStatusValue.AWAITING_PUBLICATION: "yellow",
-    IssueConversationStatusValue.WAITING: "cyan",
-    IssueConversationStatusValue.INACTIVE: "dim",
-}
+CONVERSATION_STATUS_STYLES = dict(
+    zip(
+        CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER,
+        ("red", "green", "cyan", "magenta", "dim"),
+        strict=True,
+    )
+)
 
 # How long a following view waits between refreshes for new round output.
 VIEW_REFRESH_INTERVAL = 1.0
@@ -213,11 +212,13 @@ def _render_status(
         parts=[
             Text(report.repository or "repository unknown", style="bold"),
             _render_instance_status(report=report, zone=zone),
+            _render_assignments(
+                assignments=report.assignment_statuses,
+                failed_setups=report.failed_assignment_setups,
+                available_issues=report.available_issues,
+                blocked_issues=report.blocked_issues,
+            ),
             _render_conversations(conversations=report.conversation_statuses),
-            _render_assignments(assignments=report.assignment_statuses),
-            _render_failed_assignment_setups(setups=report.failed_assignment_setups),
-            _render_available_issues(issues=report.available_issues),
-            _render_blocked_issues(issues=report.blocked_issues),
             _describe_empty_status_report(report=report),
         ]
     )
@@ -253,9 +254,13 @@ def _render_instance_status(
         )
     )
     tick = (
-        "none recorded"
-        if report.latest_scheduler_tick is None
-        else f"{describe_span(span=report.at - report.latest_scheduler_tick)} ago"
+        None
+        if report.daemon_pid is None
+        else describe_countdown(
+            at=report.at,
+            since=report.latest_scheduler_tick,
+            span_seconds=report.scheduler_interval_seconds,
+        )
     )
     cooldown = (
         "none"
@@ -265,13 +270,13 @@ def _render_instance_status(
     for name, value in (
         ("daemon", daemon),
         ("harness", report.agent_harness),
-        ("latest scheduler tick", tick),
+        ("next update in", tick),
         (
             "agent capacity",
             (
                 None
                 if report.max_agents is None
-                else f"{report.running_agents} of {report.max_agents} in use"
+                else f"{report.running_agents} of {report.max_agents} working"
             ),
         ),
         ("global cooldown", cooldown),
@@ -282,54 +287,19 @@ def _render_instance_status(
     return _render_section(heading="instance", body=table)
 
 
-def _render_available_issues(
-    *, issues: Sequence[IssueObservation]
-) -> RenderableType | None:
-    """Render available issues in the order the scheduler will dispatch them."""
-    if not issues:
-        return None
-    table = _create_table(columns=2)
-    for issue in issues:
-        table.add_row(
-            Text(f"GH{issue.issue}"),
-            Text(", ".join(issue.dispatch_labels or [])),
-        )
-    return _render_section(heading="available issues", body=table)
-
-
-def _render_blocked_issues(
-    *, issues: Sequence[IssueObservation]
-) -> RenderableType | None:
-    """Render blocked issues with the scheduler's recorded blocker evidence."""
-    if not issues:
-        return None
-    table = _create_table(columns=3)
-    for issue in issues:
-        table.add_row(
-            Text(f"GH{issue.issue}"),
-            Text(", ".join(issue.dispatch_labels or [])),
-            Text(cast("str", issue.blocked.evidence)),
-        )
-    return _render_section(heading="blocked issues", body=table)
-
-
-def _render_failed_assignment_setups(
-    *, setups: Sequence[IssueObservation]
-) -> RenderableType | None:
-    """Render incomplete assignment setups with recorded failures."""
-    if not setups:
-        return None
-    table = _create_table(columns=2)
-    for setup in setups:
-        table.add_row(Text(f"GH{setup.issue}"), Text(cast("str", setup.setup_failure)))
-    return _render_section(heading="failed assignment setups", body=table)
-
-
 def _render_assignments(
-    *, assignments: Sequence[AgentAssignmentStatus]
+    *,
+    assignments: Sequence[AgentAssignmentStatus],
+    failed_setups: Sequence[IssueObservation],
+    available_issues: Sequence[IssueObservation],
+    blocked_issues: Sequence[IssueObservation],
 ) -> RenderableType | None:
-    """Render assignments in attention order, preserving order within a status."""
-    if not assignments:
+    """Render assignment work as one section, mirroring the web home view.
+
+    Orders active assignments, failed assignment setups, available issues, and
+    blocked issues in that sequence, with a completed-assignment count last.
+    """
+    if not (assignments or failed_setups or available_issues or blocked_issues):
         return None
     completed = list(
         filter(
@@ -347,11 +317,53 @@ def _render_assignments(
         ),
     )
     rows = _render_assignment_rows(assignments=ordered)
+    rows += _render_failed_setups(failed_setups=failed_setups)
+    rows += _render_open_issues(
+        available_issues=available_issues, blocked_issues=blocked_issues
+    )
     if completed:
         rows.append(
             Text(describe_count(number=len(completed), noun="completed assignment"))
         )
-    return _render_section(heading="agent assignments", body=Group(*rows))
+    return _render_section(heading="assignments", body=Group(*rows))
+
+
+def _render_failed_setups(
+    *, failed_setups: Sequence[IssueObservation]
+) -> list[RenderableType]:
+    """Render incomplete assignment setups with recorded failures."""
+    if not failed_setups:
+        return []
+    table = _create_table(columns=2)
+    for setup in failed_setups:
+        table.add_row(Text(f"GH{setup.issue}"), Text(cast("str", setup.setup_failure)))
+    return [table]
+
+
+def _render_open_issues(
+    *,
+    available_issues: Sequence[IssueObservation],
+    blocked_issues: Sequence[IssueObservation],
+) -> list[RenderableType]:
+    """Render available and blocked issues as one table, status inline per row."""
+    rows = [
+        (
+            issue,
+            ", ".join(issue.dispatch_labels or []),
+            (
+                cast("str", issue.blocked.evidence)
+                if issue.blocked.value is IssueFactValue.TRUE
+                else "available"
+            ),
+        )
+        for issue in (*available_issues, *blocked_issues)
+    ]
+    if not rows:
+        return []
+    table = _create_table(columns=3)
+    for issue, middle, status in rows:
+        table.add_row(Text(f"GH{issue.issue}"), Text(middle), Text(status))
+    return [table]
 
 
 def _render_assignment_rows(
@@ -386,13 +398,18 @@ def _render_assignment_rows(
 def _render_conversations(
     *, conversations: Sequence[IssueConversationStatus]
 ) -> RenderableType | None:
-    """Render issue conversations in issue order."""
+    """Render conversations in attention order, preserving order within a status."""
     if not conversations:
         return None
     table = _create_table(columns=3)
-    for status in conversations:
+    for status in sorted(
+        conversations,
+        key=lambda status: CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER.index(
+            status.value
+        ),
+    ):
         table.add_row(
-            Text(f"GH{status.conversation.record.issue}"),
+            Text(f"GH{status.issue}"),
             Text(
                 str(status.value),
                 style=CONVERSATION_STATUS_STYLES[status.value],
@@ -488,7 +505,11 @@ def show_conversation_view(
     console: Console,
     timing: ViewTiming = DEFAULT_VIEW_TIMING,
 ) -> None:
-    """Show one issue conversation until it becomes inactive, faulty, or unreadable."""
+    """Show one issue conversation until nothing more can happen without the user.
+
+    That is once it enters fault, or once the status report no longer lists it.
+    A non-terminal or dumb terminal renders one snapshot and returns.
+    """
     _refresh_live_view(
         console=console,
         read_snapshot=lambda: _read_conversation_snapshot(
@@ -509,7 +530,7 @@ def _read_conversation_snapshot(
     status = _find_conversation_status_for_issue(state=state, issue=issue, clock=clock)
     return _ViewSnapshot(
         renderable=_render_conversation(state=state, status=status, zone=zone),
-        is_over=status.value in CONVERSATION_STATUSES_THAT_END_A_VIEW,
+        is_over=status.is_over,
     )
 
 
@@ -519,32 +540,42 @@ def _render_conversation(
     status: IssueConversationStatus,
     zone: tzinfo | None,
 ) -> RenderableType:
-    """Render one issue conversation and its saved rounds."""
+    """Render one issue conversation and its saved rounds.
+
+    A conversation settles its settings when its first round launches, so one
+    with no saved conversation yet shows only its issue.
+    """
     conversation = status.conversation
-    record = conversation.record
     status_value = str(status.value)
     rendered_status = Text(f"{status_value}  {status.detail}")
     rendered_status.stylize(
         CONVERSATION_STATUS_STYLES[status.value], 0, len(status_value)
     )
+    facts: list[tuple[str, object]] = [
+        ("issue identifier", f"GH{status.issue}"),
+        ("title", status.title),
+    ]
+    if conversation is not None:
+        record = conversation.record
+        facts.extend(
+            [
+                ("conversation label", record.label),
+                ("worktree", state.describe_path(path=conversation.worktree)),
+                ("agent harness", record.harness),
+                (
+                    "harness session identifier",
+                    record.harness_session_identifier or "not recorded",
+                ),
+                ("model", record.model),
+                ("effort", record.effort),
+            ]
+        )
     table = _create_table(columns=2)
-    for name, value in (
-        ("issue identifier", f"GH{record.issue}"),
-        ("title", record.title),
-        ("conversation label", record.label),
-        ("worktree", state.describe_path(path=conversation.worktree)),
-        ("agent harness", record.harness),
-        (
-            "harness session identifier",
-            record.harness_session_identifier or "not recorded",
-        ),
-        ("model", record.model),
-        ("effort", record.effort),
-    ):
+    for name, value in facts:
         table.add_row(Text(name), Text(str(value)))
     return _combine_renderable_parts(
         parts=[
-            Text(f"issue conversation GH{record.issue}"),
+            Text(f"issue conversation GH{status.issue}"),
             rendered_status,
             _render_latest_output(latest_output=status.latest_output),
             _render_section(heading="conversation", body=table),
@@ -871,12 +902,19 @@ class _FeedOwnerSnapshot:
 def _find_feed_owner(
     *, state: StateDirectory, issue: int, owner_kind: AgentWorkKind
 ) -> _FeedOwnerSnapshot:
-    """Return the selected feed owner and whether more output can reach it."""
+    """Return the selected feed owner and whether more output can reach it.
+
+    Refuse a conversation that has not run a round, since it has no feed yet.
+    """
     if owner_kind is AgentWorkKind.CONVERSATION:
         status = _find_conversation_status_for_issue(state=state, issue=issue)
+        if status.conversation is None:
+            raise ReportableError(
+                f"The conversation at GH{issue} has not run a round yet."
+            )
         return _FeedOwnerSnapshot(
             owner=status.conversation,
-            is_over=status.value in CONVERSATION_STATUSES_THAT_END_A_VIEW,
+            is_over=status.is_over,
             round_details={
                 round_status.record.number: round_status.revision_description
                 for round_status in status.round_statuses
