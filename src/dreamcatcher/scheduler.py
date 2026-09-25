@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from functools import partial
-from typing import Annotated, Self, cast
+from typing import Annotated, Protocol, Self, cast
 
 from pydantic import AfterValidator, AwareDatetime, Field, model_validator
 
@@ -718,7 +718,7 @@ def _inspect_assignment_pull_request(
         return RequiredAgentRound(
             assignment=assignment,
             plan=AgentRoundPlan(
-                purpose=_derive_round_purpose(pull_request=pull_request),
+                purpose=derive_round_purpose(pull_request=pull_request),
                 is_recovery=True,
             ),
             reason=recovery_reason,
@@ -772,7 +772,7 @@ def _compose_resumed_round_requirement(
     return RequiredAgentRound(
         assignment=assignment,
         plan=AgentRoundPlan(
-            purpose=_derive_round_purpose(pull_request=pull_request),
+            purpose=derive_round_purpose(pull_request=pull_request),
             is_recovery=recovery_reason is not None,
             input=AgentAssignmentRoundInput(
                 pull_request_state=pull_request.state, user_posts=undelivered_posts
@@ -796,9 +796,23 @@ def _compose_resumed_round_requirement(
     )
 
 
-def _derive_round_purpose(*, pull_request: PullRequest) -> AgentAssignmentRoundPurpose:
+class _PullRequestRoundFacts(Protocol):
+    """Describe the pull-request facts that choose a round purpose."""
+
+    @property
+    def is_open(self) -> bool:
+        """Whether the pull request is open."""
+
+    @property
+    def is_draft(self) -> bool:
+        """Whether the pull request is a draft."""
+
+
+def derive_round_purpose(
+    *, pull_request: _PullRequestRoundFacts
+) -> AgentAssignmentRoundPurpose:
     """Return the purpose that the pull request currently requires."""
-    if pull_request.state is not PullRequestState.OPEN:
+    if not pull_request.is_open:
         return AgentAssignmentRoundPurpose.WRAP_UP
     if pull_request.is_draft:
         return AgentAssignmentRoundPurpose.IMPLEMENT

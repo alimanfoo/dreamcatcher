@@ -28,7 +28,6 @@ from dreamcatcher.config import AgentHarness
 from dreamcatcher.documents import write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.scheduler import (
-    NO_ROUND_HAS_RUN,
     AgentAssignmentObservation,
     GlobalCooldown,
     IssueFactValue,
@@ -192,7 +191,7 @@ def test_a_live_round_reports_work_and_its_latest_output(running):
     assert found.daemon_pid == os.getpid()
     assert found.running_agents == 1
     assert status.value is AgentAssignmentStatusValue.WORKING
-    assert status.detail == "round 1, running 1h 59m, last output 1h 58m ago"
+    assert status.detail == "round 1, implement, running 1h 59m, last output 1h 58m ago"
     assert status.latest_output == "[Bash] pytest"
     assert status.hand_resume_command is None
 
@@ -343,15 +342,15 @@ def test_a_live_round_that_has_said_nothing_reports_that(running):
     status = only_assignment(state=running)
 
     assert status.value is AgentAssignmentStatusValue.WORKING
-    assert status.detail == "round 1, running 1h 59m, has said nothing yet"
+    assert status.detail == "round 1, implement, running 1h 59m, has said nothing yet"
     assert status.latest_output is None
 
 
 @pytest.mark.parametrize(
     ("round_status", "detail"),
     [
-        (None, "the last round was interrupted"),
-        (2, "the last round failed (exit 2)"),
+        (None, "next round, implement (recovery)"),
+        (2, "next round, implement (recovery)"),
     ],
 )
 def test_an_unfinished_round_waits_for_recovery(state, round_status, detail):
@@ -377,7 +376,7 @@ def test_an_assignment_that_has_run_no_round_waits_for_its_first(state):
     status = only_assignment(state=state)
 
     assert status.value is AgentAssignmentStatusValue.WAITING
-    assert status.detail == NO_ROUND_HAS_RUN
+    assert status.detail == "next round, implement"
 
 
 def test_a_required_round_reports_the_scheduler_reason(state):
@@ -399,7 +398,7 @@ def test_a_required_round_reports_the_scheduler_reason(state):
     status = only_assignment(state=state)
 
     assert status.value is AgentAssignmentStatusValue.WAITING
-    assert status.detail == "1 new post to answer"
+    assert status.detail == "next round, implement"
     assert status.observed_at == LOOKED_AT
 
 
@@ -455,7 +454,7 @@ def test_a_round_that_ends_after_its_launch_tick_waits_for_the_next_tick(state):
     status = only_assignment(state=state)
 
     assert status.value is AgentAssignmentStatusValue.WAITING
-    assert status.detail == "awaiting next scheduler tick"
+    assert status.detail == "next round, implement"
 
 
 def test_an_observation_is_current_when_a_round_ends_after_the_tick_begins(state):

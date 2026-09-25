@@ -233,6 +233,20 @@ def test_a_branch_with_no_pull_request_comes_back_empty(fake):
     assert list_pull_requests(repository=REPOSITORY, branch=BRANCH) == []
 
 
+@pytest.mark.parametrize(
+    ("state", "is_open"),
+    [
+        (PullRequestState.OPEN, True),
+        (PullRequestState.CLOSED, False),
+        (PullRequestState.MERGED, False),
+    ],
+)
+def test_a_pull_request_reports_whether_it_is_open(state, is_open):
+    pull_request = PullRequest(number=28, state=state, isDraft=False)
+
+    assert pull_request.is_open is is_open
+
+
 def test_a_linked_draft_pull_request_is_opened_for_the_assignment_branch(fake):
     gh = fake(program="gh")
     gh.replies(
