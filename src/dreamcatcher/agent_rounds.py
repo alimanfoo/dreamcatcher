@@ -21,7 +21,7 @@ from threading import Event as Flag
 from threading import Lock, Thread
 from typing import Annotated, Literal, Protocol
 
-from pydantic import Field, PositiveInt, field_validator
+from pydantic import Field, PositiveInt, field_validator, model_validator
 
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.commands import spawn_command
@@ -125,19 +125,27 @@ class SuccessfulAgentRoundEnding(DreamcatcherDocument):
 
 
 class ErroredAgentRoundEnding(DreamcatcherDocument):
-    """An agent round ending with an error exit."""
+    """An agent round ending with an error exit or launch failure."""
 
     outcome: Literal[AgentRoundOutcome.ERRORED] = AgentRoundOutcome.ERRORED
     at: datetime
-    status: int
+    status: int | None = None
+    reason: str | None = None
 
     @field_validator("status")
     @classmethod
-    def _refuse_success(cls, status: int, /) -> int:
+    def _refuse_success(cls, status: int | None, /) -> int | None:
         """Keep a successful exit out of an errored ending."""
         if status == 0:
             raise ValueError("an errored round cannot have exit status 0")
         return status
+
+    @model_validator(mode="after")
+    def _require_error_evidence(self) -> "ErroredAgentRoundEnding":
+        """Require either an exit status or a reason from before launch."""
+        if self.status is None and self.reason is None:
+            raise ValueError("an errored round needs an exit status or reason")
+        return self
 
 
 class InterruptedAgentRoundEnding(DreamcatcherDocument):
@@ -168,8 +176,15 @@ class AgentRoundRecord(DreamcatcherDocument):
     purpose: AgentRoundPurpose
     is_recovery: bool = False
     started: datetime
-    pid: PositiveInt
+    pid: PositiveInt | None = None
     ending: AgentRoundEnding | None = None
+
+    @model_validator(mode="after")
+    def _require_a_running_process(self) -> "AgentRoundRecord":
+        """Require a process identifier until the round has a terminal ending."""
+        if self.pid is None and self.ending is None:
+            raise ValueError("a running round needs a process identifier")
+        return self
 
     @property
     def outcome(self) -> AgentRoundOutcome:
@@ -327,6 +342,29 @@ class AgentRoundPaths:
     def final_output(self) -> Path:
         """The file holding the harness's final result for its host to publish."""
         return self.directory / "final.md"
+
+
+def record_agent_round_launch_failure(
+    *, request: AgentRoundStartRequest, at: datetime, reason: str
+) -> AgentRoundRecord:
+    """Persist a selected round that failed before it acquired a process.
+
+    The attempt keeps the same input and prompt that a launched round would
+    have kept, so recovery can resume the frozen work rather than reconstruct
+    it from external state.
+    """
+    if request.plan.input is not None:
+        write_json(document=request.plan.input, path=request.paths.round_input)
+    write_text(text=request.launch_request.prompt, path=request.paths.prompt)
+    record = AgentRoundRecord(
+        number=request.paths.number,
+        purpose=request.plan.purpose,
+        is_recovery=request.plan.is_recovery,
+        started=at,
+        ending=ErroredAgentRoundEnding(at=at, reason=reason),
+    )
+    write_json(document=record, path=request.paths.record)
+    return record
 
 
 class AgentRoundReader:

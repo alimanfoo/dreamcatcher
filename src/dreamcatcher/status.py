@@ -394,6 +394,8 @@ def _describe_round_outcome(*, record: AgentRoundRecord, is_running: bool) -> st
     a round cannot outlive its daemon.
     """
     if isinstance(record.ending, ErroredAgentRoundEnding):
+        if record.ending.reason is not None:
+            return f"errored ({record.ending.reason})"
         return f"errored (exit {record.ending.status})"
     if record.ending is None and not is_running:
         return str(AgentRoundOutcome.INTERRUPTED)

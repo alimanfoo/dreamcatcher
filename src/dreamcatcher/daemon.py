@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 from contextlib import suppress
 from time import sleep
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from dreamcatcher import teardown
 from dreamcatcher.agent_assignments import read_agent_assignments
@@ -243,7 +243,7 @@ class DreamcatcherDaemon:
         for owner in agent_work:
             for record in owner.rounds:
                 if record.ending is None:
-                    teardown.end_process_tree(pid=record.pid)
+                    teardown.end_process_tree(pid=cast("int", record.pid))
                     record_agent_round_interruption(
                         record=record,
                         path=owner.compose_round_paths(number=record.number).record,

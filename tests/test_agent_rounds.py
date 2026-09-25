@@ -35,10 +35,12 @@ from dreamcatcher.agent_rounds import (
     InterruptedAgentRoundEnding,
     compose_agent_round_ending,
     record_agent_round_interruption,
+    record_agent_round_launch_failure,
     start_agent_round,
 )
 from dreamcatcher.claude import CLAUDE_ADAPTER
 from dreamcatcher.config import AgentHarness
+from dreamcatcher.documents import read_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedNote, FeedRenderer
 from dreamcatcher.github import (
@@ -590,6 +592,72 @@ def test_a_required_final_output_that_is_missing_or_empty_fails_the_round(
 def test_an_errored_ending_refuses_a_success_status():
     with pytest.raises(ValueError, match="cannot have exit status 0"):
         ErroredAgentRoundEnding(at=PINNED, status=0)
+
+
+def test_an_errored_ending_requires_an_exit_status_or_reason():
+    with pytest.raises(ValueError, match="needs an exit status or reason"):
+        ErroredAgentRoundEnding(at=PINNED)
+
+
+def test_a_running_round_requires_a_process_identifier():
+    with pytest.raises(ValueError, match="needs a process identifier"):
+        AgentRoundRecord(number=1, purpose=PURPOSE, started=PINNED)
+
+
+@pytest.mark.parametrize("has_input", [True, False])
+def test_a_launch_failure_keeps_its_files_and_reason(worktree, directory, has_input):
+    paths = compose_round_paths(worktree=worktree, directory=directory)
+    round_input = (
+        AgentAssignmentRoundInput(
+            pull_request_state=PullRequestState.OPEN,
+            user_posts=[],
+        )
+        if has_input
+        else None
+    )
+    request = AgentRoundStartRequest(
+        harness=AgentHarness.CLAUDE,
+        launch_request=AgentRoundLaunchRequest(
+            agent_work_identifier="conversation-GH9",
+            model="opus[1m]",
+            effort="xhigh",
+            prompt=PROMPT,
+            work_kind=AgentWorkKind.CONVERSATION,
+        ),
+        harness_session_identifier="conversation-session",
+        record_harness_session_identifier=ignore_harness_session_identifier,
+        paths=paths,
+        plan=AgentRoundPlan(
+            purpose=AgentRoundPurpose.DISCUSS,
+            is_recovery=True,
+            input=round_input,
+        ),
+    )
+
+    record = record_agent_round_launch_failure(
+        request=request,
+        at=PINNED,
+        reason="the harness was unavailable",
+    )
+
+    assert record.pid is None
+    assert record.is_recovery
+    assert record.ending == ErroredAgentRoundEnding(
+        at=PINNED,
+        reason="the harness was unavailable",
+    )
+    assert paths.prompt.read_text(encoding="utf-8") == PROMPT
+    if round_input is None:
+        assert not paths.round_input.exists()
+    else:
+        assert (
+            read_json(
+                model=AgentAssignmentRoundInput,
+                path=paths.round_input,
+            )
+            == round_input
+        )
+    assert written(path=paths.record) == record
 
 
 def test_a_round_somebody_stopped_records_interruption(fake, worktree, directory):

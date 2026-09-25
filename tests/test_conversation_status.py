@@ -16,6 +16,7 @@ from records import (
 from dreamcatcher.agent_rounds import (
     AgentRoundPurpose,
     AgentRoundRecord,
+    ErroredAgentRoundEnding,
     IssueConversationInput,
     compose_agent_round_ending,
 )
@@ -56,12 +57,20 @@ def conversation_state(tmp_path):
     return state
 
 
-def conversation_round(*, state: StateDirectory, status: int | None = 0) -> None:
+def conversation_round(
+    *, state: StateDirectory, status: int | None = 0, reason: str | None = None
+) -> None:
     """Write the conversation's initial round with the requested process status."""
     ending = (
-        None
-        if status is None
-        else compose_agent_round_ending(at=PINNED + timedelta(minutes=4), status=status)
+        ErroredAgentRoundEnding(at=PINNED + timedelta(minutes=4), reason=reason)
+        if reason is not None
+        else (
+            None
+            if status is None
+            else compose_agent_round_ending(
+                at=PINNED + timedelta(minutes=4), status=status
+            )
+        )
     )
     directory = state.conversations / "GH8"
     write_round(
@@ -257,6 +266,18 @@ def test_an_errored_conversation_needs_attention(conversation_state):
 
     assert found.value is IssueConversationStatusValue.NEEDS_ATTENTION
     assert found.detail == "errored (exit 2)"
+
+
+def test_a_conversation_launch_failure_reports_its_reason(conversation_state):
+    conversation_round(
+        state=conversation_state,
+        reason="the harness was unavailable",
+    )
+
+    found = status(state=conversation_state)
+
+    assert found.value is IssueConversationStatusValue.NEEDS_ATTENTION
+    assert found.detail == "errored (the harness was unavailable)"
 
 
 def test_an_errored_conversation_reports_an_unreadable_input(conversation_state):

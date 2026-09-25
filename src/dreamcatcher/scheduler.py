@@ -39,6 +39,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundPurpose,
     AgentRoundStartRequest,
     ErroredAgentRoundEnding,
+    record_agent_round_launch_failure,
     start_agent_round,
 )
 from dreamcatcher.config import (
@@ -1393,39 +1394,48 @@ class AgentWorkScheduler:
                 harness_session_identifier = (
                     conversation.record.harness_session_identifier
                 )
-                if harness_session_identifier is None:
-                    raise ReportableError(
-                        f"Could not resume {conversation.identifier}: its first "
-                        "round did not report a harness session identifier."
-                    )
                 prompt = compose_issue_conversation_round_prompt(
                     issue=conversation.record.issue,
                     round_input=paths.round_input,
                 )
-            self.rounds[conversation.identifier] = start_agent_round(
-                request=AgentRoundStartRequest(
-                    harness=conversation.record.harness,
-                    launch_request=AgentRoundLaunchRequest(
-                        agent_work_identifier=conversation.identifier,
-                        model=conversation.record.model,
-                        effort=conversation.record.effort,
-                        prompt=prompt,
-                        work_kind=AgentWorkKind.CONVERSATION,
-                    ),
-                    harness_session_identifier=harness_session_identifier,
-                    record_harness_session_identifier=partial(
-                        record_issue_conversation_session_identifier,
-                        conversation=conversation,
-                    ),
-                    paths=paths,
-                    plan=AgentRoundPlan(
-                        purpose=AgentRoundPurpose.DISCUSS,
-                        is_recovery=False,
-                        input=round_input,
-                    ),
+            request = AgentRoundStartRequest(
+                harness=conversation.record.harness,
+                launch_request=AgentRoundLaunchRequest(
+                    agent_work_identifier=conversation.identifier,
+                    model=conversation.record.model,
+                    effort=conversation.record.effort,
+                    prompt=prompt,
+                    work_kind=AgentWorkKind.CONVERSATION,
                 ),
-                clock=self.clock,
+                harness_session_identifier=harness_session_identifier,
+                record_harness_session_identifier=partial(
+                    record_issue_conversation_session_identifier,
+                    conversation=conversation,
+                ),
+                paths=paths,
+                plan=AgentRoundPlan(
+                    purpose=AgentRoundPurpose.DISCUSS,
+                    is_recovery=False,
+                    input=round_input,
+                ),
             )
+            try:
+                if conversation.rounds and harness_session_identifier is None:
+                    raise ReportableError(
+                        f"Could not resume {conversation.identifier}: its first "
+                        "round did not report a harness session identifier."
+                    )
+                self.rounds[conversation.identifier] = start_agent_round(
+                    request=request,
+                    clock=self.clock,
+                )
+            except ReportableError as failure:
+                record_agent_round_launch_failure(
+                    request=request,
+                    at=self.clock(),
+                    reason=str(failure),
+                )
+                raise
         except ReportableError as failure:
             return record.model_copy(
                 update={

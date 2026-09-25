@@ -29,6 +29,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
     AgentRoundPurpose,
     AgentRoundRecord,
+    ErroredAgentRoundEnding,
     IssueConversationInput,
     compose_agent_round_ending,
 )
@@ -665,6 +666,19 @@ def test_a_follow_up_refuses_to_replace_a_missing_saved_session(
     assert observed.hold.startswith(
         "Could not resume conversation-GH8: its first round did not report"
     )
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    assert len(conversation.rounds) == 2
+    failed = conversation.rounds[-1]
+    assert failed.outcome is AgentRoundOutcome.ERRORED
+    assert failed.pid is None
+    assert isinstance(failed.ending, ErroredAgentRoundEnding)
+    assert failed.ending.reason == observed.hold
+    frozen = read_json(
+        model=IssueConversationInput,
+        path=conversation.compose_round_paths(number=2).round_input,
+    )
+    assert [comment.id for comment in frozen.comments] == [2]
     assert len(harnesses["claude"].calls) == 1
 
 
