@@ -229,7 +229,16 @@ class NewIssueConversationRoundCandidate:
     config: IssueConversationConfig
 
 
-type IssueConversationCandidate = NewIssueConversationRoundCandidate | IssueConversation
+@dataclass(frozen=True, kw_only=True)
+class IssueConversationRecoveryCandidate:
+    """Describe an eligible conversation with unfinished work to recover."""
+
+    conversation: IssueConversation
+
+
+type IssueConversationCandidate = (
+    NewIssueConversationRoundCandidate | IssueConversationRecoveryCandidate
+)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -874,7 +883,7 @@ def _list_issue_conversation_candidates(
     conversations: list[IssueConversation],
     previous_observations: list[IssueConversationObservation],
 ) -> IssueConversationCandidateResult:
-    """Observe every eligible issue and return those ready for a new batch.
+    """Observe every eligible issue and return conversation work ready to run.
 
     Comments are read for every eligible issue that can accept a fresh batch,
     whether or not an agent is free, so that status can tell waiting from idle.
@@ -969,7 +978,9 @@ def _inspect_issue_conversation(
                 title=issue.title,
                 has_comments_to_answer=_compose_known_issue_fact(value=False),
             ),
-            candidate=conversation,
+            candidate=IssueConversationRecoveryCandidate(
+                conversation=conversation,
+            ),
         )
     try:
         comments = _list_comments_to_answer(
@@ -1012,8 +1023,8 @@ def _rank_issue_conversation_candidate(
     candidate: IssueConversationCandidate, /
 ) -> tuple[int, str, int]:
     """Rank recovery before fresh batches, then fresh batches oldest first."""
-    if isinstance(candidate, IssueConversation):
-        return (0, "", candidate.record.issue)
+    if isinstance(candidate, IssueConversationRecoveryCandidate):
+        return (0, "", candidate.conversation.record.issue)
     first_comment = candidate.comments[0]
     return (1, first_comment.written_at, first_comment.id)
 
@@ -1022,8 +1033,8 @@ def _prepare_issue_conversation_round(
     *, state: StateDirectory, candidate: IssueConversationCandidate
 ) -> _PreparedIssueConversationRound:
     """Prepare either a fresh conversation batch or unfinished work."""
-    if isinstance(candidate, IssueConversation):
-        return _prepare_issue_conversation_recovery(conversation=candidate)
+    if isinstance(candidate, IssueConversationRecoveryCandidate):
+        return _prepare_issue_conversation_recovery(conversation=candidate.conversation)
     conversation = candidate.conversation or create_issue_conversation(
         state=state,
         config=candidate.config,
@@ -1337,7 +1348,10 @@ class AgentWorkScheduler:
         is_assignment_ready = bool(prioritized_rounds) or available_issue is not None
         is_conversation_ready = bool(conversation_candidates.candidates) and (
             conversation_candidates.failure is None
-            or isinstance(conversation_candidates.candidates[0], IssueConversation)
+            or isinstance(
+                conversation_candidates.candidates[0],
+                IssueConversationRecoveryCandidate,
+            )
         )
         if is_assignment_ready and is_conversation_ready:
             work_kind = (

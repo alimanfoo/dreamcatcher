@@ -1,7 +1,8 @@
-"""Map each configured harness to its adapter.
+"""Map configured harnesses to adapters and inspect their durable output.
 
 The lookup sits here rather than in `harness_adapters.py`, because every adapter
-imports `harness_adapters.py` itself.
+imports `harness_adapters.py` itself. Shared recovery paths also use the lookup
+to recover a harness session identifier from raw output.
 """
 
 from pathlib import Path
