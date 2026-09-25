@@ -114,6 +114,7 @@ def test_home_lists_a_conversation_and_links_to_its_page(tmp_path):
     assert "Conversations" in page
     assert 'id="conversation-GH8"' in page
     assert 'href="/conversations/8"' in page
+    assert '<span class="chip status-idle">idle</span>' in page
     assert "round 1, answered, ran 4m" in page
 
 
