@@ -64,7 +64,6 @@ ASSIGNMENT_STATUS_STYLES = dict(
 CONVERSATION_STATUS_STYLES = {
     IssueConversationStatusValue.NEEDS_ATTENTION: "red",
     IssueConversationStatusValue.RUNNING: "green",
-    IssueConversationStatusValue.AWAITING_PUBLICATION: "yellow",
     IssueConversationStatusValue.WAITING: "cyan",
     IssueConversationStatusValue.INACTIVE: "dim",
 }
@@ -274,7 +273,7 @@ def _render_instance_status(
             (
                 None
                 if report.max_agents is None
-                else f"{report.running_agents} of {report.max_agents} in use"
+                else f"{report.running_agents} of {report.max_agents} working"
             ),
         ),
         ("global cooldown", cooldown),

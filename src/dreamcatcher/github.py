@@ -137,6 +137,11 @@ class PullRequest(GitHubResponseProjection):
     state: PullRequestState
     is_draft: bool = Field(alias="isDraft")
 
+    @property
+    def is_open(self) -> bool:
+        """Whether the pull request is open."""
+        return self.state is PullRequestState.OPEN
+
 
 class BlockingIssue(GitHubResponseProjection):
     """Model an issue that blocks another issue."""

@@ -24,27 +24,29 @@ from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import read_json, read_text
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.feed import FeedLine, read_last_feed_line
+from dreamcatcher.feed import (
+    FeedLine,
+    describe_agent_round_start,
+    read_last_feed_line,
+)
 from dreamcatcher.harness_adapters import HarnessSessionIdentifier
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.issue_conversations import (
     IssueConversation,
     describe_issue_conversation_revision,
-    read_issue_comment_delivery_cursor,
     read_issue_conversation,
     read_issue_conversation_input,
-    read_issue_conversation_reply,
     read_issue_conversations,
 )
 from dreamcatcher.lock import read_daemon_pid
 from dreamcatcher.scheduler import (
-    NO_ROUND_HAS_RUN,
     AgentAssignmentObservation,
     GlobalCooldown,
     IssueFact,
     IssueFactValue,
     IssueObservation,
     derive_assignment_fault,
+    derive_round_purpose,
     read_scheduler_record,
 )
 from dreamcatcher.state import StateDirectory
@@ -67,7 +69,6 @@ class IssueConversationStatusValue(StrEnum):
 
     RUNNING = "running"
     WAITING = "waiting"
-    AWAITING_PUBLICATION = "awaiting publication"
     NEEDS_ATTENTION = "needs attention"
     INACTIVE = "inactive"
 
@@ -540,7 +541,7 @@ class _StatusReportReader:
                 value=IssueConversationStatusValue.NEEDS_ATTENTION,
                 detail=_describe_round_outcome(record=latest, is_running=False),
             )
-        return self._read_successful_conversation_status(
+        return self._read_idle_conversation_status(
             conversation=conversation,
             eligibility=eligibility_value,
         )
@@ -568,43 +569,13 @@ class _StatusReportReader:
             ),
         )
 
-    def _read_successful_conversation_status(
-        self,
-        *,
-        conversation: IssueConversation,
-        eligibility: IssueFactValue,
-    ) -> IssueConversationStatus:
-        """Describe a conversation whose latest round succeeded."""
-        latest = conversation.rounds[-1]
-        try:
-            reply = read_issue_conversation_reply(
-                conversation=conversation, number=latest.number
-            )
-            if reply is None or not reply.is_complete:
-                return self._compose_issue_conversation_status(
-                    conversation=conversation,
-                    value=IssueConversationStatusValue.AWAITING_PUBLICATION,
-                    detail=f"round {latest.number} answer is waiting to be published",
-                )
-            read_issue_comment_delivery_cursor(conversation=conversation)
-        except ReportableError as failure:
-            return self._compose_issue_conversation_status(
-                conversation=conversation,
-                value=IssueConversationStatusValue.NEEDS_ATTENTION,
-                detail=str(failure),
-            )
-        return self._read_idle_conversation_status(
-            conversation=conversation,
-            eligibility=eligibility,
-        )
-
     def _read_idle_conversation_status(
         self,
         *,
         conversation: IssueConversation,
         eligibility: IssueFactValue,
     ) -> IssueConversationStatus:
-        """Describe a conversation whose latest answer is complete."""
+        """Describe a conversation whose latest round succeeded."""
         if eligibility is IssueFactValue.FALSE:
             return self._compose_issue_conversation_status(
                 conversation=conversation,
@@ -690,7 +661,7 @@ class _StatusReportReader:
                 return self._compose_agent_assignment_status(
                     assignment=assignment,
                     value=AgentAssignmentStatusValue.WAITING,
-                    detail="awaiting next scheduler tick",
+                    detail=self._describe_next_round(assignment=assignment),
                 )
             return self._compose_agent_assignment_status(
                 assignment=assignment,
@@ -712,7 +683,7 @@ class _StatusReportReader:
         return self._compose_agent_assignment_status(
             assignment=assignment,
             value=AgentAssignmentStatusValue.WAITING,
-            detail=observation.reason,
+            detail=self._describe_next_round(assignment=assignment),
         )
 
     def _read_local_assignment_status(
@@ -751,7 +722,7 @@ class _StatusReportReader:
             return self._compose_agent_assignment_status(
                 assignment=assignment,
                 value=AgentAssignmentStatusValue.WAITING,
-                detail=unfinished_round,
+                detail=self._describe_next_round(assignment=assignment),
             )
         if assignment.is_complete:
             return self._compose_agent_assignment_status(
@@ -763,7 +734,7 @@ class _StatusReportReader:
             return self._compose_agent_assignment_status(
                 assignment=assignment,
                 value=AgentAssignmentStatusValue.WAITING,
-                detail=NO_ROUND_HAS_RUN,
+                detail=self._describe_next_round(assignment=assignment),
             )
         return None
 
@@ -790,8 +761,12 @@ class _StatusReportReader:
         self, *, assignment: AgentAssignment
     ) -> tuple[str, str | None]:
         """Describe the live round and return its latest feed output."""
-        since_started = describe_span(span=self.at - assignment.rounds[-1].started)
-        detail = f"round {assignment.rounds[-1].number}, running {since_started}"
+        record = assignment.rounds[-1]
+        since_started = describe_span(span=self.at - record.started)
+        purpose = describe_agent_round_start(
+            purpose=record.purpose, is_recovery=record.is_recovery
+        )
+        detail = f"round {record.number}, {purpose}, running {since_started}"
         line = self._read_last_output(assignment=assignment)
         if line is None:
             return f"{detail}, has said nothing yet", None
@@ -807,6 +782,23 @@ class _StatusReportReader:
         if line is None:
             return "idle"
         return f"idle {describe_span(span=self.at - line.at)}"
+
+    def _describe_next_round(self, *, assignment: AgentAssignment) -> str:
+        """Describe the work the assignment requires next."""
+        if not assignment.rounds:
+            return "next round, implement"
+        record = assignment.rounds[-1]
+        pull_request = assignment.record.pull_request_observation
+        purpose = (
+            record.purpose
+            if pull_request is None
+            else derive_round_purpose(pull_request=pull_request)
+        )
+        description = describe_agent_round_start(
+            purpose=purpose,
+            is_recovery=assignment.describe_unfinished_round() is not None,
+        )
+        return f"next round, {description}"
 
     def _read_last_output(self, *, assignment: AgentAssignment) -> FeedLine | None:
         """Read the last complete line from the assignment's latest feed."""

@@ -35,7 +35,9 @@ from status_fabrications import (
     written,
 )
 
-from dreamcatcher.agent_rounds import AgentRoundPurpose
+from dreamcatcher.agent_rounds import (
+    AgentAssignmentRoundPurpose,
+)
 from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
@@ -238,7 +240,7 @@ def test_completed_assignments_are_summarized(tmp_path, daemon):
 
 def test_only_completed_assignments_are_summarized(tmp_path):
     state = StateDirectory(root=tmp_path)
-    completed_round = ended(minute=1, purpose=AgentRoundPurpose.WRAP_UP)
+    completed_round = ended(minute=1, purpose=AgentAssignmentRoundPurpose.WRAP_UP)
     written(state=state, issue=12, records=[completed_round])
     written(state=state, issue=13, records=[completed_round])
 
@@ -353,7 +355,7 @@ def test_assignment_latest_output_is_indented_on_one_line(tmp_path, daemon):
     directory = written(
         state=state,
         issue=13,
-        records=[running(minute=1, purpose=AgentRoundPurpose.IMPLEMENT)],
+        records=[running(minute=1, purpose=AgentAssignmentRoundPurpose.IMPLEMENT)],
     )
     write_feed(
         directory=directory,
@@ -400,7 +402,10 @@ def test_assignment_status_alone_is_coloured_and_latest_output_is_dim(tmp_path, 
     )
     rendered = console.export_text(styles=True)
 
-    assert "\x1b[32mworking\x1b[0m  round 2, running" in rendered
+    assert (
+        "\x1b[32mworking\x1b[0m  round 2, address feedback (recovery), running"
+        in rendered
+    )
     assert "\x1b[2m[Bash] pytest\x1b[0m" in rendered
 
 
@@ -435,7 +440,9 @@ def test_an_assignment_view_shows_the_round_that_starts_while_it_is_open(
             directory=state.assignments / f"GH20-{ASSIGNMENT_TIMESTAMP}",
             number=2,
             record=running(
-                minute=60, number=2, purpose=AgentRoundPurpose.ADDRESS_FEEDBACK
+                minute=60,
+                number=2,
+                purpose=AgentAssignmentRoundPurpose.ADDRESS_FEEDBACK,
             ),
         )
 
@@ -592,7 +599,9 @@ def test_a_following_view_looks_once_more_when_the_last_round_stops(tmp_path, da
         write_round(
             directory=directory,
             number=2,
-            record=ended(minute=30, number=2, purpose=AgentRoundPurpose.WRAP_UP),
+            record=ended(
+                minute=30, number=2, purpose=AgentAssignmentRoundPurpose.WRAP_UP
+            ),
         )
 
     followed(state=state, issue=13, wait=wait)
@@ -616,7 +625,9 @@ def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path, dae
             directory=directory,
             number=2,
             record=running(
-                minute=60, number=2, purpose=AgentRoundPurpose.ADDRESS_FEEDBACK
+                minute=60,
+                number=2,
+                purpose=AgentAssignmentRoundPurpose.ADDRESS_FEEDBACK,
             ),
         )
         write_feed(

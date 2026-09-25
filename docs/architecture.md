@@ -49,15 +49,14 @@ One scheduler tick:
 
 1. observes the relevant local, process, configuration, and GitHub facts;
 2. reconciles incomplete assignment setup;
-3. saves and publishes any successful conversation answer still waiting;
-4. applies the run's requested capacity and global-cooldown constraints;
-5. finds the highest-priority assignment candidate, considering existing
+3. applies the run's requested capacity and global-cooldown constraints;
+4. finds the highest-priority assignment candidate, considering existing
    assignment rounds before dispatch of the oldest available issue;
-6. finds the conversation candidate with the oldest waiting comment;
-7. alternates between the two kinds when both have candidates, without changing
+5. finds the conversation candidate with the oldest waiting comment;
+6. alternates between the two kinds when both have candidates, without changing
    either kind's internal order;
-8. performs at most one scheduling action; and
-9. returns a `SchedulerRecord` for operational reporting.
+7. performs at most one scheduling action; and
+8. returns a `SchedulerRecord` for operational reporting.
 
 The daemon persists the returned `SchedulerRecord` and reports it in its output.
 A scheduler tick that fails before returning one is reported in daemon output
@@ -113,15 +112,19 @@ The first eligible batch starts one Claude session with the issue title, body
 and trusted comment history. Each later eligible batch resumes that session with
 only newly delivered comments. The scheduler first fetches main and asks Git to
 discard local changes and move the detached worktree to that revision. Each
-round input records its investigated revision. Comments posted before the
-current answer is published remain beyond the latest round input, and a failed
-or interrupted round needs attention before another batch can start.
+round input records its investigated revision. Comments posted while a round
+runs remain beyond the latest round input, and a failed or interrupted round
+needs attention before another batch can start.
 
-A successful final result is saved as the reply record. `NO_REPLY` completes
-publication without a GitHub post; any other saved answer is posted with the
-agent marker. An uncertain or failed post is tried again on a later tick from
-that saved record, without another harness invocation. Failed and interrupted
-rounds remain visible and are not automatically resumed yet.
+A conversation round posts its own answer. The conversation launcher gives the
+round a finisher that posts to the issue, so the shared round runner knows
+nothing of GitHub. After the harness exits successfully, the round hands its
+final result to that finisher, which posts it with the agent marker, and then
+the round records its ending. It therefore keeps its agent slot while it posts,
+and no new batch starts until the answer is out. `NO_REPLY` posts nothing. A
+missing final result or a failed post makes the round errored, with the failure
+noted in its feed. Failed and interrupted rounds remain visible and are not
+automatically resumed yet.
 
 ### Agent assignments
 
@@ -182,7 +185,8 @@ operations to:
 - write the prompt and any delivered input;
 - ask a harness adapter to build the invocation;
 - start that invocation in its owner's worktree;
-- stream and render its output;
+- stream and render its output, and keep the final result the harness reports;
+- let its owner finish a round whose harness succeeded, before the ending;
 - record a successful or errored ending;
 - interrupt the process tree safely; and
 - record an interruption when the daemon finds a round record that an earlier
@@ -191,8 +195,9 @@ operations to:
 An `AgentAssignmentRoundInput` is the document that a resumed assignment round
 receives beside its prompt. It carries the pull request state and any relayed
 user posts. An `IssueConversationInput` freezes the issue, trusted comments and
-investigated revision for a conversation round. A conversation round must also
-capture a separate final result before it can end successfully.
+investigated revision for a conversation round. The round runner writes
+whichever input the owner delivers without reading it, and it hands the final
+result to the owner's finisher without knowing what the owner does with it.
 
 The scheduler decides which purpose and recovery flag a new round has. The round
 boundary executes and records that decision; it does not inspect the pull
@@ -269,7 +274,7 @@ daemon facts, failed-setup, available and blocked `IssueObservation` entries,
 Status construction may read:
 
 - assignment and round records;
-- conversation, reply and conversation-round records;
+- conversation and conversation-round records;
 - raw harness output and the matching harness adapter when it must recover a
   harness session identifier or build a hand-resume command;
 - current child-process state;
@@ -365,10 +370,9 @@ The on-disk layout follows ownership:
 - instance-wide operational records live at the versioned root;
 - each assignment owns its durable record, delivery cursor, and numbered round
   records;
-- each conversation owns its durable record, numbered round records and saved
-  replies;
-- each round owns its prompt, raw output, rendered feed, final output when
-  required, and any delivered input; and
+- each conversation owns its durable record and numbered round records;
+- each round owns its prompt, raw output, rendered feed, final output when the
+  harness reports one, and any delivered input; and
 - assignment and conversation worktrees live in separate collections under the
   versioned root.
 
@@ -423,14 +427,13 @@ A round record persists:
 - its terminal outcome, when known, and any observed end time and exit status;
   and
 - the durable files containing its prompt, delivered input, output, and any
-  required final result.
+  final result the harness reports.
 
 A conversation record persists its issue and title, label, chosen harness
 settings, and harness session identifier. The issue derives the managed worktree
 path. Each round input persists its investigated revision and the trusted
 comments accepted for delivery; the first also persists the issue title and
-body. Its reply record persists the final body and, once known, publication
-time.
+body.
 
 Instance records persist the repository identity and the most recent daemon
 run's harness, Dreamcatcher version, and capacity. An instance-wide scheduler
@@ -450,8 +453,6 @@ The following are derived rather than persisted as authoritative state:
   agent assignment;
 - whether an assignment is complete or in fault;
 - whether an assignment requires an agent round or needs user feedback;
-- whether a conversation is running, waiting, awaiting publication, inactive, or
-  needs attention;
 - what round purpose and recovery flag are required next; and
 - every issue conversation and agent assignment status shown in a status report.
 

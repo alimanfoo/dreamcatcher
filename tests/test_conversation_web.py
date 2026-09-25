@@ -2,24 +2,21 @@
 
 from datetime import timedelta
 
-import pytest
 from clocks import DISPLAY_TIME_ZONE, PINNED
 from conftest import REPOSITORY
 from records import write_feed, write_issue_conversation, write_round, write_tick
 from status_fabrications import fabricate_everything
 
 from dreamcatcher.agent_rounds import (
-    AgentRoundPurpose,
     AgentRoundRecord,
     IssueConversationInput,
+    IssueConversationRoundPurpose,
     compose_agent_round_ending,
 )
 from dreamcatcher.documents import append_text, write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.issue_conversations import (
     read_issue_conversation,
-    record_issue_conversation_reply_publication,
-    save_issue_conversation_reply,
 )
 from dreamcatcher.scheduler import IssueFact, IssueFactValue, SchedulerRecord
 from dreamcatcher.state import StateDirectory
@@ -33,7 +30,6 @@ def fabricate_conversation(
     state: StateDirectory,
     has_round: bool = True,
     status: int = 0,
-    is_published: bool = True,
     is_eligible: bool = False,
 ) -> None:
     """Write one initial conversation exchange."""
@@ -57,7 +53,7 @@ def fabricate_conversation(
         number=1,
         record=AgentRoundRecord(
             number=1,
-            purpose=AgentRoundPurpose.DISCUSS,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=1,
             ending=compose_agent_round_ending(
@@ -87,18 +83,6 @@ def fabricate_conversation(
         number=1,
         lines=[FeedLine(at=PINNED, text="I found the answer.")],
     )
-    conversation = read_issue_conversation(state=state, issue=8)
-    assert conversation is not None
-    if status == 0:
-        save_issue_conversation_reply(
-            conversation=conversation, number=1, body="The answer."
-        )
-        if is_published:
-            record_issue_conversation_reply_publication(
-                conversation=conversation,
-                number=1,
-                at=PINNED + timedelta(minutes=5),
-            )
 
 
 def application(*, state: StateDirectory):
@@ -136,7 +120,7 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
         number=2,
         record=AgentRoundRecord(
             number=2,
-            purpose=AgentRoundPurpose.DISCUSS,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
             started=PINNED + timedelta(minutes=6),
             pid=2,
             ending=compose_agent_round_ending(
@@ -192,22 +176,13 @@ def test_conversation_page_shows_attention_for_an_unreadable_input(tmp_path):
     assert "inbox.json is not valid" in response.text
 
 
-@pytest.mark.parametrize(
-    ("status", "is_published", "expected"),
-    [
-        (2, False, "status-needs-attention"),
-        (0, False, "status-awaiting-publication"),
-    ],
-)
-def test_conversation_page_shows_failed_and_pending_states(
-    tmp_path, status, is_published, expected
-):
+def test_conversation_page_shows_a_failed_round(tmp_path):
     state = StateDirectory(root=tmp_path)
-    fabricate_conversation(state=state, status=status, is_published=is_published)
+    fabricate_conversation(state=state, status=2)
 
     page = application(state=state).test_client().get("/conversations/8").text
 
-    assert expected in page
+    assert "status-needs-attention" in page
 
 
 def test_conversation_before_its_first_round_has_an_empty_feed(tmp_path):
@@ -289,7 +264,7 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
         number=2,
         record=AgentRoundRecord(
             number=2,
-            purpose=AgentRoundPurpose.DISCUSS,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
             started=PINNED + timedelta(minutes=6),
             pid=2,
             ending=compose_agent_round_ending(
@@ -318,16 +293,6 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
         directory=directory,
         number=2,
         lines=[FeedLine(at=LOOKED_AT, text="I found the follow-up answer.")],
-    )
-    conversation = read_issue_conversation(state=state, issue=8)
-    assert conversation is not None
-    save_issue_conversation_reply(
-        conversation=conversation, number=2, body="The follow-up answer."
-    )
-    record_issue_conversation_reply_publication(
-        conversation=conversation,
-        number=2,
-        at=PINNED + timedelta(minutes=11),
     )
     write_tick(
         state=state,

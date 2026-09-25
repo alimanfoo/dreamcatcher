@@ -3,17 +3,18 @@
 A round runs a harness command in its owner's worktree. It writes into a
 numbered directory of its own.
 
-`prompt.txt` supplies the harness's stdin. A resumed round's `inbox.json` holds
-the pull request state and user posts. `raw.jsonl` preserves harness stdout,
-`feed.txt` renders both streams for the user, and `round.json` records identity,
-purpose, recovery, process, and outcome.
+`prompt.txt` supplies the harness's stdin. `inbox.json` holds any input that the
+round's owner delivers. `raw.jsonl` preserves harness stdout, `feed.txt` renders
+both streams for the user, `final.md` keeps the final result the harness
+reports, and `round.json` records identity, purpose, recovery, process, and
+outcome.
 
 The daemon watches a round rather than waiting for it, so a round reads its own
 streams on threads of its own, and records its own ending on another.
 """
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
@@ -39,9 +40,9 @@ from dreamcatcher.feed import FeedEvent, FeedNote, FeedProse, FeedRenderer
 from dreamcatcher.github import ConversationComment, PullRequestState, UserPost
 from dreamcatcher.harness_adapters import (
     AgentRoundLaunchRequest,
-    AgentWorkKind,
     HarnessAdapter,
     HarnessInvocation,
+    HarnessOutput,
     HarnessSessionIdentifier,
 )
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
@@ -62,49 +63,50 @@ class HarnessSessionIdentifierRecorder(Protocol):
         """Record the identifier."""
 
 
+class AgentRoundFinisher(Protocol):
+    """Finish a round whose harness exited successfully, before the round ends.
+
+    Raising a `ReportableError` fails the round, and the round notes why in its
+    feed.
+    """
+
+    def __call__(self, *, final_output: str | None) -> None:
+        """Finish the round with the final output its harness reported, if any."""
+
+
 @dataclass(frozen=True, kw_only=True)
-class AgentRoundOutputReader:
-    """Read harness output and record the durable values it reports."""
+class AgentRoundHarness:
+    """The harness command that a round runs, and the reader of its output."""
 
-    harness_adapter: HarnessAdapter
+    adapter: HarnessAdapter
+    invocation: HarnessInvocation
     record_harness_session_identifier: HarnessSessionIdentifierRecorder
-    final_output_path: Path | None = None
-    _final_output_captured: Flag = field(
-        default_factory=Flag, init=False, repr=False, compare=False
-    )
-    _final_output_settled: Flag = field(
-        default_factory=Flag, init=False, repr=False, compare=False
-    )
 
-    def read(self, *, line: str) -> list[FeedEvent]:
-        """Record durable values and return one line's feed events."""
-        output = self.harness_adapter.read_output(line=line)
+    def read(self, *, line: str) -> HarnessOutput:
+        """Record the harness session that one line reports, and return the line."""
+        output = self.adapter.read_output(line=line)
         identifier = output.harness_session_identifier
         if identifier is not None:
             self.record_harness_session_identifier(identifier=identifier)
-        if output.final_output is not None and self.final_output_path is not None:
-            write_text(text=output.final_output, path=self.final_output_path)
-            self._final_output_captured.set()
-            self._final_output_settled.set()
-        return output.events
-
-    def finish(self) -> None:
-        """Record that stdout ended without any later final output to read."""
-        self._final_output_settled.set()
-
-    def wait_for_final_output(self) -> bool:
-        """Wait a bounded time for final-output capture and report whether it landed."""
-        self._final_output_settled.wait(FINAL_OUTPUT_CAPTURE_TIMEOUT_SECONDS)
-        return self._final_output_captured.is_set()
+        return output
 
 
-class AgentRoundPurpose(StrEnum):
-    """The kinds of work that an agent round advances."""
+class AgentAssignmentRoundPurpose(StrEnum):
+    """The kinds of assignment work that an agent round advances."""
 
     IMPLEMENT = "implement"
     ADDRESS_FEEDBACK = "address feedback"
     WRAP_UP = "wrap up"
+
+
+class IssueConversationRoundPurpose(StrEnum):
+    """The kind of conversation work that an agent round advances."""
+
     DISCUSS = "discuss"
+
+
+# Every round records its purpose, so the shared record holds either owner's.
+type AgentRoundPurpose = AgentAssignmentRoundPurpose | IssueConversationRoundPurpose
 
 
 class AgentRoundOutcome(StrEnum):
@@ -204,7 +206,7 @@ def _record_agent_round_ending(
 
 
 class AgentAssignmentRoundInput(DreamcatcherDocument):
-    """Model the pull request state and user posts delivered to a round."""
+    """Model the pull request state and user posts delivered to an assignment round."""
 
     pull_request_state: PullRequestState
     user_posts: list[UserPost]
@@ -237,6 +239,7 @@ class AgentRoundStartRequest:
     launch_request: AgentRoundLaunchRequest
     harness_session_identifier: HarnessSessionIdentifier | None
     record_harness_session_identifier: HarnessSessionIdentifierRecorder
+    finish_round: AgentRoundFinisher | None
     paths: "AgentRoundPaths"
     plan: (
         AgentRoundPlan[AgentAssignmentRoundInput]
@@ -259,20 +262,16 @@ def start_agent_round(
             harness_session_identifier=request.harness_session_identifier,
         )
     return AgentRound(
-        output_reader=AgentRoundOutputReader(
-            harness_adapter=harness_adapter,
+        harness=AgentRoundHarness(
+            adapter=harness_adapter,
+            invocation=invocation,
             record_harness_session_identifier=(
                 request.record_harness_session_identifier
             ),
-            final_output_path=(
-                request.paths.final_output
-                if request.launch_request.work_kind is AgentWorkKind.CONVERSATION
-                else None
-            ),
         ),
-        invocation=invocation,
         paths=request.paths,
         plan=request.plan,
+        finish_round=request.finish_round,
         clock=clock,
     )
 
@@ -320,12 +319,12 @@ class AgentRoundPaths:
 
     @property
     def round_input(self) -> Path:
-        """The file holding the pull request state and user posts for the round."""
+        """The file holding the input that the round's owner delivered."""
         return self.directory / "inbox.json"
 
     @property
     def final_output(self) -> Path:
-        """The file holding the harness's final result for its host to publish."""
+        """The file holding the final result that the harness reports, if any."""
         return self.directory / "final.md"
 
 
@@ -382,35 +381,40 @@ class AgentRound:
     def __init__(
         self,
         *,
-        output_reader: AgentRoundOutputReader,
-        invocation: HarnessInvocation,
+        harness: AgentRoundHarness,
         paths: AgentRoundPaths,
         plan: AgentRoundPlan[AgentAssignmentRoundInput]
         | AgentRoundPlan[IssueConversationInput],
+        finish_round: AgentRoundFinisher | None = None,
         clock: Callable[[], datetime] = read_current_time,
     ) -> None:
-        """Run the invocation as a round at the paths it was given.
+        """Run the harness as a round at the paths it was given.
 
         The input and prompt go to files of the round's own before its process
         starts, and the harness reads the prompt as its stdin. A prompt therefore
         reaches the harness as it was written however long it is and whatever it
         holds, and a reader can see afterwards what the round received. A failure
         to write either file stops the round before it starts.
+
+        A round given a finisher lets its owner finish it before it records its
+        ending.
         """
-        self.output_reader = output_reader
+        self.harness = harness
+        self.finish_round = finish_round
         self.paths = paths
         self.clock = clock
         self.feed_renderer = FeedRenderer(worktree=paths.worktree, clock=clock)
         self.started_at = clock()
         self.is_interrupted = False
         self._round_ended = Flag()
+        self._final_output_settled = Flag()
         self._feed_write_lock = Lock()
         if plan.input is not None:
             write_json(document=plan.input, path=paths.round_input)
-        write_text(text=invocation.prompt, path=paths.prompt)
+        write_text(text=harness.invocation.prompt, path=paths.prompt)
         self.harness_process = spawn_command(
-            program=invocation.program,
-            arguments=invocation.arguments,
+            program=harness.invocation.program,
+            arguments=harness.invocation.arguments,
             cwd=paths.worktree,
             stdin=paths.prompt,
         )
@@ -450,7 +454,7 @@ class AgentRound:
 
     @property
     def is_alive(self) -> bool:
-        """Whether the round is still running, or still recording its ending.
+        """Whether the round is still running, finishing or recording its ending.
 
         A round that reads as finished has its record on disk. Its feed may
         still be growing, because the streams it reads can outlast the child.
@@ -471,7 +475,8 @@ class AgentRound:
 
         This returns as soon as the round has ended, and does not wait for the
         feed, so that a stream somebody else is still holding cannot hold up
-        the daemon.
+        the daemon. A round whose harness has already exited is finished by
+        its owner first.
         """
         self._interrupt()
         self._round_ended.wait()
@@ -507,11 +512,13 @@ class AgentRound:
         try:
             for line in self.harness_process.out:
                 append_text(text=line, path=self.paths.raw_output)
-                self._append_feed_events(
-                    line=line, events=self.output_reader.read(line=line)
-                )
+                output = self.harness.read(line=line)
+                if output.final_output is not None:
+                    write_text(text=output.final_output, path=self.paths.final_output)
+                    self._final_output_settled.set()
+                self._append_feed_events(line=line, events=output.events)
         finally:
-            self.output_reader.finish()
+            self._final_output_settled.set()
 
     def _read_stderr(self) -> None:
         for line in self.harness_process.err:
@@ -524,25 +531,7 @@ class AgentRound:
         is written before the stream readers finish.
         """
         try:
-            status = self.harness_process.wait()
-            if (
-                self.output_reader.final_output_path is not None
-                and status == 0
-                and (
-                    not self.output_reader.wait_for_final_output()
-                    or not self._has_final_output()
-                )
-            ):
-                status = 1
-                self._append_feed_events(
-                    line="",
-                    events=[
-                        FeedNote(
-                            label="failed",
-                            detail="the harness returned no final output",
-                        )
-                    ],
-                )
+            status = self._finish_round(status=self.harness_process.wait())
             if self.is_interrupted:
                 self.record = record_agent_round_interruption(
                     record=self.record, path=self.paths.record
@@ -561,11 +550,28 @@ class AgentRound:
             for stream_reader in self._stream_readers:
                 stream_reader.join()
 
-    def _has_final_output(self) -> bool:
-        """Return whether a required non-empty final output has landed."""
-        return self.paths.final_output.is_file() and bool(
-            read_text(path=self.paths.final_output).strip()
-        )
+    def _finish_round(self, *, status: int) -> int:
+        """Let the owner finish a successful round, and return the status to record.
+
+        A finisher that raises fails the round, and the feed says why. An
+        interrupted round is not finished.
+        """
+        if self.finish_round is None or status != 0 or self.is_interrupted:
+            return status
+        try:
+            self.finish_round(final_output=self._read_final_output())
+        except ReportableError as failure:
+            self._append_feed_events(
+                line="", events=[FeedNote(label="failed", detail=str(failure))]
+            )
+            return 1
+        return status
+
+    def _read_final_output(self) -> str | None:
+        """Return the harness's final output, once it has had time to land."""
+        self._final_output_settled.wait(FINAL_OUTPUT_CAPTURE_TIMEOUT_SECONDS)
+        path = self.paths.final_output
+        return read_text(path=path) if path.is_file() else None
 
     def _append_feed_events(self, *, line: str, events: list[FeedEvent]) -> None:
         """Append one output line's events while holding the feed write lock.

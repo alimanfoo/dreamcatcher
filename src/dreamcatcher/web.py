@@ -633,9 +633,7 @@ def _compose_home_view(
             daemon_pid=report.daemon_pid,
             dreamcatcher_version=report.dreamcatcher_version,
         ),
-        instance_facts=_compose_instance_facts(
-            report=report, cooldown_end=cooldown_end
-        ),
+        instance_facts=_compose_instance_facts(report=report),
         cooldown_message=(
             None if cooldown_end is None else f"Global cooldown ends {cooldown_end}"
         ),
@@ -1024,18 +1022,16 @@ def _describe_daemon(
     *, daemon_pid: int | None, dreamcatcher_version: str | None
 ) -> str:
     if daemon_pid is None:
-        return "daemon STOPPED"
+        return "daemon stopped"
     version = (
         ""
         if dreamcatcher_version is None
         else f"dreamcatcher v{dreamcatcher_version} · "
     )
-    return f"daemon RUNNING · {version}pid {daemon_pid}"
+    return f"daemon running · {version}pid {daemon_pid}"
 
 
-def _compose_instance_facts(
-    *, report: DreamcatcherStatusReport, cooldown_end: str | None
-) -> tuple[WebFact, ...]:
+def _compose_instance_facts(*, report: DreamcatcherStatusReport) -> tuple[WebFact, ...]:
     scheduler_hold = report.scheduler_hold
     if scheduler_hold is not None and scheduler_hold.startswith("at cap:"):
         scheduler_hold = None
@@ -1063,14 +1059,9 @@ def _compose_instance_facts(
             (
                 None
                 if report.max_agents is None
-                else f"{report.running_agents} of {report.max_agents} in use"
+                else f"{report.running_agents} of {report.max_agents} working"
             ),
             False,
-        ),
-        (
-            "global cooldown",
-            None if cooldown_end is None else f"ends {cooldown_end}",
-            True,
         ),
         ("scheduler hold", scheduler_hold, scheduler_hold is not None),
     )

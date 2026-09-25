@@ -5,9 +5,9 @@ import pytest
 from clocks import PINNED
 
 from dreamcatcher.agent_rounds import (
-    AgentRoundPurpose,
     AgentRoundRecord,
     IssueConversationInput,
+    IssueConversationRoundPurpose,
 )
 from dreamcatcher.config import AgentHarness, IssueConversationConfig
 from dreamcatcher.documents import write_json
@@ -28,15 +28,13 @@ from dreamcatcher.issue_conversations import (
     create_issue_conversation,
     describe_issue_conversation_revision,
     list_undelivered_issue_comments,
+    post_issue_conversation_answer,
     prepare_issue_conversation_input,
     read_issue_comment_delivery_cursor,
     read_issue_conversation,
     read_issue_conversation_input,
-    read_issue_conversation_reply,
     read_issue_conversations,
-    record_issue_conversation_reply_publication,
     record_issue_conversation_session_identifier,
-    save_issue_conversation_reply,
 )
 from dreamcatcher.prompts import AGENT_POST_MARKER
 from dreamcatcher.state import StateDirectory
@@ -324,7 +322,7 @@ def test_a_conversation_records_its_session_and_round_paths(tmp_path):
     write_json(
         document=AgentRoundRecord(
             number=1,
-            purpose=AgentRoundPurpose.DISCUSS,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=123,
         ),
@@ -333,7 +331,6 @@ def test_a_conversation_records_its_session_and_round_paths(tmp_path):
     reread = read_issue_conversation(state=StateDirectory(root=tmp_path), issue=8)
     assert reread is not None
     assert reread.next_round_number == 2
-    assert reread.compose_reply_path(number=1) == paths.directory / "reply.json"
 
     with pytest.raises(ReportableError) as error:
         record_issue_conversation_session_identifier(
@@ -360,7 +357,7 @@ def test_the_delivery_cursor_comes_from_the_latest_round_input(tmp_path):
         write_json(
             document=AgentRoundRecord(
                 number=number,
-                purpose=AgentRoundPurpose.DISCUSS,
+                purpose=IssueConversationRoundPurpose.DISCUSS,
                 started=PINNED,
                 pid=123,
             ),
@@ -391,7 +388,7 @@ def test_the_delivery_cursor_refuses_a_round_without_comments(tmp_path):
     write_json(
         document=AgentRoundRecord(
             number=1,
-            purpose=AgentRoundPurpose.DISCUSS,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=123,
         ),
@@ -433,7 +430,7 @@ def test_the_delivery_cursor_refuses_inconsistent_round_input(
     write_json(
         document=AgentRoundRecord(
             number=1,
-            purpose=AgentRoundPurpose.DISCUSS,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=123,
         ),
@@ -446,41 +443,48 @@ def test_the_delivery_cursor_refuses_inconsistent_round_input(
         read_issue_comment_delivery_cursor(conversation=reread)
 
 
-def test_a_reply_is_saved_before_its_publication_is_recorded(tmp_path):
-    conversation = write_conversation(state=StateDirectory(root=tmp_path))
+def test_an_answer_is_posted_trimmed_and_marked(fake):
+    gh = fake(program="gh")
+    gh.replies(stdout=json.dumps({"id": 91}))
 
-    assert read_issue_conversation_reply(conversation=conversation, number=1) is None
-    reply = save_issue_conversation_reply(
-        conversation=conversation, number=1, body="  The answer.\n"
+    post_issue_conversation_answer(
+        repository="alimanfoo/dreamcatcher", issue=8, final_output="  The answer.\n"
     )
 
-    assert reply.body == "The answer."
-    assert not reply.is_no_reply
-    assert not reply.is_complete
-    published = record_issue_conversation_reply_publication(
-        conversation=conversation, number=1, at=PINNED
-    )
-    assert published.published_at == PINNED
-    assert published.is_complete
+    assert json.loads(gh.calls[0].prompt) == {
+        "body": f"The answer.\n\n{AGENT_POST_MARKER}"
+    }
 
 
-def test_no_reply_completes_without_publication(tmp_path):
-    conversation = write_conversation(state=StateDirectory(root=tmp_path))
+def test_no_reply_posts_nothing(fake):
+    gh = fake(program="gh")
 
-    reply = save_issue_conversation_reply(
-        conversation=conversation, number=1, body=" NO_REPLY\n"
+    post_issue_conversation_answer(
+        repository="alimanfoo/dreamcatcher", issue=8, final_output=" NO_REPLY\n"
     )
 
-    assert reply.is_no_reply
-    assert reply.is_complete
+    assert gh.calls == []
 
 
-def test_publication_requires_a_saved_reply(tmp_path):
-    conversation = write_conversation(state=StateDirectory(root=tmp_path))
+@pytest.mark.parametrize("final_output", [None, "   \n"])
+def test_a_missing_or_empty_answer_is_reportable(fake, final_output):
+    gh = fake(program="gh")
 
-    with pytest.raises(ReportableError) as error:
-        record_issue_conversation_reply_publication(
-            conversation=conversation, number=1, at=PINNED
+    with pytest.raises(ReportableError, match="the harness returned no final output"):
+        post_issue_conversation_answer(
+            repository="alimanfoo/dreamcatcher", issue=8, final_output=final_output
         )
 
-    assert "has no saved reply to publish" in str(error.value)
+    assert gh.calls == []
+
+
+def test_an_answer_github_refuses_is_reportable(fake):
+    fake(program="gh").fails(stderr="issue is locked")
+
+    with pytest.raises(ReportableError) as error:
+        post_issue_conversation_answer(
+            repository="alimanfoo/dreamcatcher", issue=8, final_output="The answer."
+        )
+
+    assert str(error.value).startswith("could not post the answer on GH8: ")
+    assert "issue is locked" in str(error.value)
