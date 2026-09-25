@@ -5,6 +5,7 @@ from datetime import timedelta
 
 import pytest
 from clocks import PINNED
+from observations import observed_conversation
 from records import (
     write_daemon_run,
     write_feed,
@@ -22,7 +23,7 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.documents import write_json
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.issue_conversations import read_issue_conversation
-from dreamcatcher.scheduler import IssueFact, IssueFactValue, SchedulerRecord
+from dreamcatcher.scheduler import SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     IssueConversationStatusValue,
@@ -43,9 +44,7 @@ def conversation_state(tmp_path):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
-            conversation_eligibility={
-                8: IssueFact(value=IssueFactValue.TRUE),
-            },
+            conversation_observations=[observed_conversation()],
         ),
     )
     return state
@@ -120,9 +119,7 @@ def test_an_ineligible_conversation_with_no_round_is_inactive(conversation_state
         state=conversation_state,
         tick=SchedulerRecord(
             at=PINNED,
-            conversation_eligibility={
-                8: IssueFact(value=IssueFactValue.FALSE),
-            },
+            conversation_observations=[],
         ),
     )
 
@@ -133,10 +130,7 @@ def test_an_ineligible_conversation_with_no_round_is_inactive(conversation_state
 
 
 def test_a_conversation_with_unknown_eligibility_is_waiting(conversation_state):
-    write_tick(
-        state=conversation_state,
-        tick=SchedulerRecord(at=PINNED),
-    )
+    conversation_state.scheduler_record.unlink()
 
     found = status(state=conversation_state)
 
@@ -265,9 +259,7 @@ def test_a_finished_ineligible_conversation_is_inactive(conversation_state):
         state=conversation_state,
         tick=SchedulerRecord(
             at=PINNED,
-            conversation_eligibility={
-                8: IssueFact(value=IssueFactValue.FALSE),
-            },
+            conversation_observations=[],
         ),
     )
 
@@ -281,10 +273,7 @@ def test_a_finished_conversation_with_unknown_eligibility_waits(
     conversation_state,
 ):
     conversation_round(state=conversation_state)
-    write_tick(
-        state=conversation_state,
-        tick=SchedulerRecord(at=PINNED),
-    )
+    conversation_state.scheduler_record.unlink()
 
     found = status(state=conversation_state)
 

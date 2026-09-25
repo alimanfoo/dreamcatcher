@@ -5,6 +5,7 @@ from io import StringIO
 
 import pytest
 from clocks import PINNED
+from observations import observed_conversation
 from records import write_feed, write_issue_conversation, write_round, write_tick
 from rich.console import Console
 
@@ -19,7 +20,7 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.issue_conversations import read_issue_conversation
-from dreamcatcher.scheduler import IssueFact, IssueFactValue, SchedulerRecord
+from dreamcatcher.scheduler import SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.tui import (
     FeedSelection,
@@ -78,11 +79,7 @@ def conversation_state(
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
-            conversation_eligibility={
-                8: IssueFact(
-                    value=(IssueFactValue.TRUE if is_eligible else IssueFactValue.FALSE)
-                ),
-            },
+            conversation_observations=[observed_conversation()] if is_eligible else [],
         ),
     )
     return state
@@ -266,9 +263,7 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
             state=state,
             tick=SchedulerRecord(
                 at=PINNED,
-                conversation_eligibility={
-                    8: IssueFact(value=IssueFactValue.FALSE),
-                },
+                conversation_observations=[],
             ),
         )
 

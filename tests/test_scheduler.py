@@ -138,6 +138,14 @@ def test_a_scheduler_record_reads_an_owner_specific_launch_key(legacy_fields, ex
     assert record.launched_agent_work_identifier == expected
 
 
+def test_a_scheduler_record_from_before_conversation_observations_reads():
+    record = SchedulerRecord.model_validate(
+        {"at": PINNED, "conversation_eligibility": {"8": {"value": "true"}}}
+    )
+
+    assert record.conversation_observations == []
+
+
 def availability_values(*, tick: SchedulerRecord) -> list[IssueFactValue]:
     """Return each observed issue's derived availability in dispatch order."""
     return [

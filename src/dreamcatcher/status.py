@@ -39,6 +39,7 @@ from dreamcatcher.scheduler import (
     NO_ROUND_HAS_RUN,
     AgentAssignmentObservation,
     GlobalCooldown,
+    IssueConversationObservation,
     IssueFact,
     IssueFactValue,
     IssueObservation,
@@ -414,10 +415,13 @@ class _StatusReportReader:
                 for observation in self.scheduler_record.assignment_observations
             }
         )
-        self.conversation_eligibility: dict[int, IssueFact] = (
+        self.conversation_observations: dict[int, IssueConversationObservation] = (
             {}
             if self.scheduler_record is None
-            else self.scheduler_record.conversation_eligibility
+            else {
+                observation.issue: observation
+                for observation in self.scheduler_record.conversation_observations
+            }
         )
 
     def list_issue_observations(
@@ -495,9 +499,8 @@ class _StatusReportReader:
         self, *, conversation: IssueConversation
     ) -> IssueConversationStatus:
         """Derive one issue conversation's summary from its local records."""
-        eligibility = self.conversation_eligibility.get(conversation.record.issue)
-        eligibility_value = (
-            IssueFactValue.UNKNOWN if eligibility is None else eligibility.value
+        eligibility_value = self._read_conversation_eligibility(
+            issue=conversation.record.issue
         )
         if conversation.unrecorded_round_input is not None:
             return self._compose_issue_conversation_status(
@@ -537,6 +540,14 @@ class _StatusReportReader:
             conversation=conversation,
             eligibility=eligibility_value,
         )
+
+    def _read_conversation_eligibility(self, *, issue: int) -> IssueFactValue:
+        """Return whether the latest tick observed the issue as eligible."""
+        if self.scheduler_record is None:
+            return IssueFactValue.UNKNOWN
+        if issue in self.conversation_observations:
+            return IssueFactValue.TRUE
+        return IssueFactValue.FALSE
 
     def _read_conversation_without_rounds(
         self,

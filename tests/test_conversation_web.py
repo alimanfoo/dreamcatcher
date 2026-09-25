@@ -4,6 +4,7 @@ from datetime import timedelta
 
 from clocks import DISPLAY_TIME_ZONE, PINNED
 from conftest import REPOSITORY
+from observations import observed_conversation
 from records import write_feed, write_issue_conversation, write_round, write_tick
 from status_fabrications import fabricate_everything
 
@@ -18,7 +19,7 @@ from dreamcatcher.feed import FeedLine
 from dreamcatcher.issue_conversations import (
     read_issue_conversation,
 )
-from dreamcatcher.scheduler import IssueFact, IssueFactValue, SchedulerRecord
+from dreamcatcher.scheduler import SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.web import create_app
 
@@ -39,11 +40,7 @@ def fabricate_conversation(
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
-            conversation_eligibility={
-                8: IssueFact(
-                    value=(IssueFactValue.TRUE if is_eligible else IssueFactValue.FALSE)
-                ),
-            },
+            conversation_observations=[observed_conversation()] if is_eligible else [],
         ),
     )
     if not has_round:
@@ -298,9 +295,7 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
-            conversation_eligibility={
-                8: IssueFact(value=IssueFactValue.FALSE),
-            },
+            conversation_observations=[],
         ),
     )
 
