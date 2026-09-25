@@ -590,7 +590,11 @@ def test_a_follow_up_refuses_to_replace_a_missing_saved_session(
 
 def test_a_failed_conversation_listing_holds_launches(conversation_scheduler):
     scheduler, clock, gh = conversation_scheduler
-    write_issue_conversation(state=scheduler.state, issue=8)
+    write_issue_conversation(state=scheduler.state, issue=5)
+    offer_conversation(gh=gh, comments=[])
+    write_json(
+        document=scheduler.tick(at=clock()), path=scheduler.state.scheduler_record
+    )
     gh.fails(
         stderr="network unavailable",
         to=(
@@ -606,7 +610,7 @@ def test_a_failed_conversation_listing_holds_launches(conversation_scheduler):
     assert observed.conversation_observations == [
         IssueConversationObservation(
             issue=8,
-            title="Issue 8",
+            title="Why does this happen?",
             has_comments_to_answer=IssueFact(
                 value=IssueFactValue.UNKNOWN, evidence=observed.hold
             ),

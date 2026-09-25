@@ -485,7 +485,11 @@ def _show_agent_tail(
 
 
 def _missing_conversation_response(*, issue: int) -> tuple[str, int]:
-    """Render the response for an issue with no saved conversation."""
+    """Render the response for an issue with no conversation.
+
+    An issue has a conversation once it has a saved conversation or the latest
+    tick observed it as eligible.
+    """
     return (
         render_template(
             "error.html",

@@ -317,9 +317,9 @@ to be answered. The tick observes every eligible issue, whether or not a
 conversation record exists yet, so status lists a conversation from the first
 tick that sees its issue. An issue that the tick did not observe is not
 eligible, and its conversation leaves the report once no round runs for it. When
-the tick cannot list eligible issues, it observes every saved conversation with
-an unknown fact instead. An `IssueConversationStatus` is one summary status from
-the ontology.
+the tick cannot list eligible issues, it observes the previous tick's issues
+again with an unknown fact. An `IssueConversationStatus` is one summary status
+from the ontology.
 
 The scheduler record also names the assignment or conversation whose round the
 tick launched. Alternation advances when a kind is selected, including when its

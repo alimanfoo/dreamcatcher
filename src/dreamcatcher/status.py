@@ -191,8 +191,8 @@ class IssueConversationStatus:
     def is_over(self) -> bool:
         """Whether nothing more can happen until the user acts.
 
-        A faulted conversation waits for a retry, and one that the status report
-        no longer lists waits for its issue to be eligible again.
+        Nothing resumes a faulted conversation yet, and one that the status
+        report no longer lists waits for its issue to be eligible again.
         """
         return self.value is IssueConversationStatusValue.FAULT or not self.is_listed
 

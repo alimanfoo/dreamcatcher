@@ -148,7 +148,7 @@ class IssueConversationObservation(DreamcatcherDocument):
     """Model what the scheduler found for one conversation issue in one tick.
 
     The scheduler observes every eligible issue. When it cannot list eligible
-    issues, it observes every saved conversation with an unknown fact instead.
+    issues, it observes the previous tick's issues again with an unknown fact.
     """
 
     issue: int
@@ -847,13 +847,16 @@ def _list_issue_conversation_candidates(
     account: str,
     config: DreamcatcherConfig,
     conversations: list[IssueConversation],
+    previous_observations: list[IssueConversationObservation],
 ) -> IssueConversationCandidateResult:
     """Observe every eligible issue and return those ready for a new batch.
 
     Every eligible issue's comments are read, whether or not an agent is free
     to answer them, so that status can tell a waiting conversation from an
     idle one. A failed read holds launches only where the conversation could
-    take a new batch.
+    take a new batch. When eligible issues cannot be listed, the previous
+    tick's issues are observed again with an unknown fact, so the ones the
+    user took off the report stay off it.
     """
     conversation_config = config.conversation
     if conversation_config is None:
@@ -868,14 +871,14 @@ def _list_issue_conversation_candidates(
         return IssueConversationCandidateResult(
             candidates=[],
             observations=[
-                IssueConversationObservation(
-                    issue=conversation.record.issue,
-                    title=conversation.record.title,
-                    has_comments_to_answer=_compose_unknown_issue_fact(
-                        evidence=failure
-                    ),
+                observation.model_copy(
+                    update={
+                        "has_comments_to_answer": _compose_unknown_issue_fact(
+                            evidence=failure
+                        )
+                    }
                 )
-                for conversation in conversations
+                for observation in previous_observations
             ],
             failure=failure,
         )
@@ -1120,6 +1123,11 @@ class AgentWorkScheduler:
             account=self.account,
             config=self.config,
             conversations=conversations,
+            previous_observations=(
+                []
+                if previous_record is None
+                else previous_record.conversation_observations
+            ),
         )
         scheduler_failure = _combine_scheduler_failures(
             failures=[assignment_failure, conversation_candidates.failure]
