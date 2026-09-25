@@ -32,6 +32,7 @@ from dreamcatcher.issue_conversations import IssueConversation
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
+    CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER,
     STATUSES_THAT_END_A_VIEW,
     AgentAssignmentStatus,
     AgentAssignmentStatusValue,
@@ -643,7 +644,12 @@ def _compose_home_view(
         ),
         conversations=tuple(
             _compose_conversation_card(status=status)
-            for status in report.conversation_statuses
+            for status in sorted(
+                report.conversation_statuses,
+                key=lambda status: CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER.index(
+                    status.value
+                ),
+            )
         ),
         active_assignments=active_assignments,
         complete_assignments=complete_assignments,

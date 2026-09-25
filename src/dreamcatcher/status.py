@@ -86,6 +86,15 @@ ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER = (
     AgentAssignmentStatusValue.COMPLETE,
 )
 
+# Idle comes last because a conversation at rest asks nothing of the user.
+CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER = (
+    IssueConversationStatusValue.FAULT,
+    IssueConversationStatusValue.WORKING,
+    IssueConversationStatusValue.WAITING,
+    IssueConversationStatusValue.UNKNOWN,
+    IssueConversationStatusValue.IDLE,
+)
+
 STATUSES_THAT_END_A_VIEW = (
     AgentAssignmentStatusValue.FAULT,
     AgentAssignmentStatusValue.COMPLETE,

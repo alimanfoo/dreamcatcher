@@ -37,13 +37,13 @@ from dreamcatcher.issue_conversations import IssueConversation
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
+    CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER,
     STATUSES_THAT_END_A_VIEW,
     AgentAssignmentStatus,
     AgentAssignmentStatusValue,
     AgentRoundStatus,
     DreamcatcherStatusReport,
     IssueConversationStatus,
-    IssueConversationStatusValue,
     IssueObservation,
     read_agent_assignment_statuses_for_issue,
     read_issue_conversation_status,
@@ -60,13 +60,13 @@ ASSIGNMENT_STATUS_STYLES = dict(
     )
 )
 
-CONVERSATION_STATUS_STYLES = {
-    IssueConversationStatusValue.FAULT: "red",
-    IssueConversationStatusValue.WORKING: "green",
-    IssueConversationStatusValue.WAITING: "cyan",
-    IssueConversationStatusValue.UNKNOWN: "magenta",
-    IssueConversationStatusValue.IDLE: "dim",
-}
+CONVERSATION_STATUS_STYLES = dict(
+    zip(
+        CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER,
+        ("red", "green", "cyan", "magenta", "dim"),
+        strict=True,
+    )
+)
 
 # How long a following view waits between refreshes for new round output.
 VIEW_REFRESH_INTERVAL = 1.0
@@ -384,11 +384,16 @@ def _render_assignment_rows(
 def _render_conversations(
     *, conversations: Sequence[IssueConversationStatus]
 ) -> RenderableType | None:
-    """Render issue conversations in issue order."""
+    """Render conversations in attention order, preserving order within a status."""
     if not conversations:
         return None
     table = _create_table(columns=3)
-    for status in conversations:
+    for status in sorted(
+        conversations,
+        key=lambda status: CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER.index(
+            status.value
+        ),
+    ):
         table.add_row(
             Text(f"GH{status.issue}"),
             Text(

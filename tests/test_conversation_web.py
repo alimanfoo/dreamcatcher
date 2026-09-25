@@ -385,3 +385,29 @@ def test_conversation_page_before_its_record_shows_its_issue_and_polls(tmp_path)
     assert "-- no feed yet --" in page.text
     assert tail.status_code == 200
     assert 'value="0:0"' in tail.text
+
+
+def test_home_lists_conversations_in_attention_order(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state, status=2)
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            conversation_observations=[
+                observed_conversation(issue=8),
+                observed_conversation(issue=9),
+                observed_conversation(
+                    issue=10, value=IssueFactValue.TRUE, evidence="1 comment to answer"
+                ),
+            ],
+        ),
+    )
+
+    page = application(state=state).test_client().get("/").text
+
+    assert (
+        page.index('id="conversation-GH8"')
+        < page.index('id="conversation-GH10"')
+        < page.index('id="conversation-GH9"')
+    )

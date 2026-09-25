@@ -381,3 +381,30 @@ def test_a_conversation_feed_before_its_first_round_says_so(tmp_path):
             selection=FeedSelection(issue=9, owner_kind=AgentWorkKind.CONVERSATION),
             console=console,
         )
+
+
+def test_conversations_are_listed_in_attention_order(tmp_path):
+    state = conversation_state(root=tmp_path, status=2)
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            conversation_observations=[
+                observed_conversation(issue=8),
+                observed_conversation(issue=9),
+                observed_conversation(
+                    issue=10, value=IssueFactValue.TRUE, evidence="1 comment to answer"
+                ),
+            ],
+        ),
+    )
+    console, written = rendered_console()
+
+    show_status_view(
+        state=state,
+        console=console,
+        timing=ViewTiming(clock=lambda: PINNED),
+    )
+
+    shown = written.getvalue()
+    assert shown.index("GH8") < shown.index("GH10") < shown.index("GH9")
