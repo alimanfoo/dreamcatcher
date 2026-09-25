@@ -132,7 +132,7 @@ def build_cli_parser() -> argparse.ArgumentParser:
         const=AgentWorkKind.CONVERSATION,
         help="retry the issue conversation",
     )
-    retry_parser.set_defaults(act=_retry_agent_work)
+    retry_parser.set_defaults(act=_clear_fault_and_retry)
     web_parser = subcommands.add_parser(
         "web",
         help="serve the local status report in a web browser",
@@ -293,8 +293,8 @@ def _run_daemon(*, arguments: argparse.Namespace) -> None:
     ).run()
 
 
-def _retry_agent_work(*, arguments: argparse.Namespace) -> None:
-    """Clear one agent-work owner's fault so the daemon may recover it."""
+def _clear_fault_and_retry(*, arguments: argparse.Namespace) -> None:
+    """Clear one assignment's or conversation's fault so the daemon may recover it."""
     state = _find_state_directory(root=Path.cwd())
     owner = _select_retry_owner(
         state=state,

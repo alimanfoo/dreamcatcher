@@ -41,7 +41,7 @@ from dreamcatcher.agent_rounds import (
     ErroredAgentRoundEnding,
     IssueConversationInput,
     IssueConversationRoundPurpose,
-    describe_unfinished_agent_round,
+    describe_failed_agent_round,
     record_agent_round_launch_failure,
     start_agent_round,
 )
@@ -789,7 +789,7 @@ def _inspect_assignment_pull_request(
         pull_request=pull_request,
         observed_at=observed_at,
     )
-    recovery_reason = describe_unfinished_agent_round(rounds=assignment.rounds)
+    recovery_reason = describe_failed_agent_round(rounds=assignment.rounds)
     if recovery_reason is not None and pull_request.state is PullRequestState.OPEN:
         return RequiredAgentRound(
             assignment=assignment,
@@ -918,7 +918,7 @@ def compose_issue_conversation_recovery_requirement(
     """Return the recovery round required by unfinished conversation work."""
     input_number = conversation.next_round_number
     if conversation.unrecorded_round_input is None:
-        if describe_unfinished_agent_round(rounds=conversation.rounds) is None:
+        if describe_failed_agent_round(rounds=conversation.rounds) is None:
             return None
         input_number = conversation.rounds[-1].number
     round_input = read_issue_conversation_input(

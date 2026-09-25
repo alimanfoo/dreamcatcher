@@ -20,7 +20,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     ErroredAgentRoundEnding,
     HarnessNonzeroExit,
-    describe_unfinished_agent_round,
+    describe_failed_agent_round,
 )
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.config import AgentHarness
@@ -463,7 +463,7 @@ def _summarize_observed_conversation(
     )
 
 
-def _describe_unfinished_conversation_round(
+def _describe_failed_conversation_round(
     *, conversation: IssueConversation | None
 ) -> str | None:
     """Describe the conversation's latest round if it errored or was interrupted.
@@ -697,7 +697,7 @@ class _StatusReportReader:
             conversation=conversation,
             most_recent_cooldown_ended=most_recent_cooldown_ended,
         ):
-            reason = _describe_unfinished_conversation_round(conversation=conversation)
+            reason = _describe_failed_conversation_round(conversation=conversation)
             return _ConversationSummary(
                 value=IssueConversationStatusValue.FAULT,
                 detail=f"two consecutive rounds failed; {reason}",
@@ -708,13 +708,11 @@ class _StatusReportReader:
             and self.daemon_pid is not None
         ):
             return self._summarize_working_conversation(conversation=conversation)
-        unfinished_round = _describe_unfinished_conversation_round(
-            conversation=conversation
-        )
-        if unfinished_round is not None:
+        failed_round = _describe_failed_conversation_round(conversation=conversation)
+        if failed_round is not None:
             return _ConversationSummary(
                 value=IssueConversationStatusValue.WAITING,
-                detail=f"{unfinished_round}; waiting for recovery",
+                detail=f"{failed_round}; waiting for recovery",
             )
         return None
 
@@ -863,8 +861,8 @@ class _StatusReportReader:
                     reason="two consecutive rounds failed",
                 ),
             )
-        unfinished_round = describe_unfinished_agent_round(rounds=assignment.rounds)
-        if unfinished_round is not None:
+        failed_round = describe_failed_agent_round(rounds=assignment.rounds)
+        if failed_round is not None:
             if self.daemon_pid is not None and assignment.rounds[-1].ending is None:
                 detail, latest_output = self._describe_running_assignment(
                     assignment=assignment
@@ -953,7 +951,7 @@ class _StatusReportReader:
         description = describe_agent_round_start(
             purpose=purpose,
             is_recovery=(
-                describe_unfinished_agent_round(rounds=assignment.rounds) is not None
+                describe_failed_agent_round(rounds=assignment.rounds) is not None
             ),
         )
         return f"next round, {description}"

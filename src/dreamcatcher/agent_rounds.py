@@ -259,10 +259,8 @@ class AgentRoundRecord(DreamcatcherDocument):
         return self.ending.outcome
 
 
-def describe_unfinished_agent_round(
-    *, rounds: Sequence[AgentRoundRecord]
-) -> str | None:
-    """Describe an interrupted or errored final round, if one exists."""
+def describe_failed_agent_round(*, rounds: Sequence[AgentRoundRecord]) -> str | None:
+    """Describe the latest round when it was interrupted or errored."""
     if not rounds:
         return None
     latest = rounds[-1]
