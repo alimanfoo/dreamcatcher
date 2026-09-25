@@ -117,13 +117,14 @@ runs remain beyond the latest round input, and a failed or interrupted round
 needs attention before another batch can start.
 
 A conversation round posts its own answer. The conversation launcher gives the
-round a callback that posts to the issue, so the shared round runner knows
-nothing of GitHub. After the harness exits successfully and its final result has
-been captured, the round posts that result with the agent marker, then records
-its ending. It therefore keeps its agent slot while it posts, and no new batch
-starts until the answer is out. `NO_REPLY` posts nothing. A failed post makes
-the round errored, with the failure noted in its feed. Failed and interrupted
-rounds remain visible and are not automatically resumed yet.
+round a finisher that posts to the issue, so the shared round runner knows
+nothing of GitHub. After the harness exits successfully, the round hands its
+final result to that finisher, which posts it with the agent marker, and then
+the round records its ending. It therefore keeps its agent slot while it posts,
+and no new batch starts until the answer is out. `NO_REPLY` posts nothing. A
+missing final result or a failed post makes the round errored, with the failure
+noted in its feed. Failed and interrupted rounds remain visible and are not
+automatically resumed yet.
 
 ### Agent assignments
 
@@ -184,7 +185,8 @@ operations to:
 - write the prompt and any delivered input;
 - ask a harness adapter to build the invocation;
 - start that invocation in its owner's worktree;
-- stream and render its output;
+- stream and render its output, and keep the final result the harness reports;
+- let its owner finish a round whose harness succeeded, before the ending;
 - record a successful or errored ending;
 - interrupt the process tree safely; and
 - record an interruption when the daemon finds a round record that an earlier
@@ -193,8 +195,9 @@ operations to:
 An `AgentAssignmentRoundInput` is the document that a resumed assignment round
 receives beside its prompt. It carries the pull request state and any relayed
 user posts. An `IssueConversationInput` freezes the issue, trusted comments and
-investigated revision for a conversation round. A conversation round must also
-capture a separate final result and publish it before it can end successfully.
+investigated revision for a conversation round. The round runner writes
+whichever input the owner delivers without reading it, and it hands the final
+result to the owner's finisher without knowing what the owner does with it.
 
 The scheduler decides which purpose and recovery flag a new round has. The round
 boundary executes and records that decision; it does not inspect the pull
@@ -368,8 +371,8 @@ The on-disk layout follows ownership:
 - each assignment owns its durable record, delivery cursor, and numbered round
   records;
 - each conversation owns its durable record and numbered round records;
-- each round owns its prompt, raw output, rendered feed, final output when
-  required, and any delivered input; and
+- each round owns its prompt, raw output, rendered feed, final output when the
+  harness reports one, and any delivered input; and
 - assignment and conversation worktrees live in separate collections under the
   versioned root.
 
@@ -424,7 +427,7 @@ A round record persists:
 - its terminal outcome, when known, and any observed end time and exit status;
   and
 - the durable files containing its prompt, delivered input, output, and any
-  required final result.
+  final result the harness reports.
 
 A conversation record persists its issue and title, label, chosen harness
 settings, and harness session identifier. The issue derives the managed worktree

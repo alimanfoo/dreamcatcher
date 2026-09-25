@@ -1261,7 +1261,7 @@ class AgentWorkScheduler:
                 record_harness_session_identifier=partial(
                     record_harness_session_identifier, assignment=assignment
                 ),
-                publish_final_output=None,
+                finish_round=None,
                 paths=assignment.compose_round_paths(
                     number=assignment.next_round_number
                 ),
@@ -1331,7 +1331,7 @@ class AgentWorkScheduler:
                         record_issue_conversation_session_identifier,
                         conversation=conversation,
                     ),
-                    publish_final_output=partial(
+                    finish_round=partial(
                         post_issue_conversation_answer,
                         repository=self.repository,
                         issue=conversation.record.issue,

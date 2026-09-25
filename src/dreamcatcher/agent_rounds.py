@@ -5,15 +5,16 @@ numbered directory of its own.
 
 `prompt.txt` supplies the harness's stdin. A resumed round's `inbox.json` holds
 the pull request state and user posts. `raw.jsonl` preserves harness stdout,
-`feed.txt` renders both streams for the user, and `round.json` records identity,
-purpose, recovery, process, and outcome.
+`feed.txt` renders both streams for the user, `final.md` keeps the final result
+the harness reports, and `round.json` records identity, purpose, recovery,
+process, and outcome.
 
 The daemon watches a round rather than waiting for it, so a round reads its own
 streams on threads of its own, and records its own ending on another.
 """
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
@@ -41,6 +42,7 @@ from dreamcatcher.harness_adapters import (
     AgentRoundLaunchRequest,
     HarnessAdapter,
     HarnessInvocation,
+    HarnessOutput,
     HarnessSessionIdentifier,
 )
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
@@ -61,60 +63,32 @@ class HarnessSessionIdentifierRecorder(Protocol):
         """Record the identifier."""
 
 
-class FinalOutputPublisher(Protocol):
-    """Publish the final output of a successful agent round."""
+class AgentRoundFinisher(Protocol):
+    """Finish a round whose harness exited successfully, before the round ends.
 
-    def __call__(self, *, final_output: str) -> None:
-        """Publish the final output, raising a `ReportableError` if that fails."""
+    Raising a `ReportableError` fails the round, and the round notes why in its
+    feed.
+    """
 
-
-@dataclass(frozen=True, kw_only=True)
-class FinalOutputRequirement:
-    """The file where a round saves its required final output, and its publisher."""
-
-    path: Path
-    publish: FinalOutputPublisher
+    def __call__(self, *, final_output: str | None) -> None:
+        """Finish the round with the final output its harness reported, if any."""
 
 
 @dataclass(frozen=True, kw_only=True)
 class AgentRoundHarness:
-    """The harness command that a round runs, and the reader of its output.
-
-    Reading the output records the durable values that the harness reports.
-    """
+    """The harness command that a round runs, and the reader of its output."""
 
     adapter: HarnessAdapter
     invocation: HarnessInvocation
     record_harness_session_identifier: HarnessSessionIdentifierRecorder
-    final_output_requirement: FinalOutputRequirement | None = None
-    _final_output_captured: Flag = field(
-        default_factory=Flag, init=False, repr=False, compare=False
-    )
-    _final_output_settled: Flag = field(
-        default_factory=Flag, init=False, repr=False, compare=False
-    )
 
-    def read(self, *, line: str) -> list[FeedEvent]:
-        """Record durable values and return one line's feed events."""
+    def read(self, *, line: str) -> HarnessOutput:
+        """Record the harness session that one line reports, and return the line."""
         output = self.adapter.read_output(line=line)
         identifier = output.harness_session_identifier
         if identifier is not None:
             self.record_harness_session_identifier(identifier=identifier)
-        requirement = self.final_output_requirement
-        if output.final_output is not None and requirement is not None:
-            write_text(text=output.final_output, path=requirement.path)
-            self._final_output_captured.set()
-            self._final_output_settled.set()
-        return output.events
-
-    def finish(self) -> None:
-        """Record that stdout ended without any later final output to read."""
-        self._final_output_settled.set()
-
-    def wait_for_final_output(self) -> bool:
-        """Wait a bounded time for final-output capture and report whether it landed."""
-        self._final_output_settled.wait(FINAL_OUTPUT_CAPTURE_TIMEOUT_SECONDS)
-        return self._final_output_captured.is_set()
+        return output
 
 
 class AgentRoundPurpose(StrEnum):
@@ -256,7 +230,7 @@ class AgentRoundStartRequest:
     launch_request: AgentRoundLaunchRequest
     harness_session_identifier: HarnessSessionIdentifier | None
     record_harness_session_identifier: HarnessSessionIdentifierRecorder
-    publish_final_output: FinalOutputPublisher | None
+    finish_round: AgentRoundFinisher | None
     paths: "AgentRoundPaths"
     plan: (
         AgentRoundPlan[AgentAssignmentRoundInput]
@@ -285,17 +259,10 @@ def start_agent_round(
             record_harness_session_identifier=(
                 request.record_harness_session_identifier
             ),
-            final_output_requirement=(
-                None
-                if request.publish_final_output is None
-                else FinalOutputRequirement(
-                    path=request.paths.final_output,
-                    publish=request.publish_final_output,
-                )
-            ),
         ),
         paths=request.paths,
         plan=request.plan,
+        finish_round=request.finish_round,
         clock=clock,
     )
 
@@ -348,7 +315,7 @@ class AgentRoundPaths:
 
     @property
     def final_output(self) -> Path:
-        """The file holding the harness's final result for the round to publish."""
+        """The file holding the final result that the harness reports, if any."""
         return self.directory / "final.md"
 
 
@@ -409,6 +376,7 @@ class AgentRound:
         paths: AgentRoundPaths,
         plan: AgentRoundPlan[AgentAssignmentRoundInput]
         | AgentRoundPlan[IssueConversationInput],
+        finish_round: AgentRoundFinisher | None = None,
         clock: Callable[[], datetime] = read_current_time,
     ) -> None:
         """Run the harness as a round at the paths it was given.
@@ -419,16 +387,18 @@ class AgentRound:
         holds, and a reader can see afterwards what the round received. A failure
         to write either file stops the round before it starts.
 
-        A round whose harness holds a final-output requirement publishes
-        that output before it records its ending.
+        A round given a finisher lets its owner finish it before it records its
+        ending.
         """
         self.harness = harness
+        self.finish_round = finish_round
         self.paths = paths
         self.clock = clock
         self.feed_renderer = FeedRenderer(worktree=paths.worktree, clock=clock)
         self.started_at = clock()
         self.is_interrupted = False
         self._round_ended = Flag()
+        self._final_output_settled = Flag()
         self._feed_write_lock = Lock()
         if plan.input is not None:
             write_json(document=plan.input, path=paths.round_input)
@@ -475,7 +445,7 @@ class AgentRound:
 
     @property
     def is_alive(self) -> bool:
-        """Whether the round is still running, publishing or recording its ending.
+        """Whether the round is still running, finishing or recording its ending.
 
         A round that reads as finished has its record on disk. Its feed may
         still be growing, because the streams it reads can outlast the child.
@@ -496,8 +466,8 @@ class AgentRound:
 
         This returns as soon as the round has ended, and does not wait for the
         feed, so that a stream somebody else is still holding cannot hold up
-        the daemon. A round whose harness has already exited finishes
-        publishing its final output first.
+        the daemon. A round whose harness has already exited is finished by
+        its owner first.
         """
         self._interrupt()
         self._round_ended.wait()
@@ -533,9 +503,13 @@ class AgentRound:
         try:
             for line in self.harness_process.out:
                 append_text(text=line, path=self.paths.raw_output)
-                self._append_feed_events(line=line, events=self.harness.read(line=line))
+                output = self.harness.read(line=line)
+                if output.final_output is not None:
+                    write_text(text=output.final_output, path=self.paths.final_output)
+                    self._final_output_settled.set()
+                self._append_feed_events(line=line, events=output.events)
         finally:
-            self.harness.finish()
+            self._final_output_settled.set()
 
     def _read_stderr(self) -> None:
         for line in self.harness_process.err:
@@ -548,7 +522,7 @@ class AgentRound:
         is written before the stream readers finish.
         """
         try:
-            status = self._publish_final_output(status=self.harness_process.wait())
+            status = self._finish_round(status=self.harness_process.wait())
             if self.is_interrupted:
                 self.record = record_agent_round_interruption(
                     record=self.record, path=self.paths.record
@@ -567,19 +541,16 @@ class AgentRound:
             for stream_reader in self._stream_readers:
                 stream_reader.join()
 
-    def _publish_final_output(self, *, status: int) -> int:
-        """Publish a successful round's final output and return the status to record.
+    def _finish_round(self, *, status: int) -> int:
+        """Let the owner finish a successful round, and return the status to record.
 
-        A round that requires a final output fails when that output is missing
-        or empty, or when publication fails, and the feed says why. An
-        interrupted round publishes nothing.
+        A finisher that raises fails the round, and the feed says why. An
+        interrupted round is not finished.
         """
-        requirement = self.harness.final_output_requirement
-        if requirement is None or status != 0 or self.is_interrupted:
+        if self.finish_round is None or status != 0 or self.is_interrupted:
             return status
         try:
-            final_output = self._read_final_output(path=requirement.path)
-            requirement.publish(final_output=final_output)
+            self.finish_round(final_output=self._read_final_output())
         except ReportableError as failure:
             self._append_feed_events(
                 line="", events=[FeedNote(label="failed", detail=str(failure))]
@@ -587,14 +558,11 @@ class AgentRound:
             return 1
         return status
 
-    def _read_final_output(self, *, path: Path) -> str:
-        """Return the non-empty final output that the harness reported."""
-        final_output = (
-            read_text(path=path) if self.harness.wait_for_final_output() else ""
-        )
-        if not final_output.strip():
-            raise ReportableError("the harness returned no final output")
-        return final_output
+    def _read_final_output(self) -> str | None:
+        """Return the harness's final output, once it has had time to land."""
+        self._final_output_settled.wait(FINAL_OUTPUT_CAPTURE_TIMEOUT_SECONDS)
+        path = self.paths.final_output
+        return read_text(path=path) if path.is_file() else None
 
     def _append_feed_events(self, *, line: str, events: list[FeedEvent]) -> None:
         """Append one output line's events while holding the feed write lock.

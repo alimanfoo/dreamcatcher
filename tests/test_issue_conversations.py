@@ -466,6 +466,18 @@ def test_no_reply_posts_nothing(fake):
     assert gh.calls == []
 
 
+@pytest.mark.parametrize("final_output", [None, "   \n"])
+def test_a_missing_or_empty_answer_is_reportable(fake, final_output):
+    gh = fake(program="gh")
+
+    with pytest.raises(ReportableError, match="the harness returned no final output"):
+        post_issue_conversation_answer(
+            repository="alimanfoo/dreamcatcher", issue=8, final_output=final_output
+        )
+
+    assert gh.calls == []
+
+
 def test_an_answer_github_refuses_is_reportable(fake):
     fake(program="gh").fails(stderr="issue is locked")
 

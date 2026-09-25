@@ -300,14 +300,17 @@ def record_issue_conversation_session_identifier(
 
 
 def post_issue_conversation_answer(
-    *, repository: str, issue: int, final_output: str
+    *, repository: str, issue: int, final_output: str | None
 ) -> None:
-    """Post a round's final output on its issue as one marked comment.
+    """Post a conversation round's final output on its issue as one marked comment.
 
-    `NO_REPLY` posts nothing. A comment that GitHub does not accept raises a
-    `ReportableError`.
+    Every conversation round must answer, so a missing or empty final output
+    raises a `ReportableError`, as does a comment that GitHub does not accept.
+    `NO_REPLY` posts nothing.
     """
-    answer = final_output.strip()
+    answer = (final_output or "").strip()
+    if not answer:
+        raise ReportableError("the harness returned no final output")
     if answer == NO_REPLY:
         return
     response = post_issue_comment(
