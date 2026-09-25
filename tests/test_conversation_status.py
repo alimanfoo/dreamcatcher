@@ -16,10 +16,13 @@ from records import (
 )
 
 from dreamcatcher.agent_rounds import (
+    AgentRoundError,
     AgentRoundRecord,
     ErroredAgentRoundEnding,
     IssueConversationInput,
     IssueConversationRoundPurpose,
+    RoundFinishingError,
+    RoundLaunchError,
     compose_agent_round_ending,
 )
 from dreamcatcher.documents import write_json
@@ -61,21 +64,19 @@ def conversation_round(
     state: StateDirectory,
     number: int = 1,
     status: int | None = 0,
-    reason: str | None = None,
-    failure: str | None = None,
+    error: AgentRoundError | None = None,
 ) -> None:
     """Write one conversation round with the requested outcome."""
     started = PINNED + timedelta(minutes=(number - 1) * 6)
     ending = (
-        ErroredAgentRoundEnding(at=started + timedelta(minutes=4), reason=reason)
-        if reason is not None
+        ErroredAgentRoundEnding(at=started + timedelta(minutes=4), error=error)
+        if error is not None
         else (
             None
             if status is None
             else compose_agent_round_ending(
                 at=started + timedelta(minutes=4),
                 status=status,
-                failure=failure,
             )
         )
     )
@@ -87,7 +88,7 @@ def conversation_round(
             number=number,
             purpose=IssueConversationRoundPurpose.DISCUSS,
             started=started,
-            pid=None if reason is not None else 1,
+            pid=None if isinstance(error, RoundLaunchError) else 1,
             ending=ending,
             is_recovery=number > 1,
         ),
@@ -333,7 +334,7 @@ def test_an_errored_conversation_waits_for_recovery(conversation_state):
 def test_a_conversation_launch_failure_reports_its_reason(conversation_state):
     conversation_round(
         state=conversation_state,
-        reason="the harness was unavailable",
+        error=RoundLaunchError(reason="the harness was unavailable"),
     )
 
     found = status(state=conversation_state)
@@ -389,7 +390,10 @@ def test_a_cooldown_boundary_clears_a_conversation_fault(conversation_state):
     ],
 )
 def test_a_round_that_could_not_be_finished_says_why(conversation_state, failure):
-    conversation_round(state=conversation_state, failure=failure)
+    conversation_round(
+        state=conversation_state,
+        error=RoundFinishingError(reason=failure),
+    )
 
     found = status(state=conversation_state)
 

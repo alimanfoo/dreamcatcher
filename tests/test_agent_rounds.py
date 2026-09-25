@@ -34,8 +34,11 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     AgentRoundStartRequest,
     ErroredAgentRoundEnding,
+    HarnessNonzeroExit,
     InterruptedAgentRoundEnding,
     IssueConversationRoundPurpose,
+    RoundFinishingError,
+    RoundLaunchError,
     compose_agent_round_ending,
     record_agent_round_interruption,
     record_agent_round_launch_failure,
@@ -594,7 +597,8 @@ def test_a_finisher_that_fails_fails_the_round_and_says_why(fake, worktree, dire
     start_conversation_round(paths=paths, finish_round=finish_round).wait()
 
     assert written(path=paths.record).ending == ErroredAgentRoundEnding(
-        at=PINNED, status=0, reason="could not post the answer on GH9"
+        at=PINNED,
+        error=RoundFinishingError(reason="could not post the answer on GH9"),
     )
     assert "[failed] could not post the answer on GH9" in paths.feed.read_text(
         encoding="utf-8"
@@ -633,24 +637,43 @@ def test_a_round_interrupted_as_its_harness_succeeds_is_not_finished(
     finish_round.assert_not_called()
 
 
-def test_an_errored_ending_refuses_a_success_status_without_a_reason():
-    with pytest.raises(ValueError, match="cannot have exit status 0 and no reason"):
-        ErroredAgentRoundEnding(at=PINNED, status=0)
+def test_an_errored_ending_requires_one_error_reason():
+    with pytest.raises(ValueError, match="Field required"):
+        ErroredAgentRoundEnding.model_validate({"at": PINNED})
 
 
-def test_an_errored_ending_requires_an_exit_status_or_reason():
-    with pytest.raises(ValueError, match="needs an exit status or reason"):
-        ErroredAgentRoundEnding(at=PINNED)
+def test_a_non_object_errored_ending_is_invalid():
+    with pytest.raises(ValueError, match="valid dictionary"):
+        ErroredAgentRoundEnding.model_validate(None)
 
 
-def test_an_errored_ending_refuses_two_kinds_of_evidence():
-    with pytest.raises(ValueError, match="cannot also have a finishing reason"):
-        ErroredAgentRoundEnding(at=PINNED, status=2, reason="could not start")
-
-
-def test_an_errored_ending_refuses_a_blank_reason():
+@pytest.mark.parametrize(
+    "error_type",
+    [HarnessNonzeroExit, RoundLaunchError, RoundFinishingError],
+)
+def test_every_agent_round_error_refuses_a_blank_reason(error_type):
     with pytest.raises(ValueError, match="reason cannot be blank"):
-        ErroredAgentRoundEnding(at=PINNED, reason="  ")
+        error_type(reason="  ")
+
+
+@pytest.mark.parametrize(
+    ("legacy", "expected"),
+    [
+        ({"status": 2}, HarnessNonzeroExit(reason="exit 2")),
+        (
+            {"status": None, "reason": "the harness was unavailable"},
+            RoundLaunchError(reason="the harness was unavailable"),
+        ),
+        (
+            {"status": 0, "reason": "could not post the answer"},
+            RoundFinishingError(reason="could not post the answer"),
+        ),
+    ],
+)
+def test_an_earlier_errored_ending_reads_as_one_error_reason(legacy, expected):
+    ending = ErroredAgentRoundEnding.model_validate({"at": PINNED, **legacy})
+
+    assert ending.error == expected
 
 
 def test_a_running_round_requires_a_process_identifier():
@@ -675,7 +698,10 @@ def test_a_launch_failure_refuses_a_process_identifier():
             purpose=PURPOSE,
             started=PINNED,
             pid=1,
-            ending=ErroredAgentRoundEnding(at=PINNED, reason="could not start"),
+            ending=ErroredAgentRoundEnding(
+                at=PINNED,
+                error=RoundLaunchError(reason="could not start"),
+            ),
         )
 
 
@@ -720,7 +746,7 @@ def test_a_launch_failure_keeps_its_files_and_reason(worktree, directory, has_in
     assert record.is_recovery
     assert record.ending == ErroredAgentRoundEnding(
         at=PINNED,
-        reason="the harness was unavailable",
+        error=RoundLaunchError(reason="the harness was unavailable"),
     )
     assert paths.prompt.read_text(encoding="utf-8") == PROMPT
     if round_input is None:

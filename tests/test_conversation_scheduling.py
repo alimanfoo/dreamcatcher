@@ -32,6 +32,8 @@ from dreamcatcher.agent_rounds import (
     InterruptedAgentRoundEnding,
     IssueConversationInput,
     IssueConversationRoundPurpose,
+    RoundFinishingError,
+    RoundLaunchError,
     compose_agent_round_ending,
 )
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
@@ -524,9 +526,8 @@ def test_a_failed_post_errors_the_round_and_starts_recovery_not_a_new_batch(
     assert conversation is not None
     ending = conversation.rounds[0].ending
     assert isinstance(ending, ErroredAgentRoundEnding)
-    assert ending.status == 0
-    assert ending.reason is not None
-    assert ending.reason.startswith("could not post the answer on GH8: ")
+    assert isinstance(ending.error, RoundFinishingError)
+    assert ending.error.reason.startswith("could not post the answer on GH8: ")
     feed = conversation.compose_round_paths(number=1).feed.read_text(encoding="utf-8")
     assert "[failed] could not post the answer on GH8: " in feed
     assert observed.hold is None
@@ -717,7 +718,7 @@ def test_an_initial_prelaunch_failure_recovers_without_a_session(
             started=clock(),
             ending=ErroredAgentRoundEnding(
                 at=clock(),
-                reason="the harness was unavailable",
+                error=RoundLaunchError(reason="the harness was unavailable"),
             ),
         ),
     )
@@ -761,7 +762,7 @@ def test_two_prelaunch_failures_put_a_conversation_in_fault(
                 started=clock(),
                 ending=ErroredAgentRoundEnding(
                     at=clock(),
-                    reason="the harness was unavailable",
+                    error=RoundLaunchError(reason="the harness was unavailable"),
                 ),
             ),
         )
@@ -824,7 +825,7 @@ def test_a_follow_up_refuses_to_replace_a_missing_saved_session(
     assert failed.outcome is AgentRoundOutcome.ERRORED
     assert failed.pid is None
     assert isinstance(failed.ending, ErroredAgentRoundEnding)
-    assert failed.ending.reason == observed.hold
+    assert failed.ending.error.reason == observed.hold
     frozen = read_json(
         model=IssueConversationInput,
         path=conversation.compose_round_paths(number=2).round_input,

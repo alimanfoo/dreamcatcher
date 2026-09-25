@@ -10,6 +10,7 @@ from dreamcatcher.agent_rounds import (
     ErroredAgentRoundEnding,
     IssueConversationInput,
     IssueConversationRoundPurpose,
+    RoundLaunchError,
     describe_unfinished_agent_round,
 )
 from dreamcatcher.config import AgentHarness, IssueConversationConfig
@@ -195,7 +196,7 @@ def test_a_conversation_describes_a_round_that_failed_before_launch(tmp_path):
             started=PINNED,
             ending=ErroredAgentRoundEnding(
                 at=PINNED,
-                reason="the harness was unavailable",
+                error=RoundLaunchError(reason="the harness was unavailable"),
             ),
         ),
         path=conversation.compose_round_paths(number=1).record,

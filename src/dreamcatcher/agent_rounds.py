@@ -20,9 +20,9 @@ from enum import StrEnum
 from pathlib import Path
 from threading import Event as Flag
 from threading import Lock, Thread
-from typing import Annotated, Literal, Protocol, Self
+from typing import Annotated, Literal, Protocol
 
-from pydantic import Field, PositiveInt, model_validator
+from pydantic import Field, PositiveInt, field_validator, model_validator
 
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.commands import spawn_command
@@ -126,30 +126,74 @@ class SuccessfulAgentRoundEnding(DreamcatcherDocument):
     status: Literal[0] = 0
 
 
-class ErroredAgentRoundEnding(DreamcatcherDocument):
-    """An agent round ending with a launch, exit, or finishing failure.
+class AgentRoundErrorReason(DreamcatcherDocument):
+    """The reason that an agent round ended in an error."""
 
-    A round whose harness exited cleanly errors when its owner cannot finish it,
-    and its reason says why. A round that could not launch has no exit status.
-    """
+    reason: str
+
+    @field_validator("reason")
+    @classmethod
+    def _require_nonblank_reason(cls, reason: str, /) -> str:
+        """Require text that the status views can show."""
+        if not reason.strip():
+            raise ValueError("an agent round error reason cannot be blank")
+        return reason
+
+
+class HarnessNonzeroExit(AgentRoundErrorReason):
+    """A harness process that exited unsuccessfully."""
+
+    kind: Literal["harness nonzero exit"] = "harness nonzero exit"
+
+
+class RoundLaunchError(AgentRoundErrorReason):
+    """A round that could not launch a harness process."""
+
+    kind: Literal["round launch error"] = "round launch error"
+
+
+class RoundFinishingError(AgentRoundErrorReason):
+    """A round whose owner could not finish a successful harness run."""
+
+    kind: Literal["round finishing error"] = "round finishing error"
+
+
+type AgentRoundError = Annotated[
+    HarnessNonzeroExit | RoundLaunchError | RoundFinishingError,
+    Field(discriminator="kind"),
+]
+
+
+class ErroredAgentRoundEnding(DreamcatcherDocument):
+    """An agent round ending with one explicit kind of error."""
 
     outcome: Literal[AgentRoundOutcome.ERRORED] = AgentRoundOutcome.ERRORED
     at: datetime
-    status: int | None = None
-    reason: str | None = None
+    error: AgentRoundError
 
-    @model_validator(mode="after")
-    def _require_error_evidence(self) -> Self:
-        """Require evidence consistent with the kind of failure."""
-        if self.reason is not None and not self.reason.strip():
-            raise ValueError("an errored round reason cannot be blank")
-        if self.status == 0 and self.reason is None:
-            raise ValueError("an errored round cannot have exit status 0 and no reason")
-        if self.status is None and self.reason is None:
-            raise ValueError("an errored round needs an exit status or reason")
-        if self.status not in (None, 0) and self.reason is not None:
-            raise ValueError("an error exit cannot also have a finishing reason")
-        return self
+    @model_validator(mode="before")
+    @classmethod
+    def _read_legacy_error(cls, value: object, /) -> object:
+        """Translate an earlier status-and-reason ending into one error model."""
+        if not isinstance(value, dict) or "error" in value:
+            return value
+        status = value.get("status")
+        reason = value.get("reason")
+        if reason is not None:
+            error: AgentRoundErrorReason = (
+                RoundLaunchError(reason=reason)
+                if status is None
+                else RoundFinishingError(reason=reason)
+            )
+        elif isinstance(status, int) and status != 0:
+            error = HarnessNonzeroExit(reason=f"exit {status}")
+        else:
+            return value
+        translated = dict(value)
+        translated.pop("status", None)
+        translated.pop("reason", None)
+        translated["error"] = error
+        return translated
 
 
 class InterruptedAgentRoundEnding(DreamcatcherDocument):
@@ -165,18 +209,15 @@ type AgentRoundEnding = Annotated[
 
 
 def compose_agent_round_ending(
-    *, at: datetime, status: int, failure: str | None = None
+    *, at: datetime, status: int
 ) -> SuccessfulAgentRoundEnding | ErroredAgentRoundEnding:
-    """Return the terminal outcome observed when a harness exited.
-
-    A failure is what stopped the owner finishing a round whose harness exited
-    cleanly, and it errors the round.
-    """
-    if failure is not None:
-        return ErroredAgentRoundEnding(at=at, status=status, reason=failure)
+    """Return the terminal outcome observed when a harness exited."""
     if status == 0:
         return SuccessfulAgentRoundEnding(at=at)
-    return ErroredAgentRoundEnding(at=at, status=status)
+    return ErroredAgentRoundEnding(
+        at=at,
+        error=HarnessNonzeroExit(reason=f"exit {status}"),
+    )
 
 
 class AgentRoundRecord(DreamcatcherDocument):
@@ -196,8 +237,11 @@ class AgentRoundRecord(DreamcatcherDocument):
             if self.pid is not None:
                 return self
             raise ValueError("a running round needs a process identifier")
-        is_launch_failure = isinstance(self.ending, ErroredAgentRoundEnding) and (
-            self.ending.status is None
+        is_launch_failure = isinstance(
+            self.ending, ErroredAgentRoundEnding
+        ) and isinstance(
+            self.ending.error,
+            RoundLaunchError,
         )
         if self.pid is None and not is_launch_failure:
             raise ValueError(
@@ -227,11 +271,12 @@ def describe_unfinished_agent_round(
         return "the last round was interrupted"
     if not isinstance(ending, ErroredAgentRoundEnding):
         return None
-    if latest.pid is None:
-        return f"the last round could not start: {ending.reason}"
-    if ending.reason is not None:
-        return f"the last round could not finish: {ending.reason}"
-    return f"the last round failed (exit {ending.status})"
+    error = ending.error
+    if isinstance(error, RoundLaunchError):
+        return f"the last round could not start: {error.reason}"
+    if isinstance(error, RoundFinishingError):
+        return f"the last round could not finish: {error.reason}"
+    return f"the last round failed ({error.reason})"
 
 
 def record_agent_round_interruption(
@@ -398,7 +443,10 @@ def record_agent_round_launch_failure(
         purpose=request.plan.purpose,
         is_recovery=request.plan.is_recovery,
         started=at,
-        ending=ErroredAgentRoundEnding(at=at, reason=reason),
+        ending=ErroredAgentRoundEnding(
+            at=at,
+            error=RoundLaunchError(reason=reason),
+        ),
     )
     write_json(document=record, path=request.paths.record)
     return record
@@ -614,11 +662,14 @@ class AgentRound:
                     record=self.record, path=self.paths.record
                 )
             else:
+                ending = (
+                    ErroredAgentRoundEnding(at=self.clock(), error=failure)
+                    if failure is not None
+                    else compose_agent_round_ending(at=self.clock(), status=status)
+                )
                 self.record = _record_agent_round_ending(
                     record=self.record,
-                    ending=compose_agent_round_ending(
-                        at=self.clock(), status=status, failure=failure
-                    ),
+                    ending=ending,
                     path=self.paths.record,
                 )
         finally:
@@ -629,8 +680,8 @@ class AgentRound:
             for stream_reader in self._stream_readers:
                 stream_reader.join()
 
-    def _finish_round(self, *, status: int) -> str | None:
-        """Let the owner finish a successful round, and return why it could not.
+    def _finish_round(self, *, status: int) -> RoundFinishingError | None:
+        """Let the owner finish a successful round, and return any error.
 
         A finisher that raises fails the round, and the feed says why too. An
         interrupted round is not finished.
@@ -643,7 +694,7 @@ class AgentRound:
             self._append_feed_events(
                 line="", events=[FeedNote(label="failed", detail=str(failure))]
             )
-            return str(failure)
+            return RoundFinishingError(reason=str(failure))
         return None
 
     def _read_final_output(self) -> str | None:

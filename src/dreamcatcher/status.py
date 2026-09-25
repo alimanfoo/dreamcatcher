@@ -19,6 +19,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
     AgentRoundRecord,
     ErroredAgentRoundEnding,
+    HarnessNonzeroExit,
     describe_unfinished_agent_round,
 )
 from dreamcatcher.clock import read_current_time
@@ -475,8 +476,10 @@ def _describe_unfinished_conversation_round(
     if latest.outcome is AgentRoundOutcome.SUCCESSFUL:
         return None
     ending = latest.ending
-    if isinstance(ending, ErroredAgentRoundEnding) and ending.reason is not None:
-        return f"round {latest.number} errored: {ending.reason}"
+    if isinstance(ending, ErroredAgentRoundEnding) and not isinstance(
+        ending.error, HarnessNonzeroExit
+    ):
+        return f"round {latest.number} errored: {ending.error.reason}"
     outcome = _describe_round_outcome(record=latest, is_running=False)
     return f"round {latest.number} {outcome}"
 
@@ -509,14 +512,13 @@ def _describe_round_outcome(*, record: AgentRoundRecord, is_running: bool) -> st
 
     A round that recorded no ending never finished. It is running when a daemon
     is still there to run it, and interrupted once that daemon has gone, since
-    a round cannot outlive its daemon. A round that errored for a reason, after
-    its harness exited cleanly, reads as errored alone, since its exit status
-    says nothing and its reason is too long for a list of rounds.
+    a round cannot outlive its daemon. A launch or finishing error reads as
+    errored alone because its reason is too long for a list of rounds.
     """
     if isinstance(record.ending, ErroredAgentRoundEnding):
-        if record.ending.reason is not None:
-            return str(AgentRoundOutcome.ERRORED)
-        return f"errored (exit {record.ending.status})"
+        if isinstance(record.ending.error, HarnessNonzeroExit):
+            return f"errored ({record.ending.error.reason})"
+        return str(AgentRoundOutcome.ERRORED)
     if record.ending is None and not is_running:
         return str(AgentRoundOutcome.INTERRUPTED)
     return str(record.outcome)
