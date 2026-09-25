@@ -127,7 +127,8 @@ Open assignments go before new assignments. A round that did not finish is
 recovered, a merged or closed pull request gets a wrap-up round, and a pull
 request you have posted on gets a round that addresses your feedback. When
 assignment work and an issue conversation are both ready, the daemon alternates
-which kind receives the next free agent slot.
+which kind receives the next free agent slot. A conversation always recovers
+unfinished work before it accepts a later comment batch.
 
 With `[conversation]` configured, the daemon also watches assigned open issues
 carrying its label. The issue title and body alone do not start an agent. Once
@@ -139,7 +140,10 @@ saved, marked as Dreamcatcher output and posted back to the issue. `NO_REPLY`
 finishes without a post. A failed post is retried from the saved answer without
 running Claude again. A later eligible comment resumes the same Claude session
 with only the new comments and updates its worktree to current main without
-asking the user to clean up investigation files.
+asking the user to clean up investigation files. If a conversation round is
+interrupted or errors, its recovery resumes the same session with the same saved
+comment batch and code revision. It does not fetch main or accept later comments
+until that work finishes.
 
 Closing the issue, removing the conversation label or removing the signed-in
 account as assignee stops comment collection. Dreamcatcher keeps the saved
@@ -148,32 +152,34 @@ issue becomes eligible again. A running round may finish and publish its answer.
 
 Every round records its number, purpose, whether it is recovering an earlier
 round, and its outcome (`running`, `successful`, `errored` or `interrupted`).
-Purpose and recovery are independent for assignments: for example, a failed
-wrap-up is followed by a recovery round whose purpose is still `wrap up`.
+Purpose and recovery are independent: for example, a failed wrap-up is followed
+by a recovery round whose purpose is still `wrap up`, and a recovered issue
+conversation round still has the `discuss` purpose.
 
 Rounds die with the daemon. When `run` starts, it records any round orphaned by
-an earlier daemon as interrupted. An assignment's next round recovers that work
-from where it stopped. One errored assignment round receives an ordinary
-recovery opportunity and does not stop unrelated work. Two consecutive errored
-rounds put that assignment in fault; an interrupted or successful round breaks
-the sequence. Issue conversations record interrupted and failed rounds but do
-not recover them automatically yet.
+an earlier daemon as interrupted. The next round recovers that work from where
+it stopped. One errored round receives an ordinary recovery opportunity and does
+not stop unrelated work. Two consecutive errored rounds put that assignment or
+conversation in fault; an interrupted or successful round breaks the sequence.
 
-When two assignments are in fault, the scheduler starts a fifteen-minute global
-cooldown and starts no agent work during it. The scheduler keeps observing and
-reporting while it waits. The cooldown survives a daemon restart, and its end
-clears the faults so that recovery can continue.
+When two assignments, conversations, or one of each are in fault, the scheduler
+starts a fifteen-minute global cooldown and starts no agent work during it. The
+scheduler keeps observing and reporting while it waits. The cooldown survives a
+daemon restart, and its end clears every fault so that recovery can continue.
 
-If one assignment remains in fault because of a problem specific to that work,
-fix the problem and request another recovery attempt:
+If one item remains in fault because of a problem specific to that work, fix the
+problem and request another recovery attempt:
 
 ```sh
 dreamcatcher retry GH123
+dreamcatcher retry GH456 --conversation
 ```
 
 This keeps the failed round records for diagnosis, clears the current fault, and
-makes the assignment eligible for recovery on the next scheduler tick outside a
-global cooldown. If its next two rounds both fail, it enters fault again.
+makes the selected assignment or conversation eligible for recovery on the next
+scheduler tick outside a global cooldown. When the issue has both kinds of work,
+select one with `--assignment` or `--conversation`. If its next two rounds both
+fail, it enters fault again.
 
 Only a successful wrap-up completes an assignment. A failed or interrupted
 wrap-up remains open for recovery. Once the wrap-up succeeds, the assignment no

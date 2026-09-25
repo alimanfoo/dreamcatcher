@@ -62,7 +62,8 @@ request.
 An issue conversation starts with one initial round. Each later eligible comment
 batch resumes the same harness session in another round. Every saved final
 answer is either published once on the issue or is `NO_REPLY`, which means no
-post is needed. Automatic recovery is not supported yet.
+post is needed. An interrupted or errored round is recovered with its saved
+input and revision before the conversation accepts another comment batch.
 
 ### Agent work and agent work identifier
 
@@ -141,7 +142,9 @@ An agent round may be:
 
 A **recovery round** is an agent round run because the preceding round was
 interrupted or exited with an error. Recovery is a true-or-false property of a
-round, independent of its purpose.
+round, independent of its purpose. Assignment recovery continues its current
+pull-request work. Issue conversation recovery repeats the saved comment batch
+and investigated revision instead of collecting new input.
 
 ### User post and feedback
 
@@ -231,8 +234,9 @@ Number, purpose, recovery, and outcome describe different aspects of an agent
 round. For example, the **first round** is round number one. A **wrap-up round**
 has wrapping up after a pull request is merged or closed as its purpose. A
 **recovery round** follows an interrupted or errored round and resumes the
-assignment's work. An implementation, feedback, or wrap-up round may therefore
-also be a recovery round, and two or more rounds may have the same purpose.
+owner's work. An implementation, feedback, wrap-up, or discuss round may
+therefore also be a recovery round, and two or more rounds may have the same
+purpose.
 
 ### Issue observations and availability
 
@@ -311,11 +315,14 @@ An issue conversation has one of these summary statuses:
 
 - **Running**: an agent round is running.
 - **Waiting**: the issue is eligible and the conversation is waiting for its
-  first round or for another comment, or current eligibility is unknown.
+  first round or another comment, current eligibility is unknown, or an
+  interrupted or first-time errored round is waiting for recovery.
 - **Awaiting publication**: the latest round succeeded, but its answer has not
   yet been recorded as published.
-- **Needs attention**: the latest round errored or was interrupted, and
-  Dreamcatcher will not resume it automatically yet.
+- **Fault**: two consecutive conversation rounds have exited with errors and
+  ordinary recovery has stopped.
+- **Needs attention**: a conversation document is missing, unreadable, or
+  inconsistent, so Dreamcatcher cannot safely continue it.
 - **Inactive**: the issue is not currently eligible for new comment batches.
 
 These statuses are derived reporting projections, not persisted lifecycle state.
@@ -364,6 +371,12 @@ then starts the initial conversation round. The round shares the daemon's
 capacity and global cooldown with assignment rounds. A successful final result
 is saved before publication, so posting can be retried without rerunning the
 agent.
+
+If a round is interrupted or exits with an error, Dreamcatcher schedules a
+recovery before it fetches main or collects another comment batch. Recovery
+resumes the same harness session with the saved input and investigated revision,
+even when the issue is no longer eligible for fresh conversation work. Two
+consecutive errored rounds place the conversation in fault.
 
 After publication, another eligible comment batch resumes the same harness
 session in another conversation round. Before it accepts that batch,
@@ -420,24 +433,27 @@ Existing assignments take precedence over new ones, ranked in this order:
 3. start an assignment round for new user posts; and
 4. create an assignment for the oldest available issue.
 
-Conversation candidates are ordered by their oldest waiting comment. When both
-an assignment candidate and a conversation candidate are ready, the scheduler
-alternates which kind receives the next free slot. When only one kind is ready,
-it proceeds without waiting for the other.
+Fresh conversation candidates are ordered by their oldest waiting comment. When
+both an assignment candidate and a conversation candidate are ready, the
+scheduler alternates which kind receives the next free slot. When only one kind
+is ready, it proceeds without waiting for the other. Within one conversation,
+required recovery always precedes fresh comment work.
 
 ### Handling errors and global cooldown
 
 A known global error may start a global cooldown immediately.
 
-For errors that cannot be diagnosed reliably, one assignment's first consecutive
-error calls for a recovery round and its second places that assignment in fault.
-If two assignments enter fault, that is evidence of a shared problem and starts
-a global cooldown. When the cooldown ends, Dreamcatcher clears those faults and
-permits recovery. This deliberately simple policy prevents one
-assignment-specific failure from blocking all other work.
+For errors that cannot be diagnosed reliably, an assignment's or conversation's
+first consecutive error calls for a recovery round and its second places that
+work in fault. If any two items enter fault, including one assignment and one
+conversation, that is evidence of a shared problem and starts a global cooldown.
+When the cooldown ends, Dreamcatcher clears every fault and permits recovery.
+This deliberately simple policy prevents one work-specific failure from blocking
+all other work.
 
-After resolving an assignment-specific problem, the user may request a retry.
-That request clears the assignment's current fault without erasing its errored
-rounds, and the scheduler may start a recovery round on its next tick. Only
-errors at or after the later of the latest retry request and the latest
-completed global cooldown count towards a new fault.
+After resolving a work-specific problem, the user may request a retry. That
+request clears the selected assignment's or conversation's current fault without
+erasing its errored rounds, and the scheduler may start a recovery round on its
+next tick. If the issue has both kinds of work, the user must select which one
+to retry. Only errors at or after the later of that work's latest retry request
+and the latest completed global cooldown count towards a new fault.

@@ -136,6 +136,8 @@ request, change the issue, post to GitHub, or contact the user elsewhere.
 Dreamcatcher owns publication: after a successful round it saves the final
 result, appends its agent marker, posts the answer, and records the publication.
 
-Issue conversations currently run through Claude. The conversation prompt may
-support follow-up exchanges, but it must not promise automatic recovery that
-Dreamcatcher does not yet schedule.
+Issue conversations currently run through Claude. After an interrupted or
+errored round, Dreamcatcher resumes the same session with the saved input batch
+and investigated revision before it delivers any later comments. The recovery
+prompt tells the agent to continue the unfinished answer; it must not treat the
+input as a new question.
