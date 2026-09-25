@@ -9,6 +9,5 @@ instance
 
 assignments
   GH13-20260819-184158  waiting  next round, implement
-  failed assignment setups                            
   GH20  assignment setup failed                       
   GH21  dream:smith  available                        

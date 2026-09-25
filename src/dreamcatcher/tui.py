@@ -317,15 +317,7 @@ def _render_assignments(
         ),
     )
     rows = _render_assignment_rows(assignments=ordered)
-    rows += _render_issue_group(
-        heading="failed assignment setups",
-        issues=failed_setups,
-        columns=2,
-        build_row=lambda setup: (
-            Text(f"GH{setup.issue}"),
-            Text(cast("str", setup.setup_failure)),
-        ),
-    )
+    rows += _render_failed_setups(failed_setups=failed_setups)
     rows += _render_open_issues(
         available_issues=available_issues, blocked_issues=blocked_issues
     )
@@ -336,20 +328,16 @@ def _render_assignments(
     return _render_section(heading="assignments", body=Group(*rows))
 
 
-def _render_issue_group(
-    *,
-    heading: str,
-    issues: Sequence[IssueObservation],
-    columns: int,
-    build_row: Callable[[IssueObservation], tuple[Text, ...]],
+def _render_failed_setups(
+    *, failed_setups: Sequence[IssueObservation]
 ) -> list[RenderableType]:
-    """Render one optional labelled table of issues, or nothing when empty."""
-    if not issues:
+    """Render incomplete assignment setups with recorded failures."""
+    if not failed_setups:
         return []
-    table = _create_table(columns=columns)
-    for issue in issues:
-        table.add_row(*build_row(issue))
-    return [Text(heading, style="bold"), table]
+    table = _create_table(columns=2)
+    for setup in failed_setups:
+        table.add_row(Text(f"GH{setup.issue}"), Text(cast("str", setup.setup_failure)))
+    return [table]
 
 
 def _render_open_issues(
@@ -358,21 +346,23 @@ def _render_open_issues(
     blocked_issues: Sequence[IssueObservation],
 ) -> list[RenderableType]:
     """Render available and blocked issues as one table, status inline per row."""
-    issues = [*available_issues, *blocked_issues]
-    if not issues:
+    rows = [
+        (
+            issue,
+            ", ".join(issue.dispatch_labels or []),
+            (
+                cast("str", issue.blocked.evidence)
+                if issue.blocked.value is IssueFactValue.TRUE
+                else "available"
+            ),
+        )
+        for issue in (*available_issues, *blocked_issues)
+    ]
+    if not rows:
         return []
     table = _create_table(columns=3)
-    for issue in issues:
-        status = (
-            cast("str", issue.blocked.evidence)
-            if issue.blocked.value is IssueFactValue.TRUE
-            else "available"
-        )
-        table.add_row(
-            Text(f"GH{issue.issue}"),
-            Text(", ".join(issue.dispatch_labels or [])),
-            Text(status),
-        )
+    for issue, middle, status in rows:
+        table.add_row(Text(f"GH{issue.issue}"), Text(middle), Text(status))
     return [table]
 
 
