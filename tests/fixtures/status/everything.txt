@@ -7,7 +7,7 @@ instance
   agent capacity         1 of 1 in use                                
   global cooldown        none                                         
 
-agent assignments
+assignments
   GH20-20260819-184158  needs user feedback  idle 2h 0m                                             
   GH9-20260819-184158   fault                two consecutive rounds failed                          
                                              (.dreamcatcher/v3/assignments/GH9-20260819-184158/round
@@ -18,11 +18,9 @@ agent assignments
   GH35-20260819-184158  waiting              the last round failed (exit 2)                         
   GH44-20260819-184158  waiting              no round has run yet                                   
   GH40-20260819-184158  unknown              no current scheduler observation                       
+  available issues                                                                                  
+  GH50  dream:smith                                                                                 
+  GH51  dream:smith                                                                                 
+  blocked issues                                                                                    
+  GH52  dream:smith  blocked by GH50                                                                
   1 completed assignment                                                                            
-
-available issues
-  GH50  dream:smith
-  GH51  dream:smith
-
-blocked issues
-  GH52  dream:smith  blocked by GH50

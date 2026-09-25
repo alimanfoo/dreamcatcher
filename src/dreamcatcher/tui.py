@@ -212,11 +212,13 @@ def _render_status(
         parts=[
             Text(report.repository or "repository unknown", style="bold"),
             _render_instance_status(report=report, zone=zone),
+            _render_assignments(
+                assignments=report.assignment_statuses,
+                failed_setups=report.failed_assignment_setups,
+                available_issues=report.available_issues,
+                blocked_issues=report.blocked_issues,
+            ),
             _render_conversations(conversations=report.conversation_statuses),
-            _render_assignments(assignments=report.assignment_statuses),
-            _render_failed_assignment_setups(setups=report.failed_assignment_setups),
-            _render_available_issues(issues=report.available_issues),
-            _render_blocked_issues(issues=report.blocked_issues),
             _describe_empty_status_report(report=report),
         ]
     )
@@ -281,54 +283,19 @@ def _render_instance_status(
     return _render_section(heading="instance", body=table)
 
 
-def _render_available_issues(
-    *, issues: Sequence[IssueObservation]
-) -> RenderableType | None:
-    """Render available issues in the order the scheduler will dispatch them."""
-    if not issues:
-        return None
-    table = _create_table(columns=2)
-    for issue in issues:
-        table.add_row(
-            Text(f"GH{issue.issue}"),
-            Text(", ".join(issue.dispatch_labels or [])),
-        )
-    return _render_section(heading="available issues", body=table)
-
-
-def _render_blocked_issues(
-    *, issues: Sequence[IssueObservation]
-) -> RenderableType | None:
-    """Render blocked issues with the scheduler's recorded blocker evidence."""
-    if not issues:
-        return None
-    table = _create_table(columns=3)
-    for issue in issues:
-        table.add_row(
-            Text(f"GH{issue.issue}"),
-            Text(", ".join(issue.dispatch_labels or [])),
-            Text(cast("str", issue.blocked.evidence)),
-        )
-    return _render_section(heading="blocked issues", body=table)
-
-
-def _render_failed_assignment_setups(
-    *, setups: Sequence[IssueObservation]
-) -> RenderableType | None:
-    """Render incomplete assignment setups with recorded failures."""
-    if not setups:
-        return None
-    table = _create_table(columns=2)
-    for setup in setups:
-        table.add_row(Text(f"GH{setup.issue}"), Text(cast("str", setup.setup_failure)))
-    return _render_section(heading="failed assignment setups", body=table)
-
-
 def _render_assignments(
-    *, assignments: Sequence[AgentAssignmentStatus]
+    *,
+    assignments: Sequence[AgentAssignmentStatus],
+    failed_setups: Sequence[IssueObservation],
+    available_issues: Sequence[IssueObservation],
+    blocked_issues: Sequence[IssueObservation],
 ) -> RenderableType | None:
-    """Render assignments in attention order, preserving order within a status."""
-    if not assignments:
+    """Render assignment work as one section, mirroring the web home view.
+
+    Orders active assignments, failed assignment setups, available issues, and
+    blocked issues in that sequence, with a completed-assignment count last.
+    """
+    if not (assignments or failed_setups or available_issues or blocked_issues):
         return None
     completed = list(
         filter(
@@ -346,11 +313,55 @@ def _render_assignments(
         ),
     )
     rows = _render_assignment_rows(assignments=ordered)
+    rows += _render_issue_group(
+        heading="failed assignment setups",
+        issues=failed_setups,
+        columns=2,
+        build_row=lambda setup: (
+            Text(f"GH{setup.issue}"),
+            Text(cast("str", setup.setup_failure)),
+        ),
+    )
+    rows += _render_issue_group(
+        heading="available issues",
+        issues=available_issues,
+        columns=2,
+        build_row=lambda issue: (
+            Text(f"GH{issue.issue}"),
+            Text(", ".join(issue.dispatch_labels or [])),
+        ),
+    )
+    rows += _render_issue_group(
+        heading="blocked issues",
+        issues=blocked_issues,
+        columns=3,
+        build_row=lambda issue: (
+            Text(f"GH{issue.issue}"),
+            Text(", ".join(issue.dispatch_labels or [])),
+            Text(cast("str", issue.blocked.evidence)),
+        ),
+    )
     if completed:
         rows.append(
             Text(describe_count(number=len(completed), noun="completed assignment"))
         )
-    return _render_section(heading="agent assignments", body=Group(*rows))
+    return _render_section(heading="assignments", body=Group(*rows))
+
+
+def _render_issue_group(
+    *,
+    heading: str,
+    issues: Sequence[IssueObservation],
+    columns: int,
+    build_row: Callable[[IssueObservation], tuple[Text, ...]],
+) -> list[RenderableType]:
+    """Render one optional labelled table of issues, or nothing when empty."""
+    if not issues:
+        return []
+    table = _create_table(columns=columns)
+    for issue in issues:
+        table.add_row(*build_row(issue))
+    return [Text(heading, style="bold"), table]
 
 
 def _render_assignment_rows(

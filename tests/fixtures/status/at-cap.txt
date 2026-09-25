@@ -8,7 +8,7 @@ instance
   global cooldown        none                                         
   scheduler hold         at cap: 1 of 1 agents running                
 
-agent assignments
+assignments
   GH13-20260819-184158  working  round 1, running 1h 30m, last output 1h 29m ago
   [Bash] pytest                                                                 
   GH20-20260819-184158  waiting  at cap: 1 of 1 agents running                  
