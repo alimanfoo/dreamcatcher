@@ -62,8 +62,9 @@ request.
 An issue conversation starts with one initial round. Each later eligible comment
 batch resumes the same harness session in another round. Each successful round
 posts its final answer on the issue before it ends, unless the answer is
-`NO_REPLY`, which means no post is needed. Automatic recovery is not supported
-yet.
+`NO_REPLY`, which means no post is needed. While the issue remains eligible, an
+interrupted or errored round is recovered from its saved input before a later
+comment batch is accepted.
 
 ### Agent work and agent work identifier
 
@@ -236,8 +237,8 @@ assignment has completed.
 Number, purpose, recovery, and outcome describe different aspects of an agent
 round. For example, the **first round** is round number one. A **wrap-up round**
 has wrapping up after a pull request is merged or closed as its purpose. A
-**recovery round** follows an interrupted or errored round and resumes the
-assignment's work. An implementation, feedback, or wrap-up round may therefore
+**recovery round** follows an interrupted or errored round and resumes the agent
+work. An implementation, feedback, wrap-up or discussion round may therefore
 also be a recovery round, and two or more rounds may have the same purpose.
 
 ### Issue observations and availability
@@ -320,14 +321,11 @@ the agent assignment status that means the same thing:
 - **Waiting**: a round is due but has not started, because comments wait to be
   answered, the first batch included, or because the latest round errored or was
   interrupted and waits to be recovered. A free agent slot, or the end of a
-  cooldown, starts it. Nothing recovers a conversation round yet, so a
-  conversation whose round errored or was interrupted stays waiting. Its
-  counterpart is waiting.
+  cooldown, starts it. Its counterpart is waiting.
 - **Idle**: no round is due, because the latest answer is posted or the user has
   not commented yet. Its counterpart is needs user feedback.
 - **Fault**: two consecutive rounds have errored, and automatic recovery has
-  stopped. Nothing recovers a conversation round yet, so no conversation reaches
-  fault. Its counterpart is fault.
+  stopped. Its counterpart is fault.
 - **Unknown**: Dreamcatcher cannot tell whether the issue is eligible or whether
   comments wait. Its counterpart is unknown.
 
@@ -394,7 +392,12 @@ After the round ends, another eligible comment batch resumes the same harness
 session in another conversation round. Before it accepts that batch,
 Dreamcatcher fetches main and asks Git to move the detached worktree to the
 fetched revision, discarding local changes left by the earlier investigation.
-Comments that arrive while a round runs stay beyond the latest round input.
+Comments that arrive while a round runs stay beyond the latest round input. If
+the round is interrupted or errors, recovery reuses its saved comments and
+revision without reading new comments or refreshing the worktree. It resumes the
+saved harness session, or repeats the first invocation with the configured
+prompt if no session identifier was recorded.
+
 Closing the issue, removing its conversation label or unassigning the signed-in
 account stops new comment batches and takes the conversation off the status
 report once no round runs for it. The saved conversation is kept, and making the
@@ -445,24 +448,26 @@ Existing assignments take precedence over new ones, ranked in this order:
 3. start an assignment round for new user posts; and
 4. create an assignment for the oldest available issue.
 
-Conversation candidates are ordered by their oldest waiting comment. When both
-an assignment candidate and a conversation candidate are ready, the scheduler
-alternates which kind receives the next free slot. When only one kind is ready,
-it proceeds without waiting for the other.
+Conversation recoveries precede fresh conversation batches, which are ordered by
+their oldest waiting comment. When both an assignment candidate and a
+conversation candidate are ready, the scheduler alternates which kind receives
+the next free slot. When only one kind is ready, it proceeds without waiting for
+the other.
 
 ### Handling errors and global cooldown
 
 A known global error may start a global cooldown immediately.
 
-For errors that cannot be diagnosed reliably, one assignment's first consecutive
-error calls for a recovery round and its second places that assignment in fault.
-If two assignments enter fault, that is evidence of a shared problem and starts
-a global cooldown. When the cooldown ends, Dreamcatcher clears those faults and
-permits recovery. This deliberately simple policy prevents one
-assignment-specific failure from blocking all other work.
+For errors that cannot be diagnosed reliably, one piece of agent work's first
+consecutive error calls for a recovery round and its second places that work in
+fault. If two assignments or conversations enter fault, in any combination, that
+is evidence of a shared problem and starts a global cooldown. When the cooldown
+ends, Dreamcatcher clears those faults and permits recovery. This deliberately
+simple policy prevents one work-specific failure from blocking all other work.
 
-After resolving an assignment-specific problem, the user may request a retry.
-That request clears the assignment's current fault without erasing its errored
-rounds, and the scheduler may start a recovery round on its next tick. Only
-errors at or after the later of the latest retry request and the latest
-completed global cooldown count towards a new fault.
+After resolving an issue-specific problem, the user may request a retry. That
+request clears any current fault on the newest assignment and issue conversation
+without erasing their errored rounds, and the scheduler may start recovery
+rounds on later ticks. Only errors at or after the later of each work item's
+latest retry request and the latest completed global cooldown count towards a
+new fault.

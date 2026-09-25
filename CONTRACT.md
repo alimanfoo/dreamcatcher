@@ -137,6 +137,10 @@ Dreamcatcher owns publication: when the harness exits successfully, the round
 appends the agent marker to the final result and posts it before the round ends.
 A failed post makes the round errored.
 
-Issue conversations currently run through Claude. The conversation prompt may
-support follow-up exchanges, but it must not promise automatic recovery that
-Dreamcatcher does not yet schedule.
+Issue conversations currently run through Claude. While the issue remains
+eligible, Dreamcatcher retries an interrupted or errored round's saved input and
+revision without collecting comments or refreshing the worktree. It resumes the
+recorded harness session with a recovery prompt. If the first invocation did not
+record a session identifier, it starts a new session with the configured prompt
+and the same saved input. The configured conversation prompt needs no special
+recovery instructions.
