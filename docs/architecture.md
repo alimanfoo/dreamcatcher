@@ -113,8 +113,12 @@ and trusted comment history. Each later eligible batch resumes that session with
 only newly delivered comments. The scheduler first fetches main and asks Git to
 discard local changes and move the detached worktree to that revision. Each
 round input records its investigated revision. Comments posted while a round
-runs remain beyond the latest round input, and a failed or interrupted round
-needs attention before another batch can start.
+runs remain beyond the latest round input, and a failed or interrupted round is
+a fault, so no batch starts after it.
+
+Every tick reads the comments of every eligible conversation issue, even when no
+agent is free, and records for each issue whether comments wait to be answered.
+The free-agent check gates only the launch, as it does for assignments.
 
 A conversation round posts its own answer. The conversation launcher gives the
 round a finisher that posts to the issue, so the shared round runner knows
@@ -279,8 +283,8 @@ Status construction may read:
   harness session identifier or build a hand-resume command;
 - current child-process state;
 - the instance's repository record and daemon-run record;
-- scheduler records, including issue observations, assignment observations, the
-  active global cooldown, and the latest tick;
+- scheduler records, including issue observations, assignment and conversation
+  observations, the active global cooldown, and the latest tick;
 - the latest rendered feed output needed for a useful summary.
 
 It may call the scheduler's pure interpretation functions, but it cannot invoke
@@ -307,10 +311,15 @@ whether it required a round. Status reads this observation because view commands
 cannot reach GitHub. It is the last tick's interpretation kept as operational
 evidence, not authoritative assignment state.
 
-The scheduler record maps each saved conversation to an `IssueFact` describing
-whether GitHub's eligible-issue query contained it. Status uses that evidence to
-distinguish an eligible conversation waiting for comments from an inactive
-conversation, without contacting GitHub itself.
+An `IssueConversationObservation` records the tick's view of one eligible
+conversation issue: its title, and an `IssueFact` saying whether comments wait
+to be answered. The tick observes every eligible issue, whether or not a
+conversation record exists yet, so status lists a conversation from the first
+tick that sees its issue. An issue that the tick did not observe is not
+eligible, and its conversation leaves the report once no round runs for it. When
+the tick cannot list eligible issues, it observes every saved conversation with
+an unknown fact instead. An `IssueConversationStatus` is one summary status from
+the ontology.
 
 The scheduler record also names the assignment or conversation whose round the
 tick launched. Alternation advances when a kind is selected, including when its

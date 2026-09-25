@@ -143,8 +143,8 @@ files.
 
 Closing the issue, removing the conversation label or removing the signed-in
 account as assignee stops comment collection. Dreamcatcher keeps the saved
-conversation, and comments posted while it is inactive become available if the
-issue becomes eligible again. A running round may finish and publish its answer.
+conversation, and comments posted while the issue is ineligible become available
+if it becomes eligible again. A running round may finish and publish its answer.
 
 Every round records its number, purpose, whether it is recovering an earlier
 round, and its outcome (`running`, `successful`, `errored` or `interrupted`).
@@ -208,9 +208,10 @@ The CLI also has four terminal read-only views: `status`, `assignment`,
 and never contacts GitHub.
 
 Every view refreshes automatically in a terminal. `status` runs until you
-interrupt it. Detail and feed views run until the selected work finishes or
-needs attention, and you can interrupt either one sooner. If you pipe, redirect
-or capture a view, it shows the current state once and returns.
+interrupt it. Detail and feed views run until the selected work completes,
+enters fault or leaves the status report, and you can interrupt either one
+sooner. If you pipe, redirect or capture a view, it shows the current state once
+and returns.
 
 ```sh
 dreamcatcher status
@@ -219,6 +220,11 @@ dreamcatcher status
 `status` starts with the repository name, then shows the instance, its issue
 conversations and agent assignments, any failed assignment setups, the available
 issues in dispatch order, and issues with open blockers.
+
+An issue conversation is working, waiting, idle, fault or unknown. It is listed
+from the first tick that sees its issue eligible, before its first round, and
+leaves the list once the issue is ineligible and no round runs. A conversation
+that has answered its comments is idle, since it asks nothing of you.
 
 `assignment` shows one issue's newest assignment: its issue identifier, agent
 assignment identifier, harness session identifier, what its dispatch settled,
