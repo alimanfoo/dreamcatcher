@@ -1,10 +1,9 @@
 repository unknown
 
 instance
-  daemon                 not running   
-  harness                claude        
-  latest scheduler tick  none recorded 
-  agent capacity         0 of 1 working
-  global cooldown        none          
+  daemon           not running   
+  harness          claude        
+  agent capacity   0 of 1 working
+  global cooldown  none          
 
 no issues or agent assignments recorded yet

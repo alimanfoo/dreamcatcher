@@ -49,7 +49,7 @@ from dreamcatcher.status import (
     read_issue_conversation_status,
     read_status_report,
 )
-from dreamcatcher.words import describe_count, describe_span, describe_time
+from dreamcatcher.words import describe_count, describe_countdown, describe_time
 
 # What each assignment summary is set in, so a reader can scan the status table.
 ASSIGNMENT_STATUS_STYLES = dict(
@@ -251,9 +251,13 @@ def _render_instance_status(
         )
     )
     tick = (
-        "none recorded"
-        if report.latest_scheduler_tick is None
-        else f"{describe_span(span=report.at - report.latest_scheduler_tick)} ago"
+        None
+        if report.daemon_pid is None
+        else describe_countdown(
+            at=report.at,
+            since=report.latest_scheduler_tick,
+            span_seconds=report.scheduler_interval_seconds,
+        )
     )
     cooldown = (
         "none"
@@ -263,7 +267,7 @@ def _render_instance_status(
     for name, value in (
         ("daemon", daemon),
         ("harness", report.agent_harness),
-        ("latest scheduler tick", tick),
+        ("next update in", tick),
         (
             "agent capacity",
             (
