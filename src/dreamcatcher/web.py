@@ -633,9 +633,7 @@ def _compose_home_view(
             daemon_pid=report.daemon_pid,
             dreamcatcher_version=report.dreamcatcher_version,
         ),
-        instance_facts=_compose_instance_facts(
-            report=report, cooldown_end=cooldown_end
-        ),
+        instance_facts=_compose_instance_facts(report=report),
         cooldown_message=(
             None if cooldown_end is None else f"Global cooldown ends {cooldown_end}"
         ),
@@ -1033,9 +1031,7 @@ def _describe_daemon(
     return f"daemon RUNNING · {version}pid {daemon_pid}"
 
 
-def _compose_instance_facts(
-    *, report: DreamcatcherStatusReport, cooldown_end: str | None
-) -> tuple[WebFact, ...]:
+def _compose_instance_facts(*, report: DreamcatcherStatusReport) -> tuple[WebFact, ...]:
     tick = (
         "none recorded"
         if report.latest_scheduler_tick is None
@@ -1059,11 +1055,6 @@ def _compose_instance_facts(
                 else f"{report.running_agents} of {report.max_agents} in use"
             ),
             False,
-        ),
-        (
-            "global cooldown",
-            None if cooldown_end is None else f"ends {cooldown_end}",
-            True,
         ),
         ("scheduler hold", scheduler_hold, scheduler_hold is not None),
     )

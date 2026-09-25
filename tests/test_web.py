@@ -923,7 +923,7 @@ def test_active_cooldown_uses_the_display_zone(tmp_path, daemon):
     page = render_home(state=state)
 
     assert "Global cooldown ends 2026-08-20 04:56:58" in page
-    assert "<dd>ends 2026-08-20 04:56:58</dd>" in page
+    assert "<dt>global cooldown</dt>" not in page
     assert "2026-08-19 20:56:58" not in page
 
 
