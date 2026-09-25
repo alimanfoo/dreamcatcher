@@ -30,7 +30,6 @@ from dreamcatcher.feed import (
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
-    CONVERSATION_STATUSES_THAT_END_A_VIEW,
     STATUSES_THAT_END_A_VIEW,
     AgentAssignmentStatus,
     AgentAssignmentStatusValue,
@@ -447,7 +446,7 @@ def _show_conversation_tail(
                 round_statuses=status.round_statuses, zone=zone
             ),
         ),
-        is_terminal=status.value in CONVERSATION_STATUSES_THAT_END_A_VIEW,
+        is_terminal=status.is_over,
         status_id="conversation-status",
         zone=zone,
     )

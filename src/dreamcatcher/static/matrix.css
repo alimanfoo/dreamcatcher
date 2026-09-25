@@ -325,8 +325,7 @@ body::after {
   background: var(--phosphor);
 }
 
-.status-fault,
-.status-needs-attention {
+.status-fault {
   color: var(--background);
   background: var(--amber);
 }
@@ -334,13 +333,12 @@ body::after {
 .status-waiting,
 .status-unknown,
 .status-complete,
-.status-inactive,
+.status-idle,
 .issue-blocked {
   color: var(--dim);
 }
 
-.status-working,
-.status-running {
+.status-working {
   text-shadow: var(--shadow);
 }
 

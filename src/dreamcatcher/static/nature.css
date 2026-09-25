@@ -357,6 +357,7 @@ body::after {
 }
 
 .status-complete,
+.status-idle,
 .issue-blocked {
   color: var(--dim);
   background: rgba(150, 140, 110, 0.28);

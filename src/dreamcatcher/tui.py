@@ -37,7 +37,6 @@ from dreamcatcher.issue_conversations import IssueConversation
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
-    CONVERSATION_STATUSES_THAT_END_A_VIEW,
     STATUSES_THAT_END_A_VIEW,
     AgentAssignmentStatus,
     AgentAssignmentStatusValue,
@@ -62,10 +61,11 @@ ASSIGNMENT_STATUS_STYLES = dict(
 )
 
 CONVERSATION_STATUS_STYLES = {
-    IssueConversationStatusValue.NEEDS_ATTENTION: "red",
-    IssueConversationStatusValue.RUNNING: "green",
+    IssueConversationStatusValue.FAULT: "red",
+    IssueConversationStatusValue.WORKING: "green",
     IssueConversationStatusValue.WAITING: "cyan",
-    IssueConversationStatusValue.INACTIVE: "dim",
+    IssueConversationStatusValue.UNKNOWN: "magenta",
+    IssueConversationStatusValue.IDLE: "dim",
 }
 
 # How long a following view waits between refreshes for new round output.
@@ -486,7 +486,11 @@ def show_conversation_view(
     console: Console,
     timing: ViewTiming = DEFAULT_VIEW_TIMING,
 ) -> None:
-    """Show one issue conversation until it becomes inactive or needs attention."""
+    """Show one issue conversation until nothing more can happen without the user.
+
+    That is once it enters fault, or once the status report no longer lists it.
+    A non-terminal or dumb terminal renders one snapshot and returns.
+    """
     _refresh_live_view(
         console=console,
         read_snapshot=lambda: _read_conversation_snapshot(
@@ -507,7 +511,7 @@ def _read_conversation_snapshot(
     status = _find_conversation_status_for_issue(state=state, issue=issue, clock=clock)
     return _ViewSnapshot(
         renderable=_render_conversation(state=state, status=status, zone=zone),
-        is_over=status.value in CONVERSATION_STATUSES_THAT_END_A_VIEW,
+        is_over=status.is_over,
     )
 
 
@@ -874,7 +878,7 @@ def _find_feed_owner(
         status = _find_conversation_status_for_issue(state=state, issue=issue)
         return _FeedOwnerSnapshot(
             owner=status.conversation,
-            is_over=status.value in CONVERSATION_STATUSES_THAT_END_A_VIEW,
+            is_over=status.is_over,
             round_details={
                 round_status.record.number: round_status.revision_description
                 for round_status in status.round_statuses

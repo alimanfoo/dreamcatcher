@@ -92,7 +92,7 @@ def rendered_console() -> tuple[Console, StringIO]:
 
 
 def test_status_lists_the_issue_conversation(tmp_path):
-    state = conversation_state(root=tmp_path)
+    state = conversation_state(root=tmp_path, is_eligible=True)
     console, written = rendered_console()
 
     show_status_view(
@@ -104,8 +104,8 @@ def test_status_lists_the_issue_conversation(tmp_path):
     shown = written.getvalue()
     assert "issue conversations" in shown
     assert "GH8" in shown
-    assert "inactive" in shown
-    assert "issue is not eligible for conversation" in shown
+    assert "idle" in shown
+    assert "round 1, answered, ran 4m" in shown
 
 
 def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path):
@@ -160,7 +160,7 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
     assert "successful" in shown
 
 
-def test_conversation_detail_shows_attention_for_an_unreadable_input(tmp_path):
+def test_conversation_detail_shows_a_fault_for_an_unreadable_input(tmp_path):
     state = conversation_state(root=tmp_path)
     conversation = read_issue_conversation(state=state, issue=8)
     assert conversation is not None
@@ -175,7 +175,7 @@ def test_conversation_detail_shows_attention_for_an_unreadable_input(tmp_path):
     )
 
     shown = written.getvalue()
-    assert "needs attention" in shown
+    assert "fault" in shown
     assert "inbox.json is not valid" in shown
 
 
@@ -190,7 +190,7 @@ def test_conversation_detail_shows_a_failed_round(tmp_path):
         timing=ViewTiming(clock=lambda: PINNED),
     )
 
-    assert "needs attention" in written.getvalue()
+    assert "fault  round 1 errored (exit 2)" in written.getvalue()
 
 
 def test_conversation_feed_shows_its_saved_activity(tmp_path):

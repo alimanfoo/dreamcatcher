@@ -94,7 +94,7 @@ def application(*, state: StateDirectory):
 def test_home_lists_a_conversation_and_links_to_its_page(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    fabricate_conversation(state=state)
+    fabricate_conversation(state=state, is_eligible=True)
 
     page = application(state=state).test_client().get("/").text
 
@@ -105,7 +105,7 @@ def test_home_lists_a_conversation_and_links_to_its_page(tmp_path):
     assert "Conversations" in page
     assert 'id="conversation-GH8"' in page
     assert 'href="/conversations/8"' in page
-    assert "issue is not eligible for conversation" in page
+    assert "round 1, answered, ran 4m" in page
 
 
 def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
@@ -159,7 +159,7 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
     assert 'hx-get="/conversations/8/tail"' in page
 
 
-def test_conversation_page_shows_attention_for_an_unreadable_input(tmp_path):
+def test_conversation_page_shows_a_fault_for_an_unreadable_input(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
     conversation = read_issue_conversation(state=state, issue=8)
@@ -169,7 +169,7 @@ def test_conversation_page_shows_attention_for_an_unreadable_input(tmp_path):
     response = application(state=state).test_client().get("/conversations/8")
 
     assert response.status_code == 200
-    assert "needs attention" in response.text
+    assert "status-fault" in response.text
     assert "inbox.json is not valid" in response.text
 
 
@@ -179,7 +179,7 @@ def test_conversation_page_shows_a_failed_round(tmp_path):
 
     page = application(state=state).test_client().get("/conversations/8").text
 
-    assert "status-needs-attention" in page
+    assert "status-fault" in page
 
 
 def test_conversation_before_its_first_round_has_an_empty_feed(tmp_path):
@@ -311,7 +311,7 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
     assert response.status_code == 200
     assert "I found the answer." not in response.text
     assert 'id="conversation-detail"' in response.text
-    assert "issue is not eligible for conversation" in response.text
+    assert "issue is closed, unlabelled or unassigned" in response.text
     assert response.text.count("round 2: discuss") == 1
     assert response.text.count("code revision abc123 -&gt; def456") == 1
     assert response.text.count("I found the follow-up answer.") == 1
