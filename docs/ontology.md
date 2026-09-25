@@ -136,14 +136,15 @@ An agent round may be:
 
 - **running**;
 - **successful**, when its harness invocation exits without an error;
-- **errored**, when the invocation exits with an error; or
+- **errored**, when its harness invocation fails to start or exits with an
+  error;
 - **interrupted**, when it was stopped before recording an ending.
 
 ### Recovery round
 
 A **recovery round** is an agent round run because the preceding round was
-interrupted or exited with an error. Recovery is a true-or-false property of a
-round, independent of its purpose. Assignment recovery continues its current
+interrupted or errored. Recovery is a true-or-false property of a round,
+independent of its purpose. Assignment recovery continues its current
 pull-request work. Issue conversation recovery repeats the saved comment batch
 and investigated revision instead of collecting new input.
 

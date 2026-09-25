@@ -263,11 +263,11 @@ type IssueConversationWork = IssueConversationCandidate | RequiredIssueConversat
 
 
 @dataclass(frozen=True, kw_only=True)
-class _AgentWorkReadFailures:
-    """Collect the read failures that constrain launch selection."""
+class _AgentWorkLaunchFailures:
+    """Distinguish assignment-blocking and reported launch failures."""
 
-    assignment: str | None
-    scheduler: str | None
+    assignment_blocker: str | None
+    reported: str | None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -1328,9 +1328,9 @@ class AgentWorkScheduler:
             inspection_results=inspection_results,
             conversation_inspection=conversation_inspection,
             conversation_candidates=conversation_candidates,
-            failures=_AgentWorkReadFailures(
-                assignment=assignment_failure,
-                scheduler=scheduler_failure,
+            failures=_AgentWorkLaunchFailures(
+                assignment_blocker=assignment_failure,
+                reported=scheduler_failure,
             ),
         )
 
@@ -1341,22 +1341,22 @@ class AgentWorkScheduler:
         inspection_results: list[AgentAssignmentInspectionResult],
         conversation_inspection: IssueConversationInspectionResult,
         conversation_candidates: IssueConversationCandidateResult,
-        failures: _AgentWorkReadFailures,
+        failures: _AgentWorkLaunchFailures,
     ) -> SchedulerRecord:
         """Launch one candidate while alternating between ready work kinds."""
-        if failures.scheduler is not None:
-            record = record.model_copy(update={"hold": failures.scheduler})
+        if failures.reported is not None:
+            record = record.model_copy(update={"hold": failures.reported})
         prioritized_rounds = prioritize_required_rounds(
             required_rounds=[
                 result
                 for result in inspection_results
                 if isinstance(result, RequiredAgentRound)
-                and failures.assignment is None
+                and failures.assignment_blocker is None
             ]
         )
         available_issue = (
             None
-            if failures.assignment is not None
+            if failures.assignment_blocker is not None
             else _find_oldest_available_issue(record=record)
         )
         conversation_work = _select_issue_conversation_work(
