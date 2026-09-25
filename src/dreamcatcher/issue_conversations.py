@@ -11,6 +11,8 @@ from pydantic import AwareDatetime
 from dreamcatcher.agent_rounds import (
     AgentRoundPaths,
     AgentRoundRecord,
+    ErroredAgentRoundEnding,
+    InterruptedAgentRoundEnding,
     IssueConversationInput,
 )
 from dreamcatcher.commands import CommandError
@@ -106,6 +108,19 @@ class IssueConversation:
         """The next round's input when no corresponding round record exists."""
         path = self.compose_round_paths(number=self.next_round_number).round_input
         return path if path.is_file() else None
+
+    def describe_unfinished_round(self) -> str | None:
+        """Describe the final interrupted or errored attempt, if one exists."""
+        if not self.rounds:
+            return None
+        ending = self.rounds[-1].ending
+        if ending is None or isinstance(ending, InterruptedAgentRoundEnding):
+            return "the last round was interrupted"
+        if not isinstance(ending, ErroredAgentRoundEnding):
+            return None
+        if ending.reason is not None:
+            return f"the last round could not start: {ending.reason}"
+        return f"the last round failed (exit {ending.status})"
 
     def compose_round_paths(self, *, number: int) -> AgentRoundPaths:
         """Return the paths for one numbered conversation round."""

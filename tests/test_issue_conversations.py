@@ -7,6 +7,7 @@ from clocks import PINNED
 from dreamcatcher.agent_rounds import (
     AgentRoundPurpose,
     AgentRoundRecord,
+    ErroredAgentRoundEnding,
     IssueConversationInput,
 )
 from dreamcatcher.config import AgentHarness, IssueConversationConfig
@@ -182,6 +183,30 @@ def test_a_non_object_conversation_record_is_reportable(tmp_path):
 
     with pytest.raises(ReportableError):
         read_issue_conversation(state=state, issue=8)
+
+
+def test_a_conversation_describes_a_round_that_failed_before_launch(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    conversation = write_conversation(state=state)
+    write_json(
+        document=AgentRoundRecord(
+            number=1,
+            purpose=AgentRoundPurpose.DISCUSS,
+            started=PINNED,
+            ending=ErroredAgentRoundEnding(
+                at=PINNED,
+                reason="the harness was unavailable",
+            ),
+        ),
+        path=conversation.compose_round_paths(number=1).record,
+    )
+
+    found = read_issue_conversation(state=state, issue=8)
+
+    assert found is not None
+    assert found.describe_unfinished_round() == (
+        "the last round could not start: the harness was unavailable"
+    )
 
 
 def test_only_new_unmarked_comments_from_the_account_are_delivered():

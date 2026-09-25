@@ -30,6 +30,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundPurpose,
     AgentRoundRecord,
     ErroredAgentRoundEnding,
+    InterruptedAgentRoundEnding,
     IssueConversationInput,
     compose_agent_round_ending,
 )
@@ -621,7 +622,7 @@ def test_no_reply_completes_without_posting_a_comment(
     assert not any(call.arguments[:4] == POST_PATH.split() for call in gh.calls)
 
 
-def test_an_errored_round_is_visible_but_not_published(
+def test_an_errored_round_recovers_the_saved_batch_and_revision(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
@@ -629,15 +630,99 @@ def test_an_errored_round_is_visible_but_not_published(
     answer(harnesses=harnesses, status=2)
     scheduler.tick(at=clock())
     finish(scheduler=scheduler)
+    first = read_issue_conversation(state=scheduler.state, issue=8)
+    assert first is not None
+    first_input = read_json(
+        model=IssueConversationInput,
+        path=first.compose_round_paths(number=1).round_input,
+    )
+    offer_conversation(
+        gh=gh,
+        comments=[ask(), ask(identifier=2, body="A later question.")],
+    )
+    answer(harnesses=harnesses, body="The recovered answer.")
+    gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
 
+    launched = scheduler.tick(at=clock())
+    comment_reads_when_recovery_launched = count_comment_reads(gh=gh)
+    finish(scheduler=scheduler)
     scheduler.tick(at=clock())
 
     conversation = read_issue_conversation(state=scheduler.state, issue=8)
     assert conversation is not None
     assert conversation.rounds[0].outcome is AgentRoundOutcome.ERRORED
+    assert conversation.rounds[1].is_recovery
+    assert conversation.rounds[1].outcome is AgentRoundOutcome.SUCCESSFUL
     assert read_issue_conversation_reply(conversation=conversation, number=1) is None
-    assert count_comment_reads(gh=gh) == 1
-    assert not any(call.arguments[:4] == POST_PATH.split() for call in gh.calls)
+    recovered_input = read_json(
+        model=IssueConversationInput,
+        path=conversation.compose_round_paths(number=2).round_input,
+    )
+    assert recovered_input == first_input
+    assert launched.launched_conversation_identifier == "conversation-GH8"
+    resumed = harnesses["claude"].calls[1]
+    assert resumed.arguments[-2:] == ["--resume", "conversation-session"]
+    assert resumed.prompt.startswith(
+        "Your previous issue-conversation round did not finish."
+    )
+    assert comment_reads_when_recovery_launched == 1
+    assert (
+        len([call for call in gh.calls if call.arguments[:4] == POST_PATH.split()]) == 1
+    )
+
+
+def test_an_interrupted_conversation_recovers_after_eligibility_loss(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    directory = write_issue_conversation(state=scheduler.state, issue=8)
+    write_round(
+        directory=directory,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            purpose=AgentRoundPurpose.DISCUSS,
+            started=PINNED,
+            pid=123,
+            ending=InterruptedAgentRoundEnding(),
+        ),
+    )
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    frozen = IssueConversationInput(
+        issue=8,
+        title="Why does this happen?",
+        body="Explain the scheduler.",
+        comments=[ask()],
+        revision="frozen-revision",
+    )
+    write_json(
+        document=frozen,
+        path=conversation.compose_round_paths(number=1).round_input,
+    )
+    answer(harnesses=harnesses)
+
+    launched = scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    recovered = conversation.rounds[-1]
+    assert launched.launched_conversation_identifier == "conversation-GH8"
+    assert launched.conversation_eligibility[8].value is IssueFactValue.FALSE
+    assert recovered.is_recovery
+    assert (
+        read_json(
+            model=IssueConversationInput,
+            path=conversation.compose_round_paths(number=2).round_input,
+        )
+        == frozen
+    )
+    assert harnesses["claude"].calls[0].arguments[-2:] == [
+        "--resume",
+        "conversation-session",
+    ]
+    assert count_comment_reads(gh=gh) == 0
 
 
 def test_a_follow_up_refuses_to_replace_a_missing_saved_session(

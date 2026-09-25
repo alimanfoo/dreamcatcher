@@ -39,6 +39,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundPurpose,
     AgentRoundStartRequest,
     ErroredAgentRoundEnding,
+    IssueConversationInput,
     record_agent_round_launch_failure,
     start_agent_round,
 )
@@ -72,6 +73,7 @@ from dreamcatcher.issue_conversations import (
     list_undelivered_issue_comments,
     prepare_issue_conversation_input,
     read_issue_comment_delivery_cursor,
+    read_issue_conversation_input,
     read_issue_conversation_reply,
     read_issue_conversations,
     record_issue_conversation_reply_publication,
@@ -82,6 +84,7 @@ from dreamcatcher.prompts import (
     AGENT_POST_MARKER,
     RECOVERY_PROMPT,
     compose_issue_conversation_prompt,
+    compose_issue_conversation_recovery_prompt,
     compose_issue_conversation_round_prompt,
     compose_user_posts_prompt,
 )
@@ -237,6 +240,32 @@ class IssueConversationCandidateResult:
 
 
 @dataclass(frozen=True, kw_only=True)
+class RequiredIssueConversationRound:
+    """Describe the recovery round that an issue conversation requires."""
+
+    conversation: IssueConversation
+    plan: AgentRoundPlan[IssueConversationInput]
+    reason: str
+    prompt: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class IssueConversationInspectionResult:
+    """Collect locally required conversation rounds and any failed read."""
+
+    required_rounds: list[RequiredIssueConversationRound]
+    failure: str | None = None
+
+
+@dataclass(frozen=True, kw_only=True)
+class _AgentWorkReadFailures:
+    """Collect the read failures that constrain launch selection."""
+
+    assignment: str | None
+    scheduler: str | None
+
+
+@dataclass(frozen=True, kw_only=True)
 class FaultedAgentAssignment:
     """Describe an assignment whose errors stop ordinary recovery."""
 
@@ -247,6 +276,26 @@ class FaultedAgentAssignment:
 type AgentAssignmentInspectionResult = (
     RequiredAgentRound | FaultedAgentAssignment | AgentAssignmentObservation
 )
+
+
+def _select_agent_work_kind(
+    *,
+    last_selected: AgentWorkKind | None,
+    is_assignment_ready: bool,
+    is_conversation_ready: bool,
+) -> AgentWorkKind | None:
+    """Select one ready work kind while alternating when both are ready."""
+    if is_assignment_ready and is_conversation_ready:
+        return (
+            AgentWorkKind.CONVERSATION
+            if last_selected is AgentWorkKind.ASSIGNMENT
+            else AgentWorkKind.ASSIGNMENT
+        )
+    if is_assignment_ready:
+        return AgentWorkKind.ASSIGNMENT
+    if is_conversation_ready:
+        return AgentWorkKind.CONVERSATION
+    return None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -825,6 +874,34 @@ def compose_assignment_observation(
     )
 
 
+def compose_issue_conversation_recovery_requirement(
+    *, conversation: IssueConversation
+) -> RequiredIssueConversationRound | None:
+    """Return the recovery round required by unfinished conversation work."""
+    reason = conversation.describe_unfinished_round()
+    if reason is None:
+        return None
+    latest = conversation.rounds[-1]
+    round_input = read_issue_conversation_input(
+        conversation=conversation,
+        number=latest.number,
+    )
+    paths = conversation.compose_round_paths(number=conversation.next_round_number)
+    return RequiredIssueConversationRound(
+        conversation=conversation,
+        plan=AgentRoundPlan(
+            purpose=AgentRoundPurpose.DISCUSS,
+            is_recovery=True,
+            input=round_input,
+        ),
+        reason=reason,
+        prompt=compose_issue_conversation_recovery_prompt(
+            issue=conversation.record.issue,
+            round_input=paths.round_input,
+        ),
+    )
+
+
 def _list_issue_conversation_candidates(
     *,
     repository: str,
@@ -1133,6 +1210,9 @@ class AgentWorkScheduler:
             most_recent_cooldown_ended=most_recent_cooldown_ended,
             observed_at=at,
         )
+        conversation_inspection = self._inspect_conversations(
+            conversations=conversations
+        )
         cooldown = _start_cooldown_if_required(
             active=cooldown,
             inspection_results=inspection_results,
@@ -1154,7 +1234,11 @@ class AgentWorkScheduler:
             ]
         )
         scheduler_failure = _combine_scheduler_failures(
-            failures=[assignment_failure, conversation_failure]
+            failures=[
+                assignment_failure,
+                conversation_inspection.failure,
+                conversation_failure,
+            ]
         )
         assignment_observations = list_assignment_observations(
             inspection_results=inspection_results
@@ -1193,9 +1277,12 @@ class AgentWorkScheduler:
         return self._launch_available_work(
             record=record,
             inspection_results=inspection_results,
+            conversation_inspection=conversation_inspection,
             conversation_candidates=conversation_candidates,
-            assignment_failure=assignment_failure,
-            scheduler_failure=scheduler_failure,
+            failures=_AgentWorkReadFailures(
+                assignment=assignment_failure,
+                scheduler=scheduler_failure,
+            ),
         )
 
     def _launch_available_work(
@@ -1203,40 +1290,37 @@ class AgentWorkScheduler:
         *,
         record: SchedulerRecord,
         inspection_results: list[AgentAssignmentInspectionResult],
+        conversation_inspection: IssueConversationInspectionResult,
         conversation_candidates: IssueConversationCandidateResult,
-        assignment_failure: str | None,
-        scheduler_failure: str | None,
+        failures: _AgentWorkReadFailures,
     ) -> SchedulerRecord:
         """Launch one candidate while alternating between ready work kinds."""
-        if scheduler_failure is not None:
-            record = record.model_copy(update={"hold": scheduler_failure})
+        if failures.scheduler is not None:
+            record = record.model_copy(update={"hold": failures.scheduler})
         prioritized_rounds = prioritize_required_rounds(
             required_rounds=[
                 result
                 for result in inspection_results
-                if isinstance(result, RequiredAgentRound) and assignment_failure is None
+                if isinstance(result, RequiredAgentRound)
+                and failures.assignment is None
             ]
         )
         available_issue = (
             None
-            if assignment_failure is not None
+            if failures.assignment is not None
             else _find_oldest_available_issue(record=record)
         )
         is_assignment_ready = bool(prioritized_rounds) or available_issue is not None
-        is_conversation_ready = conversation_candidates.failure is None and bool(
-            conversation_candidates.candidates
+        is_conversation_ready = bool(conversation_inspection.required_rounds) or (
+            conversation_candidates.failure is None
+            and bool(conversation_candidates.candidates)
         )
-        if is_assignment_ready and is_conversation_ready:
-            work_kind = (
-                AgentWorkKind.CONVERSATION
-                if self._last_selected_work_kind is AgentWorkKind.ASSIGNMENT
-                else AgentWorkKind.ASSIGNMENT
-            )
-        elif is_assignment_ready:
-            work_kind = AgentWorkKind.ASSIGNMENT
-        elif is_conversation_ready:
-            work_kind = AgentWorkKind.CONVERSATION
-        else:
+        work_kind = _select_agent_work_kind(
+            last_selected=self._last_selected_work_kind,
+            is_assignment_ready=is_assignment_ready,
+            is_conversation_ready=is_conversation_ready,
+        )
+        if work_kind is None:
             return record
         self._last_selected_work_kind = work_kind
         if work_kind is AgentWorkKind.ASSIGNMENT and prioritized_rounds:
@@ -1249,6 +1333,11 @@ class AgentWorkScheduler:
             return self._dispatch_issue(
                 record=record,
                 issue=cast("IssueObservation", available_issue),
+            )
+        if conversation_inspection.required_rounds:
+            return self._launch_required_conversation_round(
+                record=record,
+                required=conversation_inspection.required_rounds[0],
             )
         return self._launch_conversation_round(
             record=record,
@@ -1286,6 +1375,31 @@ class AgentWorkScheduler:
                     )
                 )
         return inspection_results
+
+    def _inspect_conversations(
+        self, *, conversations: list[IssueConversation]
+    ) -> IssueConversationInspectionResult:
+        """Return recovery rounds derived only from saved conversation state."""
+        required_rounds: list[RequiredIssueConversationRound] = []
+        failures: list[str | None] = []
+        for conversation in conversations:
+            if conversation.identifier in self.rounds:
+                continue
+            try:
+                required = compose_issue_conversation_recovery_requirement(
+                    conversation=conversation
+                )
+            except ReportableError as failure:
+                failures.append(
+                    f"could not inspect {conversation.identifier}: {failure}"
+                )
+                continue
+            if required is not None:
+                required_rounds.append(required)
+        return IssueConversationInspectionResult(
+            required_rounds=required_rounds,
+            failure=_combine_scheduler_failures(failures=failures),
+        )
 
     def _launch_assignment_round(
         self,
@@ -1384,59 +1498,98 @@ class AgentWorkScheduler:
             )
             number = conversation.next_round_number
             paths = conversation.compose_round_paths(number=number)
-            harness_session_identifier = None
             prompt = compose_issue_conversation_prompt(
                 template=conversation.record.prompt,
                 issue=conversation.record.issue,
                 round_input=paths.round_input,
             )
             if conversation.rounds:
-                harness_session_identifier = (
-                    conversation.record.harness_session_identifier
-                )
                 prompt = compose_issue_conversation_round_prompt(
                     issue=conversation.record.issue,
                     round_input=paths.round_input,
                 )
-            request = AgentRoundStartRequest(
-                harness=conversation.record.harness,
-                launch_request=AgentRoundLaunchRequest(
-                    agent_work_identifier=conversation.identifier,
-                    model=conversation.record.model,
-                    effort=conversation.record.effort,
-                    prompt=prompt,
-                    work_kind=AgentWorkKind.CONVERSATION,
-                ),
-                harness_session_identifier=harness_session_identifier,
-                record_harness_session_identifier=partial(
-                    record_issue_conversation_session_identifier,
-                    conversation=conversation,
-                ),
-                paths=paths,
-                plan=AgentRoundPlan(
-                    purpose=AgentRoundPurpose.DISCUSS,
-                    is_recovery=False,
-                    input=round_input,
-                ),
-            )
-            try:
-                if conversation.rounds and harness_session_identifier is None:
-                    raise ReportableError(
-                        f"Could not resume {conversation.identifier}: its first "
-                        "round did not report a harness session identifier."
-                    )
-                self.rounds[conversation.identifier] = start_agent_round(
-                    request=request,
-                    clock=self.clock,
-                )
-            except ReportableError as failure:
-                record_agent_round_launch_failure(
-                    request=request,
-                    at=self.clock(),
-                    reason=str(failure),
-                )
-                raise
         except ReportableError as failure:
+            return record.model_copy(
+                update={
+                    "hold": _combine_scheduler_failures(
+                        failures=[record.hold, str(failure)]
+                    )
+                }
+            )
+        return self._launch_issue_conversation_attempt(
+            record=record,
+            conversation=conversation,
+            plan=AgentRoundPlan(
+                purpose=AgentRoundPurpose.DISCUSS,
+                is_recovery=False,
+                input=round_input,
+            ),
+            prompt=prompt,
+        )
+
+    def _launch_required_conversation_round(
+        self,
+        *,
+        record: SchedulerRecord,
+        required: RequiredIssueConversationRound,
+    ) -> SchedulerRecord:
+        """Start one recovery round from its saved input and revision."""
+        return self._launch_issue_conversation_attempt(
+            record=record,
+            conversation=required.conversation,
+            plan=required.plan,
+            prompt=required.prompt,
+        )
+
+    def _launch_issue_conversation_attempt(
+        self,
+        *,
+        record: SchedulerRecord,
+        conversation: IssueConversation,
+        plan: AgentRoundPlan[IssueConversationInput],
+        prompt: str,
+    ) -> SchedulerRecord:
+        """Start or durably fail one prepared issue-conversation attempt."""
+        harness_session_identifier = (
+            conversation.record.harness_session_identifier
+            if conversation.rounds
+            else None
+        )
+        request = AgentRoundStartRequest(
+            harness=conversation.record.harness,
+            launch_request=AgentRoundLaunchRequest(
+                agent_work_identifier=conversation.identifier,
+                model=conversation.record.model,
+                effort=conversation.record.effort,
+                prompt=prompt,
+                work_kind=AgentWorkKind.CONVERSATION,
+            ),
+            harness_session_identifier=harness_session_identifier,
+            record_harness_session_identifier=partial(
+                record_issue_conversation_session_identifier,
+                conversation=conversation,
+            ),
+            paths=conversation.compose_round_paths(
+                number=conversation.next_round_number
+            ),
+            plan=plan,
+        )
+        try:
+            if conversation.rounds and harness_session_identifier is None:
+                raise ReportableError(
+                    f"Could not resume {conversation.identifier}: its first "
+                    "round did not report a harness session identifier."
+                )
+            self.rounds[conversation.identifier] = start_agent_round(
+                request=request,
+                clock=self.clock,
+            )
+        except ReportableError as failure:
+            record_agent_round_launch_failure(
+                request=request,
+                at=self.clock(),
+                reason=str(failure),
+            )
             return record.model_copy(
                 update={
                     "hold": _combine_scheduler_failures(

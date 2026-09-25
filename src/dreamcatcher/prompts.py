@@ -109,3 +109,15 @@ def compose_issue_conversation_round_prompt(*, issue: int, round_input: Path) ->
         issue=issue,
         round_input=round_input,
     )
+
+
+def compose_issue_conversation_recovery_prompt(*, issue: int, round_input: Path) -> str:
+    """Return the prompt that resumes unfinished issue-conversation work."""
+    return (
+        "Your previous issue-conversation round did not finish. Continue from "
+        "where it stopped, using the same saved comments and code revision.\n\n"
+        + compose_issue_conversation_round_prompt(
+            issue=issue,
+            round_input=round_input,
+        )
+    )
