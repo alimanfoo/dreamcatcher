@@ -245,6 +245,7 @@ class IssueConversationCandidateResult:
 
     candidates: list[IssueConversationCandidate]
     observations: list[IssueConversationObservation]
+    fault_count: int = 0
     failure: str | None = None
 
 
@@ -252,6 +253,7 @@ class IssueConversationCandidateResult:
 class _IssueConversationInspection:
     observation: IssueConversationObservation
     candidate: IssueConversationCandidate | None
+    is_faulted: bool = False
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -646,18 +648,13 @@ class InvalidSchedulerRecordError(ReportableError):
 def _start_cooldown_if_required(
     *,
     active: GlobalCooldown | None,
-    inspection_results: list[AgentAssignmentInspectionResult],
+    fault_count: int,
     at: datetime,
 ) -> GlobalCooldown | None:
-    """Start a cooldown when two assignments are currently in fault."""
+    """Start a cooldown when two agent work items are currently in fault."""
     if active is not None:
         return active
-    faults = [
-        result
-        for result in inspection_results
-        if isinstance(result, FaultedAgentAssignment)
-    ]
-    if len(faults) < 2:
+    if fault_count < 2:
         return None
     return GlobalCooldown(started=at, ends=at + GLOBAL_COOLDOWN_DURATION)
 
@@ -926,6 +923,7 @@ def _list_issue_conversation_candidates(
     candidates: list[IssueConversationCandidate] = []
     observations: list[IssueConversationObservation] = []
     failures: list[str | None] = []
+    fault_count = 0
     for issue in sorted(
         issue_response, key=lambda item: (item.created_at, item.number)
     ):
@@ -937,6 +935,7 @@ def _list_issue_conversation_candidates(
             conversation=conversation,
         )
         observations.append(inspection.observation)
+        fault_count += inspection.is_faulted
         if inspection.candidate is not None:
             candidates.append(inspection.candidate)
         elif _is_conversation_ready_for_input(conversation=conversation):
@@ -944,6 +943,7 @@ def _list_issue_conversation_candidates(
     return IssueConversationCandidateResult(
         candidates=sorted(candidates, key=_rank_issue_conversation_candidate),
         observations=observations,
+        fault_count=fault_count,
         failure=_combine_scheduler_failures(failures=failures),
     )
 
@@ -968,6 +968,7 @@ def _inspect_issue_conversation(
                 has_comments_to_answer=_compose_known_issue_fact(value=False),
             ),
             candidate=None,
+            is_faulted=True,
         )
     if (
         conversation is not None
@@ -1239,11 +1240,6 @@ class AgentWorkScheduler:
             most_recent_cooldown_ended=most_recent_cooldown_ended,
             observed_at=at,
         )
-        cooldown = _start_cooldown_if_required(
-            active=cooldown,
-            inspection_results=inspection_results,
-            at=at,
-        )
         conversation_candidates = _list_issue_conversation_candidates(
             context=_IssueConversationCandidateContext(
                 repository=self.repository,
@@ -1257,6 +1253,17 @@ class AgentWorkScheduler:
                 if previous_record is None
                 else previous_record.conversation_observations
             ),
+        )
+        cooldown = _start_cooldown_if_required(
+            active=cooldown,
+            fault_count=(
+                sum(
+                    isinstance(result, FaultedAgentAssignment)
+                    for result in inspection_results
+                )
+                + conversation_candidates.fault_count
+            ),
+            at=at,
         )
         scheduler_failure = _combine_scheduler_failures(
             failures=[assignment_failure, conversation_candidates.failure]

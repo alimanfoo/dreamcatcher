@@ -1,7 +1,7 @@
 """Scheduling and publication of issue conversations."""
 
 import json
-from datetime import timedelta
+from datetime import datetime, timedelta
 from unittest.mock import Mock
 
 import pytest
@@ -26,6 +26,7 @@ from records import (
 )
 
 from dreamcatcher.agent_rounds import (
+    AgentAssignmentRoundPurpose,
     AgentRoundOutcome,
     AgentRoundRecord,
     ErroredAgentRoundEnding,
@@ -176,6 +177,64 @@ def count_comment_reads(*, gh) -> int:
 def finish(*, scheduler: AgentWorkScheduler) -> None:
     """Wait for the one conversation round the scheduler started."""
     next(iter(scheduler.rounds.values())).wait()
+
+
+def write_faulted_conversation(
+    *, state: StateDirectory, issue: int, at: datetime
+) -> None:
+    """Write an eligible conversation with two current errored rounds."""
+    directory = write_issue_conversation(state=state, issue=issue)
+    for number in (1, 2):
+        write_round(
+            directory=directory,
+            number=number,
+            record=AgentRoundRecord(
+                number=number,
+                purpose=IssueConversationRoundPurpose.DISCUSS,
+                is_recovery=number > 1,
+                started=at + timedelta(minutes=number - 1),
+                pid=number,
+                ending=ErroredAgentRoundEnding(
+                    at=at + timedelta(minutes=number), status=2
+                ),
+            ),
+        )
+        write_json(
+            document=IssueConversationInput(
+                issue=issue,
+                title=f"Issue {issue}" if number == 1 else None,
+                body="Explain it." if number == 1 else None,
+                comments=[ask()],
+                revision="abc123",
+            ),
+            path=directory / "rounds" / str(number) / "inbox.json",
+        )
+
+
+def write_faulted_assignment(
+    *, state: StateDirectory, issue: int, identifier: str, at: datetime
+) -> None:
+    """Write an assignment with two current errored rounds."""
+    directory = write_agent_assignment(
+        state=state,
+        issue=issue,
+        identifier=identifier,
+    )
+    for number in (1, 2):
+        write_round(
+            directory=directory,
+            number=number,
+            record=AgentRoundRecord(
+                number=number,
+                purpose=AgentAssignmentRoundPurpose.IMPLEMENT,
+                is_recovery=number > 1,
+                started=at + timedelta(minutes=number - 1),
+                pid=number,
+                ending=ErroredAgentRoundEnding(
+                    at=at + timedelta(minutes=number), status=2
+                ),
+            ),
+        )
 
 
 def test_an_initial_conversation_freezes_input_runs_claude_and_publishes_once(
@@ -505,6 +564,129 @@ def test_a_conversation_waits_for_the_active_global_cooldown(
         evidence="1 comment to answer",
     )
     assert harnesses["claude"].calls == []
+
+
+def test_two_faulted_conversations_start_the_global_cooldown(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    fault_started = clock()
+    for issue in (8, 9):
+        write_faulted_conversation(
+            state=scheduler.state,
+            issue=issue,
+            at=fault_started,
+        )
+    gh.replies(
+        stdout=json.dumps(
+            [
+                {
+                    "number": issue,
+                    "title": f"Issue {issue}",
+                    "body": "Explain it.",
+                    "createdAt": f"2026-09-{issue + 13:02d}T01:00:00Z",
+                    "state": "OPEN",
+                    "assignees": [{"login": POSTED_BY}],
+                    "labels": [{"name": "dream:conversation"}],
+                }
+                for issue in (8, 9)
+            ]
+        ),
+        to=(
+            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
+            "--label dream:conversation"
+        ),
+    )
+    tick_at = clock()
+
+    observed = scheduler.tick(at=tick_at)
+
+    assert observed.cooldown == GlobalCooldown(
+        started=tick_at,
+        ends=tick_at + timedelta(minutes=15),
+    )
+    assert observed.hold == "global cooldown"
+    assert observed.launched_conversation_identifier is None
+    assert harnesses["claude"].calls == []
+
+
+def test_a_faulted_conversation_and_assignment_start_the_global_cooldown(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    fault_started = clock()
+    write_faulted_conversation(state=scheduler.state, issue=8, at=fault_started)
+    write_faulted_assignment(
+        state=scheduler.state,
+        issue=13,
+        identifier="GH13-20260923-010000",
+        at=fault_started,
+    )
+    offer_conversation(gh=gh, comments=[])
+    tick_at = clock()
+
+    observed = scheduler.tick(at=tick_at)
+
+    assert observed.cooldown == GlobalCooldown(
+        started=tick_at,
+        ends=tick_at + timedelta(minutes=15),
+    )
+    assert observed.hold == "global cooldown"
+    assert observed.launched_agent_work_identifier is None
+    assert harnesses["claude"].calls == []
+
+
+def test_the_cooldown_boundary_clears_conversation_faults(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    fault_started = clock()
+    for issue in (8, 9):
+        write_faulted_conversation(
+            state=scheduler.state,
+            issue=issue,
+            at=fault_started,
+        )
+    cooldown_ends = fault_started + timedelta(minutes=15)
+    write_json(
+        document=SchedulerRecord(
+            at=fault_started,
+            cooldown=GlobalCooldown(
+                started=fault_started,
+                ends=cooldown_ends,
+            ),
+        ),
+        path=scheduler.state.scheduler_record,
+    )
+    gh.replies(
+        stdout=json.dumps(
+            [
+                {
+                    "number": issue,
+                    "title": f"Issue {issue}",
+                    "body": "Explain it.",
+                    "createdAt": f"2026-09-{issue + 13:02d}T01:00:00Z",
+                    "state": "OPEN",
+                    "assignees": [{"login": POSTED_BY}],
+                    "labels": [{"name": "dream:conversation"}],
+                }
+                for issue in (8, 9)
+            ]
+        ),
+        to=(
+            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
+            "--label dream:conversation"
+        ),
+    )
+    answer(harnesses=harnesses, body=NO_REPLY)
+
+    observed = scheduler.tick(at=cooldown_ends)
+    finish(scheduler=scheduler)
+
+    assert observed.cooldown is None
+    assert observed.most_recent_cooldown_ended == cooldown_ends
+    assert observed.hold is None
+    assert observed.launched_conversation_identifier == "conversation-GH8"
 
 
 def test_a_failed_post_recovers_the_same_batch_before_new_comments(
