@@ -37,6 +37,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
     AgentRoundPlan,
     AgentRoundPurpose,
+    AgentRoundRecord,
     AgentRoundStartRequest,
     ErroredAgentRoundEnding,
     IssueConversationInput,
@@ -250,10 +251,19 @@ class RequiredIssueConversationRound:
 
 
 @dataclass(frozen=True, kw_only=True)
+class FaultedIssueConversation:
+    """Describe a conversation whose errors stop ordinary recovery."""
+
+    conversation: IssueConversation
+    reason: str
+
+
+@dataclass(frozen=True, kw_only=True)
 class IssueConversationInspectionResult:
-    """Collect locally required conversation rounds and any failed read."""
+    """Collect locally required rounds, faults, and failed reads."""
 
     required_rounds: list[RequiredIssueConversationRound]
+    faults: list[FaultedIssueConversation]
     failure: str | None = None
 
 
@@ -602,22 +612,25 @@ def _compose_unknown_issue_fact(*, evidence: str) -> IssueFact:
     return IssueFact(value=IssueFactValue.UNKNOWN, evidence=evidence)
 
 
-def derive_assignment_fault(
-    *, assignment: AgentAssignment, most_recent_cooldown_ended: datetime | None
+def derive_agent_work_fault(
+    *,
+    rounds: list[AgentRoundRecord],
+    retry_requested_at: datetime | None,
+    most_recent_cooldown_ended: datetime | None,
 ) -> bool:
-    """Derive whether an assignment has two current consecutive errors."""
-    if len(assignment.rounds) < 2:
+    """Derive whether agent work has two current consecutive errors."""
+    if len(rounds) < 2:
         return False
     boundaries = [
         boundary
         for boundary in (
             most_recent_cooldown_ended,
-            assignment.record.retry_requested_at,
+            retry_requested_at,
         )
         if boundary is not None
     ]
     most_recent_fault_boundary = max(boundaries, default=None)
-    latest_endings = [record.ending for record in assignment.rounds[-2:]]
+    latest_endings = [record.ending for record in rounds[-2:]]
     return all(
         isinstance(ending, ErroredAgentRoundEnding)
         and (
@@ -625,6 +638,28 @@ def derive_assignment_fault(
             or ending.at >= most_recent_fault_boundary
         )
         for ending in latest_endings
+    )
+
+
+def derive_assignment_fault(
+    *, assignment: AgentAssignment, most_recent_cooldown_ended: datetime | None
+) -> bool:
+    """Derive whether an assignment has two current consecutive errors."""
+    return derive_agent_work_fault(
+        rounds=assignment.rounds,
+        retry_requested_at=assignment.record.retry_requested_at,
+        most_recent_cooldown_ended=most_recent_cooldown_ended,
+    )
+
+
+def derive_issue_conversation_fault(
+    *, conversation: IssueConversation, most_recent_cooldown_ended: datetime | None
+) -> bool:
+    """Derive whether a conversation has two current consecutive errors."""
+    return derive_agent_work_fault(
+        rounds=conversation.rounds,
+        retry_requested_at=conversation.record.retry_requested_at,
+        most_recent_cooldown_ended=most_recent_cooldown_ended,
     )
 
 
@@ -658,9 +693,10 @@ def _start_cooldown_if_required(
     *,
     active: GlobalCooldown | None,
     inspection_results: list[AgentAssignmentInspectionResult],
+    conversation_faults: list[FaultedIssueConversation],
     at: datetime,
 ) -> GlobalCooldown | None:
-    """Start a cooldown when two assignments are currently in fault."""
+    """Start a cooldown when two agent-work owners are currently in fault."""
     if active is not None:
         return active
     faults = [
@@ -668,7 +704,7 @@ def _start_cooldown_if_required(
         for result in inspection_results
         if isinstance(result, FaultedAgentAssignment)
     ]
-    if len(faults) < 2:
+    if len(faults) + len(conversation_faults) < 2:
         return None
     return GlobalCooldown(started=at, ends=at + GLOBAL_COOLDOWN_DURATION)
 
@@ -1211,11 +1247,13 @@ class AgentWorkScheduler:
             observed_at=at,
         )
         conversation_inspection = self._inspect_conversations(
-            conversations=conversations
+            conversations=conversations,
+            most_recent_cooldown_ended=most_recent_cooldown_ended,
         )
         cooldown = _start_cooldown_if_required(
             active=cooldown,
             inspection_results=inspection_results,
+            conversation_faults=conversation_inspection.faults,
             at=at,
         )
         conversation_candidates = _list_issue_conversation_candidates(
@@ -1377,13 +1415,28 @@ class AgentWorkScheduler:
         return inspection_results
 
     def _inspect_conversations(
-        self, *, conversations: list[IssueConversation]
+        self,
+        *,
+        conversations: list[IssueConversation],
+        most_recent_cooldown_ended: datetime | None,
     ) -> IssueConversationInspectionResult:
         """Return recovery rounds derived only from saved conversation state."""
         required_rounds: list[RequiredIssueConversationRound] = []
+        faults: list[FaultedIssueConversation] = []
         failures: list[str | None] = []
         for conversation in conversations:
             if conversation.identifier in self.rounds:
+                continue
+            if derive_issue_conversation_fault(
+                conversation=conversation,
+                most_recent_cooldown_ended=most_recent_cooldown_ended,
+            ):
+                faults.append(
+                    FaultedIssueConversation(
+                        conversation=conversation,
+                        reason="two consecutive rounds failed",
+                    )
+                )
                 continue
             try:
                 required = compose_issue_conversation_recovery_requirement(
@@ -1398,6 +1451,7 @@ class AgentWorkScheduler:
                 required_rounds.append(required)
         return IssueConversationInspectionResult(
             required_rounds=required_rounds,
+            faults=faults,
             failure=_combine_scheduler_failures(failures=failures),
         )
 

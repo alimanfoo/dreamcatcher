@@ -59,6 +59,7 @@ class IssueConversationRecord(DreamcatcherDocument):
     label: str
     harness: IssueConversationHarness
     harness_session_identifier: HarnessSessionIdentifier | None = None
+    retry_requested_at: AwareDatetime | None = None
     model: QuotableText
     effort: QuotableText
     prompt: str
@@ -334,6 +335,17 @@ def record_issue_conversation_session_identifier(
                 conversation=conversation,
                 updates={"harness_session_identifier": validated},
             )
+
+
+def request_issue_conversation_retry(
+    *, conversation: IssueConversation, at: datetime
+) -> None:
+    """Record when the user asked a faulted conversation to recover again."""
+    with conversation._record_lock:
+        _update_issue_conversation_record(
+            conversation=conversation,
+            updates={"retry_requested_at": at},
+        )
 
 
 def save_issue_conversation_reply(

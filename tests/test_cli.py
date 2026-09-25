@@ -24,10 +24,12 @@ from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
+from dreamcatcher.issue_conversations import read_issue_conversation
 from dreamcatcher.scheduler import (
     GlobalCooldown,
     SchedulerRecord,
     derive_assignment_fault,
+    derive_issue_conversation_fault,
 )
 from dreamcatcher.state import StateDirectory
 
@@ -84,6 +86,33 @@ def faulted(tmp_path):
                 ending=compose_agent_round_ending(at=ended, status=number),
             ),
         )
+    return state
+
+
+def faulted_conversation_record(*, state: StateDirectory, issue: int) -> None:
+    """Write an issue conversation whose latest attempts both failed."""
+    directory = write_issue_conversation(state=state, issue=issue)
+    for number in (1, 2):
+        ended = PINNED + timedelta(minutes=number)
+        write_round(
+            directory=directory,
+            number=number,
+            record=AgentRoundRecord(
+                number=number,
+                started=ended,
+                pid=1,
+                purpose=AgentRoundPurpose.DISCUSS,
+                ending=compose_agent_round_ending(at=ended, status=number),
+            ),
+        )
+
+
+@pytest.fixture
+def faulted_conversation(tmp_path):
+    """A watched checkout whose issue conversation has failed twice."""
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    faulted_conversation_record(state=state, issue=13)
     return state
 
 
@@ -164,7 +193,10 @@ def test_something_that_is_not_an_issue_reference_is_refused(capsys):
     assert "GH123" in capsys.readouterr().err
 
 
-def test_retry_clears_the_newest_assignments_fault(monkeypatch, faulted, capsys):
+@pytest.mark.parametrize("selector", [[], ["--assignment"]])
+def test_retry_clears_the_newest_assignments_fault(
+    monkeypatch, faulted, capsys, selector
+):
     requested = PINNED + timedelta(minutes=3)
     write_json(
         document=SchedulerRecord(
@@ -176,7 +208,7 @@ def test_retry_clears_the_newest_assignments_fault(monkeypatch, faulted, capsys)
     monkeypatch.chdir(faulted.root)
     monkeypatch.setattr("dreamcatcher.cli.read_current_time", lambda: requested)
 
-    assert main(argv=["retry", "GH13"]) == 0
+    assert main(argv=["retry", "GH13", *selector]) == 0
 
     assignment = read_agent_assignments_for_issue(state=faulted, issue=13)[-1]
     assert assignment.record.retry_requested_at == requested
@@ -185,6 +217,35 @@ def test_retry_clears_the_newest_assignments_fault(monkeypatch, faulted, capsys)
         most_recent_cooldown_ended=PINNED - timedelta(minutes=1),
     )
     assert "next scheduler tick" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("selector", [[], ["--conversation"]])
+def test_retry_clears_an_issue_conversations_fault(
+    monkeypatch, faulted_conversation, capsys, selector
+):
+    requested = PINNED + timedelta(minutes=3)
+    monkeypatch.chdir(faulted_conversation.root)
+    monkeypatch.setattr("dreamcatcher.cli.read_current_time", lambda: requested)
+
+    assert main(argv=["retry", "GH13", *selector]) == 0
+
+    conversation = read_issue_conversation(state=faulted_conversation, issue=13)
+    assert conversation is not None
+    assert conversation.record.retry_requested_at == requested
+    assert not derive_issue_conversation_fault(
+        conversation=conversation,
+        most_recent_cooldown_ended=None,
+    )
+    assert "conversation-GH13 can recover" in capsys.readouterr().out
+
+
+def test_retry_requires_an_owner_when_the_issue_has_both(monkeypatch, faulted, capsys):
+    faulted_conversation_record(state=faulted, issue=13)
+    monkeypatch.chdir(faulted.root)
+
+    assert main(argv=["retry", "GH13"]) == 1
+
+    assert "Choose --assignment or --conversation" in capsys.readouterr().err
 
 
 def test_retry_refuses_a_fault_an_elapsed_cooldown_cleared(
@@ -211,14 +272,24 @@ def test_retry_refuses_a_fault_an_elapsed_cooldown_cleared(
     assert "not in fault" in capsys.readouterr().err
 
 
-def test_retry_refuses_an_issue_with_no_assignment(monkeypatch, tmp_path, capsys):
+@pytest.mark.parametrize(
+    ("selector", "expected"),
+    [
+        ([], "no assignment or issue conversation"),
+        (["--assignment"], "no assignment"),
+        (["--conversation"], "no issue conversation"),
+    ],
+)
+def test_retry_refuses_an_issue_with_no_agent_work(
+    monkeypatch, tmp_path, capsys, selector, expected
+):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
     state.path.mkdir()
     monkeypatch.chdir(tmp_path)
 
-    assert main(argv=["retry", "GH13"]) == 1
-    assert "no assignment" in capsys.readouterr().err
+    assert main(argv=["retry", "GH13", *selector]) == 1
+    assert expected in capsys.readouterr().err
 
 
 def test_retry_refuses_an_assignment_that_is_not_in_fault(

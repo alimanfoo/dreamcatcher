@@ -43,6 +43,7 @@ from dreamcatcher.issue_conversations import (
     NO_REPLY,
     read_issue_conversation,
     read_issue_conversation_reply,
+    request_issue_conversation_retry,
     save_issue_conversation_reply,
 )
 from dreamcatcher.prompts import AGENT_POST_MARKER
@@ -51,6 +52,7 @@ from dreamcatcher.scheduler import (
     GlobalCooldown,
     IssueFactValue,
     SchedulerRecord,
+    derive_issue_conversation_fault,
 )
 from dreamcatcher.state import StateDirectory
 
@@ -723,6 +725,42 @@ def test_an_interrupted_conversation_recovers_after_eligibility_loss(
         "conversation-session",
     ]
     assert count_comment_reads(gh=gh) == 0
+
+
+def test_two_failed_conversation_attempts_wait_for_a_user_retry(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    offer_conversation(gh=gh, comments=[ask()])
+    answer(harnesses=harnesses, status=1)
+    scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+    answer(harnesses=harnesses, status=2)
+    scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+
+    faulted = scheduler.tick(at=clock())
+
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    assert derive_issue_conversation_fault(
+        conversation=conversation,
+        most_recent_cooldown_ended=None,
+    )
+    assert faulted.launched_agent_work_identifier is None
+    assert faulted.cooldown is None
+    assert len(harnesses["claude"].calls) == 2
+
+    request_issue_conversation_retry(conversation=conversation, at=clock())
+    answer(harnesses=harnesses)
+    retried = scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    assert retried.launched_conversation_identifier == "conversation-GH8"
+    assert conversation.rounds[-1].is_recovery
+    assert len(harnesses["claude"].calls) == 3
 
 
 def test_a_follow_up_refuses_to_replace_a_missing_saved_session(

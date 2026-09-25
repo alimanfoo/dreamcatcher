@@ -10,6 +10,7 @@ from threading import TIMEOUT_MAX
 import dreamcatcher
 from dreamcatcher import tui, web
 from dreamcatcher.agent_assignments import (
+    AgentAssignment,
     read_agent_assignments_for_issue,
     request_agent_assignment_retry,
 )
@@ -18,9 +19,15 @@ from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS, DreamcatcherDaemon
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import AgentWorkKind
+from dreamcatcher.issue_conversations import (
+    IssueConversation,
+    read_issue_conversation,
+    request_issue_conversation_retry,
+)
 from dreamcatcher.scheduler import (
     DEFAULT_MAX_AGENTS,
     derive_assignment_fault,
+    derive_issue_conversation_fault,
     read_scheduler_record,
 )
 from dreamcatcher.state import StateDirectory
@@ -102,15 +109,30 @@ def build_cli_parser() -> argparse.ArgumentParser:
     run_parser.set_defaults(act=_run_daemon)
     retry_parser = subcommands.add_parser(
         "retry",
-        help="retry a faulted assignment after fixing its problem",
+        help="retry faulted agent work after fixing its problem",
         description=(
-            "Clear the newest assignment's fault after you have fixed what "
-            "caused its rounds to fail. The daemon may recover it on the next "
-            "scheduler tick outside a global cooldown."
+            "Clear an assignment or issue conversation fault after you have "
+            "fixed what caused its rounds to fail. The daemon may recover it "
+            "on the next scheduler tick outside a global cooldown."
         ),
     )
     _add_issue_argument(parser=retry_parser)
-    retry_parser.set_defaults(act=_retry_assignment)
+    retry_owner_group = retry_parser.add_mutually_exclusive_group()
+    retry_owner_group.add_argument(
+        "--assignment",
+        dest="owner_kind",
+        action="store_const",
+        const=AgentWorkKind.ASSIGNMENT,
+        help="retry the newest assignment at the issue",
+    )
+    retry_owner_group.add_argument(
+        "--conversation",
+        dest="owner_kind",
+        action="store_const",
+        const=AgentWorkKind.CONVERSATION,
+        help="retry the issue conversation",
+    )
+    retry_parser.set_defaults(act=_retry_agent_work)
     web_parser = subcommands.add_parser(
         "web",
         help="serve the local status report in a web browser",
@@ -271,15 +293,14 @@ def _run_daemon(*, arguments: argparse.Namespace) -> None:
     ).run()
 
 
-def _retry_assignment(*, arguments: argparse.Namespace) -> None:
-    """Clear the newest assignment's fault so the daemon may recover it."""
+def _retry_agent_work(*, arguments: argparse.Namespace) -> None:
+    """Clear one agent-work owner's fault so the daemon may recover it."""
     state = _find_state_directory(root=Path.cwd())
-    issue_assignments = read_agent_assignments_for_issue(
-        state=state, issue=arguments.issue
+    owner = _select_retry_owner(
+        state=state,
+        issue=arguments.issue,
+        owner_kind=arguments.owner_kind,
     )
-    if not issue_assignments:
-        raise ReportableError(f"GH{arguments.issue} has no assignment to retry.")
-    assignment = issue_assignments[-1]
     current_time = read_current_time()
     scheduler_record = read_scheduler_record(state=state, at=current_time)
     most_recent_cooldown_ended = (
@@ -287,13 +308,52 @@ def _retry_assignment(*, arguments: argparse.Namespace) -> None:
         if scheduler_record is None
         else scheduler_record.most_recent_cooldown_ended
     )
-    if not derive_assignment_fault(
-        assignment=assignment,
-        most_recent_cooldown_ended=most_recent_cooldown_ended,
-    ):
-        raise ReportableError(f"{assignment.identifier} is not in fault.")
-    request_agent_assignment_retry(assignment=assignment, at=current_time)
-    print(f"{assignment.identifier} can recover on the next scheduler tick.")
+    if isinstance(owner, AgentAssignment):
+        is_faulted = derive_assignment_fault(
+            assignment=owner,
+            most_recent_cooldown_ended=most_recent_cooldown_ended,
+        )
+    else:
+        is_faulted = derive_issue_conversation_fault(
+            conversation=owner,
+            most_recent_cooldown_ended=most_recent_cooldown_ended,
+        )
+    if not is_faulted:
+        raise ReportableError(f"{owner.identifier} is not in fault.")
+    if isinstance(owner, AgentAssignment):
+        request_agent_assignment_retry(assignment=owner, at=current_time)
+    else:
+        request_issue_conversation_retry(conversation=owner, at=current_time)
+    print(f"{owner.identifier} can recover on the next scheduler tick.")
+
+
+def _select_retry_owner(
+    *, state: StateDirectory, issue: int, owner_kind: AgentWorkKind | None
+) -> AgentAssignment | IssueConversation:
+    """Return the requested local work owner, refusing an ambiguous issue."""
+    assignments = read_agent_assignments_for_issue(state=state, issue=issue)
+    assignment = assignments[-1] if assignments else None
+    conversation = read_issue_conversation(state=state, issue=issue)
+    if owner_kind is AgentWorkKind.ASSIGNMENT:
+        if assignment is None:
+            raise ReportableError(f"GH{issue} has no assignment to retry.")
+        return assignment
+    if owner_kind is AgentWorkKind.CONVERSATION:
+        if conversation is None:
+            raise ReportableError(f"GH{issue} has no issue conversation to retry.")
+        return conversation
+    if assignment is not None and conversation is not None:
+        raise ReportableError(
+            f"GH{issue} has both an assignment and an issue conversation. "
+            "Choose --assignment or --conversation."
+        )
+    if assignment is not None:
+        return assignment
+    if conversation is not None:
+        return conversation
+    raise ReportableError(
+        f"GH{issue} has no assignment or issue conversation to retry."
+    )
 
 
 def _show_status(*, arguments: argparse.Namespace) -> None:

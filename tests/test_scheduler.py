@@ -22,7 +22,7 @@ from conftest import (
 )
 from fakes import Line
 from pydantic import ValidationError
-from records import write_agent_assignment, write_round
+from records import write_agent_assignment, write_issue_conversation, write_round
 
 from dreamcatcher.agent_assignments import (
     PullRequestObservation,
@@ -233,6 +233,26 @@ def write_faulted_assignment(*, root, identifier: str, issue: int) -> None:
             record=AgentRoundRecord(
                 number=number,
                 purpose=PURPOSE,
+                is_recovery=number == 2,
+                started=started,
+                pid=1,
+                ending=compose_agent_round_ending(at=started, status=status),
+            ),
+        )
+
+
+def write_faulted_conversation(*, root, issue: int) -> None:
+    """Write an issue conversation whose two latest attempts failed."""
+    state = StateDirectory(root=root)
+    directory = write_issue_conversation(state=state, issue=issue)
+    for number, status in ((1, 1), (2, 2)):
+        started = PINNED.replace(hour=17, minute=number)
+        write_round(
+            directory=directory,
+            number=number,
+            record=AgentRoundRecord(
+                number=number,
+                purpose=AgentRoundPurpose.DISCUSS,
                 is_recovery=number == 2,
                 started=started,
                 pid=1,
@@ -1015,6 +1035,36 @@ def test_two_faulted_assignments_start_a_global_cooldown(dispatching):
         ASSIGNMENT_ID,
         SECOND_ASSIGNMENT_ID,
     ]
+
+
+def test_two_faulted_conversations_start_the_shared_global_cooldown(dispatching):
+    write_faulted_conversation(root=dispatching, issue=13)
+    write_faulted_conversation(root=dispatching, issue=14)
+    scheduler, clock = create_scheduler(root=dispatching)
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.launched_agent_work_identifier is None
+    assert observed.cooldown == GlobalCooldown(
+        started=PINNED, ends=PINNED + timedelta(minutes=15)
+    )
+    assert held(observed=observed) == "global cooldown"
+
+
+def test_an_assignment_and_conversation_fault_start_the_shared_cooldown(
+    dispatching,
+):
+    write_faulted_assignment(root=dispatching, identifier=ASSIGNMENT_ID, issue=13)
+    write_faulted_conversation(root=dispatching, issue=14)
+    scheduler, clock = create_scheduler(root=dispatching)
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.launched_agent_work_identifier is None
+    assert observed.cooldown == GlobalCooldown(
+        started=PINNED, ends=PINNED + timedelta(minutes=15)
+    )
+    assert held(observed=observed) == "global cooldown"
 
 
 def test_an_active_global_cooldown_survives_a_scheduler_restart(dispatching):
