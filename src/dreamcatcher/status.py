@@ -418,12 +418,10 @@ def read_issue_conversation_status(
     """
     conversation = read_issue_conversation(state=state, issue=issue)
     reader = _StatusReportReader(state=state, clock=clock)
-    if conversation is not None:
-        return reader.read_conversation_status(conversation=conversation)
-    observation = reader.conversation_observations.get(issue)
-    if observation is None:
-        return None
-    return reader.read_unsaved_conversation_status(observation=observation)
+    statuses = reader.list_conversation_statuses(
+        conversations=[] if conversation is None else [conversation]
+    )
+    return next((status for status in statuses if status.issue == issue), None)
 
 
 def _summarize_observed_conversation(
@@ -574,17 +572,17 @@ class _StatusReportReader:
         """
         saved_issues = {conversation.record.issue for conversation in conversations}
         statuses = [
-            self.read_conversation_status(conversation=conversation)
+            self._read_conversation_status(conversation=conversation)
             for conversation in conversations
         ]
         statuses.extend(
-            self.read_unsaved_conversation_status(observation=observation)
+            self._read_unsaved_conversation_status(observation=observation)
             for observation in self.conversation_observations.values()
             if observation.issue not in saved_issues
         )
         return sorted(statuses, key=lambda status: status.issue)
 
-    def read_conversation_status(
+    def _read_conversation_status(
         self, *, conversation: IssueConversation
     ) -> IssueConversationStatus:
         """Derive a saved conversation's summary from its records and latest tick."""
@@ -595,7 +593,7 @@ class _StatusReportReader:
             summary=self._summarize_conversation(conversation=conversation),
         )
 
-    def read_unsaved_conversation_status(
+    def _read_unsaved_conversation_status(
         self, *, observation: IssueConversationObservation
     ) -> IssueConversationStatus:
         """Derive the summary of an observed issue with no saved conversation yet."""
@@ -633,7 +631,7 @@ class _StatusReportReader:
         if observation is None:
             return _ConversationSummary(
                 value=IssueConversationStatusValue.IDLE,
-                detail="issue is closed, unlabelled or unassigned",
+                detail="issue is not eligible for conversation",
             )
         return _summarize_observed_conversation(
             observation=observation, conversation=conversation

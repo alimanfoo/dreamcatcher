@@ -166,7 +166,7 @@ def build_cli_parser() -> argparse.ArgumentParser:
         description=(
             "Show an issue conversation's chosen settings, session, worktree, "
             "code revision, and rounds. It keeps up until the conversation "
-            "becomes inactive or needs attention. "
+            "enters fault or leaves the status report. "
             + HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
             + " "
             + HELP_WHEN_NOTHING_WATCHES

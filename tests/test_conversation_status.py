@@ -189,7 +189,7 @@ def test_an_ineligible_conversation_is_idle_and_leaves_the_report(
     report = read_status_report(state=conversation_state, clock=lambda: LOOKED_AT)
 
     assert found.value is IssueConversationStatusValue.IDLE
-    assert found.detail == "issue is closed, unlabelled or unassigned"
+    assert found.detail == "issue is not eligible for conversation"
     assert not found.is_listed
     assert found.is_over
     assert report.conversation_statuses == []
