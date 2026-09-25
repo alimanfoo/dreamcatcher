@@ -24,17 +24,18 @@ from recordings import render_harness_recording
 from dreamcatcher.agent_rounds import (
     AGENT_ROUND_RECORD_NAME,
     AgentAssignmentRoundInput,
+    AgentAssignmentRoundPurpose,
     AgentRound,
     AgentRoundFinisher,
     AgentRoundHarness,
     AgentRoundOutcome,
     AgentRoundPaths,
     AgentRoundPlan,
-    AgentRoundPurpose,
     AgentRoundRecord,
     AgentRoundStartRequest,
     ErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
+    IssueConversationRoundPurpose,
     compose_agent_round_ending,
     record_agent_round_interruption,
     start_agent_round,
@@ -64,7 +65,7 @@ RECORDING = FIXTURES / "claude" / "round.jsonl"
 FEED_TIMESTAMP = "2026-08-19T18:41:58Z"
 
 # What the tests here say woke every round they run.
-PURPOSE = AgentRoundPurpose.IMPLEMENT
+PURPOSE = AgentAssignmentRoundPurpose.IMPLEMENT
 
 # What every round here asks the harness to do. It holds a percent sign and runs
 # over two lines, neither of which a command line could carry to a batch file,
@@ -536,7 +537,9 @@ def start_conversation_round(
             record_harness_session_identifier=ignore_harness_session_identifier,
             finish_round=finish_round,
             paths=paths,
-            plan=AgentRoundPlan(purpose=AgentRoundPurpose.DISCUSS, is_recovery=False),
+            plan=AgentRoundPlan(
+                purpose=IssueConversationRoundPurpose.DISCUSS, is_recovery=False
+            ),
         ),
         clock=pinned,
     )
@@ -776,7 +779,9 @@ def test_a_finished_round_a_straggler_outlives_still_records_an_ending(
             ),
         ),
         paths=paths,
-        plan=AgentRoundPlan(purpose=AgentRoundPurpose.DISCUSS, is_recovery=False),
+        plan=AgentRoundPlan(
+            purpose=IssueConversationRoundPurpose.DISCUSS, is_recovery=False
+        ),
         finish_round=finish_round,
         clock=pinned,
     )

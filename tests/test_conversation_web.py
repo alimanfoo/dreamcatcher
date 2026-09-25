@@ -8,9 +8,9 @@ from records import write_feed, write_issue_conversation, write_round, write_tic
 from status_fabrications import fabricate_everything
 
 from dreamcatcher.agent_rounds import (
-    AgentRoundPurpose,
     AgentRoundRecord,
     IssueConversationInput,
+    IssueConversationRoundPurpose,
     compose_agent_round_ending,
 )
 from dreamcatcher.documents import append_text, write_json, write_text
@@ -53,7 +53,7 @@ def fabricate_conversation(
         number=1,
         record=AgentRoundRecord(
             number=1,
-            purpose=AgentRoundPurpose.DISCUSS,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=1,
             ending=compose_agent_round_ending(
@@ -120,7 +120,7 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
         number=2,
         record=AgentRoundRecord(
             number=2,
-            purpose=AgentRoundPurpose.DISCUSS,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
             started=PINNED + timedelta(minutes=6),
             pid=2,
             ending=compose_agent_round_ending(
@@ -264,7 +264,7 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
         number=2,
         record=AgentRoundRecord(
             number=2,
-            purpose=AgentRoundPurpose.DISCUSS,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
             started=PINNED + timedelta(minutes=6),
             pid=2,
             ending=compose_agent_round_ending(

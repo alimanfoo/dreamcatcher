@@ -32,12 +32,13 @@ from dreamcatcher.agent_assignments import (
 )
 from dreamcatcher.agent_rounds import (
     AgentAssignmentRoundInput,
+    AgentAssignmentRoundPurpose,
     AgentRound,
     AgentRoundOutcome,
     AgentRoundPlan,
-    AgentRoundPurpose,
     AgentRoundStartRequest,
     ErroredAgentRoundEnding,
+    IssueConversationRoundPurpose,
     start_agent_round,
 )
 from dreamcatcher.config import (
@@ -630,7 +631,7 @@ def _rank_required_round(required: RequiredAgentRound, /) -> int:
         return 0
     if required.plan.is_recovery:
         return 1
-    if required.plan.purpose is AgentRoundPurpose.WRAP_UP:
+    if required.plan.purpose is AgentAssignmentRoundPurpose.WRAP_UP:
         return 2
     return 3
 
@@ -751,7 +752,9 @@ def compose_initial_round_requirement(
     """Return the first round that a recorded assignment requires."""
     return RequiredAgentRound(
         assignment=assignment,
-        plan=AgentRoundPlan(purpose=AgentRoundPurpose.IMPLEMENT, is_recovery=False),
+        plan=AgentRoundPlan(
+            purpose=AgentAssignmentRoundPurpose.IMPLEMENT, is_recovery=False
+        ),
         reason=NO_ROUND_HAS_RUN,
         prompt=assignment.record.prompt,
     )
@@ -793,13 +796,13 @@ def _compose_resumed_round_requirement(
     )
 
 
-def _derive_round_purpose(*, pull_request: PullRequest) -> AgentRoundPurpose:
+def _derive_round_purpose(*, pull_request: PullRequest) -> AgentAssignmentRoundPurpose:
     """Return the purpose that the pull request currently requires."""
     if pull_request.state is not PullRequestState.OPEN:
-        return AgentRoundPurpose.WRAP_UP
+        return AgentAssignmentRoundPurpose.WRAP_UP
     if pull_request.is_draft:
-        return AgentRoundPurpose.IMPLEMENT
-    return AgentRoundPurpose.ADDRESS_FEEDBACK
+        return AgentAssignmentRoundPurpose.IMPLEMENT
+    return AgentAssignmentRoundPurpose.ADDRESS_FEEDBACK
 
 
 def compose_assignment_observation(
@@ -1338,7 +1341,7 @@ class AgentWorkScheduler:
                     ),
                     paths=paths,
                     plan=AgentRoundPlan(
-                        purpose=AgentRoundPurpose.DISCUSS,
+                        purpose=IssueConversationRoundPurpose.DISCUSS,
                         is_recovery=False,
                         input=round_input,
                     ),

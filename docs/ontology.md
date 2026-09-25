@@ -120,13 +120,17 @@ position within one assignment or issue conversation.
 
 ### Round purpose
 
-Every agent round has one **round purpose** from this set:
+Every agent round has one **round purpose**. An assignment round has one of
+these:
 
 - **Implement**: advance an assignment whose pull request is still a draft.
 - **Address feedback**: respond after the pull request is ready for the user to
   review.
 - **Wrap up**: finish an assignment whose pull request has been merged or
   closed.
+
+An issue conversation round always has the same purpose:
+
 - **Discuss**: answer the user in an issue conversation.
 
 ### Round outcome

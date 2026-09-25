@@ -26,8 +26,8 @@ from records import (
 
 from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
-    AgentRoundPurpose,
     IssueConversationInput,
+    IssueConversationRoundPurpose,
 )
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.documents import read_json, write_json
@@ -187,7 +187,7 @@ def test_an_initial_conversation_freezes_input_runs_claude_and_publishes_once(
     conversation = read_issue_conversation(state=scheduler.state, issue=8)
     assert conversation is not None
     assert conversation.record.harness_session_identifier == "conversation-session"
-    assert conversation.rounds[0].purpose is AgentRoundPurpose.DISCUSS
+    assert conversation.rounds[0].purpose is IssueConversationRoundPurpose.DISCUSS
     assert conversation.rounds[0].outcome is AgentRoundOutcome.SUCCESSFUL
     paths = conversation.compose_round_paths(number=1)
     frozen = read_json(model=IssueConversationInput, path=paths.round_input)

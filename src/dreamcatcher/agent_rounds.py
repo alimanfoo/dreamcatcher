@@ -3,11 +3,11 @@
 A round runs a harness command in its owner's worktree. It writes into a
 numbered directory of its own.
 
-`prompt.txt` supplies the harness's stdin. A resumed round's `inbox.json` holds
-the pull request state and user posts. `raw.jsonl` preserves harness stdout,
-`feed.txt` renders both streams for the user, `final.md` keeps the final result
-the harness reports, and `round.json` records identity, purpose, recovery,
-process, and outcome.
+`prompt.txt` supplies the harness's stdin. `inbox.json` holds any input that the
+round's owner delivers. `raw.jsonl` preserves harness stdout, `feed.txt` renders
+both streams for the user, `final.md` keeps the final result the harness
+reports, and `round.json` records identity, purpose, recovery, process, and
+outcome.
 
 The daemon watches a round rather than waiting for it, so a round reads its own
 streams on threads of its own, and records its own ending on another.
@@ -91,13 +91,22 @@ class AgentRoundHarness:
         return output
 
 
-class AgentRoundPurpose(StrEnum):
-    """The kinds of work that an agent round advances."""
+class AgentAssignmentRoundPurpose(StrEnum):
+    """The kinds of assignment work that an agent round advances."""
 
     IMPLEMENT = "implement"
     ADDRESS_FEEDBACK = "address feedback"
     WRAP_UP = "wrap up"
+
+
+class IssueConversationRoundPurpose(StrEnum):
+    """The kind of conversation work that an agent round advances."""
+
     DISCUSS = "discuss"
+
+
+# Every round records its purpose, so the shared record holds either owner's.
+type AgentRoundPurpose = AgentAssignmentRoundPurpose | IssueConversationRoundPurpose
 
 
 class AgentRoundOutcome(StrEnum):
@@ -197,7 +206,7 @@ def _record_agent_round_ending(
 
 
 class AgentAssignmentRoundInput(DreamcatcherDocument):
-    """Model the pull request state and user posts delivered to a round."""
+    """Model the pull request state and user posts delivered to an assignment round."""
 
     pull_request_state: PullRequestState
     user_posts: list[UserPost]
@@ -310,7 +319,7 @@ class AgentRoundPaths:
 
     @property
     def round_input(self) -> Path:
-        """The file holding the pull request state and user posts for the round."""
+        """The file holding the input that the round's owner delivered."""
         return self.directory / "inbox.json"
 
     @property

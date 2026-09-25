@@ -14,9 +14,9 @@ from records import (
 )
 
 from dreamcatcher.agent_rounds import (
-    AgentRoundPurpose,
     AgentRoundRecord,
     IssueConversationInput,
+    IssueConversationRoundPurpose,
     compose_agent_round_ending,
 )
 from dreamcatcher.documents import write_json
@@ -64,7 +64,7 @@ def conversation_round(*, state: StateDirectory, status: int | None = 0) -> None
         number=1,
         record=AgentRoundRecord(
             number=1,
-            purpose=AgentRoundPurpose.DISCUSS,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=1,
             ending=ending,

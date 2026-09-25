@@ -5,9 +5,9 @@ import pytest
 from clocks import PINNED
 
 from dreamcatcher.agent_rounds import (
-    AgentRoundPurpose,
     AgentRoundRecord,
     IssueConversationInput,
+    IssueConversationRoundPurpose,
 )
 from dreamcatcher.config import AgentHarness, IssueConversationConfig
 from dreamcatcher.documents import write_json
@@ -322,7 +322,7 @@ def test_a_conversation_records_its_session_and_round_paths(tmp_path):
     write_json(
         document=AgentRoundRecord(
             number=1,
-            purpose=AgentRoundPurpose.DISCUSS,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=123,
         ),
@@ -357,7 +357,7 @@ def test_the_delivery_cursor_comes_from_the_latest_round_input(tmp_path):
         write_json(
             document=AgentRoundRecord(
                 number=number,
-                purpose=AgentRoundPurpose.DISCUSS,
+                purpose=IssueConversationRoundPurpose.DISCUSS,
                 started=PINNED,
                 pid=123,
             ),
@@ -388,7 +388,7 @@ def test_the_delivery_cursor_refuses_a_round_without_comments(tmp_path):
     write_json(
         document=AgentRoundRecord(
             number=1,
-            purpose=AgentRoundPurpose.DISCUSS,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=123,
         ),
@@ -430,7 +430,7 @@ def test_the_delivery_cursor_refuses_inconsistent_round_input(
     write_json(
         document=AgentRoundRecord(
             number=1,
-            purpose=AgentRoundPurpose.DISCUSS,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=123,
         ),

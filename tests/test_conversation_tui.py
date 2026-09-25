@@ -9,9 +9,9 @@ from records import write_feed, write_issue_conversation, write_round, write_tic
 from rich.console import Console
 
 from dreamcatcher.agent_rounds import (
-    AgentRoundPurpose,
     AgentRoundRecord,
     IssueConversationInput,
+    IssueConversationRoundPurpose,
     compose_agent_round_ending,
 )
 from dreamcatcher.documents import write_json
@@ -44,7 +44,7 @@ def conversation_state(
         number=1,
         record=AgentRoundRecord(
             number=1,
-            purpose=AgentRoundPurpose.DISCUSS,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=1,
             ending=compose_agent_round_ending(
@@ -119,7 +119,7 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
         number=2,
         record=AgentRoundRecord(
             number=2,
-            purpose=AgentRoundPurpose.DISCUSS,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
             started=PINNED + timedelta(minutes=6),
             pid=2,
             ending=compose_agent_round_ending(
@@ -232,7 +232,7 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
             number=2,
             record=AgentRoundRecord(
                 number=2,
-                purpose=AgentRoundPurpose.DISCUSS,
+                purpose=IssueConversationRoundPurpose.DISCUSS,
                 started=PINNED + timedelta(minutes=6),
                 pid=2,
                 ending=compose_agent_round_ending(
