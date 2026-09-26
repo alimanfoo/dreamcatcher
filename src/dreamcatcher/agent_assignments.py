@@ -381,7 +381,7 @@ class AgentAssignmentCreator:
                 f"GH{issue} already has open assignment {open_assignment.identifier}."
             )
         selected_harness = route.choose_harness(requested_harness=requested_harness)
-        recipe = route.assignment_recipes[selected_harness]
+        recipe = route.recipes[selected_harness]
         fetch_main(root=self.state.root)
         identifier = _find_incomplete_assignment(state=self.state, issue=issue) or (
             f"GH{issue}-{at:%Y%m%d-%H%M%S}"

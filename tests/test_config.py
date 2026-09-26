@@ -5,8 +5,8 @@ from conftest import CONFIG, SMITH_CLAUDE, SMITH_CODEX
 
 from dreamcatcher.config import (
     DREAMCATCHER_CONFIG_NAME,
-    AgentAssignmentRecipe,
     AgentHarness,
+    AgentRecipe,
     IssueConversationConfig,
     read_dreamcatcher_config,
 )
@@ -14,10 +14,10 @@ from dreamcatcher.errors import ReportableError
 
 WITHOUT_CODEX = SMITH_CLAUDE
 
-CLAUDE_RECIPE = AgentAssignmentRecipe(
+CLAUDE_RECIPE = AgentRecipe(
     prompt="/dream:smith GH{issue}", model="opus[1m]", effort="xhigh"
 )
-CODEX_RECIPE = AgentAssignmentRecipe(
+CODEX_RECIPE = AgentRecipe(
     prompt="$dream:smith GH{issue}", model="gpt-5.6-sol", effort="xhigh"
 )
 
@@ -42,7 +42,7 @@ def test_a_valid_config_reads_back(tmp_path):
     config = read_dreamcatcher_config(root=tmp_path)
 
     assert [route.label for route in config.dispatch] == ["dream:smith"]
-    assert config.dispatch[0].assignment_recipes == {
+    assert config.dispatch[0].recipes == {
         AgentHarness.CLAUDE: CLAUDE_RECIPE,
         AgentHarness.CODEX: CODEX_RECIPE,
     }
@@ -97,7 +97,7 @@ def test_a_label_one_harness_can_run_carries_that_block_alone(tmp_path):
 
     route = read_dreamcatcher_config(root=tmp_path).dispatch[0]
 
-    assert route.assignment_recipes == {AgentHarness.CLAUDE: CLAUDE_RECIPE}
+    assert route.recipes == {AgentHarness.CLAUDE: CLAUDE_RECIPE}
 
 
 def test_the_config_identifies_dispatch_labels_without_giving_one_precedence(tmp_path):
@@ -180,7 +180,7 @@ def test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named(tmp
             "a recipe block that is not a block",
             '[[dispatch]]\nlabel = "dream:smith"\nclaude = "opus"\n',
             "dispatch.0.claude: Input should be a valid dictionary or instance of "
-            "AgentAssignmentRecipe",
+            "AgentRecipe",
         ),
         (
             "one label routed twice",
@@ -235,7 +235,7 @@ def test_a_prompt_may_hold_what_no_command_line_could_carry(tmp_path):
 
     route = read_dreamcatcher_config(root=tmp_path).dispatch[0]
 
-    assert route.assignment_recipes[AgentHarness.CLAUDE].prompt == (
+    assert route.recipes[AgentHarness.CLAUDE].prompt == (
         "/dream:smith GH{issue}\nfinish 50% of it"
     )
 
