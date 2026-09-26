@@ -2,6 +2,7 @@
 
 import json
 from datetime import UTC, datetime, timedelta, timezone
+from unittest.mock import Mock
 
 import pytest
 from clocks import PINNED, Ticking
@@ -24,6 +25,7 @@ from fakes import Line
 from pydantic import ValidationError
 from records import write_agent_assignment, write_round
 
+import dreamcatcher.scheduler as scheduler_module
 from dreamcatcher.agent_assignments import (
     PullRequestObservation,
     read_agent_assignments,
@@ -536,6 +538,49 @@ def test_an_assignment_the_scheduler_is_running_a_round_for_is_not_waiting(
         is None
     )
     assert observed.assignment_observations == []
+
+
+def test_an_ended_round_is_inspected_while_its_runner_finishes(tmp_path, monkeypatch):
+    configure(root=tmp_path)
+    state = StateDirectory(root=tmp_path)
+    directory = write_agent_assignment(
+        state=state,
+        identifier=ASSIGNMENT_ID,
+        issue=13,
+    )
+    write_round(
+        directory=directory,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            purpose=PURPOSE,
+            started=PINNED,
+            pid=1,
+            ending=compose_agent_round_ending(at=PINNED, status=0),
+        ),
+    )
+    assignment = read_agent_assignments(state=state)[0]
+    observation = AgentAssignmentObservation(
+        assignment_identifier=ASSIGNMENT_ID,
+        issue=13,
+        reason="no round required",
+        is_round_required=False,
+    )
+    monkeypatch.setattr(
+        scheduler_module,
+        "inspect_agent_assignment",
+        lambda **_arguments: observation,
+    )
+    scheduler, _ = create_scheduler(root=tmp_path, max_agents=2)
+    scheduler.rounds[ASSIGNMENT_ID] = Mock(is_alive=True)
+
+    results = scheduler._inspect_assignments(
+        assignments=[assignment],
+        most_recent_cooldown_ended=None,
+        observed_at=PINNED,
+    )
+
+    assert results == [observation]
 
 
 def test_an_assignment_with_an_open_pull_request_and_nothing_new_is_not_waiting(

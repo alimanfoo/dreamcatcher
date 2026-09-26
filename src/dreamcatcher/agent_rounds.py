@@ -22,7 +22,7 @@ from threading import Event as Flag
 from threading import Lock, Thread
 from typing import Annotated, Literal, Protocol, Self
 
-from pydantic import Field, PositiveInt, model_validator
+from pydantic import AwareDatetime, Field, PositiveInt, model_validator
 
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.commands import spawn_command
@@ -123,7 +123,7 @@ class SuccessfulAgentRoundEnding(DreamcatcherDocument):
     """A successful agent round ending."""
 
     outcome: Literal[AgentRoundOutcome.SUCCESSFUL] = AgentRoundOutcome.SUCCESSFUL
-    at: datetime
+    at: AwareDatetime
     status: Literal[0] = 0
 
 
@@ -135,7 +135,7 @@ class ErroredAgentRoundEnding(DreamcatcherDocument):
     """
 
     outcome: Literal[AgentRoundOutcome.ERRORED] = AgentRoundOutcome.ERRORED
-    at: datetime
+    at: AwareDatetime
     status: int
     reason: str | None = None
 
@@ -180,7 +180,7 @@ class AgentRoundRecord(DreamcatcherDocument):
     number: PositiveInt
     purpose: AgentRoundPurpose
     is_recovery: bool = False
-    started: datetime
+    started: AwareDatetime
     pid: PositiveInt
     ending: AgentRoundEnding | None = None
 

@@ -19,6 +19,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
     AgentRoundRecord,
     ErroredAgentRoundEnding,
+    SuccessfulAgentRoundEnding,
 )
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.config import AgentHarness
@@ -767,18 +768,18 @@ class _StatusReportReader:
             return local_status
         observation = self.assignment_observations.get(assignment.identifier)
         if observation is None:
-            # A round can finish before the next tick replaces the launch record,
-            # leaving the launched assignment with no observation in this gap.
-            launched_agent_work_identifier = (
-                None
-                if self.scheduler_record is None
-                else self.scheduler_record.launched_agent_work_identifier
-            )
-            if launched_agent_work_identifier == assignment.identifier:
+            ending = cast("SuccessfulAgentRoundEnding", assignment.rounds[-1].ending)
+            if (
+                self.scheduler_record is not None
+                and ending.at > self.scheduler_record.at
+            ):
                 return self._compose_agent_assignment_status(
                     assignment=assignment,
                     value=AgentAssignmentStatusValue.WAITING,
-                    detail=self._describe_next_round(assignment=assignment),
+                    detail=(
+                        f"round {assignment.rounds[-1].number} ended, "
+                        "awaiting next update"
+                    ),
                 )
             return self._compose_agent_assignment_status(
                 assignment=assignment,

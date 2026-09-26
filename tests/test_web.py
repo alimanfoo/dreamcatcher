@@ -122,6 +122,20 @@ def test_an_assignment_renders_as_its_golden_page(name, tmp_path, daemon, pytest
     )
 
 
+def test_assignment_page_shows_the_common_agent_work_facts(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_assignment(state=state, identifier="GH13-20260819-184158")
+
+    assert page.count("<dt>") == 3
+    assert "<dt>label</dt><dd>dream:smith</dd>" in page
+    assert "<dt>harness</dt><dd>claude</dd>" in page
+    assert "<dt>model</dt><dd>opus[1m] · xhigh</dd>" in page
+    assert "<dt>assignment</dt>" not in page
+    assert "<dt>session</dt>" not in page
+
+
 def test_a_home_card_links_to_its_exact_assignment(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
@@ -645,6 +659,7 @@ def test_a_tail_fragment_matches_its_golden(tmp_path, daemon, pytestconfig):
         path=FIXTURES / "web" / "tail.html",
         config=pytestconfig,
     )
+    assert 'id="assignment-detail"' in response.text
 
 
 def test_a_quiet_tail_has_no_appendable_text_nodes(tmp_path):
@@ -662,7 +677,8 @@ def test_a_quiet_tail_has_no_appendable_text_nodes(tmp_path):
         '<input type="hidden" id="cursor" name="cursor" value="1:0" '
         'hx-swap-oob="true"><span'
     )
-    assert "</span><aside" in response.text
+    assert '</span><p id="assignment-detail"' in response.text
+    assert "</p><aside" in response.text
     assert response.text.endswith("</aside>")
 
 

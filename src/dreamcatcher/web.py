@@ -55,6 +55,7 @@ WEB_PORT_RANGE = 400
 WEB_MAX_PORT = 65535
 _ISSUE_REFERENCE_PATTERN = re.compile(r"(?<!\w)(?:GH|#)(\d+)\b(?!-)")
 _FEED_CURSOR_PATTERN = re.compile(r"(?P<round>0|[1-9]\d*):(?P<position>\d+)")
+_GIT_REVISION_PATTERN = re.compile(r"\b[0-9a-f]{40}\b")
 _HTMX_STOP_POLLING_STATUS = 286
 _DEFAULT_WEB_THEME = "matrix"
 _WEB_THEME_MARKS = {_DEFAULT_WEB_THEME: "phosphor", "nature": "ink"}
@@ -218,8 +219,8 @@ class WebAssignmentView:
     detail: str
     pull_request: int
     pull_request_state: str | None
+    dispatch_label: str
     harness: str
-    harness_session_identifier: str
     model: str
     effort: str
     rounds: tuple[WebAgentRound, ...]
@@ -402,6 +403,7 @@ def _show_assignment_tail(
         context=WebAgentTailContext(
             status=str(status.value),
             status_label=_compose_assignment_status_label(status=status),
+            detail=status.detail,
             rounds=_compose_agent_rounds(
                 round_statuses=status.round_statuses, zone=zone
             ),
@@ -762,12 +764,8 @@ def _compose_assignment_view(
         detail=status.detail,
         pull_request=record.pull_request,
         pull_request_state=_describe_pull_request_state(status=status),
+        dispatch_label=record.dispatch_label,
         harness=str(record.harness),
-        harness_session_identifier=(
-            "not recorded"
-            if status.harness_session_identifier is None
-            else status.harness_session_identifier
-        ),
         model=record.model,
         effort=record.effort,
         rounds=_compose_agent_rounds(round_statuses=status.round_statuses, zone=zone),
@@ -811,7 +809,7 @@ def _compose_conversation_view(
         facts=(
             ()
             if conversation is None
-            else _compose_conversation_facts(state=state, conversation=conversation)
+            else _compose_conversation_facts(conversation=conversation)
         ),
         rounds=rounds,
         feed_rounds=feed.rounds,
@@ -820,19 +818,13 @@ def _compose_conversation_view(
 
 
 def _compose_conversation_facts(
-    *, state: StateDirectory, conversation: IssueConversation
+    *, conversation: IssueConversation
 ) -> tuple[WebFact, ...]:
     """Return the settings that a conversation settled at its first round."""
     record = conversation.record
     return (
         WebFact(label="label", value=record.label),
-        WebFact(
-            label="worktree", value=state.describe_path(path=conversation.worktree)
-        ),
         WebFact(label="harness", value=str(record.harness)),
-        WebFact(
-            label="session", value=record.harness_session_identifier or "not recorded"
-        ),
         WebFact(label="model", value=f"{record.model} · {record.effort}"),
     )
 
@@ -856,11 +848,19 @@ def _compose_agent_rounds(
             started=describe_time(at=round_status.record.started, zone=zone),
             duration=round_status.duration_description,
             outcome=round_status.outcome_description,
-            revision=round_status.revision,
-            revision_description=round_status.revision_description,
+            revision=_shorten_git_revisions(text=round_status.revision),
+            revision_description=_shorten_git_revisions(
+                text=round_status.revision_description
+            ),
         )
         for round_status in round_statuses
     )
+
+
+def _shorten_git_revisions(*, text: str | None) -> str | None:
+    if text is None:
+        return None
+    return _GIT_REVISION_PATTERN.sub(lambda match: match.group()[:7], text)
 
 
 def _encode_feed_cursor(*, cursor: WebFeedCursor) -> str:

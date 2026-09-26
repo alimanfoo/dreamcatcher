@@ -113,7 +113,12 @@ def test_home_lists_a_conversation_and_links_to_its_page(tmp_path):
     assert 'class="assignment-card' in page
     assert "Conversations" in page
     assert 'id="conversation-GH8"' in page
-    assert 'href="/conversations/8"' in page
+    conversation_link = (
+        'class="assignment-open" href="/conversations/8" target="_blank" '
+        'rel="noopener noreferrer" '
+        'aria-label="Open conversation GH8 (opens in new tab)"'
+    )
+    assert conversation_link in page
     assert '<span class="chip status-idle">idle</span>' in page
     assert "round 1, answered, ran 4m" in page
 
@@ -122,6 +127,7 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
     directory = state.conversations / "GH8"
+    revision = "0123456789abcdef0123456789abcdef01234567"
     write_round(
         directory=directory,
         number=2,
@@ -148,7 +154,7 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
                     "written_at": "2026-09-23T02:00:00Z",
                 }
             ],
-            revision="def456",
+            revision=revision,
         ),
         path=(directory / "rounds" / "2" / "inbox.json"),
     )
@@ -159,10 +165,16 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
     page = response.text
     assert "Why does this happen?" not in page
     assert "Issue 8" in page
-    assert "conversation-session" in page
+    assert page.count("<dt>") == 3
+    assert "<dt>label</dt><dd>dream:conversation</dd>" in page
+    assert "<dt>harness</dt><dd>claude</dd>" in page
+    assert "<dt>model</dt><dd>opus[1m] · xhigh</dd>" in page
+    assert "<dt>worktree</dt>" not in page
+    assert "<dt>session</dt>" not in page
     assert "abc123" in page
-    assert "def456" in page
-    assert "code revision abc123 -&gt; def456" in page
+    assert page.count("0123456") == 2
+    assert "code revision abc123 -&gt; 0123456" in page
+    assert revision not in page
     assert "opus[1m] · xhigh" in page
     assert "discuss" in page
     assert "I found the answer." in page
