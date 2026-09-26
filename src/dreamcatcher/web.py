@@ -219,8 +219,8 @@ class WebAssignmentView:
     detail: str
     pull_request: int
     pull_request_state: str | None
+    dispatch_label: str
     harness: str
-    harness_session_identifier: str
     model: str
     effort: str
     rounds: tuple[WebAgentRound, ...]
@@ -763,12 +763,8 @@ def _compose_assignment_view(
         detail=status.detail,
         pull_request=record.pull_request,
         pull_request_state=_describe_pull_request_state(status=status),
+        dispatch_label=record.dispatch_label,
         harness=str(record.harness),
-        harness_session_identifier=(
-            "not recorded"
-            if status.harness_session_identifier is None
-            else status.harness_session_identifier
-        ),
         model=record.model,
         effort=record.effort,
         rounds=_compose_agent_rounds(round_statuses=status.round_statuses, zone=zone),
@@ -812,7 +808,7 @@ def _compose_conversation_view(
         facts=(
             ()
             if conversation is None
-            else _compose_conversation_facts(state=state, conversation=conversation)
+            else _compose_conversation_facts(conversation=conversation)
         ),
         rounds=rounds,
         feed_rounds=feed.rounds,
@@ -821,19 +817,13 @@ def _compose_conversation_view(
 
 
 def _compose_conversation_facts(
-    *, state: StateDirectory, conversation: IssueConversation
+    *, conversation: IssueConversation
 ) -> tuple[WebFact, ...]:
     """Return the settings that a conversation settled at its first round."""
     record = conversation.record
     return (
         WebFact(label="label", value=record.label),
-        WebFact(
-            label="worktree", value=state.describe_path(path=conversation.worktree)
-        ),
         WebFact(label="harness", value=str(record.harness)),
-        WebFact(
-            label="session", value=record.harness_session_identifier or "not recorded"
-        ),
         WebFact(label="model", value=f"{record.model} · {record.effort}"),
     )
 
