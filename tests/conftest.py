@@ -262,11 +262,21 @@ def upstream(seeded_upstream, tmp_path):
     return bare
 
 
+@pytest.fixture(scope="session")
+def seeded_checkout(seeded_upstream, tmp_path_factory):
+    """Build the immutable checkout that each test copies."""
+    directory = tmp_path_factory.mktemp("seeded-checkout")
+    checkout = directory / "checkout"
+    git(arguments=["clone", str(seeded_upstream), str(checkout)], cwd=directory)
+    git(arguments=["remote", "set-url", "origin", "../upstream.git"], cwd=checkout)
+    return checkout
+
+
 @pytest.fixture
-def cloned(upstream, tmp_path):
+def cloned(seeded_checkout, upstream, tmp_path):
     """Return a main checkout of upstream, with an origin/main to cut from."""
     checkout = tmp_path / "checkout"
-    git(arguments=["clone", str(upstream), str(checkout)], cwd=tmp_path)
+    shutil.copytree(seeded_checkout, checkout)
     return checkout
 
 
