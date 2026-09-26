@@ -165,7 +165,12 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
     page = response.text
     assert "Why does this happen?" not in page
     assert "Issue 8" in page
-    assert "conversation-session" in page
+    assert page.count("<dt>") == 3
+    assert "<dt>label</dt><dd>dream:conversation</dd>" in page
+    assert "<dt>harness</dt><dd>claude</dd>" in page
+    assert "<dt>model</dt><dd>opus[1m] · xhigh</dd>" in page
+    assert "<dt>worktree</dt>" not in page
+    assert "<dt>session</dt>" not in page
     assert "abc123" in page
     assert page.count("0123456") == 2
     assert "code revision abc123 -&gt; 0123456" in page
