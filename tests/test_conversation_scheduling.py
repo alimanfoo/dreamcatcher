@@ -1121,8 +1121,8 @@ def test_a_recovery_whose_saved_input_cannot_be_read_holds_the_tick(
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.hold is not None
-    assert "rounds/1/inbox.json does not exist" in observed.hold
+    inbox = directory / "rounds" / "1" / "inbox.json"
+    assert observed.hold == f"{inbox} does not exist."
     assert observed.launched_conversation_identifier is None
     assert harnesses["claude"].calls == []
 
