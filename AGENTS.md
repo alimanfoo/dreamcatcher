@@ -88,8 +88,14 @@ Install Chromium once, then run the browser tests that the default suite leaves
 out:
 
 ```sh
-uv run playwright install chromium
+uv run playwright install --with-deps chromium
 PYTHONWARNDEFAULTENCODING=1 uv run pytest -m browser --no-cov
+```
+
+On Windows PowerShell:
+
+```powershell
+$env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest -m browser --no-cov
 ```
 
 To inspect the web UI without using real Dreamcatcher state, start the

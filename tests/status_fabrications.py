@@ -31,6 +31,7 @@ from dreamcatcher.github import PullRequestState
 from dreamcatcher.scheduler import (
     NO_ROUND_HAS_RUN,
     AgentAssignmentObservation,
+    IssueConversationObservation,
     IssueFactValue,
     SchedulerRecord,
 )
@@ -188,7 +189,11 @@ def fabricate_nothing(*, state):
     write_daemon_run(state=state, pid=DAEMON_PID)
 
 
-def fabricate_everything(*, state):
+def fabricate_everything(
+    *,
+    state,
+    conversation_observations: Sequence[IssueConversationObservation] = (),
+):
     """Write a running daemon with varied issue and assignment statuses."""
     holding(state=state)
     directory = written(
@@ -280,6 +285,7 @@ def fabricate_everything(*, state):
                     reason=NO_ROUND_HAS_RUN,
                 ),
             ],
+            conversation_observations=list(conversation_observations),
         ),
     )
 

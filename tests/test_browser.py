@@ -35,6 +35,10 @@ def test_a_round_link_brings_its_round_into_view_from_the_tail(
 ) -> None:
     page.goto(f"{live_web}/assignments/{BROWSER_ASSIGNMENT_IDENTIFIER}")
     page.wait_for_function(FEED_IS_AT_END)
+    first_round = page.locator("#feed-round-1")
+    first_round.evaluate(
+        "element => element.style.setProperty('position', 'sticky', 'important')"
+    )
     second_round = locate_first_line_of_round(page=page, number=2)
     expect(second_round).not_to_be_in_viewport()
 
@@ -43,3 +47,9 @@ def test_a_round_link_brings_its_round_into_view_from_the_tail(
 
     page.get_by_role("link", name="01 implement").click()
     expect(locate_first_line_of_round(page=page, number=1)).to_be_in_viewport()
+    assert first_round.evaluate(
+        """element => ({
+          value: element.style.getPropertyValue("position"),
+          priority: element.style.getPropertyPriority("position"),
+        })"""
+    ) == {"value": "sticky", "priority": "important"}

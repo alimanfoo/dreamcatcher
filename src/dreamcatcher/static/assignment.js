@@ -138,9 +138,20 @@ if (assignmentSidebar !== null) {
     roundLink.setAttribute("aria-current", "true");
     const feedTop = feed.getBoundingClientRect().top;
     // A sticky header reports where it is pinned, not where its round begins.
-    feedRound.style.position = "static";
+    const inlinePosition = feedRound.style.getPropertyValue("position");
+    const inlinePositionPriority =
+      feedRound.style.getPropertyPriority("position");
+    feedRound.style.setProperty("position", "static", "important");
     const roundTop = feedRound.getBoundingClientRect().top;
-    feedRound.style.removeProperty("position");
+    if (inlinePosition === "") {
+      feedRound.style.removeProperty("position");
+    } else {
+      feedRound.style.setProperty(
+        "position",
+        inlinePosition,
+        inlinePositionPriority,
+      );
+    }
     feed.scrollTo({
       top: feed.scrollTop + roundTop - feedTop,
       behavior: "smooth",
