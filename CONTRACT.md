@@ -130,14 +130,15 @@ existing transcript when a new question refers to an earlier answer. Before a
 later round starts, Dreamcatcher asks Git to update the idle worktree to fetched
 main, discarding every local worktree change left by the earlier investigation.
 
-An issue conversation is read-only work. Its instructions must not tell the
-agent to edit the worktree, create a branch, commit or push, open a pull
-request, change the issue, post to GitHub, or contact the user elsewhere.
-Dreamcatcher reinforces that contract with harness-specific controls. Claude
-denies its direct editing and GitHub mutation tool families, though its general
-command tool is not a read-only sandbox. Codex runs commands in a read-only
-sandbox with command network access off and never pauses for an approval that
-could widen those permissions.
+An issue conversation is investigation-only work. Its instructions must not tell
+the agent to create a branch, commit or push, open a pull request, change the
+issue, post to GitHub, or contact the user elsewhere. Dreamcatcher reinforces
+that contract with harness-specific controls. Claude denies its direct editing
+and GitHub mutation tool families, though its general command tool can write
+files. Codex runs commands in a workspace-write sandbox so it can use scratch
+files and local reproductions, while command network access is off and approval
+requests are rejected. Local checkout writes are discarded by the refresh before
+the next batch.
 
 Dreamcatcher owns publication: when the harness exits successfully, the round
 appends the agent marker to the final result and posts it before the round ends.

@@ -35,11 +35,12 @@ ASSIGNMENT_RESUME_PERMISSION_OVERRIDES = (
     'approvals_reviewer="auto_review"',
 )
 
-# A conversation may investigate but must not edit the checkout or ask a person
-# to approve wider access. Codex's read-only sandbox also denies network access,
-# so a conversation cannot use gh to change GitHub.
+# A conversation may write scratch files while it investigates, but it must not
+# reach GitHub or ask a person to approve wider access. Network access is pinned
+# off rather than left to the user's Codex configuration.
 CONVERSATION_PERMISSION_OVERRIDES = (
-    'sandbox_mode="read-only"',
+    'sandbox_mode="workspace-write"',
+    "sandbox_workspace_write.network_access=false",
     'approval_policy="never"',
 )
 

@@ -86,7 +86,7 @@ def test_a_resume_replays_the_settings_and_the_permissions_codex_forgets():
     )
 
 
-def test_a_first_conversation_round_cannot_write_or_request_approval():
+def test_a_first_conversation_round_can_write_without_network_or_approval():
     assert CODEX_ADAPTER.build_first_round(
         request=CONVERSATION_LAUNCH_REQUEST,
         final_output_path=FINAL_OUTPUT_PATH,
@@ -97,7 +97,9 @@ def test_a_first_conversation_round_cannot_write_or_request_approval():
             "--json",
             *CODEX_ROUND_SETTINGS,
             "-c",
-            'sandbox_mode="read-only"',
+            'sandbox_mode="workspace-write"',
+            "-c",
+            "sandbox_workspace_write.network_access=false",
             "-c",
             'approval_policy="never"',
             "--output-last-message",
@@ -108,7 +110,7 @@ def test_a_first_conversation_round_cannot_write_or_request_approval():
     )
 
 
-def test_a_resumed_conversation_round_cannot_write_or_request_approval():
+def test_a_resumed_conversation_round_can_write_without_network_or_approval():
     assert CODEX_ADAPTER.build_resumed_round(
         request=CONVERSATION_LAUNCH_REQUEST,
         harness_session_identifier="01a0213c-9c67",
@@ -121,7 +123,9 @@ def test_a_resumed_conversation_round_cannot_write_or_request_approval():
             "--json",
             *CODEX_ROUND_SETTINGS,
             "-c",
-            'sandbox_mode="read-only"',
+            'sandbox_mode="workspace-write"',
+            "-c",
+            "sandbox_workspace_write.network_access=false",
             "-c",
             'approval_policy="never"',
             "--output-last-message",
