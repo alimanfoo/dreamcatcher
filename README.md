@@ -27,9 +27,15 @@ assignee = "@me"
 
 [conversation]
 label = "agent:conversation"
-harness = "claude"
+
+[conversation.claude]
 prompt = "Answer questions on GH{issue}."
 model = "opus[1m]"
+effort = "high"
+
+[conversation.codex]
+prompt = "Answer questions on GH{issue}."
+model = "gpt-5.6-sol"
 effort = "high"
 
 [[dispatch]]
@@ -66,19 +72,22 @@ label that belongs to one harness, and issues carrying it always go there.
 Point `prompt` at an [assignment skill](CONTRACT.md) that meets the contract.
 
 The optional `[conversation]` block watches a separate label for questions on
-open issues assigned to the account `gh` is signed in as. Issue conversations
-currently support Claude only. Their prompt, model and effort are frozen into
-each conversation record. The prompt says what answer to produce, so a plain
-sentence is enough, though it can name a suitable skill when one is available.
-The prompt may use `{issue}` and must follow the
+open issues assigned to the account `gh` is signed in as. Give it one or more
+harness blocks with the same `prompt`, `model` and `effort` fields as a dispatch
+route. When both blocks exist, `run --harness` chooses one; when only one
+exists, that harness runs regardless of the command-line choice. The chosen
+harness and settings are frozen into each conversation record. The prompt says
+what answer to produce, so a plain sentence is enough, though it can name a
+suitable skill when one is available. The prompt may use `{issue}` and must
+follow the
 [issue-conversation contract](CONTRACT.md#issue-conversation-instructions).
 
 ## Commands
 
 `run` is the daemon. Start it from the repository's main checkout, and name the
-harness requested for assignment rounds. Conversation rounds use the harness
-saved from their separate configuration. The daemon keeps going in the
-foreground, dispatching an assignment per labelled issue.
+harness requested for new agent work. An existing assignment or conversation
+keeps its saved harness. The daemon keeps going in the foreground, scheduling
+conversations and assignments.
 
 ```sh
 dreamcatcher run --harness claude

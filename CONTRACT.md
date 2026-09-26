@@ -133,14 +133,19 @@ main, discarding every local worktree change left by the earlier investigation.
 An issue conversation is read-only work. Its instructions must not tell the
 agent to edit the worktree, create a branch, commit or push, open a pull
 request, change the issue, post to GitHub, or contact the user elsewhere.
+Dreamcatcher reinforces that contract with harness-specific controls. Claude
+denies its implementation and GitHub mutation tools. Codex runs commands in a
+read-only sandbox with command network access off and never pauses for an
+approval that could widen those permissions.
+
 Dreamcatcher owns publication: when the harness exits successfully, the round
 appends the agent marker to the final result and posts it before the round ends.
 A failed post makes the round errored.
 
-Issue conversations currently run through Claude. While the issue remains
-eligible, Dreamcatcher retries an interrupted or errored round's saved input and
-revision without collecting comments or refreshing the worktree. It resumes the
-recorded harness session with a recovery prompt. If the first invocation did not
-record a session identifier, it starts a new session with the configured prompt
-and the same saved input. The configured conversation prompt needs no special
-recovery instructions.
+Issue conversations run through Claude or Codex and keep the harness chosen at
+creation. While the issue remains eligible, Dreamcatcher retries an interrupted
+or errored round's saved input and revision without collecting comments or
+refreshing the worktree. It resumes the recorded harness session with a recovery
+prompt. If the first invocation did not record a session identifier, it starts a
+new session with the configured prompt and the same saved input. The configured
+conversation prompt needs no special recovery instructions.

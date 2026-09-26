@@ -109,12 +109,13 @@ other accounts and blank comments are excluded. Each durable round input records
 the delivered batch, so the newest comment in the latest input is the delivery
 position and a batch cannot be selected again.
 
-The first eligible batch starts one Claude session with the issue title, body
-and trusted comment history. Each later eligible batch resumes that session with
-only newly delivered comments. The scheduler first fetches main and asks Git to
-discard local changes and move the detached worktree to that revision. Each
-round input records its investigated revision. Comments posted while a round
-runs remain beyond the latest round input.
+The first eligible batch starts one session through the harness selected from
+the conversation's configured recipes, with the issue title, body and trusted
+comment history. Each later eligible batch resumes that same harness session
+with only newly delivered comments. The scheduler first fetches main and asks
+Git to discard local changes and move the detached worktree to that revision.
+Each round input records its investigated revision. Comments posted while a
+round runs remain beyond the latest round input.
 
 A failed or interrupted conversation round is recovered before a fresh batch
 while its issue remains eligible. Recovery rereads that round's durable input,
@@ -138,6 +139,11 @@ the harness's clean exit status and gives the failure as its reason, and the
 feed notes it too. Failed and interrupted rounds remain visible while ordinary
 recovery proceeds, and two consecutive errored rounds place the conversation in
 fault.
+
+Harness adapters expose final answers separately from their progress streams.
+Claude supplies the answer in its successful result event. For a Codex
+conversation, the adapter gives `codex exec` the round's `final.md` path as its
+last-message output file on first and resumed invocations.
 
 ### Agent assignments
 
@@ -359,15 +365,15 @@ styles.
 
 ### Configuration, dispatch labels, and routes
 
-`config.py` owns the strict model for `dreamcatcher.toml`. A `DispatchRoute`
-maps one dispatch label to one or more harness-specific `AgentAssignmentRecipe`
-objects, each of which supplies the model, effort, and initial prompt used to
-start agent work through that harness. The initial prompt normally invokes an
-assignment skill.
+`config.py` owns the strict model for `dreamcatcher.toml`. An `AgentRecipe`
+supplies the model, effort, and initial prompt used to start agent work through
+one harness. A `DispatchRoute` maps one dispatch label to one or more recipes
+for assignments; its prompt normally invokes an assignment skill.
 
-The optional conversation block separately fixes one label, Claude harness,
-model, effort and prompt for issue conversations. Conversation discovery does
-not treat that label as a dispatch route.
+The optional conversation configuration maps one separate label to one or more
+recipes for issue conversations. Both mappings use the same harness-selection
+rule: a configured requested harness wins, while the sole recipe wins when only
+one exists. Conversation discovery does not treat its label as a dispatch route.
 
 The repository configuration carries choices that everyone working in the
 repository shares. The daemon interval and agent cap belong to one person's run,
@@ -436,7 +442,7 @@ An assignment record persists:
 
 - the issue and assignment identifiers;
 - the issue title captured during assignment setup;
-- the frozen dispatch route and assignment recipe selected during setup;
+- the frozen dispatch route and agent recipe selected during setup;
 - branch and worktree identity;
 - pull-request identity;
 - the latest observed pull-request state, draft flag, and observation time;
