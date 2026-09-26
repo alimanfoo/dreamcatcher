@@ -252,18 +252,6 @@ def find_issue_conversation_harness_session_identifier(
     )
 
 
-def require_issue_conversation_revision(
-    *, conversation: IssueConversation, expected: str
-) -> None:
-    """Require a conversation worktree to remain at its saved revision."""
-    revision = read_worktree_revision(worktree=conversation.worktree)
-    if revision != expected:
-        raise ReportableError(
-            f"Could not recover {conversation.identifier}: its worktree revision "
-            f"is {revision}, expected {expected}."
-        )
-
-
 def _read_issue_conversation_input_document(
     *, conversation: IssueConversation, number: int
 ) -> IssueConversationInput:

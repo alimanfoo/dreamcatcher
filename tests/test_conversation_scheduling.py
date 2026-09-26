@@ -927,35 +927,6 @@ def test_recovery_finds_a_session_identifier_left_in_raw_output(
     assert resumed.prompt == ISSUE_CONVERSATION_RECOVERY_PROMPT
 
 
-def test_recovery_refuses_a_worktree_that_moved_from_its_saved_revision(
-    conversation_scheduler, harnesses
-):
-    scheduler, clock, gh = conversation_scheduler
-    offer_conversation(gh=gh, comments=[ask()])
-    answer(harnesses=harnesses, status=2)
-    scheduler.tick(at=clock())
-    finish(scheduler=scheduler)
-    conversation = read_issue_conversation(state=scheduler.state, issue=8)
-    assert conversation is not None
-    saved = read_json(
-        model=IssueConversationInput,
-        path=conversation.compose_round_paths(number=1).round_input,
-    )
-    (conversation.worktree / "moved.txt").write_bytes(b"moved\n")
-    commit(path=conversation.worktree, message="move conversation worktree")
-    offer_conversation(gh=gh, comments=[ask()])
-
-    observed = scheduler.tick(at=clock())
-
-    revision = read_worktree_revision(worktree=conversation.worktree)
-    assert observed.launched_conversation_identifier is None
-    assert observed.hold == (
-        f"Could not recover conversation-GH8: its worktree revision is {revision}, "
-        f"expected {saved.revision}."
-    )
-    assert len(harnesses["claude"].calls) == 1
-
-
 def test_a_first_round_without_a_session_recovers_as_a_new_first_round(
     conversation_scheduler, harnesses
 ):

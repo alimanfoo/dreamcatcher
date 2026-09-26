@@ -77,7 +77,6 @@ from dreamcatcher.issue_conversations import (
     read_issue_conversation_input,
     read_issue_conversations,
     record_issue_conversation_session_identifier,
-    require_issue_conversation_revision,
 )
 from dreamcatcher.prompts import (
     ISSUE_CONVERSATION_RECOVERY_PROMPT,
@@ -1102,10 +1101,6 @@ def _prepare_issue_conversation_recovery(
     round_input = read_issue_conversation_input(
         conversation=conversation,
         number=latest_round.number,
-    )
-    require_issue_conversation_revision(
-        conversation=conversation,
-        expected=round_input.revision,
     )
     harness_session_identifier = find_issue_conversation_harness_session_identifier(
         conversation=conversation
