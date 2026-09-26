@@ -11,6 +11,7 @@ from dreamcatcher.documents import (
     read_last_line,
     read_lines_from,
     read_toml,
+    remove_file,
     write_text,
 )
 from dreamcatcher.errors import ReportableError
@@ -291,6 +292,23 @@ def test_an_append_adds_to_the_end_of_what_is_there(tmp_path):
 def test_an_append_that_fails_says_so(tmp_path):
     with pytest.raises(ReportableError, match="cannot write"):
         append_text(text="one line\n", path=tmp_path)
+
+
+def test_a_file_is_removed_when_it_exists(tmp_path):
+    document = write(path=tmp_path, text="anything\n")
+
+    remove_file(path=document)
+
+    assert not document.exists()
+
+
+def test_removing_a_missing_file_is_already_done(tmp_path):
+    remove_file(path=tmp_path / "missing.txt")
+
+
+def test_a_file_that_cannot_be_removed_says_so(tmp_path):
+    with pytest.raises(ReportableError, match="cannot remove"):
+        remove_file(path=tmp_path)
 
 
 def test_a_write_keeps_the_line_endings_it_was_given(tmp_path):

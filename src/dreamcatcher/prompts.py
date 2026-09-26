@@ -80,7 +80,7 @@ reply is needed."""
 def compose_first_round_prompt(*, template: str, issue: int) -> str:
     """Return the first-round prompt for an issue.
 
-    The selected assignment recipe supplies the template, and the issue's
+    The selected recipe supplies the template, and the issue's
     number replaces the placeholder in it. Anything else that the template
     holds in braces reaches the first round as it was written.
     """

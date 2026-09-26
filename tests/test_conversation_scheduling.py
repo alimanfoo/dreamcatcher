@@ -60,11 +60,21 @@ from dreamcatcher.state import StateDirectory
 
 CONVERSATION_CONFIG = """[conversation]
 label = "dream:conversation"
-harness = "claude"
+
+[conversation.claude]
 prompt = "/dream:conversation GH{issue}"
 model = "opus[1m]"
 effort = "xhigh"
 """
+BOTH_CONVERSATION_CONFIG = (
+    CONVERSATION_CONFIG
+    + """
+[conversation.codex]
+prompt = "$dream:conversation GH{issue}"
+model = "gpt-5.6-sol"
+effort = "xhigh"
+"""
+)
 COMMENT_PATH = f"api repos/{REPOSITORY}/issues/8/comments?per_page=100"
 POST_PATH = f"api repos/{REPOSITORY}/issues/8/comments --method POST"
 ASKED = "2026-09-23T01:00:00Z"
@@ -80,7 +90,26 @@ def conversation_scheduler(cloned, gh):
         account=POSTED_BY,
         config=read_dreamcatcher_config(root=cloned),
         state=StateDirectory(root=cloned),
-        requested_assignment_harness=AgentHarness.CLAUDE,
+        requested_harness=AgentHarness.CLAUDE,
+        clock=clock,
+        rounds={},
+    )
+    yield scheduler, clock, gh
+    for running in scheduler.rounds.values():
+        running.stop()
+
+
+@pytest.fixture
+def codex_conversation_scheduler(cloned, gh):
+    """Return a scheduler that chooses Codex from both conversation recipes."""
+    configure(root=cloned, head=BOTH_CONVERSATION_CONFIG)
+    clock = Ticking(step=300)
+    scheduler = AgentWorkScheduler(
+        repository=REPOSITORY,
+        account=POSTED_BY,
+        config=read_dreamcatcher_config(root=cloned),
+        state=StateDirectory(root=cloned),
+        requested_harness=AgentHarness.CODEX,
         clock=clock,
         rounds={},
     )
@@ -161,6 +190,33 @@ def answer(
         ],
         status=status,
         delay=delay,
+    )
+
+
+def codex_answer(
+    *,
+    harnesses,
+    body: str | None = "The scheduler waits for work.",
+    status: int = 0,
+    session_identifier: str | None = "conversation-codex-session",
+) -> None:
+    """Have Codex identify its session and write its final-message file."""
+    harnesses["codex"].streams(
+        lines=(
+            []
+            if session_identifier is None
+            else [
+                Line(
+                    text=streamed(
+                        type="thread.started",
+                        thread_id=session_identifier,
+                    )
+                    + "\n"
+                )
+            ]
+        ),
+        status=status,
+        final_output=body,
     )
 
 
@@ -286,6 +342,159 @@ def test_an_initial_conversation_freezes_input_runs_claude_and_publishes_once(
         f"The scheduler waits for work.\n\n> written by an agent\n\n{AGENT_POST_MARKER}"
     )
     assert not any(call.arguments[:2] == ["pr", "create"] for call in gh.calls)
+
+
+def test_codex_first_and_resumed_rounds_capture_and_publish_final_messages(
+    codex_conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = codex_conversation_scheduler
+    offer_conversation(gh=gh, comments=[ask()])
+    codex_answer(harnesses=harnesses, body="The first answer.")
+    gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
+
+    scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+    scheduler.tick(at=clock())
+    offer_conversation(
+        gh=gh,
+        comments=[ask(), ask(identifier=2, body="What evidence supports that?")],
+    )
+    codex_answer(harnesses=harnesses, body="The follow-up answer.")
+
+    scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+    scheduler.tick(at=clock())
+
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    assert conversation.record.harness is AgentHarness.CODEX
+    assert conversation.record.harness_session_identifier == (
+        "conversation-codex-session"
+    )
+    assert len(conversation.rounds) == 2
+    calls = harnesses["codex"].calls
+    assert len(calls) == 2
+    first_output = str(conversation.compose_round_paths(number=1).final_output)
+    second_output = str(conversation.compose_round_paths(number=2).final_output)
+    assert calls[0].arguments[-3:] == [
+        "--output-last-message",
+        first_output,
+        "-",
+    ]
+    assert calls[1].arguments[-4:] == [
+        "--output-last-message",
+        second_output,
+        "conversation-codex-session",
+        "-",
+    ]
+    post_calls = [call for call in gh.calls if call.arguments[:4] == POST_PATH.split()]
+    assert [json.loads(call.prompt)["body"] for call in post_calls] == [
+        f"The first answer.\n\n> written by an agent\n\n{AGENT_POST_MARKER}",
+        f"The follow-up answer.\n\n> written by an agent\n\n{AGENT_POST_MARKER}",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("final_output", "expected_outcome"),
+    [
+        (NO_REPLY, AgentRoundOutcome.SUCCESSFUL),
+        (None, AgentRoundOutcome.ERRORED),
+    ],
+)
+def test_codex_no_reply_and_missing_output_post_nothing(
+    codex_conversation_scheduler, harnesses, final_output, expected_outcome
+):
+    scheduler, clock, gh = codex_conversation_scheduler
+    offer_conversation(gh=gh, comments=[ask()])
+    codex_answer(harnesses=harnesses, body=final_output)
+
+    scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    assert conversation.rounds[0].outcome is expected_outcome
+    assert not any(call.arguments[:4] == POST_PATH.split() for call in gh.calls)
+
+
+def test_codex_recovery_keeps_its_session_revision_and_permissions(
+    codex_conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = codex_conversation_scheduler
+    offer_conversation(gh=gh, comments=[ask()])
+    codex_answer(harnesses=harnesses, body="This failed.", status=2)
+    scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    first_input = read_json(
+        model=IssueConversationInput,
+        path=conversation.compose_round_paths(number=1).round_input,
+    )
+    offer_conversation(gh=gh, comments=[ask()])
+    codex_answer(harnesses=harnesses, body="The recovered answer.")
+    gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
+
+    scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    assert conversation.rounds[1].is_recovery
+    recovered_input = read_json(
+        model=IssueConversationInput,
+        path=conversation.compose_round_paths(number=2).round_input,
+    )
+    assert recovered_input == first_input
+    resumed = harnesses["codex"].calls[1]
+    assert 'sandbox_mode="workspace-write"' in resumed.arguments
+    assert "sandbox_workspace_write.network_access=false" in resumed.arguments
+    assert 'approval_policy="never"' in resumed.arguments
+    assert resumed.arguments[-2:] == ["conversation-codex-session", "-"]
+    assert resumed.prompt == ISSUE_CONVERSATION_RECOVERY_PROMPT
+
+
+def test_codex_recovery_starts_a_new_session_when_the_first_never_reported_one(
+    codex_conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = codex_conversation_scheduler
+    offer_conversation(gh=gh, comments=[ask()])
+    codex_answer(
+        harnesses=harnesses,
+        body="This failed.",
+        status=2,
+        session_identifier=None,
+    )
+    scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    first_input = read_json(
+        model=IssueConversationInput,
+        path=conversation.compose_round_paths(number=1).round_input,
+    )
+    offer_conversation(gh=gh, comments=[ask()])
+    codex_answer(harnesses=harnesses, body="The recovered answer.")
+    gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
+
+    scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    assert conversation.rounds[1].is_recovery
+    recovered_input = read_json(
+        model=IssueConversationInput,
+        path=conversation.compose_round_paths(number=2).round_input,
+    )
+    assert recovered_input == first_input
+    restarted = harnesses["codex"].calls[1]
+    assert restarted.arguments[:2] == ["exec", "--json"]
+    assert "resume" not in restarted.arguments
+    assert 'sandbox_mode="workspace-write"' in restarted.arguments
+    assert "sandbox_workspace_write.network_access=false" in restarted.arguments
+    assert 'approval_policy="never"' in restarted.arguments
+    assert restarted.prompt.startswith("$dream:conversation GH8")
 
 
 def test_a_follow_up_resumes_the_session_with_only_new_comments(

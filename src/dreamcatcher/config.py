@@ -29,40 +29,16 @@ class AgentHarness(StrEnum):
     CODEX = "codex"
 
 
-def refuse_unsupported_issue_conversation_harness(
-    harness: AgentHarness, /
-) -> AgentHarness:
-    """Return the conversation harness supported in this stage, or refuse it."""
-    if harness is not AgentHarness.CLAUDE:
-        raise ValueError("Codex issue conversations are not supported yet")
-    return harness
-
-
-IssueConversationHarness = Annotated[
-    AgentHarness, AfterValidator(refuse_unsupported_issue_conversation_harness)
-]
-
-
-class AgentAssignmentRecipe(DreamcatcherDocument):
-    """Describe how one harness runs assignments for a dispatch label."""
+class AgentRecipe(DreamcatcherDocument):
+    """Describe how one harness runs one kind of agent work."""
 
     prompt: str
     model: QuotableText
     effort: QuotableText
 
 
-class IssueConversationConfig(DreamcatcherDocument):
-    """Configure one repository's issue-conversation partner."""
-
-    label: str
-    harness: IssueConversationHarness
-    prompt: str
-    model: QuotableText
-    effort: QuotableText
-
-
-class DispatchRoute(DreamcatcherDocument):
-    """Map a dispatch label to its available harness recipes.
+class _AgentHarnessRoute(DreamcatcherDocument):
+    """Map one agent-work label to its available harness recipes.
 
     The label is the route's identity, so no two routes carry the same one.
 
@@ -71,12 +47,12 @@ class DispatchRoute(DreamcatcherDocument):
     """
 
     model_config = ConfigDict(extra="allow")
-    __pydantic_extra__: dict[AgentHarness, AgentAssignmentRecipe]
+    __pydantic_extra__: dict[AgentHarness, AgentRecipe]
 
     label: str
 
     @property
-    def assignment_recipes(self) -> dict[AgentHarness, AgentAssignmentRecipe]:
+    def recipes(self) -> dict[AgentHarness, AgentRecipe]:
         """The recipe of each harness that can run this route."""
         return self.__pydantic_extra__
 
@@ -89,17 +65,25 @@ class DispatchRoute(DreamcatcherDocument):
         So which harnesses can run a label is already in the blocks that the
         label carries, and the config needs no pin of its own.
         """
-        recipes = self.assignment_recipes
+        recipes = self.recipes
         return (
             requested_harness if requested_harness in recipes else next(iter(recipes))
         )
 
     @model_validator(mode="after")
-    def _require_assignment_recipe(self) -> Self:
+    def _require_recipe(self) -> Self:
         """Refuse a label with no harness able to run it."""
-        if not self.assignment_recipes:
+        if not self.recipes:
             raise ValueError(f"label {self.label} has no harness block")
         return self
+
+
+class DispatchRoute(_AgentHarnessRoute):
+    """Map a dispatch label to its available harness recipes."""
+
+
+class IssueConversationConfig(_AgentHarnessRoute):
+    """Map the conversation label to its available harness recipes."""
 
 
 class DreamcatcherConfig(DreamcatcherDocument):
@@ -125,11 +109,9 @@ class DreamcatcherConfig(DreamcatcherDocument):
         A route with one harness selects it regardless of the daemon's requested
         harness.
         """
-        harnesses = {
-            harness for route in self.dispatch for harness in route.assignment_recipes
-        }
+        harnesses = {harness for route in self.dispatch for harness in route.recipes}
         if self.conversation is not None:
-            harnesses.add(self.conversation.harness)
+            harnesses.update(self.conversation.recipes)
         return harnesses
 
     def identify_dispatch_labels(self, *, labels: list[str]) -> list[str]:

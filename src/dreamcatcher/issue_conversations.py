@@ -15,8 +15,8 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import (
+    AgentHarness,
     IssueConversationConfig,
-    IssueConversationHarness,
     QuotableText,
 )
 from dreamcatcher.documents import DreamcatcherDocument, read_json, write_json
@@ -61,7 +61,7 @@ class IssueConversationRecord(DreamcatcherDocument):
     issue: int
     title: str
     label: str
-    harness: IssueConversationHarness
+    harness: AgentHarness
     harness_session_identifier: HarnessSessionIdentifier | None = None
     retry_requested_at: AwareDatetime | None = None
     model: QuotableText
@@ -124,7 +124,11 @@ def read_issue_conversation(
 
 
 def create_issue_conversation(
-    *, state: StateDirectory, config: IssueConversationConfig, issue: Issue
+    *,
+    state: StateDirectory,
+    config: IssueConversationConfig,
+    requested_harness: AgentHarness,
+    issue: Issue,
 ) -> IssueConversation:
     """Create one conversation at fetched main with no rounds run yet."""
     existing = read_issue_conversation(state=state, issue=issue.number)
@@ -140,14 +144,16 @@ def create_issue_conversation(
         )
     add_detached_worktree(root=state.root, path=worktree)
     try:
+        selected_harness = config.choose_harness(requested_harness=requested_harness)
+        recipe = config.recipes[selected_harness]
         record = IssueConversationRecord(
             issue=issue.number,
             title=issue.title,
             label=config.label,
-            harness=config.harness,
-            model=config.model,
-            effort=config.effort,
-            prompt=config.prompt,
+            harness=selected_harness,
+            model=recipe.model,
+            effort=recipe.effort,
+            prompt=recipe.prompt,
         )
         write_json(document=record, path=directory / ISSUE_CONVERSATION_RECORD_NAME)
     except ReportableError:

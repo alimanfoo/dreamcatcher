@@ -14,6 +14,7 @@ import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import StrEnum
+from pathlib import Path
 from typing import Annotated, ClassVar
 
 from pydantic import AfterValidator
@@ -110,9 +111,14 @@ class HarnessAdapter(ABC):
 
     @abstractmethod
     def build_first_round(
-        self, *, request: AgentRoundLaunchRequest
+        self, *, request: AgentRoundLaunchRequest, final_output_path: Path
     ) -> HarnessInvocation:
-        """Return how to run an agent assignment's first round."""
+        """Return how to run an agent work item's first round.
+
+        A harness that writes its final answer to a file uses the round-owned
+        path supplied here. A harness whose stream reports the answer ignores
+        it.
+        """
 
     @abstractmethod
     def build_resumed_round(
@@ -120,8 +126,14 @@ class HarnessAdapter(ABC):
         *,
         request: AgentRoundLaunchRequest,
         harness_session_identifier: HarnessSessionIdentifier,
+        final_output_path: Path,
     ) -> HarnessInvocation:
-        """Return how to resume the harness session with request's prompt."""
+        """Return how to resume the harness session with request's prompt.
+
+        A harness that writes its final answer to a file uses the round-owned
+        path supplied here. A harness whose stream reports the answer ignores
+        it.
+        """
 
     @abstractmethod
     def build_hand_resume(

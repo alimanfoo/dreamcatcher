@@ -2,6 +2,7 @@ import json
 import sys
 from contextlib import suppress
 from datetime import datetime
+from pathlib import Path
 from threading import Thread
 from time import monotonic, sleep
 from typing import cast
@@ -126,14 +127,18 @@ class Unrenderable(HarnessAdapter):
     program = "harness"
 
     def build_first_round(
-        self, *, request: AgentRoundLaunchRequest
+        self, *, request: AgentRoundLaunchRequest, final_output_path: Path
     ) -> HarnessInvocation:
         return HarnessInvocation(
             program=self.program, arguments=[], prompt=request.prompt
         )
 
     def build_resumed_round(
-        self, *, request: AgentRoundLaunchRequest, harness_session_identifier: str
+        self,
+        *,
+        request: AgentRoundLaunchRequest,
+        harness_session_identifier: str,
+        final_output_path: Path,
     ) -> HarnessInvocation:
         return HarnessInvocation(
             program=self.program, arguments=[], prompt=request.prompt
@@ -583,6 +588,21 @@ def test_a_round_whose_harness_reported_no_final_output_is_finished_without_one(
 
     finish_round.assert_called_once_with(final_output=None)
     assert written(path=paths.record).outcome is AgentRoundOutcome.SUCCESSFUL
+
+
+def test_a_round_discards_final_output_left_by_an_unrecorded_attempt(
+    fake, worktree, directory
+):
+    fake(program="claude").replies(stdout="")
+    paths = compose_round_paths(worktree=worktree, directory=directory)
+    paths.final_output.parent.mkdir(parents=True)
+    paths.final_output.write_bytes(b"stale answer")
+    finish_round = Mock()
+
+    start_conversation_round(paths=paths, finish_round=finish_round).wait()
+
+    finish_round.assert_called_once_with(final_output=None)
+    assert not paths.final_output.exists()
 
 
 def test_a_finisher_that_fails_fails_the_round_and_says_why(fake, worktree, directory):

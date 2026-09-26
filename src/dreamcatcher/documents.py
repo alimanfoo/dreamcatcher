@@ -189,6 +189,14 @@ def write_json(*, document: DreamcatcherDocument, path: Path) -> None:
     write_text(text=document.model_dump_json(indent=2) + "\n", path=path)
 
 
+def remove_file(*, path: Path) -> None:
+    """Remove the file at path when it exists, or raise ReportableError."""
+    try:
+        path.unlink(missing_ok=True)
+    except OSError as error:
+        raise ReportableError(f"cannot remove {path}: {error}.") from error
+
+
 @contextmanager
 def _open_bytes(*, path: Path) -> Iterator[IO[bytes]]:
     """Open the file for byte reads, or provide an empty stream if it is absent.

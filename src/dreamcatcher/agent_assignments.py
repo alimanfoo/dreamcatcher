@@ -94,7 +94,7 @@ class PullRequestObservation(DreamcatcherDocument):
 class AgentAssignmentRecord(DreamcatcherDocument):
     """Model the identities and settled settings of an agent assignment.
 
-    The dispatch settles the assignment recipe and identities. The first round
+    The dispatch settles the recipe and identities. The first round
     adds the harness session identifier when the harness reports it, and a retry
     request records its time. Every round reads this record, so later config
     edits do not change an assignment in progress. The latest pull request
@@ -362,7 +362,7 @@ class AgentAssignmentCreator:
     ) -> AgentAssignment:
         """Create and publish the issue's assignment with no rounds run yet.
 
-        The route selects an assignment recipe in response to the requested
+        The route selects a recipe in response to the requested
         agent harness. The recipe supplies the model, effort, and prompt
         template. Creation fetches main, makes the branch and worktree, adds and
         pushes an empty commit, opens the linked draft pull request, then writes
@@ -381,7 +381,7 @@ class AgentAssignmentCreator:
                 f"GH{issue} already has open assignment {open_assignment.identifier}."
             )
         selected_harness = route.choose_harness(requested_harness=requested_harness)
-        recipe = route.assignment_recipes[selected_harness]
+        recipe = route.recipes[selected_harness]
         fetch_main(root=self.state.root)
         identifier = _find_incomplete_assignment(state=self.state, issue=issue) or (
             f"GH{issue}-{at:%Y%m%d-%H%M%S}"
