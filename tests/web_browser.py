@@ -12,6 +12,7 @@ from records import write_feed
 from status_fabrications import (
     ASSIGNMENT_TIMESTAMP,
     LOOKED_AT,
+    fabricate_conversation,
     fabricate_everything,
 )
 from werkzeug.serving import make_server
@@ -28,6 +29,7 @@ FEED_LINE_COUNT_PER_ROUND = 40
 def create_fabricated_web_app(*, root: Path) -> Flask:
     """Create the web app with a long two-round assignment feed."""
     state = StateDirectory(root=root)
+    fabricate_conversation(state=state)
     fabricate_everything(state=state)
     assignment = read_agent_assignment(
         state=state,

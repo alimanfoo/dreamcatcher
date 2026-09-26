@@ -5,12 +5,14 @@ from datetime import timedelta
 
 from clocks import PINNED
 from conftest import DAEMON_PID, DISPATCH_LABEL, REPOSITORY, configure
-from observations import observed_issue
+from observations import observed_conversation, observed_issue
 from records import (
     AssignmentReporting,
     write_agent_assignment,
     write_daemon_run,
     write_feed,
+    write_final_output,
+    write_issue_conversation,
     write_round,
     write_tick,
 )
@@ -19,9 +21,11 @@ from dreamcatcher.agent_assignments import PullRequestObservation
 from dreamcatcher.agent_rounds import (
     AgentAssignmentRoundPurpose,
     AgentRoundRecord,
+    IssueConversationInput,
+    IssueConversationRoundPurpose,
     compose_agent_round_ending,
 )
-from dreamcatcher.documents import write_text
+from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.github import PullRequestState
 from dreamcatcher.scheduler import (
@@ -30,6 +34,7 @@ from dreamcatcher.scheduler import (
     IssueFactValue,
     SchedulerRecord,
 )
+from dreamcatcher.state import StateDirectory
 
 LOOKED_AT = PINNED + timedelta(hours=2)
 ASSIGNMENT_TIMESTAMP = "20260819-184158"
@@ -59,6 +64,63 @@ SAID = (
 )
 
 DOUBLE_LABELLED = "carries more than one dispatch label: dream:less, dream:smith"
+
+
+def fabricate_conversation(
+    *,
+    state: StateDirectory,
+    has_round: bool = True,
+    status: int = 0,
+    is_eligible: bool = False,
+) -> None:
+    """Write one initial conversation exchange."""
+    directory = write_issue_conversation(state=state, issue=8)
+    write_text(text=f"{REPOSITORY}\n", path=state.repository)
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            conversation_observations=[observed_conversation()] if is_eligible else [],
+        ),
+    )
+    if not has_round:
+        return
+    write_round(
+        directory=directory,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
+            started=PINNED,
+            pid=1,
+            ending=compose_agent_round_ending(
+                at=PINNED + timedelta(minutes=4), status=status
+            ),
+        ),
+    )
+    write_json(
+        document=IssueConversationInput(
+            issue=8,
+            title="Issue 8",
+            body="Explain it.",
+            comments=[
+                {
+                    "id": 1,
+                    "body": "Please explain.",
+                    "author": "alice",
+                    "written_at": "2026-09-23T01:00:00Z",
+                }
+            ],
+            revision="abc123",
+        ),
+        path=(directory / "rounds" / "1" / "inbox.json"),
+    )
+    write_feed(
+        directory=directory,
+        number=1,
+        lines=[FeedLine(at=PINNED, text="I found the answer.")],
+    )
+    write_final_output(directory=directory, number=1, text="The answer.")
 
 
 def written(*, state, issue: int, records: Sequence[AgentRoundRecord]):

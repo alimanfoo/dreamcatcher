@@ -82,6 +82,35 @@ Run every check CI runs:
 uv run pre-commit run --all-files
 ```
 
+### Browser tests and visual checks
+
+Install Chromium once, then run the browser tests that the default suite leaves
+out:
+
+```sh
+uv run playwright install chromium
+PYTHONWARNDEFAULTENCODING=1 uv run pytest -m browser --no-cov
+```
+
+To inspect the web UI without using real Dreamcatcher state, start the
+fabricated web server in one terminal:
+
+```sh
+uv run python tests/serve_fabricated_web.py
+```
+
+The command prints the home, assignment and conversation page addresses and runs
+until interrupted. Use one of those addresses with Playwright to exercise the
+page or capture a screenshot:
+
+```sh
+uv run playwright screenshot --full-page --viewport-size="1280,800" ADDRESS SCREENSHOT.png
+```
+
+Open the PNG with the harness's image viewer. For interactions beyond the
+Playwright command, put a throwaway Python script outside the repository and
+drive the printed address with Playwright's synchronous API.
+
 ## Conventions
 
 ### Development workflow and fixtures
