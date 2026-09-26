@@ -132,15 +132,15 @@ running between questions.
 
 ## Instructions and launch permissions
 
-Read `compose_first_round_prompt` and `compose_user_posts_prompt` in
-`prompts.py`, then `AgentRoundInput` and `AgentRound.__init__` in
-`agent_rounds.py`.
+Read `compose_issue_conversation_prompt` and
+`compose_issue_conversation_round_prompt` in `prompts.py`, then
+`IssueConversationInput` and `AgentRound.__init__` in `agent_rounds.py`.
 
 The first prompt substitutes the issue number into the configured recipe and
-appends the agent-post marker instructions. A normal feedback or wrap-up round
-receives an inbox containing PR state and user posts, plus a prompt naming that
-file. The round writes its files before launching the harness and passes the
-prompt through standard input.
+directs the harness to the saved issue input. A later round receives the new
+issue comments in the same document type and a prompt naming that file. The
+round writes its files before launching the harness and passes the prompt
+through standard input.
 
 Then read `ClaudeHarnessAdapter` and `CLAUDE_CONVERSATION_DISALLOWED_TOOLS` in
 `src/dreamcatcher/claude.py`, and `CodexHarnessAdapter` and

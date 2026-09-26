@@ -442,11 +442,11 @@ An assignment record persists:
 
 - the issue and assignment identifiers;
 - the issue title captured during assignment setup;
-- the dispatch label and selected harness, model, effort and prompt;
+- the dispatch label and selected harness, model, effort and prompt, plus its
+  harness session identifier once known;
 - branch and worktree identity;
 - pull-request identity;
 - the latest observed pull-request state, draft flag, and observation time;
-- harness identity and, once known, its harness session identifier;
 - the time of the user's latest retry request, when one has been made; and
 - the cursor identifying the latest user post accepted for delivery.
 

@@ -183,7 +183,7 @@ CODEX_ADAPTER = CodexHarnessAdapter()
 
 
 def _build_round_settings(*, request: AgentRoundLaunchRequest) -> list[str]:
-    """Return the model and effort flags that every assignment round uses."""
+    """Return the model and effort flags that every agent round uses."""
     return [
         "--model",
         request.model,
