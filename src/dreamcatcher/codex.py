@@ -1,6 +1,7 @@
 """Run Codex, and read what it streams back."""
 
 from collections.abc import Sequence
+from pathlib import Path
 from typing import ClassVar
 
 from dreamcatcher.feed import FeedEvent, FeedNote, FeedProse
@@ -47,7 +48,7 @@ class CodexHarnessAdapter(HarnessAdapter):
     program: ClassVar[str] = "codex"
 
     def build_first_round(
-        self, *, request: AgentRoundLaunchRequest
+        self, *, request: AgentRoundLaunchRequest, final_output_path: Path
     ) -> HarnessInvocation:
         """Return how to run an agent work item's first round.
 
@@ -72,6 +73,9 @@ class CodexHarnessAdapter(HarnessAdapter):
                 "exec",
                 "--json",
                 *round_arguments,
+                *_build_final_output_arguments(
+                    request=request, final_output_path=final_output_path
+                ),
                 STDIN_ARGUMENT,
             ],
             prompt=request.prompt,
@@ -82,6 +86,7 @@ class CodexHarnessAdapter(HarnessAdapter):
         *,
         request: AgentRoundLaunchRequest,
         harness_session_identifier: HarnessSessionIdentifier,
+        final_output_path: Path,
     ) -> HarnessInvocation:
         """Return how to resume the identified harness session.
 
@@ -101,6 +106,9 @@ class CodexHarnessAdapter(HarnessAdapter):
                 "--json",
                 *_build_round_settings(request=request),
                 *_build_config_overrides(settings=permission_overrides),
+                *_build_final_output_arguments(
+                    request=request, final_output_path=final_output_path
+                ),
                 harness_session_identifier,
                 STDIN_ARGUMENT,
             ],
@@ -152,6 +160,15 @@ class CodexHarnessAdapter(HarnessAdapter):
                 ]
             )
         return HarnessOutput(events=[])
+
+
+def _build_final_output_arguments(
+    *, request: AgentRoundLaunchRequest, final_output_path: Path
+) -> list[str]:
+    """Return Codex's final-message file arguments for a conversation."""
+    if request.work_kind is AgentWorkKind.CONVERSATION:
+        return ["--output-last-message", str(final_output_path)]
+    return []
 
 
 CODEX_ADAPTER = CodexHarnessAdapter()

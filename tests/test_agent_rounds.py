@@ -1,6 +1,7 @@
 import json
 import sys
 from contextlib import suppress
+from pathlib import Path
 from threading import Thread
 from time import monotonic, sleep
 from typing import cast
@@ -125,14 +126,18 @@ class Unrenderable(HarnessAdapter):
     program = "harness"
 
     def build_first_round(
-        self, *, request: AgentRoundLaunchRequest
+        self, *, request: AgentRoundLaunchRequest, final_output_path: Path
     ) -> HarnessInvocation:
         return HarnessInvocation(
             program=self.program, arguments=[], prompt=request.prompt
         )
 
     def build_resumed_round(
-        self, *, request: AgentRoundLaunchRequest, harness_session_identifier: str
+        self,
+        *,
+        request: AgentRoundLaunchRequest,
+        harness_session_identifier: str,
+        final_output_path: Path,
     ) -> HarnessInvocation:
         return HarnessInvocation(
             program=self.program, arguments=[], prompt=request.prompt

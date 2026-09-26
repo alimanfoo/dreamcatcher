@@ -265,11 +265,15 @@ def start_agent_round(
     """Start a first or resumed round through its owner's harness."""
     harness_adapter = HARNESS_ADAPTERS[request.harness]
     if request.harness_session_identifier is None:
-        invocation = harness_adapter.build_first_round(request=request.launch_request)
+        invocation = harness_adapter.build_first_round(
+            request=request.launch_request,
+            final_output_path=request.paths.final_output,
+        )
     else:
         invocation = harness_adapter.build_resumed_round(
             request=request.launch_request,
             harness_session_identifier=request.harness_session_identifier,
+            final_output_path=request.paths.final_output,
         )
     return AgentRound(
         harness=AgentRoundHarness(

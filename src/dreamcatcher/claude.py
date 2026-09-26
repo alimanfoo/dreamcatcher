@@ -1,6 +1,7 @@
 """Run Claude Code, and read what it streams back."""
 
 import json
+from pathlib import Path
 from typing import ClassVar, Protocol
 
 from dreamcatcher.feed import FeedEvent, FeedNote, FeedProse
@@ -87,7 +88,7 @@ class ClaudeHarnessAdapter(HarnessAdapter):
     program: ClassVar[str] = "claude"
 
     def build_first_round(
-        self, *, request: AgentRoundLaunchRequest
+        self, *, request: AgentRoundLaunchRequest, final_output_path: Path
     ) -> HarnessInvocation:
         """Return how to run an assignment's first round.
 
@@ -111,6 +112,7 @@ class ClaudeHarnessAdapter(HarnessAdapter):
         *,
         request: AgentRoundLaunchRequest,
         harness_session_identifier: HarnessSessionIdentifier,
+        final_output_path: Path,
     ) -> HarnessInvocation:
         """Return how to resume the identified harness session.
 
