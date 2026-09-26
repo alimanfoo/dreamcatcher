@@ -33,9 +33,11 @@ dependencies = [
 # Pin every tool whose output is enforced or committed.
 dev = [
     "complexipy==7.0.1",
+    "playwright==1.63.0",
     "pre-commit>=4.0",
     "pytest>=8.0",
     "pytest-cov>=6.0",
+    "pytest-playwright==0.9.0",
     "ruff==0.16.3",
     "ty==0.0.73",
     "uncoded==3.0.0",
@@ -59,8 +61,11 @@ doc-roots = ["README.md", "AGENTS.md", "CONTRACT.md", "docs", "specs"]
 testpaths = ["tests"]
 # The integration tests call the real gh. No CI runner has gh signed in, so the
 # default run leaves them out. Ask for them by name to run them.
-addopts = "--cov -m 'not integration'"
-markers = ["integration: calls the real gh against this repository, read-only"]
+addopts = "--cov -m 'not browser and not integration'"
+markers = [
+    "browser: runs in an installed browser against a local web server",
+    "integration: calls the real gh against this repository, read-only",
+]
 filterwarnings = ["error::EncodingWarning"]
 
 [tool.coverage.run]
