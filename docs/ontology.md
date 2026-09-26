@@ -460,10 +460,11 @@ A known global error may start a global cooldown immediately.
 
 For errors that cannot be diagnosed reliably, one piece of agent work's first
 consecutive error calls for a recovery round and its second places that work in
-fault. If two assignments or conversations enter fault, in any combination, that
-is evidence of a shared problem and starts a global cooldown. When the cooldown
-ends, Dreamcatcher clears those faults and permits recovery. This deliberately
-simple policy prevents one work-specific failure from blocking all other work.
+fault. If two assignments or conversations that remain in the status report
+enter fault, in any combination, that is evidence of a shared problem and starts
+a global cooldown. When the cooldown ends, Dreamcatcher clears those faults and
+permits recovery. This deliberately simple policy prevents one work-specific
+failure from blocking all other work.
 
 After resolving an issue-specific problem, the user may request a retry. That
 request clears any current fault on the newest assignment and issue conversation

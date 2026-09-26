@@ -165,10 +165,11 @@ input.
 One errored round receives an ordinary recovery opportunity and does not stop
 unrelated work. Two consecutive errored rounds put that assignment or
 conversation in fault; an interrupted or successful round breaks the sequence.
-When two pieces of agent work are in fault, in either combination, the scheduler
-starts a fifteen-minute global cooldown and starts no agent work during it. The
-scheduler keeps observing and reporting while it waits. The cooldown survives a
-daemon restart, and its end clears the faults so that recovery can continue.
+When two pieces of agent work that remain in the status report are in fault, in
+either combination, the scheduler starts a fifteen-minute global cooldown and
+starts no agent work during it. The scheduler keeps observing and reporting
+while it waits. The cooldown survives a daemon restart, and its end clears the
+faults so that recovery can continue.
 
 If work remains in fault because of a problem specific to its issue, fix the
 problem and request another recovery attempt:

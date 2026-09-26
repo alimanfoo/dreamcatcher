@@ -1042,6 +1042,56 @@ def test_a_failed_conversation_listing_holds_launches(conversation_scheduler):
     ]
 
 
+def test_failed_listing_keeps_visible_conversation_faults_in_the_cooldown(
+    conversation_scheduler,
+):
+    scheduler, clock, gh = conversation_scheduler
+    fault_started = clock()
+    for issue in (8, 9):
+        write_faulted_conversation(
+            state=scheduler.state,
+            issue=issue,
+            at=fault_started,
+        )
+    write_json(
+        document=SchedulerRecord(
+            at=fault_started,
+            conversation_observations=[
+                IssueConversationObservation(
+                    issue=issue,
+                    title=f"Issue {issue}",
+                    has_comments_to_answer=IssueFact(value=IssueFactValue.FALSE),
+                )
+                for issue in (8, 9)
+            ],
+        ),
+        path=scheduler.state.scheduler_record,
+    )
+    gh.fails(
+        stderr="network unavailable",
+        to=(
+            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
+            "--label dream:conversation"
+        ),
+    )
+    tick_at = clock()
+
+    observed = scheduler.tick(at=tick_at)
+
+    assert observed.cooldown == GlobalCooldown(
+        started=tick_at,
+        ends=tick_at + timedelta(minutes=15),
+    )
+    assert observed.hold is not None
+    assert observed.hold.startswith(
+        "global cooldown; could not list issue conversations"
+    )
+    assert all(
+        observation.has_comments_to_answer.value is IssueFactValue.UNKNOWN
+        for observation in observed.conversation_observations
+    )
+
+
 def test_an_ineligible_saved_conversation_is_not_polled(conversation_scheduler):
     scheduler, clock, gh = conversation_scheduler
     write_issue_conversation(state=scheduler.state, issue=8)
@@ -1077,7 +1127,7 @@ def test_an_ineligible_conversation_does_not_recover_its_errored_round(
     assert harnesses["claude"].calls == []
 
 
-def test_ineligible_conversation_faults_start_the_global_cooldown(
+def test_ineligible_conversation_faults_do_not_start_the_global_cooldown(
     conversation_scheduler,
 ):
     scheduler, clock, gh = conversation_scheduler
@@ -1092,11 +1142,8 @@ def test_ineligible_conversation_faults_start_the_global_cooldown(
 
     observed = scheduler.tick(at=tick_at)
 
-    assert observed.cooldown == GlobalCooldown(
-        started=tick_at,
-        ends=tick_at + timedelta(minutes=15),
-    )
-    assert observed.hold == "global cooldown"
+    assert observed.cooldown is None
+    assert observed.hold is None
     assert observed.conversation_observations == []
     assert count_comment_reads(gh=gh) == 0
 

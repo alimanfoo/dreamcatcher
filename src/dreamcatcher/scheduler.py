@@ -619,6 +619,25 @@ def derive_agent_work_fault(
     )
 
 
+def _count_observed_conversation_faults(
+    *,
+    conversations: list[IssueConversation],
+    observations: list[IssueConversationObservation],
+    most_recent_cooldown_ended: datetime | None,
+) -> int:
+    """Count faults among conversations this tick keeps in the report."""
+    observed_issues = {observation.issue for observation in observations}
+    return sum(
+        derive_agent_work_fault(
+            rounds=conversation.rounds,
+            retry_requested_at=conversation.record.retry_requested_at,
+            most_recent_cooldown_ended=most_recent_cooldown_ended,
+        )
+        for conversation in conversations
+        if conversation.record.issue in observed_issues
+    )
+
+
 def read_scheduler_record(
     *, state: StateDirectory, at: datetime
 ) -> SchedulerRecord | None:
@@ -1257,13 +1276,10 @@ class AgentWorkScheduler:
                 else previous_record.conversation_observations
             ),
         )
-        conversation_fault_count = sum(
-            derive_agent_work_fault(
-                rounds=conversation.rounds,
-                retry_requested_at=conversation.record.retry_requested_at,
-                most_recent_cooldown_ended=most_recent_cooldown_ended,
-            )
-            for conversation in conversations
+        conversation_fault_count = _count_observed_conversation_faults(
+            conversations=conversations,
+            observations=conversation_candidates.observations,
+            most_recent_cooldown_ended=most_recent_cooldown_ended,
         )
         cooldown = _start_cooldown_if_required(
             active=cooldown,
