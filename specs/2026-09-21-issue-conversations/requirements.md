@@ -35,7 +35,8 @@ supplies the comments and posts the agent's final answer; the agent does not
 fetch comments or post replies itself. Each round handles a batch of comments
 and returns one reply, or indicates that no reply is needed. Keep replies
 simple: address the questions together, and quote a question when that helps
-make the answer clear.
+make the answer clear. End every posted reply with a visible
+`> written by an agent` footer and Dreamcatcher's hidden marker.
 
 I can see issue conversations in `dreamcatcher status`, inspect one with
 `dreamcatcher conversation GH123`, and view its live feed to follow the agent's
