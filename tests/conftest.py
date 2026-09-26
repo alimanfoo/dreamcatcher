@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 import sys
 from collections.abc import Sequence
 from contextlib import suppress
@@ -235,17 +236,29 @@ def repo(tmp_path):
     return tmp_path
 
 
-@pytest.fixture
-def upstream(tmp_path):
-    """Return a bare repository holding main, standing in for GitHub."""
-    bare = tmp_path / "upstream.git"
-    git(arguments=["init", "--bare", "--initial-branch=main", str(bare)], cwd=tmp_path)
-    seed = tmp_path / "seed"
-    git(arguments=["init", "--initial-branch=main", str(seed)], cwd=tmp_path)
+@pytest.fixture(scope="session")
+def seeded_upstream(tmp_path_factory):
+    """Build the immutable bare repository that each test copies."""
+    directory = tmp_path_factory.mktemp("seeded-upstream")
+    bare = directory / "upstream.git"
+    git(
+        arguments=["init", "--bare", "--initial-branch=main", str(bare)],
+        cwd=directory,
+    )
+    seed = directory / "seed"
+    git(arguments=["init", "--initial-branch=main", str(seed)], cwd=directory)
     (seed / "README.md").write_text("what the seed holds\n", encoding="utf-8")
     commit(path=seed, message="seed the upstream")
     git(arguments=["remote", "add", "origin", str(bare)], cwd=seed)
     git(arguments=["push", "origin", "main"], cwd=seed)
+    return bare
+
+
+@pytest.fixture
+def upstream(seeded_upstream, tmp_path):
+    """Return a private copy of the seeded bare repository."""
+    bare = tmp_path / "upstream.git"
+    shutil.copytree(seeded_upstream, bare)
     return bare
 
 
