@@ -123,7 +123,7 @@ class DreamcatcherDaemon:
                 account=account,
                 config=self.config,
                 state=self.state,
-                requested_assignment_harness=self.harness,
+                requested_harness=self.harness,
                 clock=self.clock,
                 rounds=self.rounds,
                 max_agents=self.max_agents,

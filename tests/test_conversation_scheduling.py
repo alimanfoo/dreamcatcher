@@ -60,7 +60,8 @@ from dreamcatcher.state import StateDirectory
 
 CONVERSATION_CONFIG = """[conversation]
 label = "dream:conversation"
-harness = "claude"
+
+[conversation.claude]
 prompt = "/dream:conversation GH{issue}"
 model = "opus[1m]"
 effort = "xhigh"
@@ -80,7 +81,7 @@ def conversation_scheduler(cloned, gh):
         account=POSTED_BY,
         config=read_dreamcatcher_config(root=cloned),
         state=StateDirectory(root=cloned),
-        requested_assignment_harness=AgentHarness.CLAUDE,
+        requested_harness=AgentHarness.CLAUDE,
         clock=clock,
         rounds={},
     )

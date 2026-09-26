@@ -87,7 +87,7 @@ def create_scheduler(
         account=POSTED_BY,
         config=read_dreamcatcher_config(root=root),
         state=StateDirectory(root=root),
-        requested_assignment_harness=AgentHarness.CLAUDE,
+        requested_harness=AgentHarness.CLAUDE,
         clock=clock,
         rounds={},
         max_agents=max_agents,

@@ -20,15 +20,37 @@ CLAUDE_RECIPE = AgentRecipe(
 CODEX_RECIPE = AgentRecipe(
     prompt="$dream:smith GH{issue}", model="gpt-5.6-sol", effort="xhigh"
 )
+CLAUDE_CONVERSATION_RECIPE = AgentRecipe(
+    prompt="/dream:conversation GH{issue}", model="opus[1m]", effort="xhigh"
+)
+CODEX_CONVERSATION_RECIPE = AgentRecipe(
+    prompt="$dream:conversation GH{issue}", model="gpt-5.6-sol", effort="xhigh"
+)
 
 CONVERSATION = """
 [conversation]
 label = "dream:conversation"
-harness = "claude"
+
+[conversation.claude]
 prompt = "/dream:conversation GH{issue}"
 model = "opus[1m]"
 effort = "xhigh"
 """
+
+CODEX_CONVERSATION_BLOCK = """
+[conversation.codex]
+prompt = "$dream:conversation GH{issue}"
+model = "gpt-5.6-sol"
+effort = "xhigh"
+"""
+
+CODEX_CONVERSATION = (
+    """
+[conversation]
+label = "dream:conversation"
+"""
+    + CODEX_CONVERSATION_BLOCK
+)
 
 
 def write_config(*, root: Path, text: str) -> None:
@@ -56,24 +78,42 @@ def test_an_issue_conversation_is_configured_separately(tmp_path):
 
     assert config.conversation == IssueConversationConfig(
         label="dream:conversation",
-        harness=AgentHarness.CLAUDE,
-        prompt="/dream:conversation GH{issue}",
-        model="opus[1m]",
-        effort="xhigh",
+        claude=CLAUDE_CONVERSATION_RECIPE,
     )
     assert config.routed_harnesses == {AgentHarness.CLAUDE, AgentHarness.CODEX}
 
 
-def test_a_codex_issue_conversation_is_refused_until_it_is_supported(tmp_path):
-    write_config(
-        root=tmp_path,
-        text=(CONFIG + CONVERSATION).replace('harness = "claude"', 'harness = "codex"'),
+def test_a_conversation_one_harness_can_run_uses_that_one(tmp_path):
+    write_config(root=tmp_path, text=WITHOUT_CODEX + CODEX_CONVERSATION)
+
+    config = read_dreamcatcher_config(root=tmp_path)
+
+    assert config.conversation is not None
+    assert (
+        config.conversation.choose_harness(requested_harness=AgentHarness.CLAUDE)
+        == AgentHarness.CODEX
     )
+    assert config.routed_harnesses == {AgentHarness.CLAUDE, AgentHarness.CODEX}
 
-    with pytest.raises(ReportableError) as error:
-        read_dreamcatcher_config(root=tmp_path)
 
-    assert "Codex issue conversations are not supported yet" in str(error.value)
+def test_a_conversation_either_harness_can_run_uses_the_requested_one(tmp_path):
+    write_config(root=tmp_path, text=CONFIG + CONVERSATION + CODEX_CONVERSATION_BLOCK)
+
+    conversation = read_dreamcatcher_config(root=tmp_path).conversation
+
+    assert conversation is not None
+    assert conversation.recipes == {
+        AgentHarness.CLAUDE: CLAUDE_CONVERSATION_RECIPE,
+        AgentHarness.CODEX: CODEX_CONVERSATION_RECIPE,
+    }
+    assert (
+        conversation.choose_harness(requested_harness=AgentHarness.CLAUDE)
+        == AgentHarness.CLAUDE
+    )
+    assert (
+        conversation.choose_harness(requested_harness=AgentHarness.CODEX)
+        == AgentHarness.CODEX
+    )
 
 
 def test_the_repository_setting_the_design_gives_a_default_has_it(tmp_path):

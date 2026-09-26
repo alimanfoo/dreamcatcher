@@ -1048,7 +1048,10 @@ def _rank_issue_conversation_candidate(
 
 
 def _prepare_issue_conversation_round(
-    *, state: StateDirectory, candidate: IssueConversationCandidate
+    *,
+    state: StateDirectory,
+    candidate: IssueConversationCandidate,
+    requested_harness: AgentHarness,
 ) -> _PreparedIssueConversationRound:
     """Prepare either a fresh conversation batch or unfinished work."""
     if isinstance(candidate, IssueConversationRecoveryCandidate):
@@ -1056,6 +1059,7 @@ def _prepare_issue_conversation_round(
     conversation = candidate.conversation or create_issue_conversation(
         state=state,
         config=candidate.config,
+        requested_harness=requested_harness,
         issue=candidate.issue,
     )
     round_input = prepare_issue_conversation_input(
@@ -1191,7 +1195,7 @@ class AgentWorkScheduler:
     account: str
     config: DreamcatcherConfig
     state: StateDirectory
-    requested_assignment_harness: AgentHarness
+    requested_harness: AgentHarness
     clock: Callable[[], datetime]
     rounds: dict[str, AgentRound]
     max_agents: int = DEFAULT_MAX_AGENTS
@@ -1513,6 +1517,7 @@ class AgentWorkScheduler:
             prepared = _prepare_issue_conversation_round(
                 state=self.state,
                 candidate=candidate,
+                requested_harness=self.requested_harness,
             )
             conversation = prepared.conversation
             number = conversation.next_round_number
@@ -1604,7 +1609,7 @@ class AgentWorkScheduler:
         )
         assignment = creator.create(
             route=self.config.dispatch_routes[label],
-            requested_harness=self.requested_assignment_harness,
+            requested_harness=self.requested_harness,
             issue=issue,
             at=at,
         )
