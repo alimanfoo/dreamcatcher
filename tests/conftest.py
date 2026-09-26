@@ -254,14 +254,6 @@ def seeded_upstream(tmp_path_factory):
     return bare
 
 
-@pytest.fixture
-def upstream(seeded_upstream, tmp_path):
-    """Return a private copy of the seeded bare repository."""
-    bare = tmp_path / "upstream.git"
-    shutil.copytree(seeded_upstream, bare)
-    return bare
-
-
 @pytest.fixture(scope="session")
 def seeded_checkout(seeded_upstream, tmp_path_factory):
     """Build the immutable checkout that each test copies."""
@@ -273,8 +265,9 @@ def seeded_checkout(seeded_upstream, tmp_path_factory):
 
 
 @pytest.fixture
-def cloned(seeded_checkout, upstream, tmp_path):
+def cloned(seeded_checkout, seeded_upstream, tmp_path):
     """Return a main checkout of upstream, with an origin/main to cut from."""
+    shutil.copytree(seeded_upstream, tmp_path / "upstream.git")
     checkout = tmp_path / "checkout"
     shutil.copytree(seeded_checkout, checkout)
     return checkout
