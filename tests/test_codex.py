@@ -2,13 +2,24 @@ from conftest import streamed
 
 from dreamcatcher.codex import CODEX_ADAPTER, STDIN_ARGUMENT
 from dreamcatcher.feed import FeedNote, FeedProse
-from dreamcatcher.harness_adapters import AgentRoundLaunchRequest, HarnessInvocation
+from dreamcatcher.harness_adapters import (
+    AgentRoundLaunchRequest,
+    AgentWorkKind,
+    HarnessInvocation,
+)
 
 ROUND_LAUNCH_REQUEST = AgentRoundLaunchRequest(
     agent_work_identifier="GH9-20260819-184158",
     model="gpt-5.6-sol",
     effort="xhigh",
     prompt="$dream:smith GH9",
+)
+CONVERSATION_LAUNCH_REQUEST = AgentRoundLaunchRequest(
+    agent_work_identifier="conversation-GH9",
+    model="gpt-5.6-sol",
+    effort="xhigh",
+    prompt="Answer GH9.",
+    work_kind=AgentWorkKind.CONVERSATION,
 )
 
 CODEX_ROUND_SETTINGS = [
@@ -64,6 +75,47 @@ def test_a_resume_replays_the_settings_and_the_permissions_codex_forgets():
             STDIN_ARGUMENT,
         ],
         prompt="$dream:smith GH9",
+    )
+
+
+def test_a_first_conversation_round_cannot_write_or_request_approval():
+    assert CODEX_ADAPTER.build_first_round(
+        request=CONVERSATION_LAUNCH_REQUEST
+    ) == HarnessInvocation(
+        program="codex",
+        arguments=[
+            "exec",
+            "--json",
+            *CODEX_ROUND_SETTINGS,
+            "-c",
+            'sandbox_mode="read-only"',
+            "-c",
+            'approval_policy="never"',
+            STDIN_ARGUMENT,
+        ],
+        prompt="Answer GH9.",
+    )
+
+
+def test_a_resumed_conversation_round_cannot_write_or_request_approval():
+    assert CODEX_ADAPTER.build_resumed_round(
+        request=CONVERSATION_LAUNCH_REQUEST,
+        harness_session_identifier="01a0213c-9c67",
+    ) == HarnessInvocation(
+        program="codex",
+        arguments=[
+            "exec",
+            "resume",
+            "--json",
+            *CODEX_ROUND_SETTINGS,
+            "-c",
+            'sandbox_mode="read-only"',
+            "-c",
+            'approval_policy="never"',
+            "01a0213c-9c67",
+            STDIN_ARGUMENT,
+        ],
+        prompt="Answer GH9.",
     )
 
 

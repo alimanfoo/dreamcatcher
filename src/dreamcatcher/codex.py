@@ -6,6 +6,7 @@ from typing import ClassVar
 from dreamcatcher.feed import FeedEvent, FeedNote, FeedProse
 from dreamcatcher.harness_adapters import (
     AgentRoundLaunchRequest,
+    AgentWorkKind,
     HarnessAdapter,
     HarnessInvocation,
     HarnessOutput,
@@ -21,16 +22,22 @@ NETWORK_ACCESS_OVERRIDE = "sandbox_workspace_write.network_access=true"
 # needs no word of its own for this.
 STDIN_ARGUMENT = "-"
 
-# What an unattended round may do without being asked. The first round gets this
-# from `--approve-for-me`, which sends every approval to Codex's own reviewer and
-# turns on the workspace-write sandbox. A resume does not keep any of that, so it
-# has to set the same permissions again itself. This is the port's list, and it is
-# how Codex avoids ever stopping to wait for a person.
-RESUME_PERMISSION_OVERRIDES = (
+# What an unattended assignment resume may do without being asked. Its first
+# round gets this from `--approve-for-me`, but a resume does not keep it, so the
+# resumed command has to set the same permissions again itself.
+ASSIGNMENT_RESUME_PERMISSION_OVERRIDES = (
     'sandbox_mode="workspace-write"',
     NETWORK_ACCESS_OVERRIDE,
     'approval_policy="on-request"',
     'approvals_reviewer="auto_review"',
+)
+
+# A conversation may investigate but must not edit the checkout or ask a person
+# to approve wider access. Codex's read-only sandbox also denies network access,
+# so a conversation cannot use gh to change GitHub.
+CONVERSATION_PERMISSION_OVERRIDES = (
+    'sandbox_mode="read-only"',
+    'approval_policy="never"',
 )
 
 
@@ -42,19 +49,29 @@ class CodexHarnessAdapter(HarnessAdapter):
     def build_first_round(
         self, *, request: AgentRoundLaunchRequest
     ) -> HarnessInvocation:
-        """Return how to run an assignment's first round.
+        """Return how to run an agent work item's first round.
 
         The command does not say which directory to work in, so whoever runs
-        it has to run it in the assignment's worktree.
+        it has to run it in the agent work item's worktree.
         """
+        round_arguments = (
+            [
+                *_build_round_settings(request=request),
+                *_build_config_overrides(settings=CONVERSATION_PERMISSION_OVERRIDES),
+            ]
+            if request.work_kind is AgentWorkKind.CONVERSATION
+            else [
+                "--approve-for-me",
+                *_build_round_settings(request=request),
+                *_build_config_overrides(settings=[NETWORK_ACCESS_OVERRIDE]),
+            ]
+        )
         return HarnessInvocation(
             program=self.program,
             arguments=[
                 "exec",
                 "--json",
-                "--approve-for-me",
-                *_build_round_settings(request=request),
-                *_build_config_overrides(settings=[NETWORK_ACCESS_OVERRIDE]),
+                *round_arguments,
                 STDIN_ARGUMENT,
             ],
             prompt=request.prompt,
@@ -71,6 +88,11 @@ class CodexHarnessAdapter(HarnessAdapter):
         Codex forgets the model and the effort when it resumes, so this sets
         both again.
         """
+        permission_overrides = (
+            CONVERSATION_PERMISSION_OVERRIDES
+            if request.work_kind is AgentWorkKind.CONVERSATION
+            else ASSIGNMENT_RESUME_PERMISSION_OVERRIDES
+        )
         return HarnessInvocation(
             program=self.program,
             arguments=[
@@ -78,7 +100,7 @@ class CodexHarnessAdapter(HarnessAdapter):
                 "resume",
                 "--json",
                 *_build_round_settings(request=request),
-                *_build_config_overrides(settings=RESUME_PERMISSION_OVERRIDES),
+                *_build_config_overrides(settings=permission_overrides),
                 harness_session_identifier,
                 STDIN_ARGUMENT,
             ],
