@@ -452,7 +452,7 @@ def test_an_answer_is_posted_trimmed_and_marked(fake):
     )
 
     assert json.loads(gh.calls[0].prompt) == {
-        "body": f"The answer.\n\n{AGENT_POST_MARKER}"
+        "body": f"The answer.\n\n> written by an agent\n\n{AGENT_POST_MARKER}"
     }
 
 
