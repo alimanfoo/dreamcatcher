@@ -32,6 +32,7 @@ from dreamcatcher.documents import (
     append_text,
     read_json,
     read_text,
+    remove_file,
     write_json,
     write_text,
 )
@@ -265,11 +266,15 @@ def start_agent_round(
     """Start a first or resumed round through its owner's harness."""
     harness_adapter = HARNESS_ADAPTERS[request.harness]
     if request.harness_session_identifier is None:
-        invocation = harness_adapter.build_first_round(request=request.launch_request)
+        invocation = harness_adapter.build_first_round(
+            request=request.launch_request,
+            final_output_path=request.paths.final_output,
+        )
     else:
         invocation = harness_adapter.build_resumed_round(
             request=request.launch_request,
             harness_session_identifier=request.harness_session_identifier,
+            final_output_path=request.paths.final_output,
         )
     return AgentRound(
         harness=AgentRoundHarness(
@@ -422,6 +427,7 @@ class AgentRound:
         if plan.input is not None:
             write_json(document=plan.input, path=paths.round_input)
         write_text(text=harness.invocation.prompt, path=paths.prompt)
+        remove_file(path=paths.final_output)
         self.harness_process = spawn_command(
             program=harness.invocation.program,
             arguments=harness.invocation.arguments,

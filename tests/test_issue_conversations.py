@@ -9,7 +9,7 @@ from dreamcatcher.agent_rounds import (
     IssueConversationInput,
     IssueConversationRoundPurpose,
 )
-from dreamcatcher.config import AgentHarness, IssueConversationConfig
+from dreamcatcher.config import AgentHarness, AgentRecipe, IssueConversationConfig
 from dreamcatcher.documents import write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import add_detached_worktree, is_linked_worktree
@@ -40,15 +40,17 @@ from dreamcatcher.prompts import AGENT_POST_MARKER
 from dreamcatcher.state import StateDirectory
 
 PROMPT_TEMPLATE = "/dream:conversation GH" + "{issue}"
+CODEX_PROMPT_TEMPLATE = "$dream:conversation GH" + "{issue}"
 
 
 def conversation_config() -> IssueConversationConfig:
     return IssueConversationConfig(
         label="dream:conversation",
-        harness=AgentHarness.CLAUDE,
-        prompt=PROMPT_TEMPLATE,
-        model="opus[1m]",
-        effort="xhigh",
+        claude=AgentRecipe(
+            prompt=PROMPT_TEMPLATE,
+            model="opus[1m]",
+            effort="xhigh",
+        ),
     )
 
 
@@ -107,21 +109,60 @@ def test_a_conversation_gets_a_detached_worktree_at_fetched_main(cloned):
     state = StateDirectory(root=cloned)
 
     created = create_issue_conversation(
-        state=state, config=conversation_config(), issue=issue()
+        state=state,
+        config=conversation_config(),
+        requested_harness=AgentHarness.CLAUDE,
+        issue=issue(),
     )
 
     assert created.identifier == "conversation-GH8"
     assert created.worktree == state.conversation_worktrees / "GH8"
     assert created.worktree.joinpath(".git").is_file()
     assert created.record.title == "Why does this happen?"
+    assert created.record.harness == AgentHarness.CLAUDE
     assert not state.worktrees.exists()
     assert read_issue_conversations(state=state) == [created]
     assert (
         create_issue_conversation(
-            state=state, config=conversation_config(), issue=issue()
+            state=state,
+            config=IssueConversationConfig(
+                label="dream:conversation",
+                codex=AgentRecipe(
+                    prompt="$dream:conversation GH{issue}",
+                    model="gpt-5.6-sol",
+                    effort="high",
+                ),
+            ),
+            requested_harness=AgentHarness.CODEX,
+            issue=issue(),
         )
         == created
     )
+
+
+def test_a_new_conversation_records_the_requested_harness_recipe(cloned):
+    state = StateDirectory(root=cloned)
+    config = IssueConversationConfig(
+        label="dream:conversation",
+        claude=conversation_config().recipes[AgentHarness.CLAUDE],
+        codex=AgentRecipe(
+            prompt=CODEX_PROMPT_TEMPLATE,
+            model="gpt-5.6-sol",
+            effort="high",
+        ),
+    )
+
+    created = create_issue_conversation(
+        state=state,
+        config=config,
+        requested_harness=AgentHarness.CODEX,
+        issue=issue(),
+    )
+
+    assert created.record.harness == AgentHarness.CODEX
+    assert created.record.prompt == CODEX_PROMPT_TEMPLATE
+    assert created.record.model == "gpt-5.6-sol"
+    assert created.record.effort == "high"
 
 
 def test_an_unrecorded_conversation_worktree_is_not_forced_away(cloned):
@@ -131,7 +172,10 @@ def test_an_unrecorded_conversation_worktree_is_not_forced_away(cloned):
 
     with pytest.raises(ReportableError) as error:
         create_issue_conversation(
-            state=state, config=conversation_config(), issue=issue()
+            state=state,
+            config=conversation_config(),
+            requested_harness=AgentHarness.CLAUDE,
+            issue=issue(),
         )
 
     assert "its unrecorded worktree already exists" in str(error.value)
@@ -151,7 +195,10 @@ def test_a_failed_conversation_setup_removes_the_worktree_it_added(cloned, monke
 
     with pytest.raises(ReportableError, match="cannot write the record"):
         create_issue_conversation(
-            state=state, config=conversation_config(), issue=issue()
+            state=state,
+            config=conversation_config(),
+            requested_harness=AgentHarness.CLAUDE,
+            issue=issue(),
         )
 
     assert not is_linked_worktree(path=path)
@@ -209,7 +256,10 @@ def test_only_new_unmarked_comments_from_the_account_are_delivered():
 def test_round_input_freezes_the_issue_comments_and_revision(cloned):
     state = StateDirectory(root=cloned)
     conversation = create_issue_conversation(
-        state=state, config=conversation_config(), issue=issue()
+        state=state,
+        config=conversation_config(),
+        requested_harness=AgentHarness.CLAUDE,
+        issue=issue(),
     )
 
     frozen = prepare_issue_conversation_input(

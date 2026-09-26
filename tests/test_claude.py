@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from pathlib import Path
 
 import pytest
 from conftest import streamed
@@ -35,6 +36,7 @@ CLAUDE_BASE_ARGUMENTS = [
     "--name",
     "GH9-20260819-184158",
 ]
+FINAL_OUTPUT_PATH = Path("rounds") / "1" / "final.md"
 
 
 def assistant(*, blocks: Sequence[dict], parent: str | None = None) -> str:
@@ -48,7 +50,8 @@ def assistant(*, blocks: Sequence[dict], parent: str | None = None) -> str:
 # Neither command names the prompt, which is what has Claude read it from stdin.
 def test_a_first_round_names_the_model_and_the_effort_it_was_dispatched_with():
     assert CLAUDE_ADAPTER.build_first_round(
-        request=ROUND_LAUNCH_REQUEST
+        request=ROUND_LAUNCH_REQUEST,
+        final_output_path=FINAL_OUTPUT_PATH,
     ) == HarnessInvocation(
         program="claude",
         arguments=[*CLAUDE_BASE_ARGUMENTS, "--model", "opus[1m]", "--effort", "xhigh"],
@@ -58,7 +61,9 @@ def test_a_first_round_names_the_model_and_the_effort_it_was_dispatched_with():
 
 def test_a_resume_continues_the_harness_session_and_replays_no_settings():
     assert CLAUDE_ADAPTER.build_resumed_round(
-        request=ROUND_LAUNCH_REQUEST, harness_session_identifier="abc-123"
+        request=ROUND_LAUNCH_REQUEST,
+        harness_session_identifier="abc-123",
+        final_output_path=FINAL_OUTPUT_PATH,
     ) == HarnessInvocation(
         program="claude",
         arguments=[*CLAUDE_BASE_ARGUMENTS, "--resume", "abc-123"],
@@ -75,7 +80,9 @@ def test_a_conversation_round_denies_implementation_and_github_tools():
         work_kind=AgentWorkKind.CONVERSATION,
     )
 
-    invocation = CLAUDE_ADAPTER.build_first_round(request=request)
+    invocation = CLAUDE_ADAPTER.build_first_round(
+        request=request, final_output_path=FINAL_OUTPUT_PATH
+    )
 
     assert "--allowedTools" not in invocation.arguments
     denied_at = invocation.arguments.index("--disallowedTools")

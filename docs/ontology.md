@@ -87,14 +87,14 @@ identifier.
 
 An **assignment skill** is an agent skill which follows Dreamcatcher's
 agent-facing contract and guides an agent through an agent assignment. It may be
-invoked by an assignment recipe.
+invoked by an agent recipe.
 
-### Assignment recipe
+### Agent recipe
 
-An **assignment recipe** specifies how Dreamcatcher starts an agent working on
-an assignment through a particular agent harness. It supplies the model, effort,
-and initial prompt for that harness. The initial prompt normally invokes an
-assignment skill.
+An **agent recipe** specifies how Dreamcatcher starts one kind of agent work
+through a particular agent harness. It supplies the model, effort, and initial
+prompt for that harness. A recipe for an assignment normally invokes an
+assignment skill; a recipe for a conversation asks the agent to answer the user.
 
 ### Dispatch label
 
@@ -103,9 +103,11 @@ handling by Dreamcatcher.
 
 ### Dispatch route
 
-A **dispatch route** maps one dispatch label to one or more assignment recipes.
-Each recipe uses a particular agent harness. A route may offer recipes for all
-the harnesses Dreamcatcher supports or for only some of them.
+A **dispatch route** maps one dispatch label to one or more agent recipes for
+assignments. The conversation configuration similarly maps its label to one or
+more agent recipes for issue conversations. Each recipe uses a particular agent
+harness. A route may offer recipes for all the harnesses Dreamcatcher supports
+or for only some of them.
 
 ### Agent round
 
@@ -219,8 +221,7 @@ more than one dispatch label has a routing conflict. The order of dispatch
 routes in the configuration does not give one route precedence over another.
 
 Exactly one dispatch label selects exactly one dispatch route. Dreamcatcher then
-selects an assignment recipe for the agent harness through which the assignment
-will run.
+selects an agent recipe for the harness through which the assignment will run.
 
 ### Completing an assignment
 

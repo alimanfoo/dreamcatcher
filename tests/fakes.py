@@ -81,13 +81,27 @@ class Fake:
         self._answer(lines=[Line(text=stderr, stream=Stream.ERR)], status=status, to=to)
 
     def streams(
-        self, *, lines: list[Line], delay: float = 0, status: int = 0, to: str = ""
+        self,
+        *,
+        lines: list[Line],
+        delay: float = 0,
+        status: int = 0,
+        to: str = "",
+        final_output: str | None = None,
     ) -> None:
         """Answer with these lines, one at a time, as a harness does.
 
         The delay is what leaves a round running long enough to be interrupted.
+        A final output is written to the path named by Codex's last-message
+        argument before the stand-in exits.
         """
-        self._answer(lines=lines, status=status, delay=delay, to=to)
+        self._answer(
+            lines=lines,
+            status=status,
+            delay=delay,
+            to=to,
+            final_output=final_output,
+        )
 
     @property
     def calls(self) -> list[Call]:
@@ -102,7 +116,13 @@ class Fake:
         ]
 
     def _answer(
-        self, *, lines: list[Line], status: int = 0, delay: float = 0, to: str = ""
+        self,
+        *,
+        lines: list[Line],
+        status: int = 0,
+        delay: float = 0,
+        to: str = "",
+        final_output: str | None = None,
     ) -> None:
         _append(
             path=_scripted(base=self.base),
@@ -111,6 +131,7 @@ class Fake:
                 "lines": [asdict(line) for line in lines],
                 "status": status,
                 "delay": delay,
+                "final_output": final_output,
             },
         )
 
@@ -154,6 +175,11 @@ def replay(*, base: Path, arguments: list[str]) -> int:
         written.buffer.write(line["text"].encode("utf-8"))
         written.buffer.flush()
         sleep(answer["delay"])
+    if answer.get("final_output") is not None:
+        output_argument = arguments.index("--output-last-message")
+        Path(arguments[output_argument + 1]).write_bytes(
+            answer["final_output"].encode("utf-8")
+        )
     return int(answer["status"])
 
 

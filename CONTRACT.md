@@ -130,17 +130,24 @@ existing transcript when a new question refers to an earlier answer. Before a
 later round starts, Dreamcatcher asks Git to update the idle worktree to fetched
 main, discarding every local worktree change left by the earlier investigation.
 
-An issue conversation is read-only work. Its instructions must not tell the
-agent to edit the worktree, create a branch, commit or push, open a pull
-request, change the issue, post to GitHub, or contact the user elsewhere.
+An issue conversation is investigation-only work. Its instructions must not tell
+the agent to create a branch, commit or push, open a pull request, change the
+issue, post to GitHub, or contact the user elsewhere. Dreamcatcher reinforces
+that contract with harness-specific controls. Claude denies its direct editing
+and GitHub mutation tool families, though its general command tool can write
+files. Codex runs commands in a workspace-write sandbox so it can use scratch
+files and local reproductions, while command network access is off and approval
+requests are rejected. Local checkout writes are discarded by the refresh before
+the next batch.
+
 Dreamcatcher owns publication: when the harness exits successfully, the round
 appends the agent marker to the final result and posts it before the round ends.
 A failed post makes the round errored.
 
-Issue conversations currently run through Claude. While the issue remains
-eligible, Dreamcatcher retries an interrupted or errored round's saved input and
-revision without collecting comments or refreshing the worktree. It resumes the
-recorded harness session with a recovery prompt. If the first invocation did not
-record a session identifier, it starts a new session with the configured prompt
-and the same saved input. The configured conversation prompt needs no special
-recovery instructions.
+Issue conversations run through Claude or Codex and keep the harness chosen at
+creation. While the issue remains eligible, Dreamcatcher retries an interrupted
+or errored round's saved input and revision without collecting comments or
+refreshing the worktree. It resumes the recorded harness session with a recovery
+prompt. If the first invocation did not record a session identifier, it starts a
+new session with the configured prompt and the same saved input. The configured
+conversation prompt needs no special recovery instructions.

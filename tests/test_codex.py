@@ -1,14 +1,29 @@
+from pathlib import Path
+
+import pytest
 from conftest import streamed
 
 from dreamcatcher.codex import CODEX_ADAPTER, STDIN_ARGUMENT
+from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedNote, FeedProse
-from dreamcatcher.harness_adapters import AgentRoundLaunchRequest, HarnessInvocation
+from dreamcatcher.harness_adapters import (
+    AgentRoundLaunchRequest,
+    AgentWorkKind,
+    HarnessInvocation,
+)
 
 ROUND_LAUNCH_REQUEST = AgentRoundLaunchRequest(
     agent_work_identifier="GH9-20260819-184158",
     model="gpt-5.6-sol",
     effort="xhigh",
     prompt="$dream:smith GH9",
+)
+CONVERSATION_LAUNCH_REQUEST = AgentRoundLaunchRequest(
+    agent_work_identifier="conversation-GH9",
+    model="gpt-5.6-sol",
+    effort="xhigh",
+    prompt="Answer GH9.",
+    work_kind=AgentWorkKind.CONVERSATION,
 )
 
 CODEX_ROUND_SETTINGS = [
@@ -17,6 +32,7 @@ CODEX_ROUND_SETTINGS = [
     "-c",
     'model_reasoning_effort="xhigh"',
 ]
+FINAL_OUTPUT_PATH = Path("rounds") / "1" / "final.md"
 
 
 def completed(**item) -> str:
@@ -26,7 +42,8 @@ def completed(**item) -> str:
 # Each command ends in the word that has Codex read its prompt from stdin.
 def test_a_first_round_runs_where_it_is_launched_under_codexs_own_reviewer():
     assert CODEX_ADAPTER.build_first_round(
-        request=ROUND_LAUNCH_REQUEST
+        request=ROUND_LAUNCH_REQUEST,
+        final_output_path=FINAL_OUTPUT_PATH,
     ) == HarnessInvocation(
         program="codex",
         arguments=[
@@ -44,7 +61,9 @@ def test_a_first_round_runs_where_it_is_launched_under_codexs_own_reviewer():
 
 def test_a_resume_replays_the_settings_and_the_permissions_codex_forgets():
     assert CODEX_ADAPTER.build_resumed_round(
-        request=ROUND_LAUNCH_REQUEST, harness_session_identifier="01a0213c-9c67"
+        request=ROUND_LAUNCH_REQUEST,
+        harness_session_identifier="01a0213c-9c67",
+        final_output_path=FINAL_OUTPUT_PATH,
     ) == HarnessInvocation(
         program="codex",
         arguments=[
@@ -65,6 +84,65 @@ def test_a_resume_replays_the_settings_and_the_permissions_codex_forgets():
         ],
         prompt="$dream:smith GH9",
     )
+
+
+def test_a_first_conversation_round_can_write_without_network_or_approval():
+    assert CODEX_ADAPTER.build_first_round(
+        request=CONVERSATION_LAUNCH_REQUEST,
+        final_output_path=FINAL_OUTPUT_PATH,
+    ) == HarnessInvocation(
+        program="codex",
+        arguments=[
+            "exec",
+            "--json",
+            *CODEX_ROUND_SETTINGS,
+            "-c",
+            'sandbox_mode="workspace-write"',
+            "-c",
+            "sandbox_workspace_write.network_access=false",
+            "-c",
+            'approval_policy="never"',
+            "--output-last-message",
+            str(FINAL_OUTPUT_PATH),
+            STDIN_ARGUMENT,
+        ],
+        prompt="Answer GH9.",
+    )
+
+
+def test_a_resumed_conversation_round_can_write_without_network_or_approval():
+    assert CODEX_ADAPTER.build_resumed_round(
+        request=CONVERSATION_LAUNCH_REQUEST,
+        harness_session_identifier="01a0213c-9c67",
+        final_output_path=FINAL_OUTPUT_PATH,
+    ) == HarnessInvocation(
+        program="codex",
+        arguments=[
+            "exec",
+            "resume",
+            "--json",
+            *CODEX_ROUND_SETTINGS,
+            "-c",
+            'sandbox_mode="workspace-write"',
+            "-c",
+            "sandbox_workspace_write.network_access=false",
+            "-c",
+            'approval_policy="never"',
+            "--output-last-message",
+            str(FINAL_OUTPUT_PATH),
+            "01a0213c-9c67",
+            STDIN_ARGUMENT,
+        ],
+        prompt="Answer GH9.",
+    )
+
+
+def test_a_conversation_refuses_a_final_output_path_windows_cannot_carry():
+    with pytest.raises(ReportableError, match="percent sign"):
+        CODEX_ADAPTER.build_first_round(
+            request=CONVERSATION_LAUNCH_REQUEST,
+            final_output_path=Path("rounds") / "%TEMP%" / "final.md",
+        )
 
 
 def test_a_person_continues_the_harness_session_with_codexs_interactive_resume():
