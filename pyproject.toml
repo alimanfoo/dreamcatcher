@@ -59,8 +59,8 @@ doc-roots = ["README.md", "AGENTS.md", "CONTRACT.md", "docs", "specs"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# The integration tests call the real gh. No CI runner has gh signed in, so the
-# default run leaves them out. Ask for them by name to run them.
+# Integration tests call the real gh, and browser tests need Chromium. The
+# default run leaves both out.
 addopts = "--cov -m 'not browser and not integration'"
 markers = [
     "browser: runs in an installed browser against a local web server",

@@ -6,8 +6,7 @@ import pytest
 from playwright.sync_api import Locator, Page, expect
 from web_browser import (
     BROWSER_ASSIGNMENT_IDENTIFIER,
-    create_fabricated_web_app,
-    serve_web_app,
+    serve_fabricated_web,
 )
 
 pytestmark = pytest.mark.browser
@@ -21,8 +20,7 @@ FEED_IS_AT_END = """() => {
 @pytest.fixture
 def live_web(tmp_path, daemon) -> Iterator[str]:
     """Serve the fabricated web app for one browser test."""
-    application = create_fabricated_web_app(root=tmp_path)
-    with serve_web_app(application=application) as address:
+    with serve_fabricated_web(root=tmp_path) as address:
         yield address
 
 

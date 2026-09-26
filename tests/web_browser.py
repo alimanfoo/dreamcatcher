@@ -7,7 +7,6 @@ from pathlib import Path
 from threading import Thread
 
 from clocks import DISPLAY_TIME_ZONE, PINNED
-from flask import Flask
 from records import write_feed
 from status_fabrications import (
     ASSIGNMENT_TIMESTAMP,
@@ -26,8 +25,9 @@ BROWSER_ASSIGNMENT_IDENTIFIER = f"GH13-{ASSIGNMENT_TIMESTAMP}"
 FEED_LINE_COUNT_PER_ROUND = 40
 
 
-def create_fabricated_web_app(*, root: Path) -> Flask:
-    """Create the web app with a long two-round assignment feed."""
+@contextmanager
+def serve_fabricated_web(*, root: Path) -> Iterator[str]:
+    """Serve representative state on an available port until the caller exits."""
     state = StateDirectory(root=root)
     fabricate_conversation(state=state)
     fabricate_everything(state=state)
@@ -48,16 +48,11 @@ def create_fabricated_web_app(*, root: Path) -> Flask:
                 for line_number in range(1, FEED_LINE_COUNT_PER_ROUND + 1)
             ],
         )
-    return create_app(
+    application = create_app(
         state=state,
         clock=lambda: LOOKED_AT,
         zone=DISPLAY_TIME_ZONE,
     )
-
-
-@contextmanager
-def serve_web_app(*, application: Flask) -> Iterator[str]:
-    """Serve an application on an available loopback port until the caller exits."""
     server = make_server(WEB_HOST, 0, application, threaded=True)
     thread = Thread(target=server.serve_forever, name="fabricated-web-server")
     thread.start()
