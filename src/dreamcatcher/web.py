@@ -403,6 +403,7 @@ def _show_assignment_tail(
         context=WebAgentTailContext(
             status=str(status.value),
             status_label=_compose_assignment_status_label(status=status),
+            detail=status.detail,
             rounds=_compose_agent_rounds(
                 round_statuses=status.round_statuses, zone=zone
             ),

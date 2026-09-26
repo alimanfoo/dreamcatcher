@@ -1404,7 +1404,10 @@ class AgentWorkScheduler:
         inspection_results: list[AgentAssignmentInspectionResult] = []
         open_assignments = find_open_agent_assignments_by_issue(assignments=assignments)
         for assignment in open_assignments.values():
-            if assignment.identifier in self.rounds:
+            if (
+                assignment.identifier in self.rounds
+                and assignment.rounds[-1].outcome is AgentRoundOutcome.RUNNING
+            ):
                 continue
             inspection_result = inspect_agent_assignment(
                 repository=self.repository,

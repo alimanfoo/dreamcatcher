@@ -645,6 +645,7 @@ def test_a_tail_fragment_matches_its_golden(tmp_path, daemon, pytestconfig):
         path=FIXTURES / "web" / "tail.html",
         config=pytestconfig,
     )
+    assert 'id="assignment-detail"' in response.text
 
 
 def test_a_quiet_tail_has_no_appendable_text_nodes(tmp_path):
@@ -662,7 +663,8 @@ def test_a_quiet_tail_has_no_appendable_text_nodes(tmp_path):
         '<input type="hidden" id="cursor" name="cursor" value="1:0" '
         'hx-swap-oob="true"><span'
     )
-    assert "</span><aside" in response.text
+    assert '</span><p id="assignment-detail"' in response.text
+    assert "</p><aside" in response.text
     assert response.text.endswith("</aside>")
 
 
