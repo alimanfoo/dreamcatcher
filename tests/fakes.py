@@ -162,13 +162,13 @@ def _launcher(*, base: Path) -> None:
     replayer = Path(__file__).resolve()
     if os.name == "nt":
         base.with_name(f"{base.name}.cmd").write_text(
-            f'@echo off\n"{sys.executable}" "{replayer}" "{base}" %*\n'
+            f'@echo off\n"{sys.executable}" -S "{replayer}" "{base}" %*\n'
             "exit /b %errorlevel%\n",
             encoding="utf-8",
         )
         return
     base.write_text(
-        f'#!/bin/sh\nexec "{sys.executable}" "{replayer}" "{base}" "$@"\n',
+        f'#!/bin/sh\nexec "{sys.executable}" -S "{replayer}" "{base}" "$@"\n',
         encoding="utf-8",
     )
     base.chmod(base.stat().st_mode | stat.S_IXUSR)
