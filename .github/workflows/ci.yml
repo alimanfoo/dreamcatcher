@@ -25,7 +25,7 @@ jobs:
       - run: uv sync --locked
       # Arms the EncodingWarning gate. Without it the interpreter never emits
       # the warning, and pytest refuses to run.
-      - run: uv run pytest -n auto --durations=30
+      - run: uv run pytest -n 2 --durations=30
         env:
           PYTHONWARNDEFAULTENCODING: "1"
 
