@@ -368,7 +368,7 @@ def post_issue_conversation_answer(
     response = post_issue_comment(
         repository=repository,
         issue=issue,
-        body=f"{answer}\n\n{AGENT_POST_MARKER}",
+        body=f"{answer}\n\n> written by an agent\n\n{AGENT_POST_MARKER}",
     )
     if isinstance(response, UnknownGitHubResponse):
         raise ReportableError(

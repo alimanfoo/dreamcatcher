@@ -339,7 +339,7 @@ def test_an_initial_conversation_freezes_input_runs_claude_and_publishes_once(
     post_calls = [call for call in gh.calls if call.arguments[:4] == POST_PATH.split()]
     assert len(post_calls) == 1
     assert json.loads(post_calls[0].prompt)["body"].endswith(
-        f"The scheduler waits for work.\n\n{AGENT_POST_MARKER}"
+        f"The scheduler waits for work.\n\n> written by an agent\n\n{AGENT_POST_MARKER}"
     )
     assert not any(call.arguments[:2] == ["pr", "create"] for call in gh.calls)
 
@@ -389,8 +389,8 @@ def test_codex_first_and_resumed_rounds_capture_and_publish_final_messages(
     ]
     post_calls = [call for call in gh.calls if call.arguments[:4] == POST_PATH.split()]
     assert [json.loads(call.prompt)["body"] for call in post_calls] == [
-        f"The first answer.\n\n{AGENT_POST_MARKER}",
-        f"The follow-up answer.\n\n{AGENT_POST_MARKER}",
+        f"The first answer.\n\n> written by an agent\n\n{AGENT_POST_MARKER}",
+        f"The follow-up answer.\n\n> written by an agent\n\n{AGENT_POST_MARKER}",
     ]
 
 
