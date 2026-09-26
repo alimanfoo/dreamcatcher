@@ -1,6 +1,7 @@
 import json
 import sys
 from contextlib import suppress
+from datetime import datetime
 from threading import Thread
 from time import monotonic, sleep
 from typing import cast
@@ -634,6 +635,11 @@ def test_a_round_interrupted_as_its_harness_succeeds_is_not_finished(
 def test_an_errored_ending_refuses_a_success_status_without_a_reason():
     with pytest.raises(ValueError, match="cannot have exit status 0 and no reason"):
         ErroredAgentRoundEnding(at=PINNED, status=0)
+
+
+def test_a_successful_ending_refuses_a_time_without_a_zone():
+    with pytest.raises(ValueError, match="timezone info"):
+        compose_agent_round_ending(at=datetime(2026, 8, 19, 18, 41, 58), status=0)
 
 
 def test_a_round_somebody_stopped_records_interruption(fake, worktree, directory):

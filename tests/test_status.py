@@ -436,9 +436,18 @@ def test_an_assignment_with_no_scheduler_observation_is_unknown(state):
     assert status.detail == "no current scheduler observation"
 
 
-def test_a_round_ending_after_the_latest_tick_waits_for_the_next_update(state):
+@pytest.mark.parametrize("launched_agent_work_identifier", [None, ASSIGNMENT_ID])
+def test_a_round_ending_after_the_latest_tick_waits_for_the_next_update(
+    state, launched_agent_work_identifier
+):
     ran(state=state, number=1, ended_at=LOOKED_AT + timedelta(minutes=1))
-    write_tick(state=state, tick=SchedulerRecord(at=LOOKED_AT))
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=LOOKED_AT,
+            launched_agent_work_identifier=launched_agent_work_identifier,
+        ),
+    )
 
     status = only_assignment(state=state)
 
@@ -446,8 +455,9 @@ def test_a_round_ending_after_the_latest_tick_waits_for_the_next_update(state):
     assert status.detail == "round 1 ended, awaiting next update"
 
 
-def test_a_tick_after_the_latest_ending_needs_an_observation(state):
-    ran(state=state, number=1, ended_at=LOOKED_AT - timedelta(minutes=1))
+@pytest.mark.parametrize("ended_at", [LOOKED_AT - timedelta(minutes=1), LOOKED_AT])
+def test_a_tick_at_or_after_the_latest_ending_needs_an_observation(state, ended_at):
+    ran(state=state, number=1, ended_at=ended_at)
     write_tick(
         state=state,
         tick=SchedulerRecord(
