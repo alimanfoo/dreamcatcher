@@ -436,15 +436,18 @@ def test_an_assignment_with_no_scheduler_observation_is_unknown(state):
     assert status.detail == "no current scheduler observation"
 
 
-def test_a_tick_without_an_observation_of_the_latest_ending_is_not_current(state):
+def test_a_round_ending_after_the_latest_tick_waits_for_the_next_update(state):
     ran(state=state, number=1, ended_at=LOOKED_AT + timedelta(minutes=1))
     write_tick(state=state, tick=SchedulerRecord(at=LOOKED_AT))
 
-    assert only_assignment(state=state).value is AgentAssignmentStatusValue.UNKNOWN
+    status = only_assignment(state=state)
+
+    assert status.value is AgentAssignmentStatusValue.WAITING
+    assert status.detail == "round 1 ended, awaiting next update"
 
 
-def test_a_round_that_ends_after_its_launch_tick_waits_for_the_next_tick(state):
-    ran(state=state, number=1, ended_at=LOOKED_AT + timedelta(minutes=1))
+def test_a_tick_after_the_latest_ending_needs_an_observation(state):
+    ran(state=state, number=1, ended_at=LOOKED_AT - timedelta(minutes=1))
     write_tick(
         state=state,
         tick=SchedulerRecord(
@@ -455,8 +458,8 @@ def test_a_round_that_ends_after_its_launch_tick_waits_for_the_next_tick(state):
 
     status = only_assignment(state=state)
 
-    assert status.value is AgentAssignmentStatusValue.WAITING
-    assert status.detail == "next round, implement"
+    assert status.value is AgentAssignmentStatusValue.UNKNOWN
+    assert status.detail == "no current scheduler observation"
 
 
 def test_an_observation_is_current_when_a_round_ends_after_the_tick_begins(state):
