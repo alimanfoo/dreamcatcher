@@ -113,7 +113,12 @@ def test_home_lists_a_conversation_and_links_to_its_page(tmp_path):
     assert 'class="assignment-card' in page
     assert "Conversations" in page
     assert 'id="conversation-GH8"' in page
-    assert 'href="/conversations/8"' in page
+    conversation_link = (
+        'class="assignment-open" href="/conversations/8" target="_blank" '
+        'rel="noopener noreferrer" '
+        'aria-label="Open conversation GH8 (opens in new tab)"'
+    )
+    assert conversation_link in page
     assert '<span class="chip status-idle">idle</span>' in page
     assert "round 1, answered, ran 4m" in page
 
