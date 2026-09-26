@@ -55,6 +55,7 @@ WEB_PORT_RANGE = 400
 WEB_MAX_PORT = 65535
 _ISSUE_REFERENCE_PATTERN = re.compile(r"(?<!\w)(?:GH|#)(\d+)\b(?!-)")
 _FEED_CURSOR_PATTERN = re.compile(r"(?P<round>0|[1-9]\d*):(?P<position>\d+)")
+_GIT_REVISION_PATTERN = re.compile(r"\b[0-9a-f]{40}\b")
 _HTMX_STOP_POLLING_STATUS = 286
 _DEFAULT_WEB_THEME = "matrix"
 _WEB_THEME_MARKS = {_DEFAULT_WEB_THEME: "phosphor", "nature": "ink"}
@@ -856,11 +857,19 @@ def _compose_agent_rounds(
             started=describe_time(at=round_status.record.started, zone=zone),
             duration=round_status.duration_description,
             outcome=round_status.outcome_description,
-            revision=round_status.revision,
-            revision_description=round_status.revision_description,
+            revision=_shorten_git_revisions(text=round_status.revision),
+            revision_description=_shorten_git_revisions(
+                text=round_status.revision_description
+            ),
         )
         for round_status in round_statuses
     )
+
+
+def _shorten_git_revisions(*, text: str | None) -> str | None:
+    if text is None:
+        return None
+    return _GIT_REVISION_PATTERN.sub(lambda match: match.group()[:7], text)
 
 
 def _encode_feed_cursor(*, cursor: WebFeedCursor) -> str:

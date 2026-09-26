@@ -122,6 +122,7 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
     directory = state.conversations / "GH8"
+    revision = "0123456789abcdef0123456789abcdef01234567"
     write_round(
         directory=directory,
         number=2,
@@ -148,7 +149,7 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
                     "written_at": "2026-09-23T02:00:00Z",
                 }
             ],
-            revision="def456",
+            revision=revision,
         ),
         path=(directory / "rounds" / "2" / "inbox.json"),
     )
@@ -161,8 +162,9 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
     assert "Issue 8" in page
     assert "conversation-session" in page
     assert "abc123" in page
-    assert "def456" in page
-    assert "code revision abc123 -&gt; def456" in page
+    assert page.count("0123456") == 2
+    assert "code revision abc123 -&gt; 0123456" in page
+    assert revision not in page
     assert "opus[1m] · xhigh" in page
     assert "discuss" in page
     assert "I found the answer." in page
