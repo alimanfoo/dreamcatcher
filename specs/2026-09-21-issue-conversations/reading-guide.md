@@ -142,14 +142,6 @@ receives an inbox containing PR state and user posts, plus a prompt naming that
 file. The round writes its files before launching the harness and passes the
 prompt through standard input.
 
-Then read `ClaudeHarnessAdapter` and `CLAUDE_ALLOWED_TOOLS` in
-`src/dreamcatcher/claude.py`, and `CodexHarnessAdapter` and
-`RESUME_PERMISSION_OVERRIDES` in `src/dreamcatcher/codex.py`. Claude's launch
-explicitly allows commands including commits, pushes and PR changes. Codex's
-resumed launch explicitly selects a writable workspace. These are
-implementation-oriented settings; the new capability can tailor its permissions.
-The current adapters do not supply an investigation-only profile.
-
 ## Which code a round investigates
 
 Return to `AgentAssignmentCreator.create`, then read `fetch_main` and

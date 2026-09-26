@@ -143,12 +143,12 @@ With `[conversation]` configured, the daemon also watches assigned open issues
 carrying its label. The issue title and body alone do not start an agent. Once
 the signed-in account posts an ordinary, unmarked issue comment, Dreamcatcher
 freezes the issue and trusted comment history, creates a detached worktree at
-the fetched main revision, and runs one Claude round. The round shares the
-daemon's agent cap and global cooldown with assignments. The round marks its
-final Markdown as Dreamcatcher output and posts it back to the issue. `NO_REPLY`
+the fetched main revision, and runs one round. The round shares the daemon's
+agent cap and global cooldown with assignments. The round marks its final
+Markdown as Dreamcatcher output and posts it back to the issue. `NO_REPLY`
 finishes without a post. A failed post makes the round errored. A later eligible
-comment resumes the same Claude session with only the new comments and updates
-its worktree to current main without asking the user to clean up investigation
+comment resumes the same session with only the new comments and updates its
+worktree to current main without asking the user to clean up investigation
 files.
 
 Closing the issue, removing the conversation label or removing the signed-in

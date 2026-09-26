@@ -90,7 +90,7 @@ class ClaudeHarnessAdapter(HarnessAdapter):
     def build_first_round(
         self, *, request: AgentRoundLaunchRequest, final_output_path: Path
     ) -> HarnessInvocation:
-        """Return how to run an assignment's first round.
+        """Return how to run a first round.
 
         The command names no prompt, which is how Claude knows to read one
         from stdin.
