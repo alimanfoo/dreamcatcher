@@ -137,7 +137,10 @@ if (assignmentSidebar !== null) {
     }
     roundLink.setAttribute("aria-current", "true");
     const feedTop = feed.getBoundingClientRect().top;
+    // A sticky header reports where it is pinned, not where its round begins.
+    feedRound.style.position = "static";
     const roundTop = feedRound.getBoundingClientRect().top;
+    feedRound.style.removeProperty("position");
     feed.scrollTo({
       top: feed.scrollTop + roundTop - feedTop,
       behavior: "smooth",
