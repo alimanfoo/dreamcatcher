@@ -1,8 +1,10 @@
 from pathlib import Path
 
+import pytest
 from conftest import streamed
 
 from dreamcatcher.codex import CODEX_ADAPTER, STDIN_ARGUMENT
+from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedNote, FeedProse
 from dreamcatcher.harness_adapters import (
     AgentRoundLaunchRequest,
@@ -129,6 +131,14 @@ def test_a_resumed_conversation_round_cannot_write_or_request_approval():
         ],
         prompt="Answer GH9.",
     )
+
+
+def test_a_conversation_refuses_a_final_output_path_windows_cannot_carry():
+    with pytest.raises(ReportableError, match="percent sign"):
+        CODEX_ADAPTER.build_first_round(
+            request=CONVERSATION_LAUNCH_REQUEST,
+            final_output_path=Path("rounds") / "%TEMP%" / "final.md",
+        )
 
 
 def test_a_person_continues_the_harness_session_with_codexs_interactive_resume():

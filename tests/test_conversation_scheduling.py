@@ -198,18 +198,23 @@ def codex_answer(
     harnesses,
     body: str | None = "The scheduler waits for work.",
     status: int = 0,
+    session_identifier: str | None = "conversation-codex-session",
 ) -> None:
     """Have Codex identify its session and write its final-message file."""
     harnesses["codex"].streams(
-        lines=[
-            Line(
-                text=streamed(
-                    type="thread.started",
-                    thread_id="conversation-codex-session",
+        lines=(
+            []
+            if session_identifier is None
+            else [
+                Line(
+                    text=streamed(
+                        type="thread.started",
+                        thread_id=session_identifier,
+                    )
+                    + "\n"
                 )
-                + "\n"
-            )
-        ],
+            ]
+        ),
         status=status,
         final_output=body,
     )
@@ -446,6 +451,48 @@ def test_codex_recovery_keeps_its_session_revision_and_permissions(
     assert 'approval_policy="never"' in resumed.arguments
     assert resumed.arguments[-2:] == ["conversation-codex-session", "-"]
     assert resumed.prompt == ISSUE_CONVERSATION_RECOVERY_PROMPT
+
+
+def test_codex_recovery_starts_a_new_session_when_the_first_never_reported_one(
+    codex_conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = codex_conversation_scheduler
+    offer_conversation(gh=gh, comments=[ask()])
+    codex_answer(
+        harnesses=harnesses,
+        body="This failed.",
+        status=2,
+        session_identifier=None,
+    )
+    scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    first_input = read_json(
+        model=IssueConversationInput,
+        path=conversation.compose_round_paths(number=1).round_input,
+    )
+    offer_conversation(gh=gh, comments=[ask()])
+    codex_answer(harnesses=harnesses, body="The recovered answer.")
+    gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
+
+    scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    assert conversation.rounds[1].is_recovery
+    recovered_input = read_json(
+        model=IssueConversationInput,
+        path=conversation.compose_round_paths(number=2).round_input,
+    )
+    assert recovered_input == first_input
+    restarted = harnesses["codex"].calls[1]
+    assert restarted.arguments[:2] == ["exec", "--json"]
+    assert "resume" not in restarted.arguments
+    assert 'sandbox_mode="read-only"' in restarted.arguments
+    assert 'approval_policy="never"' in restarted.arguments
+    assert restarted.prompt.startswith("$dream:conversation GH8")
 
 
 def test_a_follow_up_resumes_the_session_with_only_new_comments(

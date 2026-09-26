@@ -134,9 +134,10 @@ An issue conversation is read-only work. Its instructions must not tell the
 agent to edit the worktree, create a branch, commit or push, open a pull
 request, change the issue, post to GitHub, or contact the user elsewhere.
 Dreamcatcher reinforces that contract with harness-specific controls. Claude
-denies its implementation and GitHub mutation tools. Codex runs commands in a
-read-only sandbox with command network access off and never pauses for an
-approval that could widen those permissions.
+denies its direct editing and GitHub mutation tool families, though its general
+command tool is not a read-only sandbox. Codex runs commands in a read-only
+sandbox with command network access off and never pauses for an approval that
+could widen those permissions.
 
 Dreamcatcher owns publication: when the harness exits successfully, the round
 appends the agent marker to the final result and posts it before the round ends.

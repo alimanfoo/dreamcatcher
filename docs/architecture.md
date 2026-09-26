@@ -442,7 +442,7 @@ An assignment record persists:
 
 - the issue and assignment identifiers;
 - the issue title captured during assignment setup;
-- the frozen dispatch route and agent recipe selected during setup;
+- the dispatch label and selected harness, model, effort and prompt;
 - branch and worktree identity;
 - pull-request identity;
 - the latest observed pull-request state, draft flag, and observation time;

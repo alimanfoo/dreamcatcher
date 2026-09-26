@@ -4,6 +4,8 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import ClassVar
 
+from dreamcatcher.commands import refuse_unquotable
+from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedEvent, FeedNote, FeedProse
 from dreamcatcher.harness_adapters import (
     AgentRoundLaunchRequest,
@@ -166,9 +168,15 @@ def _build_final_output_arguments(
     *, request: AgentRoundLaunchRequest, final_output_path: Path
 ) -> list[str]:
     """Return Codex's final-message file arguments for a conversation."""
-    if request.work_kind is AgentWorkKind.CONVERSATION:
-        return ["--output-last-message", str(final_output_path)]
-    return []
+    if request.work_kind is not AgentWorkKind.CONVERSATION:
+        return []
+    try:
+        output_path = refuse_unquotable(str(final_output_path))
+    except ValueError as error:
+        raise ReportableError(
+            f"{request.agent_work_identifier}'s final output path {error}."
+        ) from error
+    return ["--output-last-message", output_path]
 
 
 CODEX_ADAPTER = CodexHarnessAdapter()

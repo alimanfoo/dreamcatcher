@@ -32,6 +32,7 @@ from dreamcatcher.documents import (
     append_text,
     read_json,
     read_text,
+    remove_file,
     write_json,
     write_text,
 )
@@ -426,6 +427,7 @@ class AgentRound:
         if plan.input is not None:
             write_json(document=plan.input, path=paths.round_input)
         write_text(text=harness.invocation.prompt, path=paths.prompt)
+        remove_file(path=paths.final_output)
         self.harness_process = spawn_command(
             program=harness.invocation.program,
             arguments=harness.invocation.arguments,

@@ -142,6 +142,13 @@ receives an inbox containing PR state and user posts, plus a prompt naming that
 file. The round writes its files before launching the harness and passes the
 prompt through standard input.
 
+Then read `ClaudeHarnessAdapter` and `CLAUDE_CONVERSATION_DISALLOWED_TOOLS` in
+`src/dreamcatcher/claude.py`, and `CodexHarnessAdapter` and
+`CONVERSATION_PERMISSION_OVERRIDES` in `src/dreamcatcher/codex.py`. Both
+adapters select conversation-specific permissions from `AgentWorkKind`. Claude
+denies direct editing and GitHub mutation tool families; Codex uses a read-only
+sandbox with command network access off and rejects approval requests.
+
 ## Which code a round investigates
 
 Return to `AgentAssignmentCreator.create`, then read `fetch_main` and
