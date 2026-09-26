@@ -11,6 +11,7 @@ from dreamcatcher.config import (
 from dreamcatcher.prompts import (
     AGENT_POST_INSTRUCTIONS,
     AGENT_POST_MARKER,
+    ISSUE_CONVERSATION_RECOVERY_PROMPT,
     RECOVERY_PROMPT,
     compose_first_round_prompt,
     compose_issue_conversation_prompt,
@@ -49,6 +50,18 @@ def test_the_prompt_that_opens_an_assignment_is_its_template_then_the_postscript
 def test_the_prompt_that_carries_a_round_on_says_the_last_one_stopped_short():
     assert RECOVERY_PROMPT.startswith("Your previous round did not finish.")
     assert RECOVERY_PROMPT.endswith(AGENT_POST_INSTRUCTIONS)
+
+
+def test_conversation_recovery_returns_a_complete_postable_answer():
+    prompt = " ".join(ISSUE_CONVERSATION_RECOVERY_PROMPT.split())
+
+    assert "cut short, or its answer could not be posted" in prompt
+    assert "Nothing from that round reached the issue." in prompt
+    assert prompt.endswith(
+        "complete answer, as Markdown ready for Dreamcatcher to post, or exactly "
+        "NO_REPLY."
+    )
+    assert AGENT_POST_MARKER not in ISSUE_CONVERSATION_RECOVERY_PROMPT
 
 
 def test_the_prompt_that_hands_over_user_posts_names_the_pull_request_and_the_file(

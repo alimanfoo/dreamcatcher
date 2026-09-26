@@ -230,7 +230,8 @@ no agent slot. Among conversations awaiting a new round, take the oldest waiting
 comment first, batching the other waiting comments on that issue. The same
 ordering applies to initial and later batches; an issue with no eligible,
 undelivered comments is not a candidate for a new batch. Recovery takes
-precedence over fresh input for that conversation.
+precedence over every fresh batch, including one waiting at another
+conversation.
 
 When both an implementation candidate and a conversation candidate are ready,
 alternate which kind receives the next free slot. When only one kind is ready,
