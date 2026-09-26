@@ -230,7 +230,8 @@ no agent slot. Among conversations awaiting a new round, take the oldest waiting
 comment first, batching the other waiting comments on that issue. The same
 ordering applies to initial and later batches; an issue with no eligible,
 undelivered comments is not a candidate for a new batch. Recovery takes
-precedence over fresh input for that conversation.
+precedence over every fresh batch, including one waiting at another
+conversation.
 
 When both an implementation candidate and a conversation candidate are ready,
 alternate which kind receives the next free slot. When only one kind is ready,
@@ -246,9 +247,11 @@ session resume, goes into the scheduler hold and is tried again on the next
 tick, as it is for an assignment; it is not a round and does not count toward a
 fault. `dreamcatcher retry GH123` clears whatever is in fault at that issue: its
 newest assignment, its conversation or both. It refuses only when nothing there
-is in fault. The global cooldown counts faulted assignments and conversations
-together, and its start, its expiry and a lone fault work as they do for
-assignments. There is no per-conversation timer or special rate-limit
+is in fault. The global cooldown counts faulted assignments together with
+faulted conversations whose issues this tick observes, including prior issues
+preserved as unknown after a failed eligibility listing; known-ineligible
+conversations do not count. Its start, its expiry and a lone fault work as they
+do for assignments. There is no per-conversation timer or special rate-limit
 classifier.
 
 Do not add a special missing-session recovery mechanism.

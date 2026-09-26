@@ -48,7 +48,7 @@ from dreamcatcher.scheduler import (
     IssueFact,
     IssueFactValue,
     IssueObservation,
-    derive_assignment_fault,
+    derive_agent_work_fault,
     derive_round_purpose,
     read_scheduler_record,
 )
@@ -72,9 +72,7 @@ class IssueConversationStatusValue(StrEnum):
 
     Each word means what it means for an assignment. Idle takes the place of
     needs user feedback, because a conversation at rest has posted its answer
-    and asks nothing of the user. Fault takes two consecutive errored rounds,
-    and nothing recovers a conversation round yet, so no conversation reaches
-    it.
+    and asks nothing of the user. Fault takes two consecutive errored rounds.
     """
 
     WORKING = "working"
@@ -664,9 +662,9 @@ class _StatusReportReader:
     ) -> _ConversationSummary:
         """Return what a saved conversation's records and latest tick say.
 
-        The first status that applies wins: working, then what the latest tick
-        observed at the issue. An issue that the tick did not observe is not
-        eligible.
+        A running round comes first. The latest tick then establishes whether
+        the issue is eligible; only an eligible conversation can be in fault or
+        waiting for work.
         """
         if (
             conversation.rounds
@@ -684,6 +682,25 @@ class _StatusReportReader:
             return _ConversationSummary(
                 value=IssueConversationStatusValue.IDLE,
                 detail="issue is not eligible for conversation",
+            )
+        if observation.has_comments_to_answer.value is IssueFactValue.UNKNOWN:
+            return _summarize_observed_conversation(
+                observation=observation,
+                conversation=conversation,
+            )
+        if derive_agent_work_fault(
+            rounds=conversation.rounds,
+            retry_requested_at=conversation.record.retry_requested_at,
+            most_recent_cooldown_ended=(
+                self.scheduler_record.most_recent_cooldown_ended
+            ),
+        ):
+            return _ConversationSummary(
+                value=IssueConversationStatusValue.FAULT,
+                detail=(
+                    _describe_unfinished_conversation_round(conversation=conversation)
+                    or "two consecutive rounds errored"
+                ),
             )
         return _summarize_observed_conversation(
             observation=observation, conversation=conversation
@@ -795,8 +812,9 @@ class _StatusReportReader:
             if self.scheduler_record is None
             else self.scheduler_record.most_recent_cooldown_ended
         )
-        if derive_assignment_fault(
-            assignment=assignment,
+        if derive_agent_work_fault(
+            rounds=assignment.rounds,
+            retry_requested_at=assignment.record.retry_requested_at,
             most_recent_cooldown_ended=most_recent_cooldown_ended,
         ):
             return self._compose_agent_assignment_status(

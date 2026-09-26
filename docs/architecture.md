@@ -52,7 +52,8 @@ One scheduler tick:
 3. applies the run's requested capacity and global-cooldown constraints;
 4. finds the highest-priority assignment candidate, considering existing
    assignment rounds before dispatch of the oldest available issue;
-5. finds the conversation candidate with the oldest waiting comment;
+5. finds the highest-priority conversation candidate, ranking recovery before
+   the oldest waiting fresh comment;
 6. alternates between the two kinds when both have candidates, without changing
    either kind's internal order;
 7. performs at most one scheduling action; and
@@ -113,12 +114,18 @@ and trusted comment history. Each later eligible batch resumes that session with
 only newly delivered comments. The scheduler first fetches main and asks Git to
 discard local changes and move the detached worktree to that revision. Each
 round input records its investigated revision. Comments posted while a round
-runs remain beyond the latest round input. A failed or interrupted round waits
-to be recovered, so no batch starts after it, and nothing recovers it yet.
+runs remain beyond the latest round input.
 
-Every tick reads the comments of every eligible conversation issue, even when no
-agent is free, and records for each issue whether comments wait to be answered.
-The free-agent check gates only the launch, as it does for assignments.
+A failed or interrupted conversation round is recovered before a fresh batch
+while its issue remains eligible. Recovery rereads that round's durable input,
+so it uses the same comments and revision without reading new comments, fetching
+main or refreshing the worktree. It resumes the recorded harness session with a
+recovery prompt. When the first invocation did not record a session identifier,
+recovery starts a new session with the configured prompt and the same input. A
+selected batch that was never recorded establishes no delivery position and may
+be replaced by the next fresh selection.
+
+Fresh-batch candidates are polled before the capacity check.
 
 A conversation round posts its own answer. The conversation launcher gives the
 round a finisher that posts to the issue, so the shared round runner knows
@@ -128,8 +135,9 @@ the round records its ending. It therefore keeps its agent slot while it posts,
 and no new batch starts until the answer is out. `NO_REPLY` posts nothing. A
 missing final result or a failed post makes the round errored. The ending keeps
 the harness's clean exit status and gives the failure as its reason, and the
-feed notes it too. Failed and interrupted rounds remain visible and are not
-automatically resumed yet.
+feed notes it too. Failed and interrupted rounds remain visible while ordinary
+recovery proceeds, and two consecutive errored rounds place the conversation in
+fault.
 
 ### Agent assignments
 
@@ -447,28 +455,28 @@ A round record persists:
   final result the harness reports.
 
 A conversation record persists its issue and title, label, chosen harness
-settings, and harness session identifier. The issue derives the managed worktree
-path. Each round input persists its investigated revision and the trusted
-comments accepted for delivery; the first also persists the issue title and
-body.
+settings, harness session identifier and latest user retry request. The issue
+derives the managed worktree path. Each round input persists its investigated
+revision and the trusted comments accepted for delivery; the first also persists
+the issue title and body.
 
 Instance records persist the repository identity and the most recent daemon
 run's harness, Dreamcatcher version, and capacity. An instance-wide scheduler
 record persists the last tick's result, including its hold, issue, assignment
 and conversation observations, active global cooldown, and the time at which the
 most recent cooldown ended. Its per-work observations preserve operational
-evidence of the tick's interpretation rather than authoritative state. An
-assignment record persists the time of its latest user retry request. These
-boundaries allow fault to remain a derived status: ending a cooldown or
-requesting a retry changes which round errors count towards fault rather than
-writing an assignment status.
+evidence of the tick's interpretation rather than authoritative state.
+Assignment and conversation records persist the time of their latest user retry
+request. These boundaries allow fault to remain a derived status: ending a
+cooldown or requesting a retry changes which round errors count towards fault
+rather than writing a lifecycle status.
 
 The following are derived rather than persisted as authoritative state:
 
 - whether an issue is claimed here or elsewhere;
 - whether an issue is blocked, has a routing conflict, or is available for an
   agent assignment;
-- whether an assignment is complete or in fault;
+- whether an assignment is complete or either kind of agent work is in fault;
 - whether an assignment requires an agent round or needs user feedback;
 - what round purpose and recovery flag are required next; and
 - every issue conversation and agent assignment status shown in a status report.
