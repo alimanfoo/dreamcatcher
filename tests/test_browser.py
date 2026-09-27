@@ -18,7 +18,7 @@ FEED_IS_AT_END = """() => {
 
 
 @pytest.fixture
-def live_web(tmp_path, daemon) -> Iterator[str]:
+def live_web(tmp_path) -> Iterator[str]:
     """Serve the fabricated web app for one browser test."""
     with serve_fabricated_web(root=tmp_path) as address:
         yield address
@@ -34,6 +34,11 @@ def test_a_round_link_brings_its_round_into_view_from_the_tail(
     live_web: str,
 ) -> None:
     page.goto(f"{live_web}/assignments/{BROWSER_ASSIGNMENT_IDENTIFIER}")
+    expect(page.locator("#assignment-status")).to_have_text("working")
+    expect(page.get_by_text("daemon stopped", exact=True)).to_have_count(0)
+    expect(page.get_by_text("last resort · resume by hand", exact=True)).to_have_count(
+        0
+    )
     page.wait_for_function(FEED_IS_AT_END)
     first_round = page.locator("#feed-round-1")
     first_round.evaluate(
