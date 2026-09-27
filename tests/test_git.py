@@ -214,6 +214,17 @@ def test_a_pushed_assignment_branch_is_visible_at_origin(cloned):
     assert f"refs/heads/{BRANCH}" in remote
 
 
+def test_an_assignment_worktree_can_push_to_origin(cloned):
+    path = assignment_worktree(root=cloned)
+    add_worktree(root=cloned, path=path, branch=BRANCH)
+    make_empty_commit(worktree=path, message="GH8")
+
+    git(arguments=["push", "origin", BRANCH], cwd=path)
+
+    remote = git(arguments=["ls-remote", "--heads", "origin", BRANCH], cwd=cloned)
+    assert f"refs/heads/{BRANCH}" in remote
+
+
 def test_a_removed_worktree_leaves_the_disk_and_the_list(cloned):
     path = assignment_worktree(root=cloned)
     add_worktree(root=cloned, path=path, branch=BRANCH)
