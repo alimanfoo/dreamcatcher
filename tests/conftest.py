@@ -161,7 +161,16 @@ def _timed_run(arguments=None, /, **kwargs):
 
 def _program_name(*, arguments) -> str:
     """Return the extension-free base name of the invoked program."""
-    if isinstance(arguments, (str, bytes, os.PathLike)):
+    if isinstance(arguments, bytes):
+        arguments = os.fsdecode(arguments)
+    if isinstance(arguments, str):
+        command = arguments.lstrip()
+        executable = (
+            command.partition('"')[2].partition('"')[0]
+            if command.startswith('"')
+            else command.partition(" ")[0]
+        )
+    elif isinstance(arguments, os.PathLike):
         executable = arguments
     else:
         executable = arguments[0]
