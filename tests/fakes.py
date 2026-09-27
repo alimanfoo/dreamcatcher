@@ -11,6 +11,9 @@ it, which is what makes a launcher of either kind reachable.
 
 Launchers start Python with `-S`, so this replayer stays standard-library-only.
 That avoids loading an environment the stand-ins do not use on every call.
+On Windows they invoke the base interpreter directly, because the replayer uses
+nothing from the virtual environment and its launcher would start that same
+interpreter as another process.
 """
 
 import json
@@ -164,8 +167,9 @@ def _launcher(*, base: Path) -> None:
     """Write the launcher that hands a call to replay."""
     replayer = Path(__file__).resolve()
     if os.name == "nt":
+        interpreter = Path(sys.base_prefix) / Path(sys.executable).name
         base.with_name(f"{base.name}.cmd").write_text(
-            f'@echo off\n"{sys.executable}" -S "{replayer}" "{base}" %*\n'
+            f'@echo off\n"{interpreter}" -S "{replayer}" "{base}" %*\n'
             "exit /b %errorlevel%\n",
             encoding="utf-8",
         )
