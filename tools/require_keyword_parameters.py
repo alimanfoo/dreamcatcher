@@ -9,6 +9,10 @@ which says so where a reader meets it.
 A test, a fixture and a pytest_ hook are left alone. pytest is what calls each
 of those, and it resolves every argument by the parameter's own name.
 
+A function decorated with `functools.wraps` may keep the wrapped function's
+variadic positional shape. The wrapped API owns that shape, rather than this
+project's callers.
+
 This reads a def statement and nothing else. A lambda has no keyword-only form,
 so write a def for any callback that takes more than one argument, and the check
 then covers it.
@@ -25,6 +29,7 @@ METHOD_RECEIVER_NAMES = ("self", "cls")
 
 # What pytest's own decorator is called, wherever it was imported from.
 PYTEST_FIXTURE_DECORATOR = "fixture"
+WRAPS_DECORATOR = "wraps"
 
 
 def is_called_by_pytest(*, definition: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
@@ -54,6 +59,16 @@ def _read_decorator_name(*, decorator: ast.expr) -> str:
     return ast.unparse(decorator)
 
 
+def _wraps_an_external_signature(
+    *, definition: ast.FunctionDef | ast.AsyncFunctionDef
+) -> bool:
+    """Whether functools.wraps gives this function another API's shape."""
+    return any(
+        _read_decorator_name(decorator=decorator) == WRAPS_DECORATOR
+        for decorator in definition.decorator_list
+    )
+
+
 def find_positional_parameters(*, text: str) -> Iterator[str]:
     """Yield the line and the words naming each such parameter."""
     for node in ast.walk(ast.parse(text)):
@@ -64,7 +79,9 @@ def find_positional_parameters(*, text: str) -> Iterator[str]:
         taken = [argument.arg for argument in node.args.args]
         if taken and taken[0] in METHOD_RECEIVER_NAMES:
             taken = taken[1:]
-        if node.args.vararg is not None:
+        if node.args.vararg is not None and not _wraps_an_external_signature(
+            definition=node
+        ):
             taken.append(f"*{node.args.vararg.arg}")
         for parameter in taken:
             yield f"{node.lineno} {node.name} takes {parameter} by position"

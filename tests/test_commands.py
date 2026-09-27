@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from conftest import _timed_run
 from fakes import Line, Stream, install
 
 from dreamcatcher.commands import (
@@ -20,6 +21,12 @@ def test_a_command_hands_back_what_it_printed(fake):
 
     assert run_command(program="probe", arguments=["--loudly"]) == "what it said\n"
     assert probe.calls[0].arguments == ["--loudly"]
+
+
+def test_subprocess_timing_preserves_positional_popen_arguments():
+    completed = _timed_run([sys.executable, "-c", ""], 0)
+
+    assert completed.returncode == 0
 
 
 def test_a_command_runs_where_it_is_told(fake, tmp_path):

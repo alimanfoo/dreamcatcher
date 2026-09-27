@@ -146,14 +146,13 @@ def pytest_terminal_summary(terminalreporter, /) -> None:
 
 
 @wraps(_RUN)
-def _timed_run(arguments=None, /, **kwargs):
+def _timed_run(*popenargs, **kwargs):
     """Run a command passed by subprocess and add its time to the summary."""
-    if arguments is None:
-        arguments = kwargs.pop("args")
+    arguments = popenargs[0] if popenargs else kwargs["args"]
     program = _program_name(arguments=arguments)
     started = perf_counter()
     try:
-        return _RUN(arguments, **kwargs)
+        return _RUN(*popenargs, **kwargs)
     finally:
         _RUN_CALLS[program] += 1
         _RUN_SECONDS[program] += perf_counter() - started
