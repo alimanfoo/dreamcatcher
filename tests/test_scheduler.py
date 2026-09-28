@@ -10,6 +10,7 @@ from conftest import (
     FILED,
     LATER,
     POST_LIST_PATHS,
+    POSTED_AT,
     POSTED_BY,
     PULL_REQUEST,
     REPOSITORY,
@@ -35,6 +36,7 @@ from dreamcatcher.agent_rounds import (
     AgentAssignmentRoundPurpose,
     AgentRoundPurpose,
     AgentRoundRecord,
+    ErroredAgentRoundEnding,
     compose_agent_round_ending,
 )
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
@@ -869,6 +871,9 @@ def test_a_terminal_recovery_without_a_session_receives_wrap_up_input(
     ran(root=resuming, number=1, purpose=PURPOSE, status=1)
     forget_harness_session_identifier(root=resuming)
     gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
+    gh.replies(
+        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+    )
     scheduler, clock = create_scheduler(root=resuming)
 
     observed = scheduler.tick(at=clock())
@@ -880,6 +885,41 @@ def test_a_terminal_recovery_without_a_session_receives_wrap_up_input(
     inbox = json.loads(written_round(scheduler=scheduler, number=2, name="inbox.json"))
     assert inbox["pull_request_state"] == PullRequestState.MERGED
     assert "--resume" not in harnesses["claude"].calls[-1].arguments
+    assignment = read_agent_assignments(state=scheduler.state)[0]
+    assert assignment.user_post_delivery_cursor == POSTED_AT
+
+
+def test_a_failed_replacement_session_does_not_acknowledge_terminal_feedback(
+    resuming, gh, harnesses
+):
+    ran(root=resuming, number=1, purpose=PURPOSE, status=1)
+    forget_harness_session_identifier(root=resuming)
+    gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
+    gh.replies(
+        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+    )
+    harnesses["claude"].streams(lines=[], status=1)
+    scheduler, clock = create_scheduler(root=resuming)
+
+    scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
+    assignment = read_agent_assignments(state=scheduler.state)[0]
+    assert assignment.user_post_delivery_cursor == ""
+    ending = assignment.rounds[-1].ending
+    assert isinstance(ending, ErroredAgentRoundEnding)
+    request_agent_assignment_retry(
+        assignment=assignment,
+        at=ending.at + timedelta(seconds=1),
+    )
+
+    observed = scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
+
+    assert observed.launched_assignment_identifier == ASSIGNMENT_ID
+    inbox = json.loads(written_round(scheduler=scheduler, number=3, name="inbox.json"))
+    assert [post["body"] for post in inbox["user_posts"]] == [
+        "have another look at the filter"
+    ]
 
 
 def test_a_carried_on_round_records_recovery_independently(resuming, left_running):

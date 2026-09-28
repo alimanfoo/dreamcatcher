@@ -54,10 +54,11 @@ communication channel between the agent and the user.
 
 An **issue conversation** is Dreamcatcher's durable commission to an agent to
 answer the user on an issue without implementing a change. It owns a detached
-worktree at a recorded main revision, one harness session, and its agent rounds.
-Each round input records the comment batch delivered in that round. The issue
-remains its communication channel; it has no implementation branch or pull
-request.
+worktree at a recorded main revision and its agent rounds. Its rounds normally
+share one harness session, but recovery replaces a session whose identifier was
+never recorded. Each round input records the comment batch delivered in that
+round. The issue remains its communication channel; it has no implementation
+branch or pull request.
 
 An issue conversation starts with one initial round. Each later eligible comment
 batch resumes the same harness session in another round. Each successful round
@@ -202,12 +203,12 @@ Each agent assignment has exactly one:
 - branch;
 - Git worktree;
 - pull request;
-- agent harness; and
-- harness session.
+- agent harness.
 
 An assignment has no agent rounds until work begins and one or more afterwards.
-Its rounds form a sequence numbered within the assignment; their numbers have no
-meaning outside it.
+Its rounds normally share one harness session, but recovery replaces a session
+whose identifier was never recorded. The rounds form a sequence numbered within
+the assignment; their numbers have no meaning outside it.
 
 An issue can receive more than one assignment over its lifetime, but a
 Dreamcatcher instance can never have more than one open assignment for the same

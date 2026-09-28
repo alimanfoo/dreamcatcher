@@ -52,7 +52,32 @@ def refresh_detached_worktree(*, root: Path, worktree: Path) -> str:
         arguments=["checkout", "--force", "--detach", "origin/main"],
         cwd=worktree,
     )
+    _refresh_initialized_submodules(worktree=worktree)
     return read_worktree_revision(worktree=worktree)
+
+
+def _refresh_initialized_submodules(*, worktree: Path) -> None:
+    """Discard local state from every initialized submodule recursively."""
+    listed = run_command(
+        program="git", arguments=["ls-files", "--stage", "-z"], cwd=worktree
+    )
+    for entry in listed.split("\0"):
+        if not entry:
+            continue
+        metadata, relative_path = entry.split("\t", maxsplit=1)
+        mode, revision, _ = metadata.split()
+        if mode != "160000":
+            continue
+        submodule = worktree / relative_path
+        if not (submodule / ".git").exists():
+            continue
+        run_command(program="git", arguments=["clean", "-ffdx"], cwd=submodule)
+        run_command(
+            program="git",
+            arguments=["checkout", "--force", "--detach", revision],
+            cwd=submodule,
+        )
+        _refresh_initialized_submodules(worktree=submodule)
 
 
 def is_linked_worktree(*, path: Path) -> bool:

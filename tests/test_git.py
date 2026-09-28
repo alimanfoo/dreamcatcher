@@ -134,7 +134,10 @@ def test_a_missing_linked_worktree_is_not_refreshed(cloned):
 def test_a_refresh_discards_an_unexpected_detached_commit(cloned):
     path = cloned / ".dreamcatcher" / "v3" / "conversation-worktrees" / "GH8"
     add_detached_worktree(root=cloned, path=path)
-    make_empty_commit(worktree=path, message="unexpected work")
+    unexpected_file = path / "unexpected.txt"
+    unexpected_file.write_bytes(b"local file\n")
+    (path / "README.md").write_bytes(b"local change\n")
+    commit(path=path, message="unexpected work")
     unexpected = read_worktree_revision(worktree=path)
 
     revision = refresh_detached_worktree(root=cloned, worktree=path)
@@ -142,6 +145,53 @@ def test_a_refresh_discards_an_unexpected_detached_commit(cloned):
     assert revision != unexpected
     assert revision == git(arguments=["rev-parse", "origin/main"], cwd=cloned).strip()
     assert read_worktree_revision(worktree=path) == revision
+    assert not unexpected_file.exists()
+    assert (path / "README.md").read_text(encoding="utf-8") == "what the seed holds\n"
+
+
+def test_a_refresh_discards_changes_inside_a_submodule(cloned, tmp_path):
+    source = tmp_path / "dependency-source"
+    git(arguments=["init", "--initial-branch=main", str(source)], cwd=tmp_path)
+    (source / "tracked.txt").write_bytes(b"recorded\n")
+    commit(path=source, message="seed dependency")
+    git(
+        arguments=[
+            "-c",
+            "protocol.file.allow=always",
+            "submodule",
+            "add",
+            str(source),
+            "dependency",
+        ],
+        cwd=cloned,
+    )
+    commit(path=cloned, message="add dependency")
+    git(arguments=["push", "origin", "main"], cwd=cloned)
+    path = cloned / ".dreamcatcher" / "v3" / "conversation-worktrees" / "GH8"
+    add_detached_worktree(root=cloned, path=path)
+    git(
+        arguments=[
+            "-c",
+            "protocol.file.allow=always",
+            "submodule",
+            "update",
+            "--init",
+        ],
+        cwd=path,
+    )
+    dependency = path / "dependency"
+    (dependency / "tracked.txt").write_bytes(b"local change\n")
+    unexpected = dependency / "unexpected.txt"
+    unexpected.write_bytes(b"local file\n")
+    commit(path=dependency, message="unexpected dependency work")
+    untracked = dependency / "untracked.txt"
+    untracked.write_bytes(b"untracked\n")
+
+    refresh_detached_worktree(root=cloned, worktree=path)
+
+    assert (dependency / "tracked.txt").read_text(encoding="utf-8") == "recorded\n"
+    assert not unexpected.exists()
+    assert not untracked.exists()
 
 
 def test_a_refresh_discards_an_ignored_file(cloned):

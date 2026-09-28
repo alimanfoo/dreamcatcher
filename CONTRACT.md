@@ -100,8 +100,10 @@ merged or closed pull request receives the user-posts prompt instead, whose
 `pull_request_state` tells the agent to wind up.
 
 An assignment skill needs nothing of its own for recovery. The resumed agent
-still has its own transcript, and dreamcatcher's prompt is enough to carry it
-on.
+normally still has its own transcript, and dreamcatcher's prompt is enough to
+carry it on. A replacement session instead receives the assignment's first
+prompt before the recovery prompt, so the skill's initial instructions apply
+again.
 
 ## Issue conversation instructions
 
