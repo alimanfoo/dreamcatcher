@@ -815,11 +815,43 @@ def test_a_resume_recovers_the_harness_session_from_the_first_rounds_raw_stream(
     ]
 
 
-def test_a_resume_with_no_harness_session_identifier_reports_why_it_cannot_start(
+def test_a_recovery_without_a_harness_session_starts_a_new_first_round(
     resuming, harnesses
 ):
     ran(root=resuming, number=1, purpose=PURPOSE, status=1)
     forget_harness_session_identifier(root=resuming)
+    harnesses["claude"].streams(lines=[], status=1)
+    scheduler, clock = create_scheduler(root=resuming)
+
+    observed = scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
+    faulted = scheduler.tick(at=clock())
+
+    assert observed.launched_assignment_identifier == ASSIGNMENT_ID
+    assert written_round(scheduler=scheduler, number=2, name="prompt.txt") == (
+        "/dream:smith GH13"
+    )
+    assert "--resume" not in harnesses["claude"].calls[-1].arguments
+    recovered = record_of(scheduler=scheduler, number=2)
+    assert recovered.is_recovery
+    assert faulted.assignment_observations == [
+        AgentAssignmentObservation(
+            assignment_identifier=ASSIGNMENT_ID,
+            issue=13,
+            reason="two consecutive rounds failed",
+        )
+    ]
+
+
+def test_a_follow_up_without_a_harness_session_still_needs_its_session(
+    resuming, gh, harnesses
+):
+    ran(root=resuming, number=1, purpose=PURPOSE)
+    forget_harness_session_identifier(root=resuming)
+    gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
+    gh.replies(
+        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+    )
     scheduler, clock = create_scheduler(root=resuming)
 
     observed = scheduler.tick(at=clock())
