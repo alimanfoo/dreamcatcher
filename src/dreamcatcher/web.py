@@ -144,6 +144,7 @@ class WebAgentRound:
     started: str
     duration: str
     outcome: str
+    outcome_description: str
     revision: str | None
     revision_description: str | None = None
 
@@ -850,7 +851,8 @@ def _compose_agent_rounds(
             is_recovery=round_status.record.is_recovery,
             started=describe_time(at=round_status.record.started, zone=zone),
             duration=round_status.duration_description,
-            outcome=round_status.outcome_description,
+            outcome=str(round_status.record.outcome),
+            outcome_description=round_status.outcome_description,
             revision=_shorten_git_revisions(text=round_status.revision),
             revision_description=_shorten_git_revisions(
                 text=round_status.revision_description

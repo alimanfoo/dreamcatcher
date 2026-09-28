@@ -743,6 +743,15 @@ def test_assignment_rounds_link_to_the_feed_in_ascending_order(tmp_path, daemon)
     assert 'src="/static/assignment.js"' in page
 
 
+def test_an_errored_rounds_style_uses_its_outcome_alone(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_assignment(state=state, identifier="GH35-20260819-184158")
+
+    assert 'class="round-outcome outcome-errored">errored (exit 2)</span>' in page
+
+
 def test_hand_resume_command_is_a_collapsed_last_resort(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
