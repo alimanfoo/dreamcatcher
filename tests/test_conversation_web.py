@@ -8,13 +8,11 @@ from conftest import REPOSITORY
 from observations import observed_conversation
 from records import (
     write_feed,
-    write_final_output,
-    write_issue_conversation,
     write_round,
     write_running_conversation,
     write_tick,
 )
-from status_fabrications import fabricate_everything
+from status_fabrications import fabricate_conversation, fabricate_everything
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
@@ -32,63 +30,6 @@ from dreamcatcher.state import StateDirectory
 from dreamcatcher.web import create_app
 
 LOOKED_AT = PINNED + timedelta(hours=2)
-
-
-def fabricate_conversation(
-    *,
-    state: StateDirectory,
-    has_round: bool = True,
-    status: int = 0,
-    is_eligible: bool = False,
-) -> None:
-    """Write one initial conversation exchange."""
-    directory = write_issue_conversation(state=state, issue=8)
-    write_text(text=f"{REPOSITORY}\n", path=state.repository)
-    write_tick(
-        state=state,
-        tick=SchedulerRecord(
-            at=PINNED,
-            conversation_observations=[observed_conversation()] if is_eligible else [],
-        ),
-    )
-    if not has_round:
-        return
-    write_round(
-        directory=directory,
-        number=1,
-        record=AgentRoundRecord(
-            number=1,
-            purpose=IssueConversationRoundPurpose.DISCUSS,
-            started=PINNED,
-            pid=1,
-            ending=compose_agent_round_ending(
-                at=PINNED + timedelta(minutes=4), status=status
-            ),
-        ),
-    )
-    write_json(
-        document=IssueConversationInput(
-            issue=8,
-            title="Issue 8",
-            body="Explain it.",
-            comments=[
-                {
-                    "id": 1,
-                    "body": "Please explain.",
-                    "author": "alice",
-                    "written_at": "2026-09-23T01:00:00Z",
-                }
-            ],
-            revision="abc123",
-        ),
-        path=(directory / "rounds" / "1" / "inbox.json"),
-    )
-    write_feed(
-        directory=directory,
-        number=1,
-        lines=[FeedLine(at=PINNED, text="I found the answer.")],
-    )
-    write_final_output(directory=directory, number=1, text="The answer.")
 
 
 def application(*, state: StateDirectory):

@@ -29,6 +29,20 @@ jobs:
         env:
           PYTHONWARNDEFAULTENCODING: "1"
 
+  browser:
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v10.0.1
+      - run: uv sync --locked
+      - run: uv run playwright install --with-deps chromium
+      - run: uv run pytest -m browser --no-cov
+        env:
+          PYTHONWARNDEFAULTENCODING: "1"
+
   checks:
     runs-on: ubuntu-latest
     steps:
