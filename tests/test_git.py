@@ -186,10 +186,20 @@ def test_a_refresh_discards_changes_inside_a_submodule(cloned, tmp_path):
     commit(path=dependency, message="unexpected dependency work")
     untracked = dependency / "untracked.txt"
     untracked.write_bytes(b"untracked\n")
+    (source / "tracked.txt").write_bytes(b"advanced\n")
+    commit(path=source, message="advance dependency")
+    advanced = git(arguments=["rev-parse", "HEAD"], cwd=source).strip()
+    git(arguments=["fetch", "origin"], cwd=cloned / "dependency")
+    git(arguments=["checkout", advanced], cwd=cloned / "dependency")
+    commit(path=cloned, message="advance dependency")
+    git(arguments=["push", "origin", "main"], cwd=cloned)
+    git(arguments=["config", "fetch.recurseSubmodules", "false"], cwd=cloned)
+    with pytest.raises(CommandError):
+        git(arguments=["cat-file", "-e", f"{advanced}^{{commit}}"], cwd=dependency)
 
     refresh_detached_worktree(root=cloned, worktree=path)
 
-    assert (dependency / "tracked.txt").read_text(encoding="utf-8") == "recorded\n"
+    assert (dependency / "tracked.txt").read_text(encoding="utf-8") == "advanced\n"
     assert not unexpected.exists()
     assert not untracked.exists()
 

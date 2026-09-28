@@ -8,7 +8,7 @@ got.
 
 from pathlib import Path
 
-from dreamcatcher.commands import run_command
+from dreamcatcher.commands import CommandError, run_command
 from dreamcatcher.errors import ReportableError
 
 
@@ -71,6 +71,14 @@ def _refresh_initialized_submodules(*, worktree: Path) -> None:
         submodule = worktree / relative_path
         if not (submodule / ".git").exists():
             continue
+        try:
+            run_command(
+                program="git",
+                arguments=["cat-file", "-e", f"{revision}^{{commit}}"],
+                cwd=submodule,
+            )
+        except CommandError:
+            run_command(program="git", arguments=["fetch", "origin"], cwd=submodule)
         run_command(program="git", arguments=["clean", "-ffdx"], cwd=submodule)
         run_command(
             program="git",
