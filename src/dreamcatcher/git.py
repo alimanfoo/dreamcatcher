@@ -35,26 +35,16 @@ def add_detached_worktree(*, root: Path, path: Path) -> None:
     )
 
 
-def refresh_detached_worktree(
-    *, root: Path, worktree: Path, expected_revision: str | None = None
-) -> str:
+def refresh_detached_worktree(*, root: Path, worktree: Path) -> str:
     """Move a detached worktree to fetched main and return its revision.
 
-    Discard every local worktree change before moving it. When given, the
-    expected revision protects an unexpected commit from being abandoned.
+    Discard every local change and commit before moving it.
     """
     if not is_linked_worktree(path=worktree):
         raise ReportableError(
             f"Could not refresh detached worktree at {worktree}: "
             "it is not a linked worktree."
         )
-    if expected_revision is not None:
-        revision = read_worktree_revision(worktree=worktree)
-        if revision != expected_revision:
-            raise ReportableError(
-                f"Could not refresh detached worktree at {worktree}: its revision "
-                f"is {revision}, expected {expected_revision}."
-            )
     fetch_main(root=root)
     run_command(program="git", arguments=["reset", "--hard", "HEAD"], cwd=worktree)
     run_command(program="git", arguments=["clean", "-ffdx"], cwd=worktree)

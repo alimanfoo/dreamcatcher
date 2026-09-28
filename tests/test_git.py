@@ -98,11 +98,7 @@ def test_a_refresh_discards_non_conflicting_local_changes(cloned):
     commit(path=cloned, message="change main")
     git(arguments=["push", "origin", "main"], cwd=cloned)
 
-    revision = refresh_detached_worktree(
-        root=cloned,
-        worktree=path,
-        expected_revision=earlier_revision,
-    )
+    revision = refresh_detached_worktree(root=cloned, worktree=path)
 
     assert revision != earlier_revision
     assert not unexpected.exists()
@@ -119,11 +115,7 @@ def test_a_refresh_discards_a_conflicting_local_change(cloned):
     commit(path=cloned, message="change main")
     git(arguments=["push", "origin", "main"], cwd=cloned)
 
-    revision = refresh_detached_worktree(
-        root=cloned,
-        worktree=path,
-        expected_revision=earlier_revision,
-    )
+    revision = refresh_detached_worktree(root=cloned, worktree=path)
 
     assert revision != earlier_revision
     assert readme.read_text(encoding="utf-8") == "what main holds now\n"
@@ -139,21 +131,17 @@ def test_a_missing_linked_worktree_is_not_refreshed(cloned):
     assert read_worktree_branch(worktree=cloned) == "main"
 
 
-def test_an_unexpected_detached_revision_is_not_abandoned(cloned):
+def test_a_refresh_discards_an_unexpected_detached_commit(cloned):
     path = cloned / ".dreamcatcher" / "v3" / "conversation-worktrees" / "GH8"
     add_detached_worktree(root=cloned, path=path)
-    expected = read_worktree_revision(worktree=path)
     make_empty_commit(worktree=path, message="unexpected work")
     unexpected = read_worktree_revision(worktree=path)
 
-    with pytest.raises(ReportableError, match=f"expected {expected}"):
-        refresh_detached_worktree(
-            root=cloned,
-            worktree=path,
-            expected_revision=expected,
-        )
+    revision = refresh_detached_worktree(root=cloned, worktree=path)
 
-    assert read_worktree_revision(worktree=path) == unexpected
+    assert revision != unexpected
+    assert revision == git(arguments=["rev-parse", "origin/main"], cwd=cloned).strip()
+    assert read_worktree_revision(worktree=path) == revision
 
 
 def test_a_refresh_discards_an_ignored_file(cloned):

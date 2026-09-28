@@ -25,7 +25,6 @@ from dreamcatcher.git import (
     add_detached_worktree,
     fetch_main,
     is_linked_worktree,
-    read_worktree_revision,
     refresh_detached_worktree,
     remove_worktree,
 )
@@ -192,16 +191,9 @@ def prepare_issue_conversation_input(
     comments: list[ConversationComment],
 ) -> IssueConversationInput:
     """Refresh the worktree and freeze one issue's trusted round input."""
-    expected_revision = _read_unrecorded_input_revision(conversation=conversation)
-    if expected_revision is None and conversation.rounds:
-        expected_revision = read_issue_conversation_input(
-            conversation=conversation,
-            number=conversation.rounds[-1].number,
-        ).revision
     revision = refresh_detached_worktree(
         root=state.root,
         worktree=conversation.worktree,
-        expected_revision=expected_revision,
     )
     is_initial = not conversation.rounds
     return IssueConversationInput(
@@ -211,23 +203,6 @@ def prepare_issue_conversation_input(
         comments=comments,
         revision=revision,
     )
-
-
-def _read_unrecorded_input_revision(*, conversation: IssueConversation) -> str | None:
-    """Return a pending input's revision when its worktree still has it."""
-    number = conversation.next_round_number
-    path = conversation.compose_round_paths(number=number).round_input
-    if not path.exists():
-        return None
-    try:
-        round_input = read_issue_conversation_input(
-            conversation=conversation,
-            number=number,
-        )
-    except ReportableError:
-        return None
-    revision = read_worktree_revision(worktree=conversation.worktree)
-    return round_input.revision if revision == round_input.revision else None
 
 
 def read_issue_conversation_input(

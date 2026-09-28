@@ -614,7 +614,7 @@ def test_a_failed_conversation_refresh_leaves_the_batch_waiting(
     assert len(harnesses["claude"].calls) == 1
 
 
-def test_a_follow_up_survives_a_launch_failure_after_refresh(
+def test_a_follow_up_survives_an_input_write_failure_after_refresh(
     conversation_scheduler, harnesses, monkeypatch
 ):
     scheduler, clock, gh = conversation_scheduler
@@ -631,19 +631,19 @@ def test_a_follow_up_survives_a_launch_failure_after_refresh(
     git(arguments=["push", "origin", "main"], cwd=scheduler.state.root)
     comments = [ask(), ask(identifier=2, body="Does this still hold?")]
     offer_conversation(gh=gh, comments=comments)
-    with monkeypatch.context() as launch_failure:
-        launch_failure.setattr(
-            "dreamcatcher.agent_rounds.spawn_command",
-            Mock(side_effect=ReportableError("could not launch conversation")),
+    with monkeypatch.context() as input_failure:
+        input_failure.setattr(
+            "dreamcatcher.agent_rounds.write_json",
+            Mock(side_effect=ReportableError("could not save conversation input")),
         )
 
         failed = scheduler.tick(at=clock())
 
     pending_path = conversation.compose_round_paths(number=2).round_input
-    pending = read_json(model=IssueConversationInput, path=pending_path)
-    assert failed.hold == "could not launch conversation"
+    refreshed_revision = read_worktree_revision(worktree=conversation.worktree)
+    assert failed.hold == "could not save conversation input"
     assert len(conversation.rounds) == 1
-    assert pending.revision == read_worktree_revision(worktree=conversation.worktree)
+    assert not pending_path.exists()
     offer_conversation(gh=gh, comments=comments)
     answer(harnesses=harnesses, body="The changed answer.")
     gh.replies(stdout=json.dumps({"id": 100}), to=POST_PATH)
@@ -657,7 +657,7 @@ def test_a_follow_up_survives_a_launch_failure_after_refresh(
     assert conversation is not None
     assert len(conversation.rounds) == 2
     resumed = read_json(model=IssueConversationInput, path=pending_path)
-    assert resumed.revision == pending.revision
+    assert resumed.revision == refreshed_revision
     assert [item.body for item in resumed.comments] == ["Does this still hold?"]
 
 
