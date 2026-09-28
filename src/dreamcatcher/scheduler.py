@@ -219,15 +219,6 @@ class RequiredAgentRound:
 
 
 @dataclass(frozen=True, kw_only=True)
-class _PreparedAgentAssignmentRound:
-    """Hold an assignment round's requirement and resolved launch mode."""
-
-    required: RequiredAgentRound
-    prompt: str
-    harness_session_identifier: str | None
-
-
-@dataclass(frozen=True, kw_only=True)
 class NewIssueConversationRoundCandidate:
     """Describe an eligible issue with trusted comments waiting."""
 
@@ -825,31 +816,6 @@ def compose_initial_round_requirement(
         ),
         reason=NO_ROUND_HAS_RUN,
         prompt=assignment.record.prompt,
-    )
-
-
-def _prepare_agent_assignment_round(
-    *, required: RequiredAgentRound
-) -> _PreparedAgentAssignmentRound:
-    """Prepare an assignment round's prompt and harness session together."""
-    assignment = required.assignment
-    harness_session_identifier = None
-    prompt = required.prompt
-    if assignment.rounds:
-        harness_session_identifier = find_harness_session_identifier(
-            assignment=assignment
-        )
-        if harness_session_identifier is None:
-            if not required.plan.is_recovery:
-                raise ReportableError(
-                    f"Could not resume {assignment.identifier}: its first round did "
-                    "not report a harness session identifier."
-                )
-            prompt = assignment.record.prompt
-    return _PreparedAgentAssignmentRound(
-        required=required,
-        prompt=prompt,
-        harness_session_identifier=harness_session_identifier,
     )
 
 
@@ -1475,8 +1441,7 @@ class AgentWorkScheduler:
     ) -> SchedulerRecord:
         """Launch the next round for the highest-priority assignment."""
         try:
-            prepared = _prepare_agent_assignment_round(required=required)
-            self._launch_required_round(prepared=prepared)
+            self._launch_required_round(required=required)
         except ReportableError as failure:
             return record.model_copy(
                 update={
@@ -1500,13 +1465,22 @@ class AgentWorkScheduler:
             }
         )
 
-    def _launch_required_round(
-        self, *, prepared: _PreparedAgentAssignmentRound
-    ) -> None:
+    def _launch_required_round(self, *, required: RequiredAgentRound) -> None:
         """Start the round and advance the delivery cursor once it is running."""
-        required = prepared.required
         assignment = required.assignment
-        harness_session_identifier = prepared.harness_session_identifier
+        harness_session_identifier = None
+        prompt = required.prompt
+        if assignment.rounds:
+            harness_session_identifier = find_harness_session_identifier(
+                assignment=assignment
+            )
+            if harness_session_identifier is None:
+                if not required.plan.is_recovery:
+                    raise ReportableError(
+                        f"Could not resume {assignment.identifier}: its first round "
+                        "did not report a harness session identifier."
+                    )
+                prompt = f"{assignment.record.prompt}\n\n{required.prompt}"
         if harness_session_identifier is not None:
             record_harness_session_identifier(
                 assignment=assignment, identifier=harness_session_identifier
@@ -1518,7 +1492,7 @@ class AgentWorkScheduler:
                     agent_work_identifier=assignment.identifier,
                     model=assignment.record.model,
                     effort=assignment.record.effort,
-                    prompt=prepared.prompt,
+                    prompt=prompt,
                 ),
                 harness_session_identifier=harness_session_identifier,
                 record_harness_session_identifier=partial(
@@ -1647,8 +1621,6 @@ class AgentWorkScheduler:
             at=at,
         )
         self._launch_required_round(
-            prepared=_prepare_agent_assignment_round(
-                required=compose_initial_round_requirement(assignment=assignment)
-            )
+            required=compose_initial_round_requirement(assignment=assignment)
         )
         return assignment.identifier

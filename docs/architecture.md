@@ -112,8 +112,8 @@ position and a batch cannot be selected again.
 The first eligible batch starts one session through the harness selected from
 the conversation's configured recipes, with the issue title, body and trusted
 comment history. Each later eligible batch resumes that same harness session
-with only newly delivered comments. The scheduler first fetches main and asks
-Git to discard local changes and move the detached worktree to that revision.
+with only newly delivered comments. The scheduler first fetches main and resets
+the detached worktree to that revision, deleting every local commit and file.
 Each round input records its investigated revision. Comments posted while a
 round runs remain beyond the latest round input.
 

@@ -829,7 +829,7 @@ def test_a_recovery_without_a_harness_session_starts_a_new_first_round(
 
     assert observed.launched_assignment_identifier == ASSIGNMENT_ID
     assert written_round(scheduler=scheduler, number=2, name="prompt.txt") == (
-        "/dream:smith GH13"
+        f"/dream:smith GH13\n\n{RECOVERY_PROMPT}"
     )
     assert "--resume" not in harnesses["claude"].calls[-1].arguments
     recovered = record_of(scheduler=scheduler, number=2)
@@ -861,6 +861,25 @@ def test_a_follow_up_without_a_harness_session_still_needs_its_session(
         "harness session identifier."
     )
     assert harnesses["claude"].calls == []
+
+
+def test_a_terminal_recovery_without_a_session_receives_wrap_up_input(
+    resuming, gh, harnesses
+):
+    ran(root=resuming, number=1, purpose=PURPOSE, status=1)
+    forget_harness_session_identifier(root=resuming)
+    gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
+    scheduler, clock = create_scheduler(root=resuming)
+
+    observed = scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
+
+    assert observed.launched_assignment_identifier == ASSIGNMENT_ID
+    prompt = written_round(scheduler=scheduler, number=2, name="prompt.txt")
+    assert prompt.startswith("/dream:smith GH13\n\nPR-inbox prompt")
+    inbox = json.loads(written_round(scheduler=scheduler, number=2, name="inbox.json"))
+    assert inbox["pull_request_state"] == PullRequestState.MERGED
+    assert "--resume" not in harnesses["claude"].calls[-1].arguments
 
 
 def test_a_carried_on_round_records_recovery_independently(resuming, left_running):

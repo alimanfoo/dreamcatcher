@@ -46,7 +46,6 @@ def refresh_detached_worktree(*, root: Path, worktree: Path) -> str:
             "it is not a linked worktree."
         )
     fetch_main(root=root)
-    run_command(program="git", arguments=["reset", "--hard", "HEAD"], cwd=worktree)
     run_command(program="git", arguments=["clean", "-ffdx"], cwd=worktree)
     run_command(
         program="git",

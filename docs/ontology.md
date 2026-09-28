@@ -391,13 +391,13 @@ errored.
 
 After the round ends, another eligible comment batch resumes the same harness
 session in another conversation round. Before it accepts that batch,
-Dreamcatcher fetches main and asks Git to move the detached worktree to the
-fetched revision, discarding local changes left by the earlier investigation.
-Comments that arrive while a round runs stay beyond the latest round input. If
-the round is interrupted or errors, recovery reuses its saved comments and
-revision without reading new comments or refreshing the worktree. It resumes the
-saved harness session, or repeats the first invocation with the configured
-prompt if no session identifier was recorded.
+Dreamcatcher resets the detached worktree to fetched main, deleting every local
+commit and file left by the earlier investigation. Comments that arrive while a
+round runs stay beyond the latest round input. If the round is interrupted or
+errors, recovery reuses its saved comments and revision without reading new
+comments or refreshing the worktree. It resumes the saved harness session, or
+repeats the first invocation with the configured prompt if no session identifier
+was recorded.
 
 Closing the issue, removing its conversation label or unassigning the signed-in
 account stops new comment batches and takes the conversation off the status
