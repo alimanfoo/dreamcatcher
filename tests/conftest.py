@@ -1,17 +1,13 @@
 """What the whole suite shares: the encoding gate, a repo, a config, stand-ins."""
 
-import functools
 import json
 import os
 import shutil
-import subprocess
 import sys
-from collections import Counter, defaultdict
 from collections.abc import Sequence
 from contextlib import suppress
 from functools import partial
 from pathlib import Path
-from time import perf_counter
 
 import fakes
 import psutil
@@ -22,12 +18,6 @@ from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME
 
 ARMING = "PYTHONWARNDEFAULTENCODING"
 REGENERATE_VIEW_GOLDENS_OPTION = "--regenerate-view-goldens"
-TEST_PHASES = ("setup", "call", "teardown")
-
-_RUN = subprocess.run
-_RUN_PATCH = pytest.MonkeyPatch()
-_RUN_CALLS: Counter[str] = Counter()
-_RUN_SECONDS: defaultdict[str, float] = defaultdict(float)
 
 
 # The directory holding everything the suite reads back from a recording: the
@@ -109,77 +99,6 @@ def pytest_configure(config: pytest.Config) -> None:
             f"Set {ARMING}=1 when you run pytest. Without it the interpreter "
             "never emits EncodingWarning, so the UTF-8 gate is inert."
         )
-
-
-def pytest_sessionstart(session: pytest.Session, /) -> None:
-    """Start timing every subprocess.run call for this test session."""
-    del session
-    _RUN_CALLS.clear()
-    _RUN_SECONDS.clear()
-    _RUN_PATCH.setattr(subprocess, "run", _timed_run)
-
-
-def pytest_sessionfinish(session: pytest.Session, exitstatus: int, /) -> None:
-    """Restore subprocess.run after this test session."""
-    del session, exitstatus
-    _RUN_PATCH.undo()
-
-
-def pytest_terminal_summary(terminalreporter, /) -> None:
-    """Print phase totals and the time spent running each program."""
-    durations = dict.fromkeys(TEST_PHASES, 0.0)
-    for reports in terminalreporter.stats.values():
-        for report in reports:
-            when = getattr(report, "when", None)
-            if when in durations:
-                durations[when] += report.duration
-
-    terminalreporter.section("timing summary")
-    terminalreporter.write_line(
-        "   ".join(f"{phase} {durations[phase]:.2f}s" for phase in TEST_PHASES)
-    )
-    terminalreporter.write_line("")
-    for program in sorted(_RUN_SECONDS, key=_program_sort_key):
-        terminalreporter.write_line(
-            f"{program:<16} {_RUN_CALLS[program]:>5} calls  "
-            f"{_RUN_SECONDS[program]:>8.2f}s"
-        )
-
-
-@functools.wraps(subprocess.run)
-def _timed_run(*popenargs, **kwargs):
-    """Run a command passed by subprocess and add its time to the summary."""
-    arguments = popenargs[0] if popenargs else kwargs["args"]
-    program = _program_name(arguments=arguments)
-    started = perf_counter()
-    try:
-        return _RUN(*popenargs, **kwargs)
-    finally:
-        _RUN_CALLS[program] += 1
-        _RUN_SECONDS[program] += perf_counter() - started
-
-
-def _program_name(*, arguments) -> str:
-    """Return the extension-free base name of the invoked program."""
-    if isinstance(arguments, bytes):
-        arguments = os.fsdecode(arguments)
-    if isinstance(arguments, str):
-        command = arguments.lstrip()
-        executable = (
-            command.partition('"')[2].partition('"')[0]
-            if command.startswith('"')
-            else command.partition(" ")[0]
-        )
-    elif isinstance(arguments, os.PathLike):
-        executable = arguments
-    else:
-        executable = arguments[0]
-    return Path(os.fsdecode(executable)).stem
-
-
-def _program_sort_key(program: str, /) -> tuple[float, str]:
-    """Sort a program passed by sorted by descending time, then by name."""
-    return (-_RUN_SECONDS[program], program)
 
 
 def assert_matches_view_golden(
