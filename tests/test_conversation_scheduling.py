@@ -50,11 +50,13 @@ from dreamcatcher.prompts import (
 )
 from dreamcatcher.scheduler import (
     AgentWorkScheduler,
+    FalseIssueFact,
     GlobalCooldown,
     IssueConversationObservation,
-    IssueFact,
     IssueFactValue,
     SchedulerRecord,
+    TrueIssueFact,
+    UnknownIssueFact,
 )
 from dreamcatcher.state import StateDirectory
 
@@ -317,7 +319,7 @@ def test_an_initial_conversation_freezes_input_runs_claude_and_publishes_once(
         IssueConversationObservation(
             issue=8,
             title="Why does this happen?",
-            has_comments_to_answer=IssueFact(value=IssueFactValue.FALSE),
+            has_comments_to_answer=FalseIssueFact(),
         )
     ]
     assert after.hold is None
@@ -678,8 +680,9 @@ def test_comments_posted_during_a_round_wait_for_a_free_agent(
     observed = scheduler.tick(at=clock())
 
     assert observed.hold == "at cap: 1 of 1 agents running"
-    assert observed.conversation_observations[0].has_comments_to_answer == IssueFact(
-        value=IssueFactValue.TRUE,
+    assert observed.conversation_observations[
+        0
+    ].has_comments_to_answer == TrueIssueFact(
         evidence="1 comment to answer",
     )
     assert count_comment_reads(gh=gh) == 2
@@ -697,8 +700,8 @@ def test_comments_a_running_round_holds_are_not_waiting(
     observed = scheduler.tick(at=clock())
 
     assert observed.hold == "at cap: 1 of 1 agents running"
-    assert observed.conversation_observations[0].has_comments_to_answer == IssueFact(
-        value=IssueFactValue.FALSE
+    assert (
+        observed.conversation_observations[0].has_comments_to_answer == FalseIssueFact()
     )
 
 
@@ -782,8 +785,8 @@ def test_an_issue_without_a_trusted_unmarked_comment_does_not_start(
     observed = scheduler.tick(at=clock())
 
     assert observed.launched_conversation_identifier is None
-    assert observed.conversation_observations[0].has_comments_to_answer == IssueFact(
-        value=IssueFactValue.FALSE
+    assert (
+        observed.conversation_observations[0].has_comments_to_answer == FalseIssueFact()
     )
     assert harnesses["claude"].calls == []
     assert read_issue_conversation(state=scheduler.state, issue=8) is None
@@ -797,10 +800,9 @@ def test_a_conversation_waits_for_shared_capacity(conversation_scheduler, harnes
     observed = scheduler.tick(at=clock())
 
     assert observed.hold == "at cap: 1 of 1 agents running"
-    assert observed.conversation_observations[0].has_comments_to_answer == IssueFact(
-        value=IssueFactValue.TRUE,
-        evidence="1 comment to answer",
-    )
+    assert observed.conversation_observations[
+        0
+    ].has_comments_to_answer == TrueIssueFact(evidence="1 comment to answer")
     assert harnesses["claude"].calls == []
 
 
@@ -821,10 +823,9 @@ def test_a_conversation_waits_for_the_active_global_cooldown(
     observed = scheduler.tick(at=at)
 
     assert observed.hold == "global cooldown"
-    assert observed.conversation_observations[0].has_comments_to_answer == IssueFact(
-        value=IssueFactValue.TRUE,
-        evidence="1 comment to answer",
-    )
+    assert observed.conversation_observations[
+        0
+    ].has_comments_to_answer == TrueIssueFact(evidence="1 comment to answer")
     assert harnesses["claude"].calls == []
 
 
@@ -1215,9 +1216,7 @@ def test_a_failed_conversation_listing_holds_launches(conversation_scheduler):
         IssueConversationObservation(
             issue=8,
             title="Why does this happen?",
-            has_comments_to_answer=IssueFact(
-                value=IssueFactValue.UNKNOWN, evidence=observed.hold
-            ),
+            has_comments_to_answer=UnknownIssueFact(evidence=observed.hold),
         )
     ]
 
@@ -1240,7 +1239,7 @@ def test_failed_listing_keeps_visible_conversation_faults_in_the_cooldown(
                 IssueConversationObservation(
                     issue=issue,
                     title=f"Issue {issue}",
-                    has_comments_to_answer=IssueFact(value=IssueFactValue.FALSE),
+                    has_comments_to_answer=FalseIssueFact(),
                 )
                 for issue in (8, 9)
             ],
@@ -1442,9 +1441,9 @@ def test_a_failed_comment_listing_holds_launches(conversation_scheduler):
 
     assert observed.hold is not None
     assert observed.hold.startswith("could not read comments for GH8")
-    assert observed.conversation_observations[0].has_comments_to_answer == IssueFact(
-        value=IssueFactValue.UNKNOWN, evidence=observed.hold
-    )
+    assert observed.conversation_observations[
+        0
+    ].has_comments_to_answer == UnknownIssueFact(evidence=observed.hold)
 
 
 def test_a_failed_delivery_cursor_read_is_a_scheduler_hold(

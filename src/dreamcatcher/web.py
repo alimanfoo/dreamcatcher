@@ -1049,22 +1049,22 @@ def _compose_web_feed_line(*, written_line: str, zone: tzinfo | None) -> WebFeed
 
 
 def _compose_issue_row(*, observation: IssueObservation) -> WebIssueRow:
-    is_blocked = observation.blocked.value is IssueFactValue.TRUE
-    status = "blocked" if is_blocked else "available"
+    if observation.blocked.value is IssueFactValue.TRUE:
+        status = "blocked"
+        evidence = _compose_issue_evidence(evidence=observation.blocked.evidence)
+    else:
+        status = "available"
+        evidence = ()
     return WebIssueRow(
         issue=observation.issue,
         title=observation.title,
         labels=", ".join(observation.dispatch_labels or []),
         status=status,
-        evidence=_compose_issue_evidence(
-            evidence=observation.blocked.evidence if is_blocked else None
-        ),
+        evidence=evidence,
     )
 
 
-def _compose_issue_evidence(*, evidence: str | None) -> tuple[str | int, ...]:
-    if evidence is None:
-        return ()
+def _compose_issue_evidence(*, evidence: str) -> tuple[str | int, ...]:
     return tuple(
         int(part) if index % 2 else part
         for index, part in enumerate(_ISSUE_REFERENCE_PATTERN.split(evidence))
