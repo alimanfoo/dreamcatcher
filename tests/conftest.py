@@ -1,5 +1,6 @@
 """What the whole suite shares: the encoding gate, a repo, a config, stand-ins."""
 
+import functools
 import json
 import os
 import shutil
@@ -8,7 +9,7 @@ import sys
 from collections import Counter, defaultdict
 from collections.abc import Sequence
 from contextlib import suppress
-from functools import partial, wraps
+from functools import partial
 from pathlib import Path
 from time import perf_counter
 
@@ -145,7 +146,7 @@ def pytest_terminal_summary(terminalreporter, /) -> None:
         )
 
 
-@wraps(_RUN)
+@functools.wraps(subprocess.run)
 def _timed_run(*popenargs, **kwargs):
     """Run a command passed by subprocess and add its time to the summary."""
     arguments = popenargs[0] if popenargs else kwargs["args"]

@@ -9,9 +9,9 @@ which says so where a reader meets it.
 A test, a fixture and a pytest_ hook are left alone. pytest is what calls each
 of those, and it resolves every argument by the parameter's own name.
 
-A function decorated with `functools.wraps` may keep the wrapped function's
-variadic positional shape. The wrapped API owns that shape, rather than this
-project's callers.
+A function adapting `subprocess.run` may keep that external API's variadic
+positional shape. The wrapped API owns that shape, rather than this project's
+callers.
 
 This reads a def statement and nothing else. A lambda has no keyword-only form,
 so write a def for any callback that takes more than one argument, and the check
@@ -29,7 +29,7 @@ METHOD_RECEIVER_NAMES = ("self", "cls")
 
 # What pytest's own decorator is called, wherever it was imported from.
 PYTEST_FIXTURE_DECORATOR = "fixture"
-WRAPS_DECORATOR = "wraps"
+EXTERNAL_SIGNATURE_WRAPPERS = {("functools.wraps", "subprocess.run")}
 
 
 def is_called_by_pytest(*, definition: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
@@ -59,12 +59,30 @@ def _read_decorator_name(*, decorator: ast.expr) -> str:
     return ast.unparse(decorator)
 
 
+def _read_qualified_name(*, expression: ast.expr) -> str:
+    """Return an expression's dotted name, or its source when it has none."""
+    if isinstance(expression, ast.Attribute):
+        return f"{_read_qualified_name(expression=expression.value)}.{expression.attr}"
+    if isinstance(expression, ast.Name):
+        return expression.id
+    return ast.unparse(expression)
+
+
+def _wraps_known_external_signature(*, decorator: ast.expr) -> bool:
+    """Whether this decorator preserves a known external positional API."""
+    if not isinstance(decorator, ast.Call) or len(decorator.args) != 1:
+        return False
+    wrapper = _read_qualified_name(expression=decorator.func)
+    wrapped = _read_qualified_name(expression=decorator.args[0])
+    return (wrapper, wrapped) in EXTERNAL_SIGNATURE_WRAPPERS
+
+
 def _wraps_an_external_signature(
     *, definition: ast.FunctionDef | ast.AsyncFunctionDef
 ) -> bool:
-    """Whether functools.wraps gives this function another API's shape."""
+    """Whether an approved adapter gives this function another API's shape."""
     return any(
-        _read_decorator_name(decorator=decorator) == WRAPS_DECORATOR
+        _wraps_known_external_signature(decorator=decorator)
         for decorator in definition.decorator_list
     )
 
