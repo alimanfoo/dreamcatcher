@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 import sys
 from collections.abc import Sequence
 from contextlib import suppress
@@ -235,13 +236,17 @@ def repo(tmp_path):
     return tmp_path
 
 
-@pytest.fixture
-def upstream(tmp_path):
-    """Return a bare repository holding main, standing in for GitHub."""
-    bare = tmp_path / "upstream.git"
-    git(arguments=["init", "--bare", "--initial-branch=main", str(bare)], cwd=tmp_path)
-    seed = tmp_path / "seed"
-    git(arguments=["init", "--initial-branch=main", str(seed)], cwd=tmp_path)
+@pytest.fixture(scope="session")
+def seeded_upstream(tmp_path_factory):
+    """Build the immutable bare repository that each test copies."""
+    directory = tmp_path_factory.mktemp("seeded-upstream")
+    bare = directory / "upstream.git"
+    git(
+        arguments=["init", "--bare", "--initial-branch=main", str(bare)],
+        cwd=directory,
+    )
+    seed = directory / "seed"
+    git(arguments=["init", "--initial-branch=main", str(seed)], cwd=directory)
     (seed / "README.md").write_text("what the seed holds\n", encoding="utf-8")
     commit(path=seed, message="seed the upstream")
     git(arguments=["remote", "add", "origin", str(bare)], cwd=seed)
@@ -249,11 +254,23 @@ def upstream(tmp_path):
     return bare
 
 
+@pytest.fixture(scope="session")
+def seeded_checkout(seeded_upstream, tmp_path_factory):
+    """Build the immutable checkout that each test copies."""
+    directory = tmp_path_factory.mktemp("seeded-checkout")
+    checkout = directory / "checkout"
+    git(arguments=["clone", str(seeded_upstream), str(checkout)], cwd=directory)
+    return checkout
+
+
 @pytest.fixture
-def cloned(upstream, tmp_path):
+def cloned(seeded_checkout, seeded_upstream, tmp_path):
     """Return a main checkout of upstream, with an origin/main to cut from."""
+    upstream = tmp_path / "upstream.git"
+    shutil.copytree(seeded_upstream, upstream)
     checkout = tmp_path / "checkout"
-    git(arguments=["clone", str(upstream), str(checkout)], cwd=tmp_path)
+    shutil.copytree(seeded_checkout, checkout)
+    git(arguments=["remote", "set-url", "origin", str(upstream)], cwd=checkout)
     return checkout
 
 

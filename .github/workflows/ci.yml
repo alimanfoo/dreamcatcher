@@ -23,9 +23,15 @@ jobs:
           fetch-depth: 0
       - uses: astral-sh/setup-uv@v10.0.1
       - run: uv sync --locked
+      - name: Keep Windows test files on the runner drive
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          "TEMP=$env:RUNNER_TEMP" >> $env:GITHUB_ENV
+          "TMP=$env:RUNNER_TEMP" >> $env:GITHUB_ENV
       # Arms the EncodingWarning gate. Without it the interpreter never emits
       # the warning, and pytest refuses to run.
-      - run: uv run pytest
+      - run: uv run pytest --durations=30
         env:
           PYTHONWARNDEFAULTENCODING: "1"
 
