@@ -1036,11 +1036,13 @@ def test_one_repository_always_derives_the_same_starting_port(tmp_path):
     assert web_module._derive_starting_port(state=state) == 8262
 
 
-def test_an_occupied_starting_port_makes_the_scan_move_on(tmp_path):
+def test_an_occupied_starting_port_makes_the_scan_move_on(tmp_path, monkeypatch):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
     ports = []
+    reverse_lookup = MagicMock()
+    monkeypatch.setattr(socket, "getfqdn", reverse_lookup)
 
     def record_port(*, server):
         ports.append(server.server_port)
@@ -1060,6 +1062,7 @@ def test_an_occupied_starting_port_makes_the_scan_move_on(tmp_path):
         )
 
     assert ports[1] == ports[0] + 1
+    reverse_lookup.assert_not_called()
 
 
 def test_a_pinned_port_that_is_taken_is_refused(tmp_path):

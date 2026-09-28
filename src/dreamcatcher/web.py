@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime, tzinfo
 from functools import partial
 from pathlib import Path
+from socketserver import TCPServer
 from typing import Protocol, cast
 from webbrowser import open as open_browser
 
@@ -76,11 +77,13 @@ class _ExclusiveWebServer(BaseWSGIServer):
     allow_reuse_address = False
 
     def server_bind(self) -> None:
-        """Bind exclusively while preserving failures for the caller."""
+        """Bind exclusively without resolving the loopback address."""
         try:
-            super().server_bind()
+            TCPServer.server_bind(self)
         except OSError as error:
             raise _WebServerBindError(error=error) from error
+        self.server_name = WEB_HOST
+        self.server_port = self.server_address[1]
 
 
 class WebServerRunner(Protocol):
