@@ -397,6 +397,7 @@ def test_a_theme_choice_is_validated_and_remembered(tmp_path):
     assert 'href="/static/dreamcatcher-mark-ink.png"' in remembered.text
     assert "circle at var(--sun-x) 6%" in stylesheet
     assert "opacity: var(--sun-opacity);" in stylesheet
+    assert ".status-unknown," in stylesheet
     assert "const sunrise = 6 * 60;" in script
     assert "const sunset = 18 * 60;" in script
     assert 'style.setProperty("--sun-x", `${sunPosition}%`);' in script
