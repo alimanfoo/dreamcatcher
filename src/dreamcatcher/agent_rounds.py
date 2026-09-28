@@ -38,7 +38,6 @@ from dreamcatcher.documents import (
 )
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedEvent, FeedNote, FeedProse, FeedRenderer
-from dreamcatcher.github import ConversationComment, PullRequestState, UserPost
 from dreamcatcher.harness_adapters import (
     AgentRoundLaunchRequest,
     HarnessAdapter,
@@ -216,23 +215,6 @@ def _record_agent_round_ending(
     return ended_record
 
 
-class AgentAssignmentRoundInput(DreamcatcherDocument):
-    """Model the pull request state and user posts delivered to an assignment round."""
-
-    pull_request_state: PullRequestState
-    user_posts: list[UserPost]
-
-
-class IssueConversationInput(DreamcatcherDocument):
-    """Model the trusted issue input frozen for one conversation round."""
-
-    issue: int
-    title: str | None = Field(default=None, exclude_if=lambda value: value is None)
-    body: str | None = Field(default=None, exclude_if=lambda value: value is None)
-    comments: list[ConversationComment]
-    revision: str
-
-
 @dataclass(frozen=True, kw_only=True)
 class AgentRoundPlan[RoundInputT: DreamcatcherDocument]:
     """Describe the decisions and input that a new round executes."""
@@ -252,10 +234,7 @@ class AgentRoundStartRequest:
     record_harness_session_identifier: HarnessSessionIdentifierRecorder
     finish_round: AgentRoundFinisher | None
     paths: "AgentRoundPaths"
-    plan: (
-        AgentRoundPlan[AgentAssignmentRoundInput]
-        | AgentRoundPlan[IssueConversationInput]
-    )
+    plan: AgentRoundPlan[DreamcatcherDocument]
 
 
 def start_agent_round(
@@ -398,8 +377,7 @@ class AgentRound:
         *,
         harness: AgentRoundHarness,
         paths: AgentRoundPaths,
-        plan: AgentRoundPlan[AgentAssignmentRoundInput]
-        | AgentRoundPlan[IssueConversationInput],
+        plan: AgentRoundPlan[DreamcatcherDocument],
         finish_round: AgentRoundFinisher | None = None,
         clock: Callable[[], datetime] = read_current_time,
     ) -> None:

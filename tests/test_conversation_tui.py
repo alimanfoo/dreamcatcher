@@ -19,7 +19,6 @@ from rich.console import Console
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
-    IssueConversationInput,
     IssueConversationRoundPurpose,
     compose_agent_round_ending,
 )
@@ -27,6 +26,7 @@ from dreamcatcher.documents import write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.harness_adapters import AgentWorkKind
+from dreamcatcher.issue_conversations import IssueConversationInput
 from dreamcatcher.scheduler import IssueFactValue, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.tui import (

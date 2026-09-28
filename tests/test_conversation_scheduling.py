@@ -31,7 +31,6 @@ from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
     AgentRoundRecord,
     ErroredAgentRoundEnding,
-    IssueConversationInput,
     IssueConversationRoundPurpose,
 )
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
@@ -42,6 +41,7 @@ from dreamcatcher.git import add_detached_worktree, read_worktree_revision
 from dreamcatcher.issue_conversations import (
     ISSUE_CONVERSATION_RECORD_NAME,
     NO_REPLY,
+    IssueConversationInput,
     read_issue_conversation,
 )
 from dreamcatcher.prompts import (

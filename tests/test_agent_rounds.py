@@ -23,9 +23,9 @@ from conftest import (
 from fakes import Line, Stream, recorded
 from recordings import render_harness_recording
 
+from dreamcatcher.agent_assignments import AgentAssignmentRoundInput
 from dreamcatcher.agent_rounds import (
     AGENT_ROUND_RECORD_NAME,
-    AgentAssignmentRoundInput,
     AgentAssignmentRoundPurpose,
     AgentRound,
     AgentRoundFinisher,

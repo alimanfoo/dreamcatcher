@@ -21,6 +21,7 @@ from pydantic import AfterValidator, AwareDatetime, Field, model_validator
 from dreamcatcher.agent_assignments import (
     AgentAssignment,
     AgentAssignmentCreator,
+    AgentAssignmentRoundInput,
     advance_user_post_delivery_cursor,
     find_harness_session_identifier,
     find_open_agent_assignments_by_issue,
@@ -31,7 +32,6 @@ from dreamcatcher.agent_assignments import (
     record_pull_request_observation,
 )
 from dreamcatcher.agent_rounds import (
-    AgentAssignmentRoundInput,
     AgentAssignmentRoundPurpose,
     AgentRound,
     AgentRoundOutcome,
@@ -39,7 +39,6 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     AgentRoundStartRequest,
     ErroredAgentRoundEnding,
-    IssueConversationInput,
     IssueConversationRoundPurpose,
     start_agent_round,
 )
@@ -68,6 +67,7 @@ from dreamcatcher.github import (
 from dreamcatcher.harness_adapters import AgentRoundLaunchRequest, AgentWorkKind
 from dreamcatcher.issue_conversations import (
     IssueConversation,
+    IssueConversationInput,
     create_issue_conversation,
     find_issue_conversation_harness_session_identifier,
     list_undelivered_issue_comments,
