@@ -44,10 +44,13 @@ def test_a_round_link_brings_its_round_into_view_from_the_tail(
     first_round.evaluate(
         "element => element.style.setProperty('position', 'sticky', 'important')"
     )
+    tail = page.get_by_role("button", name="TAIL ↓")
+    expect(tail).to_be_hidden()
     second_round = locate_first_line_of_round(page=page, number=2)
     expect(second_round).not_to_be_in_viewport()
 
     page.get_by_role("link", name="02 address feedback").click()
+    assert tail.is_visible()
     expect(second_round).to_be_in_viewport()
 
     page.get_by_role("link", name="01 implement").click()
