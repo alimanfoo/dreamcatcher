@@ -469,10 +469,10 @@ def _observe_issue(
         external_reason = f"cannot read issue: {issue_response.reason}"
         title = None
         created_at = None
-        is_open = _compose_unknown_issue_fact(evidence=external_reason)
-        is_assigned = _compose_unknown_issue_fact(evidence=external_reason)
+        is_open = UnknownIssueFact(evidence=external_reason)
+        is_assigned = UnknownIssueFact(evidence=external_reason)
         dispatch_labels = None
-        routing_conflict = _compose_unknown_issue_fact(evidence=external_reason)
+        routing_conflict = UnknownIssueFact(evidence=external_reason)
     else:
         title = issue_response.title
         created_at = issue_response.created_at
@@ -546,8 +546,8 @@ def _observe_external_claim(
     )
     if isinstance(pull_request_context, UnknownGitHubResponse):
         if setup_failure is not None:
-            return _compose_unknown_issue_fact(evidence=setup_failure)
-        return _compose_unknown_issue_fact(
+            return UnknownIssueFact(evidence=setup_failure)
+        return UnknownIssueFact(
             evidence=(
                 "cannot tell whether a pull request claims it: "
                 f"{pull_request_context.reason}"
@@ -568,7 +568,7 @@ def _observe_external_claim(
             evidence=f"a pull request is open on it: {external_pull_requests}",
         )
     if setup_failure is not None:
-        return _compose_unknown_issue_fact(evidence=setup_failure)
+        return UnknownIssueFact(evidence=setup_failure)
     return FalseIssueFact()
 
 
@@ -576,7 +576,7 @@ def _observe_blocking_issues(*, repository: str, issue: int) -> IssueFact:
     """Observe whether an open issue dependency blocks the issue."""
     blocking = list_blocking_issues(repository=repository, issue=issue)
     if isinstance(blocking, UnknownGitHubResponse):
-        return _compose_unknown_issue_fact(
+        return UnknownIssueFact(
             evidence=f"cannot tell what blocks it: {blocking.reason}"
         )
     open_blockers = [
@@ -588,10 +588,6 @@ def _observe_blocking_issues(*, repository: str, issue: int) -> IssueFact:
         if open_blockers
         else FalseIssueFact()
     )
-
-
-def _compose_unknown_issue_fact(*, evidence: str) -> UnknownIssueFact:
-    return UnknownIssueFact(evidence=evidence)
 
 
 def derive_agent_work_fault(
@@ -931,9 +927,7 @@ def _list_issue_conversation_candidates(
             observations=[
                 observation.model_copy(
                     update={
-                        "has_comments_to_answer": _compose_unknown_issue_fact(
-                            evidence=failure
-                        )
+                        "has_comments_to_answer": UnknownIssueFact(evidence=failure)
                     }
                 )
                 for observation in previous_observations
@@ -1013,7 +1007,7 @@ def _inspect_issue_conversation(
             conversation=conversation,
         )
     except ReportableError as failure:
-        has_comments_to_answer = _compose_unknown_issue_fact(evidence=str(failure))
+        has_comments_to_answer = UnknownIssueFact(evidence=str(failure))
         comments = []
     else:
         has_comments_to_answer = (
