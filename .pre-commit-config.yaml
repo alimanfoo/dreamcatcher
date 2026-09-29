@@ -1,6 +1,6 @@
 # Every fixture is a recording, and every vendor file is an upstream release.
-# A hook that repaired either one would make it claim to be something it is not.
-exclude: ^(tests/fixtures/|src/dreamcatcher/static/vendor/)
+# Hooks that inspect or repair their bytes share the exclusion below. Filename
+# portability and private-key checks still cover every tracked path.
 
 default_language_version:
   node: 24.21.0
@@ -10,24 +10,33 @@ repos:
     rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c # v6.0.0
     hooks:
       - id: fix-byte-order-marker
+        exclude: &verbatim-paths ^(tests/fixtures/|src/dreamcatcher/static/vendor/)
       - id: trailing-whitespace
+        exclude: *verbatim-paths
       - id: end-of-file-fixer
+        exclude: *verbatim-paths
       - id: check-illegal-windows-names
       - id: check-merge-conflict
+        exclude: *verbatim-paths
       - id: check-toml
+        exclude: *verbatim-paths
       - id: check-yaml
+        exclude: *verbatim-paths
       - id: detect-private-key
 
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: 3a6eb0fadf60b3cccfd80bad9dbb6fae7e47b316 # v1.10.0
     hooks:
       - id: python-check-blanket-noqa
+        exclude: *verbatim-paths
       - id: python-check-blanket-type-ignore
+        exclude: *verbatim-paths
 
   - repo: https://github.com/DavidAnson/markdownlint-cli2
     rev: 996abf60411a8d954288ac9856aae7602b80cbda # v0.22.1
     hooks:
       - id: markdownlint-cli2
+        exclude: *verbatim-paths
 
   - repo: https://github.com/abravalheri/validate-pyproject
     rev: 4b2e70d08cb2ccd26d1fba73588de41c7a5d50b7 # v0.25
@@ -46,31 +55,37 @@ repos:
         entry: uv run python tools/forbid_invisible_characters.py
         language: system
         types: [text]
+        exclude: *verbatim-paths
       - id: require-keyword-parameters
         name: require keyword parameters
         entry: uv run python tools/require_keyword_parameters.py
         language: system
         files: ^(src|tests|tools)/.*\.py$
+        exclude: *verbatim-paths
       - id: ruff-check
         name: ruff check
         entry: uv run ruff check --fix --exit-non-zero-on-fix --show-fixes
         language: system
         pass_filenames: false
+        exclude: *verbatim-paths
       - id: ruff-format
         name: ruff format
         entry: uv run ruff format
         language: system
         pass_filenames: false
+        exclude: *verbatim-paths
       - id: ty
         name: ty
         entry: uv run ty check src tests tools
         language: system
         pass_filenames: false
+        exclude: *verbatim-paths
       - id: complexipy
         name: complexipy
         entry: uv run complexipy src tests tools
         language: system
         pass_filenames: false
+        exclude: *verbatim-paths
       - id: remark-validate-links
         name: validate markdown links
         entry: remark --frail --quiet --no-stdout --use validate-links
@@ -79,6 +94,7 @@ repos:
           - remark-cli@12.0.1
           - remark-validate-links@13.1.0
         files: \.md$
+        exclude: *verbatim-paths
       # Runs before uncoded, so uncoded builds its skill files from prose
       # prettier has already formatted.
       - id: prettier
@@ -87,9 +103,11 @@ repos:
         language: node
         additional_dependencies: ["prettier@3.8.1"]
         files: \.md$
+        exclude: *verbatim-paths
       - id: uncoded
         name: uncoded
         entry: uv run uncoded sync
         language: system
         always_run: true
         pass_filenames: false
+        exclude: *verbatim-paths
