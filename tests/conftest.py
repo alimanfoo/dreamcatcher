@@ -8,10 +8,12 @@ from collections.abc import Sequence
 from contextlib import suppress
 from functools import partial
 from pathlib import Path
+from types import SimpleNamespace
 
 import fakes
 import psutil
 import pytest
+from clocks import PINNED
 
 from dreamcatcher.commands import run_command, spawn_command
 from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME
@@ -80,7 +82,14 @@ CONFIG = SMITH_CLAUDE + SMITH_CODEX
 @pytest.fixture
 def daemon(monkeypatch):
     """Answer that the fabricated daemon, and nothing else, is still running."""
+
+    def fabricated_process(pid, /):
+        if pid != DAEMON_PID:
+            raise psutil.NoSuchProcess(pid)
+        return SimpleNamespace(create_time=lambda: PINNED.timestamp())
+
     monkeypatch.setattr(psutil, "pid_exists", lambda pid: pid == DAEMON_PID)
+    monkeypatch.setattr(psutil, "Process", fabricated_process)
 
 
 def pytest_addoption(parser: pytest.Parser, /) -> None:

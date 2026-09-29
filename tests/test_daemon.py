@@ -18,6 +18,7 @@ from conftest import (
 from fakes import Line
 from records import (
     write_agent_assignment,
+    write_daemon_lock,
     write_daemon_run,
     write_issue_conversation,
     write_round,
@@ -337,7 +338,7 @@ def test_a_second_daemon_refuses_while_the_first_holds_the_repo(
     daemon.state.bootstrap()
     write_daemon_run(state=daemon.state, pid=os.getpid(), max_agents=2)
     (daemon.state.path.parent / "repository").write_bytes(b"legacy\n")
-    daemon.state.lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
+    write_daemon_lock(state=daemon.state)
 
     with pytest.raises(ReportableError, match=f"pid {os.getpid()}"):
         daemon.run()

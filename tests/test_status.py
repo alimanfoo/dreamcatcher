@@ -9,6 +9,7 @@ from conftest import REPOSITORY, configure
 from observations import observed_issue
 from records import (
     write_agent_assignment,
+    write_daemon_lock,
     write_daemon_run,
     write_feed,
     write_round,
@@ -60,7 +61,7 @@ def state(tmp_path):
 @pytest.fixture
 def running(state):
     """That state directory held by a daemon with this process identifier."""
-    state.lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
+    write_daemon_lock(state=state)
     return state
 
 
@@ -175,7 +176,7 @@ def test_a_live_daemon_does_not_mix_in_another_runs_facts(state):
         harness=AgentHarness.CODEX,
         max_agents=4,
     )
-    write_text(text=f"{os.getpid()}\n", path=state.lock)
+    write_daemon_lock(state=state)
 
     found = report(state=state)
 
@@ -244,7 +245,7 @@ def test_an_unended_round_status_follows_the_daemon(
     state, is_running, outcome_description
 ):
     if is_running:
-        write_text(text=f"{os.getpid()}\n", path=state.lock)
+        write_daemon_lock(state=state)
     ran(state=state, number=1, status=None)
 
     round_status = only_assignment(state=state).round_statuses[0]

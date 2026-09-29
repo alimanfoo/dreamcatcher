@@ -169,8 +169,7 @@ $env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest --regenerate-view-goldens
   write it through `documents.py`. That covers `dreamcatcher.toml` and the
   records under `.dreamcatcher/`. A mistake in a document then reads as a named
   error in plain words, not as a setting the tool quietly ignores. A one-value
-  file like `daemon.pid` needs no model, though `lock.py` still writes it
-  through `documents.write_text`.
+  file needs no model, though its writer must still use `documents.write_text`.
 - Read what GitHub answers through a `GitHubResponseProjection` in `github.py`.
   It keeps the fields we declare and lets every other key pass, because GitHub
   owns that document and adds to it as it pleases. A `DreamcatcherDocument`
