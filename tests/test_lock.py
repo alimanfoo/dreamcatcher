@@ -8,6 +8,7 @@ import psutil
 import pytest
 from records import write_daemon_lock
 
+import dreamcatcher.lock as lock_module
 from dreamcatcher.documents import read_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.lock import DaemonLockRecord, hold_daemon_lock
@@ -30,12 +31,12 @@ def process_started_at(*, pid: int) -> datetime:
 
 def test_holding_the_lock_records_the_daemon_and_releasing_removes_it(tmp_path):
     lock = tmp_path / "daemon.pid"
-    started_at = process_started_at(pid=os.getpid())
+    process_start = process_started_at(pid=os.getpid())
 
     with hold_daemon_lock(path=lock) as pid:
         assert pid == os.getpid()
         assert read_json(model=DaemonLockRecord, path=lock) == DaemonLockRecord(
-            pid=os.getpid(), started_at=started_at
+            pid=os.getpid(), process_started_at=process_start
         )
 
     assert not lock.exists()
@@ -46,7 +47,7 @@ def test_a_live_daemon_keeps_the_lock(tmp_path):
     write_daemon_lock(
         path=lock,
         pid=os.getpid(),
-        started_at=process_started_at(pid=os.getpid()),
+        process_started_at=process_started_at(pid=os.getpid()),
     )
 
     with (
@@ -58,7 +59,11 @@ def test_a_live_daemon_keeps_the_lock(tmp_path):
 
 def test_a_lock_naming_a_pid_that_is_gone_is_reclaimed(tmp_path):
     lock = tmp_path / "daemon.pid"
-    write_daemon_lock(path=lock, pid=dead_pid(), started_at=datetime.now(tz=UTC))
+    write_daemon_lock(
+        path=lock,
+        pid=dead_pid(),
+        process_started_at=datetime.now(tz=UTC),
+    )
 
     with hold_daemon_lock(path=lock):
         assert read_json(model=DaemonLockRecord, path=lock).pid == os.getpid()
@@ -66,16 +71,16 @@ def test_a_lock_naming_a_pid_that_is_gone_is_reclaimed(tmp_path):
 
 def test_a_lock_naming_a_reused_pid_is_reclaimed(tmp_path):
     lock = tmp_path / "daemon.pid"
-    started_at = process_started_at(pid=os.getpid())
+    process_start = process_started_at(pid=os.getpid())
     write_daemon_lock(
         path=lock,
         pid=os.getpid(),
-        started_at=started_at - timedelta(seconds=1),
+        process_started_at=process_start - timedelta(seconds=1),
     )
 
     with hold_daemon_lock(path=lock):
         assert read_json(model=DaemonLockRecord, path=lock) == DaemonLockRecord(
-            pid=os.getpid(), started_at=started_at
+            pid=os.getpid(), process_started_at=process_start
         )
 
 
@@ -89,12 +94,50 @@ def test_a_lock_naming_a_reused_pid_is_reclaimed(tmp_path):
         ("a pid that is no daemon's", "0"),
     ],
 )
-def test_a_lock_nobody_can_read_as_a_live_pid_is_reclaimed(tmp_path, kind, held):
+def test_an_invalid_lock_is_reported(tmp_path, kind, held):
     lock = tmp_path / "daemon.pid"
     lock.write_text(f"{held}\n", encoding="utf-8")
 
-    with hold_daemon_lock(path=lock):
-        assert read_json(model=DaemonLockRecord, path=lock).pid == os.getpid()
+    with (
+        pytest.raises(ReportableError, match=r"daemon\.pid"),
+        hold_daemon_lock(path=lock),
+    ):
+        pass
+
+
+def test_a_lock_that_cannot_be_read_is_reported(tmp_path, monkeypatch):
+    lock = tmp_path / "daemon.pid"
+
+    def refuse_read(self, /, *, follow_symlinks=True):
+        raise PermissionError(f"cannot inspect {self}")
+
+    monkeypatch.setattr(Path, "stat", refuse_read)
+
+    with (
+        pytest.raises(ReportableError, match=r"cannot read .*daemon\.pid"),
+        hold_daemon_lock(path=lock),
+    ):
+        pass
+
+
+def test_a_process_identity_that_cannot_be_inspected_is_reported(tmp_path, monkeypatch):
+    lock = tmp_path / "daemon.pid"
+    write_daemon_lock(
+        path=lock,
+        pid=os.getpid(),
+        process_started_at=process_started_at(pid=os.getpid()),
+    )
+
+    def refuse_process_inspection(pid, /):
+        raise psutil.AccessDenied(pid)
+
+    monkeypatch.setattr(psutil, "Process", refuse_process_inspection)
+
+    with (
+        pytest.raises(ReportableError, match=f"inspect process {os.getpid()}"),
+        hold_daemon_lock(path=lock),
+    ):
+        pass
 
 
 def test_the_lock_is_released_when_the_daemon_fails(tmp_path):
@@ -106,10 +149,15 @@ def test_the_lock_is_released_when_the_daemon_fails(tmp_path):
     assert not lock.exists()
 
 
-def test_a_lock_the_daemon_cannot_write_says_so(tmp_path):
+def test_a_lock_the_daemon_cannot_write_says_so(tmp_path, monkeypatch):
+    def refuse_write(*, document, path):
+        raise ReportableError(f"cannot write {path}")
+
+    monkeypatch.setattr(lock_module, "write_json", refuse_write)
+
     with (
         pytest.raises(ReportableError, match="cannot write"),
-        hold_daemon_lock(path=tmp_path),
+        hold_daemon_lock(path=tmp_path / "daemon.pid"),
     ):
         pass
 

@@ -14,10 +14,10 @@ from dreamcatcher.errors import ReportableError
 
 
 class DaemonLockRecord(DreamcatcherDocument):
-    """Record the process identity that holds the daemon lock."""
+    """The process identity that holds the daemon lock."""
 
     pid: PositiveInt
-    started_at: AwareDatetime
+    process_started_at: AwareDatetime
 
 
 @contextmanager
@@ -35,7 +35,7 @@ def hold_daemon_lock(*, path: Path) -> Iterator[int]:
     write_json(
         document=DaemonLockRecord(
             pid=pid,
-            started_at=_read_process_start_time(pid=pid),
+            process_started_at=_read_process_start_time(pid=pid),
         ),
         path=path,
     )
@@ -52,15 +52,26 @@ def hold_daemon_lock(*, path: Path) -> Iterator[int]:
 def read_daemon_pid(*, path: Path) -> int | None:
     """Return the PID when the lock names the same live process, otherwise None.
 
-    A missing or malformed file, a PID with no process, and a PID that the
-    system reused for another process are stale.
+    A missing file, a PID with no process, and a PID that the system reused for
+    another process are stale. Raise ReportableError when the document is
+    invalid or the process identity cannot be inspected.
     """
     try:
-        record = read_json(model=DaemonLockRecord, path=path)
-        started_at = _read_process_start_time(pid=record.pid)
-    except (OSError, OverflowError, psutil.Error, ReportableError):
+        path.stat()
+    except (FileNotFoundError, NotADirectoryError):
         return None
-    return record.pid if record.started_at == started_at else None
+    except OSError as error:
+        raise ReportableError(f"cannot read {path}: {error}") from error
+    record = read_json(model=DaemonLockRecord, path=path)
+    try:
+        process_started_at = _read_process_start_time(pid=record.pid)
+    except (psutil.NoSuchProcess, psutil.ZombieProcess):
+        return None
+    except (OSError, OverflowError, psutil.Error) as error:
+        raise ReportableError(
+            f"cannot inspect process {record.pid}: {error}"
+        ) from error
+    return record.pid if record.process_started_at == process_started_at else None
 
 
 def _read_process_start_time(*, pid: int) -> datetime:

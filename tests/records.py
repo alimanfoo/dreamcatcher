@@ -57,17 +57,20 @@ def write_daemon_lock(
     *,
     path: Path,
     pid: int | None = None,
-    started_at: datetime | None = None,
+    process_started_at: datetime | None = None,
 ) -> None:
     """Write the identity of the process that holds the daemon lock."""
     lock_pid = os.getpid() if pid is None else pid
-    lock_started_at = (
+    lock_process_started_at = (
         datetime.fromtimestamp(psutil.Process(lock_pid).create_time(), tz=UTC)
-        if started_at is None
-        else started_at
+        if process_started_at is None
+        else process_started_at
     )
     write_json(
-        document=DaemonLockRecord(pid=lock_pid, started_at=lock_started_at),
+        document=DaemonLockRecord(
+            pid=lock_pid,
+            process_started_at=lock_process_started_at,
+        ),
         path=path,
     )
 
