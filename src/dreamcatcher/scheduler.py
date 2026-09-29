@@ -45,7 +45,7 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.config import (
     AgentHarness,
     DreamcatcherConfig,
-    IssueConversationConfig,
+    IssueConversationRoute,
 )
 from dreamcatcher.documents import DreamcatcherDocument, read_json
 from dreamcatcher.errors import ReportableError
@@ -153,13 +153,20 @@ class AgentAssignmentObservation(DreamcatcherDocument):
 class IssueConversationObservation(DreamcatcherDocument):
     """Model what the scheduler found for one conversation issue in one tick.
 
-    The scheduler observes every eligible issue. When it cannot list eligible
-    issues, it observes the previous tick's issues again with an unknown fact.
+    The scheduler observes every issue matching at least one conversation route.
+    When it cannot list matching issues, it observes the previous tick's issues
+    again with unknown facts.
     """
 
     issue: int
     title: str
     has_comments_to_answer: IssueFact
+    routing_conflict: IssueFact = Field(
+        default_factory=lambda: IssueFact(
+            value=IssueFactValue.FALSE,
+            evidence="has no conversation routing conflict",
+        )
+    )
 
 
 class GlobalCooldown(DreamcatcherDocument):
@@ -226,7 +233,7 @@ class NewIssueConversationRoundCandidate:
     issue: Issue
     comments: list[ConversationComment]
     conversation: IssueConversation | None
-    config: IssueConversationConfig
+    route: IssueConversationRoute
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -247,6 +254,14 @@ class IssueConversationCandidateResult:
 
     candidates: list[IssueConversationCandidate]
     observations: list[IssueConversationObservation]
+    failure: str | None = None
+
+
+@dataclass(frozen=True, kw_only=True)
+class _ConversationRouteListing:
+    """Hold conversation issues, or the failure that stopped listing."""
+
+    issues: list[Issue]
     failure: str | None = None
 
 
@@ -654,7 +669,11 @@ def _count_observed_conversation_faults(
     most_recent_cooldown_ended: datetime | None,
 ) -> int:
     """Count faults among conversations this tick keeps in the report."""
-    observed_issues = {observation.issue for observation in observations}
+    observed_issues = {
+        observation.issue
+        for observation in observations
+        if observation.routing_conflict.value is not IssueFactValue.TRUE
+    }
     return sum(
         derive_agent_work_fault(
             rounds=conversation.rounds,
@@ -934,57 +953,35 @@ def _list_issue_conversation_candidates(
     conversations: list[IssueConversation],
     previous_observations: list[IssueConversationObservation],
 ) -> IssueConversationCandidateResult:
-    """Observe every eligible issue and return conversation work ready to run.
+    """Observe every matching issue and return conversation work ready to run.
 
     Comments are read for every eligible issue that can accept a fresh batch,
     whether or not an agent is free, so that status can tell waiting from idle.
     Recovery uses the saved batch and does not read new comments. A failed read
     holds launches only where the conversation could take a new batch. When
-    eligible issues cannot be listed, the previous tick's issues are observed
+    matching issues cannot be listed, the previous tick's issues are observed
     again with an unknown fact, so the ones the user took off the report stay
     off it.
     """
-    conversation_config = context.config.conversation
-    if conversation_config is None:
+    conversation_routes = context.config.conversation
+    if not conversation_routes:
         return IssueConversationCandidateResult(candidates=[], observations=[])
-    issue_response = list_issues(
-        repository=context.repository,
-        label=conversation_config.label,
-        assignee=context.account,
-    )
-    if isinstance(issue_response, UnknownGitHubResponse):
-        failure = f"could not list issue conversations: {issue_response.reason}"
-        return IssueConversationCandidateResult(
-            candidates=[],
-            observations=[
-                observation.model_copy(
-                    update={
-                        "has_comments_to_answer": IssueFact(
-                            value=IssueFactValue.UNKNOWN,
-                            evidence=failure,
-                        )
-                    }
-                )
-                for observation in previous_observations
-            ],
-            failure=failure,
-        )
+    listing = _list_conversation_route_issues(context=context)
     conversations_by_issue = {
         conversation.record.issue: conversation for conversation in conversations
     }
     candidates: list[IssueConversationCandidate] = []
     observations: list[IssueConversationObservation] = []
-    failures: list[str | None] = []
-    for issue in sorted(
-        issue_response, key=lambda item: (item.created_at, item.number)
-    ):
+    failures: list[str | None] = [listing.failure]
+    for issue in listing.issues:
         conversation = conversations_by_issue.get(issue.number)
-        inspection = _inspect_issue_conversation(
+        inspection = _inspect_listed_conversation_issue(
             context=context,
-            config=conversation_config,
             issue=issue,
             conversation=conversation,
         )
+        if inspection is None:
+            continue
         observations.append(inspection.observation)
         if inspection.candidate is not None:
             candidates.append(inspection.candidate)
@@ -994,6 +991,19 @@ def _list_issue_conversation_candidates(
             is IssueFactValue.UNKNOWN
         ):
             failures.append(inspection.observation.has_comments_to_answer.evidence)
+    if listing.failure is not None:
+        unknown = IssueFact(value=IssueFactValue.UNKNOWN, evidence=listing.failure)
+        listed_issues = {issue.number for issue in listing.issues}
+        observations.extend(
+            observation.model_copy(
+                update={
+                    "has_comments_to_answer": unknown,
+                    "routing_conflict": unknown,
+                }
+            )
+            for observation in previous_observations
+            if observation.issue not in listed_issues
+        )
     return IssueConversationCandidateResult(
         candidates=sorted(candidates, key=_rank_issue_conversation_candidate),
         observations=observations,
@@ -1001,10 +1011,76 @@ def _list_issue_conversation_candidates(
     )
 
 
+def _list_conversation_route_issues(
+    *, context: _IssueConversationCandidateContext
+) -> _ConversationRouteListing:
+    """List each issue found through any configured conversation route."""
+    issues_by_number: dict[int, Issue] = {}
+    failures: list[str | None] = []
+    for route in context.config.conversation:
+        issue_response = list_issues(
+            repository=context.repository,
+            label=route.label,
+            assignee=context.account,
+        )
+        if isinstance(issue_response, UnknownGitHubResponse):
+            failures.append(
+                f"could not list issue conversations for {route.label}: "
+                f"{issue_response.reason}"
+            )
+        else:
+            for issue in issue_response:
+                issues_by_number[issue.number] = issue
+    return _ConversationRouteListing(
+        issues=sorted(
+            issues_by_number.values(),
+            key=lambda item: (item.created_at, item.number),
+        ),
+        failure=_combine_scheduler_failures(failures=failures),
+    )
+
+
+def _inspect_listed_conversation_issue(
+    *,
+    context: _IssueConversationCandidateContext,
+    issue: Issue,
+    conversation: IssueConversation | None,
+) -> _IssueConversationInspection | None:
+    """Inspect one currently matching listed issue."""
+    routes = context.config.identify_conversation_routes(
+        labels=[label.name for label in issue.labels]
+    )
+    if not routes:
+        return None
+    if len(routes) == 1:
+        return _inspect_issue_conversation(
+            context=context,
+            route=routes[0],
+            issue=issue,
+            conversation=conversation,
+        )
+    labels = ", ".join(sorted((route.label for route in routes), key=str.casefold))
+    return _IssueConversationInspection(
+        observation=IssueConversationObservation(
+            issue=issue.number,
+            title=issue.title,
+            has_comments_to_answer=IssueFact(
+                value=IssueFactValue.FALSE,
+                evidence="no comments to answer",
+            ),
+            routing_conflict=IssueFact(
+                value=IssueFactValue.TRUE,
+                evidence=f"carries more than one conversation label: {labels}",
+            ),
+        ),
+        candidate=None,
+    )
+
+
 def _inspect_issue_conversation(
     *,
     context: _IssueConversationCandidateContext,
-    config: IssueConversationConfig,
+    route: IssueConversationRoute,
     issue: Issue,
     conversation: IssueConversation | None,
 ) -> _IssueConversationInspection:
@@ -1086,7 +1162,7 @@ def _inspect_issue_conversation(
             issue=issue,
             comments=comments,
             conversation=conversation,
-            config=config,
+            route=route,
         ),
     )
 
@@ -1112,7 +1188,7 @@ def _prepare_issue_conversation_round(
         return _prepare_issue_conversation_recovery(conversation=candidate.conversation)
     conversation = candidate.conversation or create_issue_conversation(
         state=state,
-        config=candidate.config,
+        route=candidate.route,
         requested_harness=requested_harness,
         issue=candidate.issue,
     )

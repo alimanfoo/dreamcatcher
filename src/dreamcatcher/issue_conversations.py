@@ -16,7 +16,7 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import (
     AgentHarness,
-    IssueConversationConfig,
+    IssueConversationRoute,
     QuotableText,
 )
 from dreamcatcher.documents import DreamcatcherDocument, read_json, write_json
@@ -147,7 +147,7 @@ def read_issue_conversation(
 def create_issue_conversation(
     *,
     state: StateDirectory,
-    config: IssueConversationConfig,
+    route: IssueConversationRoute,
     requested_harness: AgentHarness,
     issue: Issue,
 ) -> IssueConversation:
@@ -165,12 +165,12 @@ def create_issue_conversation(
         )
     add_detached_worktree(root=state.root, path=worktree)
     try:
-        selected_harness = config.choose_harness(requested_harness=requested_harness)
-        recipe = config.recipes[selected_harness]
+        selected_harness = route.choose_harness(requested_harness=requested_harness)
+        recipe = route.recipes[selected_harness]
         record = IssueConversationRecord(
             issue=issue.number,
             title=issue.title,
-            label=config.label,
+            label=route.label,
             harness=selected_harness,
             model=recipe.model,
             effort=recipe.effort,

@@ -82,16 +82,27 @@ class DispatchRoute(_AgentHarnessRoute):
     """Map a dispatch label to its available harness recipes."""
 
 
-class IssueConversationConfig(_AgentHarnessRoute):
+class IssueConversationRoute(_AgentHarnessRoute):
     """Map the conversation label to its available harness recipes."""
 
 
+def _identify_routes[Route: _AgentHarnessRoute](
+    *, labels: list[str], routes: list[Route]
+) -> list[Route]:
+    """Return configured routes matching the observed labels."""
+    routes_by_identity = {route.label.casefold(): route for route in routes}
+    identities = sorted(
+        {label.casefold() for label in labels} & routes_by_identity.keys()
+    )
+    return [routes_by_identity[identity] for identity in identities]
+
+
 class DreamcatcherConfig(DreamcatcherDocument):
-    """Model a repository's agent-assignment configuration."""
+    """Model a repository's agent-work configuration."""
 
     assignee: str = "@me"
     dispatch: list[DispatchRoute] = Field(min_length=1)
-    conversation: IssueConversationConfig | None = None
+    conversation: list[IssueConversationRoute] = Field(default_factory=list)
 
     @property
     def dispatch_routes(self) -> dict[str, DispatchRoute]:
@@ -109,36 +120,39 @@ class DreamcatcherConfig(DreamcatcherDocument):
         A route with one harness selects it regardless of the daemon's requested
         harness.
         """
-        harnesses = {harness for route in self.dispatch for harness in route.recipes}
-        if self.conversation is not None:
-            harnesses.update(self.conversation.recipes)
-        return harnesses
+        routes = [*self.dispatch, *self.conversation]
+        return {harness for route in routes for harness in route.recipes}
 
     def identify_dispatch_labels(self, *, labels: list[str]) -> list[str]:
         """Return the configured dispatch labels among the observed labels."""
-        configured = {label.casefold(): label for label in self.dispatch_routes}
-        return sorted(
-            {
-                configured[label.casefold()]
-                for label in labels
-                if label.casefold() in configured
-            },
-            key=str.casefold,
-        )
+        return [
+            route.label
+            for route in _identify_routes(labels=labels, routes=self.dispatch)
+        ]
+
+    def identify_conversation_routes(
+        self, *, labels: list[str]
+    ) -> list[IssueConversationRoute]:
+        """Return the conversation routes matching the observed labels."""
+        return _identify_routes(labels=labels, routes=self.conversation)
 
     @model_validator(mode="after")
     def _require_one_route_per_label(self) -> Self:
         """Refuse two routes for one label, since the label is the identity."""
-        labels = [route.label for route in self.dispatch]
-        identities = [label.casefold() for label in labels]
-        repeated = sorted(
-            {identity for identity in identities if identities.count(identity) > 1}
+        route_groups = (
+            ("dispatch", self.dispatch),
+            ("conversation", self.conversation),
         )
-        if repeated:
-            repeated_label_names = ", ".join(repeated)
-            raise ValueError(
-                f"more than one dispatch entry uses the label {repeated_label_names}"
+        for name, routes in route_groups:
+            identities = [route.label.casefold() for route in routes]
+            repeated = sorted(
+                {identity for identity in identities if identities.count(identity) > 1}
             )
+            if repeated:
+                repeated_label_names = ", ".join(repeated)
+                raise ValueError(
+                    f"more than one {name} entry uses the label {repeated_label_names}"
+                )
         return self
 
 
