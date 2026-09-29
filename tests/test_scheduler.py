@@ -278,13 +278,17 @@ def test_a_dispatched_round_records_what_caused_it_and_what_it_said(dispatching)
 
 
 def test_a_tick_fills_free_capacity_with_available_issues(dispatching, offered):
-    offered.replies(stdout=listing(issues=[(8, FILED), (9, LATER)]), to="issue list")
+    offered.replies(
+        stdout=listing(issues=[(8, FILED), (9, LATER), (10, "2026-08-21T01:00:00Z")]),
+        to="issue list",
+    )
     scheduler, clock = create_scheduler(root=dispatching, max_agents=2)
 
     observed = scheduler.tick(at=clock())
 
-    assert observed_issues(tick=observed) == [8, 9]
+    assert observed_issues(tick=observed) == [8, 9, 10]
     assert availability_values(tick=observed) == [
+        IssueFactValue.TRUE,
         IssueFactValue.TRUE,
         IssueFactValue.TRUE,
     ]
@@ -292,7 +296,9 @@ def test_a_tick_fills_free_capacity_with_available_issues(dispatching, offered):
         DISPATCHED_ASSIGNMENT_ID,
         "GH9-20260819-184158",
     ]
+    assert observed.hold == "at cap: 2 of 2 agents running"
     assert (scheduler.state.worktrees / "GH9-20260819-184158").exists()
+    assert not (scheduler.state.worktrees / "GH10-20260819-184158").exists()
 
 
 def test_a_later_failed_launch_keeps_the_rounds_already_started(
@@ -615,6 +621,21 @@ def test_an_ended_round_is_inspected_while_its_runner_finishes(tmp_path, monkeyp
     )
 
     assert results == [observation]
+
+
+def test_a_round_that_replaces_a_finishing_runner_is_reported(resuming, gh):
+    ran(root=resuming, number=1, purpose=AgentAssignmentRoundPurpose.IMPLEMENT)
+    gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
+    gh.replies(
+        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+    )
+    scheduler, clock = create_scheduler(root=resuming, max_agents=2)
+    scheduler.rounds[ASSIGNMENT_ID] = Mock(is_alive=True)
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
+    finish_rounds(scheduler=scheduler)
 
 
 def test_an_assignment_with_an_open_pull_request_and_nothing_new_is_not_waiting(
@@ -1003,7 +1024,8 @@ def test_a_started_round_is_reported_when_advancing_its_cursor_fails(
     gh.replies(
         stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
-    scheduler, clock = create_scheduler(root=resuming)
+    gh.replies(stdout=listing(issues=[(8, FILED)]), to="issue list")
+    scheduler, clock = create_scheduler(root=resuming, max_agents=2)
     monkeypatch.setattr(
         scheduler_module,
         "advance_user_post_delivery_cursor",
@@ -1016,6 +1038,7 @@ def test_a_started_round_is_reported_when_advancing_its_cursor_fails(
     assert observed.hold == "could not advance the delivery cursor"
     assert observed.assignment_observations == []
     assert ASSIGNMENT_ID in scheduler.rounds
+    assert not (scheduler.state.worktrees / DISPATCHED_ASSIGNMENT_ID).exists()
     finish_rounds(scheduler=scheduler)
 
 
@@ -1243,7 +1266,7 @@ def test_the_cooldown_boundary_clears_faults_and_permits_recovery(dispatching):
         AgentAssignmentObservation(
             assignment_identifier=SECOND_ASSIGNMENT_ID,
             issue=14,
-            reason="the last round failed (exit 2)",
+            reason="at cap: 1 of 1 agents running",
         )
     ]
 

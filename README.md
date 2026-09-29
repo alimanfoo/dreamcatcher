@@ -105,12 +105,13 @@ dreamcatcher run --harness claude --interval 30 --max-agents 4
 ```
 
 The daemon runs one scheduler tick per interval and starts rounds until the
-agent cap is full or no ready work remains. An issue is dispatched when it
-carries exactly one dispatch label, is assigned to `assignee`, has no assignment
-here already, has no open pull request GitHub links to it, and has no open issue
-blocking it. The oldest such issue goes first. A dispatch cuts a branch and a
-worktree under `.dreamcatcher/`, makes and pushes an empty commit, and opens a
-linked draft pull request before it runs the assignment's first round there.
+agent cap is full, no ready work remains, or a launch failure stops that kind
+until the next tick. An issue is dispatched when it carries exactly one dispatch
+label, is assigned to `assignee`, has no assignment here already, has no open
+pull request GitHub links to it, and has no open issue blocking it. The oldest
+such issue goes first. A dispatch cuts a branch and a worktree under
+`.dreamcatcher/`, makes and pushes an empty commit, and opens a linked draft
+pull request before it runs the assignment's first round there.
 
 Assignment setup is recoverable. If Dreamcatcher stops after making the
 worktree, commit, remote branch, or pull request, the next dispatch attempt
@@ -130,7 +131,7 @@ cannot complete reports its failure in the daemon output and leaves that last
 complete record in place.
 
 This is an intentional format break. Version 4 starts with empty local state.
-Stop the daemon and upgrade only when no agent work needs another round.
+Stop the daemon and upgrade only when no saved agent work needs preserving.
 
 Open assignments go before new assignments. A round that did not finish is
 recovered, a merged or closed pull request gets a wrap-up round, and a pull

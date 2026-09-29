@@ -1419,7 +1419,7 @@ class AgentWorkScheduler:
         scheduler_failure: str | None,
     ) -> SchedulerRecord:
         """Fill free capacity while alternating between ready work kinds."""
-        running_before_launches = set(self.rounds)
+        launched_identifiers: list[str] = []
         if scheduler_failure is not None:
             record = record.model_copy(update={"hold": scheduler_failure})
         candidates = _ReadyAgentWork(
@@ -1447,20 +1447,35 @@ class AgentWorkScheduler:
             if work_kind is None:
                 break
             self._last_selected_work_kind = work_kind
-            record, inspection_results = self._launch_next_candidate(
-                record=record,
-                work_kind=work_kind,
-                candidates=candidates,
-                inspection_results=inspection_results,
+            record, inspection_results, launched_identifier = (
+                self._launch_next_candidate(
+                    record=record,
+                    work_kind=work_kind,
+                    candidates=candidates,
+                    inspection_results=inspection_results,
+                )
+            )
+            if launched_identifier is not None:
+                launched_identifiers.append(launched_identifier)
+        if len(self.rounds) >= self.max_agents and (
+            candidates.is_assignment_ready or candidates.is_conversation_ready
+        ):
+            capacity_reason = (
+                f"at cap: {len(self.rounds)} of {self.max_agents} agents running"
+            )
+            record = record.model_copy(
+                update={
+                    "hold": _combine_scheduler_failures(
+                        failures=[capacity_reason, record.hold]
+                    ),
+                    "assignment_observations": list_assignment_observations(
+                        inspection_results=inspection_results,
+                        required_reason=capacity_reason,
+                    ),
+                }
             )
         return record.model_copy(
-            update={
-                "launched_agent_work_identifiers": [
-                    identifier
-                    for identifier in self.rounds
-                    if identifier not in running_before_launches
-                ]
-            }
+            update={"launched_agent_work_identifiers": launched_identifiers}
         )
 
     def _launch_next_candidate(
@@ -1470,8 +1485,9 @@ class AgentWorkScheduler:
         work_kind: AgentWorkKind,
         candidates: _ReadyAgentWork,
         inspection_results: list[AgentAssignmentInspectionResult],
-    ) -> tuple[SchedulerRecord, list[AgentAssignmentInspectionResult]]:
-        running_count = len(self.rounds)
+    ) -> tuple[SchedulerRecord, list[AgentAssignmentInspectionResult], str | None]:
+        running_before_launch = self.rounds.copy()
+        hold_before_launch = record.hold
         if work_kind is AgentWorkKind.ASSIGNMENT:
             record, inspection_results = self._launch_next_assignment_candidate(
                 record=record,
@@ -1483,13 +1499,21 @@ class AgentWorkScheduler:
                 record=record,
                 candidate=candidates.conversations.pop(0),
             )
-        if len(self.rounds) == running_count:
+        launched_identifier = next(
+            (
+                identifier
+                for identifier, running in self.rounds.items()
+                if running_before_launch.get(identifier) is not running
+            ),
+            None,
+        )
+        if record.hold != hold_before_launch or launched_identifier is None:
             if work_kind is AgentWorkKind.ASSIGNMENT:
                 candidates.assignment_rounds.clear()
                 candidates.available_issues.clear()
             else:
                 candidates.conversations.clear()
-        return record, inspection_results
+        return record, inspection_results, launched_identifier
 
     def _launch_next_assignment_candidate(
         self,

@@ -26,6 +26,7 @@ from records import (
     write_round,
 )
 
+from dreamcatcher.agent_assignments import read_agent_assignments
 from dreamcatcher.agent_rounds import (
     AgentAssignmentRoundPurpose,
     AgentRoundOutcome,
@@ -813,7 +814,8 @@ def test_after_a_conversation_round_the_next_round_dispatches_an_assignment(
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.launched_agent_work_identifiers
+    assignment = read_agent_assignments(state=scheduler.state)[0]
+    assert observed.launched_agent_work_identifiers == [assignment.identifier]
 
 
 def test_a_failed_assignment_candidate_does_not_block_a_ready_conversation(
@@ -1020,7 +1022,7 @@ def test_the_cooldown_boundary_clears_conversation_faults(
 
     assert observed.cooldown is None
     assert observed.most_recent_cooldown_ended == cooldown_ends
-    assert observed.hold is None
+    assert observed.hold == "at cap: 1 of 1 agents running"
     assert observed.launched_agent_work_identifiers == ["conversation-GH8"]
 
 
@@ -1772,7 +1774,7 @@ def test_a_recovery_precedes_a_fresh_batch_at_another_conversation(
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.hold is None
+    assert observed.hold == "at cap: 1 of 1 agents running"
     assert observed.launched_agent_work_identifiers == ["conversation-GH8"]
     assert observed.conversation_observations[0].has_comments_to_answer.value is (
         IssueFactValue.FALSE
