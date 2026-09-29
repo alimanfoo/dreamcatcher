@@ -126,7 +126,7 @@ def test_a_conversation_gets_a_detached_worktree_at_fetched_main(cloned):
         create_issue_conversation(
             state=state,
             config=IssueConversationConfig(
-                label="dream:conversation",
+                label="dream:scout",
                 codex=AgentRecipe(
                     prompt="$dream:conversation GH{issue}",
                     model="gpt-5.6-sol",
@@ -138,6 +138,7 @@ def test_a_conversation_gets_a_detached_worktree_at_fetched_main(cloned):
         )
         == created
     )
+    assert created.record.label == "dream:conversation"
 
 
 def test_a_new_conversation_records_the_requested_harness_recipe(cloned):

@@ -58,7 +58,7 @@ from dreamcatcher.scheduler import (
 )
 from dreamcatcher.state import StateDirectory
 
-CONVERSATION_CONFIG = """[conversation]
+CONVERSATION_CONFIG = """[[conversation]]
 label = "dream:conversation"
 
 [conversation.claude]
@@ -75,6 +75,15 @@ model = "gpt-5.6-sol"
 effort = "xhigh"
 """
 )
+SECOND_CONVERSATION_CONFIG = """
+[[conversation]]
+label = "dream:scout"
+
+[conversation.claude]
+prompt = "/dream:scout GH{issue}"
+model = "opus[1m]"
+effort = "high"
+"""
 COMMENT_PATH = f"api repos/{REPOSITORY}/issues/8/comments?per_page=100"
 POST_PATH = f"api repos/{REPOSITORY}/issues/8/comments --method POST"
 ASKED = "2026-09-23T01:00:00Z"
@@ -123,10 +132,14 @@ def offer_conversation(
     gh,
     comments: list[dict],
     issue: int = 8,
-    title: str = "Why does this happen?",
-    body: str = "Explain the scheduler.",
+    label: str = "dream:conversation",
+    issue_text: tuple[str, str] = (
+        "Why does this happen?",
+        "Explain the scheduler.",
+    ),
 ) -> None:
     """Have GitHub offer one assigned conversation issue and its comments."""
+    title, body = issue_text
     gh.replies(
         stdout=json.dumps(
             [
@@ -137,14 +150,11 @@ def offer_conversation(
                     "createdAt": "2026-09-22T01:00:00Z",
                     "state": "OPEN",
                     "assignees": [{"login": POSTED_BY}],
-                    "labels": [{"name": "dream:conversation"}],
+                    "labels": [{"name": label}],
                 }
             ]
         ),
-        to=(
-            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
-            "--label dream:conversation"
-        ),
+        to=(f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} --label {label}"),
     )
     gh.replies(
         stdout=pages(items=comments),
@@ -347,6 +357,72 @@ def test_an_initial_conversation_freezes_input_runs_claude_and_publishes_once(
     assert not any(call.arguments[:2] == ["pr", "create"] for call in gh.calls)
 
 
+def test_each_conversation_label_selects_its_own_route(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    configure(
+        root=scheduler.state.root,
+        head=CONVERSATION_CONFIG + SECOND_CONVERSATION_CONFIG,
+    )
+    scheduler.config = read_dreamcatcher_config(root=scheduler.state.root)
+    gh.replies(
+        stdout="[]",
+        to=(
+            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
+            "--label dream:conversation"
+        ),
+    )
+    offer_conversation(gh=gh, comments=[ask()], label="dream:scout")
+    answer(harnesses=harnesses)
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.launched_conversation_identifier == "conversation-GH8"
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    assert conversation.record.label == "dream:scout"
+    assert conversation.record.prompt == "/dream:scout GH{issue}"
+    assert conversation.record.effort == "high"
+
+
+def test_an_issue_with_two_conversation_labels_has_a_routing_conflict(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    configure(
+        root=scheduler.state.root,
+        head=CONVERSATION_CONFIG + SECOND_CONVERSATION_CONFIG,
+    )
+    scheduler.config = read_dreamcatcher_config(root=scheduler.state.root)
+    offer_conversation(gh=gh, comments=[ask()])
+    offer_conversation(gh=gh, comments=[ask()], label="dream:scout")
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.launched_conversation_identifier is None
+    assert observed.conversation_observations == [
+        IssueConversationObservation(
+            issue=8,
+            title="Why does this happen?",
+            has_comments_to_answer=IssueFact(
+                value=IssueFactValue.FALSE,
+                evidence="no comments to answer",
+            ),
+            routing_conflict=IssueFact(
+                value=IssueFactValue.TRUE,
+                evidence=(
+                    "carries more than one conversation label: "
+                    "dream:conversation, dream:scout"
+                ),
+            ),
+        )
+    ]
+    assert count_comment_reads(gh=gh) == 0
+    assert read_issue_conversation(state=scheduler.state, issue=8) is None
+    assert harnesses["claude"].calls == []
+
+
 def test_codex_first_and_resumed_rounds_capture_and_publish_final_messages(
     codex_conversation_scheduler, harnesses
 ):
@@ -513,8 +589,7 @@ def test_a_follow_up_resumes_the_session_with_only_new_comments(
     offer_conversation(
         gh=gh,
         comments=[ask(), ask(identifier=2, body="What evidence supports that?")],
-        title="What now happens?",
-        body="Explain the current scheduler.",
+        issue_text=("What now happens?", "Explain the current scheduler."),
     )
     answer(harnesses=harnesses, body="The follow-up answer.")
 
@@ -1270,6 +1345,10 @@ def test_a_failed_conversation_listing_holds_launches(conversation_scheduler):
                 value=IssueFactValue.UNKNOWN,
                 evidence=observed.hold,
             ),
+            routing_conflict=IssueFact(
+                value=IssueFactValue.UNKNOWN,
+                evidence=observed.hold,
+            ),
         )
     ]
 
@@ -1457,7 +1536,7 @@ def test_removing_conversation_configuration_makes_saved_work_inactive(
 ):
     scheduler, clock, _ = conversation_scheduler
     write_issue_conversation(state=scheduler.state, issue=8)
-    scheduler.config = scheduler.config.model_copy(update={"conversation": None})
+    scheduler.config = scheduler.config.model_copy(update={"conversation": []})
 
     observed = scheduler.tick(at=clock())
 

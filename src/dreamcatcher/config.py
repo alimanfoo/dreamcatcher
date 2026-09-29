@@ -87,11 +87,11 @@ class IssueConversationConfig(_AgentHarnessRoute):
 
 
 class DreamcatcherConfig(DreamcatcherDocument):
-    """Model a repository's agent-assignment configuration."""
+    """Model a repository's agent-work configuration."""
 
     assignee: str = "@me"
     dispatch: list[DispatchRoute] = Field(min_length=1)
-    conversation: IssueConversationConfig | None = None
+    conversation: list[IssueConversationConfig] = Field(default_factory=list)
 
     @property
     def dispatch_routes(self) -> dict[str, DispatchRoute]:
@@ -103,16 +103,23 @@ class DreamcatcherConfig(DreamcatcherDocument):
         return {route.label: route for route in self.dispatch}
 
     @property
+    def conversation_routes(self) -> dict[str, IssueConversationConfig]:
+        """The conversation route for each configured label.
+
+        The label is a route's identity, and no two routes carry the same one,
+        so a label names one route here.
+        """
+        return {route.label: route for route in self.conversation}
+
+    @property
     def routed_harnesses(self) -> set[AgentHarness]:
         """Every harness that any configured route can select.
 
         A route with one harness selects it regardless of the daemon's requested
         harness.
         """
-        harnesses = {harness for route in self.dispatch for harness in route.recipes}
-        if self.conversation is not None:
-            harnesses.update(self.conversation.recipes)
-        return harnesses
+        routes = [*self.dispatch, *self.conversation]
+        return {harness for route in routes for harness in route.recipes}
 
     def identify_dispatch_labels(self, *, labels: list[str]) -> list[str]:
         """Return the configured dispatch labels among the observed labels."""
@@ -129,16 +136,20 @@ class DreamcatcherConfig(DreamcatcherDocument):
     @model_validator(mode="after")
     def _require_one_route_per_label(self) -> Self:
         """Refuse two routes for one label, since the label is the identity."""
-        labels = [route.label for route in self.dispatch]
-        identities = [label.casefold() for label in labels]
-        repeated = sorted(
-            {identity for identity in identities if identities.count(identity) > 1}
+        route_groups = (
+            ("dispatch", self.dispatch),
+            ("conversation", self.conversation),
         )
-        if repeated:
-            repeated_label_names = ", ".join(repeated)
-            raise ValueError(
-                f"more than one dispatch entry uses the label {repeated_label_names}"
+        for name, routes in route_groups:
+            identities = [route.label.casefold() for route in routes]
+            repeated = sorted(
+                {identity for identity in identities if identities.count(identity) > 1}
             )
+            if repeated:
+                repeated_label_names = ", ".join(repeated)
+                raise ValueError(
+                    f"more than one {name} entry uses the label {repeated_label_names}"
+                )
         return self
 
 

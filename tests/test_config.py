@@ -28,7 +28,7 @@ CODEX_CONVERSATION_RECIPE = AgentRecipe(
 )
 
 CONVERSATION = """
-[conversation]
+[[conversation]]
 label = "dream:conversation"
 
 [conversation.claude]
@@ -46,7 +46,7 @@ effort = "xhigh"
 
 CODEX_CONVERSATION = (
     """
-[conversation]
+[[conversation]]
 label = "dream:conversation"
 """
     + CODEX_CONVERSATION_BLOCK
@@ -68,7 +68,7 @@ def test_a_valid_config_reads_back(tmp_path):
         AgentHarness.CLAUDE: CLAUDE_RECIPE,
         AgentHarness.CODEX: CODEX_RECIPE,
     }
-    assert config.conversation is None
+    assert config.conversation == []
 
 
 def test_an_issue_conversation_is_configured_separately(tmp_path):
@@ -76,10 +76,13 @@ def test_an_issue_conversation_is_configured_separately(tmp_path):
 
     config = read_dreamcatcher_config(root=tmp_path)
 
-    assert config.conversation == IssueConversationConfig(
-        label="dream:conversation",
-        claude=CLAUDE_CONVERSATION_RECIPE,
-    )
+    assert config.conversation == [
+        IssueConversationConfig(
+            label="dream:conversation",
+            claude=CLAUDE_CONVERSATION_RECIPE,
+        )
+    ]
+    assert config.conversation_routes == {"dream:conversation": config.conversation[0]}
     assert config.routed_harnesses == {AgentHarness.CLAUDE, AgentHarness.CODEX}
 
 
@@ -88,9 +91,8 @@ def test_a_conversation_one_harness_can_run_uses_that_one(tmp_path):
 
     config = read_dreamcatcher_config(root=tmp_path)
 
-    assert config.conversation is not None
     assert (
-        config.conversation.choose_harness(requested_harness=AgentHarness.CLAUDE)
+        config.conversation[0].choose_harness(requested_harness=AgentHarness.CLAUDE)
         == AgentHarness.CODEX
     )
     assert config.routed_harnesses == {AgentHarness.CLAUDE, AgentHarness.CODEX}
@@ -99,9 +101,8 @@ def test_a_conversation_one_harness_can_run_uses_that_one(tmp_path):
 def test_a_conversation_either_harness_can_run_uses_the_requested_one(tmp_path):
     write_config(root=tmp_path, text=CONFIG + CONVERSATION + CODEX_CONVERSATION_BLOCK)
 
-    conversation = read_dreamcatcher_config(root=tmp_path).conversation
+    conversation = read_dreamcatcher_config(root=tmp_path).conversation[0]
 
-    assert conversation is not None
     assert conversation.recipes == {
         AgentHarness.CLAUDE: CLAUDE_CONVERSATION_RECIPE,
         AgentHarness.CODEX: CODEX_CONVERSATION_RECIPE,
@@ -231,6 +232,17 @@ def test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named(tmp
             "one label routed twice with different case",
             CONFIG + SMITH_CLAUDE.replace("dream:smith", "DREAM:SMITH"),
             "Value error, more than one dispatch entry uses the label dream:smith",
+        ),
+        (
+            "one conversation label routed twice",
+            CONFIG + CONVERSATION + CONVERSATION,
+            "Value error, more than one conversation entry uses the label "
+            "dream:conversation",
+        ),
+        (
+            "the old single conversation table",
+            CONFIG + CONVERSATION.replace("[[conversation]]", "[conversation]"),
+            "conversation: Input should be a valid list",
         ),
     ],
 )
