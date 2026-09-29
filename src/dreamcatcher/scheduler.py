@@ -796,7 +796,10 @@ def _inspect_assignment_pull_request(
             reason=f"cannot tell what the user posted: {undelivered_posts.reason}",
             is_known=False,
         )
-    if pull_request.state is PullRequestState.OPEN and not undelivered_posts:
+    if not undelivered_posts and (
+        pull_request.state is PullRequestState.OPEN
+        or assignment.rounds[-1].outcome is AgentRoundOutcome.STOPPED
+    ):
         return None
     return _compose_resumed_round_requirement(
         assignment=assignment,

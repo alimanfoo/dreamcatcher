@@ -220,6 +220,21 @@ def record_agent_round_interruption(
     )
 
 
+def record_agent_round_stop(
+    *, record: AgentRoundRecord, path: Path, at: datetime
+) -> AgentRoundRecord:
+    """Record a requested stop when a formerly running round has ended.
+
+    A terminal record is already reconciled, so repeating the operation keeps
+    that record unchanged.
+    """
+    if record.ending is not None:
+        return record
+    return _record_agent_round_ending(
+        record=record, ending=StoppedAgentRoundEnding(at=at), path=path
+    )
+
+
 def request_agent_round_stop(*, paths: "AgentRoundPaths") -> None:
     """Ask the live round at these paths to stop."""
     write_text(text="", path=paths.stop_request)

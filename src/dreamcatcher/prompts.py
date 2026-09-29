@@ -48,8 +48,8 @@ from where it stopped.
 Your final message must be the complete answer, as Markdown ready for
 Dreamcatcher to post, or exactly NO_REPLY."""
 
-STOPPED_ROUND_INPUT_PROMPT = """The user stopped your previous round before it
-finished. Read the new input before carrying on.
+STOPPED_ROUND_FEEDBACK_PROMPT = """The user stopped your previous round before it
+finished. Their new feedback says what to do instead.
 
 """
 
@@ -106,7 +106,7 @@ def compose_user_posts_prompt(
         )
         + AGENT_POST_INSTRUCTIONS
     )
-    return _prefix_stopped_round_input(prompt=prompt) if was_stopped else prompt
+    return _prefix_stopped_round_feedback(prompt=prompt) if was_stopped else prompt
 
 
 def compose_issue_conversation_prompt(
@@ -128,8 +128,8 @@ def compose_issue_conversation_round_prompt(
         issue=issue,
         round_input=round_input,
     )
-    return _prefix_stopped_round_input(prompt=prompt) if was_stopped else prompt
+    return _prefix_stopped_round_feedback(prompt=prompt) if was_stopped else prompt
 
 
-def _prefix_stopped_round_input(*, prompt: str) -> str:
-    return STOPPED_ROUND_INPUT_PROMPT + prompt
+def _prefix_stopped_round_feedback(*, prompt: str) -> str:
+    return STOPPED_ROUND_FEEDBACK_PROMPT + prompt

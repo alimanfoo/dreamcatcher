@@ -87,7 +87,7 @@ def test_input_after_a_stop_explains_why_the_previous_round_ended(tmp_path):
     opening = "The user stopped your previous round before it\nfinished."
     assert assignment.startswith(opening)
     assert conversation.startswith(opening)
-    assert "new feedback" not in assignment
+    assert "new feedback says what to do instead" in assignment
 
 
 def test_the_issue_conversation_prompt_names_its_input_and_host_boundary(tmp_path):

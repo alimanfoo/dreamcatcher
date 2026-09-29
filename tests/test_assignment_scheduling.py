@@ -221,6 +221,29 @@ def test_a_stopped_assignment_waits_for_feedback(state, gh):
     assert found(state=state) is None
 
 
+@pytest.mark.parametrize("pull_request_state", ["CLOSED", "MERGED"])
+def test_a_stopped_assignment_with_a_terminal_pull_request_waits_for_feedback(
+    state, gh_with_no_posts, pull_request_state
+):
+    started = PINNED + timedelta(minutes=1)
+    write_round(
+        directory=state.assignments / ASSIGNMENT_ID,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            purpose=AgentAssignmentRoundPurpose.WRAP_UP,
+            started=started,
+            pid=1,
+            ending=StoppedAgentRoundEnding(at=started),
+        ),
+    )
+    gh_with_no_posts.replies(
+        stdout=pull_request(state=pull_request_state), to="pr view"
+    )
+
+    assert found(state=state) is None
+
+
 def test_a_stopped_assignment_uses_new_feedback_without_recovery(state, gh):
     started = PINNED + timedelta(minutes=1)
     write_round(

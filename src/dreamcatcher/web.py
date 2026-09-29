@@ -347,7 +347,7 @@ def create_app(
             ["GET"],
         ),
         (
-            "/assignments/<identifier>/stop",
+            "/assignments/<identifier>/stop/<int:number>",
             "request_assignment_stop",
             partial(_request_assignment_stop, state=state, clock=clock),
             ["POST"],
@@ -365,7 +365,7 @@ def create_app(
             ["GET"],
         ),
         (
-            "/conversations/<int:issue>/stop",
+            "/conversations/<int:issue>/stop/<int:number>",
             "request_conversation_stop",
             partial(_request_conversation_stop, state=state, clock=clock),
             ["POST"],
@@ -433,7 +433,11 @@ def _show_assignment_tail(
                 round_statuses=status.round_statuses, zone=zone
             ),
             stop_url=(
-                url_for("request_assignment_stop", identifier=identifier)
+                url_for(
+                    "request_assignment_stop",
+                    identifier=identifier,
+                    number=status.stoppable_round_paths.number,
+                )
                 if status.stoppable_round_paths is not None
                 else None
             ),
@@ -483,7 +487,11 @@ def _show_conversation_tail(
                 round_statuses=status.round_statuses, zone=zone
             ),
             stop_url=(
-                url_for("request_conversation_stop", issue=issue)
+                url_for(
+                    "request_conversation_stop",
+                    issue=issue,
+                    number=status.stoppable_round_paths.number,
+                )
                 if status.stoppable_round_paths is not None
                 else None
             ),
@@ -495,7 +503,11 @@ def _show_conversation_tail(
 
 
 def _request_assignment_stop(
-    *, state: StateDirectory, clock: Callable[[], datetime], identifier: str
+    *,
+    state: StateDirectory,
+    clock: Callable[[], datetime],
+    identifier: str,
+    number: int,
 ) -> ResponseReturnValue:
     """Request a stop for one assignment's live round."""
     if not _is_same_origin_request():
@@ -506,13 +518,17 @@ def _request_assignment_stop(
     if status is None:
         return _missing_assignment_response(identifier=identifier)
     paths = status.stoppable_round_paths
-    if paths is not None:
+    if paths is not None and paths.number == number:
         request_agent_round_stop(paths=paths)
     return redirect(url_for("show_assignment", identifier=identifier), code=303)
 
 
 def _request_conversation_stop(
-    *, state: StateDirectory, clock: Callable[[], datetime], issue: int
+    *,
+    state: StateDirectory,
+    clock: Callable[[], datetime],
+    issue: int,
+    number: int,
 ) -> ResponseReturnValue:
     """Request a stop for one issue conversation's live round."""
     if not _is_same_origin_request():
@@ -521,7 +537,7 @@ def _request_conversation_stop(
     if status is None:
         return _missing_conversation_response(issue=issue)
     paths = status.stoppable_round_paths
-    if paths is not None:
+    if paths is not None and paths.number == number:
         request_agent_round_stop(paths=paths)
     return redirect(url_for("show_conversation", issue=issue), code=303)
 
@@ -854,7 +870,11 @@ def _compose_assignment_view(
         effort=record.effort,
         rounds=_compose_agent_rounds(round_statuses=status.round_statuses, zone=zone),
         stop_url=(
-            url_for("request_assignment_stop", identifier=assignment.identifier)
+            url_for(
+                "request_assignment_stop",
+                identifier=assignment.identifier,
+                number=status.stoppable_round_paths.number,
+            )
             if status.stoppable_round_paths is not None
             else None
         ),
@@ -902,7 +922,11 @@ def _compose_conversation_view(
         ),
         rounds=rounds,
         stop_url=(
-            url_for("request_conversation_stop", issue=status.issue)
+            url_for(
+                "request_conversation_stop",
+                issue=status.issue,
+                number=status.stoppable_round_paths.number,
+            )
             if status.stoppable_round_paths is not None
             else None
         ),

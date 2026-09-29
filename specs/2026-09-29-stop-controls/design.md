@@ -19,7 +19,8 @@ the previous round.
 The web server and the daemon remain separate processes. A POST from an
 assignment or conversation page writes an empty `stop-request` marker into the
 latest round's directory. The round directory makes its target unambiguous even
-when newer rounds start later.
+when newer rounds start later. The form action carries that round's number, so a
+delayed submission cannot stop a newer round.
 
 Each running round watches its own request path on a daemon thread. The watcher
 checks once per second, so the normal scheduler interval does not delay the
@@ -28,8 +29,8 @@ kills the harness process tree. The existing process boundary still owns the
 platform-specific kill: the POSIX process group and the Windows Job Object both
 stay inside the daemon process that created them.
 
-The watcher exits when the round ends normally. Tests can set a shorter polling
-interval without changing the production interval.
+The watcher exits when the round ends normally. A pending marker survives a
+daemon restart and reconciles its round as stopped.
 
 ### A stopped ending waits for feedback
 

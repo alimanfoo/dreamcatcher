@@ -42,6 +42,7 @@ from dreamcatcher.agent_rounds import (
     StoppedAgentRoundEnding,
     compose_agent_round_ending,
     record_agent_round_interruption,
+    record_agent_round_stop,
     request_agent_round_stop,
     start_agent_round,
 )
@@ -904,6 +905,22 @@ def test_recording_interruption_again_keeps_a_terminal_record(tmp_path):
     path = tmp_path / "round.json"
 
     reconciled = record_agent_round_interruption(record=record, path=path)
+
+    assert reconciled is record
+    assert not path.exists()
+
+
+def test_recording_a_stop_again_keeps_a_terminal_record(tmp_path):
+    record = AgentRoundRecord(
+        number=1,
+        purpose=PURPOSE,
+        started=PINNED,
+        pid=1,
+        ending=StoppedAgentRoundEnding(at=PINNED),
+    )
+    path = tmp_path / "round.json"
+
+    reconciled = record_agent_round_stop(record=record, path=path, at=PINNED)
 
     assert reconciled is record
     assert not path.exists()

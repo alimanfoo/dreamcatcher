@@ -150,10 +150,10 @@ def test_assignment_page_requests_a_stop_for_its_running_round(tmp_path, daemon)
     page = client.get(f"/assignments/{identifier}")
 
     assert page.status_code == 200
-    assert f'action="/assignments/{identifier}/stop"' in page.text
+    assert f'action="/assignments/{identifier}/stop/2"' in page.text
 
     response = client.post(
-        f"/assignments/{identifier}/stop",
+        f"/assignments/{identifier}/stop/2",
         headers={"Origin": "http://localhost"},
     )
 
@@ -164,9 +164,26 @@ def test_assignment_page_requests_a_stop_for_its_running_round(tmp_path, daemon)
     paths = assignment.compose_round_paths(number=2)
     assert paths.stop_request.read_text(encoding="utf-8") == ""
     assert (
-        f'action="/assignments/{identifier}/stop"'
+        f'action="/assignments/{identifier}/stop/2"'
         not in client.get(f"/assignments/{identifier}").text
     )
+
+
+def test_an_old_assignment_stop_submission_cannot_stop_the_next_round(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH13-20260819-184158"
+    client = create_app(state=state, clock=lambda: LOOKED_AT).test_client()
+
+    response = client.post(
+        f"/assignments/{identifier}/stop/1",
+        headers={"Origin": "http://localhost"},
+    )
+
+    assert response.status_code == 303
+    assignment = read_agent_assignment(state=state, identifier=identifier)
+    assert assignment is not None
+    assert not assignment.compose_round_paths(number=2).stop_request.exists()
 
 
 @pytest.mark.parametrize("origin", [None, "https://example.com"])
@@ -177,7 +194,7 @@ def test_assignment_stop_requests_must_come_from_the_page(tmp_path, daemon, orig
     client = create_app(state=state, clock=lambda: LOOKED_AT).test_client()
     headers = {} if origin is None else {"Origin": origin}
 
-    response = client.post(f"/assignments/{identifier}/stop", headers=headers)
+    response = client.post(f"/assignments/{identifier}/stop/2", headers=headers)
 
     assert response.status_code == 403
     assignment = read_agent_assignment(state=state, identifier=identifier)
@@ -199,12 +216,12 @@ def test_assignment_stop_control_needs_a_daemon_and_harness_session(tmp_path, da
 
     without_session = render_assignment(state=state, identifier=identifier)
 
-    assert f'action="/assignments/{identifier}/stop"' not in without_session
+    assert f'action="/assignments/{identifier}/stop/1"' not in without_session
 
     remove_file(path=state.lock)
     without_daemon = render_assignment(state=state, identifier="GH13-20260819-184158")
 
-    assert 'action="/assignments/GH13-20260819-184158/stop"' not in without_daemon
+    assert 'action="/assignments/GH13-20260819-184158/stop/2"' not in without_daemon
 
 
 def test_assignment_tail_updates_the_stop_control(tmp_path, daemon):
@@ -221,7 +238,7 @@ def test_assignment_tail_updates_the_stop_control(tmp_path, daemon):
 
     assert response.status_code == 200
     assert '<div id="stop-control" hx-swap-oob="true">' in response.text
-    assert f'action="/assignments/{identifier}/stop"' in response.text
+    assert f'action="/assignments/{identifier}/stop/2"' in response.text
 
 
 def test_a_stale_assignment_stop_request_is_already_done(tmp_path, daemon):
@@ -231,7 +248,7 @@ def test_a_stale_assignment_stop_request_is_already_done(tmp_path, daemon):
     client = create_app(state=state, clock=lambda: LOOKED_AT).test_client()
 
     response = client.post(
-        f"/assignments/{identifier}/stop",
+        f"/assignments/{identifier}/stop/2",
         headers={"Origin": "http://localhost"},
     )
 
@@ -246,7 +263,7 @@ def test_an_unknown_assignment_cannot_receive_a_stop_request(tmp_path):
     client = create_app(state=state, clock=lambda: LOOKED_AT).test_client()
 
     response = client.post(
-        "/assignments/unknown/stop",
+        "/assignments/unknown/stop/1",
         headers={"Origin": "http://localhost"},
     )
 
