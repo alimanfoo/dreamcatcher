@@ -65,7 +65,6 @@ jobs:
       # so CI has nothing of its output to check.
       - run: uv run pre-commit run --all-files
         env:
-          PYTHONIOENCODING: "utf-8"
           SKIP: uncoded
 
   # Builds and runs the package in an environment of its own, which proves the
