@@ -666,7 +666,7 @@ def test_a_successful_ending_refuses_a_time_without_a_zone():
         compose_agent_round_ending(at=datetime(2026, 8, 19, 18, 41, 58), status=0)
 
 
-def test_the_daemon_stopping_a_round_records_interruption(fake, worktree, directory):
+def test_interrupting_a_round_records_interruption(fake, worktree, directory):
     fake(program="harness").streams(
         lines=[Line(text="working\n"), Line(text="still working\n")], delay=5
     )
@@ -681,6 +681,23 @@ def test_the_daemon_stopping_a_round_records_interruption(fake, worktree, direct
 
     assert not running.is_alive
     assert written(path=running.paths.record).outcome is AgentRoundOutcome.INTERRUPTED
+
+
+def test_daemon_shutdown_honours_a_pending_stop_request(fake, worktree, directory):
+    fake(program="harness").streams(
+        lines=[Line(text="working\n"), Line(text="still working\n")], delay=5
+    )
+    running = AgentRound(
+        harness=round_harness(),
+        paths=compose_round_paths(worktree=worktree, directory=directory),
+        plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
+        clock=pinned,
+    )
+    request_agent_round_stop(paths=running.paths)
+
+    running.end_for_daemon_shutdown()
+
+    assert written(path=running.paths.record).outcome is AgentRoundOutcome.STOPPED
 
 
 def test_the_daemon_stopping_a_finished_round_keeps_its_ending(
@@ -698,7 +715,7 @@ def test_the_daemon_stopping_a_finished_round_keeps_its_ending(
 
     # The daemon stops every round it holds as it goes down, and one of them
     # can be a round that finished a moment before.
-    running.interrupt()
+    running.end_for_daemon_shutdown()
 
     assert running.forced_ending is None
     record = written(path=running.paths.record)

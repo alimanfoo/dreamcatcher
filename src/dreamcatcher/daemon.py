@@ -158,7 +158,7 @@ class DreamcatcherDaemon:
                 # daemon could not carry on from. A round that already ended
                 # keeps the ending it recorded for itself.
                 for agent_round in self.rounds.values():
-                    agent_round.interrupt()
+                    agent_round.end_for_daemon_shutdown()
 
     def run_scheduler_cycle(
         self, *, scheduler: AgentWorkScheduler, at: datetime

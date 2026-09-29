@@ -503,8 +503,8 @@ class AgentRound:
         """Wait for the round to end and for everything it wrote to land.
 
         A harness descendant can keep an output pipe open indefinitely, so this
-        method can wait indefinitely. The daemon uses `is_alive` and `interrupt`
-        instead.
+        method can wait indefinitely. The daemon uses `is_alive` and
+        `end_for_daemon_shutdown` instead.
         """
         self._ending_recorder.join()
 
@@ -517,6 +517,19 @@ class AgentRound:
         its owner first.
         """
         self._end_process_tree(ending=InterruptedAgentRoundEnding())
+        self._round_ended.wait()
+
+    def end_for_daemon_shutdown(self) -> None:
+        """End the round while preserving a pending user stop request.
+
+        A stop request already written when shutdown begins is the reason this
+        round ends, rather than an interruption the next daemon would recover.
+        """
+        if self.paths.stop_request.is_file():
+            ending: AgentRoundEnding = StoppedAgentRoundEnding(at=self.clock())
+        else:
+            ending = InterruptedAgentRoundEnding()
+        self._end_process_tree(ending=ending)
         self._round_ended.wait()
 
     def _end_process_tree(self, *, ending: AgentRoundEnding) -> None:
