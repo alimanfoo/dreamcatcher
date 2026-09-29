@@ -4,6 +4,9 @@ _Revised on 2026-09-24, after stage 3 of the roadmap landed. The roadmap's
 [revision after stage 3](roadmap.md#revision-after-stage-3) says what changed
 and why._
 
+_Revised on 2026-09-29 to support multiple conversation routes while keeping one
+saved conversation per issue._
+
 ## What we're building
 
 An issue conversation is a saved harness session dedicated to discussing one
@@ -48,20 +51,24 @@ revision.
 
 ### Invitation and discovery
 
-Add an optional conversation configuration, separate from implementation
-dispatch routes. It supplies one label and, as a dispatch route does, a block
-per harness holding the model, effort and initial instructions. The daemon's
-requested harness chooses between the blocks by the dispatch route's rule, so a
-configuration with one block runs that harness whatever the daemon names.
-Multiple conversation types are not part of this design. Save the chosen
-settings when a conversation starts; neither a configuration change nor a
-different requested harness switches an existing conversation to a different
-harness.
+Add zero or more conversation routes, separate from implementation dispatch
+routes. Each `[[conversation]]` entry supplies one label and, as a dispatch
+route does, a block per harness holding the model, effort and initial
+instructions. The daemon's requested harness chooses between the blocks by the
+dispatch route's rule, so a route with one block runs that harness whatever the
+daemon names.
 
-Conversation discovery asks for open issues bearing that label and assigned to
-the signed-in GitHub user. That same account supplies the permitted comment
-author. Do not inherit a different configured implementation assignee: the
-invitation and the trusted commenter must refer to the same person.
+Conversation discovery asks for open issues bearing each configured conversation
+label and assigned to the signed-in GitHub user. That same account supplies the
+permitted comment author. Do not inherit a different configured implementation
+assignee: the invitation and the trusted commenter must refer to the same
+person.
+
+An issue bearing more than one configured conversation label has a routing
+conflict. Record and report the conflict without reading its comments, starting
+a new round, or recovering an unfinished one. Route order gives no label
+precedence. Removing all but one configured conversation label makes the issue
+eligible on a later tick.
 
 An open implementation assignment, linked PR, dependency blocker, or
 implementation dispatch label is irrelevant to conversation eligibility. The
@@ -69,12 +76,18 @@ conversation path does not call assignment availability or creation.
 
 Keep at most one conversation per repository issue. Store conversation records
 in their own namespace under the existing repository-local state directory.
-Rediscovery uses the saved record rather than creating a second session.
+Rediscovery uses the saved record rather than creating a second session. Save
+the chosen label and recipe when a conversation starts; neither a configuration
+change, a different requested harness, nor replacing the issue's configured
+conversation label switches an existing conversation to a different route or
+harness. The existing version 3 record already holds these facts, so this change
+does not require another state format.
 
 Only currently eligible issues have their comments polled. Closing the issue,
-removing the label, or removing the user as assignee stops new input collection.
-There is no separate poll of previously eligible or closed issues. Restoring
-eligibility makes the issue appear in the normal discovery query again.
+removing every configured conversation label, adding a second configured label,
+or removing the user as assignee stops new input collection. There is no
+separate poll of previously eligible or closed issues. Restoring eligibility
+makes the issue appear in the normal discovery query again.
 
 Eligibility controls taking new batches, not cancelling a running round: a round
 that has started finishes and posts its answer after the issue becomes

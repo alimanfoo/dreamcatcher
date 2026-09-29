@@ -16,11 +16,18 @@ questions and answers to stay with the issue.
 
 ## What has to be true of anything I'd accept?
 
-I invite a conversation partner by adding a conversation label and assigning the
-issue to myself. This enables watching for comments; it does not itself start an
-agent round. The first eligible, undelivered comments start a session dedicated
-to that issue, with a conversation contract that does not ask it to implement
-anything or open a pull request. With no such comments, Dreamcatcher waits.
+I can configure separate conversation labels with different prompts, models and
+harness choices. I invite one conversation partner by adding exactly one of
+those labels and assigning the issue to myself. This enables watching for
+comments; it does not itself start an agent round. The first eligible,
+undelivered comments start a session dedicated to that issue, with a
+conversation contract that does not ask it to implement anything or open a pull
+request. With no such comments, Dreamcatcher waits.
+
+An issue with more than one configured conversation label has a routing
+conflict. Dreamcatcher reports the conflict and starts or recovers nothing until
+I remove all but one label. The order of the configured routes gives none of
+them precedence.
 
 Only my comments are passed to the agent. Comments from anyone else are filtered
 out before the agent sees them, including as context, to reduce the risk of
@@ -57,12 +64,14 @@ the code affect an earlier answer. I do not need it pinned to the code from when
 the conversation began.
 
 Dreamcatcher watches for comments and takes new batches only while the issue is
-open, has the conversation label, and is assigned to me. Closing the issue,
-removing the label, or unassigning me stops Dreamcatcher watching it for
-comments. A round already running can finish and post its answer, and
-interrupted or failed work recovers once the issue is eligible again. Keep the
-saved session so the conversation can resume if the issue becomes eligible
-again, without polling comments on ineligible issues.
+open, has exactly one configured conversation label, and is assigned to me.
+Closing the issue, removing every conversation label, adding a second one, or
+unassigning me stops Dreamcatcher watching it for comments. A round already
+running can finish and post its answer, and interrupted or failed work recovers
+once the issue is eligible again. Keep the saved session so the conversation can
+resume if the issue becomes eligible again, without polling comments on
+ineligible issues. The label and recipe that created a saved conversation stay
+frozen when a different configured label later makes it eligible.
 
 Conversation and implementation are independent. A conversation partner does not
 claim the issue or prevent an implementation assignment. An implementation

@@ -25,7 +25,7 @@ watches. Commit it, so everyone watching that repo dispatches the same way.
 ```toml
 assignee = "@me"
 
-[conversation]
+[[conversation]]
 label = "agent:conversation"
 
 [conversation.claude]
@@ -57,6 +57,11 @@ If an existing `dreamcatcher.toml` contains `interval` or `max_agents`, remove
 those settings. Add `--interval` or `--max-agents` to the `run` command to keep
 any non-default values; the configuration file no longer accepts them.
 
+If an existing `dreamcatcher.toml` uses `[conversation]`, change it to
+`[[conversation]]`. The old table no longer loads. This changes configuration,
+not the version 3 state format: each saved conversation already records its
+label and chosen harness settings.
+
 A `[[dispatch]]` entry says what to run for one label. Give it the label, then a
 block for each harness that can run it. Every entry needs its label and at least
 one block.
@@ -71,15 +76,23 @@ label that belongs to one harness, and issues carrying it always go there.
 
 Point `prompt` at an [assignment skill](CONTRACT.md) that meets the contract.
 
-The optional `[conversation]` block watches a separate label for questions on
-open issues assigned to the account `gh` is signed in as. Give it one or more
-harness blocks with the same `prompt`, `model` and `effort` fields as a dispatch
-route. When both blocks exist, `run --harness` chooses one; when only one
-exists, that harness runs regardless of the command-line choice. The chosen
-harness and settings are frozen into each conversation record. The prompt says
-what answer to produce, so a plain sentence is enough, though it can name a
-suitable skill when one is available. The prompt may use `{issue}` and must
-follow the
+Each optional `[[conversation]]` entry watches a separate label for questions on
+open issues assigned to the account `gh` is signed in as. Give each entry one or
+more harness blocks with the same `prompt`, `model` and `effort` fields as a
+dispatch route. When both blocks exist, `run --harness` chooses one; when only
+one exists, that harness runs regardless of the command-line choice. Repeat the
+entry to offer different conversation labels, prompts, models, or harnesses.
+
+An issue carrying more than one configured conversation label has a routing
+conflict. Dreamcatcher reports the conflict and starts or recovers nothing until
+you remove all but one of those labels. Route order gives no label precedence.
+
+The label, harness, and settings that start a conversation are frozen into its
+record. Replacing that label with another configured conversation label makes
+the saved session eligible again without changing its route or recipe. The
+prompt says what answer to produce, so a plain sentence is enough, though it can
+name a suitable skill when one is available. The prompt may use `{issue}` and
+must follow the
 [issue-conversation contract](CONTRACT.md#issue-conversation-instructions).
 
 ## Commands
@@ -139,22 +152,23 @@ conversation recovery goes before new conversation comments. When assignment
 work and an issue conversation are both ready, the daemon alternates which kind
 receives the next free agent slot.
 
-With `[conversation]` configured, the daemon also watches assigned open issues
-carrying its label. The issue title and body alone do not start an agent. Once
-the signed-in account posts an ordinary, unmarked issue comment, Dreamcatcher
-freezes the issue and trusted comment history, creates a detached worktree at
-the fetched main revision, and runs one round. The round shares the daemon's
-agent cap and global cooldown with assignments. The round marks its final
-Markdown as Dreamcatcher output and posts it back to the issue. `NO_REPLY`
-finishes without a post. A failed post makes the round errored. A later eligible
-comment resumes the same session with only the new comments and updates its
-worktree to current main without asking the user to clean up investigation
-files.
+With one or more `[[conversation]]` entries configured, the daemon also watches
+assigned open issues carrying exactly one matching label. The issue title and
+body alone do not start an agent. Once the signed-in account posts an ordinary,
+unmarked issue comment, Dreamcatcher freezes the issue and trusted comment
+history, creates a detached worktree at the fetched main revision, and runs one
+round. The round shares the daemon's agent cap and global cooldown with
+assignments. The round marks its final Markdown as Dreamcatcher output and posts
+it back to the issue. `NO_REPLY` finishes without a post. A failed post makes
+the round errored. A later eligible comment resumes the same session with only
+the new comments and updates its worktree to current main without asking the
+user to clean up investigation files.
 
-Closing the issue, removing the conversation label or removing the signed-in
-account as assignee stops comment collection. Dreamcatcher keeps the saved
-conversation, and comments posted while the issue is ineligible become available
-if it becomes eligible again. A running round may finish and publish its answer.
+Closing the issue, removing every matching conversation label, adding a second
+matching label, or removing the signed-in account as assignee stops comment
+collection. Dreamcatcher keeps the saved conversation, and comments posted while
+the issue is ineligible become available if it becomes eligible again. A running
+round may finish and publish its answer.
 
 Every round records its number, purpose, whether it is recovering an earlier
 round, and its outcome (`running`, `successful`, `errored` or `interrupted`).
