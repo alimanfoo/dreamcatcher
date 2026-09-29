@@ -129,9 +129,8 @@ active global cooldown and the end of the most recent one. A scheduler tick that
 cannot complete reports its failure in the daemon output and leaves that last
 complete record in place.
 
-This is an intentional format break. Version 4 does not migrate assignments from
-an earlier format and starts with empty local state. Stop the daemon and upgrade
-between dispatch batches, when no assignment needs another round.
+This is an intentional format break. Version 4 starts with empty local state.
+Stop the daemon and upgrade only when no agent work needs another round.
 
 Open assignments go before new assignments. A round that did not finish is
 recovered, a merged or closed pull request gets a wrap-up round, and a pull

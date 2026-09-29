@@ -191,24 +191,6 @@ class SchedulerRecord(DreamcatcherDocument):
     cooldown: GlobalCooldown | None = None
     most_recent_cooldown_ended: UtcDateTime | None = None
 
-    @property
-    def launched_assignment_identifiers(self) -> list[str]:
-        """The launched identifiers that belong to assignments."""
-        return [
-            identifier
-            for identifier in self.launched_agent_work_identifiers
-            if not identifier.startswith("conversation-")
-        ]
-
-    @property
-    def launched_conversation_identifiers(self) -> list[str]:
-        """The launched identifiers that belong to conversations."""
-        return [
-            identifier
-            for identifier in self.launched_agent_work_identifiers
-            if identifier.startswith("conversation-")
-        ]
-
 
 @dataclass(frozen=True, kw_only=True)
 class RequiredAgentRound:
@@ -1253,14 +1235,6 @@ class _ReadyAgentWork:
             or isinstance(self.conversations[0], IssueConversationRecoveryCandidate)
         )
 
-    def block(self, *, work_kind: AgentWorkKind) -> None:
-        """Remove the candidates that follow a failed launch of one kind."""
-        if work_kind is AgentWorkKind.ASSIGNMENT:
-            self.assignment_rounds.clear()
-            self.available_issues.clear()
-        else:
-            self.conversations.clear()
-
 
 def _choose_work_kind(
     *,
@@ -1445,6 +1419,7 @@ class AgentWorkScheduler:
         scheduler_failure: str | None,
     ) -> SchedulerRecord:
         """Fill free capacity while alternating between ready work kinds."""
+        running_before_launches = set(self.rounds)
         if scheduler_failure is not None:
             record = record.model_copy(update={"hold": scheduler_failure})
         candidates = _ReadyAgentWork(
@@ -1478,7 +1453,15 @@ class AgentWorkScheduler:
                 candidates=candidates,
                 inspection_results=inspection_results,
             )
-        return record
+        return record.model_copy(
+            update={
+                "launched_agent_work_identifiers": [
+                    identifier
+                    for identifier in self.rounds
+                    if identifier not in running_before_launches
+                ]
+            }
+        )
 
     def _launch_next_candidate(
         self,
@@ -1488,7 +1471,7 @@ class AgentWorkScheduler:
         candidates: _ReadyAgentWork,
         inspection_results: list[AgentAssignmentInspectionResult],
     ) -> tuple[SchedulerRecord, list[AgentAssignmentInspectionResult]]:
-        launch_count = len(record.launched_agent_work_identifiers)
+        running_count = len(self.rounds)
         if work_kind is AgentWorkKind.ASSIGNMENT:
             record, inspection_results = self._launch_next_assignment_candidate(
                 record=record,
@@ -1500,8 +1483,12 @@ class AgentWorkScheduler:
                 record=record,
                 candidate=candidates.conversations.pop(0),
             )
-        if len(record.launched_agent_work_identifiers) == launch_count:
-            candidates.block(work_kind=work_kind)
+        if len(self.rounds) == running_count:
+            if work_kind is AgentWorkKind.ASSIGNMENT:
+                candidates.assignment_rounds.clear()
+                candidates.available_issues.clear()
+            else:
+                candidates.conversations.clear()
         return record, inspection_results
 
     def _launch_next_assignment_candidate(
@@ -1516,12 +1503,18 @@ class AgentWorkScheduler:
             record = self._launch_assignment_round(
                 record=record,
                 required=required,
-                inspection_results=inspection_results,
             )
-            if required.assignment.identifier in record.launched_assignment_identifiers:
+            if required.assignment.identifier in self.rounds:
                 inspection_results = [
                     result for result in inspection_results if result is not required
                 ]
+                record = record.model_copy(
+                    update={
+                        "assignment_observations": list_assignment_observations(
+                            inspection_results=inspection_results
+                        )
+                    }
+                )
             return record, inspection_results
         return (
             self._dispatch_issue(
@@ -1571,7 +1564,6 @@ class AgentWorkScheduler:
         *,
         record: SchedulerRecord,
         required: RequiredAgentRound,
-        inspection_results: list[AgentAssignmentInspectionResult],
     ) -> SchedulerRecord:
         """Launch the next round for the highest-priority assignment."""
         try:
@@ -1582,25 +1574,9 @@ class AgentWorkScheduler:
                     "hold": _combine_scheduler_failures(
                         failures=[record.hold, str(failure)]
                     ),
-                    "assignment_observations": list_assignment_observations(
-                        inspection_results=inspection_results
-                    ),
                 }
             )
-        remaining_results = [
-            result for result in inspection_results if result is not required
-        ]
-        return record.model_copy(
-            update={
-                "launched_agent_work_identifiers": [
-                    *record.launched_agent_work_identifiers,
-                    required.assignment.identifier,
-                ],
-                "assignment_observations": list_assignment_observations(
-                    inspection_results=remaining_results
-                ),
-            }
-        )
+        return record
 
     def _launch_required_round(self, *, required: RequiredAgentRound) -> None:
         """Start the round and advance the delivery cursor once it is running."""
@@ -1719,10 +1695,6 @@ class AgentWorkScheduler:
             )
         return record.model_copy(
             update={
-                "launched_agent_work_identifiers": [
-                    *record.launched_agent_work_identifiers,
-                    conversation.identifier,
-                ],
                 "conversation_observations": [
                     observation.model_copy(
                         update={
@@ -1748,9 +1720,7 @@ class AgentWorkScheduler:
         """Dispatch one issue whose independent facts make it available."""
         labels = issue.dispatch_labels or []
         try:
-            assignment_identifier = self._launch_assignment(
-                issue=issue.issue, label=labels[0], at=record.at
-            )
+            self._launch_assignment(issue=issue.issue, label=labels[0], at=record.at)
         except ReportableError as failure:
             return record.model_copy(
                 update={
@@ -1759,16 +1729,9 @@ class AgentWorkScheduler:
                     )
                 }
             )
-        return record.model_copy(
-            update={
-                "launched_agent_work_identifiers": [
-                    *record.launched_agent_work_identifiers,
-                    assignment_identifier,
-                ]
-            }
-        )
+        return record
 
-    def _launch_assignment(self, *, issue: int, label: str, at: datetime) -> str:
+    def _launch_assignment(self, *, issue: int, label: str, at: datetime) -> None:
         """Create an assignment and start its first round."""
         creator = AgentAssignmentCreator(
             state=self.state,
@@ -1783,4 +1746,3 @@ class AgentWorkScheduler:
         self._launch_required_round(
             required=compose_initial_round_requirement(assignment=assignment)
         )
-        return assignment.identifier

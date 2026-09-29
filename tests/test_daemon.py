@@ -539,7 +539,7 @@ def test_a_tick_that_could_not_dispatch_records_the_failure_and_ticks_again(
 
     assert waiting.waited == [300, 300]
     assert "git worktree add" in held(daemon=daemon)
-    assert recorded(daemon=daemon).launched_assignment_identifiers == []
+    assert recorded(daemon=daemon).launched_agent_work_identifiers == []
 
 
 def test_a_run_that_cannot_be_told_which_repository_this_is_refuses(
