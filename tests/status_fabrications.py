@@ -180,7 +180,7 @@ def holding(*, state):
     configure(root=state.root)
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
     write_daemon_run(state=state, pid=DAEMON_PID)
-    write_daemon_lock(state=state, pid=DAEMON_PID, started_at=PINNED)
+    write_daemon_lock(path=state.lock, pid=DAEMON_PID, started_at=PINNED)
 
 
 def fabricate_nothing(*, state):

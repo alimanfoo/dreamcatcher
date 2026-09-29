@@ -55,7 +55,7 @@ def write_daemon_run(
 
 def write_daemon_lock(
     *,
-    state: StateDirectory,
+    path: Path,
     pid: int | None = None,
     started_at: datetime | None = None,
 ) -> None:
@@ -68,7 +68,7 @@ def write_daemon_lock(
     )
     write_json(
         document=DaemonLockRecord(pid=lock_pid, started_at=lock_started_at),
-        path=state.lock,
+        path=path,
     )
 
 

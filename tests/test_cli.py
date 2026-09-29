@@ -63,7 +63,7 @@ def watching(tmp_path):
     configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    write_daemon_lock(state=state)
+    write_daemon_lock(path=state.lock)
     directory = write_agent_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13)
     write_round(
         directory=directory,

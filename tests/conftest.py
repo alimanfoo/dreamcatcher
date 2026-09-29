@@ -88,7 +88,6 @@ def daemon(monkeypatch):
             raise psutil.NoSuchProcess(pid)
         return SimpleNamespace(create_time=lambda: PINNED.timestamp())
 
-    monkeypatch.setattr(psutil, "pid_exists", lambda pid: pid == DAEMON_PID)
     monkeypatch.setattr(psutil, "Process", fabricated_process)
 
 

@@ -338,7 +338,7 @@ def test_a_second_daemon_refuses_while_the_first_holds_the_repo(
     daemon.state.bootstrap()
     write_daemon_run(state=daemon.state, pid=os.getpid(), max_agents=2)
     (daemon.state.path.parent / "repository").write_bytes(b"legacy\n")
-    write_daemon_lock(state=daemon.state)
+    write_daemon_lock(path=daemon.state.lock)
 
     with pytest.raises(ReportableError, match=f"pid {os.getpid()}"):
         daemon.run()

@@ -422,7 +422,7 @@ def test_a_conversation_feed_before_its_first_round_says_so(tmp_path):
 def test_conversations_are_listed_in_attention_order(tmp_path):
     state = conversation_state(root=tmp_path)
     write_running_conversation(state=state, issue=11, started=PINNED)
-    write_daemon_lock(state=state)
+    write_daemon_lock(path=state.lock)
     write_tick(
         state=state,
         tick=SchedulerRecord(

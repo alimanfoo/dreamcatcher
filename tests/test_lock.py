@@ -6,8 +6,9 @@ from pathlib import Path
 
 import psutil
 import pytest
+from records import write_daemon_lock
 
-from dreamcatcher.documents import read_json, write_json
+from dreamcatcher.documents import read_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.lock import DaemonLockRecord, hold_daemon_lock
 
@@ -27,13 +28,6 @@ def process_started_at(*, pid: int) -> datetime:
     return datetime.fromtimestamp(psutil.Process(pid).create_time(), tz=UTC)
 
 
-def write_lock(*, path: Path, pid: int, started_at: datetime) -> None:
-    write_json(
-        document=DaemonLockRecord(pid=pid, started_at=started_at),
-        path=path,
-    )
-
-
 def test_holding_the_lock_records_the_daemon_and_releasing_removes_it(tmp_path):
     lock = tmp_path / "daemon.pid"
     started_at = process_started_at(pid=os.getpid())
@@ -49,7 +43,7 @@ def test_holding_the_lock_records_the_daemon_and_releasing_removes_it(tmp_path):
 
 def test_a_live_daemon_keeps_the_lock(tmp_path):
     lock = tmp_path / "daemon.pid"
-    write_lock(
+    write_daemon_lock(
         path=lock,
         pid=os.getpid(),
         started_at=process_started_at(pid=os.getpid()),
@@ -64,7 +58,7 @@ def test_a_live_daemon_keeps_the_lock(tmp_path):
 
 def test_a_lock_naming_a_pid_that_is_gone_is_reclaimed(tmp_path):
     lock = tmp_path / "daemon.pid"
-    write_lock(path=lock, pid=dead_pid(), started_at=datetime.now(tz=UTC))
+    write_daemon_lock(path=lock, pid=dead_pid(), started_at=datetime.now(tz=UTC))
 
     with hold_daemon_lock(path=lock):
         assert read_json(model=DaemonLockRecord, path=lock).pid == os.getpid()
@@ -73,7 +67,7 @@ def test_a_lock_naming_a_pid_that_is_gone_is_reclaimed(tmp_path):
 def test_a_lock_naming_a_reused_pid_is_reclaimed(tmp_path):
     lock = tmp_path / "daemon.pid"
     started_at = process_started_at(pid=os.getpid())
-    write_lock(
+    write_daemon_lock(
         path=lock,
         pid=os.getpid(),
         started_at=started_at - timedelta(seconds=1),

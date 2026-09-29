@@ -498,7 +498,7 @@ def test_home_lists_conversations_in_attention_order(tmp_path):
         number=1,
         lines=[FeedLine(at=PINNED, text="Still working.")],
     )
-    write_daemon_lock(state=state)
+    write_daemon_lock(path=state.lock)
     write_tick(
         state=state,
         tick=SchedulerRecord(

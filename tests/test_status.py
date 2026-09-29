@@ -61,7 +61,7 @@ def state(tmp_path):
 @pytest.fixture
 def running(state):
     """That state directory held by a daemon with this process identifier."""
-    write_daemon_lock(state=state)
+    write_daemon_lock(path=state.lock)
     return state
 
 
@@ -176,7 +176,7 @@ def test_a_live_daemon_does_not_mix_in_another_runs_facts(state):
         harness=AgentHarness.CODEX,
         max_agents=4,
     )
-    write_daemon_lock(state=state)
+    write_daemon_lock(path=state.lock)
 
     found = report(state=state)
 
@@ -245,7 +245,7 @@ def test_an_unended_round_status_follows_the_daemon(
     state, is_running, outcome_description
 ):
     if is_running:
-        write_daemon_lock(state=state)
+        write_daemon_lock(path=state.lock)
     ran(state=state, number=1, status=None)
 
     round_status = only_assignment(state=state).round_statuses[0]
