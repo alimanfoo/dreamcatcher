@@ -386,10 +386,10 @@ repository shares. The daemon interval and agent cap belong to one person's run,
 so the `run` command receives them instead.
 
 The configuration module validates labels, routes, and recipes and, given an
-issue's observed labels, identifies which are configured dispatch labels. It
-does not silently resolve multiple labels by list order. The scheduler
-interprets exactly one label of either route kind as routable, more than one of
-that kind as a routing conflict, and none as outside that workflow.
+issue's observed labels, identifies the matching routes. It does not silently
+resolve multiple labels by list order. The scheduler interprets exactly one
+route of either kind as routable, more than one of that kind as a routing
+conflict, and none as outside that workflow.
 
 ### State and documents
 

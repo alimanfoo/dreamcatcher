@@ -127,38 +127,44 @@ def codex_conversation_scheduler(cloned, gh):
         running.stop()
 
 
+def conversation_listing(
+    *,
+    labels: tuple[str, ...],
+    title: str = "Why does this happen?",
+    body: str = "Explain the scheduler.",
+) -> str:
+    """Return GitHub's listing for one assigned conversation issue."""
+    return json.dumps(
+        [
+            {
+                "number": 8,
+                "title": title,
+                "body": body,
+                "createdAt": "2026-09-22T01:00:00Z",
+                "state": "OPEN",
+                "assignees": [{"login": POSTED_BY}],
+                "labels": [{"name": name} for name in labels],
+            }
+        ]
+    )
+
+
 def offer_conversation(
     *,
     gh,
     comments: list[dict],
-    issue: int = 8,
     label: str = "dream:conversation",
-    issue_text: tuple[str, str] = (
-        "Why does this happen?",
-        "Explain the scheduler.",
-    ),
+    title: str = "Why does this happen?",
+    body: str = "Explain the scheduler.",
 ) -> None:
     """Have GitHub offer one assigned conversation issue and its comments."""
-    title, body = issue_text
     gh.replies(
-        stdout=json.dumps(
-            [
-                {
-                    "number": issue,
-                    "title": title,
-                    "body": body,
-                    "createdAt": "2026-09-22T01:00:00Z",
-                    "state": "OPEN",
-                    "assignees": [{"login": POSTED_BY}],
-                    "labels": [{"name": label}],
-                }
-            ]
-        ),
+        stdout=conversation_listing(labels=(label,), title=title, body=body),
         to=(f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} --label {label}"),
     )
     gh.replies(
         stdout=pages(items=comments),
-        to=f"api repos/{REPOSITORY}/issues/{issue}/comments?per_page=100",
+        to=f"api repos/{REPOSITORY}/issues/8/comments?per_page=100",
     )
 
 
@@ -395,8 +401,20 @@ def test_an_issue_with_two_conversation_labels_has_a_routing_conflict(
         head=CONVERSATION_CONFIG + SECOND_CONVERSATION_CONFIG,
     )
     scheduler.config = read_dreamcatcher_config(root=scheduler.state.root)
-    offer_conversation(gh=gh, comments=[ask()])
-    offer_conversation(gh=gh, comments=[ask()], label="dream:scout")
+    listing = conversation_listing(labels=("dream:conversation", "dream:scout"))
+    gh.replies(
+        stdout=listing,
+        to=(
+            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
+            "--label dream:conversation"
+        ),
+    )
+    gh.replies(
+        stdout=listing,
+        to=(
+            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} --label dream:scout"
+        ),
+    )
 
     observed = scheduler.tick(at=clock())
 
@@ -421,6 +439,31 @@ def test_an_issue_with_two_conversation_labels_has_a_routing_conflict(
     assert count_comment_reads(gh=gh) == 0
     assert read_issue_conversation(state=scheduler.state, issue=8) is None
     assert harnesses["claude"].calls == []
+
+
+def test_route_matching_uses_the_latest_issue_labels(conversation_scheduler):
+    scheduler, clock, gh = conversation_scheduler
+    configure(
+        root=scheduler.state.root,
+        head=CONVERSATION_CONFIG + SECOND_CONVERSATION_CONFIG,
+    )
+    scheduler.config = read_dreamcatcher_config(root=scheduler.state.root)
+    gh.replies(
+        stdout=conversation_listing(labels=("dream:conversation", "dream:scout")),
+        to=(
+            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
+            "--label dream:conversation"
+        ),
+    )
+    offer_conversation(gh=gh, comments=[], label="dream:scout")
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.conversation_observations[0].routing_conflict == IssueFact(
+        value=IssueFactValue.FALSE,
+        evidence="has no conversation routing conflict",
+    )
+    assert count_comment_reads(gh=gh) == 1
 
 
 def test_codex_first_and_resumed_rounds_capture_and_publish_final_messages(
@@ -589,7 +632,8 @@ def test_a_follow_up_resumes_the_session_with_only_new_comments(
     offer_conversation(
         gh=gh,
         comments=[ask(), ask(identifier=2, body="What evidence supports that?")],
-        issue_text=("What now happens?", "Explain the current scheduler."),
+        title="What now happens?",
+        body="Explain the current scheduler.",
     )
     answer(harnesses=harnesses, body="The follow-up answer.")
 

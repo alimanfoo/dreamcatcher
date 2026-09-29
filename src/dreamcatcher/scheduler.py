@@ -152,8 +152,9 @@ class AgentAssignmentObservation(DreamcatcherDocument):
 class IssueConversationObservation(DreamcatcherDocument):
     """Model what the scheduler found for one conversation issue in one tick.
 
-    The scheduler observes every eligible issue. When it cannot list eligible
-    issues, it observes the previous tick's issues again with an unknown fact.
+    The scheduler observes every issue matching at least one conversation route.
+    When it cannot list matching issues, it observes the previous tick's issues
+    again with unknown facts.
     """
 
     issue: int
@@ -256,18 +257,10 @@ class IssueConversationCandidateResult:
 
 
 @dataclass(frozen=True, kw_only=True)
-class _ConversationRouteIssue:
-    """Pair one listed issue with every conversation route that found it."""
-
-    issue: Issue
-    routes: tuple[IssueConversationConfig, ...]
-
-
-@dataclass(frozen=True, kw_only=True)
 class _ConversationRouteListing:
-    """Hold conversation issues by route, or the failure that stopped listing."""
+    """Hold conversation issues, or the failure that stopped listing."""
 
-    issues: list[_ConversationRouteIssue]
+    issues: list[Issue]
     failure: str | None = None
 
 
@@ -955,13 +948,13 @@ def _list_issue_conversation_candidates(
     conversations: list[IssueConversation],
     previous_observations: list[IssueConversationObservation],
 ) -> IssueConversationCandidateResult:
-    """Observe every eligible issue and return conversation work ready to run.
+    """Observe every matching issue and return conversation work ready to run.
 
     Comments are read for every eligible issue that can accept a fresh batch,
     whether or not an agent is free, so that status can tell waiting from idle.
     Recovery uses the saved batch and does not read new comments. A failed read
     holds launches only where the conversation could take a new batch. When
-    eligible issues cannot be listed, the previous tick's issues are observed
+    matching issues cannot be listed, the previous tick's issues are observed
     again with an unknown fact, so the ones the user took off the report stay
     off it.
     """
@@ -990,11 +983,11 @@ def _list_issue_conversation_candidates(
     candidates: list[IssueConversationCandidate] = []
     observations: list[IssueConversationObservation] = []
     failures: list[str | None] = []
-    for listed in listing.issues:
-        conversation = conversations_by_issue.get(listed.issue.number)
+    for issue in listing.issues:
+        conversation = conversations_by_issue.get(issue.number)
         inspection = _inspect_listed_conversation_issue(
             context=context,
-            listed=listed,
+            issue=issue,
             conversation=conversation,
         )
         observations.append(inspection.observation)
@@ -1016,9 +1009,8 @@ def _list_issue_conversation_candidates(
 def _list_conversation_route_issues(
     *, context: _IssueConversationCandidateContext
 ) -> _ConversationRouteListing:
-    """List each conversation issue with every configured route that found it."""
+    """List each issue found through any configured conversation route."""
     issues_by_number: dict[int, Issue] = {}
-    routes_by_issue: dict[int, list[IssueConversationConfig]] = {}
     for route in context.config.conversation:
         issue_response = list_issues(
             repository=context.repository,
@@ -1033,39 +1025,32 @@ def _list_conversation_route_issues(
             return _ConversationRouteListing(issues=[], failure=failure)
         for issue in issue_response:
             issues_by_number[issue.number] = issue
-            routes_by_issue.setdefault(issue.number, []).append(route)
     return _ConversationRouteListing(
-        issues=[
-            _ConversationRouteIssue(
-                issue=issue,
-                routes=tuple(routes_by_issue[issue.number]),
-            )
-            for issue in sorted(
-                issues_by_number.values(),
-                key=lambda item: (item.created_at, item.number),
-            )
-        ]
+        issues=sorted(
+            issues_by_number.values(),
+            key=lambda item: (item.created_at, item.number),
+        )
     )
 
 
 def _inspect_listed_conversation_issue(
     *,
     context: _IssueConversationCandidateContext,
-    listed: _ConversationRouteIssue,
+    issue: Issue,
     conversation: IssueConversation | None,
 ) -> _IssueConversationInspection:
     """Inspect one listed issue or report its conversation routing conflict."""
-    issue = listed.issue
-    if len(listed.routes) == 1:
+    routes = context.config.identify_conversation_routes(
+        labels=[label.name for label in issue.labels]
+    )
+    if len(routes) == 1:
         return _inspect_issue_conversation(
             context=context,
-            config=listed.routes[0],
+            config=routes[0],
             issue=issue,
             conversation=conversation,
         )
-    labels = ", ".join(
-        sorted((route.label for route in listed.routes), key=str.casefold)
-    )
+    labels = ", ".join(sorted((route.label for route in routes), key=str.casefold))
     return _IssueConversationInspection(
         observation=IssueConversationObservation(
             issue=issue.number,

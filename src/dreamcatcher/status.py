@@ -184,8 +184,8 @@ class AgentAssignmentStatus:
 class IssueConversationStatus:
     """Describe an issue conversation's derived summary status.
 
-    An eligible issue has a conversation from the first tick that observes it,
-    but no saved conversation until its first round launches.
+    A matching issue has a status from the first tick that observes it, but no
+    saved conversation until its first round launches.
     """
 
     issue: int
@@ -436,7 +436,7 @@ def read_issue_conversation_status(
     """Read one issue conversation's status by its issue number.
 
     An issue has a conversation once it has a saved conversation or the latest
-    tick observed it as eligible.
+    tick observed it through a configured conversation route.
     """
     conversation = read_issue_conversation(state=state, issue=issue)
     reader = _StatusReportReader(state=state, clock=clock)
@@ -451,7 +451,7 @@ def _summarize_observed_conversation(
     observation: IssueConversationObservation,
     conversation: IssueConversation | None,
 ) -> _ConversationSummary:
-    """Return what an eligible issue says about its conversation.
+    """Return what a matching issue says about its conversation.
 
     An unknown or conflicting route comes first, then unknown comments, a round
     waiting to be recovered, and comments waiting to be answered.

@@ -86,6 +86,17 @@ class IssueConversationConfig(_AgentHarnessRoute):
     """Map the conversation label to its available harness recipes."""
 
 
+def _identify_routes[Route: _AgentHarnessRoute](
+    *, labels: list[str], routes: list[Route]
+) -> list[Route]:
+    """Return configured routes matching the observed labels."""
+    routes_by_identity = {route.label.casefold(): route for route in routes}
+    identities = sorted(
+        {label.casefold() for label in labels} & routes_by_identity.keys()
+    )
+    return [routes_by_identity[identity] for identity in identities]
+
+
 class DreamcatcherConfig(DreamcatcherDocument):
     """Model a repository's agent-work configuration."""
 
@@ -103,15 +114,6 @@ class DreamcatcherConfig(DreamcatcherDocument):
         return {route.label: route for route in self.dispatch}
 
     @property
-    def conversation_routes(self) -> dict[str, IssueConversationConfig]:
-        """The conversation route for each configured label.
-
-        The label is a route's identity, and no two routes carry the same one,
-        so a label names one route here.
-        """
-        return {route.label: route for route in self.conversation}
-
-    @property
     def routed_harnesses(self) -> set[AgentHarness]:
         """Every harness that any configured route can select.
 
@@ -123,15 +125,16 @@ class DreamcatcherConfig(DreamcatcherDocument):
 
     def identify_dispatch_labels(self, *, labels: list[str]) -> list[str]:
         """Return the configured dispatch labels among the observed labels."""
-        configured = {label.casefold(): label for label in self.dispatch_routes}
-        return sorted(
-            {
-                configured[label.casefold()]
-                for label in labels
-                if label.casefold() in configured
-            },
-            key=str.casefold,
-        )
+        return [
+            route.label
+            for route in _identify_routes(labels=labels, routes=self.dispatch)
+        ]
+
+    def identify_conversation_routes(
+        self, *, labels: list[str]
+    ) -> list[IssueConversationConfig]:
+        """Return the conversation routes matching the observed labels."""
+        return _identify_routes(labels=labels, routes=self.conversation)
 
     @model_validator(mode="after")
     def _require_one_route_per_label(self) -> Self:

@@ -82,7 +82,9 @@ def test_an_issue_conversation_is_configured_separately(tmp_path):
             claude=CLAUDE_CONVERSATION_RECIPE,
         )
     ]
-    assert config.conversation_routes == {"dream:conversation": config.conversation[0]}
+    assert config.identify_conversation_routes(
+        labels=["maintenance", "DREAM:CONVERSATION"]
+    ) == [config.conversation[0]]
     assert config.routed_harnesses == {AgentHarness.CLAUDE, AgentHarness.CODEX}
 
 
