@@ -4,9 +4,6 @@ _Revised on 2026-09-24, after stage 3 of the roadmap landed. The roadmap's
 [revision after stage 3](roadmap.md#revision-after-stage-3) says what changed
 and why._
 
-_Revised on 2026-09-29 to support multiple conversation routes while keeping one
-saved conversation per issue._
-
 ## What we're building
 
 An issue conversation is a saved harness session dedicated to discussing one
@@ -51,24 +48,20 @@ revision.
 
 ### Invitation and discovery
 
-Add zero or more conversation routes, separate from implementation dispatch
-routes. Each `[[conversation]]` entry supplies one label and, as a dispatch
-route does, a block per harness holding the model, effort and initial
-instructions. The daemon's requested harness chooses between the blocks by the
-dispatch route's rule, so a route with one block runs that harness whatever the
-daemon names.
+Add an optional conversation configuration, separate from implementation
+dispatch routes. It supplies one label and, as a dispatch route does, a block
+per harness holding the model, effort and initial instructions. The daemon's
+requested harness chooses between the blocks by the dispatch route's rule, so a
+configuration with one block runs that harness whatever the daemon names.
+Multiple conversation types are not part of this design. Save the chosen
+settings when a conversation starts; neither a configuration change nor a
+different requested harness switches an existing conversation to a different
+harness.
 
-Conversation discovery asks for open issues bearing each configured conversation
-label and assigned to the signed-in GitHub user. That same account supplies the
-permitted comment author. Do not inherit a different configured implementation
-assignee: the invitation and the trusted commenter must refer to the same
-person.
-
-An issue bearing more than one configured conversation label has a routing
-conflict. Record and report the conflict without reading its comments, starting
-a new round, or recovering an unfinished one. Route order gives no label
-precedence. Removing all but one configured conversation label makes the issue
-eligible on a later tick.
+Conversation discovery asks for open issues bearing that label and assigned to
+the signed-in GitHub user. That same account supplies the permitted comment
+author. Do not inherit a different configured implementation assignee: the
+invitation and the trusted commenter must refer to the same person.
 
 An open implementation assignment, linked PR, dependency blocker, or
 implementation dispatch label is irrelevant to conversation eligibility. The
@@ -76,18 +69,12 @@ conversation path does not call assignment availability or creation.
 
 Keep at most one conversation per repository issue. Store conversation records
 in their own namespace under the existing repository-local state directory.
-Rediscovery uses the saved record rather than creating a second session. Save
-the chosen label and recipe when a conversation starts; neither a configuration
-change, a different requested harness, nor replacing the issue's configured
-conversation label switches an existing conversation to a different route or
-harness. The existing version 3 record already holds these facts, so this change
-does not require another state format.
+Rediscovery uses the saved record rather than creating a second session.
 
 Only currently eligible issues have their comments polled. Closing the issue,
-removing every configured conversation label, adding a second configured label,
-or removing the user as assignee stops new input collection. There is no
-separate poll of previously eligible or closed issues. Restoring eligibility
-makes the issue appear in the normal discovery query again.
+removing the label, or removing the user as assignee stops new input collection.
+There is no separate poll of previously eligible or closed issues. Restoring
+eligibility makes the issue appear in the normal discovery query again.
 
 Eligibility controls taking new batches, not cancelling a running round: a round
 that has started finishes and posts its answer after the issue becomes
@@ -275,10 +262,30 @@ uses the assignment status words wherever they mean the same thing. Each status
 says whose move it is and whether anything is happening, and the detail line
 gives the reason.
 
-The current status meanings, visibility rules, and attention order live in the
-[issue conversation status ontology](../../docs/ontology.md#issue-conversation-status).
-Reporting reads local records and scheduler observations rather than polling
-GitHub.
+| Conversation status | Meaning                                                                                                                                                                                                       | Assignment counterpart |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| Working             | A round is running.                                                                                                                                                                                           | Working                |
+| Waiting             | A round is due but has not started: comments wait to be answered, the first batch included, or an interrupted or errored round waits to be recovered. A free agent slot, or the end of a cooldown, starts it. | Waiting                |
+| Idle                | No round is due: the latest answer is posted, or the user has not commented yet.                                                                                                                              | Needs user feedback    |
+| Fault               | Two consecutive rounds have errored, and automatic recovery has stopped until the user retries or a cooldown ends.                                                                                            | Fault                  |
+| Unknown             | Dreamcatcher cannot tell whether the issue is eligible or whether comments wait.                                                                                                                              | Unknown                |
+
+Idle differs from needs user feedback on purpose. An assignment at rest has a
+pull request waiting for review, so it asks something of the user. A
+conversation at rest has already posted its answer, so it asks nothing. A
+conversation has no complete status: removing the label, unassigning the user or
+closing the issue takes the conversation off the status report instead.
+
+Every eligible issue appears as a conversation from the first tick that sees it,
+whether or not a conversation record exists yet. So a conversation has no
+counterpart to an available issue, and blocked issues and failed setups do not
+apply to it. Once the issue is ineligible, the conversation appears only while a
+round is running, and its detail view shows it as idle with the reason. The
+scheduler reads each eligible issue's comments on every tick, whether or not an
+agent is free, so status can tell waiting from idle. Conversations are listed as
+fault, working, waiting, unknown and then idle, since idle is not a call to
+action. Show the issue and latest failure where relevant. Reporting reads local
+records and scheduler observations rather than polling GitHub.
 
 From the first usable delivery, include conversations in `dreamcatcher status`,
 add `dreamcatcher conversation GH123` as the detail view analogous to
