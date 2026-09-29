@@ -143,8 +143,8 @@ revision with its input, and tell the agent which revision it is investigating.
 When the revision changes between batches, the agent checks earlier conclusions
 where relevant. No separate change-summary service is needed.
 
-Discard commits, tracked changes, and untracked and ignored files before moving
-the worktree to fetched main. The conversation agent is forbidden to edit the
+Reset tracked files and remove untracked and ignored files before moving the
+worktree to fetched main. The conversation agent is forbidden to edit the
 worktree, so anything it nevertheless leaves there is disposable investigation
 state and must not make the user repair a managed worktree.
 
@@ -205,9 +205,10 @@ exactly-once publication protocol.
 A conversation record holds issue identity, chosen launch settings, and the
 harness session ID. Its issue number derives the worktree's location in managed
 state. Numbered round records hold process identity and outcome; their durable
-inputs hold each saved comment batch and its investigated revision. The round
-directory also holds its prompt, raw output, feed and final output. Use the
-existing atomic document writers and validated document models.
+inputs hold each saved comment batch, its investigated revision, and the prior
+round's revision. The round directory also holds its prompt, raw output, feed
+and final output. Use the existing atomic document writers and validated
+document models.
 
 The harness owns the conversation transcript. Every later invocation resumes
 that session. Recover an interrupted or failed round by asking it to continue
