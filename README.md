@@ -57,11 +57,6 @@ If an existing `dreamcatcher.toml` contains `interval` or `max_agents`, remove
 those settings. Add `--interval` or `--max-agents` to the `run` command to keep
 any non-default values; the configuration file no longer accepts them.
 
-If an existing `dreamcatcher.toml` uses `[conversation]`, change it to
-`[[conversation]]`. The old table no longer loads. This changes configuration,
-not the version 3 state format: each saved conversation already records its
-label and chosen harness settings.
-
 A `[[dispatch]]` entry says what to run for one label. Give it the label, then a
 block for each harness that can run it. Every entry needs its label and at least
 one block.

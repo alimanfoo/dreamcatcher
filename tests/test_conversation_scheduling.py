@@ -1413,7 +1413,7 @@ def test_a_failed_conversation_listing_holds_launches(conversation_scheduler):
     ]
 
 
-def test_a_failed_route_listing_does_not_starve_healthy_routes(
+def test_a_failed_route_listing_still_refreshes_healthy_routes(
     conversation_scheduler,
 ):
     scheduler, clock, gh = conversation_scheduler
@@ -1429,7 +1429,7 @@ def test_a_failed_route_listing_does_not_starve_healthy_routes(
             "--label dream:conversation"
         ),
     )
-    offer_conversation(gh=gh, comments=[], label="dream:scout")
+    offer_conversation(gh=gh, comments=[ask()], label="dream:scout")
 
     observed = scheduler.tick(at=clock())
 
@@ -1438,6 +1438,11 @@ def test_a_failed_route_listing_does_not_starve_healthy_routes(
     assert [
         observation.issue for observation in observed.conversation_observations
     ] == [8]
+    assert observed.conversation_observations[0].has_comments_to_answer == IssueFact(
+        value=IssueFactValue.TRUE,
+        evidence="1 comment to answer",
+    )
+    assert observed.launched_conversation_identifier is None
     assert count_comment_reads(gh=gh) == 1
 
 

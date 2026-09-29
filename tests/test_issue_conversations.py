@@ -8,7 +8,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     IssueConversationRoundPurpose,
 )
-from dreamcatcher.config import AgentHarness, AgentRecipe, IssueConversationConfig
+from dreamcatcher.config import AgentHarness, AgentRecipe, IssueConversationRoute
 from dreamcatcher.documents import write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import add_detached_worktree, is_linked_worktree
@@ -43,8 +43,8 @@ PROMPT_TEMPLATE = "/dream:conversation GH" + "{issue}"
 CODEX_PROMPT_TEMPLATE = "$dream:conversation GH" + "{issue}"
 
 
-def conversation_config() -> IssueConversationConfig:
-    return IssueConversationConfig(
+def conversation_route() -> IssueConversationRoute:
+    return IssueConversationRoute(
         label="dream:conversation",
         claude=AgentRecipe(
             prompt=PROMPT_TEMPLATE,
@@ -110,7 +110,7 @@ def test_a_conversation_gets_a_detached_worktree_at_fetched_main(cloned):
 
     created = create_issue_conversation(
         state=state,
-        config=conversation_config(),
+        route=conversation_route(),
         requested_harness=AgentHarness.CLAUDE,
         issue=issue(),
     )
@@ -125,7 +125,7 @@ def test_a_conversation_gets_a_detached_worktree_at_fetched_main(cloned):
     assert (
         create_issue_conversation(
             state=state,
-            config=IssueConversationConfig(
+            route=IssueConversationRoute(
                 label="dream:scout",
                 codex=AgentRecipe(
                     prompt="$dream:conversation GH{issue}",
@@ -143,9 +143,9 @@ def test_a_conversation_gets_a_detached_worktree_at_fetched_main(cloned):
 
 def test_a_new_conversation_records_the_requested_harness_recipe(cloned):
     state = StateDirectory(root=cloned)
-    config = IssueConversationConfig(
+    route = IssueConversationRoute(
         label="dream:conversation",
-        claude=conversation_config().recipes[AgentHarness.CLAUDE],
+        claude=conversation_route().recipes[AgentHarness.CLAUDE],
         codex=AgentRecipe(
             prompt=CODEX_PROMPT_TEMPLATE,
             model="gpt-5.6-sol",
@@ -155,7 +155,7 @@ def test_a_new_conversation_records_the_requested_harness_recipe(cloned):
 
     created = create_issue_conversation(
         state=state,
-        config=config,
+        route=route,
         requested_harness=AgentHarness.CODEX,
         issue=issue(),
     )
@@ -174,7 +174,7 @@ def test_an_unrecorded_conversation_worktree_is_not_forced_away(cloned):
     with pytest.raises(ReportableError) as error:
         create_issue_conversation(
             state=state,
-            config=conversation_config(),
+            route=conversation_route(),
             requested_harness=AgentHarness.CLAUDE,
             issue=issue(),
         )
@@ -197,7 +197,7 @@ def test_a_failed_conversation_setup_removes_the_worktree_it_added(cloned, monke
     with pytest.raises(ReportableError, match="cannot write the record"):
         create_issue_conversation(
             state=state,
-            config=conversation_config(),
+            route=conversation_route(),
             requested_harness=AgentHarness.CLAUDE,
             issue=issue(),
         )
@@ -258,7 +258,7 @@ def test_round_input_freezes_the_issue_comments_and_revision(cloned):
     state = StateDirectory(root=cloned)
     conversation = create_issue_conversation(
         state=state,
-        config=conversation_config(),
+        route=conversation_route(),
         requested_harness=AgentHarness.CLAUDE,
         issue=issue(),
     )

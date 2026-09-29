@@ -7,7 +7,7 @@ from dreamcatcher.config import (
     DREAMCATCHER_CONFIG_NAME,
     AgentHarness,
     AgentRecipe,
-    IssueConversationConfig,
+    IssueConversationRoute,
     read_dreamcatcher_config,
 )
 from dreamcatcher.errors import ReportableError
@@ -77,7 +77,7 @@ def test_an_issue_conversation_is_configured_separately(tmp_path):
     config = read_dreamcatcher_config(root=tmp_path)
 
     assert config.conversation == [
-        IssueConversationConfig(
+        IssueConversationRoute(
             label="dream:conversation",
             claude=CLAUDE_CONVERSATION_RECIPE,
         )

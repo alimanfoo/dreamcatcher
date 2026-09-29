@@ -45,7 +45,7 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.config import (
     AgentHarness,
     DreamcatcherConfig,
-    IssueConversationConfig,
+    IssueConversationRoute,
 )
 from dreamcatcher.documents import DreamcatcherDocument, read_json
 from dreamcatcher.errors import ReportableError
@@ -232,7 +232,7 @@ class NewIssueConversationRoundCandidate:
     issue: Issue
     comments: list[ConversationComment]
     conversation: IssueConversation | None
-    config: IssueConversationConfig
+    route: IssueConversationRoute
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -1050,7 +1050,7 @@ def _inspect_listed_conversation_issue(
     if len(routes) == 1:
         return _inspect_issue_conversation(
             context=context,
-            config=routes[0],
+            route=routes[0],
             issue=issue,
             conversation=conversation,
         )
@@ -1075,7 +1075,7 @@ def _inspect_listed_conversation_issue(
 def _inspect_issue_conversation(
     *,
     context: _IssueConversationCandidateContext,
-    config: IssueConversationConfig,
+    route: IssueConversationRoute,
     issue: Issue,
     conversation: IssueConversation | None,
 ) -> _IssueConversationInspection:
@@ -1155,7 +1155,7 @@ def _inspect_issue_conversation(
             issue=issue,
             comments=comments,
             conversation=conversation,
-            config=config,
+            route=route,
         ),
     )
 
@@ -1181,7 +1181,7 @@ def _prepare_issue_conversation_round(
         return _prepare_issue_conversation_recovery(conversation=candidate.conversation)
     conversation = candidate.conversation or create_issue_conversation(
         state=state,
-        config=candidate.config,
+        route=candidate.route,
         requested_harness=requested_harness,
         issue=candidate.issue,
     )

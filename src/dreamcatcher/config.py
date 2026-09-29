@@ -82,7 +82,7 @@ class DispatchRoute(_AgentHarnessRoute):
     """Map a dispatch label to its available harness recipes."""
 
 
-class IssueConversationConfig(_AgentHarnessRoute):
+class IssueConversationRoute(_AgentHarnessRoute):
     """Map the conversation label to its available harness recipes."""
 
 
@@ -102,7 +102,7 @@ class DreamcatcherConfig(DreamcatcherDocument):
 
     assignee: str = "@me"
     dispatch: list[DispatchRoute] = Field(min_length=1)
-    conversation: list[IssueConversationConfig] = Field(default_factory=list)
+    conversation: list[IssueConversationRoute] = Field(default_factory=list)
 
     @property
     def dispatch_routes(self) -> dict[str, DispatchRoute]:
@@ -132,7 +132,7 @@ class DreamcatcherConfig(DreamcatcherDocument):
 
     def identify_conversation_routes(
         self, *, labels: list[str]
-    ) -> list[IssueConversationConfig]:
+    ) -> list[IssueConversationRoute]:
         """Return the conversation routes matching the observed labels."""
         return _identify_routes(labels=labels, routes=self.conversation)
 
