@@ -211,6 +211,26 @@ def test_a_conversation_whose_comments_cannot_be_read_is_unknown(
     assert found.is_listed
 
 
+def test_a_conversation_whose_routes_cannot_be_listed_is_unknown(
+    conversation_state,
+):
+    failure = "could not list issue conversations: network unavailable"
+    observe(
+        state=conversation_state,
+        observations=[
+            observed_conversation(
+                routing_conflict=IssueFactValue.UNKNOWN,
+                routing_conflict_evidence=failure,
+            )
+        ],
+    )
+
+    found = status(state=conversation_state)
+
+    assert found.value is IssueConversationStatusValue.UNKNOWN
+    assert found.detail == failure
+
+
 def test_a_conversation_no_tick_has_observed_is_unknown(conversation_state):
     conversation_state.scheduler_record.unlink()
 
@@ -486,6 +506,48 @@ def test_an_eligible_issue_nobody_has_commented_on_is_idle(tmp_path):
     assert found is not None
     assert found.value is IssueConversationStatusValue.IDLE
     assert found.detail == "no comments yet"
+
+
+def test_an_unsaved_conversation_with_two_routes_reports_its_conflict(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    conflict = "carries more than one conversation label: discuss, scout"
+    observe(
+        state=state,
+        observations=[
+            observed_conversation(
+                issue=9,
+                routing_conflict=IssueFactValue.TRUE,
+                routing_conflict_evidence=conflict,
+            )
+        ],
+    )
+
+    found = read_issue_conversation_status(state=state, issue=9)
+
+    assert found is not None
+    assert found.value is IssueConversationStatusValue.ROUTING_CONFLICT
+    assert found.detail == conflict
+    assert found.is_over
+
+
+def test_a_saved_conversation_with_two_routes_reports_its_conflict(
+    conversation_state,
+):
+    conflict = "carries more than one conversation label: discuss, scout"
+    observe(
+        state=conversation_state,
+        observations=[
+            observed_conversation(
+                routing_conflict=IssueFactValue.TRUE,
+                routing_conflict_evidence=conflict,
+            )
+        ],
+    )
+
+    found = status(state=conversation_state)
+
+    assert found.value is IssueConversationStatusValue.ROUTING_CONFLICT
+    assert found.detail == conflict
 
 
 def test_an_unobserved_issue_with_no_record_has_no_conversation(conversation_state):
