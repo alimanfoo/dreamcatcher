@@ -21,6 +21,7 @@ from dreamcatcher.agent_assignments import (
     AgentAssignmentRecord,
     PullRequestObservation,
     advance_user_post_delivery_cursor,
+    find_harness_session_identifier,
     find_open_agent_assignments_by_issue,
     inspect_incomplete_assignment_setups,
     read_agent_assignments,
@@ -977,6 +978,45 @@ def test_an_assignment_records_the_harness_session_its_first_round_reports(fabri
 
     recorded = read_agent_assignments(state=fabricated)[0]
     assert recorded.record.harness_session_identifier == "abc-123"
+
+
+def test_an_assignment_recovers_a_session_reported_by_a_later_round(fabricated):
+    directory = write_agent_assignment(
+        state=fabricated,
+        identifier=ASSIGNMENT_ID,
+        issue=12,
+        harness_session_identifier=None,
+    )
+    for number in (1, 2):
+        write_round(
+            directory=directory,
+            number=number,
+            record=AgentRoundRecord(
+                number=number,
+                purpose=AgentAssignmentRoundPurpose.IMPLEMENT,
+                is_recovery=number == 2,
+                started=PINNED,
+                pid=1,
+            ),
+        )
+    assignment = read_agent_assignments(state=fabricated)[0]
+    assignment.compose_round_paths(number=2).raw_output.write_bytes(
+        (
+            json.dumps(
+                {
+                    "type": "system",
+                    "subtype": "init",
+                    "model": "claude-opus-5",
+                    "session_id": "replacement-session",
+                }
+            )
+            + "\n"
+        ).encode()
+    )
+
+    recovered = find_harness_session_identifier(assignment=assignment)
+
+    assert recovered == "replacement-session"
 
 
 def test_a_legacy_assignment_records_only_the_first_issue_title(fabricated):

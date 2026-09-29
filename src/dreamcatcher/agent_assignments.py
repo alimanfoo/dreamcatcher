@@ -627,11 +627,17 @@ def find_harness_session_identifier(
     """Return the recorded or recoverable harness session identifier."""
     if assignment.record.harness_session_identifier is not None:
         return assignment.record.harness_session_identifier
-    return find_harness_session_identifier_in_output(
-        harness=assignment.record.harness,
-        agent_work_identifier=assignment.identifier,
-        raw_output=assignment.compose_round_paths(number=1).raw_output,
-    )
+    for round_record in reversed(assignment.rounds):
+        identifier = find_harness_session_identifier_in_output(
+            harness=assignment.record.harness,
+            agent_work_identifier=assignment.identifier,
+            raw_output=assignment.compose_round_paths(
+                number=round_record.number
+            ).raw_output,
+        )
+        if identifier is not None:
+            return identifier
+    return None
 
 
 def record_harness_session_identifier(

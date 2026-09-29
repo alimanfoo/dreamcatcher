@@ -1187,6 +1187,14 @@ def _find_oldest_available_issue(*, record: SchedulerRecord) -> IssueObservation
     )
 
 
+def _record_session_before_advancing_user_post_cursor(
+    *, assignment: AgentAssignment, newest_user_post: str, identifier: str
+) -> None:
+    """Record a replacement session before acknowledging its delivered posts."""
+    record_harness_session_identifier(assignment=assignment, identifier=identifier)
+    advance_user_post_delivery_cursor(assignment=assignment, newest=newest_user_post)
+
+
 @dataclass(kw_only=True)
 class AgentWorkScheduler:
     """Choose and start the work for one Dreamcatcher instance."""
@@ -1469,17 +1477,38 @@ class AgentWorkScheduler:
         """Start the round and advance the delivery cursor once it is running."""
         assignment = required.assignment
         harness_session_identifier = None
+        prompt = required.prompt
+        is_fresh_recovery = False
         if assignment.rounds:
             harness_session_identifier = find_harness_session_identifier(
                 assignment=assignment
             )
             if harness_session_identifier is None:
-                raise ReportableError(
-                    f"Could not resume {assignment.identifier}: its first round did "
-                    "not report a harness session identifier."
-                )
+                if not required.plan.is_recovery:
+                    raise ReportableError(
+                        f"Could not resume {assignment.identifier}: its first round "
+                        "did not report a harness session identifier."
+                    )
+                prompt = f"{assignment.record.prompt}\n\n{required.prompt}"
+                is_fresh_recovery = True
+        if harness_session_identifier is not None:
             record_harness_session_identifier(
                 assignment=assignment, identifier=harness_session_identifier
+            )
+        round_input = required.plan.input
+        newest_user_post = (
+            round_input.user_posts[-1].written_at
+            if round_input is not None and round_input.user_posts
+            else None
+        )
+        record_session_identifier = partial(
+            record_harness_session_identifier, assignment=assignment
+        )
+        if is_fresh_recovery and newest_user_post is not None:
+            record_session_identifier = partial(
+                _record_session_before_advancing_user_post_cursor,
+                assignment=assignment,
+                newest_user_post=newest_user_post,
             )
         self.rounds[assignment.identifier] = start_agent_round(
             request=AgentRoundStartRequest(
@@ -1488,12 +1517,10 @@ class AgentWorkScheduler:
                     agent_work_identifier=assignment.identifier,
                     model=assignment.record.model,
                     effort=assignment.record.effort,
-                    prompt=required.prompt,
+                    prompt=prompt,
                 ),
                 harness_session_identifier=harness_session_identifier,
-                record_harness_session_identifier=partial(
-                    record_harness_session_identifier, assignment=assignment
-                ),
+                record_harness_session_identifier=record_session_identifier,
                 finish_round=None,
                 paths=assignment.compose_round_paths(
                     number=assignment.next_round_number
@@ -1502,11 +1529,10 @@ class AgentWorkScheduler:
             ),
             clock=self.clock,
         )
-        round_input = required.plan.input
-        if round_input is not None and round_input.user_posts:
+        if newest_user_post is not None and not is_fresh_recovery:
             advance_user_post_delivery_cursor(
                 assignment=assignment,
-                newest=round_input.user_posts[-1].written_at,
+                newest=newest_user_post,
             )
 
     def _launch_conversation_round(
