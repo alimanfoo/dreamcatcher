@@ -17,13 +17,15 @@ from records import (
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
-    IssueConversationInput,
     IssueConversationRoundPurpose,
     compose_agent_round_ending,
 )
 from dreamcatcher.documents import read_json, write_json
 from dreamcatcher.feed import FeedLine
-from dreamcatcher.issue_conversations import read_issue_conversation
+from dreamcatcher.issue_conversations import (
+    IssueConversationInput,
+    read_issue_conversation,
+)
 from dreamcatcher.scheduler import (
     IssueConversationObservation,
     IssueFactValue,

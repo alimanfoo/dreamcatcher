@@ -21,13 +21,13 @@ from dreamcatcher.agent_assignments import PullRequestObservation
 from dreamcatcher.agent_rounds import (
     AgentAssignmentRoundPurpose,
     AgentRoundRecord,
-    IssueConversationInput,
     IssueConversationRoundPurpose,
     compose_agent_round_ending,
 )
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.github import PullRequestState
+from dreamcatcher.issue_conversations import IssueConversationInput
 from dreamcatcher.scheduler import (
     NO_ROUND_HAS_RUN,
     AgentAssignmentObservation,

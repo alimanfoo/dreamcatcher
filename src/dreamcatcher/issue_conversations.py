@@ -6,12 +6,11 @@ from datetime import datetime
 from pathlib import Path
 from threading import Lock
 
-from pydantic import AwareDatetime
+from pydantic import AwareDatetime, Field
 
 from dreamcatcher.agent_rounds import (
     AgentRoundPaths,
     AgentRoundRecord,
-    IssueConversationInput,
 )
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import (
@@ -46,6 +45,16 @@ from dreamcatcher.state import StateDirectory
 ISSUE_CONVERSATION_RECORD_NAME = "conversation.json"
 ISSUE_CONVERSATION_ROUNDS_DIRECTORY_NAME = "rounds"
 NO_REPLY = "NO_REPLY"
+
+
+class IssueConversationInput(DreamcatcherDocument):
+    """Model the trusted issue input frozen for one conversation round."""
+
+    issue: int
+    title: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    body: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    comments: list[ConversationComment]
+    revision: str
 
 
 class IssueCommentCursor(DreamcatcherDocument):

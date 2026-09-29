@@ -6,7 +6,6 @@ from clocks import PINNED
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
-    IssueConversationInput,
     IssueConversationRoundPurpose,
 )
 from dreamcatcher.config import AgentHarness, AgentRecipe, IssueConversationConfig
@@ -24,6 +23,7 @@ from dreamcatcher.issue_conversations import (
     ISSUE_CONVERSATION_RECORD_NAME,
     IssueCommentCursor,
     IssueConversation,
+    IssueConversationInput,
     IssueConversationRecord,
     create_issue_conversation,
     describe_issue_conversation_revision,

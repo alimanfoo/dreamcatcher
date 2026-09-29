@@ -15,11 +15,11 @@ from conftest import (
 from records import write_agent_assignment, write_round
 
 from dreamcatcher.agent_assignments import (
+    AgentAssignmentRoundInput,
     advance_user_post_delivery_cursor,
     read_agent_assignments,
 )
 from dreamcatcher.agent_rounds import (
-    AgentAssignmentRoundInput,
     AgentAssignmentRoundPurpose,
     AgentRoundPlan,
     AgentRoundRecord,

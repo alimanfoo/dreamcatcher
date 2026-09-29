@@ -52,6 +52,7 @@ from dreamcatcher.github import (
     PullRequest,
     PullRequestState,
     UnknownGitHubResponse,
+    UserPost,
     create_pull_request,
     list_pull_requests,
     read_issue_pull_request_context,
@@ -76,6 +77,13 @@ AGENT_ASSIGNMENT_RECORD_NAME = "assignment.json"
 AGENT_ROUNDS_DIRECTORY_NAME = "rounds"
 
 USER_POST_DELIVERY_CURSOR_NAME = "watermark"
+
+
+class AgentAssignmentRoundInput(DreamcatcherDocument):
+    """Model the pull request state and user posts delivered to an assignment round."""
+
+    pull_request_state: PullRequestState
+    user_posts: list[UserPost]
 
 
 class PullRequestObservation(DreamcatcherDocument):

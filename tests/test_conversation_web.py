@@ -16,13 +16,13 @@ from status_fabrications import fabricate_conversation, fabricate_everything
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
-    IssueConversationInput,
     IssueConversationRoundPurpose,
     compose_agent_round_ending,
 )
 from dreamcatcher.documents import append_text, write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.issue_conversations import (
+    IssueConversationInput,
     read_issue_conversation,
 )
 from dreamcatcher.scheduler import IssueFactValue, SchedulerRecord

@@ -159,7 +159,7 @@ def write_running_conversation(
         ),
     )
     write_json(
-        document=agent_rounds.IssueConversationInput(
+        document=issue_conversations.IssueConversationInput(
             issue=issue,
             title=f"Issue {issue}",
             body="Explain it.",

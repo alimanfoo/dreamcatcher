@@ -211,12 +211,13 @@ operations to:
 - record an interruption when the daemon finds a round record that an earlier
   daemon left without an ending.
 
-An `AgentAssignmentRoundInput` is the document that a resumed assignment round
-receives beside its prompt. It carries the pull request state and any relayed
-user posts. An `IssueConversationInput` freezes the issue, trusted comments and
-investigated revision for a conversation round. The round runner writes
-whichever input the owner delivers without reading it, and it hands the final
-result to the owner's finisher without knowing what the owner does with it.
+`agent_assignments.py` owns `AgentAssignmentRoundInput`, the pull request state
+and relayed user posts that a resumed assignment round receives beside its
+prompt. `issue_conversations.py` owns `IssueConversationInput`, which freezes
+the issue, trusted comments and investigated revision for a conversation round.
+The round runner writes whichever input the owner delivers without reading it,
+and it hands the final result to the owner's finisher without knowing what the
+owner does with it.
 
 The scheduler decides which purpose and recovery flag a new round has. The round
 boundary executes and records that decision; it does not inspect the pull
