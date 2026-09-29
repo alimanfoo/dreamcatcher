@@ -98,7 +98,7 @@ def conversation_scheduler(cloned, gh):
     )
     yield scheduler, clock, gh
     for running in scheduler.rounds.values():
-        running.stop()
+        running.interrupt()
 
 
 @pytest.fixture
@@ -117,7 +117,7 @@ def codex_conversation_scheduler(cloned, gh):
     )
     yield scheduler, clock, gh
     for running in scheduler.rounds.values():
-        running.stop()
+        running.interrupt()
 
 
 def offer_conversation(
@@ -562,9 +562,7 @@ def test_a_stopped_conversation_waits_for_new_feedback(
     record_issue_conversation_session_identifier(
         conversation=conversation, identifier="conversation-session"
     )
-    request_agent_round_stop(
-        paths=conversation.compose_round_paths(number=1), at=clock()
-    )
+    request_agent_round_stop(paths=conversation.compose_round_paths(number=1))
     finish(scheduler=scheduler)
 
     scheduler.tick(at=clock())

@@ -29,10 +29,9 @@ from dreamcatcher.agent_assignments import read_agent_assignment
 from dreamcatcher.agent_rounds import (
     AgentAssignmentRoundPurpose,
     AgentRoundRecord,
-    AgentRoundStopRequest,
     StoppedAgentRoundEnding,
 )
-from dreamcatcher.documents import append_text, read_json, remove_file, write_text
+from dreamcatcher.documents import append_text, remove_file, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.scheduler import GlobalCooldown, SchedulerRecord
@@ -163,8 +162,7 @@ def test_assignment_page_requests_a_stop_for_its_running_round(tmp_path, daemon)
     assignment = read_agent_assignment(state=state, identifier=identifier)
     assert assignment is not None
     paths = assignment.compose_round_paths(number=2)
-    request = read_json(model=AgentRoundStopRequest, path=paths.stop_request)
-    assert request.requested_at == LOOKED_AT
+    assert paths.stop_request.read_text(encoding="utf-8") == ""
     assert (
         f'action="/assignments/{identifier}/stop"'
         not in client.get(f"/assignments/{identifier}").text

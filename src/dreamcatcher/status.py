@@ -17,6 +17,7 @@ from dreamcatcher.agent_assignments import (
 )
 from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
+    AgentRoundPaths,
     AgentRoundRecord,
     ErroredAgentRoundEnding,
     StoppedAgentRoundEnding,
@@ -37,6 +38,8 @@ from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.issue_conversations import (
     IssueConversation,
     describe_issue_conversation_revision,
+    find_issue_conversation_harness_session_identifier,
+    is_issue_conversation_ready_for_input,
     is_no_reply,
     read_issue_conversation,
     read_issue_conversation_input,
@@ -176,6 +179,18 @@ class AgentAssignmentStatus:
             harness_session_identifier=harness_session_identifier
         )
 
+    @cached_property
+    def stoppable_round_paths(self) -> AgentRoundPaths | None:
+        """The live round that can accept a stop request, when one exists."""
+        if (
+            self.value is not AgentAssignmentStatusValue.WORKING
+            or self.harness_session_identifier is None
+        ):
+            return None
+        assignment = self.assignment
+        paths = assignment.compose_round_paths(number=assignment.rounds[-1].number)
+        return None if paths.stop_request.is_file() else paths
+
 
 @dataclass(frozen=True, kw_only=True)
 class IssueConversationStatus:
@@ -202,6 +217,22 @@ class IssueConversationStatus:
         report no longer lists waits for its issue to be eligible again.
         """
         return self.value is IssueConversationStatusValue.FAULT or not self.is_listed
+
+    @cached_property
+    def stoppable_round_paths(self) -> AgentRoundPaths | None:
+        """The live round that can accept a stop request, when one exists."""
+        conversation = self.conversation
+        if (
+            self.value is not IssueConversationStatusValue.WORKING
+            or conversation is None
+            or find_issue_conversation_harness_session_identifier(
+                conversation=conversation
+            )
+            is None
+        ):
+            return None
+        paths = conversation.compose_round_paths(number=conversation.rounds[-1].number)
+        return None if paths.stop_request.is_file() else paths
 
     @cached_property
     def round_statuses(self) -> list[AgentRoundStatus]:
@@ -478,12 +509,9 @@ def _describe_unfinished_conversation_round(
     """
     if conversation is None or not conversation.rounds:
         return None
-    latest = conversation.rounds[-1]
-    if latest.outcome in {
-        AgentRoundOutcome.SUCCESSFUL,
-        AgentRoundOutcome.STOPPED,
-    }:
+    if is_issue_conversation_ready_for_input(conversation=conversation):
         return None
+    latest = conversation.rounds[-1]
     ending = latest.ending
     if isinstance(ending, ErroredAgentRoundEnding) and ending.reason is not None:
         return f"round {latest.number} errored: {ending.reason}"

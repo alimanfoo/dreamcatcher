@@ -31,10 +31,7 @@ from dreamcatcher.feed import (
     compose_agent_round_boundary,
     read_feed_line,
 )
-from dreamcatcher.issue_conversations import (
-    IssueConversation,
-    find_issue_conversation_harness_session_identifier,
-)
+from dreamcatcher.issue_conversations import IssueConversation
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
@@ -45,7 +42,6 @@ from dreamcatcher.status import (
     AgentRoundStatus,
     DreamcatcherStatusReport,
     IssueConversationStatus,
-    IssueConversationStatusValue,
     IssueFactValue,
     IssueObservation,
     read_agent_assignment_status,
@@ -67,6 +63,10 @@ _HTMX_STOP_POLLING_STATUS = 286
 _DEFAULT_WEB_THEME = "matrix"
 _WEB_THEME_MARKS = {_DEFAULT_WEB_THEME: "phosphor", "nature": "ink"}
 _WEB_THEMES = tuple(_WEB_THEME_MARKS)
+_CROSS_ORIGIN_STOP_RESPONSE = (
+    "Stop requests must come from this Dreamcatcher page.",
+    403,
+)
 
 
 class _WebServerBindError(Exception):
@@ -200,8 +200,7 @@ class WebAgentTail:
     status_label: str
     detail: str | None
     rounds: tuple[WebAgentRound, ...]
-    stop_url: str
-    can_stop: bool
+    stop_url: str | None
     has_empty_feed_placeholder: bool
 
 
@@ -212,8 +211,7 @@ class WebAgentTailContext:
     status: str
     status_label: str
     rounds: tuple[WebAgentRound, ...]
-    stop_url: str
-    can_stop: bool
+    stop_url: str | None
     detail: str | None = None
 
 
@@ -238,8 +236,7 @@ class WebAssignmentView:
     model: str
     effort: str
     rounds: tuple[WebAgentRound, ...]
-    stop_url: str
-    can_stop: bool
+    stop_url: str | None
     hand_resume_worktree: str | None
     hand_resume_command: str | None
     feed_rounds: tuple[WebFeedRound, ...]
@@ -271,8 +268,7 @@ class WebConversationView:
     detail: str
     facts: tuple[WebFact, ...]
     rounds: tuple[WebAgentRound, ...]
-    stop_url: str
-    can_stop: bool
+    stop_url: str | None
     feed_rounds: tuple[WebFeedRound, ...]
     feed_cursor: str
 
@@ -427,7 +423,6 @@ def _show_assignment_tail(
     )
     if status is None:
         return _missing_assignment_response(identifier=identifier)
-    daemon = read_dreamcatcher_daemon_status(state=state)
     return _show_agent_tail(
         owner=status.assignment,
         context=WebAgentTailContext(
@@ -437,15 +432,10 @@ def _show_assignment_tail(
             rounds=_compose_agent_rounds(
                 round_statuses=status.round_statuses, zone=zone
             ),
-            stop_url=url_for("request_assignment_stop", identifier=identifier),
-            can_stop=(
-                _find_stoppable_round_paths(
-                    owner=status.assignment,
-                    is_working=status.value is AgentAssignmentStatusValue.WORKING,
-                    has_session=status.harness_session_identifier is not None,
-                    daemon_pid=daemon.pid,
-                )
-                is not None
+            stop_url=(
+                url_for("request_assignment_stop", identifier=identifier)
+                if status.stoppable_round_paths is not None
+                else None
             ),
         ),
         is_terminal=status.value in STATUSES_THAT_END_A_VIEW,
@@ -482,7 +472,6 @@ def _show_conversation_tail(
     status = read_issue_conversation_status(state=state, issue=issue, clock=clock)
     if status is None:
         return _missing_conversation_response(issue=issue)
-    daemon = read_dreamcatcher_daemon_status(state=state)
     conversation = status.conversation
     return _show_agent_tail(
         owner=conversation,
@@ -493,21 +482,10 @@ def _show_conversation_tail(
             rounds=_compose_agent_rounds(
                 round_statuses=status.round_statuses, zone=zone
             ),
-            stop_url=url_for("request_conversation_stop", issue=issue),
-            can_stop=(
-                _find_stoppable_round_paths(
-                    owner=conversation,
-                    is_working=status.value is IssueConversationStatusValue.WORKING,
-                    has_session=(
-                        conversation is not None
-                        and find_issue_conversation_harness_session_identifier(
-                            conversation=conversation
-                        )
-                        is not None
-                    ),
-                    daemon_pid=daemon.pid,
-                )
-                is not None
+            stop_url=(
+                url_for("request_conversation_stop", issue=issue)
+                if status.stoppable_round_paths is not None
+                else None
             ),
         ),
         is_terminal=status.is_over,
@@ -521,20 +499,15 @@ def _request_assignment_stop(
 ) -> ResponseReturnValue:
     """Request a stop for one assignment's live round."""
     if not _is_same_origin_request():
-        return _cross_origin_stop_response()
+        return _CROSS_ORIGIN_STOP_RESPONSE
     status = read_agent_assignment_status(
         state=state, identifier=identifier, clock=clock
     )
     if status is None:
         return _missing_assignment_response(identifier=identifier)
-    daemon = read_dreamcatcher_daemon_status(state=state)
-    _request_agent_work_stop(
-        owner=status.assignment,
-        is_working=status.value is AgentAssignmentStatusValue.WORKING,
-        has_session=status.harness_session_identifier is not None,
-        daemon_pid=daemon.pid,
-        at=clock(),
-    )
+    paths = status.stoppable_round_paths
+    if paths is not None:
+        request_agent_round_stop(paths=paths)
     return redirect(url_for("show_assignment", identifier=identifier), code=303)
 
 
@@ -543,75 +516,19 @@ def _request_conversation_stop(
 ) -> ResponseReturnValue:
     """Request a stop for one issue conversation's live round."""
     if not _is_same_origin_request():
-        return _cross_origin_stop_response()
+        return _CROSS_ORIGIN_STOP_RESPONSE
     status = read_issue_conversation_status(state=state, issue=issue, clock=clock)
     if status is None:
         return _missing_conversation_response(issue=issue)
-    conversation = status.conversation
-    daemon = read_dreamcatcher_daemon_status(state=state)
-    _request_agent_work_stop(
-        owner=conversation,
-        is_working=status.value is IssueConversationStatusValue.WORKING,
-        has_session=(
-            conversation is not None
-            and find_issue_conversation_harness_session_identifier(
-                conversation=conversation
-            )
-            is not None
-        ),
-        daemon_pid=daemon.pid,
-        at=clock(),
-    )
-    return redirect(url_for("show_conversation", issue=issue), code=303)
-
-
-def _request_agent_work_stop(
-    *,
-    owner: _WebFeedOwner | None,
-    is_working: bool,
-    has_session: bool,
-    daemon_pid: int | None,
-    at: datetime,
-) -> None:
-    """Write a stop request when the latest round can accept one."""
-    paths = _find_stoppable_round_paths(
-        owner=owner,
-        is_working=is_working,
-        has_session=has_session,
-        daemon_pid=daemon_pid,
-    )
+    paths = status.stoppable_round_paths
     if paths is not None:
-        request_agent_round_stop(paths=paths, at=at)
-
-
-def _find_stoppable_round_paths(
-    *,
-    owner: _WebFeedOwner | None,
-    is_working: bool,
-    has_session: bool,
-    daemon_pid: int | None,
-) -> AgentRoundPaths | None:
-    """Return the latest round's paths when a stop request is safe."""
-    if daemon_pid is None:
-        return None
-    if owner is None:
-        return None
-    if not is_working:
-        return None
-    if not has_session:
-        return None
-    paths = owner.compose_round_paths(number=owner.rounds[-1].number)
-    return None if paths.stop_request.is_file() else paths
+        request_agent_round_stop(paths=paths)
+    return redirect(url_for("show_conversation", issue=issue), code=303)
 
 
 def _is_same_origin_request() -> bool:
     """Return whether the POST came from the web page that received it."""
     return request.headers.get("Origin") == request.host_url.removesuffix("/")
-
-
-def _cross_origin_stop_response() -> tuple[str, int]:
-    """Refuse a stop request that did not come from this web application."""
-    return "Stop requests must come from this Dreamcatcher page.", 403
 
 
 def _show_agent_tail(
@@ -936,15 +853,10 @@ def _compose_assignment_view(
         model=record.model,
         effort=record.effort,
         rounds=_compose_agent_rounds(round_statuses=status.round_statuses, zone=zone),
-        stop_url=url_for("request_assignment_stop", identifier=assignment.identifier),
-        can_stop=(
-            _find_stoppable_round_paths(
-                owner=assignment,
-                is_working=status.value is AgentAssignmentStatusValue.WORKING,
-                has_session=status.harness_session_identifier is not None,
-                daemon_pid=daemon.pid,
-            )
-            is not None
+        stop_url=(
+            url_for("request_assignment_stop", identifier=assignment.identifier)
+            if status.stoppable_round_paths is not None
+            else None
         ),
         hand_resume_worktree=(
             None
@@ -989,21 +901,10 @@ def _compose_conversation_view(
             else _compose_conversation_facts(conversation=conversation)
         ),
         rounds=rounds,
-        stop_url=url_for("request_conversation_stop", issue=status.issue),
-        can_stop=(
-            _find_stoppable_round_paths(
-                owner=conversation,
-                is_working=status.value is IssueConversationStatusValue.WORKING,
-                has_session=(
-                    conversation is not None
-                    and find_issue_conversation_harness_session_identifier(
-                        conversation=conversation
-                    )
-                    is not None
-                ),
-                daemon_pid=daemon.pid,
-            )
-            is not None
+        stop_url=(
+            url_for("request_conversation_stop", issue=status.issue)
+            if status.stoppable_round_paths is not None
+            else None
         ),
         feed_rounds=feed.rounds,
         feed_cursor=feed.cursor,
@@ -1132,7 +1033,6 @@ def _read_agent_tail(
         detail=context.detail,
         rounds=context.rounds,
         stop_url=context.stop_url,
-        can_stop=context.can_stop,
         has_empty_feed_placeholder=cursor.round_number == 0,
     )
 

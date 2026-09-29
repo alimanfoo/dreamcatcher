@@ -16,11 +16,10 @@ from status_fabrications import fabricate_conversation, fabricate_everything
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
-    AgentRoundStopRequest,
     IssueConversationRoundPurpose,
     compose_agent_round_ending,
 )
-from dreamcatcher.documents import append_text, read_json, write_json, write_text
+from dreamcatcher.documents import append_text, write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.issue_conversations import (
     IssueConversationInput,
@@ -143,8 +142,7 @@ def test_conversation_page_requests_a_stop_for_its_running_round(tmp_path, daemo
     conversation = read_issue_conversation(state=state, issue=8)
     assert conversation is not None
     paths = conversation.compose_round_paths(number=1)
-    request = read_json(model=AgentRoundStopRequest, path=paths.stop_request)
-    assert request.requested_at == LOOKED_AT
+    assert paths.stop_request.read_text(encoding="utf-8") == ""
 
 
 def test_unsaved_conversation_has_no_stop_control(tmp_path, daemon):
@@ -156,6 +154,21 @@ def test_unsaved_conversation_has_no_stop_control(tmp_path, daemon):
 
     assert response.status_code == 200
     assert 'action="/conversations/9/stop"' not in response.text
+
+
+def test_a_stale_conversation_stop_request_is_already_done(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state)
+    client = application(state=state).test_client()
+
+    response = client.post(
+        "/conversations/8/stop", headers={"Origin": "http://localhost"}
+    )
+
+    assert response.status_code == 303
+    conversation = read_issue_conversation(state=state, issue=8)
+    assert conversation is not None
+    assert not conversation.compose_round_paths(number=1).stop_request.exists()
 
 
 def test_an_unknown_conversation_cannot_receive_a_stop_request(tmp_path):

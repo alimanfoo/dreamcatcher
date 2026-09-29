@@ -77,7 +77,7 @@ def stop_scheduler_rounds():
     yield
     for scheduler in CREATED_SCHEDULERS:
         for running in scheduler.rounds.values():
-            running.stop()
+            running.interrupt()
     CREATED_SCHEDULERS.clear()
 
 

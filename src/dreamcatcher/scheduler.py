@@ -70,6 +70,7 @@ from dreamcatcher.issue_conversations import (
     IssueConversationInput,
     create_issue_conversation,
     find_issue_conversation_harness_session_identifier,
+    is_issue_conversation_ready_for_input,
     list_undelivered_issue_comments,
     post_issue_conversation_answer,
     prepare_issue_conversation_input,
@@ -955,7 +956,7 @@ def _list_issue_conversation_candidates(
         observations.append(inspection.observation)
         if inspection.candidate is not None:
             candidates.append(inspection.candidate)
-        elif _is_conversation_ready_for_input(conversation=conversation):
+        elif is_issue_conversation_ready_for_input(conversation=conversation):
             failures.append(inspection.observation.has_comments_to_answer.evidence)
     return IssueConversationCandidateResult(
         candidates=sorted(candidates, key=_rank_issue_conversation_candidate),
@@ -1025,7 +1026,9 @@ def _inspect_issue_conversation(
         title=issue.title,
         has_comments_to_answer=has_comments_to_answer,
     )
-    if not comments or not _is_conversation_ready_for_input(conversation=conversation):
+    if not comments or not is_issue_conversation_ready_for_input(
+        conversation=conversation
+    ):
         return _IssueConversationInspection(observation=observation, candidate=None)
     return _IssueConversationInspection(
         observation=observation,
@@ -1162,16 +1165,6 @@ def _list_comments_to_answer(
         account=account,
         cursor=cursor,
     )
-
-
-def _is_conversation_ready_for_input(*, conversation: IssueConversation | None) -> bool:
-    """Return whether a conversation can accept another comment batch."""
-    if conversation is None or not conversation.rounds:
-        return True
-    return conversation.rounds[-1].outcome in {
-        AgentRoundOutcome.SUCCESSFUL,
-        AgentRoundOutcome.STOPPED,
-    }
 
 
 def _combine_scheduler_failures(*, failures: list[str | None]) -> str | None:

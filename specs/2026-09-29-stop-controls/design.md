@@ -17,9 +17,9 @@ the previous round.
 ### The web process requests and the round stops
 
 The web server and the daemon remain separate processes. A POST from an
-assignment or conversation page writes `stop-request.json` into the latest
-round's directory. The request is a Dreamcatcher document, and the round
-directory makes its target unambiguous even when newer rounds start later.
+assignment or conversation page writes an empty `stop-request` marker into the
+latest round's directory. The round directory makes its target unambiguous even
+when newer rounds start later.
 
 Each running round watches its own request path on a daemon thread. The watcher
 checks once per second, so the normal scheduler interval does not delay the
@@ -75,9 +75,9 @@ request file then hides the control while the round watcher acts on it.
 ## What changes
 
 The round document model gains the `stopped` outcome, each round gains one
-stop-request document, and the round runner gains one watcher thread.
-Scheduling, status reporting, prompts, the TUI, and the web view use the new
-outcome wherever they describe or act on a round ending.
+stop-request marker, and the round runner gains one watcher thread. Scheduling,
+status reporting, prompts, the TUI, and the web view use the new outcome
+wherever they describe or act on a round ending.
 
 The web server is no longer read-only. Its one write is the stop request,
 through the round boundary. It still reads no live object from the daemon,

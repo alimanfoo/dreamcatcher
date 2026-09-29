@@ -157,10 +157,9 @@ conversation, and comments posted while the issue is ineligible become available
 if it becomes eligible again. A running round may finish and publish its answer.
 
 Every round records its number, purpose, whether it is recovering an earlier
-round, and its outcome (`running`, `successful`, `errored` or `interrupted`).
-Purpose and recovery are independent: for example, a failed wrap-up is followed
-by a recovery round whose purpose is still `wrap up`, while every issue
-conversation round has the `discuss` purpose.
+round, and its outcome. Purpose and recovery are independent: for example, a
+failed wrap-up is followed by a recovery round whose purpose is still `wrap up`,
+while every issue conversation round has the `discuss` purpose.
 
 Rounds die with the daemon. When `run` starts, it records any round orphaned by
 an earlier daemon as interrupted. The next assignment round recovers that work
@@ -173,12 +172,12 @@ input.
 
 One errored round receives an ordinary recovery opportunity and does not stop
 unrelated work. Two consecutive errored rounds put that assignment or
-conversation in fault; an interrupted or successful round breaks the sequence.
-When two pieces of agent work that remain in the status report are in fault, in
-either combination, the scheduler starts a fifteen-minute global cooldown and
-starts no agent work during it. The scheduler keeps observing and reporting
-while it waits. The cooldown survives a daemon restart, and its end clears the
-faults so that recovery can continue.
+conversation in fault; any non-errored round breaks the sequence. When two
+pieces of agent work that remain in the status report are in fault, in either
+combination, the scheduler starts a fifteen-minute global cooldown and starts no
+agent work during it. The scheduler keeps observing and reporting while it
+waits. The cooldown survives a daemon restart, and its end clears the faults so
+that recovery can continue.
 
 If work remains in fault because of a problem specific to its issue, fix the
 problem and request another recovery attempt:
