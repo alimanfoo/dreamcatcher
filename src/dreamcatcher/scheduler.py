@@ -180,7 +180,7 @@ class SchedulerRecord(DreamcatcherDocument):
 
     at: UtcDateTime
     hold: str | None = None
-    launched_agent_work_identifier: str | None = None
+    launched_agent_work_identifiers: list[str] = Field(default_factory=list)
     issue_observations: list[IssueObservation] = Field(default_factory=list)
     assignment_observations: list[AgentAssignmentObservation] = Field(
         default_factory=list
@@ -192,20 +192,22 @@ class SchedulerRecord(DreamcatcherDocument):
     most_recent_cooldown_ended: UtcDateTime | None = None
 
     @property
-    def launched_assignment_identifier(self) -> str | None:
-        """The launched identifier when it belongs to an assignment."""
-        identifier = self.launched_agent_work_identifier
-        if identifier is None or identifier.startswith("conversation-"):
-            return None
-        return identifier
+    def launched_assignment_identifiers(self) -> list[str]:
+        """The launched identifiers that belong to assignments."""
+        return [
+            identifier
+            for identifier in self.launched_agent_work_identifiers
+            if not identifier.startswith("conversation-")
+        ]
 
     @property
-    def launched_conversation_identifier(self) -> str | None:
-        """The launched identifier when it belongs to a conversation."""
-        identifier = self.launched_agent_work_identifier
-        if identifier is not None and identifier.startswith("conversation-"):
-            return identifier
-        return None
+    def launched_conversation_identifiers(self) -> list[str]:
+        """The launched identifiers that belong to conversations."""
+        return [
+            identifier
+            for identifier in self.launched_agent_work_identifiers
+            if identifier.startswith("conversation-")
+        ]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -1513,7 +1515,10 @@ class AgentWorkScheduler:
         ]
         return record.model_copy(
             update={
-                "launched_agent_work_identifier": required.assignment.identifier,
+                "launched_agent_work_identifiers": [
+                    *record.launched_agent_work_identifiers,
+                    required.assignment.identifier,
+                ],
                 "assignment_observations": list_assignment_observations(
                     inspection_results=remaining_results
                 ),
@@ -1637,7 +1642,10 @@ class AgentWorkScheduler:
             )
         return record.model_copy(
             update={
-                "launched_agent_work_identifier": conversation.identifier,
+                "launched_agent_work_identifiers": [
+                    *record.launched_agent_work_identifiers,
+                    conversation.identifier,
+                ],
                 "conversation_observations": [
                     observation.model_copy(
                         update={
@@ -1675,7 +1683,12 @@ class AgentWorkScheduler:
                 }
             )
         return record.model_copy(
-            update={"launched_agent_work_identifier": assignment_identifier}
+            update={
+                "launched_agent_work_identifiers": [
+                    *record.launched_agent_work_identifiers,
+                    assignment_identifier,
+                ]
+            }
         )
 
     def _launch_assignment(self, *, issue: int, label: str, at: datetime) -> str:
