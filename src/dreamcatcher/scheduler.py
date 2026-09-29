@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from functools import partial
-from typing import Annotated, Literal, Protocol, Self, cast
+from typing import Annotated, Protocol, Self, cast
 
 from pydantic import AfterValidator, AwareDatetime, Field, model_validator
 
@@ -110,31 +110,11 @@ class IssueFactValue(StrEnum):
     UNKNOWN = "unknown"
 
 
-class TrueIssueFact(DreamcatcherDocument):
-    """Model a true issue fact and the evidence for it."""
+class IssueFact(DreamcatcherDocument):
+    """Model an independently observed issue fact and its evidence."""
 
-    value: Literal[IssueFactValue.TRUE] = IssueFactValue.TRUE
+    value: IssueFactValue
     evidence: str
-
-
-class FalseIssueFact(DreamcatcherDocument):
-    """Model a false issue fact and any evidence for it."""
-
-    value: Literal[IssueFactValue.FALSE] = IssueFactValue.FALSE
-    evidence: str | None = None
-
-
-class UnknownIssueFact(DreamcatcherDocument):
-    """Model an issue fact that could not be determined and why."""
-
-    value: Literal[IssueFactValue.UNKNOWN] = IssueFactValue.UNKNOWN
-    evidence: str
-
-
-type IssueFact = Annotated[
-    TrueIssueFact | FalseIssueFact | UnknownIssueFact,
-    Field(discriminator="value"),
-]
 
 
 class IssueObservation(DreamcatcherDocument):
@@ -336,7 +316,10 @@ def derive_issue_availability(*, observation: IssueObservation) -> IssueFact:
     """Derive whether an issue is available from its independent facts."""
     preventing = _find_preventing_issue_fact(observation=observation)
     if preventing is not None:
-        return FalseIssueFact(evidence=preventing.evidence)
+        return IssueFact(
+            value=IssueFactValue.FALSE,
+            evidence=preventing.evidence,
+        )
     required = [
         observation.is_open,
         observation.is_assigned_to_user,
@@ -351,10 +334,14 @@ def derive_issue_availability(*, observation: IssueObservation) -> IssueFact:
     if unknown is not None:
         return unknown
     if observation.dispatch_labels is None:
-        return UnknownIssueFact(
+        return IssueFact(
+            value=IssueFactValue.UNKNOWN,
             evidence="cannot tell which dispatch labels it carries",
         )
-    return TrueIssueFact(evidence="available for assignment")
+    return IssueFact(
+        value=IssueFactValue.TRUE,
+        evidence="available for assignment",
+    )
 
 
 def _find_preventing_issue_fact(*, observation: IssueObservation) -> IssueFact | None:
@@ -373,7 +360,8 @@ def _find_preventing_issue_fact(*, observation: IssueObservation) -> IssueFact |
             return fact
     labels = observation.dispatch_labels
     if labels is not None and len(labels) != 1:
-        return FalseIssueFact(
+        return IssueFact(
+            value=IssueFactValue.FALSE,
             evidence="carries no configured dispatch label",
         )
     return None
@@ -469,17 +457,19 @@ def _observe_issue(
         external_reason = f"cannot read issue: {issue_response.reason}"
         title = None
         created_at = None
-        is_open = UnknownIssueFact(evidence=external_reason)
-        is_assigned = UnknownIssueFact(evidence=external_reason)
+        is_open = IssueFact(value=IssueFactValue.UNKNOWN, evidence=external_reason)
+        is_assigned = IssueFact(value=IssueFactValue.UNKNOWN, evidence=external_reason)
         dispatch_labels = None
-        routing_conflict = UnknownIssueFact(evidence=external_reason)
+        routing_conflict = IssueFact(
+            value=IssueFactValue.UNKNOWN, evidence=external_reason
+        )
     else:
         title = issue_response.title
         created_at = issue_response.created_at
         is_open = (
-            TrueIssueFact(evidence="issue is open")
+            IssueFact(value=IssueFactValue.TRUE, evidence="issue is open")
             if issue_response.state is IssueState.OPEN
-            else FalseIssueFact(evidence="issue is closed")
+            else IssueFact(value=IssueFactValue.FALSE, evidence="issue is closed")
         )
         watched_account = (
             context.account
@@ -490,29 +480,45 @@ def _observe_issue(
             assignee.login.casefold() for assignee in issue_response.assignees
         }
         is_assigned = (
-            TrueIssueFact(evidence=f"is assigned to {watched_account}")
+            IssueFact(
+                value=IssueFactValue.TRUE,
+                evidence=f"is assigned to {watched_account}",
+            )
             if is_assigned_to_user
-            else FalseIssueFact(evidence=f"is not assigned to {watched_account}")
+            else IssueFact(
+                value=IssueFactValue.FALSE,
+                evidence=f"is not assigned to {watched_account}",
+            )
         )
         dispatch_labels = context.config.identify_dispatch_labels(
             labels=[label.name for label in issue_response.labels]
         )
         has_routing_conflict = len(dispatch_labels) > 1
         routing_conflict = (
-            TrueIssueFact(
+            IssueFact(
+                value=IssueFactValue.TRUE,
                 evidence=(
                     "carries more than one dispatch label: "
                     + ", ".join(dispatch_labels)
-                )
+                ),
             )
             if has_routing_conflict
-            else FalseIssueFact()
+            else IssueFact(
+                value=IssueFactValue.FALSE,
+                evidence="has no routing conflict",
+            )
         )
     is_claimed_here = issue in context.assignments
     claimed_here = (
-        TrueIssueFact(evidence="an assignment in this checkout is working on it")
+        IssueFact(
+            value=IssueFactValue.TRUE,
+            evidence="an assignment in this checkout is working on it",
+        )
         if is_claimed_here
-        else FalseIssueFact()
+        else IssueFact(
+            value=IssueFactValue.FALSE,
+            evidence="no assignment in this checkout is working on it",
+        )
     )
     return IssueObservation(
         issue=issue,
@@ -540,18 +546,25 @@ def _observe_external_claim(
     """Observe whether an open linked pull request claims the issue elsewhere."""
     setup_failure = context.incomplete_setups.get(issue)
     if issue in context.incomplete_setups and setup_failure is None:
-        return FalseIssueFact()
+        return IssueFact(
+            value=IssueFactValue.FALSE,
+            evidence="no pull request outside this checkout claims it",
+        )
     pull_request_context = read_issue_pull_request_context(
         repository=context.repository, issue=issue
     )
     if isinstance(pull_request_context, UnknownGitHubResponse):
         if setup_failure is not None:
-            return UnknownIssueFact(evidence=setup_failure)
-        return UnknownIssueFact(
+            return IssueFact(
+                value=IssueFactValue.UNKNOWN,
+                evidence=setup_failure,
+            )
+        return IssueFact(
+            value=IssueFactValue.UNKNOWN,
             evidence=(
                 "cannot tell whether a pull request claims it: "
                 f"{pull_request_context.reason}"
-            )
+            ),
         )
     assignment = context.assignments.get(issue)
     owned = None if assignment is None else assignment.record.pull_request
@@ -564,29 +577,43 @@ def _observe_external_claim(
         f"#{pull_request.number}" for pull_request in external
     )
     if external:
-        return TrueIssueFact(
+        return IssueFact(
+            value=IssueFactValue.TRUE,
             evidence=f"a pull request is open on it: {external_pull_requests}",
         )
     if setup_failure is not None:
-        return UnknownIssueFact(evidence=setup_failure)
-    return FalseIssueFact()
+        return IssueFact(
+            value=IssueFactValue.UNKNOWN,
+            evidence=setup_failure,
+        )
+    return IssueFact(
+        value=IssueFactValue.FALSE,
+        evidence="no pull request outside this checkout claims it",
+    )
 
 
 def _observe_blocking_issues(*, repository: str, issue: int) -> IssueFact:
     """Observe whether an open issue dependency blocks the issue."""
     blocking = list_blocking_issues(repository=repository, issue=issue)
     if isinstance(blocking, UnknownGitHubResponse):
-        return UnknownIssueFact(
-            evidence=f"cannot tell what blocks it: {blocking.reason}"
+        return IssueFact(
+            value=IssueFactValue.UNKNOWN,
+            evidence=f"cannot tell what blocks it: {blocking.reason}",
         )
     open_blockers = [
         blocker.number for blocker in blocking if blocker.state is IssueState.OPEN
     ]
     blocker_names = ", ".join(f"GH{number}" for number in open_blockers)
     return (
-        TrueIssueFact(evidence=f"blocked by {blocker_names}")
+        IssueFact(
+            value=IssueFactValue.TRUE,
+            evidence=f"blocked by {blocker_names}",
+        )
         if open_blockers
-        else FalseIssueFact()
+        else IssueFact(
+            value=IssueFactValue.FALSE,
+            evidence="no open issue blocks it",
+        )
     )
 
 
@@ -927,7 +954,10 @@ def _list_issue_conversation_candidates(
             observations=[
                 observation.model_copy(
                     update={
-                        "has_comments_to_answer": UnknownIssueFact(evidence=failure)
+                        "has_comments_to_answer": IssueFact(
+                            value=IssueFactValue.UNKNOWN,
+                            evidence=failure,
+                        )
                     }
                 )
                 for observation in previous_observations
@@ -953,7 +983,11 @@ def _list_issue_conversation_candidates(
         observations.append(inspection.observation)
         if inspection.candidate is not None:
             candidates.append(inspection.candidate)
-        elif _is_conversation_ready_for_input(conversation=conversation):
+        elif (
+            _is_conversation_ready_for_input(conversation=conversation)
+            and inspection.observation.has_comments_to_answer.value
+            is IssueFactValue.UNKNOWN
+        ):
             failures.append(inspection.observation.has_comments_to_answer.evidence)
     return IssueConversationCandidateResult(
         candidates=sorted(candidates, key=_rank_issue_conversation_candidate),
@@ -979,7 +1013,10 @@ def _inspect_issue_conversation(
             observation=IssueConversationObservation(
                 issue=issue.number,
                 title=issue.title,
-                has_comments_to_answer=FalseIssueFact(),
+                has_comments_to_answer=IssueFact(
+                    value=IssueFactValue.FALSE,
+                    evidence="no comments to answer",
+                ),
             ),
             candidate=None,
         )
@@ -993,7 +1030,10 @@ def _inspect_issue_conversation(
             observation=IssueConversationObservation(
                 issue=issue.number,
                 title=issue.title,
-                has_comments_to_answer=FalseIssueFact(),
+                has_comments_to_answer=IssueFact(
+                    value=IssueFactValue.FALSE,
+                    evidence="no comments to answer",
+                ),
             ),
             candidate=IssueConversationRecoveryCandidate(
                 conversation=conversation,
@@ -1007,17 +1047,24 @@ def _inspect_issue_conversation(
             conversation=conversation,
         )
     except ReportableError as failure:
-        has_comments_to_answer = UnknownIssueFact(evidence=str(failure))
+        has_comments_to_answer = IssueFact(
+            value=IssueFactValue.UNKNOWN,
+            evidence=str(failure),
+        )
         comments = []
     else:
         has_comments_to_answer = (
-            TrueIssueFact(
+            IssueFact(
+                value=IssueFactValue.TRUE,
                 evidence=(
                     f"{describe_count(number=len(comments), noun='comment')} to answer"
-                )
+                ),
             )
             if comments
-            else FalseIssueFact()
+            else IssueFact(
+                value=IssueFactValue.FALSE,
+                evidence="no comments to answer",
+            )
         )
     observation = IssueConversationObservation(
         issue=issue.number,
@@ -1567,7 +1614,12 @@ class AgentWorkScheduler:
                 "launched_agent_work_identifier": conversation.identifier,
                 "conversation_observations": [
                     observation.model_copy(
-                        update={"has_comments_to_answer": FalseIssueFact()}
+                        update={
+                            "has_comments_to_answer": IssueFact(
+                                value=IssueFactValue.FALSE,
+                                evidence="no comments to answer",
+                            )
+                        }
                     )
                     if observation.issue == conversation.record.issue
                     else observation

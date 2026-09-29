@@ -6,13 +6,10 @@ from datetime import UTC, datetime
 from conftest import DISPATCH_LABEL
 
 from dreamcatcher.scheduler import (
-    FalseIssueFact,
     IssueConversationObservation,
     IssueFact,
     IssueFactValue,
     IssueObservation,
-    TrueIssueFact,
-    UnknownIssueFact,
 )
 
 OBSERVED_AT = datetime(2026, 8, 19, 18, 41, 58, tzinfo=UTC)
@@ -21,11 +18,13 @@ OBSERVED_AT = datetime(2026, 8, 19, 18, 41, 58, tzinfo=UTC)
 def _observed_issue_fact(
     *, value: IssueFactValue, evidence: str | None, name: str
 ) -> IssueFact:
-    if value is IssueFactValue.TRUE:
-        return TrueIssueFact(evidence=evidence or f"{name} is true")
-    if value is IssueFactValue.UNKNOWN:
-        return UnknownIssueFact(evidence=evidence or f"cannot tell {name}")
-    return FalseIssueFact(evidence=evidence)
+    if evidence is None:
+        evidence = (
+            f"cannot tell {name}"
+            if value is IssueFactValue.UNKNOWN
+            else f"{name} is {value}"
+        )
+    return IssueFact(value=value, evidence=evidence)
 
 
 def observed_issue(

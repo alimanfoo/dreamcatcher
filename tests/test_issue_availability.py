@@ -20,9 +20,8 @@ from records import write_agent_assignment
 from dreamcatcher.agent_assignments import AgentAssignment, read_agent_assignments
 from dreamcatcher.config import DreamcatcherConfig
 from dreamcatcher.scheduler import (
+    IssueFact,
     IssueFactValue,
-    TrueIssueFact,
-    UnknownIssueFact,
     derive_issue_availability,
     observe_issues,
 )
@@ -37,10 +36,10 @@ INDEPENDENT_FACTS = (
 )
 
 
-@pytest.mark.parametrize("fact_type", [TrueIssueFact, UnknownIssueFact])
-def test_a_true_or_unknown_issue_fact_requires_evidence(fact_type):
+@pytest.mark.parametrize("value", IssueFactValue)
+def test_every_issue_fact_requires_evidence(value):
     with pytest.raises(ValidationError, match="evidence"):
-        fact_type.model_validate({})
+        IssueFact.model_validate({"value": value})
 
 
 def config_with_routes(

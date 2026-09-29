@@ -44,12 +44,11 @@ from dreamcatcher.issue_conversations import (
 from dreamcatcher.lock import read_daemon_pid
 from dreamcatcher.scheduler import (
     AgentAssignmentObservation,
-    FalseIssueFact,
     GlobalCooldown,
     IssueConversationObservation,
+    IssueFact,
     IssueFactValue,
     IssueObservation,
-    TrueIssueFact,
     derive_agent_work_fault,
     derive_round_purpose,
     read_scheduler_record,
@@ -587,11 +586,15 @@ class _StatusReportReader:
             assignments=assignments
         ).get(observation.issue)
         if open_assignment is not None:
-            claimed_here = TrueIssueFact(
-                evidence="an assignment in this checkout is working on it"
+            claimed_here = IssueFact(
+                value=IssueFactValue.TRUE,
+                evidence="an assignment in this checkout is working on it",
             )
         elif assignments:
-            claimed_here = FalseIssueFact()
+            claimed_here = IssueFact(
+                value=IssueFactValue.FALSE,
+                evidence="no assignment in this checkout is working on it",
+            )
         else:
             claimed_here = observation.claimed_here
         refreshed = observation.model_copy(update={"claimed_here": claimed_here})
