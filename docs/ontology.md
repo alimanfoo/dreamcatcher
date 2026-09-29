@@ -350,10 +350,10 @@ These statuses are derived reporting projections, not persisted lifecycle state.
 A status report may include operational facts such as the repository identity,
 whether the daemon is running, when the last scheduler tick occurred, current
 capacity, whether a global cooldown is active, and the scheduler hold. The
-scheduler hold says why the latest tick launched nothing, such as a cooldown,
-full capacity, a failed issue listing, or a failed launch. Its issue
-observations, issue conversation statuses and agent assignment statuses are
-projections derived for a person to read.
+scheduler hold says why the latest tick could not start some or all ready work,
+such as a cooldown, full capacity, a failed issue listing, or a failed launch.
+Its issue observations, issue conversation statuses and agent assignment
+statuses are projections derived for a person to read.
 
 The status report never schedules work and is never an input to scheduling.
 Scheduling and reporting must nevertheless interpret the same underlying facts
@@ -453,8 +453,10 @@ Existing assignments take precedence over new ones, ranked in this order:
 Conversation recoveries precede fresh conversation batches, which are ordered by
 their oldest waiting comment. When both an assignment candidate and a
 conversation candidate are ready, the scheduler alternates which kind receives
-the next free slot. When only one kind is ready, it proceeds without waiting for
-the other.
+each free slot until capacity is full or no candidate remains. When only one
+kind is ready, it proceeds without waiting for the other. A failed launch
+preserves rounds that the tick already started and blocks lower-priority
+candidates of the same kind for the rest of that tick.
 
 ### Handling errors and global cooldown
 
