@@ -448,7 +448,7 @@ def _summarize_observed_conversation(
     if has_comments_to_answer.value is IssueFactValue.UNKNOWN:
         return _ConversationSummary(
             value=IssueConversationStatusValue.UNKNOWN,
-            detail=cast("str", has_comments_to_answer.evidence),
+            detail=has_comments_to_answer.evidence,
         )
     unfinished_round = _describe_unfinished_conversation_round(
         conversation=conversation
@@ -460,7 +460,7 @@ def _summarize_observed_conversation(
     if has_comments_to_answer.value is IssueFactValue.TRUE:
         return _ConversationSummary(
             value=IssueConversationStatusValue.WAITING,
-            detail=cast("str", has_comments_to_answer.evidence),
+            detail=has_comments_to_answer.evidence,
         )
     return _ConversationSummary(
         value=IssueConversationStatusValue.IDLE,
@@ -586,9 +586,15 @@ class _StatusReportReader:
             assignments=assignments
         ).get(observation.issue)
         if open_assignment is not None:
-            claimed_here = IssueFact(value=IssueFactValue.TRUE)
+            claimed_here = IssueFact(
+                value=IssueFactValue.TRUE,
+                evidence="an assignment in this checkout is working on it",
+            )
         elif assignments:
-            claimed_here = IssueFact(value=IssueFactValue.FALSE)
+            claimed_here = IssueFact(
+                value=IssueFactValue.FALSE,
+                evidence="no assignment in this checkout is working on it",
+            )
         else:
             claimed_here = observation.claimed_here
         refreshed = observation.model_copy(update={"claimed_here": claimed_here})
