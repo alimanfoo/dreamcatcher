@@ -366,6 +366,11 @@ depends on the status and feed models; neither model depends on it. It should
 not rediscover status, scheduling, or lifecycle rules while choosing markup and
 styles.
 
+The web process can ask a running round to stop. It writes a same-origin stop
+request through the agent-round boundary, into that round's own directory. The
+daemon still owns the live process and lifecycle transition: the round watches
+the request, kills its harness process tree, and records its stopped ending.
+
 ### Configuration, dispatch labels, and routes
 
 `config.py` owns the strict model for `dreamcatcher.toml`. An `AgentRecipe`

@@ -139,12 +139,9 @@ An issue conversation round always has the same purpose:
 
 ### Round outcome
 
-An agent round may be:
-
-- **running**;
-- **successful**, when its harness invocation exits without an error;
-- **errored**, when the invocation exits with an error; or
-- **interrupted**, when it was stopped before recording an ending.
+An agent round is **running** until it becomes **successful**, **errored**,
+**interrupted** by daemon shutdown or an internal failure, or **stopped** at the
+user's request.
 
 ### Recovery round
 
@@ -324,8 +321,8 @@ the agent assignment status that means the same thing:
   answered, the first batch included, or because the latest round errored or was
   interrupted and waits to be recovered. A free agent slot, or the end of a
   cooldown, starts it. Its counterpart is waiting.
-- **Idle**: no round is due, because the latest answer is posted or the user has
-  not commented yet. Its counterpart is needs user feedback.
+- **Idle**: no round is due until the user comments. Its counterpart is needs
+  user feedback.
 - **Fault**: two consecutive rounds have errored, and automatic recovery has
   stopped. Its counterpart is fault.
 - **Unknown**: Dreamcatcher cannot tell whether the issue is eligible or whether
@@ -333,8 +330,7 @@ the agent assignment status that means the same thing:
 
 Idle differs from needs user feedback on purpose. An assignment at rest has a
 pull request waiting for review, so it asks something of the user. A
-conversation at rest has already posted its answer, so it asks nothing. A
-conversation has no complete status.
+conversation at rest asks nothing. A conversation has no complete status.
 
 Every eligible issue has a conversation status from the first scheduler tick
 that observes it, whether or not a conversation record exists yet. Once the

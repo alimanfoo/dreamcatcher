@@ -23,12 +23,14 @@ from records import (
     write_round,
 )
 
+from dreamcatcher.agent_assignments import read_agent_assignment
 from dreamcatcher.agent_rounds import (
     AgentAssignmentRoundPurpose,
     AgentRoundOutcome,
     AgentRoundRecord,
     IssueConversationRoundPurpose,
     compose_agent_round_ending,
+    request_agent_round_stop,
 )
 from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME, AgentHarness
 from dreamcatcher.daemon import DreamcatcherDaemon
@@ -422,6 +424,30 @@ def test_a_round_the_daemon_before_this_one_left_running_is_ended(
         (directory / "rounds" / "1" / "round.json").read_text(encoding="utf-8")
     )
     assert record.outcome is AgentRoundOutcome.INTERRUPTED
+
+
+def test_a_pending_stop_survives_daemon_restart(watched, harnesses, gh, left_running):
+    state = StateDirectory(root=watched)
+    directory = write_agent_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13)
+    write_round(
+        directory=directory,
+        number=1,
+        record=AgentRoundRecord(
+            number=1, started=PINNED, pid=left_running.pid, purpose=PURPOSE
+        ),
+    )
+    assignment = read_agent_assignment(state=state, identifier=ASSIGNMENT_ID)
+    assert assignment is not None
+    request_agent_round_stop(paths=assignment.compose_round_paths(number=1))
+    daemon, _, _ = idling(root=watched)
+
+    daemon.run()
+
+    assert gone(pid=left_running.pid)
+    record = AgentRoundRecord.model_validate_json(
+        (directory / "rounds" / "1" / "round.json").read_text(encoding="utf-8")
+    )
+    assert record.outcome is AgentRoundOutcome.STOPPED
 
 
 def test_a_conversation_round_left_running_is_ended(

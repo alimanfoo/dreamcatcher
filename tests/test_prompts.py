@@ -74,6 +74,22 @@ def test_the_prompt_that_hands_over_user_posts_names_the_pull_request_and_the_fi
     assert composed.endswith(AGENT_POST_INSTRUCTIONS)
 
 
+def test_input_after_a_stop_explains_why_the_previous_round_ended(tmp_path):
+    inbox = tmp_path / "inbox.json"
+
+    assignment = compose_user_posts_prompt(
+        pull_request=52, round_input=inbox, was_stopped=True
+    )
+    conversation = compose_issue_conversation_round_prompt(
+        issue=52, round_input=inbox, was_stopped=True
+    )
+
+    opening = "The user stopped your previous round before it\nfinished."
+    assert assignment.startswith(opening)
+    assert conversation.startswith(opening)
+    assert "new feedback says what to do instead" in assignment
+
+
 def test_the_issue_conversation_prompt_names_its_input_and_host_boundary(tmp_path):
     inbox = tmp_path / "inbox.json"
 

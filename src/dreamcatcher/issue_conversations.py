@@ -9,6 +9,7 @@ from threading import Lock
 from pydantic import AwareDatetime, Field
 
 from dreamcatcher.agent_rounds import (
+    AgentRoundOutcome,
     AgentRoundPaths,
     AgentRoundRecord,
 )
@@ -108,6 +109,18 @@ class IssueConversation:
             ),
             number=number,
         )
+
+
+def is_issue_conversation_ready_for_input(
+    *, conversation: IssueConversation | None
+) -> bool:
+    """Return whether a conversation can accept another comment batch."""
+    if conversation is None or not conversation.rounds:
+        return True
+    return conversation.rounds[-1].outcome in {
+        AgentRoundOutcome.SUCCESSFUL,
+        AgentRoundOutcome.STOPPED,
+    }
 
 
 def read_issue_conversations(*, state: StateDirectory) -> list[IssueConversation]:

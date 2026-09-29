@@ -481,6 +481,27 @@ body::after {
   gap: var(--space-5);
 }
 
+.stop-form {
+  margin: 0;
+}
+
+.stop-control {
+  padding: 0;
+  color: var(--amber);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: var(--letter-label);
+  text-transform: uppercase;
+}
+
+.stop-control:hover,
+.stop-control:focus-visible {
+  color: var(--bright);
+}
+
 .assignment-issue {
   color: var(--phosphor);
   font-weight: 700;
@@ -587,6 +608,10 @@ body::after {
 .round-outcome {
   color: var(--phosphor);
   text-transform: uppercase;
+}
+
+.outcome-stopped {
+  color: var(--amber);
 }
 
 .manual-recovery {

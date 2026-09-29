@@ -70,6 +70,7 @@ from dreamcatcher.issue_conversations import (
     IssueConversationInput,
     create_issue_conversation,
     find_issue_conversation_harness_session_identifier,
+    is_issue_conversation_ready_for_input,
     list_undelivered_issue_comments,
     post_issue_conversation_answer,
     prepare_issue_conversation_input,
@@ -823,7 +824,10 @@ def _inspect_assignment_pull_request(
             reason=f"cannot tell what the user posted: {undelivered_posts.reason}",
             is_known=False,
         )
-    if pull_request.state is PullRequestState.OPEN and not undelivered_posts:
+    if not undelivered_posts and (
+        pull_request.state is PullRequestState.OPEN
+        or assignment.rounds[-1].outcome is AgentRoundOutcome.STOPPED
+    ):
         return None
     return _compose_resumed_round_requirement(
         assignment=assignment,
@@ -879,6 +883,7 @@ def _compose_resumed_round_requirement(
             round_input=assignment.compose_round_paths(
                 number=assignment.next_round_number
             ).round_input,
+            was_stopped=(assignment.rounds[-1].outcome is AgentRoundOutcome.STOPPED),
         ),
     )
 
@@ -984,7 +989,7 @@ def _list_issue_conversation_candidates(
         if inspection.candidate is not None:
             candidates.append(inspection.candidate)
         elif (
-            _is_conversation_ready_for_input(conversation=conversation)
+            is_issue_conversation_ready_for_input(conversation=conversation)
             and inspection.observation.has_comments_to_answer.value
             is IssueFactValue.UNKNOWN
         ):
@@ -1071,7 +1076,9 @@ def _inspect_issue_conversation(
         title=issue.title,
         has_comments_to_answer=has_comments_to_answer,
     )
-    if not comments or not _is_conversation_ready_for_input(conversation=conversation):
+    if not comments or not is_issue_conversation_ready_for_input(
+        conversation=conversation
+    ):
         return _IssueConversationInspection(observation=observation, candidate=None)
     return _IssueConversationInspection(
         observation=observation,
@@ -1134,6 +1141,7 @@ def _prepare_issue_conversation_round(
         prompt = compose_issue_conversation_round_prompt(
             issue=conversation.record.issue,
             round_input=paths.round_input,
+            was_stopped=(conversation.rounds[-1].outcome is AgentRoundOutcome.STOPPED),
         )
     return _PreparedIssueConversationRound(
         conversation=conversation,
@@ -1207,13 +1215,6 @@ def _list_comments_to_answer(
         account=account,
         cursor=cursor,
     )
-
-
-def _is_conversation_ready_for_input(*, conversation: IssueConversation | None) -> bool:
-    """Return whether a conversation can accept another comment batch."""
-    if conversation is None or not conversation.rounds:
-        return True
-    return conversation.rounds[-1].outcome is AgentRoundOutcome.SUCCESSFUL
 
 
 def _combine_scheduler_failures(*, failures: list[str | None]) -> str | None:

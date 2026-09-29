@@ -32,6 +32,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     ErroredAgentRoundEnding,
     IssueConversationRoundPurpose,
+    request_agent_round_stop,
 )
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.daemon import DreamcatcherDaemon
@@ -43,6 +44,7 @@ from dreamcatcher.issue_conversations import (
     NO_REPLY,
     IssueConversationInput,
     read_issue_conversation,
+    record_issue_conversation_session_identifier,
 )
 from dreamcatcher.prompts import (
     AGENT_POST_MARKER,
@@ -96,7 +98,7 @@ def conversation_scheduler(cloned, gh):
     )
     yield scheduler, clock, gh
     for running in scheduler.rounds.values():
-        running.stop()
+        running.interrupt()
 
 
 @pytest.fixture
@@ -115,7 +117,7 @@ def codex_conversation_scheduler(cloned, gh):
     )
     yield scheduler, clock, gh
     for running in scheduler.rounds.values():
-        running.stop()
+        running.interrupt()
 
 
 def offer_conversation(
@@ -548,6 +550,48 @@ def test_a_follow_up_resumes_the_session_with_only_new_comments(
     assert "/dream:conversation" not in resumed.prompt
     assert (
         len([call for call in gh.calls if call.arguments[:4] == POST_PATH.split()]) == 2
+    )
+
+
+def test_a_stopped_conversation_waits_for_new_feedback(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    offer_conversation(gh=gh, comments=[ask()])
+    answer(harnesses=harnesses, body="This answer must not be posted.", delay=5)
+    scheduler.tick(at=clock())
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    record_issue_conversation_session_identifier(
+        conversation=conversation, identifier="conversation-session"
+    )
+    request_agent_round_stop(paths=conversation.compose_round_paths(number=1))
+    finish(scheduler=scheduler)
+
+    scheduler.tick(at=clock())
+
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    assert conversation.rounds[0].outcome is AgentRoundOutcome.STOPPED
+    assert not any(call.arguments[:4] == POST_PATH.split() for call in gh.calls)
+
+    offer_conversation(
+        gh=gh,
+        comments=[ask(), ask(identifier=2, body="Take a different direction.")],
+    )
+    answer(harnesses=harnesses, body="The revised answer.")
+
+    launched = scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    assert launched.launched_conversation_identifier == "conversation-GH8"
+    assert not conversation.rounds[1].is_recovery
+    assert (
+        harnesses["claude"]
+        .calls[1]
+        .prompt.startswith("The user stopped your previous round")
     )
 
 

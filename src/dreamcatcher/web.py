@@ -14,13 +14,15 @@ from socketserver import TCPServer
 from typing import Protocol, cast
 from webbrowser import open as open_browser
 
-from flask import Flask, Response, render_template, request
+from flask import Flask, Response, redirect, render_template, request, url_for
+from flask.typing import ResponseReturnValue
 from werkzeug.serving import BaseWSGIServer
 
 from dreamcatcher.agent_rounds import (
     AgentRoundPaths,
     AgentRoundRecord,
     SuccessfulAgentRoundEnding,
+    request_agent_round_stop,
 )
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.documents import is_complete_line_position, read_lines_from
@@ -61,6 +63,10 @@ _HTMX_STOP_POLLING_STATUS = 286
 _DEFAULT_WEB_THEME = "matrix"
 _WEB_THEME_MARKS = {_DEFAULT_WEB_THEME: "phosphor", "nature": "ink"}
 _WEB_THEMES = tuple(_WEB_THEME_MARKS)
+_CROSS_ORIGIN_STOP_RESPONSE = (
+    "Stop requests must come from this Dreamcatcher page.",
+    403,
+)
 
 
 class _WebServerBindError(Exception):
@@ -194,6 +200,7 @@ class WebAgentTail:
     status_label: str
     detail: str | None
     rounds: tuple[WebAgentRound, ...]
+    stop_url: str | None
     has_empty_feed_placeholder: bool
 
 
@@ -204,6 +211,7 @@ class WebAgentTailContext:
     status: str
     status_label: str
     rounds: tuple[WebAgentRound, ...]
+    stop_url: str | None
     detail: str | None = None
 
 
@@ -228,6 +236,7 @@ class WebAssignmentView:
     model: str
     effort: str
     rounds: tuple[WebAgentRound, ...]
+    stop_url: str | None
     hand_resume_worktree: str | None
     hand_resume_command: str | None
     feed_rounds: tuple[WebFeedRound, ...]
@@ -259,6 +268,7 @@ class WebConversationView:
     detail: str
     facts: tuple[WebFact, ...]
     rounds: tuple[WebAgentRound, ...]
+    stop_url: str | None
     feed_rounds: tuple[WebFeedRound, ...]
     feed_cursor: str
 
@@ -308,38 +318,61 @@ def create_app(
     clock: Callable[[], datetime] = read_current_time,
     zone: tzinfo | None = None,
 ) -> Flask:
-    """Create the read-only web application for one local state directory.
+    """Create the web application for one local state directory.
 
-    Page times use the machine's local zone when zone is None.
+    Pages read persisted status and feeds. A same-origin stop request can write
+    into the running round's directory. Page times use the machine's local zone
+    when zone is None.
     """
     app = Flask(__name__)
     app.config["TRUSTED_HOSTS"] = [WEB_HOST, "localhost"]
     _configure_web_theme(app=app)
     routes = (
-        ("/", "show_home", partial(_show_home, state=state, clock=clock, zone=zone)),
+        (
+            "/",
+            "show_home",
+            partial(_show_home, state=state, clock=clock, zone=zone),
+            ["GET"],
+        ),
         (
             "/assignments/<identifier>",
             "show_assignment",
             partial(_show_assignment, state=state, clock=clock, zone=zone),
+            ["GET"],
         ),
         (
             "/assignments/<identifier>/tail",
             "show_assignment_tail",
             partial(_show_assignment_tail, state=state, clock=clock, zone=zone),
+            ["GET"],
+        ),
+        (
+            "/assignments/<identifier>/stop/<int:number>",
+            "request_assignment_stop",
+            partial(_request_assignment_stop, state=state, clock=clock),
+            ["POST"],
         ),
         (
             "/conversations/<int:issue>",
             "show_conversation",
             partial(_show_conversation, state=state, clock=clock, zone=zone),
+            ["GET"],
         ),
         (
             "/conversations/<int:issue>/tail",
             "show_conversation_tail",
             partial(_show_conversation_tail, state=state, clock=clock, zone=zone),
+            ["GET"],
+        ),
+        (
+            "/conversations/<int:issue>/stop/<int:number>",
+            "request_conversation_stop",
+            partial(_request_conversation_stop, state=state, clock=clock),
+            ["POST"],
         ),
     )
-    for rule, endpoint, view_func in routes:
-        app.add_url_rule(rule, endpoint=endpoint, view_func=view_func, methods=["GET"])
+    for rule, endpoint, view_func, methods in routes:
+        app.add_url_rule(rule, endpoint=endpoint, view_func=view_func, methods=methods)
     app.register_error_handler(ReportableError, _show_reportable_error)
     return app
 
@@ -368,13 +401,7 @@ def _show_assignment(
         clock=clock,
     )
     if status is None:
-        return (
-            render_template(
-                "error.html",
-                message=f"No agent assignment here has identifier {identifier}.",
-            ),
-            404,
-        )
+        return _missing_assignment_response(identifier=identifier)
     return render_template(
         "assignment.html",
         view=_compose_assignment_view(state=state, status=status, zone=zone),
@@ -395,13 +422,7 @@ def _show_assignment_tail(
         clock=clock,
     )
     if status is None:
-        return (
-            render_template(
-                "error.html",
-                message=f"No agent assignment here has identifier {identifier}.",
-            ),
-            404,
-        )
+        return _missing_assignment_response(identifier=identifier)
     return _show_agent_tail(
         owner=status.assignment,
         context=WebAgentTailContext(
@@ -410,6 +431,15 @@ def _show_assignment_tail(
             detail=status.detail,
             rounds=_compose_agent_rounds(
                 round_statuses=status.round_statuses, zone=zone
+            ),
+            stop_url=(
+                url_for(
+                    "request_assignment_stop",
+                    identifier=identifier,
+                    number=status.stoppable_round_paths.number,
+                )
+                if status.stoppable_round_paths is not None
+                else None
             ),
         ),
         is_terminal=status.value in STATUSES_THAT_END_A_VIEW,
@@ -446,8 +476,9 @@ def _show_conversation_tail(
     status = read_issue_conversation_status(state=state, issue=issue, clock=clock)
     if status is None:
         return _missing_conversation_response(issue=issue)
+    conversation = status.conversation
     return _show_agent_tail(
-        owner=status.conversation,
+        owner=conversation,
         context=WebAgentTailContext(
             status=str(status.value),
             status_label=str(status.value),
@@ -455,11 +486,65 @@ def _show_conversation_tail(
             rounds=_compose_agent_rounds(
                 round_statuses=status.round_statuses, zone=zone
             ),
+            stop_url=(
+                url_for(
+                    "request_conversation_stop",
+                    issue=issue,
+                    number=status.stoppable_round_paths.number,
+                )
+                if status.stoppable_round_paths is not None
+                else None
+            ),
         ),
         is_terminal=status.is_over,
         status_id="conversation-status",
         zone=zone,
     )
+
+
+def _request_assignment_stop(
+    *,
+    state: StateDirectory,
+    clock: Callable[[], datetime],
+    identifier: str,
+    number: int,
+) -> ResponseReturnValue:
+    """Request a stop for one assignment's live round."""
+    if not _is_same_origin_request():
+        return _CROSS_ORIGIN_STOP_RESPONSE
+    status = read_agent_assignment_status(
+        state=state, identifier=identifier, clock=clock
+    )
+    if status is None:
+        return _missing_assignment_response(identifier=identifier)
+    paths = status.stoppable_round_paths
+    if paths is not None and paths.number == number:
+        request_agent_round_stop(paths=paths)
+    return redirect(url_for("show_assignment", identifier=identifier), code=303)
+
+
+def _request_conversation_stop(
+    *,
+    state: StateDirectory,
+    clock: Callable[[], datetime],
+    issue: int,
+    number: int,
+) -> ResponseReturnValue:
+    """Request a stop for one issue conversation's live round."""
+    if not _is_same_origin_request():
+        return _CROSS_ORIGIN_STOP_RESPONSE
+    status = read_issue_conversation_status(state=state, issue=issue, clock=clock)
+    if status is None:
+        return _missing_conversation_response(issue=issue)
+    paths = status.stoppable_round_paths
+    if paths is not None and paths.number == number:
+        request_agent_round_stop(paths=paths)
+    return redirect(url_for("show_conversation", issue=issue), code=303)
+
+
+def _is_same_origin_request() -> bool:
+    """Return whether the POST came from the web page that received it."""
+    return request.headers.get("Origin") == request.host_url.removesuffix("/")
 
 
 def _show_agent_tail(
@@ -487,6 +572,17 @@ def _show_agent_tail(
     return (
         render_template("tail.html", tail=tail, status_id=status_id),
         response_status,
+    )
+
+
+def _missing_assignment_response(*, identifier: str) -> tuple[str, int]:
+    """Render the response for an unknown assignment identifier."""
+    return (
+        render_template(
+            "error.html",
+            message=f"No agent assignment here has identifier {identifier}.",
+        ),
+        404,
     )
 
 
@@ -773,6 +869,15 @@ def _compose_assignment_view(
         model=record.model,
         effort=record.effort,
         rounds=_compose_agent_rounds(round_statuses=status.round_statuses, zone=zone),
+        stop_url=(
+            url_for(
+                "request_assignment_stop",
+                identifier=assignment.identifier,
+                number=status.stoppable_round_paths.number,
+            )
+            if status.stoppable_round_paths is not None
+            else None
+        ),
         hand_resume_worktree=(
             None
             if hand_resume_command is None
@@ -816,6 +921,15 @@ def _compose_conversation_view(
             else _compose_conversation_facts(conversation=conversation)
         ),
         rounds=rounds,
+        stop_url=(
+            url_for(
+                "request_conversation_stop",
+                issue=status.issue,
+                number=status.stoppable_round_paths.number,
+            )
+            if status.stoppable_round_paths is not None
+            else None
+        ),
         feed_rounds=feed.rounds,
         feed_cursor=feed.cursor,
     )
@@ -942,6 +1056,7 @@ def _read_agent_tail(
         status_label=context.status_label,
         detail=context.detail,
         rounds=context.rounds,
+        stop_url=context.stop_url,
         has_empty_feed_placeholder=cursor.round_number == 0,
     )
 

@@ -157,10 +157,9 @@ conversation, and comments posted while the issue is ineligible become available
 if it becomes eligible again. A running round may finish and publish its answer.
 
 Every round records its number, purpose, whether it is recovering an earlier
-round, and its outcome (`running`, `successful`, `errored` or `interrupted`).
-Purpose and recovery are independent: for example, a failed wrap-up is followed
-by a recovery round whose purpose is still `wrap up`, while every issue
-conversation round has the `discuss` purpose.
+round, and its outcome. Purpose and recovery are independent: for example, a
+failed wrap-up is followed by a recovery round whose purpose is still `wrap up`,
+while every issue conversation round has the `discuss` purpose.
 
 Rounds die with the daemon. When `run` starts, it records any round orphaned by
 an earlier daemon as interrupted. The next assignment round recovers that work
@@ -173,12 +172,12 @@ input.
 
 One errored round receives an ordinary recovery opportunity and does not stop
 unrelated work. Two consecutive errored rounds put that assignment or
-conversation in fault; an interrupted or successful round breaks the sequence.
-When two pieces of agent work that remain in the status report are in fault, in
-either combination, the scheduler starts a fifteen-minute global cooldown and
-starts no agent work during it. The scheduler keeps observing and reporting
-while it waits. The cooldown survives a daemon restart, and its end clears the
-faults so that recovery can continue.
+conversation in fault; any non-errored round breaks the sequence. When two
+pieces of agent work that remain in the status report are in fault, in either
+combination, the scheduler starts a fifteen-minute global cooldown and starts no
+agent work during it. The scheduler keeps observing and reporting while it
+waits. The cooldown survives a daemon restart, and its end clears the faults so
+that recovery can continue.
 
 If work remains in fault because of a problem specific to its issue, fix the
 problem and request another recovery attempt:
@@ -197,7 +196,7 @@ wrap-up remains open for recovery. Once the wrap-up succeeds, the assignment no
 longer claims its issue, so an issue whose pull request closed unmerged is free
 to dispatch again while the label is still on it.
 
-Removing the label is how you say stop.
+Removing the label prevents another assignment after the current one completes.
 
 One daemon watches one repo. A second `run` on the same repo refuses while the
 first is alive.
@@ -205,6 +204,11 @@ first is alive.
 The `web` verb serves the status report on the loopback interface and opens it
 in your default browser. It reads the local `.dreamcatcher/` directory, never
 contacts GitHub and works whether or not the daemon is running.
+
+While a round runs, its assignment or conversation page offers a stop control
+once the harness session is known. The running round stops within about a
+second, then waits for a new pull-request post or issue comment before it starts
+another round in the same session.
 
 ```sh
 dreamcatcher web

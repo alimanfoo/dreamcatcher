@@ -18,6 +18,7 @@ from records import (
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     IssueConversationRoundPurpose,
+    StoppedAgentRoundEnding,
     compose_agent_round_ending,
 )
 from dreamcatcher.documents import read_json, write_json
@@ -451,6 +452,27 @@ def test_a_posted_answer_leaves_the_conversation_idle(conversation_state):
     assert found.detail == "round 1, answered, ran 4m"
     assert not found.is_over
     assert found.round_statuses[0].duration_description == "ran 4m"
+
+
+def test_a_stopped_conversation_waits_for_new_comments(conversation_state):
+    directory = conversation_state.conversations / "GH8"
+    write_round(
+        directory=directory,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
+            started=PINNED,
+            pid=1,
+            ending=StoppedAgentRoundEnding(at=PINNED + timedelta(minutes=4)),
+        ),
+    )
+
+    found = status(state=conversation_state)
+
+    assert found.value is IssueConversationStatusValue.IDLE
+    assert found.detail == "round 1, stopped, ran 4m"
+    assert found.round_statuses[0].outcome_description == "stopped"
 
 
 def test_an_eligible_issue_is_a_conversation_before_its_record_exists(tmp_path):

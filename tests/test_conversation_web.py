@@ -122,6 +122,104 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
     assert 'hx-get="/conversations/8/tail"' in page
 
 
+def test_conversation_page_requests_a_stop_for_its_running_round(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    write_running_conversation(state=state, issue=8, started=PINNED)
+    client = application(state=state).test_client()
+
+    page = client.get("/conversations/8")
+
+    assert page.status_code == 200
+    assert 'action="/conversations/8/stop/1"' in page.text
+
+    response = client.post(
+        "/conversations/8/stop/1", headers={"Origin": "http://localhost"}
+    )
+
+    assert response.status_code == 303
+    assert response.location == "/conversations/8"
+    conversation = read_issue_conversation(state=state, issue=8)
+    assert conversation is not None
+    paths = conversation.compose_round_paths(number=1)
+    assert paths.stop_request.read_text(encoding="utf-8") == ""
+
+
+def test_an_old_conversation_stop_submission_cannot_stop_the_next_round(
+    tmp_path, daemon
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state)
+    write_round(
+        directory=state.conversations / "GH8",
+        number=2,
+        record=AgentRoundRecord(
+            number=2,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
+            started=PINNED + timedelta(minutes=5),
+            pid=1,
+        ),
+    )
+    client = application(state=state).test_client()
+
+    response = client.post(
+        "/conversations/8/stop/1", headers={"Origin": "http://localhost"}
+    )
+
+    assert response.status_code == 303
+    conversation = read_issue_conversation(state=state, issue=8)
+    assert conversation is not None
+    assert not conversation.compose_round_paths(number=2).stop_request.exists()
+
+
+def test_unsaved_conversation_has_no_stop_control(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    fabricate_unsaved_conversation(state=state)
+
+    response = application(state=state).test_client().get("/conversations/9")
+
+    assert response.status_code == 200
+    assert 'action="/conversations/9/stop/1"' not in response.text
+
+
+def test_a_stale_conversation_stop_request_is_already_done(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state)
+    client = application(state=state).test_client()
+
+    response = client.post(
+        "/conversations/8/stop/1", headers={"Origin": "http://localhost"}
+    )
+
+    assert response.status_code == 303
+    conversation = read_issue_conversation(state=state, issue=8)
+    assert conversation is not None
+    assert not conversation.compose_round_paths(number=1).stop_request.exists()
+
+
+def test_an_unknown_conversation_cannot_receive_a_stop_request(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    client = application(state=state).test_client()
+
+    response = client.post(
+        "/conversations/8/stop/1", headers={"Origin": "http://localhost"}
+    )
+
+    assert response.status_code == 404
+
+
+def test_conversation_stop_requests_must_come_from_the_page(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    client = application(state=state).test_client()
+
+    response = client.post(
+        "/conversations/8/stop/1", headers={"Origin": "https://example.com"}
+    )
+
+    assert response.status_code == 403
+
+
 def test_conversation_page_with_an_unreadable_input_still_renders(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
