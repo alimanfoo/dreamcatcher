@@ -351,7 +351,7 @@ def _render_open_issues(
             issue,
             ", ".join(issue.dispatch_labels or []),
             (
-                cast("str", issue.blocked.evidence)
+                issue.blocked.evidence
                 if issue.blocked.value is IssueFactValue.TRUE
                 else "available"
             ),
