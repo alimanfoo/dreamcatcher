@@ -60,7 +60,7 @@ def test_a_worktree_lands_where_it_is_asked_for_on_its_own_branch(cloned):
 
 
 def test_a_detached_worktree_lands_at_origins_main_revision(cloned):
-    path = cloned / ".dreamcatcher" / "v3" / "conversation-worktrees" / "GH8"
+    path = cloned / ".dreamcatcher" / "v4" / "conversation-worktrees" / "GH8"
 
     add_detached_worktree(root=cloned, path=path)
 
@@ -73,7 +73,7 @@ def test_a_detached_worktree_lands_at_origins_main_revision(cloned):
 
 
 def test_a_clean_detached_worktree_refreshes_to_fetched_main(cloned):
-    path = cloned / ".dreamcatcher" / "v3" / "conversation-worktrees" / "GH8"
+    path = cloned / ".dreamcatcher" / "v4" / "conversation-worktrees" / "GH8"
     add_detached_worktree(root=cloned, path=path)
     earlier_revision = read_worktree_revision(worktree=path)
     (cloned / "README.md").write_bytes(b"what changed\n")
@@ -89,7 +89,7 @@ def test_a_clean_detached_worktree_refreshes_to_fetched_main(cloned):
 
 
 def test_a_refresh_discards_non_conflicting_local_changes(cloned):
-    path = cloned / ".dreamcatcher" / "v3" / "conversation-worktrees" / "GH8"
+    path = cloned / ".dreamcatcher" / "v4" / "conversation-worktrees" / "GH8"
     add_detached_worktree(root=cloned, path=path)
     earlier_revision = read_worktree_revision(worktree=path)
     unexpected = path / "unexpected.txt"
@@ -106,7 +106,7 @@ def test_a_refresh_discards_non_conflicting_local_changes(cloned):
 
 
 def test_a_refresh_discards_a_conflicting_local_change(cloned):
-    path = cloned / ".dreamcatcher" / "v3" / "conversation-worktrees" / "GH8"
+    path = cloned / ".dreamcatcher" / "v4" / "conversation-worktrees" / "GH8"
     add_detached_worktree(root=cloned, path=path)
     earlier_revision = read_worktree_revision(worktree=path)
     readme = path / "README.md"
@@ -122,7 +122,7 @@ def test_a_refresh_discards_a_conflicting_local_change(cloned):
 
 
 def test_a_missing_linked_worktree_is_not_refreshed(cloned):
-    path = cloned / ".dreamcatcher" / "v3" / "conversation-worktrees" / "GH8"
+    path = cloned / ".dreamcatcher" / "v4" / "conversation-worktrees" / "GH8"
     path.mkdir(parents=True)
 
     with pytest.raises(ReportableError, match="it is not a linked worktree"):
@@ -132,7 +132,7 @@ def test_a_missing_linked_worktree_is_not_refreshed(cloned):
 
 
 def test_a_refresh_discards_an_unexpected_detached_commit(cloned):
-    path = cloned / ".dreamcatcher" / "v3" / "conversation-worktrees" / "GH8"
+    path = cloned / ".dreamcatcher" / "v4" / "conversation-worktrees" / "GH8"
     add_detached_worktree(root=cloned, path=path)
     unexpected_file = path / "unexpected.txt"
     unexpected_file.write_bytes(b"local file\n")
@@ -167,7 +167,7 @@ def test_a_refresh_discards_changes_inside_a_submodule(cloned, tmp_path):
     )
     commit(path=cloned, message="add dependency")
     git(arguments=["push", "origin", "main"], cwd=cloned)
-    path = cloned / ".dreamcatcher" / "v3" / "conversation-worktrees" / "GH8"
+    path = cloned / ".dreamcatcher" / "v4" / "conversation-worktrees" / "GH8"
     add_detached_worktree(root=cloned, path=path)
     git(
         arguments=[
@@ -209,7 +209,7 @@ def test_a_refresh_discards_an_ignored_file(cloned):
     (cloned / ".gitignore").write_bytes(f"{ignored}\n".encode())
     commit(path=cloned, message="ignore generated file")
     git(arguments=["push", "origin", "main"], cwd=cloned)
-    path = cloned / ".dreamcatcher" / "v3" / "conversation-worktrees" / "GH8"
+    path = cloned / ".dreamcatcher" / "v4" / "conversation-worktrees" / "GH8"
     add_detached_worktree(root=cloned, path=path)
     generated = path / ignored
     generated.write_bytes(b"discard this\n")

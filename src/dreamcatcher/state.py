@@ -8,7 +8,7 @@ from dreamcatcher.agent_rounds import AgentRoundReader
 from dreamcatcher.documents import write_text
 
 STATE_DIRECTORY_NAME = ".dreamcatcher"
-STATE_FORMAT_VERSION = 3
+STATE_FORMAT_VERSION = 4
 
 
 @dataclass(frozen=True, kw_only=True)

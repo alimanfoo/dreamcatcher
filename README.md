@@ -120,7 +120,7 @@ recorded assignment keeps its branch and pull request, and the next tick tries
 that first round again before it schedules ordinary work.
 
 The daemon lock lives at `.dreamcatcher/daemon.pid`, where every state format
-shares it. All format-specific state lives under `.dreamcatcher/v3/` in the
+shares it. All format-specific state lives under `.dreamcatcher/v4/` in the
 checkout. The top-level directory ignores itself, so git never sees any of this
 state. `scheduler.json` in the versioned root says what the most recent
 completed scheduler tick observed and decided, including what the daemon did not
@@ -128,7 +128,7 @@ do and why. It also preserves any active global cooldown and the end of the most
 recent one. A scheduler tick that cannot complete reports its failure in the
 daemon output and leaves that last complete record in place.
 
-This is an intentional format break. Version 3 does not migrate assignments from
+This is an intentional format break. Version 4 does not migrate assignments from
 an earlier format and starts with empty local state. Stop the daemon and upgrade
 between dispatch batches, when no assignment needs another round.
 

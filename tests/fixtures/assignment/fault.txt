@@ -1,6 +1,6 @@
 newest agent assignment GH9-20260819-184158
 fault  two consecutive rounds failed 
-(.dreamcatcher/v3/assignments/GH9-20260819-184158/rounds/2/feed.txt)
+(.dreamcatcher/v4/assignments/GH9-20260819-184158/rounds/2/feed.txt)
 
 assignment
   issue identifier             GH9                                           
@@ -8,7 +8,7 @@ assignment
   pull request                 #52                                           
   dispatch label               dream:smith                                   
   branch                       dreamcatcher-GH9-20260819-184158              
-  worktree                     .dreamcatcher/v3/worktrees/GH9-20260819-184158
+  worktree                     .dreamcatcher/v4/worktrees/GH9-20260819-184158
   agent harness                claude                                        
   harness session identifier   abc-123                                       
   model                        opus[1m]                                      
@@ -19,5 +19,5 @@ rounds
   1  implement  2026-08-20 02:42:58  ran 4m  errored (exit 1)
 
 resume harness session yourself
-  cd .dreamcatcher/v3/worktrees/GH9-20260819-184158
+  cd .dreamcatcher/v4/worktrees/GH9-20260819-184158
   claude --resume abc-123                          

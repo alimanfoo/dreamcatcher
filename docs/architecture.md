@@ -392,7 +392,7 @@ conflict, and none as outside scope.
 
 `state.py` owns the paths within `.dreamcatcher/` and the mechanics required to
 bootstrap that directory. A state-format constant selects the versioned root,
-currently `.dreamcatcher/v3/`, so one format never reads another format's files.
+currently `.dreamcatcher/v4/`, so one format never reads another format's files.
 The shared `.dreamcatcher/daemon.pid` lock stays outside that root, so daemons
 using different formats still cannot run against one checkout together. The
 module should remain deliberately small. It must not contain collections of
