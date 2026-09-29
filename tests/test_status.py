@@ -22,6 +22,7 @@ from dreamcatcher.agent_rounds import (
     AgentAssignmentRoundPurpose,
     AgentRoundRecord,
     InterruptedAgentRoundEnding,
+    StoppedAgentRoundEnding,
     compose_agent_round_ending,
 )
 from dreamcatcher.config import AgentHarness
@@ -516,6 +517,34 @@ def test_a_current_idle_assignment_with_no_feed_is_idle(state):
     )
 
     assert only_assignment(state=state).detail == "idle"
+
+
+def test_a_stopped_assignment_needs_user_feedback(state):
+    started = PINNED + timedelta(minutes=1)
+    write_round(
+        directory=state.assignments / ASSIGNMENT_ID,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            purpose=AgentAssignmentRoundPurpose.IMPLEMENT,
+            started=started,
+            pid=1,
+            ending=StoppedAgentRoundEnding(at=started + timedelta(minutes=4)),
+        ),
+    )
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=LOOKED_AT,
+            assignment_observations=[idle_observation()],
+        ),
+    )
+
+    status = only_assignment(state=state)
+
+    assert status.value is AgentAssignmentStatusValue.NEEDS_USER_FEEDBACK
+    assert status.round_statuses[0].duration_description == "ran 4m"
+    assert status.round_statuses[0].outcome_description == "stopped"
 
 
 def test_two_current_errors_put_an_assignment_in_fault(state):

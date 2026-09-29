@@ -19,6 +19,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
     AgentRoundRecord,
     ErroredAgentRoundEnding,
+    StoppedAgentRoundEnding,
     SuccessfulAgentRoundEnding,
 )
 from dreamcatcher.clock import read_current_time
@@ -478,7 +479,10 @@ def _describe_unfinished_conversation_round(
     if conversation is None or not conversation.rounds:
         return None
     latest = conversation.rounds[-1]
-    if latest.outcome is AgentRoundOutcome.SUCCESSFUL:
+    if latest.outcome in {
+        AgentRoundOutcome.SUCCESSFUL,
+        AgentRoundOutcome.STOPPED,
+    }:
         return None
     ending = latest.ending
     if isinstance(ending, ErroredAgentRoundEnding) and ending.reason is not None:
@@ -490,16 +494,18 @@ def _describe_unfinished_conversation_round(
 def _describe_idle_conversation(*, conversation: IssueConversation | None) -> str:
     """Describe a conversation that has answered every comment it was given.
 
-    Its latest round succeeded, so that round's final output was saved.
+    Its latest round either answered the comments or stopped for new direction.
     """
     if conversation is None or not conversation.rounds:
         return "no comments yet"
     latest = conversation.rounds[-1]
+    duration = _compose_round_duration_description(record=latest)
+    if latest.outcome is AgentRoundOutcome.STOPPED:
+        return f"round {latest.number}, stopped, {duration}"
     final_output = read_text(
         path=conversation.compose_round_paths(number=latest.number).final_output
     )
     answer = "no reply needed" if is_no_reply(final_output=final_output) else "answered"
-    duration = _compose_round_duration_description(record=latest)
     return f"round {latest.number}, {answer}, {duration}"
 
 
@@ -768,7 +774,10 @@ class _StatusReportReader:
             return local_status
         observation = self.assignment_observations.get(assignment.identifier)
         if observation is None:
-            ending = cast("SuccessfulAgentRoundEnding", assignment.rounds[-1].ending)
+            ending = cast(
+                "SuccessfulAgentRoundEnding | StoppedAgentRoundEnding",
+                assignment.rounds[-1].ending,
+            )
             if (
                 self.scheduler_record is not None
                 and ending.at > self.scheduler_record.at

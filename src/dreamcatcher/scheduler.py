@@ -851,6 +851,7 @@ def _compose_resumed_round_requirement(
             round_input=assignment.compose_round_paths(
                 number=assignment.next_round_number
             ).round_input,
+            was_stopped=(assignment.rounds[-1].outcome is AgentRoundOutcome.STOPPED),
         ),
     )
 
@@ -1087,6 +1088,7 @@ def _prepare_issue_conversation_round(
         prompt = compose_issue_conversation_round_prompt(
             issue=conversation.record.issue,
             round_input=paths.round_input,
+            was_stopped=(conversation.rounds[-1].outcome is AgentRoundOutcome.STOPPED),
         )
     return _PreparedIssueConversationRound(
         conversation=conversation,
@@ -1166,7 +1168,10 @@ def _is_conversation_ready_for_input(*, conversation: IssueConversation | None) 
     """Return whether a conversation can accept another comment batch."""
     if conversation is None or not conversation.rounds:
         return True
-    return conversation.rounds[-1].outcome is AgentRoundOutcome.SUCCESSFUL
+    return conversation.rounds[-1].outcome in {
+        AgentRoundOutcome.SUCCESSFUL,
+        AgentRoundOutcome.STOPPED,
+    }
 
 
 def _combine_scheduler_failures(*, failures: list[str | None]) -> str | None:

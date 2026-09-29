@@ -24,6 +24,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundPlan,
     AgentRoundRecord,
     InterruptedAgentRoundEnding,
+    StoppedAgentRoundEnding,
     compose_agent_round_ending,
 )
 from dreamcatcher.github import PullRequestState
@@ -201,6 +202,47 @@ def test_an_assignment_nobody_has_posted_on_needs_nothing(state, gh):
 
     assert found(state=state) is None
     assert gh.calls[0].arguments[:3] == ["pr", "view", str(PULL_REQUEST)]
+
+
+def test_a_stopped_assignment_waits_for_feedback(state, gh):
+    started = PINNED + timedelta(minutes=1)
+    write_round(
+        directory=state.assignments / ASSIGNMENT_ID,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            purpose=AgentAssignmentRoundPurpose.IMPLEMENT,
+            started=started,
+            pid=1,
+            ending=StoppedAgentRoundEnding(at=started),
+        ),
+    )
+
+    assert found(state=state) is None
+
+
+def test_a_stopped_assignment_uses_new_feedback_without_recovery(state, gh):
+    started = PINNED + timedelta(minutes=1)
+    write_round(
+        directory=state.assignments / ASSIGNMENT_ID,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            purpose=AgentAssignmentRoundPurpose.IMPLEMENT,
+            started=started,
+            pid=1,
+            ending=StoppedAgentRoundEnding(at=started),
+        ),
+    )
+    gh.replies(
+        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+    )
+
+    resume = found(state=state)
+
+    assert isinstance(resume, RequiredAgentRound)
+    assert not resume.plan.is_recovery
+    assert resume.prompt.startswith("The user stopped your previous round")
 
 
 def test_an_assignment_the_user_has_posted_on_answers_what_they_said(state, gh):
