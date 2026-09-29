@@ -349,6 +349,10 @@ still shows it, as idle with the reason. Conversations are listed as routing
 conflict, fault, working, waiting, unknown and then idle, since routing conflict
 requires the user to act and idle does not.
 
+A running round remains working when its issue gains a second conversation
+label, because eligibility does not cancel work already in progress. Its routing
+conflict becomes the summary status after that round ends.
+
 These statuses are derived reporting projections, not persisted lifecycle state.
 
 ### Status reports do not control work

@@ -466,6 +466,22 @@ def test_route_matching_uses_the_latest_issue_labels(conversation_scheduler):
     assert count_comment_reads(gh=gh) == 1
 
 
+def test_a_listed_issue_with_no_current_route_is_inactive(conversation_scheduler):
+    scheduler, clock, gh = conversation_scheduler
+    gh.replies(
+        stdout=conversation_listing(labels=("maintenance",)),
+        to=(
+            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
+            "--label dream:conversation"
+        ),
+    )
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.conversation_observations == []
+    assert count_comment_reads(gh=gh) == 0
+
+
 def test_codex_first_and_resumed_rounds_capture_and_publish_final_messages(
     codex_conversation_scheduler, harnesses
 ):
@@ -1395,6 +1411,34 @@ def test_a_failed_conversation_listing_holds_launches(conversation_scheduler):
             ),
         )
     ]
+
+
+def test_a_failed_route_listing_does_not_starve_healthy_routes(
+    conversation_scheduler,
+):
+    scheduler, clock, gh = conversation_scheduler
+    configure(
+        root=scheduler.state.root,
+        head=CONVERSATION_CONFIG + SECOND_CONVERSATION_CONFIG,
+    )
+    scheduler.config = read_dreamcatcher_config(root=scheduler.state.root)
+    gh.fails(
+        stderr="network unavailable",
+        to=(
+            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
+            "--label dream:conversation"
+        ),
+    )
+    offer_conversation(gh=gh, comments=[], label="dream:scout")
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.hold is not None
+    assert "could not list issue conversations for dream:conversation" in observed.hold
+    assert [
+        observation.issue for observation in observed.conversation_observations
+    ] == [8]
+    assert count_comment_reads(gh=gh) == 1
 
 
 def test_failed_listing_keeps_visible_conversation_faults_in_the_cooldown(

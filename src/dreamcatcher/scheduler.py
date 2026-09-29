@@ -962,27 +962,12 @@ def _list_issue_conversation_candidates(
     if not conversation_routes:
         return IssueConversationCandidateResult(candidates=[], observations=[])
     listing = _list_conversation_route_issues(context=context)
-    if listing.failure is not None:
-        unknown = IssueFact(value=IssueFactValue.UNKNOWN, evidence=listing.failure)
-        return IssueConversationCandidateResult(
-            candidates=[],
-            observations=[
-                observation.model_copy(
-                    update={
-                        "has_comments_to_answer": unknown,
-                        "routing_conflict": unknown,
-                    }
-                )
-                for observation in previous_observations
-            ],
-            failure=listing.failure,
-        )
     conversations_by_issue = {
         conversation.record.issue: conversation for conversation in conversations
     }
     candidates: list[IssueConversationCandidate] = []
     observations: list[IssueConversationObservation] = []
-    failures: list[str | None] = []
+    failures: list[str | None] = [listing.failure]
     for issue in listing.issues:
         conversation = conversations_by_issue.get(issue.number)
         inspection = _inspect_listed_conversation_issue(
@@ -990,6 +975,8 @@ def _list_issue_conversation_candidates(
             issue=issue,
             conversation=conversation,
         )
+        if inspection is None:
+            continue
         observations.append(inspection.observation)
         if inspection.candidate is not None:
             candidates.append(inspection.candidate)
@@ -999,6 +986,19 @@ def _list_issue_conversation_candidates(
             is IssueFactValue.UNKNOWN
         ):
             failures.append(inspection.observation.has_comments_to_answer.evidence)
+    if listing.failure is not None:
+        unknown = IssueFact(value=IssueFactValue.UNKNOWN, evidence=listing.failure)
+        listed_issues = {issue.number for issue in listing.issues}
+        observations.extend(
+            observation.model_copy(
+                update={
+                    "has_comments_to_answer": unknown,
+                    "routing_conflict": unknown,
+                }
+            )
+            for observation in previous_observations
+            if observation.issue not in listed_issues
+        )
     return IssueConversationCandidateResult(
         candidates=sorted(candidates, key=_rank_issue_conversation_candidate),
         observations=observations,
@@ -1011,6 +1011,7 @@ def _list_conversation_route_issues(
 ) -> _ConversationRouteListing:
     """List each issue found through any configured conversation route."""
     issues_by_number: dict[int, Issue] = {}
+    failures: list[str | None] = []
     for route in context.config.conversation:
         issue_response = list_issues(
             repository=context.repository,
@@ -1018,18 +1019,19 @@ def _list_conversation_route_issues(
             assignee=context.account,
         )
         if isinstance(issue_response, UnknownGitHubResponse):
-            failure = (
+            failures.append(
                 f"could not list issue conversations for {route.label}: "
                 f"{issue_response.reason}"
             )
-            return _ConversationRouteListing(issues=[], failure=failure)
-        for issue in issue_response:
-            issues_by_number[issue.number] = issue
+        else:
+            for issue in issue_response:
+                issues_by_number[issue.number] = issue
     return _ConversationRouteListing(
         issues=sorted(
             issues_by_number.values(),
             key=lambda item: (item.created_at, item.number),
-        )
+        ),
+        failure=_combine_scheduler_failures(failures=failures),
     )
 
 
@@ -1038,11 +1040,13 @@ def _inspect_listed_conversation_issue(
     context: _IssueConversationCandidateContext,
     issue: Issue,
     conversation: IssueConversation | None,
-) -> _IssueConversationInspection:
-    """Inspect one listed issue or report its conversation routing conflict."""
+) -> _IssueConversationInspection | None:
+    """Inspect one currently matching listed issue."""
     routes = context.config.identify_conversation_routes(
         labels=[label.name for label in issue.labels]
     )
+    if not routes:
+        return None
     if len(routes) == 1:
         return _inspect_issue_conversation(
             context=context,
