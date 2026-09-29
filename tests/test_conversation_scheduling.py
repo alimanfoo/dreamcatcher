@@ -774,6 +774,29 @@ def test_ready_assignment_rounds_and_conversations_alternate(
     assert conversation_launch.launched_conversation_identifiers == ["conversation-GH8"]
 
 
+def test_one_tick_alternates_work_kinds_until_capacity_is_full(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    scheduler.max_agents = 3
+    for issue in (13, 14):
+        write_agent_assignment(
+            state=scheduler.state,
+            identifier=f"GH{issue}-20260923-010000",
+            issue=issue,
+        )
+    offer_conversation(gh=gh, comments=[ask()])
+    answer(harnesses=harnesses)
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.launched_agent_work_identifiers == [
+        "GH13-20260923-010000",
+        "conversation-GH8",
+        "GH14-20260923-010000",
+    ]
+
+
 def test_after_a_conversation_round_the_next_round_dispatches_an_assignment(
     conversation_scheduler, harnesses
 ):
@@ -793,7 +816,7 @@ def test_after_a_conversation_round_the_next_round_dispatches_an_assignment(
     assert observed.launched_assignment_identifiers
 
 
-def test_after_a_failed_assignment_start_the_next_round_is_a_conversation(
+def test_a_failed_assignment_candidate_does_not_block_a_ready_conversation(
     conversation_scheduler, harnesses, monkeypatch
 ):
     scheduler, clock, gh = conversation_scheduler
@@ -810,11 +833,10 @@ def test_after_a_failed_assignment_start_the_next_round_is_a_conversation(
         Mock(side_effect=ReportableError("could not start assignment")),
     )
 
-    failed = scheduler.tick(at=clock())
-    launched = scheduler.tick(at=clock())
+    observed = scheduler.tick(at=clock())
 
-    assert failed.hold == "could not start assignment"
-    assert launched.launched_conversation_identifiers == ["conversation-GH8"]
+    assert observed.hold == "could not start assignment"
+    assert observed.launched_conversation_identifiers == ["conversation-GH8"]
 
 
 def test_an_issue_without_a_trusted_unmarked_comment_does_not_start(

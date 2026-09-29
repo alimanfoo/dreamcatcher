@@ -1,7 +1,7 @@
 """Schedule agent work for one Dreamcatcher instance.
 
 Each tick reads local agent work, observes relevant issues on GitHub, applies
-the concurrency cap and global cooldown, and launches at most one round.
+the concurrency cap and global cooldown, and fills every free agent slot.
 
 Within assignment work, a missing first round comes first, followed by recovery,
 wrap-up, user feedback, and dispatch of the oldest available issue. Conversation
@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from functools import partial
-from typing import Annotated, Protocol, Self, cast
+from typing import Annotated, Protocol, Self
 
 from pydantic import AfterValidator, AwareDatetime, Field, model_validator
 
@@ -1224,16 +1224,58 @@ def _combine_scheduler_failures(*, failures: list[str | None]) -> str | None:
     return "; ".join(present) if present else None
 
 
-def _find_oldest_available_issue(*, record: SchedulerRecord) -> IssueObservation | None:
-    """Return the first issue that the scheduler observed as available."""
-    return next(
-        (
-            observation
-            for observation in record.issue_observations
-            if observation.availability.value is IssueFactValue.TRUE
-        ),
-        None,
-    )
+def _list_available_issues(*, record: SchedulerRecord) -> list[IssueObservation]:
+    """Return the issues that the scheduler observed as available, in order."""
+    return [
+        observation
+        for observation in record.issue_observations
+        if observation.availability.value is IssueFactValue.TRUE
+    ]
+
+
+@dataclass(kw_only=True)
+class _ReadyAgentWork:
+    assignment_rounds: list[RequiredAgentRound]
+    available_issues: list[IssueObservation]
+    conversations: list[IssueConversationCandidate]
+    conversation_failure: str | None
+
+    @property
+    def is_assignment_ready(self) -> bool:
+        """Whether an assignment round or issue can start."""
+        return bool(self.assignment_rounds or self.available_issues)
+
+    @property
+    def is_conversation_ready(self) -> bool:
+        """Whether the next conversation can start safely."""
+        return bool(self.conversations) and (
+            self.conversation_failure is None
+            or isinstance(self.conversations[0], IssueConversationRecoveryCandidate)
+        )
+
+    def block(self, *, work_kind: AgentWorkKind) -> None:
+        """Remove the candidates that follow a failed launch of one kind."""
+        if work_kind is AgentWorkKind.ASSIGNMENT:
+            self.assignment_rounds.clear()
+            self.available_issues.clear()
+        else:
+            self.conversations.clear()
+
+
+def _choose_work_kind(
+    *,
+    candidates: _ReadyAgentWork,
+    last_selected_work_kind: AgentWorkKind | None,
+) -> AgentWorkKind | None:
+    if candidates.is_assignment_ready and candidates.is_conversation_ready:
+        if last_selected_work_kind is AgentWorkKind.ASSIGNMENT:
+            return AgentWorkKind.CONVERSATION
+        return AgentWorkKind.ASSIGNMENT
+    if candidates.is_assignment_ready:
+        return AgentWorkKind.ASSIGNMENT
+    if candidates.is_conversation_ready:
+        return AgentWorkKind.CONVERSATION
+    return None
 
 
 def _record_session_before_advancing_user_post_cursor(
@@ -1261,7 +1303,7 @@ class AgentWorkScheduler:
     )
 
     def tick(self, *, at: datetime) -> SchedulerRecord:
-        """Inspect current work and launch at most one agent round.
+        """Inspect current work and fill every free agent slot.
 
         A round that has ended is forgotten first, so the cap counts what is
         running now. A failure reaches the daemon, which reports it before the
@@ -1402,56 +1444,91 @@ class AgentWorkScheduler:
         assignment_failure: str | None,
         scheduler_failure: str | None,
     ) -> SchedulerRecord:
-        """Launch one candidate while alternating between ready work kinds."""
+        """Fill free capacity while alternating between ready work kinds."""
         if scheduler_failure is not None:
             record = record.model_copy(update={"hold": scheduler_failure})
-        prioritized_rounds = prioritize_required_rounds(
-            required_rounds=[
-                result
-                for result in inspection_results
-                if isinstance(result, RequiredAgentRound) and assignment_failure is None
-            ]
+        candidates = _ReadyAgentWork(
+            assignment_rounds=prioritize_required_rounds(
+                required_rounds=[
+                    result
+                    for result in inspection_results
+                    if isinstance(result, RequiredAgentRound)
+                    and assignment_failure is None
+                ]
+            ),
+            available_issues=(
+                []
+                if assignment_failure is not None
+                else _list_available_issues(record=record)
+            ),
+            conversations=list(conversation_candidates.candidates),
+            conversation_failure=conversation_candidates.failure,
         )
-        available_issue = (
-            None
-            if assignment_failure is not None
-            else _find_oldest_available_issue(record=record)
-        )
-        is_assignment_ready = bool(prioritized_rounds) or available_issue is not None
-        is_conversation_ready = bool(conversation_candidates.candidates) and (
-            conversation_candidates.failure is None
-            or isinstance(
-                conversation_candidates.candidates[0],
-                IssueConversationRecoveryCandidate,
+        while len(self.rounds) < self.max_agents:
+            work_kind = _choose_work_kind(
+                candidates=candidates,
+                last_selected_work_kind=self._last_selected_work_kind,
             )
-        )
-        if is_assignment_ready and is_conversation_ready:
-            work_kind = (
-                AgentWorkKind.CONVERSATION
-                if self._last_selected_work_kind is AgentWorkKind.ASSIGNMENT
-                else AgentWorkKind.ASSIGNMENT
-            )
-        elif is_assignment_ready:
-            work_kind = AgentWorkKind.ASSIGNMENT
-        elif is_conversation_ready:
-            work_kind = AgentWorkKind.CONVERSATION
-        else:
-            return record
-        self._last_selected_work_kind = work_kind
-        if work_kind is AgentWorkKind.ASSIGNMENT and prioritized_rounds:
-            return self._launch_assignment_round(
+            if work_kind is None:
+                break
+            self._last_selected_work_kind = work_kind
+            record, inspection_results = self._launch_next_candidate(
                 record=record,
-                required=prioritized_rounds[0],
+                work_kind=work_kind,
+                candidates=candidates,
                 inspection_results=inspection_results,
             )
+        return record
+
+    def _launch_next_candidate(
+        self,
+        *,
+        record: SchedulerRecord,
+        work_kind: AgentWorkKind,
+        candidates: _ReadyAgentWork,
+        inspection_results: list[AgentAssignmentInspectionResult],
+    ) -> tuple[SchedulerRecord, list[AgentAssignmentInspectionResult]]:
+        launch_count = len(record.launched_agent_work_identifiers)
         if work_kind is AgentWorkKind.ASSIGNMENT:
-            return self._dispatch_issue(
+            record, inspection_results = self._launch_next_assignment_candidate(
                 record=record,
-                issue=cast("IssueObservation", available_issue),
+                candidates=candidates,
+                inspection_results=inspection_results,
             )
-        return self._launch_conversation_round(
-            record=record,
-            candidate=conversation_candidates.candidates[0],
+        else:
+            record = self._launch_conversation_round(
+                record=record,
+                candidate=candidates.conversations.pop(0),
+            )
+        if len(record.launched_agent_work_identifiers) == launch_count:
+            candidates.block(work_kind=work_kind)
+        return record, inspection_results
+
+    def _launch_next_assignment_candidate(
+        self,
+        *,
+        record: SchedulerRecord,
+        candidates: _ReadyAgentWork,
+        inspection_results: list[AgentAssignmentInspectionResult],
+    ) -> tuple[SchedulerRecord, list[AgentAssignmentInspectionResult]]:
+        if candidates.assignment_rounds:
+            required = candidates.assignment_rounds.pop(0)
+            record = self._launch_assignment_round(
+                record=record,
+                required=required,
+                inspection_results=inspection_results,
+            )
+            if required.assignment.identifier in record.launched_assignment_identifiers:
+                inspection_results = [
+                    result for result in inspection_results if result is not required
+                ]
+            return record, inspection_results
+        return (
+            self._dispatch_issue(
+                record=record,
+                issue=candidates.available_issues.pop(0),
+            ),
+            inspection_results,
         )
 
     def _inspect_assignments(

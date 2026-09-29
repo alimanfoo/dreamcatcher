@@ -41,6 +41,7 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.documents import write_json, write_text
+from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import (
     add_worktree,
     fetch_main,
@@ -276,9 +277,7 @@ def test_a_dispatched_round_records_what_caused_it_and_what_it_said(dispatching)
     assert assignment.record.harness_session_identifier == "abc-123"
 
 
-def test_a_tick_launches_one_round_and_leaves_the_rest_in_the_queue(
-    dispatching, offered
-):
+def test_a_tick_fills_free_capacity_with_available_issues(dispatching, offered):
     offered.replies(stdout=listing(issues=[(8, FILED), (9, LATER)]), to="issue list")
     scheduler, clock = create_scheduler(root=dispatching, max_agents=2)
 
@@ -289,8 +288,41 @@ def test_a_tick_launches_one_round_and_leaves_the_rest_in_the_queue(
         IssueFactValue.TRUE,
         IssueFactValue.TRUE,
     ]
+    assert observed.launched_assignment_identifiers == [
+        DISPATCHED_ASSIGNMENT_ID,
+        "GH9-20260819-184158",
+    ]
+    assert (scheduler.state.worktrees / "GH9-20260819-184158").exists()
+
+
+def test_a_later_failed_launch_keeps_the_rounds_already_started(
+    dispatching, offered, monkeypatch
+):
+    offered.replies(
+        stdout=listing(
+            issues=[
+                (8, FILED),
+                (9, LATER),
+                (10, "2026-08-21T01:00:00Z"),
+            ]
+        ),
+        to="issue list",
+    )
+    scheduler, clock = create_scheduler(root=dispatching, max_agents=3)
+    launch_assignment = scheduler._launch_assignment
+
+    def fail_second_launch(*, issue, label, at):
+        if issue == 9:
+            raise ReportableError("could not dispatch GH9")
+        return launch_assignment(issue=issue, label=label, at=at)
+
+    monkeypatch.setattr(scheduler, "_launch_assignment", fail_second_launch)
+
+    observed = scheduler.tick(at=clock())
+
     assert observed.launched_assignment_identifiers == [DISPATCHED_ASSIGNMENT_ID]
-    assert not (scheduler.state.worktrees / "GH9-20260819-184158").exists()
+    assert observed.hold == "could not dispatch GH9"
+    assert not (scheduler.state.worktrees / "GH10-20260819-184158").exists()
 
 
 def test_a_second_tick_judges_a_dispatched_issue_handled(dispatching):
