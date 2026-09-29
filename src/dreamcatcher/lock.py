@@ -57,12 +57,15 @@ def read_daemon_pid(*, path: Path) -> int | None:
     invalid or the process identity cannot be inspected.
     """
     try:
-        path.stat()
-    except (FileNotFoundError, NotADirectoryError):
-        return None
-    except OSError as error:
-        raise ReportableError(f"cannot read {path}: {error}") from error
-    record = read_json(model=DaemonLockRecord, path=path)
+        record = read_json(model=DaemonLockRecord, path=path)
+    except ReportableError:
+        try:
+            path.stat()
+        except (FileNotFoundError, NotADirectoryError):
+            return None
+        except OSError:
+            pass
+        raise
     try:
         process_started_at = _read_process_start_time(pid=record.pid)
     except (psutil.NoSuchProcess, psutil.ZombieProcess):

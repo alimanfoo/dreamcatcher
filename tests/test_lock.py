@@ -105,13 +105,32 @@ def test_an_invalid_lock_is_reported(tmp_path, kind, held):
         pass
 
 
+def test_a_lock_removed_while_it_is_read_is_reclaimed(tmp_path, monkeypatch):
+    lock = tmp_path / "daemon.pid"
+    write_daemon_lock(path=lock)
+
+    def disappear(*, model, path):
+        path.unlink()
+        raise ReportableError(f"{path} does not exist")
+
+    monkeypatch.setattr(lock_module, "read_json", disappear)
+
+    with hold_daemon_lock(path=lock):
+        assert read_json(model=DaemonLockRecord, path=lock).pid == os.getpid()
+
+
 def test_a_lock_that_cannot_be_read_is_reported(tmp_path, monkeypatch):
     lock = tmp_path / "daemon.pid"
+    write_daemon_lock(path=lock)
 
-    def refuse_read(self, /, *, follow_symlinks=True):
+    def refuse_read(self, /):
+        raise PermissionError(f"cannot read {self}")
+
+    def refuse_inspection(self, /, *, follow_symlinks=True):
         raise PermissionError(f"cannot inspect {self}")
 
-    monkeypatch.setattr(Path, "stat", refuse_read)
+    monkeypatch.setattr(Path, "read_bytes", refuse_read)
+    monkeypatch.setattr(Path, "stat", refuse_inspection)
 
     with (
         pytest.raises(ReportableError, match=r"cannot read .*daemon\.pid"),
