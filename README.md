@@ -197,7 +197,7 @@ wrap-up remains open for recovery. Once the wrap-up succeeds, the assignment no
 longer claims its issue, so an issue whose pull request closed unmerged is free
 to dispatch again while the label is still on it.
 
-Removing the label is how you say stop.
+Removing the label prevents another assignment after the current one completes.
 
 One daemon watches one repo. A second `run` on the same repo refuses while the
 first is alive.
@@ -205,6 +205,11 @@ first is alive.
 The `web` verb serves the status report on the loopback interface and opens it
 in your default browser. It reads the local `.dreamcatcher/` directory, never
 contacts GitHub and works whether or not the daemon is running.
+
+While a round runs, its assignment or conversation page offers a stop control
+once the harness session is known. The running round stops within about a
+second, then waits for a new pull-request post or issue comment before it starts
+another round in the same session.
 
 ```sh
 dreamcatcher web
