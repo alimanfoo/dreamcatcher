@@ -1215,25 +1215,55 @@ def _list_available_issues(*, record: SchedulerRecord) -> list[IssueObservation]
     ]
 
 
+type _AssignmentCandidate = RequiredAgentRound | IssueObservation
+
+
+def _list_ready_assignment_candidates(
+    *,
+    record: SchedulerRecord,
+    inspection_results: list[AgentAssignmentInspectionResult],
+    failure: str | None,
+) -> list[_AssignmentCandidate]:
+    """Return assignment candidates when their shared issue read succeeded."""
+    if failure is not None:
+        return []
+    required_rounds = prioritize_required_rounds(
+        required_rounds=[
+            result
+            for result in inspection_results
+            if isinstance(result, RequiredAgentRound)
+        ]
+    )
+    return [*required_rounds, *_list_available_issues(record=record)]
+
+
+def _list_ready_conversation_candidates(
+    *, result: IssueConversationCandidateResult
+) -> list[IssueConversationCandidate]:
+    """Return safe candidates, retaining saved recovery across a failed read."""
+    if result.failure is None:
+        return list(result.candidates)
+    return [
+        candidate
+        for candidate in result.candidates
+        if isinstance(candidate, IssueConversationRecoveryCandidate)
+    ]
+
+
 @dataclass(kw_only=True)
 class _ReadyAgentWork:
-    assignment_rounds: list[RequiredAgentRound]
-    available_issues: list[IssueObservation]
+    assignments: list[_AssignmentCandidate]
     conversations: list[IssueConversationCandidate]
-    conversation_failure: str | None
 
     @property
     def is_assignment_ready(self) -> bool:
         """Whether an assignment round or issue can start."""
-        return bool(self.assignment_rounds or self.available_issues)
+        return bool(self.assignments)
 
     @property
     def is_conversation_ready(self) -> bool:
-        """Whether the next conversation can start safely."""
-        return bool(self.conversations) and (
-            self.conversation_failure is None
-            or isinstance(self.conversations[0], IssueConversationRecoveryCandidate)
-        )
+        """Whether a conversation round can start."""
+        return bool(self.conversations)
 
 
 def _choose_work_kind(
@@ -1423,21 +1453,14 @@ class AgentWorkScheduler:
         if scheduler_failure is not None:
             record = record.model_copy(update={"hold": scheduler_failure})
         candidates = _ReadyAgentWork(
-            assignment_rounds=prioritize_required_rounds(
-                required_rounds=[
-                    result
-                    for result in inspection_results
-                    if isinstance(result, RequiredAgentRound)
-                    and assignment_failure is None
-                ]
+            assignments=_list_ready_assignment_candidates(
+                record=record,
+                inspection_results=inspection_results,
+                failure=assignment_failure,
             ),
-            available_issues=(
-                []
-                if assignment_failure is not None
-                else _list_available_issues(record=record)
+            conversations=_list_ready_conversation_candidates(
+                result=conversation_candidates
             ),
-            conversations=list(conversation_candidates.candidates),
-            conversation_failure=conversation_candidates.failure,
         )
         while len(self.rounds) < self.max_agents:
             work_kind = _choose_work_kind(
@@ -1509,8 +1532,7 @@ class AgentWorkScheduler:
         )
         if record.hold != hold_before_launch or launched_identifier is None:
             if work_kind is AgentWorkKind.ASSIGNMENT:
-                candidates.assignment_rounds.clear()
-                candidates.available_issues.clear()
+                candidates.assignments.clear()
             else:
                 candidates.conversations.clear()
         return record, inspection_results, launched_identifier
@@ -1522,15 +1544,15 @@ class AgentWorkScheduler:
         candidates: _ReadyAgentWork,
         inspection_results: list[AgentAssignmentInspectionResult],
     ) -> tuple[SchedulerRecord, list[AgentAssignmentInspectionResult]]:
-        if candidates.assignment_rounds:
-            required = candidates.assignment_rounds.pop(0)
+        candidate = candidates.assignments.pop(0)
+        if isinstance(candidate, RequiredAgentRound):
             record = self._launch_assignment_round(
                 record=record,
-                required=required,
+                required=candidate,
             )
-            if required.assignment.identifier in self.rounds:
+            if candidate.assignment.identifier in self.rounds:
                 inspection_results = [
-                    result for result in inspection_results if result is not required
+                    result for result in inspection_results if result is not candidate
                 ]
                 record = record.model_copy(
                     update={
@@ -1543,7 +1565,7 @@ class AgentWorkScheduler:
         return (
             self._dispatch_issue(
                 record=record,
-                issue=candidates.available_issues.pop(0),
+                issue=candidate,
             ),
             inspection_results,
         )
