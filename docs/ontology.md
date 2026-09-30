@@ -210,11 +210,12 @@ Each issue conversation has exactly one:
 - detached Git worktree;
 - agent harness.
 
-It has no branch or pull request, so the issue is its communication channel. An
-issue has at most one issue conversation, and Dreamcatcher keeps it after the
-issue stops being eligible.
+It has no branch or pull request, so the issue is its communication channel. A
+Dreamcatcher instance has at most one issue conversation for an issue, and it
+keeps the conversation after the issue stops being eligible.
 
 Each conversation round input records the comment batch and the main revision.
+The initial round input also records the issue title and body.
 
 ### Dispatch labels and routes
 
@@ -399,10 +400,10 @@ Dreamcatcher fetches main, creates a detached worktree, and records the chosen
 conversation route and settings. It freezes the initial round input, then starts
 the initial conversation round. The recorded route and settings stay frozen if a
 different configured label later makes the issue eligible. The round shares the
-daemon's capacity and global cooldown with assignment rounds. When the
-invocation succeeds, Dreamcatcher posts its answer on the issue before it
-records the round ending. An answer of `NO_REPLY` means no post is needed. A
-failed post makes the round errored.
+daemon's capacity and global cooldown with assignment rounds. Before a
+conversation round records a successful ending, Dreamcatcher requires its answer
+and posts it on the issue. An answer of `NO_REPLY` means no post is needed. A
+missing answer or failed post makes the round errored.
 
 After the round ends, another eligible comment batch resumes the same harness
 session in another conversation round. Before it accepts that batch,
@@ -412,12 +413,15 @@ round runs stay beyond the latest round input. If the round is interrupted or
 errors, recovery reuses its saved comments and revision without reading new
 comments or refreshing the worktree. It resumes the saved harness session, or
 repeats the first invocation with the configured prompt if no session identifier
-was recorded.
+was recorded. If a successful first round recorded no session identifier, a
+later comment batch remains waiting because Dreamcatcher cannot resume it.
 
-Closing the issue, removing every configured conversation label, adding a second
-one or unassigning the signed-in account stops new comment batches and takes the
-conversation off the status report once no round runs for it. Making the issue
-eligible again brings it back.
+Closing the issue, removing every configured conversation label, or unassigning
+the signed-in account stops new comment batches and recovery, and takes the
+conversation off the status report once no round runs for it. Adding a second
+configured conversation label also stops new batches and recovery, but keeps the
+conversation on the report with a routing conflict. Eligibility must be restored
+before any later batch or recovery can start.
 
 ### Working through an assignment
 
