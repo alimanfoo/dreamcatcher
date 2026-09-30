@@ -76,26 +76,6 @@ VIEW_REFRESH_INTERVAL = 1.0
 SECTION_PADDING = (0, 0, 0, 2)
 
 
-@dataclass(frozen=True, kw_only=True)
-class ViewTiming:
-    """Provide the clock, waits, and display zone for one TUI view."""
-
-    clock: Callable[[], datetime] = read_current_time
-    wait: WaitForSeconds = sleep
-    zone: tzinfo | None = None
-
-
-DEFAULT_VIEW_TIMING = ViewTiming()
-
-
-@dataclass(frozen=True, kw_only=True)
-class FeedSelection:
-    """Select the assignment or conversation feed at one issue."""
-
-    issue: int
-    owner_kind: AgentWorkKind
-
-
 def open_tui_console() -> Console:
     """Return a console that follows the terminal's current dimensions.
 
@@ -174,19 +154,21 @@ def show_status_view(
     *,
     state: StateDirectory,
     console: Console,
-    timing: ViewTiming = DEFAULT_VIEW_TIMING,
+    clock: Callable[[], datetime] = read_current_time,
+    wait: WaitForSeconds = sleep,
+    zone: tzinfo | None = None,
 ) -> None:
     """Show instance, issue, and assignment status until interrupted.
 
     A non-terminal or dumb terminal renders one report and returns.
-    Times use timing's zone, or the machine's local zone when it is None.
+    Times use the given zone, or the machine's local zone when it is None.
     """
     _refresh_live_view(
         console=console,
         read_snapshot=lambda: _read_status_snapshot(
-            state=state, clock=timing.clock, zone=timing.zone
+            state=state, clock=clock, zone=zone
         ),
-        wait=timing.wait,
+        wait=wait,
     )
 
 
@@ -481,20 +463,22 @@ def show_assignment_view(
     state: StateDirectory,
     issue: int,
     console: Console,
-    timing: ViewTiming = DEFAULT_VIEW_TIMING,
+    clock: Callable[[], datetime] = read_current_time,
+    wait: WaitForSeconds = sleep,
+    zone: tzinfo | None = None,
 ) -> None:
     """Show the issue's newest assignment until it completes or enters fault.
 
     The view remains open between rounds. A non-terminal or dumb terminal
     renders one snapshot and returns.
-    Times use timing's zone, or the machine's local zone when it is None.
+    Times use the given zone, or the machine's local zone when it is None.
     """
     _refresh_live_view(
         console=console,
         read_snapshot=lambda: _read_assignment_snapshot(
-            state=state, issue=issue, clock=timing.clock, zone=timing.zone
+            state=state, issue=issue, clock=clock, zone=zone
         ),
-        wait=timing.wait,
+        wait=wait,
     )
 
 
@@ -503,7 +487,9 @@ def show_conversation_view(
     state: StateDirectory,
     issue: int,
     console: Console,
-    timing: ViewTiming = DEFAULT_VIEW_TIMING,
+    clock: Callable[[], datetime] = read_current_time,
+    wait: WaitForSeconds = sleep,
+    zone: tzinfo | None = None,
 ) -> None:
     """Show one issue conversation until nothing more can happen without the user.
 
@@ -513,9 +499,9 @@ def show_conversation_view(
     _refresh_live_view(
         console=console,
         read_snapshot=lambda: _read_conversation_snapshot(
-            state=state, issue=issue, clock=timing.clock, zone=timing.zone
+            state=state, issue=issue, clock=clock, zone=zone
         ),
-        wait=timing.wait,
+        wait=wait,
     )
 
 
@@ -766,10 +752,12 @@ def _render_older_assignments(
 def show_feed_view(
     *,
     state: StateDirectory,
-    selection: FeedSelection,
+    issue: int,
+    owner_kind: AgentWorkKind,
     console: Console,
     round_number: int | None = None,
-    timing: ViewTiming = DEFAULT_VIEW_TIMING,
+    wait: WaitForSeconds = sleep,
+    zone: tzinfo | None = None,
 ) -> None:
     """Show and follow the explicitly selected agent work's feed.
 
@@ -779,25 +767,27 @@ def show_feed_view(
 
     Every feed line carries its own timestamp, so the view needs no clock. A
     non-terminal or dumb terminal shows the current contents once and returns.
-    Times use timing's zone, or the machine's local zone when it is None.
+    Times use the given zone, or the machine's local zone when it is None.
     """
     if round_number is not None:
         _show_one_round(
             state=state,
-            selection=selection,
+            issue=issue,
+            owner_kind=owner_kind,
             number=round_number,
             console=console,
-            timing=timing,
+            wait=wait,
+            zone=zone,
         )
         return
-    view = _FeedView(console=console, zone=timing.zone)
+    view = _FeedView(console=console, zone=zone)
 
     def refresh_feed() -> bool:
         """Show output since the previous refresh and return whether it is over."""
         snapshot = _find_feed_owner(
             state=state,
-            issue=selection.issue,
-            owner_kind=selection.owner_kind,
+            issue=issue,
+            owner_kind=owner_kind,
         )
         view.show_new_output(
             owner=snapshot.owner,
@@ -806,32 +796,32 @@ def show_feed_view(
         )
         return snapshot.is_over
 
-    _refresh_until_view_ends(
-        console=console, refresh_view=refresh_feed, wait=timing.wait
-    )
+    _refresh_until_view_ends(console=console, refresh_view=refresh_feed, wait=wait)
 
 
 def _show_one_round(
     *,
     state: StateDirectory,
-    selection: FeedSelection,
+    issue: int,
+    owner_kind: AgentWorkKind,
     number: int,
     console: Console,
-    timing: ViewTiming,
+    wait: WaitForSeconds,
+    zone: tzinfo | None,
 ) -> None:
     """Show one round of the selected agent work until the round ends.
 
     Raise ReportableError when the assignment has no round with the requested
     number.
     """
-    view = _FeedView(console=console, zone=timing.zone)
+    view = _FeedView(console=console, zone=zone)
 
     def refresh_round_feed() -> bool:
         """Show output since the previous refresh and return whether it has ended."""
         snapshot = _find_feed_owner(
             state=state,
-            issue=selection.issue,
-            owner_kind=selection.owner_kind,
+            issue=issue,
+            owner_kind=owner_kind,
         )
         owner = snapshot.owner
         record = next(
@@ -851,7 +841,7 @@ def _show_one_round(
         return record.ending is not None
 
     _refresh_until_view_ends(
-        console=console, refresh_view=refresh_round_feed, wait=timing.wait
+        console=console, refresh_view=refresh_round_feed, wait=wait
     )
 
 

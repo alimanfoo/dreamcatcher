@@ -132,6 +132,9 @@ ignore = [
 [tool.ruff.lint.mccabe]
 max-complexity = 8
 
+[tool.ruff.lint.pylint]
+max-args = 7
+
 [tool.ruff.lint.pydocstyle]
 convention = "pep257"
 
