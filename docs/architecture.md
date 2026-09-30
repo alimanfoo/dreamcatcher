@@ -332,19 +332,22 @@ whether it required a round. Status reads this observation because view commands
 cannot reach GitHub. It is the last tick's interpretation kept as operational
 evidence, not authoritative assignment state.
 
-The scheduler record holds one `IssueConversationObservation` for each eligible
-conversation issue. Each observation records:
+The scheduler record holds one `IssueConversationObservation` for each open,
+assigned issue that carries at least one configured conversation label. Each
+observation records:
 
-- the issue and its title; and
-- an `IssueFact` that says whether comments wait to be answered.
+- the issue and its title;
+- an `IssueFact` that says whether comments wait to be answered; and
+- an `IssueFact` that says whether more than one conversation route matches.
 
-The tick observes an eligible issue even when it has no conversation record yet.
-So status lists a conversation from the first tick that sees its issue.
+The tick observes a matching issue even when it has no conversation record yet.
+So status lists a conversation from the first tick that sees its issue, and
+reports a routing conflict before any round starts.
 
 An issue with no observation is not eligible. Status stops listing its
 conversation once no round runs for it.
 
-If the tick cannot list the eligible issues, it copies the previous tick's
+If the tick cannot list the matching issues, it copies the previous tick's
 observations and marks each fact unknown.
 
 An `IssueConversationStatus` is one summary status from the ontology.
@@ -371,6 +374,11 @@ depends on the status and feed models; neither model depends on it. It should
 not rediscover status, scheduling, or lifecycle rules while choosing markup and
 styles.
 
+The web process can ask a running round to stop. It writes a same-origin stop
+request through the agent-round boundary, into that round's own directory. The
+daemon still owns the live process and lifecycle transition: the round watches
+the request, kills its harness process tree, and records its stopped ending.
+
 ### Configuration, dispatch labels, and routes
 
 `config.py` owns the strict model for `dreamcatcher.toml`. An `AgentRecipe`
@@ -378,20 +386,20 @@ supplies the model, effort, and initial prompt used to start agent work through
 one harness. A `DispatchRoute` maps one dispatch label to one or more recipes
 for assignments; its prompt normally invokes an assignment skill.
 
-The optional conversation configuration maps one separate label to one or more
-recipes for issue conversations. Both mappings use the same harness-selection
+Each optional conversation route maps one separate label to one or more recipes
+for issue conversations. Both kinds of route use the same harness-selection
 rule: a configured requested harness wins, while the sole recipe wins when only
-one exists. Conversation discovery does not treat its label as a dispatch route.
+one exists. Conversation discovery does not treat its labels as dispatch routes.
 
 The repository configuration carries choices that everyone working in the
 repository shares. The daemon interval and agent cap belong to one person's run,
 so the `run` command receives them instead.
 
 The configuration module validates labels, routes, and recipes and, given an
-issue's observed labels, identifies which are configured dispatch labels. It
-does not silently resolve multiple labels by list order. The scheduler
-interprets exactly one dispatch label as routable, more than one as a routing
-conflict, and none as outside scope.
+issue's observed labels, identifies the matching routes. It does not silently
+resolve multiple labels by list order. The scheduler interprets exactly one
+route of either kind as routable, more than one of that kind as a routing
+conflict, and none as outside that workflow.
 
 ### State and documents
 
@@ -399,7 +407,10 @@ conflict, and none as outside scope.
 bootstrap that directory. A state-format constant selects the versioned root,
 currently `.dreamcatcher/v4/`, so one format never reads another format's files.
 The shared `.dreamcatcher/daemon.pid` lock stays outside that root, so daemons
-using different formats still cannot run against one checkout together. The
+using different formats still cannot run against one checkout together. It is a
+strict document containing the daemon's PID and process start time. A reader
+accepts it only while both values still identify the same live process, so a PID
+that the operating system has reused does not make a dead daemon look live. The
 module should remain deliberately small. It must not contain collections of
 issues or assignments selected for work, scheduling decisions, or status
 projections.
@@ -468,11 +479,12 @@ A round record persists:
 - the durable files containing its prompt, delivered input, output, and any
   final result the harness reports.
 
-A conversation record persists its issue and title, label, chosen harness
-settings, harness session identifier and latest user retry request. The issue
-derives the managed worktree path. Each round input persists its investigated
-revision and the trusted comments accepted for delivery; the first also persists
-the issue title and body.
+A conversation record persists its issue and title, chosen route label and
+harness settings, harness session identifier and latest user retry request. The
+route and recipe remain frozen when a different configured conversation label
+later makes the issue eligible. The issue derives the managed worktree path.
+Each round input persists its investigated revision and the trusted comments
+accepted for delivery; the first also persists the issue title and body.
 
 Instance records persist the repository identity and the most recent daemon
 run's harness, Dreamcatcher version, and capacity. An instance-wide scheduler
@@ -488,8 +500,8 @@ rather than writing a lifecycle status.
 The following are derived rather than persisted as authoritative state:
 
 - whether an issue is claimed here or elsewhere;
-- whether an issue is blocked, has a routing conflict, or is available for an
-  agent assignment;
+- whether an issue is blocked, has an assignment or conversation routing
+  conflict, or is available for an agent assignment;
 - whether an assignment is complete or either kind of agent work is in fault;
 - whether an assignment requires an agent round or needs user feedback;
 - what round purpose and recovery flag are required next; and

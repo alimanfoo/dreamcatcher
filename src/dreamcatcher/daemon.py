@@ -9,7 +9,10 @@ from typing import TYPE_CHECKING
 
 from dreamcatcher import teardown
 from dreamcatcher.agent_assignments import read_agent_assignments
-from dreamcatcher.agent_rounds import record_agent_round_interruption
+from dreamcatcher.agent_rounds import (
+    record_agent_round_interruption,
+    record_agent_round_stop,
+)
 from dreamcatcher.clock import WaitForSeconds, read_current_time
 from dreamcatcher.commands import locate_program
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
@@ -155,7 +158,7 @@ class DreamcatcherDaemon:
                 # daemon could not carry on from. A round that already ended
                 # keeps the ending it recorded for itself.
                 for agent_round in self.rounds.values():
-                    agent_round.stop()
+                    agent_round.end_for_daemon_shutdown()
 
     def run_scheduler_cycle(
         self, *, scheduler: AgentWorkScheduler, at: datetime
@@ -226,7 +229,8 @@ class DreamcatcherDaemon:
     def _sweep_orphans(self) -> None:
         """Terminate and reconcile rounds left running by an earlier daemon.
 
-        A terminal record is left unchanged. Every record without an ending is
+        A terminal record is left unchanged. A record with a pending stop
+        request is marked stopped; every other record without an ending is
         marked interrupted so that a later scheduler cycle can recover it.
 
         The pid is the one the record kept, and the operating system was free
@@ -247,10 +251,16 @@ class DreamcatcherDaemon:
             for record in owner.rounds:
                 if record.ending is None:
                     teardown.end_process_tree(pid=record.pid)
-                    record_agent_round_interruption(
-                        record=record,
-                        path=owner.compose_round_paths(number=record.number).record,
-                    )
+                    paths = owner.compose_round_paths(number=record.number)
+                    if paths.stop_request.is_file():
+                        record_agent_round_stop(
+                            record=record, path=paths.record, at=self.clock()
+                        )
+                    else:
+                        record_agent_round_interruption(
+                            record=record,
+                            path=paths.record,
+                        )
 
 
 def _require_known_github_value(

@@ -1,6 +1,6 @@
 assignee = "@me"
 
-[conversation]
+[[conversation]]
 label = "dream:scout"
 [conversation.claude]
 prompt = "/dream:scout GH{issue}"

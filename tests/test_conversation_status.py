@@ -7,6 +7,7 @@ import pytest
 from clocks import PINNED
 from observations import observed_conversation
 from records import (
+    write_daemon_lock,
     write_daemon_run,
     write_feed,
     write_final_output,
@@ -18,6 +19,7 @@ from records import (
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     IssueConversationRoundPurpose,
+    StoppedAgentRoundEnding,
     compose_agent_round_ending,
 )
 from dreamcatcher.documents import read_json, write_json
@@ -211,6 +213,26 @@ def test_a_conversation_whose_comments_cannot_be_read_is_unknown(
     assert found.is_listed
 
 
+def test_a_conversation_whose_routes_cannot_be_listed_is_unknown(
+    conversation_state,
+):
+    failure = "could not list issue conversations: network unavailable"
+    observe(
+        state=conversation_state,
+        observations=[
+            observed_conversation(
+                routing_conflict=IssueFactValue.UNKNOWN,
+                routing_conflict_evidence=failure,
+            )
+        ],
+    )
+
+    found = status(state=conversation_state)
+
+    assert found.value is IssueConversationStatusValue.UNKNOWN
+    assert found.detail == failure
+
+
 def test_a_conversation_no_tick_has_observed_is_unknown(conversation_state):
     conversation_state.scheduler_record.unlink()
 
@@ -279,7 +301,7 @@ def test_an_unrecorded_round_input_shows_what_the_scheduler_reported(
 def test_a_live_round_keeps_an_ineligible_conversation_on_the_report(
     conversation_state,
 ):
-    conversation_state.lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
+    write_daemon_lock(path=conversation_state.lock)
     conversation_round(state=conversation_state, status=None)
     write_feed(
         directory=conversation_state.conversations / "GH8",
@@ -309,7 +331,7 @@ def test_a_live_round_keeps_an_ineligible_conversation_on_the_report(
 def test_a_live_conversation_that_has_said_nothing_reports_that(
     conversation_state,
 ):
-    conversation_state.lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
+    write_daemon_lock(path=conversation_state.lock)
     conversation_round(state=conversation_state, status=None)
 
     found = status(state=conversation_state)
@@ -453,6 +475,27 @@ def test_a_posted_answer_leaves_the_conversation_idle(conversation_state):
     assert found.round_statuses[0].duration_description == "ran 4m"
 
 
+def test_a_stopped_conversation_waits_for_new_comments(conversation_state):
+    directory = conversation_state.conversations / "GH8"
+    write_round(
+        directory=directory,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
+            started=PINNED,
+            pid=1,
+            ending=StoppedAgentRoundEnding(at=PINNED + timedelta(minutes=4)),
+        ),
+    )
+
+    found = status(state=conversation_state)
+
+    assert found.value is IssueConversationStatusValue.IDLE
+    assert found.detail == "round 1, stopped, ran 4m"
+    assert found.round_statuses[0].outcome_description == "stopped"
+
+
 def test_an_eligible_issue_is_a_conversation_before_its_record_exists(tmp_path):
     state = StateDirectory(root=tmp_path)
     observe(
@@ -486,6 +529,48 @@ def test_an_eligible_issue_nobody_has_commented_on_is_idle(tmp_path):
     assert found is not None
     assert found.value is IssueConversationStatusValue.IDLE
     assert found.detail == "no comments yet"
+
+
+def test_an_unsaved_conversation_with_two_routes_reports_its_conflict(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    conflict = "carries more than one conversation label: discuss, scout"
+    observe(
+        state=state,
+        observations=[
+            observed_conversation(
+                issue=9,
+                routing_conflict=IssueFactValue.TRUE,
+                routing_conflict_evidence=conflict,
+            )
+        ],
+    )
+
+    found = read_issue_conversation_status(state=state, issue=9)
+
+    assert found is not None
+    assert found.value is IssueConversationStatusValue.ROUTING_CONFLICT
+    assert found.detail == conflict
+    assert found.is_over
+
+
+def test_a_saved_conversation_with_two_routes_reports_its_conflict(
+    conversation_state,
+):
+    conflict = "carries more than one conversation label: discuss, scout"
+    observe(
+        state=conversation_state,
+        observations=[
+            observed_conversation(
+                routing_conflict=IssueFactValue.TRUE,
+                routing_conflict_evidence=conflict,
+            )
+        ],
+    )
+
+    found = status(state=conversation_state)
+
+    assert found.value is IssueConversationStatusValue.ROUTING_CONFLICT
+    assert found.detail == conflict
 
 
 def test_an_unobserved_issue_with_no_record_has_no_conversation(conversation_state):

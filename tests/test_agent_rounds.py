@@ -23,6 +23,7 @@ from conftest import (
 from fakes import Line, Stream, recorded
 from recordings import render_harness_recording
 
+import dreamcatcher.agent_rounds as agent_rounds_module
 from dreamcatcher.agent_assignments import AgentAssignmentRoundInput
 from dreamcatcher.agent_rounds import (
     AGENT_ROUND_RECORD_NAME,
@@ -38,8 +39,11 @@ from dreamcatcher.agent_rounds import (
     ErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
     IssueConversationRoundPurpose,
+    StoppedAgentRoundEnding,
     compose_agent_round_ending,
     record_agent_round_interruption,
+    record_agent_round_stop,
+    request_agent_round_stop,
     start_agent_round,
 )
 from dreamcatcher.claude import CLAUDE_ADAPTER
@@ -480,7 +484,7 @@ def test_a_round_records_its_number_purpose_recovery_and_process(
     )
     assert record.outcome is AgentRoundOutcome.RUNNING
 
-    running.stop()
+    running.interrupt()
 
 
 def test_a_round_that_finished_says_how_it_ended(fake, worktree, directory):
@@ -643,9 +647,9 @@ def test_a_round_interrupted_as_its_harness_succeeds_is_not_finished(
     finish_round = Mock()
 
     running = start_conversation_round(paths=paths, finish_round=finish_round)
-    # The race that `_interrupt` records: the harness exits cleanly just as
-    # somebody stops the round.
-    running.is_interrupted = True
+    # The race that `_end_process_tree` records: the harness exits cleanly just
+    # as the daemon stops the round.
+    running.forced_ending = InterruptedAgentRoundEnding()
     running.wait()
 
     assert written(path=paths.record).outcome is AgentRoundOutcome.INTERRUPTED
@@ -662,7 +666,7 @@ def test_a_successful_ending_refuses_a_time_without_a_zone():
         compose_agent_round_ending(at=datetime(2026, 8, 19, 18, 41, 58), status=0)
 
 
-def test_a_round_somebody_stopped_records_interruption(fake, worktree, directory):
+def test_interrupting_a_round_records_interruption(fake, worktree, directory):
     fake(program="harness").streams(
         lines=[Line(text="working\n"), Line(text="still working\n")], delay=5
     )
@@ -673,13 +677,32 @@ def test_a_round_somebody_stopped_records_interruption(fake, worktree, directory
         plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
         clock=pinned,
     )
-    running.stop()
+    running.interrupt()
 
     assert not running.is_alive
     assert written(path=running.paths.record).outcome is AgentRoundOutcome.INTERRUPTED
 
 
-def test_a_round_stopped_after_it_finished_keeps_its_ending(fake, worktree, directory):
+def test_daemon_shutdown_honours_a_pending_stop_request(fake, worktree, directory):
+    fake(program="harness").streams(
+        lines=[Line(text="working\n"), Line(text="still working\n")], delay=5
+    )
+    running = AgentRound(
+        harness=round_harness(),
+        paths=compose_round_paths(worktree=worktree, directory=directory),
+        plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
+        clock=pinned,
+    )
+    request_agent_round_stop(paths=running.paths)
+
+    running.end_for_daemon_shutdown()
+
+    assert written(path=running.paths.record).outcome is AgentRoundOutcome.STOPPED
+
+
+def test_the_daemon_stopping_a_finished_round_keeps_its_ending(
+    fake, worktree, directory
+):
     fake(program="harness").streams(lines=[Line(text="done\n")])
 
     running = AgentRound(
@@ -692,12 +715,55 @@ def test_a_round_stopped_after_it_finished_keeps_its_ending(fake, worktree, dire
 
     # The daemon stops every round it holds as it goes down, and one of them
     # can be a round that finished a moment before.
-    running.stop()
+    running.end_for_daemon_shutdown()
 
-    assert not running.is_interrupted
+    assert running.forced_ending is None
     record = written(path=running.paths.record)
     assert record.ending == compose_agent_round_ending(at=PINNED, status=0)
     assert record.outcome is AgentRoundOutcome.SUCCESSFUL
+
+
+def test_a_stop_request_stops_the_round_and_records_why(
+    fake, worktree, directory, monkeypatch
+):
+    monkeypatch.setattr(agent_rounds_module, "STOP_REQUEST_POLL_INTERVAL_SECONDS", 0.01)
+    fake(program="harness").streams(
+        lines=[Line(text="working\n"), Line(text="still working\n")], delay=5
+    )
+    running = AgentRound(
+        harness=round_harness(),
+        paths=compose_round_paths(worktree=worktree, directory=directory),
+        plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
+        clock=pinned,
+    )
+
+    request_agent_round_stop(paths=running.paths)
+    running.wait()
+
+    assert running.paths.stop_request.read_text(encoding="utf-8") == ""
+    assert not running.is_alive
+    assert not running._stop_request_watcher.is_alive()
+    assert written(path=running.paths.record).ending == StoppedAgentRoundEnding(
+        at=PINNED
+    )
+
+
+def test_the_first_reason_for_ending_a_round_wins(fake, worktree, directory):
+    fake(program="harness").streams(
+        lines=[Line(text="working\n"), Line(text="still working\n")], delay=5
+    )
+    running = AgentRound(
+        harness=round_harness(),
+        paths=compose_round_paths(worktree=worktree, directory=directory),
+        plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
+        clock=pinned,
+    )
+
+    running._end_process_tree(ending=StoppedAgentRoundEnding(at=PINNED))
+    running._end_process_tree(ending=InterruptedAgentRoundEnding())
+    running.wait()
+
+    assert written(path=running.paths.record).outcome is AgentRoundOutcome.STOPPED
 
 
 def test_a_round_that_cannot_write_its_feed_stops_rather_than_stalls(
@@ -836,7 +902,7 @@ def test_a_round_a_straggler_outlives_still_stops(worktree, directory, straggler
 
     # On its own thread, because a stop that waited on the straggler would
     # hang the suite rather than fail this test.
-    stopping = Thread(target=running.stop, daemon=True)
+    stopping = Thread(target=running.interrupt, daemon=True)
     stopping.start()
     stopping.join(30)
 
@@ -856,6 +922,22 @@ def test_recording_interruption_again_keeps_a_terminal_record(tmp_path):
     path = tmp_path / "round.json"
 
     reconciled = record_agent_round_interruption(record=record, path=path)
+
+    assert reconciled is record
+    assert not path.exists()
+
+
+def test_recording_a_stop_again_keeps_a_terminal_record(tmp_path):
+    record = AgentRoundRecord(
+        number=1,
+        purpose=PURPOSE,
+        started=PINNED,
+        pid=1,
+        ending=StoppedAgentRoundEnding(at=PINNED),
+    )
+    path = tmp_path / "round.json"
+
+    reconciled = record_agent_round_stop(record=record, path=path, at=PINNED)
 
     assert reconciled is record
     assert not path.exists()

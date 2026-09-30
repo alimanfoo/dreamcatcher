@@ -9,13 +9,14 @@ from threading import Lock
 from pydantic import AwareDatetime, Field
 
 from dreamcatcher.agent_rounds import (
+    AgentRoundOutcome,
     AgentRoundPaths,
     AgentRoundRecord,
 )
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import (
     AgentHarness,
-    IssueConversationConfig,
+    IssueConversationRoute,
     QuotableText,
 )
 from dreamcatcher.documents import DreamcatcherDocument, read_json, write_json
@@ -110,6 +111,18 @@ class IssueConversation:
         )
 
 
+def is_issue_conversation_ready_for_input(
+    *, conversation: IssueConversation | None
+) -> bool:
+    """Return whether a conversation can accept another comment batch."""
+    if conversation is None or not conversation.rounds:
+        return True
+    return conversation.rounds[-1].outcome in {
+        AgentRoundOutcome.SUCCESSFUL,
+        AgentRoundOutcome.STOPPED,
+    }
+
+
 def read_issue_conversations(*, state: StateDirectory) -> list[IssueConversation]:
     """Return every recorded issue conversation, ordered by issue."""
     if not state.conversations.is_dir():
@@ -134,7 +147,7 @@ def read_issue_conversation(
 def create_issue_conversation(
     *,
     state: StateDirectory,
-    config: IssueConversationConfig,
+    route: IssueConversationRoute,
     requested_harness: AgentHarness,
     issue: Issue,
 ) -> IssueConversation:
@@ -152,12 +165,12 @@ def create_issue_conversation(
         )
     add_detached_worktree(root=state.root, path=worktree)
     try:
-        selected_harness = config.choose_harness(requested_harness=requested_harness)
-        recipe = config.recipes[selected_harness]
+        selected_harness = route.choose_harness(requested_harness=requested_harness)
+        recipe = route.recipes[selected_harness]
         record = IssueConversationRecord(
             issue=issue.number,
             title=issue.title,
-            label=config.label,
+            label=route.label,
             harness=selected_harness,
             model=recipe.model,
             effort=recipe.effort,

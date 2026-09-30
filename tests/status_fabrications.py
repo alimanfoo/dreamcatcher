@@ -9,6 +9,7 @@ from observations import observed_conversation, observed_issue
 from records import (
     AssignmentReporting,
     write_agent_assignment,
+    write_daemon_lock,
     write_daemon_run,
     write_feed,
     write_final_output,
@@ -179,7 +180,7 @@ def holding(*, state):
     configure(root=state.root)
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
     write_daemon_run(state=state, pid=DAEMON_PID)
-    write_text(text=f"{DAEMON_PID}\n", path=state.lock)
+    write_daemon_lock(path=state.lock, pid=DAEMON_PID, process_started_at=PINNED)
 
 
 def fabricate_nothing(*, state):

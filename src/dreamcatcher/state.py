@@ -40,7 +40,7 @@ class StateDirectory:
 
     @property
     def lock(self) -> Path:
-        """The file the running daemon writes its pid to."""
+        """The document that identifies the process holding the daemon lock."""
         return self.path.parent / "daemon.pid"
 
     @property

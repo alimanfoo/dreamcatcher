@@ -33,6 +33,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     ErroredAgentRoundEnding,
     IssueConversationRoundPurpose,
+    request_agent_round_stop,
 )
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.daemon import DreamcatcherDaemon
@@ -44,6 +45,7 @@ from dreamcatcher.issue_conversations import (
     NO_REPLY,
     IssueConversationInput,
     read_issue_conversation,
+    record_issue_conversation_session_identifier,
 )
 from dreamcatcher.prompts import (
     AGENT_POST_MARKER,
@@ -59,7 +61,7 @@ from dreamcatcher.scheduler import (
 )
 from dreamcatcher.state import StateDirectory
 
-CONVERSATION_CONFIG = """[conversation]
+CONVERSATION_CONFIG = """[[conversation]]
 label = "dream:conversation"
 
 [conversation.claude]
@@ -76,6 +78,15 @@ model = "gpt-5.6-sol"
 effort = "xhigh"
 """
 )
+SECOND_CONVERSATION_CONFIG = """
+[[conversation]]
+label = "dream:scout"
+
+[conversation.claude]
+prompt = "/dream:scout GH{issue}"
+model = "opus[1m]"
+effort = "high"
+"""
 COMMENT_PATH = f"api repos/{REPOSITORY}/issues/8/comments?per_page=100"
 POST_PATH = f"api repos/{REPOSITORY}/issues/8/comments --method POST"
 ASKED = "2026-09-23T01:00:00Z"
@@ -97,7 +108,7 @@ def conversation_scheduler(cloned, gh):
     )
     yield scheduler, clock, gh
     for running in scheduler.rounds.values():
-        running.stop()
+        running.interrupt()
 
 
 @pytest.fixture
@@ -116,40 +127,47 @@ def codex_conversation_scheduler(cloned, gh):
     )
     yield scheduler, clock, gh
     for running in scheduler.rounds.values():
-        running.stop()
+        running.interrupt()
+
+
+def conversation_listing(
+    *,
+    labels: tuple[str, ...],
+    title: str = "Why does this happen?",
+    body: str = "Explain the scheduler.",
+) -> str:
+    """Return GitHub's listing for one assigned conversation issue."""
+    return json.dumps(
+        [
+            {
+                "number": 8,
+                "title": title,
+                "body": body,
+                "createdAt": "2026-09-22T01:00:00Z",
+                "state": "OPEN",
+                "assignees": [{"login": POSTED_BY}],
+                "labels": [{"name": name} for name in labels],
+            }
+        ]
+    )
 
 
 def offer_conversation(
     *,
     gh,
     comments: list[dict],
-    issue: int = 8,
+    label: str = "dream:conversation",
     title: str = "Why does this happen?",
     body: str = "Explain the scheduler.",
 ) -> None:
     """Have GitHub offer one assigned conversation issue and its comments."""
     gh.replies(
-        stdout=json.dumps(
-            [
-                {
-                    "number": issue,
-                    "title": title,
-                    "body": body,
-                    "createdAt": "2026-09-22T01:00:00Z",
-                    "state": "OPEN",
-                    "assignees": [{"login": POSTED_BY}],
-                    "labels": [{"name": "dream:conversation"}],
-                }
-            ]
-        ),
-        to=(
-            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
-            "--label dream:conversation"
-        ),
+        stdout=conversation_listing(labels=(label,), title=title, body=body),
+        to=(f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} --label {label}"),
     )
     gh.replies(
         stdout=pages(items=comments),
-        to=f"api repos/{REPOSITORY}/issues/{issue}/comments?per_page=100",
+        to=f"api repos/{REPOSITORY}/issues/8/comments?per_page=100",
     )
 
 
@@ -346,6 +364,125 @@ def test_an_initial_conversation_freezes_input_runs_claude_and_publishes_once(
         f"The scheduler waits for work.\n\n> written by an agent\n\n{AGENT_POST_MARKER}"
     )
     assert not any(call.arguments[:2] == ["pr", "create"] for call in gh.calls)
+
+
+def test_each_conversation_label_selects_its_own_route(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    configure(
+        root=scheduler.state.root,
+        head=CONVERSATION_CONFIG + SECOND_CONVERSATION_CONFIG,
+    )
+    scheduler.config = read_dreamcatcher_config(root=scheduler.state.root)
+    gh.replies(
+        stdout="[]",
+        to=(
+            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
+            "--label dream:conversation"
+        ),
+    )
+    offer_conversation(gh=gh, comments=[ask()], label="dream:scout")
+    answer(harnesses=harnesses)
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.launched_conversation_identifier == "conversation-GH8"
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    assert conversation.record.label == "dream:scout"
+    assert conversation.record.prompt == "/dream:scout GH{issue}"
+    assert conversation.record.effort == "high"
+
+
+def test_an_issue_with_two_conversation_labels_has_a_routing_conflict(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    configure(
+        root=scheduler.state.root,
+        head=CONVERSATION_CONFIG + SECOND_CONVERSATION_CONFIG,
+    )
+    scheduler.config = read_dreamcatcher_config(root=scheduler.state.root)
+    listing = conversation_listing(labels=("dream:conversation", "dream:scout"))
+    gh.replies(
+        stdout=listing,
+        to=(
+            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
+            "--label dream:conversation"
+        ),
+    )
+    gh.replies(
+        stdout=listing,
+        to=(
+            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} --label dream:scout"
+        ),
+    )
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.launched_conversation_identifier is None
+    assert observed.conversation_observations == [
+        IssueConversationObservation(
+            issue=8,
+            title="Why does this happen?",
+            has_comments_to_answer=IssueFact(
+                value=IssueFactValue.FALSE,
+                evidence="no comments to answer",
+            ),
+            routing_conflict=IssueFact(
+                value=IssueFactValue.TRUE,
+                evidence=(
+                    "carries more than one conversation label: "
+                    "dream:conversation, dream:scout"
+                ),
+            ),
+        )
+    ]
+    assert count_comment_reads(gh=gh) == 0
+    assert read_issue_conversation(state=scheduler.state, issue=8) is None
+    assert harnesses["claude"].calls == []
+
+
+def test_route_matching_uses_the_latest_issue_labels(conversation_scheduler):
+    scheduler, clock, gh = conversation_scheduler
+    configure(
+        root=scheduler.state.root,
+        head=CONVERSATION_CONFIG + SECOND_CONVERSATION_CONFIG,
+    )
+    scheduler.config = read_dreamcatcher_config(root=scheduler.state.root)
+    gh.replies(
+        stdout=conversation_listing(labels=("dream:conversation", "dream:scout")),
+        to=(
+            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
+            "--label dream:conversation"
+        ),
+    )
+    offer_conversation(gh=gh, comments=[], label="dream:scout")
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.conversation_observations[0].routing_conflict == IssueFact(
+        value=IssueFactValue.FALSE,
+        evidence="has no conversation routing conflict",
+    )
+    assert count_comment_reads(gh=gh) == 1
+
+
+def test_a_listed_issue_with_no_current_route_is_inactive(conversation_scheduler):
+    scheduler, clock, gh = conversation_scheduler
+    gh.replies(
+        stdout=conversation_listing(labels=("maintenance",)),
+        to=(
+            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
+            "--label dream:conversation"
+        ),
+    )
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.conversation_observations == []
+    assert count_comment_reads(gh=gh) == 0
 
 
 def test_codex_first_and_resumed_rounds_capture_and_publish_final_messages(
@@ -549,6 +686,48 @@ def test_a_follow_up_resumes_the_session_with_only_new_comments(
     assert "/dream:conversation" not in resumed.prompt
     assert (
         len([call for call in gh.calls if call.arguments[:4] == POST_PATH.split()]) == 2
+    )
+
+
+def test_a_stopped_conversation_waits_for_new_feedback(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    offer_conversation(gh=gh, comments=[ask()])
+    answer(harnesses=harnesses, body="This answer must not be posted.", delay=5)
+    scheduler.tick(at=clock())
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    record_issue_conversation_session_identifier(
+        conversation=conversation, identifier="conversation-session"
+    )
+    request_agent_round_stop(paths=conversation.compose_round_paths(number=1))
+    finish(scheduler=scheduler)
+
+    scheduler.tick(at=clock())
+
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    assert conversation.rounds[0].outcome is AgentRoundOutcome.STOPPED
+    assert not any(call.arguments[:4] == POST_PATH.split() for call in gh.calls)
+
+    offer_conversation(
+        gh=gh,
+        comments=[ask(), ask(identifier=2, body="Take a different direction.")],
+    )
+    answer(harnesses=harnesses, body="The revised answer.")
+
+    launched = scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+
+    conversation = read_issue_conversation(state=scheduler.state, issue=8)
+    assert conversation is not None
+    assert launched.launched_conversation_identifier == "conversation-GH8"
+    assert not conversation.rounds[1].is_recovery
+    assert (
+        harnesses["claude"]
+        .calls[1]
+        .prompt.startswith("The user stopped your previous round")
     )
 
 
@@ -1294,8 +1473,45 @@ def test_a_failed_conversation_listing_holds_launches(conversation_scheduler):
                 value=IssueFactValue.UNKNOWN,
                 evidence=observed.hold,
             ),
+            routing_conflict=IssueFact(
+                value=IssueFactValue.UNKNOWN,
+                evidence=observed.hold,
+            ),
         )
     ]
+
+
+def test_a_failed_route_listing_still_refreshes_healthy_routes(
+    conversation_scheduler,
+):
+    scheduler, clock, gh = conversation_scheduler
+    configure(
+        root=scheduler.state.root,
+        head=CONVERSATION_CONFIG + SECOND_CONVERSATION_CONFIG,
+    )
+    scheduler.config = read_dreamcatcher_config(root=scheduler.state.root)
+    gh.fails(
+        stderr="network unavailable",
+        to=(
+            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
+            "--label dream:conversation"
+        ),
+    )
+    offer_conversation(gh=gh, comments=[ask()], label="dream:scout")
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.hold is not None
+    assert "could not list issue conversations for dream:conversation" in observed.hold
+    assert [
+        observation.issue for observation in observed.conversation_observations
+    ] == [8]
+    assert observed.conversation_observations[0].has_comments_to_answer == IssueFact(
+        value=IssueFactValue.TRUE,
+        evidence="1 comment to answer",
+    )
+    assert observed.launched_conversation_identifier is None
+    assert count_comment_reads(gh=gh) == 1
 
 
 def test_failed_listing_keeps_visible_conversation_faults_in_the_cooldown(
@@ -1481,7 +1697,7 @@ def test_removing_conversation_configuration_makes_saved_work_inactive(
 ):
     scheduler, clock, _ = conversation_scheduler
     write_issue_conversation(state=scheduler.state, issue=8)
-    scheduler.config = scheduler.config.model_copy(update={"conversation": None})
+    scheduler.config = scheduler.config.model_copy(update={"conversation": []})
 
     observed = scheduler.tick(at=clock())
 

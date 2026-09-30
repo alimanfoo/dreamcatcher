@@ -88,8 +88,10 @@ def observed_conversation(
     issue: int = 8,
     value: IssueFactValue = IssueFactValue.FALSE,
     evidence: str | None = None,
+    routing_conflict: IssueFactValue = IssueFactValue.FALSE,
+    routing_conflict_evidence: str | None = None,
 ) -> IssueConversationObservation:
-    """Return what a tick found at an eligible conversation issue.
+    """Return what a tick found at a matching conversation issue.
 
     The title matches the one `records.write_issue_conversation` saves.
     """
@@ -100,5 +102,10 @@ def observed_conversation(
             value=value,
             evidence=evidence,
             name="whether comments wait to be answered",
+        ),
+        routing_conflict=_observed_issue_fact(
+            value=routing_conflict,
+            evidence=routing_conflict_evidence,
+            name="whether the issue has a conversation routing conflict",
         ),
     )
