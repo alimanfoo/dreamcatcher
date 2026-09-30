@@ -12,8 +12,8 @@ matter of taste.
 
 ## The aim
 
-Dreamcatcher aims to be as simple, clear and consistent as the finest open
-source projects. Those three words carry a precise meaning here.
+Dreamcatcher aims to be as simple, clear, consistent and elegant as the finest
+open source projects. Those four words carry a precise meaning here.
 
 - **Simple** means there is no more of it than the job needs. Each part is small
   enough to hold in mind, and each thing is done one way.
@@ -21,6 +21,8 @@ source projects. Those three words carry a precise meaning here.
   from its name, read it in one sitting, and be told nothing twice.
 - **Consistent** means the same idea looks the same everywhere it appears, and
   every rule we state is a rule a machine checks.
+- **Elegant** means special cases dissolve into general rules, so that nothing
+  in the code is arbitrary and nothing could be taken away.
 
 The rest of this document turns each word into criteria that can be measured.
 
@@ -34,8 +36,8 @@ can be traced to a project that has already met it.
   mechanically enforced full coverage, with nothing added that no need called
   for. It sets the bar for module size, public surface and the test suite.
 - **Trio.** Few concepts that compose, a design document that stays
-  authoritative, and naming treated as design. It sets the bar for vocabulary
-  and for the enduring documents.
+  authoritative, and naming treated as design. It sets the bar for elegance, for
+  vocabulary and for the enduring documents.
 - **attrs and structlog.** Keyword-only APIs, a philosophy page that says why,
   and a changelog with a stated deprecation policy. They set the bar for API
   design and release practice.
@@ -46,8 +48,8 @@ can be traced to a project that has already met it.
   published account of how the project is tested. It sets the bar for the state
   format, the contract and the account of testing.
 
-pre-commit and Trio are primary. Between them they cover structure and
-conceptual clarity, which is where the greatest distance lies.
+pre-commit and Trio are primary. Between them they cover structure, clarity and
+elegance, which is where the greatest distance lies.
 
 ## Criteria
 
@@ -163,6 +165,50 @@ mechanical, and making it mechanical is itself work this standard calls for.
 - Bar: all of them.
 - Check: the pull request template.
 
+### Elegance
+
+These criteria rest more on review than the others, and an objection under them
+must name the question that fails and show the evidence. Elegance is not a word
+for "I would have done it differently".
+
+**E1. Rules, not cases.**
+
+- Measure: conditionals whose condition names a particular situation rather than
+  applies a general rule, and the ledger in `docs/special-cases.md` that lists
+  each one with its cause.
+- Bar: every such conditional is on the ledger, and every entry has an external
+  cause, such as a GitHub quirk or a Windows behaviour. Nothing on the ledger
+  exists because of a choice this project made.
+- Check: review, asking of each new branch whether it would go if a rule were
+  stated more generally.
+
+**E2. Invariants held by construction.**
+
+- Measure: branches, raises and asserts that defend against a state the types
+  could have made unrepresentable, such as two optional fields that must be both
+  present or both absent.
+- Bar: zero. Where two facts must agree, one type carries both, as the round
+  ending classes carry outcome, time and exit status together.
+- Check: review, and a count that each phase records.
+
+**E3. Concept economy.**
+
+- Measure: the change to the ontology in each pull request, against the case its
+  spec makes.
+- Bar: a feature adds a concept only when the spec shows that the existing
+  concepts cannot compose to it. Removing a concept needs no case.
+- Check: spec review.
+
+**E4. Symmetry.**
+
+- Measure: for concepts the ontology treats as parallel, such as the two kinds
+  of agent work, the operations that exist for one kind and not the other, or
+  exist twice.
+- Bar: parallel concepts have parallel operations with parallel names, and share
+  code where the ontology says they are the same. An asymmetry stands only where
+  the ontology names the difference.
+- Check: review, reading the namespace map.
+
 ## Definition of done
 
 A pull request is done when its author can say yes to each of these.
@@ -175,13 +221,16 @@ A pull request is done when its author can say yes to each of these.
    change.
 5. Any enduring document it makes false, it corrects.
 6. It removes what it replaces.
+7. Every conditional it adds applies a rule, or is on the ledger with its
+   external cause.
 
 ## Exceptions
 
 A criterion may be waived for one place, never in general. The waiver is written
 where the check will read it: a name in the permitted list of the test that
 enforces S2, a per-file rule in `pyproject.toml` for K1, a pragma with its
-reason for S5. A waiver with no reason a reader can find is a violation.
+reason for S5, an entry on the ledger for E1. A waiver with no reason a reader
+can find is a violation.
 
 ## Measurement
 

@@ -21,21 +21,25 @@ documentation is one long page. Those are the gaps this path closes.
 
 Measured on `main` at `b4ac40a`.
 
-| Criterion                              | Measured                     | Bar                      | Status     |
-| -------------------------------------- | ---------------------------- | ------------------------ | ---------- |
-| S1 Modules are small                   | 7 files over 600 lines       | none                     | short      |
-| S2 Functions fit on a screen           | 22 functions over 50 lines   | none unless named        | short      |
-| S3 Exports are used                    | 57 names without an importer | each of a permitted kind | unmeasured |
-| S4 Each thing is done one way          | 2 duplicates found           | none                     | short      |
-| S5 Nothing is suppressed               | 0 `noqa`, 0 `type: ignore`   | 0, 0                     | met        |
-| C1 One vocabulary                      | 5 open disagreements         | none                     | short      |
-| C2 Enduring documents are true         | 1 contradiction              | none                     | short      |
-| C3 Documentation by purpose            | 1 page of 293 lines          | 4 kinds of page          | short      |
-| C4 Formats and contracts are versioned | neither versioned            | both                     | short      |
-| K1 Structural rules checked by machine | 1 of 4 import rules          | all                      | short      |
-| K2 Suite is fast and speaks plainly    | 178 seconds                  | under 60                 | short      |
-| K3 Tracker is current                  | 6 issues in retired words    | none                     | short      |
-| K4 Every change reviewed to standard   | no template                  | template                 | short      |
+| Criterion                              | Measured                        | Bar                      | Status     |
+| -------------------------------------- | ------------------------------- | ------------------------ | ---------- |
+| S1 Modules are small                   | 7 files over 600 lines          | none                     | short      |
+| S2 Functions fit on a screen           | 22 functions over 50 lines      | none unless named        | short      |
+| S3 Exports are used                    | 57 names without an importer    | each of a permitted kind | unmeasured |
+| S4 Each thing is done one way          | 2 duplicates found              | none                     | short      |
+| S5 Nothing is suppressed               | 0 `noqa`, 0 `type: ignore`      | 0, 0                     | met        |
+| C1 One vocabulary                      | 5 open disagreements            | none                     | short      |
+| C2 Enduring documents are true         | 1 contradiction                 | none                     | short      |
+| C3 Documentation by purpose            | 1 page of 293 lines             | 4 kinds of page          | short      |
+| C4 Formats and contracts are versioned | neither versioned               | both                     | short      |
+| K1 Structural rules checked by machine | 1 of 4 import rules             | all                      | short      |
+| K2 Suite is fast and speaks plainly    | 178 seconds                     | under 60                 | short      |
+| K3 Tracker is current                  | 6 issues in retired words       | none                     | short      |
+| K4 Every change reviewed to standard   | no template                     | template                 | short      |
+| E1 Rules, not cases                    | no ledger                       | ledger, external causes  | unmeasured |
+| E2 Invariants by construction          | 0 found; 53 optionals unaudited | 0                        | unmeasured |
+| E3 Concept economy                     | 21 concepts, no rule            | rule applied per change  | short      |
+| E4 Symmetry                            | 12 against 9 in the scheduler   | parallel or named        | short      |
 
 The evidence behind each row:
 
@@ -66,6 +70,23 @@ The evidence behind each row:
   processes. Names already read as behaviours.
 - **K3.** 39 issues open. Six use retired words: 67, 105, 109, 118, 125, 130.
 - **K4.** There is no pull request template.
+- **E1.** There is no ledger, so the count of special cases is unknown. A search
+  finds two branches with an external cause already: each harness adapter
+  refuses a session identifier that its JSON did not give as text.
+- **E2.** A search for branches that defend an impossible state finds none. The
+  records under `agent_rounds`, `agent_assignments`, `issue_conversations` and
+  `scheduler` hold 53 optional fields whose pairing has not been audited, so the
+  count is unmeasured rather than met.
+- **E3.** The ontology defines 21 concepts. No rule yet asks a change to justify
+  a new one.
+- **E4.** The scheduler names 12 symbols for issue conversations and 9 for agent
+  assignments, and the shapes differ: conversations have a candidate, a
+  candidate result, a recovery candidate, a new-round candidate and a prepared
+  round, where assignments have a candidate, an inspection result and a required
+  round. Assignment inspection is public and conversation inspection private.
+  The read operations differ too: `find_harness_session_identifier` beside
+  `find_issue_conversation_harness_session_identifier`, and
+  `find_open_agent_assignments_by_issue` with no conversation counterpart.
 
 Two measures need care when they are read again.
 
@@ -121,6 +142,10 @@ Work, one pull request per module, largest first:
   candidates and required rounds; conversation candidates and recovery; the tick
   that alternates and launches. The package keeps one public face so the daemon,
   status and CLI import what they import today.
+- The split heals the asymmetry E4 records rather than preserving it. Where the
+  two kinds of agent work are candidates, are inspected, are recovered and are
+  launched alike, they get one shape and parallel names. Where the ontology says
+  they differ, the difference is named in the code.
 - `web` divides along Flask's own lines: the app and routes, the view models,
   the feed tail, and the server. Templates and static files stay where they are.
 - `status` and `tui` are asked the same question. Each likely divides by the
@@ -148,8 +173,13 @@ Work:
   such as a module convention for view models, so the count becomes a bar.
 - Remove the two S4 duplicates found in the baseline, and any others the review
   turns up. The word for a status lives in `status`; a presentation shows it.
+- Start the ledger at `docs/special-cases.md`. Walk every conditional that names
+  a situation, enter it with its cause, and delete or generalise any whose cause
+  is internal.
+- Audit the 53 optional fields for pairs that must agree, and give each pair one
+  type. Record the E2 count.
 
-Check: S3, S4 and C1 met.
+Check: S3, S4, C1, E1 and E2 met, and E4 measured again after stage 2.
 
 ## Stage 4: Reshape the documentation
 
@@ -199,8 +229,10 @@ Work:
 - Triage the 39 open issues against the ontology. Rewrite the six that use
   retired words or close them with the reason. Repeat at each phase boundary.
 - Add the consistency review to the checklist for closing a phase.
+- Add the E3 question to the spec review: does this phase add a concept, and
+  does its spec show the existing ones cannot compose to it?
 
-Check: K3 and K4 met.
+Check: K3, K4 and E3 met.
 
 ## Completion
 
