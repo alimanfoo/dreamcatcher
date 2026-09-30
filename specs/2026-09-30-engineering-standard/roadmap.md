@@ -126,10 +126,10 @@ Work:
   no domain module.
 - Move `AgentRoundReader` out of `state`, closing issue 183, so that test
   passes.
-- Add the tests for S1 and S2 with today's offenders listed as permitted, so the
-  list can only shrink.
+- Keep the measurement script for S1 and S2 in the spec folder, so the next
+  phase reads the same numbers the same way. It is a measurement, not a hook.
 
-Check: K1 met. S1 and S2 measurable on every commit.
+Check: K1 met.
 
 ## Stage 2: Reduce concentration
 
@@ -155,8 +155,6 @@ Work, one pull request per module, largest first:
   is reviewed for a seam before it is split, and a file that has one concept and
   650 lines earns a named exception rather than a split.
 
-As each module is split, its permitted entries in the S1 and S2 tests come out.
-
 Check: S1 met. S2 met except for the named functions.
 
 ## Stage 3: Trim the surface and settle the words
@@ -169,8 +167,7 @@ Work:
 - Run the consistency review over source, documents and output. Close issues
   315, 317, 318, 322 and 324 as part of resolving what it reports.
 - For each of the 57 exported names, decide which of the three permitted kinds
-  it is or make it private. Give the S3 check a way to tell the kinds apart,
-  such as a module convention for view models, so the count becomes a bar.
+  it is or make it private. Record the count that remains and what each is.
 - Remove the two S4 duplicates found in the baseline, and any others the review
   turns up. The word for a status lives in `status`; a presentation shows it.
 - Start the ledger at `docs/special-cases.md`. Walk every conditional that names

@@ -20,7 +20,7 @@ open source projects. Those four words carry a precise meaning here.
 - **Clear** means a reader who knows the domain can find the code for a concept
   from its name, read it in one sitting, and be told nothing twice.
 - **Consistent** means the same idea looks the same everywhere it appears, and
-  every rule we state is a rule a machine checks.
+  every rule we state is one a reader can check.
 - **Elegant** means special cases dissolve into general rules, so that nothing
   in the code is arbitrary and nothing could be taken away.
 
@@ -55,8 +55,12 @@ elegance, which is where the greatest distance lies.
 
 Each criterion has a **measure**, which says what number or fact we read; a
 **bar**, which says what value passes; and a **check**, which says what enforces
-it. A criterion whose check is "review" is a criterion we have not yet made
-mechanical, and making it mechanical is itself work this standard calls for.
+it. The check is a machine where a machine can tell cheaply and without false
+alarms, and a reviewer everywhere else. Review is a check in its own right, not
+a gap waiting for a tool. A mechanical check is code, so it meets this standard
+like any other code, and it earns its place only when a criterion has failed in
+review more than once and the check would be small and exact. Adding checks is
+not progress towards the standard. Meeting the criteria is.
 
 ### Simplicity
 
@@ -65,14 +69,14 @@ mechanical, and making it mechanical is itself work this standard calls for.
 - Measure: lines in each file under `src/dreamcatcher`.
 - Bar: no file exceeds 600 lines. A responsibility that needs more becomes a
   package whose files each hold one concept from the ontology.
-- Check: a test over the source tree.
+- Check: the phase measurement, and review of any file a change grows.
 
 **S2. Functions fit on a screen.**
 
 - Measure: lines in each function.
 - Bar: no function exceeds 50 lines, except those the architecture names and
   explains, such as the scheduler tick when it reads as the listed steps.
-- Check: a test over the source tree, with the permitted names listed in it.
+- Check: the phase measurement, and review of any function a change grows.
 
 **S3. Exports are used.**
 
@@ -81,7 +85,7 @@ mechanical, and making it mechanical is itself work this standard calls for.
 - Bar: every such name is a document model, a view model a template consumes, or
   part of an interface the architecture names. Nothing is public because a test
   wanted it.
-- Check: review, until a test can tell the permitted kinds apart.
+- Check: review.
 
 **S4. Each thing is done one way.**
 
@@ -227,10 +231,9 @@ A pull request is done when its author can say yes to each of these.
 ## Exceptions
 
 A criterion may be waived for one place, never in general. The waiver is written
-where the check will read it: a name in the permitted list of the test that
-enforces S2, a per-file rule in `pyproject.toml` for K1, a pragma with its
-reason for S5, an entry on the ledger for E1. A waiver with no reason a reader
-can find is a violation.
+where the check will read it: a sentence in the architecture for S2, a per-file
+rule in `pyproject.toml` for K1, a pragma with its reason for S5, an entry on
+the ledger for E1. A waiver with no reason a reader can find is a violation.
 
 ## Measurement
 
