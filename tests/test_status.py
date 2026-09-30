@@ -438,16 +438,16 @@ def test_an_assignment_with_no_scheduler_observation_is_unknown(state):
     assert status.detail == "no current scheduler observation"
 
 
-@pytest.mark.parametrize("launched_agent_work_identifier", [None, ASSIGNMENT_ID])
+@pytest.mark.parametrize("launched_agent_work_identifiers", [[], [ASSIGNMENT_ID]])
 def test_a_round_ending_after_the_latest_tick_waits_for_the_next_update(
-    state, launched_agent_work_identifier
+    state, launched_agent_work_identifiers
 ):
     ran(state=state, number=1, ended_at=LOOKED_AT + timedelta(minutes=1))
     write_tick(
         state=state,
         tick=SchedulerRecord(
             at=LOOKED_AT,
-            launched_agent_work_identifier=launched_agent_work_identifier,
+            launched_agent_work_identifiers=launched_agent_work_identifiers,
         ),
     )
 
@@ -464,7 +464,7 @@ def test_a_tick_at_or_after_the_latest_ending_needs_an_observation(state, ended_
         state=state,
         tick=SchedulerRecord(
             at=LOOKED_AT,
-            launched_agent_work_identifier=ASSIGNMENT_ID,
+            launched_agent_work_identifiers=[ASSIGNMENT_ID],
         ),
     )
 
@@ -557,7 +557,7 @@ def test_two_current_errors_put_an_assignment_in_fault(state):
     assert status.value is AgentAssignmentStatusValue.FAULT
     assert status.detail == (
         "two consecutive rounds failed "
-        f"(.dreamcatcher/v3/assignments/{ASSIGNMENT_ID}/rounds/2/feed.txt)"
+        f"(.dreamcatcher/v4/assignments/{ASSIGNMENT_ID}/rounds/2/feed.txt)"
     )
 
 

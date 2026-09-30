@@ -184,9 +184,11 @@ class DreamcatcherDaemon:
             )
             return
         write_json(document=scheduler_record, path=self.state.scheduler_record)
-        if scheduler_record.launched_agent_work_identifier is not None:
+        launched_identifiers = scheduler_record.launched_agent_work_identifiers
+        if launched_identifiers:
+            round_noun = "round" if len(launched_identifiers) == 1 else "rounds"
             outcome_description = (
-                f"launched round for {scheduler_record.launched_agent_work_identifier}"
+                f"launched {round_noun} for {', '.join(launched_identifiers)}"
             )
             if scheduler_record.hold is not None:
                 hold_description = " ".join(scheduler_record.hold.split())

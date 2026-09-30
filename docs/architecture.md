@@ -56,7 +56,8 @@ One scheduler tick:
    the oldest waiting fresh comment;
 6. alternates between the two kinds when both have candidates, without changing
    either kind's internal order;
-7. performs at most one scheduling action; and
+7. performs scheduling actions until capacity is full or no candidate remains;
+   and
 8. returns a `SchedulerRecord` for operational reporting.
 
 The daemon persists the returned `SchedulerRecord` and reports it in its output.
@@ -69,6 +70,10 @@ launches in the workflow that depends on those facts. An assignment issue read
 does not prevent an issue conversation from starting, and a conversation issue
 read does not prevent assignment work from starting. A later tick retries the
 failed read.
+
+If a launch fails, the tick keeps every round that it already started and
+records the failure as its hold. It starts no lower-priority candidate of the
+same kind during that tick, but it may still start ready work of the other kind.
 
 The scheduler uses two distinct lower-level operations: creating an agent
 assignment and starting an agent round. When it selects an available issue, it
@@ -347,14 +352,14 @@ observations and marks each fact unknown.
 
 An `IssueConversationStatus` is one summary status from the ontology.
 
-The scheduler record also names the assignment or conversation whose round the
-tick launched. Alternation advances when a kind is selected, including when its
-start fails, and begins afresh after a daemon restart. A launched assignment has
-no observation in the same record. If the latest successful round ends after a
-scheduler record that has no observation for its assignment, status reports that
-the assignment is waiting for the next update. An ending that predates the
-record should already have been observed, so its unexplained absence remains
-unknown.
+The scheduler record also names every assignment or conversation whose round the
+tick launched, in launch order. Alternation advances when a kind is selected,
+including when its start fails, and begins afresh after a daemon restart. Each
+launched assignment has no observation in the same record. If the latest
+successful round ends after a scheduler record that has no observation for its
+assignment, status reports that the assignment is waiting for the next update.
+An ending that predates the record should already have been observed, so its
+unexplained absence remains unknown.
 
 ### TUI
 
@@ -400,7 +405,7 @@ conflict, and none as outside that workflow.
 
 `state.py` owns the paths within `.dreamcatcher/` and the mechanics required to
 bootstrap that directory. A state-format constant selects the versioned root,
-currently `.dreamcatcher/v3/`, so one format never reads another format's files.
+currently `.dreamcatcher/v4/`, so one format never reads another format's files.
 The shared `.dreamcatcher/daemon.pid` lock stays outside that root, so daemons
 using different formats still cannot run against one checkout together. It is a
 strict document containing the daemon's PID and process start time. A reader

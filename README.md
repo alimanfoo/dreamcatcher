@@ -112,13 +112,14 @@ For example, run every 30 seconds and allow four agents at once:
 dreamcatcher run --harness claude --interval 30 --max-agents 4
 ```
 
-The daemon runs one scheduler tick per interval and launches at most one round.
-An issue is dispatched when it carries exactly one dispatch label, is assigned
-to `assignee`, has no assignment here already, has no open pull request GitHub
-links to it, and has no open issue blocking it. The oldest such issue goes
-first. A dispatch cuts a branch and a worktree under `.dreamcatcher/`, makes and
-pushes an empty commit, and opens a linked draft pull request before it runs the
-assignment's first round there.
+The daemon runs one scheduler tick per interval and starts rounds until the
+agent cap is full, no ready work remains, or a launch failure stops that kind
+until the next tick. An issue is dispatched when it carries exactly one dispatch
+label, is assigned to `assignee`, has no assignment here already, has no open
+pull request GitHub links to it, and has no open issue blocking it. The oldest
+such issue goes first. A dispatch cuts a branch and a worktree under
+`.dreamcatcher/`, makes and pushes an empty commit, and opens a linked draft
+pull request before it runs the assignment's first round there.
 
 Assignment setup is recoverable. If Dreamcatcher stops after making the
 worktree, commit, remote branch, or pull request, the next dispatch attempt
@@ -128,24 +129,24 @@ recorded assignment keeps its branch and pull request, and the next tick tries
 that first round again before it schedules ordinary work.
 
 The daemon lock lives at `.dreamcatcher/daemon.pid`, where every state format
-shares it. All format-specific state lives under `.dreamcatcher/v3/` in the
+shares it. All format-specific state lives under `.dreamcatcher/v4/` in the
 checkout. The top-level directory ignores itself, so git never sees any of this
 state. `scheduler.json` in the versioned root says what the most recent
-completed scheduler tick observed and decided, including what the daemon did not
-do and why. It also preserves any active global cooldown and the end of the most
-recent one. A scheduler tick that cannot complete reports its failure in the
-daemon output and leaves that last complete record in place.
+completed scheduler tick observed and decided, including every round that it
+started in launch order and what the daemon could not do. It also preserves any
+active global cooldown and the end of the most recent one. A scheduler tick that
+cannot complete reports its failure in the daemon output and leaves that last
+complete record in place.
 
-This is an intentional format break. Version 3 does not migrate assignments from
-an earlier format and starts with empty local state. Stop the daemon and upgrade
-between dispatch batches, when no assignment needs another round.
+This is an intentional format break. Version 4 starts with empty local state.
+Stop the daemon and upgrade only when no saved agent work needs preserving.
 
 Open assignments go before new assignments. A round that did not finish is
 recovered, a merged or closed pull request gets a wrap-up round, and a pull
 request you have posted on gets a round that addresses your feedback. Issue
 conversation recovery goes before new conversation comments. When assignment
 work and an issue conversation are both ready, the daemon alternates which kind
-receives the next free agent slot.
+receives each free agent slot.
 
 With one or more `[[conversation]]` entries configured, the daemon also watches
 assigned open issues carrying exactly one matching label. The issue title and

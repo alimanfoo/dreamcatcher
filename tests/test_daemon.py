@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 from collections.abc import Sequence
@@ -227,7 +228,7 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
     )
     scheduler_record = SchedulerRecord(
         at=PINNED,
-        launched_agent_work_identifier=ASSIGNMENT_ID,
+        launched_agent_work_identifiers=[ASSIGNMENT_ID],
         assignment_observations=[
             AgentAssignmentObservation(
                 assignment_identifier=ASSIGNMENT_ID,
@@ -247,7 +248,9 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
 
     assert recorded(daemon=daemon) == scheduler_record
     written_record = daemon.state.scheduler_record.read_text(encoding="utf-8")
-    assert f'"launched_agent_work_identifier": "{ASSIGNMENT_ID}"' in written_record
+    assert json.loads(written_record)["launched_agent_work_identifiers"] == [
+        ASSIGNMENT_ID
+    ]
     assert f'"assignment_identifier": "{ASSIGNMENT_ID}"' in written_record
     assert (
         capsys.readouterr().out
@@ -255,7 +258,7 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
     )
 
 
-def test_a_conversation_launch_is_recorded_and_reported(watched, capsys, monkeypatch):
+def test_multiple_launches_are_recorded_and_reported(watched, capsys, monkeypatch):
     daemon, _, _ = idling(root=watched, ticks=1)
     scheduler = AgentWorkScheduler(
         repository=REPOSITORY,
@@ -268,7 +271,7 @@ def test_a_conversation_launch_is_recorded_and_reported(watched, capsys, monkeyp
     )
     scheduler_record = SchedulerRecord(
         at=PINNED,
-        launched_agent_work_identifier="conversation-GH8",
+        launched_agent_work_identifiers=[ASSIGNMENT_ID, "conversation-GH8"],
         hold="could not refresh assignments",
     )
     monkeypatch.setattr(scheduler, "tick", lambda *, at: scheduler_record)
@@ -277,7 +280,8 @@ def test_a_conversation_launch_is_recorded_and_reported(watched, capsys, monkeyp
 
     assert recorded(daemon=daemon) == scheduler_record
     assert capsys.readouterr().out == (
-        "2026-08-20 02:41:58  launched round for conversation-GH8; "
+        f"2026-08-20 02:41:58  launched rounds for {ASSIGNMENT_ID}, "
+        "conversation-GH8; "
         "held: could not refresh assignments\n"
     )
 
@@ -562,7 +566,7 @@ def test_a_tick_that_could_not_dispatch_records_the_failure_and_ticks_again(
 
     assert waiting.waited == [300, 300]
     assert "git worktree add" in held(daemon=daemon)
-    assert recorded(daemon=daemon).launched_assignment_identifier is None
+    assert recorded(daemon=daemon).launched_agent_work_identifiers == []
 
 
 def test_a_run_that_cannot_be_told_which_repository_this_is_refuses(

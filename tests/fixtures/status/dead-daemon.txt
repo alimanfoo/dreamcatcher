@@ -9,7 +9,7 @@ instance
 assignments
   GH20-20260819-184158  needs user feedback  idle 2h 0m                                             
   GH9-20260819-184158   fault                two consecutive rounds failed                          
-                                             (.dreamcatcher/v3/assignments/GH9-20260819-184158/round
+                                             (.dreamcatcher/v4/assignments/GH9-20260819-184158/round
                                              s/2/feed.txt)                                          
   GH13-20260819-184158  waiting              next round, address feedback (recovery)                
   GH31-20260819-184158  waiting              next round, implement                                  
