@@ -472,13 +472,13 @@ candidates of the same kind for the rest of that tick.
 A known global error may start a global cooldown immediately.
 
 For errors that cannot be diagnosed reliably, one piece of agent work's first
-consecutive error calls for a recovery round and its second makes that work's
-fault fact true. The scheduler counts every assignment with a true fault fact
-and every conversation with a true fault fact whose issue has no known routing
-conflict. Two counted faults, in any combination, are evidence of a shared
-problem and start a global cooldown. When the cooldown ends, Dreamcatcher clears
-those faults and permits recovery. This deliberately simple policy prevents one
-work-specific failure from blocking all other work.
+consecutive error calls for a recovery round and its second makes that work in
+fault. The scheduler counts every assignment in fault and every conversation in
+fault whose issue has no known routing conflict. Two counted faults, in any
+combination, are evidence of a shared problem and start a global cooldown. When
+the cooldown ends, Dreamcatcher clears those faults and permits recovery. This
+deliberately simple policy prevents one work-specific failure from blocking all
+other work.
 
 After resolving an issue-specific problem, the user may request a retry. That
 request clears any current fault on the newest assignment and issue conversation
