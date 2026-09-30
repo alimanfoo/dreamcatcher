@@ -88,27 +88,27 @@ identifier.
 
 An **assignment skill** is an agent skill which follows Dreamcatcher's
 agent-facing contract and guides an agent through an agent assignment. It may be
-invoked by an agent recipe.
+invoked by a dispatch recipe.
 
-### Agent recipe
+### Dispatch recipe
 
-An **agent recipe** specifies how Dreamcatcher starts one kind of agent work
+A **dispatch recipe** specifies how Dreamcatcher starts one kind of agent work
 through a particular agent harness. It supplies the model, effort, and initial
-prompt for that harness. A recipe for an assignment normally invokes an
-assignment skill; a recipe for a conversation asks the agent to answer the user.
+prompt for that harness. An assignment recipe normally invokes an assignment
+skill; a conversation recipe asks the agent to answer the user.
 
 ### Dispatch label
 
 A **dispatch label** is a GitHub issue label configured to mark issues for
 handling by Dreamcatcher.
 
-### Dispatch and conversation routes
+### Dispatch, assignment and conversation routes
 
-A **dispatch route** maps one dispatch label to one or more agent recipes for
-assignments. A **conversation route** maps one label to one or more agent
-recipes for issue conversations. Each recipe uses a particular agent harness. A
-route may offer recipes for all the harnesses Dreamcatcher supports or for only
-some of them.
+A **dispatch route** maps one dispatch label to one dispatch recipe for each
+configured agent harness. An **assignment route** is a dispatch route for agent
+assignments. A **conversation route** is a dispatch route for issue
+conversations. A route may offer recipes for all the harnesses Dreamcatcher
+supports or for only some of them.
 
 ### Agent round
 
@@ -214,12 +214,20 @@ its pull request is being wrapped up.
 
 ### Dispatch labels and routes
 
-An issue with no dispatch label is outside Dreamcatcher's scope. An issue with
-more than one dispatch label has a routing conflict. The order of dispatch
-routes in the configuration does not give one route precedence over another.
+An issue with no dispatch label is outside Dreamcatcher's scope. Each configured
+dispatch label belongs to exactly one dispatch route, so one label cannot be
+both an assignment label and a conversation label.
 
-Exactly one dispatch label selects exactly one dispatch route. Dreamcatcher then
-selects an agent recipe for the harness through which the assignment will run.
+An issue with more than one assignment label has an assignment routing conflict.
+An issue with more than one conversation label has a conversation routing
+conflict. One assignment label and one conversation label can coexist without a
+routing conflict. The order of routes in the configuration does not give one
+route precedence over another.
+
+Exactly one assignment label selects exactly one assignment route, and exactly
+one conversation label selects exactly one conversation route. Dreamcatcher then
+selects the dispatch recipe for the harness through which that agent work will
+run.
 
 ### Completing an assignment
 
@@ -250,7 +258,7 @@ false, or unknown:
 - **Claimed elsewhere**: the issue has an open linked pull request other than
   the pull request belonging to its local assignment, if any.
 - **Blocked**: an open issue dependency prevents work from starting.
-- **Routing conflict**: the issue carries more than one dispatch label.
+- **Routing conflict**: the issue carries more than one assignment label.
 
 These facts can coexist. In particular, an issue may be claimed both here and
 elsewhere if somebody opens another pull request after Dreamcatcher creates its
@@ -272,7 +280,7 @@ An issue is **available for an agent assignment** only when:
 
 - it is open;
 - it is assigned to the user for this Dreamcatcher instance;
-- it carries exactly one dispatch label;
+- it carries exactly one assignment label;
 - claimed here is known to be false;
 - claimed elsewhere is known to be false;
 - blocked is known to be false; and
@@ -388,7 +396,7 @@ least one eligible comment from that account after the newest comment in its
 latest round input. An issue with more than one configured conversation label
 has a routing conflict and starts or recovers nothing until one label remains.
 Issue title and body alone do not start a round. Assignment ownership, linked
-pull requests, dependencies and dispatch-label conflicts do not govern
+pull requests, dependencies and assignment-routing conflicts do not govern
 conversation eligibility.
 
 Dreamcatcher fetches main, creates a detached worktree, records its revision and
