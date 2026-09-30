@@ -53,9 +53,7 @@ effort = "xhigh"
 `assignee` is whose issues to pick up, as a GitHub login. It defaults to `@me`,
 the account `gh` is signed in as, so you can leave it out.
 
-In an existing `dreamcatcher.toml`, rename each `[[dispatch]]` table to
-`[[assignment]]` and each nested `[dispatch.HARNESS]` table to
-`[assignment.HARNESS]`. If the file contains `interval` or `max_agents`, remove
+If an existing `dreamcatcher.toml` contains `interval` or `max_agents`, remove
 those settings. Add `--interval` or `--max-agents` to the `run` command to keep
 any non-default values; the configuration file no longer accepts them.
 
