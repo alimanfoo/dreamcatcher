@@ -941,7 +941,7 @@ def _compose_conversation_facts(
     """Return the settings that a conversation settled at its first round."""
     record = conversation.record
     return (
-        WebFact(label="dispatch label", value=record.dispatch_label),
+        WebFact(label="label", value=record.dispatch_label),
         WebFact(label="harness", value=str(record.harness)),
         WebFact(label="model", value=f"{record.model} · {record.effort}"),
     )

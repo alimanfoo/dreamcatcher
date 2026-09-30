@@ -51,7 +51,8 @@ One scheduler tick:
 2. reconciles incomplete assignment setup;
 3. applies the run's requested capacity and global-cooldown constraints;
 4. finds the highest-priority assignment candidate, considering existing
-   assignment rounds before a new assignment for the oldest available issue;
+   assignment rounds before dispatching a new assignment for the oldest
+   available issue;
 5. finds the highest-priority conversation candidate, ranking recovery before
    the oldest waiting fresh comment;
 6. alternates between the two kinds when both have candidates, without changing
@@ -108,11 +109,11 @@ fetched main revision, then runs in a detached worktree. Conversation worktrees
 live outside assignment discovery and never acquire implementation branches or
 pull requests.
 
-The signed-in GitHub account, rather than the configured assignment assignee,
-identifies trusted issue comments. Marked Dreamcatcher comments, comments by
-other accounts and blank comments are excluded. Each durable round input records
-the delivered batch, so the newest comment in the latest input is the delivery
-position and a batch cannot be selected again.
+The signed-in GitHub account identifies trusted issue comments. Marked
+Dreamcatcher comments, comments by other accounts and blank comments are
+excluded. Each durable round input records the delivered batch, so the newest
+comment in the latest input is the delivery position and a batch cannot be
+selected again.
 
 The first eligible batch starts one session through the harness selected from
 the conversation's configured recipes, with the issue title, body and trusted
@@ -317,10 +318,10 @@ An `IssueObservation` represents claimed here, claimed elsewhere, blocked, and
 routing conflict as independent facts which may each be true, false, or unknown;
 its availability is derived from those facts together with whether the issue is
 open, assigned to the instance's user, and carries exactly one assignment label.
-The report includes available issues in the scheduler's assignment order. It
-also includes issues with known open blockers, together with the scheduler's
-recorded blocker evidence. An `AgentAssignmentStatus` is one summary status from
-the ontology.
+The report includes available issues in the scheduler's dispatch order. It also
+includes issues with known open blockers, together with the scheduler's recorded
+blocker evidence. An `AgentAssignmentStatus` is one summary status from the
+ontology.
 
 The report includes an issue observation among failed setups while the latest
 tick records a setup failure, independently of whether the issue is available or

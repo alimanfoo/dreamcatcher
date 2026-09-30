@@ -138,7 +138,7 @@ def build_cli_parser() -> argparse.ArgumentParser:
         help="show the instance, conversation, issue, and assignment status",
         description=(
             "Show instance and daemon facts, each conversation and assignment, "
-            "available issues in assignment order, and blocked issues. It refreshes "
+            "available issues in dispatch order, and blocked issues. It refreshes "
             "automatically until you interrupt it. "
             + HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
             + " "

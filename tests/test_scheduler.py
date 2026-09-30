@@ -114,12 +114,12 @@ def held(*, observed: SchedulerRecord) -> str:
 
 
 def observed_issues(*, tick: SchedulerRecord) -> list[int]:
-    """Return the issue numbers that one tick observed in assignment order."""
+    """Return the issue numbers that one tick observed in dispatch order."""
     return [observation.issue for observation in tick.issue_observations]
 
 
 def availability_values(*, tick: SchedulerRecord) -> list[IssueFactValue]:
-    """Return each observed issue's availability in assignment order."""
+    """Return each observed issue's availability in dispatch order."""
     return [
         derive_issue_availability(observation=observation).value
         for observation in tick.issue_observations

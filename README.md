@@ -258,7 +258,7 @@ dreamcatcher status
 
 `status` starts with the repository name, then shows the instance, its issue
 conversations and agent assignments, any failed assignment setups, the available
-issues in assignment order, and issues with open blockers.
+issues in dispatch order, and issues with open blockers.
 
 An issue conversation is working, waiting, idle, fault or unknown. It is listed
 from the first tick that sees its issue eligible, before its first round, and
