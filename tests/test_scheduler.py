@@ -64,7 +64,7 @@ ASSIGNMENT_ID = "GH13-20260819-184158"
 SECOND_ASSIGNMENT_ID = "GH14-20260819-184158"
 PURPOSE = AgentAssignmentRoundPurpose.IMPLEMENT
 STILL_RUNNING = 30
-DISPATCHED_ASSIGNMENT_ID = "GH8-20260819-184158"
+CREATED_ASSIGNMENT_ID = "GH8-20260819-184158"
 CONVERSATION = POST_LIST_PATHS["conversation"]
 HARNESS_SESSION_IDENTIFIER = "abc-123"
 
@@ -114,12 +114,12 @@ def held(*, observed: SchedulerRecord) -> str:
 
 
 def observed_issues(*, tick: SchedulerRecord) -> list[int]:
-    """Return the issue numbers that one tick observed in dispatch order."""
+    """Return the issue numbers that one tick observed in assignment order."""
     return [observation.issue for observation in tick.issue_observations]
 
 
 def availability_values(*, tick: SchedulerRecord) -> list[IssueFactValue]:
-    """Return each observed issue's derived availability in dispatch order."""
+    """Return each observed issue's availability in assignment order."""
     return [
         derive_issue_availability(observation=observation).value
         for observation in tick.issue_observations
@@ -140,7 +140,7 @@ def purpose_of(*, scheduler: AgentWorkScheduler, number: int) -> AgentRoundPurpo
 
 @pytest.fixture
 def resuming(cloned, gh, harnesses):
-    """A checkout holding one assignment, with no labelled issue up for dispatch."""
+    """A checkout holding one assignment, with no labelled issue awaiting one."""
     configure(root=cloned)
     harnesses["claude"].streams(
         lines=[
@@ -240,32 +240,34 @@ def forget_harness_session_identifier(*, root) -> None:
     )
 
 
-def test_a_tick_dispatches_the_oldest_issue_nothing_stands_in_the_way_of(
-    dispatching, harnesses
+def test_a_tick_assigns_the_oldest_issue_nothing_stands_in_the_way_of(
+    ready_repo, harnesses
 ):
-    scheduler, clock = create_scheduler(root=dispatching)
+    scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
 
-    assignment = scheduler.state.assignments / DISPATCHED_ASSIGNMENT_ID
-    assert (scheduler.state.worktrees / DISPATCHED_ASSIGNMENT_ID / "README.md").exists()
+    assignment = scheduler.state.assignments / CREATED_ASSIGNMENT_ID
+    assert (scheduler.state.worktrees / CREATED_ASSIGNMENT_ID / "README.md").exists()
     assert (assignment / "assignment.json").exists()
     assert observed.issue_observations[0].observed_at == observed.at
-    assert observed.launched_agent_work_identifiers == [DISPATCHED_ASSIGNMENT_ID]
+    assert observed.launched_agent_work_identifiers == [CREATED_ASSIGNMENT_ID]
     assert (
         harnesses["claude"].calls[0].directory
-        == (scheduler.state.worktrees / DISPATCHED_ASSIGNMENT_ID).resolve()
+        == (scheduler.state.worktrees / CREATED_ASSIGNMENT_ID).resolve()
     )
 
 
-def test_a_dispatched_round_records_what_caused_it_and_what_it_said(dispatching):
-    scheduler, clock = create_scheduler(root=dispatching)
+def test_a_new_assignments_round_records_what_caused_it_and_what_it_said(
+    ready_repo,
+):
+    scheduler, clock = create_scheduler(root=ready_repo)
 
     scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
 
-    written = scheduler.state.assignments / DISPATCHED_ASSIGNMENT_ID / "rounds" / "1"
+    written = scheduler.state.assignments / CREATED_ASSIGNMENT_ID / "rounds" / "1"
     assert (
         AgentRoundRecord.model_validate_json(
             (written / "round.json").read_text(encoding="utf-8")
@@ -277,12 +279,12 @@ def test_a_dispatched_round_records_what_caused_it_and_what_it_said(dispatching)
     assert assignment.record.harness_session_identifier == "abc-123"
 
 
-def test_a_tick_fills_free_capacity_with_available_issues(dispatching, offered):
+def test_a_tick_fills_free_capacity_with_available_issues(ready_repo, offered):
     offered.replies(
         stdout=listing(issues=[(8, FILED), (9, LATER), (10, "2026-08-21T01:00:00Z")]),
         to="issue list",
     )
-    scheduler, clock = create_scheduler(root=dispatching, max_agents=2)
+    scheduler, clock = create_scheduler(root=ready_repo, max_agents=2)
 
     observed = scheduler.tick(at=clock())
 
@@ -293,7 +295,7 @@ def test_a_tick_fills_free_capacity_with_available_issues(dispatching, offered):
         IssueFactValue.TRUE,
     ]
     assert observed.launched_agent_work_identifiers == [
-        DISPATCHED_ASSIGNMENT_ID,
+        CREATED_ASSIGNMENT_ID,
         "GH9-20260819-184158",
     ]
     assert observed.hold == "at cap: 2 of 2 agents running"
@@ -302,7 +304,7 @@ def test_a_tick_fills_free_capacity_with_available_issues(dispatching, offered):
 
 
 def test_a_later_failed_launch_keeps_the_rounds_already_started(
-    dispatching, offered, monkeypatch
+    ready_repo, offered, monkeypatch
 ):
     offered.replies(
         stdout=listing(
@@ -314,25 +316,25 @@ def test_a_later_failed_launch_keeps_the_rounds_already_started(
         ),
         to="issue list",
     )
-    scheduler, clock = create_scheduler(root=dispatching, max_agents=3)
+    scheduler, clock = create_scheduler(root=ready_repo, max_agents=3)
     launch_assignment = scheduler._launch_assignment
 
     def fail_second_launch(*, issue, label, at):
         if issue == 9:
-            raise ReportableError("could not dispatch GH9")
+            raise ReportableError("could not create an assignment for GH9")
         return launch_assignment(issue=issue, label=label, at=at)
 
     monkeypatch.setattr(scheduler, "_launch_assignment", fail_second_launch)
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.launched_agent_work_identifiers == [DISPATCHED_ASSIGNMENT_ID]
-    assert observed.hold == "could not dispatch GH9"
+    assert observed.launched_agent_work_identifiers == [CREATED_ASSIGNMENT_ID]
+    assert observed.hold == "could not create an assignment for GH9"
     assert not (scheduler.state.worktrees / "GH10-20260819-184158").exists()
 
 
-def test_a_second_tick_judges_a_dispatched_issue_handled(dispatching):
-    scheduler, clock = create_scheduler(root=dispatching, max_agents=2)
+def test_a_second_tick_judges_an_assigned_issue_handled(ready_repo):
+    scheduler, clock = create_scheduler(root=ready_repo, max_agents=2)
 
     observed = scheduler.tick(at=clock())
     observed = scheduler.tick(at=clock())
@@ -343,8 +345,8 @@ def test_a_second_tick_judges_a_dispatched_issue_handled(dispatching):
     assert availability_values(tick=observed) == [IssueFactValue.FALSE]
 
 
-def test_a_completed_assignment_releases_its_issue(dispatching):
-    state = StateDirectory(root=dispatching)
+def test_a_completed_assignment_releases_its_issue(ready_repo):
+    state = StateDirectory(root=ready_repo)
     assignment = write_agent_assignment(
         state=state,
         identifier="GH8-20260818-184158",
@@ -362,36 +364,38 @@ def test_a_completed_assignment_releases_its_issue(dispatching):
             ending=compose_agent_round_ending(at=PINNED, status=0),
         ),
     )
-    scheduler, clock = create_scheduler(root=dispatching)
+    scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
 
     assert observed_issues(tick=observed) == [8]
     assert availability_values(tick=observed) == [IssueFactValue.TRUE]
-    assert observed.launched_agent_work_identifiers == [DISPATCHED_ASSIGNMENT_ID]
+    assert observed.launched_agent_work_identifiers == [CREATED_ASSIGNMENT_ID]
 
 
 def test_a_tick_at_the_cap_says_the_cap_is_what_each_assignment_waits_on(
-    dispatching, harnesses
+    ready_repo, harnesses
 ):
     harnesses["claude"].streams(
         lines=[Line(text="still working\n")], delay=STILL_RUNNING
     )
-    scheduler, clock = create_scheduler(root=dispatching)
+    scheduler, clock = create_scheduler(root=ready_repo)
 
     scheduler.tick(at=clock())
     write_agent_assignment(
-        state=StateDirectory(root=dispatching), identifier=ASSIGNMENT_ID, issue=13
+        state=StateDirectory(root=ready_repo),
+        identifier=ASSIGNMENT_ID,
+        issue=13,
     )
     ran(
-        root=dispatching,
+        root=ready_repo,
         number=1,
         purpose=AgentAssignmentRoundPurpose.IMPLEMENT,
         status=1,
     )
     observed = scheduler.tick(at=clock())
 
-    # The first tick dispatched issue 8, and its round is what fills the cap,
+    # The first tick assigned issue 8, and its round is what fills the cap,
     # so the assignment already on disk is the one the cap holds.
     assert observed.assignment_observations == [
         AgentAssignmentObservation(
@@ -403,17 +407,23 @@ def test_a_tick_at_the_cap_says_the_cap_is_what_each_assignment_waits_on(
 
 
 def test_a_tick_at_the_cap_leaves_a_wound_up_assignment_waiting_on_nothing(
-    dispatching, harnesses
+    ready_repo, harnesses
 ):
     harnesses["claude"].streams(
         lines=[Line(text="still working\n")], delay=STILL_RUNNING
     )
     write_agent_assignment(
-        state=StateDirectory(root=dispatching), identifier=ASSIGNMENT_ID, issue=13
+        state=StateDirectory(root=ready_repo),
+        identifier=ASSIGNMENT_ID,
+        issue=13,
     )
-    ran(root=dispatching, number=1, purpose=AgentAssignmentRoundPurpose.IMPLEMENT)
-    ran(root=dispatching, number=1, purpose=AgentAssignmentRoundPurpose.WRAP_UP)
-    scheduler, clock = create_scheduler(root=dispatching)
+    ran(
+        root=ready_repo,
+        number=1,
+        purpose=AgentAssignmentRoundPurpose.IMPLEMENT,
+    )
+    ran(root=ready_repo, number=1, purpose=AgentAssignmentRoundPurpose.WRAP_UP)
+    scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
     observed = scheduler.tick(at=clock())
@@ -421,12 +431,12 @@ def test_a_tick_at_the_cap_leaves_a_wound_up_assignment_waiting_on_nothing(
     assert observed.assignment_observations == []
 
 
-def test_a_tick_at_the_cap_refreshes_the_candidates(dispatching, offered, harnesses):
+def test_a_tick_at_the_cap_refreshes_the_candidates(ready_repo, offered, harnesses):
     harnesses["claude"].streams(
         lines=[Line(text="still working\n")], delay=STILL_RUNNING
     )
     offered.replies(stdout=listing(issues=[(8, FILED), (9, LATER)]), to="issue list")
-    scheduler, clock = create_scheduler(root=dispatching)
+    scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
     observed = scheduler.tick(at=clock())
@@ -440,16 +450,22 @@ def test_a_tick_at_the_cap_refreshes_the_candidates(dispatching, offered, harnes
 
 
 def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
-    dispatching, offered, harnesses
+    ready_repo, offered, harnesses
 ):
     harnesses["claude"].streams(
         lines=[Line(text="still working\n")], delay=STILL_RUNNING
     )
     write_agent_assignment(
-        state=StateDirectory(root=dispatching), identifier=ASSIGNMENT_ID, issue=13
+        state=StateDirectory(root=ready_repo),
+        identifier=ASSIGNMENT_ID,
+        issue=13,
     )
-    ran(root=dispatching, number=1, purpose=AgentAssignmentRoundPurpose.IMPLEMENT)
-    scheduler, clock = create_scheduler(root=dispatching)
+    ran(
+        root=ready_repo,
+        number=1,
+        purpose=AgentAssignmentRoundPurpose.IMPLEMENT,
+    )
+    scheduler, clock = create_scheduler(root=ready_repo)
     scheduler.tick(at=clock())
     offered.fails(stderr="gh: could not connect to github.com", to="issue list")
     observed = scheduler.tick(at=clock())
@@ -476,12 +492,12 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
     ]
 
 
-def test_a_tick_with_nothing_eligible_dispatches_nothing(dispatching, offered):
+def test_a_tick_with_nothing_eligible_starts_no_assignment(ready_repo, offered):
     offered.replies(
         stdout=pages(items=[{"number": 7, "state": "open"}]),
         to="api",
     )
-    scheduler, clock = create_scheduler(root=dispatching)
+    scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
 
@@ -492,31 +508,35 @@ def test_a_tick_with_nothing_eligible_dispatches_nothing(dispatching, offered):
     assert not scheduler.state.worktrees.exists()
 
 
-def test_one_errored_round_receives_an_ordinary_recovery(dispatching):
+def test_one_errored_round_receives_an_ordinary_recovery(ready_repo):
     write_agent_assignment(
-        state=StateDirectory(root=dispatching), identifier=ASSIGNMENT_ID, issue=13
+        state=StateDirectory(root=ready_repo),
+        identifier=ASSIGNMENT_ID,
+        issue=13,
     )
-    ran(root=dispatching, number=1, purpose=PURPOSE, status=1)
-    scheduler, clock = create_scheduler(root=dispatching)
+    ran(root=ready_repo, number=1, purpose=PURPOSE, status=1)
+    scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
 
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     assert observed.cooldown is None
-    assert not (scheduler.state.worktrees / DISPATCHED_ASSIGNMENT_ID).exists()
+    assert not (scheduler.state.worktrees / CREATED_ASSIGNMENT_ID).exists()
 
 
-def test_one_faulted_assignment_does_not_block_unrelated_work(dispatching):
+def test_one_faulted_assignment_does_not_block_unrelated_work(ready_repo):
     write_agent_assignment(
-        state=StateDirectory(root=dispatching), identifier=ASSIGNMENT_ID, issue=13
+        state=StateDirectory(root=ready_repo),
+        identifier=ASSIGNMENT_ID,
+        issue=13,
     )
-    ran(root=dispatching, number=1, purpose=PURPOSE, status=1)
-    ran(root=dispatching, number=2, purpose=PURPOSE, status=1, is_recovery=True)
-    scheduler, clock = create_scheduler(root=dispatching)
+    ran(root=ready_repo, number=1, purpose=PURPOSE, status=1)
+    ran(root=ready_repo, number=2, purpose=PURPOSE, status=1, is_recovery=True)
+    scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.launched_agent_work_identifiers == [DISPATCHED_ASSIGNMENT_ID]
+    assert observed.launched_agent_work_identifiers == [CREATED_ASSIGNMENT_ID]
     assert observed.assignment_observations == [
         AgentAssignmentObservation(
             assignment_identifier=ASSIGNMENT_ID,
@@ -526,12 +546,12 @@ def test_one_faulted_assignment_does_not_block_unrelated_work(dispatching):
     ]
 
 
-def test_a_user_retry_clears_one_fault_and_starts_recovery(dispatching):
-    write_faulted_assignment(root=dispatching, identifier=ASSIGNMENT_ID, issue=13)
-    state = StateDirectory(root=dispatching)
+def test_a_user_retry_clears_one_fault_and_starts_recovery(ready_repo):
+    write_faulted_assignment(root=ready_repo, identifier=ASSIGNMENT_ID, issue=13)
+    state = StateDirectory(root=ready_repo)
     assignment = read_agent_assignments(state=state)[0]
     request_agent_assignment_retry(assignment=assignment, at=PINNED)
-    scheduler, clock = create_scheduler(root=dispatching)
+    scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
 
@@ -539,14 +559,16 @@ def test_a_user_retry_clears_one_fault_and_starts_recovery(dispatching):
     assert observed.assignment_observations == []
 
 
-def test_a_successful_round_breaks_the_error_sequence(dispatching):
+def test_a_successful_round_breaks_the_error_sequence(ready_repo):
     write_agent_assignment(
-        state=StateDirectory(root=dispatching), identifier=ASSIGNMENT_ID, issue=13
+        state=StateDirectory(root=ready_repo),
+        identifier=ASSIGNMENT_ID,
+        issue=13,
     )
-    ran(root=dispatching, number=1, purpose=PURPOSE, status=1)
-    ran(root=dispatching, number=2, purpose=PURPOSE)
-    ran(root=dispatching, number=3, purpose=PURPOSE, status=1)
-    scheduler, clock = create_scheduler(root=dispatching)
+    ran(root=ready_repo, number=1, purpose=PURPOSE, status=1)
+    ran(root=ready_repo, number=2, purpose=PURPOSE)
+    ran(root=ready_repo, number=3, purpose=PURPOSE, status=1)
+    scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
 
@@ -554,12 +576,12 @@ def test_a_successful_round_breaks_the_error_sequence(dispatching):
 
 
 def test_an_assignment_the_scheduler_is_running_a_round_for_is_not_waiting(
-    dispatching, harnesses
+    ready_repo, harnesses
 ):
     harnesses["claude"].streams(
         lines=[Line(text="still working\n")], delay=STILL_RUNNING
     )
-    scheduler, clock = create_scheduler(root=dispatching, max_agents=2)
+    scheduler, clock = create_scheduler(root=ready_repo, max_agents=2)
 
     observed = scheduler.tick(at=clock())
     observed = scheduler.tick(at=clock())
@@ -568,7 +590,7 @@ def test_an_assignment_the_scheduler_is_running_a_round_for_is_not_waiting(
     # read as interrupted had the scheduler not been running it.
     written = (
         scheduler.state.assignments
-        / DISPATCHED_ASSIGNMENT_ID
+        / CREATED_ASSIGNMENT_ID
         / "rounds"
         / "1"
         / "round.json"
@@ -667,11 +689,13 @@ def test_an_assignment_with_an_open_pull_request_and_nothing_new_is_not_waiting(
     )
 
 
-def test_an_assignment_that_has_run_no_round_at_all_gets_its_first(dispatching):
+def test_an_assignment_that_has_run_no_round_at_all_gets_its_first(ready_repo):
     write_agent_assignment(
-        state=StateDirectory(root=dispatching), identifier=ASSIGNMENT_ID, issue=13
+        state=StateDirectory(root=ready_repo),
+        identifier=ASSIGNMENT_ID,
+        issue=13,
     )
-    scheduler, clock = create_scheduler(root=dispatching)
+    scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
@@ -687,26 +711,24 @@ def test_an_assignment_that_has_run_no_round_at_all_gets_its_first(dispatching):
 
 
 def test_a_dispatch_whose_round_will_not_start_retries_the_prepared_assignment(
-    dispatching, offered
+    ready_repo, offered
 ):
     # A file where the assignment's rounds go, so no round can record its start.
     occupied = (
-        StateDirectory(root=dispatching).assignments
-        / DISPATCHED_ASSIGNMENT_ID
-        / "rounds"
+        StateDirectory(root=ready_repo).assignments / CREATED_ASSIGNMENT_ID / "rounds"
     )
     occupied.parent.mkdir(parents=True)
     occupied.write_text("something else is here\n", encoding="utf-8")
-    scheduler, clock = create_scheduler(root=dispatching)
+    scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
 
     assert "cannot write" in held(observed=observed)
     assert observed_issues(tick=observed) == [8]
     assert availability_values(tick=observed) == [IssueFactValue.TRUE]
-    assert (scheduler.state.worktrees / DISPATCHED_ASSIGNMENT_ID).exists()
-    branch = f"dreamcatcher-{DISPATCHED_ASSIGNMENT_ID}"
-    assert branch in git(arguments=["branch", "--list", branch], cwd=dispatching)
+    assert (scheduler.state.worktrees / CREATED_ASSIGNMENT_ID).exists()
+    branch = f"dreamcatcher-{CREATED_ASSIGNMENT_ID}"
+    assert branch in git(arguments=["branch", "--list", branch], cwd=ready_repo)
 
     occupied.unlink()
     offered.replies(
@@ -723,8 +745,8 @@ def test_a_dispatch_whose_round_will_not_start_retries_the_prepared_assignment(
     observed = scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
 
-    assert observed.launched_agent_work_identifiers == [DISPATCHED_ASSIGNMENT_ID]
-    record = scheduler.state.assignments / DISPATCHED_ASSIGNMENT_ID / "rounds" / "1"
+    assert observed.launched_agent_work_identifiers == [CREATED_ASSIGNMENT_ID]
+    record = scheduler.state.assignments / CREATED_ASSIGNMENT_ID / "rounds" / "1"
     written = AgentRoundRecord.model_validate_json(
         (record / "round.json").read_text(encoding="utf-8")
     )
@@ -735,17 +757,17 @@ def test_a_dispatch_whose_round_will_not_start_retries_the_prepared_assignment(
 
 @pytest.mark.parametrize("checkpoint", ["worktree", "commit", "push", "pull request"])
 def test_the_next_tick_recovers_each_incomplete_creation_checkpoint(
-    dispatching, offered, checkpoint
+    ready_repo, offered, checkpoint
 ):
-    state = StateDirectory(root=dispatching)
-    branch = f"dreamcatcher-{DISPATCHED_ASSIGNMENT_ID}"
-    worktree = state.worktrees / DISPATCHED_ASSIGNMENT_ID
-    fetch_main(root=dispatching)
-    add_worktree(root=dispatching, path=worktree, branch=branch)
+    state = StateDirectory(root=ready_repo)
+    branch = f"dreamcatcher-{CREATED_ASSIGNMENT_ID}"
+    worktree = state.worktrees / CREATED_ASSIGNMENT_ID
+    fetch_main(root=ready_repo)
+    add_worktree(root=ready_repo, path=worktree, branch=branch)
     if checkpoint != "worktree":
         make_empty_commit(worktree=worktree, message="GH8")
     if checkpoint in {"push", "pull request"}:
-        push_branch(root=dispatching, branch=branch)
+        push_branch(root=ready_repo, branch=branch)
     if checkpoint == "pull request":
         offered.replies(
             stdout=json.dumps(
@@ -760,13 +782,13 @@ def test_the_next_tick_recovers_each_incomplete_creation_checkpoint(
         offered.replies(
             stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list"
         )
-    scheduler, clock = create_scheduler(root=dispatching)
+    scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
 
-    assert observed.launched_agent_work_identifiers == [DISPATCHED_ASSIGNMENT_ID]
-    round_record = state.assignments / DISPATCHED_ASSIGNMENT_ID / "rounds" / "1"
+    assert observed.launched_agent_work_identifiers == [CREATED_ASSIGNMENT_ID]
+    round_record = state.assignments / CREATED_ASSIGNMENT_ID / "rounds" / "1"
     assert (
         AgentRoundRecord.model_validate_json(
             (round_record / "round.json").read_text(encoding="utf-8")
@@ -776,21 +798,21 @@ def test_the_next_tick_recovers_each_incomplete_creation_checkpoint(
     assert len(list(state.assignments.iterdir())) == 1
     commits = git(arguments=["rev-list", "--count", "origin/main..HEAD"], cwd=worktree)
     assert commits.strip() == "1"
-    remote = git(arguments=["ls-remote", "--heads", "origin", branch], cwd=dispatching)
+    remote = git(arguments=["ls-remote", "--heads", "origin", branch], cwd=ready_repo)
     assert f"refs/heads/{branch}" in remote
     created = [call for call in offered.calls if call.arguments[:2] == ["pr", "create"]]
     assert len(created) == (0 if checkpoint == "pull request" else 1)
 
 
-def test_a_tick_records_an_incomplete_setup_failure(dispatching):
-    state = StateDirectory(root=dispatching)
-    fetch_main(root=dispatching)
+def test_a_tick_records_an_incomplete_setup_failure(ready_repo):
+    state = StateDirectory(root=ready_repo)
+    fetch_main(root=ready_repo)
     add_worktree(
-        root=dispatching,
-        path=state.worktrees / DISPATCHED_ASSIGNMENT_ID,
+        root=ready_repo,
+        path=state.worktrees / CREATED_ASSIGNMENT_ID,
         branch="some-other-branch",
     )
-    scheduler, clock = create_scheduler(root=dispatching)
+    scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
     setup_failure = observed.issue_observations[0].setup_failure
@@ -1038,7 +1060,7 @@ def test_a_started_round_is_reported_when_advancing_its_cursor_fails(
     assert observed.hold == "could not advance the delivery cursor"
     assert observed.assignment_observations == []
     assert ASSIGNMENT_ID in scheduler.rounds
-    assert not (scheduler.state.worktrees / DISPATCHED_ASSIGNMENT_ID).exists()
+    assert not (scheduler.state.worktrees / CREATED_ASSIGNMENT_ID).exists()
     finish_rounds(scheduler=scheduler)
 
 
@@ -1148,7 +1170,7 @@ def test_a_last_round_that_was_interrupted_is_carried_on_as_the_last_round(
     assert not (scheduler.state.assignments / ASSIGNMENT_ID / "rounds" / "4").exists()
 
 
-def test_open_work_is_carried_on_before_a_new_issue_is_dispatched(
+def test_open_work_is_carried_on_before_a_new_issue_is_assigned(
     resuming, gh, offered, left_running
 ):
     write_round(
@@ -1163,7 +1185,7 @@ def test_open_work_is_carried_on_before_a_new_issue_is_dispatched(
     observed = scheduler.tick(at=clock())
 
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
-    assert not (scheduler.state.worktrees / DISPATCHED_ASSIGNMENT_ID).exists()
+    assert not (scheduler.state.worktrees / CREATED_ASSIGNMENT_ID).exists()
     assert observed_issues(tick=observed) == [8, 13]
     assert observed.issue_observations[1].claimed_here.value is IssueFactValue.TRUE
 
@@ -1188,12 +1210,10 @@ def test_a_failed_issue_listing_leaves_open_work_for_a_later_tick(
     assert not (scheduler.state.assignments / ASSIGNMENT_ID / "rounds" / "2").exists()
 
 
-def test_two_faulted_assignments_start_a_global_cooldown(dispatching):
-    write_faulted_assignment(root=dispatching, identifier=ASSIGNMENT_ID, issue=13)
-    write_faulted_assignment(
-        root=dispatching, identifier=SECOND_ASSIGNMENT_ID, issue=14
-    )
-    scheduler, clock = create_scheduler(root=dispatching)
+def test_two_faulted_assignments_start_a_global_cooldown(ready_repo):
+    write_faulted_assignment(root=ready_repo, identifier=ASSIGNMENT_ID, issue=13)
+    write_faulted_assignment(root=ready_repo, identifier=SECOND_ASSIGNMENT_ID, issue=14)
+    scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
 
@@ -1208,16 +1228,14 @@ def test_two_faulted_assignments_start_a_global_cooldown(dispatching):
     ]
 
 
-def test_an_active_global_cooldown_survives_a_scheduler_restart(dispatching):
-    write_faulted_assignment(root=dispatching, identifier=ASSIGNMENT_ID, issue=13)
-    write_faulted_assignment(
-        root=dispatching, identifier=SECOND_ASSIGNMENT_ID, issue=14
-    )
-    first, first_clock = create_scheduler(root=dispatching)
-    state = StateDirectory(root=dispatching)
+def test_an_active_global_cooldown_survives_a_scheduler_restart(ready_repo):
+    write_faulted_assignment(root=ready_repo, identifier=ASSIGNMENT_ID, issue=13)
+    write_faulted_assignment(root=ready_repo, identifier=SECOND_ASSIGNMENT_ID, issue=14)
+    first, first_clock = create_scheduler(root=ready_repo)
+    state = StateDirectory(root=ready_repo)
     started = first.tick(at=first_clock())
     write_json(document=started, path=state.scheduler_record)
-    restarted, restarted_clock = create_scheduler(root=dispatching)
+    restarted, restarted_clock = create_scheduler(root=ready_repo)
 
     observed = restarted.tick(at=restarted_clock())
 
@@ -1225,13 +1243,11 @@ def test_an_active_global_cooldown_survives_a_scheduler_restart(dispatching):
     assert observed.launched_agent_work_identifiers == []
 
 
-def test_a_cooldown_reports_an_issue_listing_failure(dispatching, offered):
-    write_faulted_assignment(root=dispatching, identifier=ASSIGNMENT_ID, issue=13)
-    write_faulted_assignment(
-        root=dispatching, identifier=SECOND_ASSIGNMENT_ID, issue=14
-    )
+def test_a_cooldown_reports_an_issue_listing_failure(ready_repo, offered):
+    write_faulted_assignment(root=ready_repo, identifier=ASSIGNMENT_ID, issue=13)
+    write_faulted_assignment(root=ready_repo, identifier=SECOND_ASSIGNMENT_ID, issue=14)
     offered.fails(stderr="gh: could not connect to github.com", to="issue list")
-    scheduler, clock = create_scheduler(root=dispatching)
+    scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
 
@@ -1240,12 +1256,10 @@ def test_a_cooldown_reports_an_issue_listing_failure(dispatching, offered):
     assert "could not connect" in held(observed=observed)
 
 
-def test_the_cooldown_boundary_clears_faults_and_permits_recovery(dispatching):
-    write_faulted_assignment(root=dispatching, identifier=ASSIGNMENT_ID, issue=13)
-    write_faulted_assignment(
-        root=dispatching, identifier=SECOND_ASSIGNMENT_ID, issue=14
-    )
-    state = StateDirectory(root=dispatching)
+def test_the_cooldown_boundary_clears_faults_and_permits_recovery(ready_repo):
+    write_faulted_assignment(root=ready_repo, identifier=ASSIGNMENT_ID, issue=13)
+    write_faulted_assignment(root=ready_repo, identifier=SECOND_ASSIGNMENT_ID, issue=14)
+    state = StateDirectory(root=ready_repo)
     write_json(
         document=SchedulerRecord(
             at=PINNED - timedelta(minutes=15),
@@ -1255,7 +1269,7 @@ def test_the_cooldown_boundary_clears_faults_and_permits_recovery(dispatching):
         ),
         path=state.scheduler_record,
     )
-    scheduler, clock = create_scheduler(root=dispatching)
+    scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
 
@@ -1272,7 +1286,7 @@ def test_the_cooldown_boundary_clears_faults_and_permits_recovery(dispatching):
 
     finish_rounds(scheduler=scheduler)
     write_json(document=observed, path=state.scheduler_record)
-    restarted, restarted_clock = create_scheduler(root=dispatching)
+    restarted, restarted_clock = create_scheduler(root=ready_repo)
 
     following = restarted.tick(at=restarted_clock())
 

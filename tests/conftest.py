@@ -54,23 +54,23 @@ POST_LIST_PATHS = {
     "inline-comments": f"repos/{REPOSITORY}/pulls/{PULL_REQUEST}/comments?per_page=100",
 }
 
-# The label that the dispatch blocks below map, as the tests name it.
-DISPATCH_LABEL = "dream:smith"
+# The assignment label that the blocks below map, as the tests name it.
+ASSIGNMENT_LABEL = "dream:smith"
 
 # When the tests say an issue was filed, and a time after it.
 FILED = "2026-08-19T18:41:58Z"
 
 LATER = "2026-08-20T09:00:00Z"
 
-SMITH_CLAUDE = """[[dispatch]]
+SMITH_CLAUDE = """[[assignment]]
 label = "dream:smith"
-[dispatch.claude]
+[assignment.claude]
 prompt = "/dream:smith GH{issue}"
 model = "opus[1m]"
 effort = "xhigh"
 """
 
-SMITH_CODEX = """[dispatch.codex]
+SMITH_CODEX = """[assignment.codex]
 prompt = "$dream:smith GH{issue}"
 model = "gpt-5.6-sol"
 effort = "xhigh"
@@ -133,7 +133,7 @@ def listing(*, issues: Sequence[tuple[int, str]]) -> str:
                 "createdAt": created,
                 "state": "OPEN",
                 "assignees": [{"login": POSTED_BY}],
-                "labels": [{"name": DISPATCH_LABEL}],
+                "labels": [{"name": ASSIGNMENT_LABEL}],
             }
             for number, created in issues
         ]
@@ -380,14 +380,14 @@ def gh(fake):
 
 @pytest.fixture
 def offered(gh):
-    """Return gh offering one labelled issue that is free to dispatch."""
+    """Return gh offering one labelled issue that is free for assignment."""
     gh.replies(stdout=listing(issues=[(8, FILED)]), to="issue list")
     return gh
 
 
 @pytest.fixture
-def dispatching(cloned, offered, harnesses):
-    """Return a checkout that can dispatch a labelled issue."""
+def ready_repo(cloned, offered, harnesses):
+    """Return a checkout that can create an assignment for a labelled issue."""
     configure(root=cloned)
     harnesses["claude"].streams(
         lines=[

@@ -390,7 +390,7 @@ def test_each_conversation_label_selects_its_own_route(
     assert observed.launched_agent_work_identifiers == ["conversation-GH8"]
     conversation = read_issue_conversation(state=scheduler.state, issue=8)
     assert conversation is not None
-    assert conversation.record.label == "dream:scout"
+    assert conversation.record.dispatch_label == "dream:scout"
     assert conversation.record.prompt == "/dream:scout GH{issue}"
     assert conversation.record.effort == "high"
 
@@ -977,7 +977,7 @@ def test_one_tick_alternates_work_kinds_until_capacity_is_full(
     ]
 
 
-def test_after_a_conversation_round_the_next_round_dispatches_an_assignment(
+def test_after_a_conversation_round_the_next_round_starts_an_assignment(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler

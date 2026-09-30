@@ -941,7 +941,7 @@ def _compose_conversation_facts(
     """Return the settings that a conversation settled at its first round."""
     record = conversation.record
     return (
-        WebFact(label="label", value=record.label),
+        WebFact(label="label", value=record.dispatch_label),
         WebFact(label="harness", value=str(record.harness)),
         WebFact(label="model", value=f"{record.model} · {record.effort}"),
     )
@@ -1175,7 +1175,7 @@ def _compose_issue_row(*, observation: IssueObservation) -> WebIssueRow:
     return WebIssueRow(
         issue=observation.issue,
         title=observation.title,
-        labels=", ".join(observation.dispatch_labels or []),
+        labels=", ".join(observation.assignment_labels or []),
         status=status,
         evidence=evidence,
     )

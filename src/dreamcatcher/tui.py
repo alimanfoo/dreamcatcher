@@ -349,7 +349,7 @@ def _render_open_issues(
     rows = [
         (
             issue,
-            ", ".join(issue.dispatch_labels or []),
+            ", ".join(issue.assignment_labels or []),
             (
                 issue.blocked.evidence
                 if issue.blocked.value is IssueFactValue.TRUE
@@ -559,7 +559,7 @@ def _render_conversation(
         record = conversation.record
         facts.extend(
             [
-                ("conversation label", record.label),
+                ("dispatch label", record.dispatch_label),
                 ("worktree", state.describe_path(path=conversation.worktree)),
                 ("agent harness", record.harness),
                 (
@@ -617,8 +617,8 @@ def _render_assignment(
 ) -> RenderableType:
     """Render the newest assignment with older assignments beneath it.
 
-    Each dispatch creates another assignment for the issue, and the caller
-    orders them newest first.
+    Each assignment dispatch creates another assignment for the issue, and the
+    caller orders them newest first.
     """
     current_status = assignment_statuses[0]
     status_value = str(current_status.value)
@@ -653,7 +653,7 @@ def _render_assignment_summary(
     state: StateDirectory,
     status: AgentAssignmentStatus,
 ) -> RenderableType:
-    """Return what the dispatch settled for every round of the assignment."""
+    """Return what the assignment dispatch settled for every round."""
     assignment = status.assignment
     record = assignment.record
     table = _create_table(columns=2)

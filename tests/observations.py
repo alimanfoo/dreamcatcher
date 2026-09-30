@@ -3,7 +3,7 @@
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 
-from conftest import DISPATCH_LABEL
+from conftest import ASSIGNMENT_LABEL
 
 from dreamcatcher.scheduler import (
     IssueConversationObservation,
@@ -31,7 +31,7 @@ def observed_issue(
     *,
     issue: int,
     created_at: datetime | None = OBSERVED_AT,
-    dispatch_labels: Sequence[str] | None = (DISPATCH_LABEL,),
+    assignment_labels: Sequence[str] | None = (ASSIGNMENT_LABEL,),
     values: Mapping[str, IssueFactValue] | None = None,
     evidence: Mapping[str, str] | None = None,
 ) -> IssueObservation:
@@ -59,7 +59,9 @@ def observed_issue(
             evidence=fact_evidence.get("is_assigned_to_user"),
             name="whether the issue is assigned to the user",
         ),
-        dispatch_labels=(None if dispatch_labels is None else list(dispatch_labels)),
+        assignment_labels=(
+            None if assignment_labels is None else list(assignment_labels)
+        ),
         claimed_here=_observed_issue_fact(
             value=fact_values["claimed_here"],
             evidence=fact_evidence.get("claimed_here"),

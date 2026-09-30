@@ -38,7 +38,7 @@ def test_the_prompt_that_opens_an_assignment_is_its_template_then_the_postscript
     tmp_path, harness
 ):
     (tmp_path / DREAMCATCHER_CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
-    recipe = read_dreamcatcher_config(root=tmp_path).dispatch[0].recipes[harness]
+    recipe = read_dreamcatcher_config(root=tmp_path).assignment[0].recipes[harness]
 
     composed = compose_first_round_prompt(template=recipe.prompt, issue=12)
 
