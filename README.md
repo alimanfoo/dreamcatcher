@@ -90,6 +90,12 @@ name a suitable skill when one is available. The prompt may use `{issue}` and
 must follow the
 [issue-conversation contract](CONTRACT.md#issue-conversation-instructions).
 
+A conversation agent can investigate the code and make issue changes that the
+signed-in user's comment requests, such as filing and linking a subissue. It
+cannot implement a change, mutate Git, open or change a pull request, or post
+its conversation reply itself. Dreamcatcher publishes that reply after the round
+finishes.
+
 ## Commands
 
 `run` is the daemon. Start it from the repository's main checkout, and name the

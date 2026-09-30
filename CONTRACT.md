@@ -134,15 +134,21 @@ existing transcript when a new question refers to an earlier answer. Before a
 later round starts, Dreamcatcher resets the idle worktree to fetched main,
 deleting every local commit and file left by the earlier investigation.
 
-An issue conversation is investigation-only work. Its instructions must not tell
-the agent to create a branch, commit or push, open a pull request, change the
-issue, post to GitHub, or contact the user elsewhere. Dreamcatcher reinforces
-that contract with harness-specific controls. Claude denies its direct editing
-and GitHub mutation tool families, though its general command tool can write
-files. Codex runs commands in a workspace-write sandbox so it can use scratch
-files and local reproductions, while command network access is off and approval
-requests are rejected. Local checkout writes are discarded by the refresh before
-the next batch.
+An issue conversation is investigation work. Its instructions may tell the agent
+to make issue changes on GitHub when the user asks, such as filing or linking a
+subissue. Every GitHub post that the agent makes must carry Dreamcatcher's agent
+marker. Its instructions must not tell the agent to edit project source, mutate
+Git, create a branch, commit or push, open or change a pull request, post the
+conversation reply itself, or contact the user elsewhere.
+
+Dreamcatcher reinforces that contract with harness-specific controls. Claude
+allows `gh issue` and `gh api` commands while denying its direct editing and Git
+mutation tool families, though its general command tool can write files. Codex
+runs commands in a networked workspace-write sandbox so it can use scratch
+files, local reproductions and authenticated GitHub commands, while approval
+requests are rejected. These controls make the intended actions practical rather
+than providing a hard security boundary. Local checkout writes are discarded by
+the refresh before the next batch.
 
 Dreamcatcher owns publication: when the harness exits successfully, the round
 appends the agent marker to the final result and posts it before the round ends.
