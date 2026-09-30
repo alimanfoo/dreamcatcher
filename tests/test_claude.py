@@ -7,8 +7,6 @@ from conftest import streamed
 from dreamcatcher.claude import (
     CLAUDE_ADAPTER,
     CLAUDE_ASSIGNMENT_ALLOWED_TOOLS,
-    CLAUDE_CONVERSATION_ALLOWED_TOOLS,
-    CLAUDE_CONVERSATION_DISALLOWED_TOOLS,
 )
 from dreamcatcher.feed import FeedNote, FeedProse
 from dreamcatcher.harness_adapters import (
@@ -92,30 +90,27 @@ def test_a_conversation_round_allows_issue_tools_and_denies_implementation_tools
         ),
     ]
 
-    assert set(CLAUDE_CONVERSATION_ALLOWED_TOOLS) == {
-        "Bash(gh issue create:*)",
-        "Bash(gh issue edit:*)",
-        "Bash(gh issue comment:*)",
-        "Bash(gh api:*)",
-    }
-    assert {
-        "PowerShell",
-        "Bash(git cherry-pick:*)",
-        "Bash(git restore:*)",
-        "Bash(git rm:*)",
-        "Bash(git stash:*)",
-        "Bash(git tag:*)",
-    } <= set(CLAUDE_CONVERSATION_DISALLOWED_TOOLS)
-    assert "Bash(gh:*)" not in CLAUDE_CONVERSATION_DISALLOWED_TOOLS
+    expected_allowed_tools = (
+        "Bash(gh issue create:*) Bash(gh issue edit:*) "
+        "Bash(gh issue comment:*) Bash(gh api:*)"
+    )
+    expected_disallowed_tools = (
+        "Edit Write NotebookEdit PowerShell Bash(git add:*) Bash(git am:*) "
+        "Bash(git apply:*) Bash(git bisect:*) Bash(git branch:*) "
+        "Bash(git cherry-pick:*) Bash(git checkout:*) Bash(git clean:*) "
+        "Bash(git clone:*) Bash(git commit:*) Bash(git fetch:*) "
+        "Bash(git init:*) Bash(git merge:*) Bash(git mv:*) "
+        "Bash(git notes:*) Bash(git pull:*) Bash(git push:*) "
+        "Bash(git rebase:*) Bash(git remote:*) Bash(git replace:*) "
+        "Bash(git reset:*) Bash(git restore:*) Bash(git revert:*) "
+        "Bash(git rm:*) Bash(git stash:*) Bash(git submodule:*) "
+        "Bash(git switch:*) Bash(git tag:*) Bash(git worktree:*)"
+    )
     for invocation in invocations:
         allowed_at = invocation.arguments.index("--allowedTools")
-        assert invocation.arguments[allowed_at + 1] == " ".join(
-            CLAUDE_CONVERSATION_ALLOWED_TOOLS
-        )
+        assert invocation.arguments[allowed_at + 1] == expected_allowed_tools
         denied_at = invocation.arguments.index("--disallowedTools")
-        assert invocation.arguments[denied_at + 1] == " ".join(
-            CLAUDE_CONVERSATION_DISALLOWED_TOOLS
-        )
+        assert invocation.arguments[denied_at + 1] == expected_disallowed_tools
 
 
 def test_a_person_continues_the_harness_session_where_it_ran():
