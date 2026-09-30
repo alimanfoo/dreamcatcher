@@ -105,10 +105,10 @@ handling by Dreamcatcher.
 ### Dispatch, assignment and conversation routes
 
 A **dispatch route** maps one dispatch label to one dispatch recipe for each
-configured agent harness. An **assignment route** is a dispatch route for agent
-assignments. A **conversation route** is a dispatch route for issue
-conversations. A route may offer recipes for all the harnesses Dreamcatcher
-supports or for only some of them.
+agent harness that the route configures. An **assignment route** is a dispatch
+route for agent assignments. A **conversation route** is a dispatch route for
+issue conversations. A route may offer recipes for all the harnesses
+Dreamcatcher supports or for only some of them.
 
 ### Agent round
 

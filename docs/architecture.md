@@ -383,8 +383,8 @@ the request, kills its harness process tree, and records its stopped ending.
 
 `config.py` owns the strict model for `dreamcatcher.toml`. A `DispatchRecipe`
 supplies the model, effort, and initial prompt used to start agent work through
-one harness. A `DispatchRoute` maps one dispatch label to one recipe per
-configured harness.
+one harness. A `DispatchRoute` maps one dispatch label to one recipe per harness
+that the route configures.
 
 An `AssignmentRoute` specializes a dispatch route for assignments, and its
 prompt normally invokes an assignment skill. A `ConversationRoute` specializes a

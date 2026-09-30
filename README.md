@@ -53,7 +53,9 @@ effort = "xhigh"
 `assignee` is whose issues to pick up, as a GitHub login. It defaults to `@me`,
 the account `gh` is signed in as, so you can leave it out.
 
-If an existing `dreamcatcher.toml` contains `interval` or `max_agents`, remove
+In an existing `dreamcatcher.toml`, rename each `[[dispatch]]` table to
+`[[assignment]]` and each nested `[dispatch.HARNESS]` table to
+`[assignment.HARNESS]`. If the file contains `interval` or `max_agents`, remove
 those settings. Add `--interval` or `--max-agents` to the `run` command to keep
 any non-default values; the configuration file no longer accepts them.
 
@@ -80,9 +82,9 @@ of the command-line choice. Repeat the entry to offer different conversation
 labels, prompts, models, or harnesses.
 
 Assignment routes and conversation routes are both dispatch routes. Each
-dispatch route maps one dispatch label to one dispatch recipe per configured
-harness. A label can belong to only one route, so the same label cannot
-configure both an assignment and a conversation.
+dispatch route maps one dispatch label to one dispatch recipe per harness that
+the route configures. A label can belong to only one route, so the same label
+cannot configure both an assignment and a conversation.
 
 An issue carrying more than one configured assignment label or more than one
 configured conversation label has a routing conflict for that kind of work.
