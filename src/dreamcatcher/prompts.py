@@ -41,8 +41,7 @@ end your turn when the work is done."""
 
 ISSUE_CONVERSATION_RECOVERY_PROMPT = (
     """Your earlier round was cut short, or its
-answer could not be posted. Nothing from that round reached the issue. Carry on
-from where it stopped.
+answer could not be posted. Carry on from where it stopped.
 
 Your final message must be the complete answer, as Markdown ready for
 Dreamcatcher to post, or exactly NO_REPLY."""

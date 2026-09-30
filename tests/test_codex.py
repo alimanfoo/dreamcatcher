@@ -86,7 +86,7 @@ def test_a_resume_replays_the_settings_and_the_permissions_codex_forgets():
     )
 
 
-def test_a_first_conversation_round_can_write_and_reach_github_without_approval():
+def test_a_first_conversation_round_can_write_with_network_without_approval():
     assert CODEX_ADAPTER.build_first_round(
         request=CONVERSATION_LAUNCH_REQUEST,
         final_output_path=FINAL_OUTPUT_PATH,
@@ -110,7 +110,7 @@ def test_a_first_conversation_round_can_write_and_reach_github_without_approval(
     )
 
 
-def test_a_resumed_conversation_can_write_and_reach_github_without_approval():
+def test_a_resumed_conversation_can_write_with_network_without_approval():
     assert CODEX_ADAPTER.build_resumed_round(
         request=CONVERSATION_LAUNCH_REQUEST,
         harness_session_identifier="01a0213c-9c67",

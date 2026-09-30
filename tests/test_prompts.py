@@ -54,7 +54,6 @@ def test_conversation_recovery_returns_a_complete_postable_answer():
     prompt = " ".join(ISSUE_CONVERSATION_RECOVERY_PROMPT.split())
 
     assert "cut short, or its answer could not be posted" in prompt
-    assert "Nothing from that round reached the issue." in prompt
     assert (
         "complete answer, as Markdown ready for Dreamcatcher to post, or exactly "
         "NO_REPLY."
