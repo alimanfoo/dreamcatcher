@@ -8,6 +8,7 @@ from dreamcatcher.documents import (
     append_text,
     is_complete_line_position,
     read_json,
+    read_json_if_exists,
     read_last_line,
     read_lines_from,
     read_toml,
@@ -43,6 +44,23 @@ def test_a_valid_json_document_reads_back(tmp_path):
     document = write(path=tmp_path, text='{"name": "probe", "count": 3}')
 
     assert read_json(model=Sample, path=document) == Sample(name="probe", count=3)
+
+
+def test_an_optional_json_document_reads_back(tmp_path):
+    document = write(path=tmp_path, text='{"name": "probe", "count": 3}')
+
+    assert read_json_if_exists(model=Sample, path=document) == Sample(
+        name="probe", count=3
+    )
+
+
+def test_a_missing_optional_json_document_is_none(tmp_path):
+    assert read_json_if_exists(model=Sample, path=tmp_path / "sample.json") is None
+
+
+def test_an_unreadable_optional_json_document_says_so(tmp_path):
+    with pytest.raises(ReportableError, match="cannot read"):
+        read_json_if_exists(model=Sample, path=tmp_path)
 
 
 @pytest.mark.parametrize("read", READERS)

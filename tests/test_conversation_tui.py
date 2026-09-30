@@ -1,6 +1,5 @@
 """Render issue conversations in terminal views."""
 
-import os
 from datetime import timedelta
 from io import StringIO
 
@@ -8,6 +7,7 @@ import pytest
 from clocks import PINNED
 from observations import observed_conversation
 from records import (
+    write_daemon_lock,
     write_feed,
     write_final_output,
     write_issue_conversation,
@@ -422,7 +422,7 @@ def test_a_conversation_feed_before_its_first_round_says_so(tmp_path):
 def test_conversations_are_listed_in_attention_order(tmp_path):
     state = conversation_state(root=tmp_path)
     write_running_conversation(state=state, issue=11, started=PINNED)
-    state.lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
+    write_daemon_lock(path=state.lock)
     write_tick(
         state=state,
         tick=SchedulerRecord(

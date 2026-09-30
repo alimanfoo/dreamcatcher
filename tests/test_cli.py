@@ -1,4 +1,3 @@
-import os
 from datetime import timedelta
 from importlib.metadata import version
 from unittest.mock import Mock
@@ -8,6 +7,7 @@ from clocks import PINNED
 from conftest import configure
 from records import (
     write_agent_assignment,
+    write_daemon_lock,
     write_feed,
     write_issue_conversation,
     write_round,
@@ -24,7 +24,7 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.cli import MAX_INTERVAL_SECONDS, main
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DreamcatcherDaemon
-from dreamcatcher.documents import write_json, write_text
+from dreamcatcher.documents import write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.issue_conversations import read_issue_conversation
@@ -63,7 +63,7 @@ def watching(tmp_path):
     configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    write_text(text=f"{os.getpid()}\n", path=state.lock)
+    write_daemon_lock(path=state.lock)
     directory = write_agent_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13)
     write_round(
         directory=directory,

@@ -402,7 +402,10 @@ conflict, and none as outside that workflow.
 bootstrap that directory. A state-format constant selects the versioned root,
 currently `.dreamcatcher/v3/`, so one format never reads another format's files.
 The shared `.dreamcatcher/daemon.pid` lock stays outside that root, so daemons
-using different formats still cannot run against one checkout together. The
+using different formats still cannot run against one checkout together. It is a
+strict document containing the daemon's PID and process start time. A reader
+accepts it only while both values still identify the same live process, so a PID
+that the operating system has reused does not make a dead daemon look live. The
 module should remain deliberately small. It must not contain collections of
 issues or assignments selected for work, scheduling decisions, or status
 projections.

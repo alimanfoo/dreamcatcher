@@ -1,12 +1,12 @@
 """Render issue conversations in the local web interface."""
 
-import os
 from datetime import timedelta
 
 from clocks import DISPLAY_TIME_ZONE, PINNED
 from conftest import REPOSITORY
 from observations import observed_conversation
 from records import (
+    write_daemon_lock,
     write_feed,
     write_round,
     write_running_conversation,
@@ -498,7 +498,7 @@ def test_home_lists_conversations_in_attention_order(tmp_path):
         number=1,
         lines=[FeedLine(at=PINNED, text="Still working.")],
     )
-    state.lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
+    write_daemon_lock(path=state.lock)
     write_tick(
         state=state,
         tick=SchedulerRecord(
