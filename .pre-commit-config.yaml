@@ -82,7 +82,7 @@ repos:
         exclude: *verbatim-paths
       - id: complexipy
         name: complexipy
-        entry: uv run complexipy src tests tools
+        entry: uv run complexipy src tests tools --plain --failed
         language: system
         pass_filenames: false
         exclude: *verbatim-paths

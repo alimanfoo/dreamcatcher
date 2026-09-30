@@ -17,6 +17,8 @@ import sys
 SHOULD_START_NEW_PROCESS_SESSION = sys.platform != "win32"
 
 if sys.platform == "win32":  # pragma: no cover
+    from typing import cast
+
     import win32api
     import win32con
     import win32job
@@ -29,11 +31,11 @@ if sys.platform == "win32":  # pragma: no cover
     # for each running child. The job is held here until the child's tree is
     # ended, because closing the last handle on it is what kills what is left
     # inside.
-    _jobs: dict[int, object] = {}
+    _jobs: dict[int, int] = {}
 
     def contain_process_tree(*, pid: int) -> None:
         """Place the child and its descendants in a dedicated Job Object."""
-        job = win32job.CreateJobObject(None, "")
+        job = cast("int", win32job.CreateJobObject(None, ""))
         limits = win32job.QueryInformationJobObject(
             job, win32job.JobObjectExtendedLimitInformation
         )
@@ -47,7 +49,7 @@ if sys.platform == "win32":  # pragma: no cover
             win32con.PROCESS_SET_QUOTA | win32con.PROCESS_TERMINATE, False, pid
         )
         win32job.AssignProcessToJobObject(job, child)
-        child.Close()
+        win32api.CloseHandle(child)
         _jobs[pid] = job
 
     def end_process_tree(*, pid: int) -> None:
@@ -55,7 +57,7 @@ if sys.platform == "win32":  # pragma: no cover
         job = _jobs.pop(pid, None)
         if job is not None:
             win32job.TerminateJobObject(job, WINDOWS_TERMINATED_PROCESS_STATUS)
-            job.Close()
+            win32api.CloseHandle(job)
 
 else:  # pragma: no cover
     import os

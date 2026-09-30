@@ -40,6 +40,7 @@ dev = [
     "pytest-playwright==0.9.0",
     "ruff==0.16.3",
     "ty==0.0.73",
+    "types-pywin32==312.0.0.20260827; sys_platform == 'win32'",
     "uncoded==3.0.0",
 ]
 
