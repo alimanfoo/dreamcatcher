@@ -142,13 +142,13 @@ Git, create a branch, commit or push, open or change a pull request, post the
 conversation reply itself, or contact the user elsewhere.
 
 Dreamcatcher reinforces that contract with harness-specific controls. Claude
-allows `gh issue` and `gh api` commands while denying its direct editing and Git
-mutation tool families, though its general command tool can write files. Codex
-runs commands in a networked workspace-write sandbox so it can use scratch
-files, local reproductions and authenticated GitHub commands, while approval
-requests are rejected. These controls make the intended actions practical rather
-than providing a hard security boundary. Local checkout writes are discarded by
-the refresh before the next batch.
+allows selected `gh issue` commands and `gh api` while denying its direct
+editing and Git mutation tool families, though its general command tool can
+write files. Codex runs commands in a networked workspace-write sandbox so it
+can use scratch files, local reproductions and authenticated GitHub commands,
+while approval requests are rejected. These controls make the intended actions
+practical rather than providing a hard security boundary. Local checkout writes
+are discarded by the refresh before the next batch.
 
 Dreamcatcher owns publication: when the harness exits successfully, the round
 appends the agent marker to the final result and posts it before the round ends.

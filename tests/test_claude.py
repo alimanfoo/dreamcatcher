@@ -81,22 +81,23 @@ def test_a_conversation_round_allows_issue_tools_and_denies_implementation_tools
         work_kind=AgentWorkKind.CONVERSATION,
     )
 
-    invocation = CLAUDE_ADAPTER.build_first_round(
-        request=request, final_output_path=FINAL_OUTPUT_PATH
-    )
+    invocations = [
+        CLAUDE_ADAPTER.build_first_round(
+            request=request, final_output_path=FINAL_OUTPUT_PATH
+        ),
+        CLAUDE_ADAPTER.build_resumed_round(
+            request=request,
+            harness_session_identifier="abc-123",
+            final_output_path=FINAL_OUTPUT_PATH,
+        ),
+    ]
 
-    allowed_at = invocation.arguments.index("--allowedTools")
-    assert invocation.arguments[allowed_at + 1] == " ".join(
-        CLAUDE_CONVERSATION_ALLOWED_TOOLS
-    )
     assert set(CLAUDE_CONVERSATION_ALLOWED_TOOLS) == {
-        "Bash(gh issue:*)",
+        "Bash(gh issue create:*)",
+        "Bash(gh issue edit:*)",
+        "Bash(gh issue comment:*)",
         "Bash(gh api:*)",
     }
-    denied_at = invocation.arguments.index("--disallowedTools")
-    assert invocation.arguments[denied_at + 1] == " ".join(
-        CLAUDE_CONVERSATION_DISALLOWED_TOOLS
-    )
     assert {
         "PowerShell",
         "Bash(git cherry-pick:*)",
@@ -106,6 +107,15 @@ def test_a_conversation_round_allows_issue_tools_and_denies_implementation_tools
         "Bash(git tag:*)",
     } <= set(CLAUDE_CONVERSATION_DISALLOWED_TOOLS)
     assert "Bash(gh:*)" not in CLAUDE_CONVERSATION_DISALLOWED_TOOLS
+    for invocation in invocations:
+        allowed_at = invocation.arguments.index("--allowedTools")
+        assert invocation.arguments[allowed_at + 1] == " ".join(
+            CLAUDE_CONVERSATION_ALLOWED_TOOLS
+        )
+        denied_at = invocation.arguments.index("--disallowedTools")
+        assert invocation.arguments[denied_at + 1] == " ".join(
+            CLAUDE_CONVERSATION_DISALLOWED_TOOLS
+        )
 
 
 def test_a_person_continues_the_harness_session_where_it_ran():

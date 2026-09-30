@@ -133,10 +133,10 @@ be replaced by the next fresh selection.
 
 Fresh-batch candidates are polled before the capacity check.
 
-Conversation harness permissions preserve the no-implementation boundary while
-allowing issue actions that the user requests. Claude allows `gh issue` and
-`gh api` commands while denying direct editing and Git mutations. Codex runs in
-a networked workspace-write sandbox without approval escalation. Each prompt
+Conversation harness permissions reinforce the no-implementation boundary while
+allowing issue actions that the user requests. Claude allows selected `gh issue`
+commands and `gh api` while denying direct editing and Git mutations. Codex runs
+in a networked workspace-write sandbox without approval escalation. Each prompt
 forbids source changes, Git mutations, pull-request changes and direct reply
 posting, and requires the agent marker on every other GitHub post that the agent
 makes.

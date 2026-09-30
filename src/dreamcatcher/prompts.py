@@ -43,6 +43,9 @@ ISSUE_CONVERSATION_RECOVERY_PROMPT = (
     """Your earlier round was cut short, or its
 answer could not be posted. Carry on from where it stopped.
 
+Some issue actions may already have succeeded. Inspect GitHub before repeating
+any action.
+
 Your final message must be the complete answer, as Markdown ready for
 Dreamcatcher to post, or exactly NO_REPLY."""
     + AGENT_POST_INSTRUCTIONS
@@ -76,10 +79,13 @@ _ISSUE_CONVERSATION_ROUND_PROMPT = (
 Read that JSON file and answer the user's comments together. You may read the
 source and Git history, run code, and reproduce a suspected bug. Do not edit
 project source, mutate Git, or implement a change. You may make issue changes on
-GitHub when the user asks, such as filing a subissue. Do not fetch issue comments
-yourself, open or change a pull request, or post a reply. Dreamcatcher supplies
-the comments and publishes your final output. The `revision` field names the
-checked-out commit.
+GitHub when the user asks, such as filing a subissue. Inspect GitHub before each
+change and do not repeat an action that an earlier attempt completed. Do not
+close the conversation issue or change its assignees or labels, because
+Dreamcatcher needs it to remain eligible until your answer is published. Do not
+fetch issue comments yourself, open or change a pull request, or post the
+conversation reply yourself. Dreamcatcher supplies the comments and publishes
+your final output. The `revision` field names the checked-out commit.
 
 Return Markdown ready for Dreamcatcher to post, or exactly NO_REPLY when no
 reply is needed."""

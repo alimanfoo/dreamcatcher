@@ -54,6 +54,8 @@ def test_conversation_recovery_returns_a_complete_postable_answer():
     prompt = " ".join(ISSUE_CONVERSATION_RECOVERY_PROMPT.split())
 
     assert "cut short, or its answer could not be posted" in prompt
+    assert "issue actions may already have succeeded" in prompt
+    assert "Inspect GitHub before repeating any action." in prompt
     assert (
         "complete answer, as Markdown ready for Dreamcatcher to post, or exactly "
         "NO_REPLY."
@@ -99,7 +101,15 @@ def test_the_issue_conversation_prompt_names_its_input_and_host_boundary(tmp_pat
     assert composed.startswith("/dream:conversation GH52")
     assert str(inbox) in composed
     assert "make issue changes on\nGitHub when the user asks" in composed
-    assert "open or change a pull request, or post a reply" in composed
+    assert "do not repeat an action that an earlier attempt completed" in composed
+    assert (
+        "Do not\nclose the conversation issue or change its assignees or labels"
+        in composed
+    )
+    assert "Do not edit\nproject source, mutate Git, or implement a change" in composed
+    assert "Do not\nfetch issue comments yourself" in composed
+    assert "open or change a pull request" in composed
+    assert "post the\nconversation reply yourself" in composed
     assert composed.endswith(AGENT_POST_INSTRUCTIONS)
 
 
@@ -112,6 +122,9 @@ def test_the_issue_conversation_round_prompt_names_only_its_new_input(tmp_path):
     assert str(inbox) in composed
     assert "/dream:conversation" not in composed
     assert "make issue changes on\nGitHub when the user asks" in composed
+    assert "do not repeat an action that an earlier attempt completed" in composed
+    assert "Do not edit\nproject source, mutate Git, or implement a change" in composed
+    assert "Do not\nfetch issue comments yourself" in composed
     assert "revision" in composed
     assert composed.endswith(AGENT_POST_INSTRUCTIONS)
 

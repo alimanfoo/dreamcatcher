@@ -31,7 +31,9 @@ CLAUDE_ASSIGNMENT_ALLOWED_TOOLS = (
 
 # What an unattended conversation may change on GitHub when the user asks.
 CLAUDE_CONVERSATION_ALLOWED_TOOLS = (
-    "Bash(gh issue:*)",
+    "Bash(gh issue create:*)",
+    "Bash(gh issue edit:*)",
+    "Bash(gh issue comment:*)",
     "Bash(gh api:*)",
 )
 
