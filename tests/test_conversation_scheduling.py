@@ -387,7 +387,7 @@ def test_each_conversation_label_selects_its_own_route(
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.launched_conversation_identifier == "conversation-GH8"
+    assert observed.launched_agent_work_identifiers == ["conversation-GH8"]
     conversation = read_issue_conversation(state=scheduler.state, issue=8)
     assert conversation is not None
     assert conversation.record.label == "dream:scout"
@@ -421,7 +421,7 @@ def test_an_issue_with_two_conversation_labels_has_a_routing_conflict(
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.launched_conversation_identifier is None
+    assert observed.launched_agent_work_identifiers == []
     assert observed.conversation_observations == [
         IssueConversationObservation(
             issue=8,
@@ -722,7 +722,7 @@ def test_a_stopped_conversation_waits_for_new_feedback(
 
     conversation = read_issue_conversation(state=scheduler.state, issue=8)
     assert conversation is not None
-    assert launched.launched_conversation_identifier == "conversation-GH8"
+    assert launched.launched_agent_work_identifiers == ["conversation-GH8"]
     assert not conversation.rounds[1].is_recovery
     assert (
         harnesses["claude"]
@@ -1510,7 +1510,7 @@ def test_a_failed_route_listing_still_refreshes_healthy_routes(
         value=IssueFactValue.TRUE,
         evidence="1 comment to answer",
     )
-    assert observed.launched_conversation_identifier is None
+    assert observed.launched_agent_work_identifiers == []
     assert count_comment_reads(gh=gh) == 1
 
 

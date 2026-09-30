@@ -1343,7 +1343,7 @@ class _ReadyAgentWork:
         return bool(self.conversations)
 
 
-def _choose_work_kind(
+def _choose_next_work_kind(
     *,
     candidates: _ReadyAgentWork,
     last_selected_work_kind: AgentWorkKind | None,
@@ -1540,7 +1540,7 @@ class AgentWorkScheduler:
             ),
         )
         while len(self.rounds) < self.max_agents:
-            work_kind = _choose_work_kind(
+            work_kind = _choose_next_work_kind(
                 candidates=candidates,
                 last_selected_work_kind=self._last_selected_work_kind,
             )
