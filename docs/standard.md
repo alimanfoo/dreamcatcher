@@ -29,24 +29,28 @@ The rest of this document turns each word into criteria that can be measured.
 ## Exemplars
 
 The standard is not invented from nothing. Five projects set it, one dimension
-each. For each we name the property we take from it, so that a criterion below
-can be traced to a project that has already met it.
+each. For each we name the property we take from it, verified by reading the
+project, so that a criterion below can be traced to a project that has met it.
 
-- **pre-commit.** A Python command that shells out, kept in small modules, at
-  mechanically enforced full coverage, with nothing added that no need called
-  for. It sets the bar for module size, public surface and the test suite.
-- **Trio.** Few concepts that compose, a design document that stays
-  authoritative, and naming treated as design. It sets the bar for elegance, for
-  vocabulary and for the enduring documents.
-- **attrs and structlog.** Keyword-only APIs, a philosophy page that says why,
-  and a changelog with a stated deprecation policy. They set the bar for API
-  design and release practice.
-- **Click and Flask.** A small stable core with clean extension points, and
-  documentation organised by what the reader is trying to do. They set the bar
-  for layering and for the shape of the documentation.
-- **SQLite.** A documented file format, a stated compatibility commitment, and a
+- **pre-commit.** A Python command that shells out, with no source file over 600
+  lines, full coverage enforced, and five runtime dependencies. It sets the bar
+  for module size and dependencies.
+- **Trio.** Seven concepts that compose, a design document that states ranked
+  principles and says what the project will not do, and naming rules written
+  beside the ambiguity each prevents. It sets the bar for elegance, for
+  vocabulary and for the enduring documents. Its design document has also gone
+  stale in places, which is why each phase reads ours against the code.
+- **attrs and structlog.** A page that says why, a changelog with a written rule
+  for what earns an entry, and a compatibility statement a reader can find. They
+  set the bar for release practice.
+- **Click and Flask.** Click's documentation is organised by what the reader is
+  trying to do and says so. Flask separates protocol-free logic from I/O. They
+  set the bar for the shape of the documentation and for the web layer. Neither
+  keeps its modules small.
+- **SQLite.** A file format whose version tells a reader what to do when it is
+  newer than the reader, a compatibility promise phrased as intent, and a
   published account of how the project is tested. It sets the bar for the state
-  format, the contract and the account of testing.
+  format and the contract. We borrow its forms, not its promises.
 
 pre-commit and Trio are primary. Between them they cover structure, clarity and
 elegance, which is where the greatest distance lies.
@@ -134,8 +138,9 @@ not progress towards the standard. Meeting the criteria is.
 
 - Measure: whether the state format and the agent-facing contract each carry a
   version and a compatibility statement.
-- Bar: each does. A change to either is a numbered break, recorded in the
-  changelog with what the user does about it.
+- Bar: each does. A reader that meets a newer version refuses and says why. A
+  change to either is a numbered break, recorded in the changelog with what the
+  user does about it.
 - Check: review.
 
 ### Consistency
@@ -238,6 +243,7 @@ the ledger for E1. A waiver with no reason a reader can find is a violation.
 ## Measurement
 
 Each phase begins by measuring every criterion and recording the numbers in that
-phase's spec folder, beside the plan for closing the gaps. The first such
+phase's spec folder, beside the plan for closing the gaps. The measurement
+includes reading the three enduring documents against the code. The first such
 measurement is the
 [baseline of 2026-09-30](../specs/2026-09-30-engineering-standard/roadmap.md).

@@ -146,8 +146,9 @@ Work, one pull request per module, largest first:
   two kinds of agent work are candidates, are inspected, are recovered and are
   launched alike, they get one shape and parallel names. Where the ontology says
   they differ, the difference is named in the code.
-- `web` divides along Flask's own lines: the app and routes, the view models,
-  the feed tail, and the server. Templates and static files stay where they are.
+- `web` divides as Flask divides itself: view models that import no Flask and
+  are tested without it, the app and routes as a thin shell over them, the feed
+  tail, and the server. Templates and static files stay where they are.
 - `status` and `tui` are asked the same question. Each likely divides by the
   ontology's two kinds of agent work, assignments and conversations, with the
   report and the shared rendering apart.
@@ -189,8 +190,9 @@ Work:
   request, how-to pages for configuration and for each command, a reference for
   every setting and flag, and the existing explanation documents. The README
   keeps the one-paragraph description, the install line and a map.
-- Add `CHANGELOG.md`. Record the four state-format breaks to date, so the file
-  starts true.
+- Add `CHANGELOG.md`. Its header names the versioning scheme and where the
+  compatibility statement lives. A change users would notice gets an entry.
+  Record the four state-format breaks to date, so the file starts true.
 - Give the state format and the agent contract each a version and a
   compatibility statement, in words a user can act on.
 - Add a page that says how Dreamcatcher is tested: the coverage gate, the
