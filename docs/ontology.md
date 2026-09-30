@@ -409,10 +409,10 @@ comments or refreshing the worktree. It resumes the saved harness session, or
 repeats the first invocation with the configured prompt if no session identifier
 was recorded.
 
-A stopped conversation round is not recovered. The conversation is idle until
-another eligible comment batch arrives. That batch starts an ordinary discussion
-round in the same harness session, and its prompt says that the user stopped the
-previous round.
+A stopped conversation round posts no final result and is not recovered. The
+conversation is idle until another eligible comment batch arrives. That batch
+starts an ordinary discussion round in the same harness session, and its prompt
+says that the user stopped the previous round.
 
 Closing the issue, removing every configured conversation label, adding a second
 one or unassigning the signed-in account stops new comment batches and takes the
