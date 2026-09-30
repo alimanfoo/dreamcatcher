@@ -61,9 +61,11 @@ input. Nothing answers it, and the round stalls until dreamcatcher stops.
 ## Resumed rounds
 
 dreamcatcher gives an agent a further round whenever there is more for it to do.
-Each such round resumes the assignment's harness session where the last one left
-off, so the agent still has what the earlier rounds said in front of it, and
-dreamcatcher's prompt says what the round is for.
+Each such round normally resumes the assignment's harness session where the last
+one left off, so the agent still has what the earlier rounds said in front of
+it, and dreamcatcher's prompt says what the round is for. When a recovery has no
+session identifier to resume, Dreamcatcher starts a new session with the
+assignment's first prompt followed by the prompt for the required round.
 
 ### User posts and feedback
 
@@ -98,8 +100,10 @@ merged or closed pull request receives the user-posts prompt instead, whose
 `pull_request_state` tells the agent to wind up.
 
 An assignment skill needs nothing of its own for recovery. The resumed agent
-still has its own transcript, and dreamcatcher's prompt is enough to carry it
-on.
+normally still has its own transcript, and dreamcatcher's prompt is enough to
+carry it on. A replacement session instead receives the assignment's first
+prompt before the recovery prompt, so the skill's initial instructions apply
+again.
 
 ## Issue conversation instructions
 
@@ -127,8 +131,8 @@ The first round receives every eligible existing comment. Each later round
 resumes the same harness session and receives only eligible comments after the
 newest comment in the latest durable round input. The agent should use its
 existing transcript when a new question refers to an earlier answer. Before a
-later round starts, Dreamcatcher asks Git to update the idle worktree to fetched
-main, discarding every local worktree change left by the earlier investigation.
+later round starts, Dreamcatcher resets the idle worktree to fetched main,
+deleting every local commit and file left by the earlier investigation.
 
 An issue conversation is investigation-only work. Its instructions must not tell
 the agent to create a branch, commit or push, open a pull request, change the

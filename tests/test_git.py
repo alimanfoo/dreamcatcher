@@ -60,7 +60,7 @@ def test_a_worktree_lands_where_it_is_asked_for_on_its_own_branch(cloned):
 
 
 def test_a_detached_worktree_lands_at_origins_main_revision(cloned):
-    path = cloned / ".dreamcatcher" / "v3" / "conversation-worktrees" / "GH8"
+    path = cloned / ".dreamcatcher" / "detached-worktree"
 
     add_detached_worktree(root=cloned, path=path)
 
@@ -73,7 +73,7 @@ def test_a_detached_worktree_lands_at_origins_main_revision(cloned):
 
 
 def test_a_clean_detached_worktree_refreshes_to_fetched_main(cloned):
-    path = cloned / ".dreamcatcher" / "v3" / "conversation-worktrees" / "GH8"
+    path = cloned / ".dreamcatcher" / "detached-worktree"
     add_detached_worktree(root=cloned, path=path)
     earlier_revision = read_worktree_revision(worktree=path)
     (cloned / "README.md").write_bytes(b"what changed\n")
@@ -89,7 +89,7 @@ def test_a_clean_detached_worktree_refreshes_to_fetched_main(cloned):
 
 
 def test_a_refresh_discards_non_conflicting_local_changes(cloned):
-    path = cloned / ".dreamcatcher" / "v3" / "conversation-worktrees" / "GH8"
+    path = cloned / ".dreamcatcher" / "detached-worktree"
     add_detached_worktree(root=cloned, path=path)
     earlier_revision = read_worktree_revision(worktree=path)
     unexpected = path / "unexpected.txt"
@@ -98,11 +98,7 @@ def test_a_refresh_discards_non_conflicting_local_changes(cloned):
     commit(path=cloned, message="change main")
     git(arguments=["push", "origin", "main"], cwd=cloned)
 
-    revision = refresh_detached_worktree(
-        root=cloned,
-        worktree=path,
-        expected_revision=earlier_revision,
-    )
+    revision = refresh_detached_worktree(root=cloned, worktree=path)
 
     assert revision != earlier_revision
     assert not unexpected.exists()
@@ -110,7 +106,7 @@ def test_a_refresh_discards_non_conflicting_local_changes(cloned):
 
 
 def test_a_refresh_discards_a_conflicting_local_change(cloned):
-    path = cloned / ".dreamcatcher" / "v3" / "conversation-worktrees" / "GH8"
+    path = cloned / ".dreamcatcher" / "detached-worktree"
     add_detached_worktree(root=cloned, path=path)
     earlier_revision = read_worktree_revision(worktree=path)
     readme = path / "README.md"
@@ -119,18 +115,14 @@ def test_a_refresh_discards_a_conflicting_local_change(cloned):
     commit(path=cloned, message="change main")
     git(arguments=["push", "origin", "main"], cwd=cloned)
 
-    revision = refresh_detached_worktree(
-        root=cloned,
-        worktree=path,
-        expected_revision=earlier_revision,
-    )
+    revision = refresh_detached_worktree(root=cloned, worktree=path)
 
     assert revision != earlier_revision
     assert readme.read_text(encoding="utf-8") == "what main holds now\n"
 
 
 def test_a_missing_linked_worktree_is_not_refreshed(cloned):
-    path = cloned / ".dreamcatcher" / "v3" / "conversation-worktrees" / "GH8"
+    path = cloned / ".dreamcatcher" / "detached-worktree"
     path.mkdir(parents=True)
 
     with pytest.raises(ReportableError, match="it is not a linked worktree"):
@@ -139,21 +131,77 @@ def test_a_missing_linked_worktree_is_not_refreshed(cloned):
     assert read_worktree_branch(worktree=cloned) == "main"
 
 
-def test_an_unexpected_detached_revision_is_not_abandoned(cloned):
-    path = cloned / ".dreamcatcher" / "v3" / "conversation-worktrees" / "GH8"
+def test_a_refresh_discards_an_unexpected_detached_commit(cloned):
+    path = cloned / ".dreamcatcher" / "detached-worktree"
     add_detached_worktree(root=cloned, path=path)
-    expected = read_worktree_revision(worktree=path)
-    make_empty_commit(worktree=path, message="unexpected work")
+    unexpected_file = path / "unexpected.txt"
+    unexpected_file.write_bytes(b"local file\n")
+    (path / "README.md").write_bytes(b"local change\n")
+    commit(path=path, message="unexpected work")
     unexpected = read_worktree_revision(worktree=path)
 
-    with pytest.raises(ReportableError, match=f"expected {expected}"):
-        refresh_detached_worktree(
-            root=cloned,
-            worktree=path,
-            expected_revision=expected,
-        )
+    revision = refresh_detached_worktree(root=cloned, worktree=path)
 
-    assert read_worktree_revision(worktree=path) == unexpected
+    assert revision != unexpected
+    assert revision == git(arguments=["rev-parse", "origin/main"], cwd=cloned).strip()
+    assert read_worktree_revision(worktree=path) == revision
+    assert not unexpected_file.exists()
+    assert (path / "README.md").read_text(encoding="utf-8") == "what the seed holds\n"
+
+
+def test_a_refresh_discards_changes_inside_a_submodule(cloned, tmp_path):
+    source = tmp_path / "dependency-source"
+    git(arguments=["init", "--initial-branch=main", str(source)], cwd=tmp_path)
+    (source / "tracked.txt").write_bytes(b"recorded\n")
+    commit(path=source, message="seed dependency")
+    git(
+        arguments=[
+            "-c",
+            "protocol.file.allow=always",
+            "submodule",
+            "add",
+            str(source),
+            "dependency",
+        ],
+        cwd=cloned,
+    )
+    commit(path=cloned, message="add dependency")
+    git(arguments=["push", "origin", "main"], cwd=cloned)
+    path = cloned / ".dreamcatcher" / "detached-worktree"
+    add_detached_worktree(root=cloned, path=path)
+    git(
+        arguments=[
+            "-c",
+            "protocol.file.allow=always",
+            "submodule",
+            "update",
+            "--init",
+        ],
+        cwd=path,
+    )
+    dependency = path / "dependency"
+    (dependency / "tracked.txt").write_bytes(b"local change\n")
+    unexpected = dependency / "unexpected.txt"
+    unexpected.write_bytes(b"local file\n")
+    commit(path=dependency, message="unexpected dependency work")
+    untracked = dependency / "untracked.txt"
+    untracked.write_bytes(b"untracked\n")
+    (source / "tracked.txt").write_bytes(b"advanced\n")
+    commit(path=source, message="advance dependency")
+    advanced = git(arguments=["rev-parse", "HEAD"], cwd=source).strip()
+    git(arguments=["fetch", "origin"], cwd=cloned / "dependency")
+    git(arguments=["checkout", advanced], cwd=cloned / "dependency")
+    commit(path=cloned, message="advance dependency")
+    git(arguments=["push", "origin", "main"], cwd=cloned)
+    git(arguments=["config", "fetch.recurseSubmodules", "false"], cwd=cloned)
+    with pytest.raises(CommandError):
+        git(arguments=["cat-file", "-e", f"{advanced}^{{commit}}"], cwd=dependency)
+
+    refresh_detached_worktree(root=cloned, worktree=path)
+
+    assert (dependency / "tracked.txt").read_text(encoding="utf-8") == "advanced\n"
+    assert not unexpected.exists()
+    assert not untracked.exists()
 
 
 def test_a_refresh_discards_an_ignored_file(cloned):
@@ -161,7 +209,7 @@ def test_a_refresh_discards_an_ignored_file(cloned):
     (cloned / ".gitignore").write_bytes(f"{ignored}\n".encode())
     commit(path=cloned, message="ignore generated file")
     git(arguments=["push", "origin", "main"], cwd=cloned)
-    path = cloned / ".dreamcatcher" / "v3" / "conversation-worktrees" / "GH8"
+    path = cloned / ".dreamcatcher" / "detached-worktree"
     add_detached_worktree(root=cloned, path=path)
     generated = path / ignored
     generated.write_bytes(b"discard this\n")
@@ -209,6 +257,17 @@ def test_a_pushed_assignment_branch_is_visible_at_origin(cloned):
     make_empty_commit(worktree=path, message="GH8")
 
     push_branch(root=cloned, branch=BRANCH)
+
+    remote = git(arguments=["ls-remote", "--heads", "origin", BRANCH], cwd=cloned)
+    assert f"refs/heads/{BRANCH}" in remote
+
+
+def test_an_assignment_worktree_can_push_to_origin(cloned):
+    path = assignment_worktree(root=cloned)
+    add_worktree(root=cloned, path=path, branch=BRANCH)
+    make_empty_commit(worktree=path, message="GH8")
+
+    git(arguments=["push", "origin", BRANCH], cwd=path)
 
     remote = git(arguments=["ls-remote", "--heads", "origin", BRANCH], cwd=cloned)
     assert f"refs/heads/{BRANCH}" in remote

@@ -1,7 +1,7 @@
 """Schedule agent work for one Dreamcatcher instance.
 
 Each tick reads local agent work, observes relevant issues on GitHub, applies
-the concurrency cap and global cooldown, and launches at most one round.
+the concurrency cap and global cooldown, and fills every free agent slot.
 
 Within assignment work, a missing first round comes first, followed by recovery,
 wrap-up, user feedback, and dispatch of the oldest available issue. Conversation
@@ -14,13 +14,14 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from functools import partial
-from typing import Annotated, Protocol, Self, cast
+from typing import Annotated, Protocol, Self
 
 from pydantic import AfterValidator, AwareDatetime, Field, model_validator
 
 from dreamcatcher.agent_assignments import (
     AgentAssignment,
     AgentAssignmentCreator,
+    AgentAssignmentRoundInput,
     advance_user_post_delivery_cursor,
     find_harness_session_identifier,
     find_open_agent_assignments_by_issue,
@@ -31,7 +32,6 @@ from dreamcatcher.agent_assignments import (
     record_pull_request_observation,
 )
 from dreamcatcher.agent_rounds import (
-    AgentAssignmentRoundInput,
     AgentAssignmentRoundPurpose,
     AgentRound,
     AgentRoundOutcome,
@@ -39,14 +39,13 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     AgentRoundStartRequest,
     ErroredAgentRoundEnding,
-    IssueConversationInput,
     IssueConversationRoundPurpose,
     start_agent_round,
 )
 from dreamcatcher.config import (
     AgentHarness,
     DreamcatcherConfig,
-    IssueConversationConfig,
+    IssueConversationRoute,
 )
 from dreamcatcher.documents import DreamcatcherDocument, read_json
 from dreamcatcher.errors import ReportableError
@@ -68,8 +67,10 @@ from dreamcatcher.github import (
 from dreamcatcher.harness_adapters import AgentRoundLaunchRequest, AgentWorkKind
 from dreamcatcher.issue_conversations import (
     IssueConversation,
+    IssueConversationInput,
     create_issue_conversation,
     find_issue_conversation_harness_session_identifier,
+    is_issue_conversation_ready_for_input,
     list_undelivered_issue_comments,
     post_issue_conversation_answer,
     prepare_issue_conversation_input,
@@ -114,7 +115,7 @@ class IssueFact(DreamcatcherDocument):
     """Model an independently observed issue fact and its evidence."""
 
     value: IssueFactValue
-    evidence: str | None = None
+    evidence: str
 
 
 class IssueObservation(DreamcatcherDocument):
@@ -152,13 +153,20 @@ class AgentAssignmentObservation(DreamcatcherDocument):
 class IssueConversationObservation(DreamcatcherDocument):
     """Model what the scheduler found for one conversation issue in one tick.
 
-    The scheduler observes every eligible issue. When it cannot list eligible
-    issues, it observes the previous tick's issues again with an unknown fact.
+    The scheduler observes every issue matching at least one conversation route.
+    When it cannot list matching issues, it observes the previous tick's issues
+    again with unknown facts.
     """
 
     issue: int
     title: str
     has_comments_to_answer: IssueFact
+    routing_conflict: IssueFact = Field(
+        default_factory=lambda: IssueFact(
+            value=IssueFactValue.FALSE,
+            evidence="has no conversation routing conflict",
+        )
+    )
 
 
 class GlobalCooldown(DreamcatcherDocument):
@@ -180,7 +188,7 @@ class SchedulerRecord(DreamcatcherDocument):
 
     at: UtcDateTime
     hold: str | None = None
-    launched_agent_work_identifier: str | None = None
+    launched_agent_work_identifiers: list[str] = Field(default_factory=list)
     issue_observations: list[IssueObservation] = Field(default_factory=list)
     assignment_observations: list[AgentAssignmentObservation] = Field(
         default_factory=list
@@ -190,22 +198,6 @@ class SchedulerRecord(DreamcatcherDocument):
     )
     cooldown: GlobalCooldown | None = None
     most_recent_cooldown_ended: UtcDateTime | None = None
-
-    @property
-    def launched_assignment_identifier(self) -> str | None:
-        """The launched identifier when it belongs to an assignment."""
-        identifier = self.launched_agent_work_identifier
-        if identifier is None or identifier.startswith("conversation-"):
-            return None
-        return identifier
-
-    @property
-    def launched_conversation_identifier(self) -> str | None:
-        """The launched identifier when it belongs to a conversation."""
-        identifier = self.launched_agent_work_identifier
-        if identifier is not None and identifier.startswith("conversation-"):
-            return identifier
-        return None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -225,7 +217,7 @@ class NewIssueConversationRoundCandidate:
     issue: Issue
     comments: list[ConversationComment]
     conversation: IssueConversation | None
-    config: IssueConversationConfig
+    route: IssueConversationRoute
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -250,17 +242,17 @@ class IssueConversationCandidateResult:
 
 
 @dataclass(frozen=True, kw_only=True)
-class _IssueConversationInspection:
-    observation: IssueConversationObservation
-    candidate: IssueConversationCandidate | None
+class _ConversationRouteListing:
+    """Hold conversation issues, or the failure that stopped listing."""
+
+    issues: list[Issue]
+    failure: str | None = None
 
 
 @dataclass(frozen=True, kw_only=True)
-class _IssueConversationCandidateContext:
-    repository: str
-    account: str
-    config: DreamcatcherConfig
-    most_recent_cooldown_ended: datetime | None
+class _IssueConversationInspection:
+    observation: IssueConversationObservation
+    candidate: IssueConversationCandidate | None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -338,7 +330,10 @@ def derive_issue_availability(*, observation: IssueObservation) -> IssueFact:
             value=IssueFactValue.UNKNOWN,
             evidence="cannot tell which dispatch labels it carries",
         )
-    return IssueFact(value=IssueFactValue.TRUE)
+    return IssueFact(
+        value=IssueFactValue.TRUE,
+        evidence="available for assignment",
+    )
 
 
 def _find_preventing_issue_fact(*, observation: IssueObservation) -> IssueFact | None:
@@ -454,18 +449,19 @@ def _observe_issue(
         external_reason = f"cannot read issue: {issue_response.reason}"
         title = None
         created_at = None
-        is_open = _compose_unknown_issue_fact(evidence=external_reason)
-        is_assigned = _compose_unknown_issue_fact(evidence=external_reason)
+        is_open = IssueFact(value=IssueFactValue.UNKNOWN, evidence=external_reason)
+        is_assigned = IssueFact(value=IssueFactValue.UNKNOWN, evidence=external_reason)
         dispatch_labels = None
-        routing_conflict = _compose_unknown_issue_fact(evidence=external_reason)
+        routing_conflict = IssueFact(
+            value=IssueFactValue.UNKNOWN, evidence=external_reason
+        )
     else:
         title = issue_response.title
         created_at = issue_response.created_at
-        is_open = _compose_known_issue_fact(
-            value=issue_response.state is IssueState.OPEN,
-            evidence=(
-                None if issue_response.state is IssueState.OPEN else "issue is closed"
-            ),
+        is_open = (
+            IssueFact(value=IssueFactValue.TRUE, evidence="issue is open")
+            if issue_response.state is IssueState.OPEN
+            else IssueFact(value=IssueFactValue.FALSE, evidence="issue is closed")
         )
         watched_account = (
             context.account
@@ -475,32 +471,46 @@ def _observe_issue(
         is_assigned_to_user = watched_account.casefold() in {
             assignee.login.casefold() for assignee in issue_response.assignees
         }
-        is_assigned = _compose_known_issue_fact(
-            value=is_assigned_to_user,
-            evidence=(
-                None if is_assigned_to_user else f"is not assigned to {watched_account}"
-            ),
+        is_assigned = (
+            IssueFact(
+                value=IssueFactValue.TRUE,
+                evidence=f"is assigned to {watched_account}",
+            )
+            if is_assigned_to_user
+            else IssueFact(
+                value=IssueFactValue.FALSE,
+                evidence=f"is not assigned to {watched_account}",
+            )
         )
         dispatch_labels = context.config.identify_dispatch_labels(
             labels=[label.name for label in issue_response.labels]
         )
         has_routing_conflict = len(dispatch_labels) > 1
-        routing_conflict = _compose_known_issue_fact(
-            value=has_routing_conflict,
-            evidence=(
-                "carries more than one dispatch label: " + ", ".join(dispatch_labels)
-                if has_routing_conflict
-                else None
-            ),
+        routing_conflict = (
+            IssueFact(
+                value=IssueFactValue.TRUE,
+                evidence=(
+                    "carries more than one dispatch label: "
+                    + ", ".join(dispatch_labels)
+                ),
+            )
+            if has_routing_conflict
+            else IssueFact(
+                value=IssueFactValue.FALSE,
+                evidence="has no routing conflict",
+            )
         )
     is_claimed_here = issue in context.assignments
-    claimed_here = _compose_known_issue_fact(
-        value=is_claimed_here,
-        evidence=(
-            "an assignment in this checkout is working on it"
-            if is_claimed_here
-            else None
-        ),
+    claimed_here = (
+        IssueFact(
+            value=IssueFactValue.TRUE,
+            evidence="an assignment in this checkout is working on it",
+        )
+        if is_claimed_here
+        else IssueFact(
+            value=IssueFactValue.FALSE,
+            evidence="no assignment in this checkout is working on it",
+        )
     )
     return IssueObservation(
         issue=issue,
@@ -528,18 +538,25 @@ def _observe_external_claim(
     """Observe whether an open linked pull request claims the issue elsewhere."""
     setup_failure = context.incomplete_setups.get(issue)
     if issue in context.incomplete_setups and setup_failure is None:
-        return _compose_known_issue_fact(value=False)
+        return IssueFact(
+            value=IssueFactValue.FALSE,
+            evidence="no pull request outside this checkout claims it",
+        )
     pull_request_context = read_issue_pull_request_context(
         repository=context.repository, issue=issue
     )
     if isinstance(pull_request_context, UnknownGitHubResponse):
         if setup_failure is not None:
-            return _compose_unknown_issue_fact(evidence=setup_failure)
-        return _compose_unknown_issue_fact(
+            return IssueFact(
+                value=IssueFactValue.UNKNOWN,
+                evidence=setup_failure,
+            )
+        return IssueFact(
+            value=IssueFactValue.UNKNOWN,
             evidence=(
                 "cannot tell whether a pull request claims it: "
                 f"{pull_request_context.reason}"
-            )
+            ),
         )
     assignment = context.assignments.get(issue)
     owned = None if assignment is None else assignment.record.pull_request
@@ -552,41 +569,44 @@ def _observe_external_claim(
         f"#{pull_request.number}" for pull_request in external
     )
     if external:
-        return _compose_known_issue_fact(
-            value=True,
+        return IssueFact(
+            value=IssueFactValue.TRUE,
             evidence=f"a pull request is open on it: {external_pull_requests}",
         )
     if setup_failure is not None:
-        return _compose_unknown_issue_fact(evidence=setup_failure)
-    return _compose_known_issue_fact(value=False)
+        return IssueFact(
+            value=IssueFactValue.UNKNOWN,
+            evidence=setup_failure,
+        )
+    return IssueFact(
+        value=IssueFactValue.FALSE,
+        evidence="no pull request outside this checkout claims it",
+    )
 
 
 def _observe_blocking_issues(*, repository: str, issue: int) -> IssueFact:
     """Observe whether an open issue dependency blocks the issue."""
     blocking = list_blocking_issues(repository=repository, issue=issue)
     if isinstance(blocking, UnknownGitHubResponse):
-        return _compose_unknown_issue_fact(
-            evidence=f"cannot tell what blocks it: {blocking.reason}"
+        return IssueFact(
+            value=IssueFactValue.UNKNOWN,
+            evidence=f"cannot tell what blocks it: {blocking.reason}",
         )
     open_blockers = [
         blocker.number for blocker in blocking if blocker.state is IssueState.OPEN
     ]
     blocker_names = ", ".join(f"GH{number}" for number in open_blockers)
-    return _compose_known_issue_fact(
-        value=bool(open_blockers),
-        evidence=(None if not blocker_names else f"blocked by {blocker_names}"),
+    return (
+        IssueFact(
+            value=IssueFactValue.TRUE,
+            evidence=f"blocked by {blocker_names}",
+        )
+        if open_blockers
+        else IssueFact(
+            value=IssueFactValue.FALSE,
+            evidence="no open issue blocks it",
+        )
     )
-
-
-def _compose_known_issue_fact(*, value: bool, evidence: str | None = None) -> IssueFact:
-    return IssueFact(
-        value=IssueFactValue.TRUE if value else IssueFactValue.FALSE,
-        evidence=evidence,
-    )
-
-
-def _compose_unknown_issue_fact(*, evidence: str) -> IssueFact:
-    return IssueFact(value=IssueFactValue.UNKNOWN, evidence=evidence)
 
 
 def derive_agent_work_fault(
@@ -625,7 +645,11 @@ def _count_observed_conversation_faults(
     most_recent_cooldown_ended: datetime | None,
 ) -> int:
     """Count faults among conversations this tick keeps in the report."""
-    observed_issues = {observation.issue for observation in observations}
+    observed_issues = {
+        observation.issue
+        for observation in observations
+        if observation.routing_conflict.value is not IssueFactValue.TRUE
+    }
     return sum(
         derive_agent_work_fault(
             rounds=conversation.rounds,
@@ -795,7 +819,10 @@ def _inspect_assignment_pull_request(
             reason=f"cannot tell what the user posted: {undelivered_posts.reason}",
             is_known=False,
         )
-    if pull_request.state is PullRequestState.OPEN and not undelivered_posts:
+    if not undelivered_posts and (
+        pull_request.state is PullRequestState.OPEN
+        or assignment.rounds[-1].outcome is AgentRoundOutcome.STOPPED
+    ):
         return None
     return _compose_resumed_round_requirement(
         assignment=assignment,
@@ -851,6 +878,7 @@ def _compose_resumed_round_requirement(
             round_input=assignment.compose_round_paths(
                 number=assignment.next_round_number
             ).round_input,
+            was_stopped=(assignment.rounds[-1].outcome is AgentRoundOutcome.STOPPED),
         ),
     )
 
@@ -895,148 +923,6 @@ def compose_assignment_observation(
     )
 
 
-def _list_issue_conversation_candidates(
-    *,
-    context: _IssueConversationCandidateContext,
-    conversations: list[IssueConversation],
-    previous_observations: list[IssueConversationObservation],
-) -> IssueConversationCandidateResult:
-    """Observe every eligible issue and return conversation work ready to run.
-
-    Comments are read for every eligible issue that can accept a fresh batch,
-    whether or not an agent is free, so that status can tell waiting from idle.
-    Recovery uses the saved batch and does not read new comments. A failed read
-    holds launches only where the conversation could take a new batch. When
-    eligible issues cannot be listed, the previous tick's issues are observed
-    again with an unknown fact, so the ones the user took off the report stay
-    off it.
-    """
-    conversation_config = context.config.conversation
-    if conversation_config is None:
-        return IssueConversationCandidateResult(candidates=[], observations=[])
-    issue_response = list_issues(
-        repository=context.repository,
-        label=conversation_config.label,
-        assignee=context.account,
-    )
-    if isinstance(issue_response, UnknownGitHubResponse):
-        failure = f"could not list issue conversations: {issue_response.reason}"
-        return IssueConversationCandidateResult(
-            candidates=[],
-            observations=[
-                observation.model_copy(
-                    update={
-                        "has_comments_to_answer": _compose_unknown_issue_fact(
-                            evidence=failure
-                        )
-                    }
-                )
-                for observation in previous_observations
-            ],
-            failure=failure,
-        )
-    conversations_by_issue = {
-        conversation.record.issue: conversation for conversation in conversations
-    }
-    candidates: list[IssueConversationCandidate] = []
-    observations: list[IssueConversationObservation] = []
-    failures: list[str | None] = []
-    for issue in sorted(
-        issue_response, key=lambda item: (item.created_at, item.number)
-    ):
-        conversation = conversations_by_issue.get(issue.number)
-        inspection = _inspect_issue_conversation(
-            context=context,
-            config=conversation_config,
-            issue=issue,
-            conversation=conversation,
-        )
-        observations.append(inspection.observation)
-        if inspection.candidate is not None:
-            candidates.append(inspection.candidate)
-        elif _is_conversation_ready_for_input(conversation=conversation):
-            failures.append(inspection.observation.has_comments_to_answer.evidence)
-    return IssueConversationCandidateResult(
-        candidates=sorted(candidates, key=_rank_issue_conversation_candidate),
-        observations=observations,
-        failure=_combine_scheduler_failures(failures=failures),
-    )
-
-
-def _inspect_issue_conversation(
-    *,
-    context: _IssueConversationCandidateContext,
-    config: IssueConversationConfig,
-    issue: Issue,
-    conversation: IssueConversation | None,
-) -> _IssueConversationInspection:
-    """Observe one eligible issue, and return a candidate when it is ready."""
-    if conversation is not None and derive_agent_work_fault(
-        rounds=conversation.rounds,
-        retry_requested_at=conversation.record.retry_requested_at,
-        most_recent_cooldown_ended=context.most_recent_cooldown_ended,
-    ):
-        return _IssueConversationInspection(
-            observation=IssueConversationObservation(
-                issue=issue.number,
-                title=issue.title,
-                has_comments_to_answer=_compose_known_issue_fact(value=False),
-            ),
-            candidate=None,
-        )
-    if (
-        conversation is not None
-        and conversation.rounds
-        and conversation.rounds[-1].outcome
-        in {AgentRoundOutcome.ERRORED, AgentRoundOutcome.INTERRUPTED}
-    ):
-        return _IssueConversationInspection(
-            observation=IssueConversationObservation(
-                issue=issue.number,
-                title=issue.title,
-                has_comments_to_answer=_compose_known_issue_fact(value=False),
-            ),
-            candidate=IssueConversationRecoveryCandidate(
-                conversation=conversation,
-            ),
-        )
-    try:
-        comments = _list_comments_to_answer(
-            repository=context.repository,
-            account=context.account,
-            issue=issue.number,
-            conversation=conversation,
-        )
-    except ReportableError as failure:
-        has_comments_to_answer = _compose_unknown_issue_fact(evidence=str(failure))
-        comments = []
-    else:
-        has_comments_to_answer = _compose_known_issue_fact(
-            value=bool(comments),
-            evidence=(
-                f"{describe_count(number=len(comments), noun='comment')} to answer"
-                if comments
-                else None
-            ),
-        )
-    observation = IssueConversationObservation(
-        issue=issue.number,
-        title=issue.title,
-        has_comments_to_answer=has_comments_to_answer,
-    )
-    if not comments or not _is_conversation_ready_for_input(conversation=conversation):
-        return _IssueConversationInspection(observation=observation, candidate=None)
-    return _IssueConversationInspection(
-        observation=observation,
-        candidate=NewIssueConversationRoundCandidate(
-            issue=issue,
-            comments=comments,
-            conversation=conversation,
-            config=config,
-        ),
-    )
-
-
 def _rank_issue_conversation_candidate(
     candidate: IssueConversationCandidate, /
 ) -> tuple[int, str, int]:
@@ -1058,7 +944,7 @@ def _prepare_issue_conversation_round(
         return _prepare_issue_conversation_recovery(conversation=candidate.conversation)
     conversation = candidate.conversation or create_issue_conversation(
         state=state,
-        config=candidate.config,
+        route=candidate.route,
         requested_harness=requested_harness,
         issue=candidate.issue,
     )
@@ -1087,6 +973,7 @@ def _prepare_issue_conversation_round(
         prompt = compose_issue_conversation_round_prompt(
             issue=conversation.record.issue,
             round_input=paths.round_input,
+            was_stopped=(conversation.rounds[-1].outcome is AgentRoundOutcome.STOPPED),
         )
     return _PreparedIssueConversationRound(
         conversation=conversation,
@@ -1162,29 +1049,94 @@ def _list_comments_to_answer(
     )
 
 
-def _is_conversation_ready_for_input(*, conversation: IssueConversation | None) -> bool:
-    """Return whether a conversation can accept another comment batch."""
-    if conversation is None or not conversation.rounds:
-        return True
-    return conversation.rounds[-1].outcome is AgentRoundOutcome.SUCCESSFUL
-
-
 def _combine_scheduler_failures(*, failures: list[str | None]) -> str | None:
     """Join independent scheduler failures."""
     present = [failure for failure in failures if failure is not None]
     return "; ".join(present) if present else None
 
 
-def _find_oldest_available_issue(*, record: SchedulerRecord) -> IssueObservation | None:
-    """Return the first issue that the scheduler observed as available."""
-    return next(
-        (
-            observation
-            for observation in record.issue_observations
-            if observation.availability.value is IssueFactValue.TRUE
-        ),
-        None,
+def _list_available_issues(*, record: SchedulerRecord) -> list[IssueObservation]:
+    """Return the issues that the scheduler observed as available, in order."""
+    return [
+        observation
+        for observation in record.issue_observations
+        if observation.availability.value is IssueFactValue.TRUE
+    ]
+
+
+type _AssignmentCandidate = RequiredAgentRound | IssueObservation
+
+
+def _list_ready_assignment_candidates(
+    *,
+    record: SchedulerRecord,
+    inspection_results: list[AgentAssignmentInspectionResult],
+    failure: str | None,
+) -> list[_AssignmentCandidate]:
+    """Return assignment candidates when their shared issue read succeeded."""
+    if failure is not None:
+        return []
+    required_rounds = prioritize_required_rounds(
+        required_rounds=[
+            result
+            for result in inspection_results
+            if isinstance(result, RequiredAgentRound)
+        ]
     )
+    return [*required_rounds, *_list_available_issues(record=record)]
+
+
+def _list_ready_conversation_candidates(
+    *, result: IssueConversationCandidateResult
+) -> list[IssueConversationCandidate]:
+    """Return safe candidates, retaining saved recovery across a failed read."""
+    if result.failure is None:
+        return list(result.candidates)
+    return [
+        candidate
+        for candidate in result.candidates
+        if isinstance(candidate, IssueConversationRecoveryCandidate)
+    ]
+
+
+@dataclass(kw_only=True)
+class _ReadyAgentWork:
+    assignments: list[_AssignmentCandidate]
+    conversations: list[IssueConversationCandidate]
+
+    @property
+    def is_assignment_ready(self) -> bool:
+        """Whether an assignment round or issue can start."""
+        return bool(self.assignments)
+
+    @property
+    def is_conversation_ready(self) -> bool:
+        """Whether a conversation round can start."""
+        return bool(self.conversations)
+
+
+def _choose_next_work_kind(
+    *,
+    candidates: _ReadyAgentWork,
+    last_selected_work_kind: AgentWorkKind | None,
+) -> AgentWorkKind | None:
+    if candidates.is_assignment_ready and candidates.is_conversation_ready:
+        if last_selected_work_kind is AgentWorkKind.ASSIGNMENT:
+            return AgentWorkKind.CONVERSATION
+        return AgentWorkKind.ASSIGNMENT
+    if candidates.is_assignment_ready:
+        return AgentWorkKind.ASSIGNMENT
+    if candidates.is_conversation_ready:
+        return AgentWorkKind.CONVERSATION
+    return None
+
+
+def _record_session_before_advancing_user_post_cursor(
+    *, assignment: AgentAssignment, newest_user_post: str, identifier: str
+) -> None:
+    """Record a replacement session before acknowledging its delivered posts."""
+    record_harness_session_identifier(assignment=assignment, identifier=identifier)
+    advance_user_post_delivery_cursor(assignment=assignment, newest=newest_user_post)
 
 
 @dataclass(kw_only=True)
@@ -1204,7 +1156,7 @@ class AgentWorkScheduler:
     )
 
     def tick(self, *, at: datetime) -> SchedulerRecord:
-        """Inspect current work and launch at most one agent round.
+        """Inspect current work and fill every free agent slot.
 
         A round that has ended is forgotten first, so the cap counts what is
         running now. A failure reaches the daemon, which reports it before the
@@ -1261,19 +1213,14 @@ class AgentWorkScheduler:
             most_recent_cooldown_ended=most_recent_cooldown_ended,
             observed_at=at,
         )
-        conversation_candidates = _list_issue_conversation_candidates(
-            context=_IssueConversationCandidateContext(
-                repository=self.repository,
-                account=self.account,
-                config=self.config,
-                most_recent_cooldown_ended=most_recent_cooldown_ended,
-            ),
+        conversation_candidates = self._list_issue_conversation_candidates(
             conversations=conversations,
             previous_observations=(
                 []
                 if previous_record is None
                 else previous_record.conversation_observations
             ),
+            most_recent_cooldown_ended=most_recent_cooldown_ended,
         )
         conversation_fault_count = _count_observed_conversation_faults(
             conversations=conversations,
@@ -1336,6 +1283,226 @@ class AgentWorkScheduler:
             scheduler_failure=scheduler_failure,
         )
 
+    def _list_issue_conversation_candidates(
+        self,
+        *,
+        conversations: list[IssueConversation],
+        previous_observations: list[IssueConversationObservation],
+        most_recent_cooldown_ended: datetime | None,
+    ) -> IssueConversationCandidateResult:
+        """Observe every matching issue and return conversation work ready to run.
+
+        Comments are read for every eligible issue that can accept a fresh batch,
+        whether or not an agent is free, so that status can tell waiting from idle.
+        Recovery uses the saved batch and does not read new comments. A failed read
+        holds launches only where the conversation could take a new batch. When
+        matching issues cannot be listed, the previous tick's issues are observed
+        again with an unknown fact, so the ones the user took off the report stay
+        off it.
+        """
+        if not self.config.conversation:
+            return IssueConversationCandidateResult(candidates=[], observations=[])
+        listing = self._list_conversation_route_issues()
+        conversations_by_issue = {
+            conversation.record.issue: conversation for conversation in conversations
+        }
+        candidates: list[IssueConversationCandidate] = []
+        observations: list[IssueConversationObservation] = []
+        failures: list[str | None] = [listing.failure]
+        for issue in listing.issues:
+            conversation = conversations_by_issue.get(issue.number)
+            inspection = self._inspect_listed_conversation_issue(
+                issue=issue,
+                conversation=conversation,
+                most_recent_cooldown_ended=most_recent_cooldown_ended,
+            )
+            if inspection is None:
+                continue
+            observations.append(inspection.observation)
+            if inspection.candidate is not None:
+                candidates.append(inspection.candidate)
+            elif (
+                is_issue_conversation_ready_for_input(conversation=conversation)
+                and inspection.observation.has_comments_to_answer.value
+                is IssueFactValue.UNKNOWN
+            ):
+                failures.append(inspection.observation.has_comments_to_answer.evidence)
+        if listing.failure is not None:
+            unknown = IssueFact(value=IssueFactValue.UNKNOWN, evidence=listing.failure)
+            listed_issues = {issue.number for issue in listing.issues}
+            observations.extend(
+                observation.model_copy(
+                    update={
+                        "has_comments_to_answer": unknown,
+                        "routing_conflict": unknown,
+                    }
+                )
+                for observation in previous_observations
+                if observation.issue not in listed_issues
+            )
+        return IssueConversationCandidateResult(
+            candidates=sorted(candidates, key=_rank_issue_conversation_candidate),
+            observations=observations,
+            failure=_combine_scheduler_failures(failures=failures),
+        )
+
+    def _list_conversation_route_issues(self) -> _ConversationRouteListing:
+        """List each issue found through any configured conversation route."""
+        issues_by_number: dict[int, Issue] = {}
+        failures: list[str | None] = []
+        for route in self.config.conversation:
+            issue_response = list_issues(
+                repository=self.repository,
+                label=route.label,
+                assignee=self.account,
+            )
+            if isinstance(issue_response, UnknownGitHubResponse):
+                failures.append(
+                    f"could not list issue conversations for {route.label}: "
+                    f"{issue_response.reason}"
+                )
+            else:
+                for issue in issue_response:
+                    issues_by_number[issue.number] = issue
+        return _ConversationRouteListing(
+            issues=sorted(
+                issues_by_number.values(),
+                key=lambda item: (item.created_at, item.number),
+            ),
+            failure=_combine_scheduler_failures(failures=failures),
+        )
+
+    def _inspect_listed_conversation_issue(
+        self,
+        *,
+        issue: Issue,
+        conversation: IssueConversation | None,
+        most_recent_cooldown_ended: datetime | None,
+    ) -> _IssueConversationInspection | None:
+        """Inspect one currently matching listed issue."""
+        routes = self.config.identify_conversation_routes(
+            labels=[label.name for label in issue.labels]
+        )
+        if not routes:
+            return None
+        if len(routes) == 1:
+            return self._inspect_issue_conversation(
+                route=routes[0],
+                issue=issue,
+                conversation=conversation,
+                most_recent_cooldown_ended=most_recent_cooldown_ended,
+            )
+        labels = ", ".join(sorted((route.label for route in routes), key=str.casefold))
+        return _IssueConversationInspection(
+            observation=IssueConversationObservation(
+                issue=issue.number,
+                title=issue.title,
+                has_comments_to_answer=IssueFact(
+                    value=IssueFactValue.FALSE,
+                    evidence="no comments to answer",
+                ),
+                routing_conflict=IssueFact(
+                    value=IssueFactValue.TRUE,
+                    evidence=f"carries more than one conversation label: {labels}",
+                ),
+            ),
+            candidate=None,
+        )
+
+    def _inspect_issue_conversation(
+        self,
+        *,
+        route: IssueConversationRoute,
+        issue: Issue,
+        conversation: IssueConversation | None,
+        most_recent_cooldown_ended: datetime | None,
+    ) -> _IssueConversationInspection:
+        """Observe one eligible issue, and return a candidate when it is ready."""
+        if conversation is not None and derive_agent_work_fault(
+            rounds=conversation.rounds,
+            retry_requested_at=conversation.record.retry_requested_at,
+            most_recent_cooldown_ended=most_recent_cooldown_ended,
+        ):
+            return _IssueConversationInspection(
+                observation=IssueConversationObservation(
+                    issue=issue.number,
+                    title=issue.title,
+                    has_comments_to_answer=IssueFact(
+                        value=IssueFactValue.FALSE,
+                        evidence="no comments to answer",
+                    ),
+                ),
+                candidate=None,
+            )
+        if (
+            conversation is not None
+            and conversation.rounds
+            and conversation.rounds[-1].outcome
+            in {AgentRoundOutcome.ERRORED, AgentRoundOutcome.INTERRUPTED}
+        ):
+            return _IssueConversationInspection(
+                observation=IssueConversationObservation(
+                    issue=issue.number,
+                    title=issue.title,
+                    has_comments_to_answer=IssueFact(
+                        value=IssueFactValue.FALSE,
+                        evidence="no comments to answer",
+                    ),
+                ),
+                candidate=IssueConversationRecoveryCandidate(
+                    conversation=conversation,
+                ),
+            )
+        try:
+            comments = _list_comments_to_answer(
+                repository=self.repository,
+                account=self.account,
+                issue=issue.number,
+                conversation=conversation,
+            )
+        except ReportableError as failure:
+            has_comments_to_answer = IssueFact(
+                value=IssueFactValue.UNKNOWN,
+                evidence=str(failure),
+            )
+            comments = []
+        else:
+            has_comments_to_answer = (
+                IssueFact(
+                    value=IssueFactValue.TRUE,
+                    evidence=(
+                        f"{describe_count(number=len(comments), noun='comment')} "
+                        "to answer"
+                    ),
+                )
+                if comments
+                else IssueFact(
+                    value=IssueFactValue.FALSE,
+                    evidence="no comments to answer",
+                )
+            )
+        observation = IssueConversationObservation(
+            issue=issue.number,
+            title=issue.title,
+            has_comments_to_answer=has_comments_to_answer,
+        )
+        if not comments or not is_issue_conversation_ready_for_input(
+            conversation=conversation
+        ):
+            return _IssueConversationInspection(
+                observation=observation,
+                candidate=None,
+            )
+        return _IssueConversationInspection(
+            observation=observation,
+            candidate=NewIssueConversationRoundCandidate(
+                issue=issue,
+                comments=comments,
+                conversation=conversation,
+                route=route,
+            ),
+        )
+
     def _launch_available_work(
         self,
         *,
@@ -1345,56 +1512,126 @@ class AgentWorkScheduler:
         assignment_failure: str | None,
         scheduler_failure: str | None,
     ) -> SchedulerRecord:
-        """Launch one candidate while alternating between ready work kinds."""
+        """Fill free capacity while alternating between ready work kinds."""
+        launched_identifiers: list[str] = []
         if scheduler_failure is not None:
             record = record.model_copy(update={"hold": scheduler_failure})
-        prioritized_rounds = prioritize_required_rounds(
-            required_rounds=[
-                result
-                for result in inspection_results
-                if isinstance(result, RequiredAgentRound) and assignment_failure is None
-            ]
-        )
-        available_issue = (
-            None
-            if assignment_failure is not None
-            else _find_oldest_available_issue(record=record)
-        )
-        is_assignment_ready = bool(prioritized_rounds) or available_issue is not None
-        is_conversation_ready = bool(conversation_candidates.candidates) and (
-            conversation_candidates.failure is None
-            or isinstance(
-                conversation_candidates.candidates[0],
-                IssueConversationRecoveryCandidate,
-            )
-        )
-        if is_assignment_ready and is_conversation_ready:
-            work_kind = (
-                AgentWorkKind.CONVERSATION
-                if self._last_selected_work_kind is AgentWorkKind.ASSIGNMENT
-                else AgentWorkKind.ASSIGNMENT
-            )
-        elif is_assignment_ready:
-            work_kind = AgentWorkKind.ASSIGNMENT
-        elif is_conversation_ready:
-            work_kind = AgentWorkKind.CONVERSATION
-        else:
-            return record
-        self._last_selected_work_kind = work_kind
-        if work_kind is AgentWorkKind.ASSIGNMENT and prioritized_rounds:
-            return self._launch_assignment_round(
+        candidates = _ReadyAgentWork(
+            assignments=_list_ready_assignment_candidates(
                 record=record,
-                required=prioritized_rounds[0],
+                inspection_results=inspection_results,
+                failure=assignment_failure,
+            ),
+            conversations=_list_ready_conversation_candidates(
+                result=conversation_candidates
+            ),
+        )
+        while len(self.rounds) < self.max_agents:
+            work_kind = _choose_next_work_kind(
+                candidates=candidates,
+                last_selected_work_kind=self._last_selected_work_kind,
+            )
+            if work_kind is None:
+                break
+            self._last_selected_work_kind = work_kind
+            record, inspection_results, launched_identifier = (
+                self._launch_next_candidate(
+                    record=record,
+                    work_kind=work_kind,
+                    candidates=candidates,
+                    inspection_results=inspection_results,
+                )
+            )
+            if launched_identifier is not None:
+                launched_identifiers.append(launched_identifier)
+        if len(self.rounds) >= self.max_agents and (
+            candidates.is_assignment_ready or candidates.is_conversation_ready
+        ):
+            capacity_reason = (
+                f"at cap: {len(self.rounds)} of {self.max_agents} agents running"
+            )
+            record = record.model_copy(
+                update={
+                    "hold": _combine_scheduler_failures(
+                        failures=[capacity_reason, record.hold]
+                    ),
+                    "assignment_observations": list_assignment_observations(
+                        inspection_results=inspection_results,
+                        required_reason=capacity_reason,
+                    ),
+                }
+            )
+        return record.model_copy(
+            update={"launched_agent_work_identifiers": launched_identifiers}
+        )
+
+    def _launch_next_candidate(
+        self,
+        *,
+        record: SchedulerRecord,
+        work_kind: AgentWorkKind,
+        candidates: _ReadyAgentWork,
+        inspection_results: list[AgentAssignmentInspectionResult],
+    ) -> tuple[SchedulerRecord, list[AgentAssignmentInspectionResult], str | None]:
+        running_before_launch = self.rounds.copy()
+        hold_before_launch = record.hold
+        if work_kind is AgentWorkKind.ASSIGNMENT:
+            record, inspection_results = self._launch_next_assignment_candidate(
+                record=record,
+                candidates=candidates,
                 inspection_results=inspection_results,
             )
-        if work_kind is AgentWorkKind.ASSIGNMENT:
-            return self._dispatch_issue(
+        else:
+            record = self._launch_conversation_round(
                 record=record,
-                issue=cast("IssueObservation", available_issue),
+                candidate=candidates.conversations.pop(0),
             )
-        return self._launch_conversation_round(
-            record=record,
-            candidate=conversation_candidates.candidates[0],
+        launched_identifier = next(
+            (
+                identifier
+                for identifier, running in self.rounds.items()
+                if running_before_launch.get(identifier) is not running
+            ),
+            None,
+        )
+        if record.hold != hold_before_launch or launched_identifier is None:
+            if work_kind is AgentWorkKind.ASSIGNMENT:
+                candidates.assignments.clear()
+            else:
+                candidates.conversations.clear()
+        return record, inspection_results, launched_identifier
+
+    def _launch_next_assignment_candidate(
+        self,
+        *,
+        record: SchedulerRecord,
+        candidates: _ReadyAgentWork,
+        inspection_results: list[AgentAssignmentInspectionResult],
+    ) -> tuple[SchedulerRecord, list[AgentAssignmentInspectionResult]]:
+        candidate = candidates.assignments.pop(0)
+        if isinstance(candidate, RequiredAgentRound):
+            record = self._launch_assignment_round(
+                record=record,
+                required=candidate,
+            )
+            if candidate.assignment.identifier in self.rounds:
+                inspection_results = [
+                    result for result in inspection_results if result is not candidate
+                ]
+                record = record.model_copy(
+                    update={
+                        "assignment_observations": list_assignment_observations(
+                            inspection_results=inspection_results
+                        )
+                    }
+                )
+            return record, inspection_results
+        return (
+            self._dispatch_issue(
+                record=record,
+                issue=candidate,
+            ),
+            inspection_results,
         )
 
     def _inspect_assignments(
@@ -1437,7 +1674,6 @@ class AgentWorkScheduler:
         *,
         record: SchedulerRecord,
         required: RequiredAgentRound,
-        inspection_results: list[AgentAssignmentInspectionResult],
     ) -> SchedulerRecord:
         """Launch the next round for the highest-priority assignment."""
         try:
@@ -1448,38 +1684,46 @@ class AgentWorkScheduler:
                     "hold": _combine_scheduler_failures(
                         failures=[record.hold, str(failure)]
                     ),
-                    "assignment_observations": list_assignment_observations(
-                        inspection_results=inspection_results
-                    ),
                 }
             )
-        remaining_results = [
-            result for result in inspection_results if result is not required
-        ]
-        return record.model_copy(
-            update={
-                "launched_agent_work_identifier": required.assignment.identifier,
-                "assignment_observations": list_assignment_observations(
-                    inspection_results=remaining_results
-                ),
-            }
-        )
+        return record
 
     def _launch_required_round(self, *, required: RequiredAgentRound) -> None:
         """Start the round and advance the delivery cursor once it is running."""
         assignment = required.assignment
         harness_session_identifier = None
+        prompt = required.prompt
+        is_fresh_recovery = False
         if assignment.rounds:
             harness_session_identifier = find_harness_session_identifier(
                 assignment=assignment
             )
             if harness_session_identifier is None:
-                raise ReportableError(
-                    f"Could not resume {assignment.identifier}: its first round did "
-                    "not report a harness session identifier."
-                )
+                if not required.plan.is_recovery:
+                    raise ReportableError(
+                        f"Could not resume {assignment.identifier}: its first round "
+                        "did not report a harness session identifier."
+                    )
+                prompt = f"{assignment.record.prompt}\n\n{required.prompt}"
+                is_fresh_recovery = True
+        if harness_session_identifier is not None:
             record_harness_session_identifier(
                 assignment=assignment, identifier=harness_session_identifier
+            )
+        round_input = required.plan.input
+        newest_user_post = (
+            round_input.user_posts[-1].written_at
+            if round_input is not None and round_input.user_posts
+            else None
+        )
+        record_session_identifier = partial(
+            record_harness_session_identifier, assignment=assignment
+        )
+        if is_fresh_recovery and newest_user_post is not None:
+            record_session_identifier = partial(
+                _record_session_before_advancing_user_post_cursor,
+                assignment=assignment,
+                newest_user_post=newest_user_post,
             )
         self.rounds[assignment.identifier] = start_agent_round(
             request=AgentRoundStartRequest(
@@ -1488,12 +1732,10 @@ class AgentWorkScheduler:
                     agent_work_identifier=assignment.identifier,
                     model=assignment.record.model,
                     effort=assignment.record.effort,
-                    prompt=required.prompt,
+                    prompt=prompt,
                 ),
                 harness_session_identifier=harness_session_identifier,
-                record_harness_session_identifier=partial(
-                    record_harness_session_identifier, assignment=assignment
-                ),
+                record_harness_session_identifier=record_session_identifier,
                 finish_round=None,
                 paths=assignment.compose_round_paths(
                     number=assignment.next_round_number
@@ -1502,11 +1744,10 @@ class AgentWorkScheduler:
             ),
             clock=self.clock,
         )
-        round_input = required.plan.input
-        if round_input is not None and round_input.user_posts:
+        if newest_user_post is not None and not is_fresh_recovery:
             advance_user_post_delivery_cursor(
                 assignment=assignment,
-                newest=round_input.user_posts[-1].written_at,
+                newest=newest_user_post,
             )
 
     def _launch_conversation_round(
@@ -1564,12 +1805,12 @@ class AgentWorkScheduler:
             )
         return record.model_copy(
             update={
-                "launched_agent_work_identifier": conversation.identifier,
                 "conversation_observations": [
                     observation.model_copy(
                         update={
-                            "has_comments_to_answer": _compose_known_issue_fact(
-                                value=False
+                            "has_comments_to_answer": IssueFact(
+                                value=IssueFactValue.FALSE,
+                                evidence="no comments to answer",
                             )
                         }
                     )
@@ -1589,9 +1830,7 @@ class AgentWorkScheduler:
         """Dispatch one issue whose independent facts make it available."""
         labels = issue.dispatch_labels or []
         try:
-            assignment_identifier = self._launch_assignment(
-                issue=issue.issue, label=labels[0], at=record.at
-            )
+            self._launch_assignment(issue=issue.issue, label=labels[0], at=record.at)
         except ReportableError as failure:
             return record.model_copy(
                 update={
@@ -1600,11 +1839,9 @@ class AgentWorkScheduler:
                     )
                 }
             )
-        return record.model_copy(
-            update={"launched_agent_work_identifier": assignment_identifier}
-        )
+        return record
 
-    def _launch_assignment(self, *, issue: int, label: str, at: datetime) -> str:
+    def _launch_assignment(self, *, issue: int, label: str, at: datetime) -> None:
         """Create an assignment and start its first round."""
         creator = AgentAssignmentCreator(
             state=self.state,
@@ -1619,4 +1856,3 @@ class AgentWorkScheduler:
         self._launch_required_round(
             required=compose_initial_round_requirement(assignment=assignment)
         )
-        return assignment.identifier

@@ -9,6 +9,7 @@ from conftest import REPOSITORY, configure
 from observations import observed_issue
 from records import (
     write_agent_assignment,
+    write_daemon_lock,
     write_daemon_run,
     write_feed,
     write_round,
@@ -22,6 +23,7 @@ from dreamcatcher.agent_rounds import (
     AgentAssignmentRoundPurpose,
     AgentRoundRecord,
     InterruptedAgentRoundEnding,
+    StoppedAgentRoundEnding,
     compose_agent_round_ending,
 )
 from dreamcatcher.config import AgentHarness
@@ -59,7 +61,7 @@ def state(tmp_path):
 @pytest.fixture
 def running(state):
     """That state directory held by a daemon with this process identifier."""
-    state.lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
+    write_daemon_lock(path=state.lock)
     return state
 
 
@@ -174,7 +176,7 @@ def test_a_live_daemon_does_not_mix_in_another_runs_facts(state):
         harness=AgentHarness.CODEX,
         max_agents=4,
     )
-    write_text(text=f"{os.getpid()}\n", path=state.lock)
+    write_daemon_lock(path=state.lock)
 
     found = report(state=state)
 
@@ -243,7 +245,7 @@ def test_an_unended_round_status_follows_the_daemon(
     state, is_running, outcome_description
 ):
     if is_running:
-        write_text(text=f"{os.getpid()}\n", path=state.lock)
+        write_daemon_lock(path=state.lock)
     ran(state=state, number=1, status=None)
 
     round_status = only_assignment(state=state).round_statuses[0]
@@ -436,16 +438,16 @@ def test_an_assignment_with_no_scheduler_observation_is_unknown(state):
     assert status.detail == "no current scheduler observation"
 
 
-@pytest.mark.parametrize("launched_agent_work_identifier", [None, ASSIGNMENT_ID])
+@pytest.mark.parametrize("launched_agent_work_identifiers", [[], [ASSIGNMENT_ID]])
 def test_a_round_ending_after_the_latest_tick_waits_for_the_next_update(
-    state, launched_agent_work_identifier
+    state, launched_agent_work_identifiers
 ):
     ran(state=state, number=1, ended_at=LOOKED_AT + timedelta(minutes=1))
     write_tick(
         state=state,
         tick=SchedulerRecord(
             at=LOOKED_AT,
-            launched_agent_work_identifier=launched_agent_work_identifier,
+            launched_agent_work_identifiers=launched_agent_work_identifiers,
         ),
     )
 
@@ -462,7 +464,7 @@ def test_a_tick_at_or_after_the_latest_ending_needs_an_observation(state, ended_
         state=state,
         tick=SchedulerRecord(
             at=LOOKED_AT,
-            launched_agent_work_identifier=ASSIGNMENT_ID,
+            launched_agent_work_identifiers=[ASSIGNMENT_ID],
         ),
     )
 
@@ -518,6 +520,34 @@ def test_a_current_idle_assignment_with_no_feed_is_idle(state):
     assert only_assignment(state=state).detail == "idle"
 
 
+def test_a_stopped_assignment_needs_user_feedback(state):
+    started = PINNED + timedelta(minutes=1)
+    write_round(
+        directory=state.assignments / ASSIGNMENT_ID,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            purpose=AgentAssignmentRoundPurpose.IMPLEMENT,
+            started=started,
+            pid=1,
+            ending=StoppedAgentRoundEnding(at=started + timedelta(minutes=4)),
+        ),
+    )
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=LOOKED_AT,
+            assignment_observations=[idle_observation()],
+        ),
+    )
+
+    status = only_assignment(state=state)
+
+    assert status.value is AgentAssignmentStatusValue.NEEDS_USER_FEEDBACK
+    assert status.round_statuses[0].duration_description == "ran 4m"
+    assert status.round_statuses[0].outcome_description == "stopped"
+
+
 def test_two_current_errors_put_an_assignment_in_fault(state):
     ran(state=state, number=1, status=1)
     ran(state=state, number=2, status=2)
@@ -527,7 +557,7 @@ def test_two_current_errors_put_an_assignment_in_fault(state):
     assert status.value is AgentAssignmentStatusValue.FAULT
     assert status.detail == (
         "two consecutive rounds failed "
-        f"(.dreamcatcher/v3/assignments/{ASSIGNMENT_ID}/rounds/2/feed.txt)"
+        f"(.dreamcatcher/v4/assignments/{ASSIGNMENT_ID}/rounds/2/feed.txt)"
     )
 
 

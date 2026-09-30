@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 import pytest
 from clocks import DISPLAY_TIME_ZONE, PINNED
 from conftest import FIXTURES, REPOSITORY, assert_matches_view_golden
-from records import write_feed, write_round, write_tick
+from records import write_agent_assignment, write_feed, write_round, write_tick
 from status_fabrications import (
     LOOKED_AT,
     STATUS_REPORTS,
@@ -28,8 +28,10 @@ import dreamcatcher.web as web_module
 from dreamcatcher.agent_assignments import read_agent_assignment
 from dreamcatcher.agent_rounds import (
     AgentAssignmentRoundPurpose,
+    AgentRoundRecord,
+    StoppedAgentRoundEnding,
 )
-from dreamcatcher.documents import append_text, write_text
+from dreamcatcher.documents import append_text, remove_file, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.scheduler import GlobalCooldown, SchedulerRecord
@@ -134,6 +136,160 @@ def test_assignment_page_shows_the_common_agent_work_facts(tmp_path, daemon):
     assert "<dt>model</dt><dd>opus[1m] · xhigh</dd>" in page
     assert "<dt>assignment</dt>" not in page
     assert "<dt>session</dt>" not in page
+
+
+def test_assignment_page_requests_a_stop_for_its_running_round(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH13-20260819-184158"
+    application = create_app(
+        state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
+    )
+    client = application.test_client()
+
+    page = client.get(f"/assignments/{identifier}")
+
+    assert page.status_code == 200
+    assert f'action="/assignments/{identifier}/stop/2"' in page.text
+
+    response = client.post(
+        f"/assignments/{identifier}/stop/2",
+        headers={"Origin": "http://localhost"},
+    )
+
+    assert response.status_code == 303
+    assert response.location == f"/assignments/{identifier}"
+    assignment = read_agent_assignment(state=state, identifier=identifier)
+    assert assignment is not None
+    paths = assignment.compose_round_paths(number=2)
+    assert paths.stop_request.read_text(encoding="utf-8") == ""
+    assert (
+        f'action="/assignments/{identifier}/stop/2"'
+        not in client.get(f"/assignments/{identifier}").text
+    )
+
+
+def test_an_old_assignment_stop_submission_cannot_stop_the_next_round(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH13-20260819-184158"
+    client = create_app(state=state, clock=lambda: LOOKED_AT).test_client()
+
+    response = client.post(
+        f"/assignments/{identifier}/stop/1",
+        headers={"Origin": "http://localhost"},
+    )
+
+    assert response.status_code == 303
+    assignment = read_agent_assignment(state=state, identifier=identifier)
+    assert assignment is not None
+    assert not assignment.compose_round_paths(number=2).stop_request.exists()
+
+
+@pytest.mark.parametrize("origin", [None, "https://example.com"])
+def test_assignment_stop_requests_must_come_from_the_page(tmp_path, daemon, origin):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH13-20260819-184158"
+    client = create_app(state=state, clock=lambda: LOOKED_AT).test_client()
+    headers = {} if origin is None else {"Origin": origin}
+
+    response = client.post(f"/assignments/{identifier}/stop/2", headers=headers)
+
+    assert response.status_code == 403
+    assignment = read_agent_assignment(state=state, identifier=identifier)
+    assert assignment is not None
+    assert not assignment.compose_round_paths(number=2).stop_request.exists()
+
+
+def test_assignment_stop_control_needs_a_daemon_and_harness_session(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH60-20260819-184158"
+    directory = write_agent_assignment(
+        state=state,
+        identifier=identifier,
+        issue=60,
+        harness_session_identifier=None,
+    )
+    write_round(directory=directory, number=1, record=running(minute=30))
+
+    without_session = render_assignment(state=state, identifier=identifier)
+
+    assert f'action="/assignments/{identifier}/stop/1"' not in without_session
+
+    remove_file(path=state.lock)
+    without_daemon = render_assignment(state=state, identifier="GH13-20260819-184158")
+
+    assert 'action="/assignments/GH13-20260819-184158/stop/2"' not in without_daemon
+
+
+def test_assignment_tail_updates_the_stop_control(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH13-20260819-184158"
+    client = create_app(state=state, clock=lambda: LOOKED_AT).test_client()
+    page = client.get(f"/assignments/{identifier}")
+
+    response = client.get(
+        f"/assignments/{identifier}/tail",
+        query_string={"cursor": _read_cursor(response=page)},
+    )
+
+    assert response.status_code == 200
+    assert '<div id="stop-control" hx-swap-oob="true">' in response.text
+    assert f'action="/assignments/{identifier}/stop/2"' in response.text
+
+
+def test_a_stale_assignment_stop_request_is_already_done(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH12-20260819-184158"
+    client = create_app(state=state, clock=lambda: LOOKED_AT).test_client()
+
+    response = client.post(
+        f"/assignments/{identifier}/stop/2",
+        headers={"Origin": "http://localhost"},
+    )
+
+    assert response.status_code == 303
+    assignment = read_agent_assignment(state=state, identifier=identifier)
+    assert assignment is not None
+    assert not assignment.compose_round_paths(number=2).stop_request.exists()
+
+
+def test_an_unknown_assignment_cannot_receive_a_stop_request(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    client = create_app(state=state, clock=lambda: LOOKED_AT).test_client()
+
+    response = client.post(
+        "/assignments/unknown/stop/1",
+        headers={"Origin": "http://localhost"},
+    )
+
+    assert response.status_code == 404
+
+
+def test_a_stopped_round_is_shown_as_stopped(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    written(
+        state=state,
+        issue=61,
+        records=[
+            AgentRoundRecord(
+                number=1,
+                purpose=AgentAssignmentRoundPurpose.IMPLEMENT,
+                started=PINNED,
+                pid=1,
+                ending=StoppedAgentRoundEnding(at=PINNED + timedelta(minutes=2)),
+            )
+        ],
+    )
+
+    page = render_assignment(state=state, identifier="GH61-20260819-184158")
+
+    assert 'class="round-outcome outcome-stopped">stopped</span>' in page
 
 
 def test_a_home_card_links_to_its_exact_assignment(tmp_path, daemon):
@@ -397,6 +553,7 @@ def test_a_theme_choice_is_validated_and_remembered(tmp_path):
     assert 'href="/static/dreamcatcher-mark-ink.png"' in remembered.text
     assert "circle at var(--sun-x) 6%" in stylesheet
     assert "opacity: var(--sun-opacity);" in stylesheet
+    assert ".status-unknown," in stylesheet
     assert "const sunrise = 6 * 60;" in script
     assert "const sunset = 18 * 60;" in script
     assert 'style.setProperty("--sun-x", `${sunPosition}%`);' in script
@@ -677,7 +834,8 @@ def test_a_quiet_tail_has_no_appendable_text_nodes(tmp_path):
         '<input type="hidden" id="cursor" name="cursor" value="1:0" '
         'hx-swap-oob="true"><span'
     )
-    assert '</span><p id="assignment-detail"' in response.text
+    assert '</span><div id="stop-control"' in response.text
+    assert '</div><p id="assignment-detail"' in response.text
     assert "</p><aside" in response.text
     assert response.text.endswith("</aside>")
 
@@ -741,6 +899,15 @@ def test_assignment_rounds_link_to_the_feed_in_ascending_order(tmp_path, daemon)
     assert 'class="assignment-workspace"' in page
     assert 'class="feed-records"' in page
     assert 'src="/static/assignment.js"' in page
+
+
+def test_an_errored_rounds_style_uses_its_outcome_alone(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_assignment(state=state, identifier="GH35-20260819-184158")
+
+    assert 'class="round-outcome outcome-errored">errored (exit 2)</span>' in page
 
 
 def test_hand_resume_command_is_a_collapsed_last_resort(tmp_path, daemon):
@@ -1036,11 +1203,13 @@ def test_one_repository_always_derives_the_same_starting_port(tmp_path):
     assert web_module._derive_starting_port(state=state) == 8262
 
 
-def test_an_occupied_starting_port_makes_the_scan_move_on(tmp_path):
+def test_an_occupied_starting_port_makes_the_scan_move_on(tmp_path, monkeypatch):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
     ports = []
+    reverse_lookup = MagicMock()
+    monkeypatch.setattr(socket, "getfqdn", reverse_lookup)
 
     def record_port(*, server):
         ports.append(server.server_port)
@@ -1060,6 +1229,7 @@ def test_an_occupied_starting_port_makes_the_scan_move_on(tmp_path):
         )
 
     assert ports[1] == ports[0] + 1
+    reverse_lookup.assert_not_called()
 
 
 def test_a_pinned_port_that_is_taken_is_refused(tmp_path):

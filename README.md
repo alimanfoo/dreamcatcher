@@ -25,7 +25,7 @@ watches. Commit it, so everyone watching that repo dispatches the same way.
 ```toml
 assignee = "@me"
 
-[conversation]
+[[conversation]]
 label = "agent:conversation"
 
 [conversation.claude]
@@ -71,15 +71,23 @@ label that belongs to one harness, and issues carrying it always go there.
 
 Point `prompt` at an [assignment skill](CONTRACT.md) that meets the contract.
 
-The optional `[conversation]` block watches a separate label for questions on
-open issues assigned to the account `gh` is signed in as. Give it one or more
-harness blocks with the same `prompt`, `model` and `effort` fields as a dispatch
-route. When both blocks exist, `run --harness` chooses one; when only one
-exists, that harness runs regardless of the command-line choice. The chosen
-harness and settings are frozen into each conversation record. The prompt says
-what answer to produce, so a plain sentence is enough, though it can name a
-suitable skill when one is available. The prompt may use `{issue}` and must
-follow the
+Each optional `[[conversation]]` entry watches a separate label for questions on
+open issues assigned to the account `gh` is signed in as. Give each entry one or
+more harness blocks with the same `prompt`, `model` and `effort` fields as a
+dispatch route. When both blocks exist, `run --harness` chooses one; when only
+one exists, that harness runs regardless of the command-line choice. Repeat the
+entry to offer different conversation labels, prompts, models, or harnesses.
+
+An issue carrying more than one configured conversation label has a routing
+conflict. Dreamcatcher reports the conflict and starts or recovers nothing until
+you remove all but one of those labels. Route order gives no label precedence.
+
+The label, harness, and settings that start a conversation are frozen into its
+record. Replacing that label with another configured conversation label makes
+the saved session eligible again without changing its route or recipe. The
+prompt says what answer to produce, so a plain sentence is enough, though it can
+name a suitable skill when one is available. The prompt may use `{issue}` and
+must follow the
 [issue-conversation contract](CONTRACT.md#issue-conversation-instructions).
 
 ## Commands
@@ -104,13 +112,14 @@ For example, run every 30 seconds and allow four agents at once:
 dreamcatcher run --harness claude --interval 30 --max-agents 4
 ```
 
-The daemon runs one scheduler tick per interval and launches at most one round.
-An issue is dispatched when it carries exactly one dispatch label, is assigned
-to `assignee`, has no assignment here already, has no open pull request GitHub
-links to it, and has no open issue blocking it. The oldest such issue goes
-first. A dispatch cuts a branch and a worktree under `.dreamcatcher/`, makes and
-pushes an empty commit, and opens a linked draft pull request before it runs the
-assignment's first round there.
+The daemon runs one scheduler tick per interval and starts rounds until the
+agent cap is full, no ready work remains, or a launch failure stops that kind
+until the next tick. An issue is dispatched when it carries exactly one dispatch
+label, is assigned to `assignee`, has no assignment here already, has no open
+pull request GitHub links to it, and has no open issue blocking it. The oldest
+such issue goes first. A dispatch cuts a branch and a worktree under
+`.dreamcatcher/`, makes and pushes an empty commit, and opens a linked draft
+pull request before it runs the assignment's first round there.
 
 Assignment setup is recoverable. If Dreamcatcher stops after making the
 worktree, commit, remote branch, or pull request, the next dispatch attempt
@@ -120,47 +129,47 @@ recorded assignment keeps its branch and pull request, and the next tick tries
 that first round again before it schedules ordinary work.
 
 The daemon lock lives at `.dreamcatcher/daemon.pid`, where every state format
-shares it. All format-specific state lives under `.dreamcatcher/v3/` in the
+shares it. All format-specific state lives under `.dreamcatcher/v4/` in the
 checkout. The top-level directory ignores itself, so git never sees any of this
 state. `scheduler.json` in the versioned root says what the most recent
-completed scheduler tick observed and decided, including what the daemon did not
-do and why. It also preserves any active global cooldown and the end of the most
-recent one. A scheduler tick that cannot complete reports its failure in the
-daemon output and leaves that last complete record in place.
+completed scheduler tick observed and decided, including every round that it
+started in launch order and what the daemon could not do. It also preserves any
+active global cooldown and the end of the most recent one. A scheduler tick that
+cannot complete reports its failure in the daemon output and leaves that last
+complete record in place.
 
-This is an intentional format break. Version 3 does not migrate assignments from
-an earlier format and starts with empty local state. Stop the daemon and upgrade
-between dispatch batches, when no assignment needs another round.
+This is an intentional format break. Version 4 starts with empty local state.
+Stop the daemon and upgrade only when no saved agent work needs preserving.
 
 Open assignments go before new assignments. A round that did not finish is
 recovered, a merged or closed pull request gets a wrap-up round, and a pull
 request you have posted on gets a round that addresses your feedback. Issue
 conversation recovery goes before new conversation comments. When assignment
 work and an issue conversation are both ready, the daemon alternates which kind
-receives the next free agent slot.
+receives each free agent slot.
 
-With `[conversation]` configured, the daemon also watches assigned open issues
-carrying its label. The issue title and body alone do not start an agent. Once
-the signed-in account posts an ordinary, unmarked issue comment, Dreamcatcher
-freezes the issue and trusted comment history, creates a detached worktree at
-the fetched main revision, and runs one round. The round shares the daemon's
-agent cap and global cooldown with assignments. The round marks its final
-Markdown as Dreamcatcher output and posts it back to the issue. `NO_REPLY`
-finishes without a post. A failed post makes the round errored. A later eligible
-comment resumes the same session with only the new comments and updates its
-worktree to current main without asking the user to clean up investigation
-files.
+With one or more `[[conversation]]` entries configured, the daemon also watches
+assigned open issues carrying exactly one matching label. The issue title and
+body alone do not start an agent. Once the signed-in account posts an ordinary,
+unmarked issue comment, Dreamcatcher freezes the issue and trusted comment
+history, creates a detached worktree at the fetched main revision, and runs one
+round. The round shares the daemon's agent cap and global cooldown with
+assignments. The round marks its final Markdown as Dreamcatcher output and posts
+it back to the issue. `NO_REPLY` finishes without a post. A failed post makes
+the round errored. A later eligible comment resumes the same session with only
+the new comments and updates its worktree to current main without asking the
+user to clean up investigation files.
 
-Closing the issue, removing the conversation label or removing the signed-in
-account as assignee stops comment collection. Dreamcatcher keeps the saved
-conversation, and comments posted while the issue is ineligible become available
-if it becomes eligible again. A running round may finish and publish its answer.
+Closing the issue, removing every matching conversation label, adding a second
+matching label, or removing the signed-in account as assignee stops comment
+collection. Dreamcatcher keeps the saved conversation, and comments posted while
+the issue is ineligible become available if it becomes eligible again. A running
+round may finish and publish its answer.
 
 Every round records its number, purpose, whether it is recovering an earlier
-round, and its outcome (`running`, `successful`, `errored` or `interrupted`).
-Purpose and recovery are independent: for example, a failed wrap-up is followed
-by a recovery round whose purpose is still `wrap up`, while every issue
-conversation round has the `discuss` purpose.
+round, and its outcome. Purpose and recovery are independent: for example, a
+failed wrap-up is followed by a recovery round whose purpose is still `wrap up`,
+while every issue conversation round has the `discuss` purpose.
 
 Rounds die with the daemon. When `run` starts, it records any round orphaned by
 an earlier daemon as interrupted. The next assignment round recovers that work
@@ -173,12 +182,12 @@ input.
 
 One errored round receives an ordinary recovery opportunity and does not stop
 unrelated work. Two consecutive errored rounds put that assignment or
-conversation in fault; an interrupted or successful round breaks the sequence.
-When two pieces of agent work that remain in the status report are in fault, in
-either combination, the scheduler starts a fifteen-minute global cooldown and
-starts no agent work during it. The scheduler keeps observing and reporting
-while it waits. The cooldown survives a daemon restart, and its end clears the
-faults so that recovery can continue.
+conversation in fault; any non-errored round breaks the sequence. When two
+pieces of agent work that remain in the status report are in fault, in either
+combination, the scheduler starts a fifteen-minute global cooldown and starts no
+agent work during it. The scheduler keeps observing and reporting while it
+waits. The cooldown survives a daemon restart, and its end clears the faults so
+that recovery can continue.
 
 If work remains in fault because of a problem specific to its issue, fix the
 problem and request another recovery attempt:
@@ -197,7 +206,7 @@ wrap-up remains open for recovery. Once the wrap-up succeeds, the assignment no
 longer claims its issue, so an issue whose pull request closed unmerged is free
 to dispatch again while the label is still on it.
 
-Removing the label is how you say stop.
+Removing the label prevents another assignment after the current one completes.
 
 One daemon watches one repo. A second `run` on the same repo refuses while the
 first is alive.
@@ -205,6 +214,11 @@ first is alive.
 The `web` verb serves the status report on the loopback interface and opens it
 in your default browser. It reads the local `.dreamcatcher/` directory, never
 contacts GitHub and works whether or not the daemon is running.
+
+While a round runs, its assignment or conversation page offers a stop control
+once the harness session is known. The running round stops within about a
+second, then waits for a new pull-request post or issue comment before it starts
+another round in the same session.
 
 ```sh
 dreamcatcher web

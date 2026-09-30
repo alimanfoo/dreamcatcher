@@ -17,8 +17,10 @@ from dreamcatcher.agent_assignments import (
 )
 from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
+    AgentRoundPaths,
     AgentRoundRecord,
     ErroredAgentRoundEnding,
+    StoppedAgentRoundEnding,
     SuccessfulAgentRoundEnding,
 )
 from dreamcatcher.clock import read_current_time
@@ -36,6 +38,8 @@ from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.issue_conversations import (
     IssueConversation,
     describe_issue_conversation_revision,
+    find_issue_conversation_harness_session_identifier,
+    is_issue_conversation_ready_for_input,
     is_no_reply,
     read_issue_conversation,
     read_issue_conversation_input,
@@ -71,11 +75,14 @@ class AgentAssignmentStatusValue(StrEnum):
 class IssueConversationStatusValue(StrEnum):
     """List the summary statuses of an issue conversation.
 
-    Each word means what it means for an assignment. Idle takes the place of
-    needs user feedback, because a conversation at rest has posted its answer
-    and asks nothing of the user. Fault takes two consecutive errored rounds.
+    Shared words mean what they mean for an assignment. Routing conflict means
+    that the user must remove all but one conversation label before work can
+    start. Idle takes the place of needs user feedback, because a conversation
+    at rest has posted its answer and asks nothing of the user. Fault takes two
+    consecutive errored rounds.
     """
 
+    ROUTING_CONFLICT = "routing conflict"
     WORKING = "working"
     WAITING = "waiting"
     IDLE = "idle"
@@ -94,6 +101,7 @@ ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER = (
 
 # Idle comes last because a conversation at rest asks nothing of the user.
 CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER = (
+    IssueConversationStatusValue.ROUTING_CONFLICT,
     IssueConversationStatusValue.FAULT,
     IssueConversationStatusValue.WORKING,
     IssueConversationStatusValue.WAITING,
@@ -175,13 +183,25 @@ class AgentAssignmentStatus:
             harness_session_identifier=harness_session_identifier
         )
 
+    @cached_property
+    def stoppable_round_paths(self) -> AgentRoundPaths | None:
+        """The live round that can accept a stop request, when one exists."""
+        if (
+            self.value is not AgentAssignmentStatusValue.WORKING
+            or self.harness_session_identifier is None
+        ):
+            return None
+        assignment = self.assignment
+        paths = assignment.compose_round_paths(number=assignment.rounds[-1].number)
+        return None if paths.stop_request.is_file() else paths
+
 
 @dataclass(frozen=True, kw_only=True)
 class IssueConversationStatus:
     """Describe an issue conversation's derived summary status.
 
-    An eligible issue has a conversation from the first tick that observes it,
-    but no saved conversation until its first round launches.
+    A matching issue has a status from the first tick that observes it, but no
+    saved conversation until its first round launches.
     """
 
     issue: int
@@ -197,10 +217,34 @@ class IssueConversationStatus:
     def is_over(self) -> bool:
         """Whether nothing more can happen until the user acts.
 
-        A faulted conversation waits for the user to act, and one that the status
-        report no longer lists waits for its issue to be eligible again.
+        A faulted or conflicted conversation waits for the user to act, and one
+        that the status report no longer lists waits for its issue to be eligible
+        again.
         """
-        return self.value is IssueConversationStatusValue.FAULT or not self.is_listed
+        return (
+            self.value
+            in {
+                IssueConversationStatusValue.FAULT,
+                IssueConversationStatusValue.ROUTING_CONFLICT,
+            }
+            or not self.is_listed
+        )
+
+    @cached_property
+    def stoppable_round_paths(self) -> AgentRoundPaths | None:
+        """The live round that can accept a stop request, when one exists."""
+        conversation = self.conversation
+        if (
+            self.value is not IssueConversationStatusValue.WORKING
+            or conversation is None
+            or find_issue_conversation_harness_session_identifier(
+                conversation=conversation
+            )
+            is None
+        ):
+            return None
+        paths = conversation.compose_round_paths(number=conversation.rounds[-1].number)
+        return None if paths.stop_request.is_file() else paths
 
     @cached_property
     def round_statuses(self) -> list[AgentRoundStatus]:
@@ -424,7 +468,7 @@ def read_issue_conversation_status(
     """Read one issue conversation's status by its issue number.
 
     An issue has a conversation once it has a saved conversation or the latest
-    tick observed it as eligible.
+    tick observed it through a configured conversation route.
     """
     conversation = read_issue_conversation(state=state, issue=issue)
     reader = _StatusReportReader(state=state, clock=clock)
@@ -439,16 +483,27 @@ def _summarize_observed_conversation(
     observation: IssueConversationObservation,
     conversation: IssueConversation | None,
 ) -> _ConversationSummary:
-    """Return what an eligible issue says about its conversation.
+    """Return what a matching issue says about its conversation.
 
-    Unknown comments come first, then a round waiting to be recovered, then
-    comments waiting to be answered.
+    An unknown or conflicting route comes first, then unknown comments, a round
+    waiting to be recovered, and comments waiting to be answered.
     """
+    routing_conflict = observation.routing_conflict
+    if routing_conflict.value is IssueFactValue.UNKNOWN:
+        return _ConversationSummary(
+            value=IssueConversationStatusValue.UNKNOWN,
+            detail=routing_conflict.evidence,
+        )
+    if routing_conflict.value is IssueFactValue.TRUE:
+        return _ConversationSummary(
+            value=IssueConversationStatusValue.ROUTING_CONFLICT,
+            detail=routing_conflict.evidence,
+        )
     has_comments_to_answer = observation.has_comments_to_answer
     if has_comments_to_answer.value is IssueFactValue.UNKNOWN:
         return _ConversationSummary(
             value=IssueConversationStatusValue.UNKNOWN,
-            detail=cast("str", has_comments_to_answer.evidence),
+            detail=has_comments_to_answer.evidence,
         )
     unfinished_round = _describe_unfinished_conversation_round(
         conversation=conversation
@@ -460,7 +515,7 @@ def _summarize_observed_conversation(
     if has_comments_to_answer.value is IssueFactValue.TRUE:
         return _ConversationSummary(
             value=IssueConversationStatusValue.WAITING,
-            detail=cast("str", has_comments_to_answer.evidence),
+            detail=has_comments_to_answer.evidence,
         )
     return _ConversationSummary(
         value=IssueConversationStatusValue.IDLE,
@@ -477,9 +532,9 @@ def _describe_unfinished_conversation_round(
     """
     if conversation is None or not conversation.rounds:
         return None
-    latest = conversation.rounds[-1]
-    if latest.outcome is AgentRoundOutcome.SUCCESSFUL:
+    if is_issue_conversation_ready_for_input(conversation=conversation):
         return None
+    latest = conversation.rounds[-1]
     ending = latest.ending
     if isinstance(ending, ErroredAgentRoundEnding) and ending.reason is not None:
         return f"round {latest.number} errored: {ending.reason}"
@@ -490,16 +545,18 @@ def _describe_unfinished_conversation_round(
 def _describe_idle_conversation(*, conversation: IssueConversation | None) -> str:
     """Describe a conversation that has answered every comment it was given.
 
-    Its latest round succeeded, so that round's final output was saved.
+    Its latest round either answered the comments or stopped for new direction.
     """
     if conversation is None or not conversation.rounds:
         return "no comments yet"
     latest = conversation.rounds[-1]
+    duration = _compose_round_duration_description(record=latest)
+    if latest.outcome is AgentRoundOutcome.STOPPED:
+        return f"round {latest.number}, stopped, {duration}"
     final_output = read_text(
         path=conversation.compose_round_paths(number=latest.number).final_output
     )
     answer = "no reply needed" if is_no_reply(final_output=final_output) else "answered"
-    duration = _compose_round_duration_description(record=latest)
     return f"round {latest.number}, {answer}, {duration}"
 
 
@@ -586,9 +643,15 @@ class _StatusReportReader:
             assignments=assignments
         ).get(observation.issue)
         if open_assignment is not None:
-            claimed_here = IssueFact(value=IssueFactValue.TRUE)
+            claimed_here = IssueFact(
+                value=IssueFactValue.TRUE,
+                evidence="an assignment in this checkout is working on it",
+            )
         elif assignments:
-            claimed_here = IssueFact(value=IssueFactValue.FALSE)
+            claimed_here = IssueFact(
+                value=IssueFactValue.FALSE,
+                evidence="no assignment in this checkout is working on it",
+            )
         else:
             claimed_here = observation.claimed_here
         refreshed = observation.model_copy(update={"claimed_here": claimed_here})
@@ -684,7 +747,10 @@ class _StatusReportReader:
                 value=IssueConversationStatusValue.IDLE,
                 detail="issue is not eligible for conversation",
             )
-        if observation.has_comments_to_answer.value is IssueFactValue.UNKNOWN:
+        if (
+            observation.routing_conflict.value is not IssueFactValue.FALSE
+            or observation.has_comments_to_answer.value is IssueFactValue.UNKNOWN
+        ):
             return _summarize_observed_conversation(
                 observation=observation,
                 conversation=conversation,
@@ -768,7 +834,10 @@ class _StatusReportReader:
             return local_status
         observation = self.assignment_observations.get(assignment.identifier)
         if observation is None:
-            ending = cast("SuccessfulAgentRoundEnding", assignment.rounds[-1].ending)
+            ending = cast(
+                "SuccessfulAgentRoundEnding | StoppedAgentRoundEnding",
+                assignment.rounds[-1].ending,
+            )
             if (
                 self.scheduler_record is not None
                 and ending.at > self.scheduler_record.at

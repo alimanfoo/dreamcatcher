@@ -54,10 +54,11 @@ communication channel between the agent and the user.
 
 An **issue conversation** is Dreamcatcher's durable commission to an agent to
 answer the user on an issue without implementing a change. It owns a detached
-worktree at a recorded main revision, one harness session, and its agent rounds.
-Each round input records the comment batch delivered in that round. The issue
-remains its communication channel; it has no implementation branch or pull
-request.
+worktree at a recorded main revision and its agent rounds. Its rounds normally
+share one harness session, but recovery replaces a session whose identifier was
+never recorded. Each round input records the comment batch delivered in that
+round. The issue remains its communication channel; it has no implementation
+branch or pull request.
 
 An issue conversation starts with one initial round. Each later eligible comment
 batch resumes the same harness session in another round. Each successful round
@@ -101,13 +102,13 @@ assignment skill; a recipe for a conversation asks the agent to answer the user.
 A **dispatch label** is a GitHub issue label configured to mark issues for
 handling by Dreamcatcher.
 
-### Dispatch route
+### Dispatch and conversation routes
 
 A **dispatch route** maps one dispatch label to one or more agent recipes for
-assignments. The conversation configuration similarly maps its label to one or
-more agent recipes for issue conversations. Each recipe uses a particular agent
-harness. A route may offer recipes for all the harnesses Dreamcatcher supports
-or for only some of them.
+assignments. A **conversation route** maps one label to one or more agent
+recipes for issue conversations. Each recipe uses a particular agent harness. A
+route may offer recipes for all the harnesses Dreamcatcher supports or for only
+some of them.
 
 ### Agent round
 
@@ -138,12 +139,9 @@ An issue conversation round always has the same purpose:
 
 ### Round outcome
 
-An agent round may be:
-
-- **running**;
-- **successful**, when its harness invocation exits without an error;
-- **errored**, when the invocation exits with an error; or
-- **interrupted**, when it was stopped before recording an ending.
+An agent round is **running** until it becomes **successful**, **errored**,
+**interrupted** by daemon shutdown or an internal failure, or **stopped** at the
+user's request.
 
 ### Recovery round
 
@@ -202,12 +200,12 @@ Each agent assignment has exactly one:
 - branch;
 - Git worktree;
 - pull request;
-- agent harness; and
-- harness session.
+- agent harness.
 
 An assignment has no agent rounds until work begins and one or more afterwards.
-Its rounds form a sequence numbered within the assignment; their numbers have no
-meaning outside it.
+Its rounds normally share one harness session, but recovery replaces a session
+whose identifier was never recorded. The rounds form a sequence numbered within
+the assignment; their numbers have no meaning outside it.
 
 An issue can receive more than one assignment over its lifetime, but a
 Dreamcatcher instance can never have more than one open assignment for the same
@@ -315,16 +313,19 @@ assignment can have any assignment status except complete.
 
 ### Issue conversation status
 
-An issue conversation has one of these summary statuses. Each uses the word of
-the agent assignment status that means the same thing:
+An issue conversation has these summary statuses. Shared words use the agent
+assignment status meaning:
 
+- **Routing conflict**: more than one configured conversation label matches the
+  issue, so the user must remove all but one before a round can start or
+  recover.
 - **Working**: an agent round is running. Its counterpart is working.
 - **Waiting**: a round is due but has not started, because comments wait to be
   answered, the first batch included, or because the latest round errored or was
   interrupted and waits to be recovered. A free agent slot, or the end of a
   cooldown, starts it. Its counterpart is waiting.
-- **Idle**: no round is due, because the latest answer is posted or the user has
-  not commented yet. Its counterpart is needs user feedback.
+- **Idle**: no round is due until the user comments. Its counterpart is needs
+  user feedback.
 - **Fault**: two consecutive rounds have errored, and automatic recovery has
   stopped. Its counterpart is fault.
 - **Unknown**: Dreamcatcher cannot tell whether the issue is eligible or whether
@@ -332,15 +333,21 @@ the agent assignment status that means the same thing:
 
 Idle differs from needs user feedback on purpose. An assignment at rest has a
 pull request waiting for review, so it asks something of the user. A
-conversation at rest has already posted its answer, so it asks nothing. A
-conversation has no complete status.
+conversation at rest asks nothing. A conversation has no complete status.
 
-Every eligible issue has a conversation status from the first scheduler tick
-that observes it, whether or not a conversation record exists yet. Once the
-issue is not eligible, the status report lists its conversation only while a
-round runs. The conversation's own view still shows it, as idle with the reason.
-Conversations are listed as fault, working, waiting, unknown and then idle,
-since idle is not a call to action.
+Every open, assigned issue carrying at least one configured conversation label
+has a conversation status from the first scheduler tick that observes it,
+whether or not a conversation record exists yet. Exactly one label makes it
+eligible, while more than one gives it routing conflict status. Once the issue
+carries none of those labels, closes, or becomes unassigned, the status report
+lists its conversation only while a round runs. The conversation's own view
+still shows it, as idle with the reason. Conversations are listed as routing
+conflict, fault, working, waiting, unknown and then idle, since routing conflict
+requires the user to act and idle does not.
+
+A running round remains working when its issue gains a second conversation
+label, because eligibility does not cancel work already in progress. Its routing
+conflict becomes the summary status after that round ends.
 
 These statuses are derived reporting projections, not persisted lifecycle state.
 
@@ -349,10 +356,10 @@ These statuses are derived reporting projections, not persisted lifecycle state.
 A status report may include operational facts such as the repository identity,
 whether the daemon is running, when the last scheduler tick occurred, current
 capacity, whether a global cooldown is active, and the scheduler hold. The
-scheduler hold says why the latest tick launched nothing, such as a cooldown,
-full capacity, a failed issue listing, or a failed launch. Its issue
-observations, issue conversation statuses and agent assignment statuses are
-projections derived for a person to read.
+scheduler hold says why the latest tick could not start some or all ready work,
+such as a cooldown, full capacity, a failed issue listing, or a failed launch.
+Its issue observations, issue conversation statuses and agent assignment
+statuses are projections derived for a person to read.
 
 The status report never schedules work and is never an input to scheduling.
 Scheduling and reporting must nevertheless interpret the same underlying facts
@@ -375,34 +382,37 @@ waiting for another scheduler tick.
 
 ### Starting an issue conversation
 
-An open issue becomes a conversation candidate when it carries the configured
-conversation label, is assigned to the signed-in account, and has at least one
-eligible comment from that account after the newest comment in its latest round
-input. Issue title and body alone do not start a round. Assignment ownership,
-linked pull requests, dependencies and dispatch-label conflicts do not govern
+An open issue becomes a conversation candidate when it carries exactly one
+configured conversation label, is assigned to the signed-in account, and has at
+least one eligible comment from that account after the newest comment in its
+latest round input. An issue with more than one configured conversation label
+has a routing conflict and starts or recovers nothing until one label remains.
+Issue title and body alone do not start a round. Assignment ownership, linked
+pull requests, dependencies and dispatch-label conflicts do not govern
 conversation eligibility.
 
 Dreamcatcher fetches main, creates a detached worktree, records its revision and
-the chosen conversation settings, freezes the issue and eligible comment batch,
-then starts the initial conversation round. The round shares the daemon's
-capacity and global cooldown with assignment rounds. The round posts its final
-result on the issue before it records its ending. A failed post makes the round
-errored.
+the chosen conversation route and settings, freezes the issue and eligible
+comment batch, then starts the initial conversation round. The recorded route
+and settings stay frozen if a different configured label later makes the issue
+eligible. The round shares the daemon's capacity and global cooldown with
+assignment rounds. The round posts its final result on the issue before it
+records its ending. A failed post makes the round errored.
 
 After the round ends, another eligible comment batch resumes the same harness
 session in another conversation round. Before it accepts that batch,
-Dreamcatcher fetches main and asks Git to move the detached worktree to the
-fetched revision, discarding local changes left by the earlier investigation.
-Comments that arrive while a round runs stay beyond the latest round input. If
-the round is interrupted or errors, recovery reuses its saved comments and
-revision without reading new comments or refreshing the worktree. It resumes the
-saved harness session, or repeats the first invocation with the configured
-prompt if no session identifier was recorded.
+Dreamcatcher resets the detached worktree to fetched main, deleting every local
+commit and file left by the earlier investigation. Comments that arrive while a
+round runs stay beyond the latest round input. If the round is interrupted or
+errors, recovery reuses its saved comments and revision without reading new
+comments or refreshing the worktree. It resumes the saved harness session, or
+repeats the first invocation with the configured prompt if no session identifier
+was recorded.
 
-Closing the issue, removing its conversation label or unassigning the signed-in
-account stops new comment batches and takes the conversation off the status
-report once no round runs for it. The saved conversation is kept, and making the
-issue eligible again brings it back.
+Closing the issue, removing every configured conversation label, adding a second
+one or unassigning the signed-in account stops new comment batches and takes the
+conversation off the status report once no round runs for it. The saved
+conversation is kept, and making the issue eligible again brings it back.
 
 ### Working through an assignment
 
@@ -452,8 +462,10 @@ Existing assignments take precedence over new ones, ranked in this order:
 Conversation recoveries precede fresh conversation batches, which are ordered by
 their oldest waiting comment. When both an assignment candidate and a
 conversation candidate are ready, the scheduler alternates which kind receives
-the next free slot. When only one kind is ready, it proceeds without waiting for
-the other.
+each free slot until capacity is full or no candidate remains. When only one
+kind is ready, it proceeds without waiting for the other. A failed launch
+preserves rounds that the tick already started and blocks lower-priority
+candidates of the same kind for the rest of that tick.
 
 ### Handling errors and global cooldown
 

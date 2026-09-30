@@ -132,12 +132,27 @@ if (assignmentSidebar !== null) {
     }
     event.preventDefault();
     shouldFollowFeed = false;
+    updateFeedTailVisibility();
     for (const otherLink of assignmentSidebar.querySelectorAll(".round-link")) {
       otherLink.removeAttribute("aria-current");
     }
     roundLink.setAttribute("aria-current", "true");
     const feedTop = feed.getBoundingClientRect().top;
+    // A sticky header reports where it is pinned, not where its round begins.
+    const inlinePosition = feedRound.style.getPropertyValue("position");
+    const inlinePositionPriority =
+      feedRound.style.getPropertyPriority("position");
+    feedRound.style.setProperty("position", "static", "important");
     const roundTop = feedRound.getBoundingClientRect().top;
+    if (inlinePosition === "") {
+      feedRound.style.removeProperty("position");
+    } else {
+      feedRound.style.setProperty(
+        "position",
+        inlinePosition,
+        inlinePositionPriority,
+      );
+    }
     feed.scrollTo({
       top: feed.scrollTop + roundTop - feedTop,
       behavior: "smooth",

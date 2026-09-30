@@ -52,6 +52,7 @@ from dreamcatcher.github import (
     PullRequest,
     PullRequestState,
     UnknownGitHubResponse,
+    UserPost,
     create_pull_request,
     list_pull_requests,
     read_issue_pull_request_context,
@@ -76,6 +77,13 @@ AGENT_ASSIGNMENT_RECORD_NAME = "assignment.json"
 AGENT_ROUNDS_DIRECTORY_NAME = "rounds"
 
 USER_POST_DELIVERY_CURSOR_NAME = "watermark"
+
+
+class AgentAssignmentRoundInput(DreamcatcherDocument):
+    """Model the pull request state and user posts delivered to an assignment round."""
+
+    pull_request_state: PullRequestState
+    user_posts: list[UserPost]
 
 
 class PullRequestObservation(DreamcatcherDocument):
@@ -619,11 +627,17 @@ def find_harness_session_identifier(
     """Return the recorded or recoverable harness session identifier."""
     if assignment.record.harness_session_identifier is not None:
         return assignment.record.harness_session_identifier
-    return find_harness_session_identifier_in_output(
-        harness=assignment.record.harness,
-        agent_work_identifier=assignment.identifier,
-        raw_output=assignment.compose_round_paths(number=1).raw_output,
-    )
+    for round_record in reversed(assignment.rounds):
+        identifier = find_harness_session_identifier_in_output(
+            harness=assignment.record.harness,
+            agent_work_identifier=assignment.identifier,
+            raw_output=assignment.compose_round_paths(
+                number=round_record.number
+            ).raw_output,
+        )
+        if identifier is not None:
+            return identifier
+    return None
 
 
 def record_harness_session_identifier(

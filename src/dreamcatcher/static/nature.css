@@ -344,7 +344,8 @@ body::after {
   box-shadow: 0 0 14px 3px rgba(170, 190, 140, 0.28);
 }
 
-.status-needs-user-feedback {
+.status-needs-user-feedback,
+.status-routing-conflict {
   color: var(--bright);
   background: rgba(201, 162, 74, 0.9);
   box-shadow: 0 0 14px 3px rgba(201, 162, 74, 0.42);
@@ -358,6 +359,7 @@ body::after {
 
 .status-complete,
 .status-idle,
+.status-unknown,
 .issue-blocked {
   color: var(--dim);
   background: rgba(150, 140, 110, 0.28);
@@ -393,6 +395,24 @@ body::after {
 .assignment-heading-actions {
   align-items: center;
   gap: 10px;
+}
+
+.stop-control {
+  padding: 6px 14px;
+  color: #8c3f2b;
+  background: rgba(140, 63, 43, 0.08);
+  border: 0;
+  border-radius: 9999px;
+  box-shadow: 0 0 14px 2px rgba(140, 63, 43, 0.08);
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: capitalize;
+}
+
+.stop-control:hover,
+.stop-control:focus-visible {
+  color: #6f2f21;
+  background: rgba(140, 63, 43, 0.15);
 }
 
 .pr-chip,
@@ -542,6 +562,10 @@ body::after {
 
 .outcome-interrupted {
   color: #9a7a2e;
+}
+
+.outcome-stopped {
+  color: #8c3f2b;
 }
 
 .manual-recovery {

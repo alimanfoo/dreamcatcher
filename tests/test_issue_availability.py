@@ -14,11 +14,13 @@ from conftest import (
     pages,
 )
 from observations import observed_issue
+from pydantic import ValidationError
 from records import write_agent_assignment
 
 from dreamcatcher.agent_assignments import AgentAssignment, read_agent_assignments
 from dreamcatcher.config import DreamcatcherConfig
 from dreamcatcher.scheduler import (
+    IssueFact,
     IssueFactValue,
     derive_issue_availability,
     observe_issues,
@@ -32,6 +34,12 @@ INDEPENDENT_FACTS = (
     "blocked",
     "routing_conflict",
 )
+
+
+@pytest.mark.parametrize("value", IssueFactValue)
+def test_every_issue_fact_requires_evidence(value):
+    with pytest.raises(ValidationError, match="evidence"):
+        IssueFact.model_validate({"value": value})
 
 
 def config_with_routes(

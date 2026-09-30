@@ -10,6 +10,7 @@ from conftest import (
     FILED,
     LATER,
     POST_LIST_PATHS,
+    POSTED_AT,
     POSTED_BY,
     PULL_REQUEST,
     REPOSITORY,
@@ -35,10 +36,12 @@ from dreamcatcher.agent_rounds import (
     AgentAssignmentRoundPurpose,
     AgentRoundPurpose,
     AgentRoundRecord,
+    ErroredAgentRoundEnding,
     compose_agent_round_ending,
 )
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.documents import write_json, write_text
+from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import (
     add_worktree,
     fetch_main,
@@ -75,7 +78,7 @@ def stop_scheduler_rounds():
     yield
     for scheduler in CREATED_SCHEDULERS:
         for running in scheduler.rounds.values():
-            running.stop()
+            running.interrupt()
     CREATED_SCHEDULERS.clear()
 
 
@@ -249,7 +252,7 @@ def test_a_tick_dispatches_the_oldest_issue_nothing_stands_in_the_way_of(
     assert (scheduler.state.worktrees / DISPATCHED_ASSIGNMENT_ID / "README.md").exists()
     assert (assignment / "assignment.json").exists()
     assert observed.issue_observations[0].observed_at == observed.at
-    assert observed.launched_assignment_identifier == DISPATCHED_ASSIGNMENT_ID
+    assert observed.launched_agent_work_identifiers == [DISPATCHED_ASSIGNMENT_ID]
     assert (
         harnesses["claude"].calls[0].directory
         == (scheduler.state.worktrees / DISPATCHED_ASSIGNMENT_ID).resolve()
@@ -274,21 +277,58 @@ def test_a_dispatched_round_records_what_caused_it_and_what_it_said(dispatching)
     assert assignment.record.harness_session_identifier == "abc-123"
 
 
-def test_a_tick_launches_one_round_and_leaves_the_rest_in_the_queue(
-    dispatching, offered
-):
-    offered.replies(stdout=listing(issues=[(8, FILED), (9, LATER)]), to="issue list")
+def test_a_tick_fills_free_capacity_with_available_issues(dispatching, offered):
+    offered.replies(
+        stdout=listing(issues=[(8, FILED), (9, LATER), (10, "2026-08-21T01:00:00Z")]),
+        to="issue list",
+    )
     scheduler, clock = create_scheduler(root=dispatching, max_agents=2)
 
     observed = scheduler.tick(at=clock())
 
-    assert observed_issues(tick=observed) == [8, 9]
+    assert observed_issues(tick=observed) == [8, 9, 10]
     assert availability_values(tick=observed) == [
         IssueFactValue.TRUE,
         IssueFactValue.TRUE,
+        IssueFactValue.TRUE,
     ]
-    assert observed.launched_assignment_identifier == DISPATCHED_ASSIGNMENT_ID
-    assert not (scheduler.state.worktrees / "GH9-20260819-184158").exists()
+    assert observed.launched_agent_work_identifiers == [
+        DISPATCHED_ASSIGNMENT_ID,
+        "GH9-20260819-184158",
+    ]
+    assert observed.hold == "at cap: 2 of 2 agents running"
+    assert (scheduler.state.worktrees / "GH9-20260819-184158").exists()
+    assert not (scheduler.state.worktrees / "GH10-20260819-184158").exists()
+
+
+def test_a_later_failed_launch_keeps_the_rounds_already_started(
+    dispatching, offered, monkeypatch
+):
+    offered.replies(
+        stdout=listing(
+            issues=[
+                (8, FILED),
+                (9, LATER),
+                (10, "2026-08-21T01:00:00Z"),
+            ]
+        ),
+        to="issue list",
+    )
+    scheduler, clock = create_scheduler(root=dispatching, max_agents=3)
+    launch_assignment = scheduler._launch_assignment
+
+    def fail_second_launch(*, issue, label, at):
+        if issue == 9:
+            raise ReportableError("could not dispatch GH9")
+        return launch_assignment(issue=issue, label=label, at=at)
+
+    monkeypatch.setattr(scheduler, "_launch_assignment", fail_second_launch)
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.launched_agent_work_identifiers == [DISPATCHED_ASSIGNMENT_ID]
+    assert observed.hold == "could not dispatch GH9"
+    assert not (scheduler.state.worktrees / "GH10-20260819-184158").exists()
 
 
 def test_a_second_tick_judges_a_dispatched_issue_handled(dispatching):
@@ -297,7 +337,7 @@ def test_a_second_tick_judges_a_dispatched_issue_handled(dispatching):
     observed = scheduler.tick(at=clock())
     observed = scheduler.tick(at=clock())
 
-    assert observed.launched_assignment_identifier is None
+    assert observed.launched_agent_work_identifiers == []
     assert observed_issues(tick=observed) == [8]
     assert observed.issue_observations[0].claimed_here.value is IssueFactValue.TRUE
     assert availability_values(tick=observed) == [IssueFactValue.FALSE]
@@ -328,7 +368,7 @@ def test_a_completed_assignment_releases_its_issue(dispatching):
 
     assert observed_issues(tick=observed) == [8]
     assert availability_values(tick=observed) == [IssueFactValue.TRUE]
-    assert observed.launched_assignment_identifier == DISPATCHED_ASSIGNMENT_ID
+    assert observed.launched_agent_work_identifiers == [DISPATCHED_ASSIGNMENT_ID]
 
 
 def test_a_tick_at_the_cap_says_the_cap_is_what_each_assignment_waits_on(
@@ -445,7 +485,7 @@ def test_a_tick_with_nothing_eligible_dispatches_nothing(dispatching, offered):
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.launched_assignment_identifier is None
+    assert observed.launched_agent_work_identifiers == []
     assert observed_issues(tick=observed) == [8]
     assert observed.issue_observations[0].blocked.value is IssueFactValue.TRUE
     assert availability_values(tick=observed) == [IssueFactValue.FALSE]
@@ -461,7 +501,7 @@ def test_one_errored_round_receives_an_ordinary_recovery(dispatching):
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.launched_assignment_identifier == ASSIGNMENT_ID
+    assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     assert observed.cooldown is None
     assert not (scheduler.state.worktrees / DISPATCHED_ASSIGNMENT_ID).exists()
 
@@ -476,7 +516,7 @@ def test_one_faulted_assignment_does_not_block_unrelated_work(dispatching):
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.launched_assignment_identifier == DISPATCHED_ASSIGNMENT_ID
+    assert observed.launched_agent_work_identifiers == [DISPATCHED_ASSIGNMENT_ID]
     assert observed.assignment_observations == [
         AgentAssignmentObservation(
             assignment_identifier=ASSIGNMENT_ID,
@@ -495,7 +535,7 @@ def test_a_user_retry_clears_one_fault_and_starts_recovery(dispatching):
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.launched_assignment_identifier == ASSIGNMENT_ID
+    assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     assert observed.assignment_observations == []
 
 
@@ -510,7 +550,7 @@ def test_a_successful_round_breaks_the_error_sequence(dispatching):
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.launched_assignment_identifier == ASSIGNMENT_ID
+    assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
 
 
 def test_an_assignment_the_scheduler_is_running_a_round_for_is_not_waiting(
@@ -583,6 +623,21 @@ def test_an_ended_round_is_inspected_while_its_runner_finishes(tmp_path, monkeyp
     assert results == [observation]
 
 
+def test_a_round_that_replaces_a_finishing_runner_is_reported(resuming, gh):
+    ran(root=resuming, number=1, purpose=AgentAssignmentRoundPurpose.IMPLEMENT)
+    gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
+    gh.replies(
+        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+    )
+    scheduler, clock = create_scheduler(root=resuming, max_agents=2)
+    scheduler.rounds[ASSIGNMENT_ID] = Mock(is_alive=True)
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
+    finish_rounds(scheduler=scheduler)
+
+
 def test_an_assignment_with_an_open_pull_request_and_nothing_new_is_not_waiting(
     resuming, gh
 ):
@@ -594,7 +649,7 @@ def test_an_assignment_with_an_open_pull_request_and_nothing_new_is_not_waiting(
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.launched_assignment_identifier is None
+    assert observed.launched_agent_work_identifiers == []
     assert observed.assignment_observations == [
         AgentAssignmentObservation(
             assignment_identifier=ASSIGNMENT_ID,
@@ -621,7 +676,7 @@ def test_an_assignment_that_has_run_no_round_at_all_gets_its_first(dispatching):
     observed = scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
 
-    assert observed.launched_assignment_identifier == ASSIGNMENT_ID
+    assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     first = record_of(scheduler=scheduler, number=1)
     assert first.number == 1
     assert first.purpose is AgentAssignmentRoundPurpose.IMPLEMENT
@@ -668,7 +723,7 @@ def test_a_dispatch_whose_round_will_not_start_retries_the_prepared_assignment(
     observed = scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
 
-    assert observed.launched_assignment_identifier == DISPATCHED_ASSIGNMENT_ID
+    assert observed.launched_agent_work_identifiers == [DISPATCHED_ASSIGNMENT_ID]
     record = scheduler.state.assignments / DISPATCHED_ASSIGNMENT_ID / "rounds" / "1"
     written = AgentRoundRecord.model_validate_json(
         (record / "round.json").read_text(encoding="utf-8")
@@ -710,7 +765,7 @@ def test_the_next_tick_recovers_each_incomplete_creation_checkpoint(
     observed = scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
 
-    assert observed.launched_assignment_identifier == DISPATCHED_ASSIGNMENT_ID
+    assert observed.launched_agent_work_identifiers == [DISPATCHED_ASSIGNMENT_ID]
     round_record = state.assignments / DISPATCHED_ASSIGNMENT_ID / "rounds" / "1"
     assert (
         AgentRoundRecord.model_validate_json(
@@ -740,7 +795,7 @@ def test_a_tick_records_an_incomplete_setup_failure(dispatching):
     observed = scheduler.tick(at=clock())
     setup_failure = observed.issue_observations[0].setup_failure
 
-    assert observed.launched_assignment_identifier is None
+    assert observed.launched_agent_work_identifiers == []
     assert setup_failure is not None
     assert "some-other-branch, not dreamcatcher" in setup_failure
 
@@ -760,7 +815,7 @@ def test_an_assignment_whose_last_round_did_not_finish_is_carried_on(
     observed = scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
 
-    assert observed.launched_assignment_identifier == ASSIGNMENT_ID
+    assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     assert (
         written_round(scheduler=scheduler, number=2, name="prompt.txt")
         == RECOVERY_PROMPT
@@ -806,7 +861,7 @@ def test_a_resume_recovers_the_harness_session_from_the_first_rounds_raw_stream(
     observed = scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
 
-    assert observed.launched_assignment_identifier == ASSIGNMENT_ID
+    assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     assignment = read_agent_assignments(state=scheduler.state)[0]
     assert assignment.record.harness_session_identifier == HARNESS_SESSION_IDENTIFIER
     assert harnesses["claude"].calls[-1].arguments[-2:] == [
@@ -815,11 +870,43 @@ def test_a_resume_recovers_the_harness_session_from_the_first_rounds_raw_stream(
     ]
 
 
-def test_a_resume_with_no_harness_session_identifier_reports_why_it_cannot_start(
+def test_a_recovery_without_a_harness_session_starts_a_new_first_round(
     resuming, harnesses
 ):
     ran(root=resuming, number=1, purpose=PURPOSE, status=1)
     forget_harness_session_identifier(root=resuming)
+    harnesses["claude"].streams(lines=[], status=1)
+    scheduler, clock = create_scheduler(root=resuming)
+
+    observed = scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
+    faulted = scheduler.tick(at=clock())
+
+    assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
+    assert written_round(scheduler=scheduler, number=2, name="prompt.txt") == (
+        f"/dream:smith GH13\n\n{RECOVERY_PROMPT}"
+    )
+    assert "--resume" not in harnesses["claude"].calls[-1].arguments
+    recovered = record_of(scheduler=scheduler, number=2)
+    assert recovered.is_recovery
+    assert faulted.assignment_observations == [
+        AgentAssignmentObservation(
+            assignment_identifier=ASSIGNMENT_ID,
+            issue=13,
+            reason="two consecutive rounds failed",
+        )
+    ]
+
+
+def test_a_follow_up_without_a_harness_session_still_needs_its_session(
+    resuming, gh, harnesses
+):
+    ran(root=resuming, number=1, purpose=PURPOSE)
+    forget_harness_session_identifier(root=resuming)
+    gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
+    gh.replies(
+        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+    )
     scheduler, clock = create_scheduler(root=resuming)
 
     observed = scheduler.tick(at=clock())
@@ -829,6 +916,63 @@ def test_a_resume_with_no_harness_session_identifier_reports_why_it_cannot_start
         "harness session identifier."
     )
     assert harnesses["claude"].calls == []
+
+
+def test_a_terminal_recovery_without_a_session_receives_wrap_up_input(
+    resuming, gh, harnesses
+):
+    ran(root=resuming, number=1, purpose=PURPOSE, status=1)
+    forget_harness_session_identifier(root=resuming)
+    gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
+    gh.replies(
+        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+    )
+    scheduler, clock = create_scheduler(root=resuming)
+
+    observed = scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
+
+    assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
+    prompt = written_round(scheduler=scheduler, number=2, name="prompt.txt")
+    assert prompt.startswith("/dream:smith GH13\n\nPR-inbox prompt")
+    inbox = json.loads(written_round(scheduler=scheduler, number=2, name="inbox.json"))
+    assert inbox["pull_request_state"] == PullRequestState.MERGED
+    assert "--resume" not in harnesses["claude"].calls[-1].arguments
+    assignment = read_agent_assignments(state=scheduler.state)[0]
+    assert assignment.user_post_delivery_cursor == POSTED_AT
+
+
+def test_a_failed_replacement_session_does_not_acknowledge_terminal_feedback(
+    resuming, gh, harnesses
+):
+    ran(root=resuming, number=1, purpose=PURPOSE, status=1)
+    forget_harness_session_identifier(root=resuming)
+    gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
+    gh.replies(
+        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+    )
+    harnesses["claude"].streams(lines=[], status=1)
+    scheduler, clock = create_scheduler(root=resuming)
+
+    scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
+    assignment = read_agent_assignments(state=scheduler.state)[0]
+    assert assignment.user_post_delivery_cursor == ""
+    ending = assignment.rounds[-1].ending
+    assert isinstance(ending, ErroredAgentRoundEnding)
+    request_agent_assignment_retry(
+        assignment=assignment,
+        at=ending.at + timedelta(seconds=1),
+    )
+
+    observed = scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
+
+    assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
+    inbox = json.loads(written_round(scheduler=scheduler, number=3, name="inbox.json"))
+    assert [post["body"] for post in inbox["user_posts"]] == [
+        "have another look at the filter"
+    ]
 
 
 def test_a_carried_on_round_records_recovery_independently(resuming, left_running):
@@ -860,7 +1004,7 @@ def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, g
     observed = scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
 
-    assert observed.launched_assignment_identifier == ASSIGNMENT_ID
+    assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     feedback = record_of(scheduler=scheduler, number=2)
     assert feedback.purpose is AgentAssignmentRoundPurpose.ADDRESS_FEEDBACK
     assert not feedback.is_recovery
@@ -870,6 +1014,32 @@ def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, g
     assert str(
         scheduler.state.assignments / ASSIGNMENT_ID / "rounds" / "2" / "inbox.json"
     ) in (written_round(scheduler=scheduler, number=2, name="prompt.txt"))
+
+
+def test_a_started_round_is_reported_when_advancing_its_cursor_fails(
+    resuming, gh, monkeypatch
+):
+    ran(root=resuming, number=1, purpose=AgentAssignmentRoundPurpose.IMPLEMENT)
+    gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
+    gh.replies(
+        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+    )
+    gh.replies(stdout=listing(issues=[(8, FILED)]), to="issue list")
+    scheduler, clock = create_scheduler(root=resuming, max_agents=2)
+    monkeypatch.setattr(
+        scheduler_module,
+        "advance_user_post_delivery_cursor",
+        Mock(side_effect=ReportableError("could not advance the delivery cursor")),
+    )
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
+    assert observed.hold == "could not advance the delivery cursor"
+    assert observed.assignment_observations == []
+    assert ASSIGNMENT_ID in scheduler.rounds
+    assert not (scheduler.state.worktrees / DISPATCHED_ASSIGNMENT_ID).exists()
+    finish_rounds(scheduler=scheduler)
 
 
 def test_an_assignment_receives_a_batch_only_once(resuming, gh):
@@ -885,7 +1055,7 @@ def test_an_assignment_receives_a_batch_only_once(resuming, gh):
     observed = scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
 
-    assert observed.launched_assignment_identifier is None
+    assert observed.launched_agent_work_identifiers == []
     assert not (scheduler.state.assignments / ASSIGNMENT_ID / "rounds" / "3").exists()
 
 
@@ -925,7 +1095,7 @@ def test_a_pull_request_that_is_finished_gets_one_last_round(resuming, gh, state
     observed = scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
 
-    assert observed.launched_assignment_identifier == ASSIGNMENT_ID
+    assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     wrap_up = record_of(scheduler=scheduler, number=2)
     assert wrap_up.purpose is AgentAssignmentRoundPurpose.WRAP_UP
     assert not wrap_up.is_recovery
@@ -945,7 +1115,7 @@ def test_an_assignment_that_has_had_its_last_round_gets_no_other(resuming, gh):
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.launched_assignment_identifier is None
+    assert observed.launched_agent_work_identifiers == []
     assert not (scheduler.state.assignments / ASSIGNMENT_ID / "rounds" / "3").exists()
 
 
@@ -992,7 +1162,7 @@ def test_open_work_is_carried_on_before_a_new_issue_is_dispatched(
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.launched_assignment_identifier == ASSIGNMENT_ID
+    assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     assert not (scheduler.state.worktrees / DISPATCHED_ASSIGNMENT_ID).exists()
     assert observed_issues(tick=observed) == [8, 13]
     assert observed.issue_observations[1].claimed_here.value is IssueFactValue.TRUE
@@ -1014,7 +1184,7 @@ def test_a_failed_issue_listing_leaves_open_work_for_a_later_tick(
     observed = scheduler.tick(at=clock())
 
     assert "could not connect" in held(observed=observed)
-    assert observed.launched_assignment_identifier is None
+    assert observed.launched_agent_work_identifiers == []
     assert not (scheduler.state.assignments / ASSIGNMENT_ID / "rounds" / "2").exists()
 
 
@@ -1027,7 +1197,7 @@ def test_two_faulted_assignments_start_a_global_cooldown(dispatching):
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.launched_assignment_identifier is None
+    assert observed.launched_agent_work_identifiers == []
     assert observed.cooldown == GlobalCooldown(
         started=PINNED, ends=PINNED + timedelta(minutes=15)
     )
@@ -1052,7 +1222,7 @@ def test_an_active_global_cooldown_survives_a_scheduler_restart(dispatching):
     observed = restarted.tick(at=restarted_clock())
 
     assert observed.cooldown == started.cooldown
-    assert observed.launched_assignment_identifier is None
+    assert observed.launched_agent_work_identifiers == []
 
 
 def test_a_cooldown_reports_an_issue_listing_failure(dispatching, offered):
@@ -1091,12 +1261,12 @@ def test_the_cooldown_boundary_clears_faults_and_permits_recovery(dispatching):
 
     assert observed.cooldown is None
     assert observed.most_recent_cooldown_ended == PINNED
-    assert observed.launched_assignment_identifier == ASSIGNMENT_ID
+    assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     assert observed.assignment_observations == [
         AgentAssignmentObservation(
             assignment_identifier=SECOND_ASSIGNMENT_ID,
             issue=14,
-            reason="the last round failed (exit 2)",
+            reason="at cap: 1 of 1 agents running",
         )
     ]
 
@@ -1107,7 +1277,7 @@ def test_the_cooldown_boundary_clears_faults_and_permits_recovery(dispatching):
     following = restarted.tick(at=restarted_clock())
 
     assert following.most_recent_cooldown_ended == PINNED
-    assert following.launched_assignment_identifier == SECOND_ASSIGNMENT_ID
+    assert following.launched_agent_work_identifiers == [SECOND_ASSIGNMENT_ID]
 
 
 def test_a_cooldown_normalizes_aware_datetimes_to_utc():

@@ -7,7 +7,7 @@ assignment
   pull request                 #52                                            
   dispatch label               dream:smith                                    
   branch                       dreamcatcher-GH13-20260819-184158              
-  worktree                     .dreamcatcher/v3/worktrees/GH13-20260819-184158
+  worktree                     .dreamcatcher/v4/worktrees/GH13-20260819-184158
   agent harness                claude                                         
   harness session identifier   abc-123                                        
   model                        opus[1m]                                       
@@ -17,7 +17,7 @@ rounds
   1  implement  2026-08-20 02:42:58  ran 4m  successful
 
 resume harness session yourself
-  cd .dreamcatcher/v3/worktrees/GH13-20260819-184158
+  cd .dreamcatcher/v4/worktrees/GH13-20260819-184158
   claude --resume abc-123                           
 
 older assignments

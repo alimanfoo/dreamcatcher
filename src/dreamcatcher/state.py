@@ -8,7 +8,7 @@ from dreamcatcher.agent_rounds import AgentRoundReader
 from dreamcatcher.documents import write_text
 
 STATE_DIRECTORY_NAME = ".dreamcatcher"
-STATE_FORMAT_VERSION = 3
+STATE_FORMAT_VERSION = 4
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -40,7 +40,7 @@ class StateDirectory:
 
     @property
     def lock(self) -> Path:
-        """The file the running daemon writes its pid to."""
+        """The document that identifies the process holding the daemon lock."""
         return self.path.parent / "daemon.pid"
 
     @property

@@ -1,14 +1,27 @@
-"""Enforce one running daemon per repository with a PID file."""
+"""Enforce one running daemon per repository with a process identity file."""
 
 import os
 from collections.abc import Iterator
 from contextlib import contextmanager, suppress
+from datetime import UTC, datetime
 from pathlib import Path
 
 import psutil
+from pydantic import AwareDatetime, PositiveInt
 
-from dreamcatcher.documents import write_text
+from dreamcatcher.documents import (
+    DreamcatcherDocument,
+    read_json_if_exists,
+    write_json,
+)
 from dreamcatcher.errors import ReportableError
+
+
+class DaemonLockRecord(DreamcatcherDocument):
+    """The process identity that holds the daemon lock."""
+
+    pid: PositiveInt
+    process_started_at: AwareDatetime
 
 
 @contextmanager
@@ -23,7 +36,13 @@ def hold_daemon_lock(*, path: Path) -> Iterator[int]:
     if daemon_pid is not None:
         raise ReportableError(f"dreamcatcher is already running as pid {daemon_pid}.")
     pid = os.getpid()
-    write_text(text=f"{pid}\n", path=path)
+    write_json(
+        document=DaemonLockRecord(
+            pid=pid,
+            process_started_at=_read_process_start_time(pid=pid),
+        ),
+        path=path,
+    )
     try:
         yield pid
     finally:
@@ -35,14 +54,25 @@ def hold_daemon_lock(*, path: Path) -> Iterator[int]:
 
 
 def read_daemon_pid(*, path: Path) -> int | None:
-    """Return the PID when the lock names a live process, otherwise None.
+    """Return the PID when the lock names the same live process, otherwise None.
 
-    The check cannot distinguish the daemon from another process that reused
-    its PID. A missing or malformed file and a PID with no process are stale.
+    A missing file, a PID with no process, and a PID that the system reused for
+    another process are stale. Raise ReportableError when the document is
+    invalid or the process identity cannot be inspected.
     """
-    try:
-        pid = int(path.read_text(encoding="utf-8").strip())
-        is_alive = pid > 0 and psutil.pid_exists(pid)
-    except (OSError, ValueError, OverflowError):
+    record = read_json_if_exists(model=DaemonLockRecord, path=path)
+    if record is None:
         return None
-    return pid if is_alive else None
+    try:
+        process_started_at = _read_process_start_time(pid=record.pid)
+    except (psutil.NoSuchProcess, psutil.ZombieProcess):
+        return None
+    except (OSError, OverflowError, psutil.Error) as error:
+        raise ReportableError(
+            f"cannot inspect process {record.pid}: {error}"
+        ) from error
+    return record.pid if record.process_started_at == process_started_at else None
+
+
+def _read_process_start_time(*, pid: int) -> datetime:
+    return datetime.fromtimestamp(psutil.Process(pid).create_time(), tz=UTC)

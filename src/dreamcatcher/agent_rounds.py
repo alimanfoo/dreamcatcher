@@ -4,10 +4,10 @@ A round runs a harness command in its owner's worktree. It writes into a
 numbered directory of its own.
 
 `prompt.txt` supplies the harness's stdin. `inbox.json` holds any input that the
-round's owner delivers. `raw.jsonl` preserves harness stdout, `feed.txt` renders
-both streams for the user, `final.md` keeps the final result the harness
-reports, and `round.json` records identity, purpose, recovery, process, and
-outcome.
+round's owner delivers. `stop-request` asks a running round to stop.
+`raw.jsonl` preserves harness stdout, `feed.txt` renders both streams for the
+user, `final.md` keeps the final result the harness reports, and `round.json`
+records identity, purpose, recovery, process, and outcome.
 
 The daemon watches a round rather than waiting for it, so a round reads its own
 streams on threads of its own, and records its own ending on another.
@@ -38,7 +38,6 @@ from dreamcatcher.documents import (
 )
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedEvent, FeedNote, FeedProse, FeedRenderer
-from dreamcatcher.github import ConversationComment, PullRequestState, UserPost
 from dreamcatcher.harness_adapters import (
     AgentRoundLaunchRequest,
     HarnessAdapter,
@@ -55,6 +54,9 @@ AGENT_ROUND_RECORD_NAME = "round.json"
 # after it exits. A reader normally settles immediately on the result event or
 # pipe EOF. This bound is for an escaped descendant that keeps the pipe open.
 FINAL_OUTPUT_CAPTURE_TIMEOUT_SECONDS = 5
+
+# How often a live round checks whether the web process asked it to stop.
+STOP_REQUEST_POLL_INTERVAL_SECONDS = 1
 
 
 class HarnessSessionIdentifierRecorder(Protocol):
@@ -117,6 +119,7 @@ class AgentRoundOutcome(StrEnum):
     SUCCESSFUL = "successful"
     ERRORED = "errored"
     INTERRUPTED = "interrupted"
+    STOPPED = "stopped"
 
 
 class SuccessfulAgentRoundEnding(DreamcatcherDocument):
@@ -153,8 +156,18 @@ class InterruptedAgentRoundEnding(DreamcatcherDocument):
     outcome: Literal[AgentRoundOutcome.INTERRUPTED] = AgentRoundOutcome.INTERRUPTED
 
 
+class StoppedAgentRoundEnding(DreamcatcherDocument):
+    """An agent round ending at the user's request."""
+
+    outcome: Literal[AgentRoundOutcome.STOPPED] = AgentRoundOutcome.STOPPED
+    at: AwareDatetime
+
+
 type AgentRoundEnding = Annotated[
-    SuccessfulAgentRoundEnding | ErroredAgentRoundEnding | InterruptedAgentRoundEnding,
+    SuccessfulAgentRoundEnding
+    | ErroredAgentRoundEnding
+    | InterruptedAgentRoundEnding
+    | StoppedAgentRoundEnding,
     Field(discriminator="outcome"),
 ]
 
@@ -207,6 +220,26 @@ def record_agent_round_interruption(
     )
 
 
+def record_agent_round_stop(
+    *, record: AgentRoundRecord, path: Path, at: datetime
+) -> AgentRoundRecord:
+    """Record a requested stop when a formerly running round has ended.
+
+    A terminal record is already reconciled, so repeating the operation keeps
+    that record unchanged.
+    """
+    if record.ending is not None:
+        return record
+    return _record_agent_round_ending(
+        record=record, ending=StoppedAgentRoundEnding(at=at), path=path
+    )
+
+
+def request_agent_round_stop(*, paths: "AgentRoundPaths") -> None:
+    """Ask the live round at these paths to stop."""
+    write_text(text="", path=paths.stop_request)
+
+
 def _record_agent_round_ending(
     *, record: AgentRoundRecord, ending: AgentRoundEnding, path: Path
 ) -> AgentRoundRecord:
@@ -214,23 +247,6 @@ def _record_agent_round_ending(
     ended_record = record.model_copy(update={"ending": ending})
     write_json(document=ended_record, path=path)
     return ended_record
-
-
-class AgentAssignmentRoundInput(DreamcatcherDocument):
-    """Model the pull request state and user posts delivered to an assignment round."""
-
-    pull_request_state: PullRequestState
-    user_posts: list[UserPost]
-
-
-class IssueConversationInput(DreamcatcherDocument):
-    """Model the trusted issue input frozen for one conversation round."""
-
-    issue: int
-    title: str | None = Field(default=None, exclude_if=lambda value: value is None)
-    body: str | None = Field(default=None, exclude_if=lambda value: value is None)
-    comments: list[ConversationComment]
-    revision: str
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -252,10 +268,7 @@ class AgentRoundStartRequest:
     record_harness_session_identifier: HarnessSessionIdentifierRecorder
     finish_round: AgentRoundFinisher | None
     paths: "AgentRoundPaths"
-    plan: (
-        AgentRoundPlan[AgentAssignmentRoundInput]
-        | AgentRoundPlan[IssueConversationInput]
-    )
+    plan: AgentRoundPlan[DreamcatcherDocument]
 
 
 def start_agent_round(
@@ -338,6 +351,11 @@ class AgentRoundPaths:
         return self.directory / "inbox.json"
 
     @property
+    def stop_request(self) -> Path:
+        """The file asking this round to stop, when one has been requested."""
+        return self.directory / "stop-request"
+
+    @property
     def final_output(self) -> Path:
         """The file holding the final result that the harness reports, if any."""
         return self.directory / "final.md"
@@ -398,8 +416,7 @@ class AgentRound:
         *,
         harness: AgentRoundHarness,
         paths: AgentRoundPaths,
-        plan: AgentRoundPlan[AgentAssignmentRoundInput]
-        | AgentRoundPlan[IssueConversationInput],
+        plan: AgentRoundPlan[DreamcatcherDocument],
         finish_round: AgentRoundFinisher | None = None,
         clock: Callable[[], datetime] = read_current_time,
     ) -> None:
@@ -420,10 +437,11 @@ class AgentRound:
         self.clock = clock
         self.feed_renderer = FeedRenderer(worktree=paths.worktree, clock=clock)
         self.started_at = clock()
-        self.is_interrupted = False
+        self.forced_ending: AgentRoundEnding | None = None
         self._round_ended = Flag()
         self._final_output_settled = Flag()
         self._feed_write_lock = Lock()
+        self._termination_lock = Lock()
         if plan.input is not None:
             write_json(document=plan.input, path=paths.round_input)
         write_text(text=harness.invocation.prompt, path=paths.prompt)
@@ -463,6 +481,10 @@ class AgentRound:
         ]
         for stream_reader in self._stream_readers:
             stream_reader.start()
+        self._stop_request_watcher = Thread(
+            target=self._watch_for_stop_request, daemon=True
+        )
+        self._stop_request_watcher.start()
         self._ending_recorder = Thread(
             target=self._record_ending_and_join_streams, daemon=True
         )
@@ -481,37 +503,62 @@ class AgentRound:
         """Wait for the round to end and for everything it wrote to land.
 
         A harness descendant can keep an output pipe open indefinitely, so this
-        method can wait indefinitely. The daemon uses `is_alive` and `stop`
-        instead.
+        method can wait indefinitely. The daemon uses `is_alive` and
+        `end_for_daemon_shutdown` instead.
         """
         self._ending_recorder.join()
 
-    def stop(self) -> None:
-        """End the round and its contained process group or job.
+    def interrupt(self) -> None:
+        """Interrupt the round and its contained process group or job.
 
         This returns as soon as the round has ended, and does not wait for the
         feed, so that a stream somebody else is still holding cannot hold up
         the daemon. A round whose harness has already exited is finished by
         its owner first.
         """
-        self._interrupt()
+        self._end_process_tree(ending=InterruptedAgentRoundEnding())
         self._round_ended.wait()
 
-    def _interrupt(self) -> None:
-        """Mark the round interrupted and end its remaining process tree.
+    def end_for_daemon_shutdown(self) -> None:
+        """End the round while preserving a pending user stop request.
+
+        A stop request already written when shutdown begins is the reason this
+        round ends, rather than an interruption the next daemon would recover.
+        """
+        if self.paths.stop_request.is_file():
+            ending: AgentRoundEnding = StoppedAgentRoundEnding(at=self.clock())
+        else:
+            ending = InterruptedAgentRoundEnding()
+        self._end_process_tree(ending=ending)
+        self._round_ended.wait()
+
+    def _end_process_tree(self, *, ending: AgentRoundEnding) -> None:
+        """Record the forced ending and kill the remaining process tree.
 
         This acts only while the child's exit status is uncollected. The
-        interruption flag is set before the kill releases the ending recorder
-        from `harness_process.wait()`.
+        ending is set before the kill releases the ending recorder from
+        `harness_process.wait()`. The first reason wins when shutdown and a user
+        request arrive together.
 
-        The child can exit between the exit-status check and the flag update,
-        which records that narrow race as an interruption. Closing the race
-        would require holding a lock across the blocking wait and would prevent
-        a prompt stop.
+        The child can exit between the exit-status check and the outcome update,
+        which records that narrow race as the requested ending. Closing the
+        race would require holding a lock across the blocking wait and would
+        prevent a prompt stop.
         """
-        if self.harness_process.is_exit_status_uncollected:
-            self.is_interrupted = True
+        with self._termination_lock:
+            if self.forced_ending is not None:
+                return
+            if not self.harness_process.is_exit_status_uncollected:
+                return
+            self.forced_ending = ending
             self.harness_process.kill()
+
+    def _watch_for_stop_request(self) -> None:
+        """Stop the round promptly when its request file appears."""
+        while not self._round_ended.wait(STOP_REQUEST_POLL_INTERVAL_SECONDS):
+            if self.paths.stop_request.is_file():
+                self._end_process_tree(ending=StoppedAgentRoundEnding(at=self.clock()))
+                return
 
     def _read_stream_until_finished(self, *, read_stream: Callable[[], None]) -> None:
         """Read one output stream and interrupt the round if persistence fails.
@@ -522,7 +569,7 @@ class AgentRound:
         try:
             read_stream()
         except ReportableError:
-            self._interrupt()
+            self.interrupt()
 
     def _read_stdout(self) -> None:
         try:
@@ -549,9 +596,11 @@ class AgentRound:
         try:
             status = self.harness_process.wait()
             failure = self._finish_round(status=status)
-            if self.is_interrupted:
-                self.record = record_agent_round_interruption(
-                    record=self.record, path=self.paths.record
+            if self.forced_ending is not None:
+                self.record = _record_agent_round_ending(
+                    record=self.record,
+                    ending=self.forced_ending,
+                    path=self.paths.record,
                 )
             else:
                 self.record = _record_agent_round_ending(
@@ -566,6 +615,7 @@ class AgentRound:
             # waiting on it waits no longer, and whatever the pumps still have
             # to write is still written.
             self._round_ended.set()
+            self._stop_request_watcher.join()
             for stream_reader in self._stream_readers:
                 stream_reader.join()
 
@@ -575,7 +625,7 @@ class AgentRound:
         A finisher that raises fails the round, and the feed says why too. An
         interrupted round is not finished.
         """
-        if self.finish_round is None or status != 0 or self.is_interrupted:
+        if self.finish_round is None or status != 0 or self.forced_ending is not None:
             return None
         try:
             self.finish_round(final_output=self._read_final_output())

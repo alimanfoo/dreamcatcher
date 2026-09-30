@@ -48,6 +48,11 @@ from where it stopped.
 Your final message must be the complete answer, as Markdown ready for
 Dreamcatcher to post, or exactly NO_REPLY."""
 
+STOPPED_ROUND_FEEDBACK_PROMPT = """The user stopped your previous round before it
+finished. Their new feedback says what to do instead.
+
+"""
+
 # What a round resumed from the pull request asks for. It ports from the catcher
 # this tool replaces, word for word. The user's own words are never in it: the
 # posts go to a file, and this names the file. The file also says where the
@@ -87,18 +92,21 @@ def compose_first_round_prompt(*, template: str, issue: int) -> str:
     return template.replace(ISSUE_PLACEHOLDER, str(issue)) + AGENT_POST_INSTRUCTIONS
 
 
-def compose_user_posts_prompt(*, pull_request: int, round_input: Path) -> str:
+def compose_user_posts_prompt(
+    *, pull_request: int, round_input: Path, was_stopped: bool = False
+) -> str:
     """Return the prompt that directs a resumed round to its input file.
 
     The input file holds the pull request state and the batch of user posts.
     """
-    return (
+    prompt = (
         USER_POSTS_PROMPT.format(
             pull_request=pull_request,
             round_input=round_input,
         )
         + AGENT_POST_INSTRUCTIONS
     )
+    return _prefix_stopped_round_feedback(prompt=prompt) if was_stopped else prompt
 
 
 def compose_issue_conversation_prompt(
@@ -112,9 +120,16 @@ def compose_issue_conversation_prompt(
     return f"{instructions}\n\n{round_prompt}"
 
 
-def compose_issue_conversation_round_prompt(*, issue: int, round_input: Path) -> str:
+def compose_issue_conversation_round_prompt(
+    *, issue: int, round_input: Path, was_stopped: bool = False
+) -> str:
     """Return the prompt that directs a conversation round to its saved input."""
-    return _ISSUE_CONVERSATION_ROUND_PROMPT.format(
+    prompt = _ISSUE_CONVERSATION_ROUND_PROMPT.format(
         issue=issue,
         round_input=round_input,
     )
+    return _prefix_stopped_round_feedback(prompt=prompt) if was_stopped else prompt
+
+
+def _prefix_stopped_round_feedback(*, prompt: str) -> str:
+    return STOPPED_ROUND_FEEDBACK_PROMPT + prompt

@@ -5,12 +5,15 @@ from datetime import timedelta
 
 from clocks import PINNED
 from conftest import DAEMON_PID, DISPATCH_LABEL, REPOSITORY, configure
-from observations import observed_issue
+from observations import observed_conversation, observed_issue
 from records import (
     AssignmentReporting,
     write_agent_assignment,
+    write_daemon_lock,
     write_daemon_run,
     write_feed,
+    write_final_output,
+    write_issue_conversation,
     write_round,
     write_tick,
 )
@@ -19,17 +22,21 @@ from dreamcatcher.agent_assignments import PullRequestObservation
 from dreamcatcher.agent_rounds import (
     AgentAssignmentRoundPurpose,
     AgentRoundRecord,
+    IssueConversationRoundPurpose,
     compose_agent_round_ending,
 )
-from dreamcatcher.documents import write_text
+from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.github import PullRequestState
+from dreamcatcher.issue_conversations import IssueConversationInput
 from dreamcatcher.scheduler import (
     NO_ROUND_HAS_RUN,
     AgentAssignmentObservation,
+    IssueConversationObservation,
     IssueFactValue,
     SchedulerRecord,
 )
+from dreamcatcher.state import StateDirectory
 
 LOOKED_AT = PINNED + timedelta(hours=2)
 ASSIGNMENT_TIMESTAMP = "20260819-184158"
@@ -59,6 +66,63 @@ SAID = (
 )
 
 DOUBLE_LABELLED = "carries more than one dispatch label: dream:less, dream:smith"
+
+
+def fabricate_conversation(
+    *,
+    state: StateDirectory,
+    has_round: bool = True,
+    status: int = 0,
+    is_eligible: bool = False,
+) -> None:
+    """Write one initial conversation exchange."""
+    directory = write_issue_conversation(state=state, issue=8)
+    write_text(text=f"{REPOSITORY}\n", path=state.repository)
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            conversation_observations=[observed_conversation()] if is_eligible else [],
+        ),
+    )
+    if not has_round:
+        return
+    write_round(
+        directory=directory,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
+            started=PINNED,
+            pid=1,
+            ending=compose_agent_round_ending(
+                at=PINNED + timedelta(minutes=4), status=status
+            ),
+        ),
+    )
+    write_json(
+        document=IssueConversationInput(
+            issue=8,
+            title="Issue 8",
+            body="Explain it.",
+            comments=[
+                {
+                    "id": 1,
+                    "body": "Please explain.",
+                    "author": "alice",
+                    "written_at": "2026-09-23T01:00:00Z",
+                }
+            ],
+            revision="abc123",
+        ),
+        path=(directory / "rounds" / "1" / "inbox.json"),
+    )
+    write_feed(
+        directory=directory,
+        number=1,
+        lines=[FeedLine(at=PINNED, text="I found the answer.")],
+    )
+    write_final_output(directory=directory, number=1, text="The answer.")
 
 
 def written(*, state, issue: int, records: Sequence[AgentRoundRecord]):
@@ -116,7 +180,7 @@ def holding(*, state):
     configure(root=state.root)
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
     write_daemon_run(state=state, pid=DAEMON_PID)
-    write_text(text=f"{DAEMON_PID}\n", path=state.lock)
+    write_daemon_lock(path=state.lock, pid=DAEMON_PID, process_started_at=PINNED)
 
 
 def fabricate_nothing(*, state):
@@ -126,7 +190,11 @@ def fabricate_nothing(*, state):
     write_daemon_run(state=state, pid=DAEMON_PID)
 
 
-def fabricate_everything(*, state):
+def fabricate_everything(
+    *,
+    state,
+    conversation_observations: Sequence[IssueConversationObservation] = (),
+):
     """Write a running daemon with varied issue and assignment statuses."""
     holding(state=state)
     directory = written(
@@ -174,7 +242,7 @@ def fabricate_everything(*, state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
-            launched_agent_work_identifier=f"GH13-{ASSIGNMENT_TIMESTAMP}",
+            launched_agent_work_identifiers=[f"GH13-{ASSIGNMENT_TIMESTAMP}"],
             issue_observations=[
                 observed_issue(issue=50),
                 observed_issue(issue=51),
@@ -218,6 +286,7 @@ def fabricate_everything(*, state):
                     reason=NO_ROUND_HAS_RUN,
                 ),
             ],
+            conversation_observations=list(conversation_observations),
         ),
     )
 
@@ -369,7 +438,7 @@ def fabricate_a_silent_round(*, state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
-            launched_agent_work_identifier=f"GH13-{ASSIGNMENT_TIMESTAMP}",
+            launched_agent_work_identifiers=[f"GH13-{ASSIGNMENT_TIMESTAMP}"],
         ),
     )
 

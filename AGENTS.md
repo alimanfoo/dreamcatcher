@@ -82,6 +82,41 @@ Run every check CI runs:
 uv run pre-commit run --all-files
 ```
 
+### Browser tests and visual checks
+
+Install Chromium once, then run the browser tests that the default suite leaves
+out:
+
+```sh
+uv run playwright install --with-deps chromium
+PYTHONWARNDEFAULTENCODING=1 uv run pytest -m browser --no-cov
+```
+
+On Windows PowerShell:
+
+```powershell
+$env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest -m browser --no-cov
+```
+
+To inspect the web UI without using real Dreamcatcher state, start the
+fabricated web server in one terminal:
+
+```sh
+uv run python tests/serve_fabricated_web.py
+```
+
+The command prints the home, assignment and conversation page addresses and runs
+until interrupted. Use one of those addresses with Playwright to exercise the
+page or capture a screenshot:
+
+```sh
+uv run playwright screenshot --full-page --viewport-size="1280,800" ADDRESS SCREENSHOT.png
+```
+
+Open the PNG with the harness's image viewer. For interactions beyond the
+Playwright command, put a throwaway Python script outside the repository and
+drive the printed address with Playwright's synchronous API.
+
 ## Conventions
 
 ### Development workflow and fixtures
@@ -134,8 +169,7 @@ $env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest --regenerate-view-goldens
   write it through `documents.py`. That covers `dreamcatcher.toml` and the
   records under `.dreamcatcher/`. A mistake in a document then reads as a named
   error in plain words, not as a setting the tool quietly ignores. A one-value
-  file like `daemon.pid` needs no model, though `lock.py` still writes it
-  through `documents.write_text`.
+  file needs no model, though its writer must still use `documents.write_text`.
 - Read what GitHub answers through a `GitHubResponseProjection` in `github.py`.
   It keeps the fields we declare and lets every other key pass, because GitHub
   owns that document and adds to it as it pleases. A `DreamcatcherDocument`

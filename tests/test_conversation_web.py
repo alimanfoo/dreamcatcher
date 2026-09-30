@@ -1,30 +1,28 @@
 """Render issue conversations in the local web interface."""
 
-import os
 from datetime import timedelta
 
 from clocks import DISPLAY_TIME_ZONE, PINNED
 from conftest import REPOSITORY
 from observations import observed_conversation
 from records import (
+    write_daemon_lock,
     write_feed,
-    write_final_output,
-    write_issue_conversation,
     write_round,
     write_running_conversation,
     write_tick,
 )
-from status_fabrications import fabricate_everything
+from status_fabrications import fabricate_conversation, fabricate_everything
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
-    IssueConversationInput,
     IssueConversationRoundPurpose,
     compose_agent_round_ending,
 )
 from dreamcatcher.documents import append_text, write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.issue_conversations import (
+    IssueConversationInput,
     read_issue_conversation,
 )
 from dreamcatcher.scheduler import IssueFactValue, SchedulerRecord
@@ -32,63 +30,6 @@ from dreamcatcher.state import StateDirectory
 from dreamcatcher.web import create_app
 
 LOOKED_AT = PINNED + timedelta(hours=2)
-
-
-def fabricate_conversation(
-    *,
-    state: StateDirectory,
-    has_round: bool = True,
-    status: int = 0,
-    is_eligible: bool = False,
-) -> None:
-    """Write one initial conversation exchange."""
-    directory = write_issue_conversation(state=state, issue=8)
-    write_text(text=f"{REPOSITORY}\n", path=state.repository)
-    write_tick(
-        state=state,
-        tick=SchedulerRecord(
-            at=PINNED,
-            conversation_observations=[observed_conversation()] if is_eligible else [],
-        ),
-    )
-    if not has_round:
-        return
-    write_round(
-        directory=directory,
-        number=1,
-        record=AgentRoundRecord(
-            number=1,
-            purpose=IssueConversationRoundPurpose.DISCUSS,
-            started=PINNED,
-            pid=1,
-            ending=compose_agent_round_ending(
-                at=PINNED + timedelta(minutes=4), status=status
-            ),
-        ),
-    )
-    write_json(
-        document=IssueConversationInput(
-            issue=8,
-            title="Issue 8",
-            body="Explain it.",
-            comments=[
-                {
-                    "id": 1,
-                    "body": "Please explain.",
-                    "author": "alice",
-                    "written_at": "2026-09-23T01:00:00Z",
-                }
-            ],
-            revision="abc123",
-        ),
-        path=(directory / "rounds" / "1" / "inbox.json"),
-    )
-    write_feed(
-        directory=directory,
-        number=1,
-        lines=[FeedLine(at=PINNED, text="I found the answer.")],
-    )
-    write_final_output(directory=directory, number=1, text="The answer.")
 
 
 def application(*, state: StateDirectory):
@@ -179,6 +120,104 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
     assert "discuss" in page
     assert "I found the answer." in page
     assert 'hx-get="/conversations/8/tail"' in page
+
+
+def test_conversation_page_requests_a_stop_for_its_running_round(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    write_running_conversation(state=state, issue=8, started=PINNED)
+    client = application(state=state).test_client()
+
+    page = client.get("/conversations/8")
+
+    assert page.status_code == 200
+    assert 'action="/conversations/8/stop/1"' in page.text
+
+    response = client.post(
+        "/conversations/8/stop/1", headers={"Origin": "http://localhost"}
+    )
+
+    assert response.status_code == 303
+    assert response.location == "/conversations/8"
+    conversation = read_issue_conversation(state=state, issue=8)
+    assert conversation is not None
+    paths = conversation.compose_round_paths(number=1)
+    assert paths.stop_request.read_text(encoding="utf-8") == ""
+
+
+def test_an_old_conversation_stop_submission_cannot_stop_the_next_round(
+    tmp_path, daemon
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state)
+    write_round(
+        directory=state.conversations / "GH8",
+        number=2,
+        record=AgentRoundRecord(
+            number=2,
+            purpose=IssueConversationRoundPurpose.DISCUSS,
+            started=PINNED + timedelta(minutes=5),
+            pid=1,
+        ),
+    )
+    client = application(state=state).test_client()
+
+    response = client.post(
+        "/conversations/8/stop/1", headers={"Origin": "http://localhost"}
+    )
+
+    assert response.status_code == 303
+    conversation = read_issue_conversation(state=state, issue=8)
+    assert conversation is not None
+    assert not conversation.compose_round_paths(number=2).stop_request.exists()
+
+
+def test_unsaved_conversation_has_no_stop_control(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    fabricate_unsaved_conversation(state=state)
+
+    response = application(state=state).test_client().get("/conversations/9")
+
+    assert response.status_code == 200
+    assert 'action="/conversations/9/stop/1"' not in response.text
+
+
+def test_a_stale_conversation_stop_request_is_already_done(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state)
+    client = application(state=state).test_client()
+
+    response = client.post(
+        "/conversations/8/stop/1", headers={"Origin": "http://localhost"}
+    )
+
+    assert response.status_code == 303
+    conversation = read_issue_conversation(state=state, issue=8)
+    assert conversation is not None
+    assert not conversation.compose_round_paths(number=1).stop_request.exists()
+
+
+def test_an_unknown_conversation_cannot_receive_a_stop_request(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    client = application(state=state).test_client()
+
+    response = client.post(
+        "/conversations/8/stop/1", headers={"Origin": "http://localhost"}
+    )
+
+    assert response.status_code == 404
+
+
+def test_conversation_stop_requests_must_come_from_the_page(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    client = application(state=state).test_client()
+
+    response = client.post(
+        "/conversations/8/stop/1", headers={"Origin": "https://example.com"}
+    )
+
+    assert response.status_code == 403
 
 
 def test_conversation_page_with_an_unreadable_input_still_renders(tmp_path):
@@ -459,7 +498,7 @@ def test_home_lists_conversations_in_attention_order(tmp_path):
         number=1,
         lines=[FeedLine(at=PINNED, text="Still working.")],
     )
-    state.lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
+    write_daemon_lock(path=state.lock)
     write_tick(
         state=state,
         tick=SchedulerRecord(
