@@ -9,7 +9,11 @@ from pathlib import Path
 import psutil
 from pydantic import AwareDatetime, PositiveInt
 
-from dreamcatcher.documents import DreamcatcherDocument, read_json, write_json
+from dreamcatcher.documents import (
+    DreamcatcherDocument,
+    read_json_if_exists,
+    write_json,
+)
 from dreamcatcher.errors import ReportableError
 
 
@@ -56,16 +60,9 @@ def read_daemon_pid(*, path: Path) -> int | None:
     another process are stale. Raise ReportableError when the document is
     invalid or the process identity cannot be inspected.
     """
-    try:
-        record = read_json(model=DaemonLockRecord, path=path)
-    except ReportableError:
-        try:
-            path.stat()
-        except (FileNotFoundError, NotADirectoryError):
-            return None
-        except OSError:
-            pass
-        raise
+    record = read_json_if_exists(model=DaemonLockRecord, path=path)
+    if record is None:
+        return None
     try:
         process_started_at = _read_process_start_time(pid=record.pid)
     except (psutil.NoSuchProcess, psutil.ZombieProcess):

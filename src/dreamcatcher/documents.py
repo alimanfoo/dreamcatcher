@@ -56,12 +56,28 @@ def read_json[DocumentT: DreamcatcherDocument](
     one step, so a file that is not JSON at all reports as the first fault the
     document has.
     """
+    return _parse_json_document(
+        model=model,
+        path=path,
+        text=read_text(path=path),
+    )
+
+
+def read_json_if_exists[DocumentT: DreamcatcherDocument](
+    *, model: type[DocumentT], path: Path
+) -> DocumentT | None:
+    """Return the JSON document, or None when its path does not exist.
+
+    Raise ReportableError when a document exists but cannot be read or does not
+    fit its model.
+    """
     try:
-        return model.model_validate_json(read_text(path=path))
-    except ValidationError as error:
-        raise ReportableError(
-            _describe_validation_error(path=path, error=error)
-        ) from error
+        text = _read_text(path=path)
+    except (FileNotFoundError, NotADirectoryError):
+        return None
+    except OSError as error:
+        raise ReportableError(f"cannot read {path}: {error}.") from error
+    return _parse_json_document(model=model, path=path, text=text)
 
 
 def read_text(*, path: Path) -> str:
@@ -76,11 +92,26 @@ def read_text(*, path: Path) -> str:
     message rather than a traceback.
     """
     try:
-        return _decode(contents=path.read_bytes(), path=path)
+        return _read_text(path=path)
     except FileNotFoundError as error:
         raise ReportableError(f"{path} does not exist.") from error
     except OSError as error:
         raise ReportableError(f"cannot read {path}: {error}.") from error
+
+
+def _read_text(*, path: Path) -> str:
+    return _decode(contents=path.read_bytes(), path=path)
+
+
+def _parse_json_document[DocumentT: DreamcatcherDocument](
+    *, model: type[DocumentT], path: Path, text: str
+) -> DocumentT:
+    try:
+        return model.model_validate_json(text)
+    except ValidationError as error:
+        raise ReportableError(
+            _describe_validation_error(path=path, error=error)
+        ) from error
 
 
 def read_lines_from(*, path: Path, position: int) -> tuple[list[str], int]:
