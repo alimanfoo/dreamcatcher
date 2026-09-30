@@ -53,19 +53,7 @@ communication channel between the agent and the user.
 ### Issue conversation
 
 An **issue conversation** is Dreamcatcher's durable commission to an agent to
-answer the user on an issue without implementing a change. It owns a detached
-worktree at a recorded main revision and its agent rounds. Its rounds normally
-share one harness session, but recovery replaces a session whose identifier was
-never recorded. Each round input records the comment batch delivered in that
-round. The issue remains its communication channel; it has no implementation
-branch or pull request.
-
-An issue conversation starts with one initial round. Each later eligible comment
-batch resumes the same harness session in another round. Each successful round
-posts its final answer on the issue before it ends, unless the answer is
-`NO_REPLY`, which means no post is needed. While the issue remains eligible, an
-interrupted or errored round is recovered from its saved input before a later
-comment batch is accepted.
+answer the user on an issue without implementing a change.
 
 ### Agent work and agent work identifier
 
@@ -192,6 +180,15 @@ exhausted usage allowance.
 
 ## Relationships and rules
 
+### Agent work composition
+
+Agent work has no agent rounds until work begins and one or more afterwards. Its
+rounds form a sequence numbered within that piece of agent work; their numbers
+have no meaning outside it.
+
+The rounds normally share one harness session. If the initial invocation never
+records a harness session identifier, a recovery replaces that session.
+
 ### Agent assignment composition
 
 Each agent assignment has exactly one:
@@ -202,15 +199,25 @@ Each agent assignment has exactly one:
 - pull request;
 - agent harness.
 
-An assignment has no agent rounds until work begins and one or more afterwards.
-Its rounds normally share one harness session, but recovery replaces a session
-whose identifier was never recorded. The rounds form a sequence numbered within
-the assignment; their numbers have no meaning outside it.
-
 An issue can receive more than one assignment over its lifetime, but a
 Dreamcatcher instance can never have more than one open assignment for the same
 issue. An agent assignment remains open until it is complete, including while
 its pull request is being wrapped up.
+
+### Issue conversation composition
+
+Each issue conversation has exactly one:
+
+- issue;
+- detached Git worktree;
+- agent harness.
+
+It has no branch or pull request, so the issue is its communication channel. An
+issue has at most one issue conversation, and Dreamcatcher keeps it after the
+issue stops being eligible.
+
+Each conversation round input records the comment batch that the round answers
+and the main revision that it investigated.
 
 ### Dispatch labels and routes
 
@@ -391,13 +398,15 @@ Issue title and body alone do not start a round. Assignment ownership, linked
 pull requests, dependencies and dispatch-label conflicts do not govern
 conversation eligibility.
 
-Dreamcatcher fetches main, creates a detached worktree, records its revision and
-the chosen conversation route and settings, freezes the issue and eligible
-comment batch, then starts the initial conversation round. The recorded route
-and settings stay frozen if a different configured label later makes the issue
-eligible. The round shares the daemon's capacity and global cooldown with
-assignment rounds. The round posts its final result on the issue before it
-records its ending. A failed post makes the round errored.
+Dreamcatcher fetches main, creates a detached worktree, and records the chosen
+conversation route and settings. It freezes the issue, eligible comment batch,
+and main revision as the initial round input, then starts the initial
+conversation round. The recorded route and settings stay frozen if a different
+configured label later makes the issue eligible. The round shares the daemon's
+capacity and global cooldown with assignment rounds. When the agent invocation
+succeeds, Dreamcatcher posts its answer on the issue before it records the round
+ending. An answer of `NO_REPLY` means no post is needed. A failed post makes the
+round errored.
 
 After the round ends, another eligible comment batch resumes the same harness
 session in another conversation round. Before it accepts that batch,
