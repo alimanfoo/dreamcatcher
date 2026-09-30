@@ -7,6 +7,7 @@ from conftest import streamed
 from dreamcatcher.claude import (
     CLAUDE_ADAPTER,
     CLAUDE_ASSIGNMENT_ALLOWED_TOOLS,
+    CLAUDE_CONVERSATION_ALLOWED_TOOLS,
     CLAUDE_CONVERSATION_DISALLOWED_TOOLS,
 )
 from dreamcatcher.feed import FeedNote, FeedProse
@@ -71,7 +72,7 @@ def test_a_resume_continues_the_harness_session_and_replays_no_settings():
     )
 
 
-def test_a_conversation_round_denies_implementation_and_github_tools():
+def test_a_conversation_round_allows_issue_tools_and_denies_implementation_tools():
     request = AgentRoundLaunchRequest(
         agent_work_identifier="conversation-GH9",
         model="opus[1m]",
@@ -84,20 +85,27 @@ def test_a_conversation_round_denies_implementation_and_github_tools():
         request=request, final_output_path=FINAL_OUTPUT_PATH
     )
 
-    assert "--allowedTools" not in invocation.arguments
+    allowed_at = invocation.arguments.index("--allowedTools")
+    assert invocation.arguments[allowed_at + 1] == " ".join(
+        CLAUDE_CONVERSATION_ALLOWED_TOOLS
+    )
+    assert set(CLAUDE_CONVERSATION_ALLOWED_TOOLS) == {
+        "Bash(gh issue:*)",
+        "Bash(gh api:*)",
+    }
     denied_at = invocation.arguments.index("--disallowedTools")
     assert invocation.arguments[denied_at + 1] == " ".join(
         CLAUDE_CONVERSATION_DISALLOWED_TOOLS
     )
     assert {
         "PowerShell",
-        "Bash(gh:*)",
         "Bash(git cherry-pick:*)",
         "Bash(git restore:*)",
         "Bash(git rm:*)",
         "Bash(git stash:*)",
         "Bash(git tag:*)",
     } <= set(CLAUDE_CONVERSATION_DISALLOWED_TOOLS)
+    assert "Bash(gh:*)" not in CLAUDE_CONVERSATION_DISALLOWED_TOOLS
 
 
 def test_a_person_continues_the_harness_session_where_it_ran():

@@ -39,14 +39,15 @@ end your turn when the work is done."""
     + AGENT_POST_INSTRUCTIONS
 )
 
-# A conversation agent does not post on GitHub, so its recovery prompt carries
-# no agent-post marker instructions.
-ISSUE_CONVERSATION_RECOVERY_PROMPT = """Your earlier round was cut short, or its
+ISSUE_CONVERSATION_RECOVERY_PROMPT = (
+    """Your earlier round was cut short, or its
 answer could not be posted. Nothing from that round reached the issue. Carry on
 from where it stopped.
 
 Your final message must be the complete answer, as Markdown ready for
 Dreamcatcher to post, or exactly NO_REPLY."""
+    + AGENT_POST_INSTRUCTIONS
+)
 
 STOPPED_ROUND_FEEDBACK_PROMPT = """The user stopped your previous round before it
 finished. Their new feedback says what to do instead.
@@ -68,18 +69,23 @@ pull_request_state is MERGED or CLOSED, finish per your assignment's rules.
 Otherwise act on user_posts per your assignment's rules. End your turn when
 done."""
 
-_ISSUE_CONVERSATION_ROUND_PROMPT = """Issue-conversation input for GH{issue}:
+_ISSUE_CONVERSATION_ROUND_PROMPT = (
+    """Issue-conversation input for GH{issue}:
 
   {round_input}
 
 Read that JSON file and answer the user's comments together. You may read the
 source and Git history, run code, and reproduce a suspected bug. Do not edit
-project source, mutate Git, mutate GitHub, or implement a change. Do not fetch
-issue comments yourself or post a reply. Dreamcatcher supplies the comments and
-publishes your final output. The `revision` field names the checked-out commit.
+project source, mutate Git, or implement a change. You may make issue changes on
+GitHub when the user asks, such as filing a subissue. Do not fetch issue comments
+yourself, open or change a pull request, or post a reply. Dreamcatcher supplies
+the comments and publishes your final output. The `revision` field names the
+checked-out commit.
 
 Return Markdown ready for Dreamcatcher to post, or exactly NO_REPLY when no
 reply is needed."""
+    + AGENT_POST_INSTRUCTIONS
+)
 
 
 def compose_first_round_prompt(*, template: str, issue: int) -> str:

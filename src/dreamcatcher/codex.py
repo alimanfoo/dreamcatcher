@@ -35,12 +35,11 @@ ASSIGNMENT_RESUME_PERMISSION_OVERRIDES = (
     'approvals_reviewer="auto_review"',
 )
 
-# A conversation may write scratch files while it investigates, but it must not
-# reach GitHub or ask a person to approve wider access. Network access is pinned
-# off rather than left to the user's Codex configuration.
+# A conversation may write scratch files and make issue changes on GitHub, but
+# it must not ask a person to approve wider access.
 CONVERSATION_PERMISSION_OVERRIDES = (
     'sandbox_mode="workspace-write"',
-    "sandbox_workspace_write.network_access=false",
+    NETWORK_ACCESS_OVERRIDE,
     'approval_policy="never"',
 )
 
