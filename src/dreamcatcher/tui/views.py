@@ -33,7 +33,7 @@ from dreamcatcher.status import (
     read_agent_assignment_statuses_for_issue,
     read_issue_conversation_status,
 )
-from dreamcatcher.tui_shared import (
+from dreamcatcher.tui.shared import (
     ASSIGNMENT_STATUS_STYLES,
     CONVERSATION_STATUS_STYLES,
     SECTION_PADDING,
@@ -45,13 +45,13 @@ from dreamcatcher.tui_shared import (
     render_latest_output,
     render_section,
 )
-from dreamcatcher.tui_shared import (
+from dreamcatcher.tui.shared import (
     VIEW_REFRESH_INTERVAL as VIEW_REFRESH_INTERVAL,
 )
-from dreamcatcher.tui_shared import (
+from dreamcatcher.tui.shared import (
     open_tui_console as open_tui_console,
 )
-from dreamcatcher.tui_status import show_status_view as show_status_view
+from dreamcatcher.tui.status import show_status_view as show_status_view
 from dreamcatcher.words import describe_count, describe_time
 
 

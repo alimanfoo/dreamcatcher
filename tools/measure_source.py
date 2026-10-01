@@ -6,14 +6,16 @@ import ast
 from dataclasses import dataclass
 from pathlib import Path
 
-SOURCE_ROOT = Path(__file__).parents[2] / "src" / "dreamcatcher"
+SOURCE_ROOT = Path(__file__).parents[1] / "src" / "dreamcatcher"
 MODULE_LINE_BAR = 600
 FUNCTION_LINE_BAR = 50
 
 # These modules and functions hold one architecture-level transaction or
 # boundary. Splitting them would hide that shape rather than reveal a concept.
 MODULE_EXCEPTIONS = {
+    "agent_rounds.py": "the complete agent-round filesystem and lifecycle boundary",
     "github.py": "the single GitHub command and response boundary",
+    "scheduler/conversations.py": "the complete conversation scheduling boundary",
 }
 FUNCTION_EXCEPTIONS = {
     (

@@ -22,40 +22,40 @@ from dreamcatcher.status import (
     read_issue_conversation_status,
     read_status_report,
 )
-from dreamcatcher.web_feed import (
+from dreamcatcher.web.feed import (
     _decode_feed_cursor,
     _InvalidFeedCursorError,
     _read_agent_tail,
 )
-from dreamcatcher.web_models import WebAgentFeed as WebAgentFeed
-from dreamcatcher.web_models import WebAgentRound as WebAgentRound
-from dreamcatcher.web_models import WebAgentTail as WebAgentTail
-from dreamcatcher.web_models import WebAgentTailContext as WebAgentTailContext
-from dreamcatcher.web_models import WebAssignmentCard as WebAssignmentCard
-from dreamcatcher.web_models import WebAssignmentView as WebAssignmentView
-from dreamcatcher.web_models import WebConversationCard as WebConversationCard
-from dreamcatcher.web_models import WebConversationView as WebConversationView
-from dreamcatcher.web_models import WebFact as WebFact
-from dreamcatcher.web_models import WebFeedCursor as WebFeedCursor
-from dreamcatcher.web_models import WebFeedLine as WebFeedLine
-from dreamcatcher.web_models import WebFeedRound as WebFeedRound
-from dreamcatcher.web_models import WebHomeView as WebHomeView
-from dreamcatcher.web_models import WebIssueRow as WebIssueRow
-from dreamcatcher.web_models import _WebFeedOwner
-from dreamcatcher.web_server import (
+from dreamcatcher.web.models import WebAgentFeed as WebAgentFeed
+from dreamcatcher.web.models import WebAgentRound as WebAgentRound
+from dreamcatcher.web.models import WebAgentTail as WebAgentTail
+from dreamcatcher.web.models import WebAgentTailContext as WebAgentTailContext
+from dreamcatcher.web.models import WebAssignmentCard as WebAssignmentCard
+from dreamcatcher.web.models import WebAssignmentView as WebAssignmentView
+from dreamcatcher.web.models import WebConversationCard as WebConversationCard
+from dreamcatcher.web.models import WebConversationView as WebConversationView
+from dreamcatcher.web.models import WebFact as WebFact
+from dreamcatcher.web.models import WebFeedCursor as WebFeedCursor
+from dreamcatcher.web.models import WebFeedLine as WebFeedLine
+from dreamcatcher.web.models import WebFeedRound as WebFeedRound
+from dreamcatcher.web.models import WebHomeView as WebHomeView
+from dreamcatcher.web.models import WebIssueRow as WebIssueRow
+from dreamcatcher.web.models import _WebFeedOwner
+from dreamcatcher.web.server import (
     WEB_BASE_PORT as WEB_BASE_PORT,
 )
-from dreamcatcher.web_server import (
+from dreamcatcher.web.server import (
     WEB_HOST,
     WebServerRunner,
     _create_web_server,
     _run_server,
 )
-from dreamcatcher.web_server import (
+from dreamcatcher.web.server import (
     WEB_MAX_PORT as WEB_MAX_PORT,
 )
-from dreamcatcher.web_server import WEB_PORT_RANGE as WEB_PORT_RANGE
-from dreamcatcher.web_views import (
+from dreamcatcher.web.server import WEB_PORT_RANGE as WEB_PORT_RANGE
+from dreamcatcher.web.views import (
     _compose_agent_rounds,
     _compose_assignment_status_label,
     _compose_assignment_view,
@@ -85,7 +85,7 @@ def create_app(
     into the running round's directory. Page times use the machine's local zone
     when zone is None.
     """
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder="../static", template_folder="../templates")
     app.config["TRUSTED_HOSTS"] = [WEB_HOST, "localhost"]
     _configure_web_theme(app=app)
     app.add_url_rule(

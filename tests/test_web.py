@@ -25,7 +25,7 @@ from status_fabrications import (
 from werkzeug.test import TestResponse
 
 import dreamcatcher.web as web_module
-import dreamcatcher.web_server as web_server_module
+import dreamcatcher.web.server as web_server_module
 from dreamcatcher.agent_assignments import read_agent_assignment
 from dreamcatcher.agent_rounds import (
     AgentAssignmentRoundPurpose,

@@ -32,13 +32,11 @@ from dreamcatcher.scheduler.assignments import (
     list_assignment_observations,
     prioritize_required_rounds,
 )
-from dreamcatcher.scheduler.conversation_launch import (
-    launch_issue_conversation_round,
-)
 from dreamcatcher.scheduler.conversations import (
     IssueConversationCandidate,
     IssueConversationCandidateResult,
     IssueConversationRecoveryCandidate,
+    launch_issue_conversation_round,
     list_issue_conversation_candidates,
 )
 from dreamcatcher.scheduler.faults import (

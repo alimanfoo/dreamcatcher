@@ -19,8 +19,8 @@ from dreamcatcher.status import (
     read_dreamcatcher_daemon_status,
     read_repository,
 )
-from dreamcatcher.web_feed import _read_agent_feed
-from dreamcatcher.web_models import (
+from dreamcatcher.web.feed import _read_agent_feed
+from dreamcatcher.web.models import (
     WebAgentRound,
     WebAssignmentCard,
     WebAssignmentView,

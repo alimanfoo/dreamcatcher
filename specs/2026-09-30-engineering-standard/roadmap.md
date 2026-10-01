@@ -133,8 +133,8 @@ Outcome: no module exceeds the S1 bar, and each file holds one concept.
 
 Work:
 
-- Add the measurement script for S1 and S2 to the spec folder, so the next phase
-  reads the same numbers the same way. It is a measurement, not a hook.
+- Add `tools/measure_source.py` for S1 and S2, so later phases read the same
+  numbers the same way. It is a measurement, not a hook.
 
 Then one pull request per module, largest first:
 
@@ -147,13 +147,14 @@ Then one pull request per module, largest first:
   two kinds of agent work are candidates, are inspected, are recovered and are
   launched alike, they get one shape and parallel names. Where the ontology says
   they differ, the difference is named in the code.
-- `web` divides as Flask divides itself: view models that import no Flask and
-  are tested without it, the app and routes as a thin shell over them, the feed
-  tail, and the server. Templates and static files stay where they are.
+- `web` becomes a package divided as Flask divides itself: view models that
+  import no Flask and are tested without it, the app and routes as a thin shell
+  over them, the feed tail, and the server. Templates and static files stay
+  where they are.
 - `status` divides assignment, conversation, shared-round, report-reading and
-  public-report concerns. `tui` separates the instance-status view from shared
-  Rich rendering while keeping the assignment, conversation and feed views at
-  its public module boundary.
+  public-report concerns. `tui` becomes a package that separates the
+  instance-status view from shared Rich rendering while keeping assignment,
+  conversation and feed views at its public package boundary.
 - `agent_assignments`, `agent_rounds` and `github` are just over the bar. Each
   is reviewed for a seam before it is split, and a file that has one concept and
   650 lines earns a named exception rather than a split.

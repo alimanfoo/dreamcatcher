@@ -6,7 +6,7 @@ from datetime import tzinfo
 from dreamcatcher.agent_rounds import AgentRoundRecord
 from dreamcatcher.documents import is_complete_line_position, read_lines_from
 from dreamcatcher.feed import compose_agent_round_boundary, read_feed_line
-from dreamcatcher.web_models import (
+from dreamcatcher.web.models import (
     WebAgentFeed,
     WebAgentRound,
     WebAgentTail,

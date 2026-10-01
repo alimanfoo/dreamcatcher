@@ -8,7 +8,7 @@ SOURCE = Path(__file__).parents[1] / "src" / PACKAGE
 
 BOUNDARY_MEMBERS = {
     "agent_assignments": {"agent_assignments", "agent_assignment_pull_requests"},
-    "agent_rounds": {"agent_rounds", "agent_round_paths"},
+    "agent_rounds": {"agent_rounds"},
     "scheduler": {"scheduler"},
     "status": {
         "assignment_status",
@@ -17,8 +17,8 @@ BOUNDARY_MEMBERS = {
         "status_reader",
         "status_rounds",
     },
-    "tui": {"tui", "tui_shared", "tui_status"},
-    "web": {"web", "web_feed", "web_models", "web_server", "web_views"},
+    "tui": {"tui"},
+    "web": {"web"},
 }
 MODULE_BOUNDARY = {
     module: boundary

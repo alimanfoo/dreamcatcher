@@ -21,7 +21,7 @@ from dreamcatcher.status import (
     IssueObservation,
     read_status_report,
 )
-from dreamcatcher.tui_shared import (
+from dreamcatcher.tui.shared import (
     ASSIGNMENT_STATUS_STYLES,
     CONVERSATION_STATUS_STYLES,
     ViewSnapshot,
