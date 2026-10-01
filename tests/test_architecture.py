@@ -10,7 +10,7 @@ PRESENTATION = {"tui", "web"}
 SCHEDULING = {"scheduler"}
 ADAPTERS = ["github", "harness_adapters", "harnesses", "claude", "codex"]
 STORAGE = ["state", "documents"]
-STORAGE_MECHANICS = {"documents", "errors"}
+STORAGE_REACH = {"documents", "errors"}
 
 
 def read_import_graph():
@@ -64,7 +64,7 @@ FORBIDDEN_REACH = {
     "status": PRESENTATION,
     "feed": PRESENTATION,
     **dict.fromkeys(ADAPTERS, PRESENTATION | SCHEDULING),
-    **{module: GRAPH.keys() - STORAGE_MECHANICS for module in STORAGE},
+    **{module: GRAPH.keys() - STORAGE_REACH for module in STORAGE},
 }
 
 
