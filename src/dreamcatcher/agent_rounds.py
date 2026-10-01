@@ -381,6 +381,11 @@ def read_agent_round_records(
 
 
 def _read_agent_round_record(*, cache: DocumentCache, path: Path) -> AgentRoundRecord:
+    """Return the record at path, or refuse one that its directory contradicts.
+
+    The check runs on every read, so a record that the cache keeps is refused
+    each time just as one that it opens.
+    """
     record = cache.read_json(
         model=AgentRoundRecord,
         path=path,

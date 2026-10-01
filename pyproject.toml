@@ -138,11 +138,16 @@ max-args = 7
 [tool.ruff.lint.pydocstyle]
 convention = "pep257"
 
+# tests/test_architecture.py reads every import as one from the top of the
+# package.
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
 # Each library here has one module that may import it, which waives this rule
 # below. The waiver covers the whole rule, so tui.py and web.py could each
 # import the other's library unseen; review catches that. subprocess is not
-# here: bandit's suspicious-subprocess-import already bans it everywhere but
-# commands.py, and tui.py and web.py would escape a ban listed here.
+# here: bandit's suspicious-subprocess-import already bans it everywhere in src
+# but commands.py, and tui.py and web.py would escape a ban listed here.
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "rich".msg = "Render with rich in tui.py alone, so a colour code never reaches a file."
 "flask".msg = "Import Flask in web.py alone."
@@ -161,16 +166,16 @@ convention = "pep257"
 "src/dreamcatcher/web.py" = ["banned-api"]
 # One test spawns a throwaway interpreter, to leave behind a pid no process
 # holds. It names the interpreter by its full path, and runs no shell, so the
-# rules guarding those two stay selected here as well. The TUI tests read what
-# rich wrote, so they import rich.
+# rules guarding those two stay selected here as well.
 "tests/**" = [
     "D",
     "ANN",
     "assert",
     "suspicious-subprocess-import",
     "subprocess-without-shell-equals-true",
-    "banned-api",
 ]
+# The TUI tests read what rich wrote, so they import rich.
+"tests/test_{tui,conversation_tui}.py" = ["banned-api"]
 
 [tool.complexipy]
 max-complexity-allowed = 15

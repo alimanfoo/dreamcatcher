@@ -123,6 +123,10 @@ Work:
   Corrected in stage 1: this item first asked for a banned-import rule for
   `subprocess` too, and the removal of the waiver. `tui` and `web` each waive
   the banned-import rule, so a `subprocess` ban there would let both import it.
+  The same waiver lets `tui` import Flask and `web` import rich, because ruff
+  cannot waive one banned module for one file. That pair rests on review, and
+  the comment beside the waiver in `pyproject.toml` records it as K1's one
+  exception, as the standard's exceptions section allows.
 - Add one test that reads the import graph under `src` and asserts the
   dependency direction the architecture states: the daemon depends on the
   scheduler and never the reverse; assignment, conversation and round modules do

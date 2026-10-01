@@ -191,7 +191,8 @@ $env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest --regenerate-view-goldens
 - Render with rich in `tui.py` alone. It is the one module that shows anything
   to a person, and everything the daemon writes stays plain text, so a colour
   code can never reach a file. Ruff's banned-api rule fails any other module
-  that imports rich, and `pyproject.toml` says why `web.py` is left to review.
+  that imports rich. `tui.py` and `web.py` each waive the whole rule, so review
+  catches either one importing the other's library.
 - Write HTML markup in the templates under `src/dreamcatcher/templates/` alone,
   and render those templates in `web.py` alone. Import Flask in `web.py` alone:
   the banned-api rule that guards rich guards Flask too. The web module owns

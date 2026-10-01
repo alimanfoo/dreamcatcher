@@ -30,8 +30,6 @@ def read_imported_modules(*, node):
         names = [alias.name for alias in node.names]
     elif isinstance(node, ast.ImportFrom):
         source = node.module or ""
-        if node.level:
-            source = f"{PACKAGE}.{source}".rstrip(".")
         names = (
             [f"{PACKAGE}.{alias.name}" for alias in node.names]
             if source == PACKAGE
@@ -70,7 +68,7 @@ FORBIDDEN_REACH = {
 
 @pytest.mark.parametrize("module", FORBIDDEN_REACH)
 def test_no_module_reaches_a_module_the_architecture_keeps_it_from(module):
-    assert module in GRAPH
+    assert {module, *FORBIDDEN_REACH[module]} <= GRAPH.keys()
     reached = find_reached_modules(graph=GRAPH, module=module)
 
     assert reached & FORBIDDEN_REACH[module] == set()
