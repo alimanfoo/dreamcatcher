@@ -589,7 +589,7 @@ def test_codex_recovery_keeps_its_session_revision_and_permissions(
     assert recovered_input == first_input
     resumed = harnesses["codex"].calls[1]
     assert 'sandbox_mode="workspace-write"' in resumed.arguments
-    assert "sandbox_workspace_write.network_access=false" in resumed.arguments
+    assert "sandbox_workspace_write.network_access=true" in resumed.arguments
     assert 'approval_policy="never"' in resumed.arguments
     assert resumed.arguments[-2:] == ["conversation-codex-session", "-"]
     assert resumed.prompt == ISSUE_CONVERSATION_RECOVERY_PROMPT
@@ -633,7 +633,7 @@ def test_codex_recovery_starts_a_new_session_when_the_first_never_reported_one(
     assert restarted.arguments[:2] == ["exec", "--json"]
     assert "resume" not in restarted.arguments
     assert 'sandbox_mode="workspace-write"' in restarted.arguments
-    assert "sandbox_workspace_write.network_access=false" in restarted.arguments
+    assert "sandbox_workspace_write.network_access=true" in restarted.arguments
     assert 'approval_policy="never"' in restarted.arguments
     assert restarted.prompt.startswith("$dream:conversation GH8")
 
