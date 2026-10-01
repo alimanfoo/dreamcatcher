@@ -146,10 +146,10 @@ Then one pull request per module, largest first:
   candidates and required rounds; conversation candidates and recovery; the tick
   that alternates and launches. The package keeps one public face so the daemon,
   status and CLI import what they import today.
-- The split heals the asymmetry E4 records rather than preserving it. Where the
-  two kinds of agent work are candidates, are inspected, are recovered and are
-  launched alike, they get one shape and parallel names. Where the ontology says
-  they differ, the difference is named in the code.
+- The split moves code and changes no shape. The asymmetry E4 records stays as
+  it was, now readable in `scheduler/assignments.py` and
+  `scheduler/conversations.py` side by side. Healing it is a design decision,
+  not a split, and is Stage 3 work.
 - `web` becomes a package divided as Flask divides itself: view models that
   import no Flask and are tested without it, the app and routes as a thin shell
   over them, the feed tail, and the server. Templates and static files stay
@@ -183,6 +183,10 @@ Work:
   is internal.
 - Audit the 53 optional fields for pairs that must agree, and give each pair one
   type. Record the E2 count.
+- Design one shape for the two kinds of agent work in the scheduler, with the
+  user, before writing any code: which of the differences the split made visible
+  follow from the ontology, and which are accidents. Then apply it, giving
+  parallel operations parallel names and shared code one home.
 
 Check: S3, S4, C1, E1 and E2 met, and E4 measured again after stage 2.
 
