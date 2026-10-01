@@ -21,7 +21,8 @@ from dreamcatcher.agent_assignments import read_agent_assignment
 from dreamcatcher.documents import append_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.state import StateDirectory
-from dreamcatcher.web import WEB_HOST, create_app
+from dreamcatcher.web.app import create_app
+from dreamcatcher.web.server import WEB_HOST
 
 BROWSER_ASSIGNMENT_IDENTIFIER = f"GH13-{ASSIGNMENT_TIMESTAMP}"
 FEED_LINE_COUNT_PER_ROUND = 40

@@ -1,7 +1,6 @@
 """Render the web status view and read back its goldens."""
 
 import errno
-import inspect
 import logging
 import re
 import socket
@@ -24,7 +23,6 @@ from status_fabrications import (
 )
 from werkzeug.test import TestResponse
 
-import dreamcatcher.web as web_module
 import dreamcatcher.web.server as web_server_module
 from dreamcatcher.agent_assignments import read_agent_assignment
 from dreamcatcher.agent_rounds import (
@@ -37,7 +35,9 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.scheduler import GlobalCooldown, SchedulerRecord
 from dreamcatcher.state import StateDirectory
-from dreamcatcher.web import WEB_BASE_PORT, WEB_HOST, create_app, serve_web
+from dreamcatcher.web import serve_web
+from dreamcatcher.web.app import create_app
+from dreamcatcher.web.server import WEB_BASE_PORT, WEB_HOST
 
 WEB_STATUS_REPORTS = {
     **STATUS_REPORTS,
@@ -1370,17 +1370,3 @@ def test_the_default_server_runner_serves_forever():
     web_server_module.run_web_server(server=server)
 
     server.serve_forever.assert_called_once_with()
-
-
-@pytest.mark.parametrize(
-    "dependency",
-    [
-        "dreamcatcher.tui",
-        "dreamcatcher.daemon",
-        "dreamcatcher.scheduler",
-        "dreamcatcher.github",
-        "request_agent_assignment_retry",
-    ],
-)
-def test_the_web_view_does_not_import_domain_policy_or_operations(dependency):
-    assert dependency not in inspect.getsource(web_module)

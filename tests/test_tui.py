@@ -43,14 +43,9 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.state import StateDirectory
-from dreamcatcher.tui import (
-    VIEW_REFRESH_INTERVAL,
-    _render_feed_line,
-    _render_written_feed_line,
-    show_assignment_view,
-    show_feed_view,
-    show_status_view,
-)
+from dreamcatcher.tui import show_assignment_view, show_feed_view, show_status_view
+from dreamcatcher.tui.shared import VIEW_REFRESH_INTERVAL
+from dreamcatcher.tui.views import _render_feed_line, _render_written_feed_line
 
 # How wide the console is, so a line wraps in the same place every run.
 WIDTH = 100

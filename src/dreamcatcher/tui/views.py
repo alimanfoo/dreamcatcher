@@ -45,13 +45,6 @@ from dreamcatcher.tui.shared import (
     render_latest_output,
     render_section,
 )
-from dreamcatcher.tui.shared import (
-    VIEW_REFRESH_INTERVAL as VIEW_REFRESH_INTERVAL,
-)
-from dreamcatcher.tui.shared import (
-    open_tui_console as open_tui_console,
-)
-from dreamcatcher.tui.status import show_status_view as show_status_view
 from dreamcatcher.words import describe_count, describe_time
 
 

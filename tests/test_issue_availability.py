@@ -19,12 +19,9 @@ from records import write_agent_assignment
 
 from dreamcatcher.agent_assignments import AgentAssignment, read_agent_assignments
 from dreamcatcher.config import DreamcatcherConfig
-from dreamcatcher.scheduler import (
-    IssueFact,
-    IssueFactValue,
-    derive_issue_availability,
-    observe_issues,
-)
+from dreamcatcher.scheduler import IssueFact, IssueFactValue
+from dreamcatcher.scheduler.issues import observe_issues
+from dreamcatcher.scheduler.models import derive_issue_availability
 from dreamcatcher.state import StateDirectory
 
 SETTINGS = {"prompt": "/dream:smith GH{issue}", "model": "opus[1m]", "effort": "xhigh"}

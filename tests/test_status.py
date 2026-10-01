@@ -1,4 +1,3 @@
-import inspect
 import os
 from collections.abc import Sequence
 from datetime import timedelta
@@ -17,8 +16,6 @@ from records import (
 )
 
 import dreamcatcher.assignment_status as assignment_status_module
-import dreamcatcher.scheduler as scheduler_module
-import dreamcatcher.tui as tui_module
 from dreamcatcher.agent_rounds import (
     AgentAssignmentRoundPurpose,
     AgentRoundRecord,
@@ -826,21 +823,3 @@ def test_a_failed_setup_reports_independently_of_an_external_claim(state):
         observation.model_copy(update={"observed_at": PINNED})
     ]
     assert status_report.available_issues == []
-
-
-def test_scheduling_does_not_consume_status_reports():
-    assert "dreamcatcher.status" not in inspect.getsource(scheduler_module)
-
-
-@pytest.mark.parametrize(
-    "dependency",
-    [
-        "dreamcatcher.scheduler",
-        "find_harness_session_identifier",
-        "HARNESS_ADAPTERS",
-        "ErroredAgentRoundEnding",
-        "InterruptedAgentRoundEnding",
-    ],
-)
-def test_the_tui_does_not_import_domain_policy_or_operations(dependency):
-    assert dependency not in inspect.getsource(tui_module)

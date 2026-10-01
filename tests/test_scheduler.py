@@ -55,8 +55,8 @@ from dreamcatcher.scheduler import (
     GlobalCooldown,
     IssueFactValue,
     SchedulerRecord,
-    derive_issue_availability,
 )
+from dreamcatcher.scheduler.models import derive_issue_availability
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158"

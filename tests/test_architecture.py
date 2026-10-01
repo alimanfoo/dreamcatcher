@@ -123,7 +123,7 @@ GRAPH, EXTERNAL_IMPORTERS, STATUS_SCHEDULER_IMPORTS = _read_import_inventory()
 # Each architecture boundary beside the boundaries it must never reach through
 # its imports, directly or not.
 FORBIDDEN_REACH = {
-    "scheduler": {"daemon"},
+    "scheduler": {"daemon", "status"},
     "agent_assignments": SCHEDULING,
     "agent_rounds": SCHEDULING,
     "issue_conversations": SCHEDULING,
@@ -132,10 +132,22 @@ FORBIDDEN_REACH = {
     **dict.fromkeys(ADAPTERS, PRESENTATION | SCHEDULING),
     **{module: GRAPH.keys() - STORAGE_REACH for module in STORAGE},
 }
+# Presentation shows what status and feed derive. It imports no policy module
+# and never the other presentation. Direct imports only: both reach the
+# scheduler and GitHub through status.
 FORBIDDEN_DIRECT_IMPORTS = {
-    "tui": {"scheduler"},
-    "web": {"scheduler"},
+    "tui": {"scheduler", "daemon", "github", "web"},
+    "web": {"scheduler", "daemon", "github", "tui"},
 }
+# Operations and record types a presentation module must not name, because
+# status already derives the fact they would be used to rediscover.
+DOMAIN_NAMES_PRESENTATION_MUST_NOT_USE = [
+    "ErroredAgentRoundEnding",
+    "HARNESS_ADAPTERS",
+    "InterruptedAgentRoundEnding",
+    "find_harness_session_identifier",
+    "request_agent_assignment_retry",
+]
 
 
 @pytest.mark.parametrize("module", FORBIDDEN_REACH)
@@ -147,7 +159,7 @@ def test_boundary_imports(module):
 
 
 @pytest.mark.parametrize("module", FORBIDDEN_DIRECT_IMPORTS)
-def test_presentation_imports_status_instead_of_scheduler(module):
+def test_presentation_imports_no_policy_module_and_no_other_presentation(module):
     assert GRAPH[module] & FORBIDDEN_DIRECT_IMPORTS[module] == set()
 
 
@@ -158,3 +170,10 @@ def test_presentation_library_imports_stay_in_their_boundary(library, boundary):
 
 def test_status_imports_only_pure_scheduler_symbols():
     assert STATUS_SCHEDULER_IMPORTS <= STATUS_SCHEDULER_SYMBOLS
+
+
+@pytest.mark.parametrize("boundary", sorted(PRESENTATION))
+@pytest.mark.parametrize("name", DOMAIN_NAMES_PRESENTATION_MUST_NOT_USE)
+def test_presentation_does_not_rediscover_what_status_derives(boundary, name):
+    for path in (SOURCE / boundary).rglob("*.py"):
+        assert name not in path.read_text(encoding="utf-8")
