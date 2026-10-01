@@ -24,6 +24,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     ErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
+    read_agent_round_records,
 )
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import AgentHarness, AssignmentRoute
@@ -588,8 +589,9 @@ def _read_assignment(*, state: StateDirectory, directory: Path) -> AgentAssignme
         record=read_json(
             model=AgentAssignmentRecord, path=directory / AGENT_ASSIGNMENT_RECORD_NAME
         ),
-        rounds=state.round_reader.read_records(
-            directory=directory / AGENT_ROUNDS_DIRECTORY_NAME
+        rounds=read_agent_round_records(
+            cache=state.document_cache,
+            directory=directory / AGENT_ROUNDS_DIRECTORY_NAME,
         ),
         user_post_delivery_cursor=_read_user_post_delivery_cursor(directory=directory),
     )

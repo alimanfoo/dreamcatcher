@@ -1,7 +1,7 @@
 """Read and write the files that dreamcatcher owns."""
 
 import tomllib
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from io import SEEK_END, BytesIO
 from pathlib import Path
@@ -78,6 +78,38 @@ def read_json_if_exists[DocumentT: DreamcatcherDocument](
     except OSError as error:
         raise ReportableError(f"cannot read {path}: {error}.") from error
     return _parse_json_document(model=model, path=path, text=text)
+
+
+class DocumentCache:
+    """Hold the documents a process has read that nothing writes again.
+
+    A process keeps one cache for as long as it reads the same state, so it
+    opens each such document once however often it reads it.
+    """
+
+    def __init__(self) -> None:
+        """Set up a cache that holds nothing yet."""
+        self._documents: dict[Path, DreamcatcherDocument] = {}
+
+    def read_json[DocumentT: DreamcatcherDocument](
+        self,
+        *,
+        model: type[DocumentT],
+        path: Path,
+        is_unchanging: Callable[[DocumentT], bool],
+    ) -> DocumentT:
+        """Return the JSON document, opening it only when the cache lacks it.
+
+        The cache keeps the document once is_unchanging says nothing writes it
+        again. Until then every read opens the file, so a later write is seen.
+        """
+        cached = self._documents.get(path)
+        if isinstance(cached, model):
+            return cached
+        document = read_json(model=model, path=path)
+        if is_unchanging(document):
+            self._documents[path] = document
+        return document
 
 
 def read_text(*, path: Path) -> str:

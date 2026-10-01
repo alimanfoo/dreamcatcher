@@ -57,7 +57,7 @@ The evidence behind each row:
 - **C1.** The consistency review has not run since the migration. Issues 315,
   317, 318, 322 and 324 record disagreements already known.
 - **C2.** The architecture says `state` knows storage mechanics only, and
-  `state` imports `AgentRoundReader` from `agent_rounds`. Issue 183 records it.
+  `state` imports `AgentRoundReader` from `agent_rounds`.
 - **C3.** The README holds install, configuration, behaviour rules and the
   command reference in one page.
 - **C4.** The state format is at v4 with no compatibility statement. The
@@ -105,7 +105,7 @@ Two measures need care when they are read again.
 - A stage that splits a module keeps the architecture's ownership: the scheduler
   still owns every scheduling decision when it is a package.
 - Dated specs stay as they are. This one is corrected as the work reveals what
-  it got wrong, and the correction says why.
+  it got wrong, and the pull request that corrects it says why.
 - The stages merge in order. Stage 1 guards stage 2, which guards stage 3.
 
 ## Stage 1: Make the architecture enforceable
@@ -115,19 +115,16 @@ break, and the one known violation is gone.
 
 Work:
 
-- Add ruff banned-import rules so that `subprocess` is imported only in
-  `commands`, rich only in `tui`, and Flask only in `web`. Remove the per-file
-  waiver that stands in for the first, if the banned-import rule makes it
-  redundant.
+- Add ruff banned-import rules so that rich is imported only in `tui`, and Flask
+  only in `web`. Keep the per-file waiver that lets `commands` alone import
+  `subprocess`, because bandit's subprocess-import rule is already that ban.
 - Add one test that reads the import graph under `src` and asserts the
   dependency direction the architecture states: the daemon depends on the
-  scheduler and never the reverse; assignment and round modules do not import
-  the scheduler; status does not import presentation; state and documents import
-  no domain module.
-- Move `AgentRoundReader` out of `state`, closing issue 183, so that test
-  passes.
-- Keep the measurement script for S1 and S2 in the spec folder, so the next
-  phase reads the same numbers the same way. It is a measurement, not a hook.
+  scheduler and never the reverse; assignment, conversation and round modules do
+  not import the scheduler; status and feed do not import presentation; the
+  GitHub and harness adapters import neither presentation nor the scheduler;
+  state and documents import no domain module.
+- Move `AgentRoundReader` out of `state`, so that test passes.
 
 Check: K1 met.
 
@@ -135,7 +132,12 @@ Check: K1 met.
 
 Outcome: no module exceeds the S1 bar, and each file holds one concept.
 
-Work, one pull request per module, largest first:
+Work:
+
+- Add the measurement script for S1 and S2 to the spec folder, so the next phase
+  reads the same numbers the same way. It is a measurement, not a hook.
+
+Then one pull request per module, largest first:
 
 - `scheduler` becomes a package. Its seams are already visible in its names:
   issue observation and availability; fault and global cooldown; assignment

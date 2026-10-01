@@ -12,6 +12,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
     AgentRoundPaths,
     AgentRoundRecord,
+    read_agent_round_records,
 )
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import (
@@ -389,8 +390,9 @@ def _read_issue_conversation(
         directory=directory,
         worktree=state.conversation_worktrees / directory.name,
         record=record,
-        rounds=state.round_reader.read_records(
-            directory=directory / ISSUE_CONVERSATION_ROUNDS_DIRECTORY_NAME
+        rounds=read_agent_round_records(
+            cache=state.document_cache,
+            directory=directory / ISSUE_CONVERSATION_ROUNDS_DIRECTORY_NAME,
         ),
     )
 
