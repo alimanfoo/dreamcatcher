@@ -224,10 +224,20 @@ def fabricate_everything(
     written(state=state, issue=31, records=[ended(minute=1)])
     written(state=state, issue=35, records=[ended(minute=1, status=2)])
     written(state=state, issue=40, records=[ended(minute=1)])
-    written(
+    faulted_directory = written(
         state=state,
         issue=9,
         records=[ended(minute=1, status=1), ended(minute=2, number=2, status=2)],
+    )
+    write_feed(
+        directory=faulted_directory,
+        number=2,
+        lines=[
+            FeedLine(
+                at=PINNED + timedelta(minutes=3),
+                text="[failed] You hit your spend cap.",
+            )
+        ],
     )
     written(
         state=state,
