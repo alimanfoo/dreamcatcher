@@ -15,9 +15,8 @@ below read the index.
 
 ## What this is
 
-dreamcatcher watches a repository for labelled issues, dispatches an autonomous
-coding assignment for each, and carries each issue to a pull request for the
-user to review and merge.
+dreamcatcher dispatches autonomous agent conversations and coding assignments
+from labelled issues. It carries each assignment to a pull request for review.
 
 ## Specs
 
@@ -263,8 +262,8 @@ $env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest --regenerate-view-goldens
 - Give every issue you file its type label, `bug`, `enhancement` or
   `maintenance`, and no other label. Leave it unassigned. Which skill picks an
   issue up, and who works on it, are the user's to say, and a label or an
-  assignee you add takes that choice away: a dispatch label sends an assignment
-  at the issue before the user has read it.
+  assignee you add takes that choice away: a dispatch label starts agent work on
+  the issue before the user has read it.
 - Ask of every issue you file whether an issue that is already open has to wait
   for it. When one does, mark that issue as blocked by the new one, so a
   dispatcher working through unblocked issues takes them in the right order.

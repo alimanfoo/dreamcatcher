@@ -2,10 +2,10 @@
 
 dreamcatcher watches a GitHub repository for issues that have been labelled for
 implementation by an agent. The repository owner can configure which labels are
-recognised by dreamcatcher, which agent harnesses are used to dispatch an agent
-(Claude Code or Codex), and which assignment skill should guide the agent
-through the implementation of an issue. This guide describes how to write an
-assignment skill that works well with dreamcatcher.
+recognised by dreamcatcher, which agent harnesses run assignments (Claude Code
+or Codex), and which assignment skill should guide the agent through the
+implementation of an issue. This guide describes how to write an assignment
+skill that works well with dreamcatcher.
 
 To make this concrete, consider a hypothetical GitHub repository, where the
 owner has configured dreamcatcher to look for issues with the "agent" label, and
@@ -25,10 +25,10 @@ number 123.
 
 ## Branch adoption
 
-Before dreamcatcher dispatches an agent, it fetches origin's main, cuts a branch
-from it, adds a worktree on that branch, makes and pushes an empty commit, and
-opens a linked draft pull request. The agent runs in that worktree, so the
-published branch is checked out and the working tree is clean.
+Before dreamcatcher starts an assignment, it fetches origin's main, cuts a
+branch from it, adds a worktree on that branch, makes and pushes an empty
+commit, and opens a linked draft pull request. The agent runs in that worktree,
+so the published branch is checked out and the working tree is clean.
 
 An assignment skill must instruct the agent to adopt the current branch and
 worktree. It must also adopt the draft pull request that dreamcatcher has

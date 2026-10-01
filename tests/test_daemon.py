@@ -58,8 +58,8 @@ PURPOSE = AgentAssignmentRoundPurpose.IMPLEMENT
 # give the daemon take no real time, so its ticks are milliseconds apart.
 STILL_RUNNING = 30
 
-# The identifier of the assignment that a dispatch cuts for issue 8.
-DISPATCHED_ASSIGNMENT_ID = "GH8-20260819-184158"
+# The identifier of the assignment created for issue 8.
+CREATED_ASSIGNMENT_ID = "GH8-20260819-184158"
 
 # Where gh keeps the conversation on the pull request that the assignment on disk
 # has open.
@@ -519,12 +519,12 @@ def recorded(*, daemon) -> SchedulerRecord:
 
 
 def test_a_tick_whose_listing_failed_records_what_it_could_not_read(
-    dispatching, offered, capsys
+    ready_repo, offered, capsys
 ):
     offered.fails(
         stderr="gh: could not connect to github.com\ngh: try again", to="issue list"
     )
-    daemon, _, _ = idling(root=dispatching, ticks=1)
+    daemon, _, _ = idling(root=ready_repo, ticks=1)
 
     daemon.run()
 
@@ -539,10 +539,10 @@ def test_a_tick_whose_listing_failed_records_what_it_could_not_read(
 
 
 def test_tick_output_escapes_text_the_stream_cannot_encode(
-    dispatching, offered, harnesses, monkeypatch
+    ready_repo, offered, harnesses, monkeypatch
 ):
     offered.fails(stderr="gh: wait — try again", to="issue list")
-    daemon, _, _ = idling(root=dispatching, ticks=1)
+    daemon, _, _ = idling(root=ready_repo, ticks=1)
     buffered = BytesIO()
     output = TextIOWrapper(buffered, encoding="ascii", newline="\n")
     monkeypatch.setattr(sys, "stdout", output)
@@ -554,13 +554,13 @@ def test_tick_output_escapes_text_the_stream_cannot_encode(
 
 
 def test_a_tick_that_could_not_dispatch_records_the_failure_and_ticks_again(
-    dispatching,
+    ready_repo,
 ):
-    # A file where every worktree goes, so no dispatch can ever cut one.
-    state = StateDirectory(root=dispatching)
+    # A file where every worktree goes, so no assignment can be created.
+    state = StateDirectory(root=ready_repo)
     state.path.mkdir(parents=True)
     state.worktrees.write_text("something else is here\n", encoding="utf-8")
-    daemon, waiting, _ = idling(root=dispatching, ticks=2)
+    daemon, waiting, _ = idling(root=ready_repo, ticks=2)
 
     daemon.run()
 
@@ -581,21 +581,21 @@ def test_a_run_that_cannot_be_told_which_repository_this_is_refuses(
         daemon.run()
 
 
-def test_the_daemon_ends_the_rounds_it_holds_as_it_goes_down(dispatching, harnesses):
+def test_the_daemon_ends_the_rounds_it_holds_as_it_goes_down(ready_repo, harnesses):
     harnesses["claude"].streams(
         lines=[Line(text="still working\n")], delay=STILL_RUNNING
     )
-    daemon, _, _ = idling(root=dispatching, ticks=1)
+    daemon, _, _ = idling(root=ready_repo, ticks=1)
 
     daemon.run()
 
-    agent_round = daemon.rounds[DISPATCHED_ASSIGNMENT_ID]
+    agent_round = daemon.rounds[CREATED_ASSIGNMENT_ID]
     assert not agent_round.is_alive
     assert gone(pid=agent_round.harness_process.pid)
 
 
-def test_a_run_that_cannot_read_an_assignment_refuses_to_start(dispatching):
-    state = StateDirectory(root=dispatching)
+def test_a_run_that_cannot_read_an_assignment_refuses_to_start(ready_repo):
+    state = StateDirectory(root=ready_repo)
     previous_run = DaemonRunRecord(
         pid=os.getpid(),
         harness=AgentHarness.CODEX,
@@ -606,7 +606,7 @@ def test_a_run_that_cannot_read_an_assignment_refuses_to_start(dispatching):
     write_json(document=previous_run, path=state.daemon_run_record)
     directory = write_agent_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13)
     (directory / "assignment.json").write_text("{}", encoding="utf-8")
-    daemon, _, _ = idling(root=dispatching, ticks=1)
+    daemon, _, _ = idling(root=ready_repo, ticks=1)
 
     with pytest.raises(ReportableError, match=r"assignment\.json is not valid"):
         daemon.run()
@@ -620,9 +620,9 @@ def test_a_run_that_cannot_read_an_assignment_refuses_to_start(dispatching):
     )
 
 
-def test_a_failed_tick_preserves_the_last_scheduler_record(dispatching, capsys):
+def test_a_failed_tick_preserves_the_last_scheduler_record(ready_repo, capsys):
     # The startup sweep read this assignment, so only a tick meets it broken.
-    daemon, _, _ = idling(root=dispatching)
+    daemon, _, _ = idling(root=ready_repo)
     previous = SchedulerRecord(
         at=PINNED,
         cooldown=GlobalCooldown(started=PINNED, ends=PINNED + timedelta(minutes=15)),

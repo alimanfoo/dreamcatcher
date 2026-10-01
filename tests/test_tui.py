@@ -285,7 +285,7 @@ def test_status_a_reader_watches_keeps_up_with_what_the_daemon_writes(tmp_path, 
     )
     status = written_to.getvalue()
 
-    # Status is never over, so it drew again on the assignment that was dispatched
+    # Status is never over, so it drew again when the assignment started
     # while the reader was watching, and ended only when they interrupted it.
     assert looks == [VIEW_REFRESH_INTERVAL, VIEW_REFRESH_INTERVAL]
     assert "no issues or agent assignments recorded yet" in status
