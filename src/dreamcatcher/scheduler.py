@@ -368,7 +368,9 @@ def observe_issues(
     incomplete_setups: dict[int, str | None],
 ) -> IssueObservationResult:
     """Observe every issue considered for assignment or claimed by this instance."""
-    considered_issues = _list_considered_issues(repository=repository, config=config)
+    considered_issues = _list_considered_issues(
+        repository=repository, account=account, config=config
+    )
     open_assignments = find_open_agent_assignments_by_issue(assignments=assignments)
     context = _IssueObservationContext(
         repository=repository,
@@ -421,13 +423,13 @@ def _record_missing_assignment_titles(
 
 
 def _list_considered_issues(
-    *, repository: str, config: DreamcatcherConfig
+    *, repository: str, account: str, config: DreamcatcherConfig
 ) -> _ConsideredIssueResult:
     """List open assigned issues that carry any configured assignment label."""
     issues_by_number: dict[int, Issue] = {}
     for route in config.assignment:
         issue_response = list_issues(
-            repository=repository, label=route.label, assignee=config.assignee
+            repository=repository, label=route.label, assignee=account
         )
         if isinstance(issue_response, UnknownGitHubResponse):
             return _ConsideredIssueResult(
@@ -463,23 +465,18 @@ def _observe_issue(
             if issue_response.state is IssueState.OPEN
             else IssueFact(value=IssueFactValue.FALSE, evidence="issue is closed")
         )
-        watched_account = (
-            context.account
-            if context.config.assignee == "@me"
-            else context.config.assignee
-        )
-        is_assigned_to_user = watched_account.casefold() in {
+        is_assigned_to_user = context.account.casefold() in {
             assignee.login.casefold() for assignee in issue_response.assignees
         }
         is_assigned = (
             IssueFact(
                 value=IssueFactValue.TRUE,
-                evidence=f"is assigned to {watched_account}",
+                evidence=f"is assigned to {context.account}",
             )
             if is_assigned_to_user
             else IssueFact(
                 value=IssueFactValue.FALSE,
-                evidence=f"is not assigned to {watched_account}",
+                evidence=f"is not assigned to {context.account}",
             )
         )
         assignment_labels = context.config.identify_assignment_labels(
