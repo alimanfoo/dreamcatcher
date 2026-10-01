@@ -188,14 +188,11 @@ $env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest --regenerate-view-goldens
 - Shell out from `commands.py` alone. `pyproject.toml` waives ruff's subprocess
   rules for that one module, so any other module that imports `subprocess` fails
   the check.
-- Render with rich in `tui.py` alone. It is the one module that shows anything
-  to a person, and everything the daemon writes stays plain text, so a colour
-  code can never reach a file. Ruff's banned-api rule fails any other module
-  that imports rich. `tui.py` and `web.py` each waive the whole rule, so review
-  catches either one importing the other's library.
+- Render with Rich in the TUI modules alone, so everything the daemon writes
+  stays plain text and a colour code can never reach a file. The architecture
+  import check enforces the Rich and Flask presentation boundaries.
 - Write HTML markup in the templates under `src/dreamcatcher/templates/` alone,
-  and render those templates in `web.py` alone. Import Flask in `web.py` alone:
-  the banned-api rule that guards rich guards Flask too. The web module owns
+  and render those templates in the web interface alone. The web modules own
   presentation and must not become another home for status, scheduling or
   lifecycle rules.
 - Give a harness its prompt as a file to read, never as an argument. A round

@@ -43,7 +43,7 @@ work. It knows that scheduling happens, but not the scheduling priorities.
 
 ### Scheduling
 
-`scheduler.py` owns all decisions about what work starts and when.
+The scheduler package owns all decisions about what work starts and when.
 
 One scheduler tick:
 
@@ -300,7 +300,7 @@ interface.
 
 ### Status reporting
 
-`status.py` owns the read-only status model and constructs a
+Status reporting owns the read-only status model and constructs a
 `DreamcatcherStatusReport` containing the repository identity, instance and
 daemon facts, failed-setup, available and blocked `IssueObservation` entries,
 `IssueConversationStatus` entries, and `AgentAssignmentStatus` entries.
@@ -372,16 +372,16 @@ unexplained absence remains unknown.
 
 ### TUI
 
-`tui.py` renders status reports and feeds with Rich. It owns presentation only.
+The TUI renders status reports and feeds with Rich. It owns presentation only.
 It should not rediscover status, scheduling, or lifecycle rules while choosing
 headings and colors.
 
 ### Web
 
-`web.py` renders status reports and feeds as HTML. It owns presentation only and
-depends on the status and feed models; neither model depends on it. It should
-not rediscover status, scheduling, or lifecycle rules while choosing markup and
-styles.
+The web interface renders status reports and feeds as HTML. It owns presentation
+only and depends on the status and feed models; neither model depends on it. It
+should not rediscover status, scheduling, or lifecycle rules while choosing
+markup and styles.
 
 The web process can ask a running round to stop. It writes a same-origin stop
 request through the agent-round boundary, into that round's own directory. The
@@ -544,6 +544,10 @@ turning every possible action into an abstract command hierarchy.
 
 `tests/test_architecture.py` checks each rule here that keeps one module from
 reaching another through its imports, directly or through another module.
+
+`build_cli_parser` is the named S2 exception for the command-line boundary. Its
+complete declarative grammar stays together so flags, defaults, help text, and
+subcommand structure remain visible in one place.
 
 ## Agent-facing contract
 

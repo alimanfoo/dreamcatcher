@@ -27,7 +27,21 @@ from dreamcatcher.web_feed import (
     _InvalidFeedCursorError,
     _read_agent_tail,
 )
-from dreamcatcher.web_models import WebAgentTailContext, _WebFeedOwner
+from dreamcatcher.web_models import WebAgentFeed as WebAgentFeed
+from dreamcatcher.web_models import WebAgentRound as WebAgentRound
+from dreamcatcher.web_models import WebAgentTail as WebAgentTail
+from dreamcatcher.web_models import WebAgentTailContext as WebAgentTailContext
+from dreamcatcher.web_models import WebAssignmentCard as WebAssignmentCard
+from dreamcatcher.web_models import WebAssignmentView as WebAssignmentView
+from dreamcatcher.web_models import WebConversationCard as WebConversationCard
+from dreamcatcher.web_models import WebConversationView as WebConversationView
+from dreamcatcher.web_models import WebFact as WebFact
+from dreamcatcher.web_models import WebFeedCursor as WebFeedCursor
+from dreamcatcher.web_models import WebFeedLine as WebFeedLine
+from dreamcatcher.web_models import WebFeedRound as WebFeedRound
+from dreamcatcher.web_models import WebHomeView as WebHomeView
+from dreamcatcher.web_models import WebIssueRow as WebIssueRow
+from dreamcatcher.web_models import _WebFeedOwner
 from dreamcatcher.web_server import (
     WEB_BASE_PORT as WEB_BASE_PORT,
 )
@@ -40,6 +54,7 @@ from dreamcatcher.web_server import (
 from dreamcatcher.web_server import (
     WEB_MAX_PORT as WEB_MAX_PORT,
 )
+from dreamcatcher.web_server import WEB_PORT_RANGE as WEB_PORT_RANGE
 from dreamcatcher.web_views import (
     _compose_agent_rounds,
     _compose_assignment_status_label,
@@ -205,15 +220,7 @@ def _show_assignment_tail(
             rounds=_compose_agent_rounds(
                 round_statuses=status.round_statuses, zone=zone
             ),
-            stop_url=(
-                url_for(
-                    "request_assignment_stop",
-                    identifier=identifier,
-                    number=status.stoppable_round_paths.number,
-                )
-                if status.stoppable_round_paths is not None
-                else None
-            ),
+            stop_url=_compose_assignment_stop_url(status=status),
         ),
         is_terminal=status.value in STATUSES_THAT_END_A_VIEW,
         status_id="assignment-status",
@@ -275,15 +282,7 @@ def _show_conversation_tail(
             rounds=_compose_agent_rounds(
                 round_statuses=status.round_statuses, zone=zone
             ),
-            stop_url=(
-                url_for(
-                    "request_conversation_stop",
-                    issue=issue,
-                    number=status.stoppable_round_paths.number,
-                )
-                if status.stoppable_round_paths is not None
-                else None
-            ),
+            stop_url=_compose_conversation_stop_url(status=status),
         ),
         is_terminal=status.is_over,
         status_id="conversation-status",

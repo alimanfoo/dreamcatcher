@@ -5,7 +5,6 @@ from datetime import datetime, tzinfo
 from typing import TYPE_CHECKING, cast
 
 from dreamcatcher.issue_conversations import IssueConversation
-from dreamcatcher.scheduler import IssueFactValue, IssueObservation
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
@@ -15,6 +14,8 @@ from dreamcatcher.status import (
     AgentRoundStatus,
     DreamcatcherStatusReport,
     IssueConversationStatus,
+    IssueFactValue,
+    IssueObservation,
     read_dreamcatcher_daemon_status,
     read_repository,
 )

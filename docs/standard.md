@@ -151,8 +151,8 @@ not progress towards the standard. Meeting the criteria is.
   not.
 - Bar: zero. The import boundaries for `subprocess`, rich and Flask, and the
   dependency direction between modules, are the first four.
-- Check: banned-import rules in ruff, and one test that asserts the dependency
-  direction over the import graph.
+- Check: ruff's subprocess rule and one test that asserts the first-party, Rich,
+  and Flask dependency direction over the import graph.
 
 **K2. The suite is fast and speaks the user's language.**
 

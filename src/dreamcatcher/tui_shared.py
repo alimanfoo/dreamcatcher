@@ -14,7 +14,6 @@ from dreamcatcher.clock import WaitForSeconds
 from dreamcatcher.status import (
     ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
     CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER,
-    AgentAssignmentStatus,
 )
 
 ASSIGNMENT_STATUS_STYLES = dict(
@@ -116,11 +115,6 @@ def combine_renderable_parts(
 ) -> RenderableType:
     """Combine the renderable parts that are present."""
     return Group(*(part for part in parts if part is not None))
-
-
-def render_assignment_latest_output(*, status: AgentAssignmentStatus) -> Text | None:
-    """Render an assignment's latest output as one dimmed line."""
-    return render_latest_output(latest_output=status.latest_output)
 
 
 def render_latest_output(*, latest_output: str | None) -> Text | None:

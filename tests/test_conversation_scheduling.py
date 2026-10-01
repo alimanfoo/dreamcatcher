@@ -26,6 +26,7 @@ from records import (
     write_round,
 )
 
+import dreamcatcher.scheduler.coordinator as coordinator_module
 from dreamcatcher.agent_assignments import read_agent_assignments
 from dreamcatcher.agent_rounds import (
     AgentAssignmentRoundPurpose,
@@ -1009,8 +1010,8 @@ def test_a_failed_assignment_candidate_does_not_block_a_ready_conversation(
     offer_conversation(gh=gh, comments=[ask()])
     answer(harnesses=harnesses)
     monkeypatch.setattr(
-        scheduler,
-        "_launch_required_round",
+        coordinator_module,
+        "launch_required_round",
         Mock(side_effect=ReportableError("could not start assignment")),
     )
 

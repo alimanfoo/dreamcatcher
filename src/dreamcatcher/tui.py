@@ -42,7 +42,6 @@ from dreamcatcher.tui_shared import (
     create_table,
     refresh_live_view,
     refresh_until_view_ends,
-    render_assignment_latest_output,
     render_latest_output,
     render_section,
 )
@@ -206,7 +205,7 @@ def _render_assignment(
     rendered_status.stylize(
         ASSIGNMENT_STATUS_STYLES[current_status.value], 0, len(status_value)
     )
-    latest_output = render_assignment_latest_output(status=current_status)
+    latest_output = render_latest_output(latest_output=current_status.latest_output)
     if latest_output is not None:
         latest_output = Padding(
             latest_output,

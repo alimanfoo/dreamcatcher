@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Protocol
 
 from dreamcatcher.agent_rounds import AgentRoundPaths, AgentRoundRecord
-from dreamcatcher.scheduler import IssueObservation
+from dreamcatcher.status import IssueObservation
 
 
 @dataclass(frozen=True, kw_only=True)

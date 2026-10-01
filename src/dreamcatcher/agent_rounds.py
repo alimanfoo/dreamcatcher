@@ -1,16 +1,9 @@
 """Run agent rounds and persist their inputs, output, and outcomes.
 
-A round runs a harness command in its owner's worktree. It writes into a
-numbered directory of its own.
-
-`prompt.txt` supplies the harness's stdin. `inbox.json` holds any input that the
-round's owner delivers. `stop-request` asks a running round to stop.
-`raw.jsonl` preserves harness stdout, `feed.txt` renders both streams for the
-user, `final.md` keeps the final result the harness reports, and `round.json`
-records identity, purpose, recovery, process, and outcome.
-
-The daemon watches a round rather than waiting for it, so a round reads its own
-streams on threads of its own, and records its own ending on another.
+A round runs a harness in its owner's worktree and stores its prompt, input,
+stop request, raw and rendered output, final result, and lifecycle record in a
+numbered directory. The daemon watches rather than waits, so the round reads
+its streams and records its ending on threads of its own.
 """
 
 from collections.abc import Callable
@@ -20,17 +13,10 @@ from enum import StrEnum
 from pathlib import Path
 from threading import Event as Flag
 from threading import Lock, Thread
-from typing import Annotated, Literal, Self
+from typing import Annotated, Literal, Protocol, Self
 
 from pydantic import AwareDatetime, Field, PositiveInt, model_validator
 
-from dreamcatcher.agent_round_harness import (
-    AgentRoundFinisher as AgentRoundFinisher,
-)
-from dreamcatcher.agent_round_harness import AgentRoundHarness as AgentRoundHarness
-from dreamcatcher.agent_round_harness import (
-    HarnessSessionIdentifierRecorder as HarnessSessionIdentifierRecorder,
-)
 from dreamcatcher.agent_round_paths import (
     AGENT_ROUND_RECORD_NAME as AGENT_ROUND_RECORD_NAME,
 )
@@ -51,6 +37,9 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedEvent, FeedNote, FeedProse, FeedRenderer
 from dreamcatcher.harness_adapters import (
     AgentRoundLaunchRequest,
+    HarnessAdapter,
+    HarnessInvocation,
+    HarnessOutput,
     HarnessSessionIdentifier,
 )
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
@@ -62,6 +51,41 @@ FINAL_OUTPUT_CAPTURE_TIMEOUT_SECONDS = 5
 
 # How often a live round checks whether the web process asked it to stop.
 STOP_REQUEST_POLL_INTERVAL_SECONDS = 1
+
+
+class HarnessSessionIdentifierRecorder(Protocol):
+    """Record the harness session identifier that an agent round observes."""
+
+    def __call__(self, *, identifier: str) -> None:
+        """Record the identifier."""
+
+
+class AgentRoundFinisher(Protocol):
+    """Finish a successful round before its ending is recorded.
+
+    Raising a `ReportableError` fails the round, and the round notes why in its
+    feed.
+    """
+
+    def __call__(self, *, final_output: str | None) -> None:
+        """Finish the round with the final output its harness reported, if any."""
+
+
+@dataclass(frozen=True, kw_only=True)
+class AgentRoundHarness:
+    """The harness command that a round runs, and the reader of its output."""
+
+    adapter: HarnessAdapter
+    invocation: HarnessInvocation
+    record_harness_session_identifier: HarnessSessionIdentifierRecorder
+
+    def read(self, *, line: str) -> HarnessOutput:
+        """Record the harness session that one line reports, and return the line."""
+        output = self.adapter.read_output(line=line)
+        identifier = output.harness_session_identifier
+        if identifier is not None:
+            self.record_harness_session_identifier(identifier=identifier)
+        return output
 
 
 class AgentAssignmentRoundPurpose(StrEnum):

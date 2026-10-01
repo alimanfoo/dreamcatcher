@@ -384,18 +384,15 @@ class AgentWorkScheduler:
     ) -> tuple[SchedulerRecord, list[AgentAssignmentInspectionResult], str | None]:
         running_before_launch = self.rounds.copy()
         hold_before_launch = record.hold
-        if work_kind is AgentWorkKind.ASSIGNMENT:
-            record, inspection_results = self._launch_next_assignment_candidate(
-                record=record,
-                candidates=candidates,
-                inspection_results=inspection_results,
-            )
-        else:
-            record = launch_issue_conversation_round(
-                scheduler=self,
-                record=record,
-                candidate=candidates.conversations.pop(0),
-            )
+        assignment_candidate = (
+            candidates.assignments[0] if work_kind is AgentWorkKind.ASSIGNMENT else None
+        )
+        record, inspection_results = self._try_launch_candidate(
+            record=record,
+            work_kind=work_kind,
+            candidates=candidates,
+            inspection_results=inspection_results,
+        )
         launched_identifier = next(
             (
                 identifier
@@ -404,12 +401,59 @@ class AgentWorkScheduler:
             ),
             None,
         )
+        if (
+            isinstance(assignment_candidate, RequiredAgentRound)
+            and launched_identifier is not None
+        ):
+            inspection_results = [
+                result
+                for result in inspection_results
+                if result is not assignment_candidate
+            ]
+            record = record.model_copy(
+                update={
+                    "assignment_observations": list_assignment_observations(
+                        inspection_results=inspection_results
+                    )
+                }
+            )
         if record.hold != hold_before_launch or launched_identifier is None:
             if work_kind is AgentWorkKind.ASSIGNMENT:
                 candidates.assignments.clear()
             else:
                 candidates.conversations.clear()
         return record, inspection_results, launched_identifier
+
+    def _try_launch_candidate(
+        self,
+        *,
+        record: SchedulerRecord,
+        work_kind: AgentWorkKind,
+        candidates: _ReadyAgentWork,
+        inspection_results: list[AgentAssignmentInspectionResult],
+    ) -> tuple[SchedulerRecord, list[AgentAssignmentInspectionResult]]:
+        try:
+            if work_kind is AgentWorkKind.ASSIGNMENT:
+                record, inspection_results = self._launch_next_assignment_candidate(
+                    record=record,
+                    candidates=candidates,
+                    inspection_results=inspection_results,
+                )
+            else:
+                record = launch_issue_conversation_round(
+                    scheduler=self,
+                    record=record,
+                    candidate=candidates.conversations.pop(0),
+                )
+        except ReportableError as failure:
+            record = record.model_copy(
+                update={
+                    "hold": combine_scheduler_failures(
+                        failures=[record.hold, str(failure)]
+                    )
+                }
+            )
+        return record, inspection_results
 
     def _launch_next_assignment_candidate(
         self,
@@ -420,29 +464,11 @@ class AgentWorkScheduler:
     ) -> tuple[SchedulerRecord, list[AgentAssignmentInspectionResult]]:
         candidate = candidates.assignments.pop(0)
         if isinstance(candidate, RequiredAgentRound):
-            record = self._launch_assignment_round(
-                record=record,
-                required=candidate,
-            )
-            if candidate.assignment.identifier in self.rounds:
-                inspection_results = [
-                    result for result in inspection_results if result is not candidate
-                ]
-                record = record.model_copy(
-                    update={
-                        "assignment_observations": list_assignment_observations(
-                            inspection_results=inspection_results
-                        )
-                    }
-                )
+            launch_required_round(scheduler=self, required=candidate)
             return record, inspection_results
-        return (
-            self._start_available_assignment(
-                record=record,
-                issue=candidate,
-            ),
-            inspection_results,
-        )
+        labels = candidate.assignment_labels or []
+        self._launch_assignment(issue=candidate.issue, label=labels[0], at=record.at)
+        return record, inspection_results
 
     def _inspect_assignments(
         self,
@@ -479,49 +505,6 @@ class AgentWorkScheduler:
                 )
         return inspection_results
 
-    def _launch_assignment_round(
-        self,
-        *,
-        record: SchedulerRecord,
-        required: RequiredAgentRound,
-    ) -> SchedulerRecord:
-        """Launch the next round for the highest-priority assignment."""
-        try:
-            self._launch_required_round(required=required)
-        except ReportableError as failure:
-            return record.model_copy(
-                update={
-                    "hold": combine_scheduler_failures(
-                        failures=[record.hold, str(failure)]
-                    ),
-                }
-            )
-        return record
-
-    def _launch_required_round(self, *, required: RequiredAgentRound) -> None:
-        """Start an assignment round through the assignment policy boundary."""
-        launch_required_round(scheduler=self, required=required)
-
-    def _start_available_assignment(
-        self,
-        *,
-        record: SchedulerRecord,
-        issue: IssueObservation,
-    ) -> SchedulerRecord:
-        """Start an assignment for one issue whose facts make it available."""
-        labels = issue.assignment_labels or []
-        try:
-            self._launch_assignment(issue=issue.issue, label=labels[0], at=record.at)
-        except ReportableError as failure:
-            return record.model_copy(
-                update={
-                    "hold": combine_scheduler_failures(
-                        failures=[record.hold, str(failure)]
-                    )
-                }
-            )
-        return record
-
     def _launch_assignment(self, *, issue: int, label: str, at: datetime) -> None:
         """Create an assignment and start its first round."""
         creator = AgentAssignmentCreator(
@@ -534,6 +517,7 @@ class AgentWorkScheduler:
             issue=issue,
             at=at,
         )
-        self._launch_required_round(
-            required=compose_initial_round_requirement(assignment=assignment)
+        launch_required_round(
+            scheduler=self,
+            required=compose_initial_round_requirement(assignment=assignment),
         )

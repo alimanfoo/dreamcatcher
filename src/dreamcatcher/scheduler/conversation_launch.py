@@ -8,7 +8,6 @@ from dreamcatcher.agent_rounds import (
     IssueConversationRoundPurpose,
     start_agent_round,
 )
-from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import AgentRoundLaunchRequest, AgentWorkKind
 from dreamcatcher.issue_conversations import (
     IssueConversation,
@@ -25,7 +24,6 @@ from dreamcatcher.scheduler.models import (
     IssueFact,
     IssueFactValue,
     SchedulerRecord,
-    combine_scheduler_failures,
 )
 
 
@@ -36,21 +34,14 @@ def launch_issue_conversation_round(
     candidate: IssueConversationCandidate,
 ) -> SchedulerRecord:
     """Prepare a conversation's required work and start its next round."""
-    try:
-        prepared = _prepare_issue_conversation_round(
-            state=scheduler.state,
-            candidate=candidate,
-            requested_harness=scheduler.requested_harness,
-        )
-        conversation = _start_prepared_conversation_round(
-            scheduler=scheduler, prepared=prepared
-        )
-    except ReportableError as failure:
-        return record.model_copy(
-            update={
-                "hold": combine_scheduler_failures(failures=[record.hold, str(failure)])
-            }
-        )
+    prepared = _prepare_issue_conversation_round(
+        state=scheduler.state,
+        candidate=candidate,
+        requested_harness=scheduler.requested_harness,
+    )
+    conversation = _start_prepared_conversation_round(
+        scheduler=scheduler, prepared=prepared
+    )
     return _record_conversation_comments_delivered(
         record=record,
         issue=conversation.record.issue,

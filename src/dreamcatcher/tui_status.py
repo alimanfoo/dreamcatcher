@@ -9,7 +9,6 @@ from rich.console import Console, Group, RenderableType
 from rich.text import Text
 
 from dreamcatcher.clock import WaitForSeconds, read_current_time
-from dreamcatcher.scheduler import IssueFactValue, IssueObservation
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
@@ -18,6 +17,8 @@ from dreamcatcher.status import (
     AgentAssignmentStatusValue,
     DreamcatcherStatusReport,
     IssueConversationStatus,
+    IssueFactValue,
+    IssueObservation,
     read_status_report,
 )
 from dreamcatcher.tui_shared import (
@@ -27,7 +28,7 @@ from dreamcatcher.tui_shared import (
     combine_renderable_parts,
     create_table,
     refresh_live_view,
-    render_assignment_latest_output,
+    render_latest_output,
     render_section,
 )
 from dreamcatcher.words import describe_count, describe_countdown, describe_time
@@ -250,7 +251,7 @@ def _render_assignment_rows(
             Text(status.detail),
         )
         rows.append(table)
-        latest_output = render_assignment_latest_output(status=status)
+        latest_output = render_latest_output(latest_output=status.latest_output)
         if latest_output is not None:
             rows.append(latest_output)
     return rows
