@@ -542,6 +542,10 @@ The important dependency rules are:
 These rules keep the scheduling loop imperative and straightforward without
 turning every possible action into an abstract command hierarchy.
 
+`tests/test_architecture.py` checks every rule here that an import can break. It
+reads what each module reaches through its imports, directly or through another
+module.
+
 ## Agent-facing contract
 
 The assignment-skill contract is a third enduring design document alongside this
