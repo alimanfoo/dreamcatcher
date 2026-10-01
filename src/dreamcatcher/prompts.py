@@ -52,7 +52,7 @@ Dreamcatcher to post, or exactly NO_REPLY."""
 )
 
 STOPPED_ROUND_FEEDBACK_PROMPT = """The user stopped your previous round before it
-finished. Their new feedback says what to do instead.
+finished. The new input says what to do next.
 
 """
 

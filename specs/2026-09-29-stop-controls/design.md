@@ -7,10 +7,11 @@ their latest round is running. The control asks that round to stop promptly
 without stopping the daemon or any other agent work.
 
 A stopped round is different from an interrupted or errored round. Dreamcatcher
-does not recover it on its own. The assignment waits for a new pull-request
-post, and the conversation waits for a new issue comment. That feedback starts a
-new round in the same harness session and tells the agent that the user stopped
-the previous round.
+does not recover it on its own. The assignment waits for a new pull-request post
+while its pull request remains open, and the conversation waits for a new issue
+comment. Merging or closing an assignment's pull request starts its wrap-up
+round without waiting for a post. The new round stays in the same harness
+session and tells the agent that the user stopped the previous round.
 
 ## How it works
 
@@ -39,16 +40,19 @@ stopped. Interruption remains the outcome for daemon shutdown and persistence
 failures, and an error remains the outcome for a failed harness or finisher.
 Only interruption and error trigger automatic recovery.
 
-A stopped assignment follows the existing path for a completed round with no new
-pull-request posts: it needs user feedback. A stopped conversation follows the
-existing path for a completed round with no new issue comments: it is idle. A
-stopped round does not count towards the consecutive-error fault rule.
+A stopped assignment whose pull request remains open follows the existing path
+for a completed round with no new pull-request posts: it needs user feedback. If
+the pull request is merged or closed, its terminal state starts an ordinary
+wrap-up round instead. A stopped conversation follows the existing path for a
+completed round with no new issue comments: it is idle. A stopped round does not
+count towards the consecutive-error fault rule.
 
-The first new post or comment starts an ordinary feedback round, not a recovery
-round. Its prompt begins by saying that the user stopped the previous round and
-that the new feedback says what to do instead. Posts or comments that the
-stopped round had already received remain delivered because the resumed harness
-session already has them in its context.
+The first new post or comment starts an ordinary round, not a recovery round. A
+terminal pull request starts an ordinary wrap-up round in the same way. Its
+prompt begins by saying that the user stopped the previous round and that the
+new input says what to do next. Posts or comments that the stopped round had
+already received remain delivered because the resumed harness session already
+has them in its context.
 
 A stopped conversation publishes no final answer from the stopped round.
 
