@@ -67,7 +67,7 @@ FORBIDDEN_REACH = {
 
 
 @pytest.mark.parametrize("module", FORBIDDEN_REACH)
-def test_no_module_reaches_a_module_the_architecture_keeps_it_from(module):
+def test_module_imports(module):
     assert {module, *FORBIDDEN_REACH[module]} <= GRAPH.keys()
     reached = find_reached_modules(graph=GRAPH, module=module)
 

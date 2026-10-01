@@ -22,11 +22,11 @@ class StateDirectory:
 
     @cached_property
     def document_cache(self) -> DocumentCache:
-        """The terminal documents that this process has read from the directory.
+        """The documents read from the directory that nothing writes again.
 
-        A process reads the same records again and again, so keeping the terminal
-        ones means that each later read opens only the records that can still
-        change. The cache lives as long as this StateDirectory instance.
+        A process reads the same records again and again, so keeping the ones
+        that cannot change means that each later read opens only the records
+        that can. The cache lives as long as this StateDirectory instance.
         """
         return DocumentCache()
 

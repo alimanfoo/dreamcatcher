@@ -57,9 +57,7 @@ The evidence behind each row:
 - **C1.** The consistency review has not run since the migration. Issues 315,
   317, 318, 322 and 324 record disagreements already known.
 - **C2.** The architecture says `state` knows storage mechanics only, and
-  `state` imports `AgentRoundReader` from `agent_rounds`. Corrected in stage 1:
-  this line first said that issue 183 records the import, but 183 records a
-  different concern, the round paths that the scheduler passes to a round.
+  `state` imports `AgentRoundReader` from `agent_rounds`.
 - **C3.** The README holds install, configuration, behaviour rules and the
   command reference in one page.
 - **C4.** The state format is at v4 with no compatibility statement. The
@@ -107,7 +105,7 @@ Two measures need care when they are read again.
 - A stage that splits a module keeps the architecture's ownership: the scheduler
   still owns every scheduling decision when it is a package.
 - Dated specs stay as they are. This one is corrected as the work reveals what
-  it got wrong, and the correction says why.
+  it got wrong, and the pull request that corrects it says why.
 - The stages merge in order. Stage 1 guards stage 2, which guards stage 3.
 
 ## Stage 1: Make the architecture enforceable
@@ -120,25 +118,13 @@ Work:
 - Add ruff banned-import rules so that rich is imported only in `tui`, and Flask
   only in `web`. Keep the per-file waiver that lets `commands` alone import
   `subprocess`, because bandit's subprocess-import rule is already that ban.
-  Corrected in stage 1: this item first asked for a banned-import rule for
-  `subprocess` too, and the removal of the waiver. `tui` and `web` each waive
-  the banned-import rule, so a `subprocess` ban there would let both import it.
-  The same waiver lets `tui` import Flask and `web` import rich, because ruff
-  cannot waive one banned module for one file. That pair rests on review, and
-  the comment beside the waiver in `pyproject.toml` records it as K1's one
-  exception, as the standard's exceptions section allows.
 - Add one test that reads the import graph under `src` and asserts the
   dependency direction the architecture states: the daemon depends on the
   scheduler and never the reverse; assignment, conversation and round modules do
   not import the scheduler; status and feed do not import presentation; the
   GitHub and harness adapters import neither presentation nor the scheduler;
-  state and documents import no domain module. Corrected in stage 1: this item
-  first left out conversations, the feed and the adapters. The architecture
-  states a rule for each, and K1's bar covers every rule that a machine can
-  check.
-- Move `AgentRoundReader` out of `state`, so that test passes. Corrected in
-  stage 1: this item first said that the move closes issue 183, which records a
-  different concern and stays open.
+  state and documents import no domain module.
+- Move `AgentRoundReader` out of `state`, so that test passes.
 
 Check: K1 met.
 
@@ -150,8 +136,6 @@ Work:
 
 - Add the measurement script for S1 and S2 to the spec folder, so the next phase
   reads the same numbers the same way. It is a measurement, not a hook.
-  Corrected in stage 1: this item first sat in stage 1 and asked to keep a
-  script, but no script was committed, and S1 and S2 are this stage's check.
 
 Then one pull request per module, largest first:
 

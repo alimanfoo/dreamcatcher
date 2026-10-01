@@ -84,7 +84,7 @@ class DocumentCache:
     """Hold the documents a process has read that nothing writes again.
 
     A process keeps one cache for as long as it reads the same state, so it
-    opens each terminal document once however often it reads it.
+    opens each such document once however often it reads it.
     """
 
     def __init__(self) -> None:
@@ -96,18 +96,18 @@ class DocumentCache:
         *,
         model: type[DocumentT],
         path: Path,
-        is_terminal: Callable[[DocumentT], bool],
+        is_unchanging: Callable[[DocumentT], bool],
     ) -> DocumentT:
         """Return the JSON document, opening it only when the cache lacks it.
 
-        The cache keeps the document once is_terminal says nothing writes it
+        The cache keeps the document once is_unchanging says nothing writes it
         again. Until then every read opens the file, so a later write is seen.
         """
         cached = self._documents.get(path)
         if isinstance(cached, model):
             return cached
         document = read_json(model=model, path=path)
-        if is_terminal(document):
+        if is_unchanging(document):
             self._documents[path] = document
         return document
 

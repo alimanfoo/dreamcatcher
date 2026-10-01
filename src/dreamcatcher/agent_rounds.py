@@ -389,7 +389,7 @@ def _read_agent_round_record(*, cache: DocumentCache, path: Path) -> AgentRoundR
     record = cache.read_json(
         model=AgentRoundRecord,
         path=path,
-        is_terminal=lambda record: record.outcome is not AgentRoundOutcome.RUNNING,
+        is_unchanging=lambda record: record.outcome is not AgentRoundOutcome.RUNNING,
     )
     if path.parent.name != str(record.number):
         raise ReportableError(
