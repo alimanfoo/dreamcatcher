@@ -1,4 +1,4 @@
-"""Measure Dreamcatcher source modules and functions against S1 and S2."""
+"""Measure Dreamcatcher source size to guide S1 and S2 review."""
 
 from __future__ import annotations
 
@@ -7,16 +7,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 SOURCE_ROOT = Path(__file__).parents[1] / "src" / "dreamcatcher"
-MODULE_LINE_BAR = 600
 FUNCTION_LINE_BAR = 50
 
-# These modules and functions hold one architecture-level transaction or
-# boundary. Splitting them would hide that shape rather than reveal a concept.
-MODULE_EXCEPTIONS = {
-    "agent_rounds.py": "the complete agent-round filesystem and lifecycle boundary",
-    "github.py": "the single GitHub command and response boundary",
-    "scheduler/conversations.py": "the complete conversation scheduling boundary",
-}
+# These functions hold one architecture-level transaction. Splitting them would
+# hide that shape rather than reveal a concept.
 FUNCTION_EXCEPTIONS = {
     (
         "agent_assignments.py",
@@ -110,23 +104,12 @@ def _display_path(*, path: Path) -> str:
 
 
 def _print_modules(*, measurements: list[ModuleMeasurement]) -> None:
-    print("## Modules")
+    print("## Modules by physical line count")
     print()
-    print("| Module | Lines | S1 |")
-    print("| --- | ---: | --- |")
+    print("| Module | Lines |")
+    print("| --- | ---: |")
     for measurement in measurements:
-        module = measurement.path.relative_to(SOURCE_ROOT).as_posix()
-        exception = MODULE_EXCEPTIONS.get(module)
-        if measurement.lines <= MODULE_LINE_BAR:
-            result = "met"
-        elif exception is None:
-            result = "short"
-        else:
-            result = f"exception: {exception}"
-        print(
-            f"| `{_display_path(path=measurement.path)}` "
-            f"| {measurement.lines} | {result} |"
-        )
+        print(f"| `{_display_path(path=measurement.path)}` | {measurement.lines} |")
 
 
 def _print_functions(*, measurements: list[FunctionMeasurement]) -> None:
@@ -145,7 +128,7 @@ def _print_functions(*, measurements: list[FunctionMeasurement]) -> None:
 
 
 def main() -> None:
-    """Print the current S1 and S2 source measurements as Markdown."""
+    """Print the current source-size measurements as Markdown."""
     paths = sorted(SOURCE_ROOT.rglob("*.py"))
     modules = sorted(
         (_measure_module(path=path) for path in paths),

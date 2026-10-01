@@ -23,7 +23,7 @@ Measured on `main` at `b4ac40a`.
 
 | Criterion                              | Measured                        | Bar                      | Status     |
 | -------------------------------------- | ------------------------------- | ------------------------ | ---------- |
-| S1 Modules are small                   | 7 files over 600 lines          | none                     | short      |
+| S1 Modules are cohesive                | 4 modules hold half the source  | one responsibility       | short      |
 | S2 Functions fit on a screen           | 22 functions over 50 lines      | none unless named        | short      |
 | S3 Exports are used                    | 57 names without an importer    | each of a permitted kind | unmeasured |
 | S4 Each thing is done one way          | 2 duplicates found              | none                     | short      |
@@ -43,8 +43,10 @@ Measured on `main` at `b4ac40a`.
 
 The evidence behind each row:
 
-- **S1.** `scheduler` 1858, `web` 1243, `tui` 1015, `status` 1004,
-  `agent_assignments` 711, `agent_rounds` 663, `github` 614.
+- **S1.** `scheduler` 1858, `web` 1243, `tui` 1015 and `status` 1004. Those
+  modules hold half the source and each contains several nameable
+  responsibilities. `agent_assignments` 711, `agent_rounds` 663 and `github` 614
+  are the next places to inspect, not automatic split points.
 - **S2.** The longest are `build_cli_parser` at 161 lines and the scheduler
   `tick` at 127. Ten of the 22 are in `scheduler`.
 - **S3.** Public top-level names that no other module under `src` imports. The
@@ -129,7 +131,8 @@ Check: K1 met.
 
 ## Stage 2: Reduce concentration
 
-Outcome: no module exceeds the S1 bar, and each file holds one concept.
+Outcome: each module owns one coherent responsibility, with packages where a
+clean separation of concerns supports one.
 
 Work:
 
@@ -155,11 +158,12 @@ Then one pull request per module, largest first:
   public-report concerns. `tui` becomes a package that separates the
   instance-status view from shared Rich rendering while keeping assignment,
   conversation and feed views at its public package boundary.
-- `agent_assignments`, `agent_rounds` and `github` are just over the bar. Each
-  is reviewed for a seam before it is split, and a file that has one concept and
-  650 lines earns a named exception rather than a split.
+- Review `agent_assignments`, `agent_rounds` and `github` for useful seams. Keep
+  a module intact when splitting it would separate no responsibility or add
+  coupling merely to reduce its line count.
 
-Check: S1 met. S2 met except for the named functions.
+Check: S1 met by review, with module line counts retained as a way to order that
+review. S2 met except for the named functions.
 
 ## Stage 3: Trim the surface and settle the words
 

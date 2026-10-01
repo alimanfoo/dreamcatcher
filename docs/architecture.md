@@ -545,9 +545,9 @@ turning every possible action into an abstract command hierarchy.
 `tests/test_architecture.py` checks each rule here that keeps one module from
 reaching another through its imports, directly or through another module.
 
-`build_cli_parser` is the named S2 exception for the command-line boundary. Its
-complete declarative grammar stays together so flags, defaults, help text, and
-subcommand structure remain visible in one place.
+`build_cli_parser` keeps the complete declarative command-line grammar together
+so flags, defaults, help text, and subcommand structure remain visible in one
+place.
 
 ## Agent-facing contract
 
