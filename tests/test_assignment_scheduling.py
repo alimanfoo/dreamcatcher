@@ -222,7 +222,7 @@ def test_a_stopped_assignment_waits_for_feedback(state, gh):
 
 
 @pytest.mark.parametrize("pull_request_state", ["CLOSED", "MERGED"])
-def test_a_stopped_assignment_with_a_terminal_pull_request_waits_for_feedback(
+def test_a_terminal_pull_request_wraps_up_a_stopped_assignment(
     state, gh_with_no_posts, pull_request_state
 ):
     started = PINNED + timedelta(minutes=1)
@@ -241,7 +241,16 @@ def test_a_stopped_assignment_with_a_terminal_pull_request_waits_for_feedback(
         stdout=pull_request(state=pull_request_state), to="pr view"
     )
 
-    assert found(state=state) is None
+    resume = found(state=state)
+
+    assert isinstance(resume, RequiredAgentRound)
+    assert resume.plan.purpose is AgentAssignmentRoundPurpose.WRAP_UP
+    assert not resume.plan.is_recovery
+    assert resume.reason == f"the pull request is {pull_request_state.lower()}"
+    assert resume.plan.input == AgentAssignmentRoundInput(
+        pull_request_state=pull_request_state, user_posts=[]
+    )
+    assert resume.prompt.startswith("The user stopped your previous round")
 
 
 def test_a_stopped_assignment_uses_new_feedback_without_recovery(state, gh):

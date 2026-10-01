@@ -1,6 +1,5 @@
 newest agent assignment GH9-20260819-184158
-fault  two consecutive rounds failed 
-(.dreamcatcher/v4/assignments/GH9-20260819-184158/rounds/2/feed.txt)
+fault  [failed] You hit your spend cap.
 
 assignment
   issue identifier             GH9                                           

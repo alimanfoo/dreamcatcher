@@ -425,6 +425,11 @@ repeats the first invocation with the configured prompt if no session identifier
 was recorded. If a successful first round recorded no session identifier, a
 later comment batch remains waiting because Dreamcatcher cannot resume it.
 
+A stopped conversation round posts no final result and is not recovered. The
+conversation is idle until another eligible comment batch arrives. That batch
+starts an ordinary discussion round in the same harness session, and its prompt
+says that the user stopped the previous round.
+
 Closing the issue, removing every configured conversation label, or unassigning
 the signed-in account stops new comment batches and recovery, and takes the
 conversation off the status report once no round runs for it. Adding a second
@@ -460,9 +465,17 @@ request is ready for review. For example, if the first implementation round ends
 by asking the user a question, the user's answer causes another implementation
 round to be scheduled.
 
-Merging or closing the pull request causes a wrap-up round to be scheduled. An
-errored or interrupted round does not require user input. Dreamcatcher schedules
-a recovery round automatically unless the assignment has entered a fault.
+Merging or closing the pull request always causes a wrap-up round to be
+scheduled. An errored or interrupted round does not require user input.
+Dreamcatcher schedules a recovery round automatically unless the assignment has
+entered a fault.
+
+A stopped assignment round is not recovered. While its pull request remains
+open, it waits for a new user post. Merging or closing the pull request starts
+an ordinary wrap-up round without waiting for a post. Either event gives the new
+round a prompt saying that the user stopped the previous round. Because the
+fault rule counts only two consecutive errored rounds, a stopped round ends a
+run of errors.
 
 ### Scheduling work
 
