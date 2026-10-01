@@ -151,7 +151,7 @@ def build_cli_parser() -> argparse.ArgumentParser:
         help="show one issue's newest assignment, in detail",
         description=(
             "Show an overview of the newest assignment at the issue: what "
-            "its dispatch settled, the rounds it has run, the command that "
+            "its assignment dispatch settled, the rounds it has run, the command that "
             "resumes the harness session by hand, and the older assignments "
             "at the same issue. It keeps up for as long as the assignment has "
             "another round coming. "

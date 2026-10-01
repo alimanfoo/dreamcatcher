@@ -16,7 +16,7 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import (
     AgentHarness,
-    IssueConversationRoute,
+    ConversationRoute,
     QuotableText,
 )
 from dreamcatcher.documents import DreamcatcherDocument, read_json, write_json
@@ -69,7 +69,7 @@ class IssueConversationRecord(DreamcatcherDocument):
 
     issue: int
     title: str
-    label: str
+    dispatch_label: str
     harness: AgentHarness
     harness_session_identifier: HarnessSessionIdentifier | None = None
     retry_requested_at: AwareDatetime | None = None
@@ -147,7 +147,7 @@ def read_issue_conversation(
 def create_issue_conversation(
     *,
     state: StateDirectory,
-    route: IssueConversationRoute,
+    route: ConversationRoute,
     requested_harness: AgentHarness,
     issue: Issue,
 ) -> IssueConversation:
@@ -170,7 +170,7 @@ def create_issue_conversation(
         record = IssueConversationRecord(
             issue=issue.number,
             title=issue.title,
-            label=route.label,
+            dispatch_label=route.label,
             harness=selected_harness,
             model=recipe.model,
             effort=recipe.effort,

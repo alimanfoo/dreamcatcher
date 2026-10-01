@@ -390,7 +390,7 @@ def test_each_conversation_label_selects_its_own_route(
     assert observed.launched_agent_work_identifiers == ["conversation-GH8"]
     conversation = read_issue_conversation(state=scheduler.state, issue=8)
     assert conversation is not None
-    assert conversation.record.label == "dream:scout"
+    assert conversation.record.dispatch_label == "dream:scout"
     assert conversation.record.prompt == "/dream:scout GH{issue}"
     assert conversation.record.effort == "high"
 
@@ -589,7 +589,7 @@ def test_codex_recovery_keeps_its_session_revision_and_permissions(
     assert recovered_input == first_input
     resumed = harnesses["codex"].calls[1]
     assert 'sandbox_mode="workspace-write"' in resumed.arguments
-    assert "sandbox_workspace_write.network_access=false" in resumed.arguments
+    assert "sandbox_workspace_write.network_access=true" in resumed.arguments
     assert 'approval_policy="never"' in resumed.arguments
     assert resumed.arguments[-2:] == ["conversation-codex-session", "-"]
     assert resumed.prompt == ISSUE_CONVERSATION_RECOVERY_PROMPT
@@ -633,7 +633,7 @@ def test_codex_recovery_starts_a_new_session_when_the_first_never_reported_one(
     assert restarted.arguments[:2] == ["exec", "--json"]
     assert "resume" not in restarted.arguments
     assert 'sandbox_mode="workspace-write"' in restarted.arguments
-    assert "sandbox_workspace_write.network_access=false" in restarted.arguments
+    assert "sandbox_workspace_write.network_access=true" in restarted.arguments
     assert 'approval_policy="never"' in restarted.arguments
     assert restarted.prompt.startswith("$dream:conversation GH8")
 
@@ -977,7 +977,7 @@ def test_one_tick_alternates_work_kinds_until_capacity_is_full(
     ]
 
 
-def test_after_a_conversation_round_the_next_round_dispatches_an_assignment(
+def test_after_a_conversation_round_the_next_round_starts_an_assignment(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler

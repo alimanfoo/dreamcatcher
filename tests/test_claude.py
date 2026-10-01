@@ -7,7 +7,6 @@ from conftest import streamed
 from dreamcatcher.claude import (
     CLAUDE_ADAPTER,
     CLAUDE_ASSIGNMENT_ALLOWED_TOOLS,
-    CLAUDE_CONVERSATION_DISALLOWED_TOOLS,
 )
 from dreamcatcher.feed import FeedNote, FeedProse
 from dreamcatcher.harness_adapters import (
@@ -48,7 +47,7 @@ def assistant(*, blocks: Sequence[dict], parent: str | None = None) -> str:
 
 
 # Neither command names the prompt, which is what has Claude read it from stdin.
-def test_a_first_round_names_the_model_and_the_effort_it_was_dispatched_with():
+def test_a_first_round_names_its_configured_model_and_effort():
     assert CLAUDE_ADAPTER.build_first_round(
         request=ROUND_LAUNCH_REQUEST,
         final_output_path=FINAL_OUTPUT_PATH,
@@ -71,7 +70,7 @@ def test_a_resume_continues_the_harness_session_and_replays_no_settings():
     )
 
 
-def test_a_conversation_round_denies_implementation_and_github_tools():
+def test_a_conversation_round_allows_issue_tools_and_denies_implementation_tools():
     request = AgentRoundLaunchRequest(
         agent_work_identifier="conversation-GH9",
         model="opus[1m]",
@@ -80,24 +79,38 @@ def test_a_conversation_round_denies_implementation_and_github_tools():
         work_kind=AgentWorkKind.CONVERSATION,
     )
 
-    invocation = CLAUDE_ADAPTER.build_first_round(
-        request=request, final_output_path=FINAL_OUTPUT_PATH
-    )
+    invocations = [
+        CLAUDE_ADAPTER.build_first_round(
+            request=request, final_output_path=FINAL_OUTPUT_PATH
+        ),
+        CLAUDE_ADAPTER.build_resumed_round(
+            request=request,
+            harness_session_identifier="abc-123",
+            final_output_path=FINAL_OUTPUT_PATH,
+        ),
+    ]
 
-    assert "--allowedTools" not in invocation.arguments
-    denied_at = invocation.arguments.index("--disallowedTools")
-    assert invocation.arguments[denied_at + 1] == " ".join(
-        CLAUDE_CONVERSATION_DISALLOWED_TOOLS
+    expected_allowed_tools = (
+        "Bash(gh issue create:*) Bash(gh issue edit:*) "
+        "Bash(gh issue comment:*) Bash(gh api:*)"
     )
-    assert {
-        "PowerShell",
-        "Bash(gh:*)",
-        "Bash(git cherry-pick:*)",
-        "Bash(git restore:*)",
-        "Bash(git rm:*)",
-        "Bash(git stash:*)",
-        "Bash(git tag:*)",
-    } <= set(CLAUDE_CONVERSATION_DISALLOWED_TOOLS)
+    expected_disallowed_tools = (
+        "Edit Write NotebookEdit PowerShell Bash(git add:*) Bash(git am:*) "
+        "Bash(git apply:*) Bash(git bisect:*) Bash(git branch:*) "
+        "Bash(git cherry-pick:*) Bash(git checkout:*) Bash(git clean:*) "
+        "Bash(git clone:*) Bash(git commit:*) Bash(git fetch:*) "
+        "Bash(git init:*) Bash(git merge:*) Bash(git mv:*) "
+        "Bash(git notes:*) Bash(git pull:*) Bash(git push:*) "
+        "Bash(git rebase:*) Bash(git remote:*) Bash(git replace:*) "
+        "Bash(git reset:*) Bash(git restore:*) Bash(git revert:*) "
+        "Bash(git rm:*) Bash(git stash:*) Bash(git submodule:*) "
+        "Bash(git switch:*) Bash(git tag:*) Bash(git worktree:*)"
+    )
+    for invocation in invocations:
+        allowed_at = invocation.arguments.index("--allowedTools")
+        assert invocation.arguments[allowed_at + 1] == expected_allowed_tools
+        denied_at = invocation.arguments.index("--disallowedTools")
+        assert invocation.arguments[denied_at + 1] == expected_disallowed_tools
 
 
 def test_a_person_continues_the_harness_session_where_it_ran():

@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from datetime import timedelta
 
 from clocks import PINNED
-from conftest import DAEMON_PID, DISPATCH_LABEL, REPOSITORY, configure
+from conftest import ASSIGNMENT_LABEL, DAEMON_PID, REPOSITORY, configure
 from observations import observed_conversation, observed_issue
 from records import (
     AssignmentReporting,
@@ -65,7 +65,7 @@ SAID = (
     FeedLine(at=PINNED + timedelta(minutes=5), text="[result] success"),
 )
 
-DOUBLE_LABELLED = "carries more than one dispatch label: dream:less, dream:smith"
+DOUBLE_LABELLED = "carries more than one assignment label: dream:less, dream:smith"
 
 
 def fabricate_conversation(
@@ -253,7 +253,7 @@ def fabricate_everything(
                 ),
                 observed_issue(
                     issue=53,
-                    dispatch_labels=(DISPATCH_LABEL, "dream:less"),
+                    assignment_labels=(ASSIGNMENT_LABEL, "dream:less"),
                     values={"routing_conflict": IssueFactValue.TRUE},
                     evidence={"routing_conflict": DOUBLE_LABELLED},
                 ),
@@ -362,7 +362,7 @@ def fabricate_the_cap(*, state):
 
 
 def fabricate_repeat_assignments(*, state):
-    """Write three assignments at one issue to show a repeat dispatch."""
+    """Write three assignments at one issue to show repeat assignment dispatches."""
     configure(root=state.root)
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
     write_daemon_run(state=state, pid=DAEMON_PID)

@@ -38,7 +38,7 @@ GitHub number is its **issue identifier**, conventionally written as `GH123`.
 ### Agent assignment and agent assignment identifier
 
 An **agent assignment** is Dreamcatcher's durable commission to an agent to
-implement one issue. It is the central unit of work managed by Dreamcatcher.
+implement one issue.
 
 An **agent assignment identifier** identifies one agent assignment. It combines
 the issue identifier with a timestamp, as in `GH123-20260912-192458`, and is
@@ -53,19 +53,7 @@ communication channel between the agent and the user.
 ### Issue conversation
 
 An **issue conversation** is Dreamcatcher's durable commission to an agent to
-answer the user on an issue without implementing a change. It owns a detached
-worktree at a recorded main revision and its agent rounds. Its rounds normally
-share one harness session, but recovery replaces a session whose identifier was
-never recorded. Each round input records the comment batch delivered in that
-round. The issue remains its communication channel; it has no implementation
-branch or pull request.
-
-An issue conversation starts with one initial round. Each later eligible comment
-batch resumes the same harness session in another round. Each successful round
-posts its final answer on the issue before it ends, unless the answer is
-`NO_REPLY`, which means no post is needed. While the issue remains eligible, an
-interrupted or errored round is recovered from its saved input before a later
-comment batch is accepted.
+answer the user on an issue without implementing a change.
 
 ### Agent work and agent work identifier
 
@@ -88,27 +76,27 @@ identifier.
 
 An **assignment skill** is an agent skill which follows Dreamcatcher's
 agent-facing contract and guides an agent through an agent assignment. It may be
-invoked by an agent recipe.
+invoked by a dispatch recipe.
 
-### Agent recipe
+### Dispatch recipe
 
-An **agent recipe** specifies how Dreamcatcher starts one kind of agent work
+A **dispatch recipe** specifies how Dreamcatcher starts one kind of agent work
 through a particular agent harness. It supplies the model, effort, and initial
-prompt for that harness. A recipe for an assignment normally invokes an
-assignment skill; a recipe for a conversation asks the agent to answer the user.
+prompt for that harness. An assignment recipe normally invokes an assignment
+skill; a conversation recipe asks the agent to answer the user.
 
 ### Dispatch label
 
 A **dispatch label** is a GitHub issue label configured to mark issues for
 handling by Dreamcatcher.
 
-### Dispatch and conversation routes
+### Dispatch, assignment and conversation routes
 
-A **dispatch route** maps one dispatch label to one or more agent recipes for
-assignments. A **conversation route** maps one label to one or more agent
-recipes for issue conversations. Each recipe uses a particular agent harness. A
-route may offer recipes for all the harnesses Dreamcatcher supports or for only
-some of them.
+A **dispatch route** maps one dispatch label to one dispatch recipe for each
+agent harness that the route configures. An **assignment route** is a dispatch
+route for agent assignments. A **conversation route** is a dispatch route for
+issue conversations. A route may offer recipes for all the harnesses
+Dreamcatcher supports or for only some of them.
 
 ### Agent round
 
@@ -192,6 +180,13 @@ exhausted usage allowance.
 
 ## Relationships and rules
 
+### Agent work composition
+
+Agent work has no agent rounds until work begins and one or more afterwards.
+
+The rounds normally share one harness session. Without a recorded harness
+session identifier, recovery starts a new harness session.
+
 ### Agent assignment composition
 
 Each agent assignment has exactly one:
@@ -202,24 +197,42 @@ Each agent assignment has exactly one:
 - pull request;
 - agent harness.
 
-An assignment has no agent rounds until work begins and one or more afterwards.
-Its rounds normally share one harness session, but recovery replaces a session
-whose identifier was never recorded. The rounds form a sequence numbered within
-the assignment; their numbers have no meaning outside it.
-
 An issue can receive more than one assignment over its lifetime, but a
 Dreamcatcher instance can never have more than one open assignment for the same
 issue. An agent assignment remains open until it is complete, including while
 its pull request is being wrapped up.
 
+### Issue conversation composition
+
+Each issue conversation has exactly one:
+
+- issue;
+- detached Git worktree;
+- agent harness.
+
+It has no branch or pull request, so the issue is its communication channel. A
+Dreamcatcher instance has at most one issue conversation for an issue, and it
+keeps the conversation after the issue stops being eligible.
+
+Each conversation round input records the comment batch and the main revision.
+The initial round input also records the issue title and body.
+
 ### Dispatch labels and routes
 
-An issue with no dispatch label is outside Dreamcatcher's scope. An issue with
-more than one dispatch label has a routing conflict. The order of dispatch
-routes in the configuration does not give one route precedence over another.
+An issue with no dispatch label is outside Dreamcatcher's scope. Each configured
+dispatch label belongs to exactly one dispatch route, so one label cannot be
+both an assignment label and a conversation label.
 
-Exactly one dispatch label selects exactly one dispatch route. Dreamcatcher then
-selects an agent recipe for the harness through which the assignment will run.
+An issue with more than one assignment label has an assignment routing conflict.
+An issue with more than one conversation label has a conversation routing
+conflict. One assignment label and one conversation label can coexist without a
+routing conflict. The order of routes in the configuration does not give one
+route precedence over another.
+
+Exactly one assignment label selects exactly one assignment route, and exactly
+one conversation label selects exactly one conversation route. Dreamcatcher then
+selects the dispatch recipe for the harness through which that agent work will
+run.
 
 ### Completing an assignment
 
@@ -250,7 +263,7 @@ false, or unknown:
 - **Claimed elsewhere**: the issue has an open linked pull request other than
   the pull request belonging to its local assignment, if any.
 - **Blocked**: an open issue dependency prevents work from starting.
-- **Routing conflict**: the issue carries more than one dispatch label.
+- **Routing conflict**: the issue carries more than one assignment label.
 
 These facts can coexist. In particular, an issue may be claimed both here and
 elsewhere if somebody opens another pull request after Dreamcatcher creates its
@@ -272,7 +285,7 @@ An issue is **available for an agent assignment** only when:
 
 - it is open;
 - it is assigned to the user for this Dreamcatcher instance;
-- it carries exactly one dispatch label;
+- it carries exactly one assignment label;
 - claimed here is known to be false;
 - claimed elsewhere is known to be false;
 - blocked is known to be false; and
@@ -388,16 +401,17 @@ least one eligible comment from that account after the newest comment in its
 latest round input. An issue with more than one configured conversation label
 has a routing conflict and starts or recovers nothing until one label remains.
 Issue title and body alone do not start a round. Assignment ownership, linked
-pull requests, dependencies and dispatch-label conflicts do not govern
+pull requests, dependencies and assignment-routing conflicts do not govern
 conversation eligibility.
 
-Dreamcatcher fetches main, creates a detached worktree, records its revision and
-the chosen conversation route and settings, freezes the issue and eligible
-comment batch, then starts the initial conversation round. The recorded route
-and settings stay frozen if a different configured label later makes the issue
-eligible. The round shares the daemon's capacity and global cooldown with
-assignment rounds. The round posts its final result on the issue before it
-records its ending. A failed post makes the round errored.
+Dreamcatcher fetches main, creates a detached worktree, and records the chosen
+conversation route and settings. It freezes the initial round input, then starts
+the initial conversation round. The recorded route and settings stay frozen if a
+different configured label later makes the issue eligible. The round shares the
+daemon's capacity and global cooldown with assignment rounds. Before a
+conversation round records a successful ending, Dreamcatcher requires its answer
+and posts it on the issue. An answer of `NO_REPLY` means no post is needed. A
+missing answer or failed post makes the round errored.
 
 After the round ends, another eligible comment batch resumes the same harness
 session in another conversation round. Before it accepts that batch,
@@ -407,17 +421,20 @@ round runs stay beyond the latest round input. If the round is interrupted or
 errors, recovery reuses its saved comments and revision without reading new
 comments or refreshing the worktree. It resumes the saved harness session, or
 repeats the first invocation with the configured prompt if no session identifier
-was recorded.
+was recorded. If a successful first round recorded no session identifier, a
+later comment batch remains waiting because Dreamcatcher cannot resume it.
 
 A stopped conversation round posts no final result and is not recovered. The
 conversation is idle until another eligible comment batch arrives. That batch
 starts an ordinary discussion round in the same harness session, and its prompt
 says that the user stopped the previous round.
 
-Closing the issue, removing every configured conversation label, adding a second
-one or unassigning the signed-in account stops new comment batches and takes the
-conversation off the status report once no round runs for it. The saved
-conversation is kept, and making the issue eligible again brings it back.
+Closing the issue, removing every configured conversation label, or unassigning
+the signed-in account stops new comment batches and recovery, and takes the
+conversation off the status report once no round runs for it. Adding a second
+configured conversation label also stops new batches and recovery, but keeps the
+conversation on the report with a routing conflict. Eligibility must be restored
+before any later batch or recovery can start.
 
 ### Working through an assignment
 
@@ -485,12 +502,13 @@ candidates of the same kind for the rest of that tick.
 A known global error may start a global cooldown immediately.
 
 For errors that cannot be diagnosed reliably, one piece of agent work's first
-consecutive error calls for a recovery round and its second places that work in
-fault. If two assignments or conversations that remain in the status report
-enter fault, in any combination, that is evidence of a shared problem and starts
-a global cooldown. When the cooldown ends, Dreamcatcher clears those faults and
-permits recovery. This deliberately simple policy prevents one work-specific
-failure from blocking all other work.
+consecutive error calls for a recovery round and its second makes that work in
+fault. The scheduler counts every assignment in fault and every conversation in
+fault whose issue has no known routing conflict. Two counted faults, in any
+combination, are evidence of a shared problem and start a global cooldown. When
+the cooldown ends, Dreamcatcher clears those faults and permits recovery. This
+deliberately simple policy prevents one work-specific failure from blocking all
+other work.
 
 After resolving an issue-specific problem, the user may request a retry. That
 request clears any current fault on the newest assignment and issue conversation
