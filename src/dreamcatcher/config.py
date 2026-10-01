@@ -100,7 +100,6 @@ def _identify_routes[Route: DispatchRoute](
 class DreamcatcherConfig(DreamcatcherDocument):
     """Model a repository's agent-work configuration."""
 
-    assignee: str = "@me"
     assignment: list[AssignmentRoute] = Field(min_length=1)
     conversation: list[ConversationRoute] = Field(default_factory=list)
 

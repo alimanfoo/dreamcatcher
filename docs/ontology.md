@@ -17,8 +17,9 @@ agent work.
 
 ### User
 
-A **user** is the person on whose behalf a Dreamcatcher instance manages agent
-work. The user provides decisions and reviews work through GitHub.
+A **user** is the person whose account `gh` is signed in to. A Dreamcatcher
+instance manages agent work on the user's behalf, and the user provides
+decisions and reviews work through GitHub.
 
 ### Dreamcatcher instance and daemon
 
@@ -284,7 +285,7 @@ than in the report's available issues.
 An issue is **available for an agent assignment** only when:
 
 - it is open;
-- it is assigned to the user for this Dreamcatcher instance;
+- it is assigned to the signed-in account;
 - it carries exactly one assignment label;
 - claimed here is known to be false;
 - claimed elsewhere is known to be false;

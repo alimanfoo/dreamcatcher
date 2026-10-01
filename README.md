@@ -23,8 +23,6 @@ dreamcatcher reads `dreamcatcher.toml` from the root of the repository it
 watches. Commit it, so everyone watching that repo dispatches the same way.
 
 ```toml
-assignee = "@me"
-
 [[conversation]]
 label = "agent:conversation"
 
@@ -50,12 +48,10 @@ model = "gpt-5.6-sol"
 effort = "xhigh"
 ```
 
-`assignee` is whose issues to pick up, as a GitHub login. It defaults to `@me`,
-the account `gh` is signed in as, so you can leave it out.
-
-If an existing `dreamcatcher.toml` contains `interval` or `max_agents`, remove
-those settings. Add `--interval` or `--max-agents` to the `run` command to keep
-any non-default values; the configuration file no longer accepts them.
+If an existing `dreamcatcher.toml` contains `assignee`, `interval` or
+`max_agents`, remove those settings. Add `--interval` or `--max-agents` to the
+`run` command to keep any non-default values; the configuration file no longer
+accepts them.
 
 An `[[assignment]]` entry defines one assignment route. Give it an assignment
 label, then a dispatch recipe for each harness that can run it. Every route
@@ -129,11 +125,12 @@ dreamcatcher run --harness claude --interval 30 --max-agents 4
 The daemon runs one scheduler tick per interval and starts rounds until the
 agent cap is full, no ready work remains, or a launch failure stops that kind
 until the next tick. An issue receives an assignment when it carries exactly one
-assignment label, is assigned to `assignee`, has no assignment here already, has
-no open pull request GitHub links to it, and has no open issue blocking it. The
-oldest such issue goes first. Assignment setup cuts a branch and a worktree
-under `.dreamcatcher/`, makes and pushes an empty commit, and opens a linked
-draft pull request before it runs the assignment's first round there.
+assignment label, is assigned to the account that `gh` is signed in as, has no
+assignment here already, has no open pull request GitHub links to it, and has no
+open issue blocking it. The oldest such issue goes first. Assignment setup cuts
+a branch and a worktree under `.dreamcatcher/`, makes and pushes an empty
+commit, and opens a linked draft pull request before it runs the assignment's
+first round there.
 
 Assignment setup is recoverable. If Dreamcatcher stops after making the
 worktree, commit, remote branch, or pull request, the next assignment setup

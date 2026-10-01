@@ -119,22 +119,6 @@ def test_a_conversation_either_harness_can_run_uses_the_requested_one(tmp_path):
     )
 
 
-def test_the_repository_setting_the_design_gives_a_default_has_it(tmp_path):
-    write_config(root=tmp_path, text=CONFIG)
-
-    config = read_dreamcatcher_config(root=tmp_path)
-
-    assert config.assignee == "@me"
-
-
-def test_a_repository_setting_the_config_names_beats_its_default(tmp_path):
-    write_config(root=tmp_path, text='assignee = "alimanfoo"\n' + CONFIG)
-
-    config = read_dreamcatcher_config(root=tmp_path)
-
-    assert config.assignee == "alimanfoo"
-
-
 def test_a_label_one_harness_can_run_carries_that_block_alone(tmp_path):
     write_config(root=tmp_path, text=WITHOUT_CODEX)
 
@@ -205,6 +189,11 @@ def test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named(tmp
             "an agent cap",
             "max_agents = 3\n" + CONFIG,
             "max_agents: Extra inputs are not permitted",
+        ),
+        (
+            "an assignee",
+            'assignee = "@me"\n' + CONFIG,
+            "assignee: Extra inputs are not permitted",
         ),
         (
             "no assignment routes",

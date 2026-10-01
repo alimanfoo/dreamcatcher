@@ -42,13 +42,10 @@ def test_every_issue_fact_requires_evidence(value):
         IssueFact.model_validate({"value": value})
 
 
-def config_with_routes(
-    *, labels: Sequence[str], assignee: str = "@me"
-) -> DreamcatcherConfig:
+def config_with_routes(*, labels: Sequence[str]) -> DreamcatcherConfig:
     """Return a config that routes each label to the same harness recipe."""
     return DreamcatcherConfig.model_validate(
         {
-            "assignee": assignee,
             "assignment": [{"label": label, "claude": SETTINGS} for label in labels],
         }
     )
@@ -78,11 +75,12 @@ def observe(
     config: DreamcatcherConfig,
     assignments: Sequence[AgentAssignment] = (),
     incomplete_setups: dict[int, str | None] | None = None,
+    account: str = POSTED_BY,
 ):
     """Return the issue observations after asserting that the listing succeeded."""
     found = observe_issues(
         repository=REPOSITORY,
-        account=POSTED_BY,
+        account=account,
         config=config,
         assignments=list(assignments),
         incomplete_setups=({} if incomplete_setups is None else incomplete_setups),
@@ -190,11 +188,16 @@ def test_a_listing_failure_makes_the_whole_observation_unknown(gh):
 def test_a_later_route_failure_preserves_earlier_issue_observations(gh):
     gh.replies(
         stdout=listing(issues=[(8, FILED)]),
-        to=f"issue list --repo {REPOSITORY} --assignee @me --label {ASSIGNMENT_LABEL}",
+        to=(
+            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
+            f"--label {ASSIGNMENT_LABEL}"
+        ),
     )
     gh.fails(
         stderr="gh: could not connect to github.com",
-        to=f"issue list --repo {REPOSITORY} --assignee @me --label dream:less",
+        to=(
+            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} --label dream:less"
+        ),
     )
 
     found = observe_issues(
@@ -211,9 +214,10 @@ def test_a_later_route_failure_preserves_earlier_issue_observations(gh):
     assert found.observations[0].is_open.value is IssueFactValue.TRUE
 
 
-def test_an_explicit_assignee_is_matched_without_case_sensitivity(gh):
+def test_the_signed_in_account_is_matched_without_case_sensitivity(gh):
     found = observe(
-        config=config_with_routes(labels=[ASSIGNMENT_LABEL], assignee=POSTED_BY.upper())
+        config=config_with_routes(labels=[ASSIGNMENT_LABEL]),
+        account=POSTED_BY.upper(),
     )[0]
 
     assert found.is_assigned_to_user.value is IssueFactValue.TRUE
