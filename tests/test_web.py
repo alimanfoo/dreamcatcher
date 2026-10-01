@@ -25,6 +25,7 @@ from status_fabrications import (
 from werkzeug.test import TestResponse
 
 import dreamcatcher.web as web_module
+import dreamcatcher.web_server as web_server_module
 from dreamcatcher.agent_assignments import read_agent_assignment
 from dreamcatcher.agent_rounds import (
     AgentAssignmentRoundPurpose,
@@ -1201,7 +1202,7 @@ def test_one_repository_always_derives_the_same_starting_port(tmp_path):
     state.bootstrap()
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
 
-    assert web_module._derive_starting_port(state=state) == 8262
+    assert web_server_module._derive_starting_port(state=state) == 8262
 
 
 def test_an_occupied_starting_port_makes_the_scan_move_on(tmp_path, monkeypatch):
@@ -1254,7 +1255,7 @@ def test_the_base_port_starts_a_scan_with_no_repository_record(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
 
-    assert web_module._derive_starting_port(state=state) == WEB_BASE_PORT
+    assert web_server_module._derive_starting_port(state=state) == WEB_BASE_PORT
 
 
 def test_the_browser_receives_the_address_the_server_listens_on(
@@ -1324,12 +1325,12 @@ def test_an_interruption_while_opening_the_browser_ends_without_an_error(tmp_pat
 def test_a_scan_with_no_free_port_says_so(tmp_path, monkeypatch):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    monkeypatch.setattr(web_module, "WEB_MAX_PORT", WEB_BASE_PORT)
-    failure = web_module._WebServerBindError(
+    monkeypatch.setattr(web_server_module, "WEB_MAX_PORT", WEB_BASE_PORT)
+    failure = web_server_module._WebServerBindError(
         error=OSError(errno.EADDRINUSE, "address already in use")
     )
     monkeypatch.setattr(
-        web_module, "_ExclusiveWebServer", MagicMock(side_effect=failure)
+        web_server_module, "_ExclusiveWebServer", MagicMock(side_effect=failure)
     )
 
     with pytest.raises(ReportableError, match="no free port"):
@@ -1343,11 +1344,11 @@ def test_a_scan_with_no_free_port_says_so(tmp_path, monkeypatch):
 def test_a_bind_failure_other_than_contention_is_reported(tmp_path, monkeypatch):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    failure = web_module._WebServerBindError(
+    failure = web_server_module._WebServerBindError(
         error=OSError(errno.EACCES, "permission denied")
     )
     monkeypatch.setattr(
-        web_module, "_ExclusiveWebServer", MagicMock(side_effect=failure)
+        web_server_module, "_ExclusiveWebServer", MagicMock(side_effect=failure)
     )
 
     with pytest.raises(ReportableError, match="permission denied"):
@@ -1360,13 +1361,13 @@ def test_a_bind_failure_other_than_contention_is_reported(tmp_path, monkeypatch)
 
 
 def test_the_web_server_refuses_address_reuse():
-    assert web_module._ExclusiveWebServer.allow_reuse_address is False
+    assert web_server_module._ExclusiveWebServer.allow_reuse_address is False
 
 
 def test_the_default_server_runner_serves_forever():
     server = MagicMock()
 
-    web_module._run_server(server=server)
+    web_server_module._run_server(server=server)
 
     server.serve_forever.assert_called_once_with()
 
