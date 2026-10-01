@@ -217,8 +217,10 @@ contacts GitHub and works whether or not the daemon is running.
 
 While a round runs, its assignment or conversation page offers a stop control
 once the harness session is known. The running round stops within about a
-second, then waits for a new pull-request post or issue comment before it starts
-another round in the same session.
+second. An open assignment then waits for a new pull-request post, and a
+conversation waits for a new issue comment, before it starts another round in
+the same session. Merging or closing the assignment's pull request starts its
+wrap-up round without waiting for a post.
 
 ```sh
 dreamcatcher web

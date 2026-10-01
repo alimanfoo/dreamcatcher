@@ -447,16 +447,17 @@ request is ready for review. For example, if the first implementation round ends
 by asking the user a question, the user's answer causes another implementation
 round to be scheduled.
 
-Merging or closing the pull request causes a wrap-up round to be scheduled
-unless the latest round was stopped. An errored or interrupted round does not
-require user input. Dreamcatcher schedules a recovery round automatically unless
-the assignment has entered a fault.
+Merging or closing the pull request always causes a wrap-up round to be
+scheduled. An errored or interrupted round does not require user input.
+Dreamcatcher schedules a recovery round automatically unless the assignment has
+entered a fault.
 
-A stopped assignment round is not recovered, even if its pull request has been
-merged or closed. It waits for a new user post. That post starts an ordinary
-round whose purpose follows the pull request's current state, and its prompt
-says that the user stopped the previous round. Because the fault rule counts
-only two consecutive errored rounds, a stopped round ends a run of errors.
+A stopped assignment round is not recovered. While its pull request remains
+open, it waits for a new user post. Merging or closing the pull request starts
+an ordinary wrap-up round without waiting for a post. Either event gives the new
+round a prompt saying that the user stopped the previous round. Because the
+fault rule counts only two consecutive errored rounds, a stopped round ends a
+run of errors.
 
 ### Scheduling work
 
