@@ -20,10 +20,21 @@ from enum import StrEnum
 from pathlib import Path
 from threading import Event as Flag
 from threading import Lock, Thread
-from typing import Annotated, Literal, Protocol, Self
+from typing import Annotated, Literal, Self
 
 from pydantic import AwareDatetime, Field, PositiveInt, model_validator
 
+from dreamcatcher.agent_round_harness import (
+    AgentRoundFinisher as AgentRoundFinisher,
+)
+from dreamcatcher.agent_round_harness import AgentRoundHarness as AgentRoundHarness
+from dreamcatcher.agent_round_harness import (
+    HarnessSessionIdentifierRecorder as HarnessSessionIdentifierRecorder,
+)
+from dreamcatcher.agent_round_paths import (
+    AGENT_ROUND_RECORD_NAME as AGENT_ROUND_RECORD_NAME,
+)
+from dreamcatcher.agent_round_paths import AgentRoundPaths as AgentRoundPaths
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.commands import spawn_command
 from dreamcatcher.config import AgentHarness
@@ -40,15 +51,9 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedEvent, FeedNote, FeedProse, FeedRenderer
 from dreamcatcher.harness_adapters import (
     AgentRoundLaunchRequest,
-    HarnessAdapter,
-    HarnessInvocation,
-    HarnessOutput,
     HarnessSessionIdentifier,
 )
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
-
-# The file in a round's own directory saying what the round did.
-AGENT_ROUND_RECORD_NAME = "round.json"
 
 # How long a successful harness process may take to expose its final result
 # after it exits. A reader normally settles immediately on the result event or
@@ -57,41 +62,6 @@ FINAL_OUTPUT_CAPTURE_TIMEOUT_SECONDS = 5
 
 # How often a live round checks whether the web process asked it to stop.
 STOP_REQUEST_POLL_INTERVAL_SECONDS = 1
-
-
-class HarnessSessionIdentifierRecorder(Protocol):
-    """Record the harness session identifier that an agent round observes."""
-
-    def __call__(self, *, identifier: str) -> None:
-        """Record the identifier."""
-
-
-class AgentRoundFinisher(Protocol):
-    """Finish a round whose harness exited successfully, before the round ends.
-
-    Raising a `ReportableError` fails the round, and the round notes why in its
-    feed.
-    """
-
-    def __call__(self, *, final_output: str | None) -> None:
-        """Finish the round with the final output its harness reported, if any."""
-
-
-@dataclass(frozen=True, kw_only=True)
-class AgentRoundHarness:
-    """The harness command that a round runs, and the reader of its output."""
-
-    adapter: HarnessAdapter
-    invocation: HarnessInvocation
-    record_harness_session_identifier: HarnessSessionIdentifierRecorder
-
-    def read(self, *, line: str) -> HarnessOutput:
-        """Record the harness session that one line reports, and return the line."""
-        output = self.adapter.read_output(line=line)
-        identifier = output.harness_session_identifier
-        if identifier is not None:
-            self.record_harness_session_identifier(identifier=identifier)
-        return output
 
 
 class AgentAssignmentRoundPurpose(StrEnum):
@@ -302,63 +272,6 @@ def start_agent_round(
         finish_round=request.finish_round,
         clock=clock,
     )
-
-
-@dataclass(frozen=True, kw_only=True)
-class AgentRoundPaths:
-    """Provide the worktree and file paths for a numbered round.
-
-    The round runs in its owner's worktree and writes into the directory its
-    number selects under that owner's rounds directory. Keeping the
-    number beside that parent makes one value authoritative for both the path
-    and the record the round writes.
-
-    The paths are available before the round creates any files.
-    """
-
-    worktree: Path
-    rounds_directory: Path
-    number: PositiveInt
-
-    @property
-    def directory(self) -> Path:
-        """The directory holding this numbered round's files."""
-        return self.rounds_directory / str(self.number)
-
-    @property
-    def prompt(self) -> Path:
-        """The file holding what the round asked the harness to do."""
-        return self.directory / "prompt.txt"
-
-    @property
-    def record(self) -> Path:
-        """The file saying when the round started, and how it ended."""
-        return self.directory / AGENT_ROUND_RECORD_NAME
-
-    @property
-    def feed(self) -> Path:
-        """The file holding the round as a reader reads it."""
-        return self.directory / "feed.txt"
-
-    @property
-    def raw_output(self) -> Path:
-        """The file holding the harness's own stdout, as it arrived."""
-        return self.directory / "raw.jsonl"
-
-    @property
-    def round_input(self) -> Path:
-        """The file holding the input that the round's owner delivered."""
-        return self.directory / "inbox.json"
-
-    @property
-    def stop_request(self) -> Path:
-        """The file asking this round to stop, when one has been requested."""
-        return self.directory / "stop-request"
-
-    @property
-    def final_output(self) -> Path:
-        """The file holding the final result that the harness reports, if any."""
-        return self.directory / "final.md"
 
 
 def read_agent_round_records(

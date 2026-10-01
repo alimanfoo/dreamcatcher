@@ -10,6 +10,20 @@ SOURCE_ROOT = Path(__file__).parents[2] / "src" / "dreamcatcher"
 MODULE_LINE_BAR = 600
 FUNCTION_LINE_BAR = 50
 
+# These modules and functions hold one architecture-level transaction or
+# boundary. Splitting them would hide that shape rather than reveal a concept.
+MODULE_EXCEPTIONS = {
+    "github.py": "the single GitHub command and response boundary",
+}
+FUNCTION_EXCEPTIONS = {
+    ("agent_assignments.py", "create"): "the assignment creation transaction",
+    ("agent_rounds.py", "__init__"): "the round process and thread assembly",
+    ("cli.py", "build_cli_parser"): "the complete command-line grammar",
+    ("daemon.py", "run"): "the daemon lifecycle",
+    ("daemon.py", "run_scheduler_cycle"): "one isolated scheduler cycle",
+    ("scheduler/coordinator.py", "tick"): "one scheduler tick transaction",
+}
+
 
 @dataclass(frozen=True)
 class ModuleMeasurement:
@@ -61,7 +75,14 @@ def _print_modules(*, measurements: list[ModuleMeasurement]) -> None:
     print("| Module | Lines | S1 |")
     print("| --- | ---: | --- |")
     for measurement in measurements:
-        result = "short" if measurement.lines > MODULE_LINE_BAR else "met"
+        module = measurement.path.relative_to(SOURCE_ROOT).as_posix()
+        exception = MODULE_EXCEPTIONS.get(module)
+        if measurement.lines <= MODULE_LINE_BAR:
+            result = "met"
+        elif exception is None:
+            result = "short"
+        else:
+            result = f"exception: {exception}"
         print(
             f"| `{_display_path(path=measurement.path)}` "
             f"| {measurement.lines} | {result} |"
@@ -72,11 +93,15 @@ def _print_functions(*, measurements: list[FunctionMeasurement]) -> None:
     print()
     print("## Functions over the S2 bar")
     print()
-    print("| Function | Lines |")
-    print("| --- | ---: |")
+    print("| Function | Lines | Named exception |")
+    print("| --- | ---: | --- |")
     for measurement in measurements:
         location = f"{_display_path(path=measurement.path)}:{measurement.line}"
-        print(f"| `{location}::{measurement.name}` | {measurement.lines} |")
+        module = measurement.path.relative_to(SOURCE_ROOT).as_posix()
+        exception = FUNCTION_EXCEPTIONS.get((module, measurement.name), "")
+        print(
+            f"| `{location}::{measurement.name}` | {measurement.lines} | {exception} |"
+        )
 
 
 def main() -> None:

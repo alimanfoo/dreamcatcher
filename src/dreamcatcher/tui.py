@@ -1,22 +1,12 @@
-"""Render status, assignment, and feed views from local state.
-
-The views read the state directory without contacting GitHub or the daemon.
-Status and assignment views redraw the current state, while a feed appends new
-lines and preserves terminal scrollback. Color is added only during rendering.
-
-"""
+"""Render assignment, conversation, and feed views from local state."""
 
 from collections.abc import Callable, Iterable, Sequence
-from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import datetime, tzinfo
 from time import sleep
-from typing import cast
 
-from rich.console import Console, Group, RenderableType
-from rich.live import Live
+from rich.console import Console, RenderableType
 from rich.padding import Padding
-from rich.table import Table
 from rich.text import Text
 
 from dreamcatcher.agent_assignments import AgentAssignment
@@ -36,426 +26,34 @@ from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.issue_conversations import IssueConversation
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
-    ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
-    CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER,
     STATUSES_THAT_END_A_VIEW,
     AgentAssignmentStatus,
-    AgentAssignmentStatusValue,
     AgentRoundStatus,
-    DreamcatcherStatusReport,
     IssueConversationStatus,
-    IssueFactValue,
-    IssueObservation,
     read_agent_assignment_statuses_for_issue,
     read_issue_conversation_status,
-    read_status_report,
 )
-from dreamcatcher.words import describe_count, describe_countdown, describe_time
-
-# What each assignment summary is set in, so a reader can scan the status table.
-ASSIGNMENT_STATUS_STYLES = dict(
-    zip(
-        ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
-        ("yellow", "red", "green", "cyan", "magenta", "dim"),
-        strict=True,
-    )
+from dreamcatcher.tui_shared import (
+    ASSIGNMENT_STATUS_STYLES,
+    CONVERSATION_STATUS_STYLES,
+    SECTION_PADDING,
+    ViewSnapshot,
+    combine_renderable_parts,
+    create_table,
+    refresh_live_view,
+    refresh_until_view_ends,
+    render_assignment_latest_output,
+    render_latest_output,
+    render_section,
 )
-
-CONVERSATION_STATUS_STYLES = dict(
-    zip(
-        CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER,
-        ("yellow", "red", "green", "cyan", "magenta", "dim"),
-        strict=True,
-    )
+from dreamcatcher.tui_shared import (
+    VIEW_REFRESH_INTERVAL as VIEW_REFRESH_INTERVAL,
 )
-
-# How long a following view waits between refreshes for new round output.
-VIEW_REFRESH_INTERVAL = 1.0
-
-# How far a section's rows are set in from its heading.
-SECTION_PADDING = (0, 0, 0, 2)
-
-
-def open_tui_console() -> Console:
-    """Return a console that follows the terminal's current dimensions.
-
-    Tests may supply a console with fixed dimensions for stable output.
-    """
-    return Console()
-
-
-@dataclass(frozen=True, kw_only=True)
-class _ViewSnapshot:
-    """Capture one rendered view and whether more output can reach it.
-
-    A view is over when nothing more can reach it. That is not the same as the
-    final snapshot, because an active view refreshes once more after first
-    reporting that it is over.
-    """
-
-    renderable: RenderableType
-    is_over: bool
-
-
-def _refresh_live_view(
-    *,
-    console: Console,
-    read_snapshot: Callable[[], _ViewSnapshot],
-    wait: WaitForSeconds,
-) -> None:
-    """Redraw snapshots in a terminal until the view ends.
-
-    A terminal uses its alternate screen and prints the final snapshot after a
-    completed view ends. An interrupted active view leaves no final snapshot.
-
-    A non-terminal or dumb terminal prints one snapshot and returns.
-    """
-    if not console.is_terminal or console.is_dumb_terminal:
-        console.print(read_snapshot().renderable)
-        return
-    last_snapshot = _ViewSnapshot(renderable="", is_over=False)
-    with Live(console=console, auto_refresh=False, screen=True) as live:
-
-        def refresh_live_display() -> bool:
-            """Draw the current snapshot and return whether the view is over."""
-            nonlocal last_snapshot
-            last_snapshot = read_snapshot()
-            live.update(last_snapshot.renderable, refresh=True)
-            return last_snapshot.is_over
-
-        _refresh_until_view_ends(
-            console=console, refresh_view=refresh_live_display, wait=wait
-        )
-    if last_snapshot.is_over:
-        console.print(last_snapshot.renderable)
-
-
-def _refresh_until_view_ends(
-    *, console: Console, refresh_view: Callable[[], bool], wait: WaitForSeconds
-) -> None:
-    """Refresh until the view ends.
-
-    The extra refresh lets output that follows a round's terminal record arrive.
-    A view that is already over returns after its first refresh, and a
-    non-terminal console always takes one refresh. KeyboardInterrupt ends an
-    active view quietly.
-    """
-    was_over_on_previous_refresh = True
-    with suppress(KeyboardInterrupt):
-        while True:
-            is_over = refresh_view()
-            if (is_over and was_over_on_previous_refresh) or not console.is_terminal:
-                return
-            was_over_on_previous_refresh = is_over
-            wait(VIEW_REFRESH_INTERVAL)
-
-
-def show_status_view(
-    *,
-    state: StateDirectory,
-    console: Console,
-    clock: Callable[[], datetime] = read_current_time,
-    wait: WaitForSeconds = sleep,
-    zone: tzinfo | None = None,
-) -> None:
-    """Show instance, issue, and assignment status until interrupted.
-
-    A non-terminal or dumb terminal renders one report and returns.
-    Times use the given zone, or the machine's local zone when it is None.
-    """
-    _refresh_live_view(
-        console=console,
-        read_snapshot=lambda: _read_status_snapshot(
-            state=state, clock=clock, zone=zone
-        ),
-        wait=wait,
-    )
-
-
-def _read_status_snapshot(
-    *, state: StateDirectory, clock: Callable[[], datetime], zone: tzinfo | None
-) -> _ViewSnapshot:
-    """Return the current status report as a view that never ends itself.
-
-    A daemon can start, a tick can run, or a round can begin after any refresh.
-    """
-    return _ViewSnapshot(
-        renderable=_render_status(
-            report=read_status_report(state=state, clock=clock), zone=zone
-        ),
-        is_over=False,
-    )
-
-
-def _render_status(
-    *, report: DreamcatcherStatusReport, zone: tzinfo | None
-) -> RenderableType:
-    return _combine_renderable_parts(
-        parts=[
-            Text(report.repository or "repository unknown", style="bold"),
-            _render_instance_status(report=report, zone=zone),
-            _render_assignments(
-                assignments=report.assignment_statuses,
-                failed_setups=report.failed_assignment_setups,
-                available_issues=report.available_issues,
-                blocked_issues=report.blocked_issues,
-            ),
-            _render_conversations(conversations=report.conversation_statuses),
-            _describe_empty_status_report(report=report),
-        ]
-    )
-
-
-def _combine_renderable_parts(
-    *, parts: Sequence[RenderableType | None]
-) -> RenderableType:
-    return Group(*(part for part in parts if part is not None))
-
-
-def _render_instance_status(
-    *, report: DreamcatcherStatusReport, zone: tzinfo | None
-) -> RenderableType:
-    """Render the daemon, scheduler, capacity, and cooldown facts."""
-    table = _create_table(columns=2)
-    daemon = (
-        "not running"
-        if report.daemon_pid is None
-        else " ".join(
-            filter(
-                None,
-                (
-                    "running",
-                    (
-                        None
-                        if report.dreamcatcher_version is None
-                        else f"dreamcatcher v{report.dreamcatcher_version}"
-                    ),
-                    f"as pid {report.daemon_pid}",
-                ),
-            )
-        )
-    )
-    tick = (
-        None
-        if report.daemon_pid is None
-        else describe_countdown(
-            at=report.at,
-            since=report.latest_scheduler_tick,
-            span_seconds=report.scheduler_interval_seconds,
-        )
-    )
-    cooldown = (
-        "none"
-        if report.active_global_cooldown is None
-        else f"ends {describe_time(at=report.active_global_cooldown.ends, zone=zone)}"
-    )
-    for name, value in (
-        ("daemon", daemon),
-        ("harness", report.agent_harness),
-        ("next update in", tick),
-        (
-            "agent capacity",
-            (
-                None
-                if report.max_agents is None
-                else f"{report.running_agents} of {report.max_agents} working"
-            ),
-        ),
-        ("global cooldown", cooldown),
-        ("scheduler hold", report.scheduler_hold),
-    ):
-        if value is not None:
-            table.add_row(Text(name), Text(value))
-    return _render_section(heading="instance", body=table)
-
-
-def _render_assignments(
-    *,
-    assignments: Sequence[AgentAssignmentStatus],
-    failed_setups: Sequence[IssueObservation],
-    available_issues: Sequence[IssueObservation],
-    blocked_issues: Sequence[IssueObservation],
-) -> RenderableType | None:
-    """Render assignment work as one section, mirroring the web home view.
-
-    Orders active assignments, failed assignment setups, available issues, and
-    blocked issues in that sequence, with a completed-assignment count last.
-    """
-    if not (assignments or failed_setups or available_issues or blocked_issues):
-        return None
-    completed = list(
-        filter(
-            lambda status: status.value is AgentAssignmentStatusValue.COMPLETE,
-            assignments,
-        )
-    )
-    ordered = sorted(
-        filter(
-            lambda status: status.value is not AgentAssignmentStatusValue.COMPLETE,
-            assignments,
-        ),
-        key=lambda status: ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER.index(
-            status.value
-        ),
-    )
-    rows = _render_assignment_rows(assignments=ordered)
-    rows += _render_failed_setups(failed_setups=failed_setups)
-    rows += _render_open_issues(
-        available_issues=available_issues, blocked_issues=blocked_issues
-    )
-    if completed:
-        rows.append(
-            Text(describe_count(number=len(completed), noun="completed assignment"))
-        )
-    return _render_section(heading="assignments", body=Group(*rows))
-
-
-def _render_failed_setups(
-    *, failed_setups: Sequence[IssueObservation]
-) -> list[RenderableType]:
-    """Render incomplete assignment setups with recorded failures."""
-    if not failed_setups:
-        return []
-    table = _create_table(columns=2)
-    for setup in failed_setups:
-        table.add_row(Text(f"GH{setup.issue}"), Text(cast("str", setup.setup_failure)))
-    return [table]
-
-
-def _render_open_issues(
-    *,
-    available_issues: Sequence[IssueObservation],
-    blocked_issues: Sequence[IssueObservation],
-) -> list[RenderableType]:
-    """Render available and blocked issues as one table, status inline per row."""
-    rows = [
-        (
-            issue,
-            ", ".join(issue.assignment_labels or []),
-            (
-                issue.blocked.evidence
-                if issue.blocked.value is IssueFactValue.TRUE
-                else "available"
-            ),
-        )
-        for issue in (*available_issues, *blocked_issues)
-    ]
-    if not rows:
-        return []
-    table = _create_table(columns=3)
-    for issue, middle, status in rows:
-        table.add_row(Text(f"GH{issue.issue}"), Text(middle), Text(status))
-    return [table]
-
-
-def _render_assignment_rows(
-    *, assignments: Sequence[AgentAssignmentStatus]
-) -> list[RenderableType]:
-    """Render the detailed rows for non-complete assignments."""
-    if not assignments:
-        return []
-    identifier_width = max(len(status.assignment.identifier) for status in assignments)
-    status_width = max(len(status.value) for status in assignments)
-    rows: list[RenderableType] = []
-    for status in assignments:
-        table = Table(box=None, show_header=False, pad_edge=False)
-        table.add_column(style="bold", width=identifier_width)
-        table.add_column(width=status_width)
-        table.add_column(overflow="fold")
-        table.add_row(
-            Text(status.assignment.identifier),
-            Text(
-                str(status.value),
-                style=ASSIGNMENT_STATUS_STYLES[status.value],
-            ),
-            Text(status.detail),
-        )
-        rows.append(table)
-        latest_output = _render_assignment_latest_output(status=status)
-        if latest_output is not None:
-            rows.append(latest_output)
-    return rows
-
-
-def _render_conversations(
-    *, conversations: Sequence[IssueConversationStatus]
-) -> RenderableType | None:
-    """Render conversations in attention order, preserving order within a status."""
-    if not conversations:
-        return None
-    table = _create_table(columns=3)
-    for status in sorted(
-        conversations,
-        key=lambda status: CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER.index(
-            status.value
-        ),
-    ):
-        table.add_row(
-            Text(f"GH{status.issue}"),
-            Text(
-                str(status.value),
-                style=CONVERSATION_STATUS_STYLES[status.value],
-            ),
-            Text(status.detail),
-        )
-    return _render_section(heading="issue conversations", body=table)
-
-
-def _render_assignment_latest_output(*, status: AgentAssignmentStatus) -> Text | None:
-    """Render an assignment's latest output as one dimmed line."""
-    return _render_latest_output(latest_output=status.latest_output)
-
-
-def _render_latest_output(*, latest_output: str | None) -> Text | None:
-    """Render agent work's latest output as one dimmed line."""
-    if latest_output is None:
-        return None
-    return Text(
-        latest_output,
-        style="dim",
-        overflow="ellipsis",
-        no_wrap=True,
-    )
-
-
-def _describe_empty_status_report(
-    *, report: DreamcatcherStatusReport
-) -> RenderableType | None:
-    """Describe an instance that has no issue or assignment status yet."""
-    if (
-        report.failed_assignment_setups
-        or report.available_issues
-        or report.blocked_issues
-        or report.assignment_statuses
-        or report.conversation_statuses
-    ):
-        return None
-    return Group(Text(), Text("no issues or agent assignments recorded yet"))
-
-
-def _create_table(*, columns: int) -> Table:
-    """Return a table whose cells fold instead of truncating.
-
-    The first column names an assignment or an issue, which is what a reader picks
-    a row out by, so it folds onto another line rather than being cut short.
-    Two assignments at one issue differ only in the time in their identifiers,
-    and a cut that reached that far would leave the rows reading the same.
-    """
-    table = Table(box=None, show_header=False, pad_edge=False)
-    for number in range(columns):
-        table.add_column(
-            style="bold" if number == 0 else "",
-            overflow="fold",
-        )
-    return table
-
-
-def _render_section(*, heading: str, body: RenderableType) -> RenderableType:
-    return Group(
-        Text(),
-        Text(heading, style="bold blue"),
-        Padding(body, SECTION_PADDING, expand=False),
-    )
+from dreamcatcher.tui_shared import (
+    open_tui_console as open_tui_console,
+)
+from dreamcatcher.tui_status import show_status_view as show_status_view
+from dreamcatcher.words import describe_count, describe_time
 
 
 def show_assignment_view(
@@ -473,7 +71,7 @@ def show_assignment_view(
     renders one snapshot and returns.
     Times use the given zone, or the machine's local zone when it is None.
     """
-    _refresh_live_view(
+    refresh_live_view(
         console=console,
         read_snapshot=lambda: _read_assignment_snapshot(
             state=state, issue=issue, clock=clock, zone=zone
@@ -496,7 +94,7 @@ def show_conversation_view(
     That is once it enters fault, or once the status report no longer lists it.
     A non-terminal or dumb terminal renders one snapshot and returns.
     """
-    _refresh_live_view(
+    refresh_live_view(
         console=console,
         read_snapshot=lambda: _read_conversation_snapshot(
             state=state, issue=issue, clock=clock, zone=zone
@@ -511,10 +109,10 @@ def _read_conversation_snapshot(
     issue: int,
     clock: Callable[[], datetime],
     zone: tzinfo | None,
-) -> _ViewSnapshot:
+) -> ViewSnapshot:
     """Return one conversation snapshot and whether its live view is over."""
     status = _find_conversation_status_for_issue(state=state, issue=issue, clock=clock)
-    return _ViewSnapshot(
+    return ViewSnapshot(
         renderable=_render_conversation(state=state, status=status, zone=zone),
         is_over=status.is_over,
     )
@@ -556,15 +154,15 @@ def _render_conversation(
                 ("effort", record.effort),
             ]
         )
-    table = _create_table(columns=2)
+    table = create_table(columns=2)
     for name, value in facts:
         table.add_row(Text(name), Text(str(value)))
-    return _combine_renderable_parts(
+    return combine_renderable_parts(
         parts=[
             Text(f"issue conversation GH{status.issue}"),
             rendered_status,
-            _render_latest_output(latest_output=status.latest_output),
-            _render_section(heading="conversation", body=table),
+            render_latest_output(latest_output=status.latest_output),
+            render_section(heading="conversation", body=table),
             _render_round_statuses(round_statuses=status.round_statuses, zone=zone),
         ]
     )
@@ -576,7 +174,7 @@ def _read_assignment_snapshot(
     issue: int,
     clock: Callable[[], datetime],
     zone: tzinfo | None,
-) -> _ViewSnapshot:
+) -> ViewSnapshot:
     """Return the newest assignment and whether its view is over.
 
     Each refresh reads the issue's statuses once and derives both the rendered
@@ -587,7 +185,7 @@ def _read_assignment_snapshot(
         issue=issue,
         clock=clock,
     )
-    return _ViewSnapshot(
+    return ViewSnapshot(
         renderable=_render_assignment(
             state=state, assignment_statuses=assignment_statuses, zone=zone
         ),
@@ -601,27 +199,21 @@ def _render_assignment(
     assignment_statuses: list[AgentAssignmentStatus],
     zone: tzinfo | None,
 ) -> RenderableType:
-    """Render the newest assignment with older assignments beneath it.
-
-    Each assignment dispatch creates another assignment for the issue, and the
-    caller orders them newest first.
-    """
+    """Render the newest assignment with older assignments beneath it."""
     current_status = assignment_statuses[0]
     status_value = str(current_status.value)
     rendered_status = Text(f"{status_value}  {current_status.detail}")
     rendered_status.stylize(
-        ASSIGNMENT_STATUS_STYLES[current_status.value],
-        0,
-        len(status_value),
+        ASSIGNMENT_STATUS_STYLES[current_status.value], 0, len(status_value)
     )
-    latest_output = _render_assignment_latest_output(status=current_status)
+    latest_output = render_assignment_latest_output(status=current_status)
     if latest_output is not None:
         latest_output = Padding(
             latest_output,
             (0, 0, 0, SECTION_PADDING[3]),
             expand=False,
         )
-    return _combine_renderable_parts(
+    return combine_renderable_parts(
         parts=[
             Text(f"newest agent assignment {current_status.assignment.identifier}"),
             rendered_status,
@@ -635,14 +227,12 @@ def _render_assignment(
 
 
 def _render_assignment_summary(
-    *,
-    state: StateDirectory,
-    status: AgentAssignmentStatus,
+    *, state: StateDirectory, status: AgentAssignmentStatus
 ) -> RenderableType:
     """Return what the assignment dispatch settled for every round."""
     assignment = status.assignment
     record = assignment.record
-    table = _create_table(columns=2)
+    table = create_table(columns=2)
     for name, value in (
         ("issue identifier", f"GH{record.issue}"),
         ("agent assignment identifier", assignment.identifier),
@@ -659,17 +249,13 @@ def _render_assignment_summary(
         ("effort", record.effort),
     ):
         table.add_row(Text(name), Text(str(value)))
-    return _render_section(heading="assignment", body=table)
+    return render_section(heading="assignment", body=table)
 
 
 def _render_rounds(
     *, status: AgentAssignmentStatus, zone: tzinfo | None
 ) -> RenderableType | None:
-    """Return the rounds the assignment has run, newest first.
-
-    Each row keeps the round number accepted by `feed --round`. An assignment
-    with no rounds returns no section.
-    """
+    """Return the rounds the assignment has run, newest first."""
     return _render_round_statuses(round_statuses=status.round_statuses, zone=zone)
 
 
@@ -680,7 +266,7 @@ def _render_round_statuses(
     if not round_statuses:
         return None
     shows_revision = any(status.revision is not None for status in round_statuses)
-    table = _create_table(columns=6 if shows_revision else 5)
+    table = create_table(columns=6 if shows_revision else 5)
     for round_status in reversed(round_statuses):
         record = round_status.record
         cells = [
@@ -702,26 +288,18 @@ def _render_round_statuses(
             ]
         )
         table.add_row(*cells)
-    return _render_section(heading="rounds", body=table)
+    return render_section(heading="rounds", body=table)
 
 
 def _render_harness_resume(
-    *,
-    state: StateDirectory,
-    status: AgentAssignmentStatus,
+    *, state: StateDirectory, status: AgentAssignmentStatus
 ) -> RenderableType | None:
-    """Return how to resume the harness session by hand, when one exists.
-
-    A round of the daemon's own is talking to the harness already, so there is
-    nothing to resume until it has finished. An assignment that has run no round
-    at all has no harness session behind it either, so there is nothing to resume
-    there and never will be.
-    """
+    """Return how to resume the harness session by hand, when one exists."""
     if status.hand_resume_command is None:
         return None
     worktree = state.describe_path(path=status.assignment.record.worktree)
     command = " ".join(status.hand_resume_command)
-    return _render_section(
+    return render_section(
         heading="resume harness session yourself",
         body=Text(f"cd {worktree}\n{command}"),
     )
@@ -730,23 +308,17 @@ def _render_harness_resume(
 def _render_older_assignments(
     *, older_statuses: list[AgentAssignmentStatus]
 ) -> RenderableType | None:
-    """Return the assignments at this issue that came before, newest first.
-
-    An assignment that is the only one at its issue has none, and answers nothing.
-    """
+    """Return the assignments at this issue that came before, newest first."""
     if not older_statuses:
         return None
-    table = _create_table(columns=3)
+    table = create_table(columns=3)
     for status in older_statuses:
         table.add_row(
             Text(f"agent assignment {status.assignment.identifier}"),
-            Text(
-                str(status.value),
-                style=ASSIGNMENT_STATUS_STYLES[status.value],
-            ),
+            Text(str(status.value), style=ASSIGNMENT_STATUS_STYLES[status.value]),
             Text(status.detail),
         )
-    return _render_section(heading="older assignments", body=table)
+    return render_section(heading="older assignments", body=table)
 
 
 def show_feed_view(
@@ -759,16 +331,7 @@ def show_feed_view(
     wait: WaitForSeconds = sleep,
     zone: tzinfo | None = None,
 ) -> None:
-    """Show and follow the explicitly selected agent work's feed.
-
-    Naming a round limits the view to that round and ends when the round ends.
-    Without a round number, the view follows new rounds across the gaps between
-    them until the assignment completes or enters fault.
-
-    Every feed line carries its own timestamp, so the view needs no clock. A
-    non-terminal or dumb terminal shows the current contents once and returns.
-    Times use the given zone, or the machine's local zone when it is None.
-    """
+    """Show and follow the explicitly selected agent work's feed."""
     if round_number is not None:
         _show_one_round(
             state=state,
@@ -784,11 +347,7 @@ def show_feed_view(
 
     def refresh_feed() -> bool:
         """Show output since the previous refresh and return whether it is over."""
-        snapshot = _find_feed_owner(
-            state=state,
-            issue=issue,
-            owner_kind=owner_kind,
-        )
+        snapshot = _find_feed_owner(state=state, issue=issue, owner_kind=owner_kind)
         view.show_new_output(
             owner=snapshot.owner,
             records=snapshot.owner.rounds,
@@ -796,7 +355,7 @@ def show_feed_view(
         )
         return snapshot.is_over
 
-    _refresh_until_view_ends(console=console, refresh_view=refresh_feed, wait=wait)
+    refresh_until_view_ends(console=console, refresh_view=refresh_feed, wait=wait)
 
 
 def _show_one_round(
@@ -809,20 +368,12 @@ def _show_one_round(
     wait: WaitForSeconds,
     zone: tzinfo | None,
 ) -> None:
-    """Show one round of the selected agent work until the round ends.
-
-    Raise ReportableError when the assignment has no round with the requested
-    number.
-    """
+    """Show one round of the selected agent work until the round ends."""
     view = _FeedView(console=console, zone=zone)
 
     def refresh_round_feed() -> bool:
         """Show output since the previous refresh and return whether it has ended."""
-        snapshot = _find_feed_owner(
-            state=state,
-            issue=issue,
-            owner_kind=owner_kind,
-        )
+        snapshot = _find_feed_owner(state=state, issue=issue, owner_kind=owner_kind)
         owner = snapshot.owner
         record = next(
             (record for record in owner.rounds if record.number == number), None
@@ -840,9 +391,7 @@ def _show_one_round(
         )
         return record.ending is not None
 
-    _refresh_until_view_ends(
-        console=console, refresh_view=refresh_round_feed, wait=wait
-    )
+    refresh_until_view_ends(console=console, refresh_view=refresh_round_feed, wait=wait)
 
 
 def _find_assignment_statuses_for_issue(
@@ -851,12 +400,7 @@ def _find_assignment_statuses_for_issue(
     issue: int,
     clock: Callable[[], datetime] = read_current_time,
 ) -> list[AgentAssignmentStatus]:
-    """Return the issue's agent-assignment statuses, or refuse if none.
-
-    A view of one issue reads that issue's assignments rather than the full
-    status report. This is the one place that turns an issue with no assignment
-    behind it into words for the reader.
-    """
+    """Return the issue's agent-assignment statuses, or refuse if none."""
     assignment_statuses = read_agent_assignment_statuses_for_issue(
         state=state,
         issue=issue,
@@ -892,10 +436,7 @@ class _FeedOwnerSnapshot:
 def _find_feed_owner(
     *, state: StateDirectory, issue: int, owner_kind: AgentWorkKind
 ) -> _FeedOwnerSnapshot:
-    """Return the selected feed owner and whether more output can reach it.
-
-    Refuse a conversation that has not run a round, since it has no feed yet.
-    """
+    """Return the selected feed owner and whether more output can reach it."""
     if owner_kind is AgentWorkKind.CONVERSATION:
         status = _find_conversation_status_for_issue(state=state, issue=issue)
         if status.conversation is None:
@@ -921,11 +462,7 @@ def _find_feed_owner(
 
 @dataclass(frozen=True, kw_only=True)
 class _FeedView:
-    """Track how far a console has read each round of an agent-work feed.
-
-    Each refresh resumes from the stored byte position. A round without a stored
-    position first receives its heading.
-    """
+    """Track how far a console has read each round of an agent-work feed."""
 
     console: Console
     zone: tzinfo | None
@@ -947,17 +484,9 @@ class _FeedView:
             self._show_new_lines(owner=owner, round_number=record.number)
 
     def _show_round_heading(
-        self,
-        *,
-        record: AgentRoundRecord,
-        detail: str | None,
+        self, *, record: AgentRoundRecord, detail: str | None
     ) -> None:
-        """Show the line that opens a round, saying what caused it.
-
-        A feed holds one round, so the stitch between two of them lands in no
-        file and is the reader's. A blank line sets each round apart from the
-        one before, which is why the first round of a view opens without one.
-        """
+        """Show the line that opens a round, saying what caused it."""
         if self.positions:
             self.console.print()
         round_heading = compose_agent_round_boundary(
@@ -977,10 +506,7 @@ class _FeedView:
         self.positions[record.number] = 0
 
     def _show_new_lines(
-        self,
-        *,
-        owner: AgentAssignment | IssueConversation,
-        round_number: int,
+        self, *, owner: AgentAssignment | IssueConversation, round_number: int
     ) -> None:
         """Show lines the round wrote since the previous refresh."""
         feed_path = owner.compose_round_paths(number=round_number).feed
@@ -995,10 +521,7 @@ class _FeedView:
 
 
 def _render_written_feed_line(*, written_line: str, zone: tzinfo | None) -> Text:
-    """Return one line of a feed as it reads on a console.
-
-    An unparseable line is returned unchanged.
-    """
+    """Return one line of a feed as it reads on a console."""
     line = read_feed_line(written_line=written_line)
     if line is None:
         return Text(written_line)

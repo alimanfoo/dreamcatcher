@@ -16,8 +16,8 @@ from records import (
     write_tick,
 )
 
+import dreamcatcher.assignment_status as assignment_status_module
 import dreamcatcher.scheduler as scheduler_module
-import dreamcatcher.status as status_module
 import dreamcatcher.tui as tui_module
 from dreamcatcher.agent_rounds import (
     AgentAssignmentRoundPurpose,
@@ -298,7 +298,7 @@ def test_status_reads_harness_resume_details_only_when_requested(state, monkeypa
         return "abc-123"
 
     monkeypatch.setattr(
-        status_module,
+        assignment_status_module,
         "find_harness_session_identifier",
         recover_harness_session_identifier,
     )
