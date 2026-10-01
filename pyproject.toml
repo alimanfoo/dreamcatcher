@@ -145,9 +145,11 @@ ban-relative-imports = "all"
 
 # Each library here has one module that may import it, which waives this rule
 # below. The waiver covers the whole rule, so tui.py and web.py could each
-# import the other's library unseen; review catches that. subprocess is not
-# here: bandit's suspicious-subprocess-import already bans it everywhere in src
-# but commands.py, and tui.py and web.py would escape a ban listed here.
+# import the other's library unseen. Ruff cannot waive one banned module for one
+# file, so review catches that, as the one exception to K1 in docs/standard.md.
+# subprocess is not here: bandit's suspicious-subprocess-import already bans it
+# everywhere in src but commands.py, and tui.py and web.py would escape a ban
+# listed here.
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "rich".msg = "Render with rich in tui.py alone, so a colour code never reaches a file."
 "flask".msg = "Import Flask in web.py alone."
