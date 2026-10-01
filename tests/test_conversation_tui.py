@@ -30,8 +30,6 @@ from dreamcatcher.issue_conversations import IssueConversationInput
 from dreamcatcher.scheduler import IssueFactValue, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.tui import (
-    FeedSelection,
-    ViewTiming,
     show_conversation_view,
     show_feed_view,
     show_status_view,
@@ -106,7 +104,7 @@ def test_status_lists_the_issue_conversation(tmp_path):
     show_status_view(
         state=state,
         console=console,
-        timing=ViewTiming(clock=lambda: PINNED),
+        clock=lambda: PINNED,
     )
 
     shown = written.getvalue()
@@ -155,7 +153,7 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
         state=state,
         issue=8,
         console=console,
-        timing=ViewTiming(clock=lambda: PINNED),
+        clock=lambda: PINNED,
     )
 
     shown = written.getvalue()
@@ -176,7 +174,7 @@ def test_conversation_detail_shows_a_failed_round(tmp_path):
         state=state,
         issue=8,
         console=console,
-        timing=ViewTiming(clock=lambda: PINNED),
+        clock=lambda: PINNED,
     )
 
     assert "waiting  round 1 errored (exit 2)" in written.getvalue()
@@ -221,7 +219,7 @@ def test_conversation_detail_shows_two_errors_as_a_fault(tmp_path):
         state=state,
         issue=8,
         console=console,
-        timing=ViewTiming(clock=lambda: PINNED),
+        clock=lambda: PINNED,
     )
 
     shown = written.getvalue()
@@ -235,9 +233,9 @@ def test_conversation_feed_shows_its_saved_activity(tmp_path):
 
     show_feed_view(
         state=state,
-        selection=FeedSelection(issue=8, owner_kind=AgentWorkKind.CONVERSATION),
+        issue=8,
+        owner_kind=AgentWorkKind.CONVERSATION,
         console=console,
-        timing=ViewTiming(clock=lambda: PINNED),
     )
 
     shown = written.getvalue()
@@ -305,9 +303,10 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
 
     show_feed_view(
         state=state,
-        selection=FeedSelection(issue=8, owner_kind=AgentWorkKind.CONVERSATION),
+        issue=8,
+        owner_kind=AgentWorkKind.CONVERSATION,
         console=console,
-        timing=ViewTiming(clock=lambda: PINNED, wait=wait),
+        wait=wait,
     )
 
     shown = written.getvalue()
@@ -324,10 +323,10 @@ def test_conversation_feed_can_select_one_round(tmp_path):
 
     show_feed_view(
         state=state,
-        selection=FeedSelection(issue=8, owner_kind=AgentWorkKind.CONVERSATION),
+        issue=8,
+        owner_kind=AgentWorkKind.CONVERSATION,
         console=console,
         round_number=1,
-        timing=ViewTiming(clock=lambda: PINNED),
     )
 
     assert "I found the answer." in written.getvalue()
@@ -351,7 +350,8 @@ def test_a_missing_conversation_round_says_how_many_exist(tmp_path):
     with pytest.raises(ReportableError, match="has run 1 round, so it has no round 2"):
         show_feed_view(
             state=state,
-            selection=FeedSelection(issue=8, owner_kind=AgentWorkKind.CONVERSATION),
+            issue=8,
+            owner_kind=AgentWorkKind.CONVERSATION,
             console=console,
             round_number=2,
         )
@@ -381,7 +381,7 @@ def test_status_lists_an_eligible_issue_before_its_conversation_is_saved(tmp_pat
     show_status_view(
         state=state,
         console=console,
-        timing=ViewTiming(clock=lambda: PINNED),
+        clock=lambda: PINNED,
     )
 
     shown = written.getvalue()
@@ -398,7 +398,7 @@ def test_conversation_detail_before_its_first_round_shows_its_issue(tmp_path):
         state=state,
         issue=9,
         console=console,
-        timing=ViewTiming(clock=lambda: PINNED),
+        clock=lambda: PINNED,
     )
 
     shown = written.getvalue()
@@ -414,7 +414,8 @@ def test_a_conversation_feed_before_its_first_round_says_so(tmp_path):
     with pytest.raises(ReportableError, match="GH9 has not run a round yet"):
         show_feed_view(
             state=state,
-            selection=FeedSelection(issue=9, owner_kind=AgentWorkKind.CONVERSATION),
+            issue=9,
+            owner_kind=AgentWorkKind.CONVERSATION,
             console=console,
         )
 
@@ -445,7 +446,7 @@ def test_conversations_are_listed_in_attention_order(tmp_path):
     show_status_view(
         state=state,
         console=console,
-        timing=ViewTiming(clock=lambda: PINNED),
+        clock=lambda: PINNED,
     )
 
     shown = written.getvalue()
@@ -491,7 +492,8 @@ def test_a_conversation_view_off_the_report_never_waits(tmp_path, status):
         state=state,
         issue=8,
         console=console,
-        timing=ViewTiming(clock=lambda: PINNED, wait=refusing),
+        clock=lambda: PINNED,
+        wait=refusing,
     )
 
     assert "issue conversation GH8" in written.getvalue()
@@ -510,7 +512,8 @@ def test_a_conversation_view_of_an_idle_conversation_keeps_watching(tmp_path):
         state=state,
         issue=8,
         console=console,
-        timing=ViewTiming(clock=lambda: PINNED, wait=interrupting),
+        clock=lambda: PINNED,
+        wait=interrupting,
     )
 
     assert waits

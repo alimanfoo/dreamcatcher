@@ -256,14 +256,6 @@ class _IssueConversationInspection:
 
 
 @dataclass(frozen=True, kw_only=True)
-class _IssueConversationCandidateContext:
-    repository: str
-    account: str
-    config: DreamcatcherConfig
-    most_recent_cooldown_ended: datetime | None
-
-
-@dataclass(frozen=True, kw_only=True)
 class _PreparedIssueConversationRound:
     conversation: IssueConversation
     round_input: IssueConversationInput
@@ -931,226 +923,6 @@ def compose_assignment_observation(
     )
 
 
-def _list_issue_conversation_candidates(
-    *,
-    context: _IssueConversationCandidateContext,
-    conversations: list[IssueConversation],
-    previous_observations: list[IssueConversationObservation],
-) -> IssueConversationCandidateResult:
-    """Observe every matching issue and return conversation work ready to run.
-
-    Comments are read for every eligible issue that can accept a fresh batch,
-    whether or not an agent is free, so that status can tell waiting from idle.
-    Recovery uses the saved batch and does not read new comments. A failed read
-    holds launches only where the conversation could take a new batch. When
-    matching issues cannot be listed, the previous tick's issues are observed
-    again with an unknown fact, so the ones the user took off the report stay
-    off it.
-    """
-    conversation_routes = context.config.conversation
-    if not conversation_routes:
-        return IssueConversationCandidateResult(candidates=[], observations=[])
-    listing = _list_conversation_route_issues(context=context)
-    conversations_by_issue = {
-        conversation.record.issue: conversation for conversation in conversations
-    }
-    candidates: list[IssueConversationCandidate] = []
-    observations: list[IssueConversationObservation] = []
-    failures: list[str | None] = [listing.failure]
-    for issue in listing.issues:
-        conversation = conversations_by_issue.get(issue.number)
-        inspection = _inspect_listed_conversation_issue(
-            context=context,
-            issue=issue,
-            conversation=conversation,
-        )
-        if inspection is None:
-            continue
-        observations.append(inspection.observation)
-        if inspection.candidate is not None:
-            candidates.append(inspection.candidate)
-        elif (
-            is_issue_conversation_ready_for_input(conversation=conversation)
-            and inspection.observation.has_comments_to_answer.value
-            is IssueFactValue.UNKNOWN
-        ):
-            failures.append(inspection.observation.has_comments_to_answer.evidence)
-    if listing.failure is not None:
-        unknown = IssueFact(value=IssueFactValue.UNKNOWN, evidence=listing.failure)
-        listed_issues = {issue.number for issue in listing.issues}
-        observations.extend(
-            observation.model_copy(
-                update={
-                    "has_comments_to_answer": unknown,
-                    "routing_conflict": unknown,
-                }
-            )
-            for observation in previous_observations
-            if observation.issue not in listed_issues
-        )
-    return IssueConversationCandidateResult(
-        candidates=sorted(candidates, key=_rank_issue_conversation_candidate),
-        observations=observations,
-        failure=_combine_scheduler_failures(failures=failures),
-    )
-
-
-def _list_conversation_route_issues(
-    *, context: _IssueConversationCandidateContext
-) -> _ConversationRouteListing:
-    """List each issue found through any configured conversation route."""
-    issues_by_number: dict[int, Issue] = {}
-    failures: list[str | None] = []
-    for route in context.config.conversation:
-        issue_response = list_issues(
-            repository=context.repository,
-            label=route.label,
-            assignee=context.account,
-        )
-        if isinstance(issue_response, UnknownGitHubResponse):
-            failures.append(
-                f"could not list issue conversations for {route.label}: "
-                f"{issue_response.reason}"
-            )
-        else:
-            for issue in issue_response:
-                issues_by_number[issue.number] = issue
-    return _ConversationRouteListing(
-        issues=sorted(
-            issues_by_number.values(),
-            key=lambda item: (item.created_at, item.number),
-        ),
-        failure=_combine_scheduler_failures(failures=failures),
-    )
-
-
-def _inspect_listed_conversation_issue(
-    *,
-    context: _IssueConversationCandidateContext,
-    issue: Issue,
-    conversation: IssueConversation | None,
-) -> _IssueConversationInspection | None:
-    """Inspect one currently matching listed issue."""
-    routes = context.config.identify_conversation_routes(
-        labels=[label.name for label in issue.labels]
-    )
-    if not routes:
-        return None
-    if len(routes) == 1:
-        return _inspect_issue_conversation(
-            context=context,
-            route=routes[0],
-            issue=issue,
-            conversation=conversation,
-        )
-    labels = ", ".join(sorted((route.label for route in routes), key=str.casefold))
-    return _IssueConversationInspection(
-        observation=IssueConversationObservation(
-            issue=issue.number,
-            title=issue.title,
-            has_comments_to_answer=IssueFact(
-                value=IssueFactValue.FALSE,
-                evidence="no comments to answer",
-            ),
-            routing_conflict=IssueFact(
-                value=IssueFactValue.TRUE,
-                evidence=f"carries more than one conversation label: {labels}",
-            ),
-        ),
-        candidate=None,
-    )
-
-
-def _inspect_issue_conversation(
-    *,
-    context: _IssueConversationCandidateContext,
-    route: ConversationRoute,
-    issue: Issue,
-    conversation: IssueConversation | None,
-) -> _IssueConversationInspection:
-    """Observe one eligible issue, and return a candidate when it is ready."""
-    if conversation is not None and derive_agent_work_fault(
-        rounds=conversation.rounds,
-        retry_requested_at=conversation.record.retry_requested_at,
-        most_recent_cooldown_ended=context.most_recent_cooldown_ended,
-    ):
-        return _IssueConversationInspection(
-            observation=IssueConversationObservation(
-                issue=issue.number,
-                title=issue.title,
-                has_comments_to_answer=IssueFact(
-                    value=IssueFactValue.FALSE,
-                    evidence="no comments to answer",
-                ),
-            ),
-            candidate=None,
-        )
-    if (
-        conversation is not None
-        and conversation.rounds
-        and conversation.rounds[-1].outcome
-        in {AgentRoundOutcome.ERRORED, AgentRoundOutcome.INTERRUPTED}
-    ):
-        return _IssueConversationInspection(
-            observation=IssueConversationObservation(
-                issue=issue.number,
-                title=issue.title,
-                has_comments_to_answer=IssueFact(
-                    value=IssueFactValue.FALSE,
-                    evidence="no comments to answer",
-                ),
-            ),
-            candidate=IssueConversationRecoveryCandidate(
-                conversation=conversation,
-            ),
-        )
-    try:
-        comments = _list_comments_to_answer(
-            repository=context.repository,
-            account=context.account,
-            issue=issue.number,
-            conversation=conversation,
-        )
-    except ReportableError as failure:
-        has_comments_to_answer = IssueFact(
-            value=IssueFactValue.UNKNOWN,
-            evidence=str(failure),
-        )
-        comments = []
-    else:
-        has_comments_to_answer = (
-            IssueFact(
-                value=IssueFactValue.TRUE,
-                evidence=(
-                    f"{describe_count(number=len(comments), noun='comment')} to answer"
-                ),
-            )
-            if comments
-            else IssueFact(
-                value=IssueFactValue.FALSE,
-                evidence="no comments to answer",
-            )
-        )
-    observation = IssueConversationObservation(
-        issue=issue.number,
-        title=issue.title,
-        has_comments_to_answer=has_comments_to_answer,
-    )
-    if not comments or not is_issue_conversation_ready_for_input(
-        conversation=conversation
-    ):
-        return _IssueConversationInspection(observation=observation, candidate=None)
-    return _IssueConversationInspection(
-        observation=observation,
-        candidate=NewIssueConversationRoundCandidate(
-            issue=issue,
-            comments=comments,
-            conversation=conversation,
-            route=route,
-        ),
-    )
-
-
 def _rank_issue_conversation_candidate(
     candidate: IssueConversationCandidate, /
 ) -> tuple[int, str, int]:
@@ -1441,19 +1213,14 @@ class AgentWorkScheduler:
             most_recent_cooldown_ended=most_recent_cooldown_ended,
             observed_at=at,
         )
-        conversation_candidates = _list_issue_conversation_candidates(
-            context=_IssueConversationCandidateContext(
-                repository=self.repository,
-                account=self.account,
-                config=self.config,
-                most_recent_cooldown_ended=most_recent_cooldown_ended,
-            ),
+        conversation_candidates = self._list_issue_conversation_candidates(
             conversations=conversations,
             previous_observations=(
                 []
                 if previous_record is None
                 else previous_record.conversation_observations
             ),
+            most_recent_cooldown_ended=most_recent_cooldown_ended,
         )
         conversation_fault_count = _count_observed_conversation_faults(
             conversations=conversations,
@@ -1514,6 +1281,226 @@ class AgentWorkScheduler:
             conversation_candidates=conversation_candidates,
             assignment_failure=assignment_failure,
             scheduler_failure=scheduler_failure,
+        )
+
+    def _list_issue_conversation_candidates(
+        self,
+        *,
+        conversations: list[IssueConversation],
+        previous_observations: list[IssueConversationObservation],
+        most_recent_cooldown_ended: datetime | None,
+    ) -> IssueConversationCandidateResult:
+        """Observe every matching issue and return conversation work ready to run.
+
+        Comments are read for every eligible issue that can accept a fresh batch,
+        whether or not an agent is free, so that status can tell waiting from idle.
+        Recovery uses the saved batch and does not read new comments. A failed read
+        holds launches only where the conversation could take a new batch. When
+        matching issues cannot be listed, the previous tick's issues are observed
+        again with an unknown fact, so the ones the user took off the report stay
+        off it.
+        """
+        if not self.config.conversation:
+            return IssueConversationCandidateResult(candidates=[], observations=[])
+        listing = self._list_conversation_route_issues()
+        conversations_by_issue = {
+            conversation.record.issue: conversation for conversation in conversations
+        }
+        candidates: list[IssueConversationCandidate] = []
+        observations: list[IssueConversationObservation] = []
+        failures: list[str | None] = [listing.failure]
+        for issue in listing.issues:
+            conversation = conversations_by_issue.get(issue.number)
+            inspection = self._inspect_listed_conversation_issue(
+                issue=issue,
+                conversation=conversation,
+                most_recent_cooldown_ended=most_recent_cooldown_ended,
+            )
+            if inspection is None:
+                continue
+            observations.append(inspection.observation)
+            if inspection.candidate is not None:
+                candidates.append(inspection.candidate)
+            elif (
+                is_issue_conversation_ready_for_input(conversation=conversation)
+                and inspection.observation.has_comments_to_answer.value
+                is IssueFactValue.UNKNOWN
+            ):
+                failures.append(inspection.observation.has_comments_to_answer.evidence)
+        if listing.failure is not None:
+            unknown = IssueFact(value=IssueFactValue.UNKNOWN, evidence=listing.failure)
+            listed_issues = {issue.number for issue in listing.issues}
+            observations.extend(
+                observation.model_copy(
+                    update={
+                        "has_comments_to_answer": unknown,
+                        "routing_conflict": unknown,
+                    }
+                )
+                for observation in previous_observations
+                if observation.issue not in listed_issues
+            )
+        return IssueConversationCandidateResult(
+            candidates=sorted(candidates, key=_rank_issue_conversation_candidate),
+            observations=observations,
+            failure=_combine_scheduler_failures(failures=failures),
+        )
+
+    def _list_conversation_route_issues(self) -> _ConversationRouteListing:
+        """List each issue found through any configured conversation route."""
+        issues_by_number: dict[int, Issue] = {}
+        failures: list[str | None] = []
+        for route in self.config.conversation:
+            issue_response = list_issues(
+                repository=self.repository,
+                label=route.label,
+                assignee=self.account,
+            )
+            if isinstance(issue_response, UnknownGitHubResponse):
+                failures.append(
+                    f"could not list issue conversations for {route.label}: "
+                    f"{issue_response.reason}"
+                )
+            else:
+                for issue in issue_response:
+                    issues_by_number[issue.number] = issue
+        return _ConversationRouteListing(
+            issues=sorted(
+                issues_by_number.values(),
+                key=lambda item: (item.created_at, item.number),
+            ),
+            failure=_combine_scheduler_failures(failures=failures),
+        )
+
+    def _inspect_listed_conversation_issue(
+        self,
+        *,
+        issue: Issue,
+        conversation: IssueConversation | None,
+        most_recent_cooldown_ended: datetime | None,
+    ) -> _IssueConversationInspection | None:
+        """Inspect one currently matching listed issue."""
+        routes = self.config.identify_conversation_routes(
+            labels=[label.name for label in issue.labels]
+        )
+        if not routes:
+            return None
+        if len(routes) == 1:
+            return self._inspect_issue_conversation(
+                route=routes[0],
+                issue=issue,
+                conversation=conversation,
+                most_recent_cooldown_ended=most_recent_cooldown_ended,
+            )
+        labels = ", ".join(sorted((route.label for route in routes), key=str.casefold))
+        return _IssueConversationInspection(
+            observation=IssueConversationObservation(
+                issue=issue.number,
+                title=issue.title,
+                has_comments_to_answer=IssueFact(
+                    value=IssueFactValue.FALSE,
+                    evidence="no comments to answer",
+                ),
+                routing_conflict=IssueFact(
+                    value=IssueFactValue.TRUE,
+                    evidence=f"carries more than one conversation label: {labels}",
+                ),
+            ),
+            candidate=None,
+        )
+
+    def _inspect_issue_conversation(
+        self,
+        *,
+        route: ConversationRoute,
+        issue: Issue,
+        conversation: IssueConversation | None,
+        most_recent_cooldown_ended: datetime | None,
+    ) -> _IssueConversationInspection:
+        """Observe one eligible issue, and return a candidate when it is ready."""
+        if conversation is not None and derive_agent_work_fault(
+            rounds=conversation.rounds,
+            retry_requested_at=conversation.record.retry_requested_at,
+            most_recent_cooldown_ended=most_recent_cooldown_ended,
+        ):
+            return _IssueConversationInspection(
+                observation=IssueConversationObservation(
+                    issue=issue.number,
+                    title=issue.title,
+                    has_comments_to_answer=IssueFact(
+                        value=IssueFactValue.FALSE,
+                        evidence="no comments to answer",
+                    ),
+                ),
+                candidate=None,
+            )
+        if (
+            conversation is not None
+            and conversation.rounds
+            and conversation.rounds[-1].outcome
+            in {AgentRoundOutcome.ERRORED, AgentRoundOutcome.INTERRUPTED}
+        ):
+            return _IssueConversationInspection(
+                observation=IssueConversationObservation(
+                    issue=issue.number,
+                    title=issue.title,
+                    has_comments_to_answer=IssueFact(
+                        value=IssueFactValue.FALSE,
+                        evidence="no comments to answer",
+                    ),
+                ),
+                candidate=IssueConversationRecoveryCandidate(
+                    conversation=conversation,
+                ),
+            )
+        try:
+            comments = _list_comments_to_answer(
+                repository=self.repository,
+                account=self.account,
+                issue=issue.number,
+                conversation=conversation,
+            )
+        except ReportableError as failure:
+            has_comments_to_answer = IssueFact(
+                value=IssueFactValue.UNKNOWN,
+                evidence=str(failure),
+            )
+            comments = []
+        else:
+            has_comments_to_answer = (
+                IssueFact(
+                    value=IssueFactValue.TRUE,
+                    evidence=(
+                        f"{describe_count(number=len(comments), noun='comment')} "
+                        "to answer"
+                    ),
+                )
+                if comments
+                else IssueFact(
+                    value=IssueFactValue.FALSE,
+                    evidence="no comments to answer",
+                )
+            )
+        observation = IssueConversationObservation(
+            issue=issue.number,
+            title=issue.title,
+            has_comments_to_answer=has_comments_to_answer,
+        )
+        if not comments or not is_issue_conversation_ready_for_input(
+            conversation=conversation
+        ):
+            return _IssueConversationInspection(
+                observation=observation,
+                candidate=None,
+            )
+        return _IssueConversationInspection(
+            observation=observation,
+            candidate=NewIssueConversationRoundCandidate(
+                issue=issue,
+                comments=comments,
+                conversation=conversation,
+                route=route,
+            ),
         )
 
     def _launch_available_work(

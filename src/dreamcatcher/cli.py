@@ -359,10 +359,8 @@ def _show_conversation(*, arguments: argparse.Namespace) -> None:
 def _show_feed(*, arguments: argparse.Namespace) -> None:
     tui.show_feed_view(
         state=_find_state_directory(root=Path.cwd()),
-        selection=tui.FeedSelection(
-            issue=arguments.issue,
-            owner_kind=arguments.owner_kind,
-        ),
+        issue=arguments.issue,
+        owner_kind=arguments.owner_kind,
         console=tui.open_tui_console(),
         round_number=arguments.round,
     )

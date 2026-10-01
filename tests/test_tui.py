@@ -45,8 +45,6 @@ from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.tui import (
     VIEW_REFRESH_INTERVAL,
-    FeedSelection,
-    ViewTiming,
     _render_feed_line,
     _render_written_feed_line,
     show_assignment_view,
@@ -130,15 +128,6 @@ def refusing(seconds, /):
     raise AssertionError("the view waited for something that was not coming")
 
 
-def create_view_timing(*, wait=refusing) -> ViewTiming:
-    """Return timing that pins displayed time and refuses an unexpected wait."""
-    return ViewTiming(
-        clock=lambda: LOOKED_AT,
-        wait=wait,
-        zone=DISPLAY_TIME_ZONE,
-    )
-
-
 def render_status_view(*, state, width: int = WIDTH) -> str:
     """Return the status report that the state renders on a pinned console.
 
@@ -149,7 +138,9 @@ def render_status_view(*, state, width: int = WIDTH) -> str:
     show_status_view(
         state=state,
         console=pinned(written_to=written_to, width=width),
-        timing=create_view_timing(),
+        clock=lambda: LOOKED_AT,
+        wait=refusing,
+        zone=DISPLAY_TIME_ZONE,
     )
     return written_to.getvalue()
 
@@ -259,7 +250,9 @@ def test_status_nobody_is_watching_is_drawn_once_and_returns(tmp_path, daemon):
     show_status_view(
         state=state,
         console=pinned(written_to=written_to),
-        timing=create_view_timing(),
+        clock=lambda: LOOKED_AT,
+        wait=refusing,
+        zone=DISPLAY_TIME_ZONE,
     )
 
     assert "running dreamcatcher v3.0.0.beta1 as pid 4242" in written_to.getvalue()
@@ -286,7 +279,9 @@ def test_status_a_reader_watches_keeps_up_with_what_the_daemon_writes(tmp_path, 
     show_status_view(
         state=state,
         console=pinned(written_to=written_to, is_terminal=True),
-        timing=create_view_timing(wait=wait),
+        clock=lambda: LOOKED_AT,
+        wait=wait,
+        zone=DISPLAY_TIME_ZONE,
     )
     status = written_to.getvalue()
 
@@ -306,7 +301,9 @@ def test_status_a_reader_watches_takes_the_screen_and_hands_it_back(tmp_path, da
     show_status_view(
         state=state,
         console=pinned(written_to=written_to, is_terminal=True),
-        timing=create_view_timing(wait=interrupting),
+        clock=lambda: LOOKED_AT,
+        wait=interrupting,
+        zone=DISPLAY_TIME_ZONE,
     )
     status = written_to.getvalue()
 
@@ -327,7 +324,9 @@ def test_status_on_a_dumb_terminal_is_drawn_once_and_returns(tmp_path, daemon):
     show_status_view(
         state=state,
         console=pinned(written_to=written_to, is_terminal=True, term="dumb"),
-        timing=create_view_timing(),
+        clock=lambda: LOOKED_AT,
+        wait=refusing,
+        zone=DISPLAY_TIME_ZONE,
     )
     status = written_to.getvalue()
 
@@ -344,7 +343,9 @@ def viewed(*, state, issue: int, width: int = WIDTH) -> str:
         state=state,
         issue=issue,
         console=pinned(written_to=written_to, width=width),
-        timing=create_view_timing(),
+        clock=lambda: LOOKED_AT,
+        wait=refusing,
+        zone=DISPLAY_TIME_ZONE,
     )
     return written_to.getvalue()
 
@@ -398,7 +399,9 @@ def test_assignment_status_alone_is_coloured_and_latest_output_is_dim(tmp_path, 
         state=state,
         issue=13,
         console=console,
-        timing=create_view_timing(),
+        clock=lambda: LOOKED_AT,
+        wait=refusing,
+        zone=DISPLAY_TIME_ZONE,
     )
     rendered = console.export_text(styles=True)
 
@@ -450,7 +453,9 @@ def test_an_assignment_view_shows_the_round_that_starts_while_it_is_open(
         state=state,
         issue=20,
         console=pinned(written_to=written_to, is_terminal=True),
-        timing=create_view_timing(wait=wait),
+        clock=lambda: LOOKED_AT,
+        wait=wait,
+        zone=DISPLAY_TIME_ZONE,
     )
 
     # The round GH20 had run was over and its pull request was waiting for the
@@ -473,7 +478,9 @@ def test_an_assignment_view_of_an_assignment_that_is_over_never_waits(
         state=state,
         issue=issue,
         console=pinned(written_to=written_to, is_terminal=True),
-        timing=create_view_timing(),
+        clock=lambda: LOOKED_AT,
+        wait=refusing,
+        zone=DISPLAY_TIME_ZONE,
     )
 
     assert f"GH{issue}-{ASSIGNMENT_TIMESTAMP}" in written_to.getvalue()
@@ -491,7 +498,9 @@ def test_an_assignment_view_of_an_assignment_that_is_over_keeps_its_last_picture
         state=state,
         issue=12,
         console=pinned(written_to=written_to, is_terminal=True),
-        timing=create_view_timing(),
+        clock=lambda: LOOKED_AT,
+        wait=refusing,
+        zone=DISPLAY_TIME_ZONE,
     )
     kept = written_to.getvalue().split(SCREEN_HANDED_BACK)[-1]
 
@@ -506,9 +515,11 @@ def followed(*, state, issue: int, wait=refusing) -> str:
     written_to = StringIO()
     show_feed_view(
         state=state,
-        selection=FeedSelection(issue=issue, owner_kind=AgentWorkKind.ASSIGNMENT),
+        issue=issue,
+        owner_kind=AgentWorkKind.ASSIGNMENT,
         console=pinned(written_to=written_to, is_terminal=True),
-        timing=create_view_timing(wait=wait),
+        wait=wait,
+        zone=DISPLAY_TIME_ZONE,
     )
     return written_to.getvalue()
 
@@ -522,9 +533,11 @@ def test_a_feed_nobody_is_watching_shows_what_is_there_and_returns(tmp_path, dae
     # that followed for as long as this assignment runs could be none of those.
     show_feed_view(
         state=state,
-        selection=FeedSelection(issue=13, owner_kind=AgentWorkKind.ASSIGNMENT),
+        issue=13,
+        owner_kind=AgentWorkKind.ASSIGNMENT,
         console=pinned(written_to=written_to),
-        timing=create_view_timing(),
+        wait=refusing,
+        zone=DISPLAY_TIME_ZONE,
     )
 
     assert "[Bash] pytest" in written_to.getvalue()
@@ -777,10 +790,12 @@ def viewed_round(
     written_to = StringIO()
     show_feed_view(
         state=state,
-        selection=FeedSelection(issue=issue, owner_kind=AgentWorkKind.ASSIGNMENT),
+        issue=issue,
+        owner_kind=AgentWorkKind.ASSIGNMENT,
         console=pinned(written_to=written_to, is_terminal=is_terminal),
         round_number=number,
-        timing=create_view_timing(wait=wait),
+        wait=wait,
+        zone=DISPLAY_TIME_ZONE,
     )
     return written_to.getvalue()
 
