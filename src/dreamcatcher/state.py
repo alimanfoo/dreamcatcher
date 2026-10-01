@@ -1,11 +1,10 @@
-"""Define the paths and shared readers for Dreamcatcher's local state."""
+"""Define the paths and the shared document cache for Dreamcatcher's local state."""
 
 from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
 
-from dreamcatcher.agent_rounds import AgentRoundReader
-from dreamcatcher.documents import write_text
+from dreamcatcher.documents import DocumentCache, write_text
 
 STATE_DIRECTORY_NAME = ".dreamcatcher"
 STATE_FORMAT_VERSION = 4
@@ -22,16 +21,14 @@ class StateDirectory:
     root: Path
 
     @cached_property
-    def round_reader(self) -> AgentRoundReader:
-        """The round-record reader shared by this process.
+    def document_cache(self) -> DocumentCache:
+        """The final documents that this process has read from the directory.
 
-        Reading an assignment reads the records of every round it has run, and a
-        reader keeps the complete ones, so a later read of that assignment opens
-        only the records that are still incomplete.
-
-        The reader and its cache live as long as this StateDirectory instance.
+        A process reads the same records again and again, so keeping the final
+        ones means that each later read opens only the records that can still
+        change. The cache lives as long as this StateDirectory instance.
         """
-        return AgentRoundReader()
+        return DocumentCache()
 
     @property
     def path(self) -> Path:
