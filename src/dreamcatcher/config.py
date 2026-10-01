@@ -29,7 +29,7 @@ class AgentHarness(StrEnum):
     CODEX = "codex"
 
 
-class AgentRecipe(DreamcatcherDocument):
+class DispatchRecipe(DreamcatcherDocument):
     """Describe how one harness runs one kind of agent work."""
 
     prompt: str
@@ -37,8 +37,8 @@ class AgentRecipe(DreamcatcherDocument):
     effort: QuotableText
 
 
-class _AgentHarnessRoute(DreamcatcherDocument):
-    """Map one agent-work label to its available harness recipes.
+class DispatchRoute(DreamcatcherDocument):
+    """Map one dispatch label to its available harness recipes.
 
     The label is the route's identity, so no two routes carry the same one.
 
@@ -47,12 +47,12 @@ class _AgentHarnessRoute(DreamcatcherDocument):
     """
 
     model_config = ConfigDict(extra="allow")
-    __pydantic_extra__: dict[AgentHarness, AgentRecipe]
+    __pydantic_extra__: dict[AgentHarness, DispatchRecipe]
 
     label: str
 
     @property
-    def recipes(self) -> dict[AgentHarness, AgentRecipe]:
+    def recipes(self) -> dict[AgentHarness, DispatchRecipe]:
         """The recipe of each harness that can run this route."""
         return self.__pydantic_extra__
 
@@ -78,15 +78,15 @@ class _AgentHarnessRoute(DreamcatcherDocument):
         return self
 
 
-class DispatchRoute(_AgentHarnessRoute):
-    """Map a dispatch label to its available harness recipes."""
+class AssignmentRoute(DispatchRoute):
+    """Map an assignment label to its available dispatch recipes."""
 
 
-class IssueConversationRoute(_AgentHarnessRoute):
-    """Map the conversation label to its available harness recipes."""
+class ConversationRoute(DispatchRoute):
+    """Map a conversation label to its available dispatch recipes."""
 
 
-def _identify_routes[Route: _AgentHarnessRoute](
+def _identify_routes[Route: DispatchRoute](
     *, labels: list[str], routes: list[Route]
 ) -> list[Route]:
     """Return configured routes matching the observed labels."""
@@ -100,18 +100,17 @@ def _identify_routes[Route: _AgentHarnessRoute](
 class DreamcatcherConfig(DreamcatcherDocument):
     """Model a repository's agent-work configuration."""
 
-    assignee: str = "@me"
-    dispatch: list[DispatchRoute] = Field(min_length=1)
-    conversation: list[IssueConversationRoute] = Field(default_factory=list)
+    assignment: list[AssignmentRoute] = Field(min_length=1)
+    conversation: list[ConversationRoute] = Field(default_factory=list)
 
     @property
-    def dispatch_routes(self) -> dict[str, DispatchRoute]:
-        """The dispatch route for each configured label.
+    def assignment_routes(self) -> dict[str, AssignmentRoute]:
+        """The assignment route for each configured label.
 
         The label is a route's identity, and no two routes carry the same one,
         so a label names one route here.
         """
-        return {route.label: route for route in self.dispatch}
+        return {route.label: route for route in self.assignment}
 
     @property
     def routed_harnesses(self) -> set[AgentHarness]:
@@ -120,19 +119,19 @@ class DreamcatcherConfig(DreamcatcherDocument):
         A route with one harness selects it regardless of the daemon's requested
         harness.
         """
-        routes = [*self.dispatch, *self.conversation]
+        routes = [*self.assignment, *self.conversation]
         return {harness for route in routes for harness in route.recipes}
 
-    def identify_dispatch_labels(self, *, labels: list[str]) -> list[str]:
-        """Return the configured dispatch labels among the observed labels."""
+    def identify_assignment_labels(self, *, labels: list[str]) -> list[str]:
+        """Return the configured assignment labels among the observed labels."""
         return [
             route.label
-            for route in _identify_routes(labels=labels, routes=self.dispatch)
+            for route in _identify_routes(labels=labels, routes=self.assignment)
         ]
 
     def identify_conversation_routes(
         self, *, labels: list[str]
-    ) -> list[IssueConversationRoute]:
+    ) -> list[ConversationRoute]:
         """Return the conversation routes matching the observed labels."""
         return _identify_routes(labels=labels, routes=self.conversation)
 
@@ -140,7 +139,7 @@ class DreamcatcherConfig(DreamcatcherDocument):
     def _require_one_route_per_label(self) -> Self:
         """Refuse two routes for one label, since the label is the identity."""
         route_groups = (
-            ("dispatch", self.dispatch),
+            ("assignment", self.assignment),
             ("conversation", self.conversation),
         )
         for name, routes in route_groups:
@@ -153,6 +152,15 @@ class DreamcatcherConfig(DreamcatcherDocument):
                 raise ValueError(
                     f"more than one {name} entry uses the label {repeated_label_names}"
                 )
+        assignment_labels = {route.label.casefold() for route in self.assignment}
+        conversation_labels = {route.label.casefold() for route in self.conversation}
+        shared = sorted(assignment_labels & conversation_labels)
+        if shared:
+            shared_label_names = ", ".join(shared)
+            raise ValueError(
+                "assignment and conversation entries use the same label: "
+                f"{shared_label_names}"
+            )
         return self
 
 

@@ -551,10 +551,20 @@ def test_a_stopped_assignment_needs_user_feedback(state):
 def test_two_current_errors_put_an_assignment_in_fault(state):
     ran(state=state, number=1, status=1)
     ran(state=state, number=2, status=2)
+    said(state=state, number=2, texts=["[failed] You hit your spend cap."])
 
     status = only_assignment(state=state)
 
     assert status.value is AgentAssignmentStatusValue.FAULT
+    assert status.detail == "[failed] You hit your spend cap."
+
+
+def test_a_fault_with_no_output_names_the_latest_rounds_feed(state):
+    ran(state=state, number=1, status=1)
+    ran(state=state, number=2, status=2)
+
+    status = only_assignment(state=state)
+
     assert status.detail == (
         "two consecutive rounds failed "
         f"(.dreamcatcher/v4/assignments/{ASSIGNMENT_ID}/rounds/2/feed.txt)"

@@ -29,15 +29,22 @@ CLAUDE_ASSIGNMENT_ALLOWED_TOOLS = (
     "Bash(git push:*)",
 )
 
+# What an unattended conversation may change on GitHub when the user asks.
+CLAUDE_CONVERSATION_ALLOWED_TOOLS = (
+    "Bash(gh issue create:*)",
+    "Bash(gh issue edit:*)",
+    "Bash(gh issue comment:*)",
+    "Bash(gh api:*)",
+)
+
 # Conversation rounds may investigate with ordinary read and command tools,
-# but these denials keep the implementation and GitHub mutations that the
-# conversation contract forbids out of unattended permission handling.
+# but these denials keep implementation mutations out of unattended permission
+# handling.
 CLAUDE_CONVERSATION_DISALLOWED_TOOLS = (
     "Edit",
     "Write",
     "NotebookEdit",
     "PowerShell",
-    "Bash(gh:*)",
     "Bash(git add:*)",
     "Bash(git am:*)",
     "Bash(git apply:*)",
@@ -163,6 +170,8 @@ class ClaudeHarnessAdapter(HarnessAdapter):
         """Return the arguments every round shares."""
         if request.work_kind is AgentWorkKind.CONVERSATION:
             permissions = [
+                "--allowedTools",
+                " ".join(CLAUDE_CONVERSATION_ALLOWED_TOOLS),
                 "--disallowedTools",
                 " ".join(CLAUDE_CONVERSATION_DISALLOWED_TOOLS),
             ]

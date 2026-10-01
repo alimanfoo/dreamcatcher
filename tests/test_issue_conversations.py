@@ -8,7 +8,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     IssueConversationRoundPurpose,
 )
-from dreamcatcher.config import AgentHarness, AgentRecipe, IssueConversationRoute
+from dreamcatcher.config import AgentHarness, ConversationRoute, DispatchRecipe
 from dreamcatcher.documents import write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import add_detached_worktree, is_linked_worktree
@@ -43,10 +43,10 @@ PROMPT_TEMPLATE = "/dream:conversation GH" + "{issue}"
 CODEX_PROMPT_TEMPLATE = "$dream:conversation GH" + "{issue}"
 
 
-def conversation_route() -> IssueConversationRoute:
-    return IssueConversationRoute(
+def conversation_route() -> ConversationRoute:
+    return ConversationRoute(
         label="dream:conversation",
-        claude=AgentRecipe(
+        claude=DispatchRecipe(
             prompt=PROMPT_TEMPLATE,
             model="opus[1m]",
             effort="xhigh",
@@ -71,7 +71,7 @@ def write_conversation(*, state: StateDirectory, number: int = 8) -> IssueConver
     record = IssueConversationRecord(
         issue=number,
         title="Why does this happen?",
-        label="dream:conversation",
+        dispatch_label="dream:conversation",
         harness=AgentHarness.CLAUDE,
         model="opus[1m]",
         effort="xhigh",
@@ -125,9 +125,9 @@ def test_a_conversation_gets_a_detached_worktree_at_fetched_main(cloned):
     assert (
         create_issue_conversation(
             state=state,
-            route=IssueConversationRoute(
+            route=ConversationRoute(
                 label="dream:scout",
-                codex=AgentRecipe(
+                codex=DispatchRecipe(
                     prompt="$dream:conversation GH{issue}",
                     model="gpt-5.6-sol",
                     effort="high",
@@ -138,15 +138,15 @@ def test_a_conversation_gets_a_detached_worktree_at_fetched_main(cloned):
         )
         == created
     )
-    assert created.record.label == "dream:conversation"
+    assert created.record.dispatch_label == "dream:conversation"
 
 
 def test_a_new_conversation_records_the_requested_harness_recipe(cloned):
     state = StateDirectory(root=cloned)
-    route = IssueConversationRoute(
+    route = ConversationRoute(
         label="dream:conversation",
         claude=conversation_route().recipes[AgentHarness.CLAUDE],
-        codex=AgentRecipe(
+        codex=DispatchRecipe(
             prompt=CODEX_PROMPT_TEMPLATE,
             model="gpt-5.6-sol",
             effort="high",

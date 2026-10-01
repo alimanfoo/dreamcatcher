@@ -789,11 +789,12 @@ def test_a_terminal_tail_returns_late_output_before_it_stops(tmp_path, daemon):
 def test_a_faulted_tail_stops_when_it_reads_nothing_new(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
+    feed = _feed_path(state=state, identifier="GH9-20260819-184158", number=2)
 
     response = _read_tail(
         state=state,
         identifier="GH9-20260819-184158",
-        cursor="2:0",
+        cursor=f"2:{feed.stat().st_size}",
     )
 
     assert response.status_code == 286

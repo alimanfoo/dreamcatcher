@@ -1,7 +1,7 @@
 # dreamcatcher
 
-dreamcatcher watches a repository for labelled issues, answers configured issue
-conversations, dispatches autonomous coding assignments, and carries each
+dreamcatcher watches a repository for labelled issues and dispatches agents to
+configured issue conversations and coding assignments. It carries each
 assignment to a pull request for you to review and merge.
 
 ## Install
@@ -23,8 +23,6 @@ dreamcatcher reads `dreamcatcher.toml` from the root of the repository it
 watches. Commit it, so everyone watching that repo dispatches the same way.
 
 ```toml
-assignee = "@me"
-
 [[conversation]]
 label = "agent:conversation"
 
@@ -38,49 +36,55 @@ prompt = "Answer questions on GH{issue}."
 model = "gpt-5.6-sol"
 effort = "high"
 
-[[dispatch]]
+[[assignment]]
 label = "dream:smith"
-[dispatch.claude]
+[assignment.claude]
 prompt = "/dream:smith GH{issue}"
 model = "opus[1m]"
 effort = "xhigh"
-[dispatch.codex]
+[assignment.codex]
 prompt = "$dream:smith GH{issue}"
 model = "gpt-5.6-sol"
 effort = "xhigh"
 ```
 
-`assignee` is whose issues to pick up, as a GitHub login. It defaults to `@me`,
-the account `gh` is signed in as, so you can leave it out.
+If an existing `dreamcatcher.toml` contains `assignee`, `interval` or
+`max_agents`, remove those settings. Add `--interval` or `--max-agents` to the
+`run` command to keep any non-default values; the configuration file no longer
+accepts them.
 
-If an existing `dreamcatcher.toml` contains `interval` or `max_agents`, remove
-those settings. Add `--interval` or `--max-agents` to the `run` command to keep
-any non-default values; the configuration file no longer accepts them.
-
-A `[[dispatch]]` entry says what to run for one label. Give it the label, then a
-block for each harness that can run it. Every entry needs its label and at least
-one block.
+An `[[assignment]]` entry defines one assignment route. Give it an assignment
+label, then a dispatch recipe for each harness that can run it. Every route
+needs its label and at least one recipe.
 
 - `prompt` is what the harness is asked to do. `{issue}` becomes the issue's
   number, so `/dream:smith GH{issue}` reaches the assignment as
   `/dream:smith GH123`.
 - `model` and `effort` are passed to the harness as it starts.
 
-Write both blocks for a label either harness can run. Write one block for a
+Write both recipes for a label either harness can run. Write one recipe for a
 label that belongs to one harness, and issues carrying it always go there.
 
 Point `prompt` at an [assignment skill](CONTRACT.md) that meets the contract.
 
-Each optional `[[conversation]]` entry watches a separate label for questions on
-open issues assigned to the account `gh` is signed in as. Give each entry one or
-more harness blocks with the same `prompt`, `model` and `effort` fields as a
-dispatch route. When both blocks exist, `run --harness` chooses one; when only
-one exists, that harness runs regardless of the command-line choice. Repeat the
-entry to offer different conversation labels, prompts, models, or harnesses.
+Each optional `[[conversation]]` entry defines one conversation route. It
+watches a conversation label for questions on open issues assigned to the
+account `gh` is signed in as. Give each route one or more dispatch recipes with
+the same `prompt`, `model` and `effort` fields. When both recipes exist,
+`run --harness` chooses one; when only one exists, that harness runs regardless
+of the command-line choice. Repeat the entry to offer different conversation
+labels, prompts, models, or harnesses.
 
-An issue carrying more than one configured conversation label has a routing
-conflict. Dreamcatcher reports the conflict and starts or recovers nothing until
-you remove all but one of those labels. Route order gives no label precedence.
+Assignment routes and conversation routes are both dispatch routes. Each
+dispatch route maps one dispatch label to one dispatch recipe per harness that
+the route configures. A label can belong to only one route, so the same label
+cannot configure both an assignment and a conversation.
+
+An issue carrying more than one configured assignment label or more than one
+configured conversation label has a routing conflict for that kind of work.
+Dreamcatcher reports the conflict and starts or recovers nothing of that kind
+until you remove all but one of those labels. One assignment label and one
+conversation label may coexist. Route order gives no label precedence.
 
 The label, harness, and settings that start a conversation are frozen into its
 record. Replacing that label with another configured conversation label makes
@@ -89,6 +93,12 @@ prompt says what answer to produce, so a plain sentence is enough, though it can
 name a suitable skill when one is available. The prompt may use `{issue}` and
 must follow the
 [issue-conversation contract](CONTRACT.md#issue-conversation-instructions).
+
+A conversation agent can investigate the code and make issue changes that the
+signed-in user's comment requests, such as filing and linking a subissue. It
+cannot implement a change, mutate Git, open or change a pull request, or post
+its conversation reply itself. Dreamcatcher publishes that reply after the round
+finishes.
 
 ## Commands
 
@@ -114,19 +124,20 @@ dreamcatcher run --harness claude --interval 30 --max-agents 4
 
 The daemon runs one scheduler tick per interval and starts rounds until the
 agent cap is full, no ready work remains, or a launch failure stops that kind
-until the next tick. An issue is dispatched when it carries exactly one dispatch
-label, is assigned to `assignee`, has no assignment here already, has no open
-pull request GitHub links to it, and has no open issue blocking it. The oldest
-such issue goes first. A dispatch cuts a branch and a worktree under
-`.dreamcatcher/`, makes and pushes an empty commit, and opens a linked draft
-pull request before it runs the assignment's first round there.
+until the next tick. An issue receives an assignment when it carries exactly one
+assignment label, is assigned to the account that `gh` is signed in as, has no
+assignment here already, has no open pull request GitHub links to it, and has no
+open issue blocking it. The oldest such issue goes first. Assignment setup cuts
+a branch and a worktree under `.dreamcatcher/`, makes and pushes an empty
+commit, and opens a linked draft pull request before it runs the assignment's
+first round there.
 
 Assignment setup is recoverable. If Dreamcatcher stops after making the
-worktree, commit, remote branch, or pull request, the next dispatch attempt
-reuses those artifacts and finishes the same assignment instead of opening
-another pull request. If setup completes but the first round cannot start, the
-recorded assignment keeps its branch and pull request, and the next tick tries
-that first round again before it schedules ordinary work.
+worktree, commit, remote branch, or pull request, the next assignment setup
+attempt reuses those artifacts and finishes the same assignment instead of
+opening another pull request. If setup completes but the first round cannot
+start, the recorded assignment keeps its branch and pull request, and the next
+tick tries that first round again before it schedules ordinary work.
 
 The daemon lock lives at `.dreamcatcher/daemon.pid`, where every state format
 shares it. All format-specific state lives under `.dreamcatcher/v4/` in the
@@ -203,8 +214,8 @@ its next two rounds both fail, it enters fault again.
 
 Only a successful wrap-up completes an assignment. A failed or interrupted
 wrap-up remains open for recovery. Once the wrap-up succeeds, the assignment no
-longer claims its issue, so an issue whose pull request closed unmerged is free
-to dispatch again while the label is still on it.
+longer claims its issue, so an issue whose pull request closed unmerged may
+receive another assignment while the assignment label is still on it.
 
 Removing the label prevents another assignment after the current one completes.
 
@@ -217,8 +228,10 @@ contacts GitHub and works whether or not the daemon is running.
 
 While a round runs, its assignment or conversation page offers a stop control
 once the harness session is known. The running round stops within about a
-second, then waits for a new pull-request post or issue comment before it starts
-another round in the same session.
+second. An open assignment then waits for a new pull-request post, and a
+conversation waits for a new issue comment, before it starts another round in
+the same session. Merging or closing the assignment's pull request starts its
+wrap-up round without waiting for a post.
 
 ```sh
 dreamcatcher web
@@ -258,10 +271,10 @@ leaves the list once the issue is ineligible and no round runs. A conversation
 that has answered its comments is idle, since it asks nothing of you.
 
 `assignment` shows one issue's newest assignment: its issue identifier, agent
-assignment identifier, harness session identifier, what its dispatch settled,
-the rounds it has run newest first with each purpose, recovery flag and outcome,
-the command that resumes its harness session by hand, and the older assignments
-at the same issue.
+assignment identifier, harness session identifier, what its assignment dispatch
+settled, the rounds it has run newest first with each purpose, recovery flag and
+outcome, the command that resumes its harness session by hand, and the older
+assignments at the same issue.
 
 ```sh
 dreamcatcher assignment GH123

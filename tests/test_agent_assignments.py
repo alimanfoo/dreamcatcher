@@ -75,7 +75,7 @@ def linked_pull_requests(*, numbers: Sequence[int]) -> str:
 
 @pytest.fixture
 def checkout(cloned):
-    """A main checkout with an origin to cut from and a config to dispatch by."""
+    """A main checkout with an origin and an assignment configuration."""
     (cloned / DREAMCATCHER_CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
     return cloned
 
@@ -94,8 +94,8 @@ def fabricated(tmp_path):
 
 @pytest.fixture
 def route(checkout):
-    """The dispatch route of the one label that the config maps."""
-    return read_dreamcatcher_config(root=checkout).dispatch[0]
+    """The assignment route of the one label that the config maps."""
+    return read_dreamcatcher_config(root=checkout).assignment[0]
 
 
 def written(*, state):
@@ -144,7 +144,7 @@ def test_an_assignment_cuts_a_branch_of_its_own_from_origins_main_as_it_is_now(
     assert (assignment.record.worktree / "later.txt").exists()
 
 
-def test_an_assignment_records_what_it_was_dispatched_with(state, route):
+def test_an_assignment_records_its_settled_dispatch_recipe(state, route):
     assignment = create_agent_assignment(
         state=state,
         route=route,
@@ -932,7 +932,7 @@ def test_a_state_directory_with_no_worktrees_holds_no_assignments(state):
     assert read_agent_assignments(state=state) == []
 
 
-def test_an_assignment_reads_back_as_it_was_dispatched(state, route):
+def test_an_assignment_reads_back_with_its_settled_dispatch_recipe(state, route):
     created = create_agent_assignment(
         state=state,
         route=route,

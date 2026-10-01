@@ -1,8 +1,8 @@
 """Write the records a state directory holds, as the daemon would have left them.
 
 A test that starts from a state directory already holding assignments and rounds
-writes them here, rather than dispatching them. So it reaches the state it is
-about without a GitHub, an origin to cut from, or a harness to run.
+writes them here, rather than creating them through the scheduler. So it reaches
+the state it is about without a GitHub, an origin to cut from, or a harness to run.
 """
 
 import os
@@ -122,7 +122,7 @@ def write_issue_conversation(
         document=issue_conversations.IssueConversationRecord(
             issue=issue,
             title=f"Issue {issue}",
-            label="dream:conversation",
+            dispatch_label="dream:conversation",
             harness=AgentHarness.CLAUDE,
             harness_session_identifier=harness_session_identifier,
             model="opus[1m]",

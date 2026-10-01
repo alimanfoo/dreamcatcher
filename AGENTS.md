@@ -15,9 +15,8 @@ below read the index.
 
 ## What this is
 
-dreamcatcher watches a repository for labelled issues, dispatches an autonomous
-coding assignment for each, and carries each issue to a pull request for the
-user to review and merge.
+dreamcatcher dispatches autonomous agent conversations and coding assignments
+from labelled issues. It carries each assignment to a pull request for review.
 
 ## Specs
 
@@ -191,12 +190,14 @@ $env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest --regenerate-view-goldens
   the check.
 - Render with rich in `tui.py` alone. It is the one module that shows anything
   to a person, and everything the daemon writes stays plain text, so a colour
-  code can never reach a file. `pyproject.toml` waives no rule for this, so any
-  other module that imports rich is a mistake a reviewer has to catch.
+  code can never reach a file. Ruff's banned-api rule fails any other module
+  that imports rich. `tui.py` and `web.py` each waive the whole rule, so review
+  catches either one importing the other's library.
 - Write HTML markup in the templates under `src/dreamcatcher/templates/` alone,
-  and render those templates in `web.py` alone. Import Flask in `web.py` alone,
-  as rich is imported in `tui.py` alone. The web module owns presentation and
-  must not become another home for status, scheduling or lifecycle rules.
+  and render those templates in `web.py` alone. Import Flask in `web.py` alone:
+  the banned-api rule that guards rich guards Flask too. The web module owns
+  presentation and must not become another home for status, scheduling or
+  lifecycle rules.
 - Give a harness its prompt as a file to read, never as an argument. A round
   writes `prompt.txt` and `commands.spawn_command` hands it over as the child's
   stdin, so a prompt can run to any length and hold anything. On Windows cmd.exe
@@ -263,8 +264,8 @@ $env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest --regenerate-view-goldens
 - Give every issue you file its type label, `bug`, `enhancement` or
   `maintenance`, and no other label. Leave it unassigned. Which skill picks an
   issue up, and who works on it, are the user's to say, and a label or an
-  assignee you add takes that choice away: a dispatch label sends an assignment
-  at the issue before the user has read it.
+  assignee you add takes that choice away: a dispatch label starts agent work on
+  the issue before the user has read it.
 - Ask of every issue you file whether an issue that is already open has to wait
   for it. When one does, mark that issue as blocked by the new one, so a
   dispatcher working through unblocked issues takes them in the right order.

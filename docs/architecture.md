@@ -51,7 +51,8 @@ One scheduler tick:
 2. reconciles incomplete assignment setup;
 3. applies the run's requested capacity and global-cooldown constraints;
 4. finds the highest-priority assignment candidate, considering existing
-   assignment rounds before dispatch of the oldest available issue;
+   assignment rounds before dispatching a new assignment for the oldest
+   available issue;
 5. finds the highest-priority conversation candidate, ranking recovery before
    the oldest waiting fresh comment;
 6. alternates between the two kinds when both have candidates, without changing
@@ -108,11 +109,11 @@ fetched main revision, then runs in a detached worktree. Conversation worktrees
 live outside assignment discovery and never acquire implementation branches or
 pull requests.
 
-The signed-in GitHub account, rather than the configured dispatch assignee,
-identifies trusted issue comments. Marked Dreamcatcher comments, comments by
-other accounts and blank comments are excluded. Each durable round input records
-the delivered batch, so the newest comment in the latest input is the delivery
-position and a batch cannot be selected again.
+The signed-in GitHub account identifies trusted issue comments. Marked
+Dreamcatcher comments, comments by other accounts and blank comments are
+excluded. Each durable round input records the delivered batch, so the newest
+comment in the latest input is the delivery position and a batch cannot be
+selected again.
 
 The first eligible batch starts one session through the harness selected from
 the conversation's configured recipes, with the issue title, body and trusted
@@ -132,6 +133,14 @@ selected batch that was never recorded establishes no delivery position and may
 be replaced by the next fresh selection.
 
 Fresh-batch candidates are polled before the capacity check.
+
+Conversation harness permissions reinforce the no-implementation boundary while
+allowing issue actions that the user requests. Claude allows selected `gh issue`
+commands and `gh api` while denying direct editing and Git mutations. Codex runs
+in a networked workspace-write sandbox without approval escalation. Each prompt
+forbids source changes, Git mutations, pull-request changes and direct reply
+posting, and requires the agent marker on every other GitHub post that the agent
+makes.
 
 A conversation round posts its own answer. The conversation launcher gives the
 round a finisher that posts to the issue, so the shared round runner knows
@@ -316,7 +325,7 @@ state.
 An `IssueObservation` represents claimed here, claimed elsewhere, blocked, and
 routing conflict as independent facts which may each be true, false, or unknown;
 its availability is derived from those facts together with whether the issue is
-open, assigned to the instance's user, and carries exactly one dispatch label.
+open, assigned to the instance's user, and carries exactly one assignment label.
 The report includes available issues in the scheduler's dispatch order. It also
 includes issues with known open blockers, together with the scheduler's recorded
 blocker evidence. An `AgentAssignmentStatus` is one summary status from the
@@ -381,25 +390,28 @@ the request, kills its harness process tree, and records its stopped ending.
 
 ### Configuration, dispatch labels, and routes
 
-`config.py` owns the strict model for `dreamcatcher.toml`. An `AgentRecipe`
+`config.py` owns the strict model for `dreamcatcher.toml`. A `DispatchRecipe`
 supplies the model, effort, and initial prompt used to start agent work through
-one harness. A `DispatchRoute` maps one dispatch label to one or more recipes
-for assignments; its prompt normally invokes an assignment skill.
+one harness. A `DispatchRoute` maps one dispatch label to one recipe per harness
+that the route configures.
 
-Each optional conversation route maps one separate label to one or more recipes
-for issue conversations. Both kinds of route use the same harness-selection
-rule: a configured requested harness wins, while the sole recipe wins when only
-one exists. Conversation discovery does not treat its labels as dispatch routes.
+An `AssignmentRoute` specializes a dispatch route for assignments, and its
+prompt normally invokes an assignment skill. A `ConversationRoute` specializes a
+dispatch route for issue conversations. Both kinds use the same
+harness-selection rule: a configured requested harness wins, while the sole
+recipe wins when only one exists.
 
 The repository configuration carries choices that everyone working in the
 repository shares. The daemon interval and agent cap belong to one person's run,
 so the `run` command receives them instead.
 
-The configuration module validates labels, routes, and recipes and, given an
-issue's observed labels, identifies the matching routes. It does not silently
-resolve multiple labels by list order. The scheduler interprets exactly one
-route of either kind as routable, more than one of that kind as a routing
-conflict, and none as outside that workflow.
+The configuration module validates labels, routes, and recipes. Each dispatch
+label belongs to one route, so a label cannot configure both kinds of agent
+work. Given an issue's observed labels, the module identifies the matching
+routes. It does not silently resolve multiple labels by list order. The
+scheduler interprets exactly one route of either kind as routable, more than one
+of that kind as a routing conflict, and none as outside that workflow. One route
+of each kind may match at the same time.
 
 ### State and documents
 
@@ -479,7 +491,7 @@ A round record persists:
 - the durable files containing its prompt, delivered input, output, and any
   final result the harness reports.
 
-A conversation record persists its issue and title, chosen route label and
+A conversation record persists its issue and title, chosen dispatch label and
 harness settings, harness session identifier and latest user retry request. The
 route and recipe remain frozen when a different configured conversation label
 later makes the issue eligible. The issue derives the managed worktree path.
@@ -529,6 +541,9 @@ The important dependency rules are:
 
 These rules keep the scheduling loop imperative and straightforward without
 turning every possible action into an abstract command hierarchy.
+
+`tests/test_architecture.py` checks each rule here that keeps one module from
+reaching another through its imports, directly or through another module.
 
 ## Agent-facing contract
 

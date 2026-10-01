@@ -999,6 +999,9 @@ class _StatusReportReader:
     def _describe_fault_with_feed(
         self, *, assignment: AgentAssignment, reason: str
     ) -> str:
-        """Describe a fault and the feed that holds its latest output."""
+        """Describe a fault with its latest feed output when available."""
+        line = self._read_last_output(assignment=assignment)
+        if line is not None:
+            return line.text.strip()
         feed = assignment.compose_round_paths(number=assignment.rounds[-1].number).feed
         return f"{reason} ({self.state.describe_path(path=feed)})"

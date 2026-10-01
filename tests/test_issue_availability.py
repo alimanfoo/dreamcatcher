@@ -4,7 +4,7 @@ from itertools import product
 
 import pytest
 from conftest import (
-    DISPATCH_LABEL,
+    ASSIGNMENT_LABEL,
     FILED,
     LATER,
     POSTED_BY,
@@ -42,14 +42,11 @@ def test_every_issue_fact_requires_evidence(value):
         IssueFact.model_validate({"value": value})
 
 
-def config_with_routes(
-    *, labels: Sequence[str], assignee: str = "@me"
-) -> DreamcatcherConfig:
+def config_with_routes(*, labels: Sequence[str]) -> DreamcatcherConfig:
     """Return a config that routes each label to the same harness recipe."""
     return DreamcatcherConfig.model_validate(
         {
-            "assignee": assignee,
-            "dispatch": [{"label": label, "claude": SETTINGS} for label in labels],
+            "assignment": [{"label": label, "claude": SETTINGS} for label in labels],
         }
     )
 
@@ -78,11 +75,12 @@ def observe(
     config: DreamcatcherConfig,
     assignments: Sequence[AgentAssignment] = (),
     incomplete_setups: dict[int, str | None] | None = None,
+    account: str = POSTED_BY,
 ):
     """Return the issue observations after asserting that the listing succeeded."""
     found = observe_issues(
         repository=REPOSITORY,
-        account=POSTED_BY,
+        account=account,
         config=config,
         assignments=list(assignments),
         incomplete_setups=({} if incomplete_setups is None else incomplete_setups),
@@ -116,10 +114,10 @@ def test_availability_follows_the_independent_fact_truth_table(values):
     [
         ({"is_open": IssueFactValue.FALSE}, IssueFactValue.FALSE),
         ({"is_assigned_to_user": IssueFactValue.FALSE}, IssueFactValue.FALSE),
-        ({"dispatch_labels": ()}, IssueFactValue.FALSE),
+        ({"assignment_labels": ()}, IssueFactValue.FALSE),
         ({"is_open": IssueFactValue.UNKNOWN}, IssueFactValue.UNKNOWN),
         ({"is_assigned_to_user": IssueFactValue.UNKNOWN}, IssueFactValue.UNKNOWN),
-        ({"dispatch_labels": None}, IssueFactValue.UNKNOWN),
+        ({"assignment_labels": None}, IssueFactValue.UNKNOWN),
         (
             {
                 "is_open": IssueFactValue.FALSE,
@@ -136,7 +134,7 @@ def test_availability_follows_the_independent_fact_truth_table(values):
         ),
         (
             {
-                "dispatch_labels": (),
+                "assignment_labels": (),
                 "routing_conflict": IssueFactValue.UNKNOWN,
             },
             IssueFactValue.FALSE,
@@ -144,11 +142,11 @@ def test_availability_follows_the_independent_fact_truth_table(values):
     ],
 )
 def test_availability_also_requires_an_open_assigned_routed_issue(change, expected):
-    dispatch_labels = change.get("dispatch_labels", (DISPATCH_LABEL,))
-    values = {key: value for key, value in change.items() if key != "dispatch_labels"}
+    assignment_labels = change.get("assignment_labels", (ASSIGNMENT_LABEL,))
+    values = {key: value for key, value in change.items() if key != "assignment_labels"}
     availability = derive_issue_availability(
         observation=observed_issue(
-            issue=8, dispatch_labels=dispatch_labels, values=values
+            issue=8, assignment_labels=assignment_labels, values=values
         )
     )
 
@@ -156,7 +154,7 @@ def test_availability_also_requires_an_open_assigned_routed_issue(change, expect
 
 
 def test_an_issue_with_no_preventing_fact_is_available(gh):
-    found = observe(config=config_with_routes(labels=[DISPATCH_LABEL]))
+    found = observe(config=config_with_routes(labels=[ASSIGNMENT_LABEL]))
 
     assert len(found) == 1
     assert found[0].title == "Issue 8"
@@ -166,7 +164,7 @@ def test_an_issue_with_no_preventing_fact_is_available(gh):
 def test_observed_issues_are_ordered_oldest_first(gh):
     gh.replies(stdout=listing(issues=[(8, LATER), (3, FILED)]), to="issue list")
 
-    found = observe(config=config_with_routes(labels=[DISPATCH_LABEL]))
+    found = observe(config=config_with_routes(labels=[ASSIGNMENT_LABEL]))
 
     assert [observation.issue for observation in found] == [3, 8]
 
@@ -177,7 +175,7 @@ def test_a_listing_failure_makes_the_whole_observation_unknown(gh):
     found = observe_issues(
         repository=REPOSITORY,
         account=POSTED_BY,
-        config=config_with_routes(labels=[DISPATCH_LABEL]),
+        config=config_with_routes(labels=[ASSIGNMENT_LABEL]),
         assignments=[],
         incomplete_setups={},
     )
@@ -190,17 +188,22 @@ def test_a_listing_failure_makes_the_whole_observation_unknown(gh):
 def test_a_later_route_failure_preserves_earlier_issue_observations(gh):
     gh.replies(
         stdout=listing(issues=[(8, FILED)]),
-        to=f"issue list --repo {REPOSITORY} --assignee @me --label {DISPATCH_LABEL}",
+        to=(
+            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
+            f"--label {ASSIGNMENT_LABEL}"
+        ),
     )
     gh.fails(
         stderr="gh: could not connect to github.com",
-        to=f"issue list --repo {REPOSITORY} --assignee @me --label dream:less",
+        to=(
+            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} --label dream:less"
+        ),
     )
 
     found = observe_issues(
         repository=REPOSITORY,
         account=POSTED_BY,
-        config=config_with_routes(labels=[DISPATCH_LABEL, "dream:less"]),
+        config=config_with_routes(labels=[ASSIGNMENT_LABEL, "dream:less"]),
         assignments=[],
         incomplete_setups={},
     )
@@ -211,9 +214,10 @@ def test_a_later_route_failure_preserves_earlier_issue_observations(gh):
     assert found.observations[0].is_open.value is IssueFactValue.TRUE
 
 
-def test_an_explicit_assignee_is_matched_without_case_sensitivity(gh):
+def test_the_signed_in_account_is_matched_without_case_sensitivity(gh):
     found = observe(
-        config=config_with_routes(labels=[DISPATCH_LABEL], assignee=POSTED_BY.upper())
+        config=config_with_routes(labels=[ASSIGNMENT_LABEL]),
+        account=POSTED_BY.upper(),
     )[0]
 
     assert found.is_assigned_to_user.value is IssueFactValue.TRUE
@@ -221,12 +225,14 @@ def test_an_explicit_assignee_is_matched_without_case_sensitivity(gh):
 
 def test_routing_conflict_is_independent_of_external_claims_and_blockers(gh):
     issue = json.loads(listing(issues=[(8, FILED)]))[0]
-    issue["labels"] = [{"name": DISPATCH_LABEL}, {"name": "dream:less"}]
+    issue["labels"] = [{"name": ASSIGNMENT_LABEL}, {"name": "dream:less"}]
     gh.replies(stdout=json.dumps([issue]), to="issue list")
 
-    found = observe(config=config_with_routes(labels=[DISPATCH_LABEL, "dream:less"]))[0]
+    found = observe(config=config_with_routes(labels=[ASSIGNMENT_LABEL, "dream:less"]))[
+        0
+    ]
 
-    assert found.dispatch_labels == ["dream:less", DISPATCH_LABEL]
+    assert found.assignment_labels == ["dream:less", ASSIGNMENT_LABEL]
     assert found.routing_conflict.value is IssueFactValue.TRUE
     assert found.claimed_elsewhere.value is IssueFactValue.FALSE
     assert found.blocked.value is IssueFactValue.FALSE
@@ -254,7 +260,7 @@ def test_local_and_external_claims_can_both_be_true(gh, tmp_path):
     )
 
     found = observe(
-        config=config_with_routes(labels=[DISPATCH_LABEL]),
+        config=config_with_routes(labels=[ASSIGNMENT_LABEL]),
         assignments=read_agent_assignments(state=state),
     )[0]
 
@@ -265,7 +271,7 @@ def test_local_and_external_claims_can_both_be_true(gh, tmp_path):
 
 def test_a_recoverable_setup_is_not_treated_as_an_external_claim(gh):
     found = observe(
-        config=config_with_routes(labels=[DISPATCH_LABEL]),
+        config=config_with_routes(labels=[ASSIGNMENT_LABEL]),
         incomplete_setups={8: None},
     )[0]
 
@@ -275,7 +281,7 @@ def test_a_recoverable_setup_is_not_treated_as_an_external_claim(gh):
 
 def test_a_setup_that_cannot_be_recovered_leaves_the_claim_unknown(gh):
     found = observe(
-        config=config_with_routes(labels=[DISPATCH_LABEL]),
+        config=config_with_routes(labels=[ASSIGNMENT_LABEL]),
         incomplete_setups={8: "assignment setup failed"},
     )[0]
 
@@ -288,7 +294,7 @@ def test_a_setup_failure_survives_a_failed_linked_pull_request_read(gh):
     gh.fails(stderr="gh: could not connect to github.com", to="issue view")
 
     found = observe(
-        config=config_with_routes(labels=[DISPATCH_LABEL]),
+        config=config_with_routes(labels=[ASSIGNMENT_LABEL]),
         incomplete_setups={8: "assignment setup failed"},
     )[0]
 
@@ -314,7 +320,7 @@ def test_a_setup_failure_keeps_a_proven_external_claim(gh):
     )
 
     found = observe(
-        config=config_with_routes(labels=[DISPATCH_LABEL]),
+        config=config_with_routes(labels=[ASSIGNMENT_LABEL]),
         incomplete_setups={8: "assignment setup failed"},
     )[0]
 
@@ -326,7 +332,7 @@ def test_a_setup_failure_keeps_a_proven_external_claim(gh):
 def test_a_failed_linked_pull_request_read_preserves_unknown_evidence(gh):
     gh.fails(stderr="gh: the issue is not there", to="issue view")
 
-    found = observe(config=config_with_routes(labels=[DISPATCH_LABEL]))[0]
+    found = observe(config=config_with_routes(labels=[ASSIGNMENT_LABEL]))[0]
 
     assert found.claimed_elsewhere.value is IssueFactValue.UNKNOWN
     assert found.claimed_elsewhere.evidence is not None
@@ -348,7 +354,7 @@ def test_open_blockers_are_observed_independently(gh):
         to="api",
     )
 
-    found = observe(config=config_with_routes(labels=[DISPATCH_LABEL]))[0]
+    found = observe(config=config_with_routes(labels=[ASSIGNMENT_LABEL]))[0]
 
     assert found.blocked.value is IssueFactValue.TRUE
     assert found.blocked.evidence == "blocked by GH9"
@@ -357,7 +363,7 @@ def test_open_blockers_are_observed_independently(gh):
 def test_a_failed_blocker_read_preserves_unknown_evidence(gh):
     gh.fails(stderr="gh: could not connect to github.com", to="api")
 
-    found = observe(config=config_with_routes(labels=[DISPATCH_LABEL]))[0]
+    found = observe(config=config_with_routes(labels=[ASSIGNMENT_LABEL]))[0]
 
     assert found.blocked.value is IssueFactValue.UNKNOWN
     assert found.blocked.evidence is not None
@@ -386,7 +392,7 @@ def test_an_open_local_assignment_is_observed_outside_the_listing(gh, tmp_path):
     )
 
     found = observe(
-        config=config_with_routes(labels=[DISPATCH_LABEL]),
+        config=config_with_routes(labels=[ASSIGNMENT_LABEL]),
         assignments=read_agent_assignments(state=state),
     )
 
@@ -395,7 +401,7 @@ def test_an_open_local_assignment_is_observed_outside_the_listing(gh, tmp_path):
     assert found[0].is_open.evidence == "issue is closed"
     assert found[0].is_assigned_to_user.value is IssueFactValue.FALSE
     assert found[0].is_assigned_to_user.evidence == "is not assigned to alimanfoo"
-    assert found[0].dispatch_labels == []
+    assert found[0].assignment_labels == []
     assert found[0].claimed_here.value is IssueFactValue.TRUE
 
 
@@ -410,7 +416,7 @@ def test_a_local_assignment_remains_observed_when_the_listing_and_issue_read_fai
     found = observe_issues(
         repository=REPOSITORY,
         account=POSTED_BY,
-        config=config_with_routes(labels=[DISPATCH_LABEL]),
+        config=config_with_routes(labels=[ASSIGNMENT_LABEL]),
         assignments=read_agent_assignments(state=state),
         incomplete_setups={},
     )
@@ -445,7 +451,7 @@ def test_an_incomplete_setup_is_observed_outside_the_listing(gh):
     )
 
     found = observe(
-        config=config_with_routes(labels=[DISPATCH_LABEL]),
+        config=config_with_routes(labels=[ASSIGNMENT_LABEL]),
         incomplete_setups={13: "assignment setup failed"},
     )
 

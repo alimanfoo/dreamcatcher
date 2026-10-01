@@ -28,9 +28,9 @@ from dreamcatcher.clock import read_current_time
 from dreamcatcher.commands import spawn_command
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.documents import (
+    DocumentCache,
     DreamcatcherDocument,
     append_text,
-    read_json,
     read_text,
     remove_file,
     write_json,
@@ -361,47 +361,42 @@ class AgentRoundPaths:
         return self.directory / "final.md"
 
 
-class AgentRoundReader:
-    """Read round records and cache terminal records.
+def read_agent_round_records(
+    *, cache: DocumentCache, directory: Path
+) -> list[AgentRoundRecord]:
+    """Return round records under the directory, oldest first.
+
+    The records determine the order. A directory without a record is not a
+    round and is omitted.
 
     A terminal record has had both of its writes, and nothing writes it again,
-    so a reader that has read one need never open it again.
-
-    Running records are reopened on every read because their endings may arrive
-    later. Each read lists the rounds directory and opens only records that have
-    no cached terminal outcome.
+    so the cache keeps it and a later read does not open it. A running record is
+    opened on every read, because its ending may arrive later.
     """
+    records = [
+        _read_agent_round_record(cache=cache, path=record_path)
+        for record_path in directory.glob(f"*/{AGENT_ROUND_RECORD_NAME}")
+    ]
+    return sorted(records, key=lambda record: record.number)
 
-    def __init__(self) -> None:
-        """Set up a reader that has read nothing yet."""
-        self._cache: dict[Path, AgentRoundRecord] = {}
 
-    def read_records(self, *, directory: Path) -> list[AgentRoundRecord]:
-        """Return round records under the directory, oldest first.
+def _read_agent_round_record(*, cache: DocumentCache, path: Path) -> AgentRoundRecord:
+    """Return the record at path, or refuse one that its directory contradicts.
 
-        The records determine the order. A directory without a record is not a
-        round and is omitted.
-        """
-        records = [
-            self._read_record(path=record_path)
-            for record_path in directory.glob(f"*/{AGENT_ROUND_RECORD_NAME}")
-        ]
-        return sorted(records, key=lambda record: record.number)
-
-    def _read_record(self, *, path: Path) -> AgentRoundRecord:
-        """Return what the record at path says, and cache it once it is terminal."""
-        cached = self._cache.get(path)
-        if cached is not None:
-            return cached
-        record = read_json(model=AgentRoundRecord, path=path)
-        if path.parent.name != str(record.number):
-            raise ReportableError(
-                f"{path} says it is round {record.number}, "
-                f"but its directory names round {path.parent.name}."
-            )
-        if record.outcome is not AgentRoundOutcome.RUNNING:
-            self._cache[path] = record
-        return record
+    The check runs on every read, so a record that the cache keeps is refused
+    each time just as one that it opens.
+    """
+    record = cache.read_json(
+        model=AgentRoundRecord,
+        path=path,
+        is_unchanging=lambda record: record.outcome is not AgentRoundOutcome.RUNNING,
+    )
+    if path.parent.name != str(record.number):
+        raise ReportableError(
+            f"{path} says it is round {record.number}, "
+            f"but its directory names round {path.parent.name}."
+        )
+    return record
 
 
 class AgentRound:

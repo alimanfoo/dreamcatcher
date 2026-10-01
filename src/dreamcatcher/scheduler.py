@@ -4,9 +4,9 @@ Each tick reads local agent work, observes relevant issues on GitHub, applies
 the concurrency cap and global cooldown, and fills every free agent slot.
 
 Within assignment work, a missing first round comes first, followed by recovery,
-wrap-up, user feedback, and dispatch of the oldest available issue. Conversation
-recovery precedes fresh batches. When both kinds are ready, the scheduler
-alternates which kind receives the next free slot.
+wrap-up, user feedback, and a new assignment for the oldest available issue.
+Conversation recovery precedes fresh batches. When both kinds are ready, the
+scheduler alternates which kind receives the next free slot.
 """
 
 from collections.abc import Callable
@@ -44,8 +44,8 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.config import (
     AgentHarness,
+    ConversationRoute,
     DreamcatcherConfig,
-    IssueConversationRoute,
 )
 from dreamcatcher.documents import DreamcatcherDocument, read_json
 from dreamcatcher.errors import ReportableError
@@ -127,7 +127,7 @@ class IssueObservation(DreamcatcherDocument):
     observed_at: UtcDateTime | None = None
     is_open: IssueFact
     is_assigned_to_user: IssueFact
-    dispatch_labels: list[str] | None = None
+    assignment_labels: list[str] | None = None
     claimed_here: IssueFact
     claimed_elsewhere: IssueFact
     setup_failure: str | None = None
@@ -217,7 +217,7 @@ class NewIssueConversationRoundCandidate:
     issue: Issue
     comments: list[ConversationComment]
     conversation: IssueConversation | None
-    route: IssueConversationRoute
+    route: ConversationRoute
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -325,10 +325,10 @@ def derive_issue_availability(*, observation: IssueObservation) -> IssueFact:
     )
     if unknown is not None:
         return unknown
-    if observation.dispatch_labels is None:
+    if observation.assignment_labels is None:
         return IssueFact(
             value=IssueFactValue.UNKNOWN,
-            evidence="cannot tell which dispatch labels it carries",
+            evidence="cannot tell which assignment labels it carries",
         )
     return IssueFact(
         value=IssueFactValue.TRUE,
@@ -350,11 +350,11 @@ def _find_preventing_issue_fact(*, observation: IssueObservation) -> IssueFact |
     for fact in [observation.is_open, observation.is_assigned_to_user]:
         if fact.value is IssueFactValue.FALSE:
             return fact
-    labels = observation.dispatch_labels
+    labels = observation.assignment_labels
     if labels is not None and len(labels) != 1:
         return IssueFact(
             value=IssueFactValue.FALSE,
-            evidence="carries no configured dispatch label",
+            evidence="carries no configured assignment label",
         )
     return None
 
@@ -367,8 +367,10 @@ def observe_issues(
     assignments: list[AgentAssignment],
     incomplete_setups: dict[int, str | None],
 ) -> IssueObservationResult:
-    """Observe every issue considered for dispatch or claimed by this instance."""
-    considered_issues = _list_considered_issues(repository=repository, config=config)
+    """Observe every issue considered for assignment or claimed by this instance."""
+    considered_issues = _list_considered_issues(
+        repository=repository, account=account, config=config
+    )
     open_assignments = find_open_agent_assignments_by_issue(assignments=assignments)
     context = _IssueObservationContext(
         repository=repository,
@@ -421,13 +423,13 @@ def _record_missing_assignment_titles(
 
 
 def _list_considered_issues(
-    *, repository: str, config: DreamcatcherConfig
+    *, repository: str, account: str, config: DreamcatcherConfig
 ) -> _ConsideredIssueResult:
-    """List open assigned issues that carry any configured dispatch label."""
+    """List open assigned issues that carry any configured assignment label."""
     issues_by_number: dict[int, Issue] = {}
-    for route in config.dispatch:
+    for route in config.assignment:
         issue_response = list_issues(
-            repository=repository, label=route.label, assignee=config.assignee
+            repository=repository, label=route.label, assignee=account
         )
         if isinstance(issue_response, UnknownGitHubResponse):
             return _ConsideredIssueResult(
@@ -451,7 +453,7 @@ def _observe_issue(
         created_at = None
         is_open = IssueFact(value=IssueFactValue.UNKNOWN, evidence=external_reason)
         is_assigned = IssueFact(value=IssueFactValue.UNKNOWN, evidence=external_reason)
-        dispatch_labels = None
+        assignment_labels = None
         routing_conflict = IssueFact(
             value=IssueFactValue.UNKNOWN, evidence=external_reason
         )
@@ -463,35 +465,30 @@ def _observe_issue(
             if issue_response.state is IssueState.OPEN
             else IssueFact(value=IssueFactValue.FALSE, evidence="issue is closed")
         )
-        watched_account = (
-            context.account
-            if context.config.assignee == "@me"
-            else context.config.assignee
-        )
-        is_assigned_to_user = watched_account.casefold() in {
+        is_assigned_to_user = context.account.casefold() in {
             assignee.login.casefold() for assignee in issue_response.assignees
         }
         is_assigned = (
             IssueFact(
                 value=IssueFactValue.TRUE,
-                evidence=f"is assigned to {watched_account}",
+                evidence=f"is assigned to {context.account}",
             )
             if is_assigned_to_user
             else IssueFact(
                 value=IssueFactValue.FALSE,
-                evidence=f"is not assigned to {watched_account}",
+                evidence=f"is not assigned to {context.account}",
             )
         )
-        dispatch_labels = context.config.identify_dispatch_labels(
+        assignment_labels = context.config.identify_assignment_labels(
             labels=[label.name for label in issue_response.labels]
         )
-        has_routing_conflict = len(dispatch_labels) > 1
+        has_routing_conflict = len(assignment_labels) > 1
         routing_conflict = (
             IssueFact(
                 value=IssueFactValue.TRUE,
                 evidence=(
-                    "carries more than one dispatch label: "
-                    + ", ".join(dispatch_labels)
+                    "carries more than one assignment label: "
+                    + ", ".join(assignment_labels)
                 ),
             )
             if has_routing_conflict
@@ -518,7 +515,7 @@ def _observe_issue(
         created_at=created_at,
         is_open=is_open,
         is_assigned_to_user=is_assigned,
-        dispatch_labels=dispatch_labels,
+        assignment_labels=assignment_labels,
         claimed_here=claimed_here,
         claimed_elsewhere=_observe_external_claim(
             context=context,
@@ -819,10 +816,7 @@ def _inspect_assignment_pull_request(
             reason=f"cannot tell what the user posted: {undelivered_posts.reason}",
             is_known=False,
         )
-    if not undelivered_posts and (
-        pull_request.state is PullRequestState.OPEN
-        or assignment.rounds[-1].outcome is AgentRoundOutcome.STOPPED
-    ):
+    if not undelivered_posts and pull_request.state is PullRequestState.OPEN:
         return None
     return _compose_resumed_round_requirement(
         assignment=assignment,
@@ -1412,7 +1406,7 @@ class AgentWorkScheduler:
     def _inspect_issue_conversation(
         self,
         *,
-        route: IssueConversationRoute,
+        route: ConversationRoute,
         issue: Issue,
         conversation: IssueConversation | None,
         most_recent_cooldown_ended: datetime | None,
@@ -1627,7 +1621,7 @@ class AgentWorkScheduler:
                 )
             return record, inspection_results
         return (
-            self._dispatch_issue(
+            self._start_available_assignment(
                 record=record,
                 issue=candidate,
             ),
@@ -1821,14 +1815,14 @@ class AgentWorkScheduler:
             }
         )
 
-    def _dispatch_issue(
+    def _start_available_assignment(
         self,
         *,
         record: SchedulerRecord,
         issue: IssueObservation,
     ) -> SchedulerRecord:
-        """Dispatch one issue whose independent facts make it available."""
-        labels = issue.dispatch_labels or []
+        """Start an assignment for one issue whose facts make it available."""
+        labels = issue.assignment_labels or []
         try:
             self._launch_assignment(issue=issue.issue, label=labels[0], at=record.at)
         except ReportableError as failure:
@@ -1848,7 +1842,7 @@ class AgentWorkScheduler:
             repository=self.repository,
         )
         assignment = creator.create(
-            route=self.config.dispatch_routes[label],
+            route=self.config.assignment_routes[label],
             requested_harness=self.requested_harness,
             issue=issue,
             at=at,

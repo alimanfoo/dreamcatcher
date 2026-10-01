@@ -1,12 +1,12 @@
 """Create agent assignments and read their persisted state.
 
-Each dispatch creates an assignment with its own identifier, branch, worktree,
-assignment directory under the instance state, and pull request. Several
-assignments can exist for one issue.
+Each assignment dispatch creates an assignment with its own identifier, branch,
+worktree, assignment directory under the instance state, and pull request.
+Several assignments can exist for one issue.
 
 Creation prepares and publishes the assignment's branch, opens its linked draft
-pull request, then records the assignment. The scheduler decides which issue to
-dispatch and when.
+pull request, then records the assignment. The scheduler decides when to create
+each assignment.
 """
 
 from contextlib import suppress
@@ -24,9 +24,10 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     ErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
+    read_agent_round_records,
 )
 from dreamcatcher.commands import CommandError
-from dreamcatcher.config import AgentHarness, DispatchRoute
+from dreamcatcher.config import AgentHarness, AssignmentRoute
 from dreamcatcher.documents import (
     DreamcatcherDocument,
     read_json,
@@ -69,7 +70,7 @@ from dreamcatcher.state import StateDirectory
 # that the catcher it replaces left behind.
 AGENT_ASSIGNMENT_BRANCH_PREFIX = "dreamcatcher-"
 
-# The file in an assignment's directory saying what the assignment was dispatched
+# The file in an assignment's directory saying what the assignment received
 # with.
 AGENT_ASSIGNMENT_RECORD_NAME = "assignment.json"
 
@@ -102,7 +103,7 @@ class PullRequestObservation(DreamcatcherDocument):
 class AgentAssignmentRecord(DreamcatcherDocument):
     """Model the identities and settled settings of an agent assignment.
 
-    The dispatch settles the recipe and identities. The first round
+    The assignment dispatch settles the recipe and identities. The first round
     adds the harness session identifier when the harness reports it, and a retry
     request records its time. Every round reads this record, so later config
     edits do not change an assignment in progress. The latest pull request
@@ -129,7 +130,8 @@ class AgentAssignment:
     """Represent an agent assignment as its persisted state currently reads.
 
     The directory name is the assignment identifier. The record holds the
-    dispatch settings, and the rounds are ordered from oldest to newest.
+    assignment dispatch settings, and the rounds are ordered from oldest to
+    newest.
 
     The user-post delivery cursor is the newest post delivered to the assignment.
     An assignment that has received none has the beginning of time, so the first
@@ -363,7 +365,7 @@ class AgentAssignmentCreator:
     def create(
         self,
         *,
-        route: DispatchRoute,
+        route: AssignmentRoute,
         requested_harness: AgentHarness,
         issue: int,
         at: datetime,
@@ -587,8 +589,9 @@ def _read_assignment(*, state: StateDirectory, directory: Path) -> AgentAssignme
         record=read_json(
             model=AgentAssignmentRecord, path=directory / AGENT_ASSIGNMENT_RECORD_NAME
         ),
-        rounds=state.round_reader.read_records(
-            directory=directory / AGENT_ROUNDS_DIRECTORY_NAME
+        rounds=read_agent_round_records(
+            cache=state.document_cache,
+            directory=directory / AGENT_ROUNDS_DIRECTORY_NAME,
         ),
         user_post_delivery_cursor=_read_user_post_delivery_cursor(directory=directory),
     )
