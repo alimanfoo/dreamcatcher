@@ -31,6 +31,14 @@ Leave every other spec as it stands, however far the code has moved since. Each
 one is a historical record of what a completed phase set out to do, so bringing
 it up to date would take that record away.
 
+## The standard
+
+[docs/standard.md](docs/standard.md) says how good the work has to be and how we
+tell. Read it before you change code, and answer its definition of done in every
+pull request. Where this guide's conventions and the standard's criteria cover
+the same ground, the standard sets the bar and the conventions say how to meet
+it.
+
 ## Dev setup
 
 Install the tools and the commit hooks:
