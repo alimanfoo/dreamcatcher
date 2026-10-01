@@ -19,7 +19,7 @@ from dreamcatcher.status import (
     read_dreamcatcher_daemon_status,
     read_repository,
 )
-from dreamcatcher.web.feed import _read_agent_feed
+from dreamcatcher.web.feed import read_agent_feed
 from dreamcatcher.web.models import (
     WebAgentRound,
     WebAssignmentCard,
@@ -45,9 +45,10 @@ def _compose_github_repository_url(*, repository: str | None) -> str | None:
     return f"https://github.com/{repository}"
 
 
-def _compose_home_view(
+def compose_home_view(
     *, report: DreamcatcherStatusReport, zone: tzinfo | None
 ) -> WebHomeView:
+    """Return the values shown on the home page."""
     cooldown_end = (
         None
         if report.active_global_cooldown is None
@@ -146,7 +147,7 @@ def _compose_assignment_card(*, status: AgentAssignmentStatus) -> WebAssignmentC
         issue=assignment.record.issue,
         title=assignment.record.title,
         status=str(status.value),
-        status_label=_compose_assignment_status_label(status=status),
+        status_label=compose_assignment_status_label(status=status),
         detail=status.detail,
         dispatch_label=assignment.record.dispatch_label,
         harness=str(assignment.record.harness),
@@ -195,19 +196,20 @@ def _describe_pull_request_state(*, status: AgentAssignmentStatus) -> str | None
     return pull_request_observation.state.value.lower()
 
 
-def _compose_assignment_view(
+def compose_assignment_view(
     *,
     state: StateDirectory,
     status: AgentAssignmentStatus,
     zone: tzinfo | None,
     stop_url: str | None = None,
 ) -> WebAssignmentView:
+    """Return the values shown on one assignment page."""
     assignment = status.assignment
     record = assignment.record
     repository = read_repository(state=state)
     daemon = read_dreamcatcher_daemon_status(state=state)
     hand_resume_command = status.hand_resume_command
-    feed = _read_agent_feed(owner=assignment, zone=zone)
+    feed = read_agent_feed(owner=assignment, zone=zone)
     return WebAssignmentView(
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
@@ -220,7 +222,7 @@ def _compose_assignment_view(
         issue=record.issue,
         title=record.title,
         status=str(status.value),
-        status_label=_compose_assignment_status_label(status=status),
+        status_label=compose_assignment_status_label(status=status),
         detail=status.detail,
         pull_request=record.pull_request,
         pull_request_state=_describe_pull_request_state(status=status),
@@ -228,7 +230,7 @@ def _compose_assignment_view(
         harness=str(record.harness),
         model=record.model,
         effort=record.effort,
-        rounds=_compose_agent_rounds(round_statuses=status.round_statuses, zone=zone),
+        rounds=compose_agent_rounds(round_statuses=status.round_statuses, zone=zone),
         stop_url=stop_url,
         hand_resume_worktree=(
             None
@@ -243,7 +245,7 @@ def _compose_assignment_view(
     )
 
 
-def _compose_conversation_view(
+def compose_conversation_view(
     *,
     state: StateDirectory,
     status: IssueConversationStatus,
@@ -254,8 +256,8 @@ def _compose_conversation_view(
     conversation = status.conversation
     repository = read_repository(state=state)
     daemon = read_dreamcatcher_daemon_status(state=state)
-    rounds = _compose_agent_rounds(round_statuses=status.round_statuses, zone=zone)
-    feed = _read_agent_feed(owner=conversation, zone=zone, rounds=rounds)
+    rounds = compose_agent_rounds(round_statuses=status.round_statuses, zone=zone)
+    feed = read_agent_feed(owner=conversation, zone=zone, rounds=rounds)
     return WebConversationView(
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
@@ -292,7 +294,8 @@ def _compose_conversation_facts(
     )
 
 
-def _compose_assignment_status_label(*, status: AgentAssignmentStatus) -> str:
+def compose_assignment_status_label(*, status: AgentAssignmentStatus) -> str:
+    """Return the status label shown for one assignment."""
     return (
         "needs feedback"
         if status.value is AgentAssignmentStatusValue.NEEDS_USER_FEEDBACK
@@ -300,9 +303,10 @@ def _compose_assignment_status_label(*, status: AgentAssignmentStatus) -> str:
     )
 
 
-def _compose_agent_rounds(
+def compose_agent_rounds(
     *, round_statuses: list[AgentRoundStatus], zone: tzinfo | None
 ) -> tuple[WebAgentRound, ...]:
+    """Return the round rows shown for one piece of agent work."""
     return tuple(
         WebAgentRound(
             number=round_status.record.number,

@@ -1,7 +1,9 @@
 """Read and compose web feed snapshots and tails."""
 
 import re
+from dataclasses import dataclass
 from datetime import tzinfo
+from pathlib import Path
 
 from dreamcatcher.agent_rounds import AgentRoundRecord
 from dreamcatcher.documents import is_complete_line_position, read_lines_from
@@ -13,16 +15,23 @@ from dreamcatcher.web.models import (
     WebAgentTailContext,
     WebFeedCursor,
     WebFeedLine,
+    WebFeedOwner,
     WebFeedRound,
-    _WebFeedOwner,
-    _WebRoundFeed,
 )
 from dreamcatcher.words import describe_time
 
 _FEED_CURSOR_PATTERN = re.compile(r"(?P<round>0|[1-9]\d*):(?P<position>\d+)")
 
 
-class _InvalidFeedCursorError(Exception):
+@dataclass(frozen=True, kw_only=True)
+class _WebRoundFeed:
+    """Pair one saved round with the feed it wrote."""
+
+    record: AgentRoundRecord
+    feed: Path
+
+
+class InvalidFeedCursorError(Exception):
     """Report a cursor that cannot identify a complete feed position."""
 
 
@@ -30,25 +39,29 @@ def _encode_feed_cursor(*, cursor: WebFeedCursor) -> str:
     return f"{cursor.round_number}:{cursor.position}"
 
 
-def _decode_feed_cursor(*, value: str) -> WebFeedCursor:
+def decode_feed_cursor(*, value: str) -> WebFeedCursor:
+    """Decode a feed cursor from its encoded text form.
+
+    Raise InvalidFeedCursorError when the value names no valid position.
+    """
     match = _FEED_CURSOR_PATTERN.fullmatch(value)
     if match is None:
-        raise _InvalidFeedCursorError
+        raise InvalidFeedCursorError
     try:
         cursor = WebFeedCursor(
             round_number=int(match["round"]),
             position=int(match["position"]),
         )
     except ValueError:
-        raise _InvalidFeedCursorError from None
+        raise InvalidFeedCursorError from None
     if cursor.round_number == 0 and cursor.position != 0:
-        raise _InvalidFeedCursorError
+        raise InvalidFeedCursorError
     return cursor
 
 
-def _read_agent_tail(
+def read_agent_tail(
     *,
-    owner: _WebFeedOwner | None,
+    owner: WebFeedOwner | None,
     context: WebAgentTailContext,
     cursor: WebFeedCursor,
     zone: tzinfo | None,
@@ -101,7 +114,7 @@ def _read_tail_round(
 ) -> tuple[WebFeedRound | None, int, bool]:
     record = round_feed.record
     if not is_complete_line_position(path=round_feed.feed, position=position):
-        raise _InvalidFeedCursorError
+        raise InvalidFeedCursorError
     written_lines, next_position = read_lines_from(
         path=round_feed.feed,
         position=position,
@@ -133,7 +146,7 @@ def _resolve_feed_cursor(
     if cursor.round_number == 0:
         return 1, 0, True
     if cursor.round_number not in round_feeds:
-        raise _InvalidFeedCursorError
+        raise InvalidFeedCursorError
     return cursor.round_number, cursor.position, False
 
 
@@ -155,7 +168,7 @@ def _compose_web_round_boundary(
     )
 
 
-def _list_round_feeds(*, owner: _WebFeedOwner | None) -> dict[int, _WebRoundFeed]:
+def _list_round_feeds(*, owner: WebFeedOwner | None) -> dict[int, _WebRoundFeed]:
     """Return every saved round of the agent work with its feed, by number.
 
     Agent work with no saved record yet has run no round.
@@ -170,9 +183,9 @@ def _list_round_feeds(*, owner: _WebFeedOwner | None) -> dict[int, _WebRoundFeed
     }
 
 
-def _read_agent_feed(
+def read_agent_feed(
     *,
-    owner: _WebFeedOwner | None,
+    owner: WebFeedOwner | None,
     zone: tzinfo | None,
     rounds: tuple[WebAgentRound, ...] = (),
 ) -> WebAgentFeed:

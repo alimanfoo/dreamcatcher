@@ -1367,7 +1367,7 @@ def test_the_web_server_refuses_address_reuse():
 def test_the_default_server_runner_serves_forever():
     server = MagicMock()
 
-    web_server_module._run_server(server=server)
+    web_server_module.run_web_server(server=server)
 
     server.serve_forever.assert_called_once_with()
 

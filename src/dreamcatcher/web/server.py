@@ -45,16 +45,18 @@ class WebServerRunner(Protocol):
         ...
 
 
-def _run_server(*, server: BaseWSGIServer) -> None:
+def run_web_server(*, server: BaseWSGIServer) -> None:
+    """Serve requests on a bound web server until the process stops."""
     server.serve_forever()
 
 
-def _create_web_server(
+def create_web_server(
     *,
     state: StateDirectory,
     port: int | None,
     application: Callable[..., Iterable[bytes]],
 ) -> BaseWSGIServer:
+    """Bind a local web server to the given port or the first free one."""
     starting_port = port if port is not None else _derive_starting_port(state=state)
     ending_port = starting_port if port is not None else WEB_MAX_PORT
     for candidate in range(starting_port, ending_port + 1):

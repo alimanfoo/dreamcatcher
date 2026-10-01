@@ -107,7 +107,7 @@ def observe_issues(
     )
 
 
-def _record_missing_assignment_titles(
+def record_missing_assignment_titles(
     *, assignments: list[AgentAssignment], observations: list[IssueObservation]
 ) -> None:
     """Record titles first learned after legacy assignments were created."""

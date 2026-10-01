@@ -45,7 +45,7 @@ def derive_agent_work_fault(
     )
 
 
-def _count_observed_conversation_faults(
+def count_observed_conversation_faults(
     *,
     conversations: list[IssueConversation],
     observations: list[IssueConversationObservation],
@@ -94,7 +94,7 @@ class InvalidSchedulerRecordError(ReportableError):
     """Report a scheduler record that retrying cannot safely replace."""
 
 
-def _start_cooldown_if_required(
+def start_cooldown_if_required(
     *,
     active: GlobalCooldown | None,
     fault_count: int,

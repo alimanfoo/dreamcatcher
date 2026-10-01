@@ -1,7 +1,6 @@
 """Flask-free models for Dreamcatcher's web views."""
 
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Protocol
 
 from dreamcatcher.agent_rounds import AgentRoundPaths, AgentRoundRecord
@@ -199,7 +198,7 @@ class WebHomeView:
     blocked_issues: tuple[WebIssueRow, ...]
 
 
-class _WebFeedOwner(Protocol):
+class WebFeedOwner(Protocol):
     """Provide the saved rounds and paths that a web feed reads."""
 
     @property
@@ -210,11 +209,3 @@ class _WebFeedOwner(Protocol):
     def compose_round_paths(self, *, number: int) -> AgentRoundPaths:
         """Return the paths of one numbered round."""
         ...
-
-
-@dataclass(frozen=True, kw_only=True)
-class _WebRoundFeed:
-    """Pair one saved round with the feed it wrote."""
-
-    record: AgentRoundRecord
-    feed: Path

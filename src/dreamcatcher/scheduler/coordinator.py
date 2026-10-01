@@ -40,13 +40,13 @@ from dreamcatcher.scheduler.conversations import (
     list_issue_conversation_candidates,
 )
 from dreamcatcher.scheduler.faults import (
-    _count_observed_conversation_faults,
-    _start_cooldown_if_required,
+    count_observed_conversation_faults,
     read_scheduler_record,
+    start_cooldown_if_required,
 )
 from dreamcatcher.scheduler.issues import (
-    _record_missing_assignment_titles,
     observe_issues,
+    record_missing_assignment_titles,
 )
 from dreamcatcher.scheduler.models import (
     DEFAULT_MAX_AGENTS,
@@ -199,7 +199,7 @@ class AgentWorkScheduler:
             observation.model_copy(update={"observed_at": at})
             for observation in issue_observation_result.observations
         ]
-        _record_missing_assignment_titles(
+        record_missing_assignment_titles(
             assignments=assignments,
             observations=issue_observations,
         )
@@ -218,12 +218,12 @@ class AgentWorkScheduler:
             ),
             most_recent_cooldown_ended=most_recent_cooldown_ended,
         )
-        conversation_fault_count = _count_observed_conversation_faults(
+        conversation_fault_count = count_observed_conversation_faults(
             conversations=conversations,
             observations=conversation_candidates.observations,
             most_recent_cooldown_ended=most_recent_cooldown_ended,
         )
-        cooldown = _start_cooldown_if_required(
+        cooldown = start_cooldown_if_required(
             active=cooldown,
             fault_count=(
                 sum(

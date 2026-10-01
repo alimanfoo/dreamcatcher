@@ -23,9 +23,9 @@ from dreamcatcher.status import (
     read_status_report,
 )
 from dreamcatcher.web.feed import (
-    _decode_feed_cursor,
-    _InvalidFeedCursorError,
-    _read_agent_tail,
+    InvalidFeedCursorError,
+    decode_feed_cursor,
+    read_agent_tail,
 )
 from dreamcatcher.web.models import WebAgentFeed as WebAgentFeed
 from dreamcatcher.web.models import WebAgentRound as WebAgentRound
@@ -38,29 +38,29 @@ from dreamcatcher.web.models import WebConversationView as WebConversationView
 from dreamcatcher.web.models import WebFact as WebFact
 from dreamcatcher.web.models import WebFeedCursor as WebFeedCursor
 from dreamcatcher.web.models import WebFeedLine as WebFeedLine
+from dreamcatcher.web.models import WebFeedOwner
 from dreamcatcher.web.models import WebFeedRound as WebFeedRound
 from dreamcatcher.web.models import WebHomeView as WebHomeView
 from dreamcatcher.web.models import WebIssueRow as WebIssueRow
-from dreamcatcher.web.models import _WebFeedOwner
 from dreamcatcher.web.server import (
     WEB_BASE_PORT as WEB_BASE_PORT,
 )
 from dreamcatcher.web.server import (
     WEB_HOST,
     WebServerRunner,
-    _create_web_server,
-    _run_server,
+    create_web_server,
+    run_web_server,
 )
 from dreamcatcher.web.server import (
     WEB_MAX_PORT as WEB_MAX_PORT,
 )
 from dreamcatcher.web.server import WEB_PORT_RANGE as WEB_PORT_RANGE
 from dreamcatcher.web.views import (
-    _compose_agent_rounds,
-    _compose_assignment_status_label,
-    _compose_assignment_view,
-    _compose_conversation_view,
-    _compose_home_view,
+    compose_agent_rounds,
+    compose_assignment_status_label,
+    compose_assignment_view,
+    compose_conversation_view,
+    compose_home_view,
 )
 
 _HTMX_STOP_POLLING_STATUS = 286
@@ -155,7 +155,7 @@ def _show_home(
     """Render the local status overview."""
     report = read_status_report(state=state, clock=clock)
     return render_template(
-        "home.html", view=_compose_home_view(report=report, zone=zone)
+        "home.html", view=compose_home_view(report=report, zone=zone)
     )
 
 
@@ -176,7 +176,7 @@ def _show_assignment(
         return _missing_assignment_response(identifier=identifier)
     return render_template(
         "assignment.html",
-        view=_compose_assignment_view(
+        view=compose_assignment_view(
             state=state,
             status=status,
             zone=zone,
@@ -215,9 +215,9 @@ def _show_assignment_tail(
         owner=status.assignment,
         context=WebAgentTailContext(
             status=str(status.value),
-            status_label=_compose_assignment_status_label(status=status),
+            status_label=compose_assignment_status_label(status=status),
             detail=status.detail,
-            rounds=_compose_agent_rounds(
+            rounds=compose_agent_rounds(
                 round_statuses=status.round_statuses, zone=zone
             ),
             stop_url=_compose_assignment_stop_url(status=status),
@@ -241,7 +241,7 @@ def _show_conversation(
         return _missing_conversation_response(issue=issue)
     return render_template(
         "conversation.html",
-        view=_compose_conversation_view(
+        view=compose_conversation_view(
             state=state,
             status=status,
             zone=zone,
@@ -279,7 +279,7 @@ def _show_conversation_tail(
             status=str(status.value),
             status_label=str(status.value),
             detail=status.detail,
-            rounds=_compose_agent_rounds(
+            rounds=compose_agent_rounds(
                 round_statuses=status.round_statuses, zone=zone
             ),
             stop_url=_compose_conversation_stop_url(status=status),
@@ -337,7 +337,7 @@ def _is_same_origin_request() -> bool:
 
 def _show_agent_tail(
     *,
-    owner: _WebFeedOwner | None,
+    owner: WebFeedOwner | None,
     context: WebAgentTailContext,
     is_terminal: bool,
     status_id: str,
@@ -345,14 +345,14 @@ def _show_agent_tail(
 ) -> str | tuple[str, int]:
     """Render incremental feed output for an assignment or conversation."""
     try:
-        cursor = _decode_feed_cursor(value=request.args.get("cursor", ""))
-        tail = _read_agent_tail(
+        cursor = decode_feed_cursor(value=request.args.get("cursor", ""))
+        tail = read_agent_tail(
             owner=owner,
             context=context,
             cursor=cursor,
             zone=zone,
         )
-    except _InvalidFeedCursorError:
+    except InvalidFeedCursorError:
         return _invalid_feed_cursor_response()
     response_status = (
         _HTMX_STOP_POLLING_STATUS if not tail.feed_rounds and is_terminal else 200
@@ -430,7 +430,7 @@ def serve_web(
     state: StateDirectory,
     port: int | None = None,
     browser_opener: Callable[[str], object] = open_browser,
-    server_runner: WebServerRunner = _run_server,
+    server_runner: WebServerRunner = run_web_server,
     zone: tzinfo | None = None,
 ) -> None:
     """Serve one local status page, open it, and run until interrupted.
@@ -439,7 +439,7 @@ def serve_web(
     """
     logging.getLogger("werkzeug").setLevel(logging.ERROR)
     application = create_app(state=state, zone=zone)
-    server = _create_web_server(state=state, port=port, application=application)
+    server = create_web_server(state=state, port=port, application=application)
     address = f"http://{WEB_HOST}:{server.server_port}/"
     try:
         with suppress(KeyboardInterrupt):
