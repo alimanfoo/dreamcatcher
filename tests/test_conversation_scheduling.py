@@ -1750,7 +1750,7 @@ def test_a_failed_delivery_cursor_read_is_a_scheduler_hold(
     write_issue_conversation(state=scheduler.state, issue=8)
     offer_conversation(gh=gh, comments=[])
     monkeypatch.setattr(
-        "dreamcatcher.scheduler.read_issue_comment_delivery_cursor",
+        "dreamcatcher.scheduler.conversations.read_issue_comment_delivery_cursor",
         Mock(side_effect=ReportableError("could not read the round input")),
     )
 

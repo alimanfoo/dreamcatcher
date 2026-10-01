@@ -26,7 +26,6 @@ from fakes import Line
 from pydantic import ValidationError
 from records import write_agent_assignment, write_round
 
-import dreamcatcher.scheduler as scheduler_module
 from dreamcatcher.agent_assignments import (
     PullRequestObservation,
     read_agent_assignments,
@@ -629,8 +628,7 @@ def test_an_ended_round_is_inspected_while_its_runner_finishes(tmp_path, monkeyp
         is_round_required=False,
     )
     monkeypatch.setattr(
-        scheduler_module,
-        "inspect_agent_assignment",
+        "dreamcatcher.scheduler.coordinator.inspect_agent_assignment",
         lambda **_arguments: observation,
     )
     scheduler, _ = create_scheduler(root=tmp_path, max_agents=2)
@@ -1049,8 +1047,7 @@ def test_a_started_round_is_reported_when_advancing_its_cursor_fails(
     gh.replies(stdout=listing(issues=[(8, FILED)]), to="issue list")
     scheduler, clock = create_scheduler(root=resuming, max_agents=2)
     monkeypatch.setattr(
-        scheduler_module,
-        "advance_user_post_delivery_cursor",
+        "dreamcatcher.scheduler.assignments.advance_user_post_delivery_cursor",
         Mock(side_effect=ReportableError("could not advance the delivery cursor")),
     )
 
