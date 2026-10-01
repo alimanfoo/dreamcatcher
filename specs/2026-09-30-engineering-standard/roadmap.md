@@ -144,8 +144,10 @@ Then one pull request per module, largest first:
 - `scheduler` becomes a package. Its seams are already visible in its names:
   issue observation and availability; fault and global cooldown; assignment
   candidates and required rounds; conversation candidates and recovery; the tick
-  that alternates and launches. The package keeps one public face so the daemon,
-  status and CLI import what they import today.
+  that alternates and launches. The package keeps one public face so the daemon
+  and CLI import what they import today. Status imports the scheduler's records
+  and derivations from the two submodules that own them, and the architecture
+  test holds it to those.
 - The split moves code and changes no shape. The asymmetry E4 records stays as
   it was, now readable in `scheduler/assignments.py` and
   `scheduler/conversations.py` side by side. Healing it is a design decision,
@@ -154,10 +156,11 @@ Then one pull request per module, largest first:
   import no Flask and are tested without it, the app and routes as a thin shell
   over them, the feed tail, and the server. Templates and static files stay
   where they are.
-- `status` divides assignment, conversation, shared-round, report-reading and
-  public-report concerns. `tui` becomes a package that separates the
-  instance-status view from shared Rich rendering while keeping assignment,
-  conversation and feed views at its public package boundary.
+- `status` becomes a package dividing assignment, conversation, shared-round,
+  report-reading and report concerns, named in parallel with the scheduler's
+  submodules. `tui` becomes a package that separates the instance-status view
+  from shared Rich rendering while keeping assignment, conversation and feed
+  views at its public package boundary.
 - Review `agent_assignments`, `agent_rounds` and `github` for useful seams. Keep
   a module intact when splitting it would separate no responsibility or add
   coupling merely to reduce its line count.

@@ -33,7 +33,7 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.documents import append_text, remove_file, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
-from dreamcatcher.scheduler import GlobalCooldown, SchedulerRecord
+from dreamcatcher.scheduler.models import GlobalCooldown, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.web import serve_web
 from dreamcatcher.web.app import create_app

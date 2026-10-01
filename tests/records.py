@@ -20,7 +20,7 @@ from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.lock import DaemonLockRecord
-from dreamcatcher.scheduler import SchedulerRecord
+from dreamcatcher.scheduler.models import SchedulerRecord
 from dreamcatcher.state import StateDirectory
 
 

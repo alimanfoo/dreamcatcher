@@ -20,11 +20,11 @@ from dreamcatcher.issue_conversations import (
     is_no_reply,
     read_issue_conversation_input,
 )
-from dreamcatcher.scheduler import (
+from dreamcatcher.scheduler.models import (
     IssueConversationObservation,
     IssueFactValue,
 )
-from dreamcatcher.status_rounds import (
+from dreamcatcher.status.rounds import (
     AgentRoundStatus,
     compose_round_duration_description,
     describe_round_outcome,

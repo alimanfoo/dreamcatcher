@@ -28,11 +28,8 @@ from dreamcatcher.documents import write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.issue_conversations import read_issue_conversation
-from dreamcatcher.scheduler import (
-    GlobalCooldown,
-    SchedulerRecord,
-    derive_agent_work_fault,
-)
+from dreamcatcher.scheduler import derive_agent_work_fault
+from dreamcatcher.scheduler.models import GlobalCooldown, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158"

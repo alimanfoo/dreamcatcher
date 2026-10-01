@@ -185,6 +185,11 @@ $env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest --regenerate-view-goldens
 
 ### Module and process boundaries
 
+- Give a package one face: its `__init__.py` imports what modules outside the
+  package import, straight from the submodule that defines each name, and lists
+  those names in `__all__`. Nothing is exported because a test wanted it; a test
+  imports from the submodule. Ruff reports an import that the list leaves out,
+  so a new export cannot go unlisted.
 - Shell out from `commands.py` alone. `pyproject.toml` waives ruff's subprocess
   rules for that one module, so any other module that imports `subprocess` fails
   the check.

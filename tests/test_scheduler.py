@@ -49,14 +49,14 @@ from dreamcatcher.git import (
 )
 from dreamcatcher.github import PullRequestState
 from dreamcatcher.prompts import RECOVERY_PROMPT
-from dreamcatcher.scheduler import (
+from dreamcatcher.scheduler import AgentWorkScheduler
+from dreamcatcher.scheduler.models import (
     AgentAssignmentObservation,
-    AgentWorkScheduler,
     GlobalCooldown,
     IssueFactValue,
     SchedulerRecord,
+    derive_issue_availability,
 )
-from dreamcatcher.scheduler.models import derive_issue_availability
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158"

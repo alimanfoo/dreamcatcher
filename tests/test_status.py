@@ -15,7 +15,7 @@ from records import (
     write_tick,
 )
 
-import dreamcatcher.assignment_status as assignment_status_module
+import dreamcatcher.status.assignments as assignment_status_module
 from dreamcatcher.agent_rounds import (
     AgentAssignmentRoundPurpose,
     AgentRoundRecord,
@@ -27,7 +27,7 @@ from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
 from dreamcatcher.documents import write_text
 from dreamcatcher.feed import FeedLine
-from dreamcatcher.scheduler import (
+from dreamcatcher.scheduler.models import (
     AgentAssignmentObservation,
     GlobalCooldown,
     IssueFactValue,

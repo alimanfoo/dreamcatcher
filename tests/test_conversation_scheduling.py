@@ -52,8 +52,8 @@ from dreamcatcher.prompts import (
     AGENT_POST_MARKER,
     ISSUE_CONVERSATION_RECOVERY_PROMPT,
 )
-from dreamcatcher.scheduler import (
-    AgentWorkScheduler,
+from dreamcatcher.scheduler import AgentWorkScheduler
+from dreamcatcher.scheduler.models import (
     GlobalCooldown,
     IssueConversationObservation,
     IssueFact,

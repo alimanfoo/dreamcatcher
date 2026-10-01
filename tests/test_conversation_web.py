@@ -25,7 +25,7 @@ from dreamcatcher.issue_conversations import (
     IssueConversationInput,
     read_issue_conversation,
 )
-from dreamcatcher.scheduler import IssueFactValue, SchedulerRecord
+from dreamcatcher.scheduler.models import IssueFactValue, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.web.app import create_app
 

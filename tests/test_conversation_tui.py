@@ -27,7 +27,7 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.issue_conversations import IssueConversationInput
-from dreamcatcher.scheduler import IssueFactValue, SchedulerRecord
+from dreamcatcher.scheduler.models import IssueFactValue, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.tui import (
     show_conversation_view,

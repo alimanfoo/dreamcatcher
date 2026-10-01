@@ -12,7 +12,7 @@ from dreamcatcher.agent_assignments import (
 from dreamcatcher.agent_rounds import AgentRoundPaths
 from dreamcatcher.harness_adapters import HarnessSessionIdentifier
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
-from dreamcatcher.status_rounds import (
+from dreamcatcher.status.rounds import (
     AgentRoundStatus,
     compose_round_duration_description,
     describe_round_outcome,

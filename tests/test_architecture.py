@@ -6,49 +6,22 @@ import pytest
 PACKAGE = "dreamcatcher"
 SOURCE = Path(__file__).parents[1] / "src" / PACKAGE
 
-BOUNDARY_MEMBERS = {
-    "agent_assignments": {"agent_assignments", "agent_assignment_pull_requests"},
-    "agent_rounds": {"agent_rounds"},
-    "scheduler": {"scheduler"},
-    "status": {
-        "assignment_status",
-        "conversation_status",
-        "status",
-        "status_reader",
-        "status_rounds",
-    },
-    "tui": {"tui"},
-    "web": {"web"},
-}
-MODULE_BOUNDARY = {
-    module: boundary
-    for boundary, modules in BOUNDARY_MEMBERS.items()
-    for module in modules
-}
-
 PRESENTATION = {"tui", "web"}
 SCHEDULING = {"scheduler"}
 ADAPTERS = ["github", "harness_adapters", "harnesses", "claude", "codex"]
 STORAGE = ["state", "documents"]
 STORAGE_REACH = {"documents", "errors"}
 PRESENTATION_LIBRARIES = {"flask": "web", "rich": "tui"}
-STATUS_SCHEDULER_SYMBOLS = {
-    "AgentAssignmentObservation",
-    "GlobalCooldown",
-    "IssueConversationObservation",
-    "IssueFact",
-    "IssueFactValue",
-    "IssueObservation",
-    "SchedulerRecord",
-    "derive_agent_work_fault",
-    "derive_round_purpose",
-    "read_scheduler_record",
+# Status reads the scheduler's records and derivations, which these two
+# modules hold, and never the modules that choose or start work.
+SCHEDULER_MODULES_STATUS_MAY_IMPORT = {
+    f"{PACKAGE}.scheduler.faults",
+    f"{PACKAGE}.scheduler.models",
 }
 
 
 def _read_module_name(*, path: Path) -> str:
-    module = path.relative_to(SOURCE).parts[0].removesuffix(".py")
-    return MODULE_BOUNDARY.get(module, module)
+    return path.relative_to(SOURCE).parts[0].removesuffix(".py")
 
 
 def _read_import_names(*, node: ast.AST) -> list[str]:
@@ -65,46 +38,39 @@ def _read_import_names(*, node: ast.AST) -> list[str]:
 
 
 def _read_imported_modules(*, names: list[str]) -> list[str]:
-    modules = [name.split(".")[1] for name in names if name.startswith(f"{PACKAGE}.")]
-    return [MODULE_BOUNDARY.get(module, module) for module in modules]
-
-
-def _read_status_scheduler_symbols(
-    *, module: str, node: ast.AST, names: list[str]
-) -> set[str]:
-    if module != "status":
-        return set()
-    if isinstance(node, ast.ImportFrom) and node.module == f"{PACKAGE}.scheduler":
-        return {alias.name for alias in node.names}
-    if any(name.startswith(f"{PACKAGE}.scheduler") for name in names):
-        return {"*"}
-    return set()
+    return [name.split(".")[1] for name in names if name.startswith(f"{PACKAGE}.")]
 
 
 def _read_import_inventory() -> tuple[
     dict[str, set[str]], dict[str, set[str]], set[str]
 ]:
-    """Read the first-party, presentation-library and status-scheduler imports."""
-    graph: dict[str, set[str]] = {}
-    external_importers = {library: set() for library in PRESENTATION_LIBRARIES}
-    status_scheduler_imports = set()
+    """Read the imports that the architecture rules check.
+
+    Return each module's first-party imports, the modules that import each
+    presentation library, and the dotted scheduler modules that status imports.
+    """
+    names_by_module: dict[str, set[str]] = {}
     for path in SOURCE.rglob("*.py"):
-        module = _read_module_name(path=path)
-        imported = graph.setdefault(module, set())
+        names = names_by_module.setdefault(_read_module_name(path=path), set())
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
-            names = _read_import_names(node=node)
-            imported.update(_read_imported_modules(names=names))
-            for library in external_importers:
-                if any(name.split(".")[0] == library for name in names):
-                    external_importers[library].add(module)
-            status_scheduler_imports.update(
-                _read_status_scheduler_symbols(
-                    module=module,
-                    node=node,
-                    names=names,
-                )
-            )
-        imported.discard(module)
+            names.update(_read_import_names(node=node))
+    graph = {
+        module: set(_read_imported_modules(names=list(names))) - {module}
+        for module, names in names_by_module.items()
+    }
+    external_importers = {
+        library: {
+            module
+            for module, names in names_by_module.items()
+            if any(name.split(".")[0] == library for name in names)
+        }
+        for library in PRESENTATION_LIBRARIES
+    }
+    status_scheduler_imports = {
+        name
+        for name in names_by_module["status"]
+        if name.startswith(f"{PACKAGE}.scheduler")
+    }
     return graph, external_importers, status_scheduler_imports
 
 
@@ -125,6 +91,7 @@ GRAPH, EXTERNAL_IMPORTERS, STATUS_SCHEDULER_IMPORTS = _read_import_inventory()
 FORBIDDEN_REACH = {
     "scheduler": {"daemon", "status"},
     "agent_assignments": SCHEDULING,
+    "agent_assignment_pull_requests": SCHEDULING,
     "agent_rounds": SCHEDULING,
     "issue_conversations": SCHEDULING,
     "status": PRESENTATION,
@@ -168,8 +135,8 @@ def test_presentation_library_imports_stay_in_their_boundary(library, boundary):
     assert EXTERNAL_IMPORTERS[library] == {boundary}
 
 
-def test_status_imports_only_pure_scheduler_symbols():
-    assert STATUS_SCHEDULER_IMPORTS <= STATUS_SCHEDULER_SYMBOLS
+def test_status_reads_scheduler_records_and_derivations_only():
+    assert STATUS_SCHEDULER_IMPORTS <= SCHEDULER_MODULES_STATUS_MAY_IMPORT
 
 
 @pytest.mark.parametrize("boundary", sorted(PRESENTATION))

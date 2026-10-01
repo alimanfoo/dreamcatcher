@@ -41,6 +41,7 @@ from dreamcatcher.scheduler.faults import derive_agent_work_fault
 from dreamcatcher.scheduler.models import (
     NO_ROUND_HAS_RUN,
     AgentAssignmentObservation,
+    derive_round_purpose,
 )
 from dreamcatcher.words import describe_count
 
@@ -264,35 +265,12 @@ def _compose_resumed_round_requirement(
     )
 
 
-class _PullRequestRoundFacts(Protocol):
-    """Describe the pull-request facts that choose a round purpose."""
-
-    @property
-    def is_open(self) -> bool:
-        """Whether the pull request is open."""
-
-    @property
-    def is_draft(self) -> bool:
-        """Whether the pull request is a draft."""
-
-
 def _record_session_before_advancing_user_post_cursor(
     *, assignment: AgentAssignment, newest_user_post: str, identifier: str
 ) -> None:
     """Record a replacement session before acknowledging its delivered posts."""
     record_harness_session_identifier(assignment=assignment, identifier=identifier)
     advance_user_post_delivery_cursor(assignment=assignment, newest=newest_user_post)
-
-
-def derive_round_purpose(
-    *, pull_request: _PullRequestRoundFacts
-) -> AgentAssignmentRoundPurpose:
-    """Return the purpose that the pull request currently requires."""
-    if not pull_request.is_open:
-        return AgentAssignmentRoundPurpose.WRAP_UP
-    if pull_request.is_draft:
-        return AgentAssignmentRoundPurpose.IMPLEMENT
-    return AgentAssignmentRoundPurpose.ADDRESS_FEEDBACK
 
 
 def compose_assignment_observation(

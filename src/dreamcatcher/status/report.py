@@ -4,27 +4,13 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 
-import dreamcatcher.assignment_status as assignment_status
-import dreamcatcher.conversation_status as conversation_status
 from dreamcatcher.agent_assignments import (
     read_agent_assignment,
     read_agent_assignments,
     read_agent_assignments_for_issue,
 )
-from dreamcatcher.assignment_status import (
-    AgentAssignmentStatus as AgentAssignmentStatus,
-)
-from dreamcatcher.assignment_status import (
-    AgentAssignmentStatusValue as AgentAssignmentStatusValue,
-)
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.config import AgentHarness
-from dreamcatcher.conversation_status import (
-    IssueConversationStatus as IssueConversationStatus,
-)
-from dreamcatcher.conversation_status import (
-    IssueConversationStatusValue as IssueConversationStatusValue,
-)
 from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import read_json, read_text
 from dreamcatcher.issue_conversations import (
@@ -32,18 +18,21 @@ from dreamcatcher.issue_conversations import (
     read_issue_conversations,
 )
 from dreamcatcher.lock import read_daemon_pid
-from dreamcatcher.scheduler import GlobalCooldown, IssueFactValue, IssueObservation
+from dreamcatcher.scheduler.models import (
+    GlobalCooldown,
+    IssueFactValue,
+    IssueObservation,
+)
 from dreamcatcher.state import StateDirectory
-from dreamcatcher.status_reader import StatusReportReader
-from dreamcatcher.status_rounds import AgentRoundStatus as AgentRoundStatus
-
-ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER = (
-    assignment_status.ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER
+from dreamcatcher.status.assignments import (
+    AgentAssignmentStatus,
+    AgentAssignmentStatusValue,
 )
-STATUSES_THAT_END_A_VIEW = assignment_status.STATUSES_THAT_END_A_VIEW
-CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER = (
-    conversation_status.CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER
+from dreamcatcher.status.conversations import (
+    IssueConversationStatus,
+    IssueConversationStatusValue,
 )
+from dreamcatcher.status.reader import StatusReportReader
 
 
 @dataclass(frozen=True, kw_only=True)

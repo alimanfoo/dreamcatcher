@@ -29,14 +29,13 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.github import PullRequestState
 from dreamcatcher.prompts import AGENT_POST_MARKER, RECOVERY_PROMPT
-from dreamcatcher.scheduler import AgentAssignmentObservation
 from dreamcatcher.scheduler.assignments import (
     FaultedAgentAssignment,
     RequiredAgentRound,
     inspect_agent_assignment,
     prioritize_required_rounds,
 )
-from dreamcatcher.scheduler.models import NO_ROUND_HAS_RUN
+from dreamcatcher.scheduler.models import NO_ROUND_HAS_RUN, AgentAssignmentObservation
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158"

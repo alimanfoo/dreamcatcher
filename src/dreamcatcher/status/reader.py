@@ -8,32 +8,31 @@ from dreamcatcher.agent_assignments import (
     AgentAssignment,
     find_open_agent_assignments_by_issue,
 )
-from dreamcatcher.assignment_status import (
-    AgentAssignmentStatus,
-    AgentAssignmentStatusValue,
-)
-from dreamcatcher.conversation_status import (
-    ConversationSummary,
-    IssueConversationStatus,
-    IssueConversationStatusValue,
-    describe_unfinished_conversation_round,
-    summarize_observed_conversation,
-)
 from dreamcatcher.feed import FeedLine, describe_agent_round_start, read_last_feed_line
 from dreamcatcher.issue_conversations import IssueConversation
 from dreamcatcher.lock import read_daemon_pid
-from dreamcatcher.scheduler import (
+from dreamcatcher.scheduler.faults import derive_agent_work_fault, read_scheduler_record
+from dreamcatcher.scheduler.models import (
     AgentAssignmentObservation,
     IssueConversationObservation,
     IssueFact,
     IssueFactValue,
     IssueObservation,
     SchedulerRecord,
-    derive_agent_work_fault,
     derive_round_purpose,
-    read_scheduler_record,
 )
 from dreamcatcher.state import StateDirectory
+from dreamcatcher.status.assignments import (
+    AgentAssignmentStatus,
+    AgentAssignmentStatusValue,
+)
+from dreamcatcher.status.conversations import (
+    ConversationSummary,
+    IssueConversationStatus,
+    IssueConversationStatusValue,
+    describe_unfinished_conversation_round,
+    summarize_observed_conversation,
+)
 from dreamcatcher.words import describe_count, describe_span
 
 if TYPE_CHECKING:

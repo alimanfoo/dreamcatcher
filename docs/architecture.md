@@ -319,8 +319,9 @@ Status construction may read:
 
 It may call the scheduler's pure interpretation functions, but it cannot invoke
 a scheduling action, mutate an assignment, relay a user post, or start a
-process. Status values are always derived; they are not written back as domain
-state.
+process. In the code, those functions and records are the scheduler's `models`
+and `faults` modules, and status imports no other scheduler module. Status
+values are always derived; they are not written back as domain state.
 
 An `IssueObservation` represents claimed here, claimed elsewhere, blocked, and
 routing conflict as independent facts which may each be true, false, or unknown;
