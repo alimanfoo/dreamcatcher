@@ -448,55 +448,79 @@ wording only under the permission the roadmap gives, and the lists at the end of
 this part name every such change. A name given here is the name the code uses,
 so a reader can find each piece from this document.
 
-### The context
+### The two kinds as classes
 
 Rows 6 and 1 point here.
 
 **Today.** The coordinator, `AgentWorkScheduler` in `scheduler/coordinator.py`,
 is a dataclass holding the repository, account, config, state directory,
-requested harness, clock, the running set and the agent cap. The per-kind
-modules get at those fields three ways:
+requested harness, clock, the running set and the agent cap. Before Stage 2, the
+two kinds' scheduling code was methods on that one class and read those fields
+as `self.repository` and so on. The split moved the code into
+`scheduler/assignments.py` and `scheduler/conversations.py` as free functions,
+and then had to hand them the object they used to be methods on. It did that
+three ways:
 
-- The conversation functions in `scheduler/conversations.py` take a `scheduler`
-  argument typed as `_ConversationScheduler`, a protocol listing seven of the
-  coordinator's attributes. The coordinator passes itself.
-- The assignment launch in `scheduler/assignments.py` takes a `scheduler`
-  argument typed as `_AssignmentRoundScheduler`, a protocol listing two
-  attributes, clock and the running set. The assignment inspection takes
-  `repository` and `account` as plain parameters instead.
+- The conversation functions take a `scheduler` argument typed as
+  `_ConversationScheduler`, a protocol listing seven of the coordinator's
+  attributes. The coordinator passes itself.
+- The assignment launch takes a `scheduler` argument typed as
+  `_AssignmentRoundScheduler`, a protocol listing two attributes, clock and the
+  running set. The assignment inspection takes `repository` and `account` as
+  plain parameters instead.
 - The issue observer in `scheduler/issues.py` builds its own private bundle,
   `_IssueObservationContext`, from the repository, account, config, the open
   assignments and the incomplete setups.
 
-Both protocols describe the same object. Every operation needs the same six
+Both protocols describe the same object, and every operation needs the same six
 facts about the instance and this run.
 
-**The shape.** One frozen dataclass, `SchedulerContext`, holds those six facts:
-repository, account, config, state directory, requested harness and clock. Every
-tick-level operation takes it as its first keyword argument, `context`. Nothing
-else carries those facts. The running set is not in it; the next section says
-where that goes.
+**The shape.** The two kinds are two classes with one base, and the facts are
+attributes again.
+
+- `AgentWorkScheduling`, in `scheduler/agent_work.py`, is a frozen keyword-only
+  dataclass holding the six facts: repository, account, config, state directory,
+  requested harness and clock. It declares three abstract methods that every
+  kind implements with the same signature: `inspect`, `rank` and `launch`, which
+  the sections below define. It holds the code both kinds share: listing a set
+  of routes' issues, and the harness session rule. It is generic over the kind's
+  candidate and observation types, so the two implementations agree in shape
+  while differing in type.
+- `AgentAssignmentScheduling`, in `scheduler/assignments.py`, and
+  `IssueConversationScheduling`, in `scheduler/conversations.py`, extend it.
+  Every helper that took `scheduler` or `repository` becomes a method, or a
+  function that takes the scheduling object, and reads `self.repository` and so
+  on.
+- The coordinator holds one instance of each, built from the same six facts, and
+  calls `self.assignments.inspect(...)` and `self.conversations.launch(...)`.
+  The running set, the agent cap and the alternation stay on the coordinator.
+
+The base makes the symmetry structural: two subclasses of one base must
+implement the same methods with the same signatures, which the type checker
+holds, so E4 stops being a convention a reviewer rechecks. Shared code has an
+obvious home. And it is the codebase's own precedent: `AgentAssignmentCreator`
+and `StatusReportReader` are small classes holding their handles with a method
+or two. It stops there. One base, two subclasses, no deeper; the kind objects
+hold handles, not mutable state; and no candidate launches itself, so the
+scheduling loop stays imperative as the architecture asks.
 
 **The edits.**
 
-1. Add `scheduler/context.py` with `SchedulerContext`, a frozen keyword-only
-   dataclass of the six fields, and a docstring saying it is what every
-   scheduling operation knows about the instance and this run.
-2. Give `AgentWorkScheduler` a `context` field in place of the six fields it
-   holds today, and have the daemon and CLI build the context when they build
-   the scheduler. The agent cap and the running set stay on the coordinator.
-3. Change every conversation function that takes `scheduler` to take `context`,
-   and read `context.repository` and so on where it read `scheduler.repository`.
-   Delete `_ConversationScheduler`.
-4. Change the assignment launch to take `context`, and the assignment inspection
-   to take `context` in place of `repository` and `account`. Delete
-   `_AssignmentRoundScheduler`.
-5. Change `observe_issues` to take `context` plus the open assignments and the
-   incomplete setups, and pass those three to its helpers in place of the
-   bundle. Delete `_IssueObservationContext`.
-
-It is a code shape like the state directory, not an ontology concept, so E3 has
-nothing to say.
+1. Add `scheduler/agent_work.py` with `AgentWorkScheduling`: the six fields, the
+   three abstract methods, and the two shared methods the listing and launching
+   sections define.
+2. In `scheduler/assignments.py`, add `AgentAssignmentScheduling` extending it.
+   Turn each function that took `scheduler`, `repository` or `account` into a
+   method. Delete `_AssignmentRoundScheduler`.
+3. In `scheduler/conversations.py`, add `IssueConversationScheduling` extending
+   it. Turn each function that took `scheduler` into a method. Delete
+   `_ConversationScheduler`.
+4. Change `observe_issues` and its helpers in `scheduler/issues.py` to take the
+   scheduling object, the open assignments and the incomplete setups, and delete
+   `_IssueObservationContext`.
+5. Give `AgentWorkScheduler` two fields, `assignments` and `conversations`, in
+   place of the six facts, and have the daemon and CLI build the two kind
+   objects when they build the coordinator.
 
 ### The running set and the meaning of "no ending"
 
@@ -529,10 +553,11 @@ so for status a record with no ending means working when a daemon is alive and
 left behind when none is. Both kinds already read it that way in status, and
 that stays.
 
-**The shape.** The dictionary belongs to the coordinator alone. A launch returns
-the `AgentRound` it started and the coordinator registers it. No inspection
-reads the dictionary: both kinds treat a latest round with no ending as running,
-by the record. The assignment describer stops calling such a record interrupted.
+**The shape.** The dictionary belongs to the coordinator alone. A kind's
+`launch` returns the `AgentRound` it started and the coordinator registers it.
+No `inspect` reads the dictionary: both kinds treat a latest round with no
+ending as running, by the record. The assignment describer stops calling such a
+record interrupted.
 
 **The edits.**
 
@@ -544,10 +569,10 @@ by the record. The assignment describer stops calling such a record interrupted.
 2. Remove the dictionary check from the assignment inspection. Skip an
    assignment whose latest round has no ending, as the conversation inspection
    already does by its outcome checks.
-3. Make each launch return the round instead of writing it into the dictionary.
-   Have the coordinator write `self.rounds[identifier] = round` after a launch
-   returns. The round has to say which work it belongs to, so give `AgentRound`
-   the agent work identifier from its launch request.
+3. Make each `launch` return the round instead of writing it into the
+   dictionary. Have the coordinator write `self.rounds[identifier] = round`
+   after a launch returns. The round has to say which work it belongs to, so
+   give `AgentRound` the agent work identifier from its launch request.
 4. Delete the coordinator's copy-and-diff of the dictionary that discovers what
    launched, which the launch section covers.
 
@@ -572,12 +597,12 @@ listings are near-copies.
 Notice that the two differences are not decisions anybody made about assignments
 or conversations. They are two people writing the same loop on different days.
 
-**The shape.** One function, `list_route_issues` in `scheduler/issues.py`, takes
-the context and a list of routes and returns a `RouteIssueListing`: the merged
-issues, sorted by creation time then number, and one joined failure or none. A
-route that fails to list contributes its failure and the other routes are still
-listed. The failure reads "could not list issues for LABEL: REASON" for either
-kind. Each kind calls it with its own routes.
+**The shape.** One method on the base, `list_route_issues`, takes a list of
+routes and returns a `RouteIssueListing`: the merged issues, sorted by creation
+time then number, and one joined failure or none. A route that fails to list
+contributes its failure and the other routes are still listed. The failure reads
+"could not list issues for LABEL: REASON" for either kind. Each kind calls it
+with its own routes.
 
 The conversation side's behaviour wins because it loses less: when one route
 fails, the issues on the other routes are still observed, so the status report
@@ -586,16 +611,15 @@ way, so no scheduling decision moves.
 
 **The edits.**
 
-1. Add `RouteIssueListing`, a frozen dataclass of `issues` and `failure`, and
-   `list_route_issues` to `scheduler/issues.py`, built from the conversation
-   version's loop with the new failure wording.
-2. Change `observe_issues` to call it with `context.config.assignment` and
-   delete `_list_considered_issues` and `_ConsideredIssueResult`. The observer
-   keeps its own sort of the finished observations, because it adds issues it
-   read one by one after the listing.
-3. Change `inspect_issue_conversations`, which the next section introduces, to
-   call it with `context.config.conversation`, and delete
-   `_list_conversation_route_issues` and `_ConversationRouteListing`.
+1. Add `RouteIssueListing`, a frozen dataclass of `issues` and `failure`, to
+   `scheduler/agent_work.py`, and `list_route_issues` as a method on the base,
+   built from the conversation version's loop with the new failure wording.
+2. Change `observe_issues` to call it on the scheduling object with the
+   assignment routes, and delete `_list_considered_issues` and
+   `_ConsideredIssueResult`. The observer keeps its own sort of the finished
+   observations, because it adds issues it read one by one after the listing.
+3. Change the conversation inspection to call it with the conversation routes,
+   and delete `_list_conversation_route_issues` and `_ConversationRouteListing`.
 4. Remove the "could not refresh issues" prefix from the coordinator. The
    listing's own wording is the hold.
 
@@ -607,7 +631,7 @@ questions: what work is ready to launch, in what order; what did I find out
 about each piece of work, for the status report; and did anything I needed to
 read fail. Today the assignment side answers them in several places and the
 conversation side in one. The shape makes each kind answer all three in one
-function, returning one bundle of the same type.
+method, returning one bundle of the same type.
 
 **Today.**
 
@@ -623,7 +647,9 @@ function, returning one bundle of the same type.
   with `list_assignment_observations`, filters the required rounds out and ranks
   them with `prioritize_required_rounds`, and appends the available issues from
   the issue observations as candidates for new assignments. If the issue listing
-  failed, it returns no assignment candidates at all.
+  failed, it returns no assignment candidates at all. The issue observation
+  itself, with the incomplete setups it needs and the recording of missing
+  titles, is also the coordinator's work, done before the loop.
 - For conversations, `list_issue_conversation_candidates` in
   `scheduler/conversations.py` does all of that inside the module and returns an
   `IssueConversationCandidateResult` holding the ranked candidates, the
@@ -632,14 +658,20 @@ function, returning one bundle of the same type.
   `scheduler/faults.py`, which runs the fault derivation over every conversation
   a second time.
 
-**The shape.** Each kind has one inspection with a parallel name:
+**The shape.** `inspect` is the first abstract method on the base. Its signature
+is the same for both kinds: it takes the previous tick's scheduler record, or
+none, and the tick's time, and returns the kind's bundle. Each kind reads its
+own records from `self.state` inside it.
 
-- `inspect_agent_assignments`, in `scheduler/assignments.py`, takes the context,
-  the open assignments, the issue observation result and the time the last
-  cooldown ended.
-- `inspect_issue_conversations`, in `scheduler/conversations.py`, takes the
-  context, the saved conversations, the previous tick's conversation
-  observations and the time the last cooldown ended.
+- `AgentAssignmentScheduling.inspect` reads the assignments and the incomplete
+  setups, observes the issues, records missing titles, walks the open assignment
+  records, as differ 11 requires, skipping any whose latest record has no
+  ending, reads each one's pull request, and turns each available issue
+  observation into a candidate for a new assignment.
+- `IssueConversationScheduling.inspect` reads the conversations, takes the
+  previous observations from the previous record, lists the conversation routes'
+  issues, and walks the listed eligible issues, as differ 11 requires, finding
+  the record for each.
 
 Both return `AgentWorkInspection`, one generic frozen dataclass in
 `scheduler/models.py` with four fields:
@@ -657,30 +689,40 @@ Both return `AgentWorkInspection`, one generic frozen dataclass in
   names.
 - `failure`: the joined reason this kind's reads failed, or none.
 
-The coordinator calls both, adds the two fault counts, and puts the two
-observation lists and the joined failures in the record. It never looks inside a
-candidate.
+The assignment bundle, `AgentAssignmentInspection`, extends it with
+`issue_observations`, the issue observations the tick made, which the record
+persists and the report shows. That extension is named by the ontology: issue
+observations and availability are how an assignment starts, which is differ 2
+and 7, and a conversation has no counterpart to an available issue.
+
+The coordinator calls both inspections, adds the two fault counts, and puts the
+issue observations, the two observation lists and the joined failures in the
+record. It never looks inside a candidate.
 
 **The edits.**
 
 1. Add `AgentWorkInspection` to `scheduler/models.py`, generic over the
-   candidate and observation types.
-2. In `scheduler/assignments.py`, add `inspect_agent_assignments`. Move the loop
-   from the coordinator's `_inspect_assignments` into it, dropping the
+   candidate and observation types, and `AgentAssignmentInspection` extending it
+   in `scheduler/assignments.py`.
+2. In `scheduler/assignments.py`, implement `inspect`. Move the reading of
+   assignments and incomplete setups, the call to `observe_issues` and the
+   recording of missing titles from the coordinator's `tick` into it. Move the
+   loop from the coordinator's `_inspect_assignments` into it, dropping the
    running-set check in favour of skipping a latest round with no ending. Inside
    the loop, derive fault with `derive_agent_work_fault` and, when true, count
    it and record an observation saying so. Otherwise read the pull request and
    posts as `_inspect_assignment_pull_request` does today, and build a candidate
    or an observation. After the loop, add a new-assignment candidate for each
-   available issue observation, rank all candidates, and return the bundle with
-   the issue listing's failure. Delete `inspect_agent_assignment`,
-   `AgentAssignmentInspectionResult`, `FaultedAgentAssignment`,
-   `list_assignment_observations`, `compose_assignment_observation` and
-   `prioritize_required_rounds`.
-3. In `scheduler/conversations.py`, rename `list_issue_conversation_candidates`
-   to `inspect_issue_conversations` and return the shared bundle. Count faults
-   where `_inspect_conversation_recovery` already derives them, so the second
-   pass goes. Apply the recoveries-only rule on a failed listing here. Delete
+   available issue observation, rank all candidates with `self.rank`, and return
+   the bundle with the issue listing's failure. Delete
+   `inspect_agent_assignment`, `AgentAssignmentInspectionResult`,
+   `FaultedAgentAssignment`, `list_assignment_observations`,
+   `compose_assignment_observation` and `prioritize_required_rounds`.
+3. In `scheduler/conversations.py`, turn `list_issue_conversation_candidates`
+   into `inspect`, reading the conversations and the previous observations
+   itself and returning the shared bundle. Count faults where
+   `_inspect_conversation_recovery` already derives them, so the second pass
+   goes. Apply the recoveries-only rule on a failed listing here. Delete
    `IssueConversationCandidateResult`.
 4. Delete `count_observed_conversation_faults` from `scheduler/faults.py`.
 5. In the coordinator, delete `_inspect_assignments`,
@@ -732,24 +774,26 @@ batch. The types follow the lists. What was accidental was never the cut; it was
 using a persisted document as a candidate, and preparing one kind's round at
 inspection and the other's at launch.
 
-Each kind gets a public ranking function, `rank_agent_assignment_candidate` and
-`rank_issue_conversation_candidate`, and its inspection sorts by it. The
-assignment order is the one the coordinator produces today: first rounds, then
-recoveries, then wrap-ups, then posts, then new assignments in the issue
-observations' order.
+`rank` is the second abstract method on the base: it takes one candidate and
+returns its sort key, and each kind's `inspect` sorts by it. The assignment
+order is the one the coordinator produces today: first rounds, then recoveries,
+then wrap-ups, then posts, then new assignments in the issue observations'
+order. The conversation order is recoveries, then batches by their oldest
+waiting comment.
 
 **The edits.**
 
-1. Add the three assignment candidate dataclasses and
-   `rank_agent_assignment_candidate` to `scheduler/assignments.py`. Delete
+1. Add the three assignment candidate dataclasses to `scheduler/assignments.py`
+   and implement `rank` on `AgentAssignmentScheduling`. Delete
    `RequiredAgentRound` and `_rank_required_round`. The three functions that
    composed a required round, `compose_initial_round_requirement`,
    `_compose_recovery_round_requirement` and
    `_compose_resumed_round_requirement`, move to the launch, which the launch
    section covers.
 2. Rename `NewIssueConversationRoundCandidate` to
-   `IssueConversationBatchCandidate`, and `_rank_issue_conversation_candidate`
-   to `rank_issue_conversation_candidate`.
+   `IssueConversationBatchCandidate`, and turn
+   `_rank_issue_conversation_candidate` into `rank` on
+   `IssueConversationScheduling`.
 3. Delete the coordinator's `_AssignmentCandidate` alias and its route lookup by
    label.
 
@@ -904,39 +948,38 @@ error sentence: a later round with no recorded session cannot resume and raises,
 and a recovery with no recorded session starts a new session with the configured
 prompt.
 
-**The shape.** Each kind has one launch with a parallel name, taking the context
-and one candidate and returning the `AgentRound` it started:
+**The shape.** `launch` is the third abstract method on the base. It takes one
+candidate and the tick's time, and returns the `AgentRound` it started.
 
-- `launch_agent_assignment_candidate`, in `scheduler/assignments.py`. For a
-  new-assignment candidate it creates the assignment with the candidate's route,
-  then starts the first round, in one call. For a first-round candidate it
-  starts the first round. For a round candidate it derives the purpose from the
-  pull request with `derive_round_purpose`, builds the plan with the input,
-  composes the prompt, resolves the session and starts the round.
-- `launch_issue_conversation_candidate`, in `scheduler/conversations.py`, which
-  is today's launch with the record patching removed and the round returned.
+- `AgentAssignmentScheduling.launch`: for a new-assignment candidate it creates
+  the assignment with the candidate's route and the tick's time, then starts the
+  first round, in one call. For a first-round candidate it starts the first
+  round. For a round candidate it derives the purpose from the pull request with
+  `derive_round_purpose`, builds the plan with the input, composes the prompt,
+  resolves the session and starts the round.
+- `IssueConversationScheduling.launch`: today's launch with the record patching
+  removed and the round returned.
 
 Each launch prepares an `AgentRoundStartRequest`, the type the round boundary
 already takes, from the candidate's facts, and hands it to `start_agent_round`.
-The two session rules live once in `scheduler/models.py` as
-`resolve_harness_session`, which takes the work identifier, whether it has
-rounds, its recorded session identifier, whether this is a recovery, and the two
-prompts, and returns a `HarnessSessionResumption` of the identifier to resume,
-or none, and the prompt to use, or raises the one error sentence. The
-conversation launch keeps its finisher and its narrower permissions, which
-differ 5 and differ 1 name.
+The two session rules live once on the base as `resolve_harness_session`, which
+takes the work identifier, whether it has rounds, its recorded session
+identifier, whether this is a recovery, and the two prompts, and returns a
+`HarnessSessionResumption` of the identifier to resume, or none, and the prompt
+to use, or raises the one error sentence. The conversation launch keeps its
+finisher and its narrower permissions, which differ 5 and differ 1 name.
 
 **The edits.**
 
-1. Add `HarnessSessionResumption` and `resolve_harness_session` to
-   `scheduler/models.py`, from the two copies.
-2. In `scheduler/assignments.py`, add `launch_agent_assignment_candidate`. Move
-   `_launch_assignment` from the coordinator into its new-assignment arm. Turn
-   the three former requirement composers into the preparation of the
-   first-round and round arms. Delete `launch_required_round`,
-   `_prepare_assignment_resume` and `_start_assignment_round`.
-3. In `scheduler/conversations.py`, rename `launch_issue_conversation_round` to
-   `launch_issue_conversation_candidate`, return the round, and delete
+1. Add `HarnessSessionResumption` to `scheduler/agent_work.py` and
+   `resolve_harness_session` as a method on the base, from the two copies.
+2. In `scheduler/assignments.py`, implement `launch`. Move `_launch_assignment`
+   from the coordinator into its new-assignment arm. Turn the three former
+   requirement composers into the preparation of the first-round and round arms.
+   Delete `launch_required_round`, `_prepare_assignment_resume` and
+   `_start_assignment_round`.
+3. In `scheduler/conversations.py`, turn `launch_issue_conversation_round` into
+   `launch`, return the round, and delete
    `_record_conversation_comments_delivered`. Replace the session logic in
    `_prepare_issue_conversation_round` and
    `_prepare_issue_conversation_recovery` with calls to
@@ -963,19 +1006,20 @@ running set, calls `_try_launch_candidate` to dispatch on the kind and catch a
 launched assignment's observation, and clears the kind's candidates on a
 failure. `_hold_for_capacity` then rewrites observations again.
 
-**The shape.** `tick` reads as the eight steps in the architecture: build the
-context, forget ended rounds, read the records, observe issues, inspect each
-kind, add the fault counts and start a cooldown if required, write the record,
-launch. The launch loop alternates between the kinds as the ontology says and,
-for each free slot: pops the next candidate of the chosen kind, calls that
-kind's launch, registers the returned round, marks the launched work's
-observation with `mark_round_started`, one helper in `scheduler/models.py` over
-the base observation type, and appends the identifier to the record. A launch
-that raises adds its reason to the hold and clears that kind's remaining
+**The shape.** `AgentWorkScheduler` holds `assignments`, `conversations`, the
+running set, the agent cap and the alternation state. `tick` reads as the eight
+steps in the architecture: forget ended rounds, read the previous record,
+inspect each kind, add the fault counts and start a cooldown if required, write
+the record, launch. The launch loop alternates between the kinds as the ontology
+says and, for each free slot: pops the next candidate of the chosen kind, calls
+that kind's `launch`, registers the returned round, marks the launched work's
+observation with `mark_round_started`, one function in `scheduler/models.py`
+over the base observation type, and appends the identifier to the record. A
+launch that raises adds its reason to the hold and clears that kind's remaining
 candidates, as today. A full running set with candidates left sets the capacity
 hold and nothing else.
 
-The coordinator knows the two kinds' names and nothing of their internals.
+The coordinator knows the two kinds by name and nothing of their internals.
 
 **The edits.**
 
@@ -989,9 +1033,9 @@ The coordinator knows the two kinds' names and nothing of their internals.
 
 ### Status
 
-Row 7 points here. The status package gets the same two-level shape as the
-scheduler: the facts both kinds share are read once, and each kind derives its
-own summary from them.
+Row 7 points here. The status package gets the same shape as the scheduler: one
+base holding the facts both kinds share, and one subclass per kind deriving its
+own statuses.
 
 **Today.** `StatusReportReader` in `status/reader.py` reads the daemon's process
 identifier, the latest scheduler record and the two observation maps in its
@@ -1004,24 +1048,34 @@ which round can take a stop request. Whether a view can stop refreshing is a
 property, `is_over`, on the conversation status, and for assignments a constant,
 `STATUSES_THAT_END_A_VIEW`, that the TUI applies itself in two places.
 
+So the reader is already nearly the shape we want. It holds the shared facts and
+both kinds' derivations. What it lacks is the line between the two kinds.
+
 **The shape.**
 
-- `StatusContext`, in `status/context.py`, holds the state directory, the time,
-  the daemon's process identifier, the latest scheduler record and the two
-  observation maps. It replaces the reader.
-- `derive_agent_assignment_status`, in `status/assignments.py`, takes the
-  context and an assignment. `derive_issue_conversation_status`, in
-  `status/conversations.py`, takes the context, the issue, the title and the
-  conversation if one is saved. Each kind's module also lists its statuses in
-  the order the report needs, as the reader's two list methods do today.
+- `AgentWorkStatusReader`, in `status/agent_work.py`, is a frozen dataclass
+  holding the state directory, the time, the daemon's process identifier and the
+  latest scheduler record. It declares one abstract method, `list_statuses`,
+  which takes nothing and returns the kind's statuses in the order the report
+  needs, and holds the derivation steps both kinds share, such as whether a
+  round ended after the latest tick.
+- `AgentAssignmentStatusReader`, in `status/assignments.py`, extends it with the
+  assignment observation map, `list_statuses`, and `derive`, which takes an
+  assignment. `IssueConversationStatusReader`, in `status/conversations.py`,
+  extends it with the conversation observation map, `list_statuses`, and
+  `derive`, which takes the issue, the title and the conversation if one is
+  saved. The two `derive` methods differ in what they take, which differ 7
+  names, so `list_statuses` is the abstract one.
 - `status/rounds.py` holds what both kinds say about a round: the running
-  detail, the ending detail that fault and recovery share, which round can take
-  a stop request, and whether a round ended after a given time.
+  detail, the ending detail that fault and recovery share, and which round can
+  take a stop request.
 - Both status types gain `is_over` as a property: fault or complete for an
   assignment, and fault, routing conflict or not listed for a conversation.
+- `status/report.py` reads the four shared facts once, builds one reader of each
+  kind from them, and asks each for its statuses.
 
-Both derivations walk the same order, read top to bottom. A step marked for one
-kind is a named difference, and the row says which.
+Both `derive` methods walk the same order, read top to bottom. A step marked for
+one kind is a named difference, and the row says which.
 
 1. A latest round with no ending while a daemon lives is working, with the
    shared running detail.
@@ -1048,29 +1102,28 @@ the list of changed words says.
 
 **The edits.**
 
-1. Add `status/context.py` with `StatusContext` and a function that reads it,
-   from the reader's constructor.
-2. Add the four shared helpers to `status/rounds.py`, from the assignment and
+1. Add `status/agent_work.py` with `AgentWorkStatusReader`, from the reader's
+   constructor, with the shared steps as methods.
+2. Add the three shared helpers to `status/rounds.py`, from the assignment and
    conversation versions.
-3. Move the assignment methods from the reader into
-   `derive_agent_assignment_status` and `list_agent_assignment_statuses` in
-   `status/assignments.py`, following the order above.
-4. Move the conversation methods and the three functions into
-   `derive_issue_conversation_status` and `list_issue_conversation_statuses` in
-   `status/conversations.py`, following the order above. Delete
-   `ConversationSummary`.
+3. Add `AgentAssignmentStatusReader` to `status/assignments.py`. Move the
+   reader's assignment methods into its `derive` and `list_statuses`, following
+   the order above.
+4. Add `IssueConversationStatusReader` to `status/conversations.py`. Move the
+   reader's conversation methods and the three functions into its `derive` and
+   `list_statuses`, following the order above. Delete `ConversationSummary`.
 5. Add `is_over` to `AgentAssignmentStatus`. Delete `STATUSES_THAT_END_A_VIEW`
    and have the TUI read the property in both places.
-6. Delete `status/reader.py` and point `status/report.py` at the context and the
-   two list functions.
+6. Delete `status/reader.py` and point `status/report.py` at the two readers.
 
 ### The order of the work
 
 The sections are in the order to do them, and each leaves the tests green: the
-context, then the running set, then the listing, then inspection and candidates
-together, since they are one change, then observations and the delivery position
-with the format break, then launching and the tick together, then status. A pull
-request a reviewer can hold in mind takes one or two of these at a time.
+two classes, then the running set, then the listing, then inspection and
+candidates together, since they are one change, then observations and the
+delivery position with the format break, then launching and the tick together,
+then status. A pull request a reviewer can hold in mind takes one or two of
+these at a time.
 
 ### Words a user sees that change
 
@@ -1112,17 +1165,20 @@ differs in shape, the line names the difference.
 
 | Operation          | Assignment                                           | Conversation                                           |
 | ------------------ | ---------------------------------------------------- | ------------------------------------------------------ |
-| Inspect for a tick | `inspect_agent_assignments`                          | `inspect_issue_conversations`                          |
-| Result             | `AgentWorkInspection`                                | `AgentWorkInspection`                                  |
+| Scheduling class   | `AgentAssignmentScheduling`                          | `IssueConversationScheduling`                          |
+| Inspect for a tick | `inspect`                                            | `inspect`                                              |
+| Result             | `AgentAssignmentInspection`, adds issue observations | `AgentWorkInspection`                                  |
 | Candidates         | three types, by the ranking list                     | two types, by the ranking list                         |
-| Rank               | `rank_agent_assignment_candidate`                    | `rank_issue_conversation_candidate`                    |
-| Launch             | `launch_agent_assignment_candidate`                  | `launch_issue_conversation_candidate`                  |
+| Rank               | `rank`                                               | `rank`                                                 |
+| Launch             | `launch`                                             | `launch`                                               |
 | Observation        | `AgentWorkObservation`                               | `IssueConversationObservation`, adds two facts         |
 | Delivery position  | `read_user_post_delivery_cursor`                     | `read_issue_comment_delivery_cursor`                   |
 | Session identifier | `find_agent_assignment_harness_session_identifier`   | `find_issue_conversation_harness_session_identifier`   |
 | Record session     | `record_agent_assignment_harness_session_identifier` | `record_issue_conversation_harness_session_identifier` |
 | Retry              | `request_agent_assignment_retry`                     | `request_issue_conversation_retry`                     |
-| Status             | `derive_agent_assignment_status`                     | `derive_issue_conversation_status`                     |
+| Status class       | `AgentAssignmentStatusReader`                        | `IssueConversationStatusReader`                        |
+| Statuses           | `list_statuses`                                      | `list_statuses`                                        |
+| Derive one         | `derive`, from an assignment                         | `derive`, from an issue and its record if saved        |
 | Over               | `is_over`                                            | `is_over`                                              |
 
 The baseline counted twelve symbols for conversations against nine for
@@ -1153,6 +1209,12 @@ can find it.
 
 ### Alternatives considered
 
+- **A context dataclass passed to free functions**, which an earlier draft of
+  this part proposed. It tidied the protocols the Stage 2 split had needed
+  without asking why free functions needed them. Two classes with one base give
+  the same facts as attributes, make the parallel methods a fact the type
+  checker holds, give shared code a home, and follow the codebase's own small
+  classes. The dataclass is withdrawn.
 - **A candidate protocol with a launch method**, so the coordinator launches
   without knowing the kind. The architecture rules this out in words: the
   scheduling loop stays imperative rather than becoming an abstract command
