@@ -373,3 +373,57 @@ which the roadmap already names as residue.
    tick, so while a daemon runs a record with no ending is a running round, as
    the record's own outcome says. Accident: one convention, and the dictionary
    check goes with it.
+
+### Row 7: how status summarises each kind
+
+The Stage 2 review named status's own asymmetry beside the scheduler's: the
+reader holds both kinds of agent work, and the two kinds are summarised in
+different places. Status answers one question for both kinds, what is happening
+with this work now, and most of the differences are in where the answer is
+worked out and how it is packaged.
+
+Five differences are named. A conversation status exists before any record, so
+it carries the issue, the title and an optional record where the assignment
+status carries the record alone: differ 7. A conversation drops off the report
+when its issue stops being eligible unless a round runs, which its listed flag
+carries: differ 11. A conversation's fault is shown only while eligible:
+differ 11. A conversation's round list shows the main revision each round
+investigated: differ 4. An assignment's running detail names the round's purpose
+and a conversation's does not, since a conversation round is always a
+discussion: differ 3.
+
+1. **Two homes for one derivation.** The assignment summary is worked out in
+   eight methods on the reader. The conversation summary is worked out partly in
+   functions in `status/conversations.py`, through an intermediate summary type
+   the assignment side lacks, and partly in six more reader methods. Accident:
+   each kind's status module derives its own summary from its record, its
+   observation and the shared tick facts, through parallel functions, and the
+   reader holds only what both share, the daemon, the latest scheduler record
+   and the clock. That is the status counterpart of row 6's tick context.
+2. **Running detail written twice.** The round number, how long it has run and
+   how long since its last output are composed once for assignments and once for
+   conversations, with the purpose the only difference. Accident: one
+   composition in `status/rounds.py`, which both share.
+3. **Stop eligibility written twice.** Which round can take a stop request is
+   one rule written in both status types. Accident.
+4. **"Over" derived in two places.** Whether nothing more happens until the user
+   acts is a property on the conversation status. For assignments the TUI
+   derives it, twice, from a constant the status package exports for the
+   purpose. Accident under S4: one property on both.
+5. **Two readings of the gap after a round ends.** When an assignment's round
+   ends after the latest tick, status says waiting, "awaiting next update",
+   because the scheduler has not yet looked at the pull request. When a
+   conversation's round ends after the latest tick, status says idle and
+   answered, though comments may have arrived while the round ran and the
+   scheduler has not yet looked. The architecture states the assignment rule and
+   is silent on conversations. Accident: work whose round ended after the latest
+   tick is waiting for the next update, whichever kind it is. This changes one
+   status a user sees, within what the roadmap permits.
+6. **Hand-resume for one kind only.** The assignment status offers the session
+   identifier and the command to resume the session by hand, and both views show
+   it. The conversation status offers neither, though it finds the same
+   identifier for its own stop check. Nothing in the ontology says only an
+   assignment can be picked up by hand. Accident, but adding a section to the
+   conversation view and page is more than settling words, so it stays out of
+   this stage and
+   [issue 349](https://github.com/alimanfoo/dreamcatcher/issues/349) records it.
