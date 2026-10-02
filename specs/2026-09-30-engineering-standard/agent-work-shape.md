@@ -176,9 +176,9 @@ Underneath, both kinds produce those same three things.
 
 1. **The bundle.** The conversation side returns candidates, observations and
    failure together. The assignment side has the same three spread over the
-   coordinator, which filters the required rounds out of the per-item results
-   and turns the rest into observations. Accident: row 1's one inspection per
-   kind returns one bundle for both.
+   scheduler, which filters the required rounds out of the per-item results and
+   turns the rest into observations. Accident: row 1's one inspection per kind
+   returns one bundle for both.
 2. **Where ranking happens.** Conversation candidates come back ranked by the
    module. Assignment candidates are ranked in the scheduler. The orders
    themselves are differ 9 and stand. Where they are applied is an accident.
@@ -231,7 +231,7 @@ assignment's always, which is differ 11.
    conversation's is derived at inspection, to withhold a candidate, and again
    over every conversation in `scheduler/faults.py` to count. Accident: each
    kind's inspection derives it once and carries it in its bundle, and the
-   coordinator sums.
+   scheduler sums.
 2. **What the record says about a faulted item.** The assignment observation
    says "two consecutive rounds failed" with round-required true, the default.
    The conversation observation says comments-to-answer false, "no comments to
@@ -363,18 +363,18 @@ the roadmap already names as residue.
    both kinds extend, replacing both protocols and the observer's bundle. Part 3
    gives the two classes.
 2. **The running set belongs to neither kind.** Both launches write into the
-   coordinator's dictionary of running rounds. Row 5 says a launch returns what
-   it launched, so the scheduler registers it and neither kind needs the
-   dictionary to launch. For inspection, the conversation side reads running
-   from the records alone: a round with no ending is running. The assignment
-   side checks the dictionary as well, because its round describer treats a
-   record with no ending as interrupted. Two conventions for one state. The
-   daemon records every stale round as interrupted at startup, before the first
-   tick, so while a daemon runs a record with no ending is a running round, as
-   the record's own outcome says. Accident: one convention for both kinds inside
-   a tick, and the dictionary check goes with it. Status, which may run while no
-   daemon does, reads such a record as working when a daemon is alive and as
-   left behind when none is, and both kinds read it so.
+   scheduler's dictionary of running rounds. Row 5 says a launch returns what it
+   launched, so the scheduler registers it and neither kind needs the dictionary
+   to launch. For inspection, the conversation side reads running from the
+   records alone: a round with no ending is running. The assignment side checks
+   the dictionary as well, because its round describer treats a record with no
+   ending as interrupted. Two conventions for one state. The daemon records
+   every stale round as interrupted at startup, before the first tick, so while
+   a daemon runs a record with no ending is a running round, as the record's own
+   outcome says. Accident: one convention for both kinds inside a tick, and the
+   dictionary check goes with it. Status, which may run while no daemon does,
+   reads such a record as working when a daemon is alive and as left behind when
+   none is, and both kinds read it so.
 
 ### Row 7: how status summarises each kind
 
@@ -593,7 +593,7 @@ listings are near-copies.
   routes, calls `list_issues` once per route with the route's label and the
   account as assignee, and merges the results by issue number. If a route fails
   to list, it stops there and returns what it has with that failure. The
-  coordinator later prefixes the failure with "could not refresh issues".
+  scheduler later prefixes the failure with "could not refresh issues".
 - `_list_conversation_route_issues` in `scheduler/conversations.py` does the
   same for the conversation routes, with two differences. A route that fails
   does not stop it: it records "could not list issue conversations for LABEL:

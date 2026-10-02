@@ -199,7 +199,7 @@ Work:
   [agent-work-shape.md](agent-work-shape.md). Then apply it in both, giving
   parallel operations parallel names and shared code one home, and remove what
   the splits left behind, such as the issue observer's parameter bundle and the
-  coordinator's launch chain.
+  launch chain in the scheduler's tick.
 - Break the state format to v5. This is the one change to persisted documents
   the phase permits, and it holds every record the design and the E2 audit
   reshape. Version 5 starts with empty local state, as version 4 did.
