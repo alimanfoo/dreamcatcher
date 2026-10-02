@@ -203,6 +203,10 @@ Dreamcatcher instance can never have more than one open assignment for the same
 issue. An agent assignment remains open until it is complete, including while
 its pull request is being wrapped up.
 
+A resumed assignment round's input records the user posts relayed to it and the
+state of its pull request. The first round and a recovery round carry no input
+beyond their prompts.
+
 ### Issue conversation composition
 
 Each issue conversation has exactly one:
@@ -453,6 +457,10 @@ An assignment normally progresses as follows:
 8. A successful wrap-up round completes the assignment.
 
 ### Scheduling rounds in response to events
+
+Once an assignment exists, its pull request alone governs its rounds. The
+issue's labels, assignee and dependencies are read when the assignment is
+created and never again for that assignment.
 
 One or more new user posts cause an agent round to be scheduled. If a user posts
 again while that round is running, the later posts remain unrelayed and cause a

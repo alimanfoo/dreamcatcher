@@ -195,10 +195,11 @@ Work:
   type. Record the E2 count.
 - Design one shape for the two kinds of agent work, with the user, before
   writing any code: which of the differences the scheduler and status splits
-  made visible follow from the ontology, and which are accidents. Then apply it
-  in both, giving parallel operations parallel names and shared code one home,
-  and remove what the splits left behind, such as the issue observer's parameter
-  bundle and the coordinator's launch chain.
+  made visible follow from the ontology, and which are accidents. The design is
+  [agent-work-shape.md](agent-work-shape.md). Then apply it in both, giving
+  parallel operations parallel names and shared code one home, and remove what
+  the splits left behind, such as the issue observer's parameter bundle and the
+  coordinator's launch chain.
 
 Check: S3, S4, C1, E1 and E2 met, and E4 measured again after stage 2.
 

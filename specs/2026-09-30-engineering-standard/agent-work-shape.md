@@ -1,0 +1,129 @@
+# One shape for the two kinds of agent work
+
+Stage 3 of [the roadmap](roadmap.md) asks for one shape for the two kinds of
+agent work, designed with the user before any code is written. This document is
+that design. It grows in three parts, in the order the work is done.
+
+1. What the ontology says: where the two kinds are the same and where they
+   differ, each line citing the ontology.
+2. What the code does: each difference the scheduler and status splits made
+   visible, held against part 1 and marked as following from a named difference
+   or as an accident.
+3. The shape: what the accidents resolve to, and what changes.
+
+The ontology stays the authority. This document reads it; it does not repeat it
+as a second source. A line below that could not be cited was a gap in the
+ontology, and the pull request that wrote the line filled the gap, so each line
+now has its citation.
+
+## What the ontology says
+
+### Same
+
+1. Both are agent work with an agent work identifier.
+   ([Agent work and agent work identifier](../../docs/ontology.md#agent-work-and-agent-work-identifier))
+2. Both run numbered rounds, each with a purpose, a recovery flag and an
+   outcome. ([Agent round](../../docs/ontology.md#agent-round),
+   [Describing an agent round](../../docs/ontology.md#describing-an-agent-round))
+3. Both normally share one harness session across rounds, and recovery without a
+   recorded harness session identifier starts a new one.
+   ([Agent harness and harness session](../../docs/ontology.md#agent-harness-and-harness-session),
+   [Agent work composition](../../docs/ontology.md#agent-work-composition))
+4. Both recover an errored or interrupted round automatically, and two
+   consecutive errors put the work in fault.
+   ([Recovery round](../../docs/ontology.md#recovery-round),
+   [Handling errors and global cooldown](../../docs/ontology.md#handling-errors-and-global-cooldown))
+5. Both share the daemon's capacity and the global cooldown, and a user retry
+   clears a fault the same way for each.
+   ([Starting an issue conversation](../../docs/ontology.md#starting-an-issue-conversation),
+   [Handling errors and global cooldown](../../docs/ontology.md#handling-errors-and-global-cooldown))
+6. Both have a summary status with shared meanings for working, waiting, fault
+   and unknown, and each has a resting status that is the other's counterpart.
+   ([Agent assignment status](../../docs/ontology.md#agent-assignment-status),
+   [Issue conversation status](../../docs/ontology.md#issue-conversation-status))
+7. Both are selected through one dispatch label, which belongs to one route,
+   which supplies one recipe.
+   ([Dispatch labels and routes](../../docs/ontology.md#dispatch-labels-and-routes))
+8. Both have a stop rule with the same shape: a stopped round is not recovered,
+   and the next ordinary round's prompt says the user stopped the last one.
+   ([Scheduling rounds in response to events](../../docs/ontology.md#scheduling-rounds-in-response-to-events),
+   [Starting an issue conversation](../../docs/ontology.md#starting-an-issue-conversation))
+9. A round's input is a frozen batch of user input from the work's communication
+   channel: posts on the pull request for an assignment, comments on the issue
+   for a conversation.
+   ([Agent assignment composition](../../docs/ontology.md#agent-assignment-composition),
+   [Issue conversation composition](../../docs/ontology.md#issue-conversation-composition))
+
+### Differ
+
+1. An assignment owns a branch, worktree and pull request, so the pull request
+   is its communication channel with the user. A conversation owns a detached
+   worktree and nothing else, so the issue is its communication channel with the
+   user. ([Pull request](../../docs/ontology.md#pull-request),
+   [Agent assignment composition](../../docs/ontology.md#agent-assignment-composition),
+   [Issue conversation composition](../../docs/ontology.md#issue-conversation-composition))
+2. An assignment is created by a scheduling action from an available issue. A
+   conversation starts from an eligible comment batch, and a bare labelled issue
+   starts nothing.
+   ([Creating an agent assignment](../../docs/ontology.md#creating-an-agent-assignment),
+   [Starting an issue conversation](../../docs/ontology.md#starting-an-issue-conversation))
+3. An assignment round's purpose comes from pull request state. A conversation
+   round is always a discussion.
+   ([Round purpose](../../docs/ontology.md#round-purpose))
+4. Beside the batch, an assignment round's input carries the pull request state,
+   which a wrap-up round acts on. A conversation round's input carries the main
+   revision it investigates, and the first one also carries the issue title and
+   body.
+   ([Agent assignment composition](../../docs/ontology.md#agent-assignment-composition),
+   [Issue conversation composition](../../docs/ontology.md#issue-conversation-composition))
+5. A conversation round must post its answer before it ends successfully. An
+   assignment round ends when the harness exits.
+   ([Starting an issue conversation](../../docs/ontology.md#starting-an-issue-conversation))
+6. An assignment can complete. A conversation never does, and is kept after the
+   issue stops being eligible.
+   ([Completing an assignment](../../docs/ontology.md#completing-an-assignment),
+   [Issue conversation composition](../../docs/ontology.md#issue-conversation-composition),
+   [Issue conversation status](../../docs/ontology.md#issue-conversation-status))
+7. The tick observes every labelled issue of either kind before any work exists.
+   For an assignment the observation says whether the issue is available, so it
+   is a place in the queue. For a conversation it says whether comments wait, so
+   it is a status, idle until the user comments.
+   ([Issue observations and availability](../../docs/ontology.md#issue-observations-and-availability),
+   [Issue conversation status](../../docs/ontology.md#issue-conversation-status))
+8. Availability for an assignment reads claimed here, claimed elsewhere, blocked
+   and routing conflict. Conversation eligibility reads none of those, only its
+   own routing conflict and whether comments wait.
+   ([Issue observations and availability](../../docs/ontology.md#issue-observations-and-availability),
+   [Starting an issue conversation](../../docs/ontology.md#starting-an-issue-conversation))
+9. Assignment ranking is recovery, wrap up, new posts, then oldest available
+   issue. Conversation ranking is recovery, then oldest waiting comment.
+   ([Scheduling work](../../docs/ontology.md#scheduling-work))
+10. A conversation in fault counts towards the cooldown only when its issue has
+    no known routing conflict. An assignment in fault always counts.
+    ([Handling errors and global cooldown](../../docs/ontology.md#handling-errors-and-global-cooldown))
+11. Each kind lives by its channel. An assignment recovers and takes new work
+    only while its pull request is open, and reads nothing else about its issue
+    once created. A conversation does so only while its issue stays eligible:
+    open, assigned, with exactly one conversation label.
+    ([Scheduling rounds in response to events](../../docs/ontology.md#scheduling-rounds-in-response-to-events),
+    [Starting an issue conversation](../../docs/ontology.md#starting-an-issue-conversation))
+
+Differences 8, 10 and 11 are one difference seen three times. A conversation's
+eligibility plays the part an assignment's open pull request plays: it bounds
+when work starts and when recovery runs, and a fault that cannot recover says
+nothing about a shared problem. Each conflict is reported differently today.
+[Issue 346](https://github.com/alimanfoo/dreamcatcher/issues/346) records that
+as an accident outside this stage's budget.
+
+### Gaps the list found
+
+Two lines could not be cited when first written, and the ontology grew in the
+same pull request so that they could.
+
+- Same 9 and differ 4 say what an assignment round's input holds. The ontology
+  said this of a conversation round's input and nothing of an assignment's.
+  "Agent assignment composition" now says it.
+- Differ 11 says an assignment reads nothing about its issue once created. The
+  ontology said what ends a conversation's eligibility and nothing of what an
+  assignment stops reading. "Scheduling rounds in response to events" now says
+  it.
