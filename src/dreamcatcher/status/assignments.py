@@ -6,7 +6,7 @@ from enum import StrEnum
 from functools import cached_property
 
 from dreamcatcher.agent_assignments import (
-    AgentAssignment,
+    Assignment,
     find_harness_session_identifier,
 )
 from dreamcatcher.agent_rounds import AgentRoundPaths
@@ -19,7 +19,7 @@ from dreamcatcher.status.rounds import (
 )
 
 
-class AgentAssignmentStatusValue(StrEnum):
+class AssignmentStatusValue(StrEnum):
     """List the summary statuses of an agent assignment."""
 
     WORKING = "working"
@@ -31,26 +31,26 @@ class AgentAssignmentStatusValue(StrEnum):
 
 
 ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER = (
-    AgentAssignmentStatusValue.NEEDS_USER_FEEDBACK,
-    AgentAssignmentStatusValue.FAULT,
-    AgentAssignmentStatusValue.WORKING,
-    AgentAssignmentStatusValue.WAITING,
-    AgentAssignmentStatusValue.UNKNOWN,
-    AgentAssignmentStatusValue.COMPLETE,
+    AssignmentStatusValue.NEEDS_USER_FEEDBACK,
+    AssignmentStatusValue.FAULT,
+    AssignmentStatusValue.WORKING,
+    AssignmentStatusValue.WAITING,
+    AssignmentStatusValue.UNKNOWN,
+    AssignmentStatusValue.COMPLETE,
 )
 
 STATUSES_THAT_END_A_VIEW = (
-    AgentAssignmentStatusValue.FAULT,
-    AgentAssignmentStatusValue.COMPLETE,
+    AssignmentStatusValue.FAULT,
+    AssignmentStatusValue.COMPLETE,
 )
 
 
 @dataclass(frozen=True, kw_only=True)
-class AgentAssignmentStatus:
+class AssignmentStatus:
     """Describe an agent assignment's derived summary status."""
 
-    assignment: AgentAssignment
-    value: AgentAssignmentStatusValue
+    assignment: Assignment
+    value: AssignmentStatusValue
     detail: str
     latest_output: str | None
     observed_at: datetime | None
@@ -66,7 +66,7 @@ class AgentAssignmentStatus:
                 outcome_description=describe_round_outcome(
                     record=record,
                     is_running=(
-                        self.value is AgentAssignmentStatusValue.WORKING
+                        self.value is AssignmentStatusValue.WORKING
                         and record.number == assignment.rounds[-1].number
                     ),
                 ),
@@ -84,7 +84,7 @@ class AgentAssignmentStatus:
         """The hand-resume command when nobody is running the session."""
         harness_session_identifier = self.harness_session_identifier
         if (
-            self.value is AgentAssignmentStatusValue.WORKING
+            self.value is AssignmentStatusValue.WORKING
             or harness_session_identifier is None
         ):
             return None
@@ -97,7 +97,7 @@ class AgentAssignmentStatus:
     def stoppable_round_paths(self) -> AgentRoundPaths | None:
         """The live round that can accept a stop request, when one exists."""
         if (
-            self.value is not AgentAssignmentStatusValue.WORKING
+            self.value is not AssignmentStatusValue.WORKING
             or self.harness_session_identifier is None
         ):
             return None

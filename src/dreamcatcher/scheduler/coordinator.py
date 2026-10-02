@@ -5,11 +5,11 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from dreamcatcher.agent_assignments import (
-    AgentAssignment,
-    AgentAssignmentCreator,
-    find_open_agent_assignments_by_issue,
+    Assignment,
+    AssignmentCreator,
+    find_open_assignments_by_issue,
     inspect_incomplete_assignment_setups,
-    read_agent_assignments,
+    read_assignments,
 )
 from dreamcatcher.agent_rounds import (
     AgentRound,
@@ -19,25 +19,25 @@ from dreamcatcher.config import AgentHarness, DreamcatcherConfig
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.issue_conversations import (
-    read_issue_conversations,
+    read_conversations,
 )
 from dreamcatcher.scheduler.assignments import (
-    AgentAssignmentInspectionResult,
-    FaultedAgentAssignment,
+    AssignmentInspectionResult,
+    FaultedAssignment,
     RequiredAgentRound,
     compose_assignment_observation,
     compose_initial_round_requirement,
-    inspect_agent_assignment,
+    inspect_assignment,
     launch_required_round,
     list_assignment_observations,
     prioritize_required_rounds,
 )
 from dreamcatcher.scheduler.conversations import (
-    IssueConversationCandidate,
-    IssueConversationCandidateResult,
-    IssueConversationRecoveryCandidate,
-    launch_issue_conversation_round,
-    list_issue_conversation_candidates,
+    ConversationCandidate,
+    ConversationCandidateResult,
+    ConversationRecoveryCandidate,
+    launch_conversation_round,
+    list_conversation_candidates,
 )
 from dreamcatcher.scheduler.faults import (
     count_observed_conversation_faults,
@@ -73,7 +73,7 @@ type _AssignmentCandidate = RequiredAgentRound | IssueObservation
 def _list_ready_assignment_candidates(
     *,
     record: SchedulerRecord,
-    inspection_results: list[AgentAssignmentInspectionResult],
+    inspection_results: list[AssignmentInspectionResult],
     failure: str | None,
 ) -> list[_AssignmentCandidate]:
     """Return assignment candidates when their shared issue read succeeded."""
@@ -90,22 +90,22 @@ def _list_ready_assignment_candidates(
 
 
 def _list_ready_conversation_candidates(
-    *, result: IssueConversationCandidateResult
-) -> list[IssueConversationCandidate]:
+    *, result: ConversationCandidateResult
+) -> list[ConversationCandidate]:
     """Return safe candidates, retaining saved recovery across a failed read."""
     if result.failure is None:
         return list(result.candidates)
     return [
         candidate
         for candidate in result.candidates
-        if isinstance(candidate, IssueConversationRecoveryCandidate)
+        if isinstance(candidate, ConversationRecoveryCandidate)
     ]
 
 
 @dataclass(kw_only=True)
 class _ReadyAgentWork:
     assignments: list[_AssignmentCandidate]
-    conversations: list[IssueConversationCandidate]
+    conversations: list[ConversationCandidate]
 
     @property
     def is_assignment_ready(self) -> bool:
@@ -179,8 +179,8 @@ class AgentWorkScheduler:
         ]
         for agent_work_identifier in ended_agent_work_identifiers:
             del self.rounds[agent_work_identifier]
-        assignments = read_agent_assignments(state=self.state)
-        conversations = read_issue_conversations(state=self.state)
+        assignments = read_assignments(state=self.state)
+        conversations = read_conversations(state=self.state)
         issue_observation_result = observe_issues(
             repository=self.repository,
             account=self.account,
@@ -208,7 +208,7 @@ class AgentWorkScheduler:
             most_recent_cooldown_ended=most_recent_cooldown_ended,
             observed_at=at,
         )
-        conversation_candidates = list_issue_conversation_candidates(
+        conversation_candidates = list_conversation_candidates(
             scheduler=self,
             conversations=conversations,
             previous_observations=(
@@ -227,7 +227,7 @@ class AgentWorkScheduler:
             active=cooldown,
             fault_count=(
                 sum(
-                    isinstance(result, FaultedAgentAssignment)
+                    isinstance(result, FaultedAssignment)
                     for result in inspection_results
                 )
                 + conversation_fault_count
@@ -283,8 +283,8 @@ class AgentWorkScheduler:
         self,
         *,
         record: SchedulerRecord,
-        inspection_results: list[AgentAssignmentInspectionResult],
-        conversation_candidates: IssueConversationCandidateResult,
+        inspection_results: list[AssignmentInspectionResult],
+        conversation_candidates: ConversationCandidateResult,
         assignment_failure: str | None,
         scheduler_failure: str | None,
     ) -> SchedulerRecord:
@@ -323,8 +323,8 @@ class AgentWorkScheduler:
         *,
         record: SchedulerRecord,
         candidates: _ReadyAgentWork,
-        inspection_results: list[AgentAssignmentInspectionResult],
-    ) -> tuple[SchedulerRecord, list[AgentAssignmentInspectionResult], list[str]]:
+        inspection_results: list[AssignmentInspectionResult],
+    ) -> tuple[SchedulerRecord, list[AssignmentInspectionResult], list[str]]:
         launched_identifiers: list[str] = []
         while len(self.rounds) < self.max_agents:
             work_kind = _choose_next_work_kind(
@@ -351,7 +351,7 @@ class AgentWorkScheduler:
         *,
         record: SchedulerRecord,
         candidates: _ReadyAgentWork,
-        inspection_results: list[AgentAssignmentInspectionResult],
+        inspection_results: list[AssignmentInspectionResult],
     ) -> SchedulerRecord:
         if len(self.rounds) >= self.max_agents and (
             candidates.is_assignment_ready or candidates.is_conversation_ready
@@ -378,8 +378,8 @@ class AgentWorkScheduler:
         record: SchedulerRecord,
         work_kind: AgentWorkKind,
         candidates: _ReadyAgentWork,
-        inspection_results: list[AgentAssignmentInspectionResult],
-    ) -> tuple[SchedulerRecord, list[AgentAssignmentInspectionResult], str | None]:
+        inspection_results: list[AssignmentInspectionResult],
+    ) -> tuple[SchedulerRecord, list[AssignmentInspectionResult], str | None]:
         running_before_launch = self.rounds.copy()
         hold_before_launch = record.hold
         assignment_candidate = (
@@ -428,8 +428,8 @@ class AgentWorkScheduler:
         record: SchedulerRecord,
         work_kind: AgentWorkKind,
         candidates: _ReadyAgentWork,
-        inspection_results: list[AgentAssignmentInspectionResult],
-    ) -> tuple[SchedulerRecord, list[AgentAssignmentInspectionResult]]:
+        inspection_results: list[AssignmentInspectionResult],
+    ) -> tuple[SchedulerRecord, list[AssignmentInspectionResult]]:
         try:
             if work_kind is AgentWorkKind.ASSIGNMENT:
                 record, inspection_results = self._launch_next_assignment_candidate(
@@ -438,7 +438,7 @@ class AgentWorkScheduler:
                     inspection_results=inspection_results,
                 )
             else:
-                record = launch_issue_conversation_round(
+                record = launch_conversation_round(
                     scheduler=self,
                     record=record,
                     candidate=candidates.conversations.pop(0),
@@ -458,8 +458,8 @@ class AgentWorkScheduler:
         *,
         record: SchedulerRecord,
         candidates: _ReadyAgentWork,
-        inspection_results: list[AgentAssignmentInspectionResult],
-    ) -> tuple[SchedulerRecord, list[AgentAssignmentInspectionResult]]:
+        inspection_results: list[AssignmentInspectionResult],
+    ) -> tuple[SchedulerRecord, list[AssignmentInspectionResult]]:
         candidate = candidates.assignments.pop(0)
         if isinstance(candidate, RequiredAgentRound):
             launch_required_round(scheduler=self, required=candidate)
@@ -471,20 +471,20 @@ class AgentWorkScheduler:
     def _inspect_assignments(
         self,
         *,
-        assignments: list[AgentAssignment],
+        assignments: list[Assignment],
         most_recent_cooldown_ended: datetime | None,
         observed_at: datetime,
-    ) -> list[AgentAssignmentInspectionResult]:
+    ) -> list[AssignmentInspectionResult]:
         """Return what each assignment needs next, and what each is waiting on."""
-        inspection_results: list[AgentAssignmentInspectionResult] = []
-        open_assignments = find_open_agent_assignments_by_issue(assignments=assignments)
+        inspection_results: list[AssignmentInspectionResult] = []
+        open_assignments = find_open_assignments_by_issue(assignments=assignments)
         for assignment in open_assignments.values():
             if (
                 assignment.identifier in self.rounds
                 and assignment.rounds[-1].outcome is AgentRoundOutcome.RUNNING
             ):
                 continue
-            inspection_result = inspect_agent_assignment(
+            inspection_result = inspect_assignment(
                 repository=self.repository,
                 account=self.account,
                 assignment=assignment,
@@ -505,7 +505,7 @@ class AgentWorkScheduler:
 
     def _launch_assignment(self, *, issue: int, label: str, at: datetime) -> None:
         """Create an assignment and start its first round."""
-        creator = AgentAssignmentCreator(
+        creator = AssignmentCreator(
             state=self.state,
             repository=self.repository,
         )

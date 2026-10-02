@@ -16,10 +16,10 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     STATUSES_THAT_END_A_VIEW,
-    AgentAssignmentStatus,
-    IssueConversationStatus,
-    read_agent_assignment_status,
-    read_issue_conversation_status,
+    AssignmentStatus,
+    ConversationStatus,
+    read_assignment_status,
+    read_conversation_status,
     read_status_report,
 )
 from dreamcatcher.web.feed import (
@@ -146,7 +146,7 @@ def _show_assignment(
     identifier: str,
 ) -> str | tuple[str, int]:
     """Render one assignment page, or a missing response."""
-    status = read_agent_assignment_status(
+    status = read_assignment_status(
         state=state,
         identifier=identifier,
         clock=clock,
@@ -164,7 +164,7 @@ def _show_assignment(
     )
 
 
-def _compose_assignment_stop_url(*, status: AgentAssignmentStatus) -> str | None:
+def _compose_assignment_stop_url(*, status: AssignmentStatus) -> str | None:
     paths = status.stoppable_round_paths
     if paths is None:
         return None
@@ -183,7 +183,7 @@ def _show_assignment_tail(
     identifier: str,
 ) -> str | tuple[str, int]:
     """Render assignment feed output written after the requested cursor."""
-    status = read_agent_assignment_status(
+    status = read_assignment_status(
         state=state,
         identifier=identifier,
         clock=clock,
@@ -215,7 +215,7 @@ def _show_conversation(
     issue: int,
 ) -> str | tuple[str, int]:
     """Render one issue-conversation page, or a missing response."""
-    status = read_issue_conversation_status(state=state, issue=issue, clock=clock)
+    status = read_conversation_status(state=state, issue=issue, clock=clock)
     if status is None:
         return _missing_conversation_response(issue=issue)
     return render_template(
@@ -229,7 +229,7 @@ def _show_conversation(
     )
 
 
-def _compose_conversation_stop_url(*, status: IssueConversationStatus) -> str | None:
+def _compose_conversation_stop_url(*, status: ConversationStatus) -> str | None:
     paths = status.stoppable_round_paths
     if paths is None:
         return None
@@ -248,7 +248,7 @@ def _show_conversation_tail(
     issue: int,
 ) -> str | tuple[str, int]:
     """Render conversation feed output written after the requested cursor."""
-    status = read_issue_conversation_status(state=state, issue=issue, clock=clock)
+    status = read_conversation_status(state=state, issue=issue, clock=clock)
     if status is None:
         return _missing_conversation_response(issue=issue)
     conversation = status.conversation
@@ -279,9 +279,7 @@ def _request_assignment_stop(
     """Request a stop for one assignment's live round."""
     if not _is_same_origin_request():
         return _CROSS_ORIGIN_STOP_RESPONSE
-    status = read_agent_assignment_status(
-        state=state, identifier=identifier, clock=clock
-    )
+    status = read_assignment_status(state=state, identifier=identifier, clock=clock)
     if status is None:
         return _missing_assignment_response(identifier=identifier)
     paths = status.stoppable_round_paths
@@ -300,7 +298,7 @@ def _request_conversation_stop(
     """Request a stop for one issue conversation's live round."""
     if not _is_same_origin_request():
         return _CROSS_ORIGIN_STOP_RESPONSE
-    status = read_issue_conversation_status(state=state, issue=issue, clock=clock)
+    status = read_conversation_status(state=state, issue=issue, clock=clock)
     if status is None:
         return _missing_conversation_response(issue=issue)
     paths = status.stoppable_round_paths

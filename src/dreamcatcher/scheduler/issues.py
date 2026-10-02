@@ -4,9 +4,9 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from dreamcatcher.agent_assignments import (
-    AgentAssignment,
-    find_open_agent_assignments_by_issue,
-    record_agent_assignment_title,
+    Assignment,
+    find_open_assignments_by_issue,
+    record_assignment_title,
 )
 from dreamcatcher.config import DreamcatcherConfig
 from dreamcatcher.github import (
@@ -28,7 +28,7 @@ class _IssueObservationContext:
     repository: str
     account: str
     config: DreamcatcherConfig
-    assignments: dict[int, AgentAssignment]
+    assignments: dict[int, Assignment]
     incomplete_setups: dict[int, str | None]
 
 
@@ -63,14 +63,14 @@ def observe_issues(
     repository: str,
     account: str,
     config: DreamcatcherConfig,
-    assignments: list[AgentAssignment],
+    assignments: list[Assignment],
     incomplete_setups: dict[int, str | None],
 ) -> IssueObservationResult:
     """Observe every issue considered for assignment or claimed by this instance."""
     considered_issues = _list_considered_issues(
         repository=repository, account=account, config=config
     )
-    open_assignments = find_open_agent_assignments_by_issue(assignments=assignments)
+    open_assignments = find_open_assignments_by_issue(assignments=assignments)
     context = _IssueObservationContext(
         repository=repository,
         account=account,
@@ -108,14 +108,14 @@ def observe_issues(
 
 
 def record_missing_assignment_titles(
-    *, assignments: list[AgentAssignment], observations: list[IssueObservation]
+    *, assignments: list[Assignment], observations: list[IssueObservation]
 ) -> None:
     """Record titles first learned after legacy assignments were created."""
-    open_assignments = find_open_agent_assignments_by_issue(assignments=assignments)
+    open_assignments = find_open_assignments_by_issue(assignments=assignments)
     for observation in observations:
         assignment = open_assignments.get(observation.issue)
         if assignment is not None and observation.title is not None:
-            record_agent_assignment_title(
+            record_assignment_title(
                 assignment=assignment,
                 title=observation.title,
             )

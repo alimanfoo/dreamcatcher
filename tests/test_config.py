@@ -71,7 +71,7 @@ def test_a_valid_config_reads_back(tmp_path):
     assert config.conversation == []
 
 
-def test_an_issue_conversation_is_configured_separately(tmp_path):
+def test_a_conversation_is_configured_separately(tmp_path):
     write_config(root=tmp_path, text=CONFIG + CONVERSATION)
 
     config = read_dreamcatcher_config(root=tmp_path)

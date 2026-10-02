@@ -18,19 +18,19 @@ from conftest import (
 )
 from fakes import Line
 from records import (
-    write_agent_assignment,
+    write_assignment,
+    write_conversation,
     write_daemon_lock,
     write_daemon_run,
-    write_issue_conversation,
     write_round,
 )
 
-from dreamcatcher.agent_assignments import read_agent_assignment
+from dreamcatcher.agent_assignments import read_assignment
 from dreamcatcher.agent_rounds import (
-    AgentAssignmentRoundPurpose,
     AgentRoundOutcome,
     AgentRoundRecord,
-    IssueConversationRoundPurpose,
+    AssignmentRoundPurpose,
+    ConversationRoundPurpose,
     compose_agent_round_ending,
     request_agent_round_stop,
 )
@@ -41,7 +41,7 @@ from dreamcatcher.documents import read_json, write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.scheduler import AgentWorkScheduler
 from dreamcatcher.scheduler.models import (
-    AgentAssignmentObservation,
+    AssignmentObservation,
     GlobalCooldown,
     SchedulerRecord,
 )
@@ -51,7 +51,7 @@ from dreamcatcher.version import DREAMCATCHER_VERSION
 ASSIGNMENT_ID = "GH13-20260819-184158"
 
 # What every round the tests here write down says woke it.
-PURPOSE = AgentAssignmentRoundPurpose.IMPLEMENT
+PURPOSE = AssignmentRoundPurpose.IMPLEMENT
 
 # How long a scripted harness waits after its first line, so a round the daemon
 # launched is certainly still running at the next tick. The waits these tests
@@ -230,7 +230,7 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
         at=PINNED,
         launched_agent_work_identifiers=[ASSIGNMENT_ID],
         assignment_observations=[
-            AgentAssignmentObservation(
+            AssignmentObservation(
                 assignment_identifier=ASSIGNMENT_ID,
                 issue=13,
                 reason="waiting",
@@ -410,7 +410,7 @@ def test_a_run_refuses_when_the_harness_it_was_named_is_not_installed(repo, alon
 def test_a_round_the_daemon_before_this_one_left_running_is_ended(
     watched, harnesses, gh, left_running
 ):
-    directory = write_agent_assignment(
+    directory = write_assignment(
         state=StateDirectory(root=watched), identifier=ASSIGNMENT_ID, issue=13
     )
     write_round(
@@ -433,7 +433,7 @@ def test_a_round_the_daemon_before_this_one_left_running_is_ended(
 
 def test_a_pending_stop_survives_daemon_restart(watched, harnesses, gh, left_running):
     state = StateDirectory(root=watched)
-    directory = write_agent_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13)
+    directory = write_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13)
     write_round(
         directory=directory,
         number=1,
@@ -441,7 +441,7 @@ def test_a_pending_stop_survives_daemon_restart(watched, harnesses, gh, left_run
             number=1, started=PINNED, pid=left_running.pid, purpose=PURPOSE
         ),
     )
-    assignment = read_agent_assignment(state=state, identifier=ASSIGNMENT_ID)
+    assignment = read_assignment(state=state, identifier=ASSIGNMENT_ID)
     assert assignment is not None
     request_agent_round_stop(paths=assignment.compose_round_paths(number=1))
     daemon, _, _ = idling(root=watched)
@@ -458,7 +458,7 @@ def test_a_pending_stop_survives_daemon_restart(watched, harnesses, gh, left_run
 def test_a_conversation_round_left_running_is_ended(
     watched, harnesses, gh, left_running
 ):
-    directory = write_issue_conversation(state=StateDirectory(root=watched), issue=8)
+    directory = write_conversation(state=StateDirectory(root=watched), issue=8)
     write_round(
         directory=directory,
         number=1,
@@ -466,7 +466,7 @@ def test_a_conversation_round_left_running_is_ended(
             number=1,
             started=PINNED,
             pid=left_running.pid,
-            purpose=IssueConversationRoundPurpose.DISCUSS,
+            purpose=ConversationRoundPurpose.DISCUSS,
         ),
     )
     daemon, _, _ = idling(root=watched)
@@ -483,7 +483,7 @@ def test_a_conversation_round_left_running_is_ended(
 def test_a_round_that_recorded_an_ending_is_left_running_by_the_sweep(
     watched, harnesses, gh, left_running
 ):
-    directory = write_agent_assignment(
+    directory = write_assignment(
         state=StateDirectory(root=watched), identifier=ASSIGNMENT_ID, issue=13
     )
     write_round(
@@ -604,7 +604,7 @@ def test_a_run_that_cannot_read_an_assignment_refuses_to_start(ready_repo):
         interval_seconds=300,
     )
     write_json(document=previous_run, path=state.daemon_run_record)
-    directory = write_agent_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13)
+    directory = write_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13)
     (directory / "assignment.json").write_text("{}", encoding="utf-8")
     daemon, _, _ = idling(root=ready_repo, ticks=1)
 
@@ -628,9 +628,7 @@ def test_a_failed_tick_preserves_the_last_scheduler_record(ready_repo, capsys):
         cooldown=GlobalCooldown(started=PINNED, ends=PINNED + timedelta(minutes=15)),
     )
     write_json(document=previous, path=daemon.state.scheduler_record)
-    directory = write_agent_assignment(
-        state=daemon.state, identifier=ASSIGNMENT_ID, issue=13
-    )
+    directory = write_assignment(state=daemon.state, identifier=ASSIGNMENT_ID, issue=13)
     (directory / "assignment.json").write_text("{}", encoding="utf-8")
 
     scheduler = AgentWorkScheduler(

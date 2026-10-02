@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from conftest import ASSIGNMENT_LABEL
 
 from dreamcatcher.scheduler.models import (
-    IssueConversationObservation,
+    ConversationObservation,
     IssueFact,
     IssueFactValue,
     IssueObservation,
@@ -92,12 +92,12 @@ def observed_conversation(
     evidence: str | None = None,
     routing_conflict: IssueFactValue = IssueFactValue.FALSE,
     routing_conflict_evidence: str | None = None,
-) -> IssueConversationObservation:
+) -> ConversationObservation:
     """Return what a tick found at a matching conversation issue.
 
-    The title matches the one `records.write_issue_conversation` saves.
+    The title matches the one `records.write_conversation` saves.
     """
-    return IssueConversationObservation(
+    return ConversationObservation(
         issue=issue,
         title=f"Issue {issue}",
         has_comments_to_answer=_observed_issue_fact(

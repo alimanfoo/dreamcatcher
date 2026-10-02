@@ -6,19 +6,19 @@ import pytest
 from clocks import PINNED
 from conftest import configure
 from records import (
-    write_agent_assignment,
+    write_assignment,
+    write_conversation,
     write_daemon_lock,
     write_feed,
-    write_issue_conversation,
     write_round,
 )
 
 from dreamcatcher import web
-from dreamcatcher.agent_assignments import read_agent_assignments_for_issue
+from dreamcatcher.agent_assignments import read_assignments_for_issue
 from dreamcatcher.agent_rounds import (
-    AgentAssignmentRoundPurpose,
     AgentRoundRecord,
-    IssueConversationRoundPurpose,
+    AssignmentRoundPurpose,
+    ConversationRoundPurpose,
     compose_agent_round_ending,
 )
 from dreamcatcher.cli import MAX_INTERVAL_SECONDS, main
@@ -27,7 +27,7 @@ from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.documents import write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
-from dreamcatcher.issue_conversations import read_issue_conversation
+from dreamcatcher.issue_conversations import read_conversation
 from dreamcatcher.scheduler import derive_agent_work_fault
 from dreamcatcher.scheduler.models import GlobalCooldown, SchedulerRecord
 from dreamcatcher.state import StateDirectory
@@ -37,7 +37,7 @@ ASSIGNMENT_ID = "GH13-20260819-184158"
 
 def write_faulted_conversation(*, state: StateDirectory, issue: int) -> None:
     """Write a conversation whose latest two rounds errored."""
-    directory = write_issue_conversation(state=state, issue=issue)
+    directory = write_conversation(state=state, issue=issue)
     for number in (1, 2):
         ended = PINNED + timedelta(minutes=number)
         write_round(
@@ -47,7 +47,7 @@ def write_faulted_conversation(*, state: StateDirectory, issue: int) -> None:
                 number=number,
                 started=ended,
                 pid=1,
-                purpose=IssueConversationRoundPurpose.DISCUSS,
+                purpose=ConversationRoundPurpose.DISCUSS,
                 is_recovery=number > 1,
                 ending=compose_agent_round_ending(at=ended, status=number),
             ),
@@ -61,7 +61,7 @@ def watching(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
     write_daemon_lock(path=state.lock)
-    directory = write_agent_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13)
+    directory = write_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13)
     write_round(
         directory=directory,
         number=1,
@@ -69,7 +69,7 @@ def watching(tmp_path):
             number=1,
             started=PINNED,
             pid=1,
-            purpose=AgentAssignmentRoundPurpose.IMPLEMENT,
+            purpose=AssignmentRoundPurpose.IMPLEMENT,
         ),
     )
     write_feed(
@@ -93,7 +93,7 @@ def faulted(tmp_path):
     """A watched checkout whose only assignment has failed twice."""
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    directory = write_agent_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13)
+    directory = write_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13)
     for number in (1, 2):
         ended = PINNED + timedelta(minutes=number)
         write_round(
@@ -103,7 +103,7 @@ def faulted(tmp_path):
                 number=number,
                 started=ended,
                 pid=1,
-                purpose=AgentAssignmentRoundPurpose.IMPLEMENT,
+                purpose=AssignmentRoundPurpose.IMPLEMENT,
                 ending=compose_agent_round_ending(at=ended, status=number),
             ),
         )
@@ -201,7 +201,7 @@ def test_retry_clears_the_newest_assignments_fault(monkeypatch, faulted, capsys)
 
     assert main(argv=["retry", "GH13"]) == 0
 
-    assignment = read_agent_assignments_for_issue(state=faulted, issue=13)[-1]
+    assignment = read_assignments_for_issue(state=faulted, issue=13)[-1]
     assert assignment.record.retry_requested_at == requested
     assert not derive_agent_work_fault(
         rounds=assignment.rounds,
@@ -221,7 +221,7 @@ def test_retry_clears_a_conversations_fault(monkeypatch, tmp_path, capsys):
 
     assert main(argv=["retry", "GH13"]) == 0
 
-    conversation = read_issue_conversation(state=state, issue=13)
+    conversation = read_conversation(state=state, issue=13)
     assert conversation is not None
     assert conversation.record.retry_requested_at == requested
     assert not derive_agent_work_fault(
@@ -240,8 +240,8 @@ def test_retry_clears_assignment_and_conversation_faults(monkeypatch, faulted, c
 
     assert main(argv=["retry", "GH13"]) == 0
 
-    assignment = read_agent_assignments_for_issue(state=faulted, issue=13)[-1]
-    conversation = read_issue_conversation(state=faulted, issue=13)
+    assignment = read_assignments_for_issue(state=faulted, issue=13)[-1]
+    conversation = read_conversation(state=faulted, issue=13)
     assert conversation is not None
     assert assignment.record.retry_requested_at == requested
     assert conversation.record.retry_requested_at == requested
@@ -258,14 +258,14 @@ def test_retry_reports_when_only_the_assignment_retry_was_saved(
     monkeypatch.chdir(faulted.root)
     monkeypatch.setattr("dreamcatcher.cli.read_current_time", lambda: requested)
     monkeypatch.setattr(
-        "dreamcatcher.cli.request_issue_conversation_retry",
+        "dreamcatcher.cli.request_conversation_retry",
         Mock(side_effect=ReportableError("conversation record is read-only")),
     )
 
     assert main(argv=["retry", "GH13"]) == 1
 
-    assignment = read_agent_assignments_for_issue(state=faulted, issue=13)[-1]
-    conversation = read_issue_conversation(state=faulted, issue=13)
+    assignment = read_assignments_for_issue(state=faulted, issue=13)[-1]
+    conversation = read_conversation(state=faulted, issue=13)
     assert conversation is not None
     assert assignment.record.retry_requested_at == requested
     assert conversation.record.retry_requested_at is None
@@ -294,7 +294,7 @@ def test_retry_refuses_a_fault_an_elapsed_cooldown_cleared(
 
     assert main(argv=["retry", "GH13"]) == 1
 
-    assignment = read_agent_assignments_for_issue(state=faulted, issue=13)[-1]
+    assignment = read_assignments_for_issue(state=faulted, issue=13)[-1]
     assert assignment.record.retry_requested_at is None
     assert "no agent work in fault" in capsys.readouterr().err
 
@@ -330,7 +330,7 @@ def test_feed_shows_what_the_assignment_said(monkeypatch, watching, capsys):
             number=2,
             started=later,
             pid=1,
-            purpose=AgentAssignmentRoundPurpose.WRAP_UP,
+            purpose=AssignmentRoundPurpose.WRAP_UP,
             ending=compose_agent_round_ending(at=later, status=0),
         ),
     )
@@ -347,7 +347,7 @@ def test_feed_naming_a_round_shows_that_rounds_feed(monkeypatch, watching, capsy
 
 
 def test_conversation_shows_its_local_detail(monkeypatch, watching, capsys):
-    write_issue_conversation(state=watching, issue=8)
+    write_conversation(state=watching, issue=8)
     monkeypatch.chdir(watching.root)
 
     assert main(argv=["conversation", "GH8"]) == 0
@@ -355,7 +355,7 @@ def test_conversation_shows_its_local_detail(monkeypatch, watching, capsys):
 
 
 def test_feed_shows_what_the_conversation_said(monkeypatch, watching, capsys):
-    directory = write_issue_conversation(state=watching, issue=8)
+    directory = write_conversation(state=watching, issue=8)
     write_round(
         directory=directory,
         number=1,
@@ -363,7 +363,7 @@ def test_feed_shows_what_the_conversation_said(monkeypatch, watching, capsys):
             number=1,
             started=PINNED,
             pid=1,
-            purpose=IssueConversationRoundPurpose.DISCUSS,
+            purpose=ConversationRoundPurpose.DISCUSS,
             ending=compose_agent_round_ending(at=PINNED, status=0),
         ),
     )

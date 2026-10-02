@@ -13,27 +13,27 @@ from conftest import (
     pull_request,
     pull_requests,
 )
-from records import write_agent_assignment, write_round
+from records import write_assignment, write_round
 
 from dreamcatcher.agent_assignments import (
     USER_POST_DELIVERY_CURSOR_NAME,
-    AgentAssignmentCreator,
-    AgentAssignmentRecord,
+    AssignmentCreator,
+    AssignmentRecord,
     PullRequestObservation,
     advance_user_post_delivery_cursor,
     find_harness_session_identifier,
-    find_open_agent_assignments_by_issue,
+    find_open_assignments_by_issue,
     inspect_incomplete_assignment_setups,
-    read_agent_assignments,
-    read_agent_assignments_for_issue,
-    record_agent_assignment_title,
+    read_assignments,
+    read_assignments_for_issue,
+    record_assignment_title,
     record_harness_session_identifier,
     record_pull_request_observation,
 )
 from dreamcatcher.agent_rounds import (
-    AgentAssignmentRoundPurpose,
     AgentRoundPaths,
     AgentRoundRecord,
+    AssignmentRoundPurpose,
     InterruptedAgentRoundEnding,
     compose_agent_round_ending,
 )
@@ -54,9 +54,9 @@ ASSIGNMENT_ID = "GH12-20260819-184158"
 BRANCH = f"dreamcatcher-{ASSIGNMENT_ID}"
 
 
-def create_agent_assignment(*, state, route, requested_harness, issue, at):
+def create_assignment(*, state, route, requested_harness, issue, at):
     """Create one assignment through the repository's creation boundary."""
-    creator = AgentAssignmentCreator(state=state, repository=REPOSITORY)
+    creator = AssignmentCreator(state=state, repository=REPOSITORY)
     return creator.create(
         route=route, requested_harness=requested_harness, issue=issue, at=at
     )
@@ -101,13 +101,13 @@ def route(checkout):
 def written(*, state):
     """Return the record that the assignment wrote about itself."""
     record = state.assignments / ASSIGNMENT_ID / "assignment.json"
-    return AgentAssignmentRecord.model_validate_json(record.read_text(encoding="utf-8"))
+    return AssignmentRecord.model_validate_json(record.read_text(encoding="utf-8"))
 
 
 def test_an_assignment_cuts_a_worktree_of_its_own_under_the_state_directory(
     state, route
 ):
-    assignment = create_agent_assignment(
+    assignment = create_assignment(
         state=state,
         route=route,
         requested_harness=AgentHarness.CLAUDE,
@@ -131,7 +131,7 @@ def test_an_assignment_cuts_a_branch_of_its_own_from_origins_main_as_it_is_now(
     git(arguments=["push", "origin", "main"], cwd=state.root)
     git(arguments=["update-ref", "refs/remotes/origin/main", known], cwd=state.root)
 
-    assignment = create_agent_assignment(
+    assignment = create_assignment(
         state=state,
         route=route,
         requested_harness=AgentHarness.CLAUDE,
@@ -145,7 +145,7 @@ def test_an_assignment_cuts_a_branch_of_its_own_from_origins_main_as_it_is_now(
 
 
 def test_an_assignment_records_its_settled_dispatch_recipe(state, route):
-    assignment = create_agent_assignment(
+    assignment = create_assignment(
         state=state,
         route=route,
         requested_harness=AgentHarness.CLAUDE,
@@ -172,7 +172,7 @@ def test_an_assignment_records_its_settled_dispatch_recipe(state, route):
 
 
 def test_an_assignment_titles_its_pull_request_after_its_issue(state, route, gh):
-    create_agent_assignment(
+    create_assignment(
         state=state,
         route=route,
         requested_harness=AgentHarness.CLAUDE,
@@ -187,7 +187,7 @@ def test_an_assignment_titles_its_pull_request_after_its_issue(state, route, gh)
 
 
 def test_an_assignment_runs_on_the_harness_the_run_named(state, route):
-    assignment = create_agent_assignment(
+    assignment = create_assignment(
         state=state,
         route=route,
         requested_harness=AgentHarness.CODEX,
@@ -201,7 +201,7 @@ def test_an_assignment_runs_on_the_harness_the_run_named(state, route):
 
 
 def test_a_new_assignment_has_run_no_rounds_and_its_next_is_its_first(state, route):
-    assignment = create_agent_assignment(
+    assignment = create_assignment(
         state=state,
         route=route,
         requested_harness=AgentHarness.CLAUDE,
@@ -219,24 +219,18 @@ def test_a_new_assignment_has_run_no_rounds_and_its_next_is_its_first(state, rou
 
 def standing(*, state, rounds: Sequence[AgentRoundRecord]):
     """Return the assignment that these rounds leave behind, read back from disk."""
-    directory = write_agent_assignment(state=state, identifier=ASSIGNMENT_ID, issue=12)
+    directory = write_assignment(state=state, identifier=ASSIGNMENT_ID, issue=12)
     for number, record in enumerate(rounds, start=1):
         write_round(directory=directory, number=number, record=record)
-    return read_agent_assignments(state=state)[0]
+    return read_assignments(state=state)[0]
 
 
 def test_assignments_at_one_issue_are_read_behind_the_assignment_boundary(fabricated):
-    write_agent_assignment(
-        state=fabricated, identifier="GH12-20260818-090000", issue=12
-    )
-    write_agent_assignment(
-        state=fabricated, identifier="GH13-20260819-090000", issue=13
-    )
-    write_agent_assignment(
-        state=fabricated, identifier="GH12-20260820-090000", issue=12
-    )
+    write_assignment(state=fabricated, identifier="GH12-20260818-090000", issue=12)
+    write_assignment(state=fabricated, identifier="GH13-20260819-090000", issue=13)
+    write_assignment(state=fabricated, identifier="GH12-20260820-090000", issue=12)
 
-    assignments = read_agent_assignments_for_issue(state=fabricated, issue=12)
+    assignments = read_assignments_for_issue(state=fabricated, issue=12)
 
     assert [assignment.identifier for assignment in assignments] == [
         "GH12-20260818-090000",
@@ -246,7 +240,7 @@ def test_assignments_at_one_issue_are_read_behind_the_assignment_boundary(fabric
 
 def test_open_assignments_are_found_by_issue_across_assignment_histories(fabricated):
     for issue in (13, 14):
-        complete = write_agent_assignment(
+        complete = write_assignment(
             state=fabricated, identifier=f"GH{issue}-20260818-090000", issue=issue
         )
         write_round(
@@ -256,16 +250,14 @@ def test_open_assignments_are_found_by_issue_across_assignment_histories(fabrica
                 number=1,
                 started=PINNED,
                 pid=1,
-                purpose=AgentAssignmentRoundPurpose.WRAP_UP,
+                purpose=AssignmentRoundPurpose.WRAP_UP,
                 ending=compose_agent_round_ending(at=PINNED, status=0),
             ),
         )
-    write_agent_assignment(
-        state=fabricated, identifier="GH14-20260819-090000", issue=14
-    )
-    assignments = read_agent_assignments(state=fabricated)
+    write_assignment(state=fabricated, identifier="GH14-20260819-090000", issue=14)
+    assignments = read_assignments(state=fabricated)
 
-    open_assignments = find_open_agent_assignments_by_issue(assignments=assignments)
+    open_assignments = find_open_assignments_by_issue(assignments=assignments)
 
     assert 12 not in open_assignments
     assert 13 not in open_assignments
@@ -279,7 +271,7 @@ def ended(*, status, minute=0, number: int = 1):
         number=number,
         started=started,
         pid=1,
-        purpose=AgentAssignmentRoundPurpose.IMPLEMENT,
+        purpose=AssignmentRoundPurpose.IMPLEMENT,
         ending=compose_agent_round_ending(at=started, status=status),
     )
 
@@ -290,7 +282,7 @@ def running(*, minute=0, number: int = 1):
         number=number,
         started=PINNED + timedelta(minutes=minute),
         pid=1,
-        purpose=AgentAssignmentRoundPurpose.IMPLEMENT,
+        purpose=AssignmentRoundPurpose.IMPLEMENT,
     )
 
 
@@ -348,7 +340,7 @@ def test_a_successful_wrap_up_completes_an_assignment(fabricated):
                 number=2,
                 started=PINNED + timedelta(minutes=1),
                 pid=1,
-                purpose=AgentAssignmentRoundPurpose.WRAP_UP,
+                purpose=AssignmentRoundPurpose.WRAP_UP,
                 is_recovery=True,
                 ending=compose_agent_round_ending(
                     at=PINNED + timedelta(minutes=1), status=0
@@ -368,7 +360,7 @@ def test_only_the_final_round_can_complete_an_assignment(fabricated):
                 number=1,
                 started=PINNED,
                 pid=1,
-                purpose=AgentAssignmentRoundPurpose.WRAP_UP,
+                purpose=AssignmentRoundPurpose.WRAP_UP,
                 ending=compose_agent_round_ending(at=PINNED, status=0),
             ),
             ended(status=0, minute=1, number=2),
@@ -385,21 +377,21 @@ def test_only_the_final_round_can_complete_an_assignment(fabricated):
             number=1,
             started=PINNED,
             pid=1,
-            purpose=AgentAssignmentRoundPurpose.IMPLEMENT,
+            purpose=AssignmentRoundPurpose.IMPLEMENT,
             ending=compose_agent_round_ending(at=PINNED, status=0),
         ),
         AgentRoundRecord(
             number=1,
             started=PINNED,
             pid=1,
-            purpose=AgentAssignmentRoundPurpose.WRAP_UP,
+            purpose=AssignmentRoundPurpose.WRAP_UP,
             ending=compose_agent_round_ending(at=PINNED, status=1),
         ),
         AgentRoundRecord(
             number=1,
             started=PINNED,
             pid=1,
-            purpose=AgentAssignmentRoundPurpose.WRAP_UP,
+            purpose=AssignmentRoundPurpose.WRAP_UP,
             ending=InterruptedAgentRoundEnding(),
         ),
     ],
@@ -414,16 +406,14 @@ def test_anything_other_than_a_successful_wrap_up_leaves_an_assignment_open(
 
 def endings(*, state):
     """Return how each round of the state directory's one assignment ended."""
-    return [record.ending for record in read_agent_assignments(state=state)[0].rounds]
+    return [record.ending for record in read_assignments(state=state)[0].rounds]
 
 
 def test_a_second_read_does_not_open_a_round_record_it_has_already_read(fabricated):
-    directory = write_agent_assignment(
-        state=fabricated, identifier=ASSIGNMENT_ID, issue=12
-    )
+    directory = write_assignment(state=fabricated, identifier=ASSIGNMENT_ID, issue=12)
     write_round(directory=directory, number=1, record=ended(status=0))
     write_round(directory=directory, number=2, record=running(minute=1, number=2))
-    read_agent_assignments(state=fabricated)
+    read_assignments(state=fabricated)
 
     # Rewriting the first round's record puts something there that only a read
     # of that file could find. A reader that has read it does not look again.
@@ -433,11 +423,9 @@ def test_a_second_read_does_not_open_a_round_record_it_has_already_read(fabricat
 
 
 def test_a_second_read_carries_an_ending_that_landed_since_the_first(fabricated):
-    directory = write_agent_assignment(
-        state=fabricated, identifier=ASSIGNMENT_ID, issue=12
-    )
+    directory = write_assignment(state=fabricated, identifier=ASSIGNMENT_ID, issue=12)
     write_round(directory=directory, number=1, record=running())
-    read_agent_assignments(state=fabricated)
+    read_assignments(state=fabricated)
 
     write_round(directory=directory, number=1, record=ended(status=0))
 
@@ -445,15 +433,13 @@ def test_a_second_read_carries_an_ending_that_landed_since_the_first(fabricated)
 
 
 def test_a_second_read_finds_a_round_that_has_started_since_the_first(fabricated):
-    directory = write_agent_assignment(
-        state=fabricated, identifier=ASSIGNMENT_ID, issue=12
-    )
+    directory = write_assignment(state=fabricated, identifier=ASSIGNMENT_ID, issue=12)
     write_round(directory=directory, number=1, record=ended(status=0))
-    read_agent_assignments(state=fabricated)
+    read_assignments(state=fabricated)
 
     write_round(directory=directory, number=2, record=running(minute=1, number=2))
 
-    read = read_agent_assignments(state=fabricated)[0]
+    read = read_assignments(state=fabricated)[0]
 
     assert [record.started for record in read.rounds] == [
         PINNED,
@@ -462,11 +448,9 @@ def test_a_second_read_finds_a_round_that_has_started_since_the_first(fabricated
 
 
 def test_a_round_that_ended_as_a_later_round_started_reads_back_ended(fabricated):
-    directory = write_agent_assignment(
-        state=fabricated, identifier=ASSIGNMENT_ID, issue=12
-    )
+    directory = write_assignment(state=fabricated, identifier=ASSIGNMENT_ID, issue=12)
     write_round(directory=directory, number=1, record=running())
-    read_agent_assignments(state=fabricated)
+    read_assignments(state=fabricated)
 
     # The first round ended, and the round that carried its work on started,
     # so the record that ended is no longer the assignment's newest.
@@ -485,7 +469,7 @@ def test_an_assignment_git_cannot_cut_leaves_no_branch_behind(state, route):
     (occupied / "in the way.txt").write_text("not ours\n", encoding="utf-8")
 
     with pytest.raises(CommandError):
-        create_agent_assignment(
+        create_assignment(
             state=state,
             route=route,
             requested_harness=AgentHarness.CLAUDE,
@@ -503,7 +487,7 @@ def test_an_assignment_that_cannot_record_reuses_its_complete_setup(state, route
     )
 
     with pytest.raises(ReportableError, match="cannot write"):
-        create_agent_assignment(
+        create_assignment(
             state=state,
             route=route,
             requested_harness=AgentHarness.CLAUDE,
@@ -518,7 +502,7 @@ def test_an_assignment_that_cannot_record_reuses_its_complete_setup(state, route
     gh.replies(stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list")
     gh.replies(stdout=linked_pull_requests(numbers=[PULL_REQUEST]), to="issue view")
     gh.replies(stdout=pull_request(state="OPEN", is_draft=True), to="pr view")
-    recovered = create_agent_assignment(
+    recovered = create_assignment(
         state=state,
         route=route,
         requested_harness=AgentHarness.CLAUDE,
@@ -551,7 +535,7 @@ def test_an_interrupted_creation_continues_from_its_existing_artifacts(
         gh.replies(stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list")
         gh.replies(stdout=linked_pull_requests(numbers=[PULL_REQUEST]), to="issue view")
 
-    recovered = create_agent_assignment(
+    recovered = create_assignment(
         state=state,
         route=route,
         requested_harness=AgentHarness.CLAUDE,
@@ -570,7 +554,7 @@ def test_an_interrupted_creation_continues_from_its_existing_artifacts(
 
 
 def test_an_issue_with_an_open_assignment_cannot_receive_another(state, route, gh):
-    create_agent_assignment(
+    create_assignment(
         state=state,
         route=route,
         requested_harness=AgentHarness.CLAUDE,
@@ -579,7 +563,7 @@ def test_an_issue_with_an_open_assignment_cannot_receive_another(state, route, g
     )
 
     with pytest.raises(ReportableError, match="already has open assignment"):
-        create_agent_assignment(
+        create_assignment(
             state=state,
             route=route,
             requested_harness=AgentHarness.CLAUDE,
@@ -602,7 +586,7 @@ def test_an_issue_with_an_open_assignment_cannot_receive_another(state, route, g
 
 
 def test_an_issue_whose_assignment_finished_can_receive_another(state, route):
-    first = create_agent_assignment(
+    first = create_assignment(
         state=state,
         route=route,
         requested_harness=AgentHarness.CLAUDE,
@@ -616,12 +600,12 @@ def test_an_issue_whose_assignment_finished_can_receive_another(state, route):
             number=1,
             started=PINNED,
             pid=1,
-            purpose=AgentAssignmentRoundPurpose.WRAP_UP,
+            purpose=AssignmentRoundPurpose.WRAP_UP,
             ending=compose_agent_round_ending(at=PINNED, status=0),
         ),
     )
 
-    second = create_agent_assignment(
+    second = create_assignment(
         state=state,
         route=route,
         requested_harness=AgentHarness.CLAUDE,
@@ -643,7 +627,7 @@ def test_an_issue_whose_assignment_finished_can_receive_another(state, route):
 def test_an_issue_whose_final_work_is_unfinished_cannot_receive_another(
     state, route, ending
 ):
-    first = create_agent_assignment(
+    first = create_assignment(
         state=state,
         route=route,
         requested_harness=AgentHarness.CLAUDE,
@@ -657,13 +641,13 @@ def test_an_issue_whose_final_work_is_unfinished_cannot_receive_another(
             number=1,
             started=PINNED,
             pid=1,
-            purpose=AgentAssignmentRoundPurpose.WRAP_UP,
+            purpose=AssignmentRoundPurpose.WRAP_UP,
             ending=ending,
         ),
     )
 
     with pytest.raises(ReportableError, match="already has open assignment"):
-        create_agent_assignment(
+        create_assignment(
             state=state,
             route=route,
             requested_harness=AgentHarness.CLAUDE,
@@ -682,7 +666,7 @@ def test_several_incomplete_setups_for_one_issue_are_reported(state, route):
         )
 
     with pytest.raises(ReportableError, match="several incomplete assignment setups"):
-        create_agent_assignment(
+        create_assignment(
             state=state,
             route=route,
             requested_harness=AgentHarness.CLAUDE,
@@ -734,7 +718,7 @@ def test_an_incomplete_worktree_on_another_branch_is_reported(state, route):
     )
 
     with pytest.raises(ReportableError, match="some-other-branch, not dreamcatcher"):
-        create_agent_assignment(
+        create_assignment(
             state=state,
             route=route,
             requested_harness=AgentHarness.CLAUDE,
@@ -760,7 +744,7 @@ def test_a_finished_pull_request_on_the_incomplete_branch_is_not_adopted(
     gh.replies(stdout=pull_requests(listed=[(PULL_REQUEST, state_name)]), to="pr list")
 
     with pytest.raises(ReportableError, match=state_name.lower()):
-        create_agent_assignment(
+        create_assignment(
             state=state,
             route=route,
             requested_harness=AgentHarness.CLAUDE,
@@ -782,7 +766,7 @@ def test_an_unlinked_pull_request_on_the_incomplete_branch_is_not_adopted(
     gh.replies(stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list")
 
     with pytest.raises(ReportableError, match="is not linked to GH12"):
-        create_agent_assignment(
+        create_assignment(
             state=state,
             route=route,
             requested_harness=AgentHarness.CLAUDE,
@@ -808,7 +792,7 @@ def test_a_ready_pull_request_on_the_incomplete_branch_is_not_adopted(state, rou
     gh.replies(stdout=linked_pull_requests(numbers=[PULL_REQUEST]), to="issue view")
 
     with pytest.raises(ReportableError, match="ready for review rather than draft"):
-        create_agent_assignment(
+        create_assignment(
             state=state,
             route=route,
             requested_harness=AgentHarness.CLAUDE,
@@ -821,7 +805,7 @@ def test_a_pull_request_listing_failure_keeps_the_setup_for_a_retry(state, route
     gh.fails(stderr="gh: could not connect to github.com", to="pr list")
 
     with pytest.raises(ReportableError, match="cannot reconcile the pull request"):
-        create_agent_assignment(
+        create_assignment(
             state=state,
             route=route,
             requested_harness=AgentHarness.CLAUDE,
@@ -840,7 +824,7 @@ def test_a_linked_pull_request_read_failure_keeps_the_setup_for_a_retry(
     with pytest.raises(
         ReportableError, match="cannot tell whether another pull request claims GH12"
     ):
-        create_agent_assignment(
+        create_assignment(
             state=state,
             route=route,
             requested_harness=AgentHarness.CLAUDE,
@@ -855,7 +839,7 @@ def test_an_unrelated_linked_pull_request_prevents_another_one(state, route, gh)
     gh.replies(stdout=linked_pull_requests(numbers=[28]), to="issue view")
 
     with pytest.raises(ReportableError, match=r"open linked pull request \(#28\)"):
-        create_agent_assignment(
+        create_assignment(
             state=state,
             route=route,
             requested_harness=AgentHarness.CLAUDE,
@@ -874,7 +858,7 @@ def test_several_pull_requests_on_an_incomplete_branch_are_reported(state, route
     )
 
     with pytest.raises(ReportableError, match="more than one pull request"):
-        create_agent_assignment(
+        create_assignment(
             state=state,
             route=route,
             requested_harness=AgentHarness.CLAUDE,
@@ -891,7 +875,7 @@ def test_a_created_pull_request_that_cannot_be_read_is_reconciled_next_time(
     with pytest.raises(
         ReportableError, match=f"created the pull request for {BRANCH} but cannot read"
     ):
-        create_agent_assignment(
+        create_assignment(
             state=state,
             route=route,
             requested_harness=AgentHarness.CLAUDE,
@@ -902,7 +886,7 @@ def test_a_created_pull_request_that_cannot_be_read_is_reconciled_next_time(
     gh.replies(stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list")
     gh.replies(stdout=linked_pull_requests(numbers=[PULL_REQUEST]), to="issue view")
     gh.replies(stdout=pull_request(state="OPEN", is_draft=True), to="pr view")
-    recovered = create_agent_assignment(
+    recovered = create_assignment(
         state=state,
         route=route,
         requested_harness=AgentHarness.CLAUDE,
@@ -919,7 +903,7 @@ def test_a_created_pull_request_that_is_not_a_draft_is_reported(state, route, gh
     gh.replies(stdout=pull_request(state="OPEN", is_draft=False), to="pr view")
 
     with pytest.raises(ReportableError, match="was not created as an open draft"):
-        create_agent_assignment(
+        create_assignment(
             state=state,
             route=route,
             requested_harness=AgentHarness.CLAUDE,
@@ -929,11 +913,11 @@ def test_a_created_pull_request_that_is_not_a_draft_is_reported(state, route, gh
 
 
 def test_a_state_directory_with_no_worktrees_holds_no_assignments(state):
-    assert read_agent_assignments(state=state) == []
+    assert read_assignments(state=state) == []
 
 
 def test_an_assignment_reads_back_with_its_settled_dispatch_recipe(state, route):
-    created = create_agent_assignment(
+    created = create_assignment(
         state=state,
         route=route,
         requested_harness=AgentHarness.CLAUDE,
@@ -941,13 +925,13 @@ def test_an_assignment_reads_back_with_its_settled_dispatch_recipe(state, route)
         at=PINNED,
     )
 
-    assert read_agent_assignments(state=state) == [created]
+    assert read_assignments(state=state) == [created]
 
 
 def test_an_assignment_record_from_before_titles_and_pull_request_observations_reads(
     fabricated,
 ):
-    directory = write_agent_assignment(
+    directory = write_assignment(
         state=fabricated,
         identifier=ASSIGNMENT_ID,
         issue=12,
@@ -958,30 +942,30 @@ def test_an_assignment_record_from_before_titles_and_pull_request_observations_r
     del document["pull_request_observation"]
     path.write_bytes((json.dumps(document) + "\n").encode())
 
-    record = read_agent_assignments(state=fabricated)[0].record
+    record = read_assignments(state=fabricated)[0].record
 
     assert record.title is None
     assert record.pull_request_observation is None
 
 
 def test_an_assignment_records_the_harness_session_its_first_round_reports(fabricated):
-    write_agent_assignment(
+    write_assignment(
         state=fabricated,
         identifier=ASSIGNMENT_ID,
         issue=12,
         harness_session_identifier=None,
     )
-    assignment = read_agent_assignments(state=fabricated)[0]
+    assignment = read_assignments(state=fabricated)[0]
 
     record_harness_session_identifier(assignment=assignment, identifier="abc-123")
     record_harness_session_identifier(assignment=assignment, identifier="abc-123")
 
-    recorded = read_agent_assignments(state=fabricated)[0]
+    recorded = read_assignments(state=fabricated)[0]
     assert recorded.record.harness_session_identifier == "abc-123"
 
 
 def test_an_assignment_recovers_a_session_reported_by_a_later_round(fabricated):
-    directory = write_agent_assignment(
+    directory = write_assignment(
         state=fabricated,
         identifier=ASSIGNMENT_ID,
         issue=12,
@@ -993,13 +977,13 @@ def test_an_assignment_recovers_a_session_reported_by_a_later_round(fabricated):
             number=number,
             record=AgentRoundRecord(
                 number=number,
-                purpose=AgentAssignmentRoundPurpose.IMPLEMENT,
+                purpose=AssignmentRoundPurpose.IMPLEMENT,
                 is_recovery=number == 2,
                 started=PINNED,
                 pid=1,
             ),
         )
-    assignment = read_agent_assignments(state=fabricated)[0]
+    assignment = read_assignments(state=fabricated)[0]
     assignment.compose_round_paths(number=2).raw_output.write_bytes(
         (
             json.dumps(
@@ -1020,27 +1004,27 @@ def test_an_assignment_recovers_a_session_reported_by_a_later_round(fabricated):
 
 
 def test_a_legacy_assignment_records_only_the_first_issue_title(fabricated):
-    directory = write_agent_assignment(
+    directory = write_assignment(
         state=fabricated,
         identifier=ASSIGNMENT_ID,
         issue=12,
     )
-    assignment = read_agent_assignments(state=fabricated)[0]
+    assignment = read_assignments(state=fabricated)[0]
 
-    record_agent_assignment_title(assignment=assignment, title="First title")
-    assignment = read_agent_assignments(state=fabricated)[0]
+    record_assignment_title(assignment=assignment, title="First title")
+    assignment = read_assignments(state=fabricated)[0]
     path = directory / "assignment.json"
     first_recording = path.read_bytes()
-    record_agent_assignment_title(assignment=assignment, title="Later title")
+    record_assignment_title(assignment=assignment, title="Later title")
 
-    recorded = read_agent_assignments(state=fabricated)[0]
+    recorded = read_assignments(state=fabricated)[0]
     assert recorded.record.title == "First title"
     assert path.read_bytes() == first_recording
 
 
 def test_an_assignment_records_a_changed_pull_request_observation(fabricated):
-    write_agent_assignment(state=fabricated, identifier=ASSIGNMENT_ID, issue=12)
-    assignment = read_agent_assignments(state=fabricated)[0]
+    write_assignment(state=fabricated, identifier=ASSIGNMENT_ID, issue=12)
+    assignment = read_assignments(state=fabricated)[0]
     record_pull_request_observation(
         assignment=assignment,
         pull_request=PullRequest(
@@ -1061,7 +1045,7 @@ def test_an_assignment_records_a_changed_pull_request_observation(fabricated):
         observed_at=PINNED + timedelta(minutes=1),
     )
 
-    recorded = read_agent_assignments(state=fabricated)[0]
+    recorded = read_assignments(state=fabricated)[0]
     assert recorded.record.pull_request_observation == PullRequestObservation(
         state=PullRequestState.OPEN,
         is_draft=False,
@@ -1070,12 +1054,12 @@ def test_an_assignment_records_a_changed_pull_request_observation(fabricated):
 
 
 def test_an_unchanged_pull_request_observation_leaves_the_record_untouched(fabricated):
-    directory = write_agent_assignment(
+    directory = write_assignment(
         state=fabricated,
         identifier=ASSIGNMENT_ID,
         issue=12,
     )
-    assignment = read_agent_assignments(state=fabricated)[0]
+    assignment = read_assignments(state=fabricated)[0]
     pull_request = PullRequest(
         number=PULL_REQUEST,
         state=PullRequestState.OPEN,
@@ -1099,13 +1083,13 @@ def test_an_unchanged_pull_request_observation_leaves_the_record_untouched(fabri
 
 
 def test_an_assignment_refuses_a_different_harness_session(fabricated):
-    write_agent_assignment(
+    write_assignment(
         state=fabricated,
         identifier=ASSIGNMENT_ID,
         issue=12,
         harness_session_identifier="abc-123",
     )
-    assignment = read_agent_assignments(state=fabricated)[0]
+    assignment = read_assignments(state=fabricated)[0]
 
     with pytest.raises(ReportableError, match="but its record names abc-123"):
         record_harness_session_identifier(
@@ -1125,8 +1109,8 @@ def test_an_assignment_refuses_a_different_harness_session(fabricated):
 def test_an_assignment_refuses_an_invalid_harness_session_identifier(
     fabricated, identifier, message
 ):
-    write_agent_assignment(state=fabricated, identifier=ASSIGNMENT_ID, issue=12)
-    assignment = read_agent_assignments(state=fabricated)[0]
+    write_assignment(state=fabricated, identifier=ASSIGNMENT_ID, issue=12)
+    assignment = read_assignments(state=fabricated)[0]
 
     with pytest.raises(ReportableError, match=message):
         record_harness_session_identifier(assignment=assignment, identifier=identifier)
@@ -1135,7 +1119,7 @@ def test_an_assignment_refuses_an_invalid_harness_session_identifier(
 def test_an_assignment_no_round_has_delivered_a_user_post_has_an_empty_cursor(
     state, route
 ):
-    create_agent_assignment(
+    create_assignment(
         state=state,
         route=route,
         requested_harness=AgentHarness.CLAUDE,
@@ -1143,11 +1127,11 @@ def test_an_assignment_no_round_has_delivered_a_user_post_has_an_empty_cursor(
         at=PINNED,
     )
 
-    assert read_agent_assignments(state=state)[0].user_post_delivery_cursor == ""
+    assert read_assignments(state=state)[0].user_post_delivery_cursor == ""
 
 
 def test_an_assignment_reads_back_its_user_post_delivery_cursor(state, route):
-    create_agent_assignment(
+    create_assignment(
         state=state,
         route=route,
         requested_harness=AgentHarness.CLAUDE,
@@ -1160,7 +1144,7 @@ def test_an_assignment_reads_back_its_user_post_delivery_cursor(state, route):
     )
 
     assert (
-        read_agent_assignments(state=state)[0].user_post_delivery_cursor
+        read_assignments(state=state)[0].user_post_delivery_cursor
         == "2026-09-03T22:31:51Z"
     )
 
@@ -1168,7 +1152,7 @@ def test_an_assignment_reads_back_its_user_post_delivery_cursor(state, route):
 def test_advancing_the_user_post_delivery_cursor_reads_the_newest_post_back(
     state, route
 ):
-    created = create_agent_assignment(
+    created = create_assignment(
         state=state,
         route=route,
         requested_harness=AgentHarness.CLAUDE,
@@ -1179,13 +1163,13 @@ def test_advancing_the_user_post_delivery_cursor_reads_the_newest_post_back(
     advance_user_post_delivery_cursor(assignment=created, newest="2026-09-03T22:31:51Z")
 
     assert (
-        read_agent_assignments(state=state)[0].user_post_delivery_cursor
+        read_assignments(state=state)[0].user_post_delivery_cursor
         == "2026-09-03T22:31:51Z"
     )
 
 
 def test_an_assignments_rounds_read_back_in_number_order(state, route):
-    create_agent_assignment(
+    create_assignment(
         state=state,
         route=route,
         requested_harness=AgentHarness.CLAUDE,
@@ -1201,7 +1185,7 @@ def test_an_assignments_rounds_read_back_in_number_order(state, route):
             number=3,
             started=PINNED,
             pid=1,
-            purpose=AgentAssignmentRoundPurpose.IMPLEMENT,
+            purpose=AssignmentRoundPurpose.IMPLEMENT,
         ),
     )
     write_round(
@@ -1211,12 +1195,12 @@ def test_an_assignments_rounds_read_back_in_number_order(state, route):
             number=1,
             started=later,
             pid=1,
-            purpose=AgentAssignmentRoundPurpose.IMPLEMENT,
+            purpose=AssignmentRoundPurpose.IMPLEMENT,
             ending=compose_agent_round_ending(at=later, status=0),
         ),
     )
 
-    read = read_agent_assignments(state=state)[0]
+    read = read_assignments(state=state)[0]
 
     assert [record.number for record in read.rounds] == [1, 3]
     assert [record.started for record in read.rounds] == [later, PINNED]
@@ -1228,7 +1212,7 @@ def test_an_assignments_rounds_read_back_in_number_order(state, route):
 
 
 def test_a_round_record_must_carry_the_number_of_its_directory(state, route):
-    create_agent_assignment(
+    create_assignment(
         state=state,
         route=route,
         requested_harness=AgentHarness.CLAUDE,
@@ -1242,23 +1226,23 @@ def test_a_round_record_must_carry_the_number_of_its_directory(state, route):
             number=3,
             started=PINNED,
             pid=1,
-            purpose=AgentAssignmentRoundPurpose.IMPLEMENT,
+            purpose=AssignmentRoundPurpose.IMPLEMENT,
         ),
     )
 
     with pytest.raises(ReportableError, match="says it is round 3"):
-        read_agent_assignments(state=state)
+        read_assignments(state=state)
 
 
 def test_every_assignment_of_the_repo_reads_back_by_identifier(state, route):
-    create_agent_assignment(
+    create_assignment(
         state=state,
         route=route,
         requested_harness=AgentHarness.CLAUDE,
         issue=12,
         at=PINNED,
     )
-    create_agent_assignment(
+    create_assignment(
         state=state,
         route=route,
         requested_harness=AgentHarness.CLAUDE,
@@ -1266,16 +1250,14 @@ def test_every_assignment_of_the_repo_reads_back_by_identifier(state, route):
         at=PINNED,
     )
 
-    assert [
-        assignment.identifier for assignment in read_agent_assignments(state=state)
-    ] == [
+    assert [assignment.identifier for assignment in read_assignments(state=state)] == [
         "GH12-20260819-184158",
         "GH3-20260819-184158",
     ]
 
 
 def test_a_file_left_among_the_worktrees_is_not_an_assignment(state, route):
-    created = create_agent_assignment(
+    created = create_assignment(
         state=state,
         route=route,
         requested_harness=AgentHarness.CLAUDE,
@@ -1284,11 +1266,11 @@ def test_a_file_left_among_the_worktrees_is_not_an_assignment(state, route):
     )
     (state.worktrees / ".DS_Store").write_text("a file browser\n", encoding="utf-8")
 
-    assert read_agent_assignments(state=state) == [created]
+    assert read_assignments(state=state) == [created]
 
 
 def test_a_worktree_with_no_record_beside_it_is_not_an_assignment(state, route):
-    created = create_agent_assignment(
+    created = create_assignment(
         state=state,
         route=route,
         requested_harness=AgentHarness.CLAUDE,
@@ -1297,11 +1279,11 @@ def test_a_worktree_with_no_record_beside_it_is_not_an_assignment(state, route):
     )
     (state.worktrees / "GH3-20260819-184158").mkdir()
 
-    assert read_agent_assignments(state=state) == [created]
+    assert read_assignments(state=state) == [created]
 
 
 def test_an_assignment_record_that_will_not_read_names_the_file(state, route):
-    create_agent_assignment(
+    create_assignment(
         state=state,
         route=route,
         requested_harness=AgentHarness.CLAUDE,
@@ -1313,4 +1295,4 @@ def test_an_assignment_record_that_will_not_read_names_the_file(state, route):
     )
 
     with pytest.raises(ReportableError, match=r"assignment\.json is not valid"):
-        read_agent_assignments(state=state)
+        read_assignments(state=state)

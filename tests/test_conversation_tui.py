@@ -7,10 +7,10 @@ import pytest
 from clocks import PINNED
 from observations import observed_conversation
 from records import (
+    write_conversation,
     write_daemon_lock,
     write_feed,
     write_final_output,
-    write_issue_conversation,
     write_round,
     write_running_conversation,
     write_tick,
@@ -19,14 +19,14 @@ from rich.console import Console
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
-    IssueConversationRoundPurpose,
+    ConversationRoundPurpose,
     compose_agent_round_ending,
 )
 from dreamcatcher.documents import write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.harness_adapters import AgentWorkKind
-from dreamcatcher.issue_conversations import IssueConversationInput
+from dreamcatcher.issue_conversations import ConversationInput
 from dreamcatcher.scheduler.models import IssueFactValue, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.tui import (
@@ -44,13 +44,13 @@ def conversation_state(
 ) -> StateDirectory:
     """Return state containing one finished conversation."""
     state = StateDirectory(root=root)
-    directory = write_issue_conversation(state=state, issue=8)
+    directory = write_conversation(state=state, issue=8)
     write_round(
         directory=directory,
         number=1,
         record=AgentRoundRecord(
             number=1,
-            purpose=IssueConversationRoundPurpose.DISCUSS,
+            purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=1,
             ending=compose_agent_round_ending(
@@ -59,7 +59,7 @@ def conversation_state(
         ),
     )
     write_json(
-        document=IssueConversationInput(
+        document=ConversationInput(
             issue=8,
             title="Issue 8",
             body="Explain it.",
@@ -97,7 +97,7 @@ def rendered_console() -> tuple[Console, StringIO]:
     return Console(file=written, width=100, color_system=None), written
 
 
-def test_status_lists_the_issue_conversation(tmp_path):
+def test_status_lists_the_conversation(tmp_path):
     state = conversation_state(root=tmp_path, is_eligible=True)
     console, written = rendered_console()
 
@@ -122,7 +122,7 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
         number=2,
         record=AgentRoundRecord(
             number=2,
-            purpose=IssueConversationRoundPurpose.DISCUSS,
+            purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED + timedelta(minutes=6),
             pid=2,
             ending=compose_agent_round_ending(
@@ -131,7 +131,7 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
         ),
     )
     write_json(
-        document=IssueConversationInput(
+        document=ConversationInput(
             issue=8,
             title="Issue 8",
             body="Explain it.",
@@ -188,7 +188,7 @@ def test_conversation_detail_shows_two_errors_as_a_fault(tmp_path):
         number=2,
         record=AgentRoundRecord(
             number=2,
-            purpose=IssueConversationRoundPurpose.DISCUSS,
+            purpose=ConversationRoundPurpose.DISCUSS,
             is_recovery=True,
             started=PINNED + timedelta(minutes=5),
             pid=2,
@@ -198,7 +198,7 @@ def test_conversation_detail_shows_two_errors_as_a_fault(tmp_path):
         ),
     )
     write_json(
-        document=IssueConversationInput(
+        document=ConversationInput(
             issue=8,
             comments=[
                 {
@@ -263,7 +263,7 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
             number=2,
             record=AgentRoundRecord(
                 number=2,
-                purpose=IssueConversationRoundPurpose.DISCUSS,
+                purpose=ConversationRoundPurpose.DISCUSS,
                 started=PINNED + timedelta(minutes=6),
                 pid=2,
                 ending=compose_agent_round_ending(
@@ -272,7 +272,7 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
             ),
         )
         write_json(
-            document=IssueConversationInput(
+            document=ConversationInput(
                 issue=8,
                 title="Issue 8",
                 body="Explain it.",

@@ -6,7 +6,7 @@ from clocks import PINNED
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
-    IssueConversationRoundPurpose,
+    ConversationRoundPurpose,
 )
 from dreamcatcher.config import AgentHarness, ConversationRoute, DispatchRecipe
 from dreamcatcher.documents import write_json
@@ -20,21 +20,21 @@ from dreamcatcher.github import (
     IssueState,
 )
 from dreamcatcher.issue_conversations import (
-    ISSUE_CONVERSATION_RECORD_NAME,
+    CONVERSATION_RECORD_NAME,
+    Conversation,
+    ConversationInput,
+    ConversationRecord,
     IssueCommentCursor,
-    IssueConversation,
-    IssueConversationInput,
-    IssueConversationRecord,
-    create_issue_conversation,
-    describe_issue_conversation_revision,
+    create_conversation,
+    describe_conversation_revision,
     list_undelivered_issue_comments,
-    post_issue_conversation_answer,
-    prepare_issue_conversation_input,
+    post_conversation_answer,
+    prepare_conversation_input,
+    read_conversation,
+    read_conversation_input,
+    read_conversations,
     read_issue_comment_delivery_cursor,
-    read_issue_conversation,
-    read_issue_conversation_input,
-    read_issue_conversations,
-    record_issue_conversation_session_identifier,
+    record_conversation_session_identifier,
 )
 from dreamcatcher.prompts import AGENT_POST_MARKER
 from dreamcatcher.state import StateDirectory
@@ -66,9 +66,9 @@ def issue(*, number: int = 8) -> Issue:
     )
 
 
-def write_conversation(*, state: StateDirectory, number: int = 8) -> IssueConversation:
+def write_conversation(*, state: StateDirectory, number: int = 8) -> Conversation:
     directory = state.conversations / f"GH{number}"
-    record = IssueConversationRecord(
+    record = ConversationRecord(
         issue=number,
         title="Why does this happen?",
         dispatch_label="dream:conversation",
@@ -77,8 +77,8 @@ def write_conversation(*, state: StateDirectory, number: int = 8) -> IssueConver
         effort="xhigh",
         prompt=PROMPT_TEMPLATE,
     )
-    write_json(document=record, path=directory / ISSUE_CONVERSATION_RECORD_NAME)
-    conversation = read_issue_conversation(state=state, issue=number)
+    write_json(document=record, path=directory / CONVERSATION_RECORD_NAME)
+    conversation = read_conversation(state=state, issue=number)
     assert conversation is not None
     return conversation
 
@@ -101,14 +101,14 @@ def comment(
 def test_a_missing_conversation_reads_as_nothing(tmp_path):
     state = StateDirectory(root=tmp_path)
 
-    assert read_issue_conversations(state=state) == []
-    assert read_issue_conversation(state=state, issue=8) is None
+    assert read_conversations(state=state) == []
+    assert read_conversation(state=state, issue=8) is None
 
 
 def test_a_conversation_gets_a_detached_worktree_at_fetched_main(cloned):
     state = StateDirectory(root=cloned)
 
-    created = create_issue_conversation(
+    created = create_conversation(
         state=state,
         route=conversation_route(),
         requested_harness=AgentHarness.CLAUDE,
@@ -121,9 +121,9 @@ def test_a_conversation_gets_a_detached_worktree_at_fetched_main(cloned):
     assert created.record.title == "Why does this happen?"
     assert created.record.harness == AgentHarness.CLAUDE
     assert not state.worktrees.exists()
-    assert read_issue_conversations(state=state) == [created]
+    assert read_conversations(state=state) == [created]
     assert (
-        create_issue_conversation(
+        create_conversation(
             state=state,
             route=ConversationRoute(
                 label="dream:scout",
@@ -153,7 +153,7 @@ def test_a_new_conversation_records_the_requested_harness_recipe(cloned):
         ),
     )
 
-    created = create_issue_conversation(
+    created = create_conversation(
         state=state,
         route=route,
         requested_harness=AgentHarness.CODEX,
@@ -172,7 +172,7 @@ def test_an_unrecorded_conversation_worktree_is_not_forced_away(cloned):
     add_detached_worktree(root=cloned, path=path)
 
     with pytest.raises(ReportableError) as error:
-        create_issue_conversation(
+        create_conversation(
             state=state,
             route=conversation_route(),
             requested_harness=AgentHarness.CLAUDE,
@@ -195,7 +195,7 @@ def test_a_failed_conversation_setup_removes_the_worktree_it_added(cloned, monke
     )
 
     with pytest.raises(ReportableError, match="cannot write the record"):
-        create_issue_conversation(
+        create_conversation(
             state=state,
             route=conversation_route(),
             requested_harness=AgentHarness.CLAUDE,
@@ -211,23 +211,23 @@ def test_a_conversation_record_must_name_its_directory(tmp_path):
     wrong_directory = state.conversations / "GH9"
     write_json(
         document=conversation.record,
-        path=wrong_directory / ISSUE_CONVERSATION_RECORD_NAME,
+        path=wrong_directory / CONVERSATION_RECORD_NAME,
     )
 
     with pytest.raises(ReportableError) as error:
-        read_issue_conversations(state=state)
+        read_conversations(state=state)
 
     assert "records GH8, but its directory is GH9" in str(error.value)
 
 
 def test_a_non_object_conversation_record_is_reportable(tmp_path):
     state = StateDirectory(root=tmp_path)
-    record = state.conversations / "GH8" / ISSUE_CONVERSATION_RECORD_NAME
+    record = state.conversations / "GH8" / CONVERSATION_RECORD_NAME
     record.parent.mkdir(parents=True)
     record.write_bytes(b"null")
 
     with pytest.raises(ReportableError):
-        read_issue_conversation(state=state, issue=8)
+        read_conversation(state=state, issue=8)
 
 
 def test_only_new_unmarked_comments_from_the_account_are_delivered():
@@ -256,14 +256,14 @@ def test_only_new_unmarked_comments_from_the_account_are_delivered():
 
 def test_round_input_freezes_the_issue_comments_and_revision(cloned):
     state = StateDirectory(root=cloned)
-    conversation = create_issue_conversation(
+    conversation = create_conversation(
         state=state,
         route=conversation_route(),
         requested_harness=AgentHarness.CLAUDE,
         issue=issue(),
     )
 
-    frozen = prepare_issue_conversation_input(
+    frozen = prepare_conversation_input(
         state=state,
         conversation=conversation,
         issue=issue(),
@@ -289,7 +289,7 @@ def test_a_conversation_revision_description_names_its_transition(
     previous, current, expected
 ):
     assert (
-        describe_issue_conversation_revision(
+        describe_conversation_revision(
             previous_revision=previous,
             revision=current,
         )
@@ -302,7 +302,7 @@ def test_an_initial_round_requires_the_issue_text(tmp_path):
     conversation = write_conversation(state=state)
     path = conversation.compose_round_paths(number=1).round_input
     write_json(
-        document=IssueConversationInput(
+        document=ConversationInput(
             issue=8,
             comments=[comment(identifier=1, body="Question")],
             revision="abc123",
@@ -311,7 +311,7 @@ def test_an_initial_round_requires_the_issue_text(tmp_path):
     )
 
     with pytest.raises(ReportableError, match="initial issue title and body"):
-        read_issue_conversation_input(conversation=conversation, number=1)
+        read_conversation_input(conversation=conversation, number=1)
 
 
 def test_a_follow_up_can_omit_the_issue_text(tmp_path):
@@ -319,7 +319,7 @@ def test_a_follow_up_can_omit_the_issue_text(tmp_path):
     conversation = write_conversation(state=state)
     path = conversation.compose_round_paths(number=2).round_input
     write_json(
-        document=IssueConversationInput(
+        document=ConversationInput(
             issue=8,
             comments=[comment(identifier=2, body="Question")],
             revision="def456",
@@ -327,7 +327,7 @@ def test_a_follow_up_can_omit_the_issue_text(tmp_path):
         path=path,
     )
 
-    found = read_issue_conversation_input(conversation=conversation, number=2)
+    found = read_conversation_input(conversation=conversation, number=2)
 
     assert found.title is None
     assert found.body is None
@@ -340,7 +340,7 @@ def test_a_follow_up_from_an_earlier_version_can_keep_issue_text(tmp_path):
     conversation = write_conversation(state=state)
     path = conversation.compose_round_paths(number=2).round_input
     write_json(
-        document=IssueConversationInput(
+        document=ConversationInput(
             issue=8,
             title="Why does this happen?",
             body="Explain the scheduler.",
@@ -350,7 +350,7 @@ def test_a_follow_up_from_an_earlier_version_can_keep_issue_text(tmp_path):
         path=path,
     )
 
-    found = read_issue_conversation_input(conversation=conversation, number=2)
+    found = read_conversation_input(conversation=conversation, number=2)
 
     assert found.title == "Why does this happen?"
     assert found.body == "Explain the scheduler."
@@ -360,10 +360,10 @@ def test_a_conversation_records_its_session_and_round_paths(tmp_path):
     state = StateDirectory(root=tmp_path)
     conversation = write_conversation(state=state)
 
-    record_issue_conversation_session_identifier(
+    record_conversation_session_identifier(
         conversation=conversation, identifier="abc-123"
     )
-    record_issue_conversation_session_identifier(
+    record_conversation_session_identifier(
         conversation=conversation, identifier="abc-123"
     )
 
@@ -373,18 +373,18 @@ def test_a_conversation_records_its_session_and_round_paths(tmp_path):
     write_json(
         document=AgentRoundRecord(
             number=1,
-            purpose=IssueConversationRoundPurpose.DISCUSS,
+            purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=123,
         ),
         path=paths.record,
     )
-    reread = read_issue_conversation(state=StateDirectory(root=tmp_path), issue=8)
+    reread = read_conversation(state=StateDirectory(root=tmp_path), issue=8)
     assert reread is not None
     assert reread.next_round_number == 2
 
     with pytest.raises(ReportableError) as error:
-        record_issue_conversation_session_identifier(
+        record_conversation_session_identifier(
             conversation=conversation, identifier="other-456"
         )
     assert "after it already reported abc-123" in str(error.value)
@@ -396,7 +396,7 @@ def test_the_delivery_cursor_comes_from_the_latest_round_input(tmp_path):
     for number, identifier in ((1, 3), (2, 4)):
         paths = conversation.compose_round_paths(number=number)
         write_json(
-            document=IssueConversationInput(
+            document=ConversationInput(
                 issue=8,
                 title="Why does this happen?",
                 body="Explain the scheduler.",
@@ -408,13 +408,13 @@ def test_the_delivery_cursor_comes_from_the_latest_round_input(tmp_path):
         write_json(
             document=AgentRoundRecord(
                 number=number,
-                purpose=IssueConversationRoundPurpose.DISCUSS,
+                purpose=ConversationRoundPurpose.DISCUSS,
                 started=PINNED,
                 pid=123,
             ),
             path=paths.record,
         )
-    reread = read_issue_conversation(state=state, issue=8)
+    reread = read_conversation(state=state, issue=8)
     assert reread is not None
 
     cursor = read_issue_comment_delivery_cursor(conversation=reread)
@@ -427,7 +427,7 @@ def test_the_delivery_cursor_refuses_a_round_without_comments(tmp_path):
     conversation = write_conversation(state=state)
     paths = conversation.compose_round_paths(number=1)
     write_json(
-        document=IssueConversationInput(
+        document=ConversationInput(
             issue=8,
             title="Why does this happen?",
             body="Explain the scheduler.",
@@ -439,13 +439,13 @@ def test_the_delivery_cursor_refuses_a_round_without_comments(tmp_path):
     write_json(
         document=AgentRoundRecord(
             number=1,
-            purpose=IssueConversationRoundPurpose.DISCUSS,
+            purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=123,
         ),
         path=paths.record,
     )
-    reread = read_issue_conversation(state=state, issue=8)
+    reread = read_conversation(state=state, issue=8)
     assert reread is not None
 
     with pytest.raises(ReportableError, match="has no delivered issue comments"):
@@ -466,7 +466,7 @@ def test_the_delivery_cursor_refuses_inconsistent_round_input(
     conversation = write_conversation(state=state)
     paths = conversation.compose_round_paths(number=1)
     write_json(
-        document=IssueConversationInput(
+        document=ConversationInput(
             issue=input_issue,
             title="Why does this happen?",
             body="Explain the scheduler.",
@@ -481,13 +481,13 @@ def test_the_delivery_cursor_refuses_inconsistent_round_input(
     write_json(
         document=AgentRoundRecord(
             number=1,
-            purpose=IssueConversationRoundPurpose.DISCUSS,
+            purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=123,
         ),
         path=paths.record,
     )
-    reread = read_issue_conversation(state=state, issue=8)
+    reread = read_conversation(state=state, issue=8)
     assert reread is not None
 
     with pytest.raises(ReportableError, match=message):
@@ -498,7 +498,7 @@ def test_an_answer_is_posted_trimmed_and_marked(fake):
     gh = fake(program="gh")
     gh.replies(stdout=json.dumps({"id": 91}))
 
-    post_issue_conversation_answer(
+    post_conversation_answer(
         repository="alimanfoo/dreamcatcher", issue=8, final_output="  The answer.\n"
     )
 
@@ -510,7 +510,7 @@ def test_an_answer_is_posted_trimmed_and_marked(fake):
 def test_no_reply_posts_nothing(fake):
     gh = fake(program="gh")
 
-    post_issue_conversation_answer(
+    post_conversation_answer(
         repository="alimanfoo/dreamcatcher", issue=8, final_output=" NO_REPLY\n"
     )
 
@@ -522,7 +522,7 @@ def test_a_missing_or_empty_answer_is_reportable(fake, final_output):
     gh = fake(program="gh")
 
     with pytest.raises(ReportableError, match="the harness returned no final output"):
-        post_issue_conversation_answer(
+        post_conversation_answer(
             repository="alimanfoo/dreamcatcher", issue=8, final_output=final_output
         )
 
@@ -533,7 +533,7 @@ def test_an_answer_github_refuses_is_reportable(fake):
     fake(program="gh").fails(stderr="issue is locked")
 
     with pytest.raises(ReportableError) as error:
-        post_issue_conversation_answer(
+        post_conversation_answer(
             repository="alimanfoo/dreamcatcher", issue=8, final_output="The answer."
         )
 

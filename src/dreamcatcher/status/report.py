@@ -5,17 +5,17 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from dreamcatcher.agent_assignments import (
-    read_agent_assignment,
-    read_agent_assignments,
-    read_agent_assignments_for_issue,
+    read_assignment,
+    read_assignments,
+    read_assignments_for_issue,
 )
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import read_json, read_text
 from dreamcatcher.issue_conversations import (
-    read_issue_conversation,
-    read_issue_conversations,
+    read_conversation,
+    read_conversations,
 )
 from dreamcatcher.lock import read_daemon_pid
 from dreamcatcher.scheduler.models import (
@@ -25,12 +25,12 @@ from dreamcatcher.scheduler.models import (
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status.assignments import (
-    AgentAssignmentStatus,
-    AgentAssignmentStatusValue,
+    AssignmentStatus,
+    AssignmentStatusValue,
 )
 from dreamcatcher.status.conversations import (
-    IssueConversationStatus,
-    IssueConversationStatusValue,
+    ConversationStatus,
+    ConversationStatusValue,
 )
 from dreamcatcher.status.reader import StatusReportReader
 
@@ -53,8 +53,8 @@ class DreamcatcherStatusReport:
     failed_assignment_setups: list[IssueObservation]
     available_issues: list[IssueObservation]
     blocked_issues: list[IssueObservation]
-    assignment_statuses: list[AgentAssignmentStatus]
-    conversation_statuses: list[IssueConversationStatus]
+    assignment_statuses: list[AssignmentStatus]
+    conversation_statuses: list[ConversationStatus]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -73,12 +73,12 @@ def read_status_report(
 ) -> DreamcatcherStatusReport:
     """Read a status report from the instance's local state."""
     reader = StatusReportReader(state=state, clock=clock)
-    assignments = read_agent_assignments(state=state)
+    assignments = read_assignments(state=state)
     assignment_statuses = reader.list_assignment_statuses(assignments=assignments)
     conversation_statuses = [
         status
         for status in reader.list_conversation_statuses(
-            conversations=read_issue_conversations(state=state)
+            conversations=read_conversations(state=state)
         )
         if status.is_listed
     ]
@@ -121,14 +121,12 @@ def read_status_report(
 
 def _count_running_agents(
     *,
-    assignments: list[AgentAssignmentStatus],
-    conversations: list[IssueConversationStatus],
+    assignments: list[AssignmentStatus],
+    conversations: list[ConversationStatus],
 ) -> int:
     return sum(
-        status.value is AgentAssignmentStatusValue.WORKING for status in assignments
-    ) + sum(
-        status.value is IssueConversationStatusValue.WORKING for status in conversations
-    )
+        status.value is AssignmentStatusValue.WORKING for status in assignments
+    ) + sum(status.value is ConversationStatusValue.WORKING for status in conversations)
 
 
 def _select_failed_setups(
@@ -203,45 +201,45 @@ def _read_daemon_run_record(
     return record
 
 
-def read_agent_assignment_statuses_for_issue(
+def read_assignment_statuses_for_issue(
     *,
     state: StateDirectory,
     issue: int,
     clock: Callable[[], datetime] = read_current_time,
-) -> list[AgentAssignmentStatus]:
+) -> list[AssignmentStatus]:
     """Read the statuses at one issue, newest agent assignment first."""
     reader = StatusReportReader(state=state, clock=clock)
     return reader.list_assignment_statuses(
-        assignments=read_agent_assignments_for_issue(state=state, issue=issue)
+        assignments=read_assignments_for_issue(state=state, issue=issue)
     )
 
 
-def read_agent_assignment_status(
+def read_assignment_status(
     *,
     state: StateDirectory,
     identifier: str,
     clock: Callable[[], datetime] = read_current_time,
-) -> AgentAssignmentStatus | None:
+) -> AssignmentStatus | None:
     """Read one agent assignment's status by its exact identifier."""
-    assignment = read_agent_assignment(state=state, identifier=identifier)
+    assignment = read_assignment(state=state, identifier=identifier)
     if assignment is None:
         return None
     reader = StatusReportReader(state=state, clock=clock)
     return reader.list_assignment_statuses(assignments=[assignment])[0]
 
 
-def read_issue_conversation_status(
+def read_conversation_status(
     *,
     state: StateDirectory,
     issue: int,
     clock: Callable[[], datetime] = read_current_time,
-) -> IssueConversationStatus | None:
+) -> ConversationStatus | None:
     """Read one issue conversation's status by its issue number.
 
     An issue has a conversation once it has a saved conversation or the latest
     tick observed it through a configured conversation route.
     """
-    conversation = read_issue_conversation(state=state, issue=issue)
+    conversation = read_conversation(state=state, issue=issue)
     reader = StatusReportReader(state=state, clock=clock)
     statuses = reader.list_conversation_statuses(
         conversations=[] if conversation is None else [conversation]

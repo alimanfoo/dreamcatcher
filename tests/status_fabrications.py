@@ -8,31 +8,31 @@ from conftest import ASSIGNMENT_LABEL, DAEMON_PID, REPOSITORY, configure
 from observations import observed_conversation, observed_issue
 from records import (
     AssignmentReporting,
-    write_agent_assignment,
+    write_assignment,
+    write_conversation,
     write_daemon_lock,
     write_daemon_run,
     write_feed,
     write_final_output,
-    write_issue_conversation,
     write_round,
     write_tick,
 )
 
 from dreamcatcher.agent_assignments import PullRequestObservation
 from dreamcatcher.agent_rounds import (
-    AgentAssignmentRoundPurpose,
     AgentRoundRecord,
-    IssueConversationRoundPurpose,
+    AssignmentRoundPurpose,
+    ConversationRoundPurpose,
     compose_agent_round_ending,
 )
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.github import PullRequestState
-from dreamcatcher.issue_conversations import IssueConversationInput
+from dreamcatcher.issue_conversations import ConversationInput
 from dreamcatcher.scheduler.models import (
     NO_ROUND_HAS_RUN,
-    AgentAssignmentObservation,
-    IssueConversationObservation,
+    AssignmentObservation,
+    ConversationObservation,
     IssueFactValue,
     SchedulerRecord,
 )
@@ -76,7 +76,7 @@ def fabricate_conversation(
     is_eligible: bool = False,
 ) -> None:
     """Write one initial conversation exchange."""
-    directory = write_issue_conversation(state=state, issue=8)
+    directory = write_conversation(state=state, issue=8)
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
     write_tick(
         state=state,
@@ -92,7 +92,7 @@ def fabricate_conversation(
         number=1,
         record=AgentRoundRecord(
             number=1,
-            purpose=IssueConversationRoundPurpose.DISCUSS,
+            purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=1,
             ending=compose_agent_round_ending(
@@ -101,7 +101,7 @@ def fabricate_conversation(
         ),
     )
     write_json(
-        document=IssueConversationInput(
+        document=ConversationInput(
             issue=8,
             title="Issue 8",
             body="Explain it.",
@@ -127,7 +127,7 @@ def fabricate_conversation(
 
 def written(*, state, issue: int, records: Sequence[AgentRoundRecord]):
     """Write an assignment for the issue, with these rounds behind it."""
-    directory = write_agent_assignment(
+    directory = write_assignment(
         state=state,
         identifier=f"GH{issue}-{ASSIGNMENT_TIMESTAMP}",
         issue=issue,
@@ -143,7 +143,7 @@ def ended(
     minute: int,
     number: int = 1,
     status: int = 0,
-    purpose: AgentAssignmentRoundPurpose = AgentAssignmentRoundPurpose.IMPLEMENT,
+    purpose: AssignmentRoundPurpose = AssignmentRoundPurpose.IMPLEMENT,
 ):
     """Return a round that started that minute and ran for four minutes."""
     started = PINNED + timedelta(minutes=minute)
@@ -162,7 +162,7 @@ def running(
     *,
     minute: int,
     number: int = 1,
-    purpose: AgentAssignmentRoundPurpose = AgentAssignmentRoundPurpose.IMPLEMENT,
+    purpose: AssignmentRoundPurpose = AssignmentRoundPurpose.IMPLEMENT,
     is_recovery: bool = False,
 ):
     """Return a round that started that minute and is still running."""
@@ -193,7 +193,7 @@ def fabricate_nothing(*, state):
 def fabricate_everything(
     *,
     state,
-    conversation_observations: Sequence[IssueConversationObservation] = (),
+    conversation_observations: Sequence[ConversationObservation] = (),
 ):
     """Write a running daemon with varied issue and assignment statuses."""
     holding(state=state)
@@ -205,7 +205,7 @@ def fabricate_everything(
             running(
                 minute=30,
                 number=2,
-                purpose=AgentAssignmentRoundPurpose.ADDRESS_FEEDBACK,
+                purpose=AssignmentRoundPurpose.ADDRESS_FEEDBACK,
                 is_recovery=True,
             ),
         ],
@@ -244,7 +244,7 @@ def fabricate_everything(
         issue=12,
         records=[
             ended(minute=1),
-            ended(minute=2, number=2, purpose=AgentAssignmentRoundPurpose.WRAP_UP),
+            ended(minute=2, number=2, purpose=AssignmentRoundPurpose.WRAP_UP),
         ],
     )
     written(state=state, issue=44, records=[])
@@ -269,28 +269,28 @@ def fabricate_everything(
                 ),
             ],
             assignment_observations=[
-                AgentAssignmentObservation(
+                AssignmentObservation(
                     assignment_identifier=f"GH31-{ASSIGNMENT_TIMESTAMP}",
                     issue=31,
                     reason="1 new post to answer",
                 ),
-                AgentAssignmentObservation(
+                AssignmentObservation(
                     assignment_identifier=f"GH20-{ASSIGNMENT_TIMESTAMP}",
                     issue=20,
                     reason="no round required",
                     is_round_required=False,
                 ),
-                AgentAssignmentObservation(
+                AssignmentObservation(
                     assignment_identifier=f"GH35-{ASSIGNMENT_TIMESTAMP}",
                     issue=35,
                     reason="the last round failed (exit 2)",
                 ),
-                AgentAssignmentObservation(
+                AssignmentObservation(
                     assignment_identifier=f"GH9-{ASSIGNMENT_TIMESTAMP}",
                     issue=9,
                     reason="two consecutive rounds failed",
                 ),
-                AgentAssignmentObservation(
+                AssignmentObservation(
                     assignment_identifier=f"GH44-{ASSIGNMENT_TIMESTAMP}",
                     issue=44,
                     reason=NO_ROUND_HAS_RUN,
@@ -361,7 +361,7 @@ def fabricate_the_cap(*, state):
             at=PINNED + timedelta(hours=1, minutes=58),
             hold=hold,
             assignment_observations=[
-                AgentAssignmentObservation(
+                AssignmentObservation(
                     assignment_identifier=f"GH20-{ASSIGNMENT_TIMESTAMP}",
                     issue=20,
                     reason=hold,
@@ -381,21 +381,19 @@ def fabricate_repeat_assignments(*, state):
             "20260817-090000",
             (
                 ended(minute=1),
-                ended(minute=2, number=2, purpose=AgentAssignmentRoundPurpose.WRAP_UP),
+                ended(minute=2, number=2, purpose=AssignmentRoundPurpose.WRAP_UP),
             ),
         ),
         (
             "20260818-090000",
             (
                 ended(minute=1),
-                ended(minute=2, number=2, purpose=AgentAssignmentRoundPurpose.WRAP_UP),
+                ended(minute=2, number=2, purpose=AssignmentRoundPurpose.WRAP_UP),
             ),
         ),
         ("20260819-184158", (ended(minute=1),)),
     ):
-        directory = write_agent_assignment(
-            state=state, identifier=f"GH13-{stamp}", issue=13
-        )
+        directory = write_assignment(state=state, identifier=f"GH13-{stamp}", issue=13)
         for number, record in enumerate(rounds, start=1):
             write_round(directory=directory, number=number, record=record)
         write_feed(
@@ -413,7 +411,7 @@ def fabricate_repeat_assignments(*, state):
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
             assignment_observations=[
-                AgentAssignmentObservation(
+                AssignmentObservation(
                     assignment_identifier=f"GH13-{ASSIGNMENT_TIMESTAMP}",
                     issue=13,
                     reason="no round required",
@@ -435,7 +433,7 @@ def fabricate_a_silent_round(*, state):
             running(
                 minute=30,
                 number=2,
-                purpose=AgentAssignmentRoundPurpose.ADDRESS_FEEDBACK,
+                purpose=AssignmentRoundPurpose.ADDRESS_FEEDBACK,
             ),
         ],
     )
@@ -463,7 +461,7 @@ def fabricate_titles_and_pull_request_states(*, state):
         (12, "Merged assignment", PullRequestState.MERGED, False),
         (13, "Closed assignment", PullRequestState.CLOSED, False),
     ):
-        write_agent_assignment(
+        write_assignment(
             state=state,
             identifier=f"GH{issue}-{ASSIGNMENT_TIMESTAMP}",
             issue=issue,
@@ -478,20 +476,20 @@ def fabricate_titles_and_pull_request_states(*, state):
             harness_session_identifier=None,
         )
         assignment_observations.append(
-            AgentAssignmentObservation(
+            AssignmentObservation(
                 assignment_identifier=f"GH{issue}-{ASSIGNMENT_TIMESTAMP}",
                 issue=issue,
                 reason=NO_ROUND_HAS_RUN,
             )
         )
-    write_agent_assignment(
+    write_assignment(
         state=state,
         identifier=f"GH14-{ASSIGNMENT_TIMESTAMP}",
         issue=14,
         harness_session_identifier=None,
     )
     assignment_observations.append(
-        AgentAssignmentObservation(
+        AssignmentObservation(
             assignment_identifier=f"GH14-{ASSIGNMENT_TIMESTAMP}",
             issue=14,
             reason=NO_ROUND_HAS_RUN,

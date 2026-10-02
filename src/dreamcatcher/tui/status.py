@@ -13,10 +13,10 @@ from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
     CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER,
-    AgentAssignmentStatus,
-    AgentAssignmentStatusValue,
+    AssignmentStatus,
+    AssignmentStatusValue,
+    ConversationStatus,
     DreamcatcherStatusReport,
-    IssueConversationStatus,
     IssueFactValue,
     IssueObservation,
     read_status_report,
@@ -155,7 +155,7 @@ def _compose_instance_rows(
 
 def _render_assignments(
     *,
-    assignments: Sequence[AgentAssignmentStatus],
+    assignments: Sequence[AssignmentStatus],
     failed_setups: Sequence[IssueObservation],
     available_issues: Sequence[IssueObservation],
     blocked_issues: Sequence[IssueObservation],
@@ -169,13 +169,13 @@ def _render_assignments(
         return None
     completed = list(
         filter(
-            lambda status: status.value is AgentAssignmentStatusValue.COMPLETE,
+            lambda status: status.value is AssignmentStatusValue.COMPLETE,
             assignments,
         )
     )
     ordered = sorted(
         filter(
-            lambda status: status.value is not AgentAssignmentStatusValue.COMPLETE,
+            lambda status: status.value is not AssignmentStatusValue.COMPLETE,
             assignments,
         ),
         key=lambda status: ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER.index(
@@ -233,7 +233,7 @@ def _render_open_issues(
 
 
 def _render_assignment_rows(
-    *, assignments: Sequence[AgentAssignmentStatus]
+    *, assignments: Sequence[AssignmentStatus]
 ) -> list[RenderableType]:
     """Render the detailed rows for non-complete assignments."""
     if not assignments:
@@ -258,7 +258,7 @@ def _render_assignment_rows(
 
 
 def _render_conversations(
-    *, conversations: Sequence[IssueConversationStatus]
+    *, conversations: Sequence[ConversationStatus]
 ) -> RenderableType | None:
     """Render conversations in attention order, preserving order within a status."""
     if not conversations:
