@@ -32,9 +32,9 @@ The standard is not invented from nothing. Five projects set it, one dimension
 each. For each we name the property we take from it, verified by reading the
 project, so that a criterion below can be traced to a project that has met it.
 
-- **pre-commit.** A Python command that shells out, with compact source modules,
-  full coverage enforced, and five runtime dependencies. It sets the bar for
-  module cohesion and dependencies.
+- **pre-commit.** A Python command that shells out, with no source file over 600
+  lines, full coverage enforced, and five runtime dependencies. It sets the bar
+  for module cohesion and dependencies.
 - **Trio.** Seven concepts that compose, a design document that states ranked
   principles and says what the project will not do, and naming rules written
   beside the ambiguity each prevents. It sets the bar for elegance, for
@@ -70,13 +70,12 @@ not progress towards the standard. Meeting the criteria is.
 
 **S1. Modules are cohesive.**
 
-- Measure: the responsibility each module owns. Physical line counts rank where
-  review starts; they do not decide where a module ends.
-- Bar: one coherent responsibility per module. Split a module when a clean
-  boundary gives each result a nameable responsibility and reduces coupling,
-  never merely to meet a size target.
-- Check: review, guided by the phase measurement and focused on any module a
-  change grows.
+- Measure: modules for which review cannot name the one responsibility they own,
+  read largest first.
+- Bar: zero. A module is split where a clean boundary gives each part a
+  responsibility of its own, never to meet a line count.
+- Check: review, ordered by the line counts the phase measurement reports and
+  focused on any module a change grows.
 
 **S2. Functions fit on a screen.**
 

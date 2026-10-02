@@ -21,25 +21,25 @@ documentation is one long page. Those are the gaps this path closes.
 
 Measured on `main` at `b4ac40a`.
 
-| Criterion                              | Measured                        | Bar                      | Status     |
-| -------------------------------------- | ------------------------------- | ------------------------ | ---------- |
-| S1 Modules are cohesive                | 4 modules hold half the source  | one responsibility       | short      |
-| S2 Functions fit on a screen           | 22 functions over 50 lines      | none unless named        | short      |
-| S3 Exports are used                    | 57 names without an importer    | each of a permitted kind | unmeasured |
-| S4 Each thing is done one way          | 2 duplicates found              | none                     | short      |
-| S5 Nothing is suppressed               | 0 `noqa`, 0 `type: ignore`      | 0, 0                     | met        |
-| C1 One vocabulary                      | 5 open disagreements            | none                     | short      |
-| C2 Enduring documents are true         | 1 contradiction                 | none                     | short      |
-| C3 Documentation by purpose            | 1 page of 293 lines             | 4 kinds of page          | short      |
-| C4 Formats and contracts are versioned | neither versioned               | both                     | short      |
-| K1 Structural rules checked by machine | 1 of 4 import rules             | all                      | short      |
-| K2 Suite is fast and speaks plainly    | 178 seconds                     | under 60                 | short      |
-| K3 Tracker is current                  | 6 issues in retired words       | none                     | short      |
-| K4 Every change reviewed to standard   | no template                     | template                 | short      |
-| E1 Rules, not cases                    | no ledger                       | ledger, external causes  | unmeasured |
-| E2 Invariants by construction          | 0 found; 53 optionals unaudited | 0                        | unmeasured |
-| E3 Concept economy                     | 21 concepts, no rule            | rule applied per change  | short      |
-| E4 Symmetry                            | 12 against 9 in the scheduler   | parallel or named        | short      |
+| Criterion                              | Measured                              | Bar                      | Status     |
+| -------------------------------------- | ------------------------------------- | ------------------------ | ---------- |
+| S1 Modules are cohesive                | 4 modules of several responsibilities | none                     | short      |
+| S2 Functions fit on a screen           | 22 functions over 50 lines            | none unless named        | short      |
+| S3 Exports are used                    | 57 names without an importer          | each of a permitted kind | unmeasured |
+| S4 Each thing is done one way          | 2 duplicates found                    | none                     | short      |
+| S5 Nothing is suppressed               | 0 `noqa`, 0 `type: ignore`            | 0, 0                     | met        |
+| C1 One vocabulary                      | 5 open disagreements                  | none                     | short      |
+| C2 Enduring documents are true         | 1 contradiction                       | none                     | short      |
+| C3 Documentation by purpose            | 1 page of 293 lines                   | 4 kinds of page          | short      |
+| C4 Formats and contracts are versioned | neither versioned                     | both                     | short      |
+| K1 Structural rules checked by machine | 1 of 4 import rules                   | all                      | short      |
+| K2 Suite is fast and speaks plainly    | 178 seconds                           | under 60                 | short      |
+| K3 Tracker is current                  | 6 issues in retired words             | none                     | short      |
+| K4 Every change reviewed to standard   | no template                           | template                 | short      |
+| E1 Rules, not cases                    | no ledger                             | ledger, external causes  | unmeasured |
+| E2 Invariants by construction          | 0 found; 53 optionals unaudited       | 0                        | unmeasured |
+| E3 Concept economy                     | 21 concepts, no rule                  | rule applied per change  | short      |
+| E4 Symmetry                            | 12 against 9 in the scheduler         | parallel or named        | short      |
 
 The evidence behind each row:
 
