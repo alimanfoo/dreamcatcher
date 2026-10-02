@@ -443,25 +443,106 @@ is the name the code uses, so a reader can find each piece from this document.
 
 ### The context
 
-`SchedulerContext`, in `scheduler/context.py`, holds what every scheduling
-operation knows about the instance and this run: repository, account,
-configuration, state directory, requested harness and clock. The coordinator
-builds it once and passes it to the issue listing, both inspections and both
-launches. It replaces the two scheduler protocols and the issue observer's
-parameter bundle. It is a code shape like the state directory, not an ontology
-concept.
+Rows 6 and 1 point here.
 
-The running set stays with the coordinator. No inspection or launch reads or
-writes it. A launch returns the round it started, and the coordinator registers
-it.
+**Today.** The coordinator, `AgentWorkScheduler` in `scheduler/coordinator.py`,
+is a dataclass holding the repository, account, config, state directory,
+requested harness, clock, the running set and the agent cap. The per-kind
+modules get at those fields three ways:
 
-A round record with no ending is a running round while its daemon lives. The
-daemon records every round an earlier daemon left as interrupted before its
-first tick, so inside a tick the record alone says running. Status, which may
-run while no daemon does, reads such a record as working when a daemon is alive
-and as left behind when none is. Both kinds use these two readings and no other.
-The assignment describer that calls a record with no ending interrupted goes,
-and with it the coordinator's check of the running set.
+- The conversation functions in `scheduler/conversations.py` take a `scheduler`
+  argument typed as `_ConversationScheduler`, a protocol listing seven of the
+  coordinator's attributes. The coordinator passes itself.
+- The assignment launch in `scheduler/assignments.py` takes a `scheduler`
+  argument typed as `_AssignmentRoundScheduler`, a protocol listing two
+  attributes, clock and the running set. The assignment inspection takes
+  `repository` and `account` as plain parameters instead.
+- The issue observer in `scheduler/issues.py` builds its own private bundle,
+  `_IssueObservationContext`, from the repository, account, config, the open
+  assignments and the incomplete setups.
+
+Both protocols describe the same object. Every operation needs the same six
+facts about the instance and this run.
+
+**The shape.** One frozen dataclass, `SchedulerContext`, holds those six facts:
+repository, account, config, state directory, requested harness and clock. Every
+tick-level operation takes it as its first keyword argument, `context`. Nothing
+else carries those facts. The running set is not in it; the next section says
+where that goes.
+
+**The edits.**
+
+1. Add `scheduler/context.py` with `SchedulerContext`, a frozen keyword-only
+   dataclass of the six fields, and a docstring saying it is what every
+   scheduling operation knows about the instance and this run.
+2. Give `AgentWorkScheduler` a `context` field in place of the six fields it
+   holds today, and have the daemon and CLI build the context when they build
+   the scheduler. The agent cap and the running set stay on the coordinator.
+3. Change every conversation function that takes `scheduler` to take `context`,
+   and read `context.repository` and so on where it read `scheduler.repository`.
+   Delete `_ConversationScheduler`.
+4. Change the assignment launch to take `context`, and the assignment inspection
+   to take `context` in place of `repository` and `account`. Delete
+   `_AssignmentRoundScheduler`.
+5. Change `observe_issues` to take `context` plus the open assignments and the
+   incomplete setups, and pass those three to its helpers in place of the
+   bundle. Delete `_IssueObservationContext`.
+
+It is a code shape like the state directory, not an ontology concept, so E3 has
+nothing to say.
+
+### The running set and the meaning of "no ending"
+
+Row 6 points here, with row 5.
+
+**Today.** The coordinator keeps a dictionary of running rounds keyed by agent
+work identifier. Two things in the per-kind modules touch it:
+
+- Each launch writes into it. `_start_assignment_round` and
+  `_start_prepared_conversation_round` both end with
+  `scheduler.rounds[identifier] = start_agent_round(...)`.
+- The assignment inspection reads it. `_inspect_assignments` in the coordinator
+  skips an assignment when its identifier is in the dictionary and its latest
+  round has no ending. It needs that check because
+  `AgentAssignment.describe_unfinished_round` calls a round with no ending
+  "interrupted", so without the check a running assignment would be scheduled
+  for recovery.
+
+The conversation side reads nothing from the dictionary. Its inspection treats a
+latest round with no ending as running by the record alone: it is not errored or
+interrupted, so it is not recovered, and `is_issue_conversation_ready_for_input`
+says no new batch.
+
+The two kinds therefore read a record with no ending two ways: running, on the
+conversation side, and interrupted, on the assignment side. The conversation
+reading is the safe one inside a tick, because the daemon records every round an
+earlier daemon left as interrupted before its first tick, in
+`DreamcatcherDaemon.run`. Status is different: it may run while no daemon does,
+so for status a record with no ending means working when a daemon is alive and
+left behind when none is. Both kinds already read it that way in status, and
+that stays.
+
+**The shape.** The dictionary belongs to the coordinator alone. A launch returns
+the `AgentRound` it started and the coordinator registers it. No inspection
+reads the dictionary: both kinds treat a latest round with no ending as running,
+by the record. The assignment describer stops calling such a record interrupted.
+
+**The edits.**
+
+1. Change `describe_unfinished_round` on `AgentAssignment` to return `None` when
+   the latest round has no ending, and keep its two descriptions for the
+   interrupted and errored endings. Check its callers in status: the step that
+   decides working or waiting from the daemon's presence stays, and is written
+   once for both kinds in the status section below.
+2. Remove the dictionary check from the assignment inspection. Skip an
+   assignment whose latest round has no ending, as the conversation inspection
+   already does by its outcome checks.
+3. Make each launch return the round instead of writing it into the dictionary.
+   Have the coordinator write `self.rounds[identifier] = round` after a launch
+   returns. The round has to say which work it belongs to, so give `AgentRound`
+   the agent work identifier from its launch request.
+4. Delete the coordinator's copy-and-diff of the dictionary that discovers what
+   launched, which the launch section covers.
 
 ### Listing issues
 
