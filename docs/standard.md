@@ -80,7 +80,7 @@ not progress towards the standard. Meeting the criteria is.
 **S2. Functions fit on a screen.**
 
 - Measure: lines in each function.
-- Bar: no function exceeds 50 lines, except those the architecture names and
+- Bar: no function exceeds 50 lines, except those the measurement names and
   explains, such as the scheduler tick when it reads as the listed steps.
 - Check: the phase measurement, and review of any function a change grows.
 
@@ -238,7 +238,7 @@ A pull request is done when its author can say yes to each of these.
 ## Exceptions
 
 A criterion may be waived for one place, never in general. The waiver is written
-where the check will read it: a sentence in the architecture for S2, a per-file
+where the check will read it: an entry in the measurement for S2, a per-file
 rule in `pyproject.toml` for K1, a pragma with its reason for S5, an entry on
 the ledger for E1. A waiver with no reason a reader can find is a violation.
 

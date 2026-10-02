@@ -3,14 +3,24 @@
 from __future__ import annotations
 
 import ast
-import re
 from dataclasses import dataclass
 from pathlib import Path
 
 SOURCE_ROOT = Path(__file__).parents[1] / "src" / "dreamcatcher"
-ARCHITECTURE = Path(__file__).parents[1] / "docs" / "architecture.md"
-NAMED_FUNCTIONS_HEADING = "## Functions that stay whole"
 FUNCTION_LINE_BAR = 50
+
+# The functions that stay whole over the bar, each with its reason. Each is one
+# transaction whose steps the architecture or the ontology lists in order, and
+# splitting it would hide that order rather than name a concept.
+FUNCTIONS_THAT_STAY_WHOLE = {
+    "build_cli_parser": "the complete command-line grammar, in one place",
+    "DreamcatcherDaemon.run": "the daemon lifecycle, as the architecture lists it",
+    "AgentWorkScheduler.tick": "the scheduler tick, as the architecture lists it",
+    "AgentAssignmentCreator.create": ("assignment creation, as the ontology lists it"),
+    "AgentRound.__init__": (
+        "starting a round as one transaction: inputs, process, record, readers"
+    ),
+}
 
 
 @dataclass(frozen=True)
@@ -79,13 +89,6 @@ def _list_function_definitions(
     return definitions
 
 
-def _read_named_functions() -> set[str]:
-    """Read the functions the architecture names as staying whole."""
-    text = ARCHITECTURE.read_text(encoding="utf-8")
-    section = text.split(NAMED_FUNCTIONS_HEADING, 1)[1].split("\n## ", 1)[0]
-    return set(re.findall(r"`([A-Za-z_][\w.]*)`", section))
-
-
 def _display_path(*, path: Path) -> str:
     return path.relative_to(SOURCE_ROOT.parent.parent).as_posix()
 
@@ -100,18 +103,15 @@ def _print_modules(*, measurements: list[ModuleMeasurement]) -> None:
 
 
 def _print_functions(*, measurements: list[FunctionMeasurement]) -> None:
-    named = _read_named_functions()
     print()
     print("## Functions over the S2 bar")
     print()
-    print("| Function | Lines | Named in the architecture |")
+    print("| Function | Lines | Stays whole because |")
     print("| --- | ---: | --- |")
     for measurement in measurements:
         location = f"{_display_path(path=measurement.path)}:{measurement.line}"
-        print(
-            f"| `{location}::{measurement.name}` | {measurement.lines} "
-            f"| {'yes' if measurement.name in named else 'no'} |"
-        )
+        reason = FUNCTIONS_THAT_STAY_WHOLE.get(measurement.name, "")
+        print(f"| `{location}::{measurement.name}` | {measurement.lines} | {reason} |")
 
 
 def main() -> None:
