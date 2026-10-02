@@ -6,12 +6,13 @@ from dreamcatcher.scheduler.faults import (
     derive_agent_work_fault,
     read_scheduler_record,
 )
-from dreamcatcher.scheduler.models import DEFAULT_MAX_AGENTS
+from dreamcatcher.scheduler.models import DEFAULT_MAX_AGENTS, SchedulerRecord
 
 __all__ = [
     "DEFAULT_MAX_AGENTS",
     "AgentWorkScheduler",
     "InvalidSchedulerRecordError",
+    "SchedulerRecord",
     "derive_agent_work_fault",
     "read_scheduler_record",
 ]

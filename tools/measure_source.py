@@ -3,34 +3,14 @@
 from __future__ import annotations
 
 import ast
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
 SOURCE_ROOT = Path(__file__).parents[1] / "src" / "dreamcatcher"
+ARCHITECTURE = Path(__file__).parents[1] / "docs" / "architecture.md"
+NAMED_FUNCTIONS_HEADING = "## Functions that stay whole"
 FUNCTION_LINE_BAR = 50
-
-# These functions hold one architecture-level transaction. Splitting them would
-# hide that shape rather than reveal a concept.
-FUNCTION_EXCEPTIONS = {
-    (
-        "agent_assignments.py",
-        "AgentAssignmentCreator.create",
-    ): "the assignment creation transaction",
-    (
-        "agent_rounds.py",
-        "AgentRound.__init__",
-    ): "the round process and thread assembly",
-    ("cli.py", "build_cli_parser"): "the complete command-line grammar",
-    ("daemon.py", "DreamcatcherDaemon.run"): "the daemon lifecycle",
-    (
-        "daemon.py",
-        "DreamcatcherDaemon.run_scheduler_cycle",
-    ): "one isolated scheduler cycle",
-    (
-        "scheduler/coordinator.py",
-        "AgentWorkScheduler.tick",
-    ): "one scheduler tick transaction",
-}
 
 
 @dataclass(frozen=True)
@@ -99,6 +79,13 @@ def _list_function_definitions(
     return definitions
 
 
+def _read_named_functions() -> set[str]:
+    """Read the functions the architecture names as staying whole."""
+    text = ARCHITECTURE.read_text(encoding="utf-8")
+    section = text.split(NAMED_FUNCTIONS_HEADING, 1)[1].split("\n## ", 1)[0]
+    return set(re.findall(r"`([A-Za-z_][\w.]*)`", section))
+
+
 def _display_path(*, path: Path) -> str:
     return path.relative_to(SOURCE_ROOT.parent.parent).as_posix()
 
@@ -113,17 +100,17 @@ def _print_modules(*, measurements: list[ModuleMeasurement]) -> None:
 
 
 def _print_functions(*, measurements: list[FunctionMeasurement]) -> None:
+    named = _read_named_functions()
     print()
     print("## Functions over the S2 bar")
     print()
-    print("| Function | Lines | Named exception |")
+    print("| Function | Lines | Named in the architecture |")
     print("| --- | ---: | --- |")
     for measurement in measurements:
         location = f"{_display_path(path=measurement.path)}:{measurement.line}"
-        module = measurement.path.relative_to(SOURCE_ROOT).as_posix()
-        exception = FUNCTION_EXCEPTIONS.get((module, measurement.name), "")
         print(
-            f"| `{location}::{measurement.name}` | {measurement.lines} | {exception} |"
+            f"| `{location}::{measurement.name}` | {measurement.lines} "
+            f"| {'yes' if measurement.name in named else 'no'} |"
         )
 
 

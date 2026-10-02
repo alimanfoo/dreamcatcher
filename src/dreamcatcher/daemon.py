@@ -42,6 +42,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from dreamcatcher.agent_rounds import AgentRound
+    from dreamcatcher.scheduler import SchedulerRecord
 
 DEFAULT_INTERVAL_SECONDS = 120
 
@@ -184,35 +185,10 @@ class DreamcatcherDaemon:
             )
             return
         write_json(document=scheduler_record, path=self.state.scheduler_record)
-        launched_identifiers = scheduler_record.launched_agent_work_identifiers
-        if launched_identifiers:
-            round_noun = "round" if len(launched_identifiers) == 1 else "rounds"
-            outcome_description = (
-                f"launched {round_noun} for {', '.join(launched_identifiers)}"
-            )
-            if scheduler_record.hold is not None:
-                hold_description = " ".join(scheduler_record.hold.split())
-                outcome_description = f"{outcome_description}; held: {hold_description}"
-        elif scheduler_record.hold is not None:
-            hold_description = " ".join(scheduler_record.hold.split())
-            if scheduler_record.cooldown is not None and hold_description.startswith(
-                "global cooldown"
-            ):
-                cooldown_end = describe_time(
-                    at=scheduler_record.cooldown.ends, zone=self.zone
-                )
-                hold_description = hold_description.replace(
-                    "global cooldown",
-                    f"global cooldown — next attempt at {cooldown_end}",
-                    1,
-                )
-            outcome_description = f"held: {hold_description}"
-        else:
-            outcome_description = "nothing launched"
         _write_output(
             line=(
                 f"{describe_time(at=scheduler_record.at, zone=self.zone)}  "
-                f"{outcome_description}"
+                f"{_describe_tick_outcome(record=scheduler_record, zone=self.zone)}"
             )
         )
 
@@ -261,6 +237,28 @@ class DreamcatcherDaemon:
                             record=record,
                             path=paths.record,
                         )
+
+
+def _describe_tick_outcome(*, record: SchedulerRecord, zone: tzinfo | None) -> str:
+    """Say what the tick launched, and why it held if it did."""
+    launched_identifiers = record.launched_agent_work_identifiers
+    if launched_identifiers:
+        round_noun = "round" if len(launched_identifiers) == 1 else "rounds"
+        launched = f"launched {round_noun} for {', '.join(launched_identifiers)}"
+        if record.hold is None:
+            return launched
+        return f"{launched}; held: {' '.join(record.hold.split())}"
+    if record.hold is None:
+        return "nothing launched"
+    hold_description = " ".join(record.hold.split())
+    if record.cooldown is not None and hold_description.startswith("global cooldown"):
+        cooldown_end = describe_time(at=record.cooldown.ends, zone=zone)
+        hold_description = hold_description.replace(
+            "global cooldown",
+            f"global cooldown — next attempt at {cooldown_end}",
+            1,
+        )
+    return f"held: {hold_description}"
 
 
 def _require_known_github_value(

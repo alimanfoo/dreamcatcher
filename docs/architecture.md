@@ -546,9 +546,25 @@ turning every possible action into an abstract command hierarchy.
 `tests/test_architecture.py` checks each rule here that keeps one module from
 reaching another through its imports, directly or through another module.
 
-`build_cli_parser` keeps the complete declarative command-line grammar together
-so flags, defaults, help text, and subcommand structure remain visible in one
-place.
+## Functions that stay whole
+
+The standard asks every function to fit on a screen. Five do not, because each
+is one transaction whose steps a section above lists in order, and splitting it
+would hide that order rather than name a concept. The source measurement under
+`tools/` reads this list.
+
+- `build_cli_parser` keeps the complete declarative command-line grammar
+  together, so flags, defaults, help text and subcommand structure stay visible
+  in one place.
+- `DreamcatcherDaemon.run` is the daemon lifecycle as listed above: settle what
+  a run cannot do without, hold the lock, loop over ticks, and end every round
+  on the way out.
+- `AgentWorkScheduler.tick` is the scheduler tick as listed above.
+- `AgentAssignmentCreator.create` is assignment creation as the ontology lists
+  it: branch, worktree, empty commit, push, draft pull request, then the record.
+- `AgentRound.__init__` starts a round as one transaction: inputs written,
+  process spawned, record written while the process can still be killed if the
+  record cannot be, then the reader threads started.
 
 ## Agent-facing contract
 
