@@ -16,7 +16,7 @@ FUNCTIONS_THAT_STAY_WHOLE = {
     "build_cli_parser": "the complete command-line grammar, in one place",
     "DreamcatcherDaemon.run": "the daemon lifecycle, as the architecture lists it",
     "AgentWorkScheduler.tick": "the scheduler tick, as the architecture lists it",
-    "AssignmentCreator.create": ("assignment creation, as the ontology lists it"),
+    "AssignmentCreator.create": "assignment creation, as the ontology lists it",
     "AgentRound.__init__": (
         "starting a round as one transaction: inputs, process, record, readers"
     ),
