@@ -290,3 +290,54 @@ at creation. An assignment resumes it, because its branch and pull request may
 already exist, which differ 1 explains. A conversation refuses it with an error.
 Its own creation removes the worktree when the record write fails, so the branch
 guards a state the code already cleans up, unless that removal failed.
+
+### Row 5: how launching works
+
+Both launches do the same four things: resolve the harness session and the
+prompt, start the round, register it in the running set, and tell the tick's
+record that the launched work no longer waits.
+
+Two differences are named. The conversation launch hands the round a finisher
+that posts the answer and the assignment launch hands none, which is differ 5.
+The conversation launch marks its request as conversation work, so the harness
+gets the narrower permissions, which follows from differ 1.
+
+1. **Finding out what launched.** The conversation launch returns a new
+   scheduler record with its own observation patched to "no comments to answer".
+   The assignment launch returns nothing, so the coordinator copies the running
+   set before the launch, diffs it afterwards to find which identifier appeared,
+   filters that candidate out of the inspection results and recomputes the
+   assignment observations. That diff is the coordinator's launch chain the
+   roadmap names. Accident: a launch returns what it launched, and each kind's
+   bundle marks its own observation.
+2. **The prepared round.** The conversation side prepares into a named type
+   holding the conversation, input, prompt, session identifier and recovery
+   flag. The assignment side prepares into a bare tuple of three unnamed values.
+   Inside both sit the same two rules from same 3: a later round with no
+   recorded session cannot resume and raises, and a recovery with no recorded
+   session starts a new session with the configured prompt. The rules are
+   written twice, with the same error sentence in two files. Accident: one
+   prepared-round shape, and the two rules in one place. The assignment launch
+   also writes a session identifier it recovered from raw output back into the
+   record, and the conversation launch does not.
+3. **Two delivery cursors.** A conversation's delivery position is the newest
+   comment in the latest recorded round's input; there is no other file, and the
+   ontology states that rule in those words. An assignment's position is a
+   separate cursor file, written after the round starts, though the same posts
+   sit in the round's input. Two persisted facts that must agree, which is S4
+   and E2 at once. Accident: the position of either kind is read from its
+   recorded inputs, and the cursor file goes in the v5 break.
+
+Item 3 changes one edge. Today an assignment recovery that starts a fresh
+session with posts advances its cursor only once the new session reports its
+identifier, so a lost identifier redelivers the posts. Reading the position from
+recorded inputs counts them delivered when the round is recorded, as a
+conversation does. The edge is narrower than it looks. A recovery with an open
+pull request carries no posts, so the case needs a merged or closed pull request
+and no identifier from any round. Both harnesses report the identifier in their
+first event, before any work, and the scheduler recovers it from any round's raw
+output, so no identifier means no round ever got past starting its harness.
+Nothing was done and nothing can be resumed, and the wrap-up round is a fresh
+session with the pull request in front of it either way. The change is neutral
+for robustness, removes the write window between the round start and the cursor
+write, and leaves one delivery rule for both kinds.
