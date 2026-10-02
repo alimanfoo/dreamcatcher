@@ -156,15 +156,15 @@ step lives.
    inspected by walking the listed eligible issues and finding the record for
    each. A conversation whose issue is not listed is never inspected; an
    assignment is inspected whatever its issue does. Named: differ 11.
-4. **Hold the walk.** The coordinator loops over the assignments itself, skips a
+4. **Hold the walk.** The scheduler loops over the assignments itself, skips a
    running one and gives one that needs nothing a "no round required"
    observation. The conversations module does all of that for its own kind, and
-   the coordinator calls one function. Accident: nothing says the coordinator
-   knows how one kind is inspected and not the other.
+   the scheduler calls one function. Accident: nothing says the scheduler knows
+   how one kind is inspected and not the other.
 
 What this row points to: one issue listing, called with each kind's routes; one
 tick-level inspection per kind with parallel names, each taking the tick's facts
-and returning its kind's result, so the coordinator knows neither kind's
+and returning its kind's result, so the scheduler knows neither kind's
 internals; and the walk source kept different, citing differ 11.
 
 ### Row 2: what each inspection yields
@@ -180,7 +180,7 @@ Underneath, both kinds produce those same three things.
    and turns the rest into observations. Accident: row 1's one inspection per
    kind returns one bundle for both.
 2. **Where ranking happens.** Conversation candidates come back ranked by the
-   module. Assignment candidates are ranked in the coordinator. The orders
+   module. Assignment candidates are ranked in the scheduler. The orders
    themselves are differ 9 and stand. Where they are applied is an accident.
 3. **What a candidate carries.** An assignment candidate is a prepared round:
    purpose, recovery flag, input and prompt, composed at inspection. A
@@ -208,7 +208,7 @@ holding one fact for whether a round is needed, with the conversation's routing
 conflict beside it where differ 8 puts it.
 
 A behaviour asymmetry this row found, outside its business. When one assignment
-route fails to list, the coordinator drops every assignment candidate, including
+route fails to list, the scheduler drops every assignment candidate, including
 recovery rounds for existing assignments. When one conversation route fails to
 list, the module keeps recovery candidates from the routes that listed and drops
 only fresh batches. Differ 11 says an assignment's pull request governs it, so
@@ -227,7 +227,7 @@ Status shows a conversation's fault only while its issue is eligible, and an
 assignment's always, which is differ 11.
 
 1. **Derived once or twice.** An assignment's fault is derived once at
-   inspection and carried as a result type, which the coordinator counts. A
+   inspection and carried as a result type, which the scheduler counts. A
    conversation's is derived at inspection, to withhold a candidate, and again
    over every conversation in `scheduler/faults.py` to count. Accident: each
    kind's inspection derives it once and carries it in its bundle, and the
@@ -264,14 +264,14 @@ setup to resume, which follows from differ 1.
 
 1. **The candidate is a persisted document.** New assignment work is the issue
    observation itself, a scheduler-record document pressed into service as a
-   candidate, appended to the list in the coordinator. New conversation work is
-   a candidate type holding the issue, its comments and its route, built by the
+   candidate, appended to the list in the scheduler. New conversation work is a
+   candidate type holding the issue, its comments and its route, built by the
    inspection. Accident: a new-assignment candidate holds the issue and its
    route, and the assignment inspection builds it where availability is already
    derived.
-2. **The route is found twice.** The coordinator digs the label out of the
+2. **The route is found twice.** The scheduler digs the label out of the
    observation's nullable label list and looks the route up by name. The
-   conversation candidate carries the route. The fallback arm the coordinator
+   conversation candidate carries the route. The fallback arm the scheduler
    keeps for a missing list defends a state that availability already rules out,
    which is an E2 finding. Accident: same 7 says one label selects one route, so
    the candidate carries it.
@@ -305,13 +305,12 @@ gets the narrower permissions, which follows from differ 1.
 
 1. **Finding out what launched.** The conversation launch returns a new
    scheduler record with its own observation patched to "no comments to answer".
-   The assignment launch returns nothing, so the coordinator copies the running
+   The assignment launch returns nothing, so the scheduler copies the running
    set before the launch, diffs it afterwards to find which identifier appeared,
    filters that candidate out of the inspection results and recomputes the
-   assignment observations. That diff is the coordinator's launch chain the
-   roadmap names. Accident: a launch returns what it launched, and one helper
-   over the base observation type marks the launched work's observation,
-   whichever kind it is.
+   assignment observations. That diff is the launch chain the roadmap names.
+   Accident: a launch returns what it launched, and one helper over the base
+   observation type marks the launched work's observation, whichever kind it is.
 2. **The prepared round.** The conversation side prepares into a named type
    holding the conversation, input, prompt, session identifier and recovery
    flag. The assignment side prepares into a bare tuple of three unnamed values.
@@ -352,11 +351,11 @@ The conversation functions take the scheduler through a protocol of seven
 attributes: repository, account, config, state, requested harness, clock and the
 running set. The assignment functions take it through a protocol of two, clock
 and the running set, and take repository and account as plain parameters, while
-assignment creation sits in the coordinator and reads state, config and the
+assignment creation sits in the scheduler and reads state, config and the
 requested harness from itself. Across the whole assignment side the same seven
 things are needed; they arrive by three doors. Both protocols describe the one
-object, the coordinator. The issue observer has a fourth bundle of its own,
-which the roadmap already names as residue.
+object, the scheduler. The issue observer has a fourth bundle of its own, which
+the roadmap already names as residue.
 
 1. **Three bundles for one set of facts.** The instance's identity and handles
    are what every tick-level operation needs, and they are the same for both
@@ -365,7 +364,7 @@ which the roadmap already names as residue.
    gives the two classes.
 2. **The running set belongs to neither kind.** Both launches write into the
    coordinator's dictionary of running rounds. Row 5 says a launch returns what
-   it launched, so the coordinator registers it and neither kind needs the
+   it launched, so the scheduler registers it and neither kind needs the
    dictionary to launch. For inspection, the conversation side reads running
    from the records alone: a round with no ending is running. The assignment
    side checks the dictionary as well, because its round describer treats a
@@ -451,18 +450,18 @@ so a reader can find each piece from this document.
 
 Rows 6 and 1 point here.
 
-**Today.** The coordinator, `AgentWorkScheduler` in `scheduler/coordinator.py`,
-is a dataclass holding the repository, account, config, state directory,
-requested harness, clock, the running set and the agent cap. Before Stage 2, the
-two kinds' scheduling code was methods on that one class and read those fields
-as `self.repository` and so on. The split moved the code into
-`scheduler/assignments.py` and `scheduler/conversations.py` as free functions,
-and then had to hand them the object they used to be methods on. It did that
-three ways:
+**Today.** The scheduler's one class, `AgentWorkScheduler` in
+`scheduler/coordinator.py`, is a dataclass holding the repository, account,
+config, state directory, requested harness, clock, the running set and the agent
+cap. Before Stage 2, the two kinds' scheduling code was methods on that one
+class and read those fields as `self.repository` and so on. The split moved the
+code into `scheduler/assignments.py` and `scheduler/conversations.py` as free
+functions, and then had to hand them the object they used to be methods on. It
+did that three ways:
 
 - The conversation functions take a `scheduler` argument typed as
-  `_ConversationScheduler`, a protocol listing seven of the coordinator's
-  attributes. The coordinator passes itself.
+  `_ConversationScheduler`, a protocol listing seven of the scheduler's
+  attributes. The scheduler passes itself.
 - The assignment launch takes a `scheduler` argument typed as
   `_AssignmentRoundScheduler`, a protocol listing two attributes, clock and the
   running set. The assignment inspection takes `repository` and `account` as
@@ -490,21 +489,23 @@ attributes again.
   Every helper that took `scheduler` or `repository` becomes a method, or a
   function that takes the scheduling object, and reads `self.repository` and so
   on.
-- The coordinator holds one instance of each, built from the same six facts, and
+- The scheduler holds one instance of each, built from the same six facts, and
   calls `self.assignments.inspect(...)` and `self.conversations.launch(...)`.
-  The running set, the agent cap and the alternation stay on the coordinator.
+  The running set, the agent cap and the alternation stay on the scheduler.
 
 The names follow the ontology. Agent work is either an assignment or a
 conversation, so `AgentWorkScheduler` is what the two kinds' schedulers share,
-and the coordinator, which is the ontology's one scheduler, becomes `Scheduler`.
-The base makes the symmetry structural: two subclasses of one base must
-implement the same methods with the same signatures, which the type checker
-holds, so E4 stops being a convention a reviewer rechecks. Shared code has an
-obvious home. And it is the codebase's own precedent: `AgentAssignmentCreator`
-and `StatusReportReader` are small classes holding their handles with a method
-or two. It stops there. One base, two subclasses, no deeper; the kind objects
-hold handles, not mutable state; and no candidate launches itself, so the
-scheduling loop stays imperative as the architecture asks.
+and the class that runs the tick, which is the ontology's one scheduler, becomes
+`Scheduler`. Stage 2 called that class the scheduler, after its module; the
+ontology never does, and this design stops. The base makes the symmetry
+structural: two subclasses of one base must implement the same methods with the
+same signatures, which the type checker holds, so E4 stops being a convention a
+reviewer rechecks. Shared code has an obvious home. And it is the codebase's own
+precedent: `AgentAssignmentCreator` and `StatusReportReader` are small classes
+holding their handles with a method or two. It stops there. One base, two
+subclasses, no deeper; the kind objects hold handles, not mutable state; and no
+candidate launches itself, so the scheduling loop stays imperative as the
+architecture asks.
 
 **The edits.**
 
@@ -520,8 +521,9 @@ scheduling loop stays imperative as the architecture asks.
 4. Change `observe_issues` and its helpers in `scheduler/issues.py` to take the
    scheduling object, the open assignments and the incomplete setups, and delete
    `_IssueObservationContext`.
-5. Rename the coordinator from `AgentWorkScheduler` to `Scheduler`, since the
-   base takes its old name, and give it two fields, `assignments` and
+5. Rename `AgentWorkScheduler` to `Scheduler`, since the base takes its old
+   name, and its module from `scheduler/coordinator.py` to `scheduler/tick.py`,
+   since the tick is all it holds. Give it two fields, `assignments` and
    `conversations`, in place of the six facts. Have the daemon and CLI build the
    two kind objects when they build it. The rename touches the daemon, the
    package face, the measurement's list of functions that stay whole, and three
@@ -531,13 +533,13 @@ scheduling loop stays imperative as the architecture asks.
 
 Row 6 points here, with row 5.
 
-**Today.** The coordinator keeps a dictionary of running rounds keyed by agent
+**Today.** The scheduler keeps a dictionary of running rounds keyed by agent
 work identifier. Two things in the per-kind modules touch it:
 
 - Each launch writes into it. `_start_assignment_round` and
   `_start_prepared_conversation_round` both end with
   `scheduler.rounds[identifier] = start_agent_round(...)`.
-- The assignment inspection reads it. `_inspect_assignments` in the coordinator
+- The assignment inspection reads it. `_inspect_assignments` in the scheduler
   skips an assignment when its identifier is in the dictionary and its latest
   round has no ending. It needs that check because
   `AgentAssignment.describe_unfinished_round` calls a round with no ending
@@ -558,11 +560,10 @@ so for status a record with no ending means working when a daemon is alive and
 left behind when none is. Both kinds already read it that way in status, and
 that stays.
 
-**The shape.** The dictionary belongs to the coordinator alone. A kind's
-`launch` returns the `AgentRound` it started and the coordinator registers it.
-No `inspect` reads the dictionary: both kinds treat a latest round with no
-ending as running, by the record. The assignment describer stops calling such a
-record interrupted.
+**The shape.** The dictionary belongs to the scheduler alone. A kind's `launch`
+returns the `AgentRound` it started and the scheduler registers it. No `inspect`
+reads the dictionary: both kinds treat a latest round with no ending as running,
+by the record. The assignment describer stops calling such a record interrupted.
 
 **The edits.**
 
@@ -575,10 +576,10 @@ record interrupted.
    assignment whose latest round has no ending, as the conversation inspection
    already does by its outcome checks.
 3. Make each `launch` return the round instead of writing it into the
-   dictionary. Have the coordinator write `self.rounds[identifier] = round`
-   after a launch returns. The round has to say which work it belongs to, so
-   give `AgentRound` the agent work identifier from its launch request.
-4. Delete the coordinator's copy-and-diff of the dictionary that discovers what
+   dictionary. Have the scheduler write `self.rounds[identifier] = round` after
+   a launch returns. The round has to say which work it belongs to, so give
+   `AgentRound` the agent work identifier from its launch request.
+4. Delete the scheduler's copy-and-diff of the dictionary that discovers what
    launched, which the launch section covers.
 
 ### Listing issues
@@ -625,7 +626,7 @@ way, so no scheduling decision moves.
    observations, because it adds issues it read one by one after the listing.
 3. Change the conversation inspection to call it with the conversation routes,
    and delete `_list_conversation_route_issues` and `_ConversationRouteListing`.
-4. Remove the "could not refresh issues" prefix from the coordinator. The
+4. Remove the "could not refresh issues" prefix from the scheduler. The
    listing's own wording is the hold.
 
 ### Inspecting each kind
@@ -640,26 +641,26 @@ method, returning one bundle of the same type.
 
 **Today.**
 
-- For assignments, the coordinator's own method `_inspect_assignments` loops
-  over the open assignments, skips a running one, and calls
+- For assignments, the scheduler's own method `_inspect_assignments` loops over
+  the open assignments, skips a running one, and calls
   `inspect_agent_assignment` in `scheduler/assignments.py` for each. That
   function returns one of three things: a `RequiredAgentRound` when a round is
   needed, a `FaultedAgentAssignment` when the assignment is in fault, an
   `AgentAssignmentObservation` when the pull request or posts could not be read,
-  or `None` when nothing is needed, which the coordinator turns into a "no round
-  required" observation. The coordinator then does the rest itself: counts the
+  or `None` when nothing is needed, which the scheduler turns into a "no round
+  required" observation. The scheduler then does the rest itself: counts the
   faulted results for the cooldown, converts every result into an observation
   with `list_assignment_observations`, filters the required rounds out and ranks
   them with `prioritize_required_rounds`, and appends the available issues from
   the issue observations as candidates for new assignments. If the issue listing
   failed, it returns no assignment candidates at all. The issue observation
   itself, with the incomplete setups it needs and the recording of missing
-  titles, is also the coordinator's work, done before the loop.
+  titles, is also the scheduler's work, done before the loop.
 - For conversations, `list_issue_conversation_candidates` in
   `scheduler/conversations.py` does all of that inside the module and returns an
   `IssueConversationCandidateResult` holding the ranked candidates, the
   observations and the joined failure. One thing it leaves out: the fault count.
-  The coordinator calls `count_observed_conversation_faults` in
+  The scheduler calls `count_observed_conversation_faults` in
   `scheduler/faults.py`, which runs the fault derivation over every conversation
   a second time.
 
@@ -684,7 +685,7 @@ Both return `AgentWorkInspection`, one generic frozen dataclass in
 - `candidates`: the work ready to launch, already ranked, in the kind's own
   candidate types. Only candidates it is safe to launch are here. When the
   kind's listing failed, the assignment bundle holds none and the conversation
-  bundle holds recoveries only, exactly as the coordinator decides today.
+  bundle holds recoveries only, exactly as the scheduler decides today.
 - `observations`: one per piece of work the tick looked at, in the kind's own
   observation type, for the scheduler record and the status report.
 - `fault_count`: how many of this kind's work items are in fault and count
@@ -700,7 +701,7 @@ persists and the report shows. That extension is named by the ontology: issue
 observations and availability are how an assignment starts, which is differ 2
 and 7, and a conversation has no counterpart to an available issue.
 
-The coordinator calls both inspections, adds the two fault counts, and puts the
+The scheduler calls both inspections, adds the two fault counts, and puts the
 issue observations, the two observation lists and the joined failures in the
 record. It never looks inside a candidate.
 
@@ -711,8 +712,8 @@ record. It never looks inside a candidate.
    in `scheduler/assignments.py`.
 2. In `scheduler/assignments.py`, implement `inspect`. Move the reading of
    assignments and incomplete setups, the call to `observe_issues` and the
-   recording of missing titles from the coordinator's `tick` into it. Move the
-   loop from the coordinator's `_inspect_assignments` into it, dropping the
+   recording of missing titles from the scheduler's `tick` into it. Move the
+   loop from the scheduler's `_inspect_assignments` into it, dropping the
    running-set check in favour of skipping a latest round with no ending. Inside
    the loop, derive fault with `derive_agent_work_fault` and, when true, count
    it and record an observation saying so. Otherwise read the pull request and
@@ -730,7 +731,7 @@ record. It never looks inside a candidate.
    goes. Apply the recoveries-only rule on a failed listing here. Delete
    `IssueConversationCandidateResult`.
 4. Delete `count_observed_conversation_faults` from `scheduler/faults.py`.
-5. In the coordinator, delete `_inspect_assignments`,
+5. In the scheduler, delete `_inspect_assignments`,
    `_list_ready_assignment_candidates`, `_list_ready_conversation_candidates`
    and `_list_available_issues`, and have `tick` call the two inspections and
    add their fault counts.
@@ -747,7 +748,7 @@ Rows 2 and 4 point here.
   inspection.
 - An issue that needs a new assignment is the `IssueObservation` itself, the
   document the scheduler record persists, used as a candidate because it happens
-  to hold the issue number and labels. At launch the coordinator reads
+  to hold the issue number and labels. At launch the scheduler reads
   `assignment_labels[0]` out of it, with a fallback for a missing list that
   availability already rules out, and looks the route up by name.
 - A conversation that needs a round is a `NewIssueConversationRoundCandidate`,
@@ -781,7 +782,7 @@ inspection and the other's at launch.
 
 `rank` is the second abstract method on the base: it takes one candidate and
 returns its sort key, and each kind's `inspect` sorts by it. The assignment
-order is the one the coordinator produces today: first rounds, then recoveries,
+order is the one the scheduler produces today: first rounds, then recoveries,
 then wrap-ups, then posts, then new assignments in the issue observations'
 order. The conversation order is recoveries, then batches by their oldest
 waiting comment.
@@ -799,7 +800,7 @@ waiting comment.
    `IssueConversationBatchCandidate`, and turn
    `_rank_issue_conversation_candidate` into `rank` on
    `IssueConversationScheduler`.
-3. Delete the coordinator's `_AssignmentCandidate` alias and its route lookup by
+3. Delete the scheduler's `_AssignmentCandidate` alias and its route lookup by
    label.
 
 ### Observations and the scheduler record
@@ -825,7 +826,7 @@ this work need a round and why, with the conversation side already using the
 type built for it.
 
 Two more things the record carries that nobody reads. When the tick is at
-capacity, the coordinator rewrites every required assignment's reason to the
+capacity, the scheduler rewrites every required assignment's reason to the
 capacity hold, but status never shows that reason. And a faulted assignment's
 observation says "two consecutive rounds failed" with round-required true, while
 a faulted conversation's says comments false, and status derives the fault from
@@ -860,8 +861,8 @@ observation, launched or not, and the capacity hold rewrites nothing.
 3. In the conversation inspection, give each observation its identifier,
    composed as `IssueConversation.identifier` composes it, and say "round N
    errored, to recover" rather than "no comments to answer" for a recovery.
-4. In the coordinator, delete the capacity rewrite in `_hold_for_capacity` and
-   the removal of a launched assignment's observation.
+4. In the scheduler, delete the capacity rewrite in `_hold_for_capacity` and the
+   removal of a launched assignment's observation.
 5. In status, read `requires_round` in the one way for both kinds, which the
    status section covers.
 
@@ -929,7 +930,7 @@ from 4 to 5.
 
 Row 5 points here, with row 4.
 
-**Today.** The two launches have different shapes, and the coordinator does part
+**Today.** The two launches have different shapes, and the scheduler does part
 of one kind's launching itself.
 
 - `launch_required_round` in `scheduler/assignments.py` takes the scheduler and
@@ -938,7 +939,7 @@ of one kind's launching itself.
   writes a recovered session identifier back to the record, chooses between two
   cursor-advancing callbacks, starts the round, and writes it into the running
   set.
-- A new assignment is launched by the coordinator's `_launch_assignment`, which
+- A new assignment is launched by the scheduler's `_launch_assignment`, which
   creates the assignment with `AgentAssignmentCreator` and then calls
   `launch_required_round` with the first round's requirement.
 - `launch_issue_conversation_round` in `scheduler/conversations.py` takes the
@@ -979,7 +980,7 @@ finisher and its narrower permissions, which differ 5 and differ 1 name.
 1. Add `HarnessSessionResumption` to `scheduler/agent_work.py` and
    `resolve_harness_session` as a method on the base, from the two copies.
 2. In `scheduler/assignments.py`, implement `launch`. Move `_launch_assignment`
-   from the coordinator into its new-assignment arm. Turn the three former
+   from the scheduler into its new-assignment arm. Turn the three former
    requirement composers into the preparation of the first-round and round arms.
    Delete `launch_required_round`, `_prepare_assignment_resume` and
    `_start_assignment_round`.
@@ -991,11 +992,11 @@ finisher and its narrower permissions, which differ 5 and differ 1 name.
    `resolve_harness_session`. `_PreparedIssueConversationRound` becomes an
    `AgentRoundStartRequest`.
 4. Give `AgentRound` an `agent_work_identifier` property from its launch
-   request, so the coordinator can register what a launch returns.
+   request, so the scheduler can register what a launch returns.
 
 ### The tick
 
-Rows 1, 5 and 6 point here. With the pieces above in place, the coordinator
+Rows 1, 5 and 6 point here. With the pieces above in place, the scheduler
 shrinks to the steps the architecture lists.
 
 **Today.** `AgentWorkScheduler.tick` reads the previous record, forgets ended
@@ -1011,7 +1012,7 @@ running set, calls `_try_launch_candidate` to dispatch on the kind and catch a
 launched assignment's observation, and clears the kind's candidates on a
 failure. `_hold_for_capacity` then rewrites observations again.
 
-**The shape.** `Scheduler`, the renamed coordinator, holds `assignments`,
+**The shape.** `Scheduler`, in `scheduler/tick.py`, holds `assignments`,
 `conversations`, the running set, the agent cap and the alternation state.
 `tick` reads as the eight steps in the architecture: forget ended rounds, read
 the previous record, inspect each kind, add the fault counts and start a
@@ -1024,7 +1025,7 @@ the identifier to the record. A launch that raises adds its reason to the hold
 and clears that kind's remaining candidates, as today. A full running set with
 candidates left sets the capacity hold and nothing else.
 
-The coordinator knows the two kinds by name and nothing of their internals.
+The scheduler knows the two kinds by name and nothing of their internals.
 
 **The edits.**
 
@@ -1220,7 +1221,7 @@ can find it.
   the same facts as attributes, make the parallel methods a fact the type
   checker holds, give shared code a home, and follow the codebase's own small
   classes. The dataclass is withdrawn.
-- **A candidate protocol with a launch method**, so the coordinator launches
+- **A candidate protocol with a launch method**, so the scheduler launches
   without knowing the kind. The architecture rules this out in words: the
   scheduling loop stays imperative rather than becoming an abstract command
   hierarchy. Two named launches and a dispatch on kind keep it so.
