@@ -215,3 +215,40 @@ only fresh batches. Differ 11 says an assignment's pull request governs it, so
 the assignment side is more cautious than the ontology asks. Healing it is a
 scheduling change, outside this stage's budget, and
 [issue 348](https://github.com/alimanfoo/dreamcatcher/issues/348) records it.
+
+### Row 3: what a fault is
+
+The derivation is already one function for both kinds, as same 4 asks. What
+differs is how each kind carries the answer and what it says about it.
+
+Two differences are named. Which faults count towards the cooldown is differ 10:
+a conversation's counts only when its issue has no known routing conflict.
+Status shows a conversation's fault only while its issue is eligible, and an
+assignment's always, which is differ 11.
+
+1. **Derived once or twice.** An assignment's fault is derived once at
+   inspection and carried as a result type, which the coordinator counts. A
+   conversation's is derived at inspection, to withhold a candidate, and again
+   over every conversation in `scheduler/faults.py` to count. Accident: each
+   kind's inspection derives it once and carries it in its bundle, and the
+   coordinator sums.
+2. **What the record says about a faulted item.** The assignment observation
+   says "two consecutive rounds failed" with round-required true, the default.
+   The conversation observation says comments-to-answer false, "no comments to
+   answer", though no comments were read. Status reads neither: it derives the
+   fault again from the rounds. Accident, in two shapes: with one observation
+   type, a faulted item's observation says it is in fault as its evidence. This
+   goes in the v5 break with row 2's item 4.
+3. **Two words for one thing.** The assignment fault says "failed", in the
+   scheduler and in status. The conversation fault says "errored", in status.
+   The ontology's word is errored. The scheduler's string is a status phrase
+   that nothing shows. Accident, under S4 and C1: the word lives in status,
+   once.
+4. **Two fault details.** An assignment's detail is the last feed line, else the
+   reason and the feed path. A conversation's is the unfinished round's
+   description, "round N errored" with its reason. Both status types carry the
+   latest output, and nothing in the ontology says the detail differs by kind.
+   Accident: one detail, in the status rounds module both share.
+
+Items 3 and 4 change text a user sees. The roadmap's Stage 3 permits that where
+one wording wins and says more, and part 3 lists each string that changes.
