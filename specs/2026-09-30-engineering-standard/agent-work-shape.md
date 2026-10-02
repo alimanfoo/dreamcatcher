@@ -360,10 +360,9 @@ which the roadmap already names as residue.
 
 1. **Three bundles for one set of facts.** The instance's identity and handles
    are what every tick-level operation needs, and they are the same for both
-   kinds. Accident: one tick-context value, defined once and passed to each
-   kind's inspection and launch and to the issue observer, replacing both
-   protocols and the observer's bundle. It is a code shape like the state
-   directory, not an ontology concept.
+   kinds. Accident: the facts become attributes again, on one base class that
+   both kinds extend, replacing both protocols and the observer's bundle. Part 3
+   gives the two classes.
 2. **The running set belongs to neither kind.** Both launches write into the
    coordinator's dictionary of running rounds. Row 5 says a launch returns what
    it launched, so the coordinator registers it and neither kind needs the
@@ -400,10 +399,10 @@ discussion: differ 3.
    eight methods on the reader. The conversation summary is worked out partly in
    functions in `status/conversations.py`, through an intermediate summary type
    the assignment side lacks, and partly in six more reader methods. Accident:
-   each kind's status module derives its own summary from its record, its
-   observation and the shared tick facts, through parallel functions, and the
-   reader holds only what both share, the daemon, the latest scheduler record
-   and the clock. That is the status counterpart of row 6's tick context.
+   one base reader holds what both kinds share, the daemon, the latest scheduler
+   record and the time, and one subclass per kind derives its own statuses from
+   its records and observations. That is the status counterpart of row 6's two
+   classes.
 2. **Running detail written twice.** The round number, how long it has run and
    how long since its last output are composed once for assignments and once for
    conversations, with the purpose the only difference. Accident: one
@@ -1248,6 +1247,9 @@ in place so this document reads true.
   accidental was the issue observation serving as a candidate.
 - Row 5, item 1 said each kind's bundle marks its own observation. One helper
   over the base observation type marks either kind's.
+- Row 6, item 1 and row 7, item 1 first pointed at a context value passed to
+  free functions. The shape gives the facts as attributes on one base class per
+  package instead, and the rows now say so.
 - Row 6, item 2 said a record with no ending means running. It means running
   while a daemon lives, and status, which may run when none does, reads it as
   left behind otherwise. Both kinds use those two readings.
