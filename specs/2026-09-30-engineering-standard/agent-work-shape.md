@@ -127,3 +127,42 @@ same pull request so that they could.
   ontology said what ends a conversation's eligibility and nothing of what an
   assignment stops reading. "Scheduling rounds in response to events" now says
   it.
+
+## What the code does
+
+The Stage 2 review listed six differences the scheduler split made visible, one
+per row. Each row below is read against part 1. A difference that part 1 names
+stands, and the row says which line names it. A difference that part 1 does not
+name is an accident, and part 3 resolves it.
+
+### Row 1: how existing work is examined
+
+Each tick examines each kind in four steps, and the difference is in where each
+step lives.
+
+1. **List the labelled issues.** Both kinds list issues by route label and
+   assignee, one call per route, merged by issue number. The assignment listing
+   is in `scheduler/issues.py` and the conversation listing in
+   `scheduler/conversations.py`, and they are near-copies. The assignment one
+   stops at the first route that fails to list; the conversation one carries on
+   and joins the failures. Accident: same 7 says both kinds are selected by one
+   label per route, and nothing says the listing differs.
+2. **Observe each listed issue.** An assignment observation carries the
+   availability facts. A conversation observation carries routing conflict and
+   whether comments wait. Named: differ 7 says both kinds are observed before
+   any work exists, and differ 8 says what each observation reads.
+3. **Inspect existing work.** Assignments are inspected by walking the open
+   assignment records and reading each one's pull request. Conversations are
+   inspected by walking the listed eligible issues and finding the record for
+   each. A conversation whose issue is not listed is never inspected; an
+   assignment is inspected whatever its issue does. Named: differ 11.
+4. **Hold the walk.** The coordinator loops over the assignments itself, skips a
+   running one and gives one that needs nothing a "no round required"
+   observation. The conversations module does all of that for its own kind, and
+   the coordinator calls one function. Accident: nothing says the coordinator
+   knows how one kind is inspected and not the other.
+
+What this row points to: one issue listing, called with each kind's routes; one
+tick-level inspection per kind with parallel names, each taking the tick's facts
+and returning its kind's result, so the coordinator knows neither kind's
+internals; and the walk source kept different, citing differ 11.
