@@ -166,3 +166,51 @@ What this row points to: one issue listing, called with each kind's routes; one
 tick-level inspection per kind with parallel names, each taking the tick's facts
 and returning its kind's result, so the coordinator knows neither kind's
 internals; and the walk source kept different, citing differ 11.
+
+### Row 2: what each inspection yields
+
+The assignment inspection yields one result per assignment, of three types: a
+required round, a faulted assignment, or an observation. The conversation
+inspection yields one bundle of candidates, observations and a failure.
+Underneath, both kinds produce those same three things.
+
+1. **The bundle.** The conversation side returns candidates, observations and
+   failure together. The assignment side has the same three spread over the
+   coordinator, which filters the required rounds out of the per-item results
+   and turns the rest into observations. Accident: row 1's one inspection per
+   kind returns one bundle for both.
+2. **Where ranking happens.** Conversation candidates come back ranked by the
+   module. Assignment candidates are ranked in the coordinator. The orders
+   themselves are differ 9 and stand. Where they are applied is an accident.
+3. **What a candidate carries.** An assignment candidate is a prepared round:
+   purpose, recovery flag, input and prompt, composed at inspection. A
+   conversation candidate is the facts, the issue, its comments and its route,
+   and the round is prepared at launch. Preparing a conversation round fetches
+   main and resets the worktree, which differ 4 names, so it can only happen for
+   the candidate that launches. Preparing an assignment round has no side
+   effect. Accident, resolved towards the conversation side: a candidate of
+   either kind carries facts, and the launch prepares the round.
+4. **Two observation documents say one thing in two shapes.** The assignment
+   observation has a reason and two booleans, is-known and is-round-required.
+   The conversation observation has one tri-state fact with evidence,
+   has-comments-to-answer. Status reads them identically: unknown gives unknown
+   with the evidence, false gives the resting status, true gives waiting. That
+   is one fact, whether the work needs a round and why, and the conversation
+   side already has the type for it. Accident, and an E2 finding, since two
+   booleans and a string can say what one fact cannot. Both observations are
+   persisted in the scheduler record, so this is one of the changes the stage's
+   format break to v5 carries.
+
+What this row points to: each kind's inspection returns one bundle of ranked
+candidates, observations and a failure; a candidate carries the facts a launch
+needs and nothing prepared; and one observation type, keyed by the work and
+holding one fact for whether a round is needed, with the conversation's routing
+conflict beside it where differ 8 puts it.
+
+A behaviour asymmetry this row found, outside its business. When one assignment
+route fails to list, the coordinator drops every assignment candidate, including
+recovery rounds for existing assignments. When one conversation route fails to
+list, the module keeps recovery candidates from the routes that listed and drops
+only fresh batches. Differ 11 says an assignment's pull request governs it, so
+the assignment side is more cautious than the ontology asks. Healing it is a
+scheduling change, outside this stage's budget.
