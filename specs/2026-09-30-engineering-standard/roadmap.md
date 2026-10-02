@@ -202,9 +202,11 @@ Work:
   coordinator's launch chain.
 - Break the state format to v5. This is the one change to persisted documents
   the phase permits, and it holds every record the design and the E2 audit
-  reshape. Version 5 starts with empty local state, as version 4 did. The
-  behaviour budget stays zero otherwise: no command, prompt, scheduling decision
-  or output changes.
+  reshape. Version 5 starts with empty local state, as version 4 did.
+- Status wording may change where two kinds of agent work or two presentations
+  say one thing in two ways, so that one wording wins and says more. The design
+  lists each string that changes. The behaviour budget stays zero otherwise: no
+  command, prompt or scheduling decision changes.
 
 Check: S3, S4, C1, E1 and E2 met, and E4 measured again after stage 2.
 
