@@ -180,29 +180,49 @@ review. S2 met except for the named functions.
 Outcome: the public surface is the interface the architecture names, and the
 consistency review reports nothing.
 
-Work:
+The stage begins with a design, written with the user before any code: one shape
+for the two kinds of agent work, deciding which of the differences the scheduler
+and status splits made visible follow from the ontology and which are accidents.
+The design is [agent-work-shape.md](agent-work-shape.md), and its last part is
+the plan the work below carries out.
 
-- Run the consistency review over source, documents and output. Close issues
-  315, 317, 318, 322 and 324 as part of resolving what it reports.
-- For each of the 57 exported names, decide which of the three permitted kinds
-  it is or make it private. Record the count that remains and what each is.
-- Remove the two S4 duplicates found in the baseline, and any others the review
-  turns up. The word for a status lives in `status`; a presentation shows it.
-- Start the ledger at `docs/special-cases.md`. Walk every conditional that names
-  a situation, enter it with its cause, and delete or generalise any whose cause
-  is internal.
-- Audit the 53 optional fields for pairs that must agree, and give each pair one
-  type. Record the E2 count.
-- Design one shape for the two kinds of agent work, with the user, before
-  writing any code: which of the differences the scheduler and status splits
-  made visible follow from the ontology, and which are accidents. The design is
-  [agent-work-shape.md](agent-work-shape.md). Then apply it in both, giving
-  parallel operations parallel names and shared code one home, and remove what
-  the splits left behind, such as the issue observer's parameter bundle and the
-  launch chain in the scheduler's tick.
-- Break the state format to v5. This is the one change to persisted documents
-  the phase permits, and it holds every record the design and the E2 audit
-  reshape. Version 5 starts with empty local state, as version 4 did.
+Work, in order. Each item is a sub-issue of the stage's issue, blocked by the
+one before it, and each is one pull request.
+
+1. Rename to the ontology's short forms. Every name that says agent assignment
+   or issue conversation says assignment or conversation, so the names the
+   design introduces and the names that exist today share one form.
+2. Make the two kinds two scheduler classes with one base, and give the running
+   set one owner and a record with no ending one meaning.
+3. Give each kind one inspection returning one bundle, with one issue listing,
+   candidates that carry facts, and fault derived once.
+4. Audit the 53 optional fields for pairs that must agree, and give each pair in
+   memory one type. List the pairs in persisted records for the next item.
+   Record the E2 count.
+5. Break the state format to v5: one observation type for both kinds, the
+   delivery position read from recorded inputs, and every persisted pair the
+   audit listed.
+6. Give each kind one launch returning the round it started, the session rule
+   one home, and the tick the eight steps the architecture lists, so the launch
+   chain and the issue observer's parameter bundle are gone.
+7. Give each kind one status reader with one base, the round text one home, and
+   settle the status wording the design lists.
+8. Run the consistency review over source, documents and output, and resolve
+   what it reports. Remove the two S4 duplicates found in the baseline, and any
+   others the review turns up. The word for a status lives in `status`; a
+   presentation shows it. Issues 315, 317, 318, 322 and 324 were closed before
+   the stage began.
+9. For each of the 57 exported names, decide which of the three permitted kinds
+   it is or make it private. Record the count that remains and what each is.
+10. Start the ledger at `docs/special-cases.md`. Walk every conditional that
+    names a situation, enter it with its cause, and delete or generalise any
+    whose cause is internal. Then measure every Stage 3 criterion again and
+    record it below the baseline.
+
+Two rules hold across the stage:
+
+- The break to v5 is the one change to persisted documents the phase permits.
+  Version 5 starts with empty local state, as version 4 did.
 - Status wording may change where two kinds of agent work or two presentations
   say one thing in two ways, so that one wording wins and says more. The design
   lists each string that changes. The behaviour budget stays zero otherwise: no

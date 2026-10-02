@@ -1125,12 +1125,13 @@ the list of changed words says.
 
 ### The order of the work
 
-The sections are in the order to do them, and each leaves the tests green: the
-two classes, then the running set, then the listing, then inspection and
-candidates together, since they are one change, then observations and the
-delivery position with the format break, then launching and the tick together,
-then status. A pull request a reviewer can hold in mind takes one or two of
-these at a time.
+The roadmap's Stage 3 lists the work in the order to do it, one sub-issue and
+one pull request per item, each blocked by the one before. Items 2, 3, 5, 6 and
+7 of that list carry this design: the two classes and the running set;
+inspection and candidates; the observations and the delivery position, in the v5
+break; launching and the tick; and status. The rename comes first so that every
+pull request after it is written in the final names, and the E2 audit comes
+before the v5 break so that the break carries every persisted change at once.
 
 ### Words a user sees that change
 
