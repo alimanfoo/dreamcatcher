@@ -477,7 +477,7 @@ facts about the instance and this run.
 **The shape.** The two kinds are two classes with one base, and the facts are
 attributes again.
 
-- `AgentWorkScheduling`, in `scheduler/agent_work.py`, is a frozen keyword-only
+- `AgentWorkScheduler`, in `scheduler/agent_work.py`, is a frozen keyword-only
   dataclass holding the six facts: repository, account, config, state directory,
   requested harness and clock. It declares three abstract methods that every
   kind implements with the same signature: `inspect`, `rank` and `launch`, which
@@ -485,8 +485,8 @@ attributes again.
   of routes' issues, and the harness session rule. It is generic over the kind's
   candidate and observation types, so the two implementations agree in shape
   while differing in type.
-- `AgentAssignmentScheduling`, in `scheduler/assignments.py`, and
-  `IssueConversationScheduling`, in `scheduler/conversations.py`, extend it.
+- `AgentAssignmentScheduler`, in `scheduler/assignments.py`, and
+  `IssueConversationScheduler`, in `scheduler/conversations.py`, extend it.
   Every helper that took `scheduler` or `repository` becomes a method, or a
   function that takes the scheduling object, and reads `self.repository` and so
   on.
@@ -494,6 +494,9 @@ attributes again.
   calls `self.assignments.inspect(...)` and `self.conversations.launch(...)`.
   The running set, the agent cap and the alternation stay on the coordinator.
 
+The names follow the ontology. Agent work is either an assignment or a
+conversation, so `AgentWorkScheduler` is what the two kinds' schedulers share,
+and the coordinator, which is the ontology's one scheduler, becomes `Scheduler`.
 The base makes the symmetry structural: two subclasses of one base must
 implement the same methods with the same signatures, which the type checker
 holds, so E4 stops being a convention a reviewer rechecks. Shared code has an
@@ -505,21 +508,24 @@ scheduling loop stays imperative as the architecture asks.
 
 **The edits.**
 
-1. Add `scheduler/agent_work.py` with `AgentWorkScheduling`: the six fields, the
+1. Add `scheduler/agent_work.py` with `AgentWorkScheduler`: the six fields, the
    three abstract methods, and the two shared methods the listing and launching
    sections define.
-2. In `scheduler/assignments.py`, add `AgentAssignmentScheduling` extending it.
+2. In `scheduler/assignments.py`, add `AgentAssignmentScheduler` extending it.
    Turn each function that took `scheduler`, `repository` or `account` into a
    method. Delete `_AssignmentRoundScheduler`.
-3. In `scheduler/conversations.py`, add `IssueConversationScheduling` extending
+3. In `scheduler/conversations.py`, add `IssueConversationScheduler` extending
    it. Turn each function that took `scheduler` into a method. Delete
    `_ConversationScheduler`.
 4. Change `observe_issues` and its helpers in `scheduler/issues.py` to take the
    scheduling object, the open assignments and the incomplete setups, and delete
    `_IssueObservationContext`.
-5. Give `AgentWorkScheduler` two fields, `assignments` and `conversations`, in
-   place of the six facts, and have the daemon and CLI build the two kind
-   objects when they build the coordinator.
+5. Rename the coordinator from `AgentWorkScheduler` to `Scheduler`, since the
+   base takes its old name, and give it two fields, `assignments` and
+   `conversations`, in place of the six facts. Have the daemon and CLI build the
+   two kind objects when they build it. The rename touches the daemon, the
+   package face, the measurement's list of functions that stay whole, and three
+   test files.
 
 ### The running set and the meaning of "no ending"
 
@@ -662,12 +668,12 @@ is the same for both kinds: it takes the previous tick's scheduler record, or
 none, and the tick's time, and returns the kind's bundle. Each kind reads its
 own records from `self.state` inside it.
 
-- `AgentAssignmentScheduling.inspect` reads the assignments and the incomplete
+- `AgentAssignmentScheduler.inspect` reads the assignments and the incomplete
   setups, observes the issues, records missing titles, walks the open assignment
   records, as differ 11 requires, skipping any whose latest record has no
   ending, reads each one's pull request, and turns each available issue
   observation into a candidate for a new assignment.
-- `IssueConversationScheduling.inspect` reads the conversations, takes the
+- `IssueConversationScheduler.inspect` reads the conversations, takes the
   previous observations from the previous record, lists the conversation routes'
   issues, and walks the listed eligible issues, as differ 11 requires, finding
   the record for each.
@@ -783,7 +789,7 @@ waiting comment.
 **The edits.**
 
 1. Add the three assignment candidate dataclasses to `scheduler/assignments.py`
-   and implement `rank` on `AgentAssignmentScheduling`. Delete
+   and implement `rank` on `AgentAssignmentScheduler`. Delete
    `RequiredAgentRound` and `_rank_required_round`. The three functions that
    composed a required round, `compose_initial_round_requirement`,
    `_compose_recovery_round_requirement` and
@@ -792,7 +798,7 @@ waiting comment.
 2. Rename `NewIssueConversationRoundCandidate` to
    `IssueConversationBatchCandidate`, and turn
    `_rank_issue_conversation_candidate` into `rank` on
-   `IssueConversationScheduling`.
+   `IssueConversationScheduler`.
 3. Delete the coordinator's `_AssignmentCandidate` alias and its route lookup by
    label.
 
@@ -950,13 +956,13 @@ prompt.
 **The shape.** `launch` is the third abstract method on the base. It takes one
 candidate and the tick's time, and returns the `AgentRound` it started.
 
-- `AgentAssignmentScheduling.launch`: for a new-assignment candidate it creates
+- `AgentAssignmentScheduler.launch`: for a new-assignment candidate it creates
   the assignment with the candidate's route and the tick's time, then starts the
   first round, in one call. For a first-round candidate it starts the first
   round. For a round candidate it derives the purpose from the pull request with
   `derive_round_purpose`, builds the plan with the input, composes the prompt,
   resolves the session and starts the round.
-- `IssueConversationScheduling.launch`: today's launch with the record patching
+- `IssueConversationScheduler.launch`: today's launch with the record patching
   removed and the round returned.
 
 Each launch prepares an `AgentRoundStartRequest`, the type the round boundary
@@ -1005,18 +1011,18 @@ running set, calls `_try_launch_candidate` to dispatch on the kind and catch a
 launched assignment's observation, and clears the kind's candidates on a
 failure. `_hold_for_capacity` then rewrites observations again.
 
-**The shape.** `AgentWorkScheduler` holds `assignments`, `conversations`, the
-running set, the agent cap and the alternation state. `tick` reads as the eight
-steps in the architecture: forget ended rounds, read the previous record,
-inspect each kind, add the fault counts and start a cooldown if required, write
-the record, launch. The launch loop alternates between the kinds as the ontology
-says and, for each free slot: pops the next candidate of the chosen kind, calls
-that kind's `launch`, registers the returned round, marks the launched work's
-observation with `mark_round_started`, one function in `scheduler/models.py`
-over the base observation type, and appends the identifier to the record. A
-launch that raises adds its reason to the hold and clears that kind's remaining
-candidates, as today. A full running set with candidates left sets the capacity
-hold and nothing else.
+**The shape.** `Scheduler`, the renamed coordinator, holds `assignments`,
+`conversations`, the running set, the agent cap and the alternation state.
+`tick` reads as the eight steps in the architecture: forget ended rounds, read
+the previous record, inspect each kind, add the fault counts and start a
+cooldown if required, write the record, launch. The launch loop alternates
+between the kinds as the ontology says and, for each free slot: pops the next
+candidate of the chosen kind, calls that kind's `launch`, registers the returned
+round, marks the launched work's observation with `mark_round_started`, one
+function in `scheduler/models.py` over the base observation type, and appends
+the identifier to the record. A launch that raises adds its reason to the hold
+and clears that kind's remaining candidates, as today. A full running set with
+candidates left sets the capacity hold and nothing else.
 
 The coordinator knows the two kinds by name and nothing of their internals.
 
@@ -1164,7 +1170,7 @@ differs in shape, the line names the difference.
 
 | Operation          | Assignment                                           | Conversation                                           |
 | ------------------ | ---------------------------------------------------- | ------------------------------------------------------ |
-| Scheduling class   | `AgentAssignmentScheduling`                          | `IssueConversationScheduling`                          |
+| Scheduler class    | `AgentAssignmentScheduler`                           | `IssueConversationScheduler`                           |
 | Inspect for a tick | `inspect`                                            | `inspect`                                              |
 | Result             | `AgentAssignmentInspection`, adds issue observations | `AgentWorkInspection`                                  |
 | Candidates         | three types, by the ranking list                     | two types, by the ranking list                         |
