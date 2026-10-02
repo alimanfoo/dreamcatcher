@@ -1,16 +1,9 @@
 """Run agent rounds and persist their inputs, output, and outcomes.
 
-A round runs a harness command in its owner's worktree. It writes into a
-numbered directory of its own.
-
-`prompt.txt` supplies the harness's stdin. `inbox.json` holds any input that the
-round's owner delivers. `stop-request` asks a running round to stop.
-`raw.jsonl` preserves harness stdout, `feed.txt` renders both streams for the
-user, `final.md` keeps the final result the harness reports, and `round.json`
-records identity, purpose, recovery, process, and outcome.
-
-The daemon watches a round rather than waiting for it, so a round reads its own
-streams on threads of its own, and records its own ending on another.
+A round runs a harness in its owner's worktree and stores its prompt, input,
+stop request, raw and rendered output, final result, and lifecycle record in a
+numbered directory. The daemon watches rather than waits, so the round reads
+its streams and records its ending on threads of its own.
 """
 
 from collections.abc import Callable
@@ -47,9 +40,6 @@ from dreamcatcher.harness_adapters import (
 )
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
 
-# The file in a round's own directory saying what the round did.
-AGENT_ROUND_RECORD_NAME = "round.json"
-
 # How long a successful harness process may take to expose its final result
 # after it exits. A reader normally settles immediately on the result event or
 # pipe EOF. This bound is for an escaped descendant that keeps the pipe open.
@@ -57,6 +47,63 @@ FINAL_OUTPUT_CAPTURE_TIMEOUT_SECONDS = 5
 
 # How often a live round checks whether the web process asked it to stop.
 STOP_REQUEST_POLL_INTERVAL_SECONDS = 1
+AGENT_ROUND_RECORD_NAME = "round.json"
+
+
+@dataclass(frozen=True, kw_only=True)
+class AgentRoundPaths:
+    """Provide the worktree and file paths for a numbered round.
+
+    The round runs in its owner's worktree and writes into the directory its
+    number selects under that owner's rounds directory. Keeping the number
+    beside that parent makes one value authoritative for both the path and the
+    record the round writes. The paths are available before the round creates
+    any files.
+    """
+
+    worktree: Path
+    rounds_directory: Path
+    number: PositiveInt
+
+    @property
+    def directory(self) -> Path:
+        """The directory holding this numbered round's files."""
+        return self.rounds_directory / str(self.number)
+
+    @property
+    def prompt(self) -> Path:
+        """The file holding what the round asked the harness to do."""
+        return self.directory / "prompt.txt"
+
+    @property
+    def record(self) -> Path:
+        """The file saying when the round started, and how it ended."""
+        return self.directory / AGENT_ROUND_RECORD_NAME
+
+    @property
+    def feed(self) -> Path:
+        """The file holding the round as a reader reads it."""
+        return self.directory / "feed.txt"
+
+    @property
+    def raw_output(self) -> Path:
+        """The file holding the harness's own stdout, as it arrived."""
+        return self.directory / "raw.jsonl"
+
+    @property
+    def round_input(self) -> Path:
+        """The file holding the input that the round's owner delivered."""
+        return self.directory / "inbox.json"
+
+    @property
+    def stop_request(self) -> Path:
+        """The file asking this round to stop, when one has been requested."""
+        return self.directory / "stop-request"
+
+    @property
+    def final_output(self) -> Path:
+        """The file holding the final result that the harness reports, if any."""
+        return self.directory / "final.md"
 
 
 class HarnessSessionIdentifierRecorder(Protocol):
@@ -67,7 +114,7 @@ class HarnessSessionIdentifierRecorder(Protocol):
 
 
 class AgentRoundFinisher(Protocol):
-    """Finish a round whose harness exited successfully, before the round ends.
+    """Finish a successful round before its ending is recorded.
 
     Raising a `ReportableError` fails the round, and the round notes why in its
     feed.
@@ -302,63 +349,6 @@ def start_agent_round(
         finish_round=request.finish_round,
         clock=clock,
     )
-
-
-@dataclass(frozen=True, kw_only=True)
-class AgentRoundPaths:
-    """Provide the worktree and file paths for a numbered round.
-
-    The round runs in its owner's worktree and writes into the directory its
-    number selects under that owner's rounds directory. Keeping the
-    number beside that parent makes one value authoritative for both the path
-    and the record the round writes.
-
-    The paths are available before the round creates any files.
-    """
-
-    worktree: Path
-    rounds_directory: Path
-    number: PositiveInt
-
-    @property
-    def directory(self) -> Path:
-        """The directory holding this numbered round's files."""
-        return self.rounds_directory / str(self.number)
-
-    @property
-    def prompt(self) -> Path:
-        """The file holding what the round asked the harness to do."""
-        return self.directory / "prompt.txt"
-
-    @property
-    def record(self) -> Path:
-        """The file saying when the round started, and how it ended."""
-        return self.directory / AGENT_ROUND_RECORD_NAME
-
-    @property
-    def feed(self) -> Path:
-        """The file holding the round as a reader reads it."""
-        return self.directory / "feed.txt"
-
-    @property
-    def raw_output(self) -> Path:
-        """The file holding the harness's own stdout, as it arrived."""
-        return self.directory / "raw.jsonl"
-
-    @property
-    def round_input(self) -> Path:
-        """The file holding the input that the round's owner delivered."""
-        return self.directory / "inbox.json"
-
-    @property
-    def stop_request(self) -> Path:
-        """The file asking this round to stop, when one has been requested."""
-        return self.directory / "stop-request"
-
-    @property
-    def final_output(self) -> Path:
-        """The file holding the final result that the harness reports, if any."""
-        return self.directory / "final.md"
 
 
 def read_agent_round_records(

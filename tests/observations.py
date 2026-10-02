@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 
 from conftest import ASSIGNMENT_LABEL
 
-from dreamcatcher.scheduler import (
+from dreamcatcher.scheduler.models import (
     IssueConversationObservation,
     IssueFact,
     IssueFactValue,

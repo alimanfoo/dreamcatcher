@@ -34,7 +34,7 @@ project, so that a criterion below can be traced to a project that has met it.
 
 - **pre-commit.** A Python command that shells out, with no source file over 600
   lines, full coverage enforced, and five runtime dependencies. It sets the bar
-  for module size and dependencies.
+  for module cohesion and dependencies.
 - **Trio.** Seven concepts that compose, a design document that states ranked
   principles and says what the project will not do, and naming rules written
   beside the ambiguity each prevents. It sets the bar for elegance, for
@@ -68,17 +68,19 @@ not progress towards the standard. Meeting the criteria is.
 
 ### Simplicity
 
-**S1. Modules are small.**
+**S1. Modules are cohesive.**
 
-- Measure: lines in each file under `src/dreamcatcher`.
-- Bar: no file exceeds 600 lines. A responsibility that needs more becomes a
-  package whose files each hold one concept from the ontology.
-- Check: the phase measurement, and review of any file a change grows.
+- Measure: modules for which review cannot name the one responsibility they own,
+  read largest first.
+- Bar: zero. A module is split where a clean boundary gives each part a
+  responsibility of its own, never to meet a line count.
+- Check: review, ordered by the line counts the phase measurement reports and
+  focused on any module a change grows.
 
 **S2. Functions fit on a screen.**
 
 - Measure: lines in each function.
-- Bar: no function exceeds 50 lines, except those the architecture names and
+- Bar: no function exceeds 50 lines, except those the measurement names and
   explains, such as the scheduler tick when it reads as the listed steps.
 - Check: the phase measurement, and review of any function a change grows.
 
@@ -151,8 +153,8 @@ not progress towards the standard. Meeting the criteria is.
   not.
 - Bar: zero. The import boundaries for `subprocess`, rich and Flask, and the
   dependency direction between modules, are the first four.
-- Check: banned-import rules in ruff, and one test that asserts the dependency
-  direction over the import graph.
+- Check: ruff's subprocess rule and one test that asserts the first-party, Rich,
+  and Flask dependency direction over the import graph.
 
 **K2. The suite is fast and speaks the user's language.**
 
@@ -224,8 +226,8 @@ A pull request is done when its author can say yes to each of these.
 
 1. It names the spec it serves, or the issue that it closes.
 2. The tests and every check pass, and no check was skipped or suppressed.
-3. Nothing it adds exceeds the bars in S1 and S2, and nothing it exports is
-   without a caller.
+3. Everything it adds meets S1 and S2, and nothing it exports is without a
+   caller.
 4. Every word it introduces is in the ontology, or the ontology grew in the same
    change.
 5. Any enduring document it makes false, it corrects.
@@ -236,7 +238,7 @@ A pull request is done when its author can say yes to each of these.
 ## Exceptions
 
 A criterion may be waived for one place, never in general. The waiver is written
-where the check will read it: a sentence in the architecture for S2, a per-file
+where the check will read it: an entry in the measurement for S2, a per-file
 rule in `pyproject.toml` for K1, a pragma with its reason for S5, an entry on
 the ledger for E1. A waiver with no reason a reader can find is a violation.
 

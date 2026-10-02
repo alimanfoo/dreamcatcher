@@ -29,7 +29,7 @@ from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.github import PullRequestState
 from dreamcatcher.issue_conversations import IssueConversationInput
-from dreamcatcher.scheduler import (
+from dreamcatcher.scheduler.models import (
     NO_ROUND_HAS_RUN,
     AgentAssignmentObservation,
     IssueConversationObservation,

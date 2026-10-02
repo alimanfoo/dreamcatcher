@@ -39,9 +39,9 @@ from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import read_json, write_json, write_text
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.scheduler import (
+from dreamcatcher.scheduler import AgentWorkScheduler
+from dreamcatcher.scheduler.models import (
     AgentAssignmentObservation,
-    AgentWorkScheduler,
     GlobalCooldown,
     SchedulerRecord,
 )

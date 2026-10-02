@@ -26,6 +26,7 @@ from records import (
     write_round,
 )
 
+import dreamcatcher.scheduler.coordinator as coordinator_module
 from dreamcatcher.agent_assignments import read_agent_assignments
 from dreamcatcher.agent_rounds import (
     AgentAssignmentRoundPurpose,
@@ -51,8 +52,8 @@ from dreamcatcher.prompts import (
     AGENT_POST_MARKER,
     ISSUE_CONVERSATION_RECOVERY_PROMPT,
 )
-from dreamcatcher.scheduler import (
-    AgentWorkScheduler,
+from dreamcatcher.scheduler import AgentWorkScheduler
+from dreamcatcher.scheduler.models import (
     GlobalCooldown,
     IssueConversationObservation,
     IssueFact,
@@ -1009,8 +1010,8 @@ def test_a_failed_assignment_candidate_does_not_block_a_ready_conversation(
     offer_conversation(gh=gh, comments=[ask()])
     answer(harnesses=harnesses)
     monkeypatch.setattr(
-        scheduler,
-        "_launch_required_round",
+        coordinator_module,
+        "launch_required_round",
         Mock(side_effect=ReportableError("could not start assignment")),
     )
 
@@ -1750,7 +1751,7 @@ def test_a_failed_delivery_cursor_read_is_a_scheduler_hold(
     write_issue_conversation(state=scheduler.state, issue=8)
     offer_conversation(gh=gh, comments=[])
     monkeypatch.setattr(
-        "dreamcatcher.scheduler.read_issue_comment_delivery_cursor",
+        "dreamcatcher.scheduler.conversations.read_issue_comment_delivery_cursor",
         Mock(side_effect=ReportableError("could not read the round input")),
     )
 

@@ -43,7 +43,7 @@ work. It knows that scheduling happens, but not the scheduling priorities.
 
 ### Scheduling
 
-`scheduler.py` owns all decisions about what work starts and when.
+The scheduler package owns all decisions about what work starts and when.
 
 One scheduler tick:
 
@@ -300,7 +300,7 @@ interface.
 
 ### Status reporting
 
-`status.py` owns the read-only status model and constructs a
+Status reporting owns the read-only status model and constructs a
 `DreamcatcherStatusReport` containing the repository identity, instance and
 daemon facts, failed-setup, available and blocked `IssueObservation` entries,
 `IssueConversationStatus` entries, and `AgentAssignmentStatus` entries.
@@ -319,8 +319,9 @@ Status construction may read:
 
 It may call the scheduler's pure interpretation functions, but it cannot invoke
 a scheduling action, mutate an assignment, relay a user post, or start a
-process. Status values are always derived; they are not written back as domain
-state.
+process. In the code, those functions and records are the scheduler's `models`
+and `faults` modules, and status imports no other scheduler module. Status
+values are always derived; they are not written back as domain state.
 
 An `IssueObservation` represents claimed here, claimed elsewhere, blocked, and
 routing conflict as independent facts which may each be true, false, or unknown;
@@ -372,16 +373,16 @@ unexplained absence remains unknown.
 
 ### TUI
 
-`tui.py` renders status reports and feeds with Rich. It owns presentation only.
+The TUI renders status reports and feeds with Rich. It owns presentation only.
 It should not rediscover status, scheduling, or lifecycle rules while choosing
 headings and colors.
 
 ### Web
 
-`web.py` renders status reports and feeds as HTML. It owns presentation only and
-depends on the status and feed models; neither model depends on it. It should
-not rediscover status, scheduling, or lifecycle rules while choosing markup and
-styles.
+The web interface renders status reports and feeds as HTML. It owns presentation
+only and depends on the status and feed models; neither model depends on it. It
+should not rediscover status, scheduling, or lifecycle rules while choosing
+markup and styles.
 
 The web process can ask a running round to stop. It writes a same-origin stop
 request through the agent-round boundary, into that round's own directory. The

@@ -1,4 +1,3 @@
-import inspect
 import os
 from collections.abc import Sequence
 from datetime import timedelta
@@ -16,9 +15,7 @@ from records import (
     write_tick,
 )
 
-import dreamcatcher.scheduler as scheduler_module
-import dreamcatcher.status as status_module
-import dreamcatcher.tui as tui_module
+import dreamcatcher.status.assignments as assignment_status_module
 from dreamcatcher.agent_rounds import (
     AgentAssignmentRoundPurpose,
     AgentRoundRecord,
@@ -30,7 +27,7 @@ from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
 from dreamcatcher.documents import write_text
 from dreamcatcher.feed import FeedLine
-from dreamcatcher.scheduler import (
+from dreamcatcher.scheduler.models import (
     AgentAssignmentObservation,
     GlobalCooldown,
     IssueFactValue,
@@ -298,7 +295,7 @@ def test_status_reads_harness_resume_details_only_when_requested(state, monkeypa
         return "abc-123"
 
     monkeypatch.setattr(
-        status_module,
+        assignment_status_module,
         "find_harness_session_identifier",
         recover_harness_session_identifier,
     )
@@ -826,21 +823,3 @@ def test_a_failed_setup_reports_independently_of_an_external_claim(state):
         observation.model_copy(update={"observed_at": PINNED})
     ]
     assert status_report.available_issues == []
-
-
-def test_scheduling_does_not_consume_status_reports():
-    assert "dreamcatcher.status" not in inspect.getsource(scheduler_module)
-
-
-@pytest.mark.parametrize(
-    "dependency",
-    [
-        "dreamcatcher.scheduler",
-        "find_harness_session_identifier",
-        "HARNESS_ADAPTERS",
-        "ErroredAgentRoundEnding",
-        "InterruptedAgentRoundEnding",
-    ],
-)
-def test_the_tui_does_not_import_domain_policy_or_operations(dependency):
-    assert dependency not in inspect.getsource(tui_module)

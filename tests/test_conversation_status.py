@@ -28,17 +28,14 @@ from dreamcatcher.issue_conversations import (
     IssueConversationInput,
     read_issue_conversation,
 )
-from dreamcatcher.scheduler import (
+from dreamcatcher.scheduler.models import (
     IssueConversationObservation,
     IssueFactValue,
     SchedulerRecord,
 )
 from dreamcatcher.state import StateDirectory
-from dreamcatcher.status import (
-    IssueConversationStatusValue,
-    read_issue_conversation_status,
-    read_status_report,
-)
+from dreamcatcher.status import read_issue_conversation_status, read_status_report
+from dreamcatcher.status.conversations import IssueConversationStatusValue
 
 LOOKED_AT = PINNED + timedelta(hours=2)
 
