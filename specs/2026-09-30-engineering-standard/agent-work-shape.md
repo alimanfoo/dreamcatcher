@@ -252,3 +252,41 @@ assignment's always, which is differ 11.
 
 Items 3 and 4 change text a user sees. The roadmap's Stage 3 permits that where
 one wording wins and says more, and part 3 lists each string that changes.
+
+### Row 4: where new work comes from
+
+An assignment is created by a scheduling action from an available issue, and a
+conversation starts from an eligible batch, which is differ 2. Both kinds create
+the record at launch when there is none and start the first round in the same
+action, which the ontology says of each process. Assignment setup has more
+steps, branch, commit, push and pull request, so it alone has an incomplete
+setup to resume, which follows from differ 1.
+
+1. **The candidate is a persisted document.** New assignment work is the issue
+   observation itself, a scheduler-record document pressed into service as a
+   candidate, appended to the list in the coordinator. New conversation work is
+   a candidate type holding the issue, its comments and its route, built by the
+   inspection. Accident: a new-assignment candidate holds the issue and its
+   route, and the assignment inspection builds it where availability is already
+   derived.
+2. **The route is found twice.** The coordinator digs the label out of the
+   observation's nullable label list and looks the route up by name. The
+   conversation candidate carries the route. The fallback arm the coordinator
+   keeps for a missing list defends a state that availability already rules out,
+   which is an E2 finding. Accident: same 7 says one label selects one route, so
+   the candidate carries it.
+3. **The candidate types partition differently.** Assignment candidates divide
+   by whether a record exists: an issue observation for new work, and a required
+   round for everything else, the first round of a just-created assignment
+   included. Conversation candidates divide by recovery: one type for a first or
+   later batch, with the record created at launch if absent, and one for
+   recovery. Accident: same idea, two cuts, and part 3 picks one for both. The
+   assignment side's rank that puts a first round before everything is the
+   ontology's rule for finishing an interrupted creation, and survives either
+   cut.
+
+A note for the E1 ledger, not a verdict. Both kinds meet an unrecorded worktree
+at creation. An assignment resumes it, because its branch and pull request may
+already exist, which differ 1 explains. A conversation refuses it with an error.
+Its own creation removes the worktree when the record write fails, so the branch
+guards a state the code already cleans up, unless that removal failed.
