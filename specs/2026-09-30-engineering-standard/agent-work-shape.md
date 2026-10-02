@@ -213,4 +213,5 @@ recovery rounds for existing assignments. When one conversation route fails to
 list, the module keeps recovery candidates from the routes that listed and drops
 only fresh batches. Differ 11 says an assignment's pull request governs it, so
 the assignment side is more cautious than the ontology asks. Healing it is a
-scheduling change, outside this stage's budget.
+scheduling change, outside this stage's budget, and
+[issue 348](https://github.com/alimanfoo/dreamcatcher/issues/348) records it.
