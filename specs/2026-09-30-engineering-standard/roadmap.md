@@ -64,8 +64,8 @@ The evidence behind each row:
   command reference in one page.
 - **C4.** The state format is at v4 with no compatibility statement. The
   contract carries no version. There is no changelog.
-- **K1.** The `subprocess` rule is a ruff per-file waiver. The Rich and Flask
-  rules and the dependency direction rested on review, and the dependency
+- **K1.** The `subprocess` rule is a ruff per-file waiver. The rich and Flask
+  rules and the dependency direction rest on review, and the dependency
   direction has the one violation C2 records.
 - **K2.** 808 test functions, 1028 with parameters, in 178 seconds on one
   laptop. The eight slowest each take over 1.3 seconds and spawn stand-in
@@ -117,14 +117,15 @@ break, and the one known violation is gone.
 
 Work:
 
-- Keep the per-file waiver that lets `commands` alone import `subprocess`,
-  because bandit's subprocess-import rule is already that ban.
-- Add one test that reads imports under `src` and asserts the Rich and Flask
-  boundaries together with the dependency direction the architecture states: the
-  daemon depends on the scheduler and never the reverse; assignment,
-  conversation and round modules do not import the scheduler; status and feed do
-  not import presentation; the GitHub and harness adapters import neither
-  presentation nor the scheduler; state and documents import no domain module.
+- Add ruff banned-import rules so that rich is imported only in `tui`, and Flask
+  only in `web`. Keep the per-file waiver that lets `commands` alone import
+  `subprocess`, because bandit's subprocess-import rule is already that ban.
+- Add one test that reads the import graph under `src` and asserts the
+  dependency direction the architecture states: the daemon depends on the
+  scheduler and never the reverse; assignment, conversation and round modules do
+  not import the scheduler; status and feed do not import presentation; the
+  GitHub and harness adapters import neither presentation nor the scheduler;
+  state and documents import no domain module.
 - Move `AgentRoundReader` out of `state`, so that test passes.
 
 Check: K1 met.
@@ -164,6 +165,12 @@ Then one pull request per module, largest first:
 - Review `agent_assignments`, `agent_rounds` and `github` for useful seams. Keep
   a module intact when splitting it would separate no responsibility or add
   coupling merely to reduce its line count.
+- The ruff bans on rich and Flask that Stage 1 added go, and the architecture
+  test takes over both. Ruff could waive the whole rule for a file but not one
+  library for one file, so `tui` could have imported Flask unseen, and
+  `pyproject.toml` recorded that as K1's one exception. The test checks each
+  library against the one package that may import it, so the exception closes.
+  The commit hook no longer catches a stray rich import; the suite does.
 
 Check: S1 met by review, with module line counts retained as a way to order that
 review. S2 met except for the named functions.
