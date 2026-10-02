@@ -280,10 +280,11 @@ setup to resume, which follows from differ 1.
    round for everything else, the first round of a just-created assignment
    included. Conversation candidates divide by recovery: one type for a first or
    later batch, with the record created at launch if absent, and one for
-   recovery. Accident: same idea, two cuts, and part 3 picks one for both. The
-   assignment side's rank that puts a first round before everything is the
-   ontology's rule for finishing an interrupted creation, and survives either
-   cut.
+   recovery. The two cuts follow each kind's ranking list in the ontology, which
+   is differ 9, so they stand; part 3 says why. What was accidental is item 1,
+   the issue observation serving as a candidate. The assignment side's rank that
+   puts a first round before everything is the ontology's rule for finishing an
+   interrupted creation, and survives either cut.
 
 A note for the E1 ledger, not a verdict. Both kinds meet an unrecorded worktree
 at creation. An assignment resumes it, because its branch and pull request may
@@ -308,8 +309,9 @@ gets the narrower permissions, which follows from differ 1.
    set before the launch, diffs it afterwards to find which identifier appeared,
    filters that candidate out of the inspection results and recomputes the
    assignment observations. That diff is the coordinator's launch chain the
-   roadmap names. Accident: a launch returns what it launched, and each kind's
-   bundle marks its own observation.
+   roadmap names. Accident: a launch returns what it launched, and one helper
+   over the base observation type marks the launched work's observation,
+   whichever kind it is.
 2. **The prepared round.** The conversation side prepares into a named type
    holding the conversation, input, prompt, session identifier and recovery
    flag. The assignment side prepares into a bare tuple of three unnamed values.
@@ -371,8 +373,10 @@ which the roadmap already names as residue.
    record with no ending as interrupted. Two conventions for one state. The
    daemon records every stale round as interrupted at startup, before the first
    tick, so while a daemon runs a record with no ending is a running round, as
-   the record's own outcome says. Accident: one convention, and the dictionary
-   check goes with it.
+   the record's own outcome says. Accident: one convention for both kinds inside
+   a tick, and the dictionary check goes with it. Status, which may run while no
+   daemon does, reads such a record as working when a daemon is alive and as
+   left behind when none is, and both kinds read it so.
 
 ### Row 7: how status summarises each kind
 
@@ -427,3 +431,363 @@ discussion: differ 3.
    conversation view and page is more than settling words, so it stays out of
    this stage and
    [issue 349](https://github.com/alimanfoo/dreamcatcher/issues/349) records it.
+
+## The shape
+
+This part gathers what the seven rows point to into one shape for the scheduler
+and status packages. Each section gives the shape, then says what it replaces.
+The shape changes no scheduling decision, command or prompt. It changes
+persisted documents under the v5 break and status wording under the permission
+the roadmap gives, and the lists below name every such change. A name given here
+is the name the code uses, so a reader can find each piece from this document.
+
+### The context
+
+`SchedulerContext`, in `scheduler/context.py`, holds what every scheduling
+operation knows about the instance and this run: repository, account,
+configuration, state directory, requested harness and clock. The coordinator
+builds it once and passes it to the issue listing, both inspections and both
+launches. It replaces the two scheduler protocols and the issue observer's
+parameter bundle. It is a code shape like the state directory, not an ontology
+concept.
+
+The running set stays with the coordinator. No inspection or launch reads or
+writes it. A launch returns the round it started, and the coordinator registers
+it.
+
+A round record with no ending is a running round while its daemon lives. The
+daemon records every round an earlier daemon left as interrupted before its
+first tick, so inside a tick the record alone says running. Status, which may
+run while no daemon does, reads such a record as working when a daemon is alive
+and as left behind when none is. Both kinds use these two readings and no other.
+The assignment describer that calls a record with no ending interrupted goes,
+and with it the coordinator's check of the running set.
+
+### Listing issues
+
+`list_route_issues`, in `scheduler/issues.py`, lists the open issues assigned to
+the account that carry any of the routes it is given, one call per route, merged
+by issue number and sorted by creation time then number. A route that fails to
+list contributes its failure and the other routes are still listed; the failures
+join into one. It returns the issues and the joined failure. The assignment side
+calls it with the assignment routes and the conversation side with the
+conversation routes. It replaces the two near-copies.
+
+The hold both kinds record for a failed listing has one wording, given in the
+list of changed words below.
+
+### Inspecting each kind
+
+Each kind has one tick-level inspection with a parallel name, taking the context
+and the tick's facts and returning one bundle:
+
+- `inspect_agent_assignments`, in `scheduler/assignments.py`, takes the open
+  assignments, the issue observations and the time the last cooldown ended. It
+  walks the open assignment records, as differ 11 requires, skipping any whose
+  latest record has no ending, and reads each one's pull request. It also turns
+  each available issue observation into a candidate for a new assignment.
+- `inspect_issue_conversations`, in `scheduler/conversations.py`, takes the
+  saved conversations, the previous tick's conversation observations and the
+  time the last cooldown ended. It lists the conversation routes' issues and
+  walks the listed eligible issues, as differ 11 requires, finding the record
+  for each.
+
+Both return `AgentWorkInspection`, one generic dataclass in
+`scheduler/models.py` with four fields: `candidates`, ranked, in the kind's
+candidate type; `observations`, in the kind's observation type; `fault_count`,
+the faults this kind contributes to the cooldown; and `failure`, the joined
+reason the kind's reads failed, or none. Each inspection derives fault once per
+item with the shared derivation, withholds a candidate for a faulted item and
+counts it, with the conversation side counting only conversations whose issue
+has no known routing conflict, as differ 10 says. The coordinator sums the two
+counts.
+
+This replaces the three-way assignment result type, the faulted assignment type,
+the conversation candidate result, the conversation inspection type, the
+conversation fault count in `scheduler/faults.py`, the observation list builder,
+and the coordinator's loop over assignments.
+
+The issue observer keeps its own result, the issue observations and their
+listing failure, because it observes issues rather than agent work. It now calls
+`list_route_issues` and takes the context.
+
+### Candidates
+
+A candidate carries the facts a launch needs and nothing prepared. Each kind's
+candidate types follow its ranking list in the ontology, which is differ 9, and
+what starts each kind, which is differ 2:
+
+- Assignment: `NewAgentAssignmentCandidate`, the issue, its title and its route,
+  built from an available issue observation;
+  `FirstAgentAssignmentRoundCandidate`, an assignment whose record has no
+  rounds, which is the ontology's rule for finishing an interrupted creation and
+  reads no pull request, as today; and `AgentAssignmentRoundCandidate`, an
+  assignment with its pull request, its undelivered posts and the reason its
+  last round needs recovery, or none.
+- Conversation: `IssueConversationBatchCandidate`, an eligible issue with its
+  route, its waiting comments and its record if one exists, since a first and a
+  later batch are one thing to the ontology; and
+  `IssueConversationRecoveryCandidate`, a conversation whose latest round
+  errored or was interrupted.
+
+The counts differ, three against two, and the ontology names why: a
+conversation's start is a batch and nothing else, and a conversation recovery
+reuses its saved input where an assignment recovery reads the pull request
+afresh. The ranking functions take parallel names,
+`rank_agent_assignment_candidate` and `rank_issue_conversation_candidate`, and
+each inspection sorts by its own.
+
+This replaces the required round, which carried a prepared plan and prompt; the
+issue observation pressed into service as a candidate; and the coordinator's
+lookup of the route by label.
+
+### Observations and the scheduler record
+
+One observation type carries the one fact both kinds share.
+`AgentWorkObservation`, in `scheduler/models.py`, holds the agent work
+identifier, the issue and `requires_round`, an `IssueFact` whose value is true,
+false or unknown with its evidence. The ontology's phrase is "whether an
+assignment requires an agent round", and the name follows it. Status reads this
+fact one way for both kinds: unknown gives unknown with the evidence, true gives
+waiting, false gives the resting status.
+
+`IssueConversationObservation` extends it with the title, because a conversation
+is observed before any record holds one, which is differ 7, and with
+`routing_conflict`, which differ 8 puts on the conversation and nowhere else.
+The assignment observation is the base type itself.
+
+The evidence has one wording for both kinds. A faulted item's observation says
+false, "in fault". Work whose round the tick launched says false, "round N
+started". Work the tick could not read says unknown with the failure. Work that
+needs nothing says false, "no round required". Work that needs a round says true
+with the need: the posts or comments to answer, the pull request state, the
+round to recover, or that no round has run yet.
+
+The scheduler record keeps its two observation lists, assignment and
+conversation, and loses nothing else. Every open work item the tick inspected
+has an observation in it, launched or not. The capacity hold no longer rewrites
+observation reasons, because status never showed them.
+
+This is the v5 shape of the scheduler record. The assignment observation's
+reason, is-known and is-round-required fields go, replaced by the one fact. The
+conversation observation's has-comments-to-answer becomes `requires_round` and
+gains the identifier.
+
+### Delivery position
+
+The delivery position of either kind is read from its recorded rounds' inputs
+and nowhere else. `read_user_post_delivery_cursor`, in `agent_assignments.py`,
+returns the newest post among the inputs of recorded rounds, scanning back past
+the first and recovery rounds that carry none. It is the counterpart of
+`read_issue_comment_delivery_cursor`, which reads the latest recorded input,
+since every conversation round carries one. Differ 4 names that difference.
+
+The assignment's cursor file goes, with the function that advanced it, the
+callback that recorded a session before advancing it, and the field on the
+assignment that read it. The relay takes the position as it does today. This is
+the second change the v5 break carries, and the reasoning on the one edge it
+touches is under row 5.
+
+### Launching
+
+Each kind has one launch with a parallel name,
+`launch_agent_assignment_candidate` and `launch_issue_conversation_candidate`,
+taking the context and one candidate and returning the `AgentRound` it started.
+A round names the work it belongs to, so the coordinator can register it. A
+launch of a new-work candidate creates the record first and starts the first
+round in the same call, for both kinds, as the ontology's processes say.
+
+Each launch prepares an `AgentRoundStartRequest`, the type the round boundary
+already takes, from the candidate's facts. The two rules both kinds share from
+same 3 live once, in `scheduler/models.py`: a later round with no recorded
+session cannot resume and raises, naming the work; a recovery with no recorded
+session starts a new session with the configured prompt. The conversation launch
+keeps its finisher and its narrower permissions, which differ 5 and differ 1
+name.
+
+This replaces the two launch functions with different returns, the bare tuple
+the assignment side prepared into, the conversation's prepared-round type, the
+two copies of the no-session rules with their shared error sentence, and the
+coordinator's diff of the running set to discover what launched.
+
+### The tick
+
+The coordinator's tick reads as the architecture lists it. It builds the
+context, forgets ended rounds, reads the records, observes issues, inspects each
+kind, sums the fault counts and starts a cooldown if required, writes the
+record, and then launches. Launching alternates between the kinds as the
+ontology says, pops the next candidate of the chosen kind, calls that kind's
+launch, registers the round, marks the launched work's observation with one
+helper over the base observation type, and appends the identifier to the record.
+A launch that raises adds its reason to the hold and clears that kind's
+remaining candidates, as today. A full running set with candidates left sets the
+capacity hold and nothing else.
+
+The coordinator knows the two kinds' names and nothing of their internals.
+
+### Status
+
+Status takes the same two-level shape: shared facts read once, and each kind
+deriving its own summary.
+
+`StatusContext`, in `status/context.py`, holds the state directory, the time,
+the daemon's process identifier, the latest scheduler record and the two
+observation maps. It replaces the reader, whose per-kind methods move to the
+kind's module.
+
+Each kind has one derivation with a parallel name:
+`derive_agent_assignment_status`, in `status/assignments.py`, taking the context
+and an assignment; and `derive_issue_conversation_status`, in
+`status/conversations.py`, taking the context, the issue, the title and the
+conversation if one is saved. Each derives in the same order, with the steps a
+named difference gives to one kind marked:
+
+1. A latest round with no ending while a daemon lives is working, with the
+   shared running detail.
+2. For a conversation: no scheduler record is unknown; no observation is idle,
+   because its issue is not eligible, which is differ 11; and an observation
+   with a known or unknown routing conflict gives that status, which is
+   differ 8.
+3. Two consecutive errored rounds is fault, with the shared ending detail.
+4. A latest round that errored or was interrupted, short of fault, is waiting
+   for recovery, with the shared ending detail.
+5. For an assignment: a successful wrap-up round is complete, which is differ 6;
+   a record with no rounds is waiting for its first round, which is the
+   ontology's rule for an interrupted creation; and no scheduler record is
+   unknown.
+6. A latest round that ended after the latest tick is waiting, "awaiting next
+   update", because the scheduler has not yet looked at the work.
+7. Otherwise the observation's `requires_round` decides: unknown, waiting, or
+   the kind's resting status, needs user feedback or idle.
+
+The shared steps come in the same order for both kinds, and each kind's own
+steps sit where today's code has them, so no status value changes except where
+the list of changed words says.
+
+The two status types keep their fields. Both gain `is_over`, whether nothing
+more happens until the user acts, as a property: fault or complete for an
+assignment, and fault, routing conflict or not listed for a conversation. The
+TUI's constant for ending a view goes, and the TUI reads the property.
+
+`status/rounds.py` holds what both kinds say about a round: the running detail,
+the ending detail that fault and recovery share, which round can take a stop
+request, and whether a round ended after a time. The conversation summary type
+goes, and each kind composes its status directly.
+
+### Words a user sees that change
+
+Each is one wording that two kinds or two presentations gave two ways, or a
+status one kind gave and the other did not.
+
+1. Fault detail, both kinds: "round N errored (exit S)", followed by the
+   ending's reason when the owner gave one, with the round's last feed line as
+   the latest output. It replaces the assignment's last feed line as detail and
+   "two consecutive rounds failed (path)" when there was none, and the
+   conversation's "round N errored: reason" and "two consecutive rounds
+   errored".
+2. Running detail, conversation: gains the purpose word, "round N, discuss,
+   running 3m, last output 10s ago", matching the assignment's form.
+3. A conversation whose round ended after the latest tick: waiting, "round N
+   ended, awaiting next update", where today it reads idle and answered.
+4. The hold for a failed listing, both kinds: "could not list issues for LABEL:
+   REASON", replacing "could not refresh issues: REASON" and "could not list
+   issue conversations for LABEL: REASON".
+5. Waiting for recovery, assignment: the ending detail, "round N errored (exit
+   S)" or "round N interrupted", replacing "next round, PURPOSE (recovery)", so
+   that the detail says what went wrong, as the conversation's already does.
+
+### Enduring documents to correct
+
+- Architecture, status reporting: what the two observation types record; that
+  launched work keeps an observation saying its round started; that a round
+  ended after the latest tick is waiting for the next update, for either kind.
+- Architecture, agent assignments and user-post relay: the delivery position is
+  read from recorded round inputs, and no cursor file exists. Five sentences
+  name the cursor today.
+- Architecture, state and documents: the versioned root is `.dreamcatcher/v5/`.
+- README: the state format section names v5 and its break.
+
+### Parallel names
+
+The operations each kind has after the change, read in pairs. Where a pair
+differs in shape, the line names the difference.
+
+| Operation          | Assignment                                           | Conversation                                           |
+| ------------------ | ---------------------------------------------------- | ------------------------------------------------------ |
+| Inspect for a tick | `inspect_agent_assignments`                          | `inspect_issue_conversations`                          |
+| Result             | `AgentWorkInspection`                                | `AgentWorkInspection`                                  |
+| Candidates         | three types, by the ranking list                     | two types, by the ranking list                         |
+| Rank               | `rank_agent_assignment_candidate`                    | `rank_issue_conversation_candidate`                    |
+| Launch             | `launch_agent_assignment_candidate`                  | `launch_issue_conversation_candidate`                  |
+| Observation        | `AgentWorkObservation`                               | `IssueConversationObservation`, adds two facts         |
+| Delivery position  | `read_user_post_delivery_cursor`                     | `read_issue_comment_delivery_cursor`                   |
+| Session identifier | `find_agent_assignment_harness_session_identifier`   | `find_issue_conversation_harness_session_identifier`   |
+| Record session     | `record_agent_assignment_harness_session_identifier` | `record_issue_conversation_harness_session_identifier` |
+| Retry              | `request_agent_assignment_retry`                     | `request_issue_conversation_retry`                     |
+| Status             | `derive_agent_assignment_status`                     | `derive_issue_conversation_status`                     |
+| Over               | `is_over`                                            | `is_over`                                              |
+
+The baseline counted twelve symbols for conversations against nine for
+assignments in the scheduler. The remeasurement counts these pairs and lists
+every symbol one kind has without a counterpart, with the line of part 1 that
+names it.
+
+### Asymmetries that stand
+
+Each of these is named by part 1 and stays, recorded here so the remeasurement
+can find it.
+
+- Which records are walked, and what each kind reads: differ 8 and 11.
+- Candidate types, three against two: differ 2 and 9.
+- The conversation observation's title and routing conflict: differ 7 and 8.
+- A conversation's fault counted only without a routing conflict: differ 10.
+- The finisher and the narrower permissions: differ 5 and 1.
+- The conversation's status existing without a record, dropping off the report
+  when ineligible, and showing each round's revision: differ 7, 11 and 4.
+- `find_open_agent_assignments_by_issue` with no counterpart: an issue can carry
+  many assignments over time and one open, and at most one conversation, so
+  there is nothing on the conversation side to filter.
+- How a failed listing is filled in: the assignment side reads each locally
+  known issue on its own, and the conversation side carries the previous tick's
+  observations forward as unknown. The architecture names the conversation's
+  rule. Giving both one rule changes which GitHub reads a tick makes, so it
+  waits for a stage with a behaviour budget.
+
+### Alternatives considered
+
+- **A candidate protocol with a launch method**, so the coordinator launches
+  without knowing the kind. The architecture rules this out in words: the
+  scheduling loop stays imperative rather than becoming an abstract command
+  hierarchy. Two named launches and a dispatch on kind keep it so.
+- **One candidate cut for both kinds**, as row 4 first asked. Forcing the
+  conversation's cut on assignments puts the first round, which reads no pull
+  request, into a type with an optional pull request, which E2 forbids. Forcing
+  the assignment's cut on conversations separates a first batch from a later
+  one, which the ontology treats as one thing. The cuts the ontology's ranking
+  lists give are the honest ones, and row 4 is corrected below.
+- **One observation list with a kind field.** The identifier already says the
+  kind by its prefix, and status reads the two kinds' observations by different
+  keys, so one list would need a discriminator to deserialise and gain nothing.
+  Two lists of one base type stay.
+- **Reading a first assignment round's pull request**, so that the first and
+  later round candidates could be one type. It adds a GitHub read and lets the
+  first round's purpose follow a pull request the user changed before the round
+  ran, which is a scheduling change. It waits.
+- **Keeping the prepared plan on the assignment candidate**, as the required
+  round has today. It costs nothing in side effects, but it leaves the two kinds
+  preparing at different moments and the launch of one kind trivial and of the
+  other heavy. Preparing at launch for both is the one shape.
+
+### Corrections to part 2
+
+Drafting the shape changed three verdicts in part 2, and the rows are corrected
+in place so this document reads true.
+
+- Row 4, item 3 said part 3 would pick one cut for both kinds. The ontology's
+  ranking lists name each kind's cut, so the cuts differ and stand. What was
+  accidental was the issue observation serving as a candidate.
+- Row 5, item 1 said each kind's bundle marks its own observation. One helper
+  over the base observation type marks either kind's.
+- Row 6, item 2 said a record with no ending means running. It means running
+  while a daemon lives, and status, which may run when none does, reads it as
+  left behind otherwise. Both kinds use those two readings.
