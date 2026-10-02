@@ -15,9 +15,9 @@ from conftest import (
 )
 from observations import observed_issue
 from pydantic import ValidationError
-from records import write_agent_assignment
+from records import write_assignment
 
-from dreamcatcher.agent_assignments import AgentAssignment, read_agent_assignments
+from dreamcatcher.agent_assignments import Assignment, read_assignments
 from dreamcatcher.config import DreamcatcherConfig
 from dreamcatcher.scheduler.issues import observe_issues
 from dreamcatcher.scheduler.models import (
@@ -73,7 +73,7 @@ def gh(fake):
 def observe(
     *,
     config: DreamcatcherConfig,
-    assignments: Sequence[AgentAssignment] = (),
+    assignments: Sequence[Assignment] = (),
     incomplete_setups: dict[int, str | None] | None = None,
     account: str = POSTED_BY,
 ):
@@ -240,7 +240,7 @@ def test_routing_conflict_is_independent_of_external_claims_and_blockers(gh):
 
 def test_local_and_external_claims_can_both_be_true(gh, tmp_path):
     state = StateDirectory(root=tmp_path)
-    write_agent_assignment(state=state, identifier="GH8-20260819-184158", issue=8)
+    write_assignment(state=state, identifier="GH8-20260819-184158", issue=8)
     gh.replies(
         stdout=json.dumps(
             {
@@ -261,7 +261,7 @@ def test_local_and_external_claims_can_both_be_true(gh, tmp_path):
 
     found = observe(
         config=config_with_routes(labels=[ASSIGNMENT_LABEL]),
-        assignments=read_agent_assignments(state=state),
+        assignments=read_assignments(state=state),
     )[0]
 
     assert found.claimed_here.value is IssueFactValue.TRUE
@@ -372,7 +372,7 @@ def test_a_failed_blocker_read_preserves_unknown_evidence(gh):
 
 def test_an_open_local_assignment_is_observed_outside_the_listing(gh, tmp_path):
     state = StateDirectory(root=tmp_path)
-    write_agent_assignment(state=state, identifier="GH13-20260819-184158", issue=13)
+    write_assignment(state=state, identifier="GH13-20260819-184158", issue=13)
     gh.replies(stdout="[]", to="issue list")
     gh.replies(
         stdout=json.dumps(
@@ -393,7 +393,7 @@ def test_an_open_local_assignment_is_observed_outside_the_listing(gh, tmp_path):
 
     found = observe(
         config=config_with_routes(labels=[ASSIGNMENT_LABEL]),
-        assignments=read_agent_assignments(state=state),
+        assignments=read_assignments(state=state),
     )
 
     assert [observation.issue for observation in found] == [13]
@@ -409,7 +409,7 @@ def test_a_local_assignment_remains_observed_when_the_listing_and_issue_read_fai
     gh, tmp_path
 ):
     state = StateDirectory(root=tmp_path)
-    write_agent_assignment(state=state, identifier="GH13-20260819-184158", issue=13)
+    write_assignment(state=state, identifier="GH13-20260819-184158", issue=13)
     gh.fails(stderr="gh: could not connect to github.com", to="issue list")
     gh.fails(stderr="gh: could not connect to github.com")
 
@@ -417,7 +417,7 @@ def test_a_local_assignment_remains_observed_when_the_listing_and_issue_read_fai
         repository=REPOSITORY,
         account=POSTED_BY,
         config=config_with_routes(labels=[ASSIGNMENT_LABEL]),
-        assignments=read_agent_assignments(state=state),
+        assignments=read_assignments(state=state),
         incomplete_setups={},
     )
 

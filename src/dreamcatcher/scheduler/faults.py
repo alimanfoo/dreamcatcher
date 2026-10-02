@@ -5,11 +5,11 @@ from datetime import datetime
 from dreamcatcher.agent_rounds import AgentRoundRecord, ErroredAgentRoundEnding
 from dreamcatcher.documents import read_json
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.issue_conversations import IssueConversation
+from dreamcatcher.issue_conversations import Conversation
 from dreamcatcher.scheduler.models import (
     GLOBAL_COOLDOWN_DURATION,
+    ConversationObservation,
     GlobalCooldown,
-    IssueConversationObservation,
     IssueFactValue,
     SchedulerRecord,
 )
@@ -47,8 +47,8 @@ def derive_agent_work_fault(
 
 def count_observed_conversation_faults(
     *,
-    conversations: list[IssueConversation],
-    observations: list[IssueConversationObservation],
+    conversations: list[Conversation],
+    observations: list[ConversationObservation],
     most_recent_cooldown_ended: datetime | None,
 ) -> int:
     """Count faults among conversations this tick keeps in the report."""

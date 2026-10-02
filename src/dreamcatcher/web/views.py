@@ -4,16 +4,16 @@ import re
 from datetime import datetime, tzinfo
 from typing import TYPE_CHECKING, cast
 
-from dreamcatcher.issue_conversations import IssueConversation
+from dreamcatcher.issue_conversations import Conversation
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
     CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER,
-    AgentAssignmentStatus,
-    AgentAssignmentStatusValue,
     AgentRoundStatus,
+    AssignmentStatus,
+    AssignmentStatusValue,
+    ConversationStatus,
     DreamcatcherStatusReport,
-    IssueConversationStatus,
     IssueFactValue,
     IssueObservation,
     read_dreamcatcher_daemon_status,
@@ -89,7 +89,7 @@ def _compose_assignment_cards(
         (
             status
             for status in report.assignment_statuses
-            if status.value is not AgentAssignmentStatusValue.COMPLETE
+            if status.value is not AssignmentStatusValue.COMPLETE
         ),
         key=lambda status: ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER.index(
             status.value
@@ -99,7 +99,7 @@ def _compose_assignment_cards(
         (
             status
             for status in report.assignment_statuses
-            if status.value is AgentAssignmentStatusValue.COMPLETE
+            if status.value is AssignmentStatusValue.COMPLETE
         ),
         key=_read_assignment_completion_time,
         reverse=True,
@@ -127,7 +127,7 @@ def _compose_conversation_cards(
     )
 
 
-def _read_assignment_completion_time(status: AgentAssignmentStatus, /) -> datetime:
+def _read_assignment_completion_time(status: AssignmentStatus, /) -> datetime:
     """Return the completion time for sorted, which passes items by position.
 
     The caller selects complete statuses, whose final round has a successful
@@ -140,7 +140,7 @@ def _read_assignment_completion_time(status: AgentAssignmentStatus, /) -> dateti
     return ending.at
 
 
-def _compose_assignment_card(*, status: AgentAssignmentStatus) -> WebAssignmentCard:
+def _compose_assignment_card(*, status: AssignmentStatus) -> WebAssignmentCard:
     assignment = status.assignment
     return WebAssignmentCard(
         identifier=assignment.identifier,
@@ -159,9 +159,7 @@ def _compose_assignment_card(*, status: AgentAssignmentStatus) -> WebAssignmentC
     )
 
 
-def _compose_conversation_card(
-    *, status: IssueConversationStatus
-) -> WebConversationCard:
+def _compose_conversation_card(*, status: ConversationStatus) -> WebConversationCard:
     """Return the values shown for one issue conversation on the home page.
 
     A conversation settles its settings when its first round launches.
@@ -187,7 +185,7 @@ def _compose_conversation_card(
     )
 
 
-def _describe_pull_request_state(*, status: AgentAssignmentStatus) -> str | None:
+def _describe_pull_request_state(*, status: AssignmentStatus) -> str | None:
     pull_request_observation = status.assignment.record.pull_request_observation
     if pull_request_observation is None:
         return None
@@ -199,7 +197,7 @@ def _describe_pull_request_state(*, status: AgentAssignmentStatus) -> str | None
 def compose_assignment_view(
     *,
     state: StateDirectory,
-    status: AgentAssignmentStatus,
+    status: AssignmentStatus,
     zone: tzinfo | None,
     stop_url: str | None = None,
 ) -> WebAssignmentView:
@@ -248,7 +246,7 @@ def compose_assignment_view(
 def compose_conversation_view(
     *,
     state: StateDirectory,
-    status: IssueConversationStatus,
+    status: ConversationStatus,
     zone: tzinfo | None,
     stop_url: str | None = None,
 ) -> WebConversationView:
@@ -282,9 +280,7 @@ def compose_conversation_view(
     )
 
 
-def _compose_conversation_facts(
-    *, conversation: IssueConversation
-) -> tuple[WebFact, ...]:
+def _compose_conversation_facts(*, conversation: Conversation) -> tuple[WebFact, ...]:
     """Return the settings that a conversation settled at its first round."""
     record = conversation.record
     return (
@@ -294,11 +290,11 @@ def _compose_conversation_facts(
     )
 
 
-def compose_assignment_status_label(*, status: AgentAssignmentStatus) -> str:
+def compose_assignment_status_label(*, status: AssignmentStatus) -> str:
     """Return the status label shown for one assignment."""
     return (
         "needs feedback"
-        if status.value is AgentAssignmentStatusValue.NEEDS_USER_FEEDBACK
+        if status.value is AssignmentStatusValue.NEEDS_USER_FEEDBACK
         else str(status.value)
     )
 

@@ -225,13 +225,13 @@ operations to:
 - record an interruption when the daemon finds a round record that an earlier
   daemon left without an ending.
 
-`agent_assignments.py` owns `AgentAssignmentRoundInput`, the pull request state
-and relayed user posts that a resumed assignment round receives beside its
-prompt. `issue_conversations.py` owns `IssueConversationInput`, which freezes
-the issue, trusted comments and investigated revision for a conversation round.
-The round runner writes whichever input the owner delivers without reading it,
-and it hands the final result to the owner's finisher without knowing what the
-owner does with it.
+`agent_assignments.py` owns `AssignmentRoundInput`, the pull request state and
+relayed user posts that a resumed assignment round receives beside its prompt.
+`issue_conversations.py` owns `ConversationInput`, which freezes the issue,
+trusted comments and investigated revision for a conversation round. The round
+runner writes whichever input the owner delivers without reading it, and it
+hands the final result to the owner's finisher without knowing what the owner
+does with it.
 
 The scheduler decides which purpose and recovery flag a new round has. The round
 boundary executes and records that decision; it does not inspect the pull
@@ -303,7 +303,7 @@ interface.
 Status reporting owns the read-only status model and constructs a
 `DreamcatcherStatusReport` containing the repository identity, instance and
 daemon facts, failed-setup, available and blocked `IssueObservation` entries,
-`IssueConversationStatus` entries, and `AgentAssignmentStatus` entries.
+`ConversationStatus` entries, and `AssignmentStatus` entries.
 
 Status construction may read:
 
@@ -329,22 +329,21 @@ its availability is derived from those facts together with whether the issue is
 open, assigned to the instance's user, and carries exactly one assignment label.
 The report includes available issues in the scheduler's dispatch order. It also
 includes issues with known open blockers, together with the scheduler's recorded
-blocker evidence. An `AgentAssignmentStatus` is one summary status from the
-ontology.
+blocker evidence. An `AssignmentStatus` is one summary status from the ontology.
 
 The report includes an issue observation among failed setups while the latest
 tick records a setup failure, independently of whether the issue is available or
 a linked pull request proves that it is claimed elsewhere.
 
-An `AgentAssignmentObservation` records the tick's interpretation of an idle
-open assignment. It carries a reason, whether the relevant facts were known, and
+An `AssignmentObservation` records the tick's interpretation of an idle open
+assignment. It carries a reason, whether the relevant facts were known, and
 whether it required a round. Status reads this observation because view commands
 cannot reach GitHub. It is the last tick's interpretation kept as operational
 evidence, not authoritative assignment state.
 
-The scheduler record holds one `IssueConversationObservation` for each open,
-assigned issue that carries at least one configured conversation label. Each
-observation records:
+The scheduler record holds one `ConversationObservation` for each open, assigned
+issue that carries at least one configured conversation label. Each observation
+records:
 
 - the issue and its title;
 - an `IssueFact` that says whether comments wait to be answered; and
@@ -360,7 +359,7 @@ conversation once no round runs for it.
 If the tick cannot list the matching issues, it copies the previous tick's
 observations and marks each fact unknown.
 
-An `IssueConversationStatus` is one summary status from the ontology.
+A `ConversationStatus` is one summary status from the ontology.
 
 The scheduler record also names every assignment or conversation whose round the
 tick launched, in launch order. Alternation advances when a kind is selected,

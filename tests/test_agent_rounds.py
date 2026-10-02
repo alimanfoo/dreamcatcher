@@ -24,10 +24,9 @@ from fakes import Line, Stream, recorded
 from recordings import render_harness_recording
 
 import dreamcatcher.agent_rounds as agent_rounds_module
-from dreamcatcher.agent_assignments import AgentAssignmentRoundInput
+from dreamcatcher.agent_assignments import AssignmentRoundInput
 from dreamcatcher.agent_rounds import (
     AGENT_ROUND_RECORD_NAME,
-    AgentAssignmentRoundPurpose,
     AgentRound,
     AgentRoundFinisher,
     AgentRoundHarness,
@@ -36,9 +35,10 @@ from dreamcatcher.agent_rounds import (
     AgentRoundPlan,
     AgentRoundRecord,
     AgentRoundStartRequest,
+    AssignmentRoundPurpose,
+    ConversationRoundPurpose,
     ErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
-    IssueConversationRoundPurpose,
     StoppedAgentRoundEnding,
     compose_agent_round_ending,
     record_agent_round_interruption,
@@ -71,7 +71,7 @@ RECORDING = FIXTURES / "claude" / "round.jsonl"
 FEED_TIMESTAMP = "2026-08-19T18:41:58Z"
 
 # What the tests here say woke every round they run.
-PURPOSE = AgentAssignmentRoundPurpose.IMPLEMENT
+PURPOSE = AssignmentRoundPurpose.IMPLEMENT
 
 # What every round here asks the harness to do. It holds a percent sign and runs
 # over two lines, neither of which a command line could carry to a batch file,
@@ -322,7 +322,7 @@ def test_a_round_writes_the_pull_request_state_and_user_posts_it_was_given(
         plan=AgentRoundPlan(
             purpose=PURPOSE,
             is_recovery=False,
-            input=AgentAssignmentRoundInput(
+            input=AssignmentRoundInput(
                 pull_request_state=PullRequestState.OPEN, user_posts=posts
             ),
         ),
@@ -548,7 +548,7 @@ def start_conversation_round(
             finish_round=finish_round,
             paths=paths,
             plan=AgentRoundPlan(
-                purpose=IssueConversationRoundPurpose.DISCUSS, is_recovery=False
+                purpose=ConversationRoundPurpose.DISCUSS, is_recovery=False
             ),
         ),
         clock=pinned,
@@ -874,7 +874,7 @@ def test_a_finished_round_a_straggler_outlives_still_records_an_ending(
         ),
         paths=paths,
         plan=AgentRoundPlan(
-            purpose=IssueConversationRoundPurpose.DISCUSS, is_recovery=False
+            purpose=ConversationRoundPurpose.DISCUSS, is_recovery=False
         ),
         finish_round=finish_round,
         clock=pinned,

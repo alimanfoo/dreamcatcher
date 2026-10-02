@@ -17,7 +17,7 @@ from status_fabrications import (
 )
 from werkzeug.serving import make_server
 
-from dreamcatcher.agent_assignments import read_agent_assignment
+from dreamcatcher.agent_assignments import read_assignment
 from dreamcatcher.documents import append_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.state import StateDirectory
@@ -37,7 +37,7 @@ def serve_fabricated_web(*, root: Path) -> Iterator[str]:
         state=state,
         conversation_observations=[observed_conversation()],
     )
-    assignment = read_agent_assignment(
+    assignment = read_assignment(
         state=state,
         identifier=BROWSER_ASSIGNMENT_IDENTIFIER,
     )

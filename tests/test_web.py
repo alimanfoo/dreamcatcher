@@ -10,7 +10,7 @@ from unittest.mock import MagicMock
 import pytest
 from clocks import DISPLAY_TIME_ZONE, PINNED
 from conftest import FIXTURES, REPOSITORY, assert_matches_view_golden
-from records import write_agent_assignment, write_feed, write_round, write_tick
+from records import write_assignment, write_feed, write_round, write_tick
 from status_fabrications import (
     LOOKED_AT,
     STATUS_REPORTS,
@@ -24,10 +24,10 @@ from status_fabrications import (
 from werkzeug.test import TestResponse
 
 import dreamcatcher.web.server as web_server_module
-from dreamcatcher.agent_assignments import read_agent_assignment
+from dreamcatcher.agent_assignments import read_assignment
 from dreamcatcher.agent_rounds import (
-    AgentAssignmentRoundPurpose,
     AgentRoundRecord,
+    AssignmentRoundPurpose,
     StoppedAgentRoundEnding,
 )
 from dreamcatcher.documents import append_text, remove_file, write_text
@@ -83,7 +83,7 @@ def _read_tail(*, state: StateDirectory, identifier: str, cursor: str) -> TestRe
 
 
 def _feed_path(*, state: StateDirectory, identifier: str, number: int):
-    assignment = read_agent_assignment(state=state, identifier=identifier)
+    assignment = read_assignment(state=state, identifier=identifier)
     assert assignment is not None
     return assignment.compose_round_paths(number=number).feed
 
@@ -160,7 +160,7 @@ def test_assignment_page_requests_a_stop_for_its_running_round(tmp_path, daemon)
 
     assert response.status_code == 303
     assert response.location == f"/assignments/{identifier}"
-    assignment = read_agent_assignment(state=state, identifier=identifier)
+    assignment = read_assignment(state=state, identifier=identifier)
     assert assignment is not None
     paths = assignment.compose_round_paths(number=2)
     assert paths.stop_request.read_text(encoding="utf-8") == ""
@@ -182,7 +182,7 @@ def test_an_old_assignment_stop_submission_cannot_stop_the_next_round(tmp_path, 
     )
 
     assert response.status_code == 303
-    assignment = read_agent_assignment(state=state, identifier=identifier)
+    assignment = read_assignment(state=state, identifier=identifier)
     assert assignment is not None
     assert not assignment.compose_round_paths(number=2).stop_request.exists()
 
@@ -198,7 +198,7 @@ def test_assignment_stop_requests_must_come_from_the_page(tmp_path, daemon, orig
     response = client.post(f"/assignments/{identifier}/stop/2", headers=headers)
 
     assert response.status_code == 403
-    assignment = read_agent_assignment(state=state, identifier=identifier)
+    assignment = read_assignment(state=state, identifier=identifier)
     assert assignment is not None
     assert not assignment.compose_round_paths(number=2).stop_request.exists()
 
@@ -207,7 +207,7 @@ def test_assignment_stop_control_needs_a_daemon_and_harness_session(tmp_path, da
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     identifier = "GH60-20260819-184158"
-    directory = write_agent_assignment(
+    directory = write_assignment(
         state=state,
         identifier=identifier,
         issue=60,
@@ -254,7 +254,7 @@ def test_a_stale_assignment_stop_request_is_already_done(tmp_path, daemon):
     )
 
     assert response.status_code == 303
-    assignment = read_agent_assignment(state=state, identifier=identifier)
+    assignment = read_assignment(state=state, identifier=identifier)
     assert assignment is not None
     assert not assignment.compose_round_paths(number=2).stop_request.exists()
 
@@ -280,7 +280,7 @@ def test_a_stopped_round_is_shown_as_stopped(tmp_path, daemon):
         records=[
             AgentRoundRecord(
                 number=1,
-                purpose=AgentAssignmentRoundPurpose.IMPLEMENT,
+                purpose=AssignmentRoundPurpose.IMPLEMENT,
                 started=PINNED,
                 pid=1,
                 ending=StoppedAgentRoundEnding(at=PINNED + timedelta(minutes=2)),
@@ -454,7 +454,7 @@ def test_complete_assignments_are_ordered_by_most_recent_completion(tmp_path):
         issue=10,
         records=[
             ended(minute=1),
-            ended(minute=2, number=2, purpose=AgentAssignmentRoundPurpose.WRAP_UP),
+            ended(minute=2, number=2, purpose=AssignmentRoundPurpose.WRAP_UP),
         ],
     )
     written(
@@ -462,7 +462,7 @@ def test_complete_assignments_are_ordered_by_most_recent_completion(tmp_path):
         issue=20,
         records=[
             ended(minute=1),
-            ended(minute=20, number=2, purpose=AgentAssignmentRoundPurpose.WRAP_UP),
+            ended(minute=20, number=2, purpose=AssignmentRoundPurpose.WRAP_UP),
         ],
     )
 

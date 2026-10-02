@@ -9,7 +9,7 @@ from rich.console import Console, RenderableType
 from rich.padding import Padding
 from rich.text import Text
 
-from dreamcatcher.agent_assignments import AgentAssignment
+from dreamcatcher.agent_assignments import Assignment
 from dreamcatcher.agent_rounds import AgentRoundRecord
 from dreamcatcher.clock import WaitForSeconds, read_current_time
 from dreamcatcher.documents import read_lines_from
@@ -23,15 +23,15 @@ from dreamcatcher.feed import (
     read_feed_line,
 )
 from dreamcatcher.harness_adapters import AgentWorkKind
-from dreamcatcher.issue_conversations import IssueConversation
+from dreamcatcher.issue_conversations import Conversation
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     STATUSES_THAT_END_A_VIEW,
-    AgentAssignmentStatus,
     AgentRoundStatus,
-    IssueConversationStatus,
-    read_agent_assignment_statuses_for_issue,
-    read_issue_conversation_status,
+    AssignmentStatus,
+    ConversationStatus,
+    read_assignment_statuses_for_issue,
+    read_conversation_status,
 )
 from dreamcatcher.tui.shared import (
     ASSIGNMENT_STATUS_STYLES,
@@ -113,7 +113,7 @@ def _read_conversation_snapshot(
 def _render_conversation(
     *,
     state: StateDirectory,
-    status: IssueConversationStatus,
+    status: ConversationStatus,
     zone: tzinfo | None,
 ) -> RenderableType:
     """Render one issue conversation and its saved rounds.
@@ -188,7 +188,7 @@ def _read_assignment_snapshot(
 def _render_assignment(
     *,
     state: StateDirectory,
-    assignment_statuses: list[AgentAssignmentStatus],
+    assignment_statuses: list[AssignmentStatus],
     zone: tzinfo | None,
 ) -> RenderableType:
     """Render the newest assignment with older assignments beneath it."""
@@ -219,7 +219,7 @@ def _render_assignment(
 
 
 def _render_assignment_summary(
-    *, state: StateDirectory, status: AgentAssignmentStatus
+    *, state: StateDirectory, status: AssignmentStatus
 ) -> RenderableType:
     """Return what the assignment dispatch settled for every round."""
     assignment = status.assignment
@@ -245,7 +245,7 @@ def _render_assignment_summary(
 
 
 def _render_rounds(
-    *, status: AgentAssignmentStatus, zone: tzinfo | None
+    *, status: AssignmentStatus, zone: tzinfo | None
 ) -> RenderableType | None:
     """Return the rounds the assignment has run, newest first."""
     return _render_round_statuses(round_statuses=status.round_statuses, zone=zone)
@@ -284,7 +284,7 @@ def _render_round_statuses(
 
 
 def _render_harness_resume(
-    *, state: StateDirectory, status: AgentAssignmentStatus
+    *, state: StateDirectory, status: AssignmentStatus
 ) -> RenderableType | None:
     """Return how to resume the harness session by hand, when one exists."""
     if status.hand_resume_command is None:
@@ -298,7 +298,7 @@ def _render_harness_resume(
 
 
 def _render_older_assignments(
-    *, older_statuses: list[AgentAssignmentStatus]
+    *, older_statuses: list[AssignmentStatus]
 ) -> RenderableType | None:
     """Return the assignments at this issue that came before, newest first."""
     if not older_statuses:
@@ -391,9 +391,9 @@ def _find_assignment_statuses_for_issue(
     state: StateDirectory,
     issue: int,
     clock: Callable[[], datetime] = read_current_time,
-) -> list[AgentAssignmentStatus]:
+) -> list[AssignmentStatus]:
     """Return the issue's agent-assignment statuses, or refuse if none."""
-    assignment_statuses = read_agent_assignment_statuses_for_issue(
+    assignment_statuses = read_assignment_statuses_for_issue(
         state=state,
         issue=issue,
         clock=clock,
@@ -408,9 +408,9 @@ def _find_conversation_status_for_issue(
     state: StateDirectory,
     issue: int,
     clock: Callable[[], datetime] = read_current_time,
-) -> IssueConversationStatus:
+) -> ConversationStatus:
     """Return the issue's conversation status, or refuse if none."""
-    status = read_issue_conversation_status(state=state, issue=issue, clock=clock)
+    status = read_conversation_status(state=state, issue=issue, clock=clock)
     if status is None:
         raise ReportableError(f"No conversation here for GH{issue}.")
     return status
@@ -420,7 +420,7 @@ def _find_conversation_status_for_issue(
 class _FeedOwnerSnapshot:
     """Hold one feed owner and the status-derived context for its headings."""
 
-    owner: AgentAssignment | IssueConversation
+    owner: Assignment | Conversation
     is_over: bool
     round_details: dict[int, str]
 
@@ -463,7 +463,7 @@ class _FeedView:
     def show_new_output(
         self,
         *,
-        owner: AgentAssignment | IssueConversation,
+        owner: Assignment | Conversation,
         records: Iterable[AgentRoundRecord],
         round_details: dict[int, str],
     ) -> None:
@@ -498,7 +498,7 @@ class _FeedView:
         self.positions[record.number] = 0
 
     def _show_new_lines(
-        self, *, owner: AgentAssignment | IssueConversation, round_number: int
+        self, *, owner: Assignment | Conversation, round_number: int
     ) -> None:
         """Show lines the round wrote since the previous refresh."""
         feed_path = owner.compose_round_paths(number=round_number).feed

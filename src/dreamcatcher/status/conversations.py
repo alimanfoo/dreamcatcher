@@ -13,15 +13,15 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.documents import read_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.issue_conversations import (
-    IssueConversation,
-    describe_issue_conversation_revision,
-    find_issue_conversation_harness_session_identifier,
-    is_issue_conversation_ready_for_input,
+    Conversation,
+    describe_conversation_revision,
+    find_conversation_harness_session_identifier,
+    is_conversation_ready_for_input,
     is_no_reply,
-    read_issue_conversation_input,
+    read_conversation_input,
 )
 from dreamcatcher.scheduler.models import (
-    IssueConversationObservation,
+    ConversationObservation,
     IssueFactValue,
 )
 from dreamcatcher.status.rounds import (
@@ -31,7 +31,7 @@ from dreamcatcher.status.rounds import (
 )
 
 
-class IssueConversationStatusValue(StrEnum):
+class ConversationStatusValue(StrEnum):
     """List the summary statuses of an issue conversation.
 
     Shared words mean what they mean for an assignment. Routing conflict means
@@ -51,12 +51,12 @@ class IssueConversationStatusValue(StrEnum):
 
 # Idle comes last because a conversation at rest asks nothing of the user.
 CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER = (
-    IssueConversationStatusValue.ROUTING_CONFLICT,
-    IssueConversationStatusValue.FAULT,
-    IssueConversationStatusValue.WORKING,
-    IssueConversationStatusValue.WAITING,
-    IssueConversationStatusValue.UNKNOWN,
-    IssueConversationStatusValue.IDLE,
+    ConversationStatusValue.ROUTING_CONFLICT,
+    ConversationStatusValue.FAULT,
+    ConversationStatusValue.WORKING,
+    ConversationStatusValue.WAITING,
+    ConversationStatusValue.UNKNOWN,
+    ConversationStatusValue.IDLE,
 )
 
 
@@ -64,13 +64,13 @@ CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER = (
 class ConversationSummary:
     """Hold the status, detail and latest output derived for one conversation."""
 
-    value: IssueConversationStatusValue
+    value: ConversationStatusValue
     detail: str
     latest_output: str | None = None
 
 
 @dataclass(frozen=True, kw_only=True)
-class IssueConversationStatus:
+class ConversationStatus:
     """Describe an issue conversation's derived summary status.
 
     A matching issue has a status from the first tick that observes it, but no
@@ -79,8 +79,8 @@ class IssueConversationStatus:
 
     issue: int
     title: str
-    conversation: IssueConversation | None
-    value: IssueConversationStatusValue
+    conversation: Conversation | None
+    value: ConversationStatusValue
     detail: str
     latest_output: str | None
     observed_at: datetime | None
@@ -97,8 +97,8 @@ class IssueConversationStatus:
         return (
             self.value
             in {
-                IssueConversationStatusValue.FAULT,
-                IssueConversationStatusValue.ROUTING_CONFLICT,
+                ConversationStatusValue.FAULT,
+                ConversationStatusValue.ROUTING_CONFLICT,
             }
             or not self.is_listed
         )
@@ -108,11 +108,9 @@ class IssueConversationStatus:
         """The live round that can accept a stop request, when one exists."""
         conversation = self.conversation
         if (
-            self.value is not IssueConversationStatusValue.WORKING
+            self.value is not ConversationStatusValue.WORKING
             or conversation is None
-            or find_issue_conversation_harness_session_identifier(
-                conversation=conversation
-            )
+            or find_conversation_harness_session_identifier(conversation=conversation)
             is None
         ):
             return None
@@ -131,12 +129,12 @@ class IssueConversationStatus:
             revision = None
             revision_description = None
             try:
-                round_input = read_issue_conversation_input(
+                round_input = read_conversation_input(
                     conversation=conversation,
                     number=record.number,
                 )
                 revision = round_input.revision
-                revision_description = describe_issue_conversation_revision(
+                revision_description = describe_conversation_revision(
                     previous_revision=previous_revision,
                     revision=revision,
                 )
@@ -152,7 +150,7 @@ class IssueConversationStatus:
                     outcome_description=describe_round_outcome(
                         record=record,
                         is_running=(
-                            self.value is IssueConversationStatusValue.WORKING
+                            self.value is ConversationStatusValue.WORKING
                             and record.number == conversation.rounds[-1].number
                         ),
                     ),
@@ -165,8 +163,8 @@ class IssueConversationStatus:
 
 def summarize_observed_conversation(
     *,
-    observation: IssueConversationObservation,
-    conversation: IssueConversation | None,
+    observation: ConversationObservation,
+    conversation: Conversation | None,
 ) -> ConversationSummary:
     """Return what a matching issue says about its conversation.
 
@@ -176,38 +174,38 @@ def summarize_observed_conversation(
     routing_conflict = observation.routing_conflict
     if routing_conflict.value is IssueFactValue.UNKNOWN:
         return ConversationSummary(
-            value=IssueConversationStatusValue.UNKNOWN,
+            value=ConversationStatusValue.UNKNOWN,
             detail=routing_conflict.evidence,
         )
     if routing_conflict.value is IssueFactValue.TRUE:
         return ConversationSummary(
-            value=IssueConversationStatusValue.ROUTING_CONFLICT,
+            value=ConversationStatusValue.ROUTING_CONFLICT,
             detail=routing_conflict.evidence,
         )
     has_comments_to_answer = observation.has_comments_to_answer
     if has_comments_to_answer.value is IssueFactValue.UNKNOWN:
         return ConversationSummary(
-            value=IssueConversationStatusValue.UNKNOWN,
+            value=ConversationStatusValue.UNKNOWN,
             detail=has_comments_to_answer.evidence,
         )
     unfinished_round = describe_unfinished_conversation_round(conversation=conversation)
     if unfinished_round is not None:
         return ConversationSummary(
-            value=IssueConversationStatusValue.WAITING, detail=unfinished_round
+            value=ConversationStatusValue.WAITING, detail=unfinished_round
         )
     if has_comments_to_answer.value is IssueFactValue.TRUE:
         return ConversationSummary(
-            value=IssueConversationStatusValue.WAITING,
+            value=ConversationStatusValue.WAITING,
             detail=has_comments_to_answer.evidence,
         )
     return ConversationSummary(
-        value=IssueConversationStatusValue.IDLE,
+        value=ConversationStatusValue.IDLE,
         detail=_describe_idle_conversation(conversation=conversation),
     )
 
 
 def describe_unfinished_conversation_round(
-    *, conversation: IssueConversation | None
+    *, conversation: Conversation | None
 ) -> str | None:
     """Describe the conversation's latest round if it errored or was interrupted.
 
@@ -215,7 +213,7 @@ def describe_unfinished_conversation_round(
     """
     if conversation is None or not conversation.rounds:
         return None
-    if is_issue_conversation_ready_for_input(conversation=conversation):
+    if is_conversation_ready_for_input(conversation=conversation):
         return None
     latest = conversation.rounds[-1]
     ending = latest.ending
@@ -225,7 +223,7 @@ def describe_unfinished_conversation_round(
     return f"round {latest.number} {outcome}"
 
 
-def _describe_idle_conversation(*, conversation: IssueConversation | None) -> str:
+def _describe_idle_conversation(*, conversation: Conversation | None) -> str:
     """Describe a conversation that has answered every comment it was given.
 
     Its latest round either answered the comments or stopped for new direction.

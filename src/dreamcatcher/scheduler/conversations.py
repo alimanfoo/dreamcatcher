@@ -11,7 +11,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
     AgentRoundPlan,
     AgentRoundStartRequest,
-    IssueConversationRoundPurpose,
+    ConversationRoundPurpose,
     start_agent_round,
 )
 from dreamcatcher.config import AgentHarness, ConversationRoute, DreamcatcherConfig
@@ -25,26 +25,26 @@ from dreamcatcher.github import (
 )
 from dreamcatcher.harness_adapters import AgentRoundLaunchRequest, AgentWorkKind
 from dreamcatcher.issue_conversations import (
-    IssueConversation,
-    IssueConversationInput,
-    create_issue_conversation,
-    find_issue_conversation_harness_session_identifier,
-    is_issue_conversation_ready_for_input,
+    Conversation,
+    ConversationInput,
+    create_conversation,
+    find_conversation_harness_session_identifier,
+    is_conversation_ready_for_input,
     list_undelivered_issue_comments,
-    post_issue_conversation_answer,
-    prepare_issue_conversation_input,
+    post_conversation_answer,
+    prepare_conversation_input,
+    read_conversation_input,
     read_issue_comment_delivery_cursor,
-    read_issue_conversation_input,
-    record_issue_conversation_session_identifier,
+    record_conversation_session_identifier,
 )
 from dreamcatcher.prompts import (
-    ISSUE_CONVERSATION_RECOVERY_PROMPT,
-    compose_issue_conversation_prompt,
-    compose_issue_conversation_round_prompt,
+    CONVERSATION_RECOVERY_PROMPT,
+    compose_conversation_prompt,
+    compose_conversation_round_prompt,
 )
 from dreamcatcher.scheduler.faults import derive_agent_work_fault
 from dreamcatcher.scheduler.models import (
-    IssueConversationObservation,
+    ConversationObservation,
     IssueFact,
     IssueFactValue,
     SchedulerRecord,
@@ -67,33 +67,33 @@ class _ConversationScheduler(Protocol):
 
 
 @dataclass(frozen=True, kw_only=True)
-class NewIssueConversationRoundCandidate:
+class NewConversationRoundCandidate:
     """Describe an eligible issue with trusted comments waiting."""
 
     issue: Issue
     comments: list[ConversationComment]
-    conversation: IssueConversation | None
+    conversation: Conversation | None
     route: ConversationRoute
 
 
 @dataclass(frozen=True, kw_only=True)
-class IssueConversationRecoveryCandidate:
+class ConversationRecoveryCandidate:
     """Describe an eligible conversation with unfinished work to recover."""
 
-    conversation: IssueConversation
+    conversation: Conversation
 
 
-type IssueConversationCandidate = (
-    NewIssueConversationRoundCandidate | IssueConversationRecoveryCandidate
+type ConversationCandidate = (
+    NewConversationRoundCandidate | ConversationRecoveryCandidate
 )
 
 
 @dataclass(frozen=True, kw_only=True)
-class IssueConversationCandidateResult:
+class ConversationCandidateResult:
     """Collect conversation observations, candidates, and any failed read."""
 
-    candidates: list[IssueConversationCandidate]
-    observations: list[IssueConversationObservation]
+    candidates: list[ConversationCandidate]
+    observations: list[ConversationObservation]
     failure: str | None = None
 
 
@@ -106,46 +106,46 @@ class _ConversationRouteListing:
 
 
 @dataclass(frozen=True, kw_only=True)
-class _IssueConversationInspection:
-    observation: IssueConversationObservation
-    candidate: IssueConversationCandidate | None
+class _ConversationInspection:
+    observation: ConversationObservation
+    candidate: ConversationCandidate | None
 
 
 @dataclass(frozen=True, kw_only=True)
-class _PreparedIssueConversationRound:
-    conversation: IssueConversation
-    round_input: IssueConversationInput
+class _PreparedConversationRound:
+    conversation: Conversation
+    round_input: ConversationInput
     prompt: str
     harness_session_identifier: str | None
     is_recovery: bool
 
 
-def _rank_issue_conversation_candidate(
-    candidate: IssueConversationCandidate, /
+def _rank_conversation_candidate(
+    candidate: ConversationCandidate, /
 ) -> tuple[int, str, int]:
     """Rank recovery before fresh batches, then fresh batches oldest first."""
-    if isinstance(candidate, IssueConversationRecoveryCandidate):
+    if isinstance(candidate, ConversationRecoveryCandidate):
         return (0, "", candidate.conversation.record.issue)
     first_comment = candidate.comments[0]
     return (1, first_comment.written_at, first_comment.id)
 
 
-def _prepare_issue_conversation_round(
+def _prepare_conversation_round(
     *,
     state: StateDirectory,
-    candidate: IssueConversationCandidate,
+    candidate: ConversationCandidate,
     requested_harness: AgentHarness,
-) -> _PreparedIssueConversationRound:
+) -> _PreparedConversationRound:
     """Prepare either a fresh conversation batch or unfinished work."""
-    if isinstance(candidate, IssueConversationRecoveryCandidate):
-        return _prepare_issue_conversation_recovery(conversation=candidate.conversation)
-    conversation = candidate.conversation or create_issue_conversation(
+    if isinstance(candidate, ConversationRecoveryCandidate):
+        return _prepare_conversation_recovery(conversation=candidate.conversation)
+    conversation = candidate.conversation or create_conversation(
         state=state,
         route=candidate.route,
         requested_harness=requested_harness,
         issue=candidate.issue,
     )
-    round_input = prepare_issue_conversation_input(
+    round_input = prepare_conversation_input(
         state=state,
         conversation=conversation,
         issue=candidate.issue,
@@ -153,13 +153,13 @@ def _prepare_issue_conversation_round(
     )
     paths = conversation.compose_round_paths(number=conversation.next_round_number)
     harness_session_identifier = None
-    prompt = compose_issue_conversation_prompt(
+    prompt = compose_conversation_prompt(
         template=conversation.record.prompt,
         issue=conversation.record.issue,
         round_input=paths.round_input,
     )
     if conversation.rounds:
-        harness_session_identifier = find_issue_conversation_harness_session_identifier(
+        harness_session_identifier = find_conversation_harness_session_identifier(
             conversation=conversation
         )
         if harness_session_identifier is None:
@@ -167,12 +167,12 @@ def _prepare_issue_conversation_round(
                 f"Could not resume {conversation.identifier}: its first round did "
                 "not report a harness session identifier."
             )
-        prompt = compose_issue_conversation_round_prompt(
+        prompt = compose_conversation_round_prompt(
             issue=conversation.record.issue,
             round_input=paths.round_input,
             was_stopped=(conversation.rounds[-1].outcome is AgentRoundOutcome.STOPPED),
         )
-    return _PreparedIssueConversationRound(
+    return _PreparedConversationRound(
         conversation=conversation,
         round_input=round_input,
         prompt=prompt,
@@ -181,30 +181,30 @@ def _prepare_issue_conversation_round(
     )
 
 
-def _prepare_issue_conversation_recovery(
-    *, conversation: IssueConversation
-) -> _PreparedIssueConversationRound:
+def _prepare_conversation_recovery(
+    *, conversation: Conversation
+) -> _PreparedConversationRound:
     """Prepare a recovery from the latest round's saved input and session."""
     latest_round = conversation.rounds[-1]
-    round_input = read_issue_conversation_input(
+    round_input = read_conversation_input(
         conversation=conversation,
         number=latest_round.number,
     )
-    harness_session_identifier = find_issue_conversation_harness_session_identifier(
+    harness_session_identifier = find_conversation_harness_session_identifier(
         conversation=conversation
     )
     if harness_session_identifier is None:
         next_input = conversation.compose_round_paths(
             number=conversation.next_round_number
         ).round_input
-        prompt = compose_issue_conversation_prompt(
+        prompt = compose_conversation_prompt(
             template=conversation.record.prompt,
             issue=conversation.record.issue,
             round_input=next_input,
         )
     else:
-        prompt = ISSUE_CONVERSATION_RECOVERY_PROMPT
-    return _PreparedIssueConversationRound(
+        prompt = CONVERSATION_RECOVERY_PROMPT
+    return _PreparedConversationRound(
         conversation=conversation,
         round_input=round_input,
         prompt=prompt,
@@ -218,7 +218,7 @@ def _list_comments_to_answer(
     repository: str,
     account: str,
     issue: int,
-    conversation: IssueConversation | None,
+    conversation: Conversation | None,
 ) -> list[ConversationComment]:
     """Return the trusted comments that no round has been given yet.
 
@@ -246,13 +246,13 @@ def _list_comments_to_answer(
     )
 
 
-def list_issue_conversation_candidates(
+def list_conversation_candidates(
     *,
     scheduler: _ConversationScheduler,
-    conversations: list[IssueConversation],
-    previous_observations: list[IssueConversationObservation],
+    conversations: list[Conversation],
+    previous_observations: list[ConversationObservation],
     most_recent_cooldown_ended: datetime | None,
-) -> IssueConversationCandidateResult:
+) -> ConversationCandidateResult:
     """Observe every matching issue and return conversation work ready to run.
 
     Comments are read for every eligible issue that can accept a fresh batch,
@@ -264,7 +264,7 @@ def list_issue_conversation_candidates(
     off it.
     """
     if not scheduler.config.conversation:
-        return IssueConversationCandidateResult(candidates=[], observations=[])
+        return ConversationCandidateResult(candidates=[], observations=[])
     listing = _list_conversation_route_issues(scheduler=scheduler)
     conversations_by_issue = {
         conversation.record.issue: conversation for conversation in conversations
@@ -281,8 +281,8 @@ def list_issue_conversation_candidates(
             previous_observations=previous_observations,
         )
     )
-    return IssueConversationCandidateResult(
-        candidates=sorted(candidates, key=_rank_issue_conversation_candidate),
+    return ConversationCandidateResult(
+        candidates=sorted(candidates, key=_rank_conversation_candidate),
         observations=observations,
         failure=combine_scheduler_failures(failures=failures),
     )
@@ -292,15 +292,15 @@ def _inspect_listed_conversations(
     *,
     scheduler: _ConversationScheduler,
     listing: _ConversationRouteListing,
-    conversations_by_issue: dict[int, IssueConversation],
+    conversations_by_issue: dict[int, Conversation],
     most_recent_cooldown_ended: datetime | None,
 ) -> tuple[
-    list[IssueConversationCandidate],
-    list[IssueConversationObservation],
+    list[ConversationCandidate],
+    list[ConversationObservation],
     list[str | None],
 ]:
-    candidates: list[IssueConversationCandidate] = []
-    observations: list[IssueConversationObservation] = []
+    candidates: list[ConversationCandidate] = []
+    observations: list[ConversationObservation] = []
     failures: list[str | None] = [listing.failure]
     for issue in listing.issues:
         conversation = conversations_by_issue.get(issue.number)
@@ -316,7 +316,7 @@ def _inspect_listed_conversations(
         if inspection.candidate is not None:
             candidates.append(inspection.candidate)
         elif (
-            is_issue_conversation_ready_for_input(conversation=conversation)
+            is_conversation_ready_for_input(conversation=conversation)
             and inspection.observation.has_comments_to_answer.value
             is IssueFactValue.UNKNOWN
         ):
@@ -327,8 +327,8 @@ def _inspect_listed_conversations(
 def _carry_forward_unlisted_observations(
     *,
     listing: _ConversationRouteListing,
-    previous_observations: list[IssueConversationObservation],
-) -> list[IssueConversationObservation]:
+    previous_observations: list[ConversationObservation],
+) -> list[ConversationObservation]:
     if listing.failure is None:
         return []
     unknown = IssueFact(value=IssueFactValue.UNKNOWN, evidence=listing.failure)
@@ -378,9 +378,9 @@ def _inspect_listed_conversation_issue(
     *,
     scheduler: _ConversationScheduler,
     issue: Issue,
-    conversation: IssueConversation | None,
+    conversation: Conversation | None,
     most_recent_cooldown_ended: datetime | None,
-) -> _IssueConversationInspection | None:
+) -> _ConversationInspection | None:
     """Inspect one currently matching listed issue."""
     routes = scheduler.config.identify_conversation_routes(
         labels=[label.name for label in issue.labels]
@@ -388,7 +388,7 @@ def _inspect_listed_conversation_issue(
     if not routes:
         return None
     if len(routes) == 1:
-        return _inspect_issue_conversation(
+        return _inspect_conversation(
             scheduler=scheduler,
             route=routes[0],
             issue=issue,
@@ -396,8 +396,8 @@ def _inspect_listed_conversation_issue(
             most_recent_cooldown_ended=most_recent_cooldown_ended,
         )
     labels = ", ".join(sorted((route.label for route in routes), key=str.casefold))
-    return _IssueConversationInspection(
-        observation=IssueConversationObservation(
+    return _ConversationInspection(
+        observation=ConversationObservation(
             issue=issue.number,
             title=issue.title,
             has_comments_to_answer=IssueFact(
@@ -413,14 +413,14 @@ def _inspect_listed_conversation_issue(
     )
 
 
-def _inspect_issue_conversation(
+def _inspect_conversation(
     *,
     scheduler: _ConversationScheduler,
     route: ConversationRoute,
     issue: Issue,
-    conversation: IssueConversation | None,
+    conversation: Conversation | None,
     most_recent_cooldown_ended: datetime | None,
-) -> _IssueConversationInspection:
+) -> _ConversationInspection:
     """Observe one eligible issue, and return a candidate when it is ready."""
     recovery = _inspect_conversation_recovery(
         issue=issue,
@@ -434,35 +434,35 @@ def _inspect_issue_conversation(
         issue=issue.number,
         conversation=conversation,
     )
-    observation = IssueConversationObservation(
+    observation = ConversationObservation(
         issue=issue.number,
         title=issue.title,
         has_comments_to_answer=has_comments_to_answer,
     )
     candidate = None
-    if comments and is_issue_conversation_ready_for_input(conversation=conversation):
-        candidate = NewIssueConversationRoundCandidate(
+    if comments and is_conversation_ready_for_input(conversation=conversation):
+        candidate = NewConversationRoundCandidate(
             issue=issue,
             comments=comments,
             conversation=conversation,
             route=route,
         )
-    return _IssueConversationInspection(observation=observation, candidate=candidate)
+    return _ConversationInspection(observation=observation, candidate=candidate)
 
 
 def _inspect_conversation_recovery(
     *,
     issue: Issue,
-    conversation: IssueConversation | None,
+    conversation: Conversation | None,
     most_recent_cooldown_ended: datetime | None,
-) -> _IssueConversationInspection | None:
+) -> _ConversationInspection | None:
     if conversation is not None and derive_agent_work_fault(
         rounds=conversation.rounds,
         retry_requested_at=conversation.record.retry_requested_at,
         most_recent_cooldown_ended=most_recent_cooldown_ended,
     ):
-        return _IssueConversationInspection(
-            observation=IssueConversationObservation(
+        return _ConversationInspection(
+            observation=ConversationObservation(
                 issue=issue.number,
                 title=issue.title,
                 has_comments_to_answer=IssueFact(
@@ -478,8 +478,8 @@ def _inspect_conversation_recovery(
         and conversation.rounds[-1].outcome
         in {AgentRoundOutcome.ERRORED, AgentRoundOutcome.INTERRUPTED}
     ):
-        return _IssueConversationInspection(
-            observation=IssueConversationObservation(
+        return _ConversationInspection(
+            observation=ConversationObservation(
                 issue=issue.number,
                 title=issue.title,
                 has_comments_to_answer=IssueFact(
@@ -487,7 +487,7 @@ def _inspect_conversation_recovery(
                     evidence="no comments to answer",
                 ),
             ),
-            candidate=IssueConversationRecoveryCandidate(
+            candidate=ConversationRecoveryCandidate(
                 conversation=conversation,
             ),
         )
@@ -498,7 +498,7 @@ def _observe_conversation_comments(
     *,
     scheduler: _ConversationScheduler,
     issue: int,
-    conversation: IssueConversation | None,
+    conversation: Conversation | None,
 ) -> tuple[list[ConversationComment], IssueFact]:
     try:
         comments = _list_comments_to_answer(
@@ -524,14 +524,14 @@ def _observe_conversation_comments(
     )
 
 
-def launch_issue_conversation_round(
+def launch_conversation_round(
     *,
     scheduler: _ConversationScheduler,
     record: SchedulerRecord,
-    candidate: IssueConversationCandidate,
+    candidate: ConversationCandidate,
 ) -> SchedulerRecord:
     """Prepare a conversation's required work and start its next round."""
-    prepared = _prepare_issue_conversation_round(
+    prepared = _prepare_conversation_round(
         state=scheduler.state,
         candidate=candidate,
         requested_harness=scheduler.requested_harness,
@@ -546,8 +546,8 @@ def launch_issue_conversation_round(
 
 
 def _start_prepared_conversation_round(
-    *, scheduler: _ConversationScheduler, prepared: _PreparedIssueConversationRound
-) -> IssueConversation:
+    *, scheduler: _ConversationScheduler, prepared: _PreparedConversationRound
+) -> Conversation:
     conversation = prepared.conversation
     scheduler.rounds[conversation.identifier] = start_agent_round(
         request=AgentRoundStartRequest(
@@ -561,11 +561,11 @@ def _start_prepared_conversation_round(
             ),
             harness_session_identifier=prepared.harness_session_identifier,
             record_harness_session_identifier=partial(
-                record_issue_conversation_session_identifier,
+                record_conversation_session_identifier,
                 conversation=conversation,
             ),
             finish_round=partial(
-                post_issue_conversation_answer,
+                post_conversation_answer,
                 repository=scheduler.repository,
                 issue=conversation.record.issue,
             ),
@@ -573,7 +573,7 @@ def _start_prepared_conversation_round(
                 number=conversation.next_round_number
             ),
             plan=AgentRoundPlan(
-                purpose=IssueConversationRoundPurpose.DISCUSS,
+                purpose=ConversationRoundPurpose.DISCUSS,
                 is_recovery=prepared.is_recovery,
                 input=prepared.round_input,
             ),

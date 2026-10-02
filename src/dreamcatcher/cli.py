@@ -10,8 +10,8 @@ from threading import TIMEOUT_MAX
 import dreamcatcher
 from dreamcatcher import tui, web
 from dreamcatcher.agent_assignments import (
-    read_agent_assignments_for_issue,
-    request_agent_assignment_retry,
+    read_assignments_for_issue,
+    request_assignment_retry,
 )
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.config import AgentHarness
@@ -19,8 +19,8 @@ from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS, DreamcatcherDaemon
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.issue_conversations import (
-    read_issue_conversation,
-    request_issue_conversation_retry,
+    read_conversation,
+    request_conversation_retry,
 )
 from dreamcatcher.scheduler import (
     DEFAULT_MAX_AGENTS,
@@ -279,11 +279,9 @@ def _run_daemon(*, arguments: argparse.Namespace) -> None:
 def _retry_agent_work(*, arguments: argparse.Namespace) -> None:
     """Clear every current fault at an issue so the daemon may recover it."""
     state = _find_state_directory(root=Path.cwd())
-    issue_assignments = read_agent_assignments_for_issue(
-        state=state, issue=arguments.issue
-    )
+    issue_assignments = read_assignments_for_issue(state=state, issue=arguments.issue)
     assignment = issue_assignments[-1] if issue_assignments else None
-    conversation = read_issue_conversation(state=state, issue=arguments.issue)
+    conversation = read_conversation(state=state, issue=arguments.issue)
     current_time = read_current_time()
     scheduler_record = read_scheduler_record(state=state, at=current_time)
     most_recent_cooldown_ended = (
@@ -297,7 +295,7 @@ def _retry_agent_work(*, arguments: argparse.Namespace) -> None:
         retry_requested_at=assignment.record.retry_requested_at,
         most_recent_cooldown_ended=most_recent_cooldown_ended,
     ):
-        request_agent_assignment_retry(assignment=assignment, at=current_time)
+        request_assignment_retry(assignment=assignment, at=current_time)
         retried.append(assignment.identifier)
     if conversation is not None and derive_agent_work_fault(
         rounds=conversation.rounds,
@@ -306,7 +304,7 @@ def _retry_agent_work(*, arguments: argparse.Namespace) -> None:
     ):
         if retried:
             try:
-                request_issue_conversation_retry(
+                request_conversation_retry(
                     conversation=conversation,
                     at=current_time,
                 )
@@ -317,7 +315,7 @@ def _retry_agent_work(*, arguments: argparse.Namespace) -> None:
                     f"{conversation.identifier} could not be retried: {failure}"
                 ) from failure
         else:
-            request_issue_conversation_retry(
+            request_conversation_retry(
                 conversation=conversation,
                 at=current_time,
             )

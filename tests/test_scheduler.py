@@ -24,17 +24,17 @@ from conftest import (
 )
 from fakes import Line
 from pydantic import ValidationError
-from records import write_agent_assignment, write_round
+from records import write_assignment, write_round
 
 from dreamcatcher.agent_assignments import (
     PullRequestObservation,
-    read_agent_assignments,
-    request_agent_assignment_retry,
+    read_assignments,
+    request_assignment_retry,
 )
 from dreamcatcher.agent_rounds import (
-    AgentAssignmentRoundPurpose,
     AgentRoundPurpose,
     AgentRoundRecord,
+    AssignmentRoundPurpose,
     ErroredAgentRoundEnding,
     compose_agent_round_ending,
 )
@@ -51,7 +51,7 @@ from dreamcatcher.github import PullRequestState
 from dreamcatcher.prompts import RECOVERY_PROMPT
 from dreamcatcher.scheduler import AgentWorkScheduler
 from dreamcatcher.scheduler.models import (
-    AgentAssignmentObservation,
+    AssignmentObservation,
     GlobalCooldown,
     IssueFactValue,
     SchedulerRecord,
@@ -61,7 +61,7 @@ from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158"
 SECOND_ASSIGNMENT_ID = "GH14-20260819-184158"
-PURPOSE = AgentAssignmentRoundPurpose.IMPLEMENT
+PURPOSE = AssignmentRoundPurpose.IMPLEMENT
 STILL_RUNNING = 30
 CREATED_ASSIGNMENT_ID = "GH8-20260819-184158"
 CONVERSATION = POST_LIST_PATHS["conversation"]
@@ -157,7 +157,7 @@ def resuming(cloned, gh, harnesses):
             Line(text="what the round said\n"),
         ]
     )
-    write_agent_assignment(
+    write_assignment(
         state=StateDirectory(root=cloned),
         identifier=ASSIGNMENT_ID,
         issue=13,
@@ -170,7 +170,7 @@ def ran(
     *,
     root,
     number: int,
-    purpose: AgentAssignmentRoundPurpose,
+    purpose: AssignmentRoundPurpose,
     status: int | None = 0,
     is_recovery: bool = False,
 ) -> None:
@@ -201,7 +201,7 @@ def ran(
 
 def write_faulted_assignment(*, root, identifier: str, issue: int) -> None:
     """Write an assignment whose two latest rounds both exited with errors."""
-    write_agent_assignment(
+    write_assignment(
         state=StateDirectory(root=root), identifier=identifier, issue=issue
     )
     directory = StateDirectory(root=root).assignments / identifier
@@ -230,7 +230,7 @@ def written_round(*, scheduler: AgentWorkScheduler, number: int, name: str) -> s
 def forget_harness_session_identifier(*, root) -> None:
     """Remove the harness session identifier from the assignment's record."""
     state = StateDirectory(root=root)
-    assignment = read_agent_assignments(state=state)[0]
+    assignment = read_assignments(state=state)[0]
     write_json(
         document=assignment.record.model_copy(
             update={"harness_session_identifier": None}
@@ -271,10 +271,10 @@ def test_a_new_assignments_round_records_what_caused_it_and_what_it_said(
         AgentRoundRecord.model_validate_json(
             (written / "round.json").read_text(encoding="utf-8")
         ).purpose
-        is AgentAssignmentRoundPurpose.IMPLEMENT
+        is AssignmentRoundPurpose.IMPLEMENT
     )
     assert "what the round said" in (written / "feed.txt").read_text(encoding="utf-8")
-    assignment = read_agent_assignments(state=scheduler.state)[0]
+    assignment = read_assignments(state=scheduler.state)[0]
     assert assignment.record.harness_session_identifier == "abc-123"
 
 
@@ -346,7 +346,7 @@ def test_a_second_tick_judges_an_assigned_issue_handled(ready_repo):
 
 def test_a_completed_assignment_releases_its_issue(ready_repo):
     state = StateDirectory(root=ready_repo)
-    assignment = write_agent_assignment(
+    assignment = write_assignment(
         state=state,
         identifier="GH8-20260818-184158",
         issue=8,
@@ -356,7 +356,7 @@ def test_a_completed_assignment_releases_its_issue(ready_repo):
         number=1,
         record=AgentRoundRecord(
             number=1,
-            purpose=AgentAssignmentRoundPurpose.WRAP_UP,
+            purpose=AssignmentRoundPurpose.WRAP_UP,
             is_recovery=False,
             started=PINNED,
             pid=1,
@@ -381,7 +381,7 @@ def test_a_tick_at_the_cap_says_the_cap_is_what_each_assignment_waits_on(
     scheduler, clock = create_scheduler(root=ready_repo)
 
     scheduler.tick(at=clock())
-    write_agent_assignment(
+    write_assignment(
         state=StateDirectory(root=ready_repo),
         identifier=ASSIGNMENT_ID,
         issue=13,
@@ -389,7 +389,7 @@ def test_a_tick_at_the_cap_says_the_cap_is_what_each_assignment_waits_on(
     ran(
         root=ready_repo,
         number=1,
-        purpose=AgentAssignmentRoundPurpose.IMPLEMENT,
+        purpose=AssignmentRoundPurpose.IMPLEMENT,
         status=1,
     )
     observed = scheduler.tick(at=clock())
@@ -397,7 +397,7 @@ def test_a_tick_at_the_cap_says_the_cap_is_what_each_assignment_waits_on(
     # The first tick assigned issue 8, and its round is what fills the cap,
     # so the assignment already on disk is the one the cap holds.
     assert observed.assignment_observations == [
-        AgentAssignmentObservation(
+        AssignmentObservation(
             assignment_identifier=ASSIGNMENT_ID,
             issue=13,
             reason="at cap: 1 of 1 agents running",
@@ -411,7 +411,7 @@ def test_a_tick_at_the_cap_leaves_a_wound_up_assignment_waiting_on_nothing(
     harnesses["claude"].streams(
         lines=[Line(text="still working\n")], delay=STILL_RUNNING
     )
-    write_agent_assignment(
+    write_assignment(
         state=StateDirectory(root=ready_repo),
         identifier=ASSIGNMENT_ID,
         issue=13,
@@ -419,9 +419,9 @@ def test_a_tick_at_the_cap_leaves_a_wound_up_assignment_waiting_on_nothing(
     ran(
         root=ready_repo,
         number=1,
-        purpose=AgentAssignmentRoundPurpose.IMPLEMENT,
+        purpose=AssignmentRoundPurpose.IMPLEMENT,
     )
-    ran(root=ready_repo, number=1, purpose=AgentAssignmentRoundPurpose.WRAP_UP)
+    ran(root=ready_repo, number=1, purpose=AssignmentRoundPurpose.WRAP_UP)
     scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
@@ -454,7 +454,7 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
     harnesses["claude"].streams(
         lines=[Line(text="still working\n")], delay=STILL_RUNNING
     )
-    write_agent_assignment(
+    write_assignment(
         state=StateDirectory(root=ready_repo),
         identifier=ASSIGNMENT_ID,
         issue=13,
@@ -462,7 +462,7 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
     ran(
         root=ready_repo,
         number=1,
-        purpose=AgentAssignmentRoundPurpose.IMPLEMENT,
+        purpose=AssignmentRoundPurpose.IMPLEMENT,
     )
     scheduler, clock = create_scheduler(root=ready_repo)
     scheduler.tick(at=clock())
@@ -482,7 +482,7 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
         for observation in observed.issue_observations
     )
     assert observed.assignment_observations == [
-        AgentAssignmentObservation(
+        AssignmentObservation(
             assignment_identifier=ASSIGNMENT_ID,
             issue=13,
             reason="no round required",
@@ -508,7 +508,7 @@ def test_a_tick_with_nothing_eligible_starts_no_assignment(ready_repo, offered):
 
 
 def test_one_errored_round_receives_an_ordinary_recovery(ready_repo):
-    write_agent_assignment(
+    write_assignment(
         state=StateDirectory(root=ready_repo),
         identifier=ASSIGNMENT_ID,
         issue=13,
@@ -524,7 +524,7 @@ def test_one_errored_round_receives_an_ordinary_recovery(ready_repo):
 
 
 def test_one_faulted_assignment_does_not_block_unrelated_work(ready_repo):
-    write_agent_assignment(
+    write_assignment(
         state=StateDirectory(root=ready_repo),
         identifier=ASSIGNMENT_ID,
         issue=13,
@@ -537,7 +537,7 @@ def test_one_faulted_assignment_does_not_block_unrelated_work(ready_repo):
 
     assert observed.launched_agent_work_identifiers == [CREATED_ASSIGNMENT_ID]
     assert observed.assignment_observations == [
-        AgentAssignmentObservation(
+        AssignmentObservation(
             assignment_identifier=ASSIGNMENT_ID,
             issue=13,
             reason="two consecutive rounds failed",
@@ -548,8 +548,8 @@ def test_one_faulted_assignment_does_not_block_unrelated_work(ready_repo):
 def test_a_user_retry_clears_one_fault_and_starts_recovery(ready_repo):
     write_faulted_assignment(root=ready_repo, identifier=ASSIGNMENT_ID, issue=13)
     state = StateDirectory(root=ready_repo)
-    assignment = read_agent_assignments(state=state)[0]
-    request_agent_assignment_retry(assignment=assignment, at=PINNED)
+    assignment = read_assignments(state=state)[0]
+    request_assignment_retry(assignment=assignment, at=PINNED)
     scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
@@ -559,7 +559,7 @@ def test_a_user_retry_clears_one_fault_and_starts_recovery(ready_repo):
 
 
 def test_a_successful_round_breaks_the_error_sequence(ready_repo):
-    write_agent_assignment(
+    write_assignment(
         state=StateDirectory(root=ready_repo),
         identifier=ASSIGNMENT_ID,
         issue=13,
@@ -604,7 +604,7 @@ def test_an_assignment_the_scheduler_is_running_a_round_for_is_not_waiting(
 def test_an_ended_round_is_inspected_while_its_runner_finishes(tmp_path, monkeypatch):
     configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
-    directory = write_agent_assignment(
+    directory = write_assignment(
         state=state,
         identifier=ASSIGNMENT_ID,
         issue=13,
@@ -620,15 +620,15 @@ def test_an_ended_round_is_inspected_while_its_runner_finishes(tmp_path, monkeyp
             ending=compose_agent_round_ending(at=PINNED, status=0),
         ),
     )
-    assignment = read_agent_assignments(state=state)[0]
-    observation = AgentAssignmentObservation(
+    assignment = read_assignments(state=state)[0]
+    observation = AssignmentObservation(
         assignment_identifier=ASSIGNMENT_ID,
         issue=13,
         reason="no round required",
         is_round_required=False,
     )
     monkeypatch.setattr(
-        "dreamcatcher.scheduler.coordinator.inspect_agent_assignment",
+        "dreamcatcher.scheduler.coordinator.inspect_assignment",
         lambda **_arguments: observation,
     )
     scheduler, _ = create_scheduler(root=tmp_path, max_agents=2)
@@ -644,7 +644,7 @@ def test_an_ended_round_is_inspected_while_its_runner_finishes(tmp_path, monkeyp
 
 
 def test_a_round_that_replaces_a_finishing_runner_is_reported(resuming, gh):
-    ran(root=resuming, number=1, purpose=AgentAssignmentRoundPurpose.IMPLEMENT)
+    ran(root=resuming, number=1, purpose=AssignmentRoundPurpose.IMPLEMENT)
     gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
     gh.replies(
         stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
@@ -661,7 +661,7 @@ def test_a_round_that_replaces_a_finishing_runner_is_reported(resuming, gh):
 def test_an_assignment_with_an_open_pull_request_and_nothing_new_is_not_waiting(
     resuming, gh
 ):
-    ran(root=resuming, number=1, purpose=AgentAssignmentRoundPurpose.IMPLEMENT)
+    ran(root=resuming, number=1, purpose=AssignmentRoundPurpose.IMPLEMENT)
     issue = json.loads(listing(issues=[(13, FILED)]))[0]
     gh.replies(stdout=json.dumps(issue), to="issue view")
     gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
@@ -671,14 +671,14 @@ def test_an_assignment_with_an_open_pull_request_and_nothing_new_is_not_waiting(
 
     assert observed.launched_agent_work_identifiers == []
     assert observed.assignment_observations == [
-        AgentAssignmentObservation(
+        AssignmentObservation(
             assignment_identifier=ASSIGNMENT_ID,
             issue=13,
             reason="no round required",
             is_round_required=False,
         )
     ]
-    assignment = read_agent_assignments(state=scheduler.state)[0]
+    assignment = read_assignments(state=scheduler.state)[0]
     assert assignment.record.title == "Issue 13"
     assert assignment.record.pull_request_observation == PullRequestObservation(
         state=PullRequestState.OPEN,
@@ -688,7 +688,7 @@ def test_an_assignment_with_an_open_pull_request_and_nothing_new_is_not_waiting(
 
 
 def test_an_assignment_that_has_run_no_round_at_all_gets_its_first(ready_repo):
-    write_agent_assignment(
+    write_assignment(
         state=StateDirectory(root=ready_repo),
         identifier=ASSIGNMENT_ID,
         issue=13,
@@ -701,7 +701,7 @@ def test_an_assignment_that_has_run_no_round_at_all_gets_its_first(ready_repo):
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     first = record_of(scheduler=scheduler, number=1)
     assert first.number == 1
-    assert first.purpose is AgentAssignmentRoundPurpose.IMPLEMENT
+    assert first.purpose is AssignmentRoundPurpose.IMPLEMENT
     assert not first.is_recovery
     assert written_round(scheduler=scheduler, number=1, name="prompt.txt") == (
         "/dream:smith GH13"
@@ -748,7 +748,7 @@ def test_a_dispatch_whose_round_will_not_start_retries_the_prepared_assignment(
     written = AgentRoundRecord.model_validate_json(
         (record / "round.json").read_text(encoding="utf-8")
     )
-    assert written.purpose is AgentAssignmentRoundPurpose.IMPLEMENT
+    assert written.purpose is AssignmentRoundPurpose.IMPLEMENT
     created = [call for call in offered.calls if call.arguments[:2] == ["pr", "create"]]
     assert len(created) == 1
 
@@ -791,7 +791,7 @@ def test_the_next_tick_recovers_each_incomplete_creation_checkpoint(
         AgentRoundRecord.model_validate_json(
             (round_record / "round.json").read_text(encoding="utf-8")
         ).purpose
-        is AgentAssignmentRoundPurpose.IMPLEMENT
+        is AssignmentRoundPurpose.IMPLEMENT
     )
     assert len(list(state.assignments.iterdir())) == 1
     commits = git(arguments=["rev-list", "--count", "origin/main..HEAD"], cwd=worktree)
@@ -882,7 +882,7 @@ def test_a_resume_recovers_the_harness_session_from_the_first_rounds_raw_stream(
     finish_rounds(scheduler=scheduler)
 
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
-    assignment = read_agent_assignments(state=scheduler.state)[0]
+    assignment = read_assignments(state=scheduler.state)[0]
     assert assignment.record.harness_session_identifier == HARNESS_SESSION_IDENTIFIER
     assert harnesses["claude"].calls[-1].arguments[-2:] == [
         "--resume",
@@ -910,7 +910,7 @@ def test_a_recovery_without_a_harness_session_starts_a_new_first_round(
     recovered = record_of(scheduler=scheduler, number=2)
     assert recovered.is_recovery
     assert faulted.assignment_observations == [
-        AgentAssignmentObservation(
+        AssignmentObservation(
             assignment_identifier=ASSIGNMENT_ID,
             issue=13,
             reason="two consecutive rounds failed",
@@ -958,7 +958,7 @@ def test_a_terminal_recovery_without_a_session_receives_wrap_up_input(
     inbox = json.loads(written_round(scheduler=scheduler, number=2, name="inbox.json"))
     assert inbox["pull_request_state"] == PullRequestState.MERGED
     assert "--resume" not in harnesses["claude"].calls[-1].arguments
-    assignment = read_agent_assignments(state=scheduler.state)[0]
+    assignment = read_assignments(state=scheduler.state)[0]
     assert assignment.user_post_delivery_cursor == POSTED_AT
 
 
@@ -976,11 +976,11 @@ def test_a_failed_replacement_session_does_not_acknowledge_terminal_feedback(
 
     scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
-    assignment = read_agent_assignments(state=scheduler.state)[0]
+    assignment = read_assignments(state=scheduler.state)[0]
     assert assignment.user_post_delivery_cursor == ""
     ending = assignment.rounds[-1].ending
     assert isinstance(ending, ErroredAgentRoundEnding)
-    request_agent_assignment_retry(
+    request_assignment_retry(
         assignment=assignment,
         at=ending.at + timedelta(seconds=1),
     )
@@ -1009,12 +1009,12 @@ def test_a_carried_on_round_records_recovery_independently(resuming, left_runnin
     finish_rounds(scheduler=scheduler)
 
     recovered = record_of(scheduler=scheduler, number=2)
-    assert recovered.purpose is AgentAssignmentRoundPurpose.IMPLEMENT
+    assert recovered.purpose is AssignmentRoundPurpose.IMPLEMENT
     assert recovered.is_recovery
 
 
 def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, gh):
-    ran(root=resuming, number=1, purpose=AgentAssignmentRoundPurpose.IMPLEMENT)
+    ran(root=resuming, number=1, purpose=AssignmentRoundPurpose.IMPLEMENT)
     gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
     gh.replies(
         stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
@@ -1026,7 +1026,7 @@ def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, g
 
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     feedback = record_of(scheduler=scheduler, number=2)
-    assert feedback.purpose is AgentAssignmentRoundPurpose.ADDRESS_FEEDBACK
+    assert feedback.purpose is AssignmentRoundPurpose.ADDRESS_FEEDBACK
     assert not feedback.is_recovery
     inbox = json.loads(written_round(scheduler=scheduler, number=2, name="inbox.json"))
     assert inbox["pull_request_state"] == "OPEN"
@@ -1039,7 +1039,7 @@ def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, g
 def test_a_started_round_is_reported_when_advancing_its_cursor_fails(
     resuming, gh, monkeypatch
 ):
-    ran(root=resuming, number=1, purpose=AgentAssignmentRoundPurpose.IMPLEMENT)
+    ran(root=resuming, number=1, purpose=AssignmentRoundPurpose.IMPLEMENT)
     gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
     gh.replies(
         stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
@@ -1062,7 +1062,7 @@ def test_a_started_round_is_reported_when_advancing_its_cursor_fails(
 
 
 def test_an_assignment_receives_a_batch_only_once(resuming, gh):
-    ran(root=resuming, number=1, purpose=AgentAssignmentRoundPurpose.IMPLEMENT)
+    ran(root=resuming, number=1, purpose=AssignmentRoundPurpose.IMPLEMENT)
     gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
     gh.replies(
         stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
@@ -1081,7 +1081,7 @@ def test_an_assignment_receives_a_batch_only_once(resuming, gh):
 def test_a_batch_no_round_ever_launched_is_read_again_next_tick(
     resuming, gh, harnesses
 ):
-    ran(root=resuming, number=1, purpose=AgentAssignmentRoundPurpose.IMPLEMENT)
+    ran(root=resuming, number=1, purpose=AssignmentRoundPurpose.IMPLEMENT)
     gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
     gh.replies(
         stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
@@ -1107,7 +1107,7 @@ def test_a_batch_no_round_ever_launched_is_read_again_next_tick(
 
 @pytest.mark.parametrize("state_name", ["MERGED", "CLOSED"])
 def test_a_pull_request_that_is_finished_gets_one_last_round(resuming, gh, state_name):
-    ran(root=resuming, number=1, purpose=AgentAssignmentRoundPurpose.IMPLEMENT)
+    ran(root=resuming, number=1, purpose=AssignmentRoundPurpose.IMPLEMENT)
     gh.replies(stdout=pull_request(state=state_name), to="pr view")
     scheduler, clock = create_scheduler(root=resuming)
 
@@ -1116,7 +1116,7 @@ def test_a_pull_request_that_is_finished_gets_one_last_round(resuming, gh, state
 
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     wrap_up = record_of(scheduler=scheduler, number=2)
-    assert wrap_up.purpose is AgentAssignmentRoundPurpose.WRAP_UP
+    assert wrap_up.purpose is AssignmentRoundPurpose.WRAP_UP
     assert not wrap_up.is_recovery
     assert json.loads(
         written_round(scheduler=scheduler, number=2, name="inbox.json")
@@ -1127,8 +1127,8 @@ def test_a_pull_request_that_is_finished_gets_one_last_round(resuming, gh, state
 
 
 def test_an_assignment_that_has_had_its_last_round_gets_no_other(resuming, gh):
-    ran(root=resuming, number=1, purpose=AgentAssignmentRoundPurpose.IMPLEMENT)
-    ran(root=resuming, number=2, purpose=AgentAssignmentRoundPurpose.WRAP_UP)
+    ran(root=resuming, number=1, purpose=AssignmentRoundPurpose.IMPLEMENT)
+    ran(root=resuming, number=2, purpose=AssignmentRoundPurpose.WRAP_UP)
     gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
     scheduler, clock = create_scheduler(root=resuming)
 
@@ -1141,7 +1141,7 @@ def test_an_assignment_that_has_had_its_last_round_gets_no_other(resuming, gh):
 def test_a_last_round_that_was_interrupted_is_carried_on_as_the_last_round(
     resuming, gh, left_running
 ):
-    ran(root=resuming, number=1, purpose=AgentAssignmentRoundPurpose.IMPLEMENT)
+    ran(root=resuming, number=1, purpose=AssignmentRoundPurpose.IMPLEMENT)
     write_round(
         directory=StateDirectory(root=resuming).assignments / ASSIGNMENT_ID,
         number=2,
@@ -1149,7 +1149,7 @@ def test_a_last_round_that_was_interrupted_is_carried_on_as_the_last_round(
             number=2,
             started=PINNED.replace(hour=17, minute=2),
             pid=left_running.pid,
-            purpose=AgentAssignmentRoundPurpose.WRAP_UP,
+            purpose=AssignmentRoundPurpose.WRAP_UP,
         ),
     )
     gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
@@ -1162,7 +1162,7 @@ def test_a_last_round_that_was_interrupted_is_carried_on_as_the_last_round(
 
     # The carry-on finished what the last round started, so no second one runs.
     recovered = record_of(scheduler=scheduler, number=3)
-    assert recovered.purpose is AgentAssignmentRoundPurpose.WRAP_UP
+    assert recovered.purpose is AssignmentRoundPurpose.WRAP_UP
     assert recovered.is_recovery
     assert not (scheduler.state.assignments / ASSIGNMENT_ID / "rounds" / "4").exists()
 
@@ -1274,7 +1274,7 @@ def test_the_cooldown_boundary_clears_faults_and_permits_recovery(ready_repo):
     assert observed.most_recent_cooldown_ended == PINNED
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     assert observed.assignment_observations == [
-        AgentAssignmentObservation(
+        AssignmentObservation(
             assignment_identifier=SECOND_ASSIGNMENT_ID,
             issue=14,
             reason="at cap: 1 of 1 agents running",

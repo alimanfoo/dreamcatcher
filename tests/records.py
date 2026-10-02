@@ -75,7 +75,7 @@ def write_daemon_lock(
     )
 
 
-def write_agent_assignment(
+def write_assignment(
     *,
     state: StateDirectory,
     identifier: str,
@@ -87,11 +87,11 @@ def write_agent_assignment(
     (state.worktrees / identifier).mkdir(parents=True)
     directory = state.assignments / identifier
     write_json(
-        document=agent_assignments.AgentAssignmentRecord(
+        document=agent_assignments.AssignmentRecord(
             issue=issue,
             title=None if reporting is None else reporting.title,
             dispatch_label="dream:smith",
-            branch=f"{agent_assignments.AGENT_ASSIGNMENT_BRANCH_PREFIX}{identifier}",
+            branch=f"{agent_assignments.ASSIGNMENT_BRANCH_PREFIX}{identifier}",
             worktree=state.worktrees / identifier,
             pull_request=52,
             pull_request_observation=(
@@ -103,12 +103,12 @@ def write_agent_assignment(
             effort="xhigh",
             prompt=f"/dream:smith GH{issue}",
         ),
-        path=directory / agent_assignments.AGENT_ASSIGNMENT_RECORD_NAME,
+        path=directory / agent_assignments.ASSIGNMENT_RECORD_NAME,
     )
     return directory
 
 
-def write_issue_conversation(
+def write_conversation(
     *,
     state: StateDirectory,
     issue: int,
@@ -119,7 +119,7 @@ def write_issue_conversation(
     worktree.mkdir(parents=True)
     directory = state.conversations / f"GH{issue}"
     write_json(
-        document=issue_conversations.IssueConversationRecord(
+        document=issue_conversations.ConversationRecord(
             issue=issue,
             title=f"Issue {issue}",
             dispatch_label="dream:conversation",
@@ -129,7 +129,7 @@ def write_issue_conversation(
             effort="xhigh",
             prompt=f"/dream:conversation GH{issue}",
         ),
-        path=directory / issue_conversations.ISSUE_CONVERSATION_RECORD_NAME,
+        path=directory / issue_conversations.CONVERSATION_RECORD_NAME,
     )
     return directory
 
@@ -173,19 +173,19 @@ def write_running_conversation(
 
     The round reads as running only while the state's lock names a live daemon.
     """
-    directory = write_issue_conversation(state=state, issue=issue)
+    directory = write_conversation(state=state, issue=issue)
     write_round(
         directory=directory,
         number=1,
         record=agent_rounds.AgentRoundRecord(
             number=1,
-            purpose=agent_rounds.IssueConversationRoundPurpose.DISCUSS,
+            purpose=agent_rounds.ConversationRoundPurpose.DISCUSS,
             started=started,
             pid=1,
         ),
     )
     write_json(
-        document=issue_conversations.IssueConversationInput(
+        document=issue_conversations.ConversationInput(
             issue=issue,
             title=f"Issue {issue}",
             body="Explain it.",

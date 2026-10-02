@@ -1192,10 +1192,13 @@ differs in shape, the line names the difference.
 A name in the table that exists today under a longer form is renamed to this
 one. The ontology uses "assignment" and "conversation" as the short forms of its
 two terms, and the names follow it; "agent work" stays whole because it has no
-short form. The baseline counted twelve symbols for conversations against nine
-for assignments in the scheduler. The remeasurement counts these pairs and lists
-every symbol one kind has without a counterpart, with the line of part 1 that
-names it.
+short form. The rename covers every symbol, not only those in the table, and
+leaves the modules' names, the persisted keys and the state paths as they are.
+It is the stage's first item, so the parts above name symbols in their longer
+form, as the code had them when the design was written. The baseline counted
+twelve symbols for conversations against nine for assignments in the scheduler.
+The remeasurement counts these pairs and lists every symbol one kind has without
+a counterpart, with the line of part 1 that names it.
 
 ### Asymmetries that stand
 

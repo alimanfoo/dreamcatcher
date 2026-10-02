@@ -141,7 +141,7 @@ class AgentRoundHarness:
         return output
 
 
-class AgentAssignmentRoundPurpose(StrEnum):
+class AssignmentRoundPurpose(StrEnum):
     """The kinds of assignment work that an agent round advances."""
 
     IMPLEMENT = "implement"
@@ -149,14 +149,14 @@ class AgentAssignmentRoundPurpose(StrEnum):
     WRAP_UP = "wrap up"
 
 
-class IssueConversationRoundPurpose(StrEnum):
+class ConversationRoundPurpose(StrEnum):
     """The kind of conversation work that an agent round advances."""
 
     DISCUSS = "discuss"
 
 
 # Every round records its purpose, so the shared record holds either owner's.
-type AgentRoundPurpose = AgentAssignmentRoundPurpose | IssueConversationRoundPurpose
+type AgentRoundPurpose = AssignmentRoundPurpose | ConversationRoundPurpose
 
 
 class AgentRoundOutcome(StrEnum):

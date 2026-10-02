@@ -6,7 +6,7 @@ from typing import Annotated, Protocol, Self
 
 from pydantic import AfterValidator, AwareDatetime, Field, model_validator
 
-from dreamcatcher.agent_rounds import AgentAssignmentRoundPurpose
+from dreamcatcher.agent_rounds import AssignmentRoundPurpose
 from dreamcatcher.documents import DreamcatcherDocument
 
 GLOBAL_COOLDOWN_DURATION = timedelta(minutes=15)
@@ -59,7 +59,7 @@ class IssueObservation(DreamcatcherDocument):
         return derive_issue_availability(observation=self)
 
 
-class AgentAssignmentObservation(DreamcatcherDocument):
+class AssignmentObservation(DreamcatcherDocument):
     """Model what the scheduler found for one idle assignment."""
 
     assignment_identifier: str
@@ -69,7 +69,7 @@ class AgentAssignmentObservation(DreamcatcherDocument):
     is_round_required: bool = True
 
 
-class IssueConversationObservation(DreamcatcherDocument):
+class ConversationObservation(DreamcatcherDocument):
     """Model what the scheduler found for one conversation issue in one tick.
 
     The scheduler observes every issue matching at least one conversation route.
@@ -109,10 +109,8 @@ class SchedulerRecord(DreamcatcherDocument):
     hold: str | None = None
     launched_agent_work_identifiers: list[str] = Field(default_factory=list)
     issue_observations: list[IssueObservation] = Field(default_factory=list)
-    assignment_observations: list[AgentAssignmentObservation] = Field(
-        default_factory=list
-    )
-    conversation_observations: list[IssueConversationObservation] = Field(
+    assignment_observations: list[AssignmentObservation] = Field(default_factory=list)
+    conversation_observations: list[ConversationObservation] = Field(
         default_factory=list
     )
     cooldown: GlobalCooldown | None = None
@@ -188,13 +186,13 @@ class _PullRequestRoundFacts(Protocol):
 
 def derive_round_purpose(
     *, pull_request: _PullRequestRoundFacts
-) -> AgentAssignmentRoundPurpose:
+) -> AssignmentRoundPurpose:
     """Return the purpose that the pull request currently requires."""
     if not pull_request.is_open:
-        return AgentAssignmentRoundPurpose.WRAP_UP
+        return AssignmentRoundPurpose.WRAP_UP
     if pull_request.is_draft:
-        return AgentAssignmentRoundPurpose.IMPLEMENT
-    return AgentAssignmentRoundPurpose.ADDRESS_FEEDBACK
+        return AssignmentRoundPurpose.IMPLEMENT
+    return AssignmentRoundPurpose.ADDRESS_FEEDBACK
 
 
 def combine_scheduler_failures(*, failures: list[str | None]) -> str | None:

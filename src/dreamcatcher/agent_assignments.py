@@ -22,10 +22,10 @@ from dreamcatcher.agent_assignment_pull_requests import (
     validate_assignment_pull_request_setup,
 )
 from dreamcatcher.agent_rounds import (
-    AgentAssignmentRoundPurpose,
     AgentRoundOutcome,
     AgentRoundPaths,
     AgentRoundRecord,
+    AssignmentRoundPurpose,
     ErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
     read_agent_round_records,
@@ -66,11 +66,11 @@ from dreamcatcher.state import StateDirectory
 # What an assignment's branch is called, before its identifier. The prefix keeps
 # dreamcatcher's own branches apart from everyone else's, and from the branches
 # that the catcher it replaces left behind.
-AGENT_ASSIGNMENT_BRANCH_PREFIX = "dreamcatcher-"
+ASSIGNMENT_BRANCH_PREFIX = "dreamcatcher-"
 
 # The file in an assignment's directory saying what the assignment received
 # with.
-AGENT_ASSIGNMENT_RECORD_NAME = "assignment.json"
+ASSIGNMENT_RECORD_NAME = "assignment.json"
 
 # The directory in an assignment's directory holding a directory per round.
 AGENT_ROUNDS_DIRECTORY_NAME = "rounds"
@@ -78,7 +78,7 @@ AGENT_ROUNDS_DIRECTORY_NAME = "rounds"
 USER_POST_DELIVERY_CURSOR_NAME = "watermark"
 
 
-class AgentAssignmentRoundInput(DreamcatcherDocument):
+class AssignmentRoundInput(DreamcatcherDocument):
     """Model the pull request state and user posts delivered to an assignment round."""
 
     pull_request_state: PullRequestState
@@ -98,7 +98,7 @@ class PullRequestObservation(DreamcatcherDocument):
         return self.state is PullRequestState.OPEN
 
 
-class AgentAssignmentRecord(DreamcatcherDocument):
+class AssignmentRecord(DreamcatcherDocument):
     """Model the identities and settled settings of an agent assignment.
 
     The assignment dispatch settles the recipe and identities. The first round
@@ -124,7 +124,7 @@ class AgentAssignmentRecord(DreamcatcherDocument):
 
 
 @dataclass(frozen=True, kw_only=True)
-class AgentAssignment:
+class Assignment:
     """Represent an agent assignment as its persisted state currently reads.
 
     The directory name is the assignment identifier. The record holds the
@@ -137,7 +137,7 @@ class AgentAssignment:
     """
 
     directory: Path
-    record: AgentAssignmentRecord
+    record: AssignmentRecord
     rounds: list[AgentRoundRecord] = field(default_factory=list)
     user_post_delivery_cursor: str = ""
 
@@ -153,7 +153,7 @@ class AgentAssignment:
             return False
         round = self.rounds[-1]
         return (
-            round.purpose is AgentAssignmentRoundPurpose.WRAP_UP
+            round.purpose is AssignmentRoundPurpose.WRAP_UP
             and round.outcome is AgentRoundOutcome.SUCCESSFUL
         )
 
@@ -192,7 +192,7 @@ class AgentAssignment:
         return self.rounds[-1].number + 1 if self.rounds else 1
 
 
-def read_agent_assignments(*, state: StateDirectory) -> list[AgentAssignment]:
+def read_assignments(*, state: StateDirectory) -> list[Assignment]:
     """Return every complete assignment setup, ordered by identifier.
 
     A worktree under `worktrees/` declares that an assignment exists. Its state
@@ -215,13 +215,11 @@ def read_agent_assignments(*, state: StateDirectory) -> list[AgentAssignment]:
     return [
         _read_assignment(state=state, directory=directory)
         for directory in directories
-        if (directory / AGENT_ASSIGNMENT_RECORD_NAME).exists()
+        if (directory / ASSIGNMENT_RECORD_NAME).exists()
     ]
 
 
-def read_agent_assignment(
-    *, state: StateDirectory, identifier: str
-) -> AgentAssignment | None:
+def read_assignment(*, state: StateDirectory, identifier: str) -> Assignment | None:
     """Return the complete assignment with this exact identifier, if it exists."""
     if not state.worktrees.is_dir():
         return None
@@ -236,25 +234,25 @@ def read_agent_assignment(
     if worktree is None:
         return None
     directory = state.assignments / worktree.name
-    if not (directory / AGENT_ASSIGNMENT_RECORD_NAME).exists():
+    if not (directory / ASSIGNMENT_RECORD_NAME).exists():
         return None
     return _read_assignment(state=state, directory=directory)
 
 
-def read_agent_assignments_for_issue(
+def read_assignments_for_issue(
     *, state: StateDirectory, issue: int
-) -> list[AgentAssignment]:
+) -> list[Assignment]:
     """Return the assignments at the issue, by identifier."""
     return [
         assignment
-        for assignment in read_agent_assignments(state=state)
+        for assignment in read_assignments(state=state)
         if assignment.record.issue == issue
     ]
 
 
-def find_open_agent_assignments_by_issue(
-    *, assignments: list[AgentAssignment]
-) -> dict[int, AgentAssignment]:
+def find_open_assignments_by_issue(
+    *, assignments: list[Assignment]
+) -> dict[int, Assignment]:
     """Return each issue's open assignment, keyed by issue."""
     return {
         assignment.record.issue: assignment
@@ -263,12 +261,10 @@ def find_open_agent_assignments_by_issue(
     }
 
 
-def request_agent_assignment_retry(
-    *, assignment: AgentAssignment, at: datetime
-) -> None:
+def request_assignment_retry(*, assignment: Assignment, at: datetime) -> None:
     """Record when the user asked a faulted assignment to recover again."""
-    path = assignment.directory / AGENT_ASSIGNMENT_RECORD_NAME
-    record = read_json(model=AgentAssignmentRecord, path=path)
+    path = assignment.directory / ASSIGNMENT_RECORD_NAME
+    record = read_json(model=AssignmentRecord, path=path)
     write_json(
         document=record.model_copy(update={"retry_requested_at": at}),
         path=path,
@@ -304,7 +300,7 @@ def _find_incomplete_assignment_identifiers(
     for path in state.worktrees.glob("GH*-*"):
         if (
             not is_linked_worktree(path=path)
-            or (state.assignments / path.name / AGENT_ASSIGNMENT_RECORD_NAME).exists()
+            or (state.assignments / path.name / ASSIGNMENT_RECORD_NAME).exists()
         ):
             continue
         issue = int(path.name.split("-", maxsplit=1)[0].removeprefix("GH"))
@@ -326,7 +322,7 @@ def _inspect_incomplete_assignment_setup(
             f"GH{issue} has several incomplete assignment setups: {identifier_names}."
         )
     identifier = identifiers[0]
-    branch = f"{AGENT_ASSIGNMENT_BRANCH_PREFIX}{identifier}"
+    branch = f"{ASSIGNMENT_BRANCH_PREFIX}{identifier}"
     try:
         _check_worktree_branch(state=state, identifier=identifier, branch=branch)
         validate_assignment_pull_request_setup(
@@ -338,7 +334,7 @@ def _inspect_incomplete_assignment_setup(
 
 
 @dataclass(frozen=True, kw_only=True)
-class AgentAssignmentCreator:
+class AssignmentCreator:
     """Create durable agent assignments in one repository."""
 
     state: StateDirectory
@@ -351,7 +347,7 @@ class AgentAssignmentCreator:
         requested_harness: AgentHarness,
         issue: int,
         at: datetime,
-    ) -> AgentAssignment:
+    ) -> Assignment:
         """Create and publish the issue's assignment with no rounds run yet.
 
         The route selects a recipe in response to the requested
@@ -365,8 +361,8 @@ class AgentAssignmentCreator:
         leave evidence for a later recovery. An issue with an open local
         assignment cannot receive another.
         """
-        open_assignment = find_open_agent_assignments_by_issue(
-            assignments=read_agent_assignments(state=self.state)
+        open_assignment = find_open_assignments_by_issue(
+            assignments=read_assignments(state=self.state)
         ).get(issue)
         if open_assignment is not None:
             raise ReportableError(
@@ -378,7 +374,7 @@ class AgentAssignmentCreator:
         identifier = _find_incomplete_assignment(state=self.state, issue=issue) or (
             f"GH{issue}-{at:%Y%m%d-%H%M%S}"
         )
-        branch = f"{AGENT_ASSIGNMENT_BRANCH_PREFIX}{identifier}"
+        branch = f"{ASSIGNMENT_BRANCH_PREFIX}{identifier}"
         worktree = self.state.worktrees / identifier
         if is_linked_worktree(path=worktree):
             _check_worktree_branch(
@@ -398,7 +394,7 @@ class AgentAssignmentCreator:
         title, pull_request = find_or_create_assignment_pull_request(
             repository=self.repository, branch=branch, issue=issue
         )
-        record = AgentAssignmentRecord(
+        record = AssignmentRecord(
             issue=issue,
             title=title,
             dispatch_label=route.label,
@@ -418,8 +414,8 @@ class AgentAssignmentCreator:
             ),
         )
         directory = self.state.assignments / identifier
-        write_json(document=record, path=directory / AGENT_ASSIGNMENT_RECORD_NAME)
-        return AgentAssignment(directory=directory, record=record)
+        write_json(document=record, path=directory / ASSIGNMENT_RECORD_NAME)
+        return Assignment(directory=directory, record=record)
 
 
 def _find_incomplete_assignment(*, state: StateDirectory, issue: int) -> str | None:
@@ -445,12 +441,12 @@ def _check_worktree_branch(
         )
 
 
-def _read_assignment(*, state: StateDirectory, directory: Path) -> AgentAssignment:
+def _read_assignment(*, state: StateDirectory, directory: Path) -> Assignment:
     """Return the assignment whose own files sit in this directory."""
-    return AgentAssignment(
+    return Assignment(
         directory=directory,
         record=read_json(
-            model=AgentAssignmentRecord, path=directory / AGENT_ASSIGNMENT_RECORD_NAME
+            model=AssignmentRecord, path=directory / ASSIGNMENT_RECORD_NAME
         ),
         rounds=read_agent_round_records(
             cache=state.document_cache,
@@ -475,9 +471,7 @@ def _read_user_post_delivery_cursor(*, directory: Path) -> str:
     return read_text(path=path).strip()
 
 
-def advance_user_post_delivery_cursor(
-    *, assignment: AgentAssignment, newest: str
-) -> None:
+def advance_user_post_delivery_cursor(*, assignment: Assignment, newest: str) -> None:
     """Record the time of the newest user post delivered to the assignment.
 
     A round launching with a batch of posts performs this write after it starts.
@@ -488,7 +482,7 @@ def advance_user_post_delivery_cursor(
 
 
 def find_harness_session_identifier(
-    *, assignment: AgentAssignment
+    *, assignment: Assignment
 ) -> HarnessSessionIdentifier | None:
     """Return the recorded or recoverable harness session identifier."""
     if assignment.record.harness_session_identifier is not None:
@@ -507,14 +501,14 @@ def find_harness_session_identifier(
 
 
 def record_harness_session_identifier(
-    *, assignment: AgentAssignment, identifier: str
+    *, assignment: Assignment, identifier: str
 ) -> None:
     """Record the harness session that every round of the assignment continues."""
     safe_identifier = refuse_reportable_harness_session_identifier(
         agent_work_identifier=assignment.identifier, identifier=identifier
     )
-    path = assignment.directory / AGENT_ASSIGNMENT_RECORD_NAME
-    record = read_json(model=AgentAssignmentRecord, path=path)
+    path = assignment.directory / ASSIGNMENT_RECORD_NAME
+    record = read_json(model=AssignmentRecord, path=path)
     recorded_identifier = record.harness_session_identifier
     if recorded_identifier is not None and recorded_identifier != safe_identifier:
         raise ReportableError(
@@ -531,21 +525,21 @@ def record_harness_session_identifier(
     )
 
 
-def record_agent_assignment_title(*, assignment: AgentAssignment, title: str) -> None:
+def record_assignment_title(*, assignment: Assignment, title: str) -> None:
     """Record the first issue title known for a legacy assignment."""
-    path = assignment.directory / AGENT_ASSIGNMENT_RECORD_NAME
-    record = read_json(model=AgentAssignmentRecord, path=path)
+    path = assignment.directory / ASSIGNMENT_RECORD_NAME
+    record = read_json(model=AssignmentRecord, path=path)
     if record.title is not None:
         return
     write_json(document=record.model_copy(update={"title": title}), path=path)
 
 
 def record_pull_request_observation(
-    *, assignment: AgentAssignment, pull_request: PullRequest, observed_at: datetime
+    *, assignment: Assignment, pull_request: PullRequest, observed_at: datetime
 ) -> None:
     """Record a pull request state when it differs from the latest observation."""
-    path = assignment.directory / AGENT_ASSIGNMENT_RECORD_NAME
-    record = read_json(model=AgentAssignmentRecord, path=path)
+    path = assignment.directory / ASSIGNMENT_RECORD_NAME
+    record = read_json(model=AssignmentRecord, path=path)
     recorded = record.pull_request_observation
     if (
         recorded is not None

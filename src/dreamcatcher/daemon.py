@@ -8,7 +8,7 @@ from time import sleep
 from typing import TYPE_CHECKING
 
 from dreamcatcher import teardown
-from dreamcatcher.agent_assignments import read_agent_assignments
+from dreamcatcher.agent_assignments import read_assignments
 from dreamcatcher.agent_rounds import (
     record_agent_round_interruption,
     record_agent_round_stop,
@@ -25,7 +25,7 @@ from dreamcatcher.github import (
     identify_github_repository,
 )
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
-from dreamcatcher.issue_conversations import read_issue_conversations
+from dreamcatcher.issue_conversations import read_conversations
 from dreamcatcher.lock import hold_daemon_lock
 from dreamcatcher.scheduler import (
     DEFAULT_MAX_AGENTS,
@@ -220,8 +220,8 @@ class DreamcatcherDaemon:
         handle, so termination there is already complete.
         """
         agent_work = [
-            *read_agent_assignments(state=self.state),
-            *read_issue_conversations(state=self.state),
+            *read_assignments(state=self.state),
+            *read_conversations(state=self.state),
         ]
         for owner in agent_work:
             for record in owner.rounds:

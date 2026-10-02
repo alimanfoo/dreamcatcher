@@ -43,12 +43,12 @@ from dreamcatcher.harnesses import find_harness_session_identifier_in_output
 from dreamcatcher.prompts import AGENT_POST_MARKER
 from dreamcatcher.state import StateDirectory
 
-ISSUE_CONVERSATION_RECORD_NAME = "conversation.json"
-ISSUE_CONVERSATION_ROUNDS_DIRECTORY_NAME = "rounds"
+CONVERSATION_RECORD_NAME = "conversation.json"
+CONVERSATION_ROUNDS_DIRECTORY_NAME = "rounds"
 NO_REPLY = "NO_REPLY"
 
 
-class IssueConversationInput(DreamcatcherDocument):
+class ConversationInput(DreamcatcherDocument):
     """Model the trusted issue input frozen for one conversation round."""
 
     issue: int
@@ -65,7 +65,7 @@ class IssueCommentCursor(DreamcatcherDocument):
     id: int
 
 
-class IssueConversationRecord(DreamcatcherDocument):
+class ConversationRecord(DreamcatcherDocument):
     """Model one issue conversation's identity, settings, and retry boundary."""
 
     issue: int
@@ -80,12 +80,12 @@ class IssueConversationRecord(DreamcatcherDocument):
 
 
 @dataclass(frozen=True, kw_only=True)
-class IssueConversation:
+class Conversation:
     """Represent one persisted issue conversation as it currently reads."""
 
     directory: Path
     worktree: Path
-    record: IssueConversationRecord
+    record: ConversationRecord
     rounds: list[AgentRoundRecord] = field(default_factory=list)
     _record_lock: Lock = field(
         default_factory=Lock, init=False, repr=False, compare=False
@@ -105,16 +105,12 @@ class IssueConversation:
         """Return the paths for one numbered conversation round."""
         return AgentRoundPaths(
             worktree=self.worktree,
-            rounds_directory=(
-                self.directory / ISSUE_CONVERSATION_ROUNDS_DIRECTORY_NAME
-            ),
+            rounds_directory=(self.directory / CONVERSATION_ROUNDS_DIRECTORY_NAME),
             number=number,
         )
 
 
-def is_issue_conversation_ready_for_input(
-    *, conversation: IssueConversation | None
-) -> bool:
+def is_conversation_ready_for_input(*, conversation: Conversation | None) -> bool:
     """Return whether a conversation can accept another comment batch."""
     if conversation is None or not conversation.rounds:
         return True
@@ -124,36 +120,34 @@ def is_issue_conversation_ready_for_input(
     }
 
 
-def read_issue_conversations(*, state: StateDirectory) -> list[IssueConversation]:
+def read_conversations(*, state: StateDirectory) -> list[Conversation]:
     """Return every recorded issue conversation, ordered by issue."""
     if not state.conversations.is_dir():
         return []
     return [
-        _read_issue_conversation(state=state, directory=directory)
+        _read_conversation(state=state, directory=directory)
         for directory in sorted(state.conversations.iterdir())
-        if (directory / ISSUE_CONVERSATION_RECORD_NAME).is_file()
+        if (directory / CONVERSATION_RECORD_NAME).is_file()
     ]
 
 
-def read_issue_conversation(
-    *, state: StateDirectory, issue: int
-) -> IssueConversation | None:
+def read_conversation(*, state: StateDirectory, issue: int) -> Conversation | None:
     """Return the conversation for one issue when it exists."""
     directory = state.conversations / f"GH{issue}"
-    if not (directory / ISSUE_CONVERSATION_RECORD_NAME).is_file():
+    if not (directory / CONVERSATION_RECORD_NAME).is_file():
         return None
-    return _read_issue_conversation(state=state, directory=directory)
+    return _read_conversation(state=state, directory=directory)
 
 
-def create_issue_conversation(
+def create_conversation(
     *,
     state: StateDirectory,
     route: ConversationRoute,
     requested_harness: AgentHarness,
     issue: Issue,
-) -> IssueConversation:
+) -> Conversation:
     """Create one conversation at fetched main with no rounds run yet."""
-    existing = read_issue_conversation(state=state, issue=issue.number)
+    existing = read_conversation(state=state, issue=issue.number)
     if existing is not None:
         return existing
     fetch_main(root=state.root)
@@ -168,7 +162,7 @@ def create_issue_conversation(
     try:
         selected_harness = route.choose_harness(requested_harness=requested_harness)
         recipe = route.recipes[selected_harness]
-        record = IssueConversationRecord(
+        record = ConversationRecord(
             issue=issue.number,
             title=issue.title,
             dispatch_label=route.label,
@@ -177,12 +171,12 @@ def create_issue_conversation(
             effort=recipe.effort,
             prompt=recipe.prompt,
         )
-        write_json(document=record, path=directory / ISSUE_CONVERSATION_RECORD_NAME)
+        write_json(document=record, path=directory / CONVERSATION_RECORD_NAME)
     except ReportableError:
         with suppress(CommandError):
             remove_worktree(root=state.root, path=worktree)
         raise
-    return IssueConversation(directory=directory, worktree=worktree, record=record)
+    return Conversation(directory=directory, worktree=worktree, record=record)
 
 
 def list_undelivered_issue_comments(
@@ -206,20 +200,20 @@ def list_undelivered_issue_comments(
     )
 
 
-def prepare_issue_conversation_input(
+def prepare_conversation_input(
     *,
     state: StateDirectory,
-    conversation: IssueConversation,
+    conversation: Conversation,
     issue: Issue,
     comments: list[ConversationComment],
-) -> IssueConversationInput:
+) -> ConversationInput:
     """Refresh the worktree and freeze one issue's trusted round input."""
     revision = refresh_detached_worktree(
         root=state.root,
         worktree=conversation.worktree,
     )
     is_initial = not conversation.rounds
-    return IssueConversationInput(
+    return ConversationInput(
         issue=issue.number,
         title=issue.title if is_initial else None,
         body=issue.body if is_initial else None,
@@ -228,11 +222,11 @@ def prepare_issue_conversation_input(
     )
 
 
-def read_issue_conversation_input(
-    *, conversation: IssueConversation, number: int
-) -> IssueConversationInput:
+def read_conversation_input(
+    *, conversation: Conversation, number: int
+) -> ConversationInput:
     """Read and validate the durable input for one conversation round."""
-    round_input = _read_issue_conversation_input_document(
+    round_input = _read_conversation_input_document(
         conversation=conversation, number=number
     )
     if number == 1 and (round_input.title is None or round_input.body is None):
@@ -243,8 +237,8 @@ def read_issue_conversation_input(
     return round_input
 
 
-def find_issue_conversation_harness_session_identifier(
-    *, conversation: IssueConversation
+def find_conversation_harness_session_identifier(
+    *, conversation: Conversation
 ) -> HarnessSessionIdentifier | None:
     """Return the recorded or recoverable harness session identifier."""
     if conversation.record.harness_session_identifier is not None:
@@ -256,12 +250,12 @@ def find_issue_conversation_harness_session_identifier(
     )
 
 
-def _read_issue_conversation_input_document(
-    *, conversation: IssueConversation, number: int
-) -> IssueConversationInput:
+def _read_conversation_input_document(
+    *, conversation: Conversation, number: int
+) -> ConversationInput:
     """Read and validate one round input without comparing adjacent rounds."""
     round_input = read_json(
-        model=IssueConversationInput,
+        model=ConversationInput,
         path=conversation.compose_round_paths(number=number).round_input,
     )
     if not round_input.comments:
@@ -283,7 +277,7 @@ def _read_issue_conversation_input_document(
     return round_input
 
 
-def describe_issue_conversation_revision(
+def describe_conversation_revision(
     *, previous_revision: str | None, revision: str
 ) -> str:
     """Describe the revision investigated by one conversation round."""
@@ -295,13 +289,13 @@ def describe_issue_conversation_revision(
 
 
 def read_issue_comment_delivery_cursor(
-    *, conversation: IssueConversation
+    *, conversation: Conversation
 ) -> IssueCommentCursor | None:
     """Return the newest comment saved in the latest durable round input."""
     if not conversation.rounds:
         return None
     latest_round = conversation.rounds[-1]
-    round_input = read_issue_conversation_input(
+    round_input = read_conversation_input(
         conversation=conversation,
         number=latest_round.number,
     )
@@ -312,8 +306,8 @@ def read_issue_comment_delivery_cursor(
     )
 
 
-def record_issue_conversation_session_identifier(
-    *, conversation: IssueConversation, identifier: str
+def record_conversation_session_identifier(
+    *, conversation: Conversation, identifier: str
 ) -> None:
     """Record the harness session identifier reported by the first round."""
     validated = refuse_reportable_harness_session_identifier(
@@ -327,18 +321,16 @@ def record_issue_conversation_session_identifier(
                 f"{validated}, after it already reported {recorded}."
             )
         if recorded is None:
-            _update_issue_conversation_record(
+            _update_conversation_record(
                 conversation=conversation,
                 updates={"harness_session_identifier": validated},
             )
 
 
-def request_issue_conversation_retry(
-    *, conversation: IssueConversation, at: datetime
-) -> None:
+def request_conversation_retry(*, conversation: Conversation, at: datetime) -> None:
     """Record when the user asked a faulted conversation to recover again."""
     with conversation._record_lock:
-        _update_issue_conversation_record(
+        _update_conversation_record(
             conversation=conversation,
             updates={"retry_requested_at": at},
         )
@@ -349,7 +341,7 @@ def is_no_reply(*, final_output: str) -> bool:
     return final_output.strip() == NO_REPLY
 
 
-def post_issue_conversation_answer(
+def post_conversation_answer(
     *, repository: str, issue: int, final_output: str | None
 ) -> None:
     """Post a conversation round's final output on its issue as one marked comment.
@@ -374,38 +366,36 @@ def post_issue_conversation_answer(
         )
 
 
-def _read_issue_conversation(
-    *, state: StateDirectory, directory: Path
-) -> IssueConversation:
+def _read_conversation(*, state: StateDirectory, directory: Path) -> Conversation:
     record = read_json(
-        model=IssueConversationRecord,
-        path=directory / ISSUE_CONVERSATION_RECORD_NAME,
+        model=ConversationRecord,
+        path=directory / CONVERSATION_RECORD_NAME,
     )
     if directory.name != f"GH{record.issue}":
         raise ReportableError(
             f"{directory} records GH{record.issue}, but its directory is "
             f"{directory.name}."
         )
-    return IssueConversation(
+    return Conversation(
         directory=directory,
         worktree=state.conversation_worktrees / directory.name,
         record=record,
         rounds=read_agent_round_records(
             cache=state.document_cache,
-            directory=directory / ISSUE_CONVERSATION_ROUNDS_DIRECTORY_NAME,
+            directory=directory / CONVERSATION_ROUNDS_DIRECTORY_NAME,
         ),
     )
 
 
-def _update_issue_conversation_record(
+def _update_conversation_record(
     *,
-    conversation: IssueConversation,
+    conversation: Conversation,
     updates: dict[str, object],
 ) -> None:
     """Apply field updates while the caller holds the conversation's record lock."""
     updated = conversation.record.model_copy(update=updates)
     write_json(
         document=updated,
-        path=conversation.directory / ISSUE_CONVERSATION_RECORD_NAME,
+        path=conversation.directory / CONVERSATION_RECORD_NAME,
     )
     object.__setattr__(conversation, "record", updated)

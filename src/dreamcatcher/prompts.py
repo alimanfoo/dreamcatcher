@@ -39,7 +39,7 @@ end your turn when the work is done."""
     + AGENT_POST_INSTRUCTIONS
 )
 
-ISSUE_CONVERSATION_RECOVERY_PROMPT = (
+CONVERSATION_RECOVERY_PROMPT = (
     """Your earlier round was cut short, or its
 answer could not be posted. Carry on from where it stopped.
 
@@ -71,7 +71,7 @@ pull_request_state is MERGED or CLOSED, finish per your assignment's rules.
 Otherwise act on user_posts per your assignment's rules. End your turn when
 done."""
 
-_ISSUE_CONVERSATION_ROUND_PROMPT = (
+_CONVERSATION_ROUND_PROMPT = (
     """Issue-conversation input for GH{issue}:
 
   {round_input}
@@ -120,22 +120,20 @@ def compose_user_posts_prompt(
     return _prefix_stopped_round_feedback(prompt=prompt) if was_stopped else prompt
 
 
-def compose_issue_conversation_prompt(
-    *, template: str, issue: int, round_input: Path
-) -> str:
+def compose_conversation_prompt(*, template: str, issue: int, round_input: Path) -> str:
     """Return the first prompt that directs a conversation to its saved input."""
     instructions = template.replace(ISSUE_PLACEHOLDER, str(issue))
-    round_prompt = compose_issue_conversation_round_prompt(
+    round_prompt = compose_conversation_round_prompt(
         issue=issue, round_input=round_input
     )
     return f"{instructions}\n\n{round_prompt}"
 
 
-def compose_issue_conversation_round_prompt(
+def compose_conversation_round_prompt(
     *, issue: int, round_input: Path, was_stopped: bool = False
 ) -> str:
     """Return the prompt that directs a conversation round to its saved input."""
-    prompt = _ISSUE_CONVERSATION_ROUND_PROMPT.format(
+    prompt = _CONVERSATION_ROUND_PROMPT.format(
         issue=issue,
         round_input=round_input,
     )

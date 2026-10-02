@@ -16,14 +16,14 @@ from status_fabrications import fabricate_conversation, fabricate_everything
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
-    IssueConversationRoundPurpose,
+    ConversationRoundPurpose,
     compose_agent_round_ending,
 )
 from dreamcatcher.documents import append_text, write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.issue_conversations import (
-    IssueConversationInput,
-    read_issue_conversation,
+    ConversationInput,
+    read_conversation,
 )
 from dreamcatcher.scheduler.models import IssueFactValue, SchedulerRecord
 from dreamcatcher.state import StateDirectory
@@ -74,7 +74,7 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
         number=2,
         record=AgentRoundRecord(
             number=2,
-            purpose=IssueConversationRoundPurpose.DISCUSS,
+            purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED + timedelta(minutes=6),
             pid=2,
             ending=compose_agent_round_ending(
@@ -83,7 +83,7 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
         ),
     )
     write_json(
-        document=IssueConversationInput(
+        document=ConversationInput(
             issue=8,
             title="Issue 8",
             body="Explain it.",
@@ -139,7 +139,7 @@ def test_conversation_page_requests_a_stop_for_its_running_round(tmp_path, daemo
 
     assert response.status_code == 303
     assert response.location == "/conversations/8"
-    conversation = read_issue_conversation(state=state, issue=8)
+    conversation = read_conversation(state=state, issue=8)
     assert conversation is not None
     paths = conversation.compose_round_paths(number=1)
     assert paths.stop_request.read_text(encoding="utf-8") == ""
@@ -155,7 +155,7 @@ def test_an_old_conversation_stop_submission_cannot_stop_the_next_round(
         number=2,
         record=AgentRoundRecord(
             number=2,
-            purpose=IssueConversationRoundPurpose.DISCUSS,
+            purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED + timedelta(minutes=5),
             pid=1,
         ),
@@ -167,7 +167,7 @@ def test_an_old_conversation_stop_submission_cannot_stop_the_next_round(
     )
 
     assert response.status_code == 303
-    conversation = read_issue_conversation(state=state, issue=8)
+    conversation = read_conversation(state=state, issue=8)
     assert conversation is not None
     assert not conversation.compose_round_paths(number=2).stop_request.exists()
 
@@ -193,7 +193,7 @@ def test_a_stale_conversation_stop_request_is_already_done(tmp_path, daemon):
     )
 
     assert response.status_code == 303
-    conversation = read_issue_conversation(state=state, issue=8)
+    conversation = read_conversation(state=state, issue=8)
     assert conversation is not None
     assert not conversation.compose_round_paths(number=1).stop_request.exists()
 
@@ -223,7 +223,7 @@ def test_conversation_stop_requests_must_come_from_the_page(tmp_path):
 def test_conversation_page_with_an_unreadable_input_still_renders(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
-    conversation = read_issue_conversation(state=state, issue=8)
+    conversation = read_conversation(state=state, issue=8)
     assert conversation is not None
     conversation.compose_round_paths(number=1).round_input.write_bytes(b"not json")
 
@@ -252,7 +252,7 @@ def test_conversation_page_shows_two_errors_as_a_fault(tmp_path):
         number=2,
         record=AgentRoundRecord(
             number=2,
-            purpose=IssueConversationRoundPurpose.DISCUSS,
+            purpose=ConversationRoundPurpose.DISCUSS,
             is_recovery=True,
             started=PINNED + timedelta(minutes=5),
             pid=2,
@@ -262,7 +262,7 @@ def test_conversation_page_shows_two_errors_as_a_fault(tmp_path):
         ),
     )
     write_json(
-        document=IssueConversationInput(
+        document=ConversationInput(
             issue=8,
             comments=[
                 {
@@ -298,7 +298,7 @@ def test_conversation_before_its_first_round_has_an_empty_feed(tmp_path):
 def test_conversation_tail_returns_new_output_and_advances_its_cursor(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
-    conversation = read_issue_conversation(state=state, issue=8)
+    conversation = read_conversation(state=state, issue=8)
     assert conversation is not None
     feed = conversation.compose_round_paths(number=1).feed
     cursor = feed.stat().st_size
@@ -322,7 +322,7 @@ def test_conversation_tail_returns_new_output_and_advances_its_cursor(tmp_path):
 def test_an_ineligible_conversation_stops_empty_tail_polling(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
-    conversation = read_issue_conversation(state=state, issue=8)
+    conversation = read_conversation(state=state, issue=8)
     assert conversation is not None
     feed = conversation.compose_round_paths(number=1).feed
 
@@ -354,7 +354,7 @@ def test_a_waiting_conversation_keeps_empty_tail_polling(tmp_path):
 def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state, is_eligible=True)
-    conversation = read_issue_conversation(state=state, issue=8)
+    conversation = read_conversation(state=state, issue=8)
     assert conversation is not None
     first_feed = conversation.compose_round_paths(number=1).feed
     directory = state.conversations / "GH8"
@@ -363,7 +363,7 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
         number=2,
         record=AgentRoundRecord(
             number=2,
-            purpose=IssueConversationRoundPurpose.DISCUSS,
+            purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED + timedelta(minutes=6),
             pid=2,
             ending=compose_agent_round_ending(
@@ -372,7 +372,7 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
         ),
     )
     write_json(
-        document=IssueConversationInput(
+        document=ConversationInput(
             issue=8,
             title="Issue 8",
             body="Explain it.",

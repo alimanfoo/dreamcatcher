@@ -7,19 +7,19 @@ from functools import partial
 from typing import Protocol
 
 from dreamcatcher.agent_assignments import (
-    AgentAssignment,
-    AgentAssignmentRoundInput,
+    Assignment,
+    AssignmentRoundInput,
     advance_user_post_delivery_cursor,
     find_harness_session_identifier,
     record_harness_session_identifier,
     record_pull_request_observation,
 )
 from dreamcatcher.agent_rounds import (
-    AgentAssignmentRoundPurpose,
     AgentRound,
     AgentRoundOutcome,
     AgentRoundPlan,
     AgentRoundStartRequest,
+    AssignmentRoundPurpose,
     HarnessSessionIdentifierRecorder,
     start_agent_round,
 )
@@ -40,7 +40,7 @@ from dreamcatcher.relay import list_undelivered_user_posts
 from dreamcatcher.scheduler.faults import derive_agent_work_fault
 from dreamcatcher.scheduler.models import (
     NO_ROUND_HAS_RUN,
-    AgentAssignmentObservation,
+    AssignmentObservation,
     derive_round_purpose,
 )
 from dreamcatcher.words import describe_count
@@ -57,22 +57,22 @@ class _AssignmentRoundScheduler(Protocol):
 class RequiredAgentRound:
     """Describe the next round that an assignment requires."""
 
-    assignment: AgentAssignment
-    plan: AgentRoundPlan[AgentAssignmentRoundInput]
+    assignment: Assignment
+    plan: AgentRoundPlan[AssignmentRoundInput]
     reason: str
     prompt: str
 
 
 @dataclass(frozen=True, kw_only=True)
-class FaultedAgentAssignment:
+class FaultedAssignment:
     """Describe an assignment whose errors stop ordinary recovery."""
 
-    assignment: AgentAssignment
+    assignment: Assignment
     reason: str
 
 
-type AgentAssignmentInspectionResult = (
-    RequiredAgentRound | FaultedAgentAssignment | AgentAssignmentObservation
+type AssignmentInspectionResult = (
+    RequiredAgentRound | FaultedAssignment | AssignmentObservation
 )
 
 
@@ -88,16 +88,16 @@ def _rank_required_round(required: RequiredAgentRound, /) -> int:
         return 0
     if required.plan.is_recovery:
         return 1
-    if required.plan.purpose is AgentAssignmentRoundPurpose.WRAP_UP:
+    if required.plan.purpose is AssignmentRoundPurpose.WRAP_UP:
         return 2
     return 3
 
 
 def list_assignment_observations(
     *,
-    inspection_results: list[AgentAssignmentInspectionResult],
+    inspection_results: list[AssignmentInspectionResult],
     required_reason: str | None = None,
-) -> list[AgentAssignmentObservation]:
+) -> list[AssignmentObservation]:
     """Return an agent assignment observation for every inspection result.
 
     When `required_reason` is given, it replaces the reason of each required
@@ -105,7 +105,7 @@ def list_assignment_observations(
     """
     return [
         result
-        if isinstance(result, AgentAssignmentObservation)
+        if isinstance(result, AssignmentObservation)
         else compose_assignment_observation(
             assignment=result.assignment,
             reason=(
@@ -119,14 +119,14 @@ def list_assignment_observations(
     ]
 
 
-def inspect_agent_assignment(
+def inspect_assignment(
     *,
     repository: str,
     account: str,
-    assignment: AgentAssignment,
+    assignment: Assignment,
     most_recent_cooldown_ended: datetime | None,
     observed_at: datetime,
-) -> AgentAssignmentInspectionResult | None:
+) -> AssignmentInspectionResult | None:
     """Return what one assignment needs after reading any external facts."""
     if not assignment.rounds:
         return compose_initial_round_requirement(assignment=assignment)
@@ -137,7 +137,7 @@ def inspect_agent_assignment(
         retry_requested_at=assignment.record.retry_requested_at,
         most_recent_cooldown_ended=most_recent_cooldown_ended,
     ):
-        return FaultedAgentAssignment(
+        return FaultedAssignment(
             assignment=assignment,
             reason="two consecutive rounds failed",
         )
@@ -153,9 +153,9 @@ def _inspect_assignment_pull_request(
     *,
     repository: str,
     account: str,
-    assignment: AgentAssignment,
+    assignment: Assignment,
     observed_at: datetime,
-) -> AgentAssignmentInspectionResult | None:
+) -> AssignmentInspectionResult | None:
     """Return what an assignment needs from its pull request and posts."""
     pull_request = read_pull_request(
         repository=repository, pull_request=assignment.record.pull_request
@@ -201,7 +201,7 @@ def _inspect_assignment_pull_request(
 
 
 def _compose_recovery_round_requirement(
-    *, assignment: AgentAssignment, pull_request: PullRequest, reason: str
+    *, assignment: Assignment, pull_request: PullRequest, reason: str
 ) -> RequiredAgentRound:
     return RequiredAgentRound(
         assignment=assignment,
@@ -214,14 +214,12 @@ def _compose_recovery_round_requirement(
     )
 
 
-def compose_initial_round_requirement(
-    *, assignment: AgentAssignment
-) -> RequiredAgentRound:
+def compose_initial_round_requirement(*, assignment: Assignment) -> RequiredAgentRound:
     """Return the first round that a recorded assignment requires."""
     return RequiredAgentRound(
         assignment=assignment,
         plan=AgentRoundPlan(
-            purpose=AgentAssignmentRoundPurpose.IMPLEMENT, is_recovery=False
+            purpose=AssignmentRoundPurpose.IMPLEMENT, is_recovery=False
         ),
         reason=NO_ROUND_HAS_RUN,
         prompt=assignment.record.prompt,
@@ -230,7 +228,7 @@ def compose_initial_round_requirement(
 
 def _compose_resumed_round_requirement(
     *,
-    assignment: AgentAssignment,
+    assignment: Assignment,
     pull_request: PullRequest,
     undelivered_posts: list[UserPost],
     recovery_reason: str | None,
@@ -242,7 +240,7 @@ def _compose_resumed_round_requirement(
         plan=AgentRoundPlan(
             purpose=derive_round_purpose(pull_request=pull_request),
             is_recovery=recovery_reason is not None,
-            input=AgentAssignmentRoundInput(
+            input=AssignmentRoundInput(
                 pull_request_state=pull_request.state, user_posts=undelivered_posts
             ),
         ),
@@ -266,7 +264,7 @@ def _compose_resumed_round_requirement(
 
 
 def _record_session_before_advancing_user_post_cursor(
-    *, assignment: AgentAssignment, newest_user_post: str, identifier: str
+    *, assignment: Assignment, newest_user_post: str, identifier: str
 ) -> None:
     """Record a replacement session before acknowledging its delivered posts."""
     record_harness_session_identifier(assignment=assignment, identifier=identifier)
@@ -275,13 +273,13 @@ def _record_session_before_advancing_user_post_cursor(
 
 def compose_assignment_observation(
     *,
-    assignment: AgentAssignment,
+    assignment: Assignment,
     reason: str,
     is_known: bool = True,
     is_round_required: bool = True,
-) -> AgentAssignmentObservation:
+) -> AssignmentObservation:
     """Return what the scheduler found for one idle assignment."""
-    return AgentAssignmentObservation(
+    return AssignmentObservation(
         assignment_identifier=assignment.identifier,
         issue=assignment.record.issue,
         reason=reason,

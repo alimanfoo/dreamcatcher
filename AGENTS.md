@@ -234,11 +234,11 @@ $env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest --regenerate-view-goldens
 - Name a boolean for the question it answers: `is_alive`, `is_subagent`, not
   `alive` or `subagent`. `if round.is_alive:` then reads as English.
 - Name a class or a function that a module exports so that it still says what it
-  is when another module imports it bare: `create_agent_assignment`, not
-  `create`; `compose_first_round_prompt`, not `first_round`. The module name
-  qualifies it where it is defined and nowhere else, so a name that leans on the
-  module reads as nothing at the call site. A method needs no such help, because
-  its receiver says what it belongs to.
+  is when another module imports it bare: `create_assignment`, not `create`;
+  `compose_first_round_prompt`, not `first_round`. The module name qualifies it
+  where it is defined and nowhere else, so a name that leans on the module reads
+  as nothing at the call site. A method needs no such help, because its receiver
+  says what it belongs to.
 
 ### Docstring conventions
 
