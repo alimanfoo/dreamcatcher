@@ -341,3 +341,35 @@ Nothing was done and nothing can be resumed, and the wrap-up round is a fresh
 session with the pull request in front of it either way. The change is neutral
 for robustness, removes the write window between the round start and the cursor
 write, and leaves one delivery rule for both kinds.
+
+### Row 6: how the scheduler is passed to each kind
+
+No line of part 1 names anything in this row. It is code shape alone.
+
+The conversation functions take the scheduler through a protocol of seven
+attributes: repository, account, config, state, requested harness, clock and the
+running set. The assignment functions take it through a protocol of two, clock
+and the running set, and take repository and account as plain parameters, while
+assignment creation sits in the coordinator and reads state, config and the
+requested harness from itself. Across the whole assignment side the same seven
+things are needed; they arrive by three doors. Both protocols describe the one
+object, the coordinator. The issue observer has a fourth bundle of its own,
+which the roadmap already names as residue.
+
+1. **Three bundles for one set of facts.** The instance's identity and handles
+   are what every tick-level operation needs, and they are the same for both
+   kinds. Accident: one tick-context value, defined once and passed to each
+   kind's inspection and launch and to the issue observer, replacing both
+   protocols and the observer's bundle. It is a code shape like the state
+   directory, not an ontology concept.
+2. **The running set belongs to neither kind.** Both launches write into the
+   coordinator's dictionary of running rounds. Row 5 says a launch returns what
+   it launched, so the coordinator registers it and neither kind needs the
+   dictionary to launch. For inspection, the conversation side reads running
+   from the records alone: a round with no ending is running. The assignment
+   side checks the dictionary as well, because its round describer treats a
+   record with no ending as interrupted. Two conventions for one state. The
+   daemon records every stale round as interrupted at startup, before the first
+   tick, so while a daemon runs a record with no ending is a running round, as
+   the record's own outcome says. Accident: one convention, and the dictionary
+   check goes with it.
