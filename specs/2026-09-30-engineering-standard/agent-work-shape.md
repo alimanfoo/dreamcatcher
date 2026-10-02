@@ -484,11 +484,10 @@ attributes again.
   of routes' issues, and the harness session rule. It is generic over the kind's
   candidate and observation types, so the two implementations agree in shape
   while differing in type.
-- `AgentAssignmentScheduler`, in `scheduler/assignments.py`, and
-  `IssueConversationScheduler`, in `scheduler/conversations.py`, extend it.
-  Every helper that took `scheduler` or `repository` becomes a method, or a
-  function that takes the scheduling object, and reads `self.repository` and so
-  on.
+- `AssignmentScheduler`, in `scheduler/assignments.py`, and
+  `ConversationScheduler`, in `scheduler/conversations.py`, extend it. Every
+  helper that took `scheduler` or `repository` becomes a method, or a function
+  that takes the scheduling object, and reads `self.repository` and so on.
 - The scheduler holds one instance of each, built from the same six facts, and
   calls `self.assignments.inspect(...)` and `self.conversations.launch(...)`.
   The running set, the agent cap and the alternation stay on the scheduler.
@@ -512,11 +511,11 @@ architecture asks.
 1. Add `scheduler/agent_work.py` with `AgentWorkScheduler`: the six fields, the
    three abstract methods, and the two shared methods the listing and launching
    sections define.
-2. In `scheduler/assignments.py`, add `AgentAssignmentScheduler` extending it.
-   Turn each function that took `scheduler`, `repository` or `account` into a
-   method. Delete `_AssignmentRoundScheduler`.
-3. In `scheduler/conversations.py`, add `IssueConversationScheduler` extending
-   it. Turn each function that took `scheduler` into a method. Delete
+2. In `scheduler/assignments.py`, add `AssignmentScheduler` extending it. Turn
+   each function that took `scheduler`, `repository` or `account` into a method.
+   Delete `_AssignmentRoundScheduler`.
+3. In `scheduler/conversations.py`, add `ConversationScheduler` extending it.
+   Turn each function that took `scheduler` into a method. Delete
    `_ConversationScheduler`.
 4. Change `observe_issues` and its helpers in `scheduler/issues.py` to take the
    scheduling object, the open assignments and the incomplete setups, and delete
@@ -669,15 +668,15 @@ is the same for both kinds: it takes the previous tick's scheduler record, or
 none, and the tick's time, and returns the kind's bundle. Each kind reads its
 own records from `self.state` inside it.
 
-- `AgentAssignmentScheduler.inspect` reads the assignments and the incomplete
-  setups, observes the issues, records missing titles, walks the open assignment
+- `AssignmentScheduler.inspect` reads the assignments and the incomplete setups,
+  observes the issues, records missing titles, walks the open assignment
   records, as differ 11 requires, skipping any whose latest record has no
   ending, reads each one's pull request, and turns each available issue
   observation into a candidate for a new assignment.
-- `IssueConversationScheduler.inspect` reads the conversations, takes the
-  previous observations from the previous record, lists the conversation routes'
-  issues, and walks the listed eligible issues, as differ 11 requires, finding
-  the record for each.
+- `ConversationScheduler.inspect` reads the conversations, takes the previous
+  observations from the previous record, lists the conversation routes' issues,
+  and walks the listed eligible issues, as differ 11 requires, finding the
+  record for each.
 
 Both return `AgentWorkInspection`, one generic frozen dataclass in
 `scheduler/models.py` with four fields:
@@ -695,7 +694,7 @@ Both return `AgentWorkInspection`, one generic frozen dataclass in
   names.
 - `failure`: the joined reason this kind's reads failed, or none.
 
-The assignment bundle, `AgentAssignmentInspection`, extends it with
+The assignment bundle, `AssignmentInspection`, extends it with
 `issue_observations`, the issue observations the tick made, which the record
 persists and the report shows. That extension is named by the ontology: issue
 observations and availability are how an assignment starts, which is differ 2
@@ -708,8 +707,8 @@ record. It never looks inside a candidate.
 **The edits.**
 
 1. Add `AgentWorkInspection` to `scheduler/models.py`, generic over the
-   candidate and observation types, and `AgentAssignmentInspection` extending it
-   in `scheduler/assignments.py`.
+   candidate and observation types, and `AssignmentInspection` extending it in
+   `scheduler/assignments.py`.
 2. In `scheduler/assignments.py`, implement `inspect`. Move the reading of
    assignments and incomplete setups, the call to `observe_issues` and the
    recording of missing titles from the scheduler's `tick` into it. Move the
@@ -721,7 +720,7 @@ record. It never looks inside a candidate.
    or an observation. After the loop, add a new-assignment candidate for each
    available issue observation, rank all candidates with `self.rank`, and return
    the bundle with the issue listing's failure. Delete
-   `inspect_agent_assignment`, `AgentAssignmentInspectionResult`,
+   `inspect_agent_assignment`, `AssignmentInspectionResult`,
    `FaultedAgentAssignment`, `list_assignment_observations`,
    `compose_assignment_observation` and `prioritize_required_rounds`.
 3. In `scheduler/conversations.py`, turn `list_issue_conversation_candidates`
@@ -761,17 +760,17 @@ prepared, for both kinds. Each kind's candidate types follow its ranking list in
 the ontology, which is differ 9, and what starts each kind, which is differ 2.
 
 - Assignment, three types in `scheduler/assignments.py`:
-  `NewAgentAssignmentCandidate`, the issue number, its title and its route,
-  built from an available issue observation;
-  `FirstAgentAssignmentRoundCandidate`, an assignment whose record has no
-  rounds, which the ontology's rule for finishing an interrupted creation needs,
-  and which reads no pull request, as today; and
-  `AgentAssignmentRoundCandidate`, an assignment with its pull request, its
+  `NewAssignmentCandidate`, the issue number, its title and its route, built
+  from an available issue observation; `FirstAssignmentRoundCandidate`, an
+  assignment whose record has no rounds, which the ontology's rule for finishing
+  an interrupted creation needs, and which reads no pull request, as today; and
+  `AssignmentRoundCandidate`, an assignment with its pull request, its
   undelivered posts, and the reason its last round needs recovery, or none.
 - Conversation, two types in `scheduler/conversations.py`:
-  `IssueConversationBatchCandidate`, the renamed batch candidate, since a first
-  and a later batch are one thing to the ontology; and
-  `IssueConversationRecoveryCandidate`, as today.
+  `ConversationBatchCandidate`, the renamed batch candidate, since a first and a
+  later batch are one thing to the ontology; and
+  `ConversationRecoveryCandidate`, today's `IssueConversationRecoveryCandidate`
+  renamed.
 
 Why three against two, when the point is one shape? Because the ontology's
 ranking lists differ: an assignment can need a first round, a recovery, a
@@ -790,16 +789,16 @@ waiting comment.
 **The edits.**
 
 1. Add the three assignment candidate dataclasses to `scheduler/assignments.py`
-   and implement `rank` on `AgentAssignmentScheduler`. Delete
-   `RequiredAgentRound` and `_rank_required_round`. The three functions that
-   composed a required round, `compose_initial_round_requirement`,
+   and implement `rank` on `AssignmentScheduler`. Delete `RequiredAgentRound`
+   and `_rank_required_round`. The three functions that composed a required
+   round, `compose_initial_round_requirement`,
    `_compose_recovery_round_requirement` and
    `_compose_resumed_round_requirement`, move to the launch, which the launch
    section covers.
-2. Rename `NewIssueConversationRoundCandidate` to
-   `IssueConversationBatchCandidate`, and turn
-   `_rank_issue_conversation_candidate` into `rank` on
-   `IssueConversationScheduler`.
+2. Rename `NewIssueConversationRoundCandidate` to `ConversationBatchCandidate`
+   and `IssueConversationRecoveryCandidate` to `ConversationRecoveryCandidate`,
+   and turn `_rank_issue_conversation_candidate` into `rank` on
+   `ConversationScheduler`.
 3. Delete the scheduler's `_AssignmentCandidate` alias and its route lookup by
    label.
 
@@ -838,9 +837,10 @@ the rounds and reads neither.
   agent work identifier; `issue`; and `requires_round`, an `IssueFact`. The name
   follows the ontology's phrase, "whether an assignment requires an agent
   round".
-- `IssueConversationObservation` extends it with `title`, because a conversation
-  is observed before any record holds one, which is differ 7, and
-  `routing_conflict`, which differ 8 puts on the conversation alone.
+- `ConversationObservation`, today's `IssueConversationObservation` renamed,
+  extends it with `title`, because a conversation is observed before any record
+  holds one, which is differ 7, and `routing_conflict`, which differ 8 puts on
+  the conversation alone.
 - The assignment observation is the base type itself.
 
 The evidence words are the same for both kinds. True carries the need: "N new
@@ -852,10 +852,11 @@ observation, launched or not, and the capacity hold rewrites nothing.
 
 **The edits.**
 
-1. In `scheduler/models.py`, add `AgentWorkObservation` and make
-   `IssueConversationObservation` extend it: rename `has_comments_to_answer` to
-   `requires_round` and add `identifier`. Delete `AgentAssignmentObservation`
-   and type the record's `assignment_observations` as a list of the base.
+1. In `scheduler/models.py`, add `AgentWorkObservation`, rename
+   `IssueConversationObservation` to `ConversationObservation` and make it
+   extend the base: rename `has_comments_to_answer` to `requires_round` and add
+   `identifier`. Delete `AgentAssignmentObservation` and type the record's
+   `assignment_observations` as a list of the base.
 2. In the assignment inspection, compose observations with the shared words,
    including one for a faulted assignment and one for each launched one.
 3. In the conversation inspection, give each observation its identifier,
@@ -957,13 +958,13 @@ prompt.
 **The shape.** `launch` is the third abstract method on the base. It takes one
 candidate and the tick's time, and returns the `AgentRound` it started.
 
-- `AgentAssignmentScheduler.launch`: for a new-assignment candidate it creates
-  the assignment with the candidate's route and the tick's time, then starts the
+- `AssignmentScheduler.launch`: for a new-assignment candidate it creates the
+  assignment with the candidate's route and the tick's time, then starts the
   first round, in one call. For a first-round candidate it starts the first
   round. For a round candidate it derives the purpose from the pull request with
   `derive_round_purpose`, builds the plan with the input, composes the prompt,
   resolves the session and starts the round.
-- `IssueConversationScheduler.launch`: today's launch with the record patching
+- `ConversationScheduler.launch`: today's launch with the record patching
   removed and the round returned.
 
 Each launch prepares an `AgentRoundStartRequest`, the type the round boundary
@@ -1065,13 +1066,13 @@ both kinds' derivations. What it lacks is the line between the two kinds.
   which takes nothing and returns the kind's statuses in the order the report
   needs, and holds the derivation steps both kinds share, such as whether a
   round ended after the latest tick.
-- `AgentAssignmentStatusReader`, in `status/assignments.py`, extends it with the
+- `AssignmentStatusReader`, in `status/assignments.py`, extends it with the
   assignment observation map, `list_statuses`, and `derive`, which takes an
-  assignment. `IssueConversationStatusReader`, in `status/conversations.py`,
-  extends it with the conversation observation map, `list_statuses`, and
-  `derive`, which takes the issue, the title and the conversation if one is
-  saved. The two `derive` methods differ in what they take, which differ 7
-  names, so `list_statuses` is the abstract one.
+  assignment. `ConversationStatusReader`, in `status/conversations.py`, extends
+  it with the conversation observation map, `list_statuses`, and `derive`, which
+  takes the issue, the title and the conversation if one is saved. The two
+  `derive` methods differ in what they take, which differ 7 names, so
+  `list_statuses` is the abstract one.
 - `status/rounds.py` holds what both kinds say about a round: the running
   detail, the ending detail that fault and recovery share, and which round can
   take a stop request.
@@ -1112,10 +1113,10 @@ the list of changed words says.
    constructor, with the shared steps as methods.
 2. Add the three shared helpers to `status/rounds.py`, from the assignment and
    conversation versions.
-3. Add `AgentAssignmentStatusReader` to `status/assignments.py`. Move the
-   reader's assignment methods into its `derive` and `list_statuses`, following
-   the order above.
-4. Add `IssueConversationStatusReader` to `status/conversations.py`. Move the
+3. Add `AssignmentStatusReader` to `status/assignments.py`. Move the reader's
+   assignment methods into its `derive` and `list_statuses`, following the order
+   above.
+4. Add `ConversationStatusReader` to `status/conversations.py`. Move the
    reader's conversation methods and the three functions into its `derive` and
    `list_statuses`, following the order above. Delete `ConversationSummary`.
 5. Add `is_over` to `AgentAssignmentStatus`. Delete `STATUSES_THAT_END_A_VIEW`
@@ -1169,26 +1170,29 @@ status one kind gave and the other did not.
 The operations each kind has after the change, read in pairs. Where a pair
 differs in shape, the line names the difference.
 
-| Operation          | Assignment                                           | Conversation                                           |
-| ------------------ | ---------------------------------------------------- | ------------------------------------------------------ |
-| Scheduler class    | `AgentAssignmentScheduler`                           | `IssueConversationScheduler`                           |
-| Inspect for a tick | `inspect`                                            | `inspect`                                              |
-| Result             | `AgentAssignmentInspection`, adds issue observations | `AgentWorkInspection`                                  |
-| Candidates         | three types, by the ranking list                     | two types, by the ranking list                         |
-| Rank               | `rank`                                               | `rank`                                                 |
-| Launch             | `launch`                                             | `launch`                                               |
-| Observation        | `AgentWorkObservation`                               | `IssueConversationObservation`, adds two facts         |
-| Delivery position  | `read_user_post_delivery_cursor`                     | `read_issue_comment_delivery_cursor`                   |
-| Session identifier | `find_agent_assignment_harness_session_identifier`   | `find_issue_conversation_harness_session_identifier`   |
-| Record session     | `record_agent_assignment_harness_session_identifier` | `record_issue_conversation_harness_session_identifier` |
-| Retry              | `request_agent_assignment_retry`                     | `request_issue_conversation_retry`                     |
-| Status class       | `AgentAssignmentStatusReader`                        | `IssueConversationStatusReader`                        |
-| Statuses           | `list_statuses`                                      | `list_statuses`                                        |
-| Derive one         | `derive`, from an assignment                         | `derive`, from an issue and its record if saved        |
-| Over               | `is_over`                                            | `is_over`                                              |
+| Operation          | Assignment                                      | Conversation                                     |
+| ------------------ | ----------------------------------------------- | ------------------------------------------------ |
+| Scheduler class    | `AssignmentScheduler`                           | `ConversationScheduler`                          |
+| Inspect for a tick | `inspect`                                       | `inspect`                                        |
+| Result             | `AssignmentInspection`, adds issue observations | `AgentWorkInspection`                            |
+| Candidates         | three types, by the ranking list                | two types, by the ranking list                   |
+| Rank               | `rank`                                          | `rank`                                           |
+| Launch             | `launch`                                        | `launch`                                         |
+| Observation        | `AgentWorkObservation`                          | `ConversationObservation`, adds two facts        |
+| Delivery position  | `read_user_post_delivery_cursor`                | `read_issue_comment_delivery_cursor`             |
+| Session identifier | `find_assignment_harness_session_identifier`    | `find_conversation_harness_session_identifier`   |
+| Record session     | `record_assignment_harness_session_identifier`  | `record_conversation_harness_session_identifier` |
+| Retry              | `request_assignment_retry`                      | `request_conversation_retry`                     |
+| Status class       | `AssignmentStatusReader`                        | `ConversationStatusReader`                       |
+| Statuses           | `list_statuses`                                 | `list_statuses`                                  |
+| Derive one         | `derive`, from an assignment                    | `derive`, from an issue and its record if saved  |
+| Over               | `is_over`                                       | `is_over`                                        |
 
-The baseline counted twelve symbols for conversations against nine for
-assignments in the scheduler. The remeasurement counts these pairs and lists
+A name in the table that exists today under a longer form is renamed to this
+one. The ontology uses "assignment" and "conversation" as the short forms of its
+two terms, and the names follow it; "agent work" stays whole because it has no
+short form. The baseline counted twelve symbols for conversations against nine
+for assignments in the scheduler. The remeasurement counts these pairs and lists
 every symbol one kind has without a counterpart, with the line of part 1 that
 names it.
 
