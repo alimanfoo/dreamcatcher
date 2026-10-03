@@ -78,14 +78,13 @@ any active global cooldown; it does not start a round itself.
 dreamcatcher stop GH<n> (--assignment | --conversation)
 ```
 
-Request a prompt stop for the current round of the selected agent work. The
+Request a stop for the current round of the selected agent work. The
 `--assignment` option selects the newest assignment at the issue, and
 `--conversation` selects the issue conversation.
 
 The round must be running under the daemon, have a resumable harness session,
 and have no pending stop request. The command writes the same local stop request
-as the web control and does not contact GitHub. After the round stops, the work
-waits for new feedback before the daemon starts another round.
+as the web control and does not contact GitHub.
 
 ## `web`
 

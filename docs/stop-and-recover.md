@@ -6,14 +6,23 @@ stopping one agent round and stopping the daemon have different consequences.
 | Action                                                            | What stops                            | What happens next                                                        |
 | ----------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------ |
 | Interrupt `web`, `status`, `assignment`, `conversation` or `feed` | Only that view                        | The daemon and agents continue.                                          |
-| Select **Stop** on an assignment or conversation page             | The current agent round               | The work waits for new user input; this is not an error.                 |
+| Run `dreamcatcher stop` or select **Stop** on the web page        | The current agent round               | The work waits for input unless a terminal assignment needs wrap-up.     |
 | Press Ctrl-C in the terminal running `dreamcatcher run`           | The daemon and all its current rounds | Work that still needs a round can recover after the daemon starts again. |
 
 ## Stop one running round
 
-Run `dreamcatcher web`, open the assignment or conversation, and select
-**Stop**. The control appears only while the round is running and Dreamcatcher
-has learned its harness session. The round normally stops within about a second.
+Run the command that selects the work you want to stop:
+
+```sh
+dreamcatcher stop GH123 --assignment
+dreamcatcher stop GH123 --conversation
+```
+
+Use `--assignment` for the newest assignment at the issue, or `--conversation`
+for its issue conversation. You can instead run `dreamcatcher web`, open the
+assignment or conversation, and select **Stop**. Both controls are available
+only while the round is running and Dreamcatcher has learned its harness
+session. The round normally stops within about a second.
 
 After an assignment round is stopped, an open pull request waits for a new
 comment or review from you. Add that feedback when you are ready to resume. If
@@ -26,8 +35,7 @@ an automatic recovery of the stopped attempt.
 
 Removing an assignment label does not stop an active assignment. For a
 conversation, removing its last matching label makes future batches and recovery
-ineligible, but does not cancel a round already running. Use the web control
-when you need to stop the current process.
+ineligible, but does not cancel a round already running.
 
 ## Restart an interrupted daemon
 

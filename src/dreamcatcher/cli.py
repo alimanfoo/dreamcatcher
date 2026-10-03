@@ -125,10 +125,9 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         "stop",
         help="stop one running assignment or conversation round",
         description=(
-            "Request a prompt stop for the current round of the selected agent "
-            "work. The round must be running under the daemon and have a "
-            "resumable harness session. The work waits for new feedback after "
-            "the round stops."
+            "Request a stop for the current round of the selected agent work. "
+            "The round must be running under the daemon and have a resumable "
+            "harness session."
         ),
     )
     _add_issue_argument(parser=stop_parser)
