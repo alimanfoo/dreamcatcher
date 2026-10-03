@@ -15,7 +15,6 @@ from dreamcatcher.clock import read_current_time
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
-    STATUSES_THAT_END_A_VIEW,
     AssignmentStatus,
     ConversationStatus,
     read_assignment_status,
@@ -201,7 +200,7 @@ def _show_assignment_tail(
             ),
             stop_url=_compose_assignment_stop_url(status=status),
         ),
-        is_terminal=status.value in STATUSES_THAT_END_A_VIEW,
+        is_terminal=status.is_over,
         status_id="assignment-status",
         zone=zone,
     )

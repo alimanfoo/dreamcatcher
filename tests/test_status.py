@@ -353,8 +353,8 @@ def test_a_live_round_that_has_said_nothing_reports_that(running):
 @pytest.mark.parametrize(
     ("round_status", "detail"),
     [
-        (None, "next round, implement (recovery)"),
-        (2, "next round, implement (recovery)"),
+        (None, "round 1 interrupted"),
+        (2, "round 1 errored (exit 2)"),
     ],
 )
 def test_an_unfinished_round_waits_for_recovery(state, round_status, detail):
@@ -374,6 +374,7 @@ def test_a_successful_wrap_up_is_complete(state):
 
     assert status.value is AssignmentStatusValue.COMPLETE
     assert status.detail == "2 rounds"
+    assert status.is_over
 
 
 def test_an_assignment_that_has_run_no_round_waits_for_its_first(state):
@@ -381,6 +382,7 @@ def test_an_assignment_that_has_run_no_round_waits_for_its_first(state):
 
     assert status.value is AssignmentStatusValue.WAITING
     assert status.detail == "next round, implement"
+    assert not status.is_over
 
 
 def test_a_required_round_reports_the_scheduler_reason(state):
@@ -573,19 +575,19 @@ def test_two_current_errors_put_an_assignment_in_fault(state):
     status = only_assignment(state=state)
 
     assert status.value is AssignmentStatusValue.FAULT
-    assert status.detail == "[failed] You hit your spend cap."
+    assert status.detail == "round 2 errored (exit 2)"
+    assert status.latest_output == "[failed] You hit your spend cap."
+    assert status.is_over
 
 
-def test_a_fault_with_no_output_names_the_latest_rounds_feed(state):
+def test_a_fault_with_no_output_names_the_latest_round_ending(state):
     ran(state=state, number=1, status=1)
     ran(state=state, number=2, status=2)
 
     status = only_assignment(state=state)
 
-    assert status.detail == (
-        "two consecutive rounds failed "
-        f"(.dreamcatcher/v5/assignments/{ASSIGNMENT_ID}/rounds/2/feed.txt)"
-    )
+    assert status.detail == "round 2 errored (exit 2)"
+    assert status.latest_output is None
 
 
 def test_an_elapsed_cooldown_clears_the_fault_and_active_hold(state):

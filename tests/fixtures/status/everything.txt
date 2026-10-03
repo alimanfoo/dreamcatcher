@@ -9,12 +9,13 @@ instance
 
 assignments
   GH20-20260819-184158  needs user feedback  idle 2h 0m                                             
-  GH9-20260819-184158   fault                [failed] You hit your spend cap.                       
+  GH9-20260819-184158   fault                round 2 errored (exit 2)                               
+  [failed] You hit your spend cap.                                                                  
   GH13-20260819-184158  working              round 2, address feedback (recovery), running 1h 30m,  
                                              last output 1h 29m ago                                 
   The agent is explaining a long change that would otherwise wrap onto another line and move every …
   GH31-20260819-184158  waiting              next round, implement                                  
-  GH35-20260819-184158  waiting              next round, implement (recovery)                       
+  GH35-20260819-184158  waiting              round 1 errored (exit 2)                               
   GH44-20260819-184158  waiting              next round, implement                                  
   GH40-20260819-184158  unknown              no current scheduler observation                       
   GH50  dream:smith  available                                                                      

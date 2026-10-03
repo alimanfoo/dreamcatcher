@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from dreamcatcher.agent_assignments import (
+    Assignment,
+    find_open_assignments_by_issue,
     read_assignment,
     read_assignments,
     read_assignments_for_issue,
@@ -18,21 +20,25 @@ from dreamcatcher.issue_conversations import (
     read_conversations,
 )
 from dreamcatcher.lock import read_daemon_pid
+from dreamcatcher.scheduler.faults import read_scheduler_record
 from dreamcatcher.scheduler.models import (
     GlobalCooldown,
+    IssueFact,
     IssueFactValue,
     IssueObservation,
+    SchedulerRecord,
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status.assignments import (
     AssignmentStatus,
+    AssignmentStatusReader,
     AssignmentStatusValue,
 )
 from dreamcatcher.status.conversations import (
     ConversationStatus,
+    ConversationStatusReader,
     ConversationStatusValue,
 )
-from dreamcatcher.status.reader import StatusReportReader
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -85,24 +91,36 @@ def read_status_report(
     *, state: StateDirectory, clock: Callable[[], datetime] = read_current_time
 ) -> DreamcatcherStatusReport:
     """Read a status report from the instance's local state."""
-    reader = StatusReportReader(state=state, clock=clock)
+    at, daemon_pid, scheduler_record = _read_status_facts(state=state, clock=clock)
     assignments = read_assignments(state=state)
-    assignment_statuses = reader.list_assignment_statuses(assignments=assignments)
+    assignment_statuses = AssignmentStatusReader(
+        state=state,
+        at=at,
+        daemon_pid=daemon_pid,
+        scheduler_record=scheduler_record,
+        assignments=assignments,
+    ).list_statuses()
     conversation_statuses = [
         status
-        for status in reader.list_conversation_statuses(
-            conversations=read_conversations(state=state)
-        )
+        for status in ConversationStatusReader(
+            state=state,
+            at=at,
+            daemon_pid=daemon_pid,
+            scheduler_record=scheduler_record,
+            conversations=read_conversations(state=state),
+        ).list_statuses()
         if status.is_listed
     ]
-    issue_observations = reader.list_issue_observations(assignments=assignments)
-    scheduler_record = reader.scheduler_record
+    issue_observations = _refresh_issue_observations(
+        scheduler_record=scheduler_record,
+        assignments=assignments,
+    )
     daemon = _read_dreamcatcher_daemon_status(
         state=state,
-        daemon_pid=reader.daemon_pid,
+        daemon_pid=daemon_pid,
     )
     return DreamcatcherStatusReport(
-        at=reader.at,
+        at=at,
         repository=read_repository(state=state),
         daemon=daemon,
         latest_scheduler_tick=(
@@ -110,7 +128,7 @@ def read_status_report(
         ),
         scheduler_hold=(
             None
-            if scheduler_record is None or reader.daemon_pid is None
+            if scheduler_record is None or daemon_pid is None
             else scheduler_record.hold
         ),
         running_agents=_count_running_agents(
@@ -126,6 +144,61 @@ def read_status_report(
         assignment_statuses=assignment_statuses,
         conversation_statuses=conversation_statuses,
     )
+
+
+def _read_status_facts(
+    *, state: StateDirectory, clock: Callable[[], datetime]
+) -> tuple[datetime, int | None, SchedulerRecord | None]:
+    at = clock()
+    daemon_pid = read_daemon_pid(path=state.lock)
+    return at, daemon_pid, read_scheduler_record(state=state, at=at)
+
+
+def _refresh_issue_observations(
+    *,
+    scheduler_record: SchedulerRecord | None,
+    assignments: list[Assignment],
+) -> list[IssueObservation]:
+    if scheduler_record is None:
+        return []
+    assignments_by_issue: dict[int, list[Assignment]] = {}
+    for assignment in assignments:
+        assignments_by_issue.setdefault(assignment.record.issue, []).append(assignment)
+    return [
+        _refresh_issue_observation(
+            observation=observation,
+            assignments=assignments_by_issue.get(observation.issue, []),
+            recorded_at=scheduler_record.at,
+        )
+        for observation in scheduler_record.issue_observations
+    ]
+
+
+def _refresh_issue_observation(
+    *,
+    observation: IssueObservation,
+    assignments: list[Assignment],
+    recorded_at: datetime,
+) -> IssueObservation:
+    open_assignment = find_open_assignments_by_issue(assignments=assignments).get(
+        observation.issue
+    )
+    if open_assignment is not None:
+        claimed_here = IssueFact(
+            value=IssueFactValue.TRUE,
+            evidence="an assignment in this checkout is working on it",
+        )
+    elif assignments:
+        claimed_here = IssueFact(
+            value=IssueFactValue.FALSE,
+            evidence="no assignment in this checkout is working on it",
+        )
+    else:
+        claimed_here = observation.claimed_here
+    refreshed = observation.model_copy(update={"claimed_here": claimed_here})
+    if refreshed.observed_at is None:
+        return refreshed.model_copy(update={"observed_at": recorded_at})
+    return refreshed
 
 
 def _count_running_agents(
@@ -214,10 +287,14 @@ def read_assignment_statuses_for_issue(
     clock: Callable[[], datetime] = read_current_time,
 ) -> list[AssignmentStatus]:
     """Read the statuses at one issue, newest agent assignment first."""
-    reader = StatusReportReader(state=state, clock=clock)
-    return reader.list_assignment_statuses(
-        assignments=read_assignments_for_issue(state=state, issue=issue)
-    )
+    at, daemon_pid, scheduler_record = _read_status_facts(state=state, clock=clock)
+    return AssignmentStatusReader(
+        state=state,
+        at=at,
+        daemon_pid=daemon_pid,
+        scheduler_record=scheduler_record,
+        assignments=read_assignments_for_issue(state=state, issue=issue),
+    ).list_statuses()
 
 
 def read_assignment_status(
@@ -230,8 +307,14 @@ def read_assignment_status(
     assignment = read_assignment(state=state, identifier=identifier)
     if assignment is None:
         return None
-    reader = StatusReportReader(state=state, clock=clock)
-    return reader.list_assignment_statuses(assignments=[assignment])[0]
+    at, daemon_pid, scheduler_record = _read_status_facts(state=state, clock=clock)
+    return AssignmentStatusReader(
+        state=state,
+        at=at,
+        daemon_pid=daemon_pid,
+        scheduler_record=scheduler_record,
+        assignments=[assignment],
+    ).derive(assignment=assignment)
 
 
 def read_conversation_status(
@@ -246,8 +329,12 @@ def read_conversation_status(
     tick observed it through a configured conversation route.
     """
     conversation = read_conversation(state=state, issue=issue)
-    reader = StatusReportReader(state=state, clock=clock)
-    statuses = reader.list_conversation_statuses(
-        conversations=[] if conversation is None else [conversation]
-    )
+    at, daemon_pid, scheduler_record = _read_status_facts(state=state, clock=clock)
+    statuses = ConversationStatusReader(
+        state=state,
+        at=at,
+        daemon_pid=daemon_pid,
+        scheduler_record=scheduler_record,
+        conversations=[] if conversation is None else [conversation],
+    ).list_statuses()
     return next((status for status in statuses if status.issue == issue), None)

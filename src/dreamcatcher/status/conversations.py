@@ -8,7 +8,6 @@ from functools import cached_property
 from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
     AgentRoundPaths,
-    ErroredAgentRoundEnding,
 )
 from dreamcatcher.documents import read_text
 from dreamcatcher.errors import ReportableError
@@ -24,11 +23,15 @@ from dreamcatcher.scheduler.models import (
     ConversationObservation,
     IssueFactValue,
 )
+from dreamcatcher.status.agent_work import AgentWorkStatusReader
 from dreamcatcher.status.rounds import (
     AgentRoundRevision,
     AgentRoundStatus,
     compose_round_duration_description,
+    describe_round_ending,
     describe_round_outcome,
+    describe_running_round,
+    find_stoppable_round_paths,
 )
 
 
@@ -59,15 +62,6 @@ CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER = (
     ConversationStatusValue.UNKNOWN,
     ConversationStatusValue.IDLE,
 )
-
-
-@dataclass(frozen=True, kw_only=True)
-class ConversationSummary:
-    """Hold the status, detail and latest output derived for one conversation."""
-
-    value: ConversationStatusValue
-    detail: str
-    latest_output: str | None = None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -108,15 +102,22 @@ class ConversationStatus:
     def stoppable_round_paths(self) -> AgentRoundPaths | None:
         """The live round that can accept a stop request, when one exists."""
         conversation = self.conversation
-        if (
-            self.value is not ConversationStatusValue.WORKING
-            or conversation is None
-            or find_conversation_harness_session_identifier(conversation=conversation)
-            is None
-        ):
-            return None
-        paths = conversation.compose_round_paths(number=conversation.rounds[-1].number)
-        return None if paths.stop_request.is_file() else paths
+        harness_session_identifier = (
+            None
+            if conversation is None or self.value is not ConversationStatusValue.WORKING
+            else find_conversation_harness_session_identifier(conversation=conversation)
+        )
+        return find_stoppable_round_paths(
+            is_working=self.value is ConversationStatusValue.WORKING,
+            harness_session_identifier=harness_session_identifier,
+            paths=(
+                None
+                if conversation is None or not conversation.rounds
+                else conversation.compose_round_paths(
+                    number=conversation.rounds[-1].number
+                )
+            ),
+        )
 
     @cached_property
     def round_statuses(self) -> list[AgentRoundStatus]:
@@ -163,81 +164,265 @@ class ConversationStatus:
         return statuses
 
 
-def summarize_observed_conversation(
-    *,
-    observation: ConversationObservation,
-    conversation: Conversation | None,
-) -> ConversationSummary:
-    """Return what a matching issue says about its conversation.
+@dataclass(frozen=True, kw_only=True)
+class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
+    """Derive conversation statuses from local state and the latest tick."""
 
-    An unknown or conflicting route comes first, then unknown comments, a round
-    waiting to be recovered, and comments waiting to be answered.
-    """
-    routing_conflict = observation.routing_conflict
-    if routing_conflict.value is IssueFactValue.UNKNOWN:
-        return ConversationSummary(
-            value=ConversationStatusValue.UNKNOWN,
-            detail=routing_conflict.evidence,
-        )
-    if routing_conflict.value is IssueFactValue.TRUE:
-        return ConversationSummary(
-            value=ConversationStatusValue.ROUTING_CONFLICT,
-            detail=routing_conflict.evidence,
-        )
-    requires_round = observation.requires_round
-    if requires_round.value is IssueFactValue.UNKNOWN:
-        return ConversationSummary(
-            value=ConversationStatusValue.UNKNOWN,
-            detail=requires_round.evidence,
-        )
-    unfinished_round = describe_unfinished_conversation_round(conversation=conversation)
-    if unfinished_round is not None:
-        return ConversationSummary(
-            value=ConversationStatusValue.WAITING, detail=unfinished_round
-        )
-    if requires_round.value is IssueFactValue.TRUE:
-        return ConversationSummary(
-            value=ConversationStatusValue.WAITING,
-            detail=requires_round.evidence,
-        )
-    return ConversationSummary(
-        value=ConversationStatusValue.IDLE,
-        detail=_describe_idle_conversation(conversation=conversation),
-    )
+    conversations: list[Conversation]
 
+    @cached_property
+    def observations(self) -> dict[int, ConversationObservation]:
+        """The latest conversation observations, keyed by issue number."""
+        if self.scheduler_record is None:
+            return {}
+        return {
+            observation.issue: observation
+            for observation in self.scheduler_record.conversation_observations
+        }
 
-def describe_unfinished_conversation_round(
-    *, conversation: Conversation | None
-) -> str | None:
-    """Describe the conversation's latest round if it errored or was interrupted.
+    def list_statuses(self) -> list[ConversationStatus]:
+        """Return saved and observed conversation statuses in issue order."""
+        saved_issues = {
+            conversation.record.issue for conversation in self.conversations
+        }
+        statuses = [
+            self.derive(
+                issue=conversation.record.issue,
+                title=conversation.record.title,
+                conversation=conversation,
+            )
+            for conversation in self.conversations
+        ]
+        statuses.extend(
+            self.derive(
+                issue=observation.issue,
+                title=observation.title,
+                conversation=None,
+            )
+            for observation in self.observations.values()
+            if observation.issue not in saved_issues
+        )
+        return sorted(statuses, key=lambda status: status.issue)
 
-    A round with no ending that no daemon is running was interrupted.
-    """
-    if conversation is None or not conversation.rounds:
+    def derive(
+        self,
+        *,
+        issue: int,
+        title: str,
+        conversation: Conversation | None,
+    ) -> ConversationStatus:
+        """Derive one conversation's status from its records and latest tick."""
+        status = self._derive_working(
+            issue=issue, title=title, conversation=conversation
+        )
+        if status is not None:
+            return status
+        status = self._derive_eligibility(
+            issue=issue, title=title, conversation=conversation
+        )
+        if status is not None:
+            return status
+        status = self._derive_unfinished(
+            issue=issue, title=title, conversation=conversation
+        )
+        if status is not None:
+            return status
+        return self._derive_observation(
+            issue=issue, title=title, conversation=conversation
+        )
+
+    def _derive_working(
+        self,
+        *,
+        issue: int,
+        title: str,
+        conversation: Conversation | None,
+    ) -> ConversationStatus | None:
+        if conversation is not None and conversation.rounds:
+            latest = conversation.rounds[-1]
+            if self.is_round_working(record=latest):
+                detail, latest_output = describe_running_round(
+                    record=latest,
+                    paths=conversation.compose_round_paths(number=latest.number),
+                    at=self.at,
+                )
+                return self._compose(
+                    issue=issue,
+                    title=title,
+                    conversation=conversation,
+                    value=ConversationStatusValue.WORKING,
+                    detail=detail,
+                    latest_output=latest_output,
+                )
         return None
-    if is_conversation_ready_for_input(conversation=conversation):
+
+    def _derive_eligibility(
+        self,
+        *,
+        issue: int,
+        title: str,
+        conversation: Conversation | None,
+    ) -> ConversationStatus | None:
+        if self.scheduler_record is None:
+            return self._compose(
+                issue=issue,
+                title=title,
+                conversation=conversation,
+                value=ConversationStatusValue.UNKNOWN,
+                detail="no current scheduler observation",
+            )
+        observation = self.observations.get(issue)
+        if observation is None:
+            return self._compose(
+                issue=issue,
+                title=title,
+                conversation=conversation,
+                value=ConversationStatusValue.IDLE,
+                detail="issue is not eligible for conversation",
+            )
+        routing_conflict = observation.routing_conflict
+        if routing_conflict.value is IssueFactValue.UNKNOWN:
+            return self._compose(
+                issue=issue,
+                title=title,
+                conversation=conversation,
+                value=ConversationStatusValue.UNKNOWN,
+                detail=routing_conflict.evidence,
+            )
+        if routing_conflict.value is IssueFactValue.TRUE:
+            return self._compose(
+                issue=issue,
+                title=title,
+                conversation=conversation,
+                value=ConversationStatusValue.ROUTING_CONFLICT,
+                detail=routing_conflict.evidence,
+            )
+        requires_round = observation.requires_round
+        if requires_round.value is IssueFactValue.UNKNOWN:
+            return self._compose(
+                issue=issue,
+                title=title,
+                conversation=conversation,
+                value=ConversationStatusValue.UNKNOWN,
+                detail=requires_round.evidence,
+            )
         return None
-    latest = conversation.rounds[-1]
-    ending = latest.ending
-    if isinstance(ending, ErroredAgentRoundEnding) and ending.reason is not None:
-        return f"round {latest.number} errored: {ending.reason}"
-    outcome = describe_round_outcome(record=latest, is_running=False)
-    return f"round {latest.number} {outcome}"
 
+    def _derive_unfinished(
+        self,
+        *,
+        issue: int,
+        title: str,
+        conversation: Conversation | None,
+    ) -> ConversationStatus | None:
+        if conversation is not None and self.has_fault(
+            records=conversation.rounds,
+            retry_requested_at=conversation.record.retry_requested_at,
+        ):
+            latest = conversation.rounds[-1]
+            detail, latest_output = describe_round_ending(
+                record=latest,
+                paths=conversation.compose_round_paths(number=latest.number),
+            )
+            return self._compose(
+                issue=issue,
+                title=title,
+                conversation=conversation,
+                value=ConversationStatusValue.FAULT,
+                detail=detail,
+                latest_output=latest_output,
+            )
+        if conversation is not None and not is_conversation_ready_for_input(
+            conversation=conversation
+        ):
+            latest = conversation.rounds[-1]
+            detail, _ = describe_round_ending(
+                record=latest,
+                paths=conversation.compose_round_paths(number=latest.number),
+            )
+            return self._compose(
+                issue=issue,
+                title=title,
+                conversation=conversation,
+                value=ConversationStatusValue.WAITING,
+                detail=detail,
+            )
+        return None
 
-def _describe_idle_conversation(*, conversation: Conversation | None) -> str:
-    """Describe a conversation that has answered every comment it was given.
+    def _derive_observation(
+        self,
+        *,
+        issue: int,
+        title: str,
+        conversation: Conversation | None,
+    ) -> ConversationStatus:
+        if conversation is not None and conversation.rounds:
+            latest = conversation.rounds[-1]
+            if self.did_round_end_after_latest_tick(
+                identifier=conversation.identifier,
+                record=latest,
+                is_observed=True,
+            ):
+                return self._compose(
+                    issue=issue,
+                    title=title,
+                    conversation=conversation,
+                    value=ConversationStatusValue.WAITING,
+                    detail=f"round {latest.number} ended, awaiting next update",
+                )
+        requires_round = self.observations[issue].requires_round
+        if requires_round.value is IssueFactValue.TRUE:
+            return self._compose(
+                issue=issue,
+                title=title,
+                conversation=conversation,
+                value=ConversationStatusValue.WAITING,
+                detail=requires_round.evidence,
+            )
+        return self._compose(
+            issue=issue,
+            title=title,
+            conversation=conversation,
+            value=ConversationStatusValue.IDLE,
+            detail=self._describe_idle(conversation=conversation),
+        )
 
-    Its latest round either answered the comments or stopped for new direction.
-    """
-    if conversation is None or not conversation.rounds:
-        return "no comments yet"
-    latest = conversation.rounds[-1]
-    duration = compose_round_duration_description(record=latest)
-    if latest.outcome is AgentRoundOutcome.STOPPED:
-        return f"round {latest.number}, stopped, {duration}"
-    final_output = read_text(
-        path=conversation.compose_round_paths(number=latest.number).final_output
-    )
-    answer = "no reply needed" if is_no_reply(final_output=final_output) else "answered"
-    return f"round {latest.number}, {answer}, {duration}"
+    def _compose(
+        self,
+        *,
+        issue: int,
+        title: str,
+        conversation: Conversation | None,
+        value: ConversationStatusValue,
+        detail: str,
+        latest_output: str | None = None,
+    ) -> ConversationStatus:
+        return ConversationStatus(
+            issue=issue,
+            title=title,
+            conversation=conversation,
+            value=value,
+            detail=detail,
+            latest_output=latest_output,
+            observed_at=self.observed_at,
+            is_listed=(
+                value is ConversationStatusValue.WORKING
+                or self.scheduler_record is None
+                or issue in self.observations
+            ),
+        )
+
+    def _describe_idle(self, *, conversation: Conversation | None) -> str:
+        if conversation is None or not conversation.rounds:
+            return "no comments yet"
+        latest = conversation.rounds[-1]
+        duration = compose_round_duration_description(record=latest)
+        if latest.outcome is AgentRoundOutcome.STOPPED:
+            return f"round {latest.number}, stopped, {duration}"
+        final_output = read_text(
+            path=conversation.compose_round_paths(number=latest.number).final_output
+        )
+        answer = (
+            "no reply needed" if is_no_reply(final_output=final_output) else "answered"
+        )
+        return f"round {latest.number}, {answer}, {duration}"
