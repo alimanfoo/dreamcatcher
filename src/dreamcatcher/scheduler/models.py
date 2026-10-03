@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
-from typing import Annotated, Protocol, Self
+from typing import Annotated, Protocol, Self, overload
 
 from pydantic import AfterValidator, AwareDatetime, Field, model_validator
 
@@ -99,6 +99,43 @@ class ConversationObservation(AgentWorkObservation):
             evidence="has no conversation routing conflict",
         )
     )
+
+
+@overload
+def mark_round_started[ObservationT: AgentWorkObservation](
+    *,
+    observation: ObservationT,
+    identifier: str,
+    issue: int,
+    round_number: int,
+) -> ObservationT: ...
+
+
+@overload
+def mark_round_started(
+    *, observation: None, identifier: str, issue: int, round_number: int
+) -> AgentWorkObservation: ...
+
+
+def mark_round_started(
+    *,
+    observation: AgentWorkObservation | None,
+    identifier: str,
+    issue: int,
+    round_number: int,
+) -> AgentWorkObservation:
+    """Mark or create an agent work observation for a started round."""
+    requires_round = IssueFact(
+        value=IssueFactValue.FALSE,
+        evidence=f"round {round_number} started",
+    )
+    if observation is None:
+        return AgentWorkObservation(
+            identifier=identifier,
+            issue=issue,
+            requires_round=requires_round,
+        )
+    return observation.model_copy(update={"requires_round": requires_round})
 
 
 class GlobalCooldown(DreamcatcherDocument):

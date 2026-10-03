@@ -12,7 +12,7 @@ from dreamcatcher.agent_rounds import (
     ConversationRoundPurpose,
     start_agent_round,
 )
-from dreamcatcher.config import AgentHarness, ConversationRoute
+from dreamcatcher.config import ConversationRoute
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
     ConversationComment,
@@ -51,7 +51,6 @@ from dreamcatcher.scheduler.models import (
     SchedulerRecord,
     combine_scheduler_failures,
 )
-from dreamcatcher.state import StateDirectory
 from dreamcatcher.words import describe_count
 
 
@@ -82,29 +81,11 @@ class _ConversationInspection:
     is_fault: bool = False
 
 
-@dataclass(frozen=True, kw_only=True)
-class _PreparedConversationRound:
-    conversation: Conversation
-    round_input: ConversationInput
-    prompt: str
-    harness_session_identifier: str | None
-    is_recovery: bool
-
-
-@dataclass(frozen=True, kw_only=True)
-class ConversationLaunchRequest:
-    """Hold the current inputs for launching conversation work."""
-
-    record: SchedulerRecord
-    candidate: ConversationCandidate
-
-
 class ConversationScheduler(
     AgentWorkScheduler[
         ConversationCandidate,
         ConversationObservation,
         tuple[int, str, int],
-        ConversationLaunchRequest,
     ]
 ):
     """Inspect, rank and launch conversation work."""
@@ -172,17 +153,110 @@ class ConversationScheduler(
         first_comment = candidate.comments[0]
         return (1, first_comment.written_at, first_comment.id)
 
-    def launch(
-        self, *, request: ConversationLaunchRequest
-    ) -> tuple[SchedulerRecord, AgentRound]:
+    def launch(self, *, candidate: ConversationCandidate, at: datetime) -> AgentRound:
         """Prepare a conversation's required work and start its next round."""
-        prepared = _prepare_conversation_round(
+        request = self._prepare_round_start_request(candidate=candidate)
+        return start_agent_round(request=request, clock=self.clock)
+
+    def _prepare_round_start_request(
+        self, *, candidate: ConversationCandidate
+    ) -> AgentRoundStartRequest:
+        if isinstance(candidate, ConversationRecoveryCandidate):
+            return self._prepare_recovery_round(conversation=candidate.conversation)
+        conversation = candidate.conversation or create_conversation(
             state=self.state,
-            candidate=request.candidate,
+            route=candidate.route,
             requested_harness=self.requested_harness,
+            issue=candidate.issue,
         )
-        _, round_ = self._start_round(prepared=prepared)
-        return request.record, round_
+        round_input = prepare_conversation_input(
+            state=self.state,
+            conversation=conversation,
+            issue=candidate.issue,
+            comments=candidate.comments,
+        )
+        paths = conversation.compose_round_paths(number=conversation.next_round_number)
+        return self._compose_round_start_request(
+            conversation=conversation,
+            next_round_prompt=compose_conversation_round_prompt(
+                issue=conversation.record.issue,
+                round_input=paths.round_input,
+                was_stopped=(
+                    bool(conversation.rounds)
+                    and conversation.rounds[-1].outcome is AgentRoundOutcome.STOPPED
+                ),
+            ),
+            plan=AgentRoundPlan(
+                purpose=ConversationRoundPurpose.DISCUSS,
+                is_recovery=False,
+                input=round_input,
+            ),
+        )
+
+    def _prepare_recovery_round(
+        self, *, conversation: Conversation
+    ) -> AgentRoundStartRequest:
+        latest_round = conversation.rounds[-1]
+        return self._compose_round_start_request(
+            conversation=conversation,
+            next_round_prompt=CONVERSATION_RECOVERY_PROMPT,
+            plan=AgentRoundPlan(
+                purpose=ConversationRoundPurpose.DISCUSS,
+                is_recovery=True,
+                input=read_conversation_input(
+                    conversation=conversation,
+                    number=latest_round.number,
+                ),
+            ),
+        )
+
+    def _compose_round_start_request(
+        self,
+        *,
+        conversation: Conversation,
+        next_round_prompt: str,
+        plan: AgentRoundPlan[ConversationInput],
+    ) -> AgentRoundStartRequest:
+        paths = conversation.compose_round_paths(number=conversation.next_round_number)
+        first_round_prompt = compose_conversation_prompt(
+            template=conversation.record.prompt,
+            issue=conversation.record.issue,
+            round_input=paths.round_input,
+        )
+        resumption = self.resolve_harness_session(
+            agent_work_identifier=conversation.identifier,
+            has_rounds=bool(conversation.rounds),
+            harness_session_identifier=(
+                find_conversation_harness_session_identifier(conversation=conversation)
+                if conversation.rounds
+                else None
+            ),
+            is_recovery=plan.is_recovery,
+            prompt=(next_round_prompt if conversation.rounds else first_round_prompt),
+            replacement_session_prompt=first_round_prompt,
+        )
+        return AgentRoundStartRequest(
+            harness=conversation.record.harness,
+            launch_request=AgentRoundLaunchRequest(
+                agent_work_identifier=conversation.identifier,
+                model=conversation.record.model,
+                effort=conversation.record.effort,
+                prompt=resumption.prompt,
+                work_kind=AgentWorkKind.CONVERSATION,
+            ),
+            harness_session_identifier=resumption.identifier,
+            record_harness_session_identifier=partial(
+                record_conversation_session_identifier,
+                conversation=conversation,
+            ),
+            finish_round=partial(
+                post_conversation_answer,
+                repository=self.repository,
+                issue=conversation.record.issue,
+            ),
+            paths=paths,
+            plan=plan,
+        )
 
     def _inspect_listed_conversations(
         self,
@@ -323,126 +397,6 @@ class ConversationScheduler(
                 evidence="no round required",
             )
         )
-
-    def _start_round(
-        self, *, prepared: _PreparedConversationRound
-    ) -> tuple[Conversation, AgentRound]:
-        conversation = prepared.conversation
-        round_ = start_agent_round(
-            request=AgentRoundStartRequest(
-                harness=conversation.record.harness,
-                launch_request=AgentRoundLaunchRequest(
-                    agent_work_identifier=conversation.identifier,
-                    model=conversation.record.model,
-                    effort=conversation.record.effort,
-                    prompt=prepared.prompt,
-                    work_kind=AgentWorkKind.CONVERSATION,
-                ),
-                harness_session_identifier=prepared.harness_session_identifier,
-                record_harness_session_identifier=partial(
-                    record_conversation_session_identifier,
-                    conversation=conversation,
-                ),
-                finish_round=partial(
-                    post_conversation_answer,
-                    repository=self.repository,
-                    issue=conversation.record.issue,
-                ),
-                paths=conversation.compose_round_paths(
-                    number=conversation.next_round_number
-                ),
-                plan=AgentRoundPlan(
-                    purpose=ConversationRoundPurpose.DISCUSS,
-                    is_recovery=prepared.is_recovery,
-                    input=prepared.round_input,
-                ),
-            ),
-            clock=self.clock,
-        )
-        return conversation, round_
-
-
-def _prepare_conversation_round(
-    *,
-    state: StateDirectory,
-    candidate: ConversationCandidate,
-    requested_harness: AgentHarness,
-) -> _PreparedConversationRound:
-    """Prepare either a fresh conversation batch or unfinished work."""
-    if isinstance(candidate, ConversationRecoveryCandidate):
-        return _prepare_conversation_recovery(conversation=candidate.conversation)
-    conversation = candidate.conversation or create_conversation(
-        state=state,
-        route=candidate.route,
-        requested_harness=requested_harness,
-        issue=candidate.issue,
-    )
-    round_input = prepare_conversation_input(
-        state=state,
-        conversation=conversation,
-        issue=candidate.issue,
-        comments=candidate.comments,
-    )
-    paths = conversation.compose_round_paths(number=conversation.next_round_number)
-    harness_session_identifier = None
-    prompt = compose_conversation_prompt(
-        template=conversation.record.prompt,
-        issue=conversation.record.issue,
-        round_input=paths.round_input,
-    )
-    if conversation.rounds:
-        harness_session_identifier = find_conversation_harness_session_identifier(
-            conversation=conversation
-        )
-        if harness_session_identifier is None:
-            raise ReportableError(
-                f"Could not resume {conversation.identifier}: its first round did "
-                "not report a harness session identifier."
-            )
-        prompt = compose_conversation_round_prompt(
-            issue=conversation.record.issue,
-            round_input=paths.round_input,
-            was_stopped=(conversation.rounds[-1].outcome is AgentRoundOutcome.STOPPED),
-        )
-    return _PreparedConversationRound(
-        conversation=conversation,
-        round_input=round_input,
-        prompt=prompt,
-        harness_session_identifier=harness_session_identifier,
-        is_recovery=False,
-    )
-
-
-def _prepare_conversation_recovery(
-    *, conversation: Conversation
-) -> _PreparedConversationRound:
-    """Prepare a recovery from the latest round's saved input and session."""
-    latest_round = conversation.rounds[-1]
-    round_input = read_conversation_input(
-        conversation=conversation,
-        number=latest_round.number,
-    )
-    harness_session_identifier = find_conversation_harness_session_identifier(
-        conversation=conversation
-    )
-    if harness_session_identifier is None:
-        next_input = conversation.compose_round_paths(
-            number=conversation.next_round_number
-        ).round_input
-        prompt = compose_conversation_prompt(
-            template=conversation.record.prompt,
-            issue=conversation.record.issue,
-            round_input=next_input,
-        )
-    else:
-        prompt = CONVERSATION_RECOVERY_PROMPT
-    return _PreparedConversationRound(
-        conversation=conversation,
-        round_input=round_input,
-        prompt=prompt,
-        harness_session_identifier=harness_session_identifier,
-        is_recovery=True,
-    )
 
 
 def _list_comments_to_answer(

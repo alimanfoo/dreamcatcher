@@ -117,6 +117,7 @@ def create_scheduler(*, root, harness, clock) -> Scheduler:
         clock=clock,
     )
     return Scheduler(
+        state=state,
         assignments=assignments,
         conversations=conversations,
         rounds={},

@@ -1,7 +1,6 @@
 """Observe issue facts that determine assignment availability."""
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 from dreamcatcher.agent_assignments import (
     Assignment,
@@ -16,15 +15,13 @@ from dreamcatcher.github import (
     read_issue,
     read_issue_pull_request_context,
 )
+from dreamcatcher.scheduler.agent_work import AgentWorkScheduler
 from dreamcatcher.scheduler.models import (
     IssueFact,
     IssueFactValue,
     IssueObservation,
     ObservedIssueDetails,
 )
-
-if TYPE_CHECKING:
-    from dreamcatcher.scheduler.assignments import AssignmentScheduler
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -45,7 +42,7 @@ class IssueObservationResult:
 
 def observe_issues(
     *,
-    scheduler: "AssignmentScheduler",
+    scheduler: AgentWorkScheduler,
     assignments: list[Assignment],
     incomplete_setups: dict[int, str | None],
 ) -> IssueObservationResult:
@@ -99,7 +96,7 @@ def record_missing_assignment_titles(
 
 def _observe_issue(
     *,
-    scheduler: "AssignmentScheduler",
+    scheduler: AgentWorkScheduler,
     assignments: dict[int, Assignment],
     incomplete_setups: dict[int, str | None],
     issue: int,
@@ -138,7 +135,7 @@ def _observe_issue(
 
 
 def _observe_listed_issue(
-    *, scheduler: "AssignmentScheduler", response: Issue | UnknownGitHubResponse
+    *, scheduler: AgentWorkScheduler, response: Issue | UnknownGitHubResponse
 ) -> _ListedIssueFacts:
     if isinstance(response, UnknownGitHubResponse):
         reason = f"cannot read issue: {response.reason}"
@@ -192,7 +189,7 @@ def _observe_assignment_routing_conflict(*, labels: list[str]) -> IssueFact:
 
 def _observe_external_claim(
     *,
-    scheduler: "AssignmentScheduler",
+    scheduler: AgentWorkScheduler,
     assignments: dict[int, Assignment],
     incomplete_setups: dict[int, str | None],
     issue: int,

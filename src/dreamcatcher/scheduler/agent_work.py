@@ -5,8 +5,11 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
+from dreamcatcher.agent_rounds import AgentRound
 from dreamcatcher.config import AgentHarness, DispatchRoute, DreamcatcherConfig
+from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import Issue, UnknownGitHubResponse, list_issues
+from dreamcatcher.harness_adapters import HarnessSessionIdentifier
 from dreamcatcher.scheduler.models import (
     AgentWorkInspection,
     SchedulerRecord,
@@ -24,7 +27,15 @@ class RouteIssueListing:
 
 
 @dataclass(frozen=True, kw_only=True)
-class AgentWorkScheduler[CandidateT, ObservationT, RankT, LaunchRequestT](ABC):
+class HarnessSessionResumption:
+    """Hold the session and prompt with which to start a round."""
+
+    identifier: HarnessSessionIdentifier | None
+    prompt: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class AgentWorkScheduler[CandidateT, ObservationT, RankT](ABC):
     """Hold the facts that every kind of agent work needs for scheduling."""
 
     repository: str
@@ -45,8 +56,36 @@ class AgentWorkScheduler[CandidateT, ObservationT, RankT, LaunchRequestT](ABC):
         """Return this kind's rank for one candidate."""
 
     @abstractmethod
-    def launch(self, *, request: LaunchRequestT) -> object:
+    def launch(self, *, candidate: CandidateT, at: datetime) -> AgentRound:
         """Launch one candidate for this kind of agent work."""
+
+    def resolve_harness_session(
+        self,
+        *,
+        agent_work_identifier: str,
+        has_rounds: bool,
+        harness_session_identifier: HarnessSessionIdentifier | None,
+        is_recovery: bool,
+        prompt: str,
+        replacement_session_prompt: str,
+    ) -> HarnessSessionResumption:
+        """Choose whether to resume a session or begin a replacement."""
+        if not has_rounds:
+            return HarnessSessionResumption(identifier=None, prompt=prompt)
+        if harness_session_identifier is not None:
+            return HarnessSessionResumption(
+                identifier=harness_session_identifier,
+                prompt=prompt,
+            )
+        if not is_recovery:
+            raise ReportableError(
+                f"Could not resume {agent_work_identifier}: its first round did not "
+                "report a harness session identifier."
+            )
+        return HarnessSessionResumption(
+            identifier=None,
+            prompt=replacement_session_prompt,
+        )
 
     def list_route_issues(
         self, *, routes: Sequence[DispatchRoute]

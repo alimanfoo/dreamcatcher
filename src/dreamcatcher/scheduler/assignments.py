@@ -22,11 +22,9 @@ from dreamcatcher.agent_rounds import (
     AgentRoundPlan,
     AgentRoundStartRequest,
     AssignmentRoundPurpose,
-    HarnessSessionIdentifierRecorder,
     start_agent_round,
 )
 from dreamcatcher.config import AssignmentRoute
-from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
     PullRequest,
     PullRequestState,
@@ -34,10 +32,7 @@ from dreamcatcher.github import (
     UserPost,
     read_pull_request,
 )
-from dreamcatcher.harness_adapters import (
-    AgentRoundLaunchRequest,
-    HarnessSessionIdentifier,
-)
+from dreamcatcher.harness_adapters import AgentRoundLaunchRequest
 from dreamcatcher.prompts import RECOVERY_PROMPT, compose_user_posts_prompt
 from dreamcatcher.relay import list_undelivered_user_posts
 from dreamcatcher.scheduler.agent_work import AgentWorkScheduler
@@ -107,27 +102,11 @@ class _AssignmentItemInspection:
     is_fault: bool = False
 
 
-@dataclass(frozen=True, kw_only=True)
-class _PreparedAssignmentRound:
-    assignment: Assignment
-    plan: AgentRoundPlan[AssignmentRoundInput]
-    prompt: str
-
-
-@dataclass(frozen=True, kw_only=True)
-class AssignmentLaunchRequest:
-    """Hold the current inputs for launching assignment work."""
-
-    candidate: AssignmentCandidate
-    at: datetime
-
-
 class AssignmentScheduler(
     AgentWorkScheduler[
         AssignmentCandidate,
         AgentWorkObservation,
         int,
-        AssignmentLaunchRequest,
     ]
 ):
     """Inspect, rank and launch assignment work."""
@@ -191,35 +170,55 @@ class AssignmentScheduler(
             return 2
         return 3
 
-    def launch(self, *, request: AssignmentLaunchRequest) -> AgentRound:
+    def launch(self, *, candidate: AssignmentCandidate, at: datetime) -> AgentRound:
         """Create any new assignment, then start its required round."""
-        candidate = request.candidate
         if isinstance(candidate, NewAssignmentCandidate):
             creator = AssignmentCreator(state=self.state, repository=self.repository)
             assignment = creator.create(
                 route=candidate.route,
                 requested_harness=self.requested_harness,
                 issue=candidate.issue,
-                at=request.at,
+                at=at,
             )
             candidate = FirstAssignmentRoundCandidate(assignment=assignment)
-        prepared = _prepare_assignment_candidate(candidate=candidate)
-        harness_session_identifier, prompt = _prepare_assignment_resume(
-            prepared=prepared
-        )
-        assignment = prepared.assignment
-        if harness_session_identifier is not None:
-            record_harness_session_identifier(
-                assignment=assignment, identifier=harness_session_identifier
+        if isinstance(candidate, FirstAssignmentRoundCandidate):
+            return self._start_round(
+                assignment=candidate.assignment,
+                plan=AgentRoundPlan(
+                    purpose=AssignmentRoundPurpose.IMPLEMENT,
+                    is_recovery=False,
+                ),
+                next_round_prompt=candidate.assignment.record.prompt,
             )
-        record_session_identifier = partial(
-            record_harness_session_identifier, assignment=assignment
-        )
+        purpose = derive_round_purpose(pull_request=candidate.pull_request)
+        if (
+            candidate.recovery_reason is not None
+            and candidate.pull_request.state is PullRequestState.OPEN
+        ):
+            return self._start_round(
+                assignment=candidate.assignment,
+                plan=AgentRoundPlan(purpose=purpose, is_recovery=True),
+                next_round_prompt=RECOVERY_PROMPT,
+            )
+        assignment = candidate.assignment
+        was_stopped = assignment.rounds[-1].outcome is AgentRoundOutcome.STOPPED
         return self._start_round(
-            prepared=prepared,
-            prompt=prompt,
-            harness_session_identifier=harness_session_identifier,
-            record_session_identifier=record_session_identifier,
+            assignment=assignment,
+            plan=AgentRoundPlan(
+                purpose=purpose,
+                is_recovery=candidate.recovery_reason is not None,
+                input=AssignmentRoundInput(
+                    pull_request_state=candidate.pull_request.state,
+                    user_posts=candidate.undelivered_posts,
+                ),
+            ),
+            next_round_prompt=compose_user_posts_prompt(
+                pull_request=candidate.pull_request.number,
+                round_input=assignment.compose_round_paths(
+                    number=assignment.next_round_number
+                ).round_input,
+                was_stopped=was_stopped,
+            ),
         )
 
     def _inspect_assignments(
@@ -381,12 +380,27 @@ class AssignmentScheduler(
     def _start_round(
         self,
         *,
-        prepared: _PreparedAssignmentRound,
-        prompt: str,
-        harness_session_identifier: HarnessSessionIdentifier | None,
-        record_session_identifier: HarnessSessionIdentifierRecorder,
+        assignment: Assignment,
+        plan: AgentRoundPlan[AssignmentRoundInput],
+        next_round_prompt: str,
     ) -> AgentRound:
-        assignment = prepared.assignment
+        resumption = self.resolve_harness_session(
+            agent_work_identifier=assignment.identifier,
+            has_rounds=bool(assignment.rounds),
+            harness_session_identifier=find_harness_session_identifier(
+                assignment=assignment
+            ),
+            is_recovery=plan.is_recovery,
+            prompt=next_round_prompt,
+            replacement_session_prompt=(
+                f"{assignment.record.prompt}\n\n{next_round_prompt}"
+            ),
+        )
+        if resumption.identifier is not None:
+            record_harness_session_identifier(
+                assignment=assignment,
+                identifier=resumption.identifier,
+            )
         return start_agent_round(
             request=AgentRoundStartRequest(
                 harness=assignment.record.harness,
@@ -394,69 +408,21 @@ class AssignmentScheduler(
                     agent_work_identifier=assignment.identifier,
                     model=assignment.record.model,
                     effort=assignment.record.effort,
-                    prompt=prompt,
+                    prompt=resumption.prompt,
                 ),
-                harness_session_identifier=harness_session_identifier,
-                record_harness_session_identifier=record_session_identifier,
+                harness_session_identifier=resumption.identifier,
+                record_harness_session_identifier=partial(
+                    record_harness_session_identifier,
+                    assignment=assignment,
+                ),
                 finish_round=None,
                 paths=assignment.compose_round_paths(
                     number=assignment.next_round_number
                 ),
-                plan=prepared.plan,
+                plan=plan,
             ),
             clock=self.clock,
         )
-
-
-def _prepare_assignment_candidate(
-    *, candidate: FirstAssignmentRoundCandidate | AssignmentRoundCandidate
-) -> _PreparedAssignmentRound:
-    if isinstance(candidate, FirstAssignmentRoundCandidate):
-        return _PreparedAssignmentRound(
-            assignment=candidate.assignment,
-            plan=AgentRoundPlan(
-                purpose=AssignmentRoundPurpose.IMPLEMENT,
-                is_recovery=False,
-            ),
-            prompt=candidate.assignment.record.prompt,
-        )
-    if (
-        candidate.recovery_reason is not None
-        and candidate.pull_request.state is PullRequestState.OPEN
-    ):
-        return _PreparedAssignmentRound(
-            assignment=candidate.assignment,
-            plan=AgentRoundPlan(
-                purpose=derive_round_purpose(pull_request=candidate.pull_request),
-                is_recovery=True,
-            ),
-            prompt=RECOVERY_PROMPT,
-        )
-    return _prepare_assignment_resume_round(candidate=candidate)
-
-
-def _prepare_assignment_resume_round(
-    *, candidate: AssignmentRoundCandidate
-) -> _PreparedAssignmentRound:
-    assignment = candidate.assignment
-    return _PreparedAssignmentRound(
-        assignment=assignment,
-        plan=AgentRoundPlan(
-            purpose=derive_round_purpose(pull_request=candidate.pull_request),
-            is_recovery=candidate.recovery_reason is not None,
-            input=AssignmentRoundInput(
-                pull_request_state=candidate.pull_request.state,
-                user_posts=candidate.undelivered_posts,
-            ),
-        ),
-        prompt=compose_user_posts_prompt(
-            pull_request=candidate.pull_request.number,
-            round_input=assignment.compose_round_paths(
-                number=assignment.next_round_number
-            ).round_input,
-            was_stopped=(assignment.rounds[-1].outcome is AgentRoundOutcome.STOPPED),
-        ),
-    )
 
 
 def _describe_assignment_candidate(*, candidate: AssignmentRoundCandidate) -> str:
@@ -482,20 +448,3 @@ def _compose_assignment_observation(
         issue=assignment.record.issue,
         requires_round=IssueFact(value=value, evidence=evidence),
     )
-
-
-def _prepare_assignment_resume(
-    *, prepared: _PreparedAssignmentRound
-) -> tuple[HarnessSessionIdentifier | None, str]:
-    assignment = prepared.assignment
-    if not assignment.rounds:
-        return None, prepared.prompt
-    identifier = find_harness_session_identifier(assignment=assignment)
-    if identifier is not None:
-        return identifier, prepared.prompt
-    if not prepared.plan.is_recovery:
-        raise ReportableError(
-            f"Could not resume {assignment.identifier}: its first round did not "
-            "report a harness session identifier."
-        )
-    return None, f"{assignment.record.prompt}\n\n{prepared.prompt}"

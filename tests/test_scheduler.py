@@ -119,6 +119,7 @@ def create_scheduler(*, root, max_agents: int = 1) -> tuple[Scheduler, Ticking]:
         clock=clock,
     )
     scheduler = Scheduler(
+        state=state,
         assignments=assignments,
         conversations=conversations,
         rounds={},
@@ -352,10 +353,10 @@ def test_a_later_failed_launch_keeps_the_rounds_already_started(
     scheduler, clock = create_scheduler(root=ready_repo, max_agents=3)
     launch_assignment = scheduler.assignments.launch
 
-    def fail_second_launch(self, *, request):
-        if request.candidate.issue == 9:
+    def fail_second_launch(self, *, candidate, at):
+        if candidate.issue == 9:
             raise ReportableError("could not create an assignment for GH9")
-        return launch_assignment(request=request)
+        return launch_assignment(candidate=candidate, at=at)
 
     monkeypatch.setattr(AssignmentScheduler, "launch", fail_second_launch)
 
