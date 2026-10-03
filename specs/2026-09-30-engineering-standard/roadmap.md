@@ -455,14 +455,55 @@ Outcome: the default run takes under 60 seconds on a laptop.
 
 Work:
 
-- Profile the slowest tests. The eight slowest are end-to-end conversation and
-  scheduler tests that spawn stand-in processes and wait on them.
+- Profile the suite by where its time goes, not by its slowest tests alone. At
+  the baseline no test takes two seconds. The time is spread over some 350 tests
+  that each spawn a few stand-in processes, and on macOS a spawn costs more than
+  the work it does.
+- Take out the cost that is not the test's. A stand-in's launcher is written
+  once a session, not once a test.
 - Where a test waits on a real clock or a real process for a fact a pinned clock
   or an in-process fake could give, change it. Where the end-to-end run is what
-  the test proves, keep it and mark it so a developer can leave the marked tests
-  to CI.
+  the test proves, keep it.
+- Run the default suite on every processor, because what remains is waiting on
+  child processes.
 
 Check: K2 met.
+
+### Stage 5 measurement, 2026-10-03
+
+Measured on the same laptop as the baseline, with 1,051 tests at full branch
+coverage.
+
+- **Where the time went.** The 179-second baseline run started 2,454 child
+  processes: 1,246 stand-in `gh`, 1,061 `git` and 124 stand-in harnesses. Their
+  lifetimes account for 165 of its 167 seconds of test time, and no test takes
+  two seconds. Each test wrote fresh launchers for its stand-ins, and macOS
+  assesses a newly written executable file the first time it runs, which costs
+  about a third of a second. The suite paid that 354 times, about 100 seconds.
+- **What changed.** One launcher is written a session and each stand-in is a
+  name for it, which brought the serial run to 79 seconds. The stop-request
+  watcher takes its wait between polls as a parameter, so the stop test drives
+  both arms of the poll without a clock, which closes #329. The test of a round
+  interrupted as its harness succeeds releases that harness through a file
+  rather than after a one-second delay. The lock test's parameter ids no longer
+  carry a process id, so every worker collects the same tests. The default run
+  uses pytest-xdist on every processor.
+- **K2 met.** The default run takes 22.5 seconds on this laptop's fourteen cores
+  and 24.5 seconds on four workers, at 100% branch coverage. Serially it takes
+  79 seconds, so the parallel run is what meets the bar. Test names were not
+  remeasured; the baseline found them already reading as behaviours.
+- **Two defects the faster suite exposed.** On macOS, ending the process group
+  of a harness that has exited in the same moment, before its status is
+  collected, raised a permission error. `teardown.end_process_tree` now reads
+  that as a group with nothing left in it, and the ledger records why. On
+  Windows, a child that exited between its creation and its placement in a Job
+  Object could not be placed, which failed its launch; the parallel run on the
+  four-core runner hit that in three runs of four. A Windows child now starts
+  suspended and is placed before it runs.
+- **Not done.** No test is marked for leaving to CI, because the default run
+  meets the bar with every test in it. Windows was not remeasured: process
+  startup is the cost there, as #291 found, and a launcher is copied for each
+  stand-in there because a symbolic link is a privilege.
 
 ## Stage 6: Keep it there
 

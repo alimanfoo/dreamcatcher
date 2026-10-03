@@ -23,10 +23,10 @@ from conftest import (
 from fakes import Line, Stream, recorded
 from recordings import render_harness_recording
 
-import dreamcatcher.agent_rounds as agent_rounds_module
 from dreamcatcher.agent_assignments import AssignmentRoundInput
 from dreamcatcher.agent_rounds import (
     _AGENT_ROUND_RECORD_NAME,
+    _STOP_REQUEST_POLL_INTERVAL_SECONDS,
     AgentRound,
     AgentRoundFinisher,
     AgentRoundOutcome,
@@ -96,6 +96,14 @@ LEAVES_A_STRAGGLER = (
 
 # What keeps such a harness running, so a test can stop it mid-round.
 AND_WAITS = "left.wait()\n"
+
+# A harness that exits cleanly once the file it is passed appears, so a test
+# holds it at the point of exiting until the test is ready.
+EXITS_WHEN_RELEASED = (
+    "import pathlib, sys, time\n"
+    "while not pathlib.Path(sys.argv[1]).exists():\n"
+    "    time.sleep(0.01)\n"
+)
 
 
 def pinned():
@@ -648,18 +656,32 @@ def test_a_round_whose_harness_failed_is_not_finished(fake, worktree, directory)
 
 
 def test_a_round_interrupted_as_its_harness_succeeds_is_not_finished(
-    fake, worktree, directory
+    worktree, directory, tmp_path
 ):
-    fake(program="claude").streams(
-        lines=[Line(text=stream_final_result(result="The answer."))], delay=1
-    )
+    release = tmp_path / "release"
     paths = compose_round_paths(worktree=worktree, directory=directory)
     finish_round = Mock()
+    running = AgentRound(
+        agent_work_identifier="conversation-GH9",
+        harness=round_harness(
+            invocation=HarnessInvocation(
+                program=sys.executable,
+                arguments=["-c", EXITS_WHEN_RELEASED, str(release)],
+                prompt=PROMPT,
+            )
+        ),
+        paths=paths,
+        plan=AgentRoundPlan(
+            purpose=ConversationRoundPurpose.DISCUSS, is_recovery=False
+        ),
+        finish_round=finish_round,
+        clock=pinned,
+    )
 
-    running = start_conversation_round(paths=paths, finish_round=finish_round)
     # The race that `_end_process_tree` records: the harness exits cleanly just
     # as the daemon stops the round.
     running.forced_ending = InterruptedAgentRoundEnding()
+    release.touch()
     running.wait()
 
     assert written(path=paths.record).outcome is AgentRoundOutcome.INTERRUPTED
@@ -736,26 +758,31 @@ def test_the_daemon_stopping_a_finished_round_keeps_its_ending(
     assert record.outcome is AgentRoundOutcome.SUCCESSFUL
 
 
-def test_a_stop_request_stops_the_round_and_records_why(
-    fake, worktree, directory, monkeypatch
-):
-    monkeypatch.setattr(
-        agent_rounds_module, "_STOP_REQUEST_POLL_INTERVAL_SECONDS", 0.01
-    )
+def test_a_stop_request_stops_the_round_and_records_why(fake, worktree, directory):
     fake(program="harness").streams(
         lines=[Line(text="working\n"), Line(text="still working\n")], delay=5
     )
+    paths = compose_round_paths(worktree=worktree, directory=directory)
+    polls: list[float] = []
+
+    def request_stop_on_the_second_poll(seconds: float, /) -> bool:
+        """Let the first poll find nothing, and the second find the request."""
+        polls.append(seconds)
+        if len(polls) == 2:
+            request_agent_round_stop(paths=paths)
+        return False
+
     running = AgentRound(
         agent_work_identifier="GH9-20260819-184158",
         harness=round_harness(),
-        paths=compose_round_paths(worktree=worktree, directory=directory),
+        paths=paths,
         plan=AgentRoundPlan(purpose=PURPOSE, is_recovery=False),
         clock=pinned,
+        wait_for_round_end=request_stop_on_the_second_poll,
     )
-
-    request_agent_round_stop(paths=running.paths)
     running.wait()
 
+    assert polls == [_STOP_REQUEST_POLL_INTERVAL_SECONDS] * 2
     assert running.paths.stop_request.read_text(encoding="utf-8") == ""
     assert not running.is_alive
     assert not running._stop_request_watcher.is_alive()
