@@ -29,8 +29,10 @@ from dreamcatcher.issue_conversations import read_conversations
 from dreamcatcher.lock import hold_daemon_lock
 from dreamcatcher.scheduler import (
     DEFAULT_MAX_AGENTS,
-    AgentWorkScheduler,
+    AssignmentScheduler,
+    ConversationScheduler,
     InvalidSchedulerRecordError,
+    Scheduler,
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.version import DREAMCATCHER_VERSION
@@ -122,13 +124,25 @@ class DreamcatcherDaemon:
                 value=identify_github_account(),
                 question="which account gh is signed in as",
             )
-            scheduler = AgentWorkScheduler(
+            assignments = AssignmentScheduler(
                 repository=repository,
                 account=account,
                 config=self.config,
                 state=self.state,
                 requested_harness=self.harness,
                 clock=self.clock,
+            )
+            conversations = ConversationScheduler(
+                repository=repository,
+                account=account,
+                config=self.config,
+                state=self.state,
+                requested_harness=self.harness,
+                clock=self.clock,
+            )
+            scheduler = Scheduler(
+                assignments=assignments,
+                conversations=conversations,
                 rounds=self.rounds,
                 max_agents=self.max_agents,
             )
@@ -161,9 +175,7 @@ class DreamcatcherDaemon:
                 for agent_round in self.rounds.values():
                     agent_round.end_for_daemon_shutdown()
 
-    def run_scheduler_cycle(
-        self, *, scheduler: AgentWorkScheduler, at: datetime
-    ) -> None:
+    def run_scheduler_cycle(self, *, scheduler: Scheduler, at: datetime) -> None:
         """Run one scheduler tick, then persist and report its result.
 
         A failed tick reports the error and leaves the last complete scheduler

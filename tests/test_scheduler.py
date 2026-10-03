@@ -36,6 +36,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     AssignmentRoundPurpose,
     ErroredAgentRoundEnding,
+    InterruptedAgentRoundEnding,
     compose_agent_round_ending,
 )
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
@@ -49,7 +50,7 @@ from dreamcatcher.git import (
 )
 from dreamcatcher.github import PullRequestState
 from dreamcatcher.prompts import RECOVERY_PROMPT
-from dreamcatcher.scheduler import AgentWorkScheduler
+from dreamcatcher.scheduler import AssignmentScheduler, ConversationScheduler, Scheduler
 from dreamcatcher.scheduler.models import (
     AssignmentObservation,
     GlobalCooldown,
@@ -68,7 +69,7 @@ CONVERSATION = POST_LIST_PATHS["conversation"]
 HARNESS_SESSION_IDENTIFIER = "abc-123"
 
 
-CREATED_SCHEDULERS: list[AgentWorkScheduler] = []
+CREATED_SCHEDULERS: list[Scheduler] = []
 
 
 @pytest.fixture(autouse=True)
@@ -81,18 +82,30 @@ def stop_scheduler_rounds():
     CREATED_SCHEDULERS.clear()
 
 
-def create_scheduler(
-    *, root, max_agents: int = 1
-) -> tuple[AgentWorkScheduler, Ticking]:
+def create_scheduler(*, root, max_agents: int = 1) -> tuple[Scheduler, Ticking]:
     """Create a scheduler and a clock that advances between explicit ticks."""
     clock = Ticking(step=300)
-    scheduler = AgentWorkScheduler(
+    config = read_dreamcatcher_config(root=root)
+    state = StateDirectory(root=root)
+    assignments = AssignmentScheduler(
         repository=REPOSITORY,
         account=POSTED_BY,
-        config=read_dreamcatcher_config(root=root),
-        state=StateDirectory(root=root),
+        config=config,
+        state=state,
         requested_harness=AgentHarness.CLAUDE,
         clock=clock,
+    )
+    conversations = ConversationScheduler(
+        repository=REPOSITORY,
+        account=POSTED_BY,
+        config=config,
+        state=state,
+        requested_harness=AgentHarness.CLAUDE,
+        clock=clock,
+    )
+    scheduler = Scheduler(
+        assignments=assignments,
+        conversations=conversations,
         rounds={},
         max_agents=max_agents,
     )
@@ -125,14 +138,14 @@ def availability_values(*, tick: SchedulerRecord) -> list[IssueFactValue]:
     ]
 
 
-def record_of(*, scheduler: AgentWorkScheduler, number: int) -> AgentRoundRecord:
+def record_of(*, scheduler: Scheduler, number: int) -> AgentRoundRecord:
     """Return what the assignment's numbered round recorded."""
     return AgentRoundRecord.model_validate_json(
         written_round(scheduler=scheduler, number=number, name="round.json")
     )
 
 
-def purpose_of(*, scheduler: AgentWorkScheduler, number: int) -> AgentRoundPurpose:
+def purpose_of(*, scheduler: Scheduler, number: int) -> AgentRoundPurpose:
     """What work the assignment's numbered round advances."""
     return record_of(scheduler=scheduler, number=number).purpose
 
@@ -221,9 +234,11 @@ def write_faulted_assignment(*, root, identifier: str, issue: int) -> None:
         )
 
 
-def written_round(*, scheduler: AgentWorkScheduler, number: int, name: str) -> str:
+def written_round(*, scheduler: Scheduler, number: int, name: str) -> str:
     """What the assignment's round wrote into the file of that name."""
-    directory = scheduler.state.assignments / ASSIGNMENT_ID / "rounds" / str(number)
+    directory = (
+        scheduler.assignments.state.assignments / ASSIGNMENT_ID / "rounds" / str(number)
+    )
     return (directory / name).read_text(encoding="utf-8")
 
 
@@ -247,14 +262,16 @@ def test_a_tick_assigns_the_oldest_issue_nothing_stands_in_the_way_of(
     observed = scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
 
-    assignment = scheduler.state.assignments / CREATED_ASSIGNMENT_ID
-    assert (scheduler.state.worktrees / CREATED_ASSIGNMENT_ID / "README.md").exists()
+    assignment = scheduler.assignments.state.assignments / CREATED_ASSIGNMENT_ID
+    assert (
+        scheduler.assignments.state.worktrees / CREATED_ASSIGNMENT_ID / "README.md"
+    ).exists()
     assert (assignment / "assignment.json").exists()
     assert observed.issue_observations[0].observed_at == observed.at
     assert observed.launched_agent_work_identifiers == [CREATED_ASSIGNMENT_ID]
     assert (
         harnesses["claude"].calls[0].directory
-        == (scheduler.state.worktrees / CREATED_ASSIGNMENT_ID).resolve()
+        == (scheduler.assignments.state.worktrees / CREATED_ASSIGNMENT_ID).resolve()
     )
 
 
@@ -266,7 +283,9 @@ def test_a_new_assignments_round_records_what_caused_it_and_what_it_said(
     scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
 
-    written = scheduler.state.assignments / CREATED_ASSIGNMENT_ID / "rounds" / "1"
+    written = (
+        scheduler.assignments.state.assignments / CREATED_ASSIGNMENT_ID / "rounds" / "1"
+    )
     assert (
         AgentRoundRecord.model_validate_json(
             (written / "round.json").read_text(encoding="utf-8")
@@ -274,7 +293,7 @@ def test_a_new_assignments_round_records_what_caused_it_and_what_it_said(
         is AssignmentRoundPurpose.IMPLEMENT
     )
     assert "what the round said" in (written / "feed.txt").read_text(encoding="utf-8")
-    assignment = read_assignments(state=scheduler.state)[0]
+    assignment = read_assignments(state=scheduler.assignments.state)[0]
     assert assignment.record.harness_session_identifier == "abc-123"
 
 
@@ -298,8 +317,8 @@ def test_a_tick_fills_free_capacity_with_available_issues(ready_repo, offered):
         "GH9-20260819-184158",
     ]
     assert observed.hold == "at cap: 2 of 2 agents running"
-    assert (scheduler.state.worktrees / "GH9-20260819-184158").exists()
-    assert not (scheduler.state.worktrees / "GH10-20260819-184158").exists()
+    assert (scheduler.assignments.state.worktrees / "GH9-20260819-184158").exists()
+    assert not (scheduler.assignments.state.worktrees / "GH10-20260819-184158").exists()
 
 
 def test_a_later_failed_launch_keeps_the_rounds_already_started(
@@ -316,20 +335,20 @@ def test_a_later_failed_launch_keeps_the_rounds_already_started(
         to="issue list",
     )
     scheduler, clock = create_scheduler(root=ready_repo, max_agents=3)
-    launch_assignment = scheduler._launch_assignment
+    launch_assignment = scheduler.assignments.launch
 
-    def fail_second_launch(*, issue, label, at):
-        if issue == 9:
+    def fail_second_launch(self, *, request):
+        if request.candidate.issue == 9:
             raise ReportableError("could not create an assignment for GH9")
-        return launch_assignment(issue=issue, label=label, at=at)
+        return launch_assignment(request=request)
 
-    monkeypatch.setattr(scheduler, "_launch_assignment", fail_second_launch)
+    monkeypatch.setattr(AssignmentScheduler, "launch", fail_second_launch)
 
     observed = scheduler.tick(at=clock())
 
     assert observed.launched_agent_work_identifiers == [CREATED_ASSIGNMENT_ID]
     assert observed.hold == "could not create an assignment for GH9"
-    assert not (scheduler.state.worktrees / "GH10-20260819-184158").exists()
+    assert not (scheduler.assignments.state.worktrees / "GH10-20260819-184158").exists()
 
 
 def test_a_second_tick_judges_an_assigned_issue_handled(ready_repo):
@@ -504,7 +523,7 @@ def test_a_tick_with_nothing_eligible_starts_no_assignment(ready_repo, offered):
     assert observed_issues(tick=observed) == [8]
     assert observed.issue_observations[0].blocked.value is IssueFactValue.TRUE
     assert availability_values(tick=observed) == [IssueFactValue.FALSE]
-    assert not scheduler.state.worktrees.exists()
+    assert not scheduler.assignments.state.worktrees.exists()
 
 
 def test_one_errored_round_receives_an_ordinary_recovery(ready_repo):
@@ -520,7 +539,7 @@ def test_one_errored_round_receives_an_ordinary_recovery(ready_repo):
 
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     assert observed.cooldown is None
-    assert not (scheduler.state.worktrees / CREATED_ASSIGNMENT_ID).exists()
+    assert not (scheduler.assignments.state.worktrees / CREATED_ASSIGNMENT_ID).exists()
 
 
 def test_one_faulted_assignment_does_not_block_unrelated_work(ready_repo):
@@ -588,7 +607,7 @@ def test_an_assignment_the_scheduler_is_running_a_round_for_is_not_waiting(
     # The round the scheduler held recorded no ending, so the assignment would have
     # read as interrupted had the scheduler not been running it.
     written = (
-        scheduler.state.assignments
+        scheduler.assignments.state.assignments
         / CREATED_ASSIGNMENT_ID
         / "rounds"
         / "1"
@@ -628,8 +647,8 @@ def test_an_ended_round_is_inspected_while_its_runner_finishes(tmp_path, monkeyp
         is_round_required=False,
     )
     monkeypatch.setattr(
-        "dreamcatcher.scheduler.coordinator.inspect_assignment",
-        lambda **_arguments: observation,
+        "dreamcatcher.scheduler.assignments.AssignmentScheduler.inspect",
+        lambda _scheduler, **_arguments: observation,
     )
     scheduler, _ = create_scheduler(root=tmp_path, max_agents=2)
     scheduler.rounds[ASSIGNMENT_ID] = Mock(is_alive=True)
@@ -678,7 +697,7 @@ def test_an_assignment_with_an_open_pull_request_and_nothing_new_is_not_waiting(
             is_round_required=False,
         )
     ]
-    assignment = read_assignments(state=scheduler.state)[0]
+    assignment = read_assignments(state=scheduler.assignments.state)[0]
     assert assignment.record.title == "Issue 13"
     assert assignment.record.pull_request_observation == PullRequestObservation(
         state=PullRequestState.OPEN,
@@ -724,7 +743,7 @@ def test_a_dispatch_whose_round_will_not_start_retries_the_prepared_assignment(
     assert "cannot write" in held(observed=observed)
     assert observed_issues(tick=observed) == [8]
     assert availability_values(tick=observed) == [IssueFactValue.TRUE]
-    assert (scheduler.state.worktrees / CREATED_ASSIGNMENT_ID).exists()
+    assert (scheduler.assignments.state.worktrees / CREATED_ASSIGNMENT_ID).exists()
     branch = f"dreamcatcher-{CREATED_ASSIGNMENT_ID}"
     assert branch in git(arguments=["branch", "--list", branch], cwd=ready_repo)
 
@@ -744,7 +763,9 @@ def test_a_dispatch_whose_round_will_not_start_retries_the_prepared_assignment(
     finish_rounds(scheduler=scheduler)
 
     assert observed.launched_agent_work_identifiers == [CREATED_ASSIGNMENT_ID]
-    record = scheduler.state.assignments / CREATED_ASSIGNMENT_ID / "rounds" / "1"
+    record = (
+        scheduler.assignments.state.assignments / CREATED_ASSIGNMENT_ID / "rounds" / "1"
+    )
     written = AgentRoundRecord.model_validate_json(
         (record / "round.json").read_text(encoding="utf-8")
     )
@@ -820,33 +841,25 @@ def test_a_tick_records_an_incomplete_setup_failure(ready_repo):
     assert "some-other-branch, not dreamcatcher" in setup_failure
 
 
-def test_an_assignment_whose_last_round_did_not_finish_is_carried_on(
-    resuming, left_running, harnesses
-):
+def test_an_assignment_with_a_round_that_has_no_ending_starts_nothing(resuming):
     write_round(
         directory=StateDirectory(root=resuming).assignments / ASSIGNMENT_ID,
         number=1,
-        record=AgentRoundRecord(
-            number=1, started=PINNED, pid=left_running.pid, purpose=PURPOSE
-        ),
+        record=AgentRoundRecord(number=1, started=PINNED, pid=1, purpose=PURPOSE),
     )
     scheduler, clock = create_scheduler(root=resuming)
 
     observed = scheduler.tick(at=clock())
-    finish_rounds(scheduler=scheduler)
 
-    assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
-    assert (
-        written_round(scheduler=scheduler, number=2, name="prompt.txt")
-        == RECOVERY_PROMPT
-    )
+    assert observed.launched_agent_work_identifiers == []
+    assert observed.assignment_observations == []
     assert not (
-        scheduler.state.assignments / ASSIGNMENT_ID / "rounds" / "2" / "inbox.json"
+        scheduler.assignments.state.assignments
+        / ASSIGNMENT_ID
+        / "rounds"
+        / "2"
+        / "inbox.json"
     ).exists()
-    assert harnesses["claude"].calls[-1].arguments[-2:] == [
-        "--resume",
-        HARNESS_SESSION_IDENTIFIER,
-    ]
 
 
 def test_a_resume_recovers_the_harness_session_from_the_first_rounds_raw_stream(
@@ -882,7 +895,7 @@ def test_a_resume_recovers_the_harness_session_from_the_first_rounds_raw_stream(
     finish_rounds(scheduler=scheduler)
 
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
-    assignment = read_assignments(state=scheduler.state)[0]
+    assignment = read_assignments(state=scheduler.assignments.state)[0]
     assert assignment.record.harness_session_identifier == HARNESS_SESSION_IDENTIFIER
     assert harnesses["claude"].calls[-1].arguments[-2:] == [
         "--resume",
@@ -958,7 +971,7 @@ def test_a_terminal_recovery_without_a_session_receives_wrap_up_input(
     inbox = json.loads(written_round(scheduler=scheduler, number=2, name="inbox.json"))
     assert inbox["pull_request_state"] == PullRequestState.MERGED
     assert "--resume" not in harnesses["claude"].calls[-1].arguments
-    assignment = read_assignments(state=scheduler.state)[0]
+    assignment = read_assignments(state=scheduler.assignments.state)[0]
     assert assignment.user_post_delivery_cursor == POSTED_AT
 
 
@@ -976,7 +989,7 @@ def test_a_failed_replacement_session_does_not_acknowledge_terminal_feedback(
 
     scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
-    assignment = read_assignments(state=scheduler.state)[0]
+    assignment = read_assignments(state=scheduler.assignments.state)[0]
     assert assignment.user_post_delivery_cursor == ""
     ending = assignment.rounds[-1].ending
     assert isinstance(ending, ErroredAgentRoundEnding)
@@ -995,12 +1008,16 @@ def test_a_failed_replacement_session_does_not_acknowledge_terminal_feedback(
     ]
 
 
-def test_a_carried_on_round_records_recovery_independently(resuming, left_running):
+def test_a_carried_on_round_records_recovery_independently(resuming):
     write_round(
         directory=StateDirectory(root=resuming).assignments / ASSIGNMENT_ID,
         number=1,
         record=AgentRoundRecord(
-            number=1, started=PINNED, pid=left_running.pid, purpose=PURPOSE
+            number=1,
+            started=PINNED,
+            pid=1,
+            purpose=PURPOSE,
+            ending=InterruptedAgentRoundEnding(),
         ),
     )
     scheduler, clock = create_scheduler(root=resuming)
@@ -1032,7 +1049,11 @@ def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, g
     assert inbox["pull_request_state"] == "OPEN"
     assert [post["kind"] for post in inbox["user_posts"]] == ["comment"]
     assert str(
-        scheduler.state.assignments / ASSIGNMENT_ID / "rounds" / "2" / "inbox.json"
+        scheduler.assignments.state.assignments
+        / ASSIGNMENT_ID
+        / "rounds"
+        / "2"
+        / "inbox.json"
     ) in (written_round(scheduler=scheduler, number=2, name="prompt.txt"))
 
 
@@ -1057,7 +1078,7 @@ def test_a_started_round_is_reported_when_advancing_its_cursor_fails(
     assert observed.hold == "could not advance the delivery cursor"
     assert observed.assignment_observations == []
     assert ASSIGNMENT_ID in scheduler.rounds
-    assert not (scheduler.state.worktrees / CREATED_ASSIGNMENT_ID).exists()
+    assert not (scheduler.assignments.state.worktrees / CREATED_ASSIGNMENT_ID).exists()
     finish_rounds(scheduler=scheduler)
 
 
@@ -1075,7 +1096,9 @@ def test_an_assignment_receives_a_batch_only_once(resuming, gh):
     finish_rounds(scheduler=scheduler)
 
     assert observed.launched_agent_work_identifiers == []
-    assert not (scheduler.state.assignments / ASSIGNMENT_ID / "rounds" / "3").exists()
+    assert not (
+        scheduler.assignments.state.assignments / ASSIGNMENT_ID / "rounds" / "3"
+    ).exists()
 
 
 def test_a_batch_no_round_ever_launched_is_read_again_next_tick(
@@ -1135,11 +1158,13 @@ def test_an_assignment_that_has_had_its_last_round_gets_no_other(resuming, gh):
     observed = scheduler.tick(at=clock())
 
     assert observed.launched_agent_work_identifiers == []
-    assert not (scheduler.state.assignments / ASSIGNMENT_ID / "rounds" / "3").exists()
+    assert not (
+        scheduler.assignments.state.assignments / ASSIGNMENT_ID / "rounds" / "3"
+    ).exists()
 
 
 def test_a_last_round_that_was_interrupted_is_carried_on_as_the_last_round(
-    resuming, gh, left_running
+    resuming, gh
 ):
     ran(root=resuming, number=1, purpose=AssignmentRoundPurpose.IMPLEMENT)
     write_round(
@@ -1148,8 +1173,9 @@ def test_a_last_round_that_was_interrupted_is_carried_on_as_the_last_round(
         record=AgentRoundRecord(
             number=2,
             started=PINNED.replace(hour=17, minute=2),
-            pid=left_running.pid,
+            pid=1,
             purpose=AssignmentRoundPurpose.WRAP_UP,
+            ending=InterruptedAgentRoundEnding(),
         ),
     )
     gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
@@ -1164,17 +1190,21 @@ def test_a_last_round_that_was_interrupted_is_carried_on_as_the_last_round(
     recovered = record_of(scheduler=scheduler, number=3)
     assert recovered.purpose is AssignmentRoundPurpose.WRAP_UP
     assert recovered.is_recovery
-    assert not (scheduler.state.assignments / ASSIGNMENT_ID / "rounds" / "4").exists()
+    assert not (
+        scheduler.assignments.state.assignments / ASSIGNMENT_ID / "rounds" / "4"
+    ).exists()
 
 
-def test_open_work_is_carried_on_before_a_new_issue_is_assigned(
-    resuming, gh, offered, left_running
-):
+def test_open_work_is_carried_on_before_a_new_issue_is_assigned(resuming, gh, offered):
     write_round(
         directory=StateDirectory(root=resuming).assignments / ASSIGNMENT_ID,
         number=1,
         record=AgentRoundRecord(
-            number=1, started=PINNED, pid=left_running.pid, purpose=PURPOSE
+            number=1,
+            started=PINNED,
+            pid=1,
+            purpose=PURPOSE,
+            ending=InterruptedAgentRoundEnding(),
         ),
     )
     scheduler, clock = create_scheduler(root=resuming)
@@ -1182,7 +1212,7 @@ def test_open_work_is_carried_on_before_a_new_issue_is_assigned(
     observed = scheduler.tick(at=clock())
 
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
-    assert not (scheduler.state.worktrees / CREATED_ASSIGNMENT_ID).exists()
+    assert not (scheduler.assignments.state.worktrees / CREATED_ASSIGNMENT_ID).exists()
     assert observed_issues(tick=observed) == [8, 13]
     assert observed.issue_observations[1].claimed_here.value is IssueFactValue.TRUE
 
@@ -1204,7 +1234,9 @@ def test_a_failed_issue_listing_leaves_open_work_for_a_later_tick(
 
     assert "could not connect" in held(observed=observed)
     assert observed.launched_agent_work_identifiers == []
-    assert not (scheduler.state.assignments / ASSIGNMENT_ID / "rounds" / "2").exists()
+    assert not (
+        scheduler.assignments.state.assignments / ASSIGNMENT_ID / "rounds" / "2"
+    ).exists()
 
 
 def test_two_faulted_assignments_start_a_global_cooldown(ready_repo):

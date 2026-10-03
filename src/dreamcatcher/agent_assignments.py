@@ -166,7 +166,7 @@ class Assignment:
         if not self.rounds:
             return None
         ending = self.rounds[-1].ending
-        if ending is None or isinstance(ending, InterruptedAgentRoundEnding):
+        if isinstance(ending, InterruptedAgentRoundEnding):
             return "the last round was interrupted"
         if isinstance(ending, ErroredAgentRoundEnding):
             return f"the last round failed (exit {ending.status})"

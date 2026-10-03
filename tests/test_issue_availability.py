@@ -1,6 +1,7 @@
 import json
 from collections.abc import Sequence
 from itertools import product
+from pathlib import Path
 
 import pytest
 from conftest import (
@@ -18,7 +19,9 @@ from pydantic import ValidationError
 from records import write_assignment
 
 from dreamcatcher.agent_assignments import Assignment, read_assignments
-from dreamcatcher.config import DreamcatcherConfig
+from dreamcatcher.clock import read_current_time
+from dreamcatcher.config import AgentHarness, DreamcatcherConfig
+from dreamcatcher.scheduler.assignments import AssignmentScheduler
 from dreamcatcher.scheduler.issues import observe_issues
 from dreamcatcher.scheduler.models import (
     IssueFact,
@@ -79,14 +82,29 @@ def observe(
 ):
     """Return the issue observations after asserting that the listing succeeded."""
     found = observe_issues(
-        repository=REPOSITORY,
-        account=account,
-        config=config,
+        scheduler=create_assignment_scheduler(config=config, account=account),
         assignments=list(assignments),
         incomplete_setups=({} if incomplete_setups is None else incomplete_setups),
     )
     assert found.failure is None
     return found.observations
+
+
+def create_assignment_scheduler(
+    *,
+    config: DreamcatcherConfig,
+    account: str = POSTED_BY,
+    state: StateDirectory | None = None,
+) -> AssignmentScheduler:
+    """Create an assignment scheduler for issue observation tests."""
+    return AssignmentScheduler(
+        repository=REPOSITORY,
+        account=account,
+        config=config,
+        state=state or StateDirectory(root=Path()),
+        requested_harness=AgentHarness.CLAUDE,
+        clock=read_current_time,
+    )
 
 
 @pytest.mark.parametrize(
@@ -173,9 +191,9 @@ def test_a_listing_failure_makes_the_whole_observation_unknown(gh):
     gh.fails(stderr="gh: could not connect to github.com", to="issue list")
 
     found = observe_issues(
-        repository=REPOSITORY,
-        account=POSTED_BY,
-        config=config_with_routes(labels=[ASSIGNMENT_LABEL]),
+        scheduler=create_assignment_scheduler(
+            config=config_with_routes(labels=[ASSIGNMENT_LABEL])
+        ),
         assignments=[],
         incomplete_setups={},
     )
@@ -201,9 +219,9 @@ def test_a_later_route_failure_preserves_earlier_issue_observations(gh):
     )
 
     found = observe_issues(
-        repository=REPOSITORY,
-        account=POSTED_BY,
-        config=config_with_routes(labels=[ASSIGNMENT_LABEL, "dream:less"]),
+        scheduler=create_assignment_scheduler(
+            config=config_with_routes(labels=[ASSIGNMENT_LABEL, "dream:less"])
+        ),
         assignments=[],
         incomplete_setups={},
     )
@@ -414,9 +432,10 @@ def test_a_local_assignment_remains_observed_when_the_listing_and_issue_read_fai
     gh.fails(stderr="gh: could not connect to github.com")
 
     found = observe_issues(
-        repository=REPOSITORY,
-        account=POSTED_BY,
-        config=config_with_routes(labels=[ASSIGNMENT_LABEL]),
+        scheduler=create_assignment_scheduler(
+            config=config_with_routes(labels=[ASSIGNMENT_LABEL]),
+            state=state,
+        ),
         assignments=read_assignments(state=state),
         incomplete_setups={},
     )
