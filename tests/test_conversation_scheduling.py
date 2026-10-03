@@ -1507,7 +1507,7 @@ def test_a_failed_conversation_listing_holds_launches(conversation_scheduler):
     observed = scheduler.tick(at=clock())
 
     assert observed.hold is not None
-    assert observed.hold.startswith("could not list issue conversations")
+    assert observed.hold.startswith("could not list issues for dream:conversation")
     assert observed.conversation_observations == [
         ConversationObservation(
             issue=8,
@@ -1548,7 +1548,7 @@ def test_a_failed_route_listing_still_refreshes_healthy_routes(
     observed = scheduler.tick(at=clock())
 
     assert observed.hold is not None
-    assert "could not list issue conversations for dream:conversation" in observed.hold
+    assert "could not list issues for dream:conversation" in observed.hold
     assert [
         observation.issue for observation in observed.conversation_observations
     ] == [8]
@@ -1605,7 +1605,7 @@ def test_failed_listing_keeps_visible_conversation_faults_in_the_cooldown(
     )
     assert observed.hold is not None
     assert observed.hold.startswith(
-        "global cooldown; could not list issue conversations"
+        "global cooldown; could not list issues for dream:conversation"
     )
     assert all(
         observation.has_comments_to_answer.value is IssueFactValue.UNKNOWN
@@ -1774,7 +1774,7 @@ def test_a_conversation_failure_remains_visible_when_an_assignment_launches(
 
     assert observed.launched_agent_work_identifiers == [assignment_identifier]
     assert observed.hold is not None
-    assert observed.hold.startswith("could not list issue conversations")
+    assert observed.hold.startswith("could not list issues for dream:conversation")
 
 
 def test_a_failed_comment_listing_holds_launches(conversation_scheduler):

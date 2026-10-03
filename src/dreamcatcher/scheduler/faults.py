@@ -5,12 +5,9 @@ from datetime import datetime
 from dreamcatcher.agent_rounds import AgentRoundRecord, ErroredAgentRoundEnding
 from dreamcatcher.documents import read_json
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.issue_conversations import Conversation
 from dreamcatcher.scheduler.models import (
     GLOBAL_COOLDOWN_DURATION,
-    ConversationObservation,
     GlobalCooldown,
-    IssueFactValue,
     SchedulerRecord,
 )
 from dreamcatcher.state import StateDirectory
@@ -42,29 +39,6 @@ def derive_agent_work_fault(
             or ending.at >= most_recent_fault_boundary
         )
         for ending in latest_endings
-    )
-
-
-def count_observed_conversation_faults(
-    *,
-    conversations: list[Conversation],
-    observations: list[ConversationObservation],
-    most_recent_cooldown_ended: datetime | None,
-) -> int:
-    """Count faults among conversations this tick keeps in the report."""
-    observed_issues = {
-        observation.issue
-        for observation in observations
-        if observation.routing_conflict.value is not IssueFactValue.TRUE
-    }
-    return sum(
-        derive_agent_work_fault(
-            rounds=conversation.rounds,
-            retry_requested_at=conversation.record.retry_requested_at,
-            most_recent_cooldown_ended=most_recent_cooldown_ended,
-        )
-        for conversation in conversations
-        if conversation.record.issue in observed_issues
     )
 
 

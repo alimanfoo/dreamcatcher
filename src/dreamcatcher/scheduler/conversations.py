@@ -19,7 +19,6 @@ from dreamcatcher.github import (
     Issue,
     UnknownGitHubResponse,
     list_issue_comments,
-    list_issues,
 )
 from dreamcatcher.harness_adapters import AgentRoundLaunchRequest, AgentWorkKind
 from dreamcatcher.issue_conversations import (
@@ -32,6 +31,7 @@ from dreamcatcher.issue_conversations import (
     post_conversation_answer,
     prepare_conversation_input,
     read_conversation_input,
+    read_conversations,
     read_issue_comment_delivery_cursor,
     record_conversation_session_identifier,
 )
@@ -40,9 +40,10 @@ from dreamcatcher.prompts import (
     compose_conversation_prompt,
     compose_conversation_round_prompt,
 )
-from dreamcatcher.scheduler.agent_work import AgentWorkScheduler
+from dreamcatcher.scheduler.agent_work import AgentWorkScheduler, RouteIssueListing
 from dreamcatcher.scheduler.faults import derive_agent_work_fault
 from dreamcatcher.scheduler.models import (
+    AgentWorkInspection,
     ConversationObservation,
     IssueFact,
     IssueFactValue,
@@ -54,7 +55,7 @@ from dreamcatcher.words import describe_count
 
 
 @dataclass(frozen=True, kw_only=True)
-class NewConversationRoundCandidate:
+class ConversationBatchCandidate:
     """Describe an eligible issue with trusted comments waiting."""
 
     issue: Issue
@@ -70,32 +71,14 @@ class ConversationRecoveryCandidate:
     conversation: Conversation
 
 
-type ConversationCandidate = (
-    NewConversationRoundCandidate | ConversationRecoveryCandidate
-)
-
-
-@dataclass(frozen=True, kw_only=True)
-class ConversationCandidateResult:
-    """Collect conversation observations, candidates, and any failed read."""
-
-    candidates: list[ConversationCandidate]
-    observations: list[ConversationObservation]
-    failure: str | None = None
-
-
-@dataclass(frozen=True, kw_only=True)
-class _ConversationRouteListing:
-    """Hold conversation issues, or the failure that stopped listing."""
-
-    issues: list[Issue]
-    failure: str | None = None
+type ConversationCandidate = ConversationBatchCandidate | ConversationRecoveryCandidate
 
 
 @dataclass(frozen=True, kw_only=True)
 class _ConversationInspection:
     observation: ConversationObservation
     candidate: ConversationCandidate | None
+    is_fault: bool = False
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -105,15 +88,6 @@ class _PreparedConversationRound:
     prompt: str
     harness_session_identifier: str | None
     is_recovery: bool
-
-
-@dataclass(frozen=True, kw_only=True)
-class ConversationInspectionRequest:
-    """Hold the current inputs for inspecting conversation work."""
-
-    conversations: list[Conversation]
-    previous_observations: list[ConversationObservation]
-    most_recent_cooldown_ended: datetime | None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -127,39 +101,67 @@ class ConversationLaunchRequest:
 class ConversationScheduler(
     AgentWorkScheduler[
         ConversationCandidate,
+        ConversationObservation,
         tuple[int, str, int],
-        ConversationInspectionRequest,
         ConversationLaunchRequest,
     ]
 ):
     """Inspect, rank and launch conversation work."""
 
     def inspect(
-        self, *, request: ConversationInspectionRequest
-    ) -> ConversationCandidateResult:
+        self, *, previous_record: SchedulerRecord | None, at: datetime
+    ) -> AgentWorkInspection[ConversationCandidate, ConversationObservation]:
         """Observe matching issues and return conversation work ready to run."""
         if not self.config.conversation:
-            return ConversationCandidateResult(candidates=[], observations=[])
-        listing = self._list_route_issues()
+            return AgentWorkInspection(
+                candidates=[], observations=[], fault_count=0, failure=None
+            )
+        listing = self.list_route_issues(routes=self.config.conversation)
+        conversations = read_conversations(state=self.state)
         conversations_by_issue = {
-            conversation.record.issue: conversation
-            for conversation in request.conversations
+            conversation.record.issue: conversation for conversation in conversations
         }
-        candidates, observations, failures = self._inspect_listed_conversations(
-            listing=listing,
-            conversations_by_issue=conversations_by_issue,
-            most_recent_cooldown_ended=request.most_recent_cooldown_ended,
-        )
-        observations.extend(
-            _carry_forward_unlisted_observations(
+        candidates, observations, fault_count, failures = (
+            self._inspect_listed_conversations(
                 listing=listing,
-                previous_observations=request.previous_observations,
+                conversations_by_issue=conversations_by_issue,
+                most_recent_cooldown_ended=(
+                    None
+                    if previous_record is None
+                    else previous_record.most_recent_cooldown_ended
+                ),
             )
         )
-        return ConversationCandidateResult(
+        carried_observations = _carry_forward_unlisted_observations(
+            listing=listing,
+            previous_observations=(
+                []
+                if previous_record is None
+                else previous_record.conversation_observations
+            ),
+        )
+        observations.extend(carried_observations)
+        fault_count += _count_carried_conversation_faults(
+            observations=carried_observations,
+            conversations_by_issue=conversations_by_issue,
+            most_recent_cooldown_ended=(
+                None
+                if previous_record is None
+                else previous_record.most_recent_cooldown_ended
+            ),
+        )
+        failure = combine_scheduler_failures(failures=failures)
+        if failure is not None:
+            candidates = [
+                candidate
+                for candidate in candidates
+                if isinstance(candidate, ConversationRecoveryCandidate)
+            ]
+        return AgentWorkInspection(
             candidates=sorted(candidates, key=self.rank),
             observations=observations,
-            failure=combine_scheduler_failures(failures=failures),
+            fault_count=fault_count,
+            failure=failure,
         )
 
     def rank(self, candidate: ConversationCandidate, /) -> tuple[int, str, int]:
@@ -190,16 +192,18 @@ class ConversationScheduler(
     def _inspect_listed_conversations(
         self,
         *,
-        listing: _ConversationRouteListing,
+        listing: RouteIssueListing,
         conversations_by_issue: dict[int, Conversation],
         most_recent_cooldown_ended: datetime | None,
     ) -> tuple[
         list[ConversationCandidate],
         list[ConversationObservation],
+        int,
         list[str | None],
     ]:
         candidates: list[ConversationCandidate] = []
         observations: list[ConversationObservation] = []
+        fault_count = 0
         failures: list[str | None] = [listing.failure]
         for issue in listing.issues:
             conversation = conversations_by_issue.get(issue.number)
@@ -211,6 +215,7 @@ class ConversationScheduler(
             if inspection is None:
                 continue
             observations.append(inspection.observation)
+            fault_count += inspection.is_fault
             if inspection.candidate is not None:
                 candidates.append(inspection.candidate)
             elif (
@@ -219,33 +224,7 @@ class ConversationScheduler(
                 is IssueFactValue.UNKNOWN
             ):
                 failures.append(inspection.observation.has_comments_to_answer.evidence)
-        return candidates, observations, failures
-
-    def _list_route_issues(self) -> _ConversationRouteListing:
-        """List each issue found through a configured conversation route."""
-        issues_by_number: dict[int, Issue] = {}
-        failures: list[str | None] = []
-        for route in self.config.conversation:
-            issue_response = list_issues(
-                repository=self.repository,
-                label=route.label,
-                assignee=self.account,
-            )
-            if isinstance(issue_response, UnknownGitHubResponse):
-                failures.append(
-                    f"could not list issue conversations for {route.label}: "
-                    f"{issue_response.reason}"
-                )
-            else:
-                for issue in issue_response:
-                    issues_by_number[issue.number] = issue
-        return _ConversationRouteListing(
-            issues=sorted(
-                issues_by_number.values(),
-                key=lambda item: (item.created_at, item.number),
-            ),
-            failure=combine_scheduler_failures(failures=failures),
-        )
+        return candidates, observations, fault_count, failures
 
     def _inspect_listed_issue(
         self,
@@ -311,7 +290,7 @@ class ConversationScheduler(
         )
         candidate = None
         if comments and is_conversation_ready_for_input(conversation=conversation):
-            candidate = NewConversationRoundCandidate(
+            candidate = ConversationBatchCandidate(
                 issue=issue,
                 comments=comments,
                 conversation=conversation,
@@ -504,7 +483,7 @@ def _list_comments_to_answer(
 
 def _carry_forward_unlisted_observations(
     *,
-    listing: _ConversationRouteListing,
+    listing: RouteIssueListing,
     previous_observations: list[ConversationObservation],
 ) -> list[ConversationObservation]:
     if listing.failure is None:
@@ -544,6 +523,7 @@ def _inspect_conversation_recovery(
                 ),
             ),
             candidate=None,
+            is_fault=True,
         )
     if (
         conversation is not None
@@ -565,6 +545,24 @@ def _inspect_conversation_recovery(
             ),
         )
     return None
+
+
+def _count_carried_conversation_faults(
+    *,
+    observations: list[ConversationObservation],
+    conversations_by_issue: dict[int, Conversation],
+    most_recent_cooldown_ended: datetime | None,
+) -> int:
+    """Count faults among conversations carried across a failed listing."""
+    return sum(
+        derive_agent_work_fault(
+            rounds=conversation.rounds,
+            retry_requested_at=conversation.record.retry_requested_at,
+            most_recent_cooldown_ended=most_recent_cooldown_ended,
+        )
+        for observation in observations
+        if (conversation := conversations_by_issue.get(observation.issue)) is not None
+    )
 
 
 def _record_conversation_comments_delivered(

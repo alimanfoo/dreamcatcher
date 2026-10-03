@@ -1,5 +1,6 @@
-"""Persistent scheduler records and shared observed facts."""
+"""Persistent scheduler records and shared scheduling facts."""
 
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Annotated, Protocol, Self
@@ -12,6 +13,16 @@ from dreamcatcher.documents import DreamcatcherDocument
 GLOBAL_COOLDOWN_DURATION = timedelta(minutes=15)
 DEFAULT_MAX_AGENTS = 1
 NO_ROUND_HAS_RUN = "no round has run yet"
+
+
+@dataclass(frozen=True, kw_only=True)
+class AgentWorkInspection[CandidateT, ObservationT]:
+    """Collect one kind's ranked candidates, observations, faults and failure."""
+
+    candidates: list[CandidateT]
+    observations: list[ObservationT]
+    fault_count: int
+    failure: str | None
 
 
 def _normalize_utc(at: datetime, /) -> datetime:
