@@ -629,10 +629,6 @@ body::after {
   letter-spacing: var(--letter-label);
 }
 
-.manual-recovery p {
-  margin: var(--space-6) 0;
-}
-
 .manual-recovery pre {
   overflow-x: auto;
   margin: 0;

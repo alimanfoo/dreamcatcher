@@ -126,7 +126,7 @@ dreamcatcher conversation GH<n>
 ```
 
 Show the issue conversation's settled settings, harness session, worktree, code
-revision and rounds.
+revision and rounds, with a hand-resume command when one is available.
 
 In an interactive terminal it refreshes until the conversation enters fault, has
 a routing conflict, or leaves the status report. When output is piped,

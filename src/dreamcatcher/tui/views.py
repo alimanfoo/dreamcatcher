@@ -141,7 +141,7 @@ def _render_conversation(
                 ("agent harness", record.harness),
                 (
                     "harness session identifier",
-                    record.harness_session_identifier or "not recorded",
+                    status.harness_session_identifier or "not recorded",
                 ),
                 ("model", record.model),
                 ("effort", record.effort),
