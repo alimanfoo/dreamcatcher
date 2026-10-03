@@ -170,6 +170,40 @@ The 31 names that remain are all of the permitted kinds:
 No remaining name is a template view model. The S3 measurement is therefore 31
 permitted names and no unclassified public name.
 
+Stage 3 item 10 repeated every criterion the stage owns after all ten items.
+
+| Criterion                     | Measured                                            | Bar                      | Status |
+| ----------------------------- | --------------------------------------------------- | ------------------------ | ------ |
+| S3 Exports are used           | 31 permitted names, 0 unclassified                  | each of a permitted kind | met    |
+| S4 Each thing is done one way | 0 duplicate derivations                             | none                     | met    |
+| C1 One vocabulary             | 0 consistency-review disagreements                  | none                     | met    |
+| E1 Rules, not cases           | 9 special cases, all externally caused and ledgered | ledger, external causes  | met    |
+| E2 Invariants by construction | 70 optional fields, 0 coupled field sets            | 0                        | met    |
+| E4 Symmetry                   | 15 parallel operations, 8 named asymmetries         | parallel or named        | met    |
+
+The E1 walk inspected every source module and classified the branches that name
+a particular situation. [The ledger](../../docs/special-cases.md) records the
+nine such cases. The conversation creation refusal remains because an
+interrupted process or a failed Git cleanup can leave the unrecorded worktree;
+normal creation and failed record writes either finish or remove it. No case has
+an internal cause.
+
+The E4 remeasurement read the design's parallel names and asymmetries against
+the current namespace. Every one of the 15 operation rows has both sides. The
+unequal symbol shapes are the ones the design names: `AssignmentInspection` adds
+issue observations to the shared result; three assignment candidate types stand
+against two conversation candidate types because their ranking lists cut the
+lifecycle differently; `ConversationObservation` adds the title and routing
+conflict that exist before a conversation record; and
+`find_open_assignments_by_issue` has no counterpart because an issue may have
+many assignments over time but at most one conversation. The design's eight
+standing asymmetries all remain explained by the ontology, and the audit found
+no other one.
+
+Stage 3 set out to make the public surface the architecture's interface, settle
+one vocabulary and give the two kinds of agent work one named shape. It did all
+three. Nothing in the stage's outcome or ordered work remains undone.
+
 ## Rules for the work
 
 - The behaviour budget is zero. No stage changes a persisted document, a
