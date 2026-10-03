@@ -58,5 +58,5 @@ makes it eligible again.
 
 Dreamcatcher keeps the saved conversation. If the issue later becomes eligible
 again, comments posted while it was paused can be delivered and the saved
-session can continue. To stop just the round that is running, use the dashboard
-control described in [Stop and recover work](stop-and-recover.md).
+session can continue. To stop just the round that is running, follow
+[Stop and recover work](stop-and-recover.md).

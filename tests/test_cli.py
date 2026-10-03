@@ -316,6 +316,124 @@ def test_retry_refuses_an_issue_with_no_work_in_fault(monkeypatch, watching, cap
     assert "no agent work in fault" in capsys.readouterr().err
 
 
+def test_stop_requests_the_newest_assignments_running_round(
+    monkeypatch, watching, capsys
+):
+    monkeypatch.chdir(watching.root)
+
+    assert main(argv=["stop", "GH13", "--assignment"]) == 0
+
+    assignment = read_assignments_for_issue(state=watching, issue=13)[-1]
+    paths = assignment.compose_round_paths(number=1)
+    assert paths.stop_request.read_text(encoding="utf-8") == ""
+    assert "newest assignment round 1 at GH13" in capsys.readouterr().out
+
+
+def test_stop_requests_an_issue_conversations_running_round(
+    monkeypatch, tmp_path, capsys
+):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    write_daemon_lock(path=state.lock)
+    directory = write_conversation(state=state, issue=13)
+    write_round(
+        directory=directory,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            started=PINNED,
+            pid=1,
+            purpose=ConversationRoundPurpose.DISCUSS,
+        ),
+    )
+    monkeypatch.chdir(tmp_path)
+
+    assert main(argv=["stop", "GH13", "--conversation"]) == 0
+
+    conversation = read_conversation(state=state, issue=13)
+    assert conversation is not None
+    paths = conversation.compose_round_paths(number=1)
+    assert paths.stop_request.read_text(encoding="utf-8") == ""
+    assert "issue conversation round 1 at GH13" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("owner", ["--assignment", "--conversation"])
+def test_stop_refuses_an_issue_without_the_selected_agent_work(
+    monkeypatch, tmp_path, capsys, owner
+):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    state.path.mkdir()
+    monkeypatch.chdir(tmp_path)
+
+    assert main(argv=["stop", "GH13", owner]) == 1
+    assert "has no running round that can be stopped" in capsys.readouterr().err
+
+
+def test_stop_refuses_a_round_without_a_resumable_session(
+    monkeypatch, tmp_path, capsys
+):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    write_daemon_lock(path=state.lock)
+    directory = write_assignment(
+        state=state,
+        identifier=ASSIGNMENT_ID,
+        issue=13,
+        harness_session_identifier=None,
+    )
+    write_round(
+        directory=directory,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            started=PINNED,
+            pid=1,
+            purpose=AssignmentRoundPurpose.IMPLEMENT,
+        ),
+    )
+    monkeypatch.chdir(tmp_path)
+
+    assert main(argv=["stop", "GH13", "--assignment"]) == 1
+
+    assignment = read_assignments_for_issue(state=state, issue=13)[-1]
+    paths = assignment.compose_round_paths(number=1)
+    assert not paths.stop_request.exists()
+    assert "has no running round that can be stopped" in capsys.readouterr().err
+
+
+def test_stop_refuses_a_conversation_round_without_a_resumable_session(
+    monkeypatch, tmp_path, capsys
+):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    write_daemon_lock(path=state.lock)
+    directory = write_conversation(
+        state=state,
+        issue=13,
+        harness_session_identifier=None,
+    )
+    write_round(
+        directory=directory,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            started=PINNED,
+            pid=1,
+            purpose=ConversationRoundPurpose.DISCUSS,
+        ),
+    )
+    monkeypatch.chdir(tmp_path)
+
+    assert main(argv=["stop", "GH13", "--conversation"]) == 1
+
+    conversation = read_conversation(state=state, issue=13)
+    assert conversation is not None
+    paths = conversation.compose_round_paths(number=1)
+    assert not paths.stop_request.exists()
+    assert "has no running round that can be stopped" in capsys.readouterr().err
+
+
 def test_feed_shows_what_the_assignment_said(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
     # A following view runs until the assignment has completed its wrap-up, so this
@@ -378,17 +496,19 @@ def test_feed_shows_what_the_conversation_said(monkeypatch, watching, capsys):
     assert "The answer." in capsys.readouterr().out
 
 
-def test_feed_requires_one_owner_selector(capsys):
+@pytest.mark.parametrize("verb", ["stop", "feed"])
+def test_an_agent_work_command_requires_one_owner_selector(verb, capsys):
     with pytest.raises(SystemExit) as exit_info:
-        main(argv=["feed", "GH13"])
+        main(argv=[verb, "GH13"])
 
     assert exit_info.value.code == 2
     assert "--assignment --conversation" in capsys.readouterr().err
 
 
-def test_feed_refuses_two_owner_selectors(capsys):
+@pytest.mark.parametrize("verb", ["stop", "feed"])
+def test_an_agent_work_command_refuses_two_owner_selectors(verb, capsys):
     with pytest.raises(SystemExit) as exit_info:
-        main(argv=["feed", "GH13", "--assignment", "--conversation"])
+        main(argv=[verb, "GH13", "--assignment", "--conversation"])
 
     assert exit_info.value.code == 2
     assert "not allowed with argument" in capsys.readouterr().err
@@ -419,7 +539,8 @@ def test_status_takes_no_issue(capsys):
 
 
 @pytest.mark.parametrize(
-    "verb", ["run", "retry", "web", "status", "assignment", "conversation", "feed"]
+    "verb",
+    ["run", "retry", "stop", "web", "status", "assignment", "conversation", "feed"],
 )
 def test_every_verb_describes_itself_in_its_own_help(verb, capsys):
     with pytest.raises(SystemExit) as exit_info:
