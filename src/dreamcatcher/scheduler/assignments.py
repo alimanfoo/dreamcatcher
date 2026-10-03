@@ -9,7 +9,6 @@ from dreamcatcher.agent_assignments import (
     Assignment,
     AssignmentCreator,
     AssignmentRoundInput,
-    advance_user_post_delivery_cursor,
     find_harness_session_identifier,
     find_open_assignments_by_issue,
     inspect_incomplete_assignment_setups,
@@ -41,10 +40,7 @@ from dreamcatcher.harness_adapters import (
 )
 from dreamcatcher.prompts import RECOVERY_PROMPT, compose_user_posts_prompt
 from dreamcatcher.relay import list_undelivered_user_posts
-from dreamcatcher.scheduler.agent_work import (
-    AgentWorkScheduler,
-    LaunchedAgentRoundError,
-)
+from dreamcatcher.scheduler.agent_work import AgentWorkScheduler
 from dreamcatcher.scheduler.faults import derive_agent_work_fault
 from dreamcatcher.scheduler.issues import (
     observe_issues,
@@ -53,9 +49,11 @@ from dreamcatcher.scheduler.issues import (
 from dreamcatcher.scheduler.models import (
     NO_ROUND_HAS_RUN,
     AgentWorkInspection,
-    AssignmentObservation,
+    AgentWorkObservation,
+    IssueFact,
     IssueFactValue,
     IssueObservation,
+    ObservedIssueDetails,
     SchedulerRecord,
     derive_round_purpose,
 )
@@ -95,33 +93,17 @@ type AssignmentCandidate = (
 
 @dataclass(frozen=True, kw_only=True)
 class AssignmentInspection(
-    AgentWorkInspection[AssignmentCandidate, AssignmentObservation]
+    AgentWorkInspection[AssignmentCandidate, AgentWorkObservation]
 ):
     """Collect assignment inspection facts and issue observations."""
 
     issue_observations: list[IssueObservation]
 
-    def compose_capacity_observations(
-        self, *, reason: str
-    ) -> list[AssignmentObservation]:
-        """Return observations with assignment candidates waiting on capacity."""
-        candidate_identifiers = {
-            candidate.assignment.identifier
-            for candidate in self.candidates
-            if not isinstance(candidate, NewAssignmentCandidate)
-        }
-        return [
-            observation.model_copy(update={"reason": reason})
-            if observation.assignment_identifier in candidate_identifiers
-            else observation
-            for observation in self.observations
-        ]
-
 
 @dataclass(frozen=True, kw_only=True)
 class _AssignmentItemInspection:
     candidate: AssignmentCandidate | None
-    observation: AssignmentObservation
+    observation: AgentWorkObservation
     is_fault: bool = False
 
 
@@ -143,7 +125,7 @@ class AssignmentLaunchRequest:
 class AssignmentScheduler(
     AgentWorkScheduler[
         AssignmentCandidate,
-        AssignmentObservation,
+        AgentWorkObservation,
         int,
         AssignmentLaunchRequest,
     ]
@@ -222,37 +204,23 @@ class AssignmentScheduler(
             )
             candidate = FirstAssignmentRoundCandidate(assignment=assignment)
         prepared = _prepare_assignment_candidate(candidate=candidate)
-        harness_session_identifier, prompt, is_fresh_recovery = (
-            _prepare_assignment_resume(prepared=prepared)
+        harness_session_identifier, prompt = _prepare_assignment_resume(
+            prepared=prepared
         )
         assignment = prepared.assignment
         if harness_session_identifier is not None:
             record_harness_session_identifier(
                 assignment=assignment, identifier=harness_session_identifier
             )
-        newest_user_post = _find_newest_user_post(prepared=prepared)
         record_session_identifier = partial(
             record_harness_session_identifier, assignment=assignment
         )
-        if is_fresh_recovery and newest_user_post is not None:
-            record_session_identifier = partial(
-                _record_session_before_advancing_user_post_cursor,
-                assignment=assignment,
-                newest_user_post=newest_user_post,
-            )
-        round_ = self._start_round(
+        return self._start_round(
             prepared=prepared,
             prompt=prompt,
             harness_session_identifier=harness_session_identifier,
             record_session_identifier=record_session_identifier,
         )
-        _advance_user_post_cursor(
-            assignment=assignment,
-            round_=round_,
-            newest_user_post=newest_user_post,
-            is_fresh_recovery=is_fresh_recovery,
-        )
-        return round_
 
     def _inspect_assignments(
         self,
@@ -288,7 +256,7 @@ class AssignmentScheduler(
             return _AssignmentItemInspection(
                 candidate=candidate,
                 observation=_compose_assignment_observation(
-                    assignment=assignment, reason=NO_ROUND_HAS_RUN
+                    assignment=assignment, evidence=NO_ROUND_HAS_RUN
                 ),
             )
         if derive_agent_work_fault(
@@ -300,7 +268,8 @@ class AssignmentScheduler(
                 candidate=None,
                 observation=_compose_assignment_observation(
                     assignment=assignment,
-                    reason="two consecutive rounds failed",
+                    evidence="in fault",
+                    value=IssueFactValue.FALSE,
                 ),
                 is_fault=True,
             )
@@ -322,8 +291,8 @@ class AssignmentScheduler(
                 candidate=None,
                 observation=_compose_assignment_observation(
                     assignment=assignment,
-                    reason=f"cannot read its pull request: {pull_request.reason}",
-                    is_known=False,
+                    evidence=f"cannot read its pull request: {pull_request.reason}",
+                    value=IssueFactValue.UNKNOWN,
                 ),
             )
         record_pull_request_observation(
@@ -335,7 +304,7 @@ class AssignmentScheduler(
             assignment=assignment,
             pull_request=pull_request,
         )
-        if isinstance(candidate_or_observation, AssignmentObservation):
+        if isinstance(candidate_or_observation, AgentWorkObservation):
             return _AssignmentItemInspection(
                 candidate=None, observation=candidate_or_observation
             )
@@ -344,15 +313,15 @@ class AssignmentScheduler(
                 candidate=None,
                 observation=_compose_assignment_observation(
                     assignment=assignment,
-                    reason="no round required",
-                    is_round_required=False,
+                    evidence="no round required",
+                    value=IssueFactValue.FALSE,
                 ),
             )
         return _AssignmentItemInspection(
             candidate=candidate_or_observation,
             observation=_compose_assignment_observation(
                 assignment=assignment,
-                reason=_describe_assignment_candidate(
+                evidence=_describe_assignment_candidate(
                     candidate=candidate_or_observation
                 ),
             ),
@@ -360,7 +329,7 @@ class AssignmentScheduler(
 
     def _inspect_pending_round(
         self, *, assignment: Assignment, pull_request: PullRequest
-    ) -> AssignmentRoundCandidate | AssignmentObservation | None:
+    ) -> AssignmentRoundCandidate | AgentWorkObservation | None:
         recovery_reason = assignment.describe_unfinished_round()
         if recovery_reason is not None and pull_request.state is PullRequestState.OPEN:
             return AssignmentRoundCandidate(
@@ -378,8 +347,10 @@ class AssignmentScheduler(
         if isinstance(undelivered_posts, UnknownGitHubResponse):
             return _compose_assignment_observation(
                 assignment=assignment,
-                reason=f"cannot tell what the user posted: {undelivered_posts.reason}",
-                is_known=False,
+                evidence=(
+                    f"cannot tell what the user posted: {undelivered_posts.reason}"
+                ),
+                value=IssueFactValue.UNKNOWN,
             )
         if not undelivered_posts and pull_request.state is PullRequestState.OPEN:
             return None
@@ -396,9 +367,11 @@ class AssignmentScheduler(
         return [
             NewAssignmentCandidate(
                 issue=observation.issue,
-                title=cast("str", observation.title),
+                title=cast("ObservedIssueDetails", observation.details).title,
                 route=self.config.assignment_routes[
-                    cast("list[str]", observation.assignment_labels)[0]
+                    cast("ObservedIssueDetails", observation.details).assignment_labels[
+                        0
+                    ]
                 ],
             )
             for observation in observations
@@ -488,7 +461,8 @@ def _prepare_assignment_resume_round(
 
 def _describe_assignment_candidate(*, candidate: AssignmentRoundCandidate) -> str:
     if candidate.recovery_reason is not None:
-        return candidate.recovery_reason
+        latest_round = candidate.assignment.rounds[-1]
+        return f"round {latest_round.number} {latest_round.outcome}, to recover"
     if candidate.pull_request.state is not PullRequestState.OPEN:
         return f"the pull request is {candidate.pull_request.state.lower()}"
     return (
@@ -500,64 +474,28 @@ def _describe_assignment_candidate(*, candidate: AssignmentRoundCandidate) -> st
 def _compose_assignment_observation(
     *,
     assignment: Assignment,
-    reason: str,
-    is_known: bool = True,
-    is_round_required: bool = True,
-) -> AssignmentObservation:
-    return AssignmentObservation(
-        assignment_identifier=assignment.identifier,
+    evidence: str,
+    value: IssueFactValue = IssueFactValue.TRUE,
+) -> AgentWorkObservation:
+    return AgentWorkObservation(
+        identifier=assignment.identifier,
         issue=assignment.record.issue,
-        reason=reason,
-        is_known=is_known,
-        is_round_required=is_round_required,
+        requires_round=IssueFact(value=value, evidence=evidence),
     )
-
-
-def _find_newest_user_post(*, prepared: _PreparedAssignmentRound) -> str | None:
-    round_input = prepared.plan.input
-    if round_input is None or not round_input.user_posts:
-        return None
-    return round_input.user_posts[-1].written_at
-
-
-def _record_session_before_advancing_user_post_cursor(
-    *, assignment: Assignment, newest_user_post: str, identifier: str
-) -> None:
-    """Record a replacement session before acknowledging its delivered posts."""
-    record_harness_session_identifier(assignment=assignment, identifier=identifier)
-    advance_user_post_delivery_cursor(assignment=assignment, newest=newest_user_post)
 
 
 def _prepare_assignment_resume(
     *, prepared: _PreparedAssignmentRound
-) -> tuple[HarnessSessionIdentifier | None, str, bool]:
+) -> tuple[HarnessSessionIdentifier | None, str]:
     assignment = prepared.assignment
     if not assignment.rounds:
-        return None, prepared.prompt, False
+        return None, prepared.prompt
     identifier = find_harness_session_identifier(assignment=assignment)
     if identifier is not None:
-        return identifier, prepared.prompt, False
+        return identifier, prepared.prompt
     if not prepared.plan.is_recovery:
         raise ReportableError(
             f"Could not resume {assignment.identifier}: its first round did not "
             "report a harness session identifier."
         )
-    return None, f"{assignment.record.prompt}\n\n{prepared.prompt}", True
-
-
-def _advance_user_post_cursor(
-    *,
-    assignment: Assignment,
-    round_: AgentRound,
-    newest_user_post: str | None,
-    is_fresh_recovery: bool,
-) -> None:
-    if newest_user_post is None or is_fresh_recovery:
-        return
-    try:
-        advance_user_post_delivery_cursor(
-            assignment=assignment,
-            newest=newest_user_post,
-        )
-    except ReportableError as failure:
-        raise LaunchedAgentRoundError(agent_round=round_, failure=failure) from failure
+    return None, f"{assignment.record.prompt}\n\n{prepared.prompt}"

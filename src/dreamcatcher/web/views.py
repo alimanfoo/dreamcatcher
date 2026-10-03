@@ -343,10 +343,11 @@ def _compose_issue_row(*, observation: IssueObservation) -> WebIssueRow:
     else:
         status = "available"
         evidence = ()
+    details = observation.details
     return WebIssueRow(
         issue=observation.issue,
-        title=observation.title,
-        labels=", ".join(observation.assignment_labels or []),
+        title=None if details is None else details.title,
+        labels=", ".join([] if details is None else details.assignment_labels),
         status=status,
         evidence=evidence,
     )

@@ -28,11 +28,15 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.github import PullRequestState
-from dreamcatcher.issue_conversations import ConversationInput
+from dreamcatcher.issue_conversations import (
+    ConversationInput,
+    InitialConversationIssue,
+)
 from dreamcatcher.scheduler.models import (
     NO_ROUND_HAS_RUN,
-    AssignmentObservation,
+    AgentWorkObservation,
     ConversationObservation,
+    IssueFact,
     IssueFactValue,
     SchedulerRecord,
 )
@@ -41,6 +45,21 @@ from dreamcatcher.state import StateDirectory
 LOOKED_AT = PINNED + timedelta(hours=2)
 ASSIGNMENT_TIMESTAMP = "20260819-184158"
 HARNESS_SESSION_IDENTIFIER = "abc-123"
+
+
+def _observed_assignment(
+    *,
+    identifier: str,
+    issue: int,
+    evidence: str,
+    value: IssueFactValue = IssueFactValue.TRUE,
+) -> AgentWorkObservation:
+    return AgentWorkObservation(
+        identifier=identifier,
+        issue=issue,
+        requires_round=IssueFact(value=value, evidence=evidence),
+    )
+
 
 SAID = (
     FeedLine(
@@ -103,8 +122,10 @@ def fabricate_conversation(
     write_json(
         document=ConversationInput(
             issue=8,
-            title="Issue 8",
-            body="Explain it.",
+            initial_issue=InitialConversationIssue(
+                title="Issue 8",
+                body="Explain it.",
+            ),
             comments=[
                 {
                     "id": 1,
@@ -269,31 +290,32 @@ def fabricate_everything(
                 ),
             ],
             assignment_observations=[
-                AssignmentObservation(
-                    assignment_identifier=f"GH31-{ASSIGNMENT_TIMESTAMP}",
+                _observed_assignment(
+                    identifier=f"GH31-{ASSIGNMENT_TIMESTAMP}",
                     issue=31,
-                    reason="1 new post to answer",
+                    evidence="1 new post to answer",
                 ),
-                AssignmentObservation(
-                    assignment_identifier=f"GH20-{ASSIGNMENT_TIMESTAMP}",
+                _observed_assignment(
+                    identifier=f"GH20-{ASSIGNMENT_TIMESTAMP}",
                     issue=20,
-                    reason="no round required",
-                    is_round_required=False,
+                    evidence="no round required",
+                    value=IssueFactValue.FALSE,
                 ),
-                AssignmentObservation(
-                    assignment_identifier=f"GH35-{ASSIGNMENT_TIMESTAMP}",
+                _observed_assignment(
+                    identifier=f"GH35-{ASSIGNMENT_TIMESTAMP}",
                     issue=35,
-                    reason="the last round failed (exit 2)",
+                    evidence="round 1 errored, to recover",
                 ),
-                AssignmentObservation(
-                    assignment_identifier=f"GH9-{ASSIGNMENT_TIMESTAMP}",
+                _observed_assignment(
+                    identifier=f"GH9-{ASSIGNMENT_TIMESTAMP}",
                     issue=9,
-                    reason="two consecutive rounds failed",
+                    evidence="in fault",
+                    value=IssueFactValue.FALSE,
                 ),
-                AssignmentObservation(
-                    assignment_identifier=f"GH44-{ASSIGNMENT_TIMESTAMP}",
+                _observed_assignment(
+                    identifier=f"GH44-{ASSIGNMENT_TIMESTAMP}",
                     issue=44,
-                    reason=NO_ROUND_HAS_RUN,
+                    evidence=NO_ROUND_HAS_RUN,
                 ),
             ],
             conversation_observations=list(conversation_observations),
@@ -361,10 +383,10 @@ def fabricate_the_cap(*, state):
             at=PINNED + timedelta(hours=1, minutes=58),
             hold=hold,
             assignment_observations=[
-                AssignmentObservation(
-                    assignment_identifier=f"GH20-{ASSIGNMENT_TIMESTAMP}",
+                _observed_assignment(
+                    identifier=f"GH20-{ASSIGNMENT_TIMESTAMP}",
                     issue=20,
-                    reason=hold,
+                    evidence="1 new post to answer",
                 )
             ],
         ),
@@ -411,11 +433,11 @@ def fabricate_repeat_assignments(*, state):
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
             assignment_observations=[
-                AssignmentObservation(
-                    assignment_identifier=f"GH13-{ASSIGNMENT_TIMESTAMP}",
+                _observed_assignment(
+                    identifier=f"GH13-{ASSIGNMENT_TIMESTAMP}",
                     issue=13,
-                    reason="no round required",
-                    is_round_required=False,
+                    evidence="no round required",
+                    value=IssueFactValue.FALSE,
                 )
             ],
         ),
@@ -476,10 +498,10 @@ def fabricate_titles_and_pull_request_states(*, state):
             harness_session_identifier=None,
         )
         assignment_observations.append(
-            AssignmentObservation(
-                assignment_identifier=f"GH{issue}-{ASSIGNMENT_TIMESTAMP}",
+            _observed_assignment(
+                identifier=f"GH{issue}-{ASSIGNMENT_TIMESTAMP}",
                 issue=issue,
-                reason=NO_ROUND_HAS_RUN,
+                evidence=NO_ROUND_HAS_RUN,
             )
         )
     write_assignment(
@@ -489,10 +511,10 @@ def fabricate_titles_and_pull_request_states(*, state):
         harness_session_identifier=None,
     )
     assignment_observations.append(
-        AssignmentObservation(
-            assignment_identifier=f"GH14-{ASSIGNMENT_TIMESTAMP}",
+        _observed_assignment(
+            identifier=f"GH14-{ASSIGNMENT_TIMESTAMP}",
             issue=14,
-            reason=NO_ROUND_HAS_RUN,
+            evidence=NO_ROUND_HAS_RUN,
         )
     )
     write_tick(
@@ -500,21 +522,22 @@ def fabricate_titles_and_pull_request_states(*, state):
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
             issue_observations=[
-                observed_issue(issue=20).model_copy(
-                    update={"title": "Available issue"}
-                ),
+                observed_issue(issue=20, title="Available issue"),
                 observed_issue(
                     issue=21,
+                    title="Blocked issue",
                     values={"blocked": IssueFactValue.TRUE},
                     evidence={"blocked": "blocked by GH20"},
-                ).model_copy(update={"title": "Blocked issue"}),
+                ),
                 observed_issue(
                     issue=22,
+                    title="Failed setup issue",
+                    created_at=PINNED,
+                    assignment_labels=[ASSIGNMENT_LABEL],
                     values={"claimed_elsewhere": IssueFactValue.UNKNOWN},
                     evidence={"claimed_elsewhere": "assignment setup failed"},
                 ).model_copy(
                     update={
-                        "title": "Failed setup issue",
                         "setup_failure": "assignment setup failed",
                     }
                 ),

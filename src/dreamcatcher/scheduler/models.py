@@ -48,16 +48,22 @@ class IssueFact(DreamcatcherDocument):
     evidence: str
 
 
+class ObservedIssueDetails(DreamcatcherDocument):
+    """Model the issue details returned together by GitHub."""
+
+    title: str
+    created_at: datetime
+    assignment_labels: list[str]
+
+
 class IssueObservation(DreamcatcherDocument):
     """Model the independent facts observed about an issue in one tick."""
 
     issue: int
-    title: str | None = None
-    created_at: datetime | None = None
+    details: ObservedIssueDetails | None = None
     observed_at: UtcDateTime | None = None
     is_open: IssueFact
     is_assigned_to_user: IssueFact
-    assignment_labels: list[str] | None = None
     claimed_here: IssueFact
     claimed_elsewhere: IssueFact
     setup_failure: str | None = None
@@ -70,17 +76,15 @@ class IssueObservation(DreamcatcherDocument):
         return derive_issue_availability(observation=self)
 
 
-class AssignmentObservation(DreamcatcherDocument):
-    """Model what the scheduler found for one idle assignment."""
+class AgentWorkObservation(DreamcatcherDocument):
+    """Model whether one agent work item requires a round and why."""
 
-    assignment_identifier: str
+    identifier: str
     issue: int
-    reason: str
-    is_known: bool = True
-    is_round_required: bool = True
+    requires_round: IssueFact
 
 
-class ConversationObservation(DreamcatcherDocument):
+class ConversationObservation(AgentWorkObservation):
     """Model what the scheduler found for one conversation issue in one tick.
 
     The scheduler observes every issue matching at least one conversation route.
@@ -88,9 +92,7 @@ class ConversationObservation(DreamcatcherDocument):
     again with unknown facts.
     """
 
-    issue: int
     title: str
-    has_comments_to_answer: IssueFact
     routing_conflict: IssueFact = Field(
         default_factory=lambda: IssueFact(
             value=IssueFactValue.FALSE,
@@ -120,7 +122,7 @@ class SchedulerRecord(DreamcatcherDocument):
     hold: str | None = None
     launched_agent_work_identifiers: list[str] = Field(default_factory=list)
     issue_observations: list[IssueObservation] = Field(default_factory=list)
-    assignment_observations: list[AssignmentObservation] = Field(default_factory=list)
+    assignment_observations: list[AgentWorkObservation] = Field(default_factory=list)
     conversation_observations: list[ConversationObservation] = Field(
         default_factory=list
     )
@@ -149,7 +151,7 @@ def derive_issue_availability(*, observation: IssueObservation) -> IssueFact:
     )
     if unknown is not None:
         return unknown
-    if observation.assignment_labels is None:
+    if observation.details is None:
         return IssueFact(
             value=IssueFactValue.UNKNOWN,
             evidence="cannot tell which assignment labels it carries",
@@ -174,8 +176,10 @@ def _find_preventing_issue_fact(*, observation: IssueObservation) -> IssueFact |
     for fact in [observation.is_open, observation.is_assigned_to_user]:
         if fact.value is IssueFactValue.FALSE:
             return fact
-    labels = observation.assignment_labels
-    if labels is not None and len(labels) != 1:
+    if (
+        observation.details is not None
+        and len(observation.details.assignment_labels) != 1
+    ):
         return IssueFact(
             value=IssueFactValue.FALSE,
             evidence="carries no configured assignment label",

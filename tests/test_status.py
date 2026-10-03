@@ -28,8 +28,9 @@ from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
 from dreamcatcher.documents import write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.scheduler.models import (
-    AssignmentObservation,
+    AgentWorkObservation,
     GlobalCooldown,
+    IssueFact,
     IssueFactValue,
     SchedulerRecord,
 )
@@ -112,13 +113,15 @@ def only_assignment(*, state: StateDirectory):
     return assignments[0]
 
 
-def idle_observation() -> AssignmentObservation:
+def idle_observation() -> AgentWorkObservation:
     """Return the scheduler's explicit observation that no round is required."""
-    return AssignmentObservation(
-        assignment_identifier=ASSIGNMENT_ID,
+    return AgentWorkObservation(
+        identifier=ASSIGNMENT_ID,
         issue=13,
-        reason="no round required",
-        is_round_required=False,
+        requires_round=IssueFact(
+            value=IssueFactValue.FALSE,
+            evidence="no round required",
+        ),
     )
 
 
@@ -387,10 +390,13 @@ def test_a_required_round_reports_the_scheduler_reason(state):
         tick=SchedulerRecord(
             at=LOOKED_AT,
             assignment_observations=[
-                AssignmentObservation(
-                    assignment_identifier=ASSIGNMENT_ID,
+                AgentWorkObservation(
+                    identifier=ASSIGNMENT_ID,
                     issue=13,
-                    reason="1 new post to answer",
+                    requires_round=IssueFact(
+                        value=IssueFactValue.TRUE,
+                        evidence="1 new post to answer",
+                    ),
                 )
             ],
         ),
@@ -410,11 +416,13 @@ def test_an_unknown_assignment_observation_reports_unknown(state):
         tick=SchedulerRecord(
             at=LOOKED_AT,
             assignment_observations=[
-                AssignmentObservation(
-                    assignment_identifier=ASSIGNMENT_ID,
+                AgentWorkObservation(
+                    identifier=ASSIGNMENT_ID,
                     issue=13,
-                    reason="cannot read its pull request: unavailable",
-                    is_known=False,
+                    requires_round=IssueFact(
+                        value=IssueFactValue.UNKNOWN,
+                        evidence="cannot read its pull request: unavailable",
+                    ),
                 )
             ],
         ),
@@ -435,16 +443,29 @@ def test_an_assignment_with_no_scheduler_observation_is_unknown(state):
     assert status.detail == "no current scheduler observation"
 
 
-@pytest.mark.parametrize("launched_agent_work_identifiers", [[], [ASSIGNMENT_ID]])
+@pytest.mark.parametrize("is_launched_observed", [False, True])
 def test_a_round_ending_after_the_latest_tick_waits_for_the_next_update(
-    state, launched_agent_work_identifiers
+    state, is_launched_observed
 ):
     ran(state=state, number=1, ended_at=LOOKED_AT + timedelta(minutes=1))
+    launched_observation = AgentWorkObservation(
+        identifier=ASSIGNMENT_ID,
+        issue=13,
+        requires_round=IssueFact(
+            value=IssueFactValue.FALSE,
+            evidence="round 1 started",
+        ),
+    )
     write_tick(
         state=state,
         tick=SchedulerRecord(
             at=LOOKED_AT,
-            launched_agent_work_identifiers=launched_agent_work_identifiers,
+            assignment_observations=(
+                [launched_observation] if is_launched_observed else []
+            ),
+            launched_agent_work_identifiers=(
+                [ASSIGNMENT_ID] if is_launched_observed else []
+            ),
         ),
     )
 
@@ -563,7 +584,7 @@ def test_a_fault_with_no_output_names_the_latest_rounds_feed(state):
 
     assert status.detail == (
         "two consecutive rounds failed "
-        f"(.dreamcatcher/v4/assignments/{ASSIGNMENT_ID}/rounds/2/feed.txt)"
+        f"(.dreamcatcher/v5/assignments/{ASSIGNMENT_ID}/rounds/2/feed.txt)"
     )
 
 

@@ -140,7 +140,7 @@ start, the recorded assignment keeps its branch and pull request, and the next
 tick tries that first round again before it schedules ordinary work.
 
 The daemon lock lives at `.dreamcatcher/daemon.pid`, where every state format
-shares it. All format-specific state lives under `.dreamcatcher/v4/` in the
+shares it. All format-specific state lives under `.dreamcatcher/v5/` in the
 checkout. The top-level directory ignores itself, so git never sees any of this
 state. `scheduler.json` in the versioned root says what the most recent
 completed scheduler tick observed and decided, including every round that it
@@ -149,8 +149,9 @@ active global cooldown and the end of the most recent one. A scheduler tick that
 cannot complete reports its failure in the daemon output and leaves that last
 complete record in place.
 
-This is an intentional format break. Version 4 starts with empty local state.
-Stop the daemon and upgrade only when no saved agent work needs preserving.
+This is an intentional format break. Version 5 starts with empty local state, as
+version 4 did. Stop the daemon and upgrade only when no saved agent work needs
+preserving.
 
 Open assignments go before new assignments. A round that did not finish is
 recovered, a merged or closed pull request gets a wrap-up round, and a pull

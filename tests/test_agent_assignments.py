@@ -8,6 +8,7 @@ from conftest import (
     CONFIG,
     PULL_REQUEST,
     REPOSITORY,
+    comment,
     commit,
     git,
     pull_request,
@@ -16,11 +17,10 @@ from conftest import (
 from records import write_assignment, write_round
 
 from dreamcatcher.agent_assignments import (
-    USER_POST_DELIVERY_CURSOR_NAME,
     AssignmentCreator,
     AssignmentRecord,
+    AssignmentRoundInput,
     PullRequestObservation,
-    advance_user_post_delivery_cursor,
     find_harness_session_identifier,
     find_open_assignments_by_issue,
     inspect_incomplete_assignment_setups,
@@ -43,10 +43,10 @@ from dreamcatcher.config import (
     AgentHarness,
     read_dreamcatcher_config,
 )
-from dreamcatcher.documents import write_text
+from dreamcatcher.documents import write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import add_worktree, fetch_main, make_empty_commit, push_branch
-from dreamcatcher.github import PullRequest, PullRequestState
+from dreamcatcher.github import ConversationComment, PullRequest, PullRequestState
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH12-20260819-184158"
@@ -1138,16 +1138,34 @@ def test_an_assignment_no_round_has_delivered_a_user_post_has_an_empty_cursor(
 
 
 def test_an_assignment_reads_back_its_user_post_delivery_cursor(state, route):
-    create_assignment(
+    created = create_assignment(
         state=state,
         route=route,
         requested_harness=AgentHarness.CLAUDE,
         issue=12,
         at=PINNED,
     )
-    write_text(
-        text="2026-09-03T22:31:51Z\n",
-        path=state.assignments / ASSIGNMENT_ID / USER_POST_DELIVERY_CURSOR_NAME,
+    write_round(
+        directory=created.directory,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            purpose=AssignmentRoundPurpose.IMPLEMENT,
+            started=PINNED,
+            pid=1,
+            ending=compose_agent_round_ending(at=PINNED, status=0),
+        ),
+    )
+    write_json(
+        document=AssignmentRoundInput(
+            pull_request_state=PullRequestState.OPEN,
+            user_posts=[
+                ConversationComment.model_validate(
+                    comment(created_at="2026-09-03T22:31:51Z")
+                )
+            ],
+        ),
+        path=created.compose_round_paths(number=1).round_input,
     )
 
     assert (
@@ -1156,9 +1174,7 @@ def test_an_assignment_reads_back_its_user_post_delivery_cursor(state, route):
     )
 
 
-def test_advancing_the_user_post_delivery_cursor_reads_the_newest_post_back(
-    state, route
-):
+def test_the_user_post_cursor_scans_past_an_input_that_delivered_no_posts(state, route):
     created = create_assignment(
         state=state,
         route=route,
@@ -1167,7 +1183,35 @@ def test_advancing_the_user_post_delivery_cursor_reads_the_newest_post_back(
         at=PINNED,
     )
 
-    advance_user_post_delivery_cursor(assignment=created, newest="2026-09-03T22:31:51Z")
+    for number, posts in (
+        (
+            1,
+            [
+                ConversationComment.model_validate(
+                    comment(created_at="2026-09-03T22:31:51Z")
+                )
+            ],
+        ),
+        (2, []),
+    ):
+        write_round(
+            directory=created.directory,
+            number=number,
+            record=AgentRoundRecord(
+                number=number,
+                purpose=AssignmentRoundPurpose.IMPLEMENT,
+                started=PINNED + timedelta(minutes=number),
+                pid=1,
+                ending=compose_agent_round_ending(at=PINNED, status=0),
+            ),
+        )
+        write_json(
+            document=AssignmentRoundInput(
+                pull_request_state=PullRequestState.OPEN,
+                user_posts=posts,
+            ),
+            path=created.compose_round_paths(number=number).round_input,
+        )
 
     assert (
         read_assignments(state=state)[0].user_post_delivery_cursor

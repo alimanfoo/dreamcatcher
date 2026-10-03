@@ -1,19 +1,20 @@
 """Run one scheduler tick across assignment and conversation work."""
 
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from datetime import datetime
 
 from dreamcatcher.agent_rounds import AgentRound
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import AgentWorkKind
-from dreamcatcher.scheduler.agent_work import LaunchedAgentRoundError
 from dreamcatcher.scheduler.assignments import (
     AssignmentCandidate,
     AssignmentInspection,
     AssignmentLaunchRequest,
     AssignmentScheduler,
+    NewAssignmentCandidate,
 )
 from dreamcatcher.scheduler.conversations import (
+    ConversationBatchCandidate,
     ConversationCandidate,
     ConversationLaunchRequest,
     ConversationScheduler,
@@ -25,7 +26,10 @@ from dreamcatcher.scheduler.faults import (
 from dreamcatcher.scheduler.models import (
     DEFAULT_MAX_AGENTS,
     AgentWorkInspection,
+    AgentWorkObservation,
     ConversationObservation,
+    IssueFact,
+    IssueFactValue,
     SchedulerRecord,
     combine_scheduler_failures,
 )
@@ -61,6 +65,57 @@ def _choose_next_work_kind(
     if candidates.is_conversation_ready:
         return AgentWorkKind.CONVERSATION
     return None
+
+
+def _read_candidate_issue(
+    *, work_kind: AgentWorkKind, candidates: _ReadyAgentWork
+) -> int:
+    if work_kind is AgentWorkKind.ASSIGNMENT:
+        candidate = candidates.assignments[0]
+        if isinstance(candidate, NewAssignmentCandidate):
+            return candidate.issue
+        return candidate.assignment.record.issue
+    candidate = candidates.conversations[0]
+    if isinstance(candidate, ConversationBatchCandidate):
+        return candidate.issue.number
+    return candidate.conversation.record.issue
+
+
+def _record_started_round(
+    *,
+    record: SchedulerRecord,
+    round_: AgentRound,
+    issue: int,
+    work_kind: AgentWorkKind,
+) -> SchedulerRecord:
+    requires_round = IssueFact(
+        value=IssueFactValue.FALSE,
+        evidence=f"round {round_.record.number} started",
+    )
+    identifier = round_.agent_work_identifier
+    if work_kind is AgentWorkKind.CONVERSATION:
+        observations = [
+            observation.model_copy(update={"requires_round": requires_round})
+            if observation.identifier == identifier
+            else observation
+            for observation in record.conversation_observations
+        ]
+        return record.model_copy(update={"conversation_observations": observations})
+    observations = [
+        observation.model_copy(update={"requires_round": requires_round})
+        if observation.identifier == identifier
+        else observation
+        for observation in record.assignment_observations
+    ]
+    if not any(observation.identifier == identifier for observation in observations):
+        observations.append(
+            AgentWorkObservation(
+                identifier=identifier,
+                issue=issue,
+                requires_round=requires_round,
+            )
+        )
+    return record.model_copy(update={"assignment_observations": observations})
 
 
 @dataclass(kw_only=True)
@@ -131,7 +186,6 @@ class Scheduler:
         if len(self.rounds) >= self.max_agents:
             return self._hold_at_current_capacity(
                 record=record,
-                assignment_inspection=assignment_inspection,
                 scheduler_failure=scheduler_failure,
             )
         return self._launch_available_work(
@@ -154,7 +208,6 @@ class Scheduler:
         self,
         *,
         record: SchedulerRecord,
-        assignment_inspection: AssignmentInspection,
         scheduler_failure: str | None,
     ) -> SchedulerRecord:
         capacity_reason = self._describe_capacity()
@@ -162,11 +215,6 @@ class Scheduler:
             update={
                 "hold": combine_scheduler_failures(
                     failures=[capacity_reason, scheduler_failure]
-                ),
-                "assignment_observations": (
-                    assignment_inspection.compose_capacity_observations(
-                        reason=capacity_reason
-                    )
                 ),
             }
         )
@@ -188,17 +236,13 @@ class Scheduler:
             assignments=list(assignment_inspection.candidates),
             conversations=list(conversation_inspection.candidates),
         )
-        record, assignment_inspection, launched_identifiers = (
-            self._launch_ready_candidates(
-                record=record,
-                candidates=candidates,
-                assignment_inspection=assignment_inspection,
-            )
+        record, launched_identifiers = self._launch_ready_candidates(
+            record=record,
+            candidates=candidates,
         )
         record = self._hold_for_capacity(
             record=record,
             candidates=candidates,
-            assignment_inspection=assignment_inspection,
         )
         return record.model_copy(
             update={"launched_agent_work_identifiers": launched_identifiers}
@@ -209,8 +253,7 @@ class Scheduler:
         *,
         record: SchedulerRecord,
         candidates: _ReadyAgentWork,
-        assignment_inspection: AssignmentInspection,
-    ) -> tuple[SchedulerRecord, AssignmentInspection, list[str]]:
+    ) -> tuple[SchedulerRecord, list[str]]:
         launched_identifiers: list[str] = []
         while len(self.rounds) < self.max_agents:
             work_kind = _choose_next_work_kind(
@@ -220,24 +263,20 @@ class Scheduler:
             if work_kind is None:
                 break
             self._last_selected_work_kind = work_kind
-            record, assignment_inspection, launched_identifier = (
-                self._launch_next_candidate(
-                    record=record,
-                    work_kind=work_kind,
-                    candidates=candidates,
-                    assignment_inspection=assignment_inspection,
-                )
+            record, launched_identifier = self._launch_next_candidate(
+                record=record,
+                work_kind=work_kind,
+                candidates=candidates,
             )
             if launched_identifier is not None:
                 launched_identifiers.append(launched_identifier)
-        return record, assignment_inspection, launched_identifiers
+        return record, launched_identifiers
 
     def _hold_for_capacity(
         self,
         *,
         record: SchedulerRecord,
         candidates: _ReadyAgentWork,
-        assignment_inspection: AssignmentInspection,
     ) -> SchedulerRecord:
         if len(self.rounds) >= self.max_agents and (
             candidates.is_assignment_ready or candidates.is_conversation_ready
@@ -247,11 +286,6 @@ class Scheduler:
                 update={
                     "hold": combine_scheduler_failures(
                         failures=[capacity_reason, record.hold]
-                    ),
-                    "assignment_observations": (
-                        assignment_inspection.compose_capacity_observations(
-                            reason=capacity_reason
-                        )
                     ),
                 }
             )
@@ -263,9 +297,9 @@ class Scheduler:
         record: SchedulerRecord,
         work_kind: AgentWorkKind,
         candidates: _ReadyAgentWork,
-        assignment_inspection: AssignmentInspection,
-    ) -> tuple[SchedulerRecord, AssignmentInspection, str | None]:
+    ) -> tuple[SchedulerRecord, str | None]:
         hold_before_launch = record.hold
+        issue = _read_candidate_issue(work_kind=work_kind, candidates=candidates)
         record, launched_round = self._try_launch_candidate(
             record=record,
             work_kind=work_kind,
@@ -276,23 +310,18 @@ class Scheduler:
         )
         if launched_round is not None:
             self.rounds[launched_round.agent_work_identifier] = launched_round
-            assignment_inspection = replace(
-                assignment_inspection,
-                observations=[
-                    observation
-                    for observation in assignment_inspection.observations
-                    if observation.assignment_identifier != launched_identifier
-                ],
-            )
-            record = record.model_copy(
-                update={"assignment_observations": assignment_inspection.observations}
+            record = _record_started_round(
+                record=record,
+                round_=launched_round,
+                issue=issue,
+                work_kind=work_kind,
             )
         if record.hold != hold_before_launch or launched_identifier is None:
             if work_kind is AgentWorkKind.ASSIGNMENT:
                 candidates.assignments.clear()
             else:
                 candidates.conversations.clear()
-        return record, assignment_inspection, launched_identifier
+        return record, launched_identifier
 
     def _try_launch_candidate(
         self,
@@ -315,9 +344,6 @@ class Scheduler:
                         candidate=candidates.conversations.pop(0),
                     )
                 )
-        except LaunchedAgentRoundError as failure:
-            launched_round = failure.agent_round
-            record = self._record_launch_failure(record=record, failure=failure)
         except ReportableError as failure:
             record = self._record_launch_failure(record=record, failure=failure)
         return record, launched_round

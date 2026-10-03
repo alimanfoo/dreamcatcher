@@ -169,7 +169,8 @@ of an agent assignment. It should provide cohesive operations to:
 - read existing assignments;
 - find the open assignment for an issue;
 - allocate the next round number within an assignment;
-- update the harness session identifier and user-post delivery cursor;
+- update the harness session identifier;
+- read the user-post delivery position from recorded round inputs;
 - record when the user requests another recovery attempt after resolving a
   fault; and
 - recognize completion after a successful wrap-up round.
@@ -269,13 +270,14 @@ projections. Documents owned by Dreamcatcher remain strict.
 
 `relay.py` owns the act of selecting user posts not yet delivered to the agent
 and preparing them as input to an agent round. It compares normalized user posts
-from the GitHub boundary with the assignment's delivery cursor.
+from the GitHub boundary with the assignment's delivery position, read from the
+newest recorded round input that contains posts.
 
 Relay does not define a separate inbox domain entity and does not decide when a
 round should run. The scheduler determines whether unrelayed user posts require
-work; the relay prepares the posts, and the assignment records the newest post
-accepted for delivery at the appropriate durable point. Posts made while a round
-is running remain beyond that cursor and are available to a later round.
+work; the relay prepares the posts, and the round input records the newest post
+accepted for delivery before its process starts. Posts made while a round is
+running remain beyond that position and are available to a later round.
 
 ### Harness adapters
 
@@ -335,18 +337,17 @@ The report includes an issue observation among failed setups while the latest
 tick records a setup failure, independently of whether the issue is available or
 a linked pull request proves that it is claimed elsewhere.
 
-An `AssignmentObservation` records the tick's interpretation of an idle open
-assignment. It carries a reason, whether the relevant facts were known, and
-whether it required a round. Status reads this observation because view commands
-cannot reach GitHub. It is the last tick's interpretation kept as operational
-evidence, not authoritative assignment state.
+An `AgentWorkObservation` records the tick's interpretation of one open work
+item. It carries the agent work identifier, issue and one `IssueFact` saying
+whether it requires a round and why. Status reads this observation because view
+commands cannot reach GitHub. It is the last tick's interpretation kept as
+operational evidence, not authoritative state.
 
-The scheduler record holds one `ConversationObservation` for each open, assigned
-issue that carries at least one configured conversation label. Each observation
-records:
+The scheduler record holds one `ConversationObservation`, extending
+`AgentWorkObservation`, for each open, assigned issue that carries at least one
+configured conversation label. Each observation additionally records:
 
 - the issue and its title;
-- an `IssueFact` that says whether comments wait to be answered; and
 - an `IssueFact` that says whether more than one conversation route matches.
 
 The tick observes a matching issue even when it has no conversation record yet.
@@ -364,11 +365,11 @@ A `ConversationStatus` is one summary status from the ontology.
 The scheduler record also names every assignment or conversation whose round the
 tick launched, in launch order. Alternation advances when a kind is selected,
 including when its start fails, and begins afresh after a daemon restart. Each
-launched assignment has no observation in the same record. If the latest
-successful round ends after a scheduler record that has no observation for its
-assignment, status reports that the assignment is waiting for the next update.
-An ending that predates the record should already have been observed, so its
-unexplained absence remains unknown.
+launched work item keeps an observation whose `requires_round` fact is false and
+says which round started. If that round ends after the scheduler record, status
+reports that the work is waiting for the next update. An ending that predates
+the record should already have been observed, so an unexplained absence remains
+unknown.
 
 ### TUI
 
@@ -417,7 +418,7 @@ of each kind may match at the same time.
 
 `state.py` owns the paths within `.dreamcatcher/` and the mechanics required to
 bootstrap that directory. A state-format constant selects the versioned root,
-currently `.dreamcatcher/v4/`, so one format never reads another format's files.
+currently `.dreamcatcher/v5/`, so one format never reads another format's files.
 The shared `.dreamcatcher/daemon.pid` lock stays outside that root, so daemons
 using different formats still cannot run against one checkout together. It is a
 strict document containing the daemon's PID and process start time. A reader
@@ -430,8 +431,7 @@ projections.
 The on-disk layout follows ownership:
 
 - instance-wide operational records live at the versioned root;
-- each assignment owns its durable record, delivery cursor, and numbered round
-  records;
+- each assignment owns its durable record and numbered round records;
 - each conversation owns its durable record and numbered round records;
 - each round owns its prompt, raw output, rendered feed, final output when the
   harness reports one, and any delivered input; and
@@ -440,8 +440,8 @@ The on-disk layout follows ownership:
 
 `documents.py` remains the only way Dreamcatcher reads and writes documents it
 owns. Every structured document has a strict model and every replacement write
-is atomic. One-value process or cursor files may remain simple text where a
-model would add no meaning.
+is atomic. A one-value process file may remain simple text where a model would
+add no meaning.
 
 State-directory objects provide paths and document access. They do not answer
 domain questions such as whether an assignment is complete or an issue is
@@ -478,8 +478,7 @@ An assignment record persists:
 - branch and worktree identity;
 - pull-request identity;
 - the latest observed pull-request state, draft flag, and observation time;
-- the time of the user's latest retry request, when one has been made; and
-- the cursor identifying the latest user post accepted for delivery.
+- the time of the user's latest retry request, when one has been made.
 
 A round record persists:
 
@@ -490,6 +489,10 @@ A round record persists:
   the reason an owner could not finish it; and
 - the durable files containing its prompt, delivered input, output, and any
   final result the harness reports.
+
+An assignment round input that carries user posts establishes the delivery
+position at its newest post. The assignment reads that position by scanning its
+recorded round inputs from newest to oldest; no separate cursor file exists.
 
 A conversation record persists its issue and title, chosen dispatch label and
 harness settings, harness session identifier and latest user retry request. The

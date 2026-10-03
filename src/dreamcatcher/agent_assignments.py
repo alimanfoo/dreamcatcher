@@ -35,9 +35,7 @@ from dreamcatcher.config import AgentHarness, AssignmentRoute
 from dreamcatcher.documents import (
     DreamcatcherDocument,
     read_json,
-    read_text,
     write_json,
-    write_text,
 )
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import (
@@ -74,8 +72,6 @@ ASSIGNMENT_RECORD_NAME = "assignment.json"
 
 # The directory in an assignment's directory holding a directory per round.
 AGENT_ROUNDS_DIRECTORY_NAME = "rounds"
-
-USER_POST_DELIVERY_CURSOR_NAME = "watermark"
 
 
 class AssignmentRoundInput(DreamcatcherDocument):
@@ -131,15 +127,19 @@ class Assignment:
     assignment dispatch settings, and the rounds are ordered from oldest to
     newest.
 
-    The user-post delivery cursor is the newest post delivered to the assignment.
-    An assignment that has received none has the beginning of time, so the first
-    relay from its pull request returns the whole history.
+    The user-post delivery cursor is read from the newest recorded round input
+    that delivered posts. An assignment that has received none has the beginning
+    of time, so the first relay from its pull request returns the whole history.
     """
 
     directory: Path
     record: AssignmentRecord
     rounds: list[AgentRoundRecord] = field(default_factory=list)
-    user_post_delivery_cursor: str = ""
+
+    @property
+    def user_post_delivery_cursor(self) -> str:
+        """The time of the newest user post delivered in a recorded round input."""
+        return read_user_post_delivery_cursor(assignment=self)
 
     @property
     def identifier(self) -> str:
@@ -452,33 +452,21 @@ def _read_assignment(*, state: StateDirectory, directory: Path) -> Assignment:
             cache=state.document_cache,
             directory=directory / AGENT_ROUNDS_DIRECTORY_NAME,
         ),
-        user_post_delivery_cursor=_read_user_post_delivery_cursor(directory=directory),
     )
 
 
-def _read_user_post_delivery_cursor(*, directory: Path) -> str:
-    """Return the time of the newest user post delivered to the assignment.
-
-    A batch is delivered when a round launches with it, and that launch writes
-    this file. An assignment that no round has carried the user's words to has no
-    file here, so its cursor is the beginning of time.
-
-    Surrounding whitespace is not part of the ISO-8601 cursor.
-    """
-    path = directory / USER_POST_DELIVERY_CURSOR_NAME
-    if not path.exists():
-        return ""
-    return read_text(path=path).strip()
-
-
-def advance_user_post_delivery_cursor(*, assignment: Assignment, newest: str) -> None:
-    """Record the time of the newest user post delivered to the assignment.
-
-    A round launching with a batch of posts performs this write after it starts.
-    Until the write lands, a daemon that dies reads those same posts again on its
-    next tick rather than losing them.
-    """
-    write_text(text=newest, path=assignment.directory / USER_POST_DELIVERY_CURSOR_NAME)
+def read_user_post_delivery_cursor(*, assignment: Assignment) -> str:
+    """Return the newest user-post time found in recorded round inputs."""
+    for round_record in reversed(assignment.rounds):
+        round_input_path = assignment.compose_round_paths(
+            number=round_record.number
+        ).round_input
+        if not round_input_path.exists():
+            continue
+        round_input = read_json(model=AssignmentRoundInput, path=round_input_path)
+        if round_input.user_posts:
+            return round_input.user_posts[-1].written_at
+    return ""
 
 
 def find_harness_session_identifier(

@@ -26,6 +26,7 @@ from dreamcatcher.documents import read_json, write_json
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.issue_conversations import (
     ConversationInput,
+    InitialConversationIssue,
     read_conversation,
 )
 from dreamcatcher.scheduler.models import (
@@ -88,8 +89,10 @@ def conversation_round(
     write_json(
         document=ConversationInput(
             issue=8,
-            title="Issue 8",
-            body="Explain it.",
+            initial_issue=InitialConversationIssue(
+                title="Issue 8",
+                body="Explain it.",
+            ),
             comments=[
                 {
                     "id": 1,
@@ -130,7 +133,7 @@ def write_second_conversation_error(*, state: StateDirectory) -> None:
         ),
     )
     write_json(
-        document=first_input.model_copy(update={"title": None, "body": None}),
+        document=first_input.model_copy(update={"initial_issue": None}),
         path=conversation.compose_round_paths(number=2).round_input,
     )
 
@@ -261,8 +264,10 @@ def test_an_unrecorded_round_input_shows_what_the_scheduler_reported(
     write_json(
         document=ConversationInput(
             issue=8,
-            title="Issue 8",
-            body="Explain it.",
+            initial_issue=InitialConversationIssue(
+                title="Issue 8",
+                body="Explain it.",
+            ),
             comments=[
                 {
                     "id": 1,

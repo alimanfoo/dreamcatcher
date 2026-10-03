@@ -48,12 +48,25 @@ CONVERSATION_ROUNDS_DIRECTORY_NAME = "rounds"
 NO_REPLY = "NO_REPLY"
 
 
+def compose_conversation_identifier(*, issue: int) -> str:
+    """Return the agent work identifier for an issue conversation."""
+    return f"conversation-GH{issue}"
+
+
+class InitialConversationIssue(DreamcatcherDocument):
+    """Model the issue text delivered only with a conversation's first round."""
+
+    title: str
+    body: str
+
+
 class ConversationInput(DreamcatcherDocument):
     """Model the trusted issue input frozen for one conversation round."""
 
     issue: int
-    title: str | None = Field(default=None, exclude_if=lambda value: value is None)
-    body: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    initial_issue: InitialConversationIssue | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
     comments: list[ConversationComment]
     revision: str
 
@@ -94,7 +107,7 @@ class Conversation:
     @property
     def identifier(self) -> str:
         """The identifier that distinguishes this work from an assignment."""
-        return f"conversation-{self.directory.name}"
+        return compose_conversation_identifier(issue=self.record.issue)
 
     @property
     def next_round_number(self) -> int:
@@ -215,8 +228,11 @@ def prepare_conversation_input(
     is_initial = not conversation.rounds
     return ConversationInput(
         issue=issue.number,
-        title=issue.title if is_initial else None,
-        body=issue.body if is_initial else None,
+        initial_issue=(
+            InitialConversationIssue(title=issue.title, body=issue.body)
+            if is_initial
+            else None
+        ),
         comments=comments,
         revision=revision,
     )
@@ -229,7 +245,7 @@ def read_conversation_input(
     round_input = _read_conversation_input_document(
         conversation=conversation, number=number
     )
-    if number == 1 and (round_input.title is None or round_input.body is None):
+    if number == 1 and round_input.initial_issue is None:
         raise ReportableError(
             f"Conversation {conversation.identifier} round 1 input does not "
             "contain its initial issue title and body."

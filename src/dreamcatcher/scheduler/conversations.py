@@ -24,6 +24,7 @@ from dreamcatcher.harness_adapters import AgentRoundLaunchRequest, AgentWorkKind
 from dreamcatcher.issue_conversations import (
     Conversation,
     ConversationInput,
+    compose_conversation_identifier,
     create_conversation,
     find_conversation_harness_session_identifier,
     is_conversation_ready_for_input,
@@ -180,14 +181,8 @@ class ConversationScheduler(
             candidate=request.candidate,
             requested_harness=self.requested_harness,
         )
-        conversation, round_ = self._start_round(prepared=prepared)
-        return (
-            _record_conversation_comments_delivered(
-                record=request.record,
-                issue=conversation.record.issue,
-            ),
-            round_,
-        )
+        _, round_ = self._start_round(prepared=prepared)
+        return request.record, round_
 
     def _inspect_listed_conversations(
         self,
@@ -220,10 +215,10 @@ class ConversationScheduler(
                 candidates.append(inspection.candidate)
             elif (
                 is_conversation_ready_for_input(conversation=conversation)
-                and inspection.observation.has_comments_to_answer.value
+                and inspection.observation.requires_round.value
                 is IssueFactValue.UNKNOWN
             ):
-                failures.append(inspection.observation.has_comments_to_answer.evidence)
+                failures.append(inspection.observation.requires_round.evidence)
         return candidates, observations, fault_count, failures
 
     def _inspect_listed_issue(
@@ -249,11 +244,12 @@ class ConversationScheduler(
         labels = ", ".join(sorted((route.label for route in routes), key=str.casefold))
         return _ConversationInspection(
             observation=ConversationObservation(
+                identifier=compose_conversation_identifier(issue=issue.number),
                 issue=issue.number,
                 title=issue.title,
-                has_comments_to_answer=IssueFact(
+                requires_round=IssueFact(
                     value=IssueFactValue.FALSE,
-                    evidence="no comments to answer",
+                    evidence="no round required",
                 ),
                 routing_conflict=IssueFact(
                     value=IssueFactValue.TRUE,
@@ -279,14 +275,15 @@ class ConversationScheduler(
         )
         if recovery is not None:
             return recovery
-        comments, has_comments_to_answer = self._observe_comments(
+        comments, requires_round = self._observe_comments(
             issue=issue.number,
             conversation=conversation,
         )
         observation = ConversationObservation(
+            identifier=compose_conversation_identifier(issue=issue.number),
             issue=issue.number,
             title=issue.title,
-            has_comments_to_answer=has_comments_to_answer,
+            requires_round=requires_round,
         )
         candidate = None
         if comments and is_conversation_ready_for_input(conversation=conversation):
@@ -323,7 +320,7 @@ class ConversationScheduler(
             if comments
             else IssueFact(
                 value=IssueFactValue.FALSE,
-                evidence="no comments to answer",
+                evidence="no round required",
             )
         )
 
@@ -493,7 +490,7 @@ def _carry_forward_unlisted_observations(
     return [
         observation.model_copy(
             update={
-                "has_comments_to_answer": unknown,
+                "requires_round": unknown,
                 "routing_conflict": unknown,
             }
         )
@@ -515,11 +512,12 @@ def _inspect_conversation_recovery(
     ):
         return _ConversationInspection(
             observation=ConversationObservation(
+                identifier=conversation.identifier,
                 issue=issue.number,
                 title=issue.title,
-                has_comments_to_answer=IssueFact(
+                requires_round=IssueFact(
                     value=IssueFactValue.FALSE,
-                    evidence="no comments to answer",
+                    evidence="in fault",
                 ),
             ),
             candidate=None,
@@ -533,11 +531,15 @@ def _inspect_conversation_recovery(
     ):
         return _ConversationInspection(
             observation=ConversationObservation(
+                identifier=conversation.identifier,
                 issue=issue.number,
                 title=issue.title,
-                has_comments_to_answer=IssueFact(
-                    value=IssueFactValue.FALSE,
-                    evidence="no comments to answer",
+                requires_round=IssueFact(
+                    value=IssueFactValue.TRUE,
+                    evidence=(
+                        f"round {conversation.rounds[-1].number} "
+                        f"{conversation.rounds[-1].outcome}, to recover"
+                    ),
                 ),
             ),
             candidate=ConversationRecoveryCandidate(
@@ -562,23 +564,4 @@ def _count_carried_conversation_faults(
         )
         for observation in observations
         if (conversation := conversations_by_issue.get(observation.issue)) is not None
-    )
-
-
-def _record_conversation_comments_delivered(
-    *, record: SchedulerRecord, issue: int
-) -> SchedulerRecord:
-    no_comments = IssueFact(
-        value=IssueFactValue.FALSE,
-        evidence="no comments to answer",
-    )
-    return record.model_copy(
-        update={
-            "conversation_observations": [
-                observation.model_copy(update={"has_comments_to_answer": no_comments})
-                if observation.issue == issue
-                else observation
-                for observation in record.conversation_observations
-            ]
-        }
     )

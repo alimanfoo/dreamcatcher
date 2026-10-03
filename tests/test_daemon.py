@@ -41,8 +41,10 @@ from dreamcatcher.documents import read_json, write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.scheduler import AssignmentScheduler, ConversationScheduler, Scheduler
 from dreamcatcher.scheduler.models import (
-    AssignmentObservation,
+    AgentWorkObservation,
     GlobalCooldown,
+    IssueFact,
+    IssueFactValue,
     SchedulerRecord,
 )
 from dreamcatcher.state import StateDirectory
@@ -247,10 +249,13 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
         at=PINNED,
         launched_agent_work_identifiers=[ASSIGNMENT_ID],
         assignment_observations=[
-            AssignmentObservation(
-                assignment_identifier=ASSIGNMENT_ID,
+            AgentWorkObservation(
+                identifier=ASSIGNMENT_ID,
                 issue=13,
-                reason="waiting",
+                requires_round=IssueFact(
+                    value=IssueFactValue.TRUE,
+                    evidence="waiting",
+                ),
             )
         ],
     )
@@ -268,7 +273,7 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
     assert json.loads(written_record)["launched_agent_work_identifiers"] == [
         ASSIGNMENT_ID
     ]
-    assert f'"assignment_identifier": "{ASSIGNMENT_ID}"' in written_record
+    assert f'"identifier": "{ASSIGNMENT_ID}"' in written_record
     assert (
         capsys.readouterr().out
         == f"2026-08-20 02:41:58  launched round for {ASSIGNMENT_ID}\n"
