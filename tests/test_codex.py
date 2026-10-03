@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from conftest import streamed
 
-from dreamcatcher.codex import CODEX_ADAPTER, STDIN_ARGUMENT
+from dreamcatcher.codex import _STDIN_ARGUMENT, CODEX_ADAPTER
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedNote, FeedProse
 from dreamcatcher.harness_adapters import (
@@ -53,7 +53,7 @@ def test_a_first_round_runs_where_it_is_launched_under_codexs_own_reviewer():
             *CODEX_ROUND_SETTINGS,
             "-c",
             "sandbox_workspace_write.network_access=true",
-            STDIN_ARGUMENT,
+            _STDIN_ARGUMENT,
         ],
         prompt="$dream:smith GH9",
     )
@@ -80,7 +80,7 @@ def test_a_resume_replays_the_settings_and_the_permissions_codex_forgets():
             "-c",
             'approvals_reviewer="auto_review"',
             "01a0213c-9c67",
-            STDIN_ARGUMENT,
+            _STDIN_ARGUMENT,
         ],
         prompt="$dream:smith GH9",
     )
@@ -104,7 +104,7 @@ def test_a_first_conversation_round_can_write_with_network_without_approval():
             'approval_policy="never"',
             "--output-last-message",
             str(FINAL_OUTPUT_PATH),
-            STDIN_ARGUMENT,
+            _STDIN_ARGUMENT,
         ],
         prompt="Answer GH9.",
     )
@@ -131,7 +131,7 @@ def test_a_resumed_conversation_can_write_with_network_without_approval():
             "--output-last-message",
             str(FINAL_OUTPUT_PATH),
             "01a0213c-9c67",
-            STDIN_ARGUMENT,
+            _STDIN_ARGUMENT,
         ],
         prompt="Answer GH9.",
     )

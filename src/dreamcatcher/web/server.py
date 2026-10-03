@@ -13,8 +13,8 @@ from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import read_repository
 
 WEB_HOST = "127.0.0.1"
-WEB_BASE_PORT = 8100
-WEB_PORT_RANGE = 400
+_WEB_BASE_PORT = 8100
+_WEB_PORT_RANGE = 400
 WEB_MAX_PORT = 65535
 
 
@@ -76,6 +76,6 @@ def create_web_server(
 def _derive_starting_port(*, state: StateDirectory) -> int:
     repository = read_repository(state=state)
     if repository is None:
-        return WEB_BASE_PORT
+        return _WEB_BASE_PORT
     repository_digest = zlib.crc32(repository.encode("utf-8"))
-    return WEB_BASE_PORT + repository_digest % WEB_PORT_RANGE
+    return _WEB_BASE_PORT + repository_digest % _WEB_PORT_RANGE

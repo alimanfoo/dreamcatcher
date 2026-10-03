@@ -32,7 +32,7 @@ CONVERSATION_STATUS_STYLES = dict(
     )
 )
 
-VIEW_REFRESH_INTERVAL = 1.0
+_VIEW_REFRESH_INTERVAL = 1.0
 SECTION_PADDING = (0, 0, 0, 2)
 
 
@@ -107,7 +107,7 @@ def refresh_until_view_ends(
             if (is_over and was_over_on_previous_refresh) or not console.is_terminal:
                 return
             was_over_on_previous_refresh = is_over
-            wait(VIEW_REFRESH_INTERVAL)
+            wait(_VIEW_REFRESH_INTERVAL)
 
 
 def combine_renderable_parts(

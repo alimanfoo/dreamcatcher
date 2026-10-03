@@ -11,6 +11,7 @@ from typing import IO, cast
 
 from dreamcatcher import teardown
 from dreamcatcher.errors import ReportableError
+from dreamcatcher.teardown import SHOULD_START_NEW_PROCESS_SESSION
 
 # Windows searches the current directory for a program ahead of the PATH, and
 # the daemon's current directory is the watched checkout, so a file named git.exe
@@ -27,7 +28,7 @@ os.environ["NODEFAULTCURRENTDIRECTORYINEXEPATH"] = "1"
 # What npm calls the harness CLIs that it installs on Windows. Windows runs a file
 # with one of these endings through cmd.exe, so its command line meets a second
 # reader. git and gh are real executables, so neither ever meets that.
-WINDOWS_BATCH_SUFFIXES = (".cmd", ".bat")
+_WINDOWS_BATCH_SUFFIXES = (".cmd", ".bat")
 
 # What cmd.exe acts on wherever it sits, and what to call each one in a message.
 # cmd.exe expands %NAME% on the line that it parses, inside double quotes as well
@@ -43,7 +44,7 @@ WINDOWS_BATCH_SUFFIXES = (".cmd", ".bat")
 # A carriage return on its own is refused as the newline is. Reading a file turns
 # every line ending into a newline, so this meets one only where a document wrote
 # it as an escape, and one line of a prompt is what the author wrote either way.
-UNQUOTABLE_CHARACTERS = {
+_UNQUOTABLE_CHARACTERS = {
     "%": "a percent sign",
     "\n": "a newline",
     "\r": "a carriage return",
@@ -109,7 +110,7 @@ def refuse_unquotable(text: str, /) -> str:
     passes the text positionally, so the parameter is positional-only.
     """
     unquotable_character_names = [
-        name for character, name in UNQUOTABLE_CHARACTERS.items() if character in text
+        name for character, name in _UNQUOTABLE_CHARACTERS.items() if character in text
     ]
     if unquotable_character_names:
         raise ValueError(
@@ -194,7 +195,7 @@ def spawn_command(
             # A stray byte that is not UTF-8, in a path or a message, comes
             # through as the replacement character rather than as a traceback.
             errors="replace",
-            start_new_session=teardown.SHOULD_START_NEW_PROCESS_SESSION,
+            start_new_session=SHOULD_START_NEW_PROCESS_SESSION,
         )
     teardown.contain_process_tree(pid=process.pid)
     # This asked for both pipes above, so both are there. subprocess types them
@@ -228,7 +229,7 @@ def _build_subprocess_command(
     """
     executable = locate_program(program=program)
     if (
-        PurePath(executable).suffix.lower() in WINDOWS_BATCH_SUFFIXES
+        PurePath(executable).suffix.lower() in _WINDOWS_BATCH_SUFFIXES
     ):  # pragma: no cover
         return " ".join(
             _quote_windows_argument(part=part) for part in (executable, *arguments)

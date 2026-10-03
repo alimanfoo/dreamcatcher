@@ -43,7 +43,7 @@ from dreamcatcher.documents import read_json, write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import _read_worktree_revision, add_detached_worktree
 from dreamcatcher.issue_conversations import (
-    CONVERSATION_RECORD_NAME,
+    _CONVERSATION_RECORD_NAME,
     NO_REPLY,
     ConversationInput,
     InitialConversationIssue,
@@ -1430,7 +1430,7 @@ def test_recovery_finds_a_session_identifier_left_in_raw_output(
         document=conversation.record.model_copy(
             update={"harness_session_identifier": None}
         ),
-        path=conversation.directory / CONVERSATION_RECORD_NAME,
+        path=conversation.directory / _CONVERSATION_RECORD_NAME,
     )
     offer_conversation(gh=gh, comments=[ask(), ask(identifier=2)])
     answer(harnesses=harnesses, body="The recovered answer.")
@@ -1487,7 +1487,7 @@ def test_a_follow_up_refuses_to_replace_a_missing_saved_session(
         document=conversation.record.model_copy(
             update={"harness_session_identifier": None}
         ),
-        path=conversation.directory / CONVERSATION_RECORD_NAME,
+        path=conversation.directory / _CONVERSATION_RECORD_NAME,
     )
     conversation.compose_round_paths(number=1).raw_output.unlink()
     offer_conversation(gh=gh, comments=[ask(), ask(identifier=2)])

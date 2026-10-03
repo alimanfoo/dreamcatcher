@@ -32,11 +32,11 @@ from dreamcatcher.agent_assignments import (
     request_assignment_retry,
 )
 from dreamcatcher.agent_rounds import (
-    AgentRoundPurpose,
     AgentRoundRecord,
     AssignmentRoundPurpose,
     ErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
+    _AgentRoundPurpose,
     _compose_agent_round_ending,
 )
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
@@ -161,7 +161,7 @@ def record_of(*, scheduler: Scheduler, number: int) -> AgentRoundRecord:
     )
 
 
-def purpose_of(*, scheduler: Scheduler, number: int) -> AgentRoundPurpose:
+def purpose_of(*, scheduler: Scheduler, number: int) -> _AgentRoundPurpose:
     """What work the assignment's numbered round advances."""
     return record_of(scheduler=scheduler, number=number).purpose
 

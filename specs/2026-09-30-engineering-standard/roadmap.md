@@ -112,31 +112,63 @@ consistency review reported zero disagreements, so C1 is zero. The two duplicate
 derivations in the baseline were removed and the review found no others, so S4
 is zero duplicates.
 
-Stage 3 item 9 repeated the S3 measurement on the current source. It found 37
-public class or function names that no other source module uses. Eight were
-implementation details and became private: `AgentRoundHarness`,
+Stage 3 item 9 repeated the S3 measurement on the current source. The
+measurement parses every Python module under `src`, collects each module-level
+class, function, assignment and type-alias name without a leading underscore,
+then removes a name when another source module imports it directly. Names are
+counted by defining module and name. This is the same method a later measurement
+must use.
+
+The first pass made eight implementation details private: `AgentRoundHarness`,
 `compose_agent_round_ending`, `ClaudeHarnessAdapter`, `build_cli_parser`,
 `CodexHarnessAdapter`, `read_worktree_revision`,
-`refuse_invalid_harness_session_identifier` and `create_app`.
+`refuse_invalid_harness_session_identifier` and `create_app`. Repeating the
+complete measurement at that head found 91 names, because the first pass had
+counted classes and functions but not every constant and type alias. Fifty-eight
+more implementation details became private. The two names that another source
+module used through their module, `compose_first_round_prompt` and
+`SHOULD_START_NEW_PROCESS_SESSION`, now have direct importers. `NO_REPLY` and
+`STATE_FORMAT_VERSION` remain public because the architecture names their
+interfaces.
 
-The 29 names that remain are all of the permitted kinds:
+The 31 names that remain are all of the permitted kinds:
 
-- Document models: `AssignmentRecord`, `PullRequestObservation`,
-  `DispatchRecipe`, `BlockingIssue`, `GitHubIssueLabel`, `GitHubRepository`,
-  `GitHubResponseProjection`, `GitHubUserAccount`, `InlineReviewComment`,
-  `PostedIssueComment`, `PullRequestReview`, `ConversationRecord`,
-  `InitialConversationIssue`, `IssueCommentCursor` and `DaemonLockRecord`.
-- View models that templates consume: none.
-- Interfaces that the architecture names: `read_user_post_delivery_cursor`,
-  `AgentRoundFinisher`, `HarnessSessionIdentifierRecorder`, `main`,
-  `ChildProcess`, `PullRequestReviewVerdict`, `HarnessSessionResumption`,
-  `AssignmentInspection`, `AssignmentRoundCandidate`,
-  `FirstAssignmentRoundCandidate`, `ConversationRecoveryCandidate`,
-  `IssueObservationResult`, `derive_issue_availability` and
-  `DreamcatcherDaemonStatus`.
+| Name                               | Kind                   | Document or named interface             |
+| ---------------------------------- | ---------------------- | --------------------------------------- |
+| `AssignmentRecord`                 | document model         | persisted assignment record             |
+| `PullRequestObservation`           | document model         | persisted pull request observation      |
+| `DispatchRecipe`                   | document model         | `dreamcatcher.toml` dispatch recipe     |
+| `BlockingIssue`                    | document model         | GitHub blocking-issue response          |
+| `GitHubIssueLabel`                 | document model         | GitHub issue-label response             |
+| `GitHubRepository`                 | document model         | GitHub repository response              |
+| `GitHubResponseProjection`         | document model         | extensible GitHub response projection   |
+| `GitHubUserAccount`                | document model         | GitHub account response                 |
+| `InlineReviewComment`              | document model         | GitHub inline-review-comment response   |
+| `PostedIssueComment`               | document model         | GitHub posted-comment response          |
+| `PullRequestReview`                | document model         | GitHub pull-request-review response     |
+| `ConversationRecord`               | document model         | persisted conversation record           |
+| `InitialConversationIssue`         | document model         | persisted initial conversation issue    |
+| `IssueCommentCursor`               | document model         | persisted issue-comment cursor          |
+| `DaemonLockRecord`                 | document model         | persisted daemon lock record            |
+| `read_user_post_delivery_cursor`   | architecture interface | user-post delivery position             |
+| `AgentRoundFinisher`               | architecture interface | agent-round completion callback         |
+| `HarnessSessionIdentifierRecorder` | architecture interface | harness-session recording callback      |
+| `main`                             | architecture interface | command-line entry point                |
+| `ChildProcess`                     | architecture interface | external-command process result         |
+| `PullRequestReviewVerdict`         | architecture interface | GitHub review verdict                   |
+| `HarnessSessionResumption`         | architecture interface | scheduler-to-harness resumption request |
+| `AssignmentInspection`             | architecture interface | assignment inspection result            |
+| `AssignmentRoundCandidate`         | architecture interface | continuing-assignment candidate         |
+| `FirstAssignmentRoundCandidate`    | architecture interface | first-assignment-round candidate        |
+| `ConversationRecoveryCandidate`    | architecture interface | conversation-recovery candidate         |
+| `IssueObservationResult`           | architecture interface | scheduler issue observation             |
+| `derive_issue_availability`        | architecture interface | scheduler issue availability            |
+| `DreamcatcherDaemonStatus`         | architecture interface | daemon status report                    |
+| `NO_REPLY`                         | architecture interface | agent-facing no-reply result            |
+| `STATE_FORMAT_VERSION`             | architecture interface | persisted-state compatibility version   |
 
-The S3 measurement is therefore 29 permitted names and no unclassified public
-name.
+No remaining name is a template view model. The S3 measurement is therefore 31
+permitted names and no unclassified public name.
 
 ## Rules for the work
 

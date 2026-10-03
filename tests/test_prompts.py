@@ -4,12 +4,12 @@ import pytest
 from conftest import CONFIG
 
 from dreamcatcher.config import (
-    DREAMCATCHER_CONFIG_NAME,
+    _DREAMCATCHER_CONFIG_NAME,
     AgentHarness,
     read_dreamcatcher_config,
 )
 from dreamcatcher.prompts import (
-    AGENT_POST_INSTRUCTIONS,
+    _AGENT_POST_INSTRUCTIONS,
     AGENT_POST_MARKER,
     CONVERSATION_RECOVERY_PROMPT,
     RECOVERY_PROMPT,
@@ -37,17 +37,17 @@ def test_a_template_holding_other_words_in_braces_keeps_them():
 def test_the_prompt_that_opens_an_assignment_is_its_template_then_the_postscript(
     tmp_path, harness
 ):
-    (tmp_path / DREAMCATCHER_CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
+    (tmp_path / _DREAMCATCHER_CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
     recipe = read_dreamcatcher_config(root=tmp_path).assignment[0].recipes[harness]
 
     composed = compose_first_round_prompt(template=recipe.prompt, issue=12)
 
-    assert composed == OPENINGS[harness] + AGENT_POST_INSTRUCTIONS
+    assert composed == OPENINGS[harness] + _AGENT_POST_INSTRUCTIONS
 
 
 def test_the_prompt_that_carries_a_round_on_says_the_last_one_stopped_short():
     assert RECOVERY_PROMPT.startswith("Your previous round did not finish.")
-    assert RECOVERY_PROMPT.endswith(AGENT_POST_INSTRUCTIONS)
+    assert RECOVERY_PROMPT.endswith(_AGENT_POST_INSTRUCTIONS)
 
 
 def test_conversation_recovery_returns_a_complete_postable_answer():
@@ -60,7 +60,7 @@ def test_conversation_recovery_returns_a_complete_postable_answer():
         "complete answer, as Markdown ready for Dreamcatcher to post, or exactly "
         "NO_REPLY."
     ) in prompt
-    assert CONVERSATION_RECOVERY_PROMPT.endswith(AGENT_POST_INSTRUCTIONS)
+    assert CONVERSATION_RECOVERY_PROMPT.endswith(_AGENT_POST_INSTRUCTIONS)
 
 
 def test_the_prompt_that_hands_over_user_posts_names_the_pull_request_and_the_file(
@@ -72,7 +72,7 @@ def test_the_prompt_that_hands_over_user_posts_names_the_pull_request_and_the_fi
 
     assert composed.startswith("PR-inbox prompt for pull request #52:")
     assert str(inbox) in composed
-    assert composed.endswith(AGENT_POST_INSTRUCTIONS)
+    assert composed.endswith(_AGENT_POST_INSTRUCTIONS)
 
 
 def test_input_after_a_stop_explains_why_the_previous_round_ended(tmp_path):
@@ -110,7 +110,7 @@ def test_the_conversation_prompt_names_its_input_and_host_boundary(tmp_path):
     assert "Do not\nfetch issue comments yourself" in composed
     assert "open or change a pull request" in composed
     assert "post the\nconversation reply yourself" in composed
-    assert composed.endswith(AGENT_POST_INSTRUCTIONS)
+    assert composed.endswith(_AGENT_POST_INSTRUCTIONS)
 
 
 def test_the_conversation_round_prompt_names_only_its_new_input(tmp_path):
@@ -126,7 +126,7 @@ def test_the_conversation_round_prompt_names_only_its_new_input(tmp_path):
     assert "Do not edit\nproject source, mutate Git, or implement a change" in composed
     assert "Do not\nfetch issue comments yourself" in composed
     assert "revision" in composed
-    assert composed.endswith(AGENT_POST_INSTRUCTIONS)
+    assert composed.endswith(_AGENT_POST_INSTRUCTIONS)
 
 
 def test_every_agent_work_prompt_the_daemon_composes_asks_for_the_marker(tmp_path):

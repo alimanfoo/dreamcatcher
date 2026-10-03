@@ -16,7 +16,6 @@ from pathlib import Path
 
 from pydantic import AwareDatetime
 
-from dreamcatcher import prompts
 from dreamcatcher.agent_assignment_pull_requests import (
     find_or_create_assignment_pull_request,
     validate_assignment_pull_request_setup,
@@ -59,19 +58,20 @@ from dreamcatcher.harness_adapters import (
     refuse_reportable_harness_session_identifier,
 )
 from dreamcatcher.harnesses import find_harness_session_identifier_in_output
+from dreamcatcher.prompts import compose_first_round_prompt
 from dreamcatcher.state import StateDirectory
 
 # What an assignment's branch is called, before its identifier. The prefix keeps
 # dreamcatcher's own branches apart from everyone else's, and from the branches
 # that the catcher it replaces left behind.
-ASSIGNMENT_BRANCH_PREFIX = "dreamcatcher-"
+_ASSIGNMENT_BRANCH_PREFIX = "dreamcatcher-"
 
 # The file in an assignment's directory saying what the assignment received
 # with.
-ASSIGNMENT_RECORD_NAME = "assignment.json"
+_ASSIGNMENT_RECORD_NAME = "assignment.json"
 
 # The directory in an assignment's directory holding a directory per round.
-AGENT_ROUNDS_DIRECTORY_NAME = "rounds"
+_AGENT_ROUNDS_DIRECTORY_NAME = "rounds"
 
 
 class AssignmentRoundInput(DreamcatcherDocument):
@@ -182,7 +182,7 @@ class Assignment:
         """
         return AgentRoundPaths(
             worktree=self.record.worktree,
-            rounds_directory=self.directory / AGENT_ROUNDS_DIRECTORY_NAME,
+            rounds_directory=self.directory / _AGENT_ROUNDS_DIRECTORY_NAME,
             number=number,
         )
 
@@ -215,7 +215,7 @@ def read_assignments(*, state: StateDirectory) -> list[Assignment]:
     return [
         _read_assignment(state=state, directory=directory)
         for directory in directories
-        if (directory / ASSIGNMENT_RECORD_NAME).exists()
+        if (directory / _ASSIGNMENT_RECORD_NAME).exists()
     ]
 
 
@@ -234,7 +234,7 @@ def read_assignment(*, state: StateDirectory, identifier: str) -> Assignment | N
     if worktree is None:
         return None
     directory = state.assignments / worktree.name
-    if not (directory / ASSIGNMENT_RECORD_NAME).exists():
+    if not (directory / _ASSIGNMENT_RECORD_NAME).exists():
         return None
     return _read_assignment(state=state, directory=directory)
 
@@ -263,7 +263,7 @@ def find_open_assignments_by_issue(
 
 def request_assignment_retry(*, assignment: Assignment, at: datetime) -> None:
     """Record when the user asked a faulted assignment to recover again."""
-    path = assignment.directory / ASSIGNMENT_RECORD_NAME
+    path = assignment.directory / _ASSIGNMENT_RECORD_NAME
     record = read_json(model=AssignmentRecord, path=path)
     write_json(
         document=record.model_copy(update={"retry_requested_at": at}),
@@ -300,7 +300,7 @@ def _find_incomplete_assignment_identifiers(
     for path in state.worktrees.glob("GH*-*"):
         if (
             not is_linked_worktree(path=path)
-            or (state.assignments / path.name / ASSIGNMENT_RECORD_NAME).exists()
+            or (state.assignments / path.name / _ASSIGNMENT_RECORD_NAME).exists()
         ):
             continue
         issue = int(path.name.split("-", maxsplit=1)[0].removeprefix("GH"))
@@ -322,7 +322,7 @@ def _inspect_incomplete_assignment_setup(
             f"GH{issue} has several incomplete assignment setups: {identifier_names}."
         )
     identifier = identifiers[0]
-    branch = f"{ASSIGNMENT_BRANCH_PREFIX}{identifier}"
+    branch = f"{_ASSIGNMENT_BRANCH_PREFIX}{identifier}"
     try:
         _check_worktree_branch(state=state, identifier=identifier, branch=branch)
         validate_assignment_pull_request_setup(
@@ -374,7 +374,7 @@ class AssignmentCreator:
         identifier = _find_incomplete_assignment(state=self.state, issue=issue) or (
             f"GH{issue}-{at:%Y%m%d-%H%M%S}"
         )
-        branch = f"{ASSIGNMENT_BRANCH_PREFIX}{identifier}"
+        branch = f"{_ASSIGNMENT_BRANCH_PREFIX}{identifier}"
         worktree = self.state.worktrees / identifier
         if is_linked_worktree(path=worktree):
             _check_worktree_branch(
@@ -409,12 +409,10 @@ class AssignmentCreator:
             harness=selected_harness,
             model=recipe.model,
             effort=recipe.effort,
-            prompt=prompts.compose_first_round_prompt(
-                template=recipe.prompt, issue=issue
-            ),
+            prompt=compose_first_round_prompt(template=recipe.prompt, issue=issue),
         )
         directory = self.state.assignments / identifier
-        write_json(document=record, path=directory / ASSIGNMENT_RECORD_NAME)
+        write_json(document=record, path=directory / _ASSIGNMENT_RECORD_NAME)
         return Assignment(directory=directory, record=record)
 
 
@@ -446,11 +444,11 @@ def _read_assignment(*, state: StateDirectory, directory: Path) -> Assignment:
     return Assignment(
         directory=directory,
         record=read_json(
-            model=AssignmentRecord, path=directory / ASSIGNMENT_RECORD_NAME
+            model=AssignmentRecord, path=directory / _ASSIGNMENT_RECORD_NAME
         ),
         rounds=read_agent_round_records(
             cache=state.document_cache,
-            directory=directory / AGENT_ROUNDS_DIRECTORY_NAME,
+            directory=directory / _AGENT_ROUNDS_DIRECTORY_NAME,
         ),
     )
 
@@ -495,7 +493,7 @@ def record_assignment_harness_session_identifier(
     safe_identifier = refuse_reportable_harness_session_identifier(
         agent_work_identifier=assignment.identifier, identifier=identifier
     )
-    path = assignment.directory / ASSIGNMENT_RECORD_NAME
+    path = assignment.directory / _ASSIGNMENT_RECORD_NAME
     record = read_json(model=AssignmentRecord, path=path)
     recorded_identifier = record.harness_session_identifier
     if recorded_identifier is not None and recorded_identifier != safe_identifier:
@@ -515,7 +513,7 @@ def record_assignment_harness_session_identifier(
 
 def record_assignment_title(*, assignment: Assignment, title: str) -> None:
     """Record the first issue title known for a legacy assignment."""
-    path = assignment.directory / ASSIGNMENT_RECORD_NAME
+    path = assignment.directory / _ASSIGNMENT_RECORD_NAME
     record = read_json(model=AssignmentRecord, path=path)
     if record.title is not None:
         return
@@ -526,7 +524,7 @@ def record_pull_request_observation(
     *, assignment: Assignment, pull_request: PullRequest, observed_at: datetime
 ) -> None:
     """Record a pull request state when it differs from the latest observation."""
-    path = assignment.directory / ASSIGNMENT_RECORD_NAME
+    path = assignment.directory / _ASSIGNMENT_RECORD_NAME
     record = read_json(model=AssignmentRecord, path=path)
     recorded = record.pull_request_observation
     if (

@@ -11,12 +11,12 @@ AGENT_POST_MARKER = "<!-- dreamcatcher -->"
 
 # The word that a label's prompt template holds where the issue's number goes.
 # It is the only substitution the dispatcher owns.
-ISSUE_PLACEHOLDER = "{issue}"
+_ISSUE_PLACEHOLDER = "{issue}"
 
 # What every prompt that the daemon composes ends with, whichever harness runs
 # the assignment and whatever woke it. The daemon adds this itself, so a skill it
 # dispatches needs no knowledge of the marker.
-AGENT_POST_INSTRUCTIONS = f"""
+_AGENT_POST_INSTRUCTIONS = f"""
 
 End every post you make on GitHub with this line, on a line of its own:
 
@@ -36,7 +36,7 @@ description, a comment, a reply on a line of the diff, and an issue you file."""
 RECOVERY_PROMPT = (
     """Your previous round did not finish. Carry on from where it stopped, and
 end your turn when the work is done."""
-    + AGENT_POST_INSTRUCTIONS
+    + _AGENT_POST_INSTRUCTIONS
 )
 
 CONVERSATION_RECOVERY_PROMPT = (
@@ -48,10 +48,10 @@ any action.
 
 Your final message must be the complete answer, as Markdown ready for
 Dreamcatcher to post, or exactly NO_REPLY."""
-    + AGENT_POST_INSTRUCTIONS
+    + _AGENT_POST_INSTRUCTIONS
 )
 
-STOPPED_ROUND_FEEDBACK_PROMPT = """The user stopped your previous round before it
+_STOPPED_ROUND_FEEDBACK_PROMPT = """The user stopped your previous round before it
 finished. The new input says what to do next.
 
 """
@@ -62,7 +62,7 @@ finished. The new input says what to do next.
 # pull request has got to, which is what tells a round that answers the user
 # from a round that wraps a merged or closed pull request up, so one prompt
 # serves both.
-USER_POSTS_PROMPT = """PR-inbox prompt for pull request #{pull_request}:
+_USER_POSTS_PROMPT = """PR-inbox prompt for pull request #{pull_request}:
 
   {round_input}
 
@@ -89,7 +89,7 @@ your final output. The `revision` field names the checked-out commit.
 
 Return Markdown ready for Dreamcatcher to post, or exactly NO_REPLY when no
 reply is needed."""
-    + AGENT_POST_INSTRUCTIONS
+    + _AGENT_POST_INSTRUCTIONS
 )
 
 
@@ -100,7 +100,7 @@ def compose_first_round_prompt(*, template: str, issue: int) -> str:
     number replaces the placeholder in it. Anything else that the template
     holds in braces reaches the first round as it was written.
     """
-    return template.replace(ISSUE_PLACEHOLDER, str(issue)) + AGENT_POST_INSTRUCTIONS
+    return template.replace(_ISSUE_PLACEHOLDER, str(issue)) + _AGENT_POST_INSTRUCTIONS
 
 
 def compose_user_posts_prompt(
@@ -111,18 +111,18 @@ def compose_user_posts_prompt(
     The input file holds the pull request state and the batch of user posts.
     """
     prompt = (
-        USER_POSTS_PROMPT.format(
+        _USER_POSTS_PROMPT.format(
             pull_request=pull_request,
             round_input=round_input,
         )
-        + AGENT_POST_INSTRUCTIONS
+        + _AGENT_POST_INSTRUCTIONS
     )
     return _prefix_stopped_round_feedback(prompt=prompt) if was_stopped else prompt
 
 
 def compose_conversation_prompt(*, template: str, issue: int, round_input: Path) -> str:
     """Return the first prompt that directs a conversation to its saved input."""
-    instructions = template.replace(ISSUE_PLACEHOLDER, str(issue))
+    instructions = template.replace(_ISSUE_PLACEHOLDER, str(issue))
     round_prompt = compose_conversation_round_prompt(
         issue=issue, round_input=round_input
     )
@@ -141,4 +141,4 @@ def compose_conversation_round_prompt(
 
 
 def _prefix_stopped_round_feedback(*, prompt: str) -> str:
-    return STOPPED_ROUND_FEEDBACK_PROMPT + prompt
+    return _STOPPED_ROUND_FEEDBACK_PROMPT + prompt

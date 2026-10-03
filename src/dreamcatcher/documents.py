@@ -12,12 +12,12 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 from dreamcatcher.errors import ReportableError
 
 # What a whole write is written to before it takes its target's place.
-ATOMIC_WRITE_SUFFIX = ".writing"
+_ATOMIC_WRITE_SUFFIX = ".writing"
 
 # How much of the end of a file each read of a backward search takes. A last
 # line longer than this takes another read to find, and nothing else turns on
 # the size.
-BACKWARD_READ_SIZE = 4096
+_BACKWARD_READ_SIZE = 4096
 
 
 class DreamcatcherDocument(BaseModel):
@@ -231,7 +231,7 @@ def write_text(*, text: str, path: Path) -> None:
     directory is not a bug in the tool, and the user can act on either, so it
     reads as a message.
     """
-    beside = path.with_name(f"{path.name}{ATOMIC_WRITE_SUFFIX}")
+    beside = path.with_name(f"{path.name}{_ATOMIC_WRITE_SUFFIX}")
     _write(text=text, path=beside, mode="w")
     try:
         beside.replace(path)
@@ -289,7 +289,7 @@ def _find_line_ending(*, opened: IO[bytes], before: int) -> int | None:
     """
     end = before
     while end > 0:
-        start = max(0, end - BACKWARD_READ_SIZE)
+        start = max(0, end - _BACKWARD_READ_SIZE)
         opened.seek(start)
         ending_position = opened.read(end - start).rfind(b"\n")
         if ending_position >= 0:

@@ -5,8 +5,8 @@ import pytest
 from conftest import streamed
 
 from dreamcatcher.claude import (
+    _CLAUDE_ASSIGNMENT_ALLOWED_TOOLS,
     CLAUDE_ADAPTER,
-    CLAUDE_ASSIGNMENT_ALLOWED_TOOLS,
 )
 from dreamcatcher.feed import FeedNote, FeedProse
 from dreamcatcher.harness_adapters import (
@@ -31,7 +31,7 @@ CLAUDE_BASE_ARGUMENTS = [
     "--permission-mode",
     "auto",
     "--allowedTools",
-    " ".join(CLAUDE_ASSIGNMENT_ALLOWED_TOOLS),
+    " ".join(_CLAUDE_ASSIGNMENT_ALLOWED_TOOLS),
     "--name",
     "GH9-20260819-184158",
 ]

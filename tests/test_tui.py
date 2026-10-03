@@ -44,7 +44,7 @@ from dreamcatcher.feed import FeedLine
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.tui import show_assignment_view, show_feed_view, show_status_view
-from dreamcatcher.tui.shared import VIEW_REFRESH_INTERVAL
+from dreamcatcher.tui.shared import _VIEW_REFRESH_INTERVAL
 from dreamcatcher.tui.views import _render_feed_line, _render_written_feed_line
 
 # How wide the console is, so a line wraps in the same place every run.
@@ -282,7 +282,7 @@ def test_status_a_reader_watches_keeps_up_with_what_the_daemon_writes(tmp_path, 
 
     # Status is never over, so it drew again when the assignment started
     # while the reader was watching, and ended only when they interrupted it.
-    assert looks == [VIEW_REFRESH_INTERVAL, VIEW_REFRESH_INTERVAL]
+    assert looks == [_VIEW_REFRESH_INTERVAL, _VIEW_REFRESH_INTERVAL]
     assert "no issues or agent assignments recorded yet" in status
     assert f"GH13-{ASSIGNMENT_TIMESTAMP}" in status
 
@@ -456,7 +456,7 @@ def test_an_assignment_view_shows_the_round_that_starts_while_it_is_open(
     # The round GH20 had run was over and its pull request was waiting for the
     # reader, so the view stayed open through the gap and drew the round that
     # answered what they posted.
-    assert looks == [VIEW_REFRESH_INTERVAL, VIEW_REFRESH_INTERVAL]
+    assert looks == [_VIEW_REFRESH_INTERVAL, _VIEW_REFRESH_INTERVAL]
     assert "address feedback" in written_to.getvalue()
 
 
@@ -593,7 +593,7 @@ def test_a_following_view_waits_for_the_round_an_assignment_has_yet_to_run(
     # The assignment's pull request is waiting for the reader, so the round that
     # answers them is still to come and the view waits for it rather than
     # ending between the rounds.
-    assert waits == [VIEW_REFRESH_INTERVAL]
+    assert waits == [_VIEW_REFRESH_INTERVAL]
 
 
 def test_a_following_view_looks_once_more_when_the_last_round_stops(tmp_path, daemon):
@@ -614,7 +614,7 @@ def test_a_following_view_looks_once_more_when_the_last_round_stops(tmp_path, da
 
     # The wrap-up round ended while the view was waiting, so the view looked once
     # more for whatever that round was still writing as it stopped.
-    assert waits == [VIEW_REFRESH_INTERVAL, VIEW_REFRESH_INTERVAL]
+    assert waits == [_VIEW_REFRESH_INTERVAL, _VIEW_REFRESH_INTERVAL]
 
 
 def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path, daemon):
@@ -675,7 +675,7 @@ def test_a_following_view_waits_for_the_next_daemon(tmp_path):
     # The daemon that was running the assignment has gone, and the next one
     # carries its round on from where it stopped, so the view waits for that
     # round rather than end with the daemon.
-    assert waits == [VIEW_REFRESH_INTERVAL]
+    assert waits == [_VIEW_REFRESH_INTERVAL]
 
 
 def test_a_view_of_a_faulted_assignment_never_waits(tmp_path, daemon):
@@ -859,7 +859,7 @@ def test_a_view_of_a_running_round_ends_when_that_round_does(tmp_path, daemon):
 
     # The round ended while the view was waiting, so the view looked once more
     # for whatever that round was still writing as it stopped, and ended.
-    assert looks == [VIEW_REFRESH_INTERVAL, VIEW_REFRESH_INTERVAL]
+    assert looks == [_VIEW_REFRESH_INTERVAL, _VIEW_REFRESH_INTERVAL]
     assert "[Bash] pytest" in shown
 
 

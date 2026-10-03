@@ -37,7 +37,7 @@ from dreamcatcher.scheduler.models import GlobalCooldown, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.web import serve_web
 from dreamcatcher.web.app import _create_app
-from dreamcatcher.web.server import WEB_BASE_PORT, WEB_HOST
+from dreamcatcher.web.server import _WEB_BASE_PORT, WEB_HOST
 
 WEB_STATUS_REPORTS = {
     **STATUS_REPORTS,
@@ -1258,7 +1258,7 @@ def test_the_base_port_starts_a_scan_with_no_repository_record(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
 
-    assert web_server_module._derive_starting_port(state=state) == WEB_BASE_PORT
+    assert web_server_module._derive_starting_port(state=state) == _WEB_BASE_PORT
 
 
 def test_the_browser_receives_the_address_the_server_listens_on(
@@ -1328,7 +1328,7 @@ def test_an_interruption_while_opening_the_browser_ends_without_an_error(tmp_pat
 def test_a_scan_with_no_free_port_says_so(tmp_path, monkeypatch):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    monkeypatch.setattr(web_server_module, "WEB_MAX_PORT", WEB_BASE_PORT)
+    monkeypatch.setattr(web_server_module, "WEB_MAX_PORT", _WEB_BASE_PORT)
     failure = web_server_module._WebServerBindError(
         error=OSError(errno.EADDRINUSE, "address already in use")
     )

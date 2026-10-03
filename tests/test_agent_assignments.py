@@ -39,7 +39,7 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import (
-    DREAMCATCHER_CONFIG_NAME,
+    _DREAMCATCHER_CONFIG_NAME,
     AgentHarness,
     read_dreamcatcher_config,
 )
@@ -76,7 +76,7 @@ def linked_pull_requests(*, numbers: Sequence[int]) -> str:
 @pytest.fixture
 def checkout(cloned):
     """A main checkout with an origin and an assignment configuration."""
-    (cloned / DREAMCATCHER_CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
+    (cloned / _DREAMCATCHER_CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
     return cloned
 
 

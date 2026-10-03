@@ -21,7 +21,7 @@ from dreamcatcher.agent_rounds import (
     ConversationRoundPurpose,
     _compose_agent_round_ending,
 )
-from dreamcatcher.cli import MAX_INTERVAL_SECONDS, main
+from dreamcatcher.cli import _MAX_INTERVAL_SECONDS, main
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.documents import write_json
@@ -498,7 +498,7 @@ def test_run_refuses_an_interval_too_large_to_wait(capsys):
                 "--harness",
                 "claude",
                 "--interval",
-                str(MAX_INTERVAL_SECONDS + 1),
+                str(_MAX_INTERVAL_SECONDS + 1),
             ]
         )
 

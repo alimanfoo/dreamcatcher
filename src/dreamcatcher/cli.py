@@ -31,12 +31,12 @@ from dreamcatcher.state import StateDirectory
 from dreamcatcher.version import DREAMCATCHER_VERSION
 
 # How a view names the issue it is about, as the issue itself is written.
-ISSUE_REFERENCE_PATTERN = re.compile(r"gh(\d+)\Z", re.IGNORECASE)
-MAX_INTERVAL_SECONDS = int(TIMEOUT_MAX) - 1
+_ISSUE_REFERENCE_PATTERN = re.compile(r"gh(\d+)\Z", re.IGNORECASE)
+_MAX_INTERVAL_SECONDS = int(TIMEOUT_MAX) - 1
 
 # The help that says when a view of one assignment ends, which the assignment view
 # and the feed both give, since a reader reads one verb's help and no other.
-HELP_WHEN_A_VIEW_ENDS = (
+_HELP_WHEN_A_VIEW_ENDS = (
     "It ends once the assignment has completed a wrap-up round successfully, "
     "and while an assignment is in fault. "
     "Interrupt it to end it sooner."
@@ -44,13 +44,13 @@ HELP_WHEN_A_VIEW_ENDS = (
 
 # The help that says what a view does to the terminal it runs in, which the two
 # views that draw a picture over the one before give.
-HELP_WHEN_A_VIEW_TAKES_THE_SCREEN = (
+_HELP_WHEN_A_VIEW_TAKES_THE_SCREEN = (
     "It takes the whole terminal while it runs, and gives it back when it ends."
 )
 
 # The help that says what a view does when nothing is watching it, which every
 # verb gives.
-HELP_WHEN_NOTHING_WATCHES = (
+_HELP_WHEN_NOTHING_WATCHES = (
     "Piped, redirected or captured, it shows what is there once and returns."
 )
 
@@ -140,9 +140,9 @@ def _build_cli_parser() -> argparse.ArgumentParser:
             "Show instance and daemon facts, each conversation and assignment, "
             "available issues in dispatch order, and blocked issues. It refreshes "
             "automatically until you interrupt it. "
-            + HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
+            + _HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
             + " "
-            + HELP_WHEN_NOTHING_WATCHES
+            + _HELP_WHEN_NOTHING_WATCHES
         ),
     )
     status_parser.set_defaults(act=_show_status)
@@ -155,12 +155,12 @@ def _build_cli_parser() -> argparse.ArgumentParser:
             "resumes the harness session by hand, and the older assignments "
             "at the same issue. It keeps up for as long as the assignment has "
             "another round coming. "
-            + HELP_WHEN_A_VIEW_ENDS
+            + _HELP_WHEN_A_VIEW_ENDS
             + " "
-            + HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
+            + _HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
             + " An assignment that is over stays on the screen for you to read. "
             "Interrupt one that is still going and nothing is left behind. "
-            + HELP_WHEN_NOTHING_WATCHES
+            + _HELP_WHEN_NOTHING_WATCHES
         ),
     )
     _add_issue_argument(parser=assignment_parser)
@@ -172,9 +172,9 @@ def _build_cli_parser() -> argparse.ArgumentParser:
             "Show an issue conversation's chosen settings, session, worktree, "
             "code revision, and rounds. It keeps up until the conversation "
             "enters fault or leaves the status report. "
-            + HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
+            + _HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
             + " "
-            + HELP_WHEN_NOTHING_WATCHES
+            + _HELP_WHEN_NOTHING_WATCHES
         ),
     )
     _add_issue_argument(parser=conversation_parser)
@@ -186,7 +186,7 @@ def _build_cli_parser() -> argparse.ArgumentParser:
             "Show the agent's actions and outputs from every round of "
             "the selected assignment or conversation, and keep showing what "
             "arrives until that work completes, enters fault or leaves the "
-            "status report. " + HELP_WHEN_NOTHING_WATCHES
+            "status report. " + _HELP_WHEN_NOTHING_WATCHES
         ),
     )
     _add_issue_argument(parser=feed_parser)
@@ -241,9 +241,9 @@ def _parse_positive_integer(value: str, /) -> int:
 def _parse_interval(value: str, /) -> int:
     """Return an interval that the process can wait; argparse calls positionally."""
     interval = _parse_positive_integer(value)
-    if interval > MAX_INTERVAL_SECONDS:
+    if interval > _MAX_INTERVAL_SECONDS:
         raise argparse.ArgumentTypeError(
-            f"must be no greater than {MAX_INTERVAL_SECONDS}"
+            f"must be no greater than {_MAX_INTERVAL_SECONDS}"
         )
     return interval
 
@@ -386,7 +386,7 @@ def _parse_issue_reference(issue_reference: str, /) -> int:
     argparse is what calls this, as the type behind the issue argument, and it
     passes the text positionally, so the parameter is positional-only.
     """
-    reference_match = ISSUE_REFERENCE_PATTERN.match(issue_reference)
+    reference_match = _ISSUE_REFERENCE_PATTERN.match(issue_reference)
     if reference_match is None:
         raise argparse.ArgumentTypeError(
             f"name an issue as GH123, not as {issue_reference}"

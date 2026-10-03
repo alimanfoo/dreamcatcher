@@ -4,11 +4,11 @@ from datetime import UTC, datetime, timedelta, tzinfo
 
 # How a time is written wherever the tool writes one.
 UTC_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
-DISPLAY_TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+_DISPLAY_TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
-SECONDS_PER_MINUTE = 60
-MINUTES_PER_HOUR = 60
-HOURS_PER_DAY = 24
+_SECONDS_PER_MINUTE = 60
+_MINUTES_PER_HOUR = 60
+_HOURS_PER_DAY = 24
 
 
 def format_utc_timestamp(*, at: datetime) -> str:
@@ -22,7 +22,7 @@ def describe_time(*, at: datetime, zone: tzinfo | None) -> str:
     None selects the machine's local zone, including the offset at the time
     being described.
     """
-    return f"{at.astimezone(zone):{DISPLAY_TIME_FORMAT}}"
+    return f"{at.astimezone(zone):{_DISPLAY_TIME_FORMAT}}"
 
 
 def describe_span(*, span: timedelta) -> str:
@@ -32,15 +32,15 @@ def describe_span(*, span: timedelta) -> str:
     alone would round a whole working day away.
     """
     seconds = int(span.total_seconds())
-    if seconds < SECONDS_PER_MINUTE:
+    if seconds < _SECONDS_PER_MINUTE:
         return f"{seconds}s"
-    minutes = seconds // SECONDS_PER_MINUTE
-    if minutes < MINUTES_PER_HOUR:
+    minutes = seconds // _SECONDS_PER_MINUTE
+    if minutes < _MINUTES_PER_HOUR:
         return f"{minutes}m"
-    hours = minutes // MINUTES_PER_HOUR
-    if hours < HOURS_PER_DAY:
-        return f"{hours}h {minutes % MINUTES_PER_HOUR}m"
-    return f"{hours // HOURS_PER_DAY}d {hours % HOURS_PER_DAY}h"
+    hours = minutes // _MINUTES_PER_HOUR
+    if hours < _HOURS_PER_DAY:
+        return f"{hours}h {minutes % _MINUTES_PER_HOUR}m"
+    return f"{hours // _HOURS_PER_DAY}d {hours % _HOURS_PER_DAY}h"
 
 
 def describe_countdown(

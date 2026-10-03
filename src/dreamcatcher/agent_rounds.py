@@ -43,11 +43,11 @@ from dreamcatcher.harnesses import HARNESS_ADAPTERS
 # How long a successful harness process may take to expose its final output
 # after it exits. A reader normally settles immediately on the result event or
 # pipe EOF. This bound is for an escaped descendant that keeps the pipe open.
-FINAL_OUTPUT_CAPTURE_TIMEOUT_SECONDS = 5
+_FINAL_OUTPUT_CAPTURE_TIMEOUT_SECONDS = 5
 
 # How often a live round checks whether the web process asked it to stop.
-STOP_REQUEST_POLL_INTERVAL_SECONDS = 1
-AGENT_ROUND_RECORD_NAME = "round.json"
+_STOP_REQUEST_POLL_INTERVAL_SECONDS = 1
+_AGENT_ROUND_RECORD_NAME = "round.json"
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -78,7 +78,7 @@ class AgentRoundPaths:
     @property
     def record(self) -> Path:
         """The file saying when the round started, and how it ended."""
-        return self.directory / AGENT_ROUND_RECORD_NAME
+        return self.directory / _AGENT_ROUND_RECORD_NAME
 
     @property
     def feed(self) -> Path:
@@ -156,7 +156,7 @@ class ConversationRoundPurpose(StrEnum):
 
 
 # Every round records its purpose, so the shared record holds either owner's.
-type AgentRoundPurpose = AssignmentRoundPurpose | ConversationRoundPurpose
+type _AgentRoundPurpose = AssignmentRoundPurpose | ConversationRoundPurpose
 
 
 class AgentRoundOutcome(StrEnum):
@@ -210,7 +210,7 @@ class StoppedAgentRoundEnding(DreamcatcherDocument):
     at: AwareDatetime
 
 
-type AgentRoundEnding = Annotated[
+type _AgentRoundEnding = Annotated[
     SuccessfulAgentRoundEnding
     | ErroredAgentRoundEnding
     | InterruptedAgentRoundEnding
@@ -238,11 +238,11 @@ class AgentRoundRecord(DreamcatcherDocument):
     """Model an agent round's identity, purpose, recovery, and outcome."""
 
     number: PositiveInt
-    purpose: AgentRoundPurpose
+    purpose: _AgentRoundPurpose
     is_recovery: bool = False
     started: AwareDatetime
     pid: PositiveInt
-    ending: AgentRoundEnding | None = None
+    ending: _AgentRoundEnding | None = None
 
     @property
     def outcome(self) -> AgentRoundOutcome:
@@ -288,7 +288,7 @@ def request_agent_round_stop(*, paths: "AgentRoundPaths") -> None:
 
 
 def _record_agent_round_ending(
-    *, record: AgentRoundRecord, ending: AgentRoundEnding, path: Path
+    *, record: AgentRoundRecord, ending: _AgentRoundEnding, path: Path
 ) -> AgentRoundRecord:
     """Write and return a record with its terminal outcome."""
     ended_record = record.model_copy(update={"ending": ending})
@@ -300,7 +300,7 @@ def _record_agent_round_ending(
 class AgentRoundPlan[RoundInputT: DreamcatcherDocument]:
     """Describe the decisions and input that a new round executes."""
 
-    purpose: AgentRoundPurpose
+    purpose: _AgentRoundPurpose
     is_recovery: bool
     input: RoundInputT | None = None
 
@@ -366,7 +366,7 @@ def read_agent_round_records(
     """
     records = [
         _read_agent_round_record(cache=cache, path=record_path)
-        for record_path in directory.glob(f"*/{AGENT_ROUND_RECORD_NAME}")
+        for record_path in directory.glob(f"*/{_AGENT_ROUND_RECORD_NAME}")
     ]
     return sorted(records, key=lambda record: record.number)
 
@@ -425,7 +425,7 @@ class AgentRound:
         self.clock = clock
         self.feed_renderer = FeedRenderer(worktree=paths.worktree, clock=clock)
         self.started_at = clock()
-        self.forced_ending: AgentRoundEnding | None = None
+        self.forced_ending: _AgentRoundEnding | None = None
         self._round_ended = Flag()
         self._final_output_settled = Flag()
         self._feed_write_lock = Lock()
@@ -514,13 +514,13 @@ class AgentRound:
         round ends, rather than an interruption the next daemon would recover.
         """
         if self.paths.stop_request.is_file():
-            ending: AgentRoundEnding = StoppedAgentRoundEnding(at=self.clock())
+            ending: _AgentRoundEnding = StoppedAgentRoundEnding(at=self.clock())
         else:
             ending = InterruptedAgentRoundEnding()
         self._end_process_tree(ending=ending)
         self._round_ended.wait()
 
-    def _end_process_tree(self, *, ending: AgentRoundEnding) -> None:
+    def _end_process_tree(self, *, ending: _AgentRoundEnding) -> None:
         """Record the forced ending and kill the remaining process tree.
 
         This acts only while the child's exit status is uncollected. The
@@ -543,7 +543,7 @@ class AgentRound:
 
     def _watch_for_stop_request(self) -> None:
         """Stop the round promptly when its request file appears."""
-        while not self._round_ended.wait(STOP_REQUEST_POLL_INTERVAL_SECONDS):
+        while not self._round_ended.wait(_STOP_REQUEST_POLL_INTERVAL_SECONDS):
             if self.paths.stop_request.is_file():
                 self._end_process_tree(ending=StoppedAgentRoundEnding(at=self.clock()))
                 return
@@ -626,7 +626,7 @@ class AgentRound:
 
     def _read_final_output(self) -> str | None:
         """Return the harness's final output, once it has had time to land."""
-        self._final_output_settled.wait(FINAL_OUTPUT_CAPTURE_TIMEOUT_SECONDS)
+        self._final_output_settled.wait(_FINAL_OUTPUT_CAPTURE_TIMEOUT_SECONDS)
         path = self.paths.final_output
         return read_text(path=path) if path.is_file() else None
 

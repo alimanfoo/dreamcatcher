@@ -26,7 +26,7 @@ from recordings import render_harness_recording
 import dreamcatcher.agent_rounds as agent_rounds_module
 from dreamcatcher.agent_assignments import AssignmentRoundInput
 from dreamcatcher.agent_rounds import (
-    AGENT_ROUND_RECORD_NAME,
+    _AGENT_ROUND_RECORD_NAME,
     AgentRound,
     AgentRoundFinisher,
     AgentRoundOutcome,
@@ -739,7 +739,9 @@ def test_the_daemon_stopping_a_finished_round_keeps_its_ending(
 def test_a_stop_request_stops_the_round_and_records_why(
     fake, worktree, directory, monkeypatch
 ):
-    monkeypatch.setattr(agent_rounds_module, "STOP_REQUEST_POLL_INTERVAL_SECONDS", 0.01)
+    monkeypatch.setattr(
+        agent_rounds_module, "_STOP_REQUEST_POLL_INTERVAL_SECONDS", 0.01
+    )
     fake(program="harness").streams(
         lines=[Line(text="working\n"), Line(text="still working\n")], delay=5
     )
@@ -831,7 +833,7 @@ def test_a_round_that_cannot_record_its_start_does_not_run_on(
     fake(program="harness").streams(lines=[Line(text="working\n")], delay=5)
     # A directory where the record goes, so the prompt lands and the record
     # cannot, which is what leaves a child running with nothing to find it by.
-    (directory / AGENT_ROUND_RECORD_NAME).mkdir(parents=True)
+    (directory / _AGENT_ROUND_RECORD_NAME).mkdir(parents=True)
 
     with pytest.raises(ReportableError, match=r"round\.json"):
         AgentRound(
@@ -879,7 +881,7 @@ def test_a_finished_round_a_straggler_outlives_still_records_an_ending(
     monkeypatch, worktree, directory, straggler
 ):
     monkeypatch.setattr(
-        "dreamcatcher.agent_rounds.FINAL_OUTPUT_CAPTURE_TIMEOUT_SECONDS", 0.01
+        "dreamcatcher.agent_rounds._FINAL_OUTPUT_CAPTURE_TIMEOUT_SECONDS", 0.01
     )
     paths = compose_round_paths(worktree=worktree, directory=directory)
     finish_round = Mock()

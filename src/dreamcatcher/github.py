@@ -27,12 +27,12 @@ from dreamcatcher.commands import CommandError, run_command
 # a number a busy repository passes. Asking for five hundred keeps the tool from
 # dropping work it can see. Only the issue listing needs it: a branch has one
 # pull request, near enough.
-ISSUE_LISTING_LIMIT = "500"
+_ISSUE_LISTING_LIMIT = "500"
 
 # How many of a paginated list to ask GitHub for at a time. gh reads every page
 # whatever the size, so the largest page GitHub allows is the fewest calls for
 # the same answer.
-GITHUB_PAGE_SIZE = "100"
+_GITHUB_PAGE_SIZE = "100"
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -87,7 +87,7 @@ class PullRequestReviewVerdict(StrEnum):
 # The verdicts that say something on their own. A review carrying one of these
 # is worth reading even with an empty body, and every other verdict leaves the
 # body to do the talking.
-SPEAKING_REVIEW_VERDICTS = frozenset(
+_SPEAKING_REVIEW_VERDICTS = frozenset(
     {
         PullRequestReviewVerdict.APPROVED,
         PullRequestReviewVerdict.CHANGES_REQUESTED,
@@ -237,7 +237,7 @@ class PullRequestReview(_UserPostProjection):
         COMMENTED wrapper is silent. An approval or request for changes speaks
         even when its body is empty.
         """
-        return super().is_speaking or self.verdict in SPEAKING_REVIEW_VERDICTS
+        return super().is_speaking or self.verdict in _SPEAKING_REVIEW_VERDICTS
 
 
 class InlineReviewComment(_UserPostProjection):
@@ -286,20 +286,22 @@ class InlineReviewComment(_UserPostProjection):
 type UserPost = ConversationComment | PullRequestReview | InlineReviewComment
 
 
-GITHUB_REPOSITORY_RESPONSE_ADAPTER = TypeAdapter(GitHubRepository)
-GITHUB_ACCOUNT_RESPONSE_ADAPTER = TypeAdapter(GitHubUserAccount)
-GITHUB_ISSUE_RESPONSE_ADAPTER = TypeAdapter(Issue)
-GITHUB_ISSUE_LIST_RESPONSE_ADAPTER = TypeAdapter(list[Issue])
-GITHUB_PULL_REQUEST_LIST_RESPONSE_ADAPTER = TypeAdapter(list[PullRequest])
-GITHUB_PULL_REQUEST_RESPONSE_ADAPTER = TypeAdapter(PullRequest)
-GITHUB_BLOCKING_ISSUE_LIST_RESPONSE_ADAPTER = TypeAdapter(list[list[BlockingIssue]])
-GITHUB_ISSUE_PULL_REQUEST_CONTEXT_RESPONSE_ADAPTER = TypeAdapter(
+_GITHUB_REPOSITORY_RESPONSE_ADAPTER = TypeAdapter(GitHubRepository)
+_GITHUB_ACCOUNT_RESPONSE_ADAPTER = TypeAdapter(GitHubUserAccount)
+_GITHUB_ISSUE_RESPONSE_ADAPTER = TypeAdapter(Issue)
+_GITHUB_ISSUE_LIST_RESPONSE_ADAPTER = TypeAdapter(list[Issue])
+_GITHUB_PULL_REQUEST_LIST_RESPONSE_ADAPTER = TypeAdapter(list[PullRequest])
+_GITHUB_PULL_REQUEST_RESPONSE_ADAPTER = TypeAdapter(PullRequest)
+_GITHUB_BLOCKING_ISSUE_LIST_RESPONSE_ADAPTER = TypeAdapter(list[list[BlockingIssue]])
+_GITHUB_ISSUE_PULL_REQUEST_CONTEXT_RESPONSE_ADAPTER = TypeAdapter(
     IssuePullRequestContext
 )
-GITHUB_CONVERSATION_COMMENT_PAGES_ADAPTER = TypeAdapter(list[list[ConversationComment]])
-GITHUB_POSTED_ISSUE_COMMENT_ADAPTER = TypeAdapter(PostedIssueComment)
-GITHUB_PULL_REQUEST_REVIEW_PAGES_ADAPTER = TypeAdapter(list[list[PullRequestReview]])
-GITHUB_INLINE_REVIEW_COMMENT_PAGES_ADAPTER = TypeAdapter(
+_GITHUB_CONVERSATION_COMMENT_PAGES_ADAPTER = TypeAdapter(
+    list[list[ConversationComment]]
+)
+_GITHUB_POSTED_ISSUE_COMMENT_ADAPTER = TypeAdapter(PostedIssueComment)
+_GITHUB_PULL_REQUEST_REVIEW_PAGES_ADAPTER = TypeAdapter(list[list[PullRequestReview]])
+_GITHUB_INLINE_REVIEW_COMMENT_PAGES_ADAPTER = TypeAdapter(
     list[list[InlineReviewComment]]
 )
 
@@ -307,10 +309,10 @@ GITHUB_INLINE_REVIEW_COMMENT_PAGES_ADAPTER = TypeAdapter(
 # thing GitHub keeps it under, and what it is called there. A pull request's own
 # conversation is the conversation of the issue that shares its number, which is
 # why that one is kept under the issues.
-GITHUB_USER_POST_ENDPOINTS = (
-    (GITHUB_CONVERSATION_COMMENT_PAGES_ADAPTER, "issues", "comments"),
-    (GITHUB_PULL_REQUEST_REVIEW_PAGES_ADAPTER, "pulls", "reviews"),
-    (GITHUB_INLINE_REVIEW_COMMENT_PAGES_ADAPTER, "pulls", "comments"),
+_GITHUB_USER_POST_ENDPOINTS = (
+    (_GITHUB_CONVERSATION_COMMENT_PAGES_ADAPTER, "issues", "comments"),
+    (_GITHUB_PULL_REQUEST_REVIEW_PAGES_ADAPTER, "pulls", "reviews"),
+    (_GITHUB_INLINE_REVIEW_COMMENT_PAGES_ADAPTER, "pulls", "comments"),
 )
 
 
@@ -321,7 +323,7 @@ def identify_github_repository(*, root: Path) -> str | UnknownGitHubResponse:
     inside the checkout.
     """
     repository_response = _read_github_response(
-        response_adapter=GITHUB_REPOSITORY_RESPONSE_ADAPTER,
+        response_adapter=_GITHUB_REPOSITORY_RESPONSE_ADAPTER,
         arguments=["repo", "view", "--json", "nameWithOwner"],
         cwd=root,
     )
@@ -333,7 +335,7 @@ def identify_github_repository(*, root: Path) -> str | UnknownGitHubResponse:
 def identify_github_account() -> str | UnknownGitHubResponse:
     """Return the login of the account gh is signed in as."""
     account_response = _read_github_response(
-        response_adapter=GITHUB_ACCOUNT_RESPONSE_ADAPTER,
+        response_adapter=_GITHUB_ACCOUNT_RESPONSE_ADAPTER,
         arguments=["api", "user"],
     )
     if isinstance(account_response, UnknownGitHubResponse):
@@ -346,7 +348,7 @@ def list_issues(
 ) -> list[Issue] | UnknownGitHubResponse:
     """Return the repository's open issues carrying label and assigned to assignee."""
     return _read_github_response(
-        response_adapter=GITHUB_ISSUE_LIST_RESPONSE_ADAPTER,
+        response_adapter=_GITHUB_ISSUE_LIST_RESPONSE_ADAPTER,
         arguments=[
             "issue",
             "list",
@@ -359,7 +361,7 @@ def list_issues(
             "--state",
             "open",
             "--limit",
-            ISSUE_LISTING_LIMIT,
+            _ISSUE_LISTING_LIMIT,
             "--json",
             _ISSUE_RESPONSE_FIELDS,
         ],
@@ -369,7 +371,7 @@ def list_issues(
 def read_issue(*, repository: str, issue: int) -> Issue | UnknownGitHubResponse:
     """Return the current GitHub facts for one issue."""
     return _read_github_response(
-        response_adapter=GITHUB_ISSUE_RESPONSE_ADAPTER,
+        response_adapter=_GITHUB_ISSUE_RESPONSE_ADAPTER,
         arguments=[
             "issue",
             "view",
@@ -391,7 +393,7 @@ def list_pull_requests(
     several counts is the caller's rule, not this read's.
     """
     return _read_github_response(
-        response_adapter=GITHUB_PULL_REQUEST_LIST_RESPONSE_ADAPTER,
+        response_adapter=_GITHUB_PULL_REQUEST_LIST_RESPONSE_ADAPTER,
         arguments=[
             "pr",
             "list",
@@ -454,7 +456,7 @@ def _read_pull_request(
 ) -> PullRequest | UnknownGitHubResponse:
     """Return one pull request named by a number or URL."""
     return _read_github_response(
-        response_adapter=GITHUB_PULL_REQUEST_RESPONSE_ADAPTER,
+        response_adapter=_GITHUB_PULL_REQUEST_RESPONSE_ADAPTER,
         arguments=[
             "pr",
             "view",
@@ -477,7 +479,7 @@ def read_issue_pull_request_context(
     in.
     """
     linked_response = _read_github_response(
-        response_adapter=GITHUB_ISSUE_PULL_REQUEST_CONTEXT_RESPONSE_ADAPTER,
+        response_adapter=_GITHUB_ISSUE_PULL_REQUEST_CONTEXT_RESPONSE_ADAPTER,
         arguments=[
             "issue",
             "view",
@@ -507,7 +509,7 @@ def list_blocking_issues(
 ) -> list[BlockingIssue] | UnknownGitHubResponse:
     """Return the issues that block this issue, including their states."""
     return _read_github_pages(
-        response_adapter=GITHUB_BLOCKING_ISSUE_LIST_RESPONSE_ADAPTER,
+        response_adapter=_GITHUB_BLOCKING_ISSUE_LIST_RESPONSE_ADAPTER,
         endpoint=f"repos/{repository}/issues/{issue}/dependencies/blocked_by",
     )
 
@@ -524,7 +526,7 @@ def list_user_posts(
     the user is waiting for an answer to.
     """
     user_posts: list[UserPost] = []
-    for response_adapter, resource_kind, collection_name in GITHUB_USER_POST_ENDPOINTS:
+    for response_adapter, resource_kind, collection_name in _GITHUB_USER_POST_ENDPOINTS:
         endpoint = (
             f"repos/{repository}/{resource_kind}/{pull_request}/{collection_name}"
         )
@@ -542,7 +544,7 @@ def list_issue_comments(
 ) -> list[ConversationComment] | UnknownGitHubResponse:
     """Return every ordinary comment on one issue."""
     return _read_github_pages(
-        response_adapter=GITHUB_CONVERSATION_COMMENT_PAGES_ADAPTER,
+        response_adapter=_GITHUB_CONVERSATION_COMMENT_PAGES_ADAPTER,
         endpoint=f"repos/{repository}/issues/{issue}/comments",
     )
 
@@ -552,7 +554,7 @@ def post_issue_comment(
 ) -> PostedIssueComment | UnknownGitHubResponse:
     """Post one comment on an issue and return its GitHub identity."""
     return _read_github_response(
-        response_adapter=GITHUB_POSTED_ISSUE_COMMENT_ADAPTER,
+        response_adapter=_GITHUB_POSTED_ISSUE_COMMENT_ADAPTER,
         arguments=[
             "api",
             f"repos/{repository}/issues/{issue}/comments",
@@ -577,7 +579,7 @@ def _read_github_pages[ItemT](
         response_adapter=response_adapter,
         arguments=[
             "api",
-            f"{endpoint}?per_page={GITHUB_PAGE_SIZE}",
+            f"{endpoint}?per_page={_GITHUB_PAGE_SIZE}",
             "--paginate",
             "--slurp",
         ],

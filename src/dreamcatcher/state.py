@@ -6,7 +6,7 @@ from pathlib import Path
 
 from dreamcatcher.documents import DocumentCache, write_text
 
-STATE_DIRECTORY_NAME = ".dreamcatcher"
+_STATE_DIRECTORY_NAME = ".dreamcatcher"
 STATE_FORMAT_VERSION = 5
 
 
@@ -33,7 +33,7 @@ class StateDirectory:
     @property
     def path(self) -> Path:
         """The directory holding state in this format."""
-        return self.root / STATE_DIRECTORY_NAME / f"v{STATE_FORMAT_VERSION}"
+        return self.root / _STATE_DIRECTORY_NAME / f"v{STATE_FORMAT_VERSION}"
 
     @property
     def lock(self) -> Path:
