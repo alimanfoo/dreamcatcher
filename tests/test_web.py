@@ -24,7 +24,11 @@ from status_fabrications import (
 from werkzeug.test import TestResponse
 
 import dreamcatcher.web.server as web_server_module
-from dreamcatcher.agent_assignments import read_assignment
+from dreamcatcher.agent_assignments import (
+    cancel_assignment,
+    read_assignment,
+    read_assignments_for_issue,
+)
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     AssignmentRoundPurpose,
@@ -44,6 +48,7 @@ WEB_STATUS_REPORTS = {
     "titles-and-pull-requests": fabricate_titles_and_pull_request_states,
 }
 WEB_ASSIGNMENT_PAGES = {
+    "cancelled": (fabricate_everything, "GH70-20260819-184158"),
     "complete": (fabricate_everything, "GH12-20260819-184158"),
     "fault": (fabricate_everything, "GH9-20260819-184158"),
     "silent-round": (fabricate_a_silent_round, "GH13-20260819-184158"),
@@ -428,7 +433,7 @@ def test_assignment_script_follows_only_when_the_feed_was_at_its_end(tmp_path):
     assert "focusedRoundLink?.focus({ preventScroll: true })" in script
 
 
-def test_complete_assignment_cards_have_space_between_them(tmp_path, daemon):
+def test_ended_assignment_cards_have_space_between_them(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -440,16 +445,16 @@ def test_complete_assignment_cards_have_space_between_them(tmp_path, daemon):
         application.test_client().get("/static/matrix.css").get_data(as_text=True)
     )
 
-    assert '<div class="complete-assignment-cards">' in page
+    assert '<div class="ended-assignment-cards">' in page
     assert re.search(
-        r"\.complete-assignment-cards \{[^}]*display: grid;"
+        r"\.ended-assignment-cards \{[^}]*display: grid;"
         r"[^}]*gap: var\(--space-5\);",
         stylesheet,
         re.DOTALL,
     )
 
 
-def test_complete_assignments_are_ordered_by_most_recent_completion(tmp_path):
+def test_ended_assignments_are_ordered_by_when_they_ended(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
     written(
@@ -468,10 +473,20 @@ def test_complete_assignments_are_ordered_by_most_recent_completion(tmp_path):
             ended(minute=20, number=2, purpose=AssignmentRoundPurpose.WRAP_UP),
         ],
     )
+    written(state=state, issue=30, records=[ended(minute=1)])
+    cancel_assignment(
+        assignment=read_assignments_for_issue(state=state, issue=30)[0],
+        at=PINNED + timedelta(minutes=10),
+    )
 
     page = render_home(state=state)
 
-    assert page.index("assignment-GH20-") < page.index("assignment-GH10-")
+    assert "+ 3 ended</summary>" in page
+    assert (
+        page.index("assignment-GH20-")
+        < page.index("assignment-GH30-")
+        < page.index("assignment-GH10-")
+    )
 
 
 def test_home_page_types_replaced_assignment_output(tmp_path):

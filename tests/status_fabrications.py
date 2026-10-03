@@ -18,7 +18,11 @@ from records import (
     write_tick,
 )
 
-from dreamcatcher.agent_assignments import PullRequestObservation
+from dreamcatcher.agent_assignments import (
+    PullRequestObservation,
+    cancel_assignment,
+    read_assignments_for_issue,
+)
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     AssignmentRoundPurpose,
@@ -276,6 +280,11 @@ def fabricate_everything(
         ],
     )
     written(state=state, issue=44, records=[])
+    written(state=state, issue=70, records=[ended(minute=1)])
+    cancel_assignment(
+        assignment=read_assignments_for_issue(state=state, issue=70)[0],
+        at=PINNED + timedelta(minutes=10),
+    )
     write_tick(
         state=state,
         tick=SchedulerRecord(

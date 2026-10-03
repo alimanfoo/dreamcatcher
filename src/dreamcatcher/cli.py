@@ -42,8 +42,8 @@ _MAX_INTERVAL_SECONDS = int(TIMEOUT_MAX) - 1
 # The help that says when a view of one assignment ends, which the assignment view
 # and the feed both give, since a reader reads one verb's help and no other.
 _HELP_WHEN_A_VIEW_ENDS = (
-    "It ends once the assignment has completed a wrap-up round successfully, "
-    "and while an assignment is in fault. "
+    "It ends once the assignment has completed a wrap-up round successfully "
+    "or been cancelled, and while an assignment is in fault. "
     "Interrupt it to end it sooner."
 )
 
@@ -202,8 +202,9 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         description=(
             "Show the agent's actions and outputs from every round of "
             "the selected assignment or conversation, and keep showing what "
-            "arrives until that work completes, enters fault or leaves the "
-            "status report. A conversation's routing conflict also ends its "
+            "arrives until that work completes, is cancelled, enters fault or "
+            "leaves the status report. A conversation's routing conflict also "
+            "ends its "
             "feed view. " + _HELP_WHEN_NOTHING_WATCHES
         ),
     )

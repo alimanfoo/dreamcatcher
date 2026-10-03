@@ -163,11 +163,11 @@ def _render_assignments(
     """Render assignment work as one section, mirroring the web home view.
 
     Orders active assignments, failed assignment setups, available issues, and
-    blocked issues in that sequence, with a completed-assignment count last.
+    blocked issues in that sequence, with an ended-assignment count last.
     """
     if not (assignments or failed_setups or available_issues or blocked_issues):
         return None
-    completed = [status for status in assignments if status.has_ended]
+    ended = [status for status in assignments if status.has_ended]
     ordered = sorted(
         (status for status in assignments if not status.has_ended),
         key=lambda status: ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER.index(
@@ -179,10 +179,8 @@ def _render_assignments(
     rows += _render_open_issues(
         available_issues=available_issues, blocked_issues=blocked_issues
     )
-    if completed:
-        rows.append(
-            Text(describe_count(number=len(completed), noun="completed assignment"))
-        )
+    if ended:
+        rows.append(Text(describe_count(number=len(ended), noun="ended assignment")))
     return render_section(heading="assignments", body=Group(*rows))
 
 
@@ -227,7 +225,7 @@ def _render_open_issues(
 def _render_assignment_rows(
     *, assignments: Sequence[AssignmentStatus]
 ) -> list[RenderableType]:
-    """Render the detailed rows for non-complete assignments."""
+    """Render the detailed rows for assignments that have not ended."""
     if not assignments:
         return []
     identifier_width = max(len(status.assignment.identifier) for status in assignments)

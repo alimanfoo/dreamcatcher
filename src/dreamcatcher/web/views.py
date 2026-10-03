@@ -72,7 +72,7 @@ def compose_home_view(
         if report.active_global_cooldown is None
         else describe_time(at=report.active_global_cooldown.ends, zone=zone)
     )
-    active_assignments, complete_assignments = _compose_assignment_cards(report=report)
+    active_assignments, ended_assignments = _compose_assignment_cards(report=report)
     return WebHomeView(
         repository=report.repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(
@@ -89,7 +89,7 @@ def compose_home_view(
         ),
         conversations=_compose_conversation_cards(report=report),
         active_assignments=active_assignments,
-        complete_assignments=complete_assignments,
+        ended_assignments=ended_assignments,
         failed_setups=tuple(report.failed_assignment_setups),
         available_issues=tuple(
             _compose_issue_row(observation=issue) for issue in report.available_issues
@@ -109,18 +109,18 @@ def _compose_assignment_cards(
             status.value
         ),
     )
-    complete_statuses = sorted(
+    ended_statuses = sorted(
         (status for status in report.assignment_statuses if status.has_ended),
-        key=_read_assignment_completion_time,
+        key=_read_assignment_end_time,
         reverse=True,
     )
-    complete_assignments = tuple(
-        _compose_assignment_card(status=status) for status in complete_statuses
+    ended_assignments = tuple(
+        _compose_assignment_card(status=status) for status in ended_statuses
     )
     active_assignments = tuple(
         _compose_assignment_card(status=status) for status in active_statuses
     )
-    return active_assignments, complete_assignments
+    return active_assignments, ended_assignments
 
 
 def _compose_conversation_cards(
@@ -137,12 +137,15 @@ def _compose_conversation_cards(
     )
 
 
-def _read_assignment_completion_time(status: AssignmentStatus, /) -> datetime:
-    """Return the completion time for sorted, which passes items by position.
+def _read_assignment_end_time(status: AssignmentStatus, /) -> datetime:
+    """Return when an assignment ended, for sorted, which passes it by position.
 
-    The caller selects complete statuses, whose final round has a successful
-    ending.
+    The caller selects ended statuses. A cancelled assignment ended when it was
+    cancelled, and a complete one when its final round ended successfully.
     """
+    cancelled_at = status.assignment.record.cancelled_at
+    if cancelled_at is not None:
+        return cancelled_at
     ending = cast(
         "SuccessfulAgentRoundEnding",
         status.assignment.rounds[-1].ending,

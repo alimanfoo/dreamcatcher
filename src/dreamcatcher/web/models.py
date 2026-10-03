@@ -199,7 +199,7 @@ class WebHomeView:
     cooldown_message: str | None
     conversations: tuple[WebConversationCard, ...]
     active_assignments: tuple[WebAssignmentCard, ...]
-    complete_assignments: tuple[WebAssignmentCard, ...]
+    ended_assignments: tuple[WebAssignmentCard, ...]
     failed_setups: tuple[IssueObservation, ...]
     available_issues: tuple[WebIssueRow, ...]
     blocked_issues: tuple[WebIssueRow, ...]

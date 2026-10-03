@@ -15,6 +15,7 @@ from dreamcatcher.agent_assignments import (
     read_assignments,
     record_assignment_harness_session_identifier,
     record_pull_request_observation,
+    refuse_cancelled_assignment,
 )
 from dreamcatcher.agent_rounds import (
     AgentRound,
@@ -401,6 +402,7 @@ class AssignmentScheduler(
                 assignment=assignment,
                 identifier=resumption.identifier,
             )
+        refuse_cancelled_assignment(assignment=assignment)
         return start_agent_round(
             request=AgentRoundStartRequest(
                 harness=assignment.record.harness,

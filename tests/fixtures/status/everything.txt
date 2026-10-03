@@ -21,4 +21,4 @@ assignments
   GH50  dream:smith  available                                                                      
   GH51  dream:smith  available                                                                      
   GH52  dream:smith  blocked by GH50                                                                
-  1 completed assignment                                                                            
+  2 ended assignments                                                                               

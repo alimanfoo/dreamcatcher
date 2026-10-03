@@ -28,6 +28,7 @@ from dreamcatcher.agent_rounds import (
     ErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
     read_agent_round_records,
+    request_agent_round_stop,
 )
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import AgentHarness, AssignmentRoute
@@ -99,9 +100,9 @@ class AssignmentRecord(DreamcatcherDocument):
 
     The assignment dispatch settles the recipe and identities. The first round
     adds the harness session identifier when the harness reports it, and a retry
-    request records its time. Every round reads this record, so later config
-    edits do not change an assignment in progress. The latest pull request
-    observation supports reporting; scheduling still reads GitHub.
+    request or a cancel records its time. Every round reads this record, so
+    later config edits do not change an assignment in progress. The latest pull
+    request observation supports reporting; scheduling still reads GitHub.
     """
 
     issue: int
@@ -114,6 +115,7 @@ class AssignmentRecord(DreamcatcherDocument):
     harness: AgentHarness
     harness_session_identifier: HarnessSessionIdentifier | None = None
     retry_requested_at: AwareDatetime | None = None
+    cancelled_at: AwareDatetime | None = None
     model: str
     effort: str
     prompt: str
@@ -156,6 +158,11 @@ class Assignment:
             round.purpose is AssignmentRoundPurpose.WRAP_UP
             and round.outcome is AgentRoundOutcome.SUCCESSFUL
         )
+
+    @property
+    def is_open(self) -> bool:
+        """Whether the assignment has neither completed nor been cancelled."""
+        return not self.is_complete and self.record.cancelled_at is None
 
     def describe_unfinished_round(self) -> str | None:
         """Describe an interrupted or errored final round, if one exists.
@@ -257,7 +264,7 @@ def find_open_assignments_by_issue(
     return {
         assignment.record.issue: assignment
         for assignment in assignments
-        if not assignment.is_complete
+        if assignment.is_open
     }
 
 
@@ -269,6 +276,35 @@ def request_assignment_retry(*, assignment: Assignment, at: datetime) -> None:
         document=record.model_copy(update={"retry_requested_at": at}),
         path=path,
     )
+
+
+def cancel_assignment(*, assignment: Assignment, at: datetime) -> None:
+    """Record that the user has taken an open assignment over.
+
+    A round with no ending is asked to stop, so it cannot push to the branch
+    after the cancel. An assignment that has already ended raises
+    ReportableError.
+    """
+    if not assignment.is_open:
+        raise ReportableError(f"{assignment.identifier} has already ended.")
+    path = assignment.directory / _ASSIGNMENT_RECORD_NAME
+    record = read_json(model=AssignmentRecord, path=path)
+    write_json(document=record.model_copy(update={"cancelled_at": at}), path=path)
+    if assignment.rounds and assignment.rounds[-1].ending is None:
+        request_agent_round_stop(
+            paths=assignment.compose_round_paths(number=assignment.rounds[-1].number)
+        )
+
+
+def refuse_cancelled_assignment(*, assignment: Assignment) -> None:
+    """Raise ReportableError if the assignment was cancelled after it was read."""
+    record = read_json(
+        model=AssignmentRecord, path=assignment.directory / _ASSIGNMENT_RECORD_NAME
+    )
+    if record.cancelled_at is not None:
+        raise ReportableError(
+            f"{assignment.identifier} was cancelled before its next round could start."
+        )
 
 
 def inspect_incomplete_assignment_setups(

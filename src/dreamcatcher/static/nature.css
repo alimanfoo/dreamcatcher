@@ -358,6 +358,7 @@ body::after {
 }
 
 .status-complete,
+.status-cancelled,
 .status-idle,
 .status-unknown,
 .issue-blocked {
@@ -448,7 +449,7 @@ body::after {
   background: rgba(59, 52, 46, 0.12);
 }
 
-.complete-assignments summary,
+.ended-assignments summary,
 .empty,
 .assignment-navigation {
   color: var(--dim);

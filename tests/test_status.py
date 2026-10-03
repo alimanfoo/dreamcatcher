@@ -16,6 +16,7 @@ from records import (
 )
 
 import dreamcatcher.status.assignments as assignment_status_module
+from dreamcatcher.agent_assignments import cancel_assignment, read_assignments
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     AssignmentRoundPurpose,
@@ -375,6 +376,43 @@ def test_a_successful_wrap_up_is_complete(state):
     assert status.value is AssignmentStatusValue.COMPLETE
     assert status.detail == "2 rounds"
     assert status.is_over
+
+
+def cancel(*, state: StateDirectory) -> None:
+    """Cancel the fixture's assignment."""
+    cancel_assignment(assignment=read_assignments(state=state)[0], at=PINNED)
+
+
+def test_a_cancelled_assignment_has_ended(state):
+    ran(state=state, number=1)
+    cancel(state=state)
+
+    status = only_assignment(state=state)
+
+    assert status.value is AssignmentStatusValue.CANCELLED
+    assert status.detail == "1 round"
+    assert status.has_ended
+    assert status.is_over
+
+
+def test_a_round_still_running_after_a_cancel_is_working(running):
+    ran(state=running, number=1, status=None)
+    cancel(state=running)
+
+    status = only_assignment(state=running)
+
+    assert status.value is AssignmentStatusValue.WORKING
+    assert not status.has_ended
+
+
+def test_a_cancelled_assignment_is_cancelled_rather_than_in_fault(state):
+    ran(state=state, number=1, status=1)
+    ran(state=state, number=2, status=2)
+    cancel(state=state)
+
+    status = only_assignment(state=state)
+
+    assert status.value is AssignmentStatusValue.CANCELLED
 
 
 def test_an_assignment_that_has_run_no_round_waits_for_its_first(state):

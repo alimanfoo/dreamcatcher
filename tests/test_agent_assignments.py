@@ -21,6 +21,7 @@ from dreamcatcher.agent_assignments import (
     AssignmentRecord,
     AssignmentRoundInput,
     PullRequestObservation,
+    cancel_assignment,
     find_assignment_harness_session_identifier,
     find_open_assignments_by_issue,
     inspect_incomplete_assignment_setups,
@@ -375,6 +376,46 @@ def test_only_the_final_round_can_complete_an_assignment(fabricated):
     )
 
     assert not assignment.is_complete
+
+
+def test_a_cancelled_assignment_records_when_and_is_no_longer_open(fabricated):
+    assignment = standing(state=fabricated, rounds=[ended(status=0)])
+
+    cancel_assignment(assignment=assignment, at=PINNED + timedelta(hours=1))
+
+    cancelled = read_assignments(state=fabricated)[0]
+    assert cancelled.record.cancelled_at == PINNED + timedelta(hours=1)
+    assert not cancelled.is_open
+    assert find_open_assignments_by_issue(assignments=[cancelled]) == {}
+
+
+def test_cancelling_asks_a_round_with_no_ending_to_stop(fabricated):
+    assignment = standing(state=fabricated, rounds=[ended(status=0), running(number=2)])
+
+    cancel_assignment(assignment=assignment, at=PINNED)
+
+    assert assignment.compose_round_paths(number=2).stop_request.is_file()
+
+
+def test_cancelling_leaves_an_ended_round_alone(fabricated):
+    assignment = standing(state=fabricated, rounds=[ended(status=0)])
+
+    cancel_assignment(assignment=assignment, at=PINNED)
+
+    assert not assignment.compose_round_paths(number=1).stop_request.exists()
+
+
+def test_an_assignment_that_has_ended_cannot_be_cancelled(fabricated):
+    assignment = standing(state=fabricated, rounds=[])
+    cancel_assignment(assignment=assignment, at=PINNED)
+
+    with pytest.raises(ReportableError, match=f"{ASSIGNMENT_ID} has already ended"):
+        cancel_assignment(
+            assignment=read_assignments(state=fabricated)[0],
+            at=PINNED + timedelta(hours=1),
+        )
+
+    assert read_assignments(state=fabricated)[0].record.cancelled_at == PINNED
 
 
 @pytest.mark.parametrize(

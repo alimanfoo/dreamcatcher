@@ -42,6 +42,7 @@ class AssignmentStatusValue(StrEnum):
     NEEDS_USER_FEEDBACK = "needs user feedback"
     FAULT = "fault"
     COMPLETE = "complete"
+    CANCELLED = "cancelled"
     UNKNOWN = "unknown"
 
 
@@ -52,6 +53,7 @@ ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER = (
     AssignmentStatusValue.WAITING,
     AssignmentStatusValue.UNKNOWN,
     AssignmentStatusValue.COMPLETE,
+    AssignmentStatusValue.CANCELLED,
 )
 
 
@@ -68,7 +70,10 @@ class AssignmentStatus:
     @property
     def has_ended(self) -> bool:
         """Whether the assignment has ended, so it no longer claims its issue."""
-        return self.value is AssignmentStatusValue.COMPLETE
+        return self.value in {
+            AssignmentStatusValue.COMPLETE,
+            AssignmentStatusValue.CANCELLED,
+        }
 
     @property
     def is_over(self) -> bool:
@@ -199,13 +204,17 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
         return None
 
     def _derive_ended(self, *, assignment: Assignment) -> AssignmentStatus | None:
-        if assignment.is_complete:
-            return self._compose(
-                assignment=assignment,
-                value=AssignmentStatusValue.COMPLETE,
-                detail=describe_count(number=len(assignment.rounds), noun="round"),
-            )
-        return None
+        if assignment.is_open:
+            return None
+        return self._compose(
+            assignment=assignment,
+            value=(
+                AssignmentStatusValue.COMPLETE
+                if assignment.record.cancelled_at is None
+                else AssignmentStatusValue.CANCELLED
+            ),
+            detail=describe_count(number=len(assignment.rounds), noun="round"),
+        )
 
     def _derive_unfinished(self, *, assignment: Assignment) -> AssignmentStatus | None:
         if self.has_fault(
