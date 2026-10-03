@@ -319,7 +319,8 @@ def test_a_live_round_keeps_an_ineligible_conversation_on_the_report(
     assert found.observed_at == PINNED
     assert not found.is_over
     assert found.round_statuses[0].outcome_description == "running"
-    assert found.round_statuses[0].revision == "abc123"
+    assert found.round_statuses[0].revision is not None
+    assert found.round_statuses[0].revision.value == "abc123"
 
 
 def test_a_live_conversation_that_has_said_nothing_reports_that(

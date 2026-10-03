@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from dreamcatcher.agent_rounds import AgentRoundPaths, AgentRoundRecord
-from dreamcatcher.status import IssueObservation
+from dreamcatcher.status import AgentRoundRevision, IssueObservation
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -58,8 +58,15 @@ class WebAgentRound:
     duration: str
     outcome: str
     outcome_description: str
-    revision: str | None
-    revision_description: str | None = None
+    revision: AgentRoundRevision | None
+
+
+@dataclass(frozen=True, kw_only=True)
+class WebHandResume:
+    """Represent the directory and command for one manual session resume."""
+
+    worktree: str
+    command: str
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -144,8 +151,7 @@ class WebAssignmentView:
     effort: str
     rounds: tuple[WebAgentRound, ...]
     stop_url: str | None
-    hand_resume_worktree: str | None
-    hand_resume_command: str | None
+    hand_resume: WebHandResume | None
     feed_rounds: tuple[WebFeedRound, ...]
     feed_cursor: str
 

@@ -24,12 +24,17 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True, kw_only=True)
+class _ListedIssueDetails:
+    title: str
+    created_at: datetime
+    assignment_labels: list[str]
+
+
+@dataclass(frozen=True, kw_only=True)
 class _ListedIssueFacts:
-    title: str | None
-    created_at: datetime | None
+    details: _ListedIssueDetails | None
     is_open: IssueFact
     is_assigned_to_user: IssueFact
-    assignment_labels: list[str] | None
     routing_conflict: IssueFact
 
 
@@ -116,11 +121,13 @@ def _observe_issue(
     )
     return IssueObservation(
         issue=issue,
-        title=listed.title,
-        created_at=listed.created_at,
+        title=None if listed.details is None else listed.details.title,
+        created_at=None if listed.details is None else listed.details.created_at,
         is_open=listed.is_open,
         is_assigned_to_user=listed.is_assigned_to_user,
-        assignment_labels=listed.assignment_labels,
+        assignment_labels=(
+            None if listed.details is None else listed.details.assignment_labels
+        ),
         claimed_here=claimed_here,
         claimed_elsewhere=_observe_external_claim(
             scheduler=scheduler,
@@ -144,11 +151,9 @@ def _observe_listed_issue(
         reason = f"cannot read issue: {response.reason}"
         unknown = IssueFact(value=IssueFactValue.UNKNOWN, evidence=reason)
         return _ListedIssueFacts(
-            title=None,
-            created_at=None,
+            details=None,
             is_open=unknown,
             is_assigned_to_user=unknown,
-            assignment_labels=None,
             routing_conflict=unknown,
         )
     is_open = response.state is IssueState.OPEN
@@ -159,8 +164,11 @@ def _observe_listed_issue(
         labels=[label.name for label in response.labels]
     )
     return _ListedIssueFacts(
-        title=response.title,
-        created_at=response.created_at,
+        details=_ListedIssueDetails(
+            title=response.title,
+            created_at=response.created_at,
+            assignment_labels=assignment_labels,
+        ),
         is_open=IssueFact(
             value=IssueFactValue.TRUE if is_open else IssueFactValue.FALSE,
             evidence="issue is open" if is_open else "issue is closed",
@@ -173,7 +181,6 @@ def _observe_listed_issue(
                 else f"is not assigned to {scheduler.account}"
             ),
         ),
-        assignment_labels=assignment_labels,
         routing_conflict=_observe_assignment_routing_conflict(labels=assignment_labels),
     )
 

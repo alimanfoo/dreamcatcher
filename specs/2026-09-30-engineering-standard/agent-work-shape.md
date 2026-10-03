@@ -911,20 +911,56 @@ The one edge this touches, and why it is safe, is under row 5.
    `_record_session_before_advancing_user_post_cursor`, and the branch in the
    launch that chose between them.
 
+### Optional-field audit
+
+The roadmap's baseline said 53 optional fields had not been audited. Reading
+every class-level annotated field whose type admits `None` gives 82 at the
+baseline revision and 85 before this item: the baseline count omitted 29, and
+the preceding work added three. The audit found eight coupled field sets.
+
+Six sets live only in memory and are replaced in this item:
+
+- `_ListedIssueFacts` carries a title, creation time and assignment-label list
+  together as `_ListedIssueDetails | None`.
+- `AgentRoundStatus` and `WebAgentRound` each carry a revision and its
+  description together as `AgentRoundRevision | None`.
+- `WebAssignmentView` carries a manual-resume worktree and command together as
+  `WebHandResume | None`.
+- `DreamcatcherDaemonStatus` carries the harness, version, agent cap and
+  interval together as `DaemonRunRecord | None`, and `DreamcatcherStatusReport`
+  carries that daemon status rather than copying the four fields.
+
+Two sets live in persisted documents and wait for item 5, so the format changes
+once:
+
+- `ConversationInput.title` and `ConversationInput.body` become one optional
+  `InitialConversationIssue` containing the two required strings. It is present
+  on the first round and absent thereafter.
+- `IssueObservation.title`, `IssueObservation.created_at` and
+  `IssueObservation.assignment_labels` become one optional
+  `ObservedIssueDetails` containing the three required values. It is present
+  when GitHub returned the issue and absent when that read failed.
+
+The E2 measurement for this item is eight coupled sets found, six fixed here and
+two deferred to the v5 break.
+
 ### The format break
 
-Both changes above alter a persisted document, so the state format version moves
-from 4 to 5.
+The observation and delivery-position changes above, together with the two
+persisted sets the optional-field audit found, alter persisted documents, so the
+state format version moves from 4 to 5.
 
 **The edits.**
 
-1. Set `STATE_FORMAT_VERSION` in `state.py` to 5. The versioned root becomes
+1. Replace the two persisted optional-field sets with `InitialConversationIssue`
+   and `ObservedIssueDetails` as the audit specifies.
+2. Set `STATE_FORMAT_VERSION` in `state.py` to 5. The versioned root becomes
    `.dreamcatcher/v5/`, and the daemon lock stays outside it, shared by every
    format, as the architecture says.
-2. Correct the README's state format section and the architecture's state and
+3. Correct the README's state format section and the architecture's state and
    documents section to say v5, and say in the README that version 5 starts with
    empty local state, as version 4 did.
-3. Update the test fabrications that build scheduler records and assignment
+4. Update the test fabrications that build scheduler records and assignment
    directories.
 
 ### Launching

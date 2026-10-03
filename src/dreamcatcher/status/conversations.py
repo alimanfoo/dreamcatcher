@@ -25,6 +25,7 @@ from dreamcatcher.scheduler.models import (
     IssueFactValue,
 )
 from dreamcatcher.status.rounds import (
+    AgentRoundRevision,
     AgentRoundStatus,
     compose_round_duration_description,
     describe_round_outcome,
@@ -126,17 +127,19 @@ class ConversationStatus:
         statuses: list[AgentRoundStatus] = []
         previous_revision = None
         for record in conversation.rounds:
-            revision = None
-            revision_description = None
+            round_revision = None
             try:
                 round_input = read_conversation_input(
                     conversation=conversation,
                     number=record.number,
                 )
                 revision = round_input.revision
-                revision_description = describe_conversation_revision(
-                    previous_revision=previous_revision,
-                    revision=revision,
+                round_revision = AgentRoundRevision(
+                    value=revision,
+                    description=describe_conversation_revision(
+                        previous_revision=previous_revision,
+                        revision=revision,
+                    ),
                 )
                 previous_revision = revision
             except ReportableError:
@@ -154,8 +157,7 @@ class ConversationStatus:
                             and record.number == conversation.rounds[-1].number
                         ),
                     ),
-                    revision=revision,
-                    revision_description=revision_description,
+                    revision=round_revision,
                 )
             )
         return statuses

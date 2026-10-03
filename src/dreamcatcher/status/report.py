@@ -41,13 +41,9 @@ class DreamcatcherStatusReport:
 
     at: datetime
     repository: str | None
-    daemon_pid: int | None
-    agent_harness: AgentHarness | None
-    dreamcatcher_version: str | None
+    daemon: "DreamcatcherDaemonStatus"
     latest_scheduler_tick: datetime | None
-    scheduler_interval_seconds: int | None
     scheduler_hold: str | None
-    max_agents: int | None
     running_agents: int
     active_global_cooldown: GlobalCooldown | None
     failed_assignment_setups: list[IssueObservation]
@@ -56,16 +52,58 @@ class DreamcatcherStatusReport:
     assignment_statuses: list[AssignmentStatus]
     conversation_statuses: list[ConversationStatus]
 
+    @property
+    def daemon_pid(self) -> int | None:
+        """The current daemon process identifier, when one is running."""
+        return self.daemon.pid
+
+    @property
+    def agent_harness(self) -> AgentHarness | None:
+        """The harness selected for the current or most recent daemon run."""
+        return self.daemon.agent_harness
+
+    @property
+    def dreamcatcher_version(self) -> str | None:
+        """The version used by the current or most recent daemon run."""
+        return self.daemon.dreamcatcher_version
+
+    @property
+    def scheduler_interval_seconds(self) -> int | None:
+        """The interval selected for the current or most recent daemon run."""
+        return self.daemon.interval_seconds
+
+    @property
+    def max_agents(self) -> int | None:
+        """The agent cap selected for the current or most recent daemon run."""
+        return self.daemon.max_agents
+
 
 @dataclass(frozen=True, kw_only=True)
 class DreamcatcherDaemonStatus:
     """Describe the current daemon process and the run it owns."""
 
     pid: int | None
-    agent_harness: AgentHarness | None
-    dreamcatcher_version: str | None
-    max_agents: int | None
-    interval_seconds: int | None
+    run: DaemonRunRecord | None
+
+    @property
+    def agent_harness(self) -> AgentHarness | None:
+        """The harness selected for the current or most recent run."""
+        return None if self.run is None else self.run.harness
+
+    @property
+    def dreamcatcher_version(self) -> str | None:
+        """The version used by the current or most recent run."""
+        return None if self.run is None else self.run.version
+
+    @property
+    def max_agents(self) -> int | None:
+        """The agent cap selected for the current or most recent run."""
+        return None if self.run is None else self.run.max_agents
+
+    @property
+    def interval_seconds(self) -> int | None:
+        """The interval selected for the current or most recent run."""
+        return None if self.run is None else self.run.interval_seconds
 
 
 def read_status_report(
@@ -91,19 +129,15 @@ def read_status_report(
     return DreamcatcherStatusReport(
         at=reader.at,
         repository=read_repository(state=state),
-        daemon_pid=daemon.pid,
-        agent_harness=daemon.agent_harness,
-        dreamcatcher_version=daemon.dreamcatcher_version,
+        daemon=daemon,
         latest_scheduler_tick=(
             None if scheduler_record is None else scheduler_record.at
         ),
-        scheduler_interval_seconds=daemon.interval_seconds,
         scheduler_hold=(
             None
             if scheduler_record is None or reader.daemon_pid is None
             else scheduler_record.hold
         ),
-        max_agents=daemon.max_agents,
         running_agents=_count_running_agents(
             assignments=assignment_statuses,
             conversations=conversation_statuses,
@@ -182,10 +216,7 @@ def _read_dreamcatcher_daemon_status(
     daemon_run = _read_daemon_run_record(state=state, daemon_pid=daemon_pid)
     return DreamcatcherDaemonStatus(
         pid=daemon_pid,
-        agent_harness=None if daemon_run is None else daemon_run.harness,
-        dreamcatcher_version=None if daemon_run is None else daemon_run.version,
-        max_agents=None if daemon_run is None else daemon_run.max_agents,
-        interval_seconds=None if daemon_run is None else daemon_run.interval_seconds,
+        run=daemon_run,
     )
 
 

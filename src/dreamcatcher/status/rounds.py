@@ -11,14 +11,21 @@ from dreamcatcher.words import describe_span
 
 
 @dataclass(frozen=True, kw_only=True)
+class AgentRoundRevision:
+    """Describe the code revision one agent round investigated."""
+
+    value: str
+    description: str
+
+
+@dataclass(frozen=True, kw_only=True)
 class AgentRoundStatus:
     """Describe one agent round for a status view."""
 
     record: AgentRoundRecord
     duration_description: str
     outcome_description: str
-    revision: str | None = None
-    revision_description: str | None = None
+    revision: AgentRoundRevision | None = None
 
 
 def compose_round_duration_description(*, record: AgentRoundRecord) -> str:
