@@ -222,27 +222,9 @@ class StatusReportReader:
                     or "two consecutive rounds errored"
                 ),
             )
-        summary = summarize_observed_conversation(
+        return summarize_observed_conversation(
             observation=observation, conversation=conversation
         )
-        if (
-            conversation.rounds
-            and describe_unfinished_conversation_round(conversation=conversation)
-            is None
-        ):
-            ending = cast(
-                "SuccessfulAgentRoundEnding | StoppedAgentRoundEnding",
-                conversation.rounds[-1].ending,
-            )
-            if ending.at > self.scheduler_record.at:
-                summary = ConversationSummary(
-                    value=ConversationStatusValue.WAITING,
-                    detail=(
-                        f"round {conversation.rounds[-1].number} ended, "
-                        "awaiting next update"
-                    ),
-                )
-        return summary
 
     def _has_conversation_fault(self, *, conversation: Conversation) -> bool:
         """Return whether the eligible conversation exhausted its retries."""
@@ -311,6 +293,26 @@ class StatusReportReader:
         if local_status is not None:
             return local_status
         observation = self.assignment_observations.get(assignment.identifier)
+        ending = cast(
+            "SuccessfulAgentRoundEnding | StoppedAgentRoundEnding",
+            assignment.rounds[-1].ending,
+        )
+        if (
+            self.scheduler_record is not None
+            and ending.at > self.scheduler_record.at
+            and (
+                observation is None
+                or assignment.identifier
+                in self.scheduler_record.launched_agent_work_identifiers
+            )
+        ):
+            return self._compose_assignment_status(
+                assignment=assignment,
+                value=AssignmentStatusValue.WAITING,
+                detail=(
+                    f"round {assignment.rounds[-1].number} ended, awaiting next update"
+                ),
+            )
         if observation is None:
             return self._compose_assignment_status(
                 assignment=assignment,
@@ -372,18 +374,6 @@ class StatusReportReader:
                 assignment=assignment,
                 value=AssignmentStatusValue.WAITING,
                 detail=self._describe_next_round(assignment=assignment),
-            )
-        ending = cast(
-            "SuccessfulAgentRoundEnding | StoppedAgentRoundEnding",
-            assignment.rounds[-1].ending,
-        )
-        if self.scheduler_record is not None and ending.at > self.scheduler_record.at:
-            return self._compose_assignment_status(
-                assignment=assignment,
-                value=AssignmentStatusValue.WAITING,
-                detail=(
-                    f"round {assignment.rounds[-1].number} ended, awaiting next update"
-                ),
             )
         return None
 

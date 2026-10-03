@@ -54,9 +54,11 @@ def conversation_state(
         record=AgentRoundRecord(
             number=1,
             purpose=ConversationRoundPurpose.DISCUSS,
-            started=PINNED - timedelta(minutes=4),
+            started=PINNED,
             pid=1,
-            ending=compose_agent_round_ending(at=PINNED, status=status),
+            ending=compose_agent_round_ending(
+                at=PINNED + timedelta(minutes=4), status=status
+            ),
         ),
     )
     write_json(

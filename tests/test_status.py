@@ -443,16 +443,29 @@ def test_an_assignment_with_no_scheduler_observation_is_unknown(state):
     assert status.detail == "no current scheduler observation"
 
 
-@pytest.mark.parametrize("assignment_observations", [[], [idle_observation()]])
+@pytest.mark.parametrize("is_launched_observed", [False, True])
 def test_a_round_ending_after_the_latest_tick_waits_for_the_next_update(
-    state, assignment_observations
+    state, is_launched_observed
 ):
     ran(state=state, number=1, ended_at=LOOKED_AT + timedelta(minutes=1))
+    launched_observation = AgentWorkObservation(
+        identifier=ASSIGNMENT_ID,
+        issue=13,
+        requires_round=IssueFact(
+            value=IssueFactValue.FALSE,
+            evidence="round 1 started",
+        ),
+    )
     write_tick(
         state=state,
         tick=SchedulerRecord(
             at=LOOKED_AT,
-            assignment_observations=assignment_observations,
+            assignment_observations=(
+                [launched_observation] if is_launched_observed else []
+            ),
+            launched_agent_work_identifiers=(
+                [ASSIGNMENT_ID] if is_launched_observed else []
+            ),
         ),
     )
 
@@ -477,6 +490,21 @@ def test_a_tick_at_or_after_the_latest_ending_needs_an_observation(state, ended_
 
     assert status.value is AssignmentStatusValue.UNKNOWN
     assert status.detail == "no current scheduler observation"
+
+
+def test_an_observation_is_current_when_a_round_ends_after_the_tick_begins(state):
+    ran(state=state, number=1, ended_at=LOOKED_AT + timedelta(minutes=1))
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=LOOKED_AT,
+            assignment_observations=[idle_observation()],
+        ),
+    )
+
+    assert (
+        only_assignment(state=state).value is AssignmentStatusValue.NEEDS_USER_FEEDBACK
+    )
 
 
 def test_a_current_tick_with_no_required_round_needs_user_feedback(state):
