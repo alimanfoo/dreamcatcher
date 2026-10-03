@@ -157,6 +157,7 @@ def create_scheduler(*, daemon: DreamcatcherDaemon) -> Scheduler:
         clock=daemon.clock,
     )
     return Scheduler(
+        state=daemon.state,
         assignments=assignments,
         conversations=conversations,
         rounds=daemon.rounds,

@@ -141,6 +141,7 @@ class DreamcatcherDaemon:
                 clock=self.clock,
             )
             scheduler = Scheduler(
+                state=self.state,
                 assignments=assignments,
                 conversations=conversations,
                 rounds=self.rounds,
