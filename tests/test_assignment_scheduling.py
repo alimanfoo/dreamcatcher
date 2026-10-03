@@ -9,6 +9,7 @@ from conftest import (
     PULL_REQUEST,
     REPOSITORY,
     comment,
+    configure,
     pages,
     pull_request,
 )
@@ -27,13 +28,14 @@ from dreamcatcher.agent_rounds import (
     StoppedAgentRoundEnding,
     compose_agent_round_ending,
 )
+from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.github import PullRequestState
 from dreamcatcher.prompts import AGENT_POST_MARKER, RECOVERY_PROMPT
 from dreamcatcher.scheduler.assignments import (
+    AssignmentInspectionRequest,
+    AssignmentScheduler,
     FaultedAssignment,
     RequiredAgentRound,
-    inspect_assignment,
-    prioritize_required_rounds,
 )
 from dreamcatcher.scheduler.models import NO_ROUND_HAS_RUN, AssignmentObservation
 from dreamcatcher.state import StateDirectory
@@ -44,9 +46,22 @@ ASSIGNMENT_ID = "GH13-20260819-184158"
 @pytest.fixture
 def state(tmp_path):
     """A state directory holding one assignment, with no round run yet."""
+    configure(root=tmp_path)
     directory = StateDirectory(root=tmp_path)
     write_assignment(state=directory, identifier=ASSIGNMENT_ID, issue=13)
     return directory
+
+
+def create_assignment_scheduler(*, state: StateDirectory) -> AssignmentScheduler:
+    """Create the assignment scheduler that inspects this test state."""
+    return AssignmentScheduler(
+        repository=REPOSITORY,
+        account=POSTED_BY,
+        config=read_dreamcatcher_config(root=state.root),
+        state=state,
+        requested_harness=AgentHarness.CLAUDE,
+        clock=lambda: PINNED,
+    )
 
 
 @pytest.fixture
@@ -94,12 +109,12 @@ def found(
 ) -> RequiredAgentRound | FaultedAssignment | AssignmentObservation | None:
     """What the one assignment in that state directory needs next."""
     assignment = read_assignments(state=state)[0]
-    return inspect_assignment(
-        repository=REPOSITORY,
-        account=POSTED_BY,
-        assignment=assignment,
-        most_recent_cooldown_ended=None,
-        observed_at=PINNED,
+    return create_assignment_scheduler(state=state).inspect(
+        request=AssignmentInspectionRequest(
+            assignment=assignment,
+            most_recent_cooldown_ended=None,
+            observed_at=PINNED,
+        )
     )
 
 
@@ -459,8 +474,9 @@ def test_the_most_open_work_comes_first(state):
             prompt="",
         )
 
-    ordered = prioritize_required_rounds(
-        required_rounds=[
+    scheduler = create_assignment_scheduler(state=state)
+    ordered = sorted(
+        [
             resume(
                 assignment=continued_assignment,
                 purpose=AssignmentRoundPurpose.ADDRESS_FEEDBACK,
@@ -478,7 +494,8 @@ def test_the_most_open_work_comes_first(state):
                 assignment=first_assignment,
                 purpose=AssignmentRoundPurpose.IMPLEMENT,
             ),
-        ]
+        ],
+        key=scheduler.rank,
     )
 
     assert [

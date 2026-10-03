@@ -8,7 +8,6 @@ from dreamcatcher.agent_assignments import (
     find_open_assignments_by_issue,
     record_assignment_title,
 )
-from dreamcatcher.config import DreamcatcherConfig
 from dreamcatcher.github import (
     Issue,
     IssueState,
@@ -18,18 +17,8 @@ from dreamcatcher.github import (
     read_issue,
     read_issue_pull_request_context,
 )
+from dreamcatcher.scheduler.assignments import AssignmentScheduler
 from dreamcatcher.scheduler.models import IssueFact, IssueFactValue, IssueObservation
-
-
-@dataclass(frozen=True, kw_only=True)
-class _IssueObservationContext:
-    """Collect the shared inputs for observing issues in one tick."""
-
-    repository: str
-    account: str
-    config: DreamcatcherConfig
-    assignments: dict[int, Assignment]
-    incomplete_setups: dict[int, str | None]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -60,35 +49,26 @@ class _ConsideredIssueResult:
 
 def observe_issues(
     *,
-    repository: str,
-    account: str,
-    config: DreamcatcherConfig,
+    scheduler: AssignmentScheduler,
     assignments: list[Assignment],
     incomplete_setups: dict[int, str | None],
 ) -> IssueObservationResult:
     """Observe every issue considered for assignment or claimed by this instance."""
-    considered_issues = _list_considered_issues(
-        repository=repository, account=account, config=config
-    )
+    considered_issues = _list_considered_issues(scheduler=scheduler)
     open_assignments = find_open_assignments_by_issue(assignments=assignments)
-    context = _IssueObservationContext(
-        repository=repository,
-        account=account,
-        config=config,
-        assignments=open_assignments,
-        incomplete_setups=incomplete_setups,
-    )
     issue_responses_by_number: dict[int, Issue | UnknownGitHubResponse] = {
         issue.number: issue for issue in considered_issues.issues
     }
     local_issue_numbers = open_assignments.keys() | incomplete_setups.keys()
     for issue in local_issue_numbers - issue_responses_by_number.keys():
         issue_responses_by_number[issue] = read_issue(
-            repository=repository, issue=issue
+            repository=scheduler.repository, issue=issue
         )
     issue_observations = [
         _observe_issue(
-            context=context,
+            scheduler=scheduler,
+            assignments=open_assignments,
+            incomplete_setups=incomplete_setups,
             issue=issue,
             issue_response=issue_response,
         )
@@ -122,13 +102,15 @@ def record_missing_assignment_titles(
 
 
 def _list_considered_issues(
-    *, repository: str, account: str, config: DreamcatcherConfig
+    *, scheduler: AssignmentScheduler
 ) -> _ConsideredIssueResult:
     """List open assigned issues that carry any configured assignment label."""
     issues_by_number: dict[int, Issue] = {}
-    for route in config.assignment:
+    for route in scheduler.config.assignment:
         issue_response = list_issues(
-            repository=repository, label=route.label, assignee=account
+            repository=scheduler.repository,
+            label=route.label,
+            assignee=scheduler.account,
         )
         if isinstance(issue_response, UnknownGitHubResponse):
             return _ConsideredIssueResult(
@@ -141,13 +123,15 @@ def _list_considered_issues(
 
 def _observe_issue(
     *,
-    context: _IssueObservationContext,
+    scheduler: AssignmentScheduler,
+    assignments: dict[int, Assignment],
+    incomplete_setups: dict[int, str | None],
     issue: int,
     issue_response: Issue | UnknownGitHubResponse,
 ) -> IssueObservation:
     """Observe the independent scheduling facts for one issue."""
-    listed = _observe_listed_issue(context=context, response=issue_response)
-    is_claimed_here = issue in context.assignments
+    listed = _observe_listed_issue(scheduler=scheduler, response=issue_response)
+    is_claimed_here = issue in assignments
     claimed_here = IssueFact(
         value=IssueFactValue.TRUE if is_claimed_here else IssueFactValue.FALSE,
         evidence=(
@@ -164,15 +148,23 @@ def _observe_issue(
         is_assigned_to_user=listed.is_assigned_to_user,
         assignment_labels=listed.assignment_labels,
         claimed_here=claimed_here,
-        claimed_elsewhere=_observe_external_claim(context=context, issue=issue),
-        setup_failure=context.incomplete_setups.get(issue),
-        blocked=_observe_blocking_issues(repository=context.repository, issue=issue),
+        claimed_elsewhere=_observe_external_claim(
+            scheduler=scheduler,
+            assignments=assignments,
+            incomplete_setups=incomplete_setups,
+            issue=issue,
+        ),
+        setup_failure=incomplete_setups.get(issue),
+        blocked=_observe_blocking_issues(
+            repository=scheduler.repository,
+            issue=issue,
+        ),
         routing_conflict=listed.routing_conflict,
     )
 
 
 def _observe_listed_issue(
-    *, context: _IssueObservationContext, response: Issue | UnknownGitHubResponse
+    *, scheduler: AssignmentScheduler, response: Issue | UnknownGitHubResponse
 ) -> _ListedIssueFacts:
     if isinstance(response, UnknownGitHubResponse):
         reason = f"cannot read issue: {response.reason}"
@@ -186,10 +178,10 @@ def _observe_listed_issue(
             routing_conflict=unknown,
         )
     is_open = response.state is IssueState.OPEN
-    is_assigned = context.account.casefold() in {
+    is_assigned = scheduler.account.casefold() in {
         assignee.login.casefold() for assignee in response.assignees
     }
-    assignment_labels = context.config.identify_assignment_labels(
+    assignment_labels = scheduler.config.identify_assignment_labels(
         labels=[label.name for label in response.labels]
     )
     return _ListedIssueFacts(
@@ -202,9 +194,9 @@ def _observe_listed_issue(
         is_assigned_to_user=IssueFact(
             value=IssueFactValue.TRUE if is_assigned else IssueFactValue.FALSE,
             evidence=(
-                f"is assigned to {context.account}"
+                f"is assigned to {scheduler.account}"
                 if is_assigned
-                else f"is not assigned to {context.account}"
+                else f"is not assigned to {scheduler.account}"
             ),
         ),
         assignment_labels=assignment_labels,
@@ -226,25 +218,27 @@ def _observe_assignment_routing_conflict(*, labels: list[str]) -> IssueFact:
 
 def _observe_external_claim(
     *,
-    context: _IssueObservationContext,
+    scheduler: AssignmentScheduler,
+    assignments: dict[int, Assignment],
+    incomplete_setups: dict[int, str | None],
     issue: int,
 ) -> IssueFact:
     """Observe whether an open linked pull request claims the issue elsewhere."""
-    setup_failure = context.incomplete_setups.get(issue)
-    if issue in context.incomplete_setups and setup_failure is None:
+    setup_failure = incomplete_setups.get(issue)
+    if issue in incomplete_setups and setup_failure is None:
         return IssueFact(
             value=IssueFactValue.FALSE,
             evidence="no pull request outside this checkout claims it",
         )
     pull_request_context = read_issue_pull_request_context(
-        repository=context.repository, issue=issue
+        repository=scheduler.repository, issue=issue
     )
     if isinstance(pull_request_context, UnknownGitHubResponse):
         return _unknown_external_claim(
             setup_failure=setup_failure,
             response=pull_request_context,
         )
-    assignment = context.assignments.get(issue)
+    assignment = assignments.get(issue)
     owned = None if assignment is None else assignment.record.pull_request
     external = [
         pull_request

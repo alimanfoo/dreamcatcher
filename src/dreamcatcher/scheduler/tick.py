@@ -1,12 +1,10 @@
-"""Alternate between ready assignment and conversation work."""
+"""Run one scheduler tick across assignment and conversation work."""
 
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 
 from dreamcatcher.agent_assignments import (
     Assignment,
-    AssignmentCreator,
     find_open_assignments_by_issue,
     inspect_incomplete_assignment_setups,
     read_assignments,
@@ -15,29 +13,29 @@ from dreamcatcher.agent_rounds import (
     AgentRound,
     AgentRoundOutcome,
 )
-from dreamcatcher.config import AgentHarness, DreamcatcherConfig
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.issue_conversations import (
     read_conversations,
 )
+from dreamcatcher.scheduler.agent_work import LaunchedAgentRoundError
 from dreamcatcher.scheduler.assignments import (
+    AssignmentInspectionRequest,
     AssignmentInspectionResult,
+    AssignmentLaunchRequest,
+    AssignmentScheduler,
     FaultedAssignment,
     RequiredAgentRound,
     compose_assignment_observation,
-    compose_initial_round_requirement,
-    inspect_assignment,
-    launch_required_round,
     list_assignment_observations,
-    prioritize_required_rounds,
 )
 from dreamcatcher.scheduler.conversations import (
     ConversationCandidate,
     ConversationCandidateResult,
+    ConversationInspectionRequest,
+    ConversationLaunchRequest,
     ConversationRecoveryCandidate,
-    launch_conversation_round,
-    list_conversation_candidates,
+    ConversationScheduler,
 )
 from dreamcatcher.scheduler.faults import (
     count_observed_conversation_faults,
@@ -55,7 +53,6 @@ from dreamcatcher.scheduler.models import (
     SchedulerRecord,
     combine_scheduler_failures,
 )
-from dreamcatcher.state import StateDirectory
 
 
 def _list_available_issues(*, record: SchedulerRecord) -> list[IssueObservation]:
@@ -72,6 +69,7 @@ type _AssignmentCandidate = RequiredAgentRound | IssueObservation
 
 def _list_ready_assignment_candidates(
     *,
+    scheduler: AssignmentScheduler,
     record: SchedulerRecord,
     inspection_results: list[AssignmentInspectionResult],
     failure: str | None,
@@ -79,12 +77,13 @@ def _list_ready_assignment_candidates(
     """Return assignment candidates when their shared issue read succeeded."""
     if failure is not None:
         return []
-    required_rounds = prioritize_required_rounds(
-        required_rounds=[
+    required_rounds = sorted(
+        (
             result
             for result in inspection_results
             if isinstance(result, RequiredAgentRound)
-        ]
+        ),
+        key=scheduler.rank,
     )
     return [*required_rounds, *_list_available_issues(record=record)]
 
@@ -135,15 +134,11 @@ def _choose_next_work_kind(
 
 
 @dataclass(kw_only=True)
-class AgentWorkScheduler:
+class Scheduler:
     """Choose and start the work for one Dreamcatcher instance."""
 
-    repository: str
-    account: str
-    config: DreamcatcherConfig
-    state: StateDirectory
-    requested_harness: AgentHarness
-    clock: Callable[[], datetime]
+    assignments: AssignmentScheduler
+    conversations: ConversationScheduler
     rounds: dict[str, AgentRound]
     max_agents: int = DEFAULT_MAX_AGENTS
     _last_selected_work_kind: AgentWorkKind | None = field(
@@ -165,7 +160,7 @@ class AgentWorkScheduler:
         assignment and conversation observations remain current while the
         cooldown is active.
         """
-        previous_record = read_scheduler_record(state=self.state, at=at)
+        previous_record = read_scheduler_record(state=self.assignments.state, at=at)
         cooldown = None if previous_record is None else previous_record.cooldown
         most_recent_cooldown_ended = (
             None
@@ -179,15 +174,14 @@ class AgentWorkScheduler:
         ]
         for agent_work_identifier in ended_agent_work_identifiers:
             del self.rounds[agent_work_identifier]
-        assignments = read_assignments(state=self.state)
-        conversations = read_conversations(state=self.state)
+        assignments = read_assignments(state=self.assignments.state)
+        conversations = read_conversations(state=self.conversations.state)
         issue_observation_result = observe_issues(
-            repository=self.repository,
-            account=self.account,
-            config=self.config,
+            scheduler=self.assignments,
             assignments=assignments,
             incomplete_setups=inspect_incomplete_assignment_setups(
-                state=self.state, repository=self.repository
+                state=self.assignments.state,
+                repository=self.assignments.repository,
             ),
         )
         assignment_failure = (
@@ -208,15 +202,16 @@ class AgentWorkScheduler:
             most_recent_cooldown_ended=most_recent_cooldown_ended,
             observed_at=at,
         )
-        conversation_candidates = list_conversation_candidates(
-            scheduler=self,
-            conversations=conversations,
-            previous_observations=(
-                []
-                if previous_record is None
-                else previous_record.conversation_observations
-            ),
-            most_recent_cooldown_ended=most_recent_cooldown_ended,
+        conversation_candidates = self.conversations.inspect(
+            request=ConversationInspectionRequest(
+                conversations=conversations,
+                previous_observations=(
+                    []
+                    if previous_record is None
+                    else previous_record.conversation_observations
+                ),
+                most_recent_cooldown_ended=most_recent_cooldown_ended,
+            )
         )
         conversation_fault_count = count_observed_conversation_faults(
             conversations=conversations,
@@ -294,6 +289,7 @@ class AgentWorkScheduler:
             record = record.model_copy(update={"hold": scheduler_failure})
         candidates = _ReadyAgentWork(
             assignments=_list_ready_assignment_candidates(
+                scheduler=self.assignments,
                 record=record,
                 inspection_results=inspection_results,
                 failure=assignment_failure,
@@ -380,25 +376,21 @@ class AgentWorkScheduler:
         candidates: _ReadyAgentWork,
         inspection_results: list[AssignmentInspectionResult],
     ) -> tuple[SchedulerRecord, list[AssignmentInspectionResult], str | None]:
-        running_before_launch = self.rounds.copy()
         hold_before_launch = record.hold
         assignment_candidate = (
             candidates.assignments[0] if work_kind is AgentWorkKind.ASSIGNMENT else None
         )
-        record, inspection_results = self._try_launch_candidate(
+        record, inspection_results, launched_round = self._try_launch_candidate(
             record=record,
             work_kind=work_kind,
             candidates=candidates,
             inspection_results=inspection_results,
         )
-        launched_identifier = next(
-            (
-                identifier
-                for identifier, running in self.rounds.items()
-                if running_before_launch.get(identifier) is not running
-            ),
-            None,
+        launched_identifier = (
+            None if launched_round is None else launched_round.agent_work_identifier
         )
+        if launched_round is not None:
+            self.rounds[launched_round.agent_work_identifier] = launched_round
         if (
             isinstance(assignment_candidate, RequiredAgentRound)
             and launched_identifier is not None
@@ -429,20 +421,34 @@ class AgentWorkScheduler:
         work_kind: AgentWorkKind,
         candidates: _ReadyAgentWork,
         inspection_results: list[AssignmentInspectionResult],
-    ) -> tuple[SchedulerRecord, list[AssignmentInspectionResult]]:
+    ) -> tuple[
+        SchedulerRecord,
+        list[AssignmentInspectionResult],
+        AgentRound | None,
+    ]:
+        launched_round = None
         try:
             if work_kind is AgentWorkKind.ASSIGNMENT:
-                record, inspection_results = self._launch_next_assignment_candidate(
+                launched_round = self._launch_next_assignment_candidate(
                     record=record,
                     candidates=candidates,
-                    inspection_results=inspection_results,
                 )
             else:
-                record = launch_conversation_round(
-                    scheduler=self,
-                    record=record,
-                    candidate=candidates.conversations.pop(0),
+                record, launched_round = self.conversations.launch(
+                    request=ConversationLaunchRequest(
+                        record=record,
+                        candidate=candidates.conversations.pop(0),
+                    )
                 )
+        except LaunchedAgentRoundError as failure:
+            launched_round = failure.agent_round
+            record = record.model_copy(
+                update={
+                    "hold": combine_scheduler_failures(
+                        failures=[record.hold, str(failure)]
+                    )
+                }
+            )
         except ReportableError as failure:
             record = record.model_copy(
                 update={
@@ -451,22 +457,18 @@ class AgentWorkScheduler:
                     )
                 }
             )
-        return record, inspection_results
+        return record, inspection_results, launched_round
 
     def _launch_next_assignment_candidate(
         self,
         *,
         record: SchedulerRecord,
         candidates: _ReadyAgentWork,
-        inspection_results: list[AssignmentInspectionResult],
-    ) -> tuple[SchedulerRecord, list[AssignmentInspectionResult]]:
+    ) -> AgentRound:
         candidate = candidates.assignments.pop(0)
-        if isinstance(candidate, RequiredAgentRound):
-            launch_required_round(scheduler=self, required=candidate)
-            return record, inspection_results
-        labels = candidate.assignment_labels or []
-        self._launch_assignment(issue=candidate.issue, label=labels[0], at=record.at)
-        return record, inspection_results
+        return self.assignments.launch(
+            request=AssignmentLaunchRequest(candidate=candidate, at=record.at)
+        )
 
     def _inspect_assignments(
         self,
@@ -484,12 +486,12 @@ class AgentWorkScheduler:
                 and assignment.rounds[-1].outcome is AgentRoundOutcome.RUNNING
             ):
                 continue
-            inspection_result = inspect_assignment(
-                repository=self.repository,
-                account=self.account,
-                assignment=assignment,
-                most_recent_cooldown_ended=most_recent_cooldown_ended,
-                observed_at=observed_at,
+            inspection_result = self.assignments.inspect(
+                request=AssignmentInspectionRequest(
+                    assignment=assignment,
+                    most_recent_cooldown_ended=most_recent_cooldown_ended,
+                    observed_at=observed_at,
+                )
             )
             if inspection_result is not None:
                 inspection_results.append(inspection_result)
@@ -502,20 +504,3 @@ class AgentWorkScheduler:
                     )
                 )
         return inspection_results
-
-    def _launch_assignment(self, *, issue: int, label: str, at: datetime) -> None:
-        """Create an assignment and start its first round."""
-        creator = AssignmentCreator(
-            state=self.state,
-            repository=self.repository,
-        )
-        assignment = creator.create(
-            route=self.config.assignment_routes[label],
-            requested_harness=self.requested_harness,
-            issue=issue,
-            at=at,
-        )
-        launch_required_round(
-            scheduler=self,
-            required=compose_initial_round_requirement(assignment=assignment),
-        )

@@ -39,7 +39,7 @@ from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import read_json, write_json, write_text
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.scheduler import AgentWorkScheduler
+from dreamcatcher.scheduler import AssignmentScheduler, ConversationScheduler, Scheduler
 from dreamcatcher.scheduler.models import (
     AssignmentObservation,
     GlobalCooldown,
@@ -136,6 +136,31 @@ def settling(*, root, ticks: int = 1) -> DreamcatcherDaemon:
     return daemon
 
 
+def create_scheduler(*, daemon: DreamcatcherDaemon) -> Scheduler:
+    """Create both kind schedulers for one daemon test."""
+    assignments = AssignmentScheduler(
+        repository=REPOSITORY,
+        account=POSTED_BY,
+        config=daemon.config,
+        state=daemon.state,
+        requested_harness=daemon.harness,
+        clock=daemon.clock,
+    )
+    conversations = ConversationScheduler(
+        repository=REPOSITORY,
+        account=POSTED_BY,
+        config=daemon.config,
+        state=daemon.state,
+        requested_harness=daemon.harness,
+        clock=daemon.clock,
+    )
+    return Scheduler(
+        assignments=assignments,
+        conversations=conversations,
+        rounds=daemon.rounds,
+    )
+
+
 def test_the_daemon_ticks_on_the_interval_until_the_user_interrupts(
     watched, harnesses, gh
 ):
@@ -217,15 +242,7 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
     watched, capsys, monkeypatch
 ):
     daemon, _, _ = idling(root=watched, ticks=1)
-    scheduler = AgentWorkScheduler(
-        repository=REPOSITORY,
-        account=POSTED_BY,
-        config=daemon.config,
-        state=daemon.state,
-        requested_harness=daemon.harness,
-        clock=daemon.clock,
-        rounds=daemon.rounds,
-    )
+    scheduler = create_scheduler(daemon=daemon)
     scheduler_record = SchedulerRecord(
         at=PINNED,
         launched_agent_work_identifiers=[ASSIGNMENT_ID],
@@ -260,15 +277,7 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
 
 def test_multiple_launches_are_recorded_and_reported(watched, capsys, monkeypatch):
     daemon, _, _ = idling(root=watched, ticks=1)
-    scheduler = AgentWorkScheduler(
-        repository=REPOSITORY,
-        account=POSTED_BY,
-        config=daemon.config,
-        state=daemon.state,
-        requested_harness=daemon.harness,
-        clock=daemon.clock,
-        rounds=daemon.rounds,
-    )
+    scheduler = create_scheduler(daemon=daemon)
     scheduler_record = SchedulerRecord(
         at=PINNED,
         launched_agent_work_identifiers=[ASSIGNMENT_ID, "conversation-GH8"],
@@ -288,15 +297,7 @@ def test_multiple_launches_are_recorded_and_reported(watched, capsys, monkeypatc
 
 def test_a_cooldown_report_names_its_local_end(watched, capsys, monkeypatch):
     daemon, _, _ = idling(root=watched, ticks=1)
-    scheduler = AgentWorkScheduler(
-        repository=REPOSITORY,
-        account=POSTED_BY,
-        config=daemon.config,
-        state=daemon.state,
-        requested_harness=daemon.harness,
-        clock=daemon.clock,
-        rounds=daemon.rounds,
-    )
+    scheduler = create_scheduler(daemon=daemon)
     scheduler_record = SchedulerRecord(
         at=PINNED,
         hold="global cooldown",
@@ -631,15 +632,7 @@ def test_a_failed_tick_preserves_the_last_scheduler_record(ready_repo, capsys):
     directory = write_assignment(state=daemon.state, identifier=ASSIGNMENT_ID, issue=13)
     (directory / "assignment.json").write_text("{}", encoding="utf-8")
 
-    scheduler = AgentWorkScheduler(
-        repository=REPOSITORY,
-        account=POSTED_BY,
-        config=daemon.config,
-        state=daemon.state,
-        requested_harness=daemon.harness,
-        clock=daemon.clock,
-        rounds=daemon.rounds,
-    )
+    scheduler = create_scheduler(daemon=daemon)
     daemon.run_scheduler_cycle(scheduler=scheduler, at=daemon.clock())
 
     assert recorded(daemon=daemon) == previous

@@ -337,6 +337,7 @@ def start_agent_round(
             final_output_path=request.paths.final_output,
         )
     return AgentRound(
+        agent_work_identifier=request.launch_request.agent_work_identifier,
         harness=AgentRoundHarness(
             adapter=harness_adapter,
             invocation=invocation,
@@ -399,6 +400,7 @@ class AgentRound:
     def __init__(
         self,
         *,
+        agent_work_identifier: str,
         harness: AgentRoundHarness,
         paths: AgentRoundPaths,
         plan: AgentRoundPlan[DreamcatcherDocument],
@@ -416,6 +418,7 @@ class AgentRound:
         A round given a finisher lets its owner finish it before it records its
         ending.
         """
+        self.agent_work_identifier = agent_work_identifier
         self.harness = harness
         self.finish_round = finish_round
         self.paths = paths
