@@ -84,7 +84,7 @@ SAID = (
     FeedLine(at=PINNED + timedelta(minutes=5), text="[result] success"),
 )
 
-DOUBLE_LABELLED = "carries more than one assignment label: dream:smith, GH123"
+DOUBLE_LABELLED = "carries more than one assignment label: dream:less, dream:smith"
 
 
 def fabricate_conversation(
@@ -284,7 +284,7 @@ def fabricate_everything(
                 ),
                 observed_issue(
                     issue=53,
-                    assignment_labels=(ASSIGNMENT_LABEL, "GH123"),
+                    assignment_labels=(ASSIGNMENT_LABEL, "dream:less"),
                     values={"routing_conflict": IssueFactValue.TRUE},
                     evidence={"routing_conflict": DOUBLE_LABELLED},
                 ),
@@ -296,10 +296,7 @@ def fabricate_everything(
                         "blocked": IssueFactValue.TRUE,
                     },
                     evidence={
-                        "routing_conflict": (
-                            "carries more than one assignment label: "
-                            "dream:less, dream:smith"
-                        ),
+                        "routing_conflict": DOUBLE_LABELLED,
                         "blocked": "blocked by GH50",
                     },
                 ),
