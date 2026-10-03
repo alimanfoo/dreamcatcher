@@ -11,7 +11,10 @@ from typing import IO, cast
 
 from dreamcatcher import teardown
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.teardown import SHOULD_START_NEW_PROCESS_SESSION
+from dreamcatcher.teardown import (
+    CHILD_CREATION_FLAGS,
+    SHOULD_START_NEW_PROCESS_SESSION,
+)
 
 # Windows searches the current directory for a program ahead of the PATH, and
 # the daemon's current directory is the watched checkout, so a file named git.exe
@@ -196,6 +199,7 @@ def spawn_command(
             # through as the replacement character rather than as a traceback.
             errors="replace",
             start_new_session=SHOULD_START_NEW_PROCESS_SESSION,
+            creationflags=CHILD_CREATION_FLAGS,
         )
     teardown.contain_process_tree(pid=process.pid)
     # This asked for both pipes above, so both are there. subprocess types them

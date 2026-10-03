@@ -492,10 +492,14 @@ coverage.
   and 24.5 seconds on four workers, at 100% branch coverage. Serially it takes
   79 seconds, so the parallel run is what meets the bar. Test names were not
   remeasured; the baseline found them already reading as behaviours.
-- **A defect the faster suite exposed.** On macOS, ending the process group of a
-  harness that has exited in the same moment, before its status is collected,
-  raised a permission error. `teardown.end_process_tree` now reads that as a
-  group with nothing left in it, and the ledger records why.
+- **Two defects the faster suite exposed.** On macOS, ending the process group
+  of a harness that has exited in the same moment, before its status is
+  collected, raised a permission error. `teardown.end_process_tree` now reads
+  that as a group with nothing left in it, and the ledger records why. On
+  Windows, a child that exited between its creation and its placement in a Job
+  Object could not be placed, which failed its launch; the parallel run on the
+  four-core runner hit that in three runs of four. A Windows child now starts
+  suspended and is placed before it runs.
 - **Not done.** No test is marked for leaving to CI, because the default run
   meets the bar with every test in it. Windows was not remeasured: process
   startup is the cost there, as #291 found, and a launcher is copied for each
