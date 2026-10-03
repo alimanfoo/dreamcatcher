@@ -22,6 +22,7 @@ from dreamcatcher.agent_rounds import (
     StoppedAgentRoundEnding,
     _compose_agent_round_ending,
 )
+from dreamcatcher.config import AgentHarness
 from dreamcatcher.documents import read_json, write_json
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.issue_conversations import (
@@ -177,6 +178,22 @@ def test_a_conversation_nobody_has_commented_on_is_idle(conversation_state):
         "--resume",
         "conversation-session",
     ]
+
+
+def test_an_idle_codex_conversation_has_a_codex_hand_resume_command(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    write_conversation(state=state, issue=8, harness=AgentHarness.CODEX)
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            conversation_observations=[observed_conversation()],
+        ),
+    )
+
+    found = status(state=state)
+
+    assert found.hand_resume_command == ["codex", "resume", "conversation-session"]
 
 
 def test_a_conversation_with_comments_to_answer_is_waiting(conversation_state):

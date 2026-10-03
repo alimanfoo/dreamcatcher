@@ -259,11 +259,17 @@ def find_conversation_harness_session_identifier(
     """Return the recorded or recoverable harness session identifier."""
     if conversation.record.harness_session_identifier is not None:
         return conversation.record.harness_session_identifier
-    return find_harness_session_identifier_in_output(
-        harness=conversation.record.harness,
-        agent_work_identifier=conversation.identifier,
-        raw_output=conversation.compose_round_paths(number=1).raw_output,
-    )
+    for round_record in reversed(conversation.rounds):
+        identifier = find_harness_session_identifier_in_output(
+            harness=conversation.record.harness,
+            agent_work_identifier=conversation.identifier,
+            raw_output=conversation.compose_round_paths(
+                number=round_record.number
+            ).raw_output,
+        )
+        if identifier is not None:
+            return identifier
+    return None
 
 
 def _read_conversation_input_document(
