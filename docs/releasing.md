@@ -23,8 +23,8 @@ Do this before a major or minor release. A patch release skips it.
    one whose work is done or no longer applies, and say why.
 3. Measure every criterion in [the standard](standard.md), reading the three
    enduring documents against the code. `tools/measure_source.py` reports the
-   module and function line counts. Replace `docs/measurement.md` with the
-   results, and file an issue for each shortfall.
+   module and function line counts. Replace [the measurement](measurement.md)
+   with the results, and file an issue for each shortfall.
 
 A shortfall does not hold the release back. A failing test or check does.
 
