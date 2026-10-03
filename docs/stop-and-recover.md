@@ -3,11 +3,11 @@
 Choose the control that matches what you want to stop. Closing a status view,
 stopping one agent round and stopping the daemon have different consequences.
 
-| Action                                                            | What stops                            | What happens next                                                        |
-| ----------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------ |
-| Interrupt `web`, `status`, `assignment`, `conversation` or `feed` | Only that view                        | The daemon and agents continue.                                          |
-| Run `dreamcatcher stop` or select **Stop** on the web page        | The current agent round               | The work waits for input unless a terminal assignment needs wrap-up.     |
-| Press Ctrl-C in the terminal running `dreamcatcher run`           | The daemon and all its current rounds | Work that still needs a round can recover after the daemon starts again. |
+| Action                                                            | What stops                            | What happens next                                                              |
+| ----------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------ |
+| Interrupt `web`, `status`, `assignment`, `conversation` or `feed` | Only that view                        | The daemon and agents continue.                                                |
+| Run `dreamcatcher stop` or select **Stop** on the web page        | The current agent round               | The work waits for input unless a merged or closed pull request needs wrap-up. |
+| Press Ctrl-C in the terminal running `dreamcatcher run`           | The daemon and all its current rounds | Work that still needs a round can recover after the daemon starts again.       |
 
 ## Stop one running round
 
