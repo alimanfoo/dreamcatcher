@@ -91,7 +91,7 @@ def write_assignment(
             issue=issue,
             title=None if reporting is None else reporting.title,
             dispatch_label="dream:smith",
-            branch=f"{agent_assignments.ASSIGNMENT_BRANCH_PREFIX}{identifier}",
+            branch=f"{agent_assignments._ASSIGNMENT_BRANCH_PREFIX}{identifier}",
             worktree=state.worktrees / identifier,
             pull_request=52,
             pull_request_observation=(
@@ -103,7 +103,7 @@ def write_assignment(
             effort="xhigh",
             prompt=f"/dream:smith GH{issue}",
         ),
-        path=directory / agent_assignments.ASSIGNMENT_RECORD_NAME,
+        path=directory / agent_assignments._ASSIGNMENT_RECORD_NAME,
     )
     return directory
 
@@ -129,7 +129,7 @@ def write_conversation(
             effort="xhigh",
             prompt=f"/dream:conversation GH{issue}",
         ),
-        path=directory / issue_conversations.CONVERSATION_RECORD_NAME,
+        path=directory / issue_conversations._CONVERSATION_RECORD_NAME,
     )
     return directory
 
@@ -161,7 +161,7 @@ def _round_paths(*, directory: Path, number: int) -> agent_rounds.AgentRoundPath
     """Where the numbered round of the assignment at this directory wrote."""
     return agent_rounds.AgentRoundPaths(
         worktree=directory,
-        rounds_directory=directory / agent_assignments.AGENT_ROUNDS_DIRECTORY_NAME,
+        rounds_directory=directory / agent_assignments._AGENT_ROUNDS_DIRECTORY_NAME,
         number=number,
     )
 

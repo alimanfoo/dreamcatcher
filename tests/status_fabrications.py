@@ -23,7 +23,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     AssignmentRoundPurpose,
     ConversationRoundPurpose,
-    compose_agent_round_ending,
+    _compose_agent_round_ending,
 )
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
@@ -114,7 +114,7 @@ def fabricate_conversation(
             purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=1,
-            ending=compose_agent_round_ending(
+            ending=_compose_agent_round_ending(
                 at=PINNED + timedelta(minutes=4), status=status
             ),
         ),
@@ -173,7 +173,7 @@ def ended(
         started=started,
         pid=1,
         purpose=purpose,
-        ending=compose_agent_round_ending(
+        ending=_compose_agent_round_ending(
             at=started + timedelta(minutes=4), status=status
         ),
     )

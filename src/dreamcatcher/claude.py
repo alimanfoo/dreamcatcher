@@ -17,7 +17,7 @@ from dreamcatcher.harness_adapters import (
 # What an unattended assignment round may do without being asked. The round
 # runs under `--permission-mode auto`, so this list keeps the port from
 # stalling while it implements and publishes work.
-CLAUDE_ASSIGNMENT_ALLOWED_TOOLS = (
+_CLAUDE_ASSIGNMENT_ALLOWED_TOOLS = (
     "Bash(gh pr create:*)",
     "Bash(gh pr comment:*)",
     "Bash(gh pr edit:*)",
@@ -30,7 +30,7 @@ CLAUDE_ASSIGNMENT_ALLOWED_TOOLS = (
 )
 
 # What an unattended conversation may change on GitHub when the user asks.
-CLAUDE_CONVERSATION_ALLOWED_TOOLS = (
+_CLAUDE_CONVERSATION_ALLOWED_TOOLS = (
     "Bash(gh issue create:*)",
     "Bash(gh issue edit:*)",
     "Bash(gh issue comment:*)",
@@ -40,7 +40,7 @@ CLAUDE_CONVERSATION_ALLOWED_TOOLS = (
 # Conversation rounds may investigate with ordinary read and command tools,
 # but these denials keep implementation mutations out of unattended permission
 # handling.
-CLAUDE_CONVERSATION_DISALLOWED_TOOLS = (
+_CLAUDE_CONVERSATION_DISALLOWED_TOOLS = (
     "Edit",
     "Write",
     "NotebookEdit",
@@ -78,7 +78,7 @@ CLAUDE_CONVERSATION_DISALLOWED_TOOLS = (
 
 # The inputs of a tool call that say most about it, most telling first. The
 # whole input comes last, so a tool none of these names still says something.
-TOOL_INPUT_KEYS_BY_PRIORITY = (
+_TOOL_INPUT_KEYS_BY_PRIORITY = (
     "command",
     "file_path",
     "pattern",
@@ -89,7 +89,7 @@ TOOL_INPUT_KEYS_BY_PRIORITY = (
 )
 
 
-class ClaudeHarnessAdapter(HarnessAdapter):
+class _ClaudeHarnessAdapter(HarnessAdapter):
     """Run Claude Code and translate its stream into feed events."""
 
     program: ClassVar[str] = "claude"
@@ -171,14 +171,14 @@ class ClaudeHarnessAdapter(HarnessAdapter):
         if request.work_kind is AgentWorkKind.CONVERSATION:
             permissions = [
                 "--allowedTools",
-                " ".join(CLAUDE_CONVERSATION_ALLOWED_TOOLS),
+                " ".join(_CLAUDE_CONVERSATION_ALLOWED_TOOLS),
                 "--disallowedTools",
-                " ".join(CLAUDE_CONVERSATION_DISALLOWED_TOOLS),
+                " ".join(_CLAUDE_CONVERSATION_DISALLOWED_TOOLS),
             ]
         else:
             permissions = [
                 "--allowedTools",
-                " ".join(CLAUDE_ASSIGNMENT_ALLOWED_TOOLS),
+                " ".join(_CLAUDE_ASSIGNMENT_ALLOWED_TOOLS),
             ]
         return [
             "--print",
@@ -193,7 +193,7 @@ class ClaudeHarnessAdapter(HarnessAdapter):
         ]
 
 
-CLAUDE_ADAPTER = ClaudeHarnessAdapter()
+CLAUDE_ADAPTER = _ClaudeHarnessAdapter()
 
 
 def _read_system_event(*, harness_event: dict) -> HarnessOutput:
@@ -344,7 +344,7 @@ def _compose_usage_note(*, cost: float, counts: dict) -> FeedNote:
 
 def _describe_tool_input(*, tool_input: dict) -> str:
     """Return the one input that says most about what a tool call is doing."""
-    for name in TOOL_INPUT_KEYS_BY_PRIORITY:
+    for name in _TOOL_INPUT_KEYS_BY_PRIORITY:
         if tool_input.get(name):
             return _render_value_as_text(value=tool_input[name])
     return _render_value_as_text(value=tool_input)

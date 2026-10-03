@@ -30,7 +30,7 @@ def _normalize_utc(at: datetime, /) -> datetime:
     return at.astimezone(UTC)
 
 
-UtcDateTime = Annotated[AwareDatetime, AfterValidator(_normalize_utc)]
+_UtcDateTime = Annotated[AwareDatetime, AfterValidator(_normalize_utc)]
 
 
 class IssueFactValue(StrEnum):
@@ -61,7 +61,7 @@ class IssueObservation(DreamcatcherDocument):
 
     issue: int
     details: ObservedIssueDetails | None = None
-    observed_at: UtcDateTime | None = None
+    observed_at: _UtcDateTime | None = None
     is_open: IssueFact
     is_assigned_to_user: IssueFact
     claimed_here: IssueFact
@@ -141,8 +141,8 @@ def mark_round_started(
 class GlobalCooldown(DreamcatcherDocument):
     """Model an interval during which the scheduler starts no agent work."""
 
-    started: UtcDateTime
-    ends: UtcDateTime
+    started: _UtcDateTime
+    ends: _UtcDateTime
 
     @model_validator(mode="after")
     def _ends_after_it_starts(self) -> Self:
@@ -155,7 +155,7 @@ class GlobalCooldown(DreamcatcherDocument):
 class SchedulerRecord(DreamcatcherDocument):
     """Record what one scheduler tick observed and decided."""
 
-    at: UtcDateTime
+    at: _UtcDateTime
     hold: str | None = None
     launched_agent_work_identifiers: list[str] = Field(default_factory=list)
     issue_observations: list[IssueObservation] = Field(default_factory=list)
@@ -164,7 +164,7 @@ class SchedulerRecord(DreamcatcherDocument):
         default_factory=list
     )
     cooldown: GlobalCooldown | None = None
-    most_recent_cooldown_ended: UtcDateTime | None = None
+    most_recent_cooldown_ended: _UtcDateTime | None = None
 
 
 def derive_issue_availability(*, observation: IssueObservation) -> IssueFact:

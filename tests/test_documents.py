@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from dreamcatcher.documents import (
-    BACKWARD_READ_SIZE,
+    _BACKWARD_READ_SIZE,
     DreamcatcherDocument,
     append_text,
     is_complete_line_position,
@@ -210,7 +210,7 @@ def test_a_file_that_is_not_there_holds_no_last_line(tmp_path):
 
 
 def test_a_last_line_longer_than_one_read_of_the_end_reads_whole(tmp_path):
-    long_line = "x" * (BACKWARD_READ_SIZE * 2 + 1)
+    long_line = "x" * (_BACKWARD_READ_SIZE * 2 + 1)
 
     assert (
         read_last_line(path=growing(path=tmp_path, written=f"first\n{long_line}\n"))

@@ -18,33 +18,33 @@ from dreamcatcher.harness_adapters import (
 
 # Let the round reach the network from inside its sandbox, so it can talk to
 # GitHub.
-NETWORK_ACCESS_OVERRIDE = "sandbox_workspace_write.network_access=true"
+_NETWORK_ACCESS_OVERRIDE = "sandbox_workspace_write.network_access=true"
 
 # What Codex takes where a prompt would go, to read the prompt from stdin
 # instead. Claude reads stdin as soon as its command names no prompt, so it
 # needs no word of its own for this.
-STDIN_ARGUMENT = "-"
+_STDIN_ARGUMENT = "-"
 
 # What an unattended assignment resume may do without being asked. Its first
 # round gets this from `--approve-for-me`, but a resume does not keep it, so the
 # resumed command has to set the same permissions again itself.
-ASSIGNMENT_RESUME_PERMISSION_OVERRIDES = (
+_ASSIGNMENT_RESUME_PERMISSION_OVERRIDES = (
     'sandbox_mode="workspace-write"',
-    NETWORK_ACCESS_OVERRIDE,
+    _NETWORK_ACCESS_OVERRIDE,
     'approval_policy="on-request"',
     'approvals_reviewer="auto_review"',
 )
 
 # A conversation may write scratch files and make issue changes on GitHub, but
 # it must not ask a person to approve wider access.
-CONVERSATION_PERMISSION_OVERRIDES = (
+_CONVERSATION_PERMISSION_OVERRIDES = (
     'sandbox_mode="workspace-write"',
-    NETWORK_ACCESS_OVERRIDE,
+    _NETWORK_ACCESS_OVERRIDE,
     'approval_policy="never"',
 )
 
 
-class CodexHarnessAdapter(HarnessAdapter):
+class _CodexHarnessAdapter(HarnessAdapter):
     """Run Codex and translate its stream into feed events."""
 
     program: ClassVar[str] = "codex"
@@ -60,13 +60,13 @@ class CodexHarnessAdapter(HarnessAdapter):
         round_arguments = (
             [
                 *_build_round_settings(request=request),
-                *_build_config_overrides(settings=CONVERSATION_PERMISSION_OVERRIDES),
+                *_build_config_overrides(settings=_CONVERSATION_PERMISSION_OVERRIDES),
             ]
             if request.work_kind is AgentWorkKind.CONVERSATION
             else [
                 "--approve-for-me",
                 *_build_round_settings(request=request),
-                *_build_config_overrides(settings=[NETWORK_ACCESS_OVERRIDE]),
+                *_build_config_overrides(settings=[_NETWORK_ACCESS_OVERRIDE]),
             ]
         )
         return HarnessInvocation(
@@ -78,7 +78,7 @@ class CodexHarnessAdapter(HarnessAdapter):
                 *_build_final_output_arguments(
                     request=request, final_output_path=final_output_path
                 ),
-                STDIN_ARGUMENT,
+                _STDIN_ARGUMENT,
             ],
             prompt=request.prompt,
         )
@@ -96,9 +96,9 @@ class CodexHarnessAdapter(HarnessAdapter):
         both again.
         """
         permission_overrides = (
-            CONVERSATION_PERMISSION_OVERRIDES
+            _CONVERSATION_PERMISSION_OVERRIDES
             if request.work_kind is AgentWorkKind.CONVERSATION
-            else ASSIGNMENT_RESUME_PERMISSION_OVERRIDES
+            else _ASSIGNMENT_RESUME_PERMISSION_OVERRIDES
         )
         return HarnessInvocation(
             program=self.program,
@@ -112,7 +112,7 @@ class CodexHarnessAdapter(HarnessAdapter):
                     request=request, final_output_path=final_output_path
                 ),
                 harness_session_identifier,
-                STDIN_ARGUMENT,
+                _STDIN_ARGUMENT,
             ],
             prompt=request.prompt,
         )
@@ -179,7 +179,7 @@ def _build_final_output_arguments(
     return ["--output-last-message", output_path]
 
 
-CODEX_ADAPTER = CodexHarnessAdapter()
+CODEX_ADAPTER = _CodexHarnessAdapter()
 
 
 def _build_round_settings(*, request: AgentRoundLaunchRequest) -> list[str]:

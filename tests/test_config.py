@@ -4,7 +4,7 @@ import pytest
 from conftest import CONFIG, SMITH_CLAUDE, SMITH_CODEX
 
 from dreamcatcher.config import (
-    DREAMCATCHER_CONFIG_NAME,
+    _DREAMCATCHER_CONFIG_NAME,
     AgentHarness,
     ConversationRoute,
     DispatchRecipe,
@@ -55,7 +55,7 @@ label = "dream:conversation"
 
 def write_config(*, root: Path, text: str) -> None:
     """Put a config in the repo root."""
-    (root / DREAMCATCHER_CONFIG_NAME).write_text(text, encoding="utf-8")
+    (root / _DREAMCATCHER_CONFIG_NAME).write_text(text, encoding="utf-8")
 
 
 def test_a_valid_config_reads_back(tmp_path):
@@ -255,7 +255,7 @@ def test_a_config_mistake_names_the_setting_and_the_fault(
 
     assert (
         str(error.value)
-        == f"{tmp_path / DREAMCATCHER_CONFIG_NAME} is not valid:\n  {fault}"
+        == f"{tmp_path / _DREAMCATCHER_CONFIG_NAME} is not valid:\n  {fault}"
     )
 
 
@@ -271,7 +271,7 @@ def test_a_setting_a_harness_cannot_be_given_names_itself(tmp_path, setting):
         read_dreamcatcher_config(root=tmp_path)
 
     assert str(error.value) == (
-        f"{tmp_path / DREAMCATCHER_CONFIG_NAME} is not valid:\n"
+        f"{tmp_path / _DREAMCATCHER_CONFIG_NAME} is not valid:\n"
         f"  assignment.0.claude.{setting}: Value error, cannot hold a percent "
         "sign, because on Windows cmd.exe acts on the text rather than passing "
         "it to the harness"
@@ -292,5 +292,5 @@ def test_a_prompt_may_hold_what_no_command_line_could_carry(tmp_path):
 
 
 def test_a_repo_with_no_config_says_which_file_is_missing(tmp_path):
-    with pytest.raises(ReportableError, match=DREAMCATCHER_CONFIG_NAME):
+    with pytest.raises(ReportableError, match=_DREAMCATCHER_CONFIG_NAME):
         read_dreamcatcher_config(root=tmp_path)

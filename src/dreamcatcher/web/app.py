@@ -50,7 +50,7 @@ _CROSS_ORIGIN_STOP_RESPONSE = (
 )
 
 
-def create_app(
+def _create_app(
     *,
     state: StateDirectory,
     clock: Callable[[], datetime] = read_current_time,
@@ -413,7 +413,7 @@ def serve_web(
     Page times use the machine's local zone when zone is None.
     """
     logging.getLogger("werkzeug").setLevel(logging.ERROR)
-    application = create_app(state=state, zone=zone)
+    application = _create_app(state=state, zone=zone)
     server = create_web_server(state=state, port=port, application=application)
     address = f"http://{WEB_HOST}:{server.server_port}/"
     try:

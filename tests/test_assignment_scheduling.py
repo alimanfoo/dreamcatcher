@@ -23,7 +23,7 @@ from dreamcatcher.agent_rounds import (
     AssignmentRoundPurpose,
     InterruptedAgentRoundEnding,
     StoppedAgentRoundEnding,
-    compose_agent_round_ending,
+    _compose_agent_round_ending,
 )
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.documents import write_json
@@ -89,7 +89,7 @@ def ran(
     ending = (
         InterruptedAgentRoundEnding()
         if status is None
-        else compose_agent_round_ending(at=started, status=status)
+        else _compose_agent_round_ending(at=started, status=status)
     )
     write_round(
         directory=state.assignments / ASSIGNMENT_ID,

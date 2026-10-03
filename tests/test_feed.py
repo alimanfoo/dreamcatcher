@@ -5,7 +5,7 @@ import pytest
 from clocks import PINNED, Ticking
 
 from dreamcatcher.feed import (
-    FEED_LINE_WIDTH,
+    _FEED_LINE_WIDTH,
     FeedLine,
     FeedNote,
     FeedProse,
@@ -71,8 +71,8 @@ def test_a_detail_spread_over_lines_becomes_one():
 
 def test_a_detail_longer_than_the_feed_is_clipped():
     assert create_feed_renderer().render(
-        event=FeedNote(label="Write", detail="x" * (FEED_LINE_WIDTH + 10))
-    ) == (f"2026-08-19T18:41:58Z  [Write] {'x' * FEED_LINE_WIDTH} ...\n")
+        event=FeedNote(label="Write", detail="x" * (_FEED_LINE_WIDTH + 10))
+    ) == (f"2026-08-19T18:41:58Z  [Write] {'x' * _FEED_LINE_WIDTH} ...\n")
 
 
 def test_prose_becomes_a_line_for_each_line_it_holds():

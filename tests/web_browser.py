@@ -21,7 +21,7 @@ from dreamcatcher.agent_assignments import read_assignment
 from dreamcatcher.documents import append_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.state import StateDirectory
-from dreamcatcher.web.app import create_app
+from dreamcatcher.web.app import _create_app
 from dreamcatcher.web.server import WEB_HOST
 
 BROWSER_ASSIGNMENT_IDENTIFIER = f"GH13-{ASSIGNMENT_TIMESTAMP}"
@@ -55,7 +55,7 @@ def serve_fabricated_web(*, root: Path) -> Iterator[str]:
             ),
             path=assignment.compose_round_paths(number=round_record.number).feed,
         )
-    application = create_app(
+    application = _create_app(
         state=state,
         clock=lambda: LOOKED_AT,
         zone=DISPLAY_TIME_ZONE,

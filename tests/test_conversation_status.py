@@ -20,7 +20,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     ConversationRoundPurpose,
     StoppedAgentRoundEnding,
-    compose_agent_round_ending,
+    _compose_agent_round_ending,
 )
 from dreamcatcher.documents import read_json, write_json
 from dreamcatcher.feed import FeedLine
@@ -68,7 +68,7 @@ def conversation_round(
     ending = (
         None
         if status is None
-        else compose_agent_round_ending(
+        else _compose_agent_round_ending(
             at=PINNED + timedelta(minutes=4), status=status, failure=failure
         )
     )
@@ -125,7 +125,7 @@ def write_second_conversation_error(*, state: StateDirectory) -> None:
             is_recovery=True,
             started=PINNED + timedelta(minutes=5),
             pid=2,
-            ending=compose_agent_round_ending(
+            ending=_compose_agent_round_ending(
                 at=PINNED + timedelta(minutes=8),
                 status=2,
                 failure=None,

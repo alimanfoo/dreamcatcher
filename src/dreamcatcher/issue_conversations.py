@@ -43,8 +43,8 @@ from dreamcatcher.harnesses import find_harness_session_identifier_in_output
 from dreamcatcher.prompts import AGENT_POST_MARKER
 from dreamcatcher.state import StateDirectory
 
-CONVERSATION_RECORD_NAME = "conversation.json"
-CONVERSATION_ROUNDS_DIRECTORY_NAME = "rounds"
+_CONVERSATION_RECORD_NAME = "conversation.json"
+_CONVERSATION_ROUNDS_DIRECTORY_NAME = "rounds"
 NO_REPLY = "NO_REPLY"
 
 
@@ -118,7 +118,7 @@ class Conversation:
         """Return the paths for one numbered conversation round."""
         return AgentRoundPaths(
             worktree=self.worktree,
-            rounds_directory=(self.directory / CONVERSATION_ROUNDS_DIRECTORY_NAME),
+            rounds_directory=(self.directory / _CONVERSATION_ROUNDS_DIRECTORY_NAME),
             number=number,
         )
 
@@ -140,14 +140,14 @@ def read_conversations(*, state: StateDirectory) -> list[Conversation]:
     return [
         _read_conversation(state=state, directory=directory)
         for directory in sorted(state.conversations.iterdir())
-        if (directory / CONVERSATION_RECORD_NAME).is_file()
+        if (directory / _CONVERSATION_RECORD_NAME).is_file()
     ]
 
 
 def read_conversation(*, state: StateDirectory, issue: int) -> Conversation | None:
     """Return the conversation for one issue when it exists."""
     directory = state.conversations / f"GH{issue}"
-    if not (directory / CONVERSATION_RECORD_NAME).is_file():
+    if not (directory / _CONVERSATION_RECORD_NAME).is_file():
         return None
     return _read_conversation(state=state, directory=directory)
 
@@ -184,7 +184,7 @@ def create_conversation(
             effort=recipe.effort,
             prompt=recipe.prompt,
         )
-        write_json(document=record, path=directory / CONVERSATION_RECORD_NAME)
+        write_json(document=record, path=directory / _CONVERSATION_RECORD_NAME)
     except ReportableError:
         with suppress(CommandError):
             remove_worktree(root=state.root, path=worktree)
@@ -385,7 +385,7 @@ def post_conversation_answer(
 def _read_conversation(*, state: StateDirectory, directory: Path) -> Conversation:
     record = read_json(
         model=ConversationRecord,
-        path=directory / CONVERSATION_RECORD_NAME,
+        path=directory / _CONVERSATION_RECORD_NAME,
     )
     if directory.name != f"GH{record.issue}":
         raise ReportableError(
@@ -398,7 +398,7 @@ def _read_conversation(*, state: StateDirectory, directory: Path) -> Conversatio
         record=record,
         rounds=read_agent_round_records(
             cache=state.document_cache,
-            directory=directory / CONVERSATION_ROUNDS_DIRECTORY_NAME,
+            directory=directory / _CONVERSATION_ROUNDS_DIRECTORY_NAME,
         ),
     )
 
@@ -412,6 +412,6 @@ def _update_conversation_record(
     updated = conversation.record.model_copy(update=updates)
     write_json(
         document=updated,
-        path=conversation.directory / CONVERSATION_RECORD_NAME,
+        path=conversation.directory / _CONVERSATION_RECORD_NAME,
     )
     object.__setattr__(conversation, "record", updated)

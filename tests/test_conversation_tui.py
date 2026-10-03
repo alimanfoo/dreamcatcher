@@ -20,7 +20,7 @@ from rich.console import Console
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     ConversationRoundPurpose,
-    compose_agent_round_ending,
+    _compose_agent_round_ending,
 )
 from dreamcatcher.documents import write_json
 from dreamcatcher.errors import ReportableError
@@ -56,7 +56,7 @@ def conversation_state(
             purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=1,
-            ending=compose_agent_round_ending(
+            ending=_compose_agent_round_ending(
                 at=PINNED + timedelta(minutes=4), status=status
             ),
         ),
@@ -130,7 +130,7 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
             purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED + timedelta(minutes=6),
             pid=2,
-            ending=compose_agent_round_ending(
+            ending=_compose_agent_round_ending(
                 at=PINNED + timedelta(minutes=10), status=0
             ),
         ),
@@ -199,7 +199,7 @@ def test_conversation_detail_shows_two_errors_as_a_fault(tmp_path):
             is_recovery=True,
             started=PINNED + timedelta(minutes=5),
             pid=2,
-            ending=compose_agent_round_ending(
+            ending=_compose_agent_round_ending(
                 at=PINNED + timedelta(minutes=8), status=2
             ),
         ),
@@ -273,7 +273,7 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
                 purpose=ConversationRoundPurpose.DISCUSS,
                 started=PINNED + timedelta(minutes=6),
                 pid=2,
-                ending=compose_agent_round_ending(
+                ending=_compose_agent_round_ending(
                     at=PINNED + timedelta(minutes=10), status=0
                 ),
             ),

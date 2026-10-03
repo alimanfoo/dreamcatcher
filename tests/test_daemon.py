@@ -31,10 +31,10 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     AssignmentRoundPurpose,
     ConversationRoundPurpose,
-    compose_agent_round_ending,
+    _compose_agent_round_ending,
     request_agent_round_stop,
 )
-from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME, AgentHarness
+from dreamcatcher.config import _DREAMCATCHER_CONFIG_NAME, AgentHarness
 from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import read_json, write_json, write_text
@@ -372,7 +372,7 @@ def test_the_daemon_runs_the_harness_it_was_given(watched):
 
 
 def test_a_checkout_with_no_config_names_the_file_it_needs(repo):
-    with pytest.raises(ReportableError, match=DREAMCATCHER_CONFIG_NAME):
+    with pytest.raises(ReportableError, match=_DREAMCATCHER_CONFIG_NAME):
         DreamcatcherDaemon(root=repo, harness=AgentHarness.CLAUDE)
 
 
@@ -405,7 +405,7 @@ def test_a_run_refuses_when_a_harness_it_could_dispatch_to_is_not_installed(
 
 
 def test_a_run_refuses_when_the_harness_it_was_named_is_not_installed(repo, alone):
-    (repo / DREAMCATCHER_CONFIG_NAME).write_text(SMITH_CLAUDE, encoding="utf-8")
+    (repo / _DREAMCATCHER_CONFIG_NAME).write_text(SMITH_CLAUDE, encoding="utf-8")
     alone(programs=["claude"])
     daemon = DreamcatcherDaemon(root=repo, harness=AgentHarness.CODEX)
     daemon.wait = Interrupting(ticks=1)
@@ -501,7 +501,7 @@ def test_a_round_that_recorded_an_ending_is_left_running_by_the_sweep(
             started=PINNED,
             pid=left_running.pid,
             purpose=PURPOSE,
-            ending=compose_agent_round_ending(at=PINNED, status=0),
+            ending=_compose_agent_round_ending(at=PINNED, status=0),
         ),
     )
     daemon, _, _ = idling(root=watched)

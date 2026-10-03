@@ -19,7 +19,7 @@ from dreamcatcher.words import UTC_TIMESTAMP_FORMAT, format_utc_timestamp
 
 # A note's detail can be as long as a whole file, so the line is clipped. The
 # figure is the port's, wide enough for a command or a path.
-FEED_LINE_WIDTH = 200
+_FEED_LINE_WIDTH = 200
 
 # What a subagent's lines are set in from, so the main thread stays easy to
 # follow. It sits after the timestamp, which keeps the timestamps in a column.
@@ -166,8 +166,8 @@ class FeedRenderer:
     def _shorten_note_detail(self, *, detail: str) -> str:
         """Return the detail as one clipped line, without the worktree's path."""
         one_line = " ".join(self._strip_worktree_path(detail=detail).split())
-        if len(one_line) > FEED_LINE_WIDTH:
-            return f"{one_line[:FEED_LINE_WIDTH]} ..."
+        if len(one_line) > _FEED_LINE_WIDTH:
+            return f"{one_line[:_FEED_LINE_WIDTH]} ..."
         return one_line
 
     def _strip_worktree_path(self, *, detail: str) -> str:

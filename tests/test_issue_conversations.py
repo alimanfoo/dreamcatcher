@@ -20,7 +20,7 @@ from dreamcatcher.github import (
     IssueState,
 )
 from dreamcatcher.issue_conversations import (
-    CONVERSATION_RECORD_NAME,
+    _CONVERSATION_RECORD_NAME,
     Conversation,
     ConversationInput,
     ConversationRecord,
@@ -78,7 +78,7 @@ def write_conversation(*, state: StateDirectory, number: int = 8) -> Conversatio
         effort="xhigh",
         prompt=PROMPT_TEMPLATE,
     )
-    write_json(document=record, path=directory / CONVERSATION_RECORD_NAME)
+    write_json(document=record, path=directory / _CONVERSATION_RECORD_NAME)
     conversation = read_conversation(state=state, issue=number)
     assert conversation is not None
     return conversation
@@ -212,7 +212,7 @@ def test_a_conversation_record_must_name_its_directory(tmp_path):
     wrong_directory = state.conversations / "GH9"
     write_json(
         document=conversation.record,
-        path=wrong_directory / CONVERSATION_RECORD_NAME,
+        path=wrong_directory / _CONVERSATION_RECORD_NAME,
     )
 
     with pytest.raises(ReportableError) as error:
@@ -223,7 +223,7 @@ def test_a_conversation_record_must_name_its_directory(tmp_path):
 
 def test_a_non_object_conversation_record_is_reportable(tmp_path):
     state = StateDirectory(root=tmp_path)
-    record = state.conversations / "GH8" / CONVERSATION_RECORD_NAME
+    record = state.conversations / "GH8" / _CONVERSATION_RECORD_NAME
     record.parent.mkdir(parents=True)
     record.write_bytes(b"null")
 
