@@ -66,12 +66,14 @@ class AssignmentStatus:
     observed_at: datetime | None
 
     @property
+    def has_ended(self) -> bool:
+        """Whether the assignment has ended, so it no longer claims its issue."""
+        return self.value is AssignmentStatusValue.COMPLETE
+
+    @property
     def is_over(self) -> bool:
         """Whether nothing more can happen until the user acts."""
-        return self.value in {
-            AssignmentStatusValue.FAULT,
-            AssignmentStatusValue.COMPLETE,
-        }
+        return self.has_ended or self.value is AssignmentStatusValue.FAULT
 
     @property
     def pull_request_state(self) -> str | None:

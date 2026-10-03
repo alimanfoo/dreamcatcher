@@ -13,7 +13,6 @@ from dreamcatcher.status import (
     AgentRoundRevision,
     AgentRoundStatus,
     AssignmentStatus,
-    AssignmentStatusValue,
     ConversationStatus,
     DreamcatcherStatusReport,
     IssueFactValue,
@@ -105,21 +104,13 @@ def _compose_assignment_cards(
     *, report: DreamcatcherStatusReport
 ) -> tuple[tuple[WebAssignmentCard, ...], tuple[WebAssignmentCard, ...]]:
     active_statuses = sorted(
-        (
-            status
-            for status in report.assignment_statuses
-            if status.value is not AssignmentStatusValue.COMPLETE
-        ),
+        (status for status in report.assignment_statuses if not status.has_ended),
         key=lambda status: ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER.index(
             status.value
         ),
     )
     complete_statuses = sorted(
-        (
-            status
-            for status in report.assignment_statuses
-            if status.value is AssignmentStatusValue.COMPLETE
-        ),
+        (status for status in report.assignment_statuses if status.has_ended),
         key=_read_assignment_completion_time,
         reverse=True,
     )

@@ -14,7 +14,6 @@ from dreamcatcher.status import (
     ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
     CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER,
     AssignmentStatus,
-    AssignmentStatusValue,
     ConversationStatus,
     DreamcatcherStatusReport,
     IssueFactValue,
@@ -168,17 +167,9 @@ def _render_assignments(
     """
     if not (assignments or failed_setups or available_issues or blocked_issues):
         return None
-    completed = list(
-        filter(
-            lambda status: status.value is AssignmentStatusValue.COMPLETE,
-            assignments,
-        )
-    )
+    completed = [status for status in assignments if status.has_ended]
     ordered = sorted(
-        filter(
-            lambda status: status.value is not AssignmentStatusValue.COMPLETE,
-            assignments,
-        ),
+        (status for status in assignments if not status.has_ended),
         key=lambda status: ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER.index(
             status.value
         ),

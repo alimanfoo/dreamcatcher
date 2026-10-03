@@ -36,11 +36,11 @@ from dreamcatcher.scheduler.models import (
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
-    AssignmentStatusValue,
     read_assignment_status,
     read_assignment_statuses_for_issue,
     read_status_report,
 )
+from dreamcatcher.status.assignments import AssignmentStatusValue
 
 ASSIGNMENT_ID = "GH13-20260819-184158"
 LOOKED_AT = PINNED + timedelta(hours=2)
