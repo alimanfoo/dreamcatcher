@@ -200,6 +200,7 @@ class WebHomeView:
     active_assignments: tuple[WebAssignmentCard, ...]
     complete_assignments: tuple[WebAssignmentCard, ...]
     failed_setups: tuple[IssueObservation, ...]
+    routing_conflicts: tuple[WebIssueRow, ...]
     available_issues: tuple[WebIssueRow, ...]
     blocked_issues: tuple[WebIssueRow, ...]
 

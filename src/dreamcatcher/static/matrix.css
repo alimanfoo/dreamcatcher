@@ -321,6 +321,7 @@ body::after {
 
 .status-needs-user-feedback,
 .status-routing-conflict,
+.issue-routing-conflict,
 .issue-available {
   color: var(--background);
   background: var(--phosphor);

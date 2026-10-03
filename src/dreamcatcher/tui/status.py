@@ -81,6 +81,7 @@ def _render_status(
             _render_assignments(
                 assignments=report.assignment_statuses,
                 failed_setups=report.failed_assignment_setups,
+                routing_conflicts=report.routing_conflicts,
                 available_issues=report.available_issues,
                 blocked_issues=report.blocked_issues,
             ),
@@ -158,15 +159,23 @@ def _render_assignments(
     *,
     assignments: Sequence[AssignmentStatus],
     failed_setups: Sequence[IssueObservation],
+    routing_conflicts: Sequence[IssueObservation],
     available_issues: Sequence[IssueObservation],
     blocked_issues: Sequence[IssueObservation],
 ) -> RenderableType | None:
     """Render assignment work as one section, mirroring the web home view.
 
-    Orders active assignments, failed assignment setups, available issues, and
-    blocked issues in that sequence, with a completed-assignment count last.
+    Orders active assignments, failed assignment setups, routing conflicts,
+    available issues, and blocked issues in that sequence, with a completed
+    assignment count last.
     """
-    if not (assignments or failed_setups or available_issues or blocked_issues):
+    if not (
+        assignments
+        or failed_setups
+        or routing_conflicts
+        or available_issues
+        or blocked_issues
+    ):
         return None
     completed = list(
         filter(
@@ -186,7 +195,9 @@ def _render_assignments(
     rows = _render_assignment_rows(assignments=ordered)
     rows += _render_failed_setups(failed_setups=failed_setups)
     rows += _render_open_issues(
-        available_issues=available_issues, blocked_issues=blocked_issues
+        routing_conflicts=routing_conflicts,
+        available_issues=available_issues,
+        blocked_issues=blocked_issues,
     )
     if completed:
         rows.append(
@@ -209,21 +220,24 @@ def _render_failed_setups(
 
 def _render_open_issues(
     *,
+    routing_conflicts: Sequence[IssueObservation],
     available_issues: Sequence[IssueObservation],
     blocked_issues: Sequence[IssueObservation],
 ) -> list[RenderableType]:
-    """Render available and blocked issues as one table, status inline per row."""
+    """Render unassigned issues as one table, status inline per row."""
     rows = [
         (
             issue,
             ", ".join([] if issue.details is None else issue.details.assignment_labels),
             (
-                issue.blocked.evidence
+                issue.routing_conflict.evidence
+                if issue.routing_conflict.value is IssueFactValue.TRUE
+                else issue.blocked.evidence
                 if issue.blocked.value is IssueFactValue.TRUE
                 else "available"
             ),
         )
-        for issue in (*available_issues, *blocked_issues)
+        for issue in (*routing_conflicts, *available_issues, *blocked_issues)
     ]
     if not rows:
         return []
@@ -285,6 +299,7 @@ def _describe_empty_status_report(
     """Describe an instance that has no issue or assignment status yet."""
     if (
         report.failed_assignment_setups
+        or report.routing_conflicts
         or report.available_issues
         or report.blocked_issues
         or report.assignment_statuses

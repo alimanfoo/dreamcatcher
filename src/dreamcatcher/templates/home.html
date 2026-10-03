@@ -17,6 +17,9 @@
                 {% include "partials/failed-setup-row.html" %}
               {% endfor %}
             {% endif %}
+            {%- for issue in view.routing_conflicts %}
+              {% include "partials/issue-row.html" %}
+            {%- endfor %}
             {% for issue in view.available_issues %}
               {% include "partials/issue-row.html" %}
             {% endfor %}
@@ -33,7 +36,7 @@
                 </div>
               </details>
             {% endif %}
-            {% if not view.active_assignments and not view.complete_assignments and not view.failed_setups and not view.available_issues and not view.blocked_issues %}<p class="empty">-- no assignment work --</p>{% endif %}
+            {% if not view.active_assignments and not view.complete_assignments and not view.failed_setups and not view.routing_conflicts and not view.available_issues and not view.blocked_issues %}<p class="empty">-- no assignment work --</p>{% endif %}
           </div>
         </section>
         {% if view.conversations %}

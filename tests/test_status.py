@@ -661,6 +661,33 @@ def test_a_blocked_issue_is_reported_with_its_evidence(state):
     assert status_report.blocked_issues[0].blocked.evidence == "blocked by GH10"
 
 
+def test_an_assignment_routing_conflict_is_reported_with_its_evidence(state):
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            issue_observations=[
+                observed_issue(
+                    issue=20,
+                    values={"routing_conflict": IssueFactValue.TRUE},
+                    evidence={
+                        "routing_conflict": "carries more than one assignment label"
+                    },
+                )
+            ],
+        ),
+    )
+
+    status_report = report(state=state)
+
+    assert status_report.available_issues == []
+    assert [issue.issue for issue in status_report.routing_conflicts] == [20]
+    assert (
+        status_report.routing_conflicts[0].routing_conflict.evidence
+        == "carries more than one assignment label"
+    )
+
+
 def test_an_open_local_assignment_removes_its_issue_from_available_work(state):
     write_tick(
         state=state,

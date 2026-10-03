@@ -81,6 +81,7 @@ class DreamcatcherStatusReport:
     running_agents: int
     active_global_cooldown: GlobalCooldown | None
     failed_assignment_setups: list[IssueObservation]
+    routing_conflicts: list[IssueObservation]
     available_issues: list[IssueObservation]
     blocked_issues: list[IssueObservation]
     assignment_statuses: list[AssignmentStatus]
@@ -139,6 +140,7 @@ def read_status_report(
             None if scheduler_record is None else scheduler_record.cooldown
         ),
         failed_assignment_setups=_select_failed_setups(observations=issue_observations),
+        routing_conflicts=_select_routing_conflicts(observations=issue_observations),
         available_issues=_select_available_issues(observations=issue_observations),
         blocked_issues=_select_blocked_issues(observations=issue_observations),
         assignment_statuses=assignment_statuses,
@@ -218,6 +220,16 @@ def _select_failed_setups(
         observation
         for observation in observations
         if observation.setup_failure is not None
+    ]
+
+
+def _select_routing_conflicts(
+    *, observations: list[IssueObservation]
+) -> list[IssueObservation]:
+    return [
+        observation
+        for observation in observations
+        if observation.routing_conflict.value is IssueFactValue.TRUE
     ]
 
 
