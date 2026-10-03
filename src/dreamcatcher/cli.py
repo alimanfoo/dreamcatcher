@@ -10,6 +10,7 @@ from threading import TIMEOUT_MAX
 import dreamcatcher
 from dreamcatcher import tui, web
 from dreamcatcher.agent_assignments import (
+    cancel_assignment,
     read_assignments_for_issue,
     request_assignment_retry,
 )
@@ -133,6 +134,20 @@ def _build_cli_parser() -> argparse.ArgumentParser:
     _add_issue_argument(parser=stop_parser)
     _add_agent_work_selector(parser=stop_parser)
     stop_parser.set_defaults(act=_stop_agent_work)
+    cancel_parser = subcommands.add_parser(
+        "cancel",
+        help="cancel an issue's newest assignment to finish its pull request by hand",
+        description=(
+            "Cancel the newest assignment at the issue, so that you can finish "
+            "its pull request by hand. Dreamcatcher asks a running round to "
+            "stop, runs no further rounds for the assignment, and treats its "
+            "open pull request as work outside Dreamcatcher. The worktree and "
+            "branch stay in place. A cancel cannot be undone, and it does not "
+            "need the daemon to be running."
+        ),
+    )
+    _add_issue_argument(parser=cancel_parser)
+    cancel_parser.set_defaults(act=_cancel_assignment)
     web_parser = subcommands.add_parser(
         "web",
         help="serve the local status report in a web browser",
@@ -370,6 +385,21 @@ def _stop_agent_work(*, arguments: argparse.Namespace) -> None:
     print(
         f"Requested a stop for {work_description} round {paths.number} "
         f"at GH{arguments.issue}."
+    )
+
+
+def _cancel_assignment(*, arguments: argparse.Namespace) -> None:
+    """Cancel the newest assignment at an issue so the user can take it over."""
+    state = _find_state_directory(root=Path.cwd())
+    issue_assignments = read_assignments_for_issue(state=state, issue=arguments.issue)
+    if not issue_assignments:
+        raise ReportableError(f"GH{arguments.issue} has no assignment.")
+    assignment = issue_assignments[-1]
+    cancel_assignment(assignment=assignment, at=read_current_time())
+    print(
+        f"{assignment.identifier} is cancelled. Pull request "
+        f"#{assignment.record.pull_request} stays open and now claims "
+        f"GH{arguments.issue} as work outside Dreamcatcher."
     )
 
 

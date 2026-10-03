@@ -357,6 +357,43 @@ def test_stop_requests_an_issue_conversations_running_round(
     assert "issue conversation round 1 at GH13" in capsys.readouterr().out
 
 
+def test_cancel_ends_the_newest_assignment_and_stops_its_running_round(
+    monkeypatch, watching, capsys
+):
+    monkeypatch.chdir(watching.root)
+
+    assert main(argv=["cancel", "GH13"]) == 0
+
+    assignment = read_assignments_for_issue(state=watching, issue=13)[-1]
+    assert not assignment.is_open
+    assert assignment.compose_round_paths(number=1).stop_request.is_file()
+    assert capsys.readouterr().out == (
+        f"{ASSIGNMENT_ID} is cancelled. Pull request #52 stays open and now "
+        "claims GH13 as work outside Dreamcatcher.\n"
+    )
+
+
+def test_cancel_refuses_an_issue_with_no_assignment(monkeypatch, tmp_path, capsys):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    state.path.mkdir()
+    monkeypatch.chdir(tmp_path)
+
+    assert main(argv=["cancel", "GH13"]) == 1
+    assert capsys.readouterr().err == "GH13 has no assignment.\n"
+
+
+def test_cancel_refuses_an_assignment_that_has_already_ended(
+    monkeypatch, watching, capsys
+):
+    monkeypatch.chdir(watching.root)
+    assert main(argv=["cancel", "GH13"]) == 0
+    capsys.readouterr()
+
+    assert main(argv=["cancel", "GH13"]) == 1
+    assert capsys.readouterr().err == f"{ASSIGNMENT_ID} has already ended.\n"
+
+
 @pytest.mark.parametrize("owner", ["--assignment", "--conversation"])
 def test_stop_refuses_an_issue_without_the_selected_agent_work(
     monkeypatch, tmp_path, capsys, owner
@@ -540,7 +577,17 @@ def test_status_takes_no_issue(capsys):
 
 @pytest.mark.parametrize(
     "verb",
-    ["run", "retry", "stop", "web", "status", "assignment", "conversation", "feed"],
+    [
+        "run",
+        "retry",
+        "stop",
+        "cancel",
+        "web",
+        "status",
+        "assignment",
+        "conversation",
+        "feed",
+    ],
 )
 def test_every_verb_describes_itself_in_its_own_help(verb, capsys):
     with pytest.raises(SystemExit) as exit_info:

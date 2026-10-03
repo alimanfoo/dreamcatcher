@@ -22,6 +22,7 @@ prefix is case-insensitive, so `GH123` and `gh123` both name issue 123.
 | `run`          | Run the daemon for this repository.                  |
 | `retry`        | Allow faulted work at one issue to recover again.    |
 | `stop`         | Stop one running assignment or conversation round.   |
+| `cancel`       | Cancel one issue's newest assignment.                |
 | `web`          | Serve the local status report in a browser.          |
 | `status`       | Show the whole local status report in the terminal.  |
 | `assignment`   | Show one issue's newest assignment.                  |
@@ -85,6 +86,26 @@ Request a stop for the current round of the selected agent work. The
 The round must be running under the daemon, have a resumable harness session,
 and have no pending stop request. The command writes the same local stop request
 as the web control and does not contact GitHub.
+
+## `cancel`
+
+```text
+dreamcatcher cancel GH<n>
+```
+
+Cancel the newest assignment at the issue, so that you can finish its pull
+request by hand. Dreamcatcher runs no further rounds for the assignment and
+relays no further posts from its pull request. If a round is running, the
+command asks it to stop, without the conditions that `stop` requires.
+
+The pull request stays open, and from then on it claims the issue as work
+outside Dreamcatcher. The worktree and branch stay in place, so you can carry on
+in the assignment's worktree. The cancelled assignment stays in every status
+view.
+
+The issue must have an assignment, and that assignment must not have ended. A
+cancel cannot be undone. The command writes only local state, does not contact
+GitHub, and works whether or not the daemon is running.
 
 ## `web`
 
