@@ -334,9 +334,10 @@ includes issues with known routing conflicts or open blockers, together with the
 scheduler's recorded evidence. An `AssignmentStatus` is one summary status from
 the ontology.
 
-The report includes an issue observation among failed setups while the latest
-tick records a setup failure, independently of whether the issue is available or
-a linked pull request proves that it is claimed elsewhere.
+The report includes an issue observation only among failed setups while the
+latest tick records a setup failure, independently of whether the issue is
+available or a linked pull request proves that it is claimed elsewhere. That
+single row also includes any recorded routing-conflict or blocker evidence.
 
 An `AgentWorkObservation` records the tick's interpretation of one open work
 item. It carries the agent work identifier, issue and one `IssueFact` saying

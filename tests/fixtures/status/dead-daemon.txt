@@ -18,6 +18,7 @@ assignments
   GH50  dream:smith              available                                                          
   GH51  dream:smith              available                                                          
   GH52  dream:smith              blocked by GH50                                                    
-  GH53  dream:smith, dream:less  carries more than one assignment label: dream:less, dream:smith;   
+  GH53  dream:smith, GH123       carries more than one assignment label: dream:smith, GH123         
+  GH54  dream:smith, dream:less  carries more than one assignment label: dream:less, dream:smith;   
                                  blocked by GH50                                                    
   1 completed assignment                                                                            

@@ -1086,7 +1086,15 @@ def test_issue_references_link_to_github_with_hash_notation(tmp_path, daemon):
         f'<a class="issue-number" href="{issue_url}" '
         f"{github_attributes}>#50</a>" in page
     )
+    assert (
+        '<span class="chip issue-routing-conflict">carries more than one '
+        "assignment label: dream:less, dream:smith; blocked by "
+        f'<a class="issue-number" href="{issue_url}" '
+        f"{github_attributes}>#50</a>" in page
+    )
     assert "blocked by GH50" not in page
+    assert "carries more than one assignment label: dream:smith, GH123" in page
+    assert f"{REPOSITORY}/issues/123" not in page
 
 
 def test_a_pull_request_links_to_github_before_its_state_is_observed(tmp_path, daemon):

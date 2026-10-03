@@ -199,7 +199,11 @@ def _render_failed_setups(
         return []
     table = create_table(columns=2)
     for setup in failed_setups:
-        table.add_row(Text(f"GH{setup.issue}"), Text(cast("str", setup.setup_failure)))
+        evidence = [
+            cast("str", setup.setup_failure),
+            *_describe_issue_failures(observation=setup),
+        ]
+        table.add_row(Text(f"GH{setup.issue}"), Text("; ".join(evidence)))
     return [table]
 
 
@@ -222,12 +226,16 @@ def _render_open_issues(*, issues: Sequence[IssueObservation]) -> list[Renderabl
 
 
 def _describe_issue_observation(*, observation: IssueObservation) -> str:
-    evidence = [
+    evidence = _describe_issue_failures(observation=observation)
+    return "; ".join(evidence) if evidence else "available"
+
+
+def _describe_issue_failures(*, observation: IssueObservation) -> list[str]:
+    return [
         fact.evidence
         for fact in (observation.routing_conflict, observation.blocked)
         if fact.value is IssueFactValue.TRUE
     ]
-    return "; ".join(evidence) if evidence else "available"
 
 
 def _render_assignment_rows(

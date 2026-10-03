@@ -84,7 +84,7 @@ SAID = (
     FeedLine(at=PINNED + timedelta(minutes=5), text="[result] success"),
 )
 
-DOUBLE_LABELLED = "carries more than one assignment label: dream:less, dream:smith"
+DOUBLE_LABELLED = "carries more than one assignment label: dream:smith, GH123"
 
 
 def fabricate_conversation(
@@ -284,13 +284,22 @@ def fabricate_everything(
                 ),
                 observed_issue(
                     issue=53,
+                    assignment_labels=(ASSIGNMENT_LABEL, "GH123"),
+                    values={"routing_conflict": IssueFactValue.TRUE},
+                    evidence={"routing_conflict": DOUBLE_LABELLED},
+                ),
+                observed_issue(
+                    issue=54,
                     assignment_labels=(ASSIGNMENT_LABEL, "dream:less"),
                     values={
                         "routing_conflict": IssueFactValue.TRUE,
                         "blocked": IssueFactValue.TRUE,
                     },
                     evidence={
-                        "routing_conflict": DOUBLE_LABELLED,
+                        "routing_conflict": (
+                            "carries more than one assignment label: "
+                            "dream:less, dream:smith"
+                        ),
                         "blocked": "blocked by GH50",
                     },
                 ),
@@ -357,8 +366,18 @@ def fabricate_a_failed_setup(*, state):
             issue_observations=[
                 observed_issue(
                     issue=20,
-                    values={"claimed_elsewhere": IssueFactValue.UNKNOWN},
-                    evidence={"claimed_elsewhere": failure},
+                    assignment_labels=(ASSIGNMENT_LABEL, "dream:less"),
+                    values={
+                        "claimed_elsewhere": IssueFactValue.UNKNOWN,
+                        "routing_conflict": IssueFactValue.TRUE,
+                    },
+                    evidence={
+                        "claimed_elsewhere": failure,
+                        "routing_conflict": (
+                            "carries more than one assignment label: "
+                            "dream:less, dream:smith"
+                        ),
+                    },
                 ).model_copy(update={"setup_failure": failure}),
                 observed_issue(issue=21),
             ],

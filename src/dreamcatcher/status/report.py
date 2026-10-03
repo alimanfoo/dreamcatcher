@@ -225,11 +225,14 @@ def _select_issue_observations(
     return [
         observation
         for observation in observations
-        if IssueFactValue.TRUE
-        in (
-            observation.routing_conflict.value,
-            observation.availability.value,
-            observation.blocked.value,
+        if (
+            observation.setup_failure is None
+            and IssueFactValue.TRUE
+            in (
+                observation.routing_conflict.value,
+                observation.availability.value,
+                observation.blocked.value,
+            )
         )
     ]
 

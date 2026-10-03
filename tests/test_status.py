@@ -690,6 +690,28 @@ def test_a_routing_conflict_and_blocker_are_reported_once_with_their_evidence(st
     assert status_report.issue_observations[0].blocked.evidence == "blocked by GH10"
 
 
+def test_a_routing_conflict_without_a_blocker_is_reported(state):
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            issue_observations=[
+                observed_issue(
+                    issue=20,
+                    values={"routing_conflict": IssueFactValue.TRUE},
+                    evidence={
+                        "routing_conflict": "carries more than one assignment label"
+                    },
+                )
+            ],
+        ),
+    )
+
+    status_report = report(state=state)
+
+    assert [issue.issue for issue in status_report.issue_observations] == [20]
+
+
 def test_an_open_local_assignment_removes_its_issue_from_available_work(state):
     write_tick(
         state=state,
@@ -873,4 +895,21 @@ def test_a_failed_setup_reports_independently_of_an_external_claim(state):
     assert status_report.failed_assignment_setups == [
         observation.model_copy(update={"observed_at": PINNED})
     ]
+    assert status_report.issue_observations == []
+
+
+def test_a_failed_setup_with_a_routing_conflict_is_reported_once(state):
+    observation = observed_issue(
+        issue=20,
+        values={"routing_conflict": IssueFactValue.TRUE},
+        evidence={"routing_conflict": "carries more than one assignment label"},
+    ).model_copy(update={"setup_failure": "assignment setup failed"})
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(at=PINNED, issue_observations=[observation]),
+    )
+
+    status_report = report(state=state)
+
+    assert [issue.issue for issue in status_report.failed_assignment_setups] == [20]
     assert status_report.issue_observations == []

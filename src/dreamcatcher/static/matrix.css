@@ -344,6 +344,10 @@ body::after {
   text-shadow: var(--shadow);
 }
 
+.issue-routing-conflict .issue-number {
+  color: var(--background);
+}
+
 .assignment-detail,
 .latest-output,
 .labels,
