@@ -183,7 +183,7 @@ def _observe_assignment_routing_conflict(*, labels: list[str]) -> IssueFact:
         )
     return IssueFact(
         value=IssueFactValue.TRUE,
-        evidence="carries more than one assignment label: " + ", ".join(labels),
+        evidence="multiple assignment labels: " + ", ".join(labels),
     )
 
 

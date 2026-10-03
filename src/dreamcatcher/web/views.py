@@ -91,12 +91,12 @@ def compose_home_view(
         conversations=_compose_conversation_cards(report=report),
         active_assignments=active_assignments,
         complete_assignments=complete_assignments,
-        failed_setups=tuple(report.failed_assignment_setups),
-        available_issues=tuple(
-            _compose_issue_row(observation=issue) for issue in report.available_issues
+        failed_setups=tuple(
+            _compose_failed_setup_row(observation=setup)
+            for setup in report.failed_assignment_setups
         ),
-        blocked_issues=tuple(
-            _compose_issue_row(observation=issue) for issue in report.blocked_issues
+        issues=tuple(
+            _compose_issue_row(observation=issue) for issue in report.issue_observations
         ),
     )
 
@@ -341,23 +341,54 @@ def _shorten_git_revisions(*, text: str) -> str:
 
 
 def _compose_issue_row(*, observation: IssueObservation) -> WebIssueRow:
-    if observation.blocked.value is IssueFactValue.TRUE:
+    if observation.routing_conflict.value is IssueFactValue.TRUE:
+        status = "routing-conflict"
+    elif observation.blocked.value is IssueFactValue.TRUE:
         status = "blocked"
-        evidence = _compose_issue_evidence(evidence=observation.blocked.evidence)
     else:
         status = "available"
-        evidence = ()
+    return _compose_observed_issue_row(
+        observation=observation,
+        status=status,
+        leading_evidence=(),
+    )
+
+
+def _compose_failed_setup_row(*, observation: IssueObservation) -> WebIssueRow:
+    return _compose_observed_issue_row(
+        observation=observation,
+        status="failed-setup",
+        leading_evidence=(cast("str", observation.setup_failure),),
+    )
+
+
+def _compose_observed_issue_row(
+    *,
+    observation: IssueObservation,
+    status: str,
+    leading_evidence: tuple[str, ...],
+) -> WebIssueRow:
+    plain_evidence = list(leading_evidence)
+    if observation.routing_conflict.value is IssueFactValue.TRUE:
+        plain_evidence.append(observation.routing_conflict.evidence)
+    evidence: list[str | int] = ["; ".join(plain_evidence)] if plain_evidence else []
+    if observation.blocked.value is IssueFactValue.TRUE:
+        if evidence:
+            evidence.append("; ")
+        evidence.extend(
+            _compose_issue_references(evidence=observation.blocked.evidence)
+        )
     details = observation.details
     return WebIssueRow(
         issue=observation.issue,
         title=None if details is None else details.title,
         labels=", ".join([] if details is None else details.assignment_labels),
         status=status,
-        evidence=evidence,
+        evidence=tuple(evidence),
     )
 
 
-def _compose_issue_evidence(*, evidence: str) -> tuple[str | int, ...]:
+def _compose_issue_references(*, evidence: str) -> tuple[str | int, ...]:
     return tuple(
         int(part) if index % 2 else part
         for index, part in enumerate(_ISSUE_REFERENCE_PATTERN.split(evidence))

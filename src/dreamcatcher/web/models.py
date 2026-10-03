@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from dreamcatcher.agent_rounds import AgentRoundPaths, AgentRoundRecord
-from dreamcatcher.status import AgentRoundRevision, IssueObservation
+from dreamcatcher.status import AgentRoundRevision
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -158,7 +158,7 @@ class WebAssignmentView:
 
 @dataclass(frozen=True, kw_only=True)
 class WebIssueRow:
-    """Represent one available or blocked issue row."""
+    """Represent one issue row in the home view."""
 
     issue: int
     title: str | None
@@ -200,9 +200,8 @@ class WebHomeView:
     conversations: tuple[WebConversationCard, ...]
     active_assignments: tuple[WebAssignmentCard, ...]
     complete_assignments: tuple[WebAssignmentCard, ...]
-    failed_setups: tuple[IssueObservation, ...]
-    available_issues: tuple[WebIssueRow, ...]
-    blocked_issues: tuple[WebIssueRow, ...]
+    failed_setups: tuple[WebIssueRow, ...]
+    issues: tuple[WebIssueRow, ...]
 
 
 class WebFeedOwner(Protocol):

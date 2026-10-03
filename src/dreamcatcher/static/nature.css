@@ -345,7 +345,8 @@ body::after {
 }
 
 .status-needs-user-feedback,
-.status-routing-conflict {
+.status-routing-conflict,
+.issue-routing-conflict {
   color: var(--bright);
   background: rgba(201, 162, 74, 0.9);
   box-shadow: 0 0 14px 3px rgba(201, 162, 74, 0.42);
