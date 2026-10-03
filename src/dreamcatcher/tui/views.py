@@ -3,6 +3,7 @@
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, tzinfo
+from pathlib import Path
 from time import sleep
 
 from rich.console import Console, RenderableType
@@ -140,7 +141,7 @@ def _render_conversation(
                 ("agent harness", record.harness),
                 (
                     "harness session identifier",
-                    record.harness_session_identifier or "not recorded",
+                    status.harness_session_identifier or "not recorded",
                 ),
                 ("model", record.model),
                 ("effort", record.effort),
@@ -156,6 +157,15 @@ def _render_conversation(
             render_latest_output(latest_output=status.latest_output),
             render_section(heading="conversation", body=table),
             _render_round_statuses(round_statuses=status.round_statuses, zone=zone),
+            (
+                None
+                if conversation is None
+                else _render_harness_resume(
+                    state=state,
+                    worktree=conversation.worktree,
+                    hand_resume_command=status.hand_resume_command,
+                )
+            ),
         ]
     )
 
@@ -212,7 +222,11 @@ def _render_assignment(
             latest_output,
             _render_assignment_summary(state=state, status=current_status),
             _render_rounds(status=current_status, zone=zone),
-            _render_harness_resume(state=state, status=current_status),
+            _render_harness_resume(
+                state=state,
+                worktree=current_status.assignment.record.worktree,
+                hand_resume_command=current_status.hand_resume_command,
+            ),
             _render_older_assignments(older_statuses=assignment_statuses[1:]),
         ]
     )
@@ -288,16 +302,19 @@ def _render_round_statuses(
 
 
 def _render_harness_resume(
-    *, state: StateDirectory, status: AssignmentStatus
+    *,
+    state: StateDirectory,
+    worktree: Path,
+    hand_resume_command: list[str] | None,
 ) -> RenderableType | None:
     """Return how to resume the harness session by hand, when one exists."""
-    if status.hand_resume_command is None:
+    if hand_resume_command is None:
         return None
-    worktree = state.describe_path(path=status.assignment.record.worktree)
-    command = " ".join(status.hand_resume_command)
+    described_worktree = state.describe_path(path=worktree)
+    command = " ".join(hand_resume_command)
     return render_section(
-        heading="resume harness session yourself",
-        body=Text(f"cd {worktree}\n{command}"),
+        heading="resume by hand",
+        body=Text(f"cd {described_worktree}\n{command}"),
     )
 
 

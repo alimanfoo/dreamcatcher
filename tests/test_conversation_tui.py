@@ -22,7 +22,7 @@ from dreamcatcher.agent_rounds import (
     ConversationRoundPurpose,
     _compose_agent_round_ending,
 )
-from dreamcatcher.documents import write_json
+from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.harness_adapters import AgentWorkKind
@@ -44,10 +44,15 @@ def conversation_state(
     root,
     status: int = 0,
     is_eligible: bool = False,
+    harness_session_identifier: str | None = "conversation-session",
 ) -> StateDirectory:
     """Return state containing one finished conversation."""
     state = StateDirectory(root=root)
-    directory = write_conversation(state=state, issue=8)
+    directory = write_conversation(
+        state=state,
+        issue=8,
+        harness_session_identifier=harness_session_identifier,
+    )
     write_round(
         directory=directory,
         number=1,
@@ -120,8 +125,15 @@ def test_status_lists_the_conversation(tmp_path):
 
 
 def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path):
-    state = conversation_state(root=tmp_path)
+    state = conversation_state(root=tmp_path, harness_session_identifier=None)
     directory = state.conversations / "GH8"
+    write_text(
+        text=(
+            '{"type":"system","subtype":"init","model":"claude-opus-5",'
+            '"session_id":"recovered-session"}\n'
+        ),
+        path=directory / "rounds" / "1" / "raw.jsonl",
+    )
     write_round(
         directory=directory,
         number=2,
@@ -165,12 +177,15 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
 
     shown = written.getvalue()
     assert "issue conversation GH8" in shown
-    assert "conversation-session" in shown
+    assert "recovered-session" in shown
     assert "abc123" in shown
     assert "def456" in shown
     assert "opus[1m]" in shown
     assert "discuss" in shown
     assert "successful" in shown
+    assert "resume by hand" in shown
+    assert "cd .dreamcatcher/v5/conversation-worktrees/GH8" in shown
+    assert "claude --resume recovered-session" in shown
 
 
 def test_conversation_detail_shows_a_failed_round(tmp_path):

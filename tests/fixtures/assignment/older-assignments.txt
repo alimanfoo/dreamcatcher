@@ -16,7 +16,7 @@ assignment
 rounds
   1  implement  2026-08-20 02:42:58  ran 4m  successful
 
-resume harness session yourself
+resume by hand
   cd .dreamcatcher/v5/worktrees/GH13-20260819-184158
   claude --resume abc-123                           
 

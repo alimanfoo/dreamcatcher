@@ -112,6 +112,7 @@ def write_conversation(
     *,
     state: StateDirectory,
     issue: int,
+    harness: AgentHarness = AgentHarness.CLAUDE,
     harness_session_identifier: str | None = "conversation-session",
 ) -> Path:
     """Write a conversation worktree and record, and return its directory."""
@@ -123,7 +124,7 @@ def write_conversation(
             issue=issue,
             title=f"Issue {issue}",
             dispatch_label="dream:conversation",
-            harness=AgentHarness.CLAUDE,
+            harness=harness,
             harness_session_identifier=harness_session_identifier,
             model="opus[1m]",
             effort="xhigh",

@@ -1,0 +1,7 @@
+{%- if view.hand_resume %}
+      <details class="manual-recovery">
+        <summary>resume by hand</summary>
+        <pre>cd {{ view.hand_resume.worktree }}
+{{ view.hand_resume.command }}</pre>
+      </details>
+{%- endif %}

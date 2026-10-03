@@ -28,6 +28,7 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.github import PullRequestState
+from dreamcatcher.harness_adapters import HarnessSessionIdentifier
 from dreamcatcher.issue_conversations import (
     ConversationInput,
     InitialConversationIssue,
@@ -93,9 +94,15 @@ def fabricate_conversation(
     has_round: bool = True,
     status: int = 0,
     is_eligible: bool = False,
+    harness_session_identifier: HarnessSessionIdentifier
+    | None = "conversation-session",
 ) -> None:
     """Write one initial conversation exchange."""
-    directory = write_conversation(state=state, issue=8)
+    directory = write_conversation(
+        state=state,
+        issue=8,
+        harness_session_identifier=harness_session_identifier,
+    )
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
     write_tick(
         state=state,

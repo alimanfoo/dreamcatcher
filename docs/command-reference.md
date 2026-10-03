@@ -126,8 +126,8 @@ captured, it prints one snapshot and returns.
 dreamcatcher conversation GH<n>
 ```
 
-Show the issue conversation's settled settings, harness session, worktree, code
-revision and rounds.
+Show the issue conversation's settings, harness session, worktree, code revision
+and rounds, with a hand-resume command when one is available.
 
 In an interactive terminal it refreshes until the conversation enters fault, has
 a routing conflict, or leaves the status report. When output is piped,
