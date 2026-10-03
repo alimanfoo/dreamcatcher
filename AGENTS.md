@@ -72,7 +72,7 @@ Run one test file. `--no-cov` turns off the coverage gate, which only the whole
 suite can satisfy.
 
 ```sh
-uv run pytest tests/test_cli.py --no-cov
+PYTHONWARNDEFAULTENCODING=1 uv run pytest tests/test_cli.py --no-cov
 ```
 
 Run the integration tests. They ask the real `gh` about this repository, so you
@@ -80,7 +80,7 @@ need `gh` signed in. The default run leaves them out, which is how CI skips
 them.
 
 ```sh
-uv run pytest -m integration --no-cov
+PYTHONWARNDEFAULTENCODING=1 uv run pytest -m integration --no-cov
 ```
 
 Run every check CI runs:

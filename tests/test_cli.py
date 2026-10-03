@@ -419,7 +419,7 @@ def test_status_takes_no_issue(capsys):
 
 
 @pytest.mark.parametrize(
-    "verb", ["run", "retry", "web", "status", "assignment", "feed"]
+    "verb", ["run", "retry", "web", "status", "assignment", "conversation", "feed"]
 )
 def test_every_verb_describes_itself_in_its_own_help(verb, capsys):
     with pytest.raises(SystemExit) as exit_info:
@@ -431,6 +431,17 @@ def test_every_verb_describes_itself_in_its_own_help(verb, capsys):
     assert exit_info.value.code == 0
     _, _, described = capsys.readouterr().out.partition("\n\n")
     assert not described.startswith(("positional arguments:", "options:"))
+
+
+@pytest.mark.parametrize("verb", ["conversation", "feed"])
+def test_conversation_view_help_explains_that_routing_conflicts_end_the_view(
+    verb, capsys
+):
+    with pytest.raises(SystemExit) as exit_info:
+        main(argv=[verb, "--help"])
+
+    assert exit_info.value.code == 0
+    assert "routing conflict" in " ".join(capsys.readouterr().out.split())
 
 
 def test_a_bare_invocation_asks_for_a_verb(capsys):

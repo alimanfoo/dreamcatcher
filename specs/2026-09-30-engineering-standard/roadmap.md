@@ -341,22 +341,113 @@ Check: S3, S4, C1, E1 and E2 met, and E4 measured again after stage 2.
 Outcome: a reader finds what they need by what they are trying to do, and the
 project states what it promises to keep stable.
 
+The [documentation plan](documentation-plan.md) orders the work below and gives
+each part a completion check.
+
 Work:
 
-- Divide the README into pages under `docs/`: a tutorial to a first pull
-  request, how-to pages for configuration and for each command, a reference for
-  every setting and flag, and the existing explanation documents. The README
-  keeps the one-paragraph description, the install line and a map.
+- Divide the README into pages under `docs/`, organised by reader purpose: a
+  tutorial, task guides, complete command and configuration references, and the
+  existing explanation documents. The README keeps the one-paragraph
+  description, the install line and a map. Keep the pages in Markdown and use
+  the existing link checks.
+- Keep user-facing pages accessible: give readers what they need at each step,
+  explain unfamiliar terms, and link to deeper detail when it becomes useful.
+  The tutorial follows one working path; guides do not become references.
+  User-facing pages and navigation do not link to the ontology or architecture:
+  those are developer documents. Explain the observable behaviour users need
+  directly, and link within the user documentation for further detail.
+- Call the tutorial "From issue to pull request": set up Dreamcatcher, dispatch
+  an agent to implement a GitHub issue, and follow its work until the pull
+  request is ready for review. Distinguish the draft pull request Dreamcatcher
+  opens at dispatch from the completed implementation the agent marks ready.
+- Make the tutorial self-contained. Give one complete installation workflow and
+  use its command form consistently. Choose one concrete harness and assignment
+  skill; explain how to install and authenticate the required tools and install
+  any plugin the skill needs. State the repository prerequisites. Include
+  configuring the route, assigning and labelling the issue, starting the daemon,
+  following the agent's work, and recognising that the pull request is ready for
+  review. Check the instructions in order for any unstated prerequisite.
+- Organise how-to guides around configuring labels and harnesses, running and
+  monitoring work, discussing an issue, reviewing an assignment, stopping work,
+  and recovering from a fault. Every command is covered, but the guides follow
+  tasks rather than command boundaries. Put exhaustive syntax, settings, flags,
+  defaults and constraints in pages named "Command reference" and "Configuration
+  reference". Link readers to the compatibility policy for upgrades and the
+  contract for writing assignment skills and conversation prompts.
+- Give each rule one authoritative home. The ontology owns domain meanings and
+  rules; the architecture owns implementation boundaries; the command and
+  configuration references own accepted commands, options and settings; and the
+  agent contract owns the inputs Dreamcatcher supplies and the agent's
+  obligations. Task guides explain the consequences readers need and link to
+  user-facing references where needed, not developer design documents. Correct
+  the contract against the current code before declaring its version, including
+  delivery positions derived from recorded round inputs and the initial
+  conversation input's `initial_issue` object.
 - Add `CHANGELOG.md`. Its header names the versioning scheme and where the
   compatibility statement lives. A change users would notice gets an entry.
-  Record the four state-format breaks to date, so the file starts true.
+  Explain user-visible effects and required upgrade actions. Reconstruct the
+  state-format breaks from commits and releases, linking to the evidence rather
+  than assuming the historical count remains current. Keep historical entries
+  brief, without detailed migration guidance for obsolete releases: the sole
+  current user runs v4.0.0. Focus actionable upgrade guidance on that version to
+  the next release. Keep released changes separate from unreleased work: the
+  state-format-5 break belongs under "Unreleased" until it is released.
 - Give the state format and the agent contract each a version and a
-  compatibility statement, in words a user can act on.
-- Add a page that says how Dreamcatcher is tested: the coverage gate, the
-  encoding gate, the recorded harness streams, the stand-in executables, the
-  golden views, and the three operating systems.
+  compatibility statement, in words a user can act on. Preserve the existing
+  state isolation: Dreamcatcher reads and writes its own state-format directory
+  and ignores other format directories. The daemon lock remains shared across
+  formats.
+- State the [compatibility policy](../../docs/compatibility.md): tagged releases
+  follow semantic versioning, while the state format and agent contract have
+  independent integer versions. The promise covers documented commands, flags,
+  configuration, saved agent work and agent obligations. Incompatible changes
+  require a major release and a changelog entry with upgrade instructions.
+  Establish contract version 1 after correcting its description of the current
+  protocol. The next release is 5.0.0 because it includes state format 5; the
+  policy applies from that release onward. Untagged `main` is development code.
+- Add a page that explains what each testing technique establishes: the branch
+  coverage gate, encoding failures, recorded harness streams, real subprocess
+  boundaries exercised through stand-in executables, and rendered-view goldens.
+  Describe the actual scope of the checks: the default suite runs on Linux,
+  macOS and Windows; browser tests run separately on Linux; and live GitHub
+  integration tests are separate from CI. Verify these claims against the test
+  configuration, fixtures and CI workflow.
+- Correct the two CLI help descriptions that omit an existing view-ending
+  condition. The conversation description changes "enters fault or leaves the
+  status report" to "enters fault, has a routing conflict or leaves the status
+  report". The feed description adds "A conversation's routing conflict also
+  ends its feed view." These wording corrections are the stage's only exception
+  to the zero behaviour budget; the conditions themselves do not change.
 
 Check: C3 and C4 met.
+
+### Stage 4 measurement, 2026-10-03
+
+- **C3 met.** The 50-line README leads to one tutorial, five task guides and
+  complete command and configuration references. Compatibility and testing have
+  their own pages. Developer design explanations remain separate, with no links
+  to the ontology or architecture from user-facing pages. The documentation
+  index includes the changelog. A fresh-reader review of the assembled journey
+  has no outstanding findings; the examples validate against the current
+  configuration model. No live agent walkthrough was run.
+- **C4 met.** State format 5 and agent contract 1 each have an explicit
+  compatibility policy. The corrected contract describes the current protocol.
+  The changelog separates released history from the unreleased state-format
+  break, and upgrade guidance focuses on v4.0.0 to v5.0.0. Each build continues
+  to read and write only its own format directory; no runtime version
+  negotiation, migration or state-handling change was introduced.
+
+The bounded consistency review compared the new documentation and contract with
+their implementation and testing evidence. Its findings were corrected and
+rechecked, including the CLI help and view docstring that omitted routing
+conflict as a conversation-view ending. No supported findings remain in that
+scope. This does not remeasure the issue tracker or the other stages' criteria.
+
+The final default suite passes 1,051 tests with 9 deselected and 100% branch
+coverage in 176.11 seconds. All applicable repository checks and the isolated
+installed-command smoke check pass. The separate browser and live GitHub suites
+were not run locally. Stage 5 still owns the suite-duration shortfall.
 
 ## Stage 5: Bring the suite under a minute
 

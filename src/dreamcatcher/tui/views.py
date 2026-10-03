@@ -82,7 +82,8 @@ def show_conversation_view(
 ) -> None:
     """Show one issue conversation until nothing more can happen without the user.
 
-    That is once it enters fault, or once the status report no longer lists it.
+    That is once it enters fault, has a routing conflict, or the status report
+    no longer lists it.
     A non-terminal or dumb terminal renders one snapshot and returns.
     """
     refresh_live_view(
