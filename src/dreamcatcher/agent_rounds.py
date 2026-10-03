@@ -406,6 +406,7 @@ class AgentRound:
         plan: AgentRoundPlan[DreamcatcherDocument],
         finish_round: AgentRoundFinisher | None = None,
         clock: Callable[[], datetime] = read_current_time,
+        wait_for_round_end: Callable[[float], bool] | None = None,
     ) -> None:
         """Run the harness as a round at the paths it was given.
 
@@ -417,6 +418,11 @@ class AgentRound:
 
         A round given a finisher lets its owner finish it before it records its
         ending.
+
+        The stop-request watcher waits between its polls through
+        `wait_for_round_end`, which is given the seconds to wait and answers
+        whether the round ended first. By default it waits on the round's own
+        ending. A caller that supplies its own decides when each poll happens.
         """
         self.agent_work_identifier = agent_work_identifier
         self.harness = harness
@@ -427,6 +433,7 @@ class AgentRound:
         self.started_at = clock()
         self.forced_ending: _AgentRoundEnding | None = None
         self._round_ended = Flag()
+        self._wait_for_round_end = wait_for_round_end or self._round_ended.wait
         self._final_output_settled = Flag()
         self._feed_write_lock = Lock()
         self._termination_lock = Lock()
@@ -543,7 +550,7 @@ class AgentRound:
 
     def _watch_for_stop_request(self) -> None:
         """Stop the round promptly when its request file appears."""
-        while not self._round_ended.wait(_STOP_REQUEST_POLL_INTERVAL_SECONDS):
+        while not self._wait_for_round_end(_STOP_REQUEST_POLL_INTERVAL_SECONDS):
             if self.paths.stop_request.is_file():
                 self._end_process_tree(ending=StoppedAgentRoundEnding(at=self.clock()))
                 return

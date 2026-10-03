@@ -49,8 +49,10 @@ def test_a_program_on_the_path_is_found(fake):
 # Only Windows searches the current directory for a program, so only Windows
 # shows what taking that directory out of the search is worth. This test sits
 # here even so, where every platform runs it.
-def test_a_program_in_the_current_directory_alone_is_not_found(tmp_path, monkeypatch):
-    install(directory=tmp_path, program="probe")
+def test_a_program_in_the_current_directory_alone_is_not_found(
+    tmp_path, launcher, monkeypatch
+):
+    install(directory=tmp_path, program="probe", launcher=launcher)
     monkeypatch.chdir(tmp_path)
 
     with pytest.raises(CommandError, match="not on the PATH"):

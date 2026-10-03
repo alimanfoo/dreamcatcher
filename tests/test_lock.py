@@ -85,16 +85,16 @@ def test_a_lock_naming_a_reused_pid_is_reclaimed(tmp_path):
 
 
 @pytest.mark.parametrize(
-    ("kind", "held"),
+    "held",
     [
-        ("an old bare pid", str(os.getpid())),
-        ("words", "who knows"),
-        ("nothing", ""),
-        ("a pid no process could have", "999999999999"),
-        ("a pid that is no daemon's", "0"),
+        pytest.param(str(os.getpid()), id="an old bare pid"),
+        pytest.param("who knows", id="words"),
+        pytest.param("", id="nothing"),
+        pytest.param("999999999999", id="a pid no process could have"),
+        pytest.param("0", id="a pid that is no daemon's"),
     ],
 )
-def test_an_invalid_lock_is_reported(tmp_path, kind, held):
+def test_an_invalid_lock_is_reported(tmp_path, held):
     lock = tmp_path / "daemon.pid"
     lock.write_text(f"{held}\n", encoding="utf-8")
 

@@ -38,6 +38,7 @@ dev = [
     "pytest>=8.0",
     "pytest-cov>=6.0",
     "pytest-playwright==0.9.0",
+    "pytest-xdist>=3.0",
     "ruff==0.16.3",
     "ty==0.0.73",
     "types-pywin32==312.0.0.20260827; sys_platform == 'win32'",
@@ -61,8 +62,9 @@ doc-roots = ["README.md", "AGENTS.md", "CONTRACT.md", "CHANGELOG.md", "docs", "s
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # Integration tests call the real gh, and browser tests need Chromium. The
-# default run leaves both out.
-addopts = "--cov -m 'not browser and not integration'"
+# default run leaves both out. The suite spends its time waiting on child
+# processes, so it runs on every processor.
+addopts = "--cov -n auto -m 'not browser and not integration'"
 markers = [
     "browser: runs in an installed browser against a local web server",
     "integration: calls the real gh against this repository, read-only",

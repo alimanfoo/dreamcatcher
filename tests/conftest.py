@@ -295,11 +295,17 @@ def stand_ins(tmp_path):
     return tmp_path / "fakes"
 
 
+@pytest.fixture(scope="session")
+def launcher(tmp_path_factory):
+    """The one launcher that every stand-in of the session is a name for."""
+    return fakes.write_launcher(directory=tmp_path_factory.mktemp("launcher"))
+
+
 @pytest.fixture
-def fake(stand_ins, monkeypatch):
+def fake(stand_ins, launcher, monkeypatch):
     """Return a factory that puts a stand-in for a program first on the PATH."""
     monkeypatch.setenv("PATH", f"{stand_ins}{os.pathsep}{os.environ['PATH']}")
-    return partial(fakes.install, directory=stand_ins)
+    return partial(fakes.install, directory=stand_ins, launcher=launcher)
 
 
 @pytest.fixture

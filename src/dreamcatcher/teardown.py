@@ -72,7 +72,9 @@ else:  # pragma: no cover
 
         A group with nothing left in it is a round that has already ended,
         which is what the caller wanted, so that reads as done rather than as
-        a failure.
+        a failure. macOS reports a group whose only member has exited, and
+        has not yet been waited for, as a permission error rather than as no
+        such group, and that reads as done too.
         """
         # The child leads the group, so its pid is the group's id. A caller
         # that has collected the child's status has let go of that pid, so
@@ -83,5 +85,5 @@ else:  # pragma: no cover
         # has that only from Python 3.13 while this project pins 3.12. The
         # line would be a branch on the Python version inside this platform
         # branch, and no one runner can cover both of its arms.
-        with suppress(ProcessLookupError):
+        with suppress(ProcessLookupError, PermissionError):
             os.killpg(pid, signal.SIGKILL)

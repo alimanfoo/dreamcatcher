@@ -69,10 +69,11 @@ $env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest
 ```
 
 Run one test file. `--no-cov` turns off the coverage gate, which only the whole
-suite can satisfy.
+suite can satisfy, and `-n 0` runs the file in this process, because starting a
+worker for each processor costs more than one file saves.
 
 ```sh
-PYTHONWARNDEFAULTENCODING=1 uv run pytest tests/test_cli.py --no-cov
+PYTHONWARNDEFAULTENCODING=1 uv run pytest tests/test_cli.py --no-cov -n 0
 ```
 
 Run the integration tests. They ask the real `gh` about this repository, so you
