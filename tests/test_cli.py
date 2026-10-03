@@ -402,6 +402,38 @@ def test_stop_refuses_a_round_without_a_resumable_session(
     assert "has no running round that can be stopped" in capsys.readouterr().err
 
 
+def test_stop_refuses_a_conversation_round_without_a_resumable_session(
+    monkeypatch, tmp_path, capsys
+):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    write_daemon_lock(path=state.lock)
+    directory = write_conversation(
+        state=state,
+        issue=13,
+        harness_session_identifier=None,
+    )
+    write_round(
+        directory=directory,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            started=PINNED,
+            pid=1,
+            purpose=ConversationRoundPurpose.DISCUSS,
+        ),
+    )
+    monkeypatch.chdir(tmp_path)
+
+    assert main(argv=["stop", "GH13", "--conversation"]) == 1
+
+    conversation = read_conversation(state=state, issue=13)
+    assert conversation is not None
+    paths = conversation.compose_round_paths(number=1)
+    assert not paths.stop_request.exists()
+    assert "has no running round that can be stopped" in capsys.readouterr().err
+
+
 def test_feed_shows_what_the_assignment_said(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
     # A following view runs until the assignment has completed its wrap-up, so this
