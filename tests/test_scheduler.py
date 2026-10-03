@@ -36,6 +36,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     AssignmentRoundPurpose,
     ErroredAgentRoundEnding,
+    InterruptedAgentRoundEnding,
     compose_agent_round_ending,
 )
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
@@ -840,26 +841,18 @@ def test_a_tick_records_an_incomplete_setup_failure(ready_repo):
     assert "some-other-branch, not dreamcatcher" in setup_failure
 
 
-def test_an_assignment_whose_last_round_did_not_finish_is_carried_on(
-    resuming, left_running, harnesses
-):
+def test_an_assignment_with_a_round_that_has_no_ending_starts_nothing(resuming):
     write_round(
         directory=StateDirectory(root=resuming).assignments / ASSIGNMENT_ID,
         number=1,
-        record=AgentRoundRecord(
-            number=1, started=PINNED, pid=left_running.pid, purpose=PURPOSE
-        ),
+        record=AgentRoundRecord(number=1, started=PINNED, pid=1, purpose=PURPOSE),
     )
     scheduler, clock = create_scheduler(root=resuming)
 
     observed = scheduler.tick(at=clock())
-    finish_rounds(scheduler=scheduler)
 
-    assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
-    assert (
-        written_round(scheduler=scheduler, number=2, name="prompt.txt")
-        == RECOVERY_PROMPT
-    )
+    assert observed.launched_agent_work_identifiers == []
+    assert observed.assignment_observations == []
     assert not (
         scheduler.assignments.state.assignments
         / ASSIGNMENT_ID
@@ -867,10 +860,6 @@ def test_an_assignment_whose_last_round_did_not_finish_is_carried_on(
         / "2"
         / "inbox.json"
     ).exists()
-    assert harnesses["claude"].calls[-1].arguments[-2:] == [
-        "--resume",
-        HARNESS_SESSION_IDENTIFIER,
-    ]
 
 
 def test_a_resume_recovers_the_harness_session_from_the_first_rounds_raw_stream(
@@ -1019,12 +1008,16 @@ def test_a_failed_replacement_session_does_not_acknowledge_terminal_feedback(
     ]
 
 
-def test_a_carried_on_round_records_recovery_independently(resuming, left_running):
+def test_a_carried_on_round_records_recovery_independently(resuming):
     write_round(
         directory=StateDirectory(root=resuming).assignments / ASSIGNMENT_ID,
         number=1,
         record=AgentRoundRecord(
-            number=1, started=PINNED, pid=left_running.pid, purpose=PURPOSE
+            number=1,
+            started=PINNED,
+            pid=1,
+            purpose=PURPOSE,
+            ending=InterruptedAgentRoundEnding(),
         ),
     )
     scheduler, clock = create_scheduler(root=resuming)
@@ -1171,7 +1164,7 @@ def test_an_assignment_that_has_had_its_last_round_gets_no_other(resuming, gh):
 
 
 def test_a_last_round_that_was_interrupted_is_carried_on_as_the_last_round(
-    resuming, gh, left_running
+    resuming, gh
 ):
     ran(root=resuming, number=1, purpose=AssignmentRoundPurpose.IMPLEMENT)
     write_round(
@@ -1180,8 +1173,9 @@ def test_a_last_round_that_was_interrupted_is_carried_on_as_the_last_round(
         record=AgentRoundRecord(
             number=2,
             started=PINNED.replace(hour=17, minute=2),
-            pid=left_running.pid,
+            pid=1,
             purpose=AssignmentRoundPurpose.WRAP_UP,
+            ending=InterruptedAgentRoundEnding(),
         ),
     )
     gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
@@ -1201,14 +1195,16 @@ def test_a_last_round_that_was_interrupted_is_carried_on_as_the_last_round(
     ).exists()
 
 
-def test_open_work_is_carried_on_before_a_new_issue_is_assigned(
-    resuming, gh, offered, left_running
-):
+def test_open_work_is_carried_on_before_a_new_issue_is_assigned(resuming, gh, offered):
     write_round(
         directory=StateDirectory(root=resuming).assignments / ASSIGNMENT_ID,
         number=1,
         record=AgentRoundRecord(
-            number=1, started=PINNED, pid=left_running.pid, purpose=PURPOSE
+            number=1,
+            started=PINNED,
+            pid=1,
+            purpose=PURPOSE,
+            ending=InterruptedAgentRoundEnding(),
         ),
     )
     scheduler, clock = create_scheduler(root=resuming)

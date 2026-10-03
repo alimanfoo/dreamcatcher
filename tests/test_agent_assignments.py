@@ -306,8 +306,15 @@ def test_an_assignment_that_has_run_no_round_has_left_nothing_unfinished(fabrica
     assert not assignment.is_complete
 
 
-def test_an_assignment_whose_last_round_was_interrupted_says_so(fabricated):
+def test_an_assignment_whose_last_round_has_no_ending_says_nothing(fabricated):
     assignment = standing(state=fabricated, rounds=[running()])
+
+    assert assignment.describe_unfinished_round() is None
+
+
+def test_an_assignment_whose_last_round_was_interrupted_says_so(fabricated):
+    interrupted = running().model_copy(update={"ending": InterruptedAgentRoundEnding()})
+    assignment = standing(state=fabricated, rounds=[interrupted])
 
     assert assignment.describe_unfinished_round() == "the last round was interrupted"
 

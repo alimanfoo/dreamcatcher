@@ -11,7 +11,6 @@ from dreamcatcher.agent_assignments import (
 )
 from dreamcatcher.agent_rounds import (
     AgentRound,
-    AgentRoundOutcome,
 )
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import AgentWorkKind
@@ -481,10 +480,7 @@ class Scheduler:
         inspection_results: list[AssignmentInspectionResult] = []
         open_assignments = find_open_assignments_by_issue(assignments=assignments)
         for assignment in open_assignments.values():
-            if (
-                assignment.identifier in self.rounds
-                and assignment.rounds[-1].outcome is AgentRoundOutcome.RUNNING
-            ):
+            if assignment.rounds and assignment.rounds[-1].ending is None:
                 continue
             inspection_result = self.assignments.inspect(
                 request=AssignmentInspectionRequest(

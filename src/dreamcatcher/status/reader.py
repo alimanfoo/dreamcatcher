@@ -355,8 +355,9 @@ class StatusReportReader:
                     reason="two consecutive rounds failed",
                 ),
             )
-        unfinished_round = assignment.describe_unfinished_round()
-        if unfinished_round is not None:
+        if (
+            assignment.rounds and assignment.rounds[-1].ending is None
+        ) or assignment.describe_unfinished_round() is not None:
             return self._read_unfinished_assignment_status(assignment=assignment)
         if assignment.is_complete:
             return self._compose_assignment_status(
@@ -450,7 +451,10 @@ class StatusReportReader:
         )
         description = describe_agent_round_start(
             purpose=purpose,
-            is_recovery=assignment.describe_unfinished_round() is not None,
+            is_recovery=(
+                record.ending is None
+                or assignment.describe_unfinished_round() is not None
+            ),
         )
         return f"next round, {description}"
 
