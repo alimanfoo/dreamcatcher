@@ -13,6 +13,7 @@ from dreamcatcher.agent_assignments import (
     read_assignments_for_issue,
     request_assignment_retry,
 )
+from dreamcatcher.agent_rounds import request_agent_round_stop
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS, DreamcatcherDaemon
@@ -28,6 +29,10 @@ from dreamcatcher.scheduler import (
     read_scheduler_record,
 )
 from dreamcatcher.state import StateDirectory
+from dreamcatcher.status import (
+    read_assignment_statuses_for_issue,
+    read_conversation_status,
+)
 from dreamcatcher.version import DREAMCATCHER_VERSION
 
 # How a view names the issue it is about, as the issue itself is written.
@@ -116,6 +121,18 @@ def _build_cli_parser() -> argparse.ArgumentParser:
     )
     _add_issue_argument(parser=retry_parser)
     retry_parser.set_defaults(act=_retry_agent_work)
+    stop_parser = subcommands.add_parser(
+        "stop",
+        help="stop one running assignment or conversation round",
+        description=(
+            "Request a stop for the current round of the selected agent work. "
+            "The round must be running under the daemon and have a resumable "
+            "harness session."
+        ),
+    )
+    _add_issue_argument(parser=stop_parser)
+    _add_agent_work_selector(parser=stop_parser)
+    stop_parser.set_defaults(act=_stop_agent_work)
     web_parser = subcommands.add_parser(
         "web",
         help="serve the local status report in a web browser",
@@ -191,21 +208,7 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         ),
     )
     _add_issue_argument(parser=feed_parser)
-    owner_group = feed_parser.add_mutually_exclusive_group(required=True)
-    owner_group.add_argument(
-        "--assignment",
-        dest="owner_kind",
-        action="store_const",
-        const=AgentWorkKind.ASSIGNMENT,
-        help="show the newest assignment at the issue",
-    )
-    owner_group.add_argument(
-        "--conversation",
-        dest="owner_kind",
-        action="store_const",
-        const=AgentWorkKind.CONVERSATION,
-        help="show the issue conversation",
-    )
+    _add_agent_work_selector(parser=feed_parser)
     feed_parser.add_argument(
         "--round",
         type=int,
@@ -217,6 +220,24 @@ def _build_cli_parser() -> argparse.ArgumentParser:
     )
     feed_parser.set_defaults(act=_show_feed)
     return parser
+
+
+def _add_agent_work_selector(*, parser: argparse.ArgumentParser) -> None:
+    owner_group = parser.add_mutually_exclusive_group(required=True)
+    owner_group.add_argument(
+        "--assignment",
+        dest="owner_kind",
+        action="store_const",
+        const=AgentWorkKind.ASSIGNMENT,
+        help="select the newest assignment at the issue",
+    )
+    owner_group.add_argument(
+        "--conversation",
+        dest="owner_kind",
+        action="store_const",
+        const=AgentWorkKind.CONVERSATION,
+        help="select the issue conversation",
+    )
 
 
 def _add_issue_argument(*, parser: argparse.ArgumentParser) -> None:
@@ -324,6 +345,31 @@ def _retry_agent_work(*, arguments: argparse.Namespace) -> None:
     if not retried:
         raise ReportableError(f"GH{arguments.issue} has no agent work in fault.")
     print(f"{', '.join(retried)} can recover on the next scheduler tick.")
+
+
+def _stop_agent_work(*, arguments: argparse.Namespace) -> None:
+    """Request a stop for the selected agent work's live round."""
+    state = _find_state_directory(root=Path.cwd())
+    if arguments.owner_kind is AgentWorkKind.ASSIGNMENT:
+        statuses = read_assignment_statuses_for_issue(
+            state=state, issue=arguments.issue
+        )
+        paths = None if not statuses else statuses[0].stoppable_round_paths
+        work_description = "newest assignment"
+    else:
+        status = read_conversation_status(state=state, issue=arguments.issue)
+        paths = None if status is None else status.stoppable_round_paths
+        work_description = "issue conversation"
+    if paths is None:
+        raise ReportableError(
+            f"The {work_description} at GH{arguments.issue} has no running round "
+            "that can be stopped."
+        )
+    request_agent_round_stop(paths=paths)
+    print(
+        f"Requested a stop for {work_description} round {paths.number} "
+        f"at GH{arguments.issue}."
+    )
 
 
 def _show_status(*, arguments: argparse.Namespace) -> None:
