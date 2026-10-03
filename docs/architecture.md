@@ -304,8 +304,8 @@ interface.
 
 Status reporting owns the read-only status model and constructs a
 `DreamcatcherStatusReport` containing the repository identity, instance and
-daemon facts, failed-setup, available and blocked `IssueObservation` entries,
-`ConversationStatus` entries, and `AssignmentStatus` entries.
+daemon facts, `IssueObservation` entries, `ConversationStatus` entries, and
+`AssignmentStatus` entries.
 
 Status construction may read:
 
@@ -330,12 +330,14 @@ routing conflict as independent facts which may each be true, false, or unknown;
 its availability is derived from those facts together with whether the issue is
 open, assigned to the instance's user, and carries exactly one assignment label.
 The report includes available issues in the scheduler's dispatch order. It also
-includes issues with known open blockers, together with the scheduler's recorded
-blocker evidence. An `AssignmentStatus` is one summary status from the ontology.
+includes issues with known routing conflicts or open blockers, together with the
+scheduler's recorded evidence. An `AssignmentStatus` is one summary status from
+the ontology.
 
-The report includes an issue observation among failed setups while the latest
-tick records a setup failure, independently of whether the issue is available or
-a linked pull request proves that it is claimed elsewhere.
+The report includes an issue observation only among failed setups while the
+latest tick records a setup failure, independently of whether the issue is
+available or a linked pull request proves that it is claimed elsewhere. That
+single row also includes any recorded routing-conflict or blocker evidence.
 
 An `AgentWorkObservation` records the tick's interpretation of one open work
 item. It carries the agent work identifier, issue and one `IssueFact` saying

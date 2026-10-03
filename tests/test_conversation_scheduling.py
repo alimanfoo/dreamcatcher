@@ -737,8 +737,11 @@ def test_a_follow_up_resumes_the_session_with_only_new_comments(
 
 
 def test_a_stopped_conversation_waits_for_new_feedback(
-    conversation_scheduler, harnesses
+    conversation_scheduler, harnesses, monkeypatch
 ):
+    monkeypatch.setattr(
+        "dreamcatcher.agent_rounds._STOP_REQUEST_POLL_INTERVAL_SECONDS", 0.01
+    )
     scheduler, clock, gh = conversation_scheduler
     offer_conversation(gh=gh, comments=[ask()])
     answer(harnesses=harnesses, body="This answer must not be posted.", delay=5)
@@ -771,9 +774,11 @@ def test_a_stopped_conversation_waits_for_new_feedback(
     assert conversation is not None
     assert launched.launched_agent_work_identifiers == ["conversation-GH8"]
     assert not conversation.rounds[1].is_recovery
+    # The stopped round's harness may have been ended before it recorded its
+    # call, so the revised round's call is the last one rather than the second.
     assert (
         harnesses["claude"]
-        .calls[1]
+        .calls[-1]
         .prompt.startswith("The user stopped your previous round")
     )
 

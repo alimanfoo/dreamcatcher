@@ -10,6 +10,7 @@ from unittest.mock import MagicMock
 import pytest
 from clocks import DISPLAY_TIME_ZONE, PINNED
 from conftest import FIXTURES, REPOSITORY, assert_matches_view_golden
+from observations import observed_issue
 from records import write_assignment, write_feed, write_round, write_tick
 from status_fabrications import (
     LOOKED_AT,
@@ -37,11 +38,16 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.documents import append_text, remove_file, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
-from dreamcatcher.scheduler.models import GlobalCooldown, SchedulerRecord
+from dreamcatcher.scheduler.models import (
+    GlobalCooldown,
+    IssueFactValue,
+    SchedulerRecord,
+)
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.web import serve_web
 from dreamcatcher.web.app import _create_app
 from dreamcatcher.web.server import _WEB_BASE_PORT, WEB_HOST
+from dreamcatcher.web.views import _compose_issue_row
 
 WEB_STATUS_REPORTS = {
     **STATUS_REPORTS,
@@ -1196,7 +1202,27 @@ def test_issue_references_link_to_github_with_hash_notation(tmp_path, daemon):
         f'<a class="issue-number" href="{issue_url}" '
         f"{github_attributes}>#50</a>" in page
     )
+    assert (
+        '<span class="chip issue-routing-conflict">multiple '
+        "assignment labels: dream:less, dream:smith; blocked by "
+        f'<a class="issue-number" href="{issue_url}" '
+        f"{github_attributes}>#50</a>" in page
+    )
     assert "blocked by GH50" not in page
+
+
+def test_an_assignment_label_that_looks_like_an_issue_reference_remains_text():
+    evidence = "multiple assignment labels: dream:smith, GH123"
+    observation = observed_issue(
+        issue=53,
+        assignment_labels=("dream:smith", "GH123"),
+        values={"routing_conflict": IssueFactValue.TRUE},
+        evidence={"routing_conflict": evidence},
+    )
+
+    row = _compose_issue_row(observation=observation)
+
+    assert row.evidence == (evidence,)
 
 
 def test_a_pull_request_links_to_github_before_its_state_is_observed(tmp_path, daemon):

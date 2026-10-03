@@ -1,9 +1,15 @@
 """Stand-in executables the tests put first on the PATH, in place of a real tool.
 
-A stand-in is a launcher the test writes into a directory it puts first on the
-PATH. The launcher hands each call to the replayer in this file, which answers
-it as the test scripted it and records what it was passed. Both halves live in
-this one file, so the files they pass between them have one shape in one place.
+A stand-in is a launcher in a directory the test puts first on the PATH. The
+launcher hands each call to the replayer in this file, which answers it as the
+test scripted it and records what it was passed. Both halves live in this one
+file, so the files they pass between them have one shape in one place.
+
+The suite writes one launcher a session and installs each stand-in as a name
+for it, because macOS assesses an executable file the first time it runs and
+that takes a third of a second. The launcher finds a stand-in's scripted answers
+and recorded calls by the path it was invoked as, so no stand-in's files are
+written into it.
 
 Windows will not run a launcher with no extension, so the launcher is a .cmd
 there. `dreamcatcher.commands` finds every program on the PATH before it runs
@@ -18,6 +24,7 @@ interpreter as another process.
 
 import json
 import os
+import shutil
 import stat
 import sys
 from dataclasses import asdict, dataclass
@@ -150,11 +157,38 @@ def recorded(*, path: Path) -> list[Line]:
     ]
 
 
-def install(*, directory: Path, program: str) -> Fake:
-    """Return a stand-in for program, written into directory as a launcher."""
+def write_launcher(*, directory: Path) -> Path:
+    """Write the launcher that every stand-in of the session is a name for."""
+    replayer = Path(__file__).resolve()
+    if os.name == "nt":
+        interpreter = Path(sys.base_prefix) / Path(sys.executable).name
+        launcher = directory / "launcher.cmd"
+        launcher.write_text(
+            f'@echo off\n"{interpreter}" -S "{replayer}" "%~dpn0" %*\n'
+            "exit /b %errorlevel%\n",
+            encoding="utf-8",
+        )
+        return launcher
+    launcher = directory / "launcher"
+    launcher.write_text(
+        f'#!/bin/sh\nexec "{sys.executable}" -S "{replayer}" "$0" "$@"\n',
+        encoding="utf-8",
+    )
+    launcher.chmod(launcher.stat().st_mode | stat.S_IXUSR)
+    return launcher
+
+
+def install(*, directory: Path, program: str, launcher: Path) -> Fake:
+    """Return a stand-in for program, installed into directory as the launcher.
+
+    A symbolic link is a privilege on Windows, so the launcher is copied there.
+    """
     directory.mkdir(parents=True, exist_ok=True)
     base = directory / program
-    _launcher(base=base)
+    if os.name == "nt":
+        shutil.copyfile(launcher, base.with_name(f"{base.name}.cmd"))
+    else:
+        base.symlink_to(launcher)
     return Fake(base=base)
 
 
@@ -187,24 +221,6 @@ def replay(*, base: Path, arguments: list[str]) -> int:
             answer["final_output"].encode("utf-8")
         )
     return int(answer["status"])
-
-
-def _launcher(*, base: Path) -> None:
-    """Write the launcher that hands a call to replay."""
-    replayer = Path(__file__).resolve()
-    if os.name == "nt":
-        interpreter = Path(sys.base_prefix) / Path(sys.executable).name
-        base.with_name(f"{base.name}.cmd").write_text(
-            f'@echo off\n"{interpreter}" -S "{replayer}" "{base}" %*\n'
-            "exit /b %errorlevel%\n",
-            encoding="utf-8",
-        )
-        return
-    base.write_text(
-        f'#!/bin/sh\nexec "{sys.executable}" -S "{replayer}" "{base}" "$@"\n',
-        encoding="utf-8",
-    )
-    base.chmod(base.stat().st_mode | stat.S_IXUSR)
 
 
 def _scripted(*, base: Path) -> Path:

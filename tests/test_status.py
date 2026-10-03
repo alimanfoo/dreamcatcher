@@ -150,8 +150,7 @@ def test_an_empty_instance_reports_unknown_capacity_and_no_work(tmp_path):
     assert found.daemon.max_agents is None
     assert found.running_agents == 0
     assert found.active_global_cooldown is None
-    assert found.available_issues == []
-    assert found.blocked_issues == []
+    assert found.issue_observations == []
     assert found.assignment_statuses == []
 
 
@@ -721,9 +720,59 @@ def test_a_blocked_issue_is_reported_with_its_evidence(state):
 
     status_report = report(state=state)
 
-    assert status_report.available_issues == []
-    assert [issue.issue for issue in status_report.blocked_issues] == [20]
-    assert status_report.blocked_issues[0].blocked.evidence == "blocked by GH10"
+    assert [issue.issue for issue in status_report.issue_observations] == [20]
+    assert status_report.issue_observations[0].blocked.evidence == "blocked by GH10"
+
+
+def test_a_routing_conflict_and_blocker_are_reported_once_with_their_evidence(state):
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            issue_observations=[
+                observed_issue(
+                    issue=20,
+                    values={
+                        "routing_conflict": IssueFactValue.TRUE,
+                        "blocked": IssueFactValue.TRUE,
+                    },
+                    evidence={
+                        "routing_conflict": "multiple assignment labels",
+                        "blocked": "blocked by GH10",
+                    },
+                )
+            ],
+        ),
+    )
+
+    status_report = report(state=state)
+
+    assert [issue.issue for issue in status_report.issue_observations] == [20]
+    assert (
+        status_report.issue_observations[0].routing_conflict.evidence
+        == "multiple assignment labels"
+    )
+    assert status_report.issue_observations[0].blocked.evidence == "blocked by GH10"
+
+
+def test_a_routing_conflict_without_a_blocker_is_reported(state):
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            issue_observations=[
+                observed_issue(
+                    issue=20,
+                    values={"routing_conflict": IssueFactValue.TRUE},
+                    evidence={"routing_conflict": "multiple assignment labels"},
+                )
+            ],
+        ),
+    )
+
+    status_report = report(state=state)
+
+    assert [issue.issue for issue in status_report.issue_observations] == [20]
 
 
 def test_an_open_local_assignment_removes_its_issue_from_available_work(state):
@@ -735,7 +784,7 @@ def test_an_open_local_assignment_removes_its_issue_from_available_work(state):
         ),
     )
 
-    assert report(state=state).available_issues == []
+    assert report(state=state).issue_observations == []
 
 
 def test_a_complete_local_assignment_no_longer_claims_its_observed_issue(state):
@@ -749,7 +798,7 @@ def test_a_complete_local_assignment_no_longer_claims_its_observed_issue(state):
         tick=SchedulerRecord(at=PINNED, issue_observations=[observation]),
     )
 
-    issue = report(state=state).available_issues[0]
+    issue = report(state=state).issue_observations[0]
 
     assert issue.claimed_here.value is IssueFactValue.FALSE
     assert issue.availability.value is IssueFactValue.TRUE
@@ -767,7 +816,7 @@ def test_available_issues_keep_scheduler_order_and_observation_times(state):
         ),
     )
 
-    issues = report(state=state).available_issues
+    issues = report(state=state).issue_observations
 
     assert [issue.issue for issue in issues] == [20, 21]
     assert issues[0].observed_at == PINNED
@@ -909,4 +958,21 @@ def test_a_failed_setup_reports_independently_of_an_external_claim(state):
     assert status_report.failed_assignment_setups == [
         observation.model_copy(update={"observed_at": PINNED})
     ]
-    assert status_report.available_issues == []
+    assert status_report.issue_observations == []
+
+
+def test_a_failed_setup_with_a_routing_conflict_is_reported_once(state):
+    observation = observed_issue(
+        issue=20,
+        values={"routing_conflict": IssueFactValue.TRUE},
+        evidence={"routing_conflict": "multiple assignment labels"},
+    ).model_copy(update={"setup_failure": "assignment setup failed"})
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(at=PINNED, issue_observations=[observation]),
+    )
+
+    status_report = report(state=state)
+
+    assert [issue.issue for issue in status_report.failed_assignment_setups] == [20]
+    assert status_report.issue_observations == []

@@ -2,8 +2,8 @@
 
 On POSIX, each child leads a process group that termination signals as a unit.
 A descendant that starts another session can escape that group. On Windows,
-each child belongs to a Job Object that terminates its members when the daemon
-closes the last job handle.
+each child starts suspended and is placed in a Job Object before it runs, and
+the job terminates its members when the daemon closes the last job handle.
 
 Cleanup ends the contained group or job after normal exit as well as forced
 termination.
@@ -19,9 +19,16 @@ SHOULD_START_NEW_PROCESS_SESSION = sys.platform != "win32"
 if sys.platform == "win32":  # pragma: no cover
     from typing import cast
 
+    import psutil
     import win32api
     import win32con
     import win32job
+    import win32process
+
+    # A child starts suspended, so it is in its job before it runs. A child
+    # placed after it started could have exited, or started descendants of its
+    # own outside the job, in the moment between the two.
+    CHILD_CREATION_FLAGS = win32con.CREATE_SUSPENDED
 
     # What everything left in a terminated job reports as the status it ended
     # with.
@@ -34,7 +41,11 @@ if sys.platform == "win32":  # pragma: no cover
     _jobs: dict[int, int] = {}
 
     def contain_process_tree(*, pid: int) -> None:
-        """Place the child and its descendants in a dedicated Job Object."""
+        """Place the suspended child in a dedicated Job Object, then let it run.
+
+        The child is resumed whether or not placing it succeeds, so a failure
+        leaves nothing suspended.
+        """
         job = cast("int", win32job.CreateJobObject(None, ""))
         limits = win32job.QueryInformationJobObject(
             job, win32job.JobObjectExtendedLimitInformation
@@ -48,9 +59,21 @@ if sys.platform == "win32":  # pragma: no cover
         child = win32api.OpenProcess(
             win32con.PROCESS_SET_QUOTA | win32con.PROCESS_TERMINATE, False, pid
         )
-        win32job.AssignProcessToJobObject(job, child)
-        win32api.CloseHandle(child)
+        try:
+            win32job.AssignProcessToJobObject(job, child)
+        finally:
+            win32api.CloseHandle(child)
+            _resume_process(pid=pid)
         _jobs[pid] = job
+
+    def _resume_process(*, pid: int) -> None:
+        """Resume the one thread a child that started suspended has."""
+        for thread in psutil.Process(pid).threads():
+            handle = win32api.OpenThread(
+                win32con.THREAD_SUSPEND_RESUME, False, thread.id
+            )
+            win32process.ResumeThread(handle)
+            win32api.CloseHandle(handle)
 
     def end_process_tree(*, pid: int) -> None:
         """Terminate the child's Job Object and release its handle."""
@@ -64,6 +87,9 @@ else:  # pragma: no cover
     import signal
     from contextlib import suppress
 
+    # A POSIX child starts as spawned; its process group is what contains it.
+    CHILD_CREATION_FLAGS = 0
+
     def contain_process_tree(*, pid: int) -> None:
         """Leave the child in the process group that spawn created for it."""
 
@@ -72,7 +98,9 @@ else:  # pragma: no cover
 
         A group with nothing left in it is a round that has already ended,
         which is what the caller wanted, so that reads as done rather than as
-        a failure.
+        a failure. macOS reports a group whose only member has exited, and
+        has not yet been waited for, as a permission error rather than as no
+        such group, and that reads as done too.
         """
         # The child leads the group, so its pid is the group's id. A caller
         # that has collected the child's status has let go of that pid, so
@@ -83,5 +111,5 @@ else:  # pragma: no cover
         # has that only from Python 3.13 while this project pins 3.12. The
         # line would be a branch on the Python version inside this platform
         # branch, and no one runner can cover both of its arms.
-        with suppress(ProcessLookupError):
+        with suppress(ProcessLookupError, PermissionError):
             os.killpg(pid, signal.SIGKILL)

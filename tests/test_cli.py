@@ -623,6 +623,14 @@ def test_conversation_view_help_explains_that_routing_conflicts_end_the_view(
     assert "routing conflict" in " ".join(capsys.readouterr().out.split())
 
 
+def test_status_help_names_assignment_routing_conflicts(capsys):
+    with pytest.raises(SystemExit) as exit_info:
+        main(argv=["status", "--help"])
+
+    assert exit_info.value.code == 0
+    assert "assignment routing conflicts" in " ".join(capsys.readouterr().out.split())
+
+
 def test_a_bare_invocation_asks_for_a_verb(capsys):
     with pytest.raises(SystemExit) as exit_info:
         main(argv=[])
