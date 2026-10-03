@@ -57,7 +57,7 @@ from dreamcatcher.harness_adapters import (
     HarnessSessionIdentifier,
     refuse_reportable_harness_session_identifier,
 )
-from dreamcatcher.harnesses import find_harness_session_identifier_in_output
+from dreamcatcher.harnesses import find_harness_session_identifier
 from dreamcatcher.prompts import compose_first_round_prompt
 from dreamcatcher.state import StateDirectory
 
@@ -471,19 +471,15 @@ def find_assignment_harness_session_identifier(
     *, assignment: Assignment
 ) -> HarnessSessionIdentifier | None:
     """Return the recorded or recoverable harness session identifier."""
-    if assignment.record.harness_session_identifier is not None:
-        return assignment.record.harness_session_identifier
-    for round_record in reversed(assignment.rounds):
-        identifier = find_harness_session_identifier_in_output(
-            harness=assignment.record.harness,
-            agent_work_identifier=assignment.identifier,
-            raw_output=assignment.compose_round_paths(
-                number=round_record.number
-            ).raw_output,
-        )
-        if identifier is not None:
-            return identifier
-    return None
+    return find_harness_session_identifier(
+        harness=assignment.record.harness,
+        agent_work_identifier=assignment.identifier,
+        recorded=assignment.record.harness_session_identifier,
+        raw_outputs=(
+            assignment.compose_round_paths(number=round_record.number).raw_output
+            for round_record in reversed(assignment.rounds)
+        ),
+    )
 
 
 def record_assignment_harness_session_identifier(

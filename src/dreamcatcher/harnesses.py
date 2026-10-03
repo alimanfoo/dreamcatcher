@@ -1,10 +1,11 @@
 """Map configured harnesses to adapters and inspect their durable output.
 
 The lookup sits here rather than in `harness_adapters.py`, because every adapter
-imports `harness_adapters.py` itself. Shared recovery paths also use the lookup
-to recover a harness session identifier from raw output.
+imports `harness_adapters.py` itself. Both kinds of agent work also use the
+lookup to find a harness session identifier in recorded raw output.
 """
 
+from collections.abc import Iterable
 from pathlib import Path
 
 from dreamcatcher.claude import CLAUDE_ADAPTER
@@ -23,13 +24,37 @@ HARNESS_ADAPTERS: dict[AgentHarness, HarnessAdapter] = {
 }
 
 
-def find_harness_session_identifier_in_output(
+def find_harness_session_identifier(
+    *,
+    harness: AgentHarness,
+    agent_work_identifier: str,
+    recorded: HarnessSessionIdentifier | None,
+    raw_outputs: Iterable[Path],
+) -> HarnessSessionIdentifier | None:
+    """Return the recorded identifier, or else the first the raw outputs hold.
+
+    Pass the raw outputs newest round first, so that a recovered identifier is
+    the one the latest round reported.
+    """
+    if recorded is not None:
+        return recorded
+    for raw_output in raw_outputs:
+        identifier = _find_harness_session_identifier_in_output(
+            harness=harness,
+            agent_work_identifier=agent_work_identifier,
+            raw_output=raw_output,
+        )
+        if identifier is not None:
+            return identifier
+    return None
+
+
+def _find_harness_session_identifier_in_output(
     *,
     harness: AgentHarness,
     agent_work_identifier: str,
     raw_output: Path,
 ) -> HarnessSessionIdentifier | None:
-    """Return the first harness session identifier in durable raw output."""
     lines, _ = read_lines_from(path=raw_output, position=0)
     adapter = HARNESS_ADAPTERS[harness]
     for line in lines:

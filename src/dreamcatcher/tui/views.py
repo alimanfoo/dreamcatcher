@@ -229,7 +229,9 @@ def _render_assignment(
             rendered_status,
             latest_output,
             _render_assignment_summary(state=state, status=current_status),
-            _render_rounds(status=current_status, zone=zone),
+            _render_round_statuses(
+                round_statuses=current_status.round_statuses, zone=zone
+            ),
             _render_harness_resume(
                 state=state,
                 worktree=current_status.assignment.record.worktree,
@@ -264,13 +266,6 @@ def _render_assignment_summary(
     ):
         table.add_row(Text(name), Text(str(value)))
     return render_section(heading="assignment", body=table)
-
-
-def _render_rounds(
-    *, status: AssignmentStatus, zone: tzinfo | None
-) -> RenderableType | None:
-    """Return the rounds the assignment has run, newest first."""
-    return _render_round_statuses(round_statuses=status.round_statuses, zone=zone)
 
 
 def _render_round_statuses(
