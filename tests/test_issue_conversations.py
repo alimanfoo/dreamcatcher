@@ -9,7 +9,7 @@ from dreamcatcher.agent_rounds import (
     ConversationRoundPurpose,
 )
 from dreamcatcher.config import AgentHarness, ConversationRoute, DispatchRecipe
-from dreamcatcher.documents import write_json
+from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import add_detached_worktree, is_linked_worktree
 from dreamcatcher.github import (
@@ -28,6 +28,7 @@ from dreamcatcher.issue_conversations import (
     IssueCommentCursor,
     create_conversation,
     describe_conversation_revision,
+    find_conversation_harness_session_identifier,
     list_undelivered_issue_comments,
     post_conversation_answer,
     prepare_conversation_input,
@@ -393,6 +394,35 @@ def test_a_conversation_records_its_session_and_round_paths(tmp_path):
             conversation=conversation, identifier="other-456"
         )
     assert "after it already reported abc-123" in str(error.value)
+
+
+def test_a_conversation_recovers_a_session_reported_by_a_later_round(tmp_path):
+    conversation = write_conversation(state=StateDirectory(root=tmp_path))
+    for number in (1, 2):
+        paths = conversation.compose_round_paths(number=number)
+        write_json(
+            document=AgentRoundRecord(
+                number=number,
+                purpose=ConversationRoundPurpose.DISCUSS,
+                is_recovery=number == 2,
+                started=PINNED,
+                pid=1,
+            ),
+            path=paths.record,
+        )
+    write_text(
+        text=(
+            '{"type":"system","subtype":"init","model":"claude-opus-5",'
+            '"session_id":"replacement-session"}\n'
+        ),
+        path=conversation.compose_round_paths(number=2).raw_output,
+    )
+    reread = read_conversation(state=StateDirectory(root=tmp_path), issue=8)
+    assert reread is not None
+
+    recovered = find_conversation_harness_session_identifier(conversation=reread)
+
+    assert recovered == "replacement-session"
 
 
 def test_the_delivery_cursor_comes_from_the_latest_round_input(tmp_path):

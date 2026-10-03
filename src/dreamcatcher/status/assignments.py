@@ -13,14 +13,16 @@ from dreamcatcher.agent_assignments import (
 from dreamcatcher.agent_rounds import AgentRoundPaths
 from dreamcatcher.feed import describe_agent_round_start, read_last_feed_line
 from dreamcatcher.harness_adapters import HarnessSessionIdentifier
-from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.scheduler.models import (
     AgentWorkObservation,
     IssueFactValue,
     SchedulerRecord,
     derive_round_purpose,
 )
-from dreamcatcher.status.agent_work import AgentWorkStatusReader
+from dreamcatcher.status.agent_work import (
+    AgentWorkStatusReader,
+    compose_hand_resume_command,
+)
 from dreamcatcher.status.rounds import (
     AgentRoundStatus,
     compose_round_duration_description,
@@ -108,15 +110,10 @@ class AssignmentStatus:
     @cached_property
     def hand_resume_command(self) -> list[str] | None:
         """The hand-resume command when nobody is running the session."""
-        harness_session_identifier = self.harness_session_identifier
-        if (
-            self.value is AssignmentStatusValue.WORKING
-            or harness_session_identifier is None
-        ):
-            return None
-        harness_adapter = HARNESS_ADAPTERS[self.assignment.record.harness]
-        return harness_adapter.build_hand_resume(
-            harness_session_identifier=harness_session_identifier
+        return compose_hand_resume_command(
+            is_working=self.value is AssignmentStatusValue.WORKING,
+            harness=self.assignment.record.harness,
+            harness_session_identifier=self.harness_session_identifier,
         )
 
     @cached_property

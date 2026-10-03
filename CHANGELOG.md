@@ -11,6 +11,8 @@ tagged.
 
 ## Unreleased (v5.0.0)
 
+- Added `dreamcatcher stop` to request a stop for the running round of a
+  selected assignment or issue conversation.
 - Reshaped the documentation around reader tasks: a start-to-finish tutorial,
   focused task guides, complete command and configuration references, this
   changelog, compatibility guidance and a testing account.
