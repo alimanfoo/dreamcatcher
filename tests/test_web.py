@@ -1093,8 +1093,8 @@ def test_issue_references_link_to_github_with_hash_notation(tmp_path, daemon):
         f"{github_attributes}>#50</a>" in page
     )
     assert (
-        '<span class="chip issue-routing-conflict">carries more than one '
-        "assignment label: dream:less, dream:smith; blocked by "
+        '<span class="chip issue-routing-conflict">multiple '
+        "assignment labels: dream:less, dream:smith; blocked by "
         f'<a class="issue-number" href="{issue_url}" '
         f"{github_attributes}>#50</a>" in page
     )
@@ -1102,7 +1102,7 @@ def test_issue_references_link_to_github_with_hash_notation(tmp_path, daemon):
 
 
 def test_an_assignment_label_that_looks_like_an_issue_reference_remains_text():
-    evidence = "carries more than one assignment label: dream:smith, GH123"
+    evidence = "multiple assignment labels: dream:smith, GH123"
     observation = observed_issue(
         issue=53,
         assignment_labels=("dream:smith", "GH123"),

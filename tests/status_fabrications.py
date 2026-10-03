@@ -84,7 +84,7 @@ SAID = (
     FeedLine(at=PINNED + timedelta(minutes=5), text="[result] success"),
 )
 
-DOUBLE_LABELLED = "carries more than one assignment label: dream:less, dream:smith"
+DOUBLE_LABELLED = "multiple assignment labels: dream:less, dream:smith"
 
 
 def fabricate_conversation(
@@ -370,10 +370,7 @@ def fabricate_a_failed_setup(*, state):
                     },
                     evidence={
                         "claimed_elsewhere": failure,
-                        "routing_conflict": (
-                            "carries more than one assignment label: "
-                            "dream:less, dream:smith"
-                        ),
+                        "routing_conflict": DOUBLE_LABELLED,
                     },
                 ).model_copy(update={"setup_failure": failure}),
                 observed_issue(issue=21),

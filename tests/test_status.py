@@ -672,7 +672,7 @@ def test_a_routing_conflict_and_blocker_are_reported_once_with_their_evidence(st
                         "blocked": IssueFactValue.TRUE,
                     },
                     evidence={
-                        "routing_conflict": "carries more than one assignment label",
+                        "routing_conflict": "multiple assignment labels",
                         "blocked": "blocked by GH10",
                     },
                 )
@@ -685,7 +685,7 @@ def test_a_routing_conflict_and_blocker_are_reported_once_with_their_evidence(st
     assert [issue.issue for issue in status_report.issue_observations] == [20]
     assert (
         status_report.issue_observations[0].routing_conflict.evidence
-        == "carries more than one assignment label"
+        == "multiple assignment labels"
     )
     assert status_report.issue_observations[0].blocked.evidence == "blocked by GH10"
 
@@ -699,9 +699,7 @@ def test_a_routing_conflict_without_a_blocker_is_reported(state):
                 observed_issue(
                     issue=20,
                     values={"routing_conflict": IssueFactValue.TRUE},
-                    evidence={
-                        "routing_conflict": "carries more than one assignment label"
-                    },
+                    evidence={"routing_conflict": "multiple assignment labels"},
                 )
             ],
         ),
@@ -902,7 +900,7 @@ def test_a_failed_setup_with_a_routing_conflict_is_reported_once(state):
     observation = observed_issue(
         issue=20,
         values={"routing_conflict": IssueFactValue.TRUE},
-        evidence={"routing_conflict": "carries more than one assignment label"},
+        evidence={"routing_conflict": "multiple assignment labels"},
     ).model_copy(update={"setup_failure": "assignment setup failed"})
     write_tick(
         state=state,
