@@ -33,8 +33,9 @@ routes and harness selection in the configuration guide and reference;
 foreground operation and views in the run-and-monitor guide and command
 reference; conversation participation in the discussion guide; feedback and
 wrap-up in the review guide; and interruption, faults and retry in the
-stop-and-recover guide. State-format upgrades belong in compatibility. Detailed
-scheduling, lifecycle and persistence design stays in the ontology and
+stop-and-recover guide. State-format upgrades belong in compatibility. Testing
+is developer documentation, linked under the README's "Contributing" heading.
+Detailed scheduling, lifecycle and persistence design stays in the ontology and
 architecture, for human and agent developers. User-facing pages and navigation
 do not link to either document. Explain the observable behaviour users need
 directly, without requiring knowledge of that design.

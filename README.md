@@ -37,7 +37,6 @@ setup and a first assignment.
   [configuration reference](docs/configuration-reference.md).
 - Plan upgrades with [Compatibility and upgrades](docs/compatibility.md), and
   see user-visible changes in the [changelog](CHANGELOG.md).
-- Read [Testing](docs/testing.md) for what the test suite and CI establish.
 
 ## Write a skill or prompt
 
@@ -47,4 +46,5 @@ and issue-conversation prompts must do.
 ## Contributing
 
 Start with the [agent guide](AGENTS.md) for the development setup, project
-conventions and required checks.
+conventions and required checks. [Testing](docs/testing.md) explains what the
+test suite and CI establish.
