@@ -67,8 +67,15 @@ def test_home_lists_a_conversation_and_links_to_its_page(tmp_path):
 
 def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
     state = StateDirectory(root=tmp_path)
-    fabricate_conversation(state=state)
+    fabricate_conversation(state=state, harness_session_identifier=None)
     directory = state.conversations / "GH8"
+    write_text(
+        text=(
+            '{"type":"system","subtype":"init","model":"claude-opus-5",'
+            '"session_id":"recovered-session"}\n'
+        ),
+        path=directory / "rounds" / "1" / "raw.jsonl",
+    )
     revision = "0123456789abcdef0123456789abcdef01234567"
     write_round(
         directory=directory,
@@ -123,6 +130,9 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
     assert "discuss" in page
     assert "I found the answer." in page
     assert 'hx-get="/conversations/8/tail"' in page
+    assert "<summary>resume by hand</summary>" in page
+    assert "cd .dreamcatcher/v5/conversation-worktrees/GH8" in page
+    assert "claude --resume recovered-session" in page
 
 
 def test_conversation_page_requests_a_stop_for_its_running_round(tmp_path, daemon):
@@ -135,6 +145,7 @@ def test_conversation_page_requests_a_stop_for_its_running_round(tmp_path, daemo
 
     assert page.status_code == 200
     assert 'action="/conversations/8/stop/1"' in page.text
+    assert "<summary>resume by hand</summary>" not in page.text
 
     response = client.post(
         "/conversations/8/stop/1", headers={"Origin": "http://localhost"}
@@ -184,6 +195,7 @@ def test_unsaved_conversation_has_no_stop_control(tmp_path, daemon):
 
     assert response.status_code == 200
     assert 'action="/conversations/9/stop/1"' not in response.text
+    assert "<summary>resume by hand</summary>" not in response.text
 
 
 def test_a_stale_conversation_stop_request_is_already_done(tmp_path, daemon):

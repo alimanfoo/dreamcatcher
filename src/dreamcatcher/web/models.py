@@ -182,6 +182,7 @@ class WebConversationView:
     facts: tuple[WebFact, ...]
     rounds: tuple[WebAgentRound, ...]
     stop_url: str | None
+    hand_resume: WebHandResume | None
     feed_rounds: tuple[WebFeedRound, ...]
     feed_cursor: str
 

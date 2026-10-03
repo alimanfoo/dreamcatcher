@@ -10,9 +10,26 @@ from dreamcatcher.agent_rounds import (
     StoppedAgentRoundEnding,
     SuccessfulAgentRoundEnding,
 )
+from dreamcatcher.config import AgentHarness
+from dreamcatcher.harness_adapters import HarnessSessionIdentifier
+from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.scheduler.faults import derive_agent_work_fault
 from dreamcatcher.scheduler.models import SchedulerRecord
 from dreamcatcher.state import StateDirectory
+
+
+def compose_hand_resume_command(
+    *,
+    is_working: bool,
+    harness: AgentHarness,
+    harness_session_identifier: HarnessSessionIdentifier | None,
+) -> list[str] | None:
+    """Return the command for resuming an idle harness session by hand."""
+    if is_working or harness_session_identifier is None:
+        return None
+    return HARNESS_ADAPTERS[harness].build_hand_resume(
+        harness_session_identifier=harness_session_identifier
+    )
 
 
 @dataclass(frozen=True, kw_only=True)

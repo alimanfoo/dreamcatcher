@@ -18,6 +18,6 @@ rounds
   2  implement  2026-08-20 02:43:58  ran 4m  errored (exit 2)
   1  implement  2026-08-20 02:42:58  ran 4m  errored (exit 1)
 
-resume harness session yourself
+resume by hand
   cd .dreamcatcher/v5/worktrees/GH9-20260819-184158
   claude --resume abc-123                          
