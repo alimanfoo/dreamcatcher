@@ -47,4 +47,5 @@ and issue-conversation prompts must do.
 
 Start with the [agent guide](AGENTS.md) for the development setup, project
 conventions and required checks. [Testing](docs/testing.md) explains what the
-test suite and CI establish.
+test suite and CI establish, and [Releasing](docs/releasing.md) lists what to do
+before each release.
