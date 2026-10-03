@@ -165,17 +165,21 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
 
     def derive(self, *, assignment: Assignment) -> AssignmentStatus:
         """Derive one assignment's status from its records and latest tick."""
-        status = self._derive_active_or_unfinished(assignment=assignment)
+        status = self._derive_working(assignment=assignment)
         if status is not None:
             return status
-        status = self._derive_lifecycle(assignment=assignment)
+        status = self._derive_ended(assignment=assignment)
+        if status is not None:
+            return status
+        status = self._derive_unfinished(assignment=assignment)
+        if status is not None:
+            return status
+        status = self._derive_unobserved(assignment=assignment)
         if status is not None:
             return status
         return self._derive_observation(assignment=assignment)
 
-    def _derive_active_or_unfinished(
-        self, *, assignment: Assignment
-    ) -> AssignmentStatus | None:
+    def _derive_working(self, *, assignment: Assignment) -> AssignmentStatus | None:
         if assignment.rounds:
             latest = assignment.rounds[-1]
             if self.is_round_working(record=latest):
@@ -190,6 +194,18 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
                     detail=detail,
                     latest_output=latest_output,
                 )
+        return None
+
+    def _derive_ended(self, *, assignment: Assignment) -> AssignmentStatus | None:
+        if assignment.is_complete:
+            return self._compose(
+                assignment=assignment,
+                value=AssignmentStatusValue.COMPLETE,
+                detail=describe_count(number=len(assignment.rounds), noun="round"),
+            )
+        return None
+
+    def _derive_unfinished(self, *, assignment: Assignment) -> AssignmentStatus | None:
         if self.has_fault(
             records=assignment.rounds,
             retry_requested_at=assignment.record.retry_requested_at,
@@ -221,13 +237,8 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
             )
         return None
 
-    def _derive_lifecycle(self, *, assignment: Assignment) -> AssignmentStatus | None:
-        if assignment.is_complete:
-            return self._compose(
-                assignment=assignment,
-                value=AssignmentStatusValue.COMPLETE,
-                detail=describe_count(number=len(assignment.rounds), noun="round"),
-            )
+    def _derive_unobserved(self, *, assignment: Assignment) -> AssignmentStatus | None:
+        """Derive the status of an assignment that no tick could have observed."""
         if not assignment.rounds:
             return self._compose(
                 assignment=assignment,
