@@ -37,7 +37,7 @@ Measured on `main` at `b4ac40a`.
 | K3 Tracker is current                  | 6 issues in retired words             | none                     | short      |
 | K4 Every change reviewed to standard   | no template                           | template                 | short      |
 | E1 Rules, not cases                    | no ledger                             | ledger, external causes  | unmeasured |
-| E2 Invariants by construction          | 0 found; 82 optionals unaudited       | 0                        | unmeasured |
+| E2 Invariants by construction          | 0 found; 81 optionals unaudited       | 0                        | unmeasured |
 | E3 Concept economy                     | 21 concepts, no rule                  | rule applied per change  | short      |
 | E4 Symmetry                            | 12 against 9 in the scheduler         | parallel or named        | short      |
 
@@ -77,9 +77,9 @@ The evidence behind each row:
   refuses a session identifier that its JSON did not give as text.
 - **E2.** A search for branches that defend an impossible state finds none. The
   records under `agent_rounds`, `agent_assignments`, `issue_conversations` and
-  `scheduler`, and the other dataclasses and models under `src`, hold 82
+  `scheduler`, and the other dataclasses and models under `src`, hold 81
   optional fields whose pairing has not been audited, so the count is unmeasured
-  rather than met. The original count of 53 omitted 29 fields; the Stage 3 audit
+  rather than met. The original count of 53 omitted 28 fields; the Stage 3 audit
   recounted the cited revision from its syntax tree.
 - **E3.** The ontology defines 21 concepts. No rule yet asks a change to justify
   a new one.
@@ -100,7 +100,7 @@ Two measures need care when they are read again.
 - The K2 time is one laptop's. CI records its own, and the bar applies to the
   laptop figure because that is the one a developer waits for.
 
-The Stage 3 E2 audit began with 85 optional fields in the current tree, three
+The Stage 3 E2 audit began with 85 optional fields in the current tree, four
 more than the corrected baseline after the intervening work. It found eight
 coupled field sets: six in-memory sets were replaced by one type in item 4, and
 two persisted sets are listed in the design for item 5's v5 break. The E2

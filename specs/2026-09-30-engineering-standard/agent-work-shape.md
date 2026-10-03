@@ -914,9 +914,9 @@ The one edge this touches, and why it is safe, is under row 5.
 ### Optional-field audit
 
 The roadmap's baseline said 53 optional fields had not been audited. Reading
-every class-level annotated field whose type admits `None` gives 82 at the
-baseline revision and 85 before this item: the baseline count omitted 29, and
-the preceding work added three. The audit found eight coupled field sets.
+every class-level annotated field whose type admits `None` gives 81 at the
+baseline revision and 85 before this item: the baseline count omitted 28, and
+the preceding work added four. The audit found eight coupled field sets.
 
 Six sets live only in memory and are replaced in this item:
 
