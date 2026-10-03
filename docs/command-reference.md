@@ -21,6 +21,7 @@ prefix is case-insensitive, so `GH123` and `gh123` both name issue 123.
 | -------------- | ---------------------------------------------------- |
 | `run`          | Run the daemon for this repository.                  |
 | `retry`        | Allow faulted work at one issue to recover again.    |
+| `stop`         | Stop one running assignment or conversation round.   |
 | `web`          | Serve the local status report in a browser.          |
 | `status`       | Show the whole local status report in the terminal.  |
 | `assignment`   | Show one issue's newest assignment.                  |
@@ -70,6 +71,21 @@ At least one of those two items must currently be in fault. Otherwise the
 command reports that the issue has no agent work in fault. A successful request
 makes the named work available for recovery on a later scheduler tick, outside
 any active global cooldown; it does not start a round itself.
+
+## `stop`
+
+```text
+dreamcatcher stop GH<n> (--assignment | --conversation)
+```
+
+Request a prompt stop for the current round of the selected agent work. The
+`--assignment` option selects the newest assignment at the issue, and
+`--conversation` selects the issue conversation.
+
+The round must be running under the daemon, have a resumable harness session,
+and have no pending stop request. The command writes the same local stop request
+as the web control and does not contact GitHub. After the round stops, the work
+waits for new feedback before the daemon starts another round.
 
 ## `web`
 
