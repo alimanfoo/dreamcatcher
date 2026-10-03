@@ -26,7 +26,6 @@ from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.issue_conversations import Conversation
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
-    STATUSES_THAT_END_A_VIEW,
     AgentRoundStatus,
     AssignmentStatus,
     ConversationStatus,
@@ -181,7 +180,7 @@ def _read_assignment_snapshot(
         renderable=_render_assignment(
             state=state, assignment_statuses=assignment_statuses, zone=zone
         ),
-        is_over=assignment_statuses[0].value in STATUSES_THAT_END_A_VIEW,
+        is_over=assignment_statuses[0].is_over,
     )
 
 
@@ -451,7 +450,7 @@ def _find_feed_owner(
     status = _find_assignment_statuses_for_issue(state=state, issue=issue)[0]
     return _FeedOwnerSnapshot(
         owner=status.assignment,
-        is_over=status.value in STATUSES_THAT_END_A_VIEW,
+        is_over=status.is_over,
         round_details={},
     )
 

@@ -5,7 +5,6 @@
 from dreamcatcher.scheduler.models import IssueFactValue, IssueObservation
 from dreamcatcher.status.assignments import (
     ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
-    STATUSES_THAT_END_A_VIEW,
     AssignmentStatus,
     AssignmentStatusValue,
 )
@@ -27,7 +26,6 @@ from dreamcatcher.status.rounds import AgentRoundRevision, AgentRoundStatus
 __all__ = [
     "ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER",
     "CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER",
-    "STATUSES_THAT_END_A_VIEW",
     "AgentRoundRevision",
     "AgentRoundStatus",
     "AssignmentStatus",

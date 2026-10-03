@@ -319,7 +319,7 @@ def test_a_live_round_keeps_an_ineligible_conversation_on_the_report(
 
     assert report.running_agents == 1
     assert found.value is ConversationStatusValue.WORKING
-    assert found.detail == "round 1, running 2h 0m, last output 1h 59m ago"
+    assert found.detail == ("round 1, discuss, running 2h 0m, last output 1h 59m ago")
     assert found.latest_output == "I am reading the scheduler."
     assert found.observed_at == PINNED
     assert not found.is_over
@@ -337,7 +337,7 @@ def test_a_live_conversation_that_has_said_nothing_reports_that(
     found = status(state=conversation_state)
 
     assert found.value is ConversationStatusValue.WORKING
-    assert found.detail == "round 1, running 2h 0m, has said nothing yet"
+    assert found.detail == "round 1, discuss, running 2h 0m, has said nothing yet"
     assert found.latest_output is None
 
 
@@ -364,11 +364,22 @@ def test_an_errored_round_waits_to_be_recovered(conversation_state):
 def test_two_current_errors_put_a_conversation_in_fault(conversation_state):
     conversation_round(state=conversation_state, status=2)
     write_second_conversation_error(state=conversation_state)
+    write_feed(
+        directory=conversation_state.conversations / "GH8",
+        number=2,
+        lines=[
+            FeedLine(
+                at=PINNED + timedelta(minutes=7),
+                text="[failed] You hit your spend cap.",
+            )
+        ],
+    )
 
     found = status(state=conversation_state)
 
     assert found.value is ConversationStatusValue.FAULT
     assert found.detail == "round 2 errored (exit 2)"
+    assert found.latest_output == "[failed] You hit your spend cap."
     assert found.is_over
 
 
@@ -407,7 +418,7 @@ def test_a_round_that_could_not_be_finished_says_why(conversation_state, failure
     found = status(state=conversation_state)
 
     assert found.value is ConversationStatusValue.WAITING
-    assert found.detail == f"round 1 errored: {failure}"
+    assert found.detail == f"round 1 errored (exit 0): {failure}"
     assert found.round_statuses[0].outcome_description == "errored"
 
 
@@ -426,6 +437,25 @@ def test_a_round_to_recover_comes_before_comments_to_answer(conversation_state):
 
     assert found.value is ConversationStatusValue.WAITING
     assert found.detail == "round 1 errored (exit 2)"
+
+
+def test_a_round_ending_after_the_latest_tick_waits_for_the_next_update(
+    conversation_state,
+):
+    conversation_round(state=conversation_state)
+    write_tick(
+        state=conversation_state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            conversation_observations=[observed_conversation()],
+            launched_agent_work_identifiers=["conversation-GH8"],
+        ),
+    )
+
+    found = status(state=conversation_state)
+
+    assert found.value is ConversationStatusValue.WAITING
+    assert found.detail == "round 1 ended, awaiting next update"
 
 
 def test_an_errored_round_at_an_ineligible_issue_leaves_the_report(
