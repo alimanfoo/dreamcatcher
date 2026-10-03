@@ -128,10 +128,35 @@ def _render_conversation(
     rendered_status.stylize(
         CONVERSATION_STATUS_STYLES[status.value], 0, len(status_value)
     )
+    return combine_renderable_parts(
+        parts=[
+            Text(f"issue conversation GH{status.issue}"),
+            rendered_status,
+            render_latest_output(latest_output=status.latest_output),
+            _render_conversation_summary(state=state, status=status),
+            _render_round_statuses(round_statuses=status.round_statuses, zone=zone),
+            (
+                None
+                if conversation is None
+                else _render_harness_resume(
+                    state=state,
+                    worktree=conversation.worktree,
+                    hand_resume_command=status.hand_resume_command,
+                )
+            ),
+        ]
+    )
+
+
+def _render_conversation_summary(
+    *, state: StateDirectory, status: ConversationStatus
+) -> RenderableType:
+    """Return the issue, and what the first round settled for every round."""
     facts: list[tuple[str, object]] = [
         ("issue identifier", f"GH{status.issue}"),
         ("title", status.title),
     ]
+    conversation = status.conversation
     if conversation is not None:
         record = conversation.record
         facts.extend(
@@ -150,24 +175,7 @@ def _render_conversation(
     table = create_table(columns=2)
     for name, value in facts:
         table.add_row(Text(name), Text(str(value)))
-    return combine_renderable_parts(
-        parts=[
-            Text(f"issue conversation GH{status.issue}"),
-            rendered_status,
-            render_latest_output(latest_output=status.latest_output),
-            render_section(heading="conversation", body=table),
-            _render_round_statuses(round_statuses=status.round_statuses, zone=zone),
-            (
-                None
-                if conversation is None
-                else _render_harness_resume(
-                    state=state,
-                    worktree=conversation.worktree,
-                    hand_resume_command=status.hand_resume_command,
-                )
-            ),
-        ]
-    )
+    return render_section(heading="conversation", body=table)
 
 
 def _read_assignment_snapshot(

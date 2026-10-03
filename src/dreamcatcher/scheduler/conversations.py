@@ -103,34 +103,26 @@ class ConversationScheduler(
         conversations_by_issue = {
             conversation.record.issue: conversation for conversation in conversations
         }
+        most_recent_cooldown_ended = (
+            None
+            if previous_record is None
+            else previous_record.most_recent_cooldown_ended
+        )
         candidates, observations, fault_count, failures = (
             self._inspect_listed_conversations(
                 listing=listing,
                 conversations_by_issue=conversations_by_issue,
-                most_recent_cooldown_ended=(
-                    None
-                    if previous_record is None
-                    else previous_record.most_recent_cooldown_ended
-                ),
+                most_recent_cooldown_ended=most_recent_cooldown_ended,
             )
         )
         carried_observations = _carry_forward_unlisted_observations(
-            listing=listing,
-            previous_observations=(
-                []
-                if previous_record is None
-                else previous_record.conversation_observations
-            ),
+            listing=listing, previous_record=previous_record
         )
         observations.extend(carried_observations)
         fault_count += _count_carried_conversation_faults(
             observations=carried_observations,
             conversations_by_issue=conversations_by_issue,
-            most_recent_cooldown_ended=(
-                None
-                if previous_record is None
-                else previous_record.most_recent_cooldown_ended
-            ),
+            most_recent_cooldown_ended=most_recent_cooldown_ended,
         )
         failure = combine_scheduler_failures(failures=failures)
         if failure is not None:
@@ -435,9 +427,9 @@ def _list_comments_to_answer(
 def _carry_forward_unlisted_observations(
     *,
     listing: RouteIssueListing,
-    previous_observations: list[ConversationObservation],
+    previous_record: SchedulerRecord | None,
 ) -> list[ConversationObservation]:
-    if listing.failure is None:
+    if listing.failure is None or previous_record is None:
         return []
     unknown = IssueFact(value=IssueFactValue.UNKNOWN, evidence=listing.failure)
     listed_issues = {issue.number for issue in listing.issues}
@@ -448,7 +440,7 @@ def _carry_forward_unlisted_observations(
                 "routing_conflict": unknown,
             }
         )
-        for observation in previous_observations
+        for observation in previous_record.conversation_observations
         if observation.issue not in listed_issues
     ]
 

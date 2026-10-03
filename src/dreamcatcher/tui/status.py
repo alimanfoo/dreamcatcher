@@ -104,24 +104,6 @@ def _compose_instance_rows(
     *, report: DreamcatcherStatusReport, zone: tzinfo | None
 ) -> tuple[tuple[str, object | None], ...]:
     daemon_status = report.daemon
-    daemon = (
-        "not running"
-        if daemon_status.pid is None
-        else " ".join(
-            filter(
-                None,
-                (
-                    "running",
-                    (
-                        None
-                        if daemon_status.dreamcatcher_version is None
-                        else f"dreamcatcher v{daemon_status.dreamcatcher_version}"
-                    ),
-                    f"as pid {daemon_status.pid}",
-                ),
-            )
-        )
-    )
     tick = (
         None
         if daemon_status.pid is None
@@ -137,7 +119,13 @@ def _compose_instance_rows(
         else f"ends {describe_time(at=report.active_global_cooldown.ends, zone=zone)}"
     )
     return (
-        ("daemon", daemon),
+        (
+            "daemon",
+            _describe_daemon(
+                daemon_pid=daemon_status.pid,
+                dreamcatcher_version=daemon_status.dreamcatcher_version,
+            ),
+        ),
         ("harness", daemon_status.agent_harness),
         ("next update in", tick),
         (
@@ -151,6 +139,19 @@ def _compose_instance_rows(
         ("global cooldown", cooldown),
         ("scheduler hold", report.scheduler_hold),
     )
+
+
+def _describe_daemon(
+    *, daemon_pid: int | None, dreamcatcher_version: str | None
+) -> str:
+    if daemon_pid is None:
+        return "not running"
+    version = (
+        None
+        if dreamcatcher_version is None
+        else f"dreamcatcher v{dreamcatcher_version}"
+    )
+    return " ".join(filter(None, ("running", version, f"as pid {daemon_pid}")))
 
 
 def _render_assignments(

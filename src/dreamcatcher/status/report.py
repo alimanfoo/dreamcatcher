@@ -99,29 +99,20 @@ def read_status_report(
         scheduler_record=scheduler_record,
         assignments=assignments,
     ).list_statuses()
-    conversation_statuses = [
-        status
-        for status in ConversationStatusReader(
-            state=state,
-            at=at,
-            daemon_pid=daemon_pid,
-            scheduler_record=scheduler_record,
-            conversations=read_conversations(state=state),
-        ).list_statuses()
-        if status.is_listed
-    ]
+    conversation_statuses = _list_reported_conversation_statuses(
+        state=state,
+        at=at,
+        daemon_pid=daemon_pid,
+        scheduler_record=scheduler_record,
+    )
     issue_observations = _refresh_issue_observations(
         scheduler_record=scheduler_record,
         assignments=assignments,
     )
-    daemon = _read_dreamcatcher_daemon_status(
-        state=state,
-        daemon_pid=daemon_pid,
-    )
     return DreamcatcherStatusReport(
         at=at,
         repository=read_repository(state=state),
-        daemon=daemon,
+        daemon=_read_dreamcatcher_daemon_status(state=state, daemon_pid=daemon_pid),
         latest_scheduler_tick=(
             None if scheduler_record is None else scheduler_record.at
         ),
@@ -150,6 +141,26 @@ def _read_status_facts(
     at = clock()
     daemon_pid = read_daemon_pid(path=state.lock)
     return at, daemon_pid, read_scheduler_record(state=state, at=at)
+
+
+def _list_reported_conversation_statuses(
+    *,
+    state: StateDirectory,
+    at: datetime,
+    daemon_pid: int | None,
+    scheduler_record: SchedulerRecord | None,
+) -> list[ConversationStatus]:
+    return [
+        status
+        for status in ConversationStatusReader(
+            state=state,
+            at=at,
+            daemon_pid=daemon_pid,
+            scheduler_record=scheduler_record,
+            conversations=read_conversations(state=state),
+        ).list_statuses()
+        if status.is_listed
+    ]
 
 
 def _refresh_issue_observations(
