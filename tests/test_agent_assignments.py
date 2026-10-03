@@ -21,13 +21,13 @@ from dreamcatcher.agent_assignments import (
     AssignmentRecord,
     AssignmentRoundInput,
     PullRequestObservation,
-    find_harness_session_identifier,
+    find_assignment_harness_session_identifier,
     find_open_assignments_by_issue,
     inspect_incomplete_assignment_setups,
     read_assignments,
     read_assignments_for_issue,
+    record_assignment_harness_session_identifier,
     record_assignment_title,
-    record_harness_session_identifier,
     record_pull_request_observation,
 )
 from dreamcatcher.agent_rounds import (
@@ -964,8 +964,12 @@ def test_an_assignment_records_the_harness_session_its_first_round_reports(fabri
     )
     assignment = read_assignments(state=fabricated)[0]
 
-    record_harness_session_identifier(assignment=assignment, identifier="abc-123")
-    record_harness_session_identifier(assignment=assignment, identifier="abc-123")
+    record_assignment_harness_session_identifier(
+        assignment=assignment, identifier="abc-123"
+    )
+    record_assignment_harness_session_identifier(
+        assignment=assignment, identifier="abc-123"
+    )
 
     recorded = read_assignments(state=fabricated)[0]
     assert recorded.record.harness_session_identifier == "abc-123"
@@ -1005,7 +1009,7 @@ def test_an_assignment_recovers_a_session_reported_by_a_later_round(fabricated):
         ).encode()
     )
 
-    recovered = find_harness_session_identifier(assignment=assignment)
+    recovered = find_assignment_harness_session_identifier(assignment=assignment)
 
     assert recovered == "replacement-session"
 
@@ -1099,7 +1103,7 @@ def test_an_assignment_refuses_a_different_harness_session(fabricated):
     assignment = read_assignments(state=fabricated)[0]
 
     with pytest.raises(ReportableError, match="but its record names abc-123"):
-        record_harness_session_identifier(
+        record_assignment_harness_session_identifier(
             assignment=assignment, identifier="another-session"
         )
 
@@ -1120,7 +1124,9 @@ def test_an_assignment_refuses_an_invalid_harness_session_identifier(
     assignment = read_assignments(state=fabricated)[0]
 
     with pytest.raises(ReportableError, match=message):
-        record_harness_session_identifier(assignment=assignment, identifier=identifier)
+        record_assignment_harness_session_identifier(
+            assignment=assignment, identifier=identifier
+        )
 
 
 def test_an_assignment_no_round_has_delivered_a_user_post_has_an_empty_cursor(

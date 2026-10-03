@@ -322,7 +322,7 @@ def read_issue_comment_delivery_cursor(
     )
 
 
-def record_conversation_session_identifier(
+def record_conversation_harness_session_identifier(
     *, conversation: Conversation, identifier: str
 ) -> None:
     """Record the harness session identifier reported by the first round."""

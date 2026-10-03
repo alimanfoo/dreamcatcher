@@ -87,7 +87,8 @@ class Scheduler:
 
         Every tick observes relevant issues so that status stays current while
         open work runs or waits for capacity. A failed read prevents launches
-        in the workflow that depends on it without holding the other workflow.
+        for the kind of agent work that depends on it without holding the other
+        kind.
 
         A global cooldown prevents every launch but does not prevent reads, so
         assignment and conversation observations remain current while the

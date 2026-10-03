@@ -49,7 +49,7 @@ from dreamcatcher.issue_conversations import (
     InitialConversationIssue,
     compose_conversation_identifier,
     read_conversation,
-    record_conversation_session_identifier,
+    record_conversation_harness_session_identifier,
 )
 from dreamcatcher.prompts import (
     AGENT_POST_MARKER,
@@ -208,7 +208,7 @@ def answer(
     status: int = 0,
     delay: float = 0,
 ) -> None:
-    """Have Claude identify its session and finish with one final result."""
+    """Have Claude identify its session and finish with one final output."""
     harnesses["claude"].streams(
         lines=[
             Line(
@@ -745,7 +745,7 @@ def test_a_stopped_conversation_waits_for_new_feedback(
     scheduler.tick(at=clock())
     conversation = read_conversation(state=scheduler.assignments.state, issue=8)
     assert conversation is not None
-    record_conversation_session_identifier(
+    record_conversation_harness_session_identifier(
         conversation=conversation, identifier="conversation-session"
     )
     request_agent_round_stop(paths=conversation.compose_round_paths(number=1))

@@ -1,7 +1,7 @@
 """Run agent rounds and persist their inputs, output, and outcomes.
 
 A round runs a harness in its owner's worktree and stores its prompt, input,
-stop request, raw and rendered output, final result, and lifecycle record in a
+stop request, raw and rendered output, final output, and lifecycle record in a
 numbered directory. The daemon watches rather than waits, so the round reads
 its streams and records its ending on threads of its own.
 """
@@ -40,7 +40,7 @@ from dreamcatcher.harness_adapters import (
 )
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
 
-# How long a successful harness process may take to expose its final result
+# How long a successful harness process may take to expose its final output
 # after it exits. A reader normally settles immediately on the result event or
 # pipe EOF. This bound is for an escaped descendant that keeps the pipe open.
 FINAL_OUTPUT_CAPTURE_TIMEOUT_SECONDS = 5
@@ -102,7 +102,7 @@ class AgentRoundPaths:
 
     @property
     def final_output(self) -> Path:
-        """The file holding the final result that the harness reports, if any."""
+        """The file holding the final output that the harness reports, if any."""
         return self.directory / "final.md"
 
 

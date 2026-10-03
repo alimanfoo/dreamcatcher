@@ -299,7 +299,7 @@ def test_status_reads_harness_resume_details_only_when_requested(state, monkeypa
 
     monkeypatch.setattr(
         assignment_status_module,
-        "find_harness_session_identifier",
+        "find_assignment_harness_session_identifier",
         recover_harness_session_identifier,
     )
 

@@ -67,10 +67,10 @@ and leaves the last complete scheduler record in place. An invalid scheduler
 record ends the daemon because retrying cannot repair the document.
 
 If an issue read fails, the tick records the failure as its hold and prevents
-launches in the workflow that depends on those facts. An assignment issue read
-does not prevent an issue conversation from starting, and a conversation issue
-read does not prevent assignment work from starting. A later tick retries the
-failed read.
+launches for the kind of agent work that depends on those facts. An assignment
+issue read does not prevent an issue conversation from starting, and a
+conversation issue read does not prevent assignment work from starting. A later
+tick retries the failed read.
 
 If a launch fails, the tick keeps every round that it already started and
 records the failure as its hold. It starts no lower-priority candidate of the
@@ -145,16 +145,16 @@ makes.
 A conversation round posts its own answer. The conversation launcher gives the
 round a finisher that posts to the issue, so the shared round runner knows
 nothing of GitHub. After the harness exits successfully, the round hands its
-final result to that finisher, which posts it with the agent marker, and then
+final output to that finisher, which posts it with the agent marker, and then
 the round records its ending. It therefore keeps its agent slot while it posts,
 and no new batch starts until the answer is out. `NO_REPLY` posts nothing. A
-missing final result or a failed post makes the round errored. The ending keeps
+missing final output or a failed post makes the round errored. The ending keeps
 the harness's clean exit status and gives the failure as its reason, and the
 feed notes it too. Failed and interrupted rounds remain visible while ordinary
 recovery proceeds, and two consecutive errored rounds place the conversation in
 fault.
 
-Harness adapters expose final answers separately from their progress streams.
+Harness adapters expose final output separately from their progress streams.
 Claude supplies the answer in its successful result event. For a Codex
 conversation, the adapter gives `codex exec` the round's `final.md` path as its
 last-message output file on first and resumed invocations.
@@ -219,7 +219,7 @@ operations to:
 - write the prompt and any delivered input;
 - ask a harness adapter to build the invocation;
 - start that invocation in its owner's worktree;
-- stream and render its output, and keep the final result the harness reports;
+- stream and render its output, and keep the final output the harness reports;
 - let its owner finish a round whose harness succeeded, before the ending;
 - record a successful or errored ending;
 - interrupt the process tree safely; and
@@ -231,7 +231,7 @@ relayed user posts that a resumed assignment round receives beside its prompt.
 `issue_conversations.py` owns `ConversationInput`, which freezes the issue,
 trusted comments and investigated revision for a conversation round. The round
 runner writes whichever input the owner delivers without reading it, and it
-hands the final result to the owner's finisher without knowing what the owner
+hands the final output to the owner's finisher without knowing what the owner
 does with it.
 
 The scheduler decides which purpose and recovery flag a new round has. The round
@@ -239,7 +239,7 @@ boundary executes and records that decision; it does not inspect the pull
 request or select later work.
 
 A round is running while it has no terminal outcome and its process is alive.
-Successful, errored, and interrupted are terminal outcomes.
+Successful, errored, interrupted, and stopped are terminal outcomes.
 
 A round may have an internal collection of file paths, but its owner remains the
 domain object shared across boundaries.
@@ -411,8 +411,8 @@ label belongs to one route, so a label cannot configure both kinds of agent
 work. Given an issue's observed labels, the module identifies the matching
 routes. It does not silently resolve multiple labels by list order. The
 scheduler interprets exactly one route of either kind as routable, more than one
-of that kind as a routing conflict, and none as outside that workflow. One route
-of each kind may match at the same time.
+of that kind as a routing conflict, and none as outside that kind of agent work.
+One route of each kind may match at the same time.
 
 ### State and documents
 
@@ -488,7 +488,7 @@ A round record persists:
 - its terminal outcome, when known, any observed end time and exit status, and
   the reason an owner could not finish it; and
 - the durable files containing its prompt, delivered input, output, and any
-  final result the harness reports.
+  final output the harness reports.
 
 An assignment round input that carries user posts establishes the delivery
 position at its newest post. The assignment reads that position by scanning its

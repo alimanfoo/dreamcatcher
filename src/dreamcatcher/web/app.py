@@ -35,7 +35,6 @@ from dreamcatcher.web.server import (
 )
 from dreamcatcher.web.views import (
     compose_agent_rounds,
-    compose_assignment_status_label,
     compose_assignment_view,
     compose_conversation_view,
     compose_home_view,
@@ -193,7 +192,7 @@ def _show_assignment_tail(
         owner=status.assignment,
         context=WebAgentTailContext(
             status=str(status.value),
-            status_label=compose_assignment_status_label(status=status),
+            status_label=str(status.value),
             detail=status.detail,
             rounds=compose_agent_rounds(
                 round_statuses=status.round_statuses, zone=zone

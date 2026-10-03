@@ -150,14 +150,14 @@ def _compose_assignment_card(*, status: AssignmentStatus) -> WebAssignmentCard:
         issue=assignment.record.issue,
         title=assignment.record.title,
         status=str(status.value),
-        status_label=compose_assignment_status_label(status=status),
+        status_label=str(status.value),
         detail=status.detail,
         dispatch_label=assignment.record.dispatch_label,
         harness=str(assignment.record.harness),
         model=assignment.record.model,
         effort=assignment.record.effort,
         pull_request=assignment.record.pull_request,
-        pull_request_state=_describe_pull_request_state(status=status),
+        pull_request_state=status.pull_request_state,
         latest_output=status.latest_output,
     )
 
@@ -188,15 +188,6 @@ def _compose_conversation_card(*, status: ConversationStatus) -> WebConversation
     )
 
 
-def _describe_pull_request_state(*, status: AssignmentStatus) -> str | None:
-    pull_request_observation = status.assignment.record.pull_request_observation
-    if pull_request_observation is None:
-        return None
-    if pull_request_observation.is_open:
-        return "draft" if pull_request_observation.is_draft else "ready"
-    return pull_request_observation.state.value.lower()
-
-
 def compose_assignment_view(
     *,
     state: StateDirectory,
@@ -223,10 +214,10 @@ def compose_assignment_view(
         issue=record.issue,
         title=record.title,
         status=str(status.value),
-        status_label=compose_assignment_status_label(status=status),
+        status_label=str(status.value),
         detail=status.detail,
         pull_request=record.pull_request,
-        pull_request_state=_describe_pull_request_state(status=status),
+        pull_request_state=status.pull_request_state,
         dispatch_label=record.dispatch_label,
         harness=str(record.harness),
         model=record.model,
@@ -290,15 +281,6 @@ def _compose_conversation_facts(*, conversation: Conversation) -> tuple[WebFact,
         WebFact(label="label", value=record.dispatch_label),
         WebFact(label="harness", value=str(record.harness)),
         WebFact(label="model", value=f"{record.model} · {record.effort}"),
-    )
-
-
-def compose_assignment_status_label(*, status: AssignmentStatus) -> str:
-    """Return the status label shown for one assignment."""
-    return (
-        "needs feedback"
-        if status.value is AssignmentStatusValue.NEEDS_USER_FEEDBACK
-        else str(status.value)
     )
 
 

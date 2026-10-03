@@ -106,6 +106,12 @@ coupled field sets: six in-memory sets were replaced by one type in item 4, and
 two persisted sets are listed in the design for item 5's v5 break. The E2
 measurement is therefore eight found, six fixed and two deferred.
 
+Stage 3 item 8 repeated the C1 and S4 measurements over the source, enduring
+documents, README and output strings. After its findings were resolved, the
+consistency review reported zero disagreements, so C1 is zero. The two duplicate
+derivations in the baseline were removed and the review found no others, so S4
+is zero duplicates.
+
 ## Rules for the work
 
 - The behaviour budget is zero. No stage changes a persisted document, a
