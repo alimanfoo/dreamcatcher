@@ -81,9 +81,7 @@ def _render_status(
             _render_assignments(
                 assignments=report.assignment_statuses,
                 failed_setups=report.failed_assignment_setups,
-                routing_conflicts=report.routing_conflicts,
-                available_issues=report.available_issues,
-                blocked_issues=report.blocked_issues,
+                issues=report.issue_observations,
             ),
             _render_conversations(conversations=report.conversation_statuses),
             _describe_empty_status_report(report=report),
@@ -159,23 +157,14 @@ def _render_assignments(
     *,
     assignments: Sequence[AssignmentStatus],
     failed_setups: Sequence[IssueObservation],
-    routing_conflicts: Sequence[IssueObservation],
-    available_issues: Sequence[IssueObservation],
-    blocked_issues: Sequence[IssueObservation],
+    issues: Sequence[IssueObservation],
 ) -> RenderableType | None:
     """Render assignment work as one section, mirroring the web home view.
 
-    Orders active assignments, failed assignment setups, routing conflicts,
-    available issues, and blocked issues in that sequence, with a completed
-    assignment count last.
+    Orders active assignments, failed assignment setups, issue observations,
+    and the completed-assignment count in that sequence.
     """
-    if not (
-        assignments
-        or failed_setups
-        or routing_conflicts
-        or available_issues
-        or blocked_issues
-    ):
+    if not (assignments or failed_setups or issues):
         return None
     completed = list(
         filter(
@@ -194,11 +183,7 @@ def _render_assignments(
     )
     rows = _render_assignment_rows(assignments=ordered)
     rows += _render_failed_setups(failed_setups=failed_setups)
-    rows += _render_open_issues(
-        routing_conflicts=routing_conflicts,
-        available_issues=available_issues,
-        blocked_issues=blocked_issues,
-    )
+    rows += _render_open_issues(issues=issues)
     if completed:
         rows.append(
             Text(describe_count(number=len(completed), noun="completed assignment"))
@@ -218,26 +203,15 @@ def _render_failed_setups(
     return [table]
 
 
-def _render_open_issues(
-    *,
-    routing_conflicts: Sequence[IssueObservation],
-    available_issues: Sequence[IssueObservation],
-    blocked_issues: Sequence[IssueObservation],
-) -> list[RenderableType]:
+def _render_open_issues(*, issues: Sequence[IssueObservation]) -> list[RenderableType]:
     """Render unassigned issues as one table, status inline per row."""
     rows = [
         (
             issue,
             ", ".join([] if issue.details is None else issue.details.assignment_labels),
-            (
-                issue.routing_conflict.evidence
-                if issue.routing_conflict.value is IssueFactValue.TRUE
-                else issue.blocked.evidence
-                if issue.blocked.value is IssueFactValue.TRUE
-                else "available"
-            ),
+            _describe_issue_observation(observation=issue),
         )
-        for issue in (*routing_conflicts, *available_issues, *blocked_issues)
+        for issue in issues
     ]
     if not rows:
         return []
@@ -245,6 +219,15 @@ def _render_open_issues(
     for issue, middle, status in rows:
         table.add_row(Text(f"GH{issue.issue}"), Text(middle), Text(status))
     return [table]
+
+
+def _describe_issue_observation(*, observation: IssueObservation) -> str:
+    evidence = [
+        fact.evidence
+        for fact in (observation.routing_conflict, observation.blocked)
+        if fact.value is IssueFactValue.TRUE
+    ]
+    return "; ".join(evidence) if evidence else "available"
 
 
 def _render_assignment_rows(
@@ -299,9 +282,7 @@ def _describe_empty_status_report(
     """Describe an instance that has no issue or assignment status yet."""
     if (
         report.failed_assignment_setups
-        or report.routing_conflicts
-        or report.available_issues
-        or report.blocked_issues
+        or report.issue_observations
         or report.assignment_statuses
         or report.conversation_statuses
     ):

@@ -97,8 +97,8 @@ port is already in use.
 dreamcatcher status
 ```
 
-Show the repository and daemon facts, issue conversations, assignments, failed
-assignment setups, available issues in dispatch order, and blocked issues.
+Show the repository and daemon facts, issue conversations, assignments, and
+issue observations for assignment work.
 
 In an interactive terminal the view refreshes and occupies the terminal until
 interrupted. When output is piped, redirected or captured, it prints one

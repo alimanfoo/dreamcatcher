@@ -76,14 +76,8 @@ def compose_home_view(
         active_assignments=active_assignments,
         complete_assignments=complete_assignments,
         failed_setups=tuple(report.failed_assignment_setups),
-        routing_conflicts=tuple(
-            _compose_issue_row(observation=issue) for issue in report.routing_conflicts
-        ),
-        available_issues=tuple(
-            _compose_issue_row(observation=issue) for issue in report.available_issues
-        ),
-        blocked_issues=tuple(
-            _compose_issue_row(observation=issue) for issue in report.blocked_issues
+        issues=tuple(
+            _compose_issue_row(observation=issue) for issue in report.issue_observations
         ),
     )
 
@@ -322,15 +316,17 @@ def _shorten_git_revisions(*, text: str) -> str:
 
 
 def _compose_issue_row(*, observation: IssueObservation) -> WebIssueRow:
+    evidence_parts = []
     if observation.routing_conflict.value is IssueFactValue.TRUE:
         status = "routing-conflict"
-        evidence = (observation.routing_conflict.evidence,)
+        evidence_parts.append(observation.routing_conflict.evidence)
     elif observation.blocked.value is IssueFactValue.TRUE:
         status = "blocked"
-        evidence = _compose_issue_evidence(evidence=observation.blocked.evidence)
     else:
         status = "available"
-        evidence = ()
+    if observation.blocked.value is IssueFactValue.TRUE:
+        evidence_parts.append(observation.blocked.evidence)
+    evidence = _compose_issue_evidence(evidence="; ".join(evidence_parts))
     details = observation.details
     return WebIssueRow(
         issue=observation.issue,

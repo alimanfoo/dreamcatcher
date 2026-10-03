@@ -81,9 +81,7 @@ class DreamcatcherStatusReport:
     running_agents: int
     active_global_cooldown: GlobalCooldown | None
     failed_assignment_setups: list[IssueObservation]
-    routing_conflicts: list[IssueObservation]
-    available_issues: list[IssueObservation]
-    blocked_issues: list[IssueObservation]
+    issue_observations: list[IssueObservation]
     assignment_statuses: list[AssignmentStatus]
     conversation_statuses: list[ConversationStatus]
 
@@ -140,9 +138,7 @@ def read_status_report(
             None if scheduler_record is None else scheduler_record.cooldown
         ),
         failed_assignment_setups=_select_failed_setups(observations=issue_observations),
-        routing_conflicts=_select_routing_conflicts(observations=issue_observations),
-        available_issues=_select_available_issues(observations=issue_observations),
-        blocked_issues=_select_blocked_issues(observations=issue_observations),
+        issue_observations=_select_issue_observations(observations=issue_observations),
         assignment_statuses=assignment_statuses,
         conversation_statuses=conversation_statuses,
     )
@@ -223,33 +219,18 @@ def _select_failed_setups(
     ]
 
 
-def _select_routing_conflicts(
+def _select_issue_observations(
     *, observations: list[IssueObservation]
 ) -> list[IssueObservation]:
     return [
         observation
         for observation in observations
-        if observation.routing_conflict.value is IssueFactValue.TRUE
-    ]
-
-
-def _select_available_issues(
-    *, observations: list[IssueObservation]
-) -> list[IssueObservation]:
-    return [
-        observation
-        for observation in observations
-        if observation.availability.value is IssueFactValue.TRUE
-    ]
-
-
-def _select_blocked_issues(
-    *, observations: list[IssueObservation]
-) -> list[IssueObservation]:
-    return [
-        observation
-        for observation in observations
-        if observation.blocked.value is IssueFactValue.TRUE
+        if IssueFactValue.TRUE
+        in (
+            observation.routing_conflict.value,
+            observation.availability.value,
+            observation.blocked.value,
+        )
     ]
 
 

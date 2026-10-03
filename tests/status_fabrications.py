@@ -285,8 +285,14 @@ def fabricate_everything(
                 observed_issue(
                     issue=53,
                     assignment_labels=(ASSIGNMENT_LABEL, "dream:less"),
-                    values={"routing_conflict": IssueFactValue.TRUE},
-                    evidence={"routing_conflict": DOUBLE_LABELLED},
+                    values={
+                        "routing_conflict": IssueFactValue.TRUE,
+                        "blocked": IssueFactValue.TRUE,
+                    },
+                    evidence={
+                        "routing_conflict": DOUBLE_LABELLED,
+                        "blocked": "blocked by GH50",
+                    },
                 ),
             ],
             assignment_observations=[

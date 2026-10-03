@@ -304,9 +304,8 @@ interface.
 
 Status reporting owns the read-only status model and constructs a
 `DreamcatcherStatusReport` containing the repository identity, instance and
-daemon facts, failed-setup, routing-conflict, available and blocked
-`IssueObservation` entries, `ConversationStatus` entries, and `AssignmentStatus`
-entries.
+daemon facts, `IssueObservation` entries, `ConversationStatus` entries, and
+`AssignmentStatus` entries.
 
 Status construction may read:
 
