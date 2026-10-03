@@ -187,8 +187,10 @@ def write_running_conversation(
     write_json(
         document=issue_conversations.ConversationInput(
             issue=issue,
-            title=f"Issue {issue}",
-            body="Explain it.",
+            initial_issue=issue_conversations.InitialConversationIssue(
+                title=f"Issue {issue}",
+                body="Explain it.",
+            ),
             comments=[
                 {
                     "id": 1,

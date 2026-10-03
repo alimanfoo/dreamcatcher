@@ -5,11 +5,13 @@ from datetime import UTC, datetime
 
 from conftest import ASSIGNMENT_LABEL
 
+from dreamcatcher.issue_conversations import compose_conversation_identifier
 from dreamcatcher.scheduler.models import (
     ConversationObservation,
     IssueFact,
     IssueFactValue,
     IssueObservation,
+    ObservedIssueDetails,
 )
 
 OBSERVED_AT = datetime(2026, 8, 19, 18, 41, 58, tzinfo=UTC)
@@ -30,6 +32,7 @@ def _observed_issue_fact(
 def observed_issue(
     *,
     issue: int,
+    title: str = "",
     created_at: datetime | None = OBSERVED_AT,
     assignment_labels: Sequence[str] | None = (ASSIGNMENT_LABEL,),
     values: Mapping[str, IssueFactValue] | None = None,
@@ -48,7 +51,15 @@ def observed_issue(
     fact_evidence = evidence or {}
     return IssueObservation(
         issue=issue,
-        created_at=created_at,
+        details=(
+            None
+            if created_at is None or assignment_labels is None
+            else ObservedIssueDetails(
+                title=title,
+                created_at=created_at,
+                assignment_labels=list(assignment_labels),
+            )
+        ),
         is_open=_observed_issue_fact(
             value=fact_values["is_open"],
             evidence=fact_evidence.get("is_open"),
@@ -58,9 +69,6 @@ def observed_issue(
             value=fact_values["is_assigned_to_user"],
             evidence=fact_evidence.get("is_assigned_to_user"),
             name="whether the issue is assigned to the user",
-        ),
-        assignment_labels=(
-            None if assignment_labels is None else list(assignment_labels)
         ),
         claimed_here=_observed_issue_fact(
             value=fact_values["claimed_here"],
@@ -98,9 +106,10 @@ def observed_conversation(
     The title matches the one `records.write_conversation` saves.
     """
     return ConversationObservation(
+        identifier=compose_conversation_identifier(issue=issue),
         issue=issue,
         title=f"Issue {issue}",
-        has_comments_to_answer=_observed_issue_fact(
+        requires_round=_observed_issue_fact(
             value=value,
             evidence=evidence,
             name="whether comments wait to be answered",

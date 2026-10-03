@@ -175,7 +175,8 @@ def test_an_issue_with_no_preventing_fact_is_available(gh):
     found = observe(config=config_with_routes(labels=[ASSIGNMENT_LABEL]))
 
     assert len(found) == 1
-    assert found[0].title == "Issue 8"
+    assert found[0].details is not None
+    assert found[0].details.title == "Issue 8"
     assert derive_issue_availability(observation=found[0]).value is IssueFactValue.TRUE
 
 
@@ -250,7 +251,8 @@ def test_routing_conflict_is_independent_of_external_claims_and_blockers(gh):
         0
     ]
 
-    assert found.assignment_labels == ["dream:less", ASSIGNMENT_LABEL]
+    assert found.details is not None
+    assert found.details.assignment_labels == ["dream:less", ASSIGNMENT_LABEL]
     assert found.routing_conflict.value is IssueFactValue.TRUE
     assert found.claimed_elsewhere.value is IssueFactValue.FALSE
     assert found.blocked.value is IssueFactValue.FALSE
@@ -419,7 +421,8 @@ def test_an_open_local_assignment_is_observed_outside_the_listing(gh, tmp_path):
     assert found[0].is_open.evidence == "issue is closed"
     assert found[0].is_assigned_to_user.value is IssueFactValue.FALSE
     assert found[0].is_assigned_to_user.evidence == "is not assigned to alimanfoo"
-    assert found[0].assignment_labels == []
+    assert found[0].details is not None
+    assert found[0].details.assignment_labels == []
     assert found[0].claimed_here.value is IssueFactValue.TRUE
 
 

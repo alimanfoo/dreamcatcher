@@ -52,8 +52,9 @@ from dreamcatcher.github import PullRequestState
 from dreamcatcher.prompts import RECOVERY_PROMPT
 from dreamcatcher.scheduler import AssignmentScheduler, ConversationScheduler, Scheduler
 from dreamcatcher.scheduler.models import (
-    AssignmentObservation,
+    AgentWorkObservation,
     GlobalCooldown,
+    IssueFact,
     IssueFactValue,
     SchedulerRecord,
     derive_issue_availability,
@@ -67,6 +68,20 @@ STILL_RUNNING = 30
 CREATED_ASSIGNMENT_ID = "GH8-20260819-184158"
 CONVERSATION = POST_LIST_PATHS["conversation"]
 HARNESS_SESSION_IDENTIFIER = "abc-123"
+
+
+def observed_assignment(
+    *,
+    identifier: str,
+    issue: int,
+    evidence: str,
+    value: IssueFactValue = IssueFactValue.TRUE,
+) -> AgentWorkObservation:
+    return AgentWorkObservation(
+        identifier=identifier,
+        issue=issue,
+        requires_round=IssueFact(value=value, evidence=evidence),
+    )
 
 
 CREATED_SCHEDULERS: list[Scheduler] = []
@@ -416,10 +431,10 @@ def test_a_tick_at_the_cap_says_the_cap_is_what_each_assignment_waits_on(
     # The first tick assigned issue 8, and its round is what fills the cap,
     # so the assignment already on disk is the one the cap holds.
     assert observed.assignment_observations == [
-        AssignmentObservation(
-            assignment_identifier=ASSIGNMENT_ID,
+        observed_assignment(
+            identifier=ASSIGNMENT_ID,
             issue=13,
-            reason="at cap: 1 of 1 agents running",
+            evidence="round 1 errored, to recover",
         )
     ]
 
@@ -503,11 +518,11 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
         for observation in observed.issue_observations
     )
     assert observed.assignment_observations == [
-        AssignmentObservation(
-            assignment_identifier=ASSIGNMENT_ID,
+        observed_assignment(
+            identifier=ASSIGNMENT_ID,
             issue=13,
-            reason="no round required",
-            is_round_required=False,
+            evidence="no round required",
+            value=IssueFactValue.FALSE,
         )
     ]
 
@@ -558,11 +573,18 @@ def test_one_faulted_assignment_does_not_block_unrelated_work(ready_repo):
 
     assert observed.launched_agent_work_identifiers == [CREATED_ASSIGNMENT_ID]
     assert observed.assignment_observations == [
-        AssignmentObservation(
-            assignment_identifier=ASSIGNMENT_ID,
+        observed_assignment(
+            identifier=ASSIGNMENT_ID,
             issue=13,
-            reason="two consecutive rounds failed",
-        )
+            evidence="in fault",
+            value=IssueFactValue.FALSE,
+        ),
+        observed_assignment(
+            identifier=CREATED_ASSIGNMENT_ID,
+            issue=8,
+            evidence="round 1 started",
+            value=IssueFactValue.FALSE,
+        ),
     ]
 
 
@@ -576,7 +598,14 @@ def test_a_user_retry_clears_one_fault_and_starts_recovery(ready_repo):
     observed = scheduler.tick(at=clock())
 
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
-    assert observed.assignment_observations == []
+    assert observed.assignment_observations == [
+        observed_assignment(
+            identifier=ASSIGNMENT_ID,
+            issue=13,
+            evidence="round 3 started",
+            value=IssueFactValue.FALSE,
+        )
+    ]
 
 
 def test_a_successful_round_breaks_the_error_sequence(ready_repo):
@@ -687,11 +716,11 @@ def test_an_assignment_with_an_open_pull_request_and_nothing_new_is_not_waiting(
 
     assert observed.launched_agent_work_identifiers == []
     assert observed.assignment_observations == [
-        AssignmentObservation(
-            assignment_identifier=ASSIGNMENT_ID,
+        observed_assignment(
+            identifier=ASSIGNMENT_ID,
             issue=13,
-            reason="no round required",
-            is_round_required=False,
+            evidence="no round required",
+            value=IssueFactValue.FALSE,
         )
     ]
     assignment = read_assignments(state=scheduler.assignments.state)[0]
@@ -920,10 +949,11 @@ def test_a_recovery_without_a_harness_session_starts_a_new_first_round(
     recovered = record_of(scheduler=scheduler, number=2)
     assert recovered.is_recovery
     assert faulted.assignment_observations == [
-        AssignmentObservation(
-            assignment_identifier=ASSIGNMENT_ID,
+        observed_assignment(
+            identifier=ASSIGNMENT_ID,
             issue=13,
-            reason="two consecutive rounds failed",
+            evidence="in fault",
+            value=IssueFactValue.FALSE,
         )
     ]
 
@@ -972,7 +1002,7 @@ def test_a_terminal_recovery_without_a_session_receives_wrap_up_input(
     assert assignment.user_post_delivery_cursor == POSTED_AT
 
 
-def test_a_failed_replacement_session_does_not_acknowledge_terminal_feedback(
+def test_a_failed_replacement_session_does_not_redeliver_recorded_feedback(
     resuming, gh, harnesses
 ):
     ran(root=resuming, number=1, purpose=PURPOSE, status=1)
@@ -987,7 +1017,7 @@ def test_a_failed_replacement_session_does_not_acknowledge_terminal_feedback(
     scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
     assignment = read_assignments(state=scheduler.assignments.state)[0]
-    assert assignment.user_post_delivery_cursor == ""
+    assert assignment.user_post_delivery_cursor == POSTED_AT
     ending = assignment.rounds[-1].ending
     assert isinstance(ending, ErroredAgentRoundEnding)
     request_assignment_retry(
@@ -1000,9 +1030,7 @@ def test_a_failed_replacement_session_does_not_acknowledge_terminal_feedback(
 
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     inbox = json.loads(written_round(scheduler=scheduler, number=3, name="inbox.json"))
-    assert [post["body"] for post in inbox["user_posts"]] == [
-        "have another look at the filter"
-    ]
+    assert inbox["user_posts"] == []
 
 
 def test_a_carried_on_round_records_recovery_independently(resuming):
@@ -1052,31 +1080,6 @@ def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, g
         / "2"
         / "inbox.json"
     ) in (written_round(scheduler=scheduler, number=2, name="prompt.txt"))
-
-
-def test_a_started_round_is_reported_when_advancing_its_cursor_fails(
-    resuming, gh, monkeypatch
-):
-    ran(root=resuming, number=1, purpose=AssignmentRoundPurpose.IMPLEMENT)
-    gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
-    gh.replies(
-        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
-    )
-    gh.replies(stdout=listing(issues=[(8, FILED)]), to="issue list")
-    scheduler, clock = create_scheduler(root=resuming, max_agents=2)
-    monkeypatch.setattr(
-        "dreamcatcher.scheduler.assignments.advance_user_post_delivery_cursor",
-        Mock(side_effect=ReportableError("could not advance the delivery cursor")),
-    )
-
-    observed = scheduler.tick(at=clock())
-
-    assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
-    assert observed.hold == "could not advance the delivery cursor"
-    assert observed.assignment_observations == []
-    assert ASSIGNMENT_ID in scheduler.rounds
-    assert not (scheduler.assignments.state.worktrees / CREATED_ASSIGNMENT_ID).exists()
-    finish_rounds(scheduler=scheduler)
 
 
 def test_an_assignment_receives_a_batch_only_once(resuming, gh):
@@ -1248,7 +1251,7 @@ def test_two_faulted_assignments_start_a_global_cooldown(ready_repo):
         started=PINNED, ends=PINNED + timedelta(minutes=15)
     )
     assert held(observed=observed) == "global cooldown"
-    assert [one.assignment_identifier for one in observed.assignment_observations] == [
+    assert [one.identifier for one in observed.assignment_observations] == [
         ASSIGNMENT_ID,
         SECOND_ASSIGNMENT_ID,
     ]
@@ -1303,11 +1306,17 @@ def test_the_cooldown_boundary_clears_faults_and_permits_recovery(ready_repo):
     assert observed.most_recent_cooldown_ended == PINNED
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     assert observed.assignment_observations == [
-        AssignmentObservation(
-            assignment_identifier=SECOND_ASSIGNMENT_ID,
+        observed_assignment(
+            identifier=ASSIGNMENT_ID,
+            issue=13,
+            evidence="round 3 started",
+            value=IssueFactValue.FALSE,
+        ),
+        observed_assignment(
+            identifier=SECOND_ASSIGNMENT_ID,
             issue=14,
-            reason="at cap: 1 of 1 agents running",
-        )
+            evidence="round 2 errored, to recover",
+        ),
     ]
 
     finish_rounds(scheduler=scheduler)

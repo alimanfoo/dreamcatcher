@@ -13,7 +13,7 @@ from dreamcatcher.issue_conversations import Conversation
 from dreamcatcher.lock import read_daemon_pid
 from dreamcatcher.scheduler.faults import derive_agent_work_fault, read_scheduler_record
 from dreamcatcher.scheduler.models import (
-    AssignmentObservation,
+    AgentWorkObservation,
     ConversationObservation,
     IssueFact,
     IssueFactValue,
@@ -53,11 +53,11 @@ class StatusReportReader:
         self.scheduler_record: SchedulerRecord | None = read_scheduler_record(
             state=state, at=self.at
         )
-        self.assignment_observations: dict[str, AssignmentObservation] = (
+        self.assignment_observations: dict[str, AgentWorkObservation] = (
             {}
             if self.scheduler_record is None
             else {
-                observation.assignment_identifier: observation
+                observation.identifier: observation
                 for observation in self.scheduler_record.assignment_observations
             }
         )
@@ -208,7 +208,7 @@ class StatusReportReader:
             )
         if (
             observation.routing_conflict.value is not IssueFactValue.FALSE
-            or observation.has_comments_to_answer.value is IssueFactValue.UNKNOWN
+            or observation.requires_round.value is IssueFactValue.UNKNOWN
         ):
             return summarize_observed_conversation(
                 observation=observation,
@@ -222,9 +222,27 @@ class StatusReportReader:
                     or "two consecutive rounds errored"
                 ),
             )
-        return summarize_observed_conversation(
+        summary = summarize_observed_conversation(
             observation=observation, conversation=conversation
         )
+        if (
+            conversation.rounds
+            and describe_unfinished_conversation_round(conversation=conversation)
+            is None
+        ):
+            ending = cast(
+                "SuccessfulAgentRoundEnding | StoppedAgentRoundEnding",
+                conversation.rounds[-1].ending,
+            )
+            if ending.at > self.scheduler_record.at:
+                summary = ConversationSummary(
+                    value=ConversationStatusValue.WAITING,
+                    detail=(
+                        f"round {conversation.rounds[-1].number} ended, "
+                        "awaiting next update"
+                    ),
+                )
+        return summary
 
     def _has_conversation_fault(self, *, conversation: Conversation) -> bool:
         """Return whether the eligible conversation exhausted its retries."""
@@ -294,34 +312,18 @@ class StatusReportReader:
             return local_status
         observation = self.assignment_observations.get(assignment.identifier)
         if observation is None:
-            ending = cast(
-                "SuccessfulAgentRoundEnding | StoppedAgentRoundEnding",
-                assignment.rounds[-1].ending,
-            )
-            if (
-                self.scheduler_record is not None
-                and ending.at > self.scheduler_record.at
-            ):
-                return self._compose_assignment_status(
-                    assignment=assignment,
-                    value=AssignmentStatusValue.WAITING,
-                    detail=(
-                        f"round {assignment.rounds[-1].number} ended, "
-                        "awaiting next update"
-                    ),
-                )
             return self._compose_assignment_status(
                 assignment=assignment,
                 value=AssignmentStatusValue.UNKNOWN,
                 detail="no current scheduler observation",
             )
-        if not observation.is_known:
+        if observation.requires_round.value is IssueFactValue.UNKNOWN:
             return self._compose_assignment_status(
                 assignment=assignment,
                 value=AssignmentStatusValue.UNKNOWN,
-                detail=observation.reason,
+                detail=observation.requires_round.evidence,
             )
-        if not observation.is_round_required:
+        if observation.requires_round.value is IssueFactValue.FALSE:
             return self._compose_assignment_status(
                 assignment=assignment,
                 value=AssignmentStatusValue.NEEDS_USER_FEEDBACK,
@@ -370,6 +372,18 @@ class StatusReportReader:
                 assignment=assignment,
                 value=AssignmentStatusValue.WAITING,
                 detail=self._describe_next_round(assignment=assignment),
+            )
+        ending = cast(
+            "SuccessfulAgentRoundEnding | StoppedAgentRoundEnding",
+            assignment.rounds[-1].ending,
+        )
+        if self.scheduler_record is not None and ending.at > self.scheduler_record.at:
+            return self._compose_assignment_status(
+                assignment=assignment,
+                value=AssignmentStatusValue.WAITING,
+                detail=(
+                    f"round {assignment.rounds[-1].number} ended, awaiting next update"
+                ),
             )
         return None
 

@@ -4,7 +4,6 @@ import pytest
 from clocks import PINNED
 from conftest import (
     POST_LIST_PATHS,
-    POSTED_AT,
     POSTED_BY,
     PULL_REQUEST,
     REPOSITORY,
@@ -16,7 +15,7 @@ from conftest import (
 from records import write_assignment, write_round
 
 from dreamcatcher.agent_assignments import (
-    advance_user_post_delivery_cursor,
+    AssignmentRoundInput,
     read_assignments,
 )
 from dreamcatcher.agent_rounds import (
@@ -27,14 +26,19 @@ from dreamcatcher.agent_rounds import (
     compose_agent_round_ending,
 )
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
-from dreamcatcher.github import PullRequest, PullRequestState
+from dreamcatcher.documents import write_json
+from dreamcatcher.github import ConversationComment, PullRequest, PullRequestState
 from dreamcatcher.scheduler.assignments import (
     AssignmentRoundCandidate,
     AssignmentScheduler,
     FirstAssignmentRoundCandidate,
     NewAssignmentCandidate,
 )
-from dreamcatcher.scheduler.models import AssignmentObservation, derive_round_purpose
+from dreamcatcher.scheduler.models import (
+    AgentWorkObservation,
+    IssueFactValue,
+    derive_round_purpose,
+)
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158"
@@ -106,7 +110,7 @@ def found(
 ) -> (
     FirstAssignmentRoundCandidate
     | AssignmentRoundCandidate
-    | AssignmentObservation
+    | AgentWorkObservation
     | None
 ):
     """What the one assignment in that state directory needs next."""
@@ -121,7 +125,7 @@ def found(
     if inspected.candidate is not None:
         assert not isinstance(inspected.candidate, NewAssignmentCandidate)
         return inspected.candidate
-    if inspected.observation.is_round_required or not inspected.observation.is_known:
+    if inspected.observation.requires_round.value is not IssueFactValue.FALSE:
         return inspected.observation
     return None
 
@@ -354,8 +358,13 @@ def test_a_post_at_the_assignment_delivery_cursor_wakes_nothing(state, gh):
     gh.replies(
         stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
-    advance_user_post_delivery_cursor(
-        assignment=read_assignments(state=state)[0], newest=POSTED_AT
+    assignment = read_assignments(state=state)[0]
+    write_json(
+        document=AssignmentRoundInput(
+            pull_request_state=PullRequestState.OPEN,
+            user_posts=[ConversationComment.model_validate(comment())],
+        ),
+        path=assignment.compose_round_paths(number=1).round_input,
     )
 
     assert found(state=state) is None
@@ -441,9 +450,9 @@ def test_a_pull_request_read_that_failed_leaves_the_assignment_waiting(state, gh
 
     waiting = found(state=state)
 
-    assert isinstance(waiting, AssignmentObservation)
-    assert waiting.reason.startswith("cannot read its pull request")
-    assert not waiting.is_known
+    assert isinstance(waiting, AgentWorkObservation)
+    assert waiting.requires_round.evidence.startswith("cannot read its pull request")
+    assert waiting.requires_round.value is IssueFactValue.UNKNOWN
 
 
 def test_a_relay_read_that_failed_leaves_the_assignment_waiting(state, gh):
@@ -455,9 +464,11 @@ def test_a_relay_read_that_failed_leaves_the_assignment_waiting(state, gh):
 
     waiting = found(state=state)
 
-    assert isinstance(waiting, AssignmentObservation)
-    assert waiting.reason.startswith("cannot tell what the user posted")
-    assert not waiting.is_known
+    assert isinstance(waiting, AgentWorkObservation)
+    assert waiting.requires_round.evidence.startswith(
+        "cannot tell what the user posted"
+    )
+    assert waiting.requires_round.value is IssueFactValue.UNKNOWN
 
 
 def test_the_most_open_work_comes_first(state):

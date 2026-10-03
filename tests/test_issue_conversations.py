@@ -24,6 +24,7 @@ from dreamcatcher.issue_conversations import (
     Conversation,
     ConversationInput,
     ConversationRecord,
+    InitialConversationIssue,
     IssueCommentCursor,
     create_conversation,
     describe_conversation_revision,
@@ -271,8 +272,10 @@ def test_round_input_freezes_the_issue_comments_and_revision(cloned):
     )
 
     assert frozen.issue == 8
-    assert frozen.title == "Why does this happen?"
-    assert frozen.body == "Explain the scheduler."
+    assert frozen.initial_issue == InitialConversationIssue(
+        title="Why does this happen?",
+        body="Explain the scheduler.",
+    )
     assert frozen.comments[0].body == "Please explain."
     assert frozen.revision
 
@@ -329,10 +332,8 @@ def test_a_follow_up_can_omit_the_issue_text(tmp_path):
 
     found = read_conversation_input(conversation=conversation, number=2)
 
-    assert found.title is None
-    assert found.body is None
-    assert "title" not in json.loads(path.read_text(encoding="utf-8"))
-    assert "body" not in json.loads(path.read_text(encoding="utf-8"))
+    assert found.initial_issue is None
+    assert "initial_issue" not in json.loads(path.read_text(encoding="utf-8"))
 
 
 def test_a_follow_up_from_an_earlier_version_can_keep_issue_text(tmp_path):
@@ -342,8 +343,10 @@ def test_a_follow_up_from_an_earlier_version_can_keep_issue_text(tmp_path):
     write_json(
         document=ConversationInput(
             issue=8,
-            title="Why does this happen?",
-            body="Explain the scheduler.",
+            initial_issue=InitialConversationIssue(
+                title="Why does this happen?",
+                body="Explain the scheduler.",
+            ),
             comments=[comment(identifier=2, body="Question")],
             revision="def456",
         ),
@@ -352,8 +355,10 @@ def test_a_follow_up_from_an_earlier_version_can_keep_issue_text(tmp_path):
 
     found = read_conversation_input(conversation=conversation, number=2)
 
-    assert found.title == "Why does this happen?"
-    assert found.body == "Explain the scheduler."
+    assert found.initial_issue == InitialConversationIssue(
+        title="Why does this happen?",
+        body="Explain the scheduler.",
+    )
 
 
 def test_a_conversation_records_its_session_and_round_paths(tmp_path):
@@ -398,8 +403,10 @@ def test_the_delivery_cursor_comes_from_the_latest_round_input(tmp_path):
         write_json(
             document=ConversationInput(
                 issue=8,
-                title="Why does this happen?",
-                body="Explain the scheduler.",
+                initial_issue=InitialConversationIssue(
+                    title="Why does this happen?",
+                    body="Explain the scheduler.",
+                ),
                 comments=[comment(identifier=identifier, body="Question")],
                 revision="abc123",
             ),
@@ -429,8 +436,10 @@ def test_the_delivery_cursor_refuses_a_round_without_comments(tmp_path):
     write_json(
         document=ConversationInput(
             issue=8,
-            title="Why does this happen?",
-            body="Explain the scheduler.",
+            initial_issue=InitialConversationIssue(
+                title="Why does this happen?",
+                body="Explain the scheduler.",
+            ),
             comments=[],
             revision="abc123",
         ),
@@ -468,8 +477,10 @@ def test_the_delivery_cursor_refuses_inconsistent_round_input(
     write_json(
         document=ConversationInput(
             issue=input_issue,
-            title="Why does this happen?",
-            body="Explain the scheduler.",
+            initial_issue=InitialConversationIssue(
+                title="Why does this happen?",
+                body="Explain the scheduler.",
+            ),
             comments=[
                 comment(identifier=identifier, body="Question")
                 for identifier in comment_identifiers

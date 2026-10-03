@@ -216,7 +216,7 @@ def _render_open_issues(
     rows = [
         (
             issue,
-            ", ".join(issue.assignment_labels or []),
+            ", ".join([] if issue.details is None else issue.details.assignment_labels),
             (
                 issue.blocked.evidence
                 if issue.blocked.value is IssueFactValue.TRUE

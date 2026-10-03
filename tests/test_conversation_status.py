@@ -26,6 +26,7 @@ from dreamcatcher.documents import read_json, write_json
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.issue_conversations import (
     ConversationInput,
+    InitialConversationIssue,
     read_conversation,
 )
 from dreamcatcher.scheduler.models import (
@@ -49,7 +50,7 @@ def conversation_state(tmp_path):
     write_tick(
         state=state,
         tick=SchedulerRecord(
-            at=PINNED,
+            at=LOOKED_AT,
             conversation_observations=[observed_conversation()],
         ),
     )
@@ -88,8 +89,10 @@ def conversation_round(
     write_json(
         document=ConversationInput(
             issue=8,
-            title="Issue 8",
-            body="Explain it.",
+            initial_issue=InitialConversationIssue(
+                title="Issue 8",
+                body="Explain it.",
+            ),
             comments=[
                 {
                     "id": 1,
@@ -130,7 +133,7 @@ def write_second_conversation_error(*, state: StateDirectory) -> None:
         ),
     )
     write_json(
-        document=first_input.model_copy(update={"title": None, "body": None}),
+        document=first_input.model_copy(update={"initial_issue": None}),
         path=conversation.compose_round_paths(number=2).round_input,
     )
 
@@ -143,7 +146,7 @@ def observe(
     """Write a tick that made these conversation observations."""
     write_tick(
         state=state,
-        tick=SchedulerRecord(at=PINNED, conversation_observations=observations),
+        tick=SchedulerRecord(at=LOOKED_AT, conversation_observations=observations),
     )
 
 
@@ -261,8 +264,10 @@ def test_an_unrecorded_round_input_shows_what_the_scheduler_reported(
     write_json(
         document=ConversationInput(
             issue=8,
-            title="Issue 8",
-            body="Explain it.",
+            initial_issue=InitialConversationIssue(
+                title="Issue 8",
+                body="Explain it.",
+            ),
             comments=[
                 {
                     "id": 1,
@@ -316,7 +321,7 @@ def test_a_live_round_keeps_an_ineligible_conversation_on_the_report(
     assert found.value is ConversationStatusValue.WORKING
     assert found.detail == "round 1, running 2h 0m, last output 1h 59m ago"
     assert found.latest_output == "I am reading the scheduler."
-    assert found.observed_at == PINNED
+    assert found.observed_at == LOOKED_AT
     assert not found.is_over
     assert found.round_statuses[0].outcome_description == "running"
     assert found.round_statuses[0].revision is not None
@@ -468,6 +473,24 @@ def test_a_posted_answer_leaves_the_conversation_idle(conversation_state):
     assert found.detail == "round 1, answered, ran 4m"
     assert not found.is_over
     assert found.round_statuses[0].duration_description == "ran 4m"
+
+
+def test_a_round_ending_after_the_latest_tick_waits_for_the_next_update(
+    conversation_state,
+):
+    conversation_round(state=conversation_state)
+    write_tick(
+        state=conversation_state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            conversation_observations=[observed_conversation()],
+        ),
+    )
+
+    found = status(state=conversation_state)
+
+    assert found.value is ConversationStatusValue.WAITING
+    assert found.detail == "round 1 ended, awaiting next update"
 
 
 def test_a_stopped_conversation_waits_for_new_comments(conversation_state):

@@ -26,7 +26,10 @@ from dreamcatcher.documents import write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.harness_adapters import AgentWorkKind
-from dreamcatcher.issue_conversations import ConversationInput
+from dreamcatcher.issue_conversations import (
+    ConversationInput,
+    InitialConversationIssue,
+)
 from dreamcatcher.scheduler.models import IssueFactValue, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.tui import (
@@ -51,18 +54,18 @@ def conversation_state(
         record=AgentRoundRecord(
             number=1,
             purpose=ConversationRoundPurpose.DISCUSS,
-            started=PINNED,
+            started=PINNED - timedelta(minutes=4),
             pid=1,
-            ending=compose_agent_round_ending(
-                at=PINNED + timedelta(minutes=4), status=status
-            ),
+            ending=compose_agent_round_ending(at=PINNED, status=status),
         ),
     )
     write_json(
         document=ConversationInput(
             issue=8,
-            title="Issue 8",
-            body="Explain it.",
+            initial_issue=InitialConversationIssue(
+                title="Issue 8",
+                body="Explain it.",
+            ),
             comments=[
                 {
                     "id": 1,
@@ -133,8 +136,10 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
     write_json(
         document=ConversationInput(
             issue=8,
-            title="Issue 8",
-            body="Explain it.",
+            initial_issue=InitialConversationIssue(
+                title="Issue 8",
+                body="Explain it.",
+            ),
             comments=[
                 {
                     "id": 2,
@@ -274,8 +279,10 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
         write_json(
             document=ConversationInput(
                 issue=8,
-                title="Issue 8",
-                body="Explain it.",
+                initial_issue=InitialConversationIssue(
+                    title="Issue 8",
+                    body="Explain it.",
+                ),
                 comments=[
                     {
                         "id": 2,

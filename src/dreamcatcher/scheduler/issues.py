@@ -17,7 +17,12 @@ from dreamcatcher.github import (
     read_issue,
     read_issue_pull_request_context,
 )
-from dreamcatcher.scheduler.models import IssueFact, IssueFactValue, IssueObservation
+from dreamcatcher.scheduler.models import (
+    IssueFact,
+    IssueFactValue,
+    IssueObservation,
+    ObservedIssueDetails,
+)
 
 if TYPE_CHECKING:
     from dreamcatcher.scheduler.assignments import AssignmentScheduler
@@ -77,8 +82,8 @@ def observe_issues(
         observations=sorted(
             issue_observations,
             key=lambda observation: (
-                observation.created_at is None,
-                observation.created_at,
+                observation.details is None,
+                None if observation.details is None else observation.details.created_at,
                 observation.issue,
             ),
         ),
@@ -93,10 +98,10 @@ def record_missing_assignment_titles(
     open_assignments = find_open_assignments_by_issue(assignments=assignments)
     for observation in observations:
         assignment = open_assignments.get(observation.issue)
-        if assignment is not None and observation.title is not None:
+        if assignment is not None and observation.details is not None:
             record_assignment_title(
                 assignment=assignment,
-                title=observation.title,
+                title=observation.details.title,
             )
 
 
@@ -121,13 +126,17 @@ def _observe_issue(
     )
     return IssueObservation(
         issue=issue,
-        title=None if listed.details is None else listed.details.title,
-        created_at=None if listed.details is None else listed.details.created_at,
+        details=(
+            None
+            if listed.details is None
+            else ObservedIssueDetails(
+                title=listed.details.title,
+                created_at=listed.details.created_at,
+                assignment_labels=listed.details.assignment_labels,
+            )
+        ),
         is_open=listed.is_open,
         is_assigned_to_user=listed.is_assigned_to_user,
-        assignment_labels=(
-            None if listed.details is None else listed.details.assignment_labels
-        ),
         claimed_here=claimed_here,
         claimed_elsewhere=_observe_external_claim(
             scheduler=scheduler,

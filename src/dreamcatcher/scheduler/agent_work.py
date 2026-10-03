@@ -5,9 +5,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
-from dreamcatcher.agent_rounds import AgentRound
 from dreamcatcher.config import AgentHarness, DispatchRoute, DreamcatcherConfig
-from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import Issue, UnknownGitHubResponse, list_issues
 from dreamcatcher.scheduler.models import (
     AgentWorkInspection,
@@ -15,15 +13,6 @@ from dreamcatcher.scheduler.models import (
     combine_scheduler_failures,
 )
 from dreamcatcher.state import StateDirectory
-
-
-class LaunchedAgentRoundError(ReportableError):
-    """Report a failure that happened after an agent round started."""
-
-    def __init__(self, *, agent_round: AgentRound, failure: ReportableError) -> None:
-        """Keep the started round so that the scheduler can register it."""
-        super().__init__(str(failure))
-        self.agent_round = agent_round
 
 
 @dataclass(frozen=True, kw_only=True)

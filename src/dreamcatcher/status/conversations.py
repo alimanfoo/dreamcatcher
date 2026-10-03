@@ -184,21 +184,21 @@ def summarize_observed_conversation(
             value=ConversationStatusValue.ROUTING_CONFLICT,
             detail=routing_conflict.evidence,
         )
-    has_comments_to_answer = observation.has_comments_to_answer
-    if has_comments_to_answer.value is IssueFactValue.UNKNOWN:
+    requires_round = observation.requires_round
+    if requires_round.value is IssueFactValue.UNKNOWN:
         return ConversationSummary(
             value=ConversationStatusValue.UNKNOWN,
-            detail=has_comments_to_answer.evidence,
+            detail=requires_round.evidence,
         )
     unfinished_round = describe_unfinished_conversation_round(conversation=conversation)
     if unfinished_round is not None:
         return ConversationSummary(
             value=ConversationStatusValue.WAITING, detail=unfinished_round
         )
-    if has_comments_to_answer.value is IssueFactValue.TRUE:
+    if requires_round.value is IssueFactValue.TRUE:
         return ConversationSummary(
             value=ConversationStatusValue.WAITING,
-            detail=has_comments_to_answer.evidence,
+            detail=requires_round.evidence,
         )
     return ConversationSummary(
         value=ConversationStatusValue.IDLE,
