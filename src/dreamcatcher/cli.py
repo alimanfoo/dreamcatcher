@@ -219,8 +219,7 @@ def _build_cli_parser() -> argparse.ArgumentParser:
             "the selected assignment or conversation, and keep showing what "
             "arrives until that work completes, is cancelled, enters fault or "
             "leaves the status report. A conversation's routing conflict also "
-            "ends its "
-            "feed view. " + _HELP_WHEN_NOTHING_WATCHES
+            "ends its feed view. " + _HELP_WHEN_NOTHING_WATCHES
         ),
     )
     _add_issue_argument(parser=feed_parser)

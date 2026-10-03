@@ -28,7 +28,6 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.documents import write_json
-from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import ConversationComment, PullRequest, PullRequestState
 from dreamcatcher.scheduler.assignments import (
     AssignmentRoundCandidate,
@@ -318,19 +317,20 @@ def test_a_cancelled_assignment_is_not_inspected_for_rounds(state, gh):
     assert gh.calls == []
 
 
-def test_no_round_starts_for_an_assignment_cancelled_after_inspection(state):
+def test_a_round_started_for_an_assignment_cancelled_after_inspection_stops(
+    state, harnesses
+):
     candidate = FirstAssignmentRoundCandidate(
         assignment=read_assignments(state=state)[0]
     )
     cancel_assignment(assignment=candidate.assignment, at=PINNED)
 
-    with pytest.raises(
-        ReportableError,
-        match=f"{ASSIGNMENT_ID} was cancelled before its next round could start",
-    ):
-        create_assignment_scheduler(state=state).launch(candidate=candidate, at=PINNED)
+    started = create_assignment_scheduler(state=state).launch(
+        candidate=candidate, at=PINNED
+    )
+    started.wait()
 
-    assert read_assignments(state=state)[0].rounds == []
+    assert started.paths.stop_request.is_file()
 
 
 def test_an_assignment_the_user_has_posted_on_answers_what_they_said(state, gh):

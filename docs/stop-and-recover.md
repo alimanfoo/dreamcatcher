@@ -55,8 +55,9 @@ assignment, and stops relaying your comments and reviews on its pull request.
 The assignment stays in the status views as **cancelled**.
 
 Carry on in the assignment's worktree, which still has the branch checked out.
-When Dreamcatcher has learned the agent's harness session, the assignment page
-shows the worktree and the command that resumes that session by hand.
+Once no round is running, and when Dreamcatcher has learned the agent's harness
+session, the assignment page shows the worktree and the command that resumes
+that session by hand.
 
 The pull request stays open, and from then on it claims the issue as work
 outside Dreamcatcher. If you merge it, GitHub closes the issue. If you close it

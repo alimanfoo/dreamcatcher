@@ -397,6 +397,19 @@ def test_cancelling_asks_a_round_with_no_ending_to_stop(fabricated):
     assert assignment.compose_round_paths(number=2).stop_request.is_file()
 
 
+def test_cancelling_stops_a_round_that_started_after_the_assignment_was_read(
+    fabricated,
+):
+    assignment = standing(state=fabricated, rounds=[ended(status=0)])
+    write_round(
+        directory=assignment.directory, number=2, record=running(minute=1, number=2)
+    )
+
+    cancel_assignment(assignment=assignment, at=PINNED)
+
+    assert assignment.compose_round_paths(number=2).stop_request.is_file()
+
+
 def test_cancelling_leaves_an_ended_round_alone(fabricated):
     assignment = standing(state=fabricated, rounds=[ended(status=0)])
 

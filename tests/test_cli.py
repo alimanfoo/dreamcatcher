@@ -373,6 +373,18 @@ def test_cancel_ends_the_newest_assignment_and_stops_its_running_round(
     )
 
 
+def test_cancel_leaves_older_assignments_at_the_issue_alone(monkeypatch, watching):
+    write_assignment(state=watching, identifier="GH13-20260818-090000", issue=13)
+    monkeypatch.chdir(watching.root)
+
+    assert main(argv=["cancel", "GH13"]) == 0
+
+    older, newest = read_assignments_for_issue(state=watching, issue=13)
+    assert older.record.cancelled_at is None
+    assert newest.identifier == ASSIGNMENT_ID
+    assert newest.record.cancelled_at is not None
+
+
 def test_cancel_refuses_an_issue_with_no_assignment(monkeypatch, tmp_path, capsys):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()

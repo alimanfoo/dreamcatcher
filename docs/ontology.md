@@ -254,7 +254,10 @@ assignment has completed.
 The user can **cancel** an open assignment to finish its pull request by hand. A
 cancelled assignment is no longer open, so Dreamcatcher runs no further rounds
 for it and relays no further user posts from its pull request. A round that is
-running when the user cancels is asked to stop. A cancel cannot be undone.
+running when the user cancels is asked to stop, and the assignment is working
+until that round ends. A cancel cannot be undone.
+
+An assignment that is complete or cancelled has **ended**.
 
 The pull request stays open, and from then on it claims the issue elsewhere. If
 the user merges it, GitHub closes the issue. If the user closes it without

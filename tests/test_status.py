@@ -7,6 +7,7 @@ from clocks import PINNED
 from conftest import REPOSITORY, configure
 from observations import observed_issue
 from records import (
+    AssignmentReporting,
     write_assignment,
     write_daemon_lock,
     write_daemon_run,
@@ -16,7 +17,11 @@ from records import (
 )
 
 import dreamcatcher.status.assignments as assignment_status_module
-from dreamcatcher.agent_assignments import cancel_assignment, read_assignments
+from dreamcatcher.agent_assignments import (
+    PullRequestObservation,
+    cancel_assignment,
+    read_assignments,
+)
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     AssignmentRoundPurpose,
@@ -28,6 +33,7 @@ from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
 from dreamcatcher.documents import write_text
 from dreamcatcher.feed import FeedLine
+from dreamcatcher.github import PullRequestState
 from dreamcatcher.scheduler.models import (
     AgentWorkObservation,
     GlobalCooldown,
@@ -413,6 +419,27 @@ def test_a_cancelled_assignment_is_cancelled_rather_than_in_fault(state):
     status = only_assignment(state=state)
 
     assert status.value is AssignmentStatusValue.CANCELLED
+
+
+def test_a_cancelled_assignment_stops_reporting_its_pull_request_state(tmp_path):
+    configure(root=tmp_path)
+    state = StateDirectory(root=tmp_path)
+    write_assignment(
+        state=state,
+        identifier=ASSIGNMENT_ID,
+        issue=13,
+        reporting=AssignmentReporting(
+            title="The issue title",
+            pull_request_observation=PullRequestObservation(
+                state=PullRequestState.OPEN, is_draft=True, observed_at=PINNED
+            ),
+        ),
+    )
+    assert only_assignment(state=state).pull_request_state == "draft"
+
+    cancel(state=state)
+
+    assert only_assignment(state=state).pull_request_state is None
 
 
 def test_an_assignment_that_has_run_no_round_waits_for_its_first(state):

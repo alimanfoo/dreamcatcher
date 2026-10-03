@@ -15,7 +15,7 @@ from dreamcatcher.agent_assignments import (
     read_assignments,
     record_assignment_harness_session_identifier,
     record_pull_request_observation,
-    refuse_cancelled_assignment,
+    stop_round_if_cancelled,
 )
 from dreamcatcher.agent_rounds import (
     AgentRound,
@@ -402,8 +402,8 @@ class AssignmentScheduler(
                 assignment=assignment,
                 identifier=resumption.identifier,
             )
-        refuse_cancelled_assignment(assignment=assignment)
-        return start_agent_round(
+        paths = assignment.compose_round_paths(number=assignment.next_round_number)
+        started_round = start_agent_round(
             request=AgentRoundStartRequest(
                 harness=assignment.record.harness,
                 launch_request=AgentRoundLaunchRequest(
@@ -418,13 +418,13 @@ class AssignmentScheduler(
                     assignment=assignment,
                 ),
                 finish_round=None,
-                paths=assignment.compose_round_paths(
-                    number=assignment.next_round_number
-                ),
+                paths=paths,
                 plan=plan,
             ),
             clock=self.clock,
         )
+        stop_round_if_cancelled(assignment=assignment, paths=paths)
+        return started_round
 
 
 def _describe_assignment_candidate(*, candidate: AssignmentRoundCandidate) -> str:

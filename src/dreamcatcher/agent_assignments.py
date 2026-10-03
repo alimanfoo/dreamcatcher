@@ -35,6 +35,7 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import AgentHarness, AssignmentRoute
 from dreamcatcher.documents import (
+    DocumentCache,
     DreamcatcherDocument,
     read_json,
     write_json,
@@ -292,30 +293,38 @@ def request_assignment_retry(*, assignment: Assignment, at: datetime) -> None:
 def cancel_assignment(*, assignment: Assignment, at: datetime) -> None:
     """Record that the user has taken an open assignment over.
 
-    A round with no ending is asked to stop, so it cannot push to the branch
-    after the cancel. An assignment that has already ended raises
-    ReportableError.
+    A round with no ending is asked to stop, so it does not go on pushing to the
+    branch. The record is written before the rounds are read again, so a round
+    that starts at the same moment is either asked to stop here or finds the
+    cancel through stop_round_if_cancelled. An assignment that has already
+    ended raises ReportableError.
     """
     if not assignment.is_open:
         raise ReportableError(f"{assignment.identifier} has already ended.")
     path = assignment.directory / _ASSIGNMENT_RECORD_NAME
     record = read_json(model=AssignmentRecord, path=path)
     write_json(document=record.model_copy(update={"cancelled_at": at}), path=path)
-    if assignment.rounds and assignment.rounds[-1].ending is None:
+    rounds = read_agent_round_records(
+        cache=DocumentCache(),
+        directory=assignment.directory / _AGENT_ROUNDS_DIRECTORY_NAME,
+    )
+    if rounds and rounds[-1].ending is None:
         request_agent_round_stop(
-            paths=assignment.compose_round_paths(number=assignment.rounds[-1].number)
+            paths=assignment.compose_round_paths(number=rounds[-1].number)
         )
 
 
-def refuse_cancelled_assignment(*, assignment: Assignment) -> None:
-    """Raise ReportableError if the assignment was cancelled after it was read."""
+def stop_round_if_cancelled(*, assignment: Assignment, paths: AgentRoundPaths) -> None:
+    """Ask a round that has just started to stop if the user cancelled its work.
+
+    Call this once the round's record exists, so that a cancel either lands
+    before this read or finds the round itself.
+    """
     record = read_json(
         model=AssignmentRecord, path=assignment.directory / _ASSIGNMENT_RECORD_NAME
     )
     if record.cancelled_at is not None:
-        raise ReportableError(
-            f"{assignment.identifier} was cancelled before its next round could start."
-        )
+        request_agent_round_stop(paths=paths)
 
 
 def inspect_incomplete_assignment_setups(

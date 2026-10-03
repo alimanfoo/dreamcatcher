@@ -82,9 +82,14 @@ class AssignmentStatus:
 
     @property
     def pull_request_state(self) -> str | None:
-        """The latest observed pull-request state in status-report words."""
-        observation = self.assignment.record.pull_request_observation
-        if observation is None:
+        """The latest observed pull-request state in status-report words.
+
+        A cancelled assignment has none, because nothing observes its pull
+        request once the user has taken it over.
+        """
+        record = self.assignment.record
+        observation = record.pull_request_observation
+        if observation is None or record.cancelled_at is not None:
             return None
         if observation.is_open:
             return "draft" if observation.is_draft else "ready"

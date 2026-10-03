@@ -42,10 +42,13 @@ Unlike the stop control, a cancel needs no harness session, because no feedback
 round will follow.
 
 The scheduler reads assignments when a tick begins, then reads GitHub before it
-launches anything. A cancel that lands in between could otherwise see one more
-round start. So the scheduler reads the assignment record again just before it
-starts a round, and refuses to start one for a cancelled assignment. The refusal
-reaches the scheduler hold for that tick, as any launch failure does.
+launches anything, so a cancel can land after the read and before a round
+starts. The cancel and the scheduler each write first and read second to cover
+that case. The cancel writes the record, then reads the rounds again from disk.
+The scheduler starts the round, which writes the round's record, then reads the
+assignment record again and asks the round to stop if it finds a cancel. Either
+the cancel sees the new round or the scheduler sees the cancel. A round started
+this way ends as stopped within about a second.
 
 ### The worktree stays
 
@@ -93,6 +96,10 @@ another round. Removing the assignment label changes nothing once an assignment
 exists, because its pull request alone governs its rounds. Closing the pull
 request starts a wrap-up round and gives up the user's work. No existing state
 lets an assignment end while its pull request stays open.
+
+Issue conversations get no cancel. A conversation has no pull request for the
+user to take over, and the ontology gives it no ending. Removing its last
+conversation label already makes its future batches and recovery ineligible.
 
 ## What changes
 
