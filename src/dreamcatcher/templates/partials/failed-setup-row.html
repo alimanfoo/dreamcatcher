@@ -1,4 +1,4 @@
 {% from "partials/issue-reference.html" import issue_reference with context %}<article id="failed-setup-{{ setup.issue }}" class="failed-setup-row">
-  {% if setup.title %}<div>{{ issue_reference(setup.issue) }} <span class="title">{{ setup.title }}</span></div>{% else %}{{ issue_reference(setup.issue) }}{% endif %}
+  {% if setup.details and setup.details.title %}<div>{{ issue_reference(setup.issue) }} <span class="title">{{ setup.details.title }}</span></div>{% else %}{{ issue_reference(setup.issue) }}{% endif %}
   <span>{{ setup.setup_failure }}</span>
 </article>

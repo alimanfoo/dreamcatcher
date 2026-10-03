@@ -532,6 +532,8 @@ def fabricate_titles_and_pull_request_states(*, state):
                 observed_issue(
                     issue=22,
                     title="Failed setup issue",
+                    created_at=PINNED,
+                    assignment_labels=[ASSIGNMENT_LABEL],
                     values={"claimed_elsewhere": IssueFactValue.UNKNOWN},
                     evidence={"claimed_elsewhere": "assignment setup failed"},
                 ).model_copy(

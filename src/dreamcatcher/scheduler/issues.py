@@ -1,7 +1,6 @@
 """Observe issue facts that determine assignment availability."""
 
 from dataclasses import dataclass
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 from dreamcatcher.agent_assignments import (
@@ -29,15 +28,8 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True, kw_only=True)
-class _ListedIssueDetails:
-    title: str
-    created_at: datetime
-    assignment_labels: list[str]
-
-
-@dataclass(frozen=True, kw_only=True)
 class _ListedIssueFacts:
-    details: _ListedIssueDetails | None
+    details: ObservedIssueDetails | None
     is_open: IssueFact
     is_assigned_to_user: IssueFact
     routing_conflict: IssueFact
@@ -126,15 +118,7 @@ def _observe_issue(
     )
     return IssueObservation(
         issue=issue,
-        details=(
-            None
-            if listed.details is None
-            else ObservedIssueDetails(
-                title=listed.details.title,
-                created_at=listed.details.created_at,
-                assignment_labels=listed.details.assignment_labels,
-            )
-        ),
+        details=listed.details,
         is_open=listed.is_open,
         is_assigned_to_user=listed.is_assigned_to_user,
         claimed_here=claimed_here,
@@ -173,7 +157,7 @@ def _observe_listed_issue(
         labels=[label.name for label in response.labels]
     )
     return _ListedIssueFacts(
-        details=_ListedIssueDetails(
+        details=ObservedIssueDetails(
             title=response.title,
             created_at=response.created_at,
             assignment_labels=assignment_labels,
