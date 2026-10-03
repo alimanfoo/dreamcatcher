@@ -171,7 +171,7 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         description=(
             "Show an issue conversation's chosen settings, session, worktree, "
             "code revision, and rounds. It keeps up until the conversation "
-            "enters fault or leaves the status report. "
+            "enters fault, has a routing conflict or leaves the status report. "
             + _HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
             + " "
             + _HELP_WHEN_NOTHING_WATCHES
@@ -186,7 +186,8 @@ def _build_cli_parser() -> argparse.ArgumentParser:
             "Show the agent's actions and outputs from every round of "
             "the selected assignment or conversation, and keep showing what "
             "arrives until that work completes, enters fault or leaves the "
-            "status report. " + _HELP_WHEN_NOTHING_WATCHES
+            "status report. A conversation's routing conflict also ends its "
+            "feed view. " + _HELP_WHEN_NOTHING_WATCHES
         ),
     )
     _add_issue_argument(parser=feed_parser)

@@ -1,0 +1,83 @@
+# Stop and recover work
+
+Choose the control that matches what you want to stop. Closing a status view,
+stopping one agent round and stopping the daemon have different consequences.
+
+| Action                                                            | What stops                            | What happens next                                                        |
+| ----------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------ |
+| Interrupt `web`, `status`, `assignment`, `conversation` or `feed` | Only that view                        | The daemon and agents continue.                                          |
+| Select **Stop** on an assignment or conversation page             | The current agent round               | The work waits for new user input; this is not an error.                 |
+| Press Ctrl-C in the terminal running `dreamcatcher run`           | The daemon and all its current rounds | Work that still needs a round can recover after the daemon starts again. |
+
+## Stop one running round
+
+Run `dreamcatcher web`, open the assignment or conversation, and select
+**Stop**. The control appears only while the round is running and Dreamcatcher
+has learned its harness session. The round normally stops within about a second.
+
+After an assignment round is stopped, an open pull request waits for a new
+comment or review from you. Add that feedback when you are ready to resume. If
+you merge or close the pull request instead, its wrap-up can start without a new
+post.
+
+After a conversation round is stopped, post a new eligible issue comment to
+resume the discussion. The next round is an ordinary response to that input, not
+an automatic recovery of the stopped attempt.
+
+Removing an assignment label does not stop an active assignment. For a
+conversation, removing its last matching label makes future batches and recovery
+ineligible, but does not cancel a round already running. Use the web control
+when you need to stop the current process.
+
+## Restart an interrupted daemon
+
+Pressing Ctrl-C in the `dreamcatcher run` terminal shuts the daemon down and
+ends the rounds it owns. Start it again from the same main checkout:
+
+```sh
+dreamcatcher run --harness claude
+```
+
+Repeat any non-default `--interval` and `--max-agents` values you want; those
+are options for each run, not saved configuration. On startup Dreamcatcher also
+detects rounds orphaned by an earlier daemon. It records them as interrupted and
+schedules the next required recovery or wrap-up when the work is eligible.
+Recovery normally resumes the recorded harness session; you do not need to use
+the hand-resume command shown in assignment details.
+
+## Recover from errors and faults
+
+One errored round gets an automatic recovery opportunity, and unrelated work can
+continue. Two consecutive errored rounds put that assignment or conversation in
+**fault** so Dreamcatcher does not repeat the same failure forever.
+
+Read the detail and feed to find the cause:
+
+```sh
+dreamcatcher assignment GH123
+dreamcatcher feed GH123 --assignment
+```
+
+For a conversation, replace `assignment` and `--assignment` with `conversation`
+and `--conversation`.
+
+Fix the underlying problem first: for example, restore a missing credential,
+repair a project setup command or make a required service available. Then
+request another automatic recovery:
+
+```sh
+dreamcatcher retry GH123
+```
+
+`retry` preserves the failed rounds for diagnosis and requests recovery for the
+newest faulted assignment and faulted conversation at that issue. It does not
+start an agent itself; the daemon may recover the work on a later scheduler
+tick.
+
+Repeated failures across multiple work items can trigger a 15-minute global
+cooldown. Dreamcatcher keeps reporting status but starts no agent rounds during
+the cooldown. It survives a daemon restart and clears the current faults when it
+ends. A manual retry request still waits until an active cooldown is over.
+
+For exact retry syntax and error conditions, see the
+[`retry` command reference](command-reference.md#retry).

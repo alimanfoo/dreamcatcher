@@ -47,10 +47,9 @@ project, so that a criterion below can be traced to a project that has met it.
   trying to do and says so. Flask separates protocol-free logic from I/O. They
   set the bar for the shape of the documentation and for the web layer. Neither
   keeps its modules small.
-- **SQLite.** A file format whose version tells a reader what to do when it is
-  newer than the reader, a compatibility promise phrased as intent, and a
-  published account of how the project is tested. It sets the bar for the state
-  format and the contract. We borrow its forms, not its promises.
+- **SQLite.** A versioned file format, a compatibility promise phrased as
+  intent, and a published account of how the project is tested. It sets the bar
+  for the state format and the contract. We borrow its forms, not its promises.
 
 pre-commit and Trio are primary. Between them they cover structure, clarity and
 elegance, which is where the greatest distance lies.
@@ -130,19 +129,21 @@ not progress towards the standard. Meeting the criteria is.
 
 - Measure: whether a reader can install, configure, run and consult a command
   reference without reading how the scheduler thinks.
-- Bar: four kinds of page, kept apart: a tutorial that gets someone to a first
-  pull request, how-to pages for each task, a reference for every command and
-  setting, and explanation for the design. The README points to them and holds
-  nothing else.
+- Bar: four kinds of page, kept apart: a tutorial that takes an issue to a pull
+  request ready for review, how-to pages for each task, a reference for every
+  command and setting, and explanation for the design. The README is a short
+  entrance to user documentation and contributor guidance. User-facing pages do
+  not link to developer design documents.
 - Check: review of the documentation map that `uncoded` maintains.
 
 **C4. Formats and contracts are versioned.**
 
 - Measure: whether the state format and the agent-facing contract each carry a
-  version and a compatibility statement.
-- Bar: each does. A reader that meets a newer version refuses and says why. A
-  change to either is a numbered break, recorded in the changelog with what the
-  user does about it.
+  version and a [compatibility statement](compatibility.md).
+- Bar: each does. Dreamcatcher reads and writes only its own state-format
+  directory and ignores other format directories. A breaking change to the state
+  format or agent-facing contract receives a new version and a changelog entry
+  saying what the user must do.
 - Check: review.
 
 ### Consistency
