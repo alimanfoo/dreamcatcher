@@ -9,6 +9,7 @@ from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
     CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER,
+    AgentRoundRevision,
     AgentRoundStatus,
     AssignmentStatus,
     AssignmentStatusValue,
@@ -27,6 +28,7 @@ from dreamcatcher.web.models import (
     WebConversationCard,
     WebConversationView,
     WebFact,
+    WebHandResume,
     WebHomeView,
     WebIssueRow,
 )
@@ -49,6 +51,7 @@ def compose_home_view(
     *, report: DreamcatcherStatusReport, zone: tzinfo | None
 ) -> WebHomeView:
     """Return the values shown on the home page."""
+    daemon = report.daemon
     cooldown_end = (
         None
         if report.active_global_cooldown is None
@@ -60,10 +63,10 @@ def compose_home_view(
         github_repository_url=_compose_github_repository_url(
             repository=report.repository
         ),
-        daemon_state="stopped" if report.daemon_pid is None else "running",
+        daemon_state="stopped" if daemon.pid is None else "running",
         daemon_summary=_describe_daemon(
-            daemon_pid=report.daemon_pid,
-            dreamcatcher_version=report.dreamcatcher_version,
+            daemon_pid=daemon.pid,
+            dreamcatcher_version=daemon.dreamcatcher_version,
         ),
         instance_facts=_compose_instance_facts(report=report),
         cooldown_message=(
@@ -230,13 +233,13 @@ def compose_assignment_view(
         effort=record.effort,
         rounds=compose_agent_rounds(round_statuses=status.round_statuses, zone=zone),
         stop_url=stop_url,
-        hand_resume_worktree=(
+        hand_resume=(
             None
             if hand_resume_command is None
-            else state.describe_path(path=record.worktree)
-        ),
-        hand_resume_command=(
-            None if hand_resume_command is None else " ".join(hand_resume_command)
+            else WebHandResume(
+                worktree=state.describe_path(path=record.worktree),
+                command=" ".join(hand_resume_command),
+            )
         ),
         feed_rounds=feed.rounds,
         feed_cursor=feed.cursor,
@@ -312,18 +315,24 @@ def compose_agent_rounds(
             duration=round_status.duration_description,
             outcome=str(round_status.record.outcome),
             outcome_description=round_status.outcome_description,
-            revision=_shorten_git_revisions(text=round_status.revision),
-            revision_description=_shorten_git_revisions(
-                text=round_status.revision_description
-            ),
+            revision=_compose_web_round_revision(revision=round_status.revision),
         )
         for round_status in round_statuses
     )
 
 
-def _shorten_git_revisions(*, text: str | None) -> str | None:
-    if text is None:
+def _compose_web_round_revision(
+    *, revision: AgentRoundRevision | None
+) -> AgentRoundRevision | None:
+    if revision is None:
         return None
+    return AgentRoundRevision(
+        value=_shorten_git_revisions(text=revision.value),
+        description=_shorten_git_revisions(text=revision.description),
+    )
+
+
+def _shorten_git_revisions(*, text: str) -> str:
     return _GIT_REVISION_PATTERN.sub(lambda match: match.group()[:7], text)
 
 
@@ -365,24 +374,25 @@ def _describe_daemon(
 
 
 def _compose_instance_facts(*, report: DreamcatcherStatusReport) -> tuple[WebFact, ...]:
+    daemon = report.daemon
     scheduler_hold = report.scheduler_hold
     if scheduler_hold is not None and scheduler_hold.startswith("at cap:"):
         scheduler_hold = None
     values: tuple[tuple[str, str | None, bool], ...] = (
         (
             "harness",
-            None if report.agent_harness is None else str(report.agent_harness),
+            None if daemon.agent_harness is None else str(daemon.agent_harness),
             False,
         ),
         (
             "next update in",
             (
                 None
-                if report.daemon_pid is None
+                if daemon.pid is None
                 else describe_countdown(
                     at=report.at,
                     since=report.latest_scheduler_tick,
-                    span_seconds=report.scheduler_interval_seconds,
+                    span_seconds=daemon.interval_seconds,
                 )
             ),
             False,
@@ -391,8 +401,8 @@ def _compose_instance_facts(*, report: DreamcatcherStatusReport) -> tuple[WebFac
             "agent capacity",
             (
                 None
-                if report.max_agents is None
-                else f"{report.running_agents} of {report.max_agents} working"
+                if daemon.max_agents is None
+                else f"{report.running_agents} of {daemon.max_agents} working"
             ),
             False,
         ),

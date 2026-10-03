@@ -131,13 +131,13 @@ def test_an_empty_instance_reports_unknown_capacity_and_no_work(tmp_path):
 
     assert found.at == LOOKED_AT
     assert found.repository is None
-    assert found.daemon_pid is None
-    assert found.agent_harness is None
-    assert found.dreamcatcher_version is None
+    assert found.daemon.pid is None
+    assert found.daemon.agent_harness is None
+    assert found.daemon.dreamcatcher_version is None
     assert found.latest_scheduler_tick is None
-    assert found.scheduler_interval_seconds is None
+    assert found.daemon.interval_seconds is None
     assert found.scheduler_hold is None
-    assert found.max_agents is None
+    assert found.daemon.max_agents is None
     assert found.running_agents == 0
     assert found.active_global_cooldown is None
     assert found.available_issues == []
@@ -162,8 +162,8 @@ def test_the_instance_records_name_the_harness_and_version(state):
 
     found = report(state=state)
 
-    assert found.agent_harness is AgentHarness.CODEX
-    assert found.dreamcatcher_version == "3.0.0.beta1"
+    assert found.daemon.agent_harness is AgentHarness.CODEX
+    assert found.daemon.dreamcatcher_version == "3.0.0.beta1"
 
 
 def test_a_live_daemon_does_not_mix_in_another_runs_facts(state):
@@ -177,9 +177,9 @@ def test_a_live_daemon_does_not_mix_in_another_runs_facts(state):
 
     found = report(state=state)
 
-    assert found.agent_harness is None
-    assert found.dreamcatcher_version is None
-    assert found.max_agents is None
+    assert found.daemon.agent_harness is None
+    assert found.daemon.dreamcatcher_version is None
+    assert found.daemon.max_agents is None
 
 
 def test_a_live_round_reports_work_and_its_latest_output(running):
@@ -189,7 +189,7 @@ def test_a_live_round_reports_work_and_its_latest_output(running):
     found = report(state=running)
     status = found.assignment_statuses[0]
 
-    assert found.daemon_pid == os.getpid()
+    assert found.daemon.pid == os.getpid()
     assert found.running_agents == 1
     assert status.value is AssignmentStatusValue.WORKING
     assert status.detail == "round 1, implement, running 1h 59m, last output 1h 58m ago"
@@ -601,9 +601,9 @@ def test_an_active_cooldown_and_hold_are_instance_facts(running):
     found = report(state=running)
 
     assert found.latest_scheduler_tick == PINNED
-    assert found.scheduler_interval_seconds == DEFAULT_INTERVAL_SECONDS
+    assert found.daemon.interval_seconds == DEFAULT_INTERVAL_SECONDS
     assert found.scheduler_hold == "global cooldown"
-    assert found.max_agents == 3
+    assert found.daemon.max_agents == 3
     assert found.active_global_cooldown == cooldown
 
 

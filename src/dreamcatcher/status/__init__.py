@@ -22,12 +22,13 @@ from dreamcatcher.status.report import (
     read_repository,
     read_status_report,
 )
-from dreamcatcher.status.rounds import AgentRoundStatus
+from dreamcatcher.status.rounds import AgentRoundRevision, AgentRoundStatus
 
 __all__ = [
     "ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER",
     "CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER",
     "STATUSES_THAT_END_A_VIEW",
+    "AgentRoundRevision",
     "AgentRoundStatus",
     "AssignmentStatus",
     "AssignmentStatusValue",

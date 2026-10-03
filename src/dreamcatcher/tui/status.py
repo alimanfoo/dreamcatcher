@@ -104,9 +104,10 @@ def _render_instance_status(
 def _compose_instance_rows(
     *, report: DreamcatcherStatusReport, zone: tzinfo | None
 ) -> tuple[tuple[str, object | None], ...]:
+    daemon_status = report.daemon
     daemon = (
         "not running"
-        if report.daemon_pid is None
+        if daemon_status.pid is None
         else " ".join(
             filter(
                 None,
@@ -114,21 +115,21 @@ def _compose_instance_rows(
                     "running",
                     (
                         None
-                        if report.dreamcatcher_version is None
-                        else f"dreamcatcher v{report.dreamcatcher_version}"
+                        if daemon_status.dreamcatcher_version is None
+                        else f"dreamcatcher v{daemon_status.dreamcatcher_version}"
                     ),
-                    f"as pid {report.daemon_pid}",
+                    f"as pid {daemon_status.pid}",
                 ),
             )
         )
     )
     tick = (
         None
-        if report.daemon_pid is None
+        if daemon_status.pid is None
         else describe_countdown(
             at=report.at,
             since=report.latest_scheduler_tick,
-            span_seconds=report.scheduler_interval_seconds,
+            span_seconds=daemon_status.interval_seconds,
         )
     )
     cooldown = (
@@ -138,14 +139,14 @@ def _compose_instance_rows(
     )
     return (
         ("daemon", daemon),
-        ("harness", report.agent_harness),
+        ("harness", daemon_status.agent_harness),
         ("next update in", tick),
         (
             "agent capacity",
             (
                 None
-                if report.max_agents is None
-                else f"{report.running_agents} of {report.max_agents} working"
+                if daemon_status.max_agents is None
+                else f"{report.running_agents} of {daemon_status.max_agents} working"
             ),
         ),
         ("global cooldown", cooldown),

@@ -271,7 +271,11 @@ def _render_round_statuses(
             ),
         ]
         if shows_revision:
-            cells.append(Text(round_status.revision or ""))
+            cells.append(
+                Text(
+                    "" if round_status.revision is None else round_status.revision.value
+                )
+            )
         cells.extend(
             [
                 Text(describe_time(at=record.started, zone=zone)),
@@ -439,9 +443,9 @@ def _find_feed_owner(
             owner=status.conversation,
             is_over=status.is_over,
             round_details={
-                round_status.record.number: round_status.revision_description
+                round_status.record.number: round_status.revision.description
                 for round_status in status.round_statuses
-                if round_status.revision_description is not None
+                if round_status.revision is not None
             },
         )
     status = _find_assignment_statuses_for_issue(state=state, issue=issue)[0]

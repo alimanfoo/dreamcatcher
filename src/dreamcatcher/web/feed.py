@@ -225,7 +225,11 @@ def _find_round_revision_description(
 ) -> str | None:
     """Return one web round's revision description when it has one."""
     return next(
-        (round_.revision_description for round_ in rounds if round_.number == number),
+        (
+            None if round_.revision is None else round_.revision.description
+            for round_ in rounds
+            if round_.number == number
+        ),
         None,
     )
 
