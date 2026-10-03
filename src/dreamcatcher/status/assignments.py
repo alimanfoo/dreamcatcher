@@ -69,7 +69,7 @@ class AssignmentStatus:
 
     @property
     def has_ended(self) -> bool:
-        """Whether the assignment has ended, so it no longer claims its issue."""
+        """Whether the assignment has ended and no round of it is still running."""
         return self.value in {
             AssignmentStatusValue.COMPLETE,
             AssignmentStatusValue.CANCELLED,

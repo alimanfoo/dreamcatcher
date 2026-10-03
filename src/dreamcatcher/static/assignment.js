@@ -160,8 +160,13 @@ if (assignmentSidebar !== null) {
   });
 }
 
-document.querySelector(".cancel-form")?.addEventListener("submit", (event) => {
-  if (!window.confirm(event.currentTarget.dataset.confirmation)) {
+// The tail replaces the controls on every poll, so the listener sits above them.
+document.addEventListener("submit", (event) => {
+  const form = event.target;
+  if (
+    form.matches(".cancel-form") &&
+    !window.confirm(form.dataset.confirmation)
+  ) {
     event.preventDefault();
   }
 });

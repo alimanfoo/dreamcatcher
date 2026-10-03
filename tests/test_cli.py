@@ -368,8 +368,7 @@ def test_cancel_ends_the_newest_assignment_and_stops_its_running_round(
     assert not assignment.is_open
     assert assignment.compose_round_paths(number=1).stop_request.is_file()
     assert capsys.readouterr().out == (
-        f"{ASSIGNMENT_ID} is cancelled. Pull request #52 stays open and now "
-        "claims GH13 as work outside Dreamcatcher.\n"
+        f"{ASSIGNMENT_ID} is cancelled. Finish pull request #52 by hand.\n"
     )
 
 

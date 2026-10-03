@@ -4,8 +4,8 @@
 
 A user can cancel an assignment to take over its pull request and finish it by
 hand. Dreamcatcher then runs no further rounds for the assignment and relays no
-further posts from its pull request. The pull request stays open, and from then
-on it claims the issue as work outside Dreamcatcher.
+further posts from its pull request. Dreamcatcher leaves the pull request as it
+is, and while it is open it claims the issue as work outside Dreamcatcher.
 
 The assignment page offers a cancel control, and `dreamcatcher cancel GH<n>`
 cancels the newest assignment at an issue. A cancelled assignment stays in every

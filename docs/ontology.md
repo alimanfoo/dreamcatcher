@@ -259,9 +259,9 @@ until that round ends. A cancel cannot be undone.
 
 An assignment that is complete or cancelled has **ended**.
 
-The pull request stays open, and from then on it claims the issue elsewhere. If
-the user merges it, GitHub closes the issue. If the user closes it without
-merging, the issue may receive another assignment.
+Dreamcatcher leaves the pull request as it is, and while it is open it claims
+the issue elsewhere. If the user merges it, GitHub closes the issue. If the user
+closes it without merging, the issue may receive another assignment.
 
 ### Describing an agent round
 

@@ -396,9 +396,8 @@ def _cancel_assignment(*, arguments: argparse.Namespace) -> None:
     assignment = issue_assignments[-1]
     cancel_assignment(assignment=assignment, at=read_current_time())
     print(
-        f"{assignment.identifier} is cancelled. Pull request "
-        f"#{assignment.record.pull_request} stays open and now claims "
-        f"GH{arguments.issue} as work outside Dreamcatcher."
+        f"{assignment.identifier} is cancelled. Finish pull request "
+        f"#{assignment.record.pull_request} by hand."
     )
 
 

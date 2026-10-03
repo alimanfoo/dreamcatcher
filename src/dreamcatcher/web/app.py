@@ -166,11 +166,7 @@ def _show_assignment(
             status=status,
             zone=zone,
             stop_url=_compose_assignment_stop_url(status=status),
-            cancel_url=(
-                url_for("cancel_assignment", identifier=identifier)
-                if status.assignment.is_open
-                else None
-            ),
+            cancel_url=_compose_assignment_cancel_url(status=status),
         ),
     )
 
@@ -184,6 +180,13 @@ def _compose_assignment_stop_url(*, status: AssignmentStatus) -> str | None:
         identifier=status.assignment.identifier,
         number=paths.number,
     )
+
+
+def _compose_assignment_cancel_url(*, status: AssignmentStatus) -> str | None:
+    assignment = status.assignment
+    if not assignment.is_open:
+        return None
+    return url_for("cancel_assignment", identifier=assignment.identifier)
 
 
 def _show_assignment_tail(
@@ -211,6 +214,7 @@ def _show_assignment_tail(
                 round_statuses=status.round_statuses, zone=zone
             ),
             stop_url=_compose_assignment_stop_url(status=status),
+            cancel_url=_compose_assignment_cancel_url(status=status),
         ),
         is_terminal=status.is_over,
         status_id="assignment-status",

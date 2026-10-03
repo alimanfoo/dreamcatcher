@@ -115,6 +115,7 @@ class WebAgentTail:
     detail: str | None
     rounds: tuple[WebAgentRound, ...]
     stop_url: str | None
+    cancel_url: str | None
     has_empty_feed_placeholder: bool
 
 
@@ -126,6 +127,7 @@ class WebAgentTailContext:
     status_label: str
     rounds: tuple[WebAgentRound, ...]
     stop_url: str | None
+    cancel_url: str | None = None
     detail: str | None = None
 
 

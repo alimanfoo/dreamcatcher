@@ -98,10 +98,10 @@ request by hand. Dreamcatcher runs no further rounds for the assignment and
 relays no further posts from its pull request. If a round is running, the
 command asks it to stop, without the conditions that `stop` requires.
 
-The pull request stays open, and from then on it claims the issue as work
-outside Dreamcatcher. The worktree and branch stay in place, so you can carry on
-in the assignment's worktree. The cancelled assignment stays in every status
-view.
+Dreamcatcher leaves the pull request as it is, and while it is open it claims
+the issue as work outside Dreamcatcher. The worktree and branch stay in place,
+so you can carry on in the assignment's worktree. The cancelled assignment stays
+in every status view.
 
 The issue must have an assignment, and that assignment must not have ended. A
 cancel cannot be undone. The command writes only local state, does not contact

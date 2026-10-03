@@ -59,10 +59,10 @@ Once no round is running, and when Dreamcatcher has learned the agent's harness
 session, the assignment page shows the worktree and the command that resumes
 that session by hand.
 
-The pull request stays open, and from then on it claims the issue as work
-outside Dreamcatcher. If you merge it, GitHub closes the issue. If you close it
-without merging, the issue can receive a new assignment while it keeps its
-assignment label and stays assigned to you.
+Dreamcatcher leaves the pull request as it is, and while it is open it claims
+the issue as work outside Dreamcatcher. If you merge it, GitHub closes the
+issue. If you close it without merging, the issue can receive a new assignment
+while it keeps its assignment label and stays assigned to you.
 
 ## Restart an interrupted daemon
 
