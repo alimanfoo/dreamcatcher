@@ -36,49 +36,6 @@ from dreamcatcher.status.reader import StatusReportReader
 
 
 @dataclass(frozen=True, kw_only=True)
-class DreamcatcherStatusReport:
-    """Describe one Dreamcatcher instance from its local state."""
-
-    at: datetime
-    repository: str | None
-    daemon: "DreamcatcherDaemonStatus"
-    latest_scheduler_tick: datetime | None
-    scheduler_hold: str | None
-    running_agents: int
-    active_global_cooldown: GlobalCooldown | None
-    failed_assignment_setups: list[IssueObservation]
-    available_issues: list[IssueObservation]
-    blocked_issues: list[IssueObservation]
-    assignment_statuses: list[AssignmentStatus]
-    conversation_statuses: list[ConversationStatus]
-
-    @property
-    def daemon_pid(self) -> int | None:
-        """The current daemon process identifier, when one is running."""
-        return self.daemon.pid
-
-    @property
-    def agent_harness(self) -> AgentHarness | None:
-        """The harness selected for the current or most recent daemon run."""
-        return self.daemon.agent_harness
-
-    @property
-    def dreamcatcher_version(self) -> str | None:
-        """The version used by the current or most recent daemon run."""
-        return self.daemon.dreamcatcher_version
-
-    @property
-    def scheduler_interval_seconds(self) -> int | None:
-        """The interval selected for the current or most recent daemon run."""
-        return self.daemon.interval_seconds
-
-    @property
-    def max_agents(self) -> int | None:
-        """The agent cap selected for the current or most recent daemon run."""
-        return self.daemon.max_agents
-
-
-@dataclass(frozen=True, kw_only=True)
 class DreamcatcherDaemonStatus:
     """Describe the current daemon process and the run it owns."""
 
@@ -104,6 +61,24 @@ class DreamcatcherDaemonStatus:
     def interval_seconds(self) -> int | None:
         """The interval selected for the current or most recent run."""
         return None if self.run is None else self.run.interval_seconds
+
+
+@dataclass(frozen=True, kw_only=True)
+class DreamcatcherStatusReport:
+    """Describe one Dreamcatcher instance from its local state."""
+
+    at: datetime
+    repository: str | None
+    daemon: DreamcatcherDaemonStatus
+    latest_scheduler_tick: datetime | None
+    scheduler_hold: str | None
+    running_agents: int
+    active_global_cooldown: GlobalCooldown | None
+    failed_assignment_setups: list[IssueObservation]
+    available_issues: list[IssueObservation]
+    blocked_issues: list[IssueObservation]
+    assignment_statuses: list[AssignmentStatus]
+    conversation_statuses: list[ConversationStatus]
 
 
 def read_status_report(

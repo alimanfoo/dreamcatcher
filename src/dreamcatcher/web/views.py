@@ -51,6 +51,7 @@ def compose_home_view(
     *, report: DreamcatcherStatusReport, zone: tzinfo | None
 ) -> WebHomeView:
     """Return the values shown on the home page."""
+    daemon = report.daemon
     cooldown_end = (
         None
         if report.active_global_cooldown is None
@@ -62,10 +63,10 @@ def compose_home_view(
         github_repository_url=_compose_github_repository_url(
             repository=report.repository
         ),
-        daemon_state="stopped" if report.daemon_pid is None else "running",
+        daemon_state="stopped" if daemon.pid is None else "running",
         daemon_summary=_describe_daemon(
-            daemon_pid=report.daemon_pid,
-            dreamcatcher_version=report.dreamcatcher_version,
+            daemon_pid=daemon.pid,
+            dreamcatcher_version=daemon.dreamcatcher_version,
         ),
         instance_facts=_compose_instance_facts(report=report),
         cooldown_message=(
@@ -373,24 +374,25 @@ def _describe_daemon(
 
 
 def _compose_instance_facts(*, report: DreamcatcherStatusReport) -> tuple[WebFact, ...]:
+    daemon = report.daemon
     scheduler_hold = report.scheduler_hold
     if scheduler_hold is not None and scheduler_hold.startswith("at cap:"):
         scheduler_hold = None
     values: tuple[tuple[str, str | None, bool], ...] = (
         (
             "harness",
-            None if report.agent_harness is None else str(report.agent_harness),
+            None if daemon.agent_harness is None else str(daemon.agent_harness),
             False,
         ),
         (
             "next update in",
             (
                 None
-                if report.daemon_pid is None
+                if daemon.pid is None
                 else describe_countdown(
                     at=report.at,
                     since=report.latest_scheduler_tick,
-                    span_seconds=report.scheduler_interval_seconds,
+                    span_seconds=daemon.interval_seconds,
                 )
             ),
             False,
@@ -399,8 +401,8 @@ def _compose_instance_facts(*, report: DreamcatcherStatusReport) -> tuple[WebFac
             "agent capacity",
             (
                 None
-                if report.max_agents is None
-                else f"{report.running_agents} of {report.max_agents} working"
+                if daemon.max_agents is None
+                else f"{report.running_agents} of {daemon.max_agents} working"
             ),
             False,
         ),
