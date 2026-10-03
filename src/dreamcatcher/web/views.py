@@ -2,6 +2,7 @@
 
 import re
 from datetime import datetime, tzinfo
+from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from dreamcatcher.issue_conversations import Conversation
@@ -39,6 +40,21 @@ if TYPE_CHECKING:
 
 _ISSUE_REFERENCE_PATTERN = re.compile(r"(?<!\w)(?:GH|#)(\d+)\b(?!-)")
 _GIT_REVISION_PATTERN = re.compile(r"\b[0-9a-f]{40}\b")
+
+
+def _compose_hand_resume(
+    *,
+    state: StateDirectory,
+    worktree: Path,
+    command: list[str] | None,
+) -> WebHandResume | None:
+    """Return the web values for a manual session resume, when available."""
+    if command is None:
+        return None
+    return WebHandResume(
+        worktree=state.describe_path(path=worktree),
+        command=" ".join(command),
+    )
 
 
 def _compose_github_repository_url(*, repository: str | None) -> str | None:
@@ -224,13 +240,10 @@ def compose_assignment_view(
         effort=record.effort,
         rounds=compose_agent_rounds(round_statuses=status.round_statuses, zone=zone),
         stop_url=stop_url,
-        hand_resume=(
-            None
-            if hand_resume_command is None
-            else WebHandResume(
-                worktree=state.describe_path(path=record.worktree),
-                command=" ".join(hand_resume_command),
-            )
+        hand_resume=_compose_hand_resume(
+            state=state,
+            worktree=record.worktree,
+            command=hand_resume_command,
         ),
         feed_rounds=feed.rounds,
         feed_cursor=feed.cursor,

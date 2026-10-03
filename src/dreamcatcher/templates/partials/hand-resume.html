@@ -1,0 +1,8 @@
+{%- if view.hand_resume %}
+      <details class="manual-recovery">
+        <summary>last resort · resume by hand</summary>
+        <p>Dreamcatcher normally coordinates this session. Use this escape hatch only when automatic recovery is impossible.</p>
+        <pre>cd {{ view.hand_resume.worktree }}
+{{ view.hand_resume.command }}</pre>
+      </details>
+{%- endif %}
