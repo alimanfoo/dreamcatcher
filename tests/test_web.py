@@ -230,7 +230,7 @@ def test_assignment_stop_control_needs_a_daemon_and_harness_session(tmp_path, da
     assert 'action="/assignments/GH13-20260819-184158/stop/2"' not in without_daemon
 
 
-def test_assignment_tail_updates_the_stop_control(tmp_path, daemon):
+def test_assignment_tail_updates_the_stop_and_cancel_controls(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     identifier = "GH13-20260819-184158"
@@ -245,6 +245,7 @@ def test_assignment_tail_updates_the_stop_control(tmp_path, daemon):
     assert response.status_code == 200
     assert '<div id="agent-work-controls" hx-swap-oob="true">' in response.text
     assert f'action="/assignments/{identifier}/stop/2"' in response.text
+    assert f'action="/assignments/{identifier}/cancel"' in response.text
 
 
 def test_a_stale_assignment_stop_request_is_already_done(tmp_path, daemon):
