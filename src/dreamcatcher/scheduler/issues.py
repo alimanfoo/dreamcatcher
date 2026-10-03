@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from dreamcatcher.agent_assignments import (
     Assignment,
@@ -13,12 +14,13 @@ from dreamcatcher.github import (
     IssueState,
     UnknownGitHubResponse,
     list_blocking_issues,
-    list_issues,
     read_issue,
     read_issue_pull_request_context,
 )
-from dreamcatcher.scheduler.assignments import AssignmentScheduler
 from dreamcatcher.scheduler.models import IssueFact, IssueFactValue, IssueObservation
+
+if TYPE_CHECKING:
+    from dreamcatcher.scheduler.assignments import AssignmentScheduler
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -39,25 +41,17 @@ class IssueObservationResult:
     failure: str | None = None
 
 
-@dataclass(frozen=True, kw_only=True)
-class _ConsideredIssueResult:
-    """Group listed issues with any route listing failure."""
-
-    issues: list[Issue]
-    failure: str | None = None
-
-
 def observe_issues(
     *,
-    scheduler: AssignmentScheduler,
+    scheduler: "AssignmentScheduler",
     assignments: list[Assignment],
     incomplete_setups: dict[int, str | None],
 ) -> IssueObservationResult:
     """Observe every issue considered for assignment or claimed by this instance."""
-    considered_issues = _list_considered_issues(scheduler=scheduler)
+    listing = scheduler.list_route_issues(routes=scheduler.config.assignment)
     open_assignments = find_open_assignments_by_issue(assignments=assignments)
     issue_responses_by_number: dict[int, Issue | UnknownGitHubResponse] = {
-        issue.number: issue for issue in considered_issues.issues
+        issue.number: issue for issue in listing.issues
     }
     local_issue_numbers = open_assignments.keys() | incomplete_setups.keys()
     for issue in local_issue_numbers - issue_responses_by_number.keys():
@@ -83,7 +77,7 @@ def observe_issues(
                 observation.issue,
             ),
         ),
-        failure=considered_issues.failure,
+        failure=listing.failure,
     )
 
 
@@ -101,29 +95,9 @@ def record_missing_assignment_titles(
             )
 
 
-def _list_considered_issues(
-    *, scheduler: AssignmentScheduler
-) -> _ConsideredIssueResult:
-    """List open assigned issues that carry any configured assignment label."""
-    issues_by_number: dict[int, Issue] = {}
-    for route in scheduler.config.assignment:
-        issue_response = list_issues(
-            repository=scheduler.repository,
-            label=route.label,
-            assignee=scheduler.account,
-        )
-        if isinstance(issue_response, UnknownGitHubResponse):
-            return _ConsideredIssueResult(
-                issues=list(issues_by_number.values()),
-                failure=issue_response.reason,
-            )
-        issues_by_number.update((issue.number, issue) for issue in issue_response)
-    return _ConsideredIssueResult(issues=list(issues_by_number.values()))
-
-
 def _observe_issue(
     *,
-    scheduler: AssignmentScheduler,
+    scheduler: "AssignmentScheduler",
     assignments: dict[int, Assignment],
     incomplete_setups: dict[int, str | None],
     issue: int,
@@ -164,7 +138,7 @@ def _observe_issue(
 
 
 def _observe_listed_issue(
-    *, scheduler: AssignmentScheduler, response: Issue | UnknownGitHubResponse
+    *, scheduler: "AssignmentScheduler", response: Issue | UnknownGitHubResponse
 ) -> _ListedIssueFacts:
     if isinstance(response, UnknownGitHubResponse):
         reason = f"cannot read issue: {response.reason}"
@@ -218,7 +192,7 @@ def _observe_assignment_routing_conflict(*, labels: list[str]) -> IssueFact:
 
 def _observe_external_claim(
     *,
-    scheduler: AssignmentScheduler,
+    scheduler: "AssignmentScheduler",
     assignments: dict[int, Assignment],
     incomplete_setups: dict[int, str | None],
     issue: int,

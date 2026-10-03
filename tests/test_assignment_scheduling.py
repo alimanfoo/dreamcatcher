@@ -16,12 +16,10 @@ from conftest import (
 from records import write_assignment, write_round
 
 from dreamcatcher.agent_assignments import (
-    AssignmentRoundInput,
     advance_user_post_delivery_cursor,
     read_assignments,
 )
 from dreamcatcher.agent_rounds import (
-    AgentRoundPlan,
     AgentRoundRecord,
     AssignmentRoundPurpose,
     InterruptedAgentRoundEnding,
@@ -29,15 +27,14 @@ from dreamcatcher.agent_rounds import (
     compose_agent_round_ending,
 )
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
-from dreamcatcher.github import PullRequestState
-from dreamcatcher.prompts import AGENT_POST_MARKER, RECOVERY_PROMPT
+from dreamcatcher.github import PullRequest, PullRequestState
 from dreamcatcher.scheduler.assignments import (
-    AssignmentInspectionRequest,
+    AssignmentRoundCandidate,
     AssignmentScheduler,
-    FaultedAssignment,
-    RequiredAgentRound,
+    FirstAssignmentRoundCandidate,
+    NewAssignmentCandidate,
 )
-from dreamcatcher.scheduler.models import NO_ROUND_HAS_RUN, AssignmentObservation
+from dreamcatcher.scheduler.models import AssignmentObservation, derive_round_purpose
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158"
@@ -106,26 +103,34 @@ def ran(
 
 def found(
     *, state
-) -> RequiredAgentRound | FaultedAssignment | AssignmentObservation | None:
+) -> (
+    FirstAssignmentRoundCandidate
+    | AssignmentRoundCandidate
+    | AssignmentObservation
+    | None
+):
     """What the one assignment in that state directory needs next."""
     assignment = read_assignments(state=state)[0]
-    return create_assignment_scheduler(state=state).inspect(
-        request=AssignmentInspectionRequest(
-            assignment=assignment,
-            most_recent_cooldown_ended=None,
-            observed_at=PINNED,
-        )
+    if assignment.is_complete:
+        return None
+    inspected = create_assignment_scheduler(state=state)._inspect_assignment(
+        assignment=assignment,
+        most_recent_cooldown_ended=None,
+        observed_at=PINNED,
     )
+    if inspected.candidate is not None:
+        assert not isinstance(inspected.candidate, NewAssignmentCandidate)
+        return inspected.candidate
+    if inspected.observation.is_round_required or not inspected.observation.is_known:
+        return inspected.observation
+    return None
 
 
 def test_an_assignment_that_has_run_no_round_at_all_needs_its_first(state):
     first = found(state=state)
 
-    assert isinstance(first, RequiredAgentRound)
-    assert first.plan.purpose is AssignmentRoundPurpose.IMPLEMENT
-    assert not first.plan.is_recovery
-    assert first.reason == NO_ROUND_HAS_RUN
-    assert first.prompt == "/dream:smith GH13"
+    assert isinstance(first, FirstAssignmentRoundCandidate)
+    assert first.assignment.record.issue == 13
 
 
 def test_an_assignment_whose_last_round_was_interrupted_is_a_recovery(state, gh):
@@ -138,12 +143,12 @@ def test_an_assignment_whose_last_round_was_interrupted_is_a_recovery(state, gh)
 
     resume = found(state=state)
 
-    assert isinstance(resume, RequiredAgentRound)
-    assert resume.plan.purpose is AssignmentRoundPurpose.ADDRESS_FEEDBACK
-    assert resume.plan.is_recovery
-    assert resume.reason == "the last round was interrupted"
-    assert resume.prompt == RECOVERY_PROMPT
-    assert resume.plan.input is None
+    assert isinstance(resume, AssignmentRoundCandidate)
+    assert derive_round_purpose(pull_request=resume.pull_request) is (
+        AssignmentRoundPurpose.ADDRESS_FEEDBACK
+    )
+    assert resume.recovery_reason == "the last round was interrupted"
+    assert resume.undelivered_posts == []
     assert gh.calls[0].arguments[:3] == ["pr", "view", str(PULL_REQUEST)]
 
 
@@ -158,9 +163,8 @@ def test_an_interruption_breaks_an_error_sequence(state, gh):
 
     resume = found(state=state)
 
-    assert isinstance(resume, RequiredAgentRound)
-    assert resume.plan.is_recovery
-    assert resume.reason == "the last round was interrupted"
+    assert isinstance(resume, AssignmentRoundCandidate)
+    assert resume.recovery_reason == "the last round was interrupted"
 
 
 def test_an_assignment_whose_last_round_failed_is_carried_on_with_its_status(state, gh):
@@ -168,10 +172,11 @@ def test_an_assignment_whose_last_round_failed_is_carried_on_with_its_status(sta
 
     resume = found(state=state)
 
-    assert isinstance(resume, RequiredAgentRound)
-    assert resume.plan.purpose is AssignmentRoundPurpose.ADDRESS_FEEDBACK
-    assert resume.plan.is_recovery
-    assert resume.reason == "the last round failed (exit 2)"
+    assert isinstance(resume, AssignmentRoundCandidate)
+    assert derive_round_purpose(pull_request=resume.pull_request) is (
+        AssignmentRoundPurpose.ADDRESS_FEEDBACK
+    )
+    assert resume.recovery_reason == "the last round failed (exit 2)"
     assert gh.calls[0].arguments[:3] == ["pr", "view", str(PULL_REQUEST)]
 
 
@@ -191,20 +196,20 @@ def test_a_terminal_pull_request_makes_an_interrupted_round_a_recovery_wrap_up(
 
     resume = found(state=state)
 
-    assert isinstance(resume, RequiredAgentRound)
-    assert resume.plan.purpose is AssignmentRoundPurpose.WRAP_UP
-    assert resume.plan.is_recovery
-    assert resume.plan.input is not None
-    assert resume.plan.input.pull_request_state is PullRequestState.MERGED
-    assert [post.body for post in resume.plan.input.user_posts] == [
+    assert isinstance(resume, AssignmentRoundCandidate)
+    assert derive_round_purpose(pull_request=resume.pull_request) is (
+        AssignmentRoundPurpose.WRAP_UP
+    )
+    assert resume.recovery_reason == "the last round was interrupted"
+    assert resume.pull_request.state is PullRequestState.MERGED
+    assert [post.body for post in resume.undelivered_posts] == [
         "have another look at the filter"
     ]
-    assert f"pull request #{PULL_REQUEST}" in resume.prompt
 
     ran(
         state=state,
         number=2,
-        purpose=resume.plan.purpose,
+        purpose=derive_round_purpose(pull_request=resume.pull_request),
         is_recovery=True,
     )
 
@@ -257,14 +262,13 @@ def test_a_terminal_pull_request_wraps_up_a_stopped_assignment(
 
     resume = found(state=state)
 
-    assert isinstance(resume, RequiredAgentRound)
-    assert resume.plan.purpose is AssignmentRoundPurpose.WRAP_UP
-    assert not resume.plan.is_recovery
-    assert resume.reason == f"the pull request is {pull_request_state.lower()}"
-    assert resume.plan.input == AssignmentRoundInput(
-        pull_request_state=pull_request_state, user_posts=[]
+    assert isinstance(resume, AssignmentRoundCandidate)
+    assert derive_round_purpose(pull_request=resume.pull_request) is (
+        AssignmentRoundPurpose.WRAP_UP
     )
-    assert resume.prompt.startswith("The user stopped your previous round")
+    assert resume.recovery_reason is None
+    assert resume.pull_request.state is PullRequestState(pull_request_state)
+    assert resume.undelivered_posts == []
 
 
 def test_a_stopped_assignment_uses_new_feedback_without_recovery(state, gh):
@@ -286,9 +290,9 @@ def test_a_stopped_assignment_uses_new_feedback_without_recovery(state, gh):
 
     resume = found(state=state)
 
-    assert isinstance(resume, RequiredAgentRound)
-    assert not resume.plan.is_recovery
-    assert resume.prompt.startswith("The user stopped your previous round")
+    assert isinstance(resume, AssignmentRoundCandidate)
+    assert resume.recovery_reason is None
+    assert len(resume.undelivered_posts) == 1
 
 
 def test_an_assignment_the_user_has_posted_on_answers_what_they_said(state, gh):
@@ -299,13 +303,13 @@ def test_an_assignment_the_user_has_posted_on_answers_what_they_said(state, gh):
 
     resume = found(state=state)
 
-    assert isinstance(resume, RequiredAgentRound)
-    assert resume.plan.purpose is AssignmentRoundPurpose.ADDRESS_FEEDBACK
-    assert not resume.plan.is_recovery
-    assert resume.reason == "1 new post to answer"
-    assert resume.plan.input is not None
-    assert resume.plan.input.pull_request_state is PullRequestState.OPEN
-    assert [post.body for post in resume.plan.input.user_posts] == [
+    assert isinstance(resume, AssignmentRoundCandidate)
+    assert derive_round_purpose(pull_request=resume.pull_request) is (
+        AssignmentRoundPurpose.ADDRESS_FEEDBACK
+    )
+    assert resume.recovery_reason is None
+    assert resume.pull_request.state is PullRequestState.OPEN
+    assert [post.body for post in resume.undelivered_posts] == [
         "have another look at the filter"
     ]
 
@@ -323,9 +327,11 @@ def test_a_draft_pull_request_keeps_implementation_as_its_purpose(
 
     resume = found(state=state)
 
-    assert isinstance(resume, RequiredAgentRound)
-    assert resume.plan.purpose is AssignmentRoundPurpose.IMPLEMENT
-    assert not resume.plan.is_recovery
+    assert isinstance(resume, AssignmentRoundCandidate)
+    assert derive_round_purpose(pull_request=resume.pull_request) is (
+        AssignmentRoundPurpose.IMPLEMENT
+    )
+    assert resume.recovery_reason is None
 
 
 def test_a_batch_of_posts_says_how_many_it_holds(state, gh):
@@ -339,8 +345,8 @@ def test_a_batch_of_posts_says_how_many_it_holds(state, gh):
 
     resume = found(state=state)
 
-    assert isinstance(resume, RequiredAgentRound)
-    assert resume.reason == "2 new posts to answer"
+    assert isinstance(resume, AssignmentRoundCandidate)
+    assert len(resume.undelivered_posts) == 2
 
 
 def test_a_post_at_the_assignment_delivery_cursor_wakes_nothing(state, gh):
@@ -355,9 +361,7 @@ def test_a_post_at_the_assignment_delivery_cursor_wakes_nothing(state, gh):
     assert found(state=state) is None
 
 
-def test_the_prompt_of_a_posts_resume_sends_the_assignment_to_the_next_rounds_inbox(
-    state, gh
-):
+def test_a_posts_resume_carries_the_facts_launch_will_prepare(state, gh):
     ran(state=state, number=1, purpose=AssignmentRoundPurpose.IMPLEMENT)
     gh.replies(
         stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
@@ -365,17 +369,13 @@ def test_the_prompt_of_a_posts_resume_sends_the_assignment_to_the_next_rounds_in
 
     resume = found(state=state)
 
-    assert isinstance(resume, RequiredAgentRound)
-    pull_request_state, user_posts = AssignmentRoundInput.model_fields
-    assert f"Read {pull_request_state} before anything else." in resume.prompt
-    assert f"act on {user_posts}" in resume.prompt
-    assert f"pull request #{PULL_REQUEST}" in resume.prompt
-    paths = resume.assignment.compose_round_paths(
-        number=resume.assignment.next_round_number
-    )
-    assert str(paths.round_input) in resume.prompt
-    assert paths.directory.name == "2"
-    assert AGENT_POST_MARKER in resume.prompt
+    assert isinstance(resume, AssignmentRoundCandidate)
+    assert resume.pull_request.number == PULL_REQUEST
+    assert resume.pull_request.state is PullRequestState.OPEN
+    assert [post.body for post in resume.undelivered_posts] == [
+        "have another look at the filter"
+    ]
+    assert resume.recovery_reason is None
 
 
 @pytest.mark.parametrize("state_name", ["MERGED", "CLOSED"])
@@ -387,12 +387,12 @@ def test_a_pull_request_that_is_finished_calls_for_one_last_round(
 
     resume = found(state=state)
 
-    assert isinstance(resume, RequiredAgentRound)
-    assert resume.plan.purpose is AssignmentRoundPurpose.WRAP_UP
-    assert resume.reason == f"the pull request is {state_name.lower()}"
-    assert resume.plan.input == AssignmentRoundInput(
-        pull_request_state=state_name, user_posts=[]
+    assert isinstance(resume, AssignmentRoundCandidate)
+    assert derive_round_purpose(pull_request=resume.pull_request) is (
+        AssignmentRoundPurpose.WRAP_UP
     )
+    assert resume.pull_request.state is PullRequestState(state_name)
+    assert resume.undelivered_posts == []
 
 
 def test_a_last_round_carries_what_the_user_said_before_the_merge(state, gh):
@@ -404,10 +404,11 @@ def test_a_last_round_carries_what_the_user_said_before_the_merge(state, gh):
 
     resume = found(state=state)
 
-    assert isinstance(resume, RequiredAgentRound)
-    assert resume.plan.purpose is AssignmentRoundPurpose.WRAP_UP
-    assert resume.plan.input is not None
-    assert [post.body for post in resume.plan.input.user_posts] == [
+    assert isinstance(resume, AssignmentRoundCandidate)
+    assert derive_round_purpose(pull_request=resume.pull_request) is (
+        AssignmentRoundPurpose.WRAP_UP
+    )
+    assert [post.body for post in resume.undelivered_posts] == [
         "have another look at the filter"
     ]
 
@@ -466,12 +467,17 @@ def test_the_most_open_work_comes_first(state):
 
     def resume(
         *, assignment, purpose: AssignmentRoundPurpose, is_recovery: bool = False
-    ) -> RequiredAgentRound:
-        return RequiredAgentRound(
+    ) -> AssignmentRoundCandidate:
+        is_open = purpose is not AssignmentRoundPurpose.WRAP_UP
+        return AssignmentRoundCandidate(
             assignment=assignment,
-            plan=AgentRoundPlan(purpose=purpose, is_recovery=is_recovery),
-            reason="",
-            prompt="",
+            pull_request=PullRequest(
+                number=PULL_REQUEST,
+                state=(PullRequestState.OPEN if is_open else PullRequestState.MERGED),
+                is_draft=purpose is AssignmentRoundPurpose.IMPLEMENT,
+            ),
+            undelivered_posts=[],
+            recovery_reason="unfinished" if is_recovery else None,
         )
 
     scheduler = create_assignment_scheduler(state=state)
@@ -490,16 +496,25 @@ def test_the_most_open_work_comes_first(state):
                 purpose=AssignmentRoundPurpose.IMPLEMENT,
                 is_recovery=True,
             ),
-            resume(
-                assignment=first_assignment,
-                purpose=AssignmentRoundPurpose.IMPLEMENT,
-            ),
+            FirstAssignmentRoundCandidate(assignment=first_assignment),
         ],
         key=scheduler.rank,
     )
 
     assert [
-        (not found.assignment.rounds, found.plan.is_recovery, found.plan.purpose)
+        (
+            isinstance(found, FirstAssignmentRoundCandidate),
+            (
+                False
+                if isinstance(found, FirstAssignmentRoundCandidate)
+                else found.recovery_reason is not None
+            ),
+            (
+                AssignmentRoundPurpose.IMPLEMENT
+                if isinstance(found, FirstAssignmentRoundCandidate)
+                else derive_round_purpose(pull_request=found.pull_request)
+            ),
+        )
         for found in ordered
     ] == [
         (True, False, AssignmentRoundPurpose.IMPLEMENT),

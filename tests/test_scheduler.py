@@ -489,7 +489,9 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
     observed = scheduler.tick(at=clock())
 
     hold = held(observed=observed)
-    assert hold.startswith("at cap: 1 of 1 agents running; could not refresh issues: ")
+    assert hold.startswith(
+        "at cap: 1 of 1 agents running; could not list issues for dream:smith: "
+    )
     assert "could not connect" in hold
     assert observed_issues(tick=observed) == [8, 13]
     assert all(
@@ -640,26 +642,21 @@ def test_an_ended_round_is_inspected_while_its_runner_finishes(tmp_path, monkeyp
         ),
     )
     assignment = read_assignments(state=state)[0]
-    observation = AssignmentObservation(
-        assignment_identifier=ASSIGNMENT_ID,
-        issue=13,
-        reason="no round required",
-        is_round_required=False,
-    )
+    inspected = Mock()
     monkeypatch.setattr(
-        "dreamcatcher.scheduler.assignments.AssignmentScheduler.inspect",
-        lambda _scheduler, **_arguments: observation,
+        "dreamcatcher.scheduler.assignments.AssignmentScheduler._inspect_assignment",
+        lambda _scheduler, **_arguments: inspected,
     )
     scheduler, _ = create_scheduler(root=tmp_path, max_agents=2)
     scheduler.rounds[ASSIGNMENT_ID] = Mock(is_alive=True)
 
-    results = scheduler._inspect_assignments(
+    results = scheduler.assignments._inspect_assignments(
         assignments=[assignment],
         most_recent_cooldown_ended=None,
         observed_at=PINNED,
     )
 
-    assert results == [observation]
+    assert results == [inspected]
 
 
 def test_a_round_that_replaces_a_finishing_runner_is_reported(resuming, gh):
@@ -1281,7 +1278,7 @@ def test_a_cooldown_reports_an_issue_listing_failure(ready_repo, offered):
     observed = scheduler.tick(at=clock())
 
     assert "global cooldown" in held(observed=observed)
-    assert "could not refresh issues" in held(observed=observed)
+    assert "could not list issues for dream:smith" in held(observed=observed)
     assert "could not connect" in held(observed=observed)
 
 
