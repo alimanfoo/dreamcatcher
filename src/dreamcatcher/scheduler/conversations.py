@@ -34,7 +34,7 @@ from dreamcatcher.issue_conversations import (
     read_conversation_input,
     read_conversations,
     read_issue_comment_delivery_cursor,
-    record_conversation_session_identifier,
+    record_conversation_harness_session_identifier,
 )
 from dreamcatcher.prompts import (
     CONVERSATION_RECOVERY_PROMPT,
@@ -246,7 +246,7 @@ class ConversationScheduler(
             ),
             harness_session_identifier=resumption.identifier,
             record_harness_session_identifier=partial(
-                record_conversation_session_identifier,
+                record_conversation_harness_session_identifier,
                 conversation=conversation,
             ),
             finish_round=partial(

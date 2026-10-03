@@ -469,7 +469,7 @@ def read_user_post_delivery_cursor(*, assignment: Assignment) -> str:
     return ""
 
 
-def find_harness_session_identifier(
+def find_assignment_harness_session_identifier(
     *, assignment: Assignment
 ) -> HarnessSessionIdentifier | None:
     """Return the recorded or recoverable harness session identifier."""
@@ -488,7 +488,7 @@ def find_harness_session_identifier(
     return None
 
 
-def record_harness_session_identifier(
+def record_assignment_harness_session_identifier(
     *, assignment: Assignment, identifier: str
 ) -> None:
     """Record the harness session that every round of the assignment continues."""

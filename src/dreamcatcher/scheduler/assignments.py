@@ -9,11 +9,11 @@ from dreamcatcher.agent_assignments import (
     Assignment,
     AssignmentCreator,
     AssignmentRoundInput,
-    find_harness_session_identifier,
+    find_assignment_harness_session_identifier,
     find_open_assignments_by_issue,
     inspect_incomplete_assignment_setups,
     read_assignments,
-    record_harness_session_identifier,
+    record_assignment_harness_session_identifier,
     record_pull_request_observation,
 )
 from dreamcatcher.agent_rounds import (
@@ -387,7 +387,7 @@ class AssignmentScheduler(
         resumption = self.resolve_harness_session(
             agent_work_identifier=assignment.identifier,
             has_rounds=bool(assignment.rounds),
-            harness_session_identifier=find_harness_session_identifier(
+            harness_session_identifier=find_assignment_harness_session_identifier(
                 assignment=assignment
             ),
             is_recovery=plan.is_recovery,
@@ -397,7 +397,7 @@ class AssignmentScheduler(
             ),
         )
         if resumption.identifier is not None:
-            record_harness_session_identifier(
+            record_assignment_harness_session_identifier(
                 assignment=assignment,
                 identifier=resumption.identifier,
             )
@@ -412,7 +412,7 @@ class AssignmentScheduler(
                 ),
                 harness_session_identifier=resumption.identifier,
                 record_harness_session_identifier=partial(
-                    record_harness_session_identifier,
+                    record_assignment_harness_session_identifier,
                     assignment=assignment,
                 ),
                 finish_round=None,

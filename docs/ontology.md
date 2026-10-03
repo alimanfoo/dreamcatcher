@@ -33,8 +33,8 @@ daemon runs an instance at a time.
 
 ### Issue and issue identifier
 
-An **issue** is a GitHub issue that may be considered for implementation. Its
-GitHub number is its **issue identifier**, conventionally written as `GH123`.
+An **issue** is a GitHub issue that Dreamcatcher may handle. Its GitHub number
+is its **issue identifier**, conventionally written as `GH123`.
 
 ### Agent assignment and agent assignment identifier
 
@@ -429,7 +429,7 @@ repeats the first invocation with the configured prompt if no session identifier
 was recorded. If a successful first round recorded no session identifier, a
 later comment batch remains waiting because Dreamcatcher cannot resume it.
 
-A stopped conversation round posts no final result and is not recovered. The
+A stopped conversation round posts no answer and is not recovered. The
 conversation is idle until another eligible comment batch arrives. That batch
 starts an ordinary discussion round in the same harness session, and its prompt
 says that the user stopped the previous round.
@@ -488,15 +488,16 @@ run of errors.
 ### Scheduling work
 
 The scheduler creates agent assignments and starts agent rounds. A failed issue
-read prevents launches in the workflow that depends on those facts without
-preventing work in the other workflow.
+read prevents launches for the kind of agent work that depends on those facts
+without preventing the other kind of agent work.
 
 Existing assignments take precedence over new ones, ranked in this order:
 
-1. recover an interrupted or first-time errored assignment round;
-2. wrap up an assignment whose pull request has been merged or closed;
-3. start an assignment round for new user posts; and
-4. create an assignment for the oldest available issue.
+1. start the first round of an assignment whose setup completed earlier;
+2. recover an interrupted or first-time errored assignment round;
+3. wrap up an assignment whose pull request has been merged or closed;
+4. start an assignment round for new user posts; and
+5. create an assignment for the oldest available issue.
 
 Conversation recoveries precede fresh conversation batches, which are ordered by
 their oldest waiting comment. When both an assignment candidate and a

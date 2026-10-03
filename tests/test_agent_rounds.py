@@ -522,7 +522,7 @@ def test_a_round_that_finished_says_how_it_ended(fake, worktree, directory):
 
 
 def stream_final_result(*, result: str) -> str:
-    """Return the stdout of a Claude round that ends with one final result."""
+    """Return stdout for a Claude round with one successful result event."""
     final_result = streamed(
         type="result",
         subtype="success",

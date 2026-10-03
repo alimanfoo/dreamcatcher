@@ -35,7 +35,7 @@ from dreamcatcher.issue_conversations import (
     read_conversation_input,
     read_conversations,
     read_issue_comment_delivery_cursor,
-    record_conversation_session_identifier,
+    record_conversation_harness_session_identifier,
 )
 from dreamcatcher.prompts import AGENT_POST_MARKER
 from dreamcatcher.state import StateDirectory
@@ -365,10 +365,10 @@ def test_a_conversation_records_its_session_and_round_paths(tmp_path):
     state = StateDirectory(root=tmp_path)
     conversation = write_conversation(state=state)
 
-    record_conversation_session_identifier(
+    record_conversation_harness_session_identifier(
         conversation=conversation, identifier="abc-123"
     )
-    record_conversation_session_identifier(
+    record_conversation_harness_session_identifier(
         conversation=conversation, identifier="abc-123"
     )
 
@@ -389,7 +389,7 @@ def test_a_conversation_records_its_session_and_round_paths(tmp_path):
     assert reread.next_round_number == 2
 
     with pytest.raises(ReportableError) as error:
-        record_conversation_session_identifier(
+        record_conversation_harness_session_identifier(
             conversation=conversation, identifier="other-456"
         )
     assert "after it already reported abc-123" in str(error.value)

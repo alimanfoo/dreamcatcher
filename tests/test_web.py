@@ -326,7 +326,10 @@ def test_feedback_card_keeps_its_compact_actions_inside_the_heading(tmp_path, da
     card_start = page.index('<article id="assignment-GH20-20260819-184158"')
     card = page[card_start : page.index("</article>", card_start)]
 
-    assert '<span class="chip status-needs-user-feedback">needs feedback</span>' in card
+    assert (
+        '<span class="chip status-needs-user-feedback">needs user feedback</span>'
+        in card
+    )
     assert "[NEEDS USER FEEDBACK]" not in card
     assert re.search(
         r"\.card-heading \{[^}]*display: grid;"
@@ -339,7 +342,7 @@ def test_feedback_card_keeps_its_compact_actions_inside_the_heading(tmp_path, da
     )
 
 
-def test_assignment_feedback_status_uses_the_compact_label(tmp_path, daemon):
+def test_assignment_feedback_status_uses_the_status_wording(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -350,7 +353,7 @@ def test_assignment_feedback_status_uses_the_compact_label(tmp_path, daemon):
 
     assert (
         '<span id="assignment-status" '
-        'class="chip status-needs-user-feedback">needs feedback</span>'
+        'class="chip status-needs-user-feedback">needs user feedback</span>'
     ) in page
     assert "[NEEDS USER FEEDBACK]" not in page
 

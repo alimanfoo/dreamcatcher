@@ -8,7 +8,7 @@ from typing import cast
 
 from dreamcatcher.agent_assignments import (
     Assignment,
-    find_harness_session_identifier,
+    find_assignment_harness_session_identifier,
 )
 from dreamcatcher.agent_rounds import AgentRoundPaths
 from dreamcatcher.feed import describe_agent_round_start, read_last_feed_line
@@ -71,6 +71,16 @@ class AssignmentStatus:
             AssignmentStatusValue.COMPLETE,
         }
 
+    @property
+    def pull_request_state(self) -> str | None:
+        """The latest observed pull-request state in status-report words."""
+        observation = self.assignment.record.pull_request_observation
+        if observation is None:
+            return None
+        if observation.is_open:
+            return "draft" if observation.is_draft else "ready"
+        return observation.state.value.lower()
+
     @cached_property
     def round_statuses(self) -> list[AgentRoundStatus]:
         """The derived status of every round in assignment order."""
@@ -93,7 +103,7 @@ class AssignmentStatus:
     @cached_property
     def harness_session_identifier(self) -> HarnessSessionIdentifier | None:
         """The recorded or recoverable harness session identifier."""
-        return find_harness_session_identifier(assignment=self.assignment)
+        return find_assignment_harness_session_identifier(assignment=self.assignment)
 
     @cached_property
     def hand_resume_command(self) -> list[str] | None:

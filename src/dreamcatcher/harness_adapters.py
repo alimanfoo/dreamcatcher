@@ -115,9 +115,9 @@ class HarnessAdapter(ABC):
     ) -> HarnessInvocation:
         """Return how to run an agent work item's first round.
 
-        A harness that writes its final answer to a file uses the round-owned
-        path supplied here. A harness whose stream reports the answer ignores
-        it.
+        A harness that writes its final output to a file uses the round-owned
+        path supplied here. A harness whose stream reports the final output
+        ignores it.
         """
 
     @abstractmethod
@@ -130,9 +130,9 @@ class HarnessAdapter(ABC):
     ) -> HarnessInvocation:
         """Return how to resume the harness session with request's prompt.
 
-        A harness that writes its final answer to a file uses the round-owned
-        path supplied here. A harness whose stream reports the answer ignores
-        it.
+        A harness that writes its final output to a file uses the round-owned
+        path supplied here. A harness whose stream reports the final output
+        ignores it.
         """
 
     @abstractmethod
