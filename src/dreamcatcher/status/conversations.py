@@ -11,6 +11,7 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.documents import read_text
 from dreamcatcher.errors import ReportableError
+from dreamcatcher.harness_adapters import HarnessSessionIdentifier
 from dreamcatcher.issue_conversations import (
     Conversation,
     describe_conversation_revision,
@@ -23,7 +24,10 @@ from dreamcatcher.scheduler.models import (
     ConversationObservation,
     IssueFactValue,
 )
-from dreamcatcher.status.agent_work import AgentWorkStatusReader
+from dreamcatcher.status.agent_work import (
+    AgentWorkStatusReader,
+    compose_hand_resume_command,
+)
 from dreamcatcher.status.rounds import (
     AgentRoundRevision,
     AgentRoundStatus,
@@ -99,13 +103,33 @@ class ConversationStatus:
         )
 
     @cached_property
+    def harness_session_identifier(self) -> HarnessSessionIdentifier | None:
+        """The recorded or recoverable harness session identifier."""
+        conversation = self.conversation
+        if conversation is None:
+            return None
+        return find_conversation_harness_session_identifier(conversation=conversation)
+
+    @cached_property
+    def hand_resume_command(self) -> list[str] | None:
+        """The hand-resume command when nobody is running the session."""
+        conversation = self.conversation
+        if conversation is None:
+            return None
+        return compose_hand_resume_command(
+            is_working=self.value is ConversationStatusValue.WORKING,
+            harness=conversation.record.harness,
+            harness_session_identifier=self.harness_session_identifier,
+        )
+
+    @cached_property
     def stoppable_round_paths(self) -> AgentRoundPaths | None:
         """The live round that can accept a stop request, when one exists."""
         conversation = self.conversation
         harness_session_identifier = (
             None
-            if conversation is None or self.value is not ConversationStatusValue.WORKING
-            else find_conversation_harness_session_identifier(conversation=conversation)
+            if self.value is not ConversationStatusValue.WORKING
+            else self.harness_session_identifier
         )
         return find_stoppable_round_paths(
             is_working=self.value is ConversationStatusValue.WORKING,

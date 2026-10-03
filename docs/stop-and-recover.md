@@ -51,7 +51,7 @@ are options for each run, not saved configuration. On startup Dreamcatcher also
 detects rounds orphaned by an earlier daemon. It records them as interrupted and
 schedules the next required recovery or wrap-up when the work is eligible.
 Recovery normally resumes the recorded harness session; you do not need to use
-the hand-resume command shown in assignment details.
+the hand-resume command.
 
 ## Recover from errors and faults
 
