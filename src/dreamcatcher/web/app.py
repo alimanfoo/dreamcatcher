@@ -167,9 +167,9 @@ def _show_assignment(
             zone=zone,
             stop_url=_compose_assignment_stop_url(status=status),
             cancel_url=(
-                None
-                if status.has_ended
-                else url_for("cancel_assignment", identifier=identifier)
+                url_for("cancel_assignment", identifier=identifier)
+                if status.assignment.is_open
+                else None
             ),
         ),
     )

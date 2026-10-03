@@ -13,6 +13,7 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from typing import cast
 
 from pydantic import AwareDatetime
 
@@ -27,6 +28,7 @@ from dreamcatcher.agent_rounds import (
     AssignmentRoundPurpose,
     ErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
+    SuccessfulAgentRoundEnding,
     read_agent_round_records,
     request_agent_round_stop,
 )
@@ -160,9 +162,18 @@ class Assignment:
         )
 
     @property
+    def ended_at(self) -> datetime | None:
+        """When the assignment was cancelled or completed, if it has ended."""
+        if self.record.cancelled_at is not None:
+            return self.record.cancelled_at
+        if not self.is_complete:
+            return None
+        return cast("SuccessfulAgentRoundEnding", self.rounds[-1].ending).at
+
+    @property
     def is_open(self) -> bool:
         """Whether the assignment has neither completed nor been cancelled."""
-        return not self.is_complete and self.record.cancelled_at is None
+        return self.ended_at is None
 
     def describe_unfinished_round(self) -> str | None:
         """Describe an interrupted or errored final round, if one exists.

@@ -3,7 +3,7 @@
 import re
 from datetime import datetime, tzinfo
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import cast
 
 from dreamcatcher.issue_conversations import Conversation
 from dreamcatcher.state import StateDirectory
@@ -33,9 +33,6 @@ from dreamcatcher.web.models import (
     WebIssueRow,
 )
 from dreamcatcher.words import describe_countdown, describe_time
-
-if TYPE_CHECKING:
-    from dreamcatcher.agent_rounds import SuccessfulAgentRoundEnding
 
 _ISSUE_REFERENCE_PATTERN = re.compile(r"(?<!\w)(?:GH|#)(\d+)\b(?!-)")
 _GIT_REVISION_PATTERN = re.compile(r"\b[0-9a-f]{40}\b")
@@ -111,7 +108,7 @@ def _compose_assignment_cards(
     )
     ended_statuses = sorted(
         (status for status in report.assignment_statuses if status.has_ended),
-        key=_read_assignment_end_time,
+        key=lambda status: cast("datetime", status.assignment.ended_at),
         reverse=True,
     )
     ended_assignments = tuple(
@@ -135,22 +132,6 @@ def _compose_conversation_cards(
             ),
         )
     )
-
-
-def _read_assignment_end_time(status: AssignmentStatus, /) -> datetime:
-    """Return when an assignment ended, for sorted, which passes it by position.
-
-    The caller selects ended statuses. A cancelled assignment ended when it was
-    cancelled, and a complete one when its final round ended successfully.
-    """
-    cancelled_at = status.assignment.record.cancelled_at
-    if cancelled_at is not None:
-        return cancelled_at
-    ending = cast(
-        "SuccessfulAgentRoundEnding",
-        status.assignment.rounds[-1].ending,
-    )
-    return ending.at
 
 
 def _compose_assignment_card(*, status: AssignmentStatus) -> WebAssignmentCard:

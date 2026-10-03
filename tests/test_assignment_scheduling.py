@@ -117,7 +117,7 @@ def found(
 ):
     """What the one assignment in that state directory needs next."""
     assignment = read_assignments(state=state)[0]
-    if assignment.is_complete:
+    if not assignment.is_open:
         return None
     inspected = create_assignment_scheduler(state=state)._inspect_assignment(
         assignment=assignment,

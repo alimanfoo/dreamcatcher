@@ -309,6 +309,22 @@ def test_an_ended_assignment_offers_no_cancel_control(tmp_path, daemon, identifi
     assert "/cancel" not in page
 
 
+def test_a_cancelled_assignment_still_working_offers_no_cancel_control(
+    tmp_path, daemon
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH13-20260819-184158"
+    assignment = read_assignment(state=state, identifier=identifier)
+    assert assignment is not None
+    cancel_assignment(assignment=assignment, at=LOOKED_AT)
+
+    page = render_assignment(state=state, identifier=identifier)
+
+    assert 'class="chip status-working">working</span>' in page
+    assert "/cancel" not in page
+
+
 @pytest.mark.parametrize("origin", [None, "https://example.com"])
 def test_assignment_cancels_must_come_from_the_page(tmp_path, daemon, origin):
     state = StateDirectory(root=tmp_path)
