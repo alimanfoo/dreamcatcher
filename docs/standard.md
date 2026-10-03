@@ -6,7 +6,7 @@ document, beside [the ontology](ontology.md), which fixes the words, and
 says what things are called. The architecture says where each decision lives.
 This document says how good the result has to be, and how we tell.
 
-Every pull request is reviewed against it. Every phase remeasures against it.
+Every pull request is reviewed against it. Every release remeasures against it.
 Where the code falls short, the shortfall is an issue with a number, not a
 matter of taste.
 
@@ -39,7 +39,7 @@ project, so that a criterion below can be traced to a project that has met it.
   principles and says what the project will not do, and naming rules written
   beside the ambiguity each prevents. It sets the bar for elegance, for
   vocabulary and for the enduring documents. Its design document has also gone
-  stale in places, which is why each phase reads ours against the code.
+  stale in places, which is why each release reads ours against the code.
 - **attrs and structlog.** A page that says why, a changelog with a written rule
   for what earns an entry, and a compatibility statement a reader can find. They
   set the bar for release practice.
@@ -73,7 +73,7 @@ not progress towards the standard. Meeting the criteria is.
   read largest first.
 - Bar: zero. A module is split where a clean boundary gives each part a
   responsibility of its own, never to meet a line count.
-- Check: review, ordered by the line counts the phase measurement reports and
+- Check: review, ordered by the line counts the release measurement reports and
   focused on any module a change grows.
 
 **S2. Functions fit on a screen.**
@@ -81,7 +81,7 @@ not progress towards the standard. Meeting the criteria is.
 - Measure: lines in each function.
 - Bar: no function exceeds 50 lines, except those the measurement names and
   explains, such as the scheduler tick when it reads as the listed steps.
-- Check: the phase measurement, and review of any function a change grows.
+- Check: the release measurement, and review of any function a change grows.
 
 **S3. Exports are used.**
 
@@ -113,8 +113,8 @@ not progress towards the standard. Meeting the criteria is.
 - Measure: disagreements the consistency review reports between two claims about
   one concept, in code, output, documents and the issue tracker.
 - Bar: zero.
-- Check: the consistency review, run at each phase boundary and on any pull
-  request that names a concept.
+- Check: the consistency review, run before each release and on any pull request
+  that names a concept.
 
 **C2. The enduring documents are true.**
 
@@ -169,7 +169,7 @@ not progress towards the standard. Meeting the criteria is.
 - Measure: open issues that name a concept by a word the ontology does not use
   for it, or that ask for work already done.
 - Bar: zero.
-- Check: triage at each phase boundary.
+- Check: triage before each release.
 
 **K4. Every change is reviewed against this standard.**
 
@@ -202,7 +202,7 @@ for "I would have done it differently".
   present or both absent.
 - Bar: zero. Where two facts must agree, one type carries both, as the round
   ending classes carry outcome, time and exit status together.
-- Check: review, and a count that each phase records.
+- Check: review, and a count that each release measurement records.
 
 **E3. Concept economy.**
 
@@ -248,16 +248,11 @@ the ledger for E1. A waiver with no reason a reader can find is a violation.
 
 ## Measurement
 
-A phase closes with a measurement, and the next phase begins from it. At each
-boundary between phases:
-
-1. Run the consistency review over the source, the enduring documents and the
-   output a user sees, and resolve what it finds.
-2. Triage the open issues against the ontology. Rewrite each one that names a
-   concept by a word the ontology does not use for it. Close each one whose work
-   is done or no longer applies, and say why.
-3. Measure every criterion, reading the three enduring documents against the
-   code, and record the numbers in the closing phase's spec folder.
+Before each major or minor release, [the release checklist](releasing.md) runs
+the consistency review, triages the open issues and measures every criterion,
+reading the three enduring documents against the code. `docs/measurement.md`
+holds the latest results, and a phase plans its work from them. Each shortfall
+is an issue, and none holds a release back.
 
 The first measurement is the
 [baseline of 2026-09-30](../specs/2026-09-30-engineering-standard/roadmap.md).

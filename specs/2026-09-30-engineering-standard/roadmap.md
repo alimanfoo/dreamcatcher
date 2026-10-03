@@ -520,16 +520,20 @@ Work:
 - Let question 4 of the definition of done ask the E3 question. Every spec
   arrives in a pull request, so a concept added to the ontology comes with a
   spec that shows the existing concepts cannot compose to it.
-- Write the checklist for a phase boundary into the standard: the consistency
-  review, the triage of open issues and the measurement of every criterion.
-- Triage the open issues at this phase's boundary. The ontology records no
-  retired words, so the K3 measure counts issues that name a concept by a word
-  the ontology does not use for it, and issues that ask for work already done.
+- Write a release checklist, and let it run the consistency review, the triage
+  of open issues and the measurement of every criterion before each major or
+  minor release. Nothing defines when a phase begins or ends, and phases
+  overlap, so a phase boundary is not a moment a checklist can wait for. A
+  release is.
+- Run those checks once now, so the next release begins from a measurement. The
+  ontology records no retired words, so the K3 measure counts issues that name a
+  concept by a word the ontology does not use for it, and issues that ask for
+  work already done.
 
 Check: K3, K4 and E3 met.
 
 ## Completion
 
 This phase is complete when every row of the baseline table reads "Met", the
-measurement has been repeated and recorded below the baseline, and the next
-phase's spec can begin from a standard that holds.
+measurement has been repeated and recorded in `docs/measurement.md`, and the
+next phase's spec can begin from a standard that holds.
