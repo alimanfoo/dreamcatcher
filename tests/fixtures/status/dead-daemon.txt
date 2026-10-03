@@ -7,15 +7,18 @@ instance
   global cooldown  none          
 
 assignments
-  GH20-20260819-184158  needs user feedback  idle 2h 0m                      
-  GH9-20260819-184158   fault                round 2 errored (exit 2)        
-  [failed] You hit your spend cap.                                           
-  GH13-20260819-184158  waiting              round 2 interrupted             
-  GH31-20260819-184158  waiting              next round, implement           
-  GH35-20260819-184158  waiting              round 1 errored (exit 2)        
-  GH44-20260819-184158  waiting              next round, implement           
-  GH40-20260819-184158  unknown              no current scheduler observation
-  GH50  dream:smith  available                                               
-  GH51  dream:smith  available                                               
-  GH52  dream:smith  blocked by GH50                                         
-  1 completed assignment                                                     
+  GH20-20260819-184158  needs user feedback  idle 2h 0m                                             
+  GH9-20260819-184158   fault                round 2 errored (exit 2)                               
+  [failed] You hit your spend cap.                                                                  
+  GH13-20260819-184158  waiting              round 2 interrupted                                    
+  GH31-20260819-184158  waiting              next round, implement                                  
+  GH35-20260819-184158  waiting              round 1 errored (exit 2)                               
+  GH44-20260819-184158  waiting              next round, implement                                  
+  GH40-20260819-184158  unknown              no current scheduler observation                       
+  GH50  dream:smith              available                                                          
+  GH51  dream:smith              available                                                          
+  GH52  dream:smith              blocked by GH50                                                    
+  GH53  dream:smith, dream:less  multiple assignment labels: dream:less, dream:smith                
+  GH54  dream:smith, dream:less  multiple assignment labels: dream:less, dream:smith; blocked by    
+                                 GH50                                                               
+  1 completed assignment                                                                            

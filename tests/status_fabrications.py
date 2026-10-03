@@ -85,7 +85,7 @@ SAID = (
     FeedLine(at=PINNED + timedelta(minutes=5), text="[result] success"),
 )
 
-DOUBLE_LABELLED = "carries more than one assignment label: dream:less, dream:smith"
+DOUBLE_LABELLED = "multiple assignment labels: dream:less, dream:smith"
 
 
 def fabricate_conversation(
@@ -295,6 +295,18 @@ def fabricate_everything(
                     values={"routing_conflict": IssueFactValue.TRUE},
                     evidence={"routing_conflict": DOUBLE_LABELLED},
                 ),
+                observed_issue(
+                    issue=54,
+                    assignment_labels=(ASSIGNMENT_LABEL, "dream:less"),
+                    values={
+                        "routing_conflict": IssueFactValue.TRUE,
+                        "blocked": IssueFactValue.TRUE,
+                    },
+                    evidence={
+                        "routing_conflict": DOUBLE_LABELLED,
+                        "blocked": "blocked by GH50",
+                    },
+                ),
             ],
             assignment_observations=[
                 _observed_assignment(
@@ -358,8 +370,15 @@ def fabricate_a_failed_setup(*, state):
             issue_observations=[
                 observed_issue(
                     issue=20,
-                    values={"claimed_elsewhere": IssueFactValue.UNKNOWN},
-                    evidence={"claimed_elsewhere": failure},
+                    assignment_labels=(ASSIGNMENT_LABEL, "dream:less"),
+                    values={
+                        "claimed_elsewhere": IssueFactValue.UNKNOWN,
+                        "routing_conflict": IssueFactValue.TRUE,
+                    },
+                    evidence={
+                        "claimed_elsewhere": failure,
+                        "routing_conflict": DOUBLE_LABELLED,
+                    },
                 ).model_copy(update={"setup_failure": failure}),
                 observed_issue(issue=21),
             ],
