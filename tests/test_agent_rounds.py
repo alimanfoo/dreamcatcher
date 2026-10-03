@@ -29,7 +29,6 @@ from dreamcatcher.agent_rounds import (
     AGENT_ROUND_RECORD_NAME,
     AgentRound,
     AgentRoundFinisher,
-    AgentRoundHarness,
     AgentRoundOutcome,
     AgentRoundPaths,
     AgentRoundPlan,
@@ -40,7 +39,8 @@ from dreamcatcher.agent_rounds import (
     ErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
     StoppedAgentRoundEnding,
-    compose_agent_round_ending,
+    _AgentRoundHarness,
+    _compose_agent_round_ending,
     record_agent_round_interruption,
     record_agent_round_stop,
     request_agent_round_stop,
@@ -112,12 +112,12 @@ def round_harness(
     adapter: HarnessAdapter = CLAUDE_ADAPTER,
     invocation: HarnessInvocation | None = None,
     record=ignore_harness_session_identifier,
-) -> AgentRoundHarness:
+) -> _AgentRoundHarness:
     """Return the harness boundary used by one round test.
 
     A test that names no invocation runs the stand-in harness on the prompt.
     """
-    return AgentRoundHarness(
+    return _AgentRoundHarness(
         adapter=adapter,
         invocation=invocation
         or HarnessInvocation(program="harness", arguments=[], prompt=PROMPT),
@@ -516,7 +516,7 @@ def test_a_round_that_finished_says_how_it_ended(fake, worktree, directory):
         number=1,
         purpose=PURPOSE,
         is_recovery=True,
-        ending=compose_agent_round_ending(at=PINNED, status=2),
+        ending=_compose_agent_round_ending(at=PINNED, status=2),
     )
     assert record.outcome is AgentRoundOutcome.ERRORED
 
@@ -673,7 +673,7 @@ def test_an_errored_ending_refuses_a_success_status_without_a_reason():
 
 def test_a_successful_ending_refuses_a_time_without_a_zone():
     with pytest.raises(ValueError, match="timezone info"):
-        compose_agent_round_ending(at=datetime(2026, 8, 19, 18, 41, 58), status=0)
+        _compose_agent_round_ending(at=datetime(2026, 8, 19, 18, 41, 58), status=0)
 
 
 def test_interrupting_a_round_records_interruption(fake, worktree, directory):
@@ -732,7 +732,7 @@ def test_the_daemon_stopping_a_finished_round_keeps_its_ending(
 
     assert running.forced_ending is None
     record = written(path=running.paths.record)
-    assert record.ending == compose_agent_round_ending(at=PINNED, status=0)
+    assert record.ending == _compose_agent_round_ending(at=PINNED, status=0)
     assert record.outcome is AgentRoundOutcome.SUCCESSFUL
 
 
@@ -871,7 +871,7 @@ def test_a_round_a_straggler_outlives_still_records_an_ending(
         number=1,
         purpose=PURPOSE,
         is_recovery=False,
-        ending=compose_agent_round_ending(at=PINNED, status=0),
+        ending=_compose_agent_round_ending(at=PINNED, status=0),
     )
 
 

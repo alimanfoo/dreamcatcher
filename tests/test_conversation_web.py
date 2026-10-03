@@ -17,7 +17,7 @@ from status_fabrications import fabricate_conversation, fabricate_everything
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     ConversationRoundPurpose,
-    compose_agent_round_ending,
+    _compose_agent_round_ending,
 )
 from dreamcatcher.documents import append_text, write_json, write_text
 from dreamcatcher.feed import FeedLine
@@ -28,14 +28,14 @@ from dreamcatcher.issue_conversations import (
 )
 from dreamcatcher.scheduler.models import IssueFactValue, SchedulerRecord
 from dreamcatcher.state import StateDirectory
-from dreamcatcher.web.app import create_app
+from dreamcatcher.web.app import _create_app
 
 LOOKED_AT = PINNED + timedelta(hours=2)
 
 
 def application(*, state: StateDirectory):
     """Return the local app with pinned time and display zone."""
-    return create_app(
+    return _create_app(
         state=state,
         clock=lambda: LOOKED_AT,
         zone=DISPLAY_TIME_ZONE,
@@ -78,7 +78,7 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
             purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED + timedelta(minutes=6),
             pid=2,
-            ending=compose_agent_round_ending(
+            ending=_compose_agent_round_ending(
                 at=PINNED + timedelta(minutes=10), status=0
             ),
         ),
@@ -259,7 +259,7 @@ def test_conversation_page_shows_two_errors_as_a_fault(tmp_path):
             is_recovery=True,
             started=PINNED + timedelta(minutes=5),
             pid=2,
-            ending=compose_agent_round_ending(
+            ending=_compose_agent_round_ending(
                 at=PINNED + timedelta(minutes=8), status=2
             ),
         ),
@@ -369,7 +369,7 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
             purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED + timedelta(minutes=6),
             pid=2,
-            ending=compose_agent_round_ending(
+            ending=_compose_agent_round_ending(
                 at=PINNED + timedelta(minutes=10), status=0
             ),
         ),

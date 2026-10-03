@@ -36,7 +36,7 @@ from dreamcatcher.feed import FeedLine
 from dreamcatcher.scheduler.models import GlobalCooldown, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.web import serve_web
-from dreamcatcher.web.app import create_app
+from dreamcatcher.web.app import _create_app
 from dreamcatcher.web.server import WEB_BASE_PORT, WEB_HOST
 
 WEB_STATUS_REPORTS = {
@@ -54,7 +54,7 @@ WEB_ASSIGNMENT_PAGES = {
 
 def render_home(*, state: StateDirectory) -> str:
     """Render the home page against a pinned clock."""
-    application = create_app(
+    application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
     response = application.test_client().get("/")
@@ -64,7 +64,7 @@ def render_home(*, state: StateDirectory) -> str:
 
 def render_assignment(*, state: StateDirectory, identifier: str) -> str:
     """Render one assignment page against a pinned clock."""
-    application = create_app(
+    application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
     response = application.test_client().get(f"/assignments/{identifier}")
@@ -73,7 +73,7 @@ def render_assignment(*, state: StateDirectory, identifier: str) -> str:
 
 
 def _read_tail(*, state: StateDirectory, identifier: str, cursor: str) -> TestResponse:
-    application = create_app(
+    application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
     return application.test_client().get(
@@ -143,7 +143,7 @@ def test_assignment_page_requests_a_stop_for_its_running_round(tmp_path, daemon)
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     identifier = "GH13-20260819-184158"
-    application = create_app(
+    application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
     client = application.test_client()
@@ -174,7 +174,7 @@ def test_an_old_assignment_stop_submission_cannot_stop_the_next_round(tmp_path, 
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     identifier = "GH13-20260819-184158"
-    client = create_app(state=state, clock=lambda: LOOKED_AT).test_client()
+    client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
 
     response = client.post(
         f"/assignments/{identifier}/stop/1",
@@ -192,7 +192,7 @@ def test_assignment_stop_requests_must_come_from_the_page(tmp_path, daemon, orig
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     identifier = "GH13-20260819-184158"
-    client = create_app(state=state, clock=lambda: LOOKED_AT).test_client()
+    client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
     headers = {} if origin is None else {"Origin": origin}
 
     response = client.post(f"/assignments/{identifier}/stop/2", headers=headers)
@@ -229,7 +229,7 @@ def test_assignment_tail_updates_the_stop_control(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     identifier = "GH13-20260819-184158"
-    client = create_app(state=state, clock=lambda: LOOKED_AT).test_client()
+    client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
     page = client.get(f"/assignments/{identifier}")
 
     response = client.get(
@@ -246,7 +246,7 @@ def test_a_stale_assignment_stop_request_is_already_done(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     identifier = "GH12-20260819-184158"
-    client = create_app(state=state, clock=lambda: LOOKED_AT).test_client()
+    client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
 
     response = client.post(
         f"/assignments/{identifier}/stop/2",
@@ -261,7 +261,7 @@ def test_a_stale_assignment_stop_request_is_already_done(tmp_path, daemon):
 
 def test_an_unknown_assignment_cannot_receive_a_stop_request(tmp_path):
     state = StateDirectory(root=tmp_path)
-    client = create_app(state=state, clock=lambda: LOOKED_AT).test_client()
+    client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
 
     response = client.post(
         "/assignments/unknown/stop/1",
@@ -317,7 +317,7 @@ def test_feedback_card_keeps_its_compact_actions_inside_the_heading(tmp_path, da
     fabricate_everything(state=state)
 
     page = render_home(state=state)
-    application = create_app(
+    application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
     stylesheet = (
@@ -405,7 +405,7 @@ def test_assignment_page_ids_are_unique(tmp_path, daemon):
 def test_assignment_script_follows_only_when_the_feed_was_at_its_end(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    application = create_app(
+    application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
 
@@ -433,7 +433,7 @@ def test_complete_assignment_cards_have_space_between_them(tmp_path, daemon):
     fabricate_everything(state=state)
 
     page = render_home(state=state)
-    application = create_app(
+    application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
     stylesheet = (
@@ -477,7 +477,7 @@ def test_complete_assignments_are_ordered_by_most_recent_completion(tmp_path):
 def test_home_page_types_replaced_assignment_output(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    application = create_app(
+    application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
     client = application.test_client()
@@ -524,7 +524,7 @@ def test_every_complete_page_uses_the_dreamcatcher_mark_as_its_favicon(
 ):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    app = create_app(state=state)
+    app = _create_app(state=state)
 
     pages = (
         render_home(state=state),
@@ -540,7 +540,7 @@ def test_every_complete_page_uses_the_dreamcatcher_mark_as_its_favicon(
 
 
 def test_a_theme_choice_is_validated_and_remembered(tmp_path):
-    app = create_app(state=StateDirectory(root=tmp_path))
+    app = _create_app(state=StateDirectory(root=tmp_path))
     client = app.test_client()
 
     selected = client.get("/?theme=nature")
@@ -564,7 +564,7 @@ def test_a_theme_choice_is_validated_and_remembered(tmp_path):
 
 
 def test_an_unknown_theme_uses_matrix_without_being_remembered(tmp_path):
-    app = create_app(state=StateDirectory(root=tmp_path))
+    app = _create_app(state=StateDirectory(root=tmp_path))
 
     response = app.test_client().get("/?theme=unknown")
 
@@ -593,7 +593,7 @@ def test_github_links_open_in_a_new_tab(tmp_path, daemon):
 def test_an_unknown_assignment_renders_a_404_page(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    application = create_app(
+    application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
 
@@ -863,7 +863,7 @@ def test_an_assignment_page_links_its_title_and_pull_request(tmp_path, daemon):
 
 
 def test_assignment_heading_keeps_its_chips_in_the_top_right(tmp_path):
-    application = create_app(
+    application = _create_app(
         state=StateDirectory(root=tmp_path),
         clock=lambda: LOOKED_AT,
         zone=DISPLAY_TIME_ZONE,
@@ -920,7 +920,7 @@ def test_hand_resume_command_is_a_collapsed_last_resort(tmp_path, daemon):
     fabricate_everything(state=state)
 
     page = render_assignment(state=state, identifier="GH9-20260819-184158")
-    application = create_app(
+    application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
     stylesheet = (
@@ -939,7 +939,7 @@ def test_assignment_page_offers_a_control_that_jumps_to_the_feed_tail(tmp_path, 
     fabricate_everything(state=state)
 
     page = render_assignment(state=state, identifier="GH13-20260819-184158")
-    application = create_app(
+    application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
     response = application.test_client().get("/static/assignment.js")
@@ -958,7 +958,7 @@ def test_assignment_page_offers_a_control_that_jumps_to_the_feed_tail(tmp_path, 
 def test_assignment_feed_fits_in_the_initial_viewport(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    application = create_app(
+    application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
 
@@ -976,7 +976,7 @@ def test_assignment_feed_fits_in_the_initial_viewport(tmp_path):
 def test_round_headings_are_separated_from_the_feed_content(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    application = create_app(
+    application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
 
@@ -1015,7 +1015,7 @@ def test_an_assignment_page_reports_a_repository_record_that_will_not_read(
     fabricate_everything(state=state)
     state.repository.unlink()
     state.repository.mkdir()
-    application = create_app(
+    application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
 
@@ -1178,7 +1178,7 @@ def test_a_record_that_will_not_read_renders_an_error_page(tmp_path, daemon):
     fabricate_everything(state=state)
     record = state.assignments / "GH13-20260819-184158" / "assignment.json"
     write_text(text="not json\n", path=record)
-    application = create_app(
+    application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
 
@@ -1191,7 +1191,7 @@ def test_a_record_that_will_not_read_renders_an_error_page(tmp_path, daemon):
 def test_the_home_page_rejects_a_non_loopback_host(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    application = create_app(
+    application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
 

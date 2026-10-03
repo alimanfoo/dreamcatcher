@@ -55,7 +55,7 @@ HELP_WHEN_NOTHING_WATCHES = (
 )
 
 
-def build_cli_parser() -> argparse.ArgumentParser:
+def _build_cli_parser() -> argparse.ArgumentParser:
     """Return the parser for the dreamcatcher command line.
 
     Each verb shows one view, or runs the daemon, and every argument belongs
@@ -258,7 +258,7 @@ def _parse_port(value: str, /) -> int:
 
 def main(*, argv: Sequence[str] | None = None) -> int:
     """Run the verb that the arguments name, and return the exit status."""
-    arguments = build_cli_parser().parse_args(argv)
+    arguments = _build_cli_parser().parse_args(argv)
     try:
         arguments.act(arguments=arguments)
     except ReportableError as error:

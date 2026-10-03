@@ -24,7 +24,7 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedEvent, FeedProse
 
 
-def refuse_invalid_harness_session_identifier(identifier: str, /) -> str:
+def _refuse_invalid_harness_session_identifier(identifier: str, /) -> str:
     """Return an identifier safe and unambiguous on a harness command line."""
     safe_identifier = refuse_unquotable(identifier)
     if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", safe_identifier) is None:
@@ -44,7 +44,7 @@ def refuse_reportable_harness_session_identifier(
             f"{agent_work_identifier}'s harness session identifier is empty."
         )
     try:
-        return refuse_invalid_harness_session_identifier(identifier)
+        return _refuse_invalid_harness_session_identifier(identifier)
     except ValueError as error:
         raise ReportableError(
             f"{agent_work_identifier}'s harness session identifier {error}."
@@ -52,7 +52,7 @@ def refuse_reportable_harness_session_identifier(
 
 
 HarnessSessionIdentifier = Annotated[
-    str, AfterValidator(refuse_invalid_harness_session_identifier)
+    str, AfterValidator(_refuse_invalid_harness_session_identifier)
 ]
 
 

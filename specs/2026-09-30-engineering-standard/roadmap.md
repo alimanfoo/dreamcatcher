@@ -112,6 +112,32 @@ consistency review reported zero disagreements, so C1 is zero. The two duplicate
 derivations in the baseline were removed and the review found no others, so S4
 is zero duplicates.
 
+Stage 3 item 9 repeated the S3 measurement on the current source. It found 37
+public class or function names that no other source module uses. Eight were
+implementation details and became private: `AgentRoundHarness`,
+`compose_agent_round_ending`, `ClaudeHarnessAdapter`, `build_cli_parser`,
+`CodexHarnessAdapter`, `read_worktree_revision`,
+`refuse_invalid_harness_session_identifier` and `create_app`.
+
+The 29 names that remain are all of the permitted kinds:
+
+- Document models: `AssignmentRecord`, `PullRequestObservation`,
+  `DispatchRecipe`, `BlockingIssue`, `GitHubIssueLabel`, `GitHubRepository`,
+  `GitHubResponseProjection`, `GitHubUserAccount`, `InlineReviewComment`,
+  `PostedIssueComment`, `PullRequestReview`, `ConversationRecord`,
+  `InitialConversationIssue`, `IssueCommentCursor` and `DaemonLockRecord`.
+- View models that templates consume: none.
+- Interfaces that the architecture names: `read_user_post_delivery_cursor`,
+  `AgentRoundFinisher`, `HarnessSessionIdentifierRecorder`, `main`,
+  `ChildProcess`, `PullRequestReviewVerdict`, `HarnessSessionResumption`,
+  `AssignmentInspection`, `AssignmentRoundCandidate`,
+  `FirstAssignmentRoundCandidate`, `ConversationRecoveryCandidate`,
+  `IssueObservationResult`, `derive_issue_availability` and
+  `DreamcatcherDaemonStatus`.
+
+The S3 measurement is therefore 29 permitted names and no unclassified public
+name.
+
 ## Rules for the work
 
 - The behaviour budget is zero. No stage changes a persisted document, a

@@ -19,7 +19,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     AssignmentRoundPurpose,
     ConversationRoundPurpose,
-    compose_agent_round_ending,
+    _compose_agent_round_ending,
 )
 from dreamcatcher.cli import MAX_INTERVAL_SECONDS, main
 from dreamcatcher.config import AgentHarness
@@ -49,7 +49,7 @@ def write_faulted_conversation(*, state: StateDirectory, issue: int) -> None:
                 pid=1,
                 purpose=ConversationRoundPurpose.DISCUSS,
                 is_recovery=number > 1,
-                ending=compose_agent_round_ending(at=ended, status=number),
+                ending=_compose_agent_round_ending(at=ended, status=number),
             ),
         )
 
@@ -104,7 +104,7 @@ def faulted(tmp_path):
                 started=ended,
                 pid=1,
                 purpose=AssignmentRoundPurpose.IMPLEMENT,
-                ending=compose_agent_round_ending(at=ended, status=number),
+                ending=_compose_agent_round_ending(at=ended, status=number),
             ),
         )
     return state
@@ -331,7 +331,7 @@ def test_feed_shows_what_the_assignment_said(monkeypatch, watching, capsys):
             started=later,
             pid=1,
             purpose=AssignmentRoundPurpose.WRAP_UP,
-            ending=compose_agent_round_ending(at=later, status=0),
+            ending=_compose_agent_round_ending(at=later, status=0),
         ),
     )
 
@@ -364,7 +364,7 @@ def test_feed_shows_what_the_conversation_said(monkeypatch, watching, capsys):
             started=PINNED,
             pid=1,
             purpose=ConversationRoundPurpose.DISCUSS,
-            ending=compose_agent_round_ending(at=PINNED, status=0),
+            ending=_compose_agent_round_ending(at=PINNED, status=0),
         ),
     )
     write_feed(

@@ -41,7 +41,7 @@ from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.documents import read_json, write_json
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.git import add_detached_worktree, read_worktree_revision
+from dreamcatcher.git import _read_worktree_revision, add_detached_worktree
 from dreamcatcher.issue_conversations import (
     CONVERSATION_RECORD_NAME,
     NO_REPLY,
@@ -294,7 +294,7 @@ def write_faulted_conversation(
     assert conversation is not None
     conversation.worktree.rmdir()
     add_detached_worktree(root=state.root, path=conversation.worktree)
-    revision = read_worktree_revision(worktree=conversation.worktree)
+    revision = _read_worktree_revision(worktree=conversation.worktree)
     for number in (1, 2):
         write_round(
             directory=directory,
@@ -392,7 +392,7 @@ def test_an_initial_conversation_freezes_input_runs_claude_and_publishes_once(
         body="Explain the scheduler.",
     )
     assert [item.body for item in frozen.comments] == ["Please explain."]
-    assert frozen.revision == read_worktree_revision(worktree=conversation.worktree)
+    assert frozen.revision == _read_worktree_revision(worktree=conversation.worktree)
     assert paths.final_output.read_text(encoding="utf-8") == (
         "The scheduler waits for work."
     )
@@ -814,7 +814,7 @@ def test_a_follow_up_refreshes_to_changed_main(conversation_scheduler, harnesses
         path=conversation.compose_round_paths(number=2).round_input,
     )
     assert follow_up.revision != previous_revision
-    assert follow_up.revision == read_worktree_revision(worktree=conversation.worktree)
+    assert follow_up.revision == _read_worktree_revision(worktree=conversation.worktree)
 
 
 def test_a_failed_conversation_refresh_leaves_the_batch_waiting(
@@ -872,7 +872,7 @@ def test_a_follow_up_survives_an_input_write_failure_after_refresh(
         failed = scheduler.tick(at=clock())
 
     pending_path = conversation.compose_round_paths(number=2).round_input
-    refreshed_revision = read_worktree_revision(worktree=conversation.worktree)
+    refreshed_revision = _read_worktree_revision(worktree=conversation.worktree)
     assert failed.hold == "could not save conversation input"
     assert len(conversation.rounds) == 1
     assert not pending_path.exists()
@@ -935,7 +935,7 @@ def test_a_follow_up_refreshes_again_after_a_launch_failure(
     assert recovered.hold is None
     resumed = read_json(model=ConversationInput, path=pending_path)
     assert resumed.revision != pending.revision
-    assert resumed.revision == read_worktree_revision(worktree=conversation.worktree)
+    assert resumed.revision == _read_worktree_revision(worktree=conversation.worktree)
     assert [item.body for item in resumed.comments] == ["Does this still hold?"]
 
 
@@ -1373,7 +1373,7 @@ def test_a_daemon_orphan_recovers_in_its_saved_session(
             body="Explain the scheduler.",
         ),
         comments=[ask()],
-        revision=read_worktree_revision(worktree=conversation.worktree),
+        revision=_read_worktree_revision(worktree=conversation.worktree),
     )
     write_json(
         document=first_input,
@@ -1936,7 +1936,7 @@ def test_an_existing_empty_conversation_can_start(conversation_scheduler, harnes
         model=ConversationInput,
         path=conversation.compose_round_paths(number=1).round_input,
     )
-    assert round_input.revision == read_worktree_revision(worktree=worktree)
+    assert round_input.revision == _read_worktree_revision(worktree=worktree)
     assert (worktree / "README.md").read_text(encoding="utf-8") == (
         "new main before retry\n"
     )

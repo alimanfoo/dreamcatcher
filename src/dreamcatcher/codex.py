@@ -44,7 +44,7 @@ CONVERSATION_PERMISSION_OVERRIDES = (
 )
 
 
-class CodexHarnessAdapter(HarnessAdapter):
+class _CodexHarnessAdapter(HarnessAdapter):
     """Run Codex and translate its stream into feed events."""
 
     program: ClassVar[str] = "codex"
@@ -179,7 +179,7 @@ def _build_final_output_arguments(
     return ["--output-last-message", output_path]
 
 
-CODEX_ADAPTER = CodexHarnessAdapter()
+CODEX_ADAPTER = _CodexHarnessAdapter()
 
 
 def _build_round_settings(*, request: AgentRoundLaunchRequest) -> list[str]:

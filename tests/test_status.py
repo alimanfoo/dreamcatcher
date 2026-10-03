@@ -21,7 +21,7 @@ from dreamcatcher.agent_rounds import (
     AssignmentRoundPurpose,
     InterruptedAgentRoundEnding,
     StoppedAgentRoundEnding,
-    compose_agent_round_ending,
+    _compose_agent_round_ending,
 )
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
@@ -76,7 +76,7 @@ def ran(
     ending = (
         None
         if status is None
-        else compose_agent_round_ending(at=ended_at, status=status)
+        else _compose_agent_round_ending(at=ended_at, status=status)
     )
     write_round(
         directory=state.assignments / ASSIGNMENT_ID,
@@ -204,12 +204,12 @@ def test_a_live_round_reports_work_and_its_latest_output(running):
     ("ending", "outcome_description", "duration"),
     [
         (
-            compose_agent_round_ending(at=PINNED + timedelta(minutes=4), status=0),
+            _compose_agent_round_ending(at=PINNED + timedelta(minutes=4), status=0),
             "successful",
             "ran 4m",
         ),
         (
-            compose_agent_round_ending(at=PINNED + timedelta(minutes=4), status=2),
+            _compose_agent_round_ending(at=PINNED + timedelta(minutes=4), status=2),
             "errored (exit 2)",
             "ran 4m",
         ),
@@ -271,7 +271,7 @@ def test_status_recovers_the_harness_session_and_builds_its_resume_command(tmp_p
             purpose=AssignmentRoundPurpose.IMPLEMENT,
             started=PINNED,
             pid=1,
-            ending=compose_agent_round_ending(
+            ending=_compose_agent_round_ending(
                 at=PINNED + timedelta(minutes=4), status=0
             ),
         ),
@@ -328,7 +328,7 @@ def test_status_with_no_harness_session_has_no_resume_command(tmp_path):
             purpose=AssignmentRoundPurpose.IMPLEMENT,
             started=PINNED,
             pid=1,
-            ending=compose_agent_round_ending(
+            ending=_compose_agent_round_ending(
                 at=PINNED + timedelta(minutes=4), status=0
             ),
         ),

@@ -89,7 +89,7 @@ TOOL_INPUT_KEYS_BY_PRIORITY = (
 )
 
 
-class ClaudeHarnessAdapter(HarnessAdapter):
+class _ClaudeHarnessAdapter(HarnessAdapter):
     """Run Claude Code and translate its stream into feed events."""
 
     program: ClassVar[str] = "claude"
@@ -193,7 +193,7 @@ class ClaudeHarnessAdapter(HarnessAdapter):
         ]
 
 
-CLAUDE_ADAPTER = ClaudeHarnessAdapter()
+CLAUDE_ADAPTER = _ClaudeHarnessAdapter()
 
 
 def _read_system_event(*, harness_event: dict) -> HarnessOutput:

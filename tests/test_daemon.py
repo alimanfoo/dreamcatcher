@@ -31,7 +31,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     AssignmentRoundPurpose,
     ConversationRoundPurpose,
-    compose_agent_round_ending,
+    _compose_agent_round_ending,
     request_agent_round_stop,
 )
 from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME, AgentHarness
@@ -501,7 +501,7 @@ def test_a_round_that_recorded_an_ending_is_left_running_by_the_sweep(
             started=PINNED,
             pid=left_running.pid,
             purpose=PURPOSE,
-            ending=compose_agent_round_ending(at=PINNED, status=0),
+            ending=_compose_agent_round_ending(at=PINNED, status=0),
         ),
     )
     daemon, _, _ = idling(root=watched)

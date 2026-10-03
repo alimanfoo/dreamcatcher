@@ -37,7 +37,7 @@ from dreamcatcher.agent_rounds import (
     AssignmentRoundPurpose,
     ErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
-    compose_agent_round_ending,
+    _compose_agent_round_ending,
 )
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.documents import write_json, write_text
@@ -212,7 +212,7 @@ def ran(
     ending = (
         None
         if status is None
-        else compose_agent_round_ending(at=started, status=status)
+        else _compose_agent_round_ending(at=started, status=status)
     )
     write_round(
         directory=StateDirectory(root=root).assignments / ASSIGNMENT_ID,
@@ -245,7 +245,7 @@ def write_faulted_assignment(*, root, identifier: str, issue: int) -> None:
                 is_recovery=number == 2,
                 started=started,
                 pid=1,
-                ending=compose_agent_round_ending(at=started, status=status),
+                ending=_compose_agent_round_ending(at=started, status=status),
             ),
         )
 
@@ -395,7 +395,7 @@ def test_a_completed_assignment_releases_its_issue(ready_repo):
             is_recovery=False,
             started=PINNED,
             pid=1,
-            ending=compose_agent_round_ending(at=PINNED, status=0),
+            ending=_compose_agent_round_ending(at=PINNED, status=0),
         ),
     )
     scheduler, clock = create_scheduler(root=ready_repo)
@@ -668,7 +668,7 @@ def test_an_ended_round_is_inspected_while_its_runner_finishes(tmp_path, monkeyp
             purpose=PURPOSE,
             started=PINNED,
             pid=1,
-            ending=compose_agent_round_ending(at=PINNED, status=0),
+            ending=_compose_agent_round_ending(at=PINNED, status=0),
         ),
     )
     assignment = read_assignments(state=state)[0]

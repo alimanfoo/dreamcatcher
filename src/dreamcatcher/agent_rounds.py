@@ -125,7 +125,7 @@ class AgentRoundFinisher(Protocol):
 
 
 @dataclass(frozen=True, kw_only=True)
-class AgentRoundHarness:
+class _AgentRoundHarness:
     """The harness command that a round runs, and the reader of its output."""
 
     adapter: HarnessAdapter
@@ -219,7 +219,7 @@ type AgentRoundEnding = Annotated[
 ]
 
 
-def compose_agent_round_ending(
+def _compose_agent_round_ending(
     *, at: datetime, status: int, failure: str | None = None
 ) -> SuccessfulAgentRoundEnding | ErroredAgentRoundEnding:
     """Return the terminal outcome observed when a harness exited.
@@ -338,7 +338,7 @@ def start_agent_round(
         )
     return AgentRound(
         agent_work_identifier=request.launch_request.agent_work_identifier,
-        harness=AgentRoundHarness(
+        harness=_AgentRoundHarness(
             adapter=harness_adapter,
             invocation=invocation,
             record_harness_session_identifier=(
@@ -401,7 +401,7 @@ class AgentRound:
         self,
         *,
         agent_work_identifier: str,
-        harness: AgentRoundHarness,
+        harness: _AgentRoundHarness,
         paths: AgentRoundPaths,
         plan: AgentRoundPlan[DreamcatcherDocument],
         finish_round: AgentRoundFinisher | None = None,
@@ -593,7 +593,7 @@ class AgentRound:
             else:
                 self.record = _record_agent_round_ending(
                     record=self.record,
-                    ending=compose_agent_round_ending(
+                    ending=_compose_agent_round_ending(
                         at=self.clock(), status=status, failure=failure
                     ),
                     path=self.paths.record,
