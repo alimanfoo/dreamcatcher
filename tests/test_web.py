@@ -276,6 +276,84 @@ def test_an_unknown_assignment_cannot_receive_a_stop_request(tmp_path):
     assert response.status_code == 404
 
 
+def test_assignment_page_cancels_its_assignment(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH13-20260819-184158"
+    client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
+
+    page = client.get(f"/assignments/{identifier}")
+
+    assert f'action="/assignments/{identifier}/cancel"' in page.text
+
+    response = client.post(
+        f"/assignments/{identifier}/cancel",
+        headers={"Origin": "http://localhost"},
+    )
+
+    assert response.status_code == 303
+    assert response.location == f"/assignments/{identifier}"
+    assignment = read_assignment(state=state, identifier=identifier)
+    assert assignment is not None
+    assert assignment.record.cancelled_at == LOOKED_AT
+    assert assignment.compose_round_paths(number=2).stop_request.is_file()
+
+
+@pytest.mark.parametrize("identifier", ["GH12-20260819-184158", "GH70-20260819-184158"])
+def test_an_ended_assignment_offers_no_cancel_control(tmp_path, daemon, identifier):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_assignment(state=state, identifier=identifier)
+
+    assert "/cancel" not in page
+
+
+@pytest.mark.parametrize("origin", [None, "https://example.com"])
+def test_assignment_cancels_must_come_from_the_page(tmp_path, daemon, origin):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH13-20260819-184158"
+    client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
+    headers = {} if origin is None else {"Origin": origin}
+
+    response = client.post(f"/assignments/{identifier}/cancel", headers=headers)
+
+    assert response.status_code == 403
+    assignment = read_assignment(state=state, identifier=identifier)
+    assert assignment is not None
+    assert assignment.is_open
+
+
+def test_a_stale_assignment_cancel_changes_nothing(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH70-20260819-184158"
+    client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
+
+    response = client.post(
+        f"/assignments/{identifier}/cancel",
+        headers={"Origin": "http://localhost"},
+    )
+
+    assert response.status_code == 303
+    assignment = read_assignment(state=state, identifier=identifier)
+    assert assignment is not None
+    assert assignment.record.cancelled_at == PINNED + timedelta(minutes=10)
+
+
+def test_an_unknown_assignment_cannot_be_cancelled(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
+
+    response = client.post(
+        "/assignments/unknown/cancel",
+        headers={"Origin": "http://localhost"},
+    )
+
+    assert response.status_code == 404
+
+
 def test_a_stopped_round_is_shown_as_stopped(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)

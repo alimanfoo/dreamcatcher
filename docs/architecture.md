@@ -389,6 +389,11 @@ request through the agent-round boundary, into that round's own directory. The
 daemon still owns the live process and lifecycle transition: the round watches
 the request, kills its harness process tree, and records its stopped ending.
 
+The web process can also cancel an assignment. A same-origin cancel goes through
+the agent-assignment boundary, which records the time of the cancel in the
+assignment record and writes a stop request for any round that has no ending.
+The scheduler reads the record and starts no further rounds for the assignment.
+
 ### Configuration, dispatch labels, and routes
 
 `config.py` owns the strict model for `dreamcatcher.toml`. A `DispatchRecipe`

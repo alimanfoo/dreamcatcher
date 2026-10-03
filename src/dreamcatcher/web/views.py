@@ -204,6 +204,7 @@ def compose_assignment_view(
     status: AssignmentStatus,
     zone: tzinfo | None,
     stop_url: str | None = None,
+    cancel_url: str | None = None,
 ) -> WebAssignmentView:
     """Return the values shown on one assignment page."""
     assignment = status.assignment
@@ -234,6 +235,7 @@ def compose_assignment_view(
         effort=record.effort,
         rounds=compose_agent_rounds(round_statuses=status.round_statuses, zone=zone),
         stop_url=stop_url,
+        cancel_url=cancel_url,
         hand_resume=_compose_hand_resume(
             state=state,
             worktree=record.worktree,

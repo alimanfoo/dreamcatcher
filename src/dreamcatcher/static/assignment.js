@@ -159,3 +159,9 @@ if (assignmentSidebar !== null) {
     });
   });
 }
+
+document.querySelector(".cancel-form")?.addEventListener("submit", (event) => {
+  if (!window.confirm(event.currentTarget.dataset.confirmation)) {
+    event.preventDefault();
+  }
+});

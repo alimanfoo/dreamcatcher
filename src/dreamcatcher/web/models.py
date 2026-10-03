@@ -151,6 +151,7 @@ class WebAssignmentView:
     effort: str
     rounds: tuple[WebAgentRound, ...]
     stop_url: str | None
+    cancel_url: str | None
     hand_resume: WebHandResume | None
     feed_rounds: tuple[WebFeedRound, ...]
     feed_cursor: str

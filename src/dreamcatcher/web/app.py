@@ -10,6 +10,7 @@ from webbrowser import open as open_browser
 from flask import Flask, Response, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 
+from dreamcatcher.agent_assignments import cancel_assignment, read_assignment
 from dreamcatcher.agent_rounds import request_agent_round_stop
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.errors import ReportableError
@@ -44,8 +45,8 @@ _HTMX_STOP_POLLING_STATUS = 286
 _DEFAULT_WEB_THEME = "matrix"
 _WEB_THEME_MARKS = {_DEFAULT_WEB_THEME: "phosphor", "nature": "ink"}
 _WEB_THEMES = tuple(_WEB_THEME_MARKS)
-_CROSS_ORIGIN_STOP_RESPONSE = (
-    "Stop requests must come from this Dreamcatcher page.",
+_CROSS_ORIGIN_POST_RESPONSE = (
+    "Requests that change agent work must come from this Dreamcatcher page.",
     403,
 )
 
@@ -59,8 +60,9 @@ def _create_app(
     """Create the web application for one local state directory.
 
     Pages read persisted status and feeds. A same-origin stop request can write
-    into the running round's directory. Page times use the machine's local zone
-    when zone is None.
+    into the running round's directory, and a same-origin cancel into the
+    assignment's record. Page times use the machine's local zone when zone is
+    None.
     """
     app = Flask(__name__, static_folder="../static", template_folder="../templates")
     app.config["TRUSTED_HOSTS"] = [WEB_HOST, "localhost"]
@@ -97,6 +99,12 @@ def _register_assignment_routes(
         "/assignments/<identifier>/stop/<int:number>",
         endpoint="request_assignment_stop",
         view_func=partial(_request_assignment_stop, state=state, clock=clock),
+        methods=["POST"],
+    )
+    app.add_url_rule(
+        "/assignments/<identifier>/cancel",
+        endpoint="cancel_assignment",
+        view_func=partial(_cancel_assignment, state=state, clock=clock),
         methods=["POST"],
     )
 
@@ -158,6 +166,11 @@ def _show_assignment(
             status=status,
             zone=zone,
             stop_url=_compose_assignment_stop_url(status=status),
+            cancel_url=(
+                None
+                if status.has_ended
+                else url_for("cancel_assignment", identifier=identifier)
+            ),
         ),
     )
 
@@ -276,7 +289,7 @@ def _request_assignment_stop(
 ) -> ResponseReturnValue:
     """Request a stop for one assignment's live round."""
     if not _is_same_origin_request():
-        return _CROSS_ORIGIN_STOP_RESPONSE
+        return _CROSS_ORIGIN_POST_RESPONSE
     status = read_assignment_status(state=state, identifier=identifier, clock=clock)
     if status is None:
         return _missing_assignment_response(identifier=identifier)
@@ -295,7 +308,7 @@ def _request_conversation_stop(
 ) -> ResponseReturnValue:
     """Request a stop for one issue conversation's live round."""
     if not _is_same_origin_request():
-        return _CROSS_ORIGIN_STOP_RESPONSE
+        return _CROSS_ORIGIN_POST_RESPONSE
     status = read_conversation_status(state=state, issue=issue, clock=clock)
     if status is None:
         return _missing_conversation_response(issue=issue)
@@ -303,6 +316,26 @@ def _request_conversation_stop(
     if paths is not None and paths.number == number:
         request_agent_round_stop(paths=paths)
     return redirect(url_for("show_conversation", issue=issue), code=303)
+
+
+def _cancel_assignment(
+    *,
+    state: StateDirectory,
+    clock: Callable[[], datetime],
+    identifier: str,
+) -> ResponseReturnValue:
+    """Cancel one assignment so the user can finish its pull request by hand.
+
+    A submission for an assignment that has already ended changes nothing.
+    """
+    if not _is_same_origin_request():
+        return _CROSS_ORIGIN_POST_RESPONSE
+    assignment = read_assignment(state=state, identifier=identifier)
+    if assignment is None:
+        return _missing_assignment_response(identifier=identifier)
+    if assignment.is_open:
+        cancel_assignment(assignment=assignment, at=clock())
+    return redirect(url_for("show_assignment", identifier=identifier), code=303)
 
 
 def _is_same_origin_request() -> bool:

@@ -398,7 +398,8 @@ body::after {
   gap: 10px;
 }
 
-.stop-control {
+.stop-control,
+.cancel-control {
   padding: 6px 14px;
   color: #8c3f2b;
   background: rgba(140, 63, 43, 0.08);
@@ -411,7 +412,9 @@ body::after {
 }
 
 .stop-control:hover,
-.stop-control:focus-visible {
+.stop-control:focus-visible,
+.cancel-control:hover,
+.cancel-control:focus-visible {
   color: #6f2f21;
   background: rgba(140, 63, 43, 0.15);
 }
