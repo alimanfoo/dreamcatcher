@@ -166,7 +166,8 @@ not progress towards the standard. Meeting the criteria is.
 
 **K3. The tracker is current.**
 
-- Measure: open issues that use a word the ontology has retired.
+- Measure: open issues that name a concept by a word the ontology does not use
+  for it, or that ask for work already done.
 - Bar: zero.
 - Check: triage at each phase boundary.
 
@@ -175,7 +176,7 @@ not progress towards the standard. Meeting the criteria is.
 - Measure: pull requests that name the spec they serve and answer the definition
   of done below.
 - Bar: all of them.
-- Check: the pull request template.
+- Check: review, which reads the answers before the pull request merges.
 
 ### Elegance
 
@@ -209,7 +210,8 @@ for "I would have done it differently".
   spec makes.
 - Bar: a feature adds a concept only when the spec shows that the existing
   concepts cannot compose to it. Removing a concept needs no case.
-- Check: spec review.
+- Check: review, through question 4 of the definition of done. A spec arrives in
+  a pull request like any other change.
 
 **E4. Symmetry.**
 
@@ -230,7 +232,8 @@ A pull request is done when its author can say yes to each of these.
 3. Everything it adds meets S1 and S2, and nothing it exports is without a
    caller.
 4. Every word it introduces is in the ontology, or the ontology grew in the same
-   change.
+   change. A concept it adds to the ontology comes with a spec that shows the
+   existing concepts cannot compose to it.
 5. Any enduring document it makes false, it corrects.
 6. It removes what it replaces.
 7. Every conditional it adds applies a rule, or is on the ledger with its
@@ -245,8 +248,16 @@ the ledger for E1. A waiver with no reason a reader can find is a violation.
 
 ## Measurement
 
-Each phase begins by measuring every criterion and recording the numbers in that
-phase's spec folder, beside the plan for closing the gaps. The measurement
-includes reading the three enduring documents against the code. The first such
-measurement is the
+A phase closes with a measurement, and the next phase begins from it. At each
+boundary between phases:
+
+1. Run the consistency review over the source, the enduring documents and the
+   output a user sees, and resolve what it finds.
+2. Triage the open issues against the ontology. Rewrite each one that names a
+   concept by a word the ontology does not use for it. Close each one whose work
+   is done or no longer applies, and say why.
+3. Measure every criterion, reading the three enduring documents against the
+   code, and record the numbers in the closing phase's spec folder.
+
+The first measurement is the
 [baseline of 2026-09-30](../specs/2026-09-30-engineering-standard/roadmap.md).
