@@ -157,6 +157,15 @@ def _render_conversation(
             render_latest_output(latest_output=status.latest_output),
             render_section(heading="conversation", body=table),
             _render_round_statuses(round_statuses=status.round_statuses, zone=zone),
+            (
+                None
+                if conversation is None
+                else _render_harness_resume(
+                    state=state,
+                    worktree=conversation.worktree,
+                    hand_resume_command=status.hand_resume_command,
+                )
+            ),
         ]
     )
 
@@ -304,7 +313,7 @@ def _render_harness_resume(
     described_worktree = state.describe_path(path=worktree)
     command = " ".join(hand_resume_command)
     return render_section(
-        heading="resume harness session yourself",
+        heading="resume by hand",
         body=Text(f"cd {described_worktree}\n{command}"),
     )
 

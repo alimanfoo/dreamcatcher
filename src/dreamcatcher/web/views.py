@@ -282,6 +282,15 @@ def compose_conversation_view(
         ),
         rounds=rounds,
         stop_url=stop_url,
+        hand_resume=(
+            None
+            if conversation is None
+            else _compose_hand_resume(
+                state=state,
+                worktree=conversation.worktree,
+                command=status.hand_resume_command,
+            )
+        ),
         feed_rounds=feed.rounds,
         feed_cursor=feed.cursor,
     )

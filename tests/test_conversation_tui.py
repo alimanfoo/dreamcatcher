@@ -171,6 +171,9 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
     assert "opus[1m]" in shown
     assert "discuss" in shown
     assert "successful" in shown
+    assert "resume by hand" in shown
+    assert "cd .dreamcatcher/v5/conversation-worktrees/GH8" in shown
+    assert "claude --resume conversation-session" in shown
 
 
 def test_conversation_detail_shows_a_failed_round(tmp_path):

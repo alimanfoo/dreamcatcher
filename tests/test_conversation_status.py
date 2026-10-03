@@ -171,6 +171,12 @@ def test_a_conversation_nobody_has_commented_on_is_idle(conversation_state):
     assert found.is_listed
     assert not found.is_over
     assert found.round_statuses == []
+    assert found.harness_session_identifier == "conversation-session"
+    assert found.hand_resume_command == [
+        "claude",
+        "--resume",
+        "conversation-session",
+    ]
 
 
 def test_a_conversation_with_comments_to_answer_is_waiting(conversation_state):
@@ -326,6 +332,8 @@ def test_a_live_round_keeps_an_ineligible_conversation_on_the_report(
     assert found.round_statuses[0].outcome_description == "running"
     assert found.round_statuses[0].revision is not None
     assert found.round_statuses[0].revision.value == "abc123"
+    assert found.harness_session_identifier == "conversation-session"
+    assert found.hand_resume_command is None
 
 
 def test_a_live_conversation_that_has_said_nothing_reports_that(
@@ -548,6 +556,8 @@ def test_an_eligible_issue_is_a_conversation_before_its_record_exists(tmp_path):
     assert found.value is ConversationStatusValue.WAITING
     assert found.detail == "1 comment to answer"
     assert found.round_statuses == []
+    assert found.harness_session_identifier is None
+    assert found.hand_resume_command is None
 
 
 def test_an_eligible_issue_nobody_has_commented_on_is_idle(tmp_path):

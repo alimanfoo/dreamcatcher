@@ -915,7 +915,7 @@ def test_an_errored_rounds_style_uses_its_outcome_alone(tmp_path, daemon):
     assert 'class="round-outcome outcome-errored">errored (exit 2)</span>' in page
 
 
-def test_hand_resume_command_is_a_collapsed_last_resort(tmp_path, daemon):
+def test_hand_resume_command_is_collapsed(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -928,8 +928,8 @@ def test_hand_resume_command_is_a_collapsed_last_resort(tmp_path, daemon):
     )
 
     assert '<details class="manual-recovery">' in page
-    assert "<summary>last resort · resume by hand</summary>" in page
-    assert "Use this escape hatch only when automatic recovery is impossible." in page
+    assert "<summary>resume by hand</summary>" in page
+    assert "escape hatch" not in page
     assert 'class="panel resume-command"' not in page
     assert "font-size: 0.9em;" in stylesheet
 
