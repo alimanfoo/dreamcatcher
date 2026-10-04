@@ -19,7 +19,7 @@ from dreamcatcher.status import (
 ASSIGNMENT_STATUS_STYLES = dict(
     zip(
         ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
-        ("yellow", "red", "green", "cyan", "magenta", "dim"),
+        ("yellow", "red", "green", "cyan", "magenta", "dim", "dim"),
         strict=True,
     )
 )

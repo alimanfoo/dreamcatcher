@@ -7,6 +7,7 @@ from clocks import PINNED
 from conftest import REPOSITORY, configure
 from observations import observed_issue
 from records import (
+    AssignmentReporting,
     write_assignment,
     write_daemon_lock,
     write_daemon_run,
@@ -15,7 +16,12 @@ from records import (
     write_tick,
 )
 
-from dreamcatcher.agent_assignments import Assignment
+from dreamcatcher.agent_assignments import (
+    Assignment,
+    PullRequestObservation,
+    cancel_assignment,
+    read_assignments,
+)
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     AssignmentRoundPurpose,
@@ -27,6 +33,7 @@ from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
 from dreamcatcher.documents import write_text
 from dreamcatcher.feed import FeedLine
+from dreamcatcher.github import PullRequestState
 from dreamcatcher.scheduler.models import (
     AgentWorkObservation,
     GlobalCooldown,
@@ -36,11 +43,11 @@ from dreamcatcher.scheduler.models import (
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
-    AssignmentStatusValue,
     read_assignment_status,
     read_assignment_statuses_for_issue,
     read_status_report,
 )
+from dreamcatcher.status.assignments import AssignmentStatusValue
 
 ASSIGNMENT_ID = "GH13-20260819-184158"
 LOOKED_AT = PINNED + timedelta(hours=2)
@@ -374,6 +381,64 @@ def test_a_successful_wrap_up_is_complete(state):
     assert status.value is AssignmentStatusValue.COMPLETE
     assert status.detail == "2 rounds"
     assert status.is_over
+
+
+def cancel(*, state: StateDirectory) -> None:
+    """Cancel the fixture's assignment."""
+    cancel_assignment(assignment=read_assignments(state=state)[0], at=PINNED)
+
+
+def test_a_cancelled_assignment_has_ended(state):
+    ran(state=state, number=1)
+    cancel(state=state)
+
+    status = only_assignment(state=state)
+
+    assert status.value is AssignmentStatusValue.CANCELLED
+    assert status.detail == "1 round"
+    assert status.has_ended
+    assert status.is_over
+
+
+def test_a_round_still_running_after_a_cancel_is_working(running):
+    ran(state=running, number=1, status=None)
+    cancel(state=running)
+
+    status = only_assignment(state=running)
+
+    assert status.value is AssignmentStatusValue.WORKING
+    assert not status.has_ended
+
+
+def test_a_cancelled_assignment_is_cancelled_rather_than_in_fault(state):
+    ran(state=state, number=1, status=1)
+    ran(state=state, number=2, status=2)
+    cancel(state=state)
+
+    status = only_assignment(state=state)
+
+    assert status.value is AssignmentStatusValue.CANCELLED
+
+
+def test_a_cancelled_assignment_stops_reporting_its_pull_request_state(tmp_path):
+    configure(root=tmp_path)
+    state = StateDirectory(root=tmp_path)
+    write_assignment(
+        state=state,
+        identifier=ASSIGNMENT_ID,
+        issue=13,
+        reporting=AssignmentReporting(
+            title="The issue title",
+            pull_request_observation=PullRequestObservation(
+                state=PullRequestState.OPEN, is_draft=True, observed_at=PINNED
+            ),
+        ),
+    )
+    assert only_assignment(state=state).pull_request_state == "draft"
+
+    cancel(state=state)
+
+    assert only_assignment(state=state).pull_request_state is None
 
 
 def test_an_assignment_that_has_run_no_round_waits_for_its_first(state):

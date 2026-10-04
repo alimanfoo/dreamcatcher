@@ -14,7 +14,6 @@ from dreamcatcher.status import (
     ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
     CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER,
     AssignmentStatus,
-    AssignmentStatusValue,
     ConversationStatus,
     DreamcatcherStatusReport,
     IssueFactValue,
@@ -163,21 +162,13 @@ def _render_assignments(
     """Render assignment work as one section, mirroring the web home view.
 
     Orders active assignments, failed assignment setups, issue observations,
-    and the completed-assignment count in that sequence.
+    and the ended-assignment count in that sequence.
     """
     if not (assignments or failed_setups or issues):
         return None
-    completed = list(
-        filter(
-            lambda status: status.value is AssignmentStatusValue.COMPLETE,
-            assignments,
-        )
-    )
+    ended = [status for status in assignments if status.has_ended]
     ordered = sorted(
-        filter(
-            lambda status: status.value is not AssignmentStatusValue.COMPLETE,
-            assignments,
-        ),
+        (status for status in assignments if not status.has_ended),
         key=lambda status: ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER.index(
             status.value
         ),
@@ -185,10 +176,8 @@ def _render_assignments(
     rows = _render_assignment_rows(assignments=ordered)
     rows += _render_failed_setups(failed_setups=failed_setups)
     rows += _render_open_issues(issues=issues)
-    if completed:
-        rows.append(
-            Text(describe_count(number=len(completed), noun="completed assignment"))
-        )
+    if ended:
+        rows.append(Text(describe_count(number=len(ended), noun="ended assignment")))
     return render_section(heading="assignments", body=Group(*rows))
 
 
@@ -242,7 +231,7 @@ def _describe_issue_failures(*, observation: IssueObservation) -> list[str]:
 def _render_assignment_rows(
     *, assignments: Sequence[AssignmentStatus]
 ) -> list[RenderableType]:
-    """Render the detailed rows for non-complete assignments."""
+    """Render the detailed rows for assignments that have not ended."""
     if not assignments:
         return []
     identifier_width = max(len(status.assignment.identifier) for status in assignments)

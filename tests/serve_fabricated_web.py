@@ -14,6 +14,7 @@ PAGES = (
     ("Home", "/"),
     ("Working assignment", f"/assignments/{BROWSER_ASSIGNMENT_IDENTIFIER}"),
     ("Complete assignment", "/assignments/GH12-20260819-184158"),
+    ("Cancelled assignment", "/assignments/GH70-20260819-184158"),
     ("Faulted assignment", "/assignments/GH9-20260819-184158"),
     ("Waiting assignment", "/assignments/GH44-20260819-184158"),
     ("Conversation", "/conversations/8"),

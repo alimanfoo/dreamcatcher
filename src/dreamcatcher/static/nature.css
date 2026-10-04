@@ -359,6 +359,7 @@ body::after {
 }
 
 .status-complete,
+.status-cancelled,
 .status-idle,
 .status-unknown,
 .issue-blocked {
@@ -398,7 +399,8 @@ body::after {
   gap: 10px;
 }
 
-.stop-control {
+.stop-control,
+.cancel-control {
   padding: 6px 14px;
   color: #8c3f2b;
   background: rgba(140, 63, 43, 0.08);
@@ -411,7 +413,9 @@ body::after {
 }
 
 .stop-control:hover,
-.stop-control:focus-visible {
+.stop-control:focus-visible,
+.cancel-control:hover,
+.cancel-control:focus-visible {
   color: #6f2f21;
   background: rgba(140, 63, 43, 0.15);
 }
@@ -449,7 +453,7 @@ body::after {
   background: rgba(59, 52, 46, 0.12);
 }
 
-.complete-assignments summary,
+.ended-assignments summary,
 .empty,
 .assignment-navigation {
   color: var(--dim);

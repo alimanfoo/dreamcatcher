@@ -20,17 +20,17 @@
             {% for issue in view.issues %}
               {% include "partials/issue-row.html" %}
             {% endfor %}
-            {% if view.complete_assignments %}
-              <details class="complete-assignments">
-                <summary>+ {{ view.complete_assignments|length }} complete</summary>
-                <div class="complete-assignment-cards">
-                  {%- for assignment in view.complete_assignments %}
+            {% if view.ended_assignments %}
+              <details class="ended-assignments">
+                <summary>+ {{ view.ended_assignments|length }} ended</summary>
+                <div class="ended-assignment-cards">
+                  {%- for assignment in view.ended_assignments %}
                     {% include "partials/assignment-card.html" %}
                   {%- endfor %}
                 </div>
               </details>
             {% endif %}
-            {% if not view.active_assignments and not view.complete_assignments and not view.failed_setups and not view.issues %}<p class="empty">-- no assignment work --</p>{% endif %}
+            {% if not view.active_assignments and not view.ended_assignments and not view.failed_setups and not view.issues %}<p class="empty">-- no assignment work --</p>{% endif %}
           </div>
         </section>
         {% if view.conversations %}

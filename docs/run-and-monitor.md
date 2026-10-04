@@ -48,7 +48,7 @@ Use an exact port when needed:
 dreamcatcher web --port 8123
 ```
 
-The home page shows daemon facts, active and complete assignments, issue
+The home page shows daemon facts, active and ended assignments, issue
 conversations, setup failures, and issues waiting or blocked. Open an assignment
 or conversation to see its rounds and live feed.
 
@@ -84,8 +84,10 @@ The most useful assignment states are:
 - **waiting**: Dreamcatcher is waiting to start or decide the next round; the
   accompanying detail says which;
 - **needs user feedback**: the pull request is open and no round is required;
-- **fault**: repeated errors need attention; and
-- **complete**: the pull request is closed or merged and wrap-up succeeded.
+- **fault**: repeated errors need attention;
+- **complete**: the pull request is closed or merged and wrap-up succeeded; and
+- **cancelled**: you took the pull request over, and Dreamcatcher no longer
+  works on it.
 
 An **idle** conversation has no round due until another eligible comment
 arrives. A conversation marked **waiting** may have a round ready or may be

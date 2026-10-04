@@ -59,3 +59,17 @@ def test_a_round_link_brings_its_round_into_view_from_the_tail(
           priority: element.style.getPropertyPriority("position"),
         })"""
     ) == {"value": "sticky", "priority": "important"}
+
+
+def test_cancelling_an_assignment_asks_first(page: Page, live_web: str) -> None:
+    page.goto(f"{live_web}/assignments/GH44-20260819-184158")
+    cancel = page.get_by_role("button", name="cancel")
+
+    page.once("dialog", lambda dialog: dialog.dismiss())
+    cancel.click()
+    expect(page.locator("#assignment-status")).to_have_text("waiting")
+
+    page.once("dialog", lambda dialog: dialog.accept())
+    cancel.click()
+    expect(page.locator("#assignment-status")).to_have_text("cancelled")
+    expect(cancel).to_have_count(0)

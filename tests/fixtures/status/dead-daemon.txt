@@ -21,4 +21,4 @@ assignments
   GH53  dream:smith, dream:less  multiple assignment labels: dream:less, dream:smith                
   GH54  dream:smith, dream:less  multiple assignment labels: dream:less, dream:smith; blocked by    
                                  GH50                                                               
-  1 completed assignment                                                                            
+  2 ended assignments                                                                               

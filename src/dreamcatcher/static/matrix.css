@@ -335,6 +335,7 @@ body::after {
 .status-waiting,
 .status-unknown,
 .status-complete,
+.status-cancelled,
 .status-idle,
 .issue-blocked {
   color: var(--dim);
@@ -425,17 +426,17 @@ body::after {
   font-weight: 700;
 }
 
-.complete-assignments summary,
+.ended-assignments summary,
 .empty {
   color: var(--dim);
 }
 
-.complete-assignments summary {
+.ended-assignments summary {
   padding: var(--space-4) 0;
   cursor: pointer;
 }
 
-.complete-assignment-cards {
+.ended-assignment-cards {
   display: grid;
   gap: var(--space-5);
 }
@@ -487,11 +488,13 @@ body::after {
   gap: var(--space-5);
 }
 
-.stop-form {
+.stop-form,
+.cancel-form {
   margin: 0;
 }
 
-.stop-control {
+.stop-control,
+.cancel-control {
   padding: 0;
   color: var(--amber);
   background: transparent;
@@ -504,7 +507,9 @@ body::after {
 }
 
 .stop-control:hover,
-.stop-control:focus-visible {
+.stop-control:focus-visible,
+.cancel-control:hover,
+.cancel-control:focus-visible {
   color: var(--bright);
 }
 
