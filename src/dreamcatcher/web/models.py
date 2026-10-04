@@ -24,7 +24,6 @@ class WebAssignmentCard:
     issue: int
     title: str | None
     status: str
-    status_label: str
     detail: str
     dispatch_label: str
     harness: str
@@ -111,7 +110,6 @@ class WebAgentTail:
     cursor: str
     feed_rounds: tuple[WebFeedRound, ...]
     status: str
-    status_label: str
     detail: str | None
     rounds: tuple[WebAgentRound, ...]
     stop_url: str | None
@@ -123,7 +121,6 @@ class WebAgentTailContext:
     """Provide status values alongside one incremental feed read."""
 
     status: str
-    status_label: str
     rounds: tuple[WebAgentRound, ...]
     stop_url: str | None
     detail: str | None = None
@@ -141,7 +138,6 @@ class WebAssignmentView:
     issue: int
     title: str | None
     status: str
-    status_label: str
     detail: str
     pull_request: int
     pull_request_state: str | None

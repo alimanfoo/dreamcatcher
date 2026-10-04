@@ -95,7 +95,6 @@ def read_agent_tail(
         cursor=_encode_feed_cursor(cursor=next_cursor),
         feed_rounds=tuple(feed_rounds),
         status=context.status,
-        status_label=context.status_label,
         detail=context.detail,
         rounds=context.rounds,
         stop_url=context.stop_url,

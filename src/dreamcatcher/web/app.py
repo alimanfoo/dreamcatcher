@@ -192,7 +192,6 @@ def _show_assignment_tail(
         owner=status.assignment,
         context=WebAgentTailContext(
             status=str(status.value),
-            status_label=str(status.value),
             detail=status.detail,
             rounds=compose_agent_rounds(
                 round_statuses=status.round_statuses, zone=zone
@@ -254,7 +253,6 @@ def _show_conversation_tail(
         owner=conversation,
         context=WebAgentTailContext(
             status=str(status.value),
-            status_label=str(status.value),
             detail=status.detail,
             rounds=compose_agent_rounds(
                 round_statuses=status.round_statuses, zone=zone
