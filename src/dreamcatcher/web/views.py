@@ -418,8 +418,8 @@ def _compose_instance_facts(*, report: DreamcatcherStatusReport) -> tuple[WebFac
         ),
         (
             "scheduler failures",
-            report.scheduler_failures,
-            report.scheduler_failures is not None,
+            report.scheduler_failure_summary,
+            report.scheduler_failure_summary is not None,
         ),
     )
     return tuple(

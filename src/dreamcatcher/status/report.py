@@ -77,7 +77,7 @@ class DreamcatcherStatusReport:
     repository: str | None
     daemon: DreamcatcherDaemonStatus
     latest_scheduler_tick: datetime | None
-    scheduler_failures: str | None
+    scheduler_failure_summary: str | None
     running_agents: int
     active_global_cooldown: GlobalCooldown | None
     failed_assignment_setups: list[IssueObservation]
@@ -116,7 +116,7 @@ def read_status_report(
         latest_scheduler_tick=(
             None if scheduler_record is None else scheduler_record.at
         ),
-        scheduler_failures=(
+        scheduler_failure_summary=(
             None
             if scheduler_record is None or daemon_pid is None
             else "; ".join(scheduler_record.failures) or None
