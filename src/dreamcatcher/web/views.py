@@ -24,6 +24,7 @@ from dreamcatcher.status import (
 from dreamcatcher.web.feed import read_agent_feed
 from dreamcatcher.web.models import (
     WebAgentRound,
+    WebAgentWorkControl,
     WebAssignmentCard,
     WebAssignmentView,
     WebConversationCard,
@@ -209,7 +210,7 @@ def compose_assignment_view(
     state: StateDirectory,
     status: AssignmentStatus,
     zone: tzinfo | None,
-    stop_url: str | None = None,
+    control: WebAgentWorkControl | None = None,
 ) -> WebAssignmentView:
     """Return the values shown on one assignment page."""
     assignment = status.assignment
@@ -239,7 +240,7 @@ def compose_assignment_view(
         model=record.model,
         effort=record.effort,
         rounds=compose_agent_rounds(round_statuses=status.round_statuses, zone=zone),
-        stop_url=stop_url,
+        control=control,
         hand_resume=_compose_hand_resume(
             state=state,
             worktree=record.worktree,
@@ -255,7 +256,7 @@ def compose_conversation_view(
     state: StateDirectory,
     status: ConversationStatus,
     zone: tzinfo | None,
-    stop_url: str | None = None,
+    control: WebAgentWorkControl | None = None,
 ) -> WebConversationView:
     """Return the values shown on one issue-conversation page."""
     conversation = status.conversation
@@ -281,7 +282,7 @@ def compose_conversation_view(
             else _compose_conversation_facts(conversation=conversation)
         ),
         rounds=rounds,
-        stop_url=stop_url,
+        control=control,
         hand_resume=(
             None
             if conversation is None

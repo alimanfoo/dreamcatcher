@@ -1,0 +1,1 @@
+<div id="agent-work-control"{% if is_tail|default(false) %} hx-swap-oob="true"{% endif %}>{%- if view.control is not none -%}<form class="agent-work-control-form" method="post" action="{{ view.control.url }}"><button class="agent-work-control {{ view.control.action }}-control" type="submit">{{ view.control.action }}</button></form>{%- endif -%}</div>

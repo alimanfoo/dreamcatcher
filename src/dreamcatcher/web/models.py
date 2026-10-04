@@ -1,7 +1,7 @@
 """Flask-free models for Dreamcatcher's web views."""
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Literal, Protocol
 
 from dreamcatcher.agent_rounds import AgentRoundPaths, AgentRoundRecord
 from dreamcatcher.status import AgentRoundRevision
@@ -105,6 +105,14 @@ class WebFeedCursor:
 
 
 @dataclass(frozen=True, kw_only=True)
+class WebAgentWorkControl:
+    """Represent the one form that acts on the agent work a page shows."""
+
+    action: Literal["stop"]
+    url: str
+
+
+@dataclass(frozen=True, kw_only=True)
 class WebAgentTail:
     """Represent one incremental agent-feed response."""
 
@@ -114,7 +122,7 @@ class WebAgentTail:
     status_label: str
     detail: str | None
     rounds: tuple[WebAgentRound, ...]
-    stop_url: str | None
+    control: WebAgentWorkControl | None
     has_empty_feed_placeholder: bool
 
 
@@ -125,7 +133,7 @@ class WebAgentTailContext:
     status: str
     status_label: str
     rounds: tuple[WebAgentRound, ...]
-    stop_url: str | None
+    control: WebAgentWorkControl | None
     detail: str | None = None
 
 
@@ -150,7 +158,7 @@ class WebAssignmentView:
     model: str
     effort: str
     rounds: tuple[WebAgentRound, ...]
-    stop_url: str | None
+    control: WebAgentWorkControl | None
     hand_resume: WebHandResume | None
     feed_rounds: tuple[WebFeedRound, ...]
     feed_cursor: str
@@ -181,7 +189,7 @@ class WebConversationView:
     detail: str
     facts: tuple[WebFact, ...]
     rounds: tuple[WebAgentRound, ...]
-    stop_url: str | None
+    control: WebAgentWorkControl | None
     hand_resume: WebHandResume | None
     feed_rounds: tuple[WebFeedRound, ...]
     feed_cursor: str

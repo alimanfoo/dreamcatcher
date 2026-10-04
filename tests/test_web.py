@@ -244,7 +244,7 @@ def test_assignment_tail_updates_the_stop_control(tmp_path, daemon):
     )
 
     assert response.status_code == 200
-    assert '<div id="stop-control" hx-swap-oob="true">' in response.text
+    assert '<div id="agent-work-control" hx-swap-oob="true">' in response.text
     assert f'action="/assignments/{identifier}/stop/2"' in response.text
 
 
@@ -845,7 +845,7 @@ def test_a_quiet_tail_has_no_appendable_text_nodes(tmp_path):
         '<input type="hidden" id="cursor" name="cursor" value="1:0" '
         'hx-swap-oob="true"><span'
     )
-    assert '</span><div id="stop-control"' in response.text
+    assert '</span><div id="agent-work-control"' in response.text
     assert '</div><p id="assignment-detail"' in response.text
     assert "</p><aside" in response.text
     assert response.text.endswith("</aside>")

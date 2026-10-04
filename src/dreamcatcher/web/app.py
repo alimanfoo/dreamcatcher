@@ -26,7 +26,11 @@ from dreamcatcher.web.feed import (
     decode_feed_cursor,
     read_agent_tail,
 )
-from dreamcatcher.web.models import WebAgentTailContext, WebFeedOwner
+from dreamcatcher.web.models import (
+    WebAgentTailContext,
+    WebAgentWorkControl,
+    WebFeedOwner,
+)
 from dreamcatcher.web.server import (
     WEB_HOST,
     WebServerRunner,
@@ -157,19 +161,24 @@ def _show_assignment(
             state=state,
             status=status,
             zone=zone,
-            stop_url=_compose_assignment_stop_url(status=status),
+            control=_compose_assignment_control(status=status),
         ),
     )
 
 
-def _compose_assignment_stop_url(*, status: AssignmentStatus) -> str | None:
+def _compose_assignment_control(
+    *, status: AssignmentStatus
+) -> WebAgentWorkControl | None:
     paths = status.stoppable_round_paths
     if paths is None:
         return None
-    return url_for(
-        "request_assignment_stop",
-        identifier=status.assignment.identifier,
-        number=paths.number,
+    return WebAgentWorkControl(
+        action="stop",
+        url=url_for(
+            "request_assignment_stop",
+            identifier=status.assignment.identifier,
+            number=paths.number,
+        ),
     )
 
 
@@ -197,7 +206,7 @@ def _show_assignment_tail(
             rounds=compose_agent_rounds(
                 round_statuses=status.round_statuses, zone=zone
             ),
-            stop_url=_compose_assignment_stop_url(status=status),
+            control=_compose_assignment_control(status=status),
         ),
         is_terminal=status.is_over,
         status_id="assignment-status",
@@ -222,19 +231,24 @@ def _show_conversation(
             state=state,
             status=status,
             zone=zone,
-            stop_url=_compose_conversation_stop_url(status=status),
+            control=_compose_conversation_control(status=status),
         ),
     )
 
 
-def _compose_conversation_stop_url(*, status: ConversationStatus) -> str | None:
+def _compose_conversation_control(
+    *, status: ConversationStatus
+) -> WebAgentWorkControl | None:
     paths = status.stoppable_round_paths
     if paths is None:
         return None
-    return url_for(
-        "request_conversation_stop",
-        issue=status.issue,
-        number=paths.number,
+    return WebAgentWorkControl(
+        action="stop",
+        url=url_for(
+            "request_conversation_stop",
+            issue=status.issue,
+            number=paths.number,
+        ),
     )
 
 
@@ -259,7 +273,7 @@ def _show_conversation_tail(
             rounds=compose_agent_rounds(
                 round_statuses=status.round_statuses, zone=zone
             ),
-            stop_url=_compose_conversation_stop_url(status=status),
+            control=_compose_conversation_control(status=status),
         ),
         is_terminal=status.is_over,
         status_id="conversation-status",
