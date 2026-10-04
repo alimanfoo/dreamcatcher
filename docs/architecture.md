@@ -68,12 +68,8 @@ and leaves the last complete scheduler record in place. An invalid scheduler
 record ends the daemon because retrying cannot repair the document.
 
 If an issue read fails, the tick records the failure as its hold and prevents
-only the launches that depend on those facts. A failed assignment listing holds
-new assignments but not the rounds that existing assignments require, because
-each assignment's pull request alone governs its rounds. A failed conversation
-listing holds fresh batches but not the recovery of a conversation whose issue a
-healthy route listed. Neither kind's failed listing prevents launches of the
-other kind. A later tick retries the failed read.
+only the launches that depend on those facts. A later tick retries the failed
+read.
 
 If a launch fails, the tick keeps every round that it already started and
 records the failure as its hold. It starts no lower-priority candidate of the
