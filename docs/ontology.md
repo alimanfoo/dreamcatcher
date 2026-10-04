@@ -203,8 +203,8 @@ issue. An agent assignment remains open until it is complete or cancelled,
 including while its pull request is being wrapped up.
 
 A resumed assignment round's input records the user posts relayed to it and the
-state of its pull request. The first round and a recovery round carry no input
-beyond their prompts.
+state of its pull request. The first round carries no input beyond its prompt,
+and neither does a recovery round while its pull request is open.
 
 ### Issue conversation composition
 
@@ -294,7 +294,8 @@ is false. Otherwise, the reason that the assignment setup cannot resume is
 evidence that claimed elsewhere is unknown, unless an open linked pull request
 proves the fact true. The issue observation records the failed setup attempt
 separately, so the status report can show it even when another fact determines
-availability. Every later tick tries to perform the assignment setup again.
+availability. Every later tick checks whether the assignment setup can resume,
+and the scheduler resumes it when it next creates an assignment for the issue.
 
 An issue with a local assignment appears through its agent assignment rather
 than in the report's available issues.
@@ -473,8 +474,9 @@ An assignment normally progresses as follows:
 ### Scheduling rounds in response to events
 
 Once an assignment exists, its pull request alone governs its rounds until the
-assignment ends. The issue's labels, assignee and dependencies are read when the
-assignment is created and never again for that assignment.
+assignment ends. Later ticks still observe the issue's labels, assignee and
+dependencies for the status report, but those facts do not decide that
+assignment's rounds.
 
 One or more new user posts cause an agent round to be scheduled. If a user posts
 again while that round is running, the later posts remain unrelayed and cause a
@@ -487,10 +489,11 @@ request is ready for review. For example, if the first implementation round ends
 by asking the user a question, the user's answer causes another implementation
 round to be scheduled.
 
-Merging or closing the pull request always causes a wrap-up round to be
-scheduled. An errored or interrupted round does not require user input.
-Dreamcatcher schedules a recovery round automatically unless the assignment has
-entered a fault.
+Merging or closing the pull request causes a wrap-up round to be scheduled. An
+errored or interrupted round does not require user input. Dreamcatcher schedules
+a recovery round automatically unless the assignment has entered a fault. An
+assignment in fault starts no round of any purpose, including wrap up, until a
+retry request or the end of a global cooldown clears the fault.
 
 A stopped assignment round is not recovered. While its pull request remains
 open, it waits for a new user post. Merging or closing the pull request starts
@@ -523,12 +526,11 @@ candidates of the same kind for the rest of that tick.
 
 ### Handling errors and global cooldown
 
-A known global error may start a global cooldown immediately.
-
-For errors that cannot be diagnosed reliably, one piece of agent work's first
-consecutive error calls for a recovery round and its second makes that work in
-fault. The scheduler counts every assignment in fault and every conversation in
-fault whose issue has no known routing conflict. Two counted faults, in any
+Dreamcatcher does not diagnose any error as global when it happens. One piece of
+agent work's first consecutive error calls for a recovery round and its second
+makes that work in fault. The scheduler counts every assignment in fault. It
+counts a conversation in fault while its issue is eligible, or while a failed
+issue listing leaves that eligibility unknown. Two counted faults, in any
 combination, are evidence of a shared problem and start a global cooldown. When
 the cooldown ends, Dreamcatcher clears those faults and permits recovery. This
 deliberately simple policy prevents one work-specific failure from blocking all

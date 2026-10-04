@@ -34,10 +34,10 @@ it up to date would take that record away.
 ## The standard
 
 [docs/standard.md](docs/standard.md) says how good the work has to be and how we
-tell. Read it before you change code, and answer its definition of done in every
-pull request. Where this guide's conventions and the standard's criteria cover
-the same ground, the standard sets the bar and the conventions say how to meet
-it.
+tell. Read it before you change code. Give every pull request description a
+section headed "Definition of done" that answers each of its questions by
+number. Where this guide's conventions and the standard's criteria cover the
+same ground, the standard sets the bar and the conventions say how to meet it.
 
 ## Dev setup
 

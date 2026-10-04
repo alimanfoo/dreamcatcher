@@ -13,7 +13,7 @@ FUNCTION_LINE_BAR = 50
 # transaction whose steps the architecture or the ontology lists in order, and
 # splitting it would hide that order rather than name a concept.
 FUNCTIONS_THAT_STAY_WHOLE = {
-    "build_cli_parser": "the complete command-line grammar, in one place",
+    "_build_cli_parser": "the complete command-line grammar, in one place",
     "DreamcatcherDaemon.run": "the daemon lifecycle, as the architecture lists it",
     "Scheduler.tick": "the scheduler tick, as the architecture lists it",
     "AssignmentCreator.create": "assignment creation, as the ontology lists it",
@@ -114,6 +114,17 @@ def _print_functions(*, measurements: list[FunctionMeasurement]) -> None:
         print(f"| `{location}::{measurement.name}` | {measurement.lines} | {reason} |")
 
 
+def _print_unmatched_exemptions(*, measurements: list[FunctionMeasurement]) -> None:
+    measured_names = {measurement.name for measurement in measurements}
+    unmatched = sorted(set(FUNCTIONS_THAT_STAY_WHOLE) - measured_names)
+    if unmatched:
+        print()
+        print("## Exemptions that match no function over the bar")
+        print()
+        for name in unmatched:
+            print(f"- `{name}`")
+
+
 def main() -> None:
     """Print the current source-size measurements as Markdown."""
     paths = sorted(SOURCE_ROOT.rglob("*.py"))
@@ -137,6 +148,7 @@ def main() -> None:
     print()
     _print_modules(measurements=modules)
     _print_functions(measurements=functions)
+    _print_unmatched_exemptions(measurements=functions)
 
 
 if __name__ == "__main__":

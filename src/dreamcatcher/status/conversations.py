@@ -15,7 +15,6 @@ from dreamcatcher.harness_adapters import HarnessSessionIdentifier
 from dreamcatcher.issue_conversations import (
     Conversation,
     describe_conversation_revision,
-    find_conversation_harness_session_identifier,
     is_conversation_ready_for_input,
     is_no_reply,
     read_conversation_input,
@@ -108,7 +107,7 @@ class ConversationStatus:
         conversation = self.conversation
         if conversation is None:
             return None
-        return find_conversation_harness_session_identifier(conversation=conversation)
+        return conversation.find_harness_session_identifier()
 
     @cached_property
     def hand_resume_command(self) -> list[str] | None:
@@ -287,49 +286,38 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
         title: str,
         conversation: Conversation | None,
     ) -> ConversationStatus | None:
+        ineligibility = self._find_ineligibility(issue=issue)
+        if ineligibility is None:
+            return None
+        value, detail = ineligibility
+        return self._compose(
+            issue=issue,
+            title=title,
+            conversation=conversation,
+            value=value,
+            detail=detail,
+        )
+
+    def _find_ineligibility(
+        self, *, issue: int
+    ) -> tuple[ConversationStatusValue, str] | None:
+        """Return the status and detail of an issue the latest tick cannot run."""
         if self.scheduler_record is None:
-            return self._compose(
-                issue=issue,
-                title=title,
-                conversation=conversation,
-                value=ConversationStatusValue.UNKNOWN,
-                detail="no current scheduler observation",
-            )
+            return ConversationStatusValue.UNKNOWN, "no current scheduler observation"
         observation = self.observations.get(issue)
         if observation is None:
-            return self._compose(
-                issue=issue,
-                title=title,
-                conversation=conversation,
-                value=ConversationStatusValue.IDLE,
-                detail="issue is not eligible for conversation",
+            return (
+                ConversationStatusValue.IDLE,
+                "issue is not eligible for conversation",
             )
         routing_conflict = observation.routing_conflict
         if routing_conflict.value is IssueFactValue.UNKNOWN:
-            return self._compose(
-                issue=issue,
-                title=title,
-                conversation=conversation,
-                value=ConversationStatusValue.UNKNOWN,
-                detail=routing_conflict.evidence,
-            )
+            return ConversationStatusValue.UNKNOWN, routing_conflict.evidence
         if routing_conflict.value is IssueFactValue.TRUE:
-            return self._compose(
-                issue=issue,
-                title=title,
-                conversation=conversation,
-                value=ConversationStatusValue.ROUTING_CONFLICT,
-                detail=routing_conflict.evidence,
-            )
+            return ConversationStatusValue.ROUTING_CONFLICT, routing_conflict.evidence
         requires_round = observation.requires_round
         if requires_round.value is IssueFactValue.UNKNOWN:
-            return self._compose(
-                issue=issue,
-                title=title,
-                conversation=conversation,
-                value=ConversationStatusValue.UNKNOWN,
-                detail=requires_round.evidence,
-            )
+            return ConversationStatusValue.UNKNOWN, requires_round.evidence
         return None
 
     def _derive_unfinished(

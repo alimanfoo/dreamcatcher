@@ -6,7 +6,7 @@ document, beside [the ontology](ontology.md), which fixes the words, and
 says what things are called. The architecture says where each decision lives.
 This document says how good the result has to be, and how we tell.
 
-Every pull request is reviewed against it. Every phase remeasures against it.
+Every pull request is reviewed against it. Every release remeasures against it.
 Where the code falls short, the shortfall is an issue with a number, not a
 matter of taste.
 
@@ -39,7 +39,7 @@ project, so that a criterion below can be traced to a project that has met it.
   principles and says what the project will not do, and naming rules written
   beside the ambiguity each prevents. It sets the bar for elegance, for
   vocabulary and for the enduring documents. Its design document has also gone
-  stale in places, which is why each phase reads ours against the code.
+  stale in places, which is why each release reads ours against the code.
 - **attrs and structlog.** A page that says why, a changelog with a written rule
   for what earns an entry, and a compatibility statement a reader can find. They
   set the bar for release practice.
@@ -73,7 +73,7 @@ not progress towards the standard. Meeting the criteria is.
   read largest first.
 - Bar: zero. A module is split where a clean boundary gives each part a
   responsibility of its own, never to meet a line count.
-- Check: review, ordered by the line counts the phase measurement reports and
+- Check: review, ordered by the line counts the release measurement reports and
   focused on any module a change grows.
 
 **S2. Functions fit on a screen.**
@@ -81,7 +81,7 @@ not progress towards the standard. Meeting the criteria is.
 - Measure: lines in each function.
 - Bar: no function exceeds 50 lines, except those the measurement names and
   explains, such as the scheduler tick when it reads as the listed steps.
-- Check: the phase measurement, and review of any function a change grows.
+- Check: the release measurement, and review of any function a change grows.
 
 **S3. Exports are used.**
 
@@ -113,8 +113,8 @@ not progress towards the standard. Meeting the criteria is.
 - Measure: disagreements the consistency review reports between two claims about
   one concept, in code, output, documents and the issue tracker.
 - Bar: zero.
-- Check: the consistency review, run at each phase boundary and on any pull
-  request that names a concept.
+- Check: the consistency review, run before each release and on any pull request
+  that names a concept.
 
 **C2. The enduring documents are true.**
 
@@ -166,16 +166,17 @@ not progress towards the standard. Meeting the criteria is.
 
 **K3. The tracker is current.**
 
-- Measure: open issues that use a word the ontology has retired.
+- Measure: open issues that name a concept by a word the ontology does not use
+  for it, or that ask for work already done.
 - Bar: zero.
-- Check: triage at each phase boundary.
+- Check: triage before each release.
 
 **K4. Every change is reviewed against this standard.**
 
 - Measure: pull requests that name the spec they serve and answer the definition
   of done below.
 - Bar: all of them.
-- Check: the pull request template.
+- Check: review, which reads the answers before the pull request merges.
 
 ### Elegance
 
@@ -201,7 +202,7 @@ for "I would have done it differently".
   present or both absent.
 - Bar: zero. Where two facts must agree, one type carries both, as the round
   ending classes carry outcome, time and exit status together.
-- Check: review, and a count that each phase records.
+- Check: review, and a count that each release measurement records.
 
 **E3. Concept economy.**
 
@@ -209,7 +210,8 @@ for "I would have done it differently".
   spec makes.
 - Bar: a feature adds a concept only when the spec shows that the existing
   concepts cannot compose to it. Removing a concept needs no case.
-- Check: spec review.
+- Check: review, through question 4 of the definition of done. A spec arrives in
+  a pull request like any other change.
 
 **E4. Symmetry.**
 
@@ -230,7 +232,8 @@ A pull request is done when its author can say yes to each of these.
 3. Everything it adds meets S1 and S2, and nothing it exports is without a
    caller.
 4. Every word it introduces is in the ontology, or the ontology grew in the same
-   change.
+   change. A concept it adds to the ontology comes with a spec that shows the
+   existing concepts cannot compose to it.
 5. Any enduring document it makes false, it corrects.
 6. It removes what it replaces.
 7. Every conditional it adds applies a rule, or is on the ledger with its
@@ -245,8 +248,8 @@ the ledger for E1. A waiver with no reason a reader can find is a violation.
 
 ## Measurement
 
-Each phase begins by measuring every criterion and recording the numbers in that
-phase's spec folder, beside the plan for closing the gaps. The measurement
-includes reading the three enduring documents against the code. The first such
-measurement is the
-[baseline of 2026-09-30](../specs/2026-09-30-engineering-standard/roadmap.md).
+Before each major or minor release, [the release checklist](releasing.md) runs
+the consistency review, triages the open issues and measures every criterion,
+reading the three enduring documents against the code.
+[The measurement](measurement.md) holds the latest results, and a phase plans
+its work from them. Each shortfall is an issue, and none holds a release back.

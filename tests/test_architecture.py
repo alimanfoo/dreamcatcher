@@ -112,7 +112,7 @@ DOMAIN_NAMES_PRESENTATION_MUST_NOT_USE = [
     "ErroredAgentRoundEnding",
     "HARNESS_ADAPTERS",
     "InterruptedAgentRoundEnding",
-    "find_assignment_harness_session_identifier",
+    "find_harness_session_identifier",
     "request_assignment_retry",
 ]
 
