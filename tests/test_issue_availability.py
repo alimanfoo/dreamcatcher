@@ -18,7 +18,11 @@ from observations import observed_issue
 from pydantic import ValidationError
 from records import write_assignment
 
-from dreamcatcher.agent_assignments import Assignment, read_assignments
+from dreamcatcher.agent_assignments import (
+    Assignment,
+    cancel_assignment,
+    read_assignments,
+)
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.config import AgentHarness, DreamcatcherConfig
 from dreamcatcher.scheduler.assignments import AssignmentScheduler
@@ -287,6 +291,40 @@ def test_local_and_external_claims_can_both_be_true(gh, tmp_path):
     assert found.claimed_here.value is IssueFactValue.TRUE
     assert found.claimed_elsewhere.value is IssueFactValue.TRUE
     assert found.claimed_elsewhere.evidence == "a pull request is open on it: #28"
+
+
+def test_a_cancelled_assignments_pull_request_claims_its_issue_elsewhere(gh, tmp_path):
+    state = StateDirectory(root=tmp_path)
+    write_assignment(state=state, identifier="GH8-20260819-184158", issue=8)
+    cancel_assignment(
+        assignment=read_assignments(state=state)[0], at=read_current_time()
+    )
+    gh.replies(
+        stdout=json.dumps(
+            {
+                "number": 8,
+                "title": "The issue title",
+                "closedByPullRequestsReferences": [{"number": PULL_REQUEST}],
+            }
+        ),
+        to="issue view",
+    )
+    gh.replies(
+        stdout=json.dumps({"number": PULL_REQUEST, "state": "OPEN", "isDraft": False}),
+        to="pr view",
+    )
+
+    found = observe(
+        config=config_with_routes(labels=[ASSIGNMENT_LABEL]),
+        assignments=read_assignments(state=state),
+    )[0]
+
+    assert found.claimed_here.value is IssueFactValue.FALSE
+    assert found.claimed_elsewhere.value is IssueFactValue.TRUE
+    assert found.claimed_elsewhere.evidence == (
+        f"a pull request is open on it: #{PULL_REQUEST}"
+    )
+    assert found.availability.value is IssueFactValue.FALSE
 
 
 def test_a_recoverable_setup_is_not_treated_as_an_external_claim(gh):

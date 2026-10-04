@@ -199,8 +199,8 @@ Each agent assignment has exactly one:
 
 An issue can receive more than one assignment over its lifetime, but a
 Dreamcatcher instance can never have more than one open assignment for the same
-issue. An agent assignment remains open until it is complete, including while
-its pull request is being wrapped up.
+issue. An agent assignment remains open until it is complete or cancelled,
+including while its pull request is being wrapped up.
 
 A resumed assignment round's input records the user posts relayed to it and the
 state of its pull request. The first round carries no input beyond its prompt,
@@ -248,6 +248,20 @@ later assignment for it. If the pull request was closed without being merged,
 the issue remains open and may receive another assignment after the previous
 assignment has completed.
 
+### Cancelling an assignment
+
+The user can **cancel** an open assignment to finish its pull request by hand. A
+cancelled assignment is no longer open, so Dreamcatcher runs no further rounds
+for it and relays no further user posts from its pull request. A round that is
+running when the user cancels is asked to stop, and the assignment is working
+until that round ends. A cancel cannot be undone.
+
+An assignment that is complete or cancelled has **ended**.
+
+Dreamcatcher leaves the pull request as it is, and while it is open it claims
+the issue elsewhere. If the user merges it, GitHub closes the issue. If the user
+closes it without merging, the issue may receive another assignment.
+
 ### Describing an agent round
 
 Number, purpose, recovery, and outcome describe different aspects of an agent
@@ -265,7 +279,7 @@ false, or unknown:
 - **Claimed here**: this Dreamcatcher instance has an open agent assignment for
   the issue.
 - **Claimed elsewhere**: the issue has an open linked pull request other than
-  the pull request belonging to its local assignment, if any.
+  the pull request belonging to its open local assignment, if any.
 - **Blocked**: an open issue dependency prevents work from starting.
 - **Routing conflict**: the issue carries more than one assignment label.
 
@@ -318,6 +332,7 @@ An agent assignment has one of these summary statuses in a status report:
 - **Fault**: two consecutive agent rounds for this assignment have exited with
   errors and ordinary recovery has stopped.
 - **Complete**: a wrap-up round has exited successfully.
+- **Cancelled**: the user has cancelled the assignment, and no round is running.
 - **Unknown**: Dreamcatcher cannot determine the assignment's status from what
   it can currently observe.
 
@@ -327,7 +342,7 @@ purpose, whether another round is required, and assignment health remain
 separate concepts even though they contribute to the summary.
 
 An issue that is claimed here has a corresponding open assignment. That
-assignment can have any assignment status except complete.
+assignment can have any assignment status except complete or cancelled.
 
 ### Issue conversation status
 
@@ -458,9 +473,10 @@ An assignment normally progresses as follows:
 
 ### Scheduling rounds in response to events
 
-Once an assignment exists, its pull request alone governs its rounds. Later
-ticks still observe the issue's labels, assignee and dependencies for the status
-report, but those facts do not decide that assignment's rounds.
+Once an assignment exists, its pull request alone governs its rounds until the
+assignment ends. Later ticks still observe the issue's labels, assignee and
+dependencies for the status report, but those facts do not decide that
+assignment's rounds.
 
 One or more new user posts cause an agent round to be scheduled. If a user posts
 again while that round is running, the later posts remain unrelayed and cause a
@@ -520,9 +536,10 @@ the cooldown ends, Dreamcatcher clears those faults and permits recovery. This
 deliberately simple policy prevents one work-specific failure from blocking all
 other work.
 
-After resolving an issue-specific problem, the user may request a retry. That
-request clears any current fault on the newest assignment and issue conversation
-without erasing their errored rounds, and the scheduler may start recovery
-rounds on later ticks. Only errors at or after the later of each work item's
-latest retry request and the latest completed global cooldown count towards a
-new fault.
+After resolving an issue-specific problem, the user may request a retry. A
+request from the command line clears any current fault on the newest assignment
+and issue conversation at the issue, and a request from the web page clears the
+fault of the one assignment or conversation that the page shows. Neither erases
+the errored rounds, and the scheduler may start recovery rounds on later ticks.
+Only errors at or after the later of each work item's latest retry request and
+the latest completed global cooldown count towards a new fault.

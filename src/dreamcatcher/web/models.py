@@ -1,7 +1,7 @@
 """Flask-free models for Dreamcatcher's web views."""
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Literal, Protocol
 
 from dreamcatcher.agent_rounds import AgentRoundPaths, AgentRoundRecord
 from dreamcatcher.status import AgentRoundRevision
@@ -104,13 +104,21 @@ class WebFeedCursor:
 
 
 @dataclass(frozen=True, kw_only=True)
+class WebAgentWorkControl:
+    """Represent one form that acts on the agent work a page shows."""
+
+    action: Literal["stop", "retry", "cancel"]
+    url: str
+
+
+@dataclass(frozen=True, kw_only=True)
 class WebAgentLiveState:
     """Represent the values of an agent page that its tail refreshes."""
 
     status: str
     detail: str
     rounds: tuple[WebAgentRound, ...]
-    stop_url: str | None
+    controls: tuple[WebAgentWorkControl, ...]
     hand_resume: WebHandResume | None
 
 
@@ -185,7 +193,7 @@ class WebHomeView:
     cooldown_message: str | None
     conversations: tuple[WebConversationCard, ...]
     active_assignments: tuple[WebAssignmentCard, ...]
-    complete_assignments: tuple[WebAssignmentCard, ...]
+    ended_assignments: tuple[WebAssignmentCard, ...]
     failed_setups: tuple[WebIssueRow, ...]
     issues: tuple[WebIssueRow, ...]
 

@@ -121,6 +121,14 @@ class ConversationStatus:
             harness_session_identifier=self.harness_session_identifier,
         )
 
+    @property
+    def faulted_round_number(self) -> int | None:
+        """The latest round while the conversation is in fault, else None."""
+        conversation = self.conversation
+        if conversation is None or self.value is not ConversationStatusValue.FAULT:
+            return None
+        return conversation.rounds[-1].number
+
     @cached_property
     def stoppable_round_paths(self) -> AgentRoundPaths | None:
         """The live round that can accept a stop request, when one exists."""

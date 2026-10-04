@@ -13,6 +13,11 @@ tagged.
 
 - Added `dreamcatcher stop` to request a stop for the running round of a
   selected assignment or issue conversation.
+- Added `dreamcatcher cancel` and a **Cancel** control on the assignment page,
+  so that you can finish an assignment's pull request by hand. A cancelled
+  assignment runs no further rounds and shows as **cancelled**. The web home
+  page and the terminal status view now group complete and cancelled assignments
+  as **ended**.
 - Reshaped the documentation around reader tasks: a start-to-finish tutorial,
   focused task guides, complete command and configuration references, this
   changelog, compatibility guidance and a testing account.

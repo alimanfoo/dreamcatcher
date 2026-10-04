@@ -1,1 +1,0 @@
-<div id="stop-control"{% if is_tail|default(false) %} hx-swap-oob="morph"{% endif %}>{%- if view.live.stop_url is not none -%}<form class="stop-form" method="post" action="{{ view.live.stop_url }}"><button class="stop-control" type="submit">stop</button></form>{%- endif -%}</div>

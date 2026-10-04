@@ -35,6 +35,10 @@ from status_fabrications import (
     written,
 )
 
+from dreamcatcher.agent_assignments import (
+    cancel_assignment,
+    read_assignments_for_issue,
+)
 from dreamcatcher.agent_rounds import (
     AssignmentRoundPurpose,
 )
@@ -174,7 +178,7 @@ def test_identifiers_remain_whole_when_the_assignment_table_folds(tmp_path):
 
     compact = "".join(status.split())
     assert "GH13-20260819-184158" in compact
-    assert "2completedassignments" in compact
+    assert "2endedassignments" in compact
 
 
 def test_assignments_are_rendered_in_attention_order(tmp_path, daemon):
@@ -195,7 +199,7 @@ def test_assignments_are_rendered_in_attention_order(tmp_path, daemon):
     assert [rendered.index(identifier) for identifier in identifiers] == sorted(
         rendered.index(identifier) for identifier in identifiers
     )
-    assert "1 completed assignment" in rendered
+    assert "2 ended assignments" in rendered
 
 
 @pytest.mark.parametrize("width", [60, 80])
@@ -213,26 +217,29 @@ def test_status_output_fits_one_line_without_hiding_later_assignments(
     assert f"GH31-{ASSIGNMENT_TIMESTAMP}" in rendered
 
 
-def test_completed_assignments_are_summarized(tmp_path, daemon):
+def test_ended_assignments_are_summarized(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_repeat_assignments(state=state)
 
     rendered = render_status_view(state=state)
 
-    assert "2 completed assignments" in rendered
+    assert "2 ended assignments" in rendered
     assert "GH13-20260818-090000" not in rendered
     assert "GH13-20260817-090000" not in rendered
 
 
-def test_only_completed_assignments_are_summarized(tmp_path):
+def test_only_ended_assignments_are_summarized(tmp_path):
     state = StateDirectory(root=tmp_path)
     completed_round = ended(minute=1, purpose=AssignmentRoundPurpose.WRAP_UP)
     written(state=state, issue=12, records=[completed_round])
-    written(state=state, issue=13, records=[completed_round])
+    written(state=state, issue=13, records=[ended(minute=1)])
+    cancel_assignment(
+        assignment=read_assignments_for_issue(state=state, issue=13)[0], at=PINNED
+    )
 
     rendered = render_status_view(state=state)
 
-    assert "2 completed assignments" in rendered
+    assert "2 ended assignments" in rendered
     assert "GH12-20260819-184158" not in rendered
     assert "GH13-20260819-184158" not in rendered
 

@@ -10,9 +10,15 @@ from webbrowser import open as open_browser
 from flask import Flask, Response, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 
+from dreamcatcher.agent_assignments import (
+    cancel_assignment,
+    read_assignment,
+    request_assignment_retry,
+)
 from dreamcatcher.agent_rounds import request_agent_round_stop
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.errors import ReportableError
+from dreamcatcher.issue_conversations import request_conversation_retry
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AssignmentStatus,
@@ -26,7 +32,11 @@ from dreamcatcher.web.feed import (
     decode_feed_cursor,
     read_agent_tail,
 )
-from dreamcatcher.web.models import WebAgentLiveState, WebFeedOwner
+from dreamcatcher.web.models import (
+    WebAgentLiveState,
+    WebAgentWorkControl,
+    WebFeedOwner,
+)
 from dreamcatcher.web.server import (
     WEB_HOST,
     WebServerRunner,
@@ -44,8 +54,8 @@ _HTMX_STOP_POLLING_STATUS = 286
 _DEFAULT_WEB_THEME = "matrix"
 _WEB_THEME_MARKS = {_DEFAULT_WEB_THEME: "phosphor", "nature": "ink"}
 _WEB_THEMES = tuple(_WEB_THEME_MARKS)
-_CROSS_ORIGIN_STOP_RESPONSE = (
-    "Stop requests must come from this Dreamcatcher page.",
+_CROSS_ORIGIN_POST_RESPONSE = (
+    "Requests that change agent work must come from this Dreamcatcher page.",
     403,
 )
 
@@ -59,8 +69,10 @@ def _create_app(
     """Create the web application for one local state directory.
 
     Pages read persisted status and feeds. A same-origin stop request can write
-    into the running round's directory. Page times use the machine's local zone
-    when zone is None.
+    into the running round's directory. A same-origin retry request can write
+    into the faulted work's record, and a same-origin cancel into the
+    assignment's record. Page times use the machine's local zone when zone is
+    None.
     """
     app = Flask(__name__, static_folder="../static", template_folder="../templates")
     app.config["TRUSTED_HOSTS"] = [WEB_HOST, "localhost"]
@@ -99,6 +111,18 @@ def _register_assignment_routes(
         view_func=partial(_request_assignment_stop, state=state, clock=clock),
         methods=["POST"],
     )
+    app.add_url_rule(
+        "/assignments/<identifier>/retry/<int:number>",
+        endpoint="request_assignment_retry",
+        view_func=partial(_request_assignment_retry, state=state, clock=clock),
+        methods=["POST"],
+    )
+    app.add_url_rule(
+        "/assignments/<identifier>/cancel",
+        endpoint="cancel_assignment",
+        view_func=partial(_cancel_assignment, state=state, clock=clock),
+        methods=["POST"],
+    )
 
 
 def _register_conversation_routes(
@@ -122,6 +146,12 @@ def _register_conversation_routes(
         "/conversations/<int:issue>/stop/<int:number>",
         endpoint="request_conversation_stop",
         view_func=partial(_request_conversation_stop, state=state, clock=clock),
+        methods=["POST"],
+    )
+    app.add_url_rule(
+        "/conversations/<int:issue>/retry/<int:number>",
+        endpoint="request_conversation_retry",
+        view_func=partial(_request_conversation_retry, state=state, clock=clock),
         methods=["POST"],
     )
 
@@ -165,22 +195,51 @@ def _show_assignment(
 def _compose_assignment_live_state(
     *, state: StateDirectory, status: AssignmentStatus, zone: tzinfo | None
 ) -> WebAgentLiveState:
-    paths = status.stoppable_round_paths
     return compose_agent_live_state(
         state=state,
         status=status,
         worktree=status.assignment.record.worktree,
         zone=zone,
-        stop_url=(
-            None
-            if paths is None
-            else url_for(
-                "request_assignment_stop",
-                identifier=status.assignment.identifier,
-                number=paths.number,
-            )
-        ),
+        controls=_compose_assignment_controls(status=status),
     )
+
+
+def _compose_assignment_controls(
+    *, status: AssignmentStatus
+) -> tuple[WebAgentWorkControl, ...]:
+    assignment = status.assignment
+    identifier = assignment.identifier
+    controls = []
+    paths = status.stoppable_round_paths
+    if paths is not None:
+        controls.append(
+            WebAgentWorkControl(
+                action="stop",
+                url=url_for(
+                    "request_assignment_stop",
+                    identifier=identifier,
+                    number=paths.number,
+                ),
+            )
+        )
+    number = status.faulted_round_number
+    if number is not None:
+        controls.append(
+            WebAgentWorkControl(
+                action="retry",
+                url=url_for(
+                    "request_assignment_retry", identifier=identifier, number=number
+                ),
+            )
+        )
+    if assignment.is_open:
+        controls.append(
+            WebAgentWorkControl(
+                action="cancel",
+                url=url_for("cancel_assignment", identifier=identifier),
+            )
+        )
+    return tuple(controls)
 
 
 def _show_assignment_tail(
@@ -234,22 +293,42 @@ def _compose_conversation_live_state(
     *, state: StateDirectory, status: ConversationStatus, zone: tzinfo | None
 ) -> WebAgentLiveState:
     conversation = status.conversation
-    paths = status.stoppable_round_paths
     return compose_agent_live_state(
         state=state,
         status=status,
         worktree=None if conversation is None else conversation.worktree,
         zone=zone,
-        stop_url=(
-            None
-            if paths is None
-            else url_for(
-                "request_conversation_stop",
-                issue=status.issue,
-                number=paths.number,
-            )
-        ),
+        controls=_compose_conversation_controls(status=status),
     )
+
+
+def _compose_conversation_controls(
+    *, status: ConversationStatus
+) -> tuple[WebAgentWorkControl, ...]:
+    controls = []
+    paths = status.stoppable_round_paths
+    if paths is not None:
+        controls.append(
+            WebAgentWorkControl(
+                action="stop",
+                url=url_for(
+                    "request_conversation_stop",
+                    issue=status.issue,
+                    number=paths.number,
+                ),
+            )
+        )
+    number = status.faulted_round_number
+    if number is not None:
+        controls.append(
+            WebAgentWorkControl(
+                action="retry",
+                url=url_for(
+                    "request_conversation_retry", issue=status.issue, number=number
+                ),
+            )
+        )
+    return tuple(controls)
 
 
 def _show_conversation_tail(
@@ -280,7 +359,7 @@ def _request_assignment_stop(
 ) -> ResponseReturnValue:
     """Request a stop for one assignment's live round."""
     if not _is_same_origin_request():
-        return _CROSS_ORIGIN_STOP_RESPONSE
+        return _CROSS_ORIGIN_POST_RESPONSE
     status = read_assignment_status(state=state, identifier=identifier, clock=clock)
     if status is None:
         return _missing_assignment_response(identifier=identifier)
@@ -299,7 +378,7 @@ def _request_conversation_stop(
 ) -> ResponseReturnValue:
     """Request a stop for one issue conversation's live round."""
     if not _is_same_origin_request():
-        return _CROSS_ORIGIN_STOP_RESPONSE
+        return _CROSS_ORIGIN_POST_RESPONSE
     status = read_conversation_status(state=state, issue=issue, clock=clock)
     if status is None:
         return _missing_conversation_response(issue=issue)
@@ -307,6 +386,69 @@ def _request_conversation_stop(
     if paths is not None and paths.number == number:
         request_agent_round_stop(paths=paths)
     return redirect(url_for("show_conversation", issue=issue), code=303)
+
+
+def _request_assignment_retry(
+    *,
+    state: StateDirectory,
+    clock: Callable[[], datetime],
+    identifier: str,
+    number: int,
+) -> ResponseReturnValue:
+    """Request a retry of one faulted assignment.
+
+    A submission whose round is no longer the faulted one changes nothing.
+    """
+    if not _is_same_origin_request():
+        return _CROSS_ORIGIN_POST_RESPONSE
+    status = read_assignment_status(state=state, identifier=identifier, clock=clock)
+    if status is None:
+        return _missing_assignment_response(identifier=identifier)
+    if status.faulted_round_number == number:
+        request_assignment_retry(assignment=status.assignment, at=clock())
+    return redirect(url_for("show_assignment", identifier=identifier), code=303)
+
+
+def _request_conversation_retry(
+    *,
+    state: StateDirectory,
+    clock: Callable[[], datetime],
+    issue: int,
+    number: int,
+) -> ResponseReturnValue:
+    """Request a retry of one faulted issue conversation.
+
+    A submission whose round is no longer the faulted one changes nothing.
+    """
+    if not _is_same_origin_request():
+        return _CROSS_ORIGIN_POST_RESPONSE
+    status = read_conversation_status(state=state, issue=issue, clock=clock)
+    if status is None:
+        return _missing_conversation_response(issue=issue)
+    conversation = status.conversation
+    if conversation is not None and status.faulted_round_number == number:
+        request_conversation_retry(conversation=conversation, at=clock())
+    return redirect(url_for("show_conversation", issue=issue), code=303)
+
+
+def _cancel_assignment(
+    *,
+    state: StateDirectory,
+    clock: Callable[[], datetime],
+    identifier: str,
+) -> ResponseReturnValue:
+    """Cancel one assignment so the user can finish its pull request by hand.
+
+    A submission for an assignment that has already ended changes nothing.
+    """
+    if not _is_same_origin_request():
+        return _CROSS_ORIGIN_POST_RESPONSE
+    assignment = read_assignment(state=state, identifier=identifier)
+    if assignment is None:
+        return _missing_assignment_response(identifier=identifier)
+    if assignment.is_open:
+        cancel_assignment(assignment=assignment, at=clock())
+    return redirect(url_for("show_assignment", identifier=identifier), code=303)
 
 
 def _is_same_origin_request() -> bool:

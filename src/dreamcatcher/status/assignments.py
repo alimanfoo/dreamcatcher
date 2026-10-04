@@ -41,6 +41,7 @@ class AssignmentStatusValue(StrEnum):
     NEEDS_USER_FEEDBACK = "needs user feedback"
     FAULT = "fault"
     COMPLETE = "complete"
+    CANCELLED = "cancelled"
     UNKNOWN = "unknown"
 
 
@@ -51,6 +52,7 @@ ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER = (
     AssignmentStatusValue.WAITING,
     AssignmentStatusValue.UNKNOWN,
     AssignmentStatusValue.COMPLETE,
+    AssignmentStatusValue.CANCELLED,
 )
 
 
@@ -65,18 +67,28 @@ class AssignmentStatus:
     observed_at: datetime | None
 
     @property
-    def is_over(self) -> bool:
-        """Whether nothing more can happen until the user acts."""
+    def has_ended(self) -> bool:
+        """Whether the assignment has ended and no round of it is still running."""
         return self.value in {
-            AssignmentStatusValue.FAULT,
             AssignmentStatusValue.COMPLETE,
+            AssignmentStatusValue.CANCELLED,
         }
 
     @property
+    def is_over(self) -> bool:
+        """Whether nothing more can happen until the user acts."""
+        return self.has_ended or self.value is AssignmentStatusValue.FAULT
+
+    @property
     def pull_request_state(self) -> str | None:
-        """The latest observed pull-request state in status-report words."""
-        observation = self.assignment.record.pull_request_observation
-        if observation is None:
+        """The latest observed pull-request state in status-report words.
+
+        A cancelled assignment has none, because nothing observes its pull
+        request once the user has taken it over.
+        """
+        record = self.assignment.record
+        observation = record.pull_request_observation
+        if observation is None or record.cancelled_at is not None:
             return None
         if observation.is_open:
             return "draft" if observation.is_draft else "ready"
@@ -114,6 +126,13 @@ class AssignmentStatus:
             harness=self.assignment.record.harness,
             harness_session_identifier=self.harness_session_identifier,
         )
+
+    @property
+    def faulted_round_number(self) -> int | None:
+        """The latest round while the assignment is in fault, else None."""
+        if self.value is not AssignmentStatusValue.FAULT:
+            return None
+        return self.assignment.rounds[-1].number
 
     @cached_property
     def stoppable_round_paths(self) -> AgentRoundPaths | None:
@@ -164,17 +183,21 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
 
     def derive(self, *, assignment: Assignment) -> AssignmentStatus:
         """Derive one assignment's status from its records and latest tick."""
-        status = self._derive_active_or_unfinished(assignment=assignment)
+        status = self._derive_working(assignment=assignment)
         if status is not None:
             return status
-        status = self._derive_lifecycle(assignment=assignment)
+        status = self._derive_ended(assignment=assignment)
+        if status is not None:
+            return status
+        status = self._derive_unfinished(assignment=assignment)
+        if status is not None:
+            return status
+        status = self._derive_unobserved(assignment=assignment)
         if status is not None:
             return status
         return self._derive_observation(assignment=assignment)
 
-    def _derive_active_or_unfinished(
-        self, *, assignment: Assignment
-    ) -> AssignmentStatus | None:
+    def _derive_working(self, *, assignment: Assignment) -> AssignmentStatus | None:
         if assignment.rounds:
             latest = assignment.rounds[-1]
             if self.is_round_working(record=latest):
@@ -189,6 +212,22 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
                     detail=detail,
                     latest_output=latest_output,
                 )
+        return None
+
+    def _derive_ended(self, *, assignment: Assignment) -> AssignmentStatus | None:
+        if assignment.is_open:
+            return None
+        return self._compose(
+            assignment=assignment,
+            value=(
+                AssignmentStatusValue.COMPLETE
+                if assignment.record.cancelled_at is None
+                else AssignmentStatusValue.CANCELLED
+            ),
+            detail=describe_count(number=len(assignment.rounds), noun="round"),
+        )
+
+    def _derive_unfinished(self, *, assignment: Assignment) -> AssignmentStatus | None:
         if self.has_fault(
             records=assignment.rounds,
             retry_requested_at=assignment.record.retry_requested_at,
@@ -220,13 +259,8 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
             )
         return None
 
-    def _derive_lifecycle(self, *, assignment: Assignment) -> AssignmentStatus | None:
-        if assignment.is_complete:
-            return self._compose(
-                assignment=assignment,
-                value=AssignmentStatusValue.COMPLETE,
-                detail=describe_count(number=len(assignment.rounds), noun="round"),
-            )
+    def _derive_unobserved(self, *, assignment: Assignment) -> AssignmentStatus | None:
+        """Derive the status of an assignment that no tick could have observed."""
         if not assignment.rounds:
             return self._compose(
                 assignment=assignment,

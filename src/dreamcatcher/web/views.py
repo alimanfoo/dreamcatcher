@@ -3,7 +3,7 @@
 import re
 from datetime import datetime, tzinfo
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import cast
 
 from dreamcatcher.issue_conversations import Conversation
 from dreamcatcher.state import StateDirectory
@@ -13,7 +13,6 @@ from dreamcatcher.status import (
     AgentRoundRevision,
     AgentRoundStatus,
     AssignmentStatus,
-    AssignmentStatusValue,
     ConversationStatus,
     DreamcatcherStatusReport,
     IssueFactValue,
@@ -25,6 +24,7 @@ from dreamcatcher.web.feed import read_agent_feed
 from dreamcatcher.web.models import (
     WebAgentLiveState,
     WebAgentRound,
+    WebAgentWorkControl,
     WebAssignmentCard,
     WebAssignmentView,
     WebConversationCard,
@@ -35,9 +35,6 @@ from dreamcatcher.web.models import (
     WebIssueRow,
 )
 from dreamcatcher.words import describe_countdown, describe_time
-
-if TYPE_CHECKING:
-    from dreamcatcher.agent_rounds import SuccessfulAgentRoundEnding
 
 _ISSUE_REFERENCE_PATTERN = re.compile(r"(?<!\w)(?:GH|#)(\d+)\b(?!-)")
 _GIT_REVISION_PATTERN = re.compile(r"\b[0-9a-f]{40}\b")
@@ -74,7 +71,7 @@ def compose_home_view(
         if report.active_global_cooldown is None
         else describe_time(at=report.active_global_cooldown.ends, zone=zone)
     )
-    active_assignments, complete_assignments = _compose_assignment_cards(report=report)
+    active_assignments, ended_assignments = _compose_assignment_cards(report=report)
     return WebHomeView(
         repository=report.repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(
@@ -91,7 +88,7 @@ def compose_home_view(
         ),
         conversations=_compose_conversation_cards(report=report),
         active_assignments=active_assignments,
-        complete_assignments=complete_assignments,
+        ended_assignments=ended_assignments,
         failed_setups=tuple(
             _compose_failed_setup_row(observation=setup)
             for setup in report.failed_assignment_setups
@@ -106,31 +103,23 @@ def _compose_assignment_cards(
     *, report: DreamcatcherStatusReport
 ) -> tuple[tuple[WebAssignmentCard, ...], tuple[WebAssignmentCard, ...]]:
     active_statuses = sorted(
-        (
-            status
-            for status in report.assignment_statuses
-            if status.value is not AssignmentStatusValue.COMPLETE
-        ),
+        (status for status in report.assignment_statuses if not status.has_ended),
         key=lambda status: ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER.index(
             status.value
         ),
     )
-    complete_statuses = sorted(
-        (
-            status
-            for status in report.assignment_statuses
-            if status.value is AssignmentStatusValue.COMPLETE
-        ),
-        key=_read_assignment_completion_time,
+    ended_statuses = sorted(
+        (status for status in report.assignment_statuses if status.has_ended),
+        key=lambda status: cast("datetime", status.assignment.ended_at),
         reverse=True,
     )
-    complete_assignments = tuple(
-        _compose_assignment_card(status=status) for status in complete_statuses
+    ended_assignments = tuple(
+        _compose_assignment_card(status=status) for status in ended_statuses
     )
     active_assignments = tuple(
         _compose_assignment_card(status=status) for status in active_statuses
     )
-    return active_assignments, complete_assignments
+    return active_assignments, ended_assignments
 
 
 def _compose_conversation_cards(
@@ -145,19 +134,6 @@ def _compose_conversation_cards(
             ),
         )
     )
-
-
-def _read_assignment_completion_time(status: AssignmentStatus, /) -> datetime:
-    """Return the completion time for sorted, which passes items by position.
-
-    The caller selects complete statuses, whose final round has a successful
-    ending.
-    """
-    ending = cast(
-        "SuccessfulAgentRoundEnding",
-        status.assignment.rounds[-1].ending,
-    )
-    return ending.at
 
 
 def _compose_assignment_card(*, status: AssignmentStatus) -> WebAssignmentCard:
@@ -210,14 +186,14 @@ def compose_agent_live_state(
     status: AssignmentStatus | ConversationStatus,
     worktree: Path | None,
     zone: tzinfo | None,
-    stop_url: str | None,
+    controls: tuple[WebAgentWorkControl, ...],
 ) -> WebAgentLiveState:
     """Return the values of an agent page that its tail refreshes."""
     return WebAgentLiveState(
         status=str(status.value),
         detail=status.detail,
         rounds=_compose_agent_rounds(round_statuses=status.round_statuses, zone=zone),
-        stop_url=stop_url,
+        controls=controls,
         hand_resume=_compose_hand_resume(
             state=state, worktree=worktree, command=status.hand_resume_command
         ),

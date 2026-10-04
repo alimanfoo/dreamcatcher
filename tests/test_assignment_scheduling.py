@@ -16,6 +16,7 @@ from records import write_assignment, write_round
 
 from dreamcatcher.agent_assignments import (
     AssignmentRoundInput,
+    cancel_assignment,
     read_assignments,
 )
 from dreamcatcher.agent_rounds import (
@@ -115,7 +116,7 @@ def found(
 ):
     """What the one assignment in that state directory needs next."""
     assignment = read_assignments(state=state)[0]
-    if assignment.is_complete:
+    if not assignment.is_open:
         return None
     inspected = create_assignment_scheduler(state=state)._inspect_assignment(
         assignment=assignment,
@@ -297,6 +298,39 @@ def test_a_stopped_assignment_uses_new_feedback_without_recovery(state, gh):
     assert isinstance(resume, AssignmentRoundCandidate)
     assert resume.recovery_reason is None
     assert len(resume.undelivered_posts) == 1
+
+
+def test_a_cancelled_assignment_is_not_inspected_for_rounds(state, gh):
+    ran(state=state, number=1, purpose=AssignmentRoundPurpose.IMPLEMENT)
+    gh.replies(
+        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+    )
+    cancel_assignment(assignment=read_assignments(state=state)[0], at=PINNED)
+
+    inspected = create_assignment_scheduler(state=state)._inspect_assignments(
+        assignments=read_assignments(state=state),
+        most_recent_cooldown_ended=None,
+        observed_at=PINNED,
+    )
+
+    assert inspected == []
+    assert gh.calls == []
+
+
+def test_a_round_started_for_an_assignment_cancelled_after_inspection_stops(
+    state, harnesses
+):
+    candidate = FirstAssignmentRoundCandidate(
+        assignment=read_assignments(state=state)[0]
+    )
+    cancel_assignment(assignment=candidate.assignment, at=PINNED)
+
+    started = create_assignment_scheduler(state=state).launch(
+        candidate=candidate, at=PINNED
+    )
+    started.wait()
+
+    assert started.paths.stop_request.is_file()
 
 
 def test_an_assignment_the_user_has_posted_on_answers_what_they_said(state, gh):
