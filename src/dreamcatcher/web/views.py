@@ -216,7 +216,7 @@ def compose_agent_live_state(
     return WebAgentLiveState(
         status=str(status.value),
         detail=status.detail,
-        rounds=compose_agent_rounds(round_statuses=status.round_statuses, zone=zone),
+        rounds=_compose_agent_rounds(round_statuses=status.round_statuses, zone=zone),
         stop_url=stop_url,
         hand_resume=_compose_hand_resume(
             state=state, worktree=worktree, command=status.hand_resume_command
@@ -303,7 +303,7 @@ def _compose_conversation_facts(*, conversation: Conversation) -> tuple[WebFact,
     )
 
 
-def compose_agent_rounds(
+def _compose_agent_rounds(
     *, round_statuses: list[AgentRoundStatus], zone: tzinfo | None
 ) -> tuple[WebAgentRound, ...]:
     """Return the round rows shown for one piece of agent work."""

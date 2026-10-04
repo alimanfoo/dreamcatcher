@@ -379,7 +379,7 @@ def test_assignment_feedback_status_uses_the_status_wording(tmp_path, daemon):
     )
 
     assert (
-        '<span id="assignment-status" '
+        '<span id="agent-work-status" '
         'class="chip status-needs-user-feedback">needs user feedback</span>'
     ) in page
     assert "[NEEDS USER FEEDBACK]" not in page
@@ -848,7 +848,7 @@ def test_a_tail_fragment_matches_its_golden(tmp_path, daemon, pytestconfig):
         path=FIXTURES / "web" / "tail.html",
         config=pytestconfig,
     )
-    assert 'id="assignment-detail"' in response.text
+    assert 'id="agent-work-detail"' in response.text
 
 
 def test_a_quiet_tail_has_no_appendable_text_nodes(tmp_path):
@@ -867,7 +867,7 @@ def test_a_quiet_tail_has_no_appendable_text_nodes(tmp_path):
         'hx-swap-oob="true"><span'
     )
     assert '</span><div id="stop-control"' in response.text
-    assert '</div><p id="assignment-detail"' in response.text
+    assert '</div><p id="agent-work-detail"' in response.text
     assert "</p><aside" in response.text
     assert '</aside><div id="hand-resume"' in response.text
     assert response.text.endswith("</div>")

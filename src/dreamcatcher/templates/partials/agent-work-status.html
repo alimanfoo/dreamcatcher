@@ -1,1 +1,1 @@
-<span id="{{ status_id }}" class="chip status-{{ live.status|replace(' ', '-') }}"{% if is_tail|default(false) %} hx-swap-oob="true"{% endif %}>{{ live.status }}</span>
+<span id="agent-work-status" class="chip status-{{ view.live.status|replace(' ', '-') }}"{% if is_tail|default(false) %} hx-swap-oob="true"{% endif %}>{{ view.live.status }}</span>

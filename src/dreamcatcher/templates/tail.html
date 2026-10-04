@@ -3,10 +3,10 @@
 {%- endfor -%}
 {%- if tail.has_empty_feed_placeholder and tail.feed_rounds -%}<p id="empty-feed" hx-swap-oob="delete"></p>{%- endif -%}
 <input type="hidden" id="cursor" name="cursor" value="{{ tail.cursor }}" hx-swap-oob="true">
-{%- with live=tail.live, is_tail=true -%}
+{%- with view=tail, is_tail=true -%}
   {%- include "partials/agent-work-status.html" -%}
   {%- include "partials/stop-control.html" -%}
-  <p id="{{ status_id | replace('-status', '-detail') }}" class="assignment-detail" hx-swap-oob="true">{{ live.detail }}</p>
+  {%- include "partials/agent-work-detail.html" -%}
   {%- include "partials/assignment-rounds.html" -%}
   {%- include "partials/hand-resume.html" -%}
 {%- endwith %}

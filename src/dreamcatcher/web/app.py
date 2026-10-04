@@ -202,7 +202,6 @@ def _show_assignment_tail(
         owner=status.assignment,
         live=_compose_assignment_live_state(state=state, status=status, zone=zone),
         is_terminal=status.is_over,
-        status_id="assignment-status",
         zone=zone,
     )
 
@@ -268,7 +267,6 @@ def _show_conversation_tail(
         owner=status.conversation,
         live=_compose_conversation_live_state(state=state, status=status, zone=zone),
         is_terminal=status.is_over,
-        status_id="conversation-status",
         zone=zone,
     )
 
@@ -321,7 +319,6 @@ def _show_agent_tail(
     owner: WebFeedOwner | None,
     live: WebAgentLiveState,
     is_terminal: bool,
-    status_id: str,
     zone: tzinfo | None,
 ) -> str | tuple[str, int]:
     """Render incremental feed output for an assignment or conversation."""
@@ -339,7 +336,7 @@ def _show_agent_tail(
         _HTMX_STOP_POLLING_STATUS if not tail.feed_rounds and is_terminal else 200
     )
     return (
-        render_template("tail.html", tail=tail, status_id=status_id),
+        render_template("tail.html", tail=tail),
         response_status,
     )
 

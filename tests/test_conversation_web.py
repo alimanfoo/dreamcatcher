@@ -351,7 +351,7 @@ def test_conversation_tail_returns_new_output_and_advances_its_cursor(tmp_path):
     assert response.status_code == 200
     assert "One more detail." in response.text
     assert f'value="1:{feed.stat().st_size}"' in response.text
-    assert 'id="conversation-status"' in response.text
+    assert 'id="agent-work-status"' in response.text
 
 
 def test_an_ineligible_conversation_stops_empty_tail_polling(tmp_path):
@@ -449,7 +449,7 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
 
     assert response.status_code == 200
     assert "I found the answer." not in response.text
-    assert 'id="conversation-detail"' in response.text
+    assert 'id="agent-work-detail"' in response.text
     assert "issue is not eligible for conversation" in response.text
     assert response.text.count("round 2: discuss") == 1
     assert response.text.count("code revision abc123 -&gt; def456") == 1

@@ -1,9 +1,9 @@
 <div id="hand-resume" class="hand-resume"{% if is_tail|default(false) %} hx-swap-oob="morph"{% endif %}>
-{%- if live.hand_resume %}
+{%- if view.live.hand_resume %}
         <details class="manual-recovery">
           <summary>resume by hand</summary>
-          <pre>cd {{ live.hand_resume.worktree }}
-{{ live.hand_resume.command }}</pre>
+          <pre>cd {{ view.live.hand_resume.worktree }}
+{{ view.live.hand_resume.command }}</pre>
         </details>
       {% endif -%}
 </div>
