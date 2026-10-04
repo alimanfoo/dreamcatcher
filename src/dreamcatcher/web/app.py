@@ -5,7 +5,6 @@ from collections.abc import Callable
 from contextlib import suppress
 from datetime import datetime, tzinfo
 from functools import partial
-from typing import cast
 from webbrowser import open as open_browser
 
 from flask import Flask, Response, redirect, render_template, request, url_for
@@ -19,7 +18,7 @@ from dreamcatcher.agent_assignments import (
 from dreamcatcher.agent_rounds import request_agent_round_stop
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.issue_conversations import Conversation, request_conversation_retry
+from dreamcatcher.issue_conversations import request_conversation_retry
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AssignmentStatus,
@@ -388,7 +387,10 @@ def _request_assignment_retry(
     identifier: str,
     number: int,
 ) -> ResponseReturnValue:
-    """Request recovery for one assignment that is still in fault at a round."""
+    """Request a retry of one faulted assignment.
+
+    A submission whose round is no longer the faulted one changes nothing.
+    """
     if not _is_same_origin_request():
         return _CROSS_ORIGIN_POST_RESPONSE
     status = read_assignment_status(state=state, identifier=identifier, clock=clock)
@@ -406,16 +408,18 @@ def _request_conversation_retry(
     issue: int,
     number: int,
 ) -> ResponseReturnValue:
-    """Request recovery for one issue conversation still in fault at a round."""
+    """Request a retry of one faulted issue conversation.
+
+    A submission whose round is no longer the faulted one changes nothing.
+    """
     if not _is_same_origin_request():
         return _CROSS_ORIGIN_POST_RESPONSE
     status = read_conversation_status(state=state, issue=issue, clock=clock)
     if status is None:
         return _missing_conversation_response(issue=issue)
-    if status.faulted_round_number == number:
-        request_conversation_retry(
-            conversation=cast("Conversation", status.conversation), at=clock()
-        )
+    conversation = status.conversation
+    if conversation is not None and status.faulted_round_number == number:
+        request_conversation_retry(conversation=conversation, at=clock())
     return redirect(url_for("show_conversation", issue=issue), code=303)
 
 

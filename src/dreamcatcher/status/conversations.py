@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from functools import cached_property
-from typing import cast
 
 from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
@@ -125,9 +124,10 @@ class ConversationStatus:
     @property
     def faulted_round_number(self) -> int | None:
         """The latest round while the conversation is in fault, else None."""
-        if self.value is not ConversationStatusValue.FAULT:
+        conversation = self.conversation
+        if conversation is None or self.value is not ConversationStatusValue.FAULT:
             return None
-        return cast("Conversation", self.conversation).rounds[-1].number
+        return conversation.rounds[-1].number
 
     @cached_property
     def stoppable_round_paths(self) -> AgentRoundPaths | None:
