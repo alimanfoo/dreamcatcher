@@ -190,16 +190,9 @@ class Scheduler:
                 work_kind=work_kind,
             )
             launched_identifiers.append(identifier)
-        if len(self.rounds) >= self.max_agents and (
-            was_at_capacity or candidates.assignments or candidates.conversations
-        ):
-            record = record.model_copy(
-                update={
-                    "hold": combine_scheduler_failures(
-                        failures=[self._describe_capacity(), record.hold]
-                    )
-                }
-            )
+        record = self._record_capacity_hold(
+            record=record, was_at_capacity=was_at_capacity, candidates=candidates
+        )
         return record.model_copy(
             update={"launched_agent_work_identifiers": launched_identifiers}
         )
@@ -280,6 +273,26 @@ class Scheduler:
         return record.model_copy(
             update={
                 "hold": combine_scheduler_failures(failures=[record.hold, str(failure)])
+            }
+        )
+
+    def _record_capacity_hold(
+        self,
+        *,
+        record: SchedulerRecord,
+        was_at_capacity: bool,
+        candidates: _ReadyAgentWork,
+    ) -> SchedulerRecord:
+        """Hold at capacity unless this tick filled it and nothing waits."""
+        if len(self.rounds) < self.max_agents or not (
+            was_at_capacity or candidates.assignments or candidates.conversations
+        ):
+            return record
+        return record.model_copy(
+            update={
+                "hold": combine_scheduler_failures(
+                    failures=[self._describe_capacity(), record.hold]
+                )
             }
         )
 

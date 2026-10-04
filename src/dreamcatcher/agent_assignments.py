@@ -57,7 +57,7 @@ from dreamcatcher.harness_adapters import (
     HarnessSessionIdentifier,
     refuse_reportable_harness_session_identifier,
 )
-from dreamcatcher.harnesses import find_harness_session_identifier_in_output
+from dreamcatcher.harnesses import find_harness_session_identifier
 from dreamcatcher.prompts import compose_first_round_prompt
 from dreamcatcher.state import StateDirectory
 
@@ -171,6 +171,18 @@ class Assignment:
         if isinstance(ending, ErroredAgentRoundEnding):
             return f"the last round failed (exit {ending.status})"
         return None
+
+    def find_harness_session_identifier(self) -> HarnessSessionIdentifier | None:
+        """Return the recorded or recoverable harness session identifier."""
+        return find_harness_session_identifier(
+            harness=self.record.harness,
+            agent_work_identifier=self.identifier,
+            recorded=self.record.harness_session_identifier,
+            raw_outputs=(
+                self.compose_round_paths(number=round_record.number).raw_output
+                for round_record in reversed(self.rounds)
+            ),
+        )
 
     def compose_round_paths(self, *, number: int) -> AgentRoundPaths:
         """Return the worktree and file paths for a numbered round.
@@ -465,25 +477,6 @@ def read_user_post_delivery_cursor(*, assignment: Assignment) -> str:
         if round_input.user_posts:
             return round_input.user_posts[-1].written_at
     return ""
-
-
-def find_assignment_harness_session_identifier(
-    *, assignment: Assignment
-) -> HarnessSessionIdentifier | None:
-    """Return the recorded or recoverable harness session identifier."""
-    if assignment.record.harness_session_identifier is not None:
-        return assignment.record.harness_session_identifier
-    for round_record in reversed(assignment.rounds):
-        identifier = find_harness_session_identifier_in_output(
-            harness=assignment.record.harness,
-            agent_work_identifier=assignment.identifier,
-            raw_output=assignment.compose_round_paths(
-                number=round_record.number
-            ).raw_output,
-        )
-        if identifier is not None:
-            return identifier
-    return None
 
 
 def record_assignment_harness_session_identifier(

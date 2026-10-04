@@ -250,9 +250,6 @@ the ledger for E1. A waiver with no reason a reader can find is a violation.
 
 Before each major or minor release, [the release checklist](releasing.md) runs
 the consistency review, triages the open issues and measures every criterion,
-reading the three enduring documents against the code. `docs/measurement.md`
-holds the latest results, and a phase plans its work from them. Each shortfall
-is an issue, and none holds a release back.
-
-The first measurement is the
-[baseline of 2026-09-30](../specs/2026-09-30-engineering-standard/roadmap.md).
+reading the three enduring documents against the code.
+[The measurement](measurement.md) holds the latest results, and a phase plans
+its work from them. Each shortfall is an issue, and none holds a release back.

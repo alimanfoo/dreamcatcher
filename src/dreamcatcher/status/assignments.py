@@ -8,7 +8,6 @@ from typing import cast
 
 from dreamcatcher.agent_assignments import (
     Assignment,
-    find_assignment_harness_session_identifier,
 )
 from dreamcatcher.agent_rounds import AgentRoundPaths
 from dreamcatcher.feed import describe_agent_round_start, read_last_feed_line
@@ -105,7 +104,7 @@ class AssignmentStatus:
     @cached_property
     def harness_session_identifier(self) -> HarnessSessionIdentifier | None:
         """The recorded or recoverable harness session identifier."""
-        return find_assignment_harness_session_identifier(assignment=self.assignment)
+        return self.assignment.find_harness_session_identifier()
 
     @cached_property
     def hand_resume_command(self) -> list[str] | None:

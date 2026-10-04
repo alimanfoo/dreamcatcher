@@ -532,8 +532,28 @@ Work:
 
 Check: K3, K4 and E3 met.
 
+### Stage 6 measurement, 2026-10-04
+
+- **K3 met.** The triage rewrote 24 open issues in the ontology's words and
+  closed five: three whose work was done and two that no longer applied. The
+  baseline's list of six undercounted, because it looked for retired words the
+  ontology never recorded.
+- **K4 met.** #377 answered the definition of done by number, under its own
+  heading, and so does the pull request that records this measurement.
+- **E3 met.** The ontology holds 21 concepts, as at the baseline, and none was
+  added without a case.
+
+The first run of the release checklist's checks found shortfalls beyond this
+stage's own criteria. The pull request that records this measurement fixed the
+mechanical ones: six functions over the S2 bar, an identical lookup for each
+kind of agent work, and 20 statements in the ontology and architecture that the
+code contradicted. The rest are issues, and
+[the measurement page](../../docs/measurement.md) lists each one against its
+criterion.
+
 ## Completion
 
-This phase is complete when every row of the baseline table reads "Met", the
-measurement has been repeated and recorded in `docs/measurement.md`, and the
-next phase's spec can begin from a standard that holds.
+This phase is complete when its six stages are done and the measurement has been
+repeated and recorded on [the measurement page](../../docs/measurement.md). A
+criterion that still falls short is an issue, as it is at a release, and the
+next phase plans its work from those issues.

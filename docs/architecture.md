@@ -33,7 +33,8 @@ domain phrase into a class. In particular, it should:
 - record the daemon process identifier;
 - reconcile round records that an earlier daemon left without an ending by
   ending their recorded process trees at startup, then asking the round boundary
-  to record them as interrupted;
+  to record them as stopped when the user asked to stop them, and otherwise as
+  interrupted;
 - call the scheduler repeatedly;
 - wait for the run's requested interval between ticks; and
 - stop active child processes during shutdown.
@@ -47,19 +48,19 @@ The scheduler package owns all decisions about what work starts and when.
 
 One scheduler tick:
 
-1. observes the relevant local, process, configuration, and GitHub facts;
-2. reconciles incomplete assignment setup;
-3. applies the run's requested capacity and global-cooldown constraints;
-4. finds the highest-priority assignment candidate, considering existing
-   assignment rounds before dispatching a new assignment for the oldest
-   available issue;
-5. finds the highest-priority conversation candidate, ranking recovery before
-   the oldest waiting fresh comment;
-6. alternates between the two kinds when both have candidates, without changing
+1. observes the relevant local, process, configuration, and GitHub facts,
+   including whether each incomplete assignment setup can resume;
+2. ranks the assignment candidates, considering existing assignment rounds
+   before dispatching a new assignment for the oldest available issue;
+3. ranks the conversation candidates, putting recovery before the oldest waiting
+   fresh comment;
+4. starts a global cooldown when the counted faults call for one, and launches
+   nothing while a cooldown is active;
+5. alternates between the two kinds when both have candidates, without changing
    either kind's internal order;
-7. performs scheduling actions until capacity is full or no candidate remains;
-   and
-8. returns a `SchedulerRecord` for operational reporting.
+6. performs scheduling actions until the run's requested capacity is full or no
+   candidate remains; and
+7. returns a `SchedulerRecord` for operational reporting.
 
 The daemon persists the returned `SchedulerRecord` and reports it in its output.
 A scheduler tick that fails before returning one is reported in daemon output
@@ -82,8 +83,8 @@ performs both operations in one scheduling action, starting the first round as
 soon as assignment setup succeeds. Keeping the operations separate preserves
 clear ownership. If the combined action is interrupted between the operations,
 the complete assignment record shows that its first round is missing, and the
-scheduler finishes the action before ordinary scheduling. This does not create a
-separate class of normally scheduled work.
+scheduler ranks finishing the action ahead of every other assignment candidate.
+This does not create a separate class of normally scheduled work.
 
 For every new round, the scheduler derives purpose and recovery independently. A
 terminal pull request requires wrap up; otherwise a draft pull request calls for
@@ -138,9 +139,11 @@ Conversation harness permissions reinforce the no-implementation boundary while
 allowing issue actions that the user requests. Claude allows selected `gh issue`
 commands and `gh api` while denying direct editing and Git mutations. Codex runs
 in a networked workspace-write sandbox without approval escalation. Each prompt
-forbids source changes, Git mutations, pull-request changes and direct reply
-posting, and requires the agent marker on every other GitHub post that the agent
-makes.
+that delivers a comment batch forbids source changes, Git mutations,
+pull-request changes and direct reply posting. A recovery prompt resumes the
+harness session that already received those instructions, or follows the first
+prompt in a replacement session. Every prompt requires the agent marker on every
+other GitHub post that the agent makes.
 
 A conversation round posts its own answer. The conversation launcher gives the
 round a finisher that posts to the issue, so the shared round runner knows
@@ -178,8 +181,8 @@ of an agent assignment. It should provide cohesive operations to:
 Assignment setup coordinates lower-level Git, GitHub, configuration, and
 document operations. As one recoverable workflow it:
 
-1. allocates the agent assignment identifier;
-2. fetches the current main branch;
+1. fetches the current main branch;
+2. allocates the agent assignment identifier;
 3. creates the assignment branch and worktree;
 4. makes an empty commit and pushes the branch;
 5. opens a linked draft pull request;
@@ -188,7 +191,7 @@ document operations. As one recoverable workflow it:
    first round immediately.
 
 An interruption can leave an incomplete assignment setup: a worktree and branch
-without a valid assignment record. On a later tick, the assignment module checks
+without an assignment record. On a later tick, the assignment module checks
 whether it can safely resume the assignment setup. If it cannot, it returns the
 reason. The scheduler records that reason as evidence that claimed elsewhere is
 unknown, unless an open linked pull request already proves the claim true. The
@@ -223,8 +226,8 @@ operations to:
 - let its owner finish a round whose harness succeeded, before the ending;
 - record a successful or errored ending;
 - interrupt the process tree safely; and
-- record an interruption when the daemon finds a round record that an earlier
-  daemon left without an ending.
+- record an interruption, or a stop when the user asked for one, when the daemon
+  finds a round record that an earlier daemon left without an ending.
 
 `agent_assignments.py` owns `AssignmentRoundInput`, the pull request state and
 relayed user posts that a resumed assignment round receives beside its prompt.
@@ -238,8 +241,8 @@ The scheduler decides which purpose and recovery flag a new round has. The round
 boundary executes and records that decision; it does not inspect the pull
 request or select later work.
 
-A round is running while it has no terminal outcome and its process is alive.
-Successful, errored, interrupted, and stopped are terminal outcomes.
+A round is running while it has no terminal outcome. Successful, errored,
+interrupted, and stopped are terminal outcomes.
 
 A round may have an internal collection of file paths, but its owner remains the
 domain object shared across boundaries.
@@ -268,16 +271,17 @@ projections. Documents owned by Dreamcatcher remain strict.
 
 ### User-post relay
 
-`relay.py` owns the act of selecting user posts not yet delivered to the agent
-and preparing them as input to an agent round. It compares normalized user posts
-from the GitHub boundary with the assignment's delivery position, read from the
-newest recorded round input that contains posts.
+`relay.py` owns the act of selecting user posts not yet delivered to the agent,
+oldest first. It compares normalized user posts from the GitHub boundary with
+the assignment's delivery position, read from the newest recorded round input
+that contains posts.
 
 Relay does not define a separate inbox domain entity and does not decide when a
 round should run. The scheduler determines whether unrelayed user posts require
-work; the relay prepares the posts, and the round input records the newest post
-accepted for delivery before its process starts. Posts made while a round is
-running remain beyond that position and are available to a later round.
+work; the relay selects the posts, the scheduler places them in the round's
+input, and the round input records the newest post accepted for delivery before
+its process starts. Posts made while a round is running remain beyond that
+position and are available to a later round.
 
 ### Harness adapters
 
@@ -418,17 +422,18 @@ One route of each kind may match at the same time.
 
 ### State and documents
 
-`state.py` owns the paths within `.dreamcatcher/` and the mechanics required to
-bootstrap that directory. A state-format constant selects the versioned root,
-currently `.dreamcatcher/v5/`, so one format never reads another format's files.
-The shared `.dreamcatcher/daemon.pid` lock stays outside that root, so daemons
-using different formats still cannot run against one checkout together. It is a
-strict document containing the daemon's PID and process start time. A reader
-accepts it only while both values still identify the same live process, so a PID
-that the operating system has reused does not make a dead daemon look live. The
-module should remain deliberately small. It must not contain collections of
-issues or assignments selected for work, scheduling decisions, or status
-projections.
+`state.py` owns the top-level paths within `.dreamcatcher/` and the mechanics
+required to bootstrap that directory. The modules that own assignments,
+conversations and rounds name the files within their own directories. A
+state-format constant selects the versioned root, currently `.dreamcatcher/v5/`,
+so one format never reads another format's files. The shared
+`.dreamcatcher/daemon.pid` lock stays outside that root, so daemons using
+different formats still cannot run against one checkout together. It is a strict
+document containing the daemon's PID and process start time. A reader accepts it
+only while both values still identify the same live process, so a PID that the
+operating system has reused does not make a dead daemon look live. The module
+should remain deliberately small. It must not contain collections of issues or
+assignments selected for work, scheduling decisions, or status projections.
 
 The on-disk layout follows ownership:
 
@@ -473,7 +478,8 @@ acknowledged work.
 
 An assignment record persists:
 
-- the issue and assignment identifiers;
+- the issue identifier, while the assignment identifier names the directory that
+  holds the record;
 - the issue title captured during assignment setup;
 - the dispatch label and selected harness, model, effort and prompt, plus its
   harness session identifier once known;
@@ -494,7 +500,7 @@ A round record persists:
 
 An assignment round input that carries user posts establishes the delivery
 position at its newest post. The assignment reads that position by scanning its
-recorded round inputs from newest to oldest; no separate cursor file exists.
+recorded round inputs from newest to oldest.
 
 A conversation record persists its issue and title, chosen dispatch label and
 harness settings, harness session identifier and latest user retry request. The
@@ -548,15 +554,16 @@ These rules keep the scheduling loop imperative and straightforward without
 turning every possible action into an abstract command hierarchy.
 
 `tests/test_architecture.py` checks each rule here that keeps one module from
-reaching another through its imports, directly or through another module.
+reaching another through its imports, directly or through another module. It
+checks the status rule on the scheduler modules that status imports directly.
 
 ## Agent-facing contract
 
-The assignment-skill contract is a third enduring design document alongside this
-architecture and the ontology. It should describe the protocol between
-Dreamcatcher and an assignment skill, not implementation history.
+The [agent-facing contract](../CONTRACT.md) describes the protocol between
+Dreamcatcher and an assignment skill, and the instructions that an issue
+conversation follows, not implementation history.
 
-The contract should establish that:
+For assignments, the contract should establish that:
 
 - Dreamcatcher provides the issue, branch, worktree, and already-open draft pull
   request;
