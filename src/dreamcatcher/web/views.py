@@ -388,7 +388,6 @@ def _describe_daemon(
 
 def _compose_instance_facts(*, report: DreamcatcherStatusReport) -> tuple[WebFact, ...]:
     daemon = report.daemon
-    scheduler_failures = "; ".join(report.scheduler_failures) or None
     values: tuple[tuple[str, str | None, bool], ...] = (
         (
             "harness",
@@ -417,7 +416,11 @@ def _compose_instance_facts(*, report: DreamcatcherStatusReport) -> tuple[WebFac
             ),
             False,
         ),
-        ("scheduler failures", scheduler_failures, scheduler_failures is not None),
+        (
+            "scheduler failures",
+            report.scheduler_failures,
+            report.scheduler_failures is not None,
+        ),
     )
     return tuple(
         WebFact(label=label, value=value, is_warning=is_warning)

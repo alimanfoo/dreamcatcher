@@ -171,7 +171,9 @@ class Scheduler:
                     at=record.at,
                 )
             except ReportableError as failure:
-                record = self._record_launch_failure(record=record, failure=failure)
+                record = record.model_copy(
+                    update={"failures": [*record.failures, str(failure)]}
+                )
                 self._clear_candidates(work_kind=work_kind, candidates=candidates)
                 continue
             identifier = launched_round.agent_work_identifier
@@ -259,11 +261,6 @@ class Scheduler:
             candidates.assignments.clear()
         else:
             candidates.conversations.clear()
-
-    def _record_launch_failure(
-        self, *, record: SchedulerRecord, failure: ReportableError
-    ) -> SchedulerRecord:
-        return record.model_copy(update={"failures": [*record.failures, str(failure)]})
 
     def _record_capacity_hold(
         self,

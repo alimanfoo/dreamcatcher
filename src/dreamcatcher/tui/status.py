@@ -136,7 +136,7 @@ def _compose_instance_rows(
             ),
         ),
         ("global cooldown", cooldown),
-        ("scheduler failures", "; ".join(report.scheduler_failures) or None),
+        ("scheduler failures", report.scheduler_failures),
     )
 
 

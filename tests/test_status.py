@@ -146,7 +146,7 @@ def test_an_empty_instance_reports_unknown_capacity_and_no_work(tmp_path):
     assert found.daemon.dreamcatcher_version is None
     assert found.latest_scheduler_tick is None
     assert found.daemon.interval_seconds is None
-    assert found.scheduler_failures == []
+    assert found.scheduler_failures is None
     assert found.daemon.max_agents is None
     assert found.running_agents == 0
     assert found.active_global_cooldown is None
@@ -687,7 +687,7 @@ def test_an_active_cooldown_and_scheduler_failures_are_instance_facts(running):
 
     assert found.latest_scheduler_tick == PINNED
     assert found.daemon.interval_seconds == DEFAULT_INTERVAL_SECONDS
-    assert found.scheduler_failures == ["could not start assignment"]
+    assert found.scheduler_failures == "could not start assignment"
     assert found.daemon.max_agents == 3
     assert found.active_global_cooldown == cooldown
 
@@ -698,7 +698,7 @@ def test_a_stopped_daemon_has_no_current_scheduler_failures(state):
         tick=SchedulerRecord(at=PINNED, failures=["could not start assignment"]),
     )
 
-    assert report(state=state).scheduler_failures == []
+    assert report(state=state).scheduler_failures is None
 
 
 def test_a_blocked_issue_is_reported_with_its_evidence(state):
