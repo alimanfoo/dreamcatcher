@@ -24,6 +24,15 @@ def live_web(tmp_path) -> Iterator[str]:
         yield address
 
 
+def wait_for_refresh(*, page: Page) -> None:
+    """Wait until the page's next refresh has been swapped in and settled."""
+    page.evaluate(
+        """() => new Promise((resolve) => {
+          document.body.addEventListener("htmx:afterSettle", resolve, { once: true });
+        })"""
+    )
+
+
 def locate_first_line_of_round(*, page: Page, number: int) -> Locator:
     """Locate the first feed line beneath one round boundary."""
     return page.locator(f"#feed-round-{number} + .feed-line")
@@ -59,3 +68,14 @@ def test_a_round_link_brings_its_round_into_view_from_the_tail(
           priority: element.style.getPropertyPriority("position"),
         })"""
     ) == {"value": "sticky", "priority": "important"}
+
+
+def test_a_refresh_leaves_an_opened_section_open(page: Page, live_web: str) -> None:
+    page.goto(live_web)
+    complete = page.locator("details.complete-assignments")
+    complete.locator("summary").click()
+    expect(complete).to_have_attribute("open", "")
+
+    wait_for_refresh(page=page)
+
+    expect(complete).to_have_attribute("open", "")

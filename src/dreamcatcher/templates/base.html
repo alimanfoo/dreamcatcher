@@ -12,6 +12,7 @@
 {% endif %}
     <script src="{{ url_for('static', filename='vendor/htmx-2.0.10.min.js') }}" defer></script>
     <script src="{{ url_for('static', filename='vendor/idiomorph-ext-0.7.4.min.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='base.js') }}" defer></script>
   </head>
   <body hx-ext="morph">
     {% block content %}{% endblock %}
