@@ -164,7 +164,7 @@ if (assignmentSidebar !== null) {
 document.addEventListener("submit", (event) => {
   const form = event.target;
   if (
-    form.matches(".cancel-form") &&
+    form.dataset.confirmation !== undefined &&
     !window.confirm(form.dataset.confirmation)
   ) {
     event.preventDefault();

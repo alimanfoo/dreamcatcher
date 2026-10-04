@@ -235,6 +235,70 @@ def test_conversation_stop_requests_must_come_from_the_page(tmp_path):
     assert response.status_code == 403
 
 
+def test_conversation_page_requests_a_retry_for_its_fault(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    _fabricate_faulted_conversation(state=state)
+    client = application(state=state).test_client()
+
+    page = client.get("/conversations/8")
+
+    assert 'action="/conversations/8/retry/2"' in page.text
+
+    response = client.post(
+        "/conversations/8/retry/2", headers={"Origin": "http://localhost"}
+    )
+
+    assert response.status_code == 303
+    assert response.location == "/conversations/8"
+    conversation = read_conversation(state=state, issue=8)
+    assert conversation is not None
+    assert conversation.record.retry_requested_at == LOOKED_AT
+    assert (
+        'action="/conversations/8/retry/2"' not in client.get("/conversations/8").text
+    )
+
+
+def test_an_old_conversation_retry_submission_cannot_clear_a_newer_fault(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    _fabricate_faulted_conversation(state=state)
+    client = application(state=state).test_client()
+
+    response = client.post(
+        "/conversations/8/retry/1", headers={"Origin": "http://localhost"}
+    )
+
+    assert response.status_code == 303
+    conversation = read_conversation(state=state, issue=8)
+    assert conversation is not None
+    assert conversation.record.retry_requested_at is None
+
+
+def test_an_unknown_conversation_cannot_receive_a_retry_request(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    client = application(state=state).test_client()
+
+    response = client.post(
+        "/conversations/8/retry/2", headers={"Origin": "http://localhost"}
+    )
+
+    assert response.status_code == 404
+
+
+def test_conversation_retry_requests_must_come_from_the_page(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    _fabricate_faulted_conversation(state=state)
+    client = application(state=state).test_client()
+
+    response = client.post(
+        "/conversations/8/retry/2", headers={"Origin": "https://example.com"}
+    )
+
+    assert response.status_code == 403
+    conversation = read_conversation(state=state, issue=8)
+    assert conversation is not None
+    assert conversation.record.retry_requested_at is None
+
+
 def test_conversation_page_with_an_unreadable_input_still_renders(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
@@ -258,8 +322,8 @@ def test_conversation_page_shows_a_failed_round_waiting_to_be_recovered(tmp_path
     assert "round 1 errored (exit 2)" in page
 
 
-def test_conversation_page_shows_two_errors_as_a_fault(tmp_path):
-    state = StateDirectory(root=tmp_path)
+def _fabricate_faulted_conversation(*, state: StateDirectory) -> None:
+    """Save conversation GH8 with two consecutive errored rounds."""
     fabricate_conversation(state=state, status=2, is_eligible=True)
     directory = state.conversations / "GH8"
     write_round(
@@ -291,6 +355,11 @@ def test_conversation_page_shows_two_errors_as_a_fault(tmp_path):
         ),
         path=directory / "rounds" / "2" / "inbox.json",
     )
+
+
+def test_conversation_page_shows_two_errors_as_a_fault(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    _fabricate_faulted_conversation(state=state)
 
     page = application(state=state).test_client().get("/conversations/8").text
 

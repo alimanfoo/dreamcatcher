@@ -488,15 +488,12 @@ body::after {
   gap: var(--space-5);
 }
 
-.stop-form,
-.cancel-form {
+.agent-work-control-form {
   margin: 0;
 }
 
-.stop-control,
-.cancel-control {
+.agent-work-control {
   padding: 0;
-  color: var(--amber);
   background: transparent;
   border: 0;
   cursor: pointer;
@@ -506,10 +503,17 @@ body::after {
   text-transform: uppercase;
 }
 
-.stop-control:hover,
-.stop-control:focus-visible,
-.cancel-control:hover,
-.cancel-control:focus-visible {
+.stop-control,
+.cancel-control {
+  color: var(--amber);
+}
+
+.retry-control {
+  color: var(--phosphor);
+}
+
+.agent-work-control:hover,
+.agent-work-control:focus-visible {
   color: var(--bright);
 }
 
