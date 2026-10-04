@@ -170,13 +170,14 @@ def test_conversation_tail_offers_a_hand_resume_only_while_no_round_runs(
 
     working = client.get("/conversations/8/tail", query_string=query)
     remove_file(path=state.lock)
-    idle = client.get("/conversations/8/tail", query_string=query)
+    without_daemon = client.get("/conversations/8/tail", query_string=query)
 
     assert (
         '<div id="hand-resume" class="hand-resume" hx-swap-oob="morph"></div>'
         in working.text
     )
-    assert "<summary>resume by hand</summary>" in idle.text
+    assert "<summary>resume by hand</summary>" in without_daemon.text
+    assert "claude --resume conversation-session" in without_daemon.text
 
 
 def test_an_old_conversation_stop_submission_cannot_stop_the_next_round(

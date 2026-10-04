@@ -260,13 +260,14 @@ def test_assignment_tail_offers_a_hand_resume_only_while_no_round_runs(
 
     working = client.get(f"/assignments/{identifier}/tail", query_string=query)
     remove_file(path=state.lock)
-    idle = client.get(f"/assignments/{identifier}/tail", query_string=query)
+    without_daemon = client.get(f"/assignments/{identifier}/tail", query_string=query)
 
     assert (
         '<div id="hand-resume" class="hand-resume" hx-swap-oob="morph"></div>'
         in working.text
     )
-    assert "<summary>resume by hand</summary>" in idle.text
+    assert "<summary>resume by hand</summary>" in without_daemon.text
+    assert "claude --resume abc-123" in without_daemon.text
 
 
 def test_a_stale_assignment_stop_request_is_already_done(tmp_path, daemon):
