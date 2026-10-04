@@ -411,12 +411,11 @@ def fabricate_the_cap(*, state):
         lines=[FeedLine(at=PINNED + timedelta(minutes=31), text="[Bash] pytest")],
     )
     written(state=state, issue=20, records=[ended(minute=1)])
-    hold = "at cap: 1 of 1 agents running"
     write_tick(
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
-            hold=hold,
+            is_held_at_capacity=True,
             assignment_observations=[
                 _observed_assignment(
                     identifier=f"GH20-{ASSIGNMENT_TIMESTAMP}",

@@ -135,10 +135,10 @@ def finish_rounds(*, scheduler) -> None:
         running.wait()
 
 
-def held(*, observed: SchedulerRecord) -> str:
-    """Return why the scheduler launched nothing in one tick."""
-    assert observed.hold is not None
-    return observed.hold
+def sole_failure(*, observed: SchedulerRecord) -> str:
+    """Return the one failure that held back a tick."""
+    [failure] = observed.failures
+    return failure
 
 
 def observed_issues(*, tick: SchedulerRecord) -> list[int]:
@@ -332,7 +332,7 @@ def test_a_tick_fills_free_capacity_with_available_issues(ready_repo, offered):
         CREATED_ASSIGNMENT_ID,
         "GH9-20260819-184158",
     ]
-    assert observed.hold == "at cap: 2 of 2 agents running"
+    assert observed.is_held_at_capacity
     assert (scheduler.assignments.state.worktrees / "GH9-20260819-184158").exists()
     assert not (scheduler.assignments.state.worktrees / "GH10-20260819-184158").exists()
 
@@ -363,7 +363,7 @@ def test_a_later_failed_launch_keeps_the_rounds_already_started(
     observed = scheduler.tick(at=clock())
 
     assert observed.launched_agent_work_identifiers == [CREATED_ASSIGNMENT_ID]
-    assert observed.hold == "could not create an assignment for GH9"
+    assert observed.failures == ["could not create an assignment for GH9"]
     assert not (scheduler.assignments.state.worktrees / "GH10-20260819-184158").exists()
 
 
@@ -475,7 +475,7 @@ def test_a_tick_at_the_cap_refreshes_the_candidates(ready_repo, offered, harness
     observed = scheduler.tick(at=clock())
     observed = scheduler.tick(at=clock())
 
-    assert observed.hold == "at cap: 1 of 1 agents running"
+    assert observed.is_held_at_capacity
     assert observed_issues(tick=observed) == [8, 9]
     assert availability_values(tick=observed) == [
         IssueFactValue.FALSE,
@@ -504,11 +504,10 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
     offered.fails(stderr="gh: could not connect to github.com", to="issue list")
     observed = scheduler.tick(at=clock())
 
-    hold = held(observed=observed)
-    assert hold.startswith(
-        "at cap: 1 of 1 agents running; could not list issues for dream:smith: "
-    )
-    assert "could not connect" in hold
+    assert observed.is_held_at_capacity
+    failure = sole_failure(observed=observed)
+    assert failure.startswith("could not list issues for dream:smith: ")
+    assert "could not connect" in failure
     assert observed_issues(tick=observed) == [8, 13]
     assert all(
         observation.claimed_here.value is IssueFactValue.TRUE
@@ -767,7 +766,7 @@ def test_a_dispatch_whose_round_will_not_start_retries_the_prepared_assignment(
 
     observed = scheduler.tick(at=clock())
 
-    assert "cannot write" in held(observed=observed)
+    assert "cannot write" in sole_failure(observed=observed)
     assert observed_issues(tick=observed) == [8]
     assert availability_values(tick=observed) == [IssueFactValue.TRUE]
     assert (scheduler.assignments.state.worktrees / CREATED_ASSIGNMENT_ID).exists()
@@ -972,7 +971,7 @@ def test_a_follow_up_without_a_harness_session_still_needs_its_session(
 
     observed = scheduler.tick(at=clock())
 
-    assert held(observed=observed) == (
+    assert sole_failure(observed=observed) == (
         f"Could not resume {ASSIGNMENT_ID}: its first round did not report a "
         "harness session identifier."
     )
@@ -1121,7 +1120,7 @@ def test_a_batch_no_round_ever_launched_is_read_again_next_tick(
     observed = scheduler.tick(at=clock())
     observed = scheduler.tick(at=clock())
 
-    assert "cannot write" in held(observed=observed)
+    assert "cannot write" in sole_failure(observed=observed)
     relay_reads = [
         call for call in gh.calls if call.arguments[:2] == ["api", CONVERSATION]
     ]
@@ -1233,7 +1232,7 @@ def test_a_failed_issue_listing_leaves_open_work_for_a_later_tick(
 
     observed = scheduler.tick(at=clock())
 
-    assert "could not connect" in held(observed=observed)
+    assert "could not connect" in sole_failure(observed=observed)
     assert observed.launched_agent_work_identifiers == []
     assert not (
         scheduler.assignments.state.assignments / ASSIGNMENT_ID / "rounds" / "2"
@@ -1251,7 +1250,7 @@ def test_two_faulted_assignments_start_a_global_cooldown(ready_repo):
     assert observed.cooldown == GlobalCooldown(
         started=PINNED, ends=PINNED + timedelta(minutes=15)
     )
-    assert held(observed=observed) == "global cooldown"
+    assert observed.failures == []
     assert [one.identifier for one in observed.assignment_observations] == [
         ASSIGNMENT_ID,
         SECOND_ASSIGNMENT_ID,
@@ -1281,9 +1280,10 @@ def test_a_cooldown_reports_an_issue_listing_failure(ready_repo, offered):
 
     observed = scheduler.tick(at=clock())
 
-    assert "global cooldown" in held(observed=observed)
-    assert "could not list issues for dream:smith" in held(observed=observed)
-    assert "could not connect" in held(observed=observed)
+    failure = sole_failure(observed=observed)
+    assert observed.cooldown is not None
+    assert "could not list issues for dream:smith" in failure
+    assert "could not connect" in failure
 
 
 def test_the_cooldown_boundary_clears_faults_and_permits_recovery(ready_repo):

@@ -28,10 +28,6 @@ from dreamcatcher.scheduler.models import (
 from dreamcatcher.state import StateDirectory
 
 
-def _join_failures(*, failures: list[str]) -> str | None:
-    return "; ".join(failures) or None
-
-
 @dataclass(kw_only=True)
 class _ReadyAgentWork:
     assignments: list[AssignmentCandidate]
@@ -112,15 +108,12 @@ class Scheduler:
             ),
             at=at,
         )
-        scheduler_failure = _join_failures(
+        record = SchedulerRecord(
+            at=at,
             failures=[
                 *assignment_inspection.failures,
                 *conversation_inspection.failures,
-            ]
-        )
-        record = SchedulerRecord(
-            at=at,
-            hold=scheduler_failure,
+            ],
             cooldown=cooldown,
             most_recent_cooldown_ended=(
                 None
@@ -132,10 +125,7 @@ class Scheduler:
             conversation_observations=conversation_inspection.observations,
         )
         if cooldown is not None:
-            hold = _join_failures(
-                failures=["global cooldown", *filter(None, [scheduler_failure])]
-            )
-            return record.model_copy(update={"hold": hold})
+            return record
         return self._launch_ready_candidates(
             record=record,
             candidates=_ReadyAgentWork(
@@ -273,13 +263,7 @@ class Scheduler:
     def _record_launch_failure(
         self, *, record: SchedulerRecord, failure: ReportableError
     ) -> SchedulerRecord:
-        return record.model_copy(
-            update={
-                "hold": _join_failures(
-                    failures=[*filter(None, [record.hold]), str(failure)]
-                )
-            }
-        )
+        return record.model_copy(update={"failures": [*record.failures, str(failure)]})
 
     def _record_capacity_hold(
         self,
@@ -293,13 +277,4 @@ class Scheduler:
             was_at_capacity or candidates.assignments or candidates.conversations
         ):
             return record
-        return record.model_copy(
-            update={
-                "hold": _join_failures(
-                    failures=[self._describe_capacity(), *filter(None, [record.hold])]
-                )
-            }
-        )
-
-    def _describe_capacity(self) -> str:
-        return f"at cap: {len(self.rounds)} of {self.max_agents} agents running"
+        return record.model_copy(update={"is_held_at_capacity": True})

@@ -254,24 +254,24 @@ class DreamcatcherDaemon:
 
 def _describe_tick_outcome(*, record: SchedulerRecord, zone: tzinfo | None) -> str:
     """Say what the tick launched, and why it held if it did."""
+    hold = _describe_hold(record=record, zone=zone)
     launched_identifiers = record.launched_agent_work_identifiers
-    if launched_identifiers:
-        round_noun = "round" if len(launched_identifiers) == 1 else "rounds"
-        launched = f"launched {round_noun} for {', '.join(launched_identifiers)}"
-        if record.hold is None:
-            return launched
-        return f"{launched}; held: {' '.join(record.hold.split())}"
-    if record.hold is None:
-        return "nothing launched"
-    hold_description = " ".join(record.hold.split())
-    if record.cooldown is not None and hold_description.startswith("global cooldown"):
+    if not launched_identifiers:
+        return "nothing launched" if hold is None else f"held: {hold}"
+    round_noun = "round" if len(launched_identifiers) == 1 else "rounds"
+    launched = f"launched {round_noun} for {', '.join(launched_identifiers)}"
+    return launched if hold is None else f"{launched}; held: {hold}"
+
+
+def _describe_hold(*, record: SchedulerRecord, zone: tzinfo | None) -> str | None:
+    reasons: list[str] = []
+    if record.cooldown is not None:
         cooldown_end = describe_time(at=record.cooldown.ends, zone=zone)
-        hold_description = hold_description.replace(
-            "global cooldown",
-            f"global cooldown — next attempt at {cooldown_end}",
-            1,
-        )
-    return f"held: {hold_description}"
+        reasons.append(f"global cooldown — next attempt at {cooldown_end}")
+    if record.is_held_at_capacity:
+        reasons.append("agent capacity full")
+    reasons.extend(" ".join(failure.split()) for failure in record.failures)
+    return "; ".join(reasons) or None
 
 
 def _require_known_github_value(

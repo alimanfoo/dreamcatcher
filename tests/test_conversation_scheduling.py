@@ -379,7 +379,7 @@ def test_an_initial_conversation_freezes_input_runs_claude_and_publishes_once(
             ),
         )
     ]
-    assert after.hold is None
+    assert after.failures == []
     conversation = read_conversation(state=scheduler.assignments.state, issue=8)
     assert conversation is not None
     assert conversation.record.harness_session_identifier == "conversation-session"
@@ -843,7 +843,7 @@ def test_a_failed_conversation_refresh_leaves_the_batch_waiting(
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.hold == "could not fetch main"
+    assert observed.failures == ["could not fetch main"]
     conversation = read_conversation(state=scheduler.assignments.state, issue=8)
     assert conversation is not None
     assert len(conversation.rounds) == 1
@@ -878,7 +878,7 @@ def test_a_follow_up_survives_an_input_write_failure_after_refresh(
 
     pending_path = conversation.compose_round_paths(number=2).round_input
     refreshed_revision = _read_worktree_revision(worktree=conversation.worktree)
-    assert failed.hold == "could not save conversation input"
+    assert failed.failures == ["could not save conversation input"]
     assert len(conversation.rounds) == 1
     assert not pending_path.exists()
     offer_conversation(gh=gh, comments=comments)
@@ -888,7 +888,7 @@ def test_a_follow_up_survives_an_input_write_failure_after_refresh(
     recovered = scheduler.tick(at=clock())
     finish(scheduler=scheduler)
 
-    assert recovered.hold is None
+    assert recovered.failures == []
     assert recovered.launched_agent_work_identifiers == ["conversation-GH8"]
     conversation = read_conversation(state=scheduler.assignments.state, issue=8)
     assert conversation is not None
@@ -925,7 +925,7 @@ def test_a_follow_up_refreshes_again_after_a_launch_failure(
 
     pending_path = conversation.compose_round_paths(number=2).round_input
     pending = read_json(model=ConversationInput, path=pending_path)
-    assert failed.hold == "could not launch conversation"
+    assert failed.failures == ["could not launch conversation"]
     assert len(conversation.rounds) == 1
     (scheduler.assignments.state.root / "README.md").write_bytes(b"second move\n")
     commit(path=scheduler.assignments.state.root, message="move main twice")
@@ -937,7 +937,7 @@ def test_a_follow_up_refreshes_again_after_a_launch_failure(
     recovered = scheduler.tick(at=clock())
     finish(scheduler=scheduler)
 
-    assert recovered.hold is None
+    assert recovered.failures == []
     resumed = read_json(model=ConversationInput, path=pending_path)
     assert resumed.revision != pending.revision
     assert resumed.revision == _read_worktree_revision(worktree=conversation.worktree)
@@ -960,7 +960,7 @@ def test_comments_posted_during_a_round_wait_for_a_free_agent(
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.hold == "at cap: 1 of 1 agents running"
+    assert observed.is_held_at_capacity
     assert observed.conversation_observations[0].requires_round == IssueFact(
         value=IssueFactValue.TRUE,
         evidence="1 comment to answer",
@@ -979,7 +979,7 @@ def test_comments_a_running_round_holds_are_not_waiting(
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.hold == "at cap: 1 of 1 agents running"
+    assert observed.is_held_at_capacity
     assert observed.conversation_observations[0].requires_round == IssueFact(
         value=IssueFactValue.FALSE,
         evidence="no round required",
@@ -1070,7 +1070,7 @@ def test_a_failed_assignment_candidate_does_not_block_a_ready_conversation(
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.hold == "could not start assignment"
+    assert observed.failures == ["could not start assignment"]
     assert observed.launched_agent_work_identifiers == ["conversation-GH8"]
 
 
@@ -1104,7 +1104,7 @@ def test_a_conversation_waits_for_shared_capacity(conversation_scheduler, harnes
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.hold == "at cap: 1 of 1 agents running"
+    assert observed.is_held_at_capacity
     assert observed.conversation_observations[0].requires_round == IssueFact(
         value=IssueFactValue.TRUE,
         evidence="1 comment to answer",
@@ -1128,7 +1128,8 @@ def test_a_conversation_waits_for_the_active_global_cooldown(
 
     observed = scheduler.tick(at=at)
 
-    assert observed.hold == "global cooldown"
+    assert observed.cooldown is not None
+    assert observed.failures == []
     assert observed.conversation_observations[0].requires_round == IssueFact(
         value=IssueFactValue.TRUE,
         evidence="1 comment to answer",
@@ -1175,7 +1176,8 @@ def test_two_faulted_conversations_start_the_global_cooldown(
         started=tick_at,
         ends=tick_at + timedelta(minutes=15),
     )
-    assert observed.hold == "global cooldown"
+    assert observed.cooldown is not None
+    assert observed.failures == []
     assert observed.launched_agent_work_identifiers == []
     assert harnesses["claude"].calls == []
 
@@ -1203,7 +1205,8 @@ def test_a_faulted_conversation_and_assignment_start_the_global_cooldown(
         started=tick_at,
         ends=tick_at + timedelta(minutes=15),
     )
-    assert observed.hold == "global cooldown"
+    assert observed.cooldown is not None
+    assert observed.failures == []
     assert observed.launched_agent_work_identifiers == []
     assert harnesses["claude"].calls == []
 
@@ -1257,7 +1260,7 @@ def test_the_cooldown_boundary_clears_conversation_faults(
 
     assert observed.cooldown is None
     assert observed.most_recent_cooldown_ended == cooldown_ends
-    assert observed.hold == "at cap: 1 of 1 agents running"
+    assert observed.is_held_at_capacity
     assert observed.launched_agent_work_identifiers == ["conversation-GH8"]
 
 
@@ -1297,7 +1300,7 @@ def test_a_failed_post_recovers_the_same_batch_before_new_comments(
     assert ending.reason.startswith("could not post the answer on GH8: ")
     feed = conversation.compose_round_paths(number=1).feed.read_text(encoding="utf-8")
     assert "[failed] could not post the answer on GH8: " in feed
-    assert observed.hold is None
+    assert observed.failures == []
     assert observed.launched_agent_work_identifiers == ["conversation-GH8"]
     assert count_comment_reads(gh=gh) == comment_reads
     assert len(conversation.rounds) == 2
@@ -1325,7 +1328,7 @@ def test_no_reply_completes_without_posting_a_comment(
 
     conversation = read_conversation(state=scheduler.assignments.state, issue=8)
     assert conversation is not None
-    assert observed.hold is None
+    assert observed.failures == []
     assert conversation.rounds[0].outcome is AgentRoundOutcome.SUCCESSFUL
     assert not any(call.arguments[:4] == POST_PATH.split() for call in gh.calls)
 
@@ -1499,8 +1502,8 @@ def test_a_follow_up_refuses_to_replace_a_missing_saved_session(
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.hold is not None
-    assert observed.hold.startswith(
+    [failure] = observed.failures
+    assert failure.startswith(
         "Could not resume conversation-GH8: its first round did not report"
     )
     assert len(harnesses["claude"].calls) == 1
@@ -1524,8 +1527,8 @@ def test_a_failed_conversation_listing_holds_launches(conversation_scheduler):
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.hold is not None
-    assert observed.hold.startswith("could not list issues for dream:conversation")
+    [failure] = observed.failures
+    assert failure.startswith("could not list issues for dream:conversation")
     assert observed.conversation_observations == [
         ConversationObservation(
             identifier=compose_conversation_identifier(issue=8),
@@ -1533,11 +1536,11 @@ def test_a_failed_conversation_listing_holds_launches(conversation_scheduler):
             title="Why does this happen?",
             requires_round=IssueFact(
                 value=IssueFactValue.UNKNOWN,
-                evidence=observed.hold,
+                evidence=failure,
             ),
             routing_conflict=IssueFact(
                 value=IssueFactValue.UNKNOWN,
-                evidence=observed.hold,
+                evidence=failure,
             ),
         )
     ]
@@ -1566,8 +1569,8 @@ def test_a_failed_route_listing_still_refreshes_healthy_routes(
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.hold is not None
-    assert "could not list issues for dream:conversation" in observed.hold
+    [failure] = observed.failures
+    assert "could not list issues for dream:conversation" in failure
     assert [
         observation.issue for observation in observed.conversation_observations
     ] == [8]
@@ -1623,10 +1626,9 @@ def test_failed_listing_keeps_visible_conversation_faults_in_the_cooldown(
         started=tick_at,
         ends=tick_at + timedelta(minutes=15),
     )
-    assert observed.hold is not None
-    assert observed.hold.startswith(
-        "global cooldown; could not list issues for dream:conversation"
-    )
+    [failure] = observed.failures
+    assert observed.cooldown is not None
+    assert failure.startswith("could not list issues for dream:conversation")
     assert all(
         observation.requires_round.value is IssueFactValue.UNKNOWN
         for observation in observed.conversation_observations
@@ -1684,7 +1686,7 @@ def test_ineligible_conversation_faults_do_not_start_the_global_cooldown(
     observed = scheduler.tick(at=tick_at)
 
     assert observed.cooldown is None
-    assert observed.hold is None
+    assert observed.failures == []
     assert observed.conversation_observations == []
     assert count_comment_reads(gh=gh) == 0
 
@@ -1710,7 +1712,7 @@ def test_a_recovery_whose_saved_input_cannot_be_read_holds_the_tick(
     observed = scheduler.tick(at=clock())
 
     inbox = directory / "rounds" / "1" / "inbox.json"
-    assert observed.hold == f"{inbox} does not exist."
+    assert observed.failures == [f"{inbox} does not exist."]
     assert observed.launched_agent_work_identifiers == []
     assert harnesses["claude"].calls == []
 
@@ -1793,8 +1795,8 @@ def test_a_conversation_failure_remains_visible_when_an_assignment_launches(
     observed = scheduler.tick(at=clock())
 
     assert observed.launched_agent_work_identifiers == [assignment_identifier]
-    assert observed.hold is not None
-    assert observed.hold.startswith("could not list issues for dream:conversation")
+    [failure] = observed.failures
+    assert failure.startswith("could not list issues for dream:conversation")
 
 
 def test_a_failed_comment_listing_holds_launches(conversation_scheduler):
@@ -1804,15 +1806,15 @@ def test_a_failed_comment_listing_holds_launches(conversation_scheduler):
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.hold is not None
-    assert observed.hold.startswith("could not read comments for GH8")
+    [failure] = observed.failures
+    assert failure.startswith("could not read comments for GH8")
     assert observed.conversation_observations[0].requires_round == IssueFact(
         value=IssueFactValue.UNKNOWN,
-        evidence=observed.hold,
+        evidence=failure,
     )
 
 
-def test_a_failed_delivery_cursor_read_is_a_scheduler_hold(
+def test_a_failed_delivery_cursor_read_is_a_scheduler_failure(
     conversation_scheduler, monkeypatch
 ):
     scheduler, clock, gh = conversation_scheduler
@@ -1825,8 +1827,8 @@ def test_a_failed_delivery_cursor_read_is_a_scheduler_hold(
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.hold is not None
-    assert observed.hold.startswith("could not read delivered comments for GH8")
+    [failure] = observed.failures
+    assert failure.startswith("could not read delivered comments for GH8")
 
 
 @pytest.mark.parametrize("is_valid", [True, False], ids=["stale", "malformed"])
@@ -1866,7 +1868,7 @@ def test_an_unrecorded_round_input_is_replaced_by_the_next_batch(
     observed = scheduler.tick(at=clock())
     finish(scheduler=scheduler)
 
-    assert observed.hold is None
+    assert observed.failures == []
     assert observed.launched_agent_work_identifiers == ["conversation-GH8"]
     replaced = read_json(
         model=ConversationInput,
@@ -1913,8 +1915,8 @@ def test_a_partial_comment_scan_does_not_launch_or_starve_later_reads(
     observed = scheduler.tick(at=clock())
 
     assert observed.launched_agent_work_identifiers == []
-    assert observed.hold is not None
-    assert "could not read comments for GH9" in observed.hold
+    [failure] = observed.failures
+    assert "could not read comments for GH9" in failure
     assert any("issues/10/comments" in " ".join(call.arguments) for call in gh.calls)
 
 
@@ -1962,8 +1964,8 @@ def test_a_missing_empty_conversation_worktree_holds_without_detaching_main(
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.hold is not None
-    assert "it is not a linked worktree" in observed.hold
+    [failure] = observed.failures
+    assert "it is not a linked worktree" in failure
     assert (
         git(
             arguments=["branch", "--show-current"], cwd=scheduler.assignments.state.root
@@ -1972,7 +1974,7 @@ def test_a_missing_empty_conversation_worktree_holds_without_detaching_main(
     )
 
 
-def test_a_conversation_setup_failure_is_a_scheduler_hold(conversation_scheduler):
+def test_a_conversation_setup_failure_is_a_scheduler_failure(conversation_scheduler):
     scheduler, clock, gh = conversation_scheduler
     offer_conversation(gh=gh, comments=[ask()])
     add_detached_worktree(
@@ -1982,8 +1984,8 @@ def test_a_conversation_setup_failure_is_a_scheduler_hold(conversation_scheduler
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.hold is not None
-    assert "unrecorded worktree already exists" in observed.hold
+    [failure] = observed.failures
+    assert "unrecorded worktree already exists" in failure
 
 
 def test_the_oldest_waiting_comment_selects_the_conversation(
@@ -2067,7 +2069,7 @@ def test_a_recovery_precedes_a_fresh_batch_at_another_conversation(
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.hold == "at cap: 1 of 1 agents running"
+    assert observed.is_held_at_capacity
     assert observed.launched_agent_work_identifiers == ["conversation-GH8"]
     assert observed.conversation_observations[0].requires_round.value is (
         IssueFactValue.FALSE
@@ -2112,9 +2114,9 @@ def test_an_unrelated_comment_failure_does_not_block_recovery(
     finish(scheduler=scheduler)
 
     assert observed.launched_agent_work_identifiers == ["conversation-GH8"]
-    assert observed.hold is not None
-    assert observed.hold.startswith("could not read comments for GH9:")
-    assert "network unavailable" in observed.hold
+    [failure] = observed.failures
+    assert failure.startswith("could not read comments for GH9:")
+    assert "network unavailable" in failure
     assert observed.conversation_observations[1].requires_round.value is (
         IssueFactValue.UNKNOWN
     )

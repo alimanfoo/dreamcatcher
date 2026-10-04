@@ -156,7 +156,8 @@ class SchedulerRecord(DreamcatcherDocument):
     """Record what one scheduler tick observed and decided."""
 
     at: _UtcDateTime
-    hold: str | None = None
+    is_held_at_capacity: bool = False
+    failures: list[str] = Field(default_factory=list)
     launched_agent_work_identifiers: list[str] = Field(default_factory=list)
     issue_observations: list[IssueObservation] = Field(default_factory=list)
     assignment_observations: list[AgentWorkObservation] = Field(default_factory=list)

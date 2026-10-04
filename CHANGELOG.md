@@ -18,6 +18,10 @@ tagged.
   assignment runs no further rounds and shows as **cancelled**. The web home
   page and the terminal status view now group complete and cancelled assignments
   as **ended**.
+- The web home page and the terminal status view show what held the latest
+  scheduler tick once each: capacity and a global cooldown on their own rows,
+  and failures, such as a failed issue listing, on a **scheduler failures** row.
+  The web home page no longer hides a failure from a tick held at capacity.
 - Reshaped the documentation around reader tasks: a start-to-finish tutorial,
   focused task guides, complete command and configuration references, this
   changelog, compatibility guidance and a testing account.

@@ -287,7 +287,7 @@ def test_multiple_launches_are_recorded_and_reported(watched, capsys, monkeypatc
     scheduler_record = SchedulerRecord(
         at=PINNED,
         launched_agent_work_identifiers=[ASSIGNMENT_ID, "conversation-GH8"],
-        hold="could not refresh assignments",
+        failures=["could not refresh assignments"],
     )
     monkeypatch.setattr(scheduler, "tick", lambda *, at: scheduler_record)
 
@@ -306,7 +306,6 @@ def test_a_cooldown_report_names_its_local_end(watched, capsys, monkeypatch):
     scheduler = create_scheduler(daemon=daemon)
     scheduler_record = SchedulerRecord(
         at=PINNED,
-        hold="global cooldown",
         cooldown=GlobalCooldown(started=PINNED, ends=PINNED + timedelta(minutes=15)),
     )
 
@@ -317,6 +316,26 @@ def test_a_cooldown_report_names_its_local_end(watched, capsys, monkeypatch):
     assert capsys.readouterr().out == (
         "2026-08-20 02:41:58  held: global cooldown — next attempt at "
         "2026-08-20 02:56:58\n"
+    )
+
+
+def test_a_tick_at_capacity_reports_capacity_before_its_failures(
+    watched, capsys, monkeypatch
+):
+    daemon, _, _ = idling(root=watched, ticks=1)
+    scheduler = create_scheduler(daemon=daemon)
+    scheduler_record = SchedulerRecord(
+        at=PINNED,
+        is_held_at_capacity=True,
+        failures=["could not refresh assignments"],
+    )
+    monkeypatch.setattr(scheduler, "tick", lambda *, at: scheduler_record)
+
+    daemon.run_scheduler_cycle(scheduler=scheduler, at=PINNED)
+
+    assert capsys.readouterr().out == (
+        "2026-08-20 02:41:58  held: agent capacity full; "
+        "could not refresh assignments\n"
     )
 
 
@@ -511,11 +530,10 @@ def test_a_round_that_recorded_an_ending_is_left_running_by_the_sweep(
     assert psutil.pid_exists(left_running.pid)
 
 
-def held(*, daemon) -> str:
-    """Why the daemon's most recent tick launched nothing at all."""
-    hold = recorded(daemon=daemon).hold
-    assert hold is not None
-    return hold
+def sole_failure(*, daemon) -> str:
+    """The one failure that held back the daemon's most recent tick."""
+    [failure] = recorded(daemon=daemon).failures
+    return failure
 
 
 def recorded(*, daemon) -> SchedulerRecord:
@@ -535,7 +553,7 @@ def test_a_tick_whose_listing_failed_records_what_it_could_not_read(
 
     daemon.run()
 
-    assert "could not connect" in held(daemon=daemon)
+    assert "could not connect" in sole_failure(daemon=daemon)
     assert recorded(daemon=daemon).issue_observations == []
     output = capsys.readouterr().out
     assert output.startswith(
@@ -572,7 +590,7 @@ def test_a_tick_that_could_not_dispatch_records_the_failure_and_ticks_again(
     daemon.run()
 
     assert waiting.waited == [300, 300]
-    assert "git worktree add" in held(daemon=daemon)
+    assert "git worktree add" in sole_failure(daemon=daemon)
     assert recorded(daemon=daemon).launched_agent_work_identifiers == []
 
 

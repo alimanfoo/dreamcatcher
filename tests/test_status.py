@@ -146,7 +146,7 @@ def test_an_empty_instance_reports_unknown_capacity_and_no_work(tmp_path):
     assert found.daemon.dreamcatcher_version is None
     assert found.latest_scheduler_tick is None
     assert found.daemon.interval_seconds is None
-    assert found.scheduler_hold is None
+    assert found.scheduler_failures == []
     assert found.daemon.max_agents is None
     assert found.running_agents == 0
     assert found.active_global_cooldown is None
@@ -654,7 +654,7 @@ def test_a_fault_with_no_output_names_the_latest_round_ending(state):
     assert status.latest_output is None
 
 
-def test_an_elapsed_cooldown_clears_the_fault_and_active_hold(state):
+def test_an_elapsed_cooldown_clears_the_fault_and_the_cooldown(state):
     ran(state=state, number=1, status=1)
     ran(state=state, number=2, status=2)
     ended = PINNED + timedelta(minutes=15)
@@ -662,7 +662,6 @@ def test_an_elapsed_cooldown_clears_the_fault_and_active_hold(state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
-            hold="global cooldown",
             cooldown=GlobalCooldown(started=PINNED, ends=ended),
         ),
     )
@@ -670,17 +669,16 @@ def test_an_elapsed_cooldown_clears_the_fault_and_active_hold(state):
     found = report(state=state)
 
     assert found.assignment_statuses[0].value is AssignmentStatusValue.WAITING
-    assert found.scheduler_hold is None
     assert found.active_global_cooldown is None
 
 
-def test_an_active_cooldown_and_hold_are_instance_facts(running):
+def test_an_active_cooldown_and_scheduler_failures_are_instance_facts(running):
     cooldown = GlobalCooldown(started=PINNED, ends=LOOKED_AT + timedelta(minutes=1))
     write_tick(
         state=running,
         tick=SchedulerRecord(
             at=PINNED,
-            hold="global cooldown",
+            failures=["could not start assignment"],
             cooldown=cooldown,
         ),
     )
@@ -689,18 +687,18 @@ def test_an_active_cooldown_and_hold_are_instance_facts(running):
 
     assert found.latest_scheduler_tick == PINNED
     assert found.daemon.interval_seconds == DEFAULT_INTERVAL_SECONDS
-    assert found.scheduler_hold == "global cooldown"
+    assert found.scheduler_failures == ["could not start assignment"]
     assert found.daemon.max_agents == 3
     assert found.active_global_cooldown == cooldown
 
 
-def test_a_stopped_daemon_has_no_current_scheduler_hold(state):
+def test_a_stopped_daemon_has_no_current_scheduler_failures(state):
     write_tick(
         state=state,
-        tick=SchedulerRecord(at=PINNED, hold="at cap: 1 of 1 agents running"),
+        tick=SchedulerRecord(at=PINNED, failures=["could not start assignment"]),
     )
 
-    assert report(state=state).scheduler_hold is None
+    assert report(state=state).scheduler_failures == []
 
 
 def test_a_blocked_issue_is_reported_with_its_evidence(state):
