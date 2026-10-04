@@ -22,6 +22,8 @@ tagged.
   harness has exited in the same moment, and starting a round on Windows no
   longer fails when its harness exits in the moment after it starts: a Windows
   child is now placed in its job before it runs.
+- A failed issue listing for an assignment label no longer holds the rounds that
+  existing assignments require. It holds only the creation of new assignments.
 - State format 5 starts with empty local state in `.dreamcatcher/v5/`; state
   format 4 is left untouched and ignored. Finish assignments through successful
   wrap-up, stop the daemon, and accept fresh conversation context before
