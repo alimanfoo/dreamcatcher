@@ -1252,20 +1252,12 @@ def test_dashboard_groups_issues_with_assignments(tmp_path, daemon):
 def test_a_failure_at_capacity_shows_beside_the_capacity(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     WEB_STATUS_REPORTS["at-cap"](state=state)
-    write_tick(
-        state=state,
-        tick=SchedulerRecord(
-            at=PINNED,
-            is_held_at_capacity=True,
-            failures=["could not list issues for dream:smith: could not connect"],
-        ),
-    )
 
     page = render_home(state=state)
 
     assert "<dt>agent capacity</dt>" in page
     assert "<dt>scheduler failures</dt>" in page
-    assert "could not list issues for dream:smith: could not connect" in page
+    assert "could not list issues for dream:less: could not connect" in page
 
 
 def test_next_update_is_left_out_when_no_daemon_is_running(tmp_path, daemon):

@@ -402,7 +402,7 @@ def fabricate_a_dead_daemon(*, state):
 
 
 def fabricate_the_cap(*, state):
-    """Write a daemon at its cap, which holds every assignment."""
+    """Write a daemon at its cap whose latest tick also failed to list issues."""
     holding(state=state)
     directory = written(state=state, issue=13, records=[running(minute=30)])
     write_feed(
@@ -416,6 +416,7 @@ def fabricate_the_cap(*, state):
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
             is_held_at_capacity=True,
+            failures=["could not list issues for dream:less: could not connect"],
             assignment_observations=[
                 _observed_assignment(
                     identifier=f"GH20-{ASSIGNMENT_TIMESTAMP}",

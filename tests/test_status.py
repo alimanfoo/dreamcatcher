@@ -678,7 +678,7 @@ def test_an_active_cooldown_and_scheduler_failures_are_instance_facts(running):
         state=running,
         tick=SchedulerRecord(
             at=PINNED,
-            failures=["could not start assignment"],
+            failures=["could not start assignment", "could not read comments for GH8"],
             cooldown=cooldown,
         ),
     )
@@ -687,7 +687,9 @@ def test_an_active_cooldown_and_scheduler_failures_are_instance_facts(running):
 
     assert found.latest_scheduler_tick == PINNED
     assert found.daemon.interval_seconds == DEFAULT_INTERVAL_SECONDS
-    assert found.scheduler_failures == "could not start assignment"
+    assert found.scheduler_failures == (
+        "could not start assignment; could not read comments for GH8"
+    )
     assert found.daemon.max_agents == 3
     assert found.active_global_cooldown == cooldown
 
