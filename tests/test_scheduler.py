@@ -14,6 +14,7 @@ from conftest import (
     POSTED_BY,
     PULL_REQUEST,
     REPOSITORY,
+    SMITH_CLAUDE,
     comment,
     configure,
     git,
@@ -1218,26 +1219,32 @@ def test_open_work_is_carried_on_before_a_new_issue_is_assigned(resuming, gh, of
     assert observed.issue_observations[1].claimed_here.value is IssueFactValue.TRUE
 
 
-def test_a_failed_issue_listing_leaves_open_work_for_a_later_tick(
-    resuming, gh, left_running
+def test_a_failed_issue_listing_holds_new_assignments_but_not_recovery(
+    ready_repo, offered
 ):
-    write_round(
-        directory=StateDirectory(root=resuming).assignments / ASSIGNMENT_ID,
-        number=1,
-        record=AgentRoundRecord(
-            number=1, started=PINNED, pid=left_running.pid, purpose=PURPOSE
-        ),
+    configure(root=ready_repo, head=SMITH_CLAUDE.replace("dream:smith", "dream:less"))
+    write_assignment(
+        state=StateDirectory(root=ready_repo),
+        identifier=ASSIGNMENT_ID,
+        issue=13,
     )
-    gh.fails(stderr="gh: could not connect to github.com", to="issue list")
-    scheduler, clock = create_scheduler(root=resuming)
+    ran(root=ready_repo, number=1, purpose=PURPOSE, status=1)
+    offered.fails(
+        stderr="gh: could not connect to github.com",
+        to=f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} --label dream:less",
+    )
+    scheduler, clock = create_scheduler(root=ready_repo, max_agents=2)
 
     observed = scheduler.tick(at=clock())
 
-    assert "could not connect" in held(observed=observed)
-    assert observed.launched_agent_work_identifiers == []
-    assert not (
-        scheduler.assignments.state.assignments / ASSIGNMENT_ID / "rounds" / "2"
-    ).exists()
+    assert "could not list issues for dream:less" in held(observed=observed)
+    assert observed_issues(tick=observed) == [8, 13]
+    assert availability_values(tick=observed) == [
+        IssueFactValue.TRUE,
+        IssueFactValue.FALSE,
+    ]
+    assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
+    assert not (scheduler.assignments.state.worktrees / CREATED_ASSIGNMENT_ID).exists()
 
 
 def test_two_faulted_assignments_start_a_global_cooldown(ready_repo):
