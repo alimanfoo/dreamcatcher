@@ -68,10 +68,8 @@ and leaves the last complete scheduler record in place. An invalid scheduler
 record ends the daemon because retrying cannot repair the document.
 
 If an issue read fails, the tick records the failure as its hold and prevents
-launches for the kind of agent work that depends on those facts. An assignment
-issue read does not prevent an issue conversation from starting, and a
-conversation issue read does not prevent assignment work from starting. A later
-tick retries the failed read.
+only the launches that depend on those facts. A later tick retries the failed
+read.
 
 If a launch fails, the tick keeps every round that it already started and
 records the failure as its hold. It starts no lower-priority candidate of the
