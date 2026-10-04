@@ -114,6 +114,18 @@ class Conversation:
         """The number that the conversation's next round will carry."""
         return self.rounds[-1].number + 1 if self.rounds else 1
 
+    def find_harness_session_identifier(self) -> HarnessSessionIdentifier | None:
+        """Return the recorded or recoverable harness session identifier."""
+        return find_harness_session_identifier(
+            harness=self.record.harness,
+            agent_work_identifier=self.identifier,
+            recorded=self.record.harness_session_identifier,
+            raw_outputs=(
+                self.compose_round_paths(number=round_record.number).raw_output
+                for round_record in reversed(self.rounds)
+            ),
+        )
+
     def compose_round_paths(self, *, number: int) -> AgentRoundPaths:
         """Return the paths for one numbered conversation round."""
         return AgentRoundPaths(
@@ -251,21 +263,6 @@ def read_conversation_input(
             "contain its initial issue title and body."
         )
     return round_input
-
-
-def find_conversation_harness_session_identifier(
-    *, conversation: Conversation
-) -> HarnessSessionIdentifier | None:
-    """Return the recorded or recoverable harness session identifier."""
-    return find_harness_session_identifier(
-        harness=conversation.record.harness,
-        agent_work_identifier=conversation.identifier,
-        recorded=conversation.record.harness_session_identifier,
-        raw_outputs=(
-            conversation.compose_round_paths(number=round_record.number).raw_output
-            for round_record in reversed(conversation.rounds)
-        ),
-    )
 
 
 def _read_conversation_input_document(

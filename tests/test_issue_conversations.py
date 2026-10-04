@@ -28,7 +28,6 @@ from dreamcatcher.issue_conversations import (
     IssueCommentCursor,
     create_conversation,
     describe_conversation_revision,
-    find_conversation_harness_session_identifier,
     list_undelivered_issue_comments,
     post_conversation_answer,
     prepare_conversation_input,
@@ -420,7 +419,7 @@ def test_a_conversation_recovers_a_session_reported_by_a_later_round(tmp_path):
     reread = read_conversation(state=StateDirectory(root=tmp_path), issue=8)
     assert reread is not None
 
-    recovered = find_conversation_harness_session_identifier(conversation=reread)
+    recovered = reread.find_harness_session_identifier()
 
     assert recovered == "replacement-session"
 

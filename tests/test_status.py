@@ -15,7 +15,7 @@ from records import (
     write_tick,
 )
 
-import dreamcatcher.status.assignments as assignment_status_module
+from dreamcatcher.agent_assignments import Assignment
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     AssignmentRoundPurpose,
@@ -292,13 +292,13 @@ def test_status_recovers_the_harness_session_and_builds_its_resume_command(tmp_p
 def test_status_reads_harness_resume_details_only_when_requested(state, monkeypatch):
     calls = []
 
-    def recover_harness_session_identifier(**kwargs):
-        calls.append(kwargs)
+    def recover_harness_session_identifier(assignment, /):
+        calls.append(assignment)
         return "abc-123"
 
     monkeypatch.setattr(
-        assignment_status_module,
-        "find_assignment_harness_session_identifier",
+        Assignment,
+        "find_harness_session_identifier",
         recover_harness_session_identifier,
     )
 

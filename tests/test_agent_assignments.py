@@ -21,7 +21,6 @@ from dreamcatcher.agent_assignments import (
     AssignmentRecord,
     AssignmentRoundInput,
     PullRequestObservation,
-    find_assignment_harness_session_identifier,
     find_open_assignments_by_issue,
     inspect_incomplete_assignment_setups,
     read_assignments,
@@ -1009,7 +1008,7 @@ def test_an_assignment_recovers_a_session_reported_by_a_later_round(fabricated):
         ).encode()
     )
 
-    recovered = find_assignment_harness_session_identifier(assignment=assignment)
+    recovered = assignment.find_harness_session_identifier()
 
     assert recovered == "replacement-session"
 

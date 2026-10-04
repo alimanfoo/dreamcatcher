@@ -15,7 +15,6 @@ from dreamcatcher.harness_adapters import HarnessSessionIdentifier
 from dreamcatcher.issue_conversations import (
     Conversation,
     describe_conversation_revision,
-    find_conversation_harness_session_identifier,
     is_conversation_ready_for_input,
     is_no_reply,
     read_conversation_input,
@@ -108,7 +107,7 @@ class ConversationStatus:
         conversation = self.conversation
         if conversation is None:
             return None
-        return find_conversation_harness_session_identifier(conversation=conversation)
+        return conversation.find_harness_session_identifier()
 
     @cached_property
     def hand_resume_command(self) -> list[str] | None:

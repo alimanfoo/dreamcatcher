@@ -26,7 +26,6 @@ from dreamcatcher.issue_conversations import (
     ConversationInput,
     compose_conversation_identifier,
     create_conversation,
-    find_conversation_harness_session_identifier,
     is_conversation_ready_for_input,
     list_undelivered_issue_comments,
     post_conversation_answer,
@@ -219,7 +218,7 @@ class ConversationScheduler(
             agent_work_identifier=conversation.identifier,
             has_rounds=bool(conversation.rounds),
             harness_session_identifier=(
-                find_conversation_harness_session_identifier(conversation=conversation)
+                conversation.find_harness_session_identifier()
                 if conversation.rounds
                 else None
             ),
