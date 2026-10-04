@@ -377,6 +377,93 @@ def test_an_unknown_assignment_cannot_be_cancelled(tmp_path):
     assert response.status_code == 404
 
 
+def test_assignment_page_requests_a_retry_for_its_fault(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH9-20260819-184158"
+    client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
+
+    page = client.get(f"/assignments/{identifier}")
+
+    assert f'action="/assignments/{identifier}/retry/2"' in page.text
+
+    response = client.post(
+        f"/assignments/{identifier}/retry/2",
+        headers={"Origin": "http://localhost"},
+    )
+
+    assert response.status_code == 303
+    assert response.location == f"/assignments/{identifier}"
+    assignment = read_assignment(state=state, identifier=identifier)
+    assert assignment is not None
+    assert assignment.record.retry_requested_at == LOOKED_AT
+    assert (
+        f'action="/assignments/{identifier}/retry/2"'
+        not in client.get(f"/assignments/{identifier}").text
+    )
+
+
+def test_assignment_tail_offers_the_retry_control(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH9-20260819-184158"
+
+    response = _read_tail(state=state, identifier=identifier, cursor="1:0")
+
+    assert '<div id="agent-work-controls" hx-swap-oob="true">' in response.text
+    assert f'action="/assignments/{identifier}/retry/2"' in response.text
+
+
+@pytest.mark.parametrize(
+    ("identifier", "number"),
+    [("GH9-20260819-184158", 1), ("GH12-20260819-184158", 2)],
+)
+def test_an_assignment_retry_needs_its_fault_at_the_submitted_round(
+    tmp_path, identifier, number
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
+
+    response = client.post(
+        f"/assignments/{identifier}/retry/{number}",
+        headers={"Origin": "http://localhost"},
+    )
+
+    assert response.status_code == 303
+    assignment = read_assignment(state=state, identifier=identifier)
+    assert assignment is not None
+    assert assignment.record.retry_requested_at is None
+
+
+@pytest.mark.parametrize("origin", [None, "https://example.com"])
+def test_assignment_retry_requests_must_come_from_the_page(tmp_path, origin):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH9-20260819-184158"
+    client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
+    headers = {} if origin is None else {"Origin": origin}
+
+    response = client.post(f"/assignments/{identifier}/retry/2", headers=headers)
+
+    assert response.status_code == 403
+    assignment = read_assignment(state=state, identifier=identifier)
+    assert assignment is not None
+    assert assignment.record.retry_requested_at is None
+
+
+def test_an_unknown_assignment_cannot_receive_a_retry_request(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
+
+    response = client.post(
+        "/assignments/unknown/retry/2",
+        headers={"Origin": "http://localhost"},
+    )
+
+    assert response.status_code == 404
+
+
 def test_a_stopped_round_is_shown_as_stopped(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)

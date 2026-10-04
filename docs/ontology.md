@@ -506,8 +506,11 @@ run of errors.
 ### Scheduling work
 
 The scheduler creates agent assignments and starts agent rounds. A failed issue
-read prevents launches for the kind of agent work that depends on those facts
-without preventing the other kind of agent work.
+read prevents only the launches that depend on it, so it never prevents the
+other kind of agent work. A failed listing of assignment issues prevents the
+creation of assignments, but not the rounds that existing assignments require. A
+failed listing of conversation issues prevents fresh conversation batches, but
+not the recovery of a conversation whose issue is known to be eligible.
 
 Existing assignments take precedence over new ones, ranked in this order:
 
@@ -537,9 +540,10 @@ the cooldown ends, Dreamcatcher clears those faults and permits recovery. This
 deliberately simple policy prevents one work-specific failure from blocking all
 other work.
 
-After resolving an issue-specific problem, the user may request a retry. That
-request clears any current fault on the newest assignment and issue conversation
-without erasing their errored rounds, and the scheduler may start recovery
-rounds on later ticks. Only errors at or after the later of each work item's
-latest retry request and the latest completed global cooldown count towards a
-new fault.
+After resolving an issue-specific problem, the user may request a retry. A
+request from the command line clears any current fault on the newest assignment
+and issue conversation at the issue, and a request from the web page clears the
+fault of the one assignment or conversation that the page shows. Neither erases
+the errored rounds, and the scheduler may start recovery rounds on later ticks.
+Only errors at or after the later of each work item's latest retry request and
+the latest completed global cooldown count towards a new fault.

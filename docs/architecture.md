@@ -67,11 +67,8 @@ A scheduler tick that fails before returning one is reported in daemon output
 and leaves the last complete scheduler record in place. An invalid scheduler
 record ends the daemon because retrying cannot repair the document.
 
-If an issue read fails, the tick records the failure and prevents launches for
-the kind of agent work that depends on those facts. An assignment issue read
-does not prevent an issue conversation from starting, and a conversation issue
-read does not prevent assignment work from starting. A later tick retries the
-failed read.
+If an issue read fails, the tick records the failure and prevents only the
+launches that depend on those facts. A later tick retries the failed read.
 
 If a launch fails, the tick keeps every round that it already started and
 records the failure. It starts no lower-priority candidate of the same kind
@@ -401,6 +398,11 @@ the assignment record and then writes a stop request for any round that has no
 ending. The scheduler starts no further rounds for the assignment. A round that
 it starts as the cancel lands is stopped too, because the scheduler reads the
 record again once that round's record exists.
+
+The web process can also request a retry for agent work that status derives as
+in fault. It writes the retry request time through the assignment or
+conversation boundary, into that work's own record. The scheduler reads the
+request on a later tick, so the daemon still decides when recovery starts.
 
 ### Configuration, dispatch labels, and routes
 

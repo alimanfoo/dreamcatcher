@@ -146,8 +146,6 @@ class AssignmentScheduler(
         ]
         if not issue_result.failures:
             candidates.extend(self._compose_new_candidates(issue_observations))
-        else:
-            candidates = []
         return AssignmentInspection(
             candidates=sorted(candidates, key=self.rank),
             observations=[item.observation for item in inspected],
