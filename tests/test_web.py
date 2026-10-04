@@ -244,7 +244,7 @@ def test_assignment_tail_updates_the_stop_control(tmp_path, daemon):
     )
 
     assert response.status_code == 200
-    assert '<div id="stop-control" hx-swap-oob="true">' in response.text
+    assert '<div id="stop-control" hx-swap-oob="morph">' in response.text
     assert f'action="/assignments/{identifier}/stop/2"' in response.text
 
 
