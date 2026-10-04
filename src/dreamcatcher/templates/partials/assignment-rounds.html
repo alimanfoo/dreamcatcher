@@ -1,6 +1,6 @@
 <aside id="assignment-rounds" class="panel assignment-rounds" aria-labelledby="rounds-heading"{% if is_tail|default(false) %} hx-swap-oob="true"{% endif %}>
   <h1 id="rounds-heading">Rounds</h1>
-  {% for round in view.rounds %}
+  {% for round in live.rounds %}
     <a class="round-link" href="#feed-round-{{ round.number }}" aria-controls="feed-round-{{ round.number }}">
       <span class="round-number">{{ "%02d"|format(round.number) }}</span>
       <span class="round-summary">

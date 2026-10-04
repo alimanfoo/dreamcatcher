@@ -3,7 +3,9 @@
 {%- endfor -%}
 {%- if tail.has_empty_feed_placeholder and tail.feed_rounds -%}<p id="empty-feed" hx-swap-oob="delete"></p>{%- endif -%}
 <input type="hidden" id="cursor" name="cursor" value="{{ tail.cursor }}" hx-swap-oob="true">
-{%- with view=tail, is_tail=true -%}{% include "partials/agent-work-status.html" %}{%- endwith -%}
-{%- with view=tail, is_tail=true -%}{% include "partials/stop-control.html" %}{%- endwith -%}
-{%- if tail.detail is not none -%}<p id="{{ status_id | replace('-status', '-detail') }}" class="assignment-detail" hx-swap-oob="true">{{ tail.detail }}</p>{%- endif -%}
-{%- with view=tail, is_tail=true -%}{% include "partials/assignment-rounds.html" %}{%- endwith %}
+{%- with live=tail.live, is_tail=true -%}
+  {%- include "partials/agent-work-status.html" -%}
+  {%- include "partials/stop-control.html" -%}
+  <p id="{{ status_id | replace('-status', '-detail') }}" class="assignment-detail" hx-swap-oob="true">{{ live.detail }}</p>
+  {%- include "partials/assignment-rounds.html" -%}
+{%- endwith %}

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
+  {%- set live = view.live %}
   <main class="assignment-page">
     {% include "partials/site-header.html" %}
     <div class="assignment-content">
@@ -16,7 +17,7 @@
             {% with status_id="conversation-status" %}{% include "partials/agent-work-status.html" %}{% endwith %}
           </div>
         </div>
-        <p id="conversation-detail" class="assignment-detail">{{ view.detail }}</p>
+        <p id="conversation-detail" class="assignment-detail">{{ live.detail }}</p>
         {% if view.facts %}
           <dl class="assignment-facts">
             {% for fact in view.facts %}

@@ -23,6 +23,7 @@ from dreamcatcher.status import (
 )
 from dreamcatcher.web.feed import read_agent_feed
 from dreamcatcher.web.models import (
+    WebAgentLiveState,
     WebAgentRound,
     WebAssignmentCard,
     WebAssignmentView,
@@ -203,12 +204,27 @@ def _compose_conversation_card(*, status: ConversationStatus) -> WebConversation
     )
 
 
+def compose_agent_live_state(
+    *,
+    status: AssignmentStatus | ConversationStatus,
+    zone: tzinfo | None,
+    stop_url: str | None,
+) -> WebAgentLiveState:
+    """Return the values of an agent page that its tail refreshes."""
+    return WebAgentLiveState(
+        status=str(status.value),
+        detail=status.detail,
+        rounds=compose_agent_rounds(round_statuses=status.round_statuses, zone=zone),
+        stop_url=stop_url,
+    )
+
+
 def compose_assignment_view(
     *,
     state: StateDirectory,
     status: AssignmentStatus,
+    live: WebAgentLiveState,
     zone: tzinfo | None,
-    stop_url: str | None = None,
 ) -> WebAssignmentView:
     """Return the values shown on one assignment page."""
     assignment = status.assignment
@@ -216,7 +232,7 @@ def compose_assignment_view(
     repository = read_repository(state=state)
     daemon = read_dreamcatcher_daemon_status(state=state)
     hand_resume_command = status.hand_resume_command
-    feed = read_agent_feed(owner=assignment, zone=zone)
+    feed = read_agent_feed(owner=assignment, zone=zone, rounds=live.rounds)
     return WebAssignmentView(
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
@@ -228,16 +244,13 @@ def compose_assignment_view(
         identifier=assignment.identifier,
         issue=record.issue,
         title=record.title,
-        status=str(status.value),
-        detail=status.detail,
         pull_request=record.pull_request,
         pull_request_state=status.pull_request_state,
         dispatch_label=record.dispatch_label,
         harness=str(record.harness),
         model=record.model,
         effort=record.effort,
-        rounds=compose_agent_rounds(round_statuses=status.round_statuses, zone=zone),
-        stop_url=stop_url,
+        live=live,
         hand_resume=_compose_hand_resume(
             state=state,
             worktree=record.worktree,
@@ -252,15 +265,14 @@ def compose_conversation_view(
     *,
     state: StateDirectory,
     status: ConversationStatus,
+    live: WebAgentLiveState,
     zone: tzinfo | None,
-    stop_url: str | None = None,
 ) -> WebConversationView:
     """Return the values shown on one issue-conversation page."""
     conversation = status.conversation
     repository = read_repository(state=state)
     daemon = read_dreamcatcher_daemon_status(state=state)
-    rounds = compose_agent_rounds(round_statuses=status.round_statuses, zone=zone)
-    feed = read_agent_feed(owner=conversation, zone=zone, rounds=rounds)
+    feed = read_agent_feed(owner=conversation, zone=zone, rounds=live.rounds)
     return WebConversationView(
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
@@ -271,15 +283,12 @@ def compose_conversation_view(
         ),
         issue=status.issue,
         title=status.title,
-        status=str(status.value),
-        detail=status.detail,
         facts=(
             ()
             if conversation is None
             else _compose_conversation_facts(conversation=conversation)
         ),
-        rounds=rounds,
-        stop_url=stop_url,
+        live=live,
         hand_resume=(
             None
             if conversation is None
