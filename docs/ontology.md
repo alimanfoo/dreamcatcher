@@ -520,9 +520,10 @@ the cooldown ends, Dreamcatcher clears those faults and permits recovery. This
 deliberately simple policy prevents one work-specific failure from blocking all
 other work.
 
-After resolving an issue-specific problem, the user may request a retry. That
-request clears any current fault on the newest assignment and issue conversation
-without erasing their errored rounds, and the scheduler may start recovery
-rounds on later ticks. Only errors at or after the later of each work item's
-latest retry request and the latest completed global cooldown count towards a
-new fault.
+After resolving an issue-specific problem, the user may request a retry. A
+request from the command line clears any current fault on the newest assignment
+and issue conversation at the issue, and a request from the web page clears the
+fault of the one assignment or conversation that the page shows. Neither erases
+the errored rounds, and the scheduler may start recovery rounds on later ticks.
+Only errors at or after the later of each work item's latest retry request and
+the latest completed global cooldown count towards a new fault.

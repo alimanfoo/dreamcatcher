@@ -82,6 +82,11 @@ newest faulted assignment and faulted conversation at that issue. It does not
 start an agent itself; the daemon may recover the work on a later scheduler
 tick.
 
+You can instead run `dreamcatcher web`, open the faulted assignment or
+conversation, and select **Retry**. The control is available while that work is
+in fault, and it requests recovery for that one assignment or conversation in
+the same way. It works whether or not the daemon is running.
+
 Repeated failures across multiple work items can trigger a 15-minute global
 cooldown. Dreamcatcher keeps reporting status but starts no agent rounds during
 the cooldown. It survives a daemon restart and clears the current faults when it

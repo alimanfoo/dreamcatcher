@@ -395,6 +395,11 @@ request through the agent-round boundary, into that round's own directory. The
 daemon still owns the live process and lifecycle transition: the round watches
 the request, kills its harness process tree, and records its stopped ending.
 
+The web process can also request a retry for agent work that status derives as
+in fault. It writes the retry request time through the assignment or
+conversation boundary, into that work's own record. The scheduler reads the
+request on a later tick, so the daemon still decides when recovery starts.
+
 ### Configuration, dispatch labels, and routes
 
 `config.py` owns the strict model for `dreamcatcher.toml`. A `DispatchRecipe`

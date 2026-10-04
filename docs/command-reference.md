@@ -70,7 +70,9 @@ round records.
 At least one of those two items must currently be in fault. Otherwise the
 command reports that the issue has no agent work in fault. A successful request
 makes the named work available for recovery on a later scheduler tick, outside
-any active global cooldown; it does not start a round itself.
+any active global cooldown; it does not start a round itself. The web page's
+retry control writes the same request for the one assignment or conversation it
+shows.
 
 ## `stop`
 
