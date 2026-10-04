@@ -111,6 +111,7 @@ class WebAgentLiveState:
     detail: str
     rounds: tuple[WebAgentRound, ...]
     stop_url: str | None
+    hand_resume: WebHandResume | None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -141,7 +142,6 @@ class WebAssignmentView:
     model: str
     effort: str
     live: WebAgentLiveState
-    hand_resume: WebHandResume | None
     feed_rounds: tuple[WebFeedRound, ...]
     feed_cursor: str
 
@@ -169,7 +169,6 @@ class WebConversationView:
     title: str
     facts: tuple[WebFact, ...]
     live: WebAgentLiveState
-    hand_resume: WebHandResume | None
     feed_rounds: tuple[WebFeedRound, ...]
     feed_cursor: str
 

@@ -620,6 +620,10 @@ body::after {
   color: var(--amber);
 }
 
+.hand-resume {
+  display: contents;
+}
+
 .manual-recovery {
   padding-top: var(--space-7);
   color: var(--dim);

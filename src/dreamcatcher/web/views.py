@@ -46,11 +46,11 @@ _GIT_REVISION_PATTERN = re.compile(r"\b[0-9a-f]{40}\b")
 def _compose_hand_resume(
     *,
     state: StateDirectory,
-    worktree: Path,
+    worktree: Path | None,
     command: list[str] | None,
 ) -> WebHandResume | None:
     """Return the web values for a manual session resume, when available."""
-    if command is None:
+    if worktree is None or command is None:
         return None
     return WebHandResume(
         worktree=state.describe_path(path=worktree),
@@ -206,7 +206,9 @@ def _compose_conversation_card(*, status: ConversationStatus) -> WebConversation
 
 def compose_agent_live_state(
     *,
+    state: StateDirectory,
     status: AssignmentStatus | ConversationStatus,
+    worktree: Path | None,
     zone: tzinfo | None,
     stop_url: str | None,
 ) -> WebAgentLiveState:
@@ -216,6 +218,9 @@ def compose_agent_live_state(
         detail=status.detail,
         rounds=compose_agent_rounds(round_statuses=status.round_statuses, zone=zone),
         stop_url=stop_url,
+        hand_resume=_compose_hand_resume(
+            state=state, worktree=worktree, command=status.hand_resume_command
+        ),
     )
 
 
@@ -231,7 +236,6 @@ def compose_assignment_view(
     record = assignment.record
     repository = read_repository(state=state)
     daemon = read_dreamcatcher_daemon_status(state=state)
-    hand_resume_command = status.hand_resume_command
     feed = read_agent_feed(owner=assignment, zone=zone, rounds=live.rounds)
     return WebAssignmentView(
         repository=repository or "repository unknown",
@@ -251,11 +255,6 @@ def compose_assignment_view(
         model=record.model,
         effort=record.effort,
         live=live,
-        hand_resume=_compose_hand_resume(
-            state=state,
-            worktree=record.worktree,
-            command=hand_resume_command,
-        ),
         feed_rounds=feed.rounds,
         feed_cursor=feed.cursor,
     )
@@ -289,15 +288,6 @@ def compose_conversation_view(
             else _compose_conversation_facts(conversation=conversation)
         ),
         live=live,
-        hand_resume=(
-            None
-            if conversation is None
-            else _compose_hand_resume(
-                state=state,
-                worktree=conversation.worktree,
-                command=status.hand_resume_command,
-            )
-        ),
         feed_rounds=feed.rounds,
         feed_cursor=feed.cursor,
     )

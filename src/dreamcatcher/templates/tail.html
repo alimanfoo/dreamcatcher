@@ -8,4 +8,5 @@
   {%- include "partials/stop-control.html" -%}
   <p id="{{ status_id | replace('-status', '-detail') }}" class="assignment-detail" hx-swap-oob="true">{{ live.detail }}</p>
   {%- include "partials/assignment-rounds.html" -%}
+  {%- include "partials/hand-resume.html" -%}
 {%- endwith %}

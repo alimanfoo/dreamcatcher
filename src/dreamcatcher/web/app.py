@@ -156,18 +156,20 @@ def _show_assignment(
         view=compose_assignment_view(
             state=state,
             status=status,
-            live=_compose_assignment_live_state(status=status, zone=zone),
+            live=_compose_assignment_live_state(state=state, status=status, zone=zone),
             zone=zone,
         ),
     )
 
 
 def _compose_assignment_live_state(
-    *, status: AssignmentStatus, zone: tzinfo | None
+    *, state: StateDirectory, status: AssignmentStatus, zone: tzinfo | None
 ) -> WebAgentLiveState:
     paths = status.stoppable_round_paths
     return compose_agent_live_state(
+        state=state,
         status=status,
+        worktree=status.assignment.record.worktree,
         zone=zone,
         stop_url=(
             None
@@ -198,7 +200,7 @@ def _show_assignment_tail(
         return _missing_assignment_response(identifier=identifier)
     return _show_agent_tail(
         owner=status.assignment,
-        live=_compose_assignment_live_state(status=status, zone=zone),
+        live=_compose_assignment_live_state(state=state, status=status, zone=zone),
         is_terminal=status.is_over,
         status_id="assignment-status",
         zone=zone,
@@ -221,18 +223,23 @@ def _show_conversation(
         view=compose_conversation_view(
             state=state,
             status=status,
-            live=_compose_conversation_live_state(status=status, zone=zone),
+            live=_compose_conversation_live_state(
+                state=state, status=status, zone=zone
+            ),
             zone=zone,
         ),
     )
 
 
 def _compose_conversation_live_state(
-    *, status: ConversationStatus, zone: tzinfo | None
+    *, state: StateDirectory, status: ConversationStatus, zone: tzinfo | None
 ) -> WebAgentLiveState:
+    conversation = status.conversation
     paths = status.stoppable_round_paths
     return compose_agent_live_state(
+        state=state,
         status=status,
+        worktree=None if conversation is None else conversation.worktree,
         zone=zone,
         stop_url=(
             None
@@ -259,7 +266,7 @@ def _show_conversation_tail(
         return _missing_conversation_response(issue=issue)
     return _show_agent_tail(
         owner=status.conversation,
-        live=_compose_conversation_live_state(status=status, zone=zone),
+        live=_compose_conversation_live_state(state=state, status=status, zone=zone),
         is_terminal=status.is_over,
         status_id="conversation-status",
         zone=zone,

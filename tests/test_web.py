@@ -248,6 +248,27 @@ def test_assignment_tail_updates_the_stop_control(tmp_path, daemon):
     assert f'action="/assignments/{identifier}/stop/2"' in response.text
 
 
+def test_assignment_tail_offers_a_hand_resume_only_while_no_round_runs(
+    tmp_path, daemon
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH13-20260819-184158"
+    client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
+    page = client.get(f"/assignments/{identifier}")
+    query = {"cursor": _read_cursor(response=page)}
+
+    working = client.get(f"/assignments/{identifier}/tail", query_string=query)
+    remove_file(path=state.lock)
+    idle = client.get(f"/assignments/{identifier}/tail", query_string=query)
+
+    assert (
+        '<div id="hand-resume" class="hand-resume" hx-swap-oob="morph"></div>'
+        in working.text
+    )
+    assert "<summary>resume by hand</summary>" in idle.text
+
+
 def test_a_stale_assignment_stop_request_is_already_done(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
@@ -848,7 +869,8 @@ def test_a_quiet_tail_has_no_appendable_text_nodes(tmp_path):
     assert '</span><div id="stop-control"' in response.text
     assert '</div><p id="assignment-detail"' in response.text
     assert "</p><aside" in response.text
-    assert response.text.endswith("</aside>")
+    assert '</aside><div id="hand-resume"' in response.text
+    assert response.text.endswith("</div>")
 
 
 def test_an_assignment_page_links_its_title_and_pull_request(tmp_path, daemon):
