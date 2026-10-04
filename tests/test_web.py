@@ -25,7 +25,11 @@ from status_fabrications import (
 from werkzeug.test import TestResponse
 
 import dreamcatcher.web.server as web_server_module
-from dreamcatcher.agent_assignments import read_assignment
+from dreamcatcher.agent_assignments import (
+    cancel_assignment,
+    read_assignment,
+    read_assignments_for_issue,
+)
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     AssignmentRoundPurpose,
@@ -50,6 +54,7 @@ WEB_STATUS_REPORTS = {
     "titles-and-pull-requests": fabricate_titles_and_pull_request_states,
 }
 WEB_ASSIGNMENT_PAGES = {
+    "cancelled": (fabricate_everything, "GH70-20260819-184158"),
     "complete": (fabricate_everything, "GH12-20260819-184158"),
     "fault": (fabricate_everything, "GH9-20260819-184158"),
     "silent-round": (fabricate_a_silent_round, "GH13-20260819-184158"),
@@ -231,7 +236,7 @@ def test_assignment_stop_control_needs_a_daemon_and_harness_session(tmp_path, da
     assert 'action="/assignments/GH13-20260819-184158/stop/2"' not in without_daemon
 
 
-def test_assignment_tail_updates_the_stop_control(tmp_path, daemon):
+def test_assignment_tail_updates_the_stop_and_cancel_controls(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     identifier = "GH13-20260819-184158"
@@ -244,8 +249,9 @@ def test_assignment_tail_updates_the_stop_control(tmp_path, daemon):
     )
 
     assert response.status_code == 200
-    assert '<div id="stop-control" hx-swap-oob="true">' in response.text
+    assert '<div id="agent-work-controls" hx-swap-oob="true">' in response.text
     assert f'action="/assignments/{identifier}/stop/2"' in response.text
+    assert f'action="/assignments/{identifier}/cancel"' in response.text
 
 
 def test_a_stale_assignment_stop_request_is_already_done(tmp_path, daemon):
@@ -271,6 +277,187 @@ def test_an_unknown_assignment_cannot_receive_a_stop_request(tmp_path):
 
     response = client.post(
         "/assignments/unknown/stop/1",
+        headers={"Origin": "http://localhost"},
+    )
+
+    assert response.status_code == 404
+
+
+def test_assignment_page_cancels_its_assignment(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH13-20260819-184158"
+    client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
+
+    page = client.get(f"/assignments/{identifier}")
+
+    assert f'action="/assignments/{identifier}/cancel"' in page.text
+
+    response = client.post(
+        f"/assignments/{identifier}/cancel",
+        headers={"Origin": "http://localhost"},
+    )
+
+    assert response.status_code == 303
+    assert response.location == f"/assignments/{identifier}"
+    assignment = read_assignment(state=state, identifier=identifier)
+    assert assignment is not None
+    assert assignment.record.cancelled_at == LOOKED_AT
+    assert assignment.compose_round_paths(number=2).stop_request.is_file()
+
+
+@pytest.mark.parametrize("identifier", ["GH12-20260819-184158", "GH70-20260819-184158"])
+def test_an_ended_assignment_offers_no_cancel_control(tmp_path, daemon, identifier):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_assignment(state=state, identifier=identifier)
+
+    assert "/cancel" not in page
+
+
+def test_a_cancelled_assignment_still_working_offers_no_cancel_control(
+    tmp_path, daemon
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH13-20260819-184158"
+    assignment = read_assignment(state=state, identifier=identifier)
+    assert assignment is not None
+    cancel_assignment(assignment=assignment, at=LOOKED_AT)
+
+    page = render_assignment(state=state, identifier=identifier)
+
+    assert 'class="chip status-working">working</span>' in page
+    assert "/cancel" not in page
+
+
+@pytest.mark.parametrize("origin", [None, "https://example.com"])
+def test_assignment_cancels_must_come_from_the_page(tmp_path, daemon, origin):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH13-20260819-184158"
+    client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
+    headers = {} if origin is None else {"Origin": origin}
+
+    response = client.post(f"/assignments/{identifier}/cancel", headers=headers)
+
+    assert response.status_code == 403
+    assignment = read_assignment(state=state, identifier=identifier)
+    assert assignment is not None
+    assert assignment.is_open
+
+
+def test_a_stale_assignment_cancel_changes_nothing(tmp_path, daemon):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH70-20260819-184158"
+    client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
+
+    response = client.post(
+        f"/assignments/{identifier}/cancel",
+        headers={"Origin": "http://localhost"},
+    )
+
+    assert response.status_code == 303
+    assignment = read_assignment(state=state, identifier=identifier)
+    assert assignment is not None
+    assert assignment.record.cancelled_at == PINNED + timedelta(minutes=10)
+
+
+def test_an_unknown_assignment_cannot_be_cancelled(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
+
+    response = client.post(
+        "/assignments/unknown/cancel",
+        headers={"Origin": "http://localhost"},
+    )
+
+    assert response.status_code == 404
+
+
+def test_assignment_page_requests_a_retry_for_its_fault(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH9-20260819-184158"
+    client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
+
+    page = client.get(f"/assignments/{identifier}")
+
+    assert f'action="/assignments/{identifier}/retry/2"' in page.text
+
+    response = client.post(
+        f"/assignments/{identifier}/retry/2",
+        headers={"Origin": "http://localhost"},
+    )
+
+    assert response.status_code == 303
+    assert response.location == f"/assignments/{identifier}"
+    assignment = read_assignment(state=state, identifier=identifier)
+    assert assignment is not None
+    assert assignment.record.retry_requested_at == LOOKED_AT
+    assert (
+        f'action="/assignments/{identifier}/retry/2"'
+        not in client.get(f"/assignments/{identifier}").text
+    )
+
+
+def test_assignment_tail_offers_the_retry_control(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH9-20260819-184158"
+
+    response = _read_tail(state=state, identifier=identifier, cursor="1:0")
+
+    assert '<div id="agent-work-controls" hx-swap-oob="true">' in response.text
+    assert f'action="/assignments/{identifier}/retry/2"' in response.text
+
+
+@pytest.mark.parametrize(
+    ("identifier", "number"),
+    [("GH9-20260819-184158", 1), ("GH12-20260819-184158", 2)],
+)
+def test_an_assignment_retry_needs_its_fault_at_the_submitted_round(
+    tmp_path, identifier, number
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
+
+    response = client.post(
+        f"/assignments/{identifier}/retry/{number}",
+        headers={"Origin": "http://localhost"},
+    )
+
+    assert response.status_code == 303
+    assignment = read_assignment(state=state, identifier=identifier)
+    assert assignment is not None
+    assert assignment.record.retry_requested_at is None
+
+
+@pytest.mark.parametrize("origin", [None, "https://example.com"])
+def test_assignment_retry_requests_must_come_from_the_page(tmp_path, origin):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH9-20260819-184158"
+    client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
+    headers = {} if origin is None else {"Origin": origin}
+
+    response = client.post(f"/assignments/{identifier}/retry/2", headers=headers)
+
+    assert response.status_code == 403
+    assignment = read_assignment(state=state, identifier=identifier)
+    assert assignment is not None
+    assert assignment.record.retry_requested_at is None
+
+
+def test_an_unknown_assignment_cannot_receive_a_retry_request(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
+
+    response = client.post(
+        "/assignments/unknown/retry/2",
         headers={"Origin": "http://localhost"},
     )
 
@@ -434,7 +621,7 @@ def test_assignment_script_follows_only_when_the_feed_was_at_its_end(tmp_path):
     assert "focusedRoundLink?.focus({ preventScroll: true })" in script
 
 
-def test_complete_assignment_cards_have_space_between_them(tmp_path, daemon):
+def test_ended_assignment_cards_have_space_between_them(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -446,16 +633,16 @@ def test_complete_assignment_cards_have_space_between_them(tmp_path, daemon):
         application.test_client().get("/static/matrix.css").get_data(as_text=True)
     )
 
-    assert '<div class="complete-assignment-cards">' in page
+    assert '<div class="ended-assignment-cards">' in page
     assert re.search(
-        r"\.complete-assignment-cards \{[^}]*display: grid;"
+        r"\.ended-assignment-cards \{[^}]*display: grid;"
         r"[^}]*gap: var\(--space-5\);",
         stylesheet,
         re.DOTALL,
     )
 
 
-def test_complete_assignments_are_ordered_by_most_recent_completion(tmp_path):
+def test_ended_assignments_are_ordered_by_when_they_ended(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
     written(
@@ -474,10 +661,20 @@ def test_complete_assignments_are_ordered_by_most_recent_completion(tmp_path):
             ended(minute=20, number=2, purpose=AssignmentRoundPurpose.WRAP_UP),
         ],
     )
+    written(state=state, issue=30, records=[ended(minute=1)])
+    cancel_assignment(
+        assignment=read_assignments_for_issue(state=state, issue=30)[0],
+        at=PINNED + timedelta(minutes=10),
+    )
 
     page = render_home(state=state)
 
-    assert page.index("assignment-GH20-") < page.index("assignment-GH10-")
+    assert "+ 3 ended</summary>" in page
+    assert (
+        page.index("assignment-GH20-")
+        < page.index("assignment-GH30-")
+        < page.index("assignment-GH10-")
+    )
 
 
 def test_home_page_types_replaced_assignment_output(tmp_path):
@@ -845,7 +1042,7 @@ def test_a_quiet_tail_has_no_appendable_text_nodes(tmp_path):
         '<input type="hidden" id="cursor" name="cursor" value="1:0" '
         'hx-swap-oob="true"><span'
     )
-    assert '</span><div id="stop-control"' in response.text
+    assert '</span><div id="agent-work-controls"' in response.text
     assert '</div><p id="assignment-detail"' in response.text
     assert "</p><aside" in response.text
     assert response.text.endswith("</aside>")

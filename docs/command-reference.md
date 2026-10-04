@@ -22,6 +22,7 @@ prefix is case-insensitive, so `GH123` and `gh123` both name issue 123.
 | `run`          | Run the daemon for this repository.                  |
 | `retry`        | Allow faulted work at one issue to recover again.    |
 | `stop`         | Stop one running assignment or conversation round.   |
+| `cancel`       | Cancel one issue's newest assignment.                |
 | `web`          | Serve the local status report in a browser.          |
 | `status`       | Show the whole local status report in the terminal.  |
 | `assignment`   | Show one issue's newest assignment.                  |
@@ -70,7 +71,9 @@ round records.
 At least one of those two items must currently be in fault. Otherwise the
 command reports that the issue has no agent work in fault. A successful request
 makes the named work available for recovery on a later scheduler tick, outside
-any active global cooldown; it does not start a round itself.
+any active global cooldown; it does not start a round itself. The web page's
+retry control writes the same request for the one assignment or conversation it
+shows.
 
 ## `stop`
 
@@ -85,6 +88,26 @@ Request a stop for the current round of the selected agent work. The
 The round must be running under the daemon, have a resumable harness session,
 and have no pending stop request. The command writes the same local stop request
 as the web control and does not contact GitHub.
+
+## `cancel`
+
+```text
+dreamcatcher cancel GH<n>
+```
+
+Cancel the newest assignment at the issue, so that you can finish its pull
+request by hand. Dreamcatcher runs no further rounds for the assignment and
+relays no further posts from its pull request. If a round is running, the
+command asks it to stop, without the conditions that `stop` requires.
+
+Dreamcatcher leaves the pull request as it is, and while it is open it claims
+the issue as work outside Dreamcatcher. The worktree and branch stay in place,
+so you can carry on in the assignment's worktree. The cancelled assignment stays
+in every status view.
+
+The issue must have an assignment, and that assignment must not have ended. A
+cancel cannot be undone. The command writes only local state, does not contact
+GitHub, and works whether or not the daemon is running.
 
 ## `web`
 
@@ -131,9 +154,9 @@ harness settings, its rounds, a hand-resume command when one is available, and
 older assignments at the same issue.
 
 In an interactive terminal it refreshes while another round may be required. It
-ends when the assignment completes a successful wrap-up or enters fault; a
-completed assignment remains on screen. When output is piped, redirected or
-captured, it prints one snapshot and returns.
+ends when the assignment completes a successful wrap-up, is cancelled or enters
+fault; an ended assignment remains on screen. When output is piped, redirected
+or captured, it prints one snapshot and returns.
 
 ## `conversation`
 
@@ -161,11 +184,11 @@ Exactly one owner selector is required:
 - `--conversation` selects the issue conversation.
 
 Without `--round`, the command shows all of that work's rounds and follows later
-output until the work completes, enters fault or leaves the status report. A
-conversation's routing conflict also ends its feed view. `--round N` selects one
-exact integer round number and ends when that round ends. The corresponding
-`assignment` or `conversation` view lists the available round numbers;
-requesting a round that does not exist is an error.
+output until the work completes, is cancelled, enters fault or leaves the status
+report. A conversation's routing conflict also ends its feed view. `--round N`
+selects one exact integer round number and ends when that round ends. The
+corresponding `assignment` or `conversation` view lists the available round
+numbers; requesting a round that does not exist is an error.
 
 A feed prints incrementally so terminal scrollback is preserved. When its output
 is piped, redirected or captured, it prints the currently recorded output once

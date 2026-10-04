@@ -55,6 +55,11 @@ A failed or interrupted wrap-up remains available for recovery.
 [Stop and recover work](stop-and-recover.md) explains what happens automatically
 and when to request a retry.
 
+To finish the pull request by hand instead, cancel the assignment. Dreamcatcher
+then runs no further rounds for it, and no wrap-up follows a merge or close.
+[Take over an assignment's pull request](stop-and-recover.md#take-over-an-assignments-pull-request)
+explains how.
+
 Removing the assignment label is not a way to stop an active assignment; its
 saved pull request continues to drive feedback and wrap-up. If you close a pull
 request without merging and do not want the still-open issue assigned again,

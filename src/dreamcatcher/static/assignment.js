@@ -159,3 +159,14 @@ if (assignmentSidebar !== null) {
     });
   });
 }
+
+// The tail replaces the controls on every poll, so the listener sits above them.
+document.addEventListener("submit", (event) => {
+  const form = event.target;
+  if (
+    form.dataset.confirmation !== undefined &&
+    !window.confirm(form.dataset.confirmation)
+  ) {
+    event.preventDefault();
+  }
+});

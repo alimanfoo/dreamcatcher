@@ -7,6 +7,7 @@ stopping one agent round and stopping the daemon have different consequences.
 | ----------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------ |
 | Interrupt `web`, `status`, `assignment`, `conversation` or `feed` | Only that view                        | The daemon and agents continue.                                                |
 | Run `dreamcatcher stop` or select **Stop** on the web page        | The current agent round               | The work waits for input unless a merged or closed pull request needs wrap-up. |
+| Run `dreamcatcher cancel` or select **Cancel** on the web page    | The assignment and any running round  | You finish the pull request by hand. Dreamcatcher runs no further rounds.      |
 | Press Ctrl-C in the terminal running `dreamcatcher run`           | The daemon and all its current rounds | Work that still needs a round can recover after the daemon starts again.       |
 
 ## Stop one running round
@@ -36,6 +37,32 @@ an automatic recovery of the stopped attempt.
 Removing an assignment label does not stop an active assignment. For a
 conversation, removing its last matching label makes future batches and recovery
 ineligible, but does not cancel a round already running.
+
+## Take over an assignment's pull request
+
+Cancel an assignment when you want to finish its pull request yourself. Run:
+
+```sh
+dreamcatcher cancel GH123
+```
+
+The command cancels the newest assignment at the issue. You can instead open the
+assignment in `dreamcatcher web`, select **Cancel**, and confirm. A cancel
+cannot be undone.
+
+Dreamcatcher asks a running round to stop, runs no further rounds for the
+assignment, and stops relaying your comments and reviews on its pull request.
+The assignment stays in the status views as **cancelled**.
+
+Carry on in the assignment's worktree, which still has the branch checked out.
+Once no round is running, and when Dreamcatcher has learned the agent's harness
+session, the assignment page shows the worktree and the command that resumes
+that session by hand.
+
+Dreamcatcher leaves the pull request as it is, and while it is open it claims
+the issue as work outside Dreamcatcher. If you merge it, GitHub closes the
+issue. If you close it without merging, the issue can receive a new assignment
+while it keeps its assignment label and stays assigned to you.
 
 ## Restart an interrupted daemon
 
@@ -81,6 +108,12 @@ dreamcatcher retry GH123
 newest faulted assignment and faulted conversation at that issue. It does not
 start an agent itself; the daemon may recover the work on a later scheduler
 tick.
+
+You can instead run `dreamcatcher web`, open the faulted assignment or
+conversation, and select **Retry**. The control is available while the page
+shows that work's status as fault, and it requests recovery for that one
+assignment or conversation in the same way. The page records the request even
+while the daemon is stopped, and recovery can start once the daemon runs again.
 
 Repeated failures across multiple work items can trigger a 15-minute global
 cooldown. Dreamcatcher keeps reporting status but starts no agent rounds during
