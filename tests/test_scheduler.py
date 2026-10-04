@@ -14,6 +14,7 @@ from conftest import (
     POSTED_BY,
     PULL_REQUEST,
     REPOSITORY,
+    SMITH_CLAUDE,
     comment,
     configure,
     git,
@@ -1218,21 +1219,30 @@ def test_open_work_is_carried_on_before_a_new_issue_is_assigned(resuming, gh, of
     assert observed.issue_observations[1].claimed_here.value is IssueFactValue.TRUE
 
 
-def test_a_failed_issue_listing_still_recovers_an_existing_assignment(
+def test_a_failed_issue_listing_holds_new_assignments_but_not_recovery(
     ready_repo, offered
 ):
+    configure(root=ready_repo, head=SMITH_CLAUDE.replace("dream:smith", "dream:less"))
     write_assignment(
         state=StateDirectory(root=ready_repo),
         identifier=ASSIGNMENT_ID,
         issue=13,
     )
     ran(root=ready_repo, number=1, purpose=PURPOSE, status=1)
-    offered.fails(stderr="gh: could not connect to github.com", to="issue list")
-    scheduler, clock = create_scheduler(root=ready_repo)
+    offered.fails(
+        stderr="gh: could not connect to github.com",
+        to=f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} --label dream:less",
+    )
+    scheduler, clock = create_scheduler(root=ready_repo, max_agents=2)
 
     observed = scheduler.tick(at=clock())
 
-    assert "could not connect" in held(observed=observed)
+    assert "could not list issues for dream:less" in held(observed=observed)
+    assert observed_issues(tick=observed) == [8, 13]
+    assert availability_values(tick=observed) == [
+        IssueFactValue.TRUE,
+        IssueFactValue.FALSE,
+    ]
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     assert not (scheduler.assignments.state.worktrees / CREATED_ASSIGNMENT_ID).exists()
 
