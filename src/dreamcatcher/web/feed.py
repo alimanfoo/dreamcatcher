@@ -98,7 +98,7 @@ def read_agent_tail(
         status_label=context.status_label,
         detail=context.detail,
         rounds=context.rounds,
-        control=context.control,
+        controls=context.controls,
         has_empty_feed_placeholder=cursor.round_number == 0,
     )
 

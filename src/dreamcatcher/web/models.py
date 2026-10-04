@@ -106,9 +106,9 @@ class WebFeedCursor:
 
 @dataclass(frozen=True, kw_only=True)
 class WebAgentWorkControl:
-    """Represent the one form that acts on the agent work a page shows."""
+    """Represent one form that acts on the agent work a page shows."""
 
-    action: Literal["stop", "retry"]
+    action: Literal["stop", "retry", "cancel"]
     url: str
 
 
@@ -122,7 +122,7 @@ class WebAgentTail:
     status_label: str
     detail: str | None
     rounds: tuple[WebAgentRound, ...]
-    control: WebAgentWorkControl | None
+    controls: tuple[WebAgentWorkControl, ...]
     has_empty_feed_placeholder: bool
 
 
@@ -133,7 +133,7 @@ class WebAgentTailContext:
     status: str
     status_label: str
     rounds: tuple[WebAgentRound, ...]
-    control: WebAgentWorkControl | None
+    controls: tuple[WebAgentWorkControl, ...]
     detail: str | None = None
 
 
@@ -158,7 +158,7 @@ class WebAssignmentView:
     model: str
     effort: str
     rounds: tuple[WebAgentRound, ...]
-    control: WebAgentWorkControl | None
+    controls: tuple[WebAgentWorkControl, ...]
     hand_resume: WebHandResume | None
     feed_rounds: tuple[WebFeedRound, ...]
     feed_cursor: str
@@ -189,7 +189,7 @@ class WebConversationView:
     detail: str
     facts: tuple[WebFact, ...]
     rounds: tuple[WebAgentRound, ...]
-    control: WebAgentWorkControl | None
+    controls: tuple[WebAgentWorkControl, ...]
     hand_resume: WebHandResume | None
     feed_rounds: tuple[WebFeedRound, ...]
     feed_cursor: str
@@ -207,7 +207,7 @@ class WebHomeView:
     cooldown_message: str | None
     conversations: tuple[WebConversationCard, ...]
     active_assignments: tuple[WebAssignmentCard, ...]
-    complete_assignments: tuple[WebAssignmentCard, ...]
+    ended_assignments: tuple[WebAssignmentCard, ...]
     failed_setups: tuple[WebIssueRow, ...]
     issues: tuple[WebIssueRow, ...]
 

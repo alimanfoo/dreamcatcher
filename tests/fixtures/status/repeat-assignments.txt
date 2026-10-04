@@ -8,4 +8,4 @@ instance
 
 assignments
   GH13-20260819-184158  needs user feedback  idle 1h 58m
-  2 completed assignments                               
+  2 ended assignments                                   

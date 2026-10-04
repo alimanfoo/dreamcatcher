@@ -57,7 +57,7 @@ def show_assignment_view(
     wait: WaitForSeconds = sleep,
     zone: tzinfo | None = None,
 ) -> None:
-    """Show the issue's newest assignment until it completes or enters fault.
+    """Show the issue's newest assignment until it ends or enters fault.
 
     The view remains open between rounds. A non-terminal or dumb terminal
     renders one snapshot and returns.

@@ -395,6 +395,13 @@ request through the agent-round boundary, into that round's own directory. The
 daemon still owns the live process and lifecycle transition: the round watches
 the request, kills its harness process tree, and records its stopped ending.
 
+The web process and the `cancel` command can cancel an assignment. A cancel goes
+through the agent-assignment boundary, which records the time of the cancel in
+the assignment record and then writes a stop request for any round that has no
+ending. The scheduler starts no further rounds for the assignment. A round that
+it starts as the cancel lands is stopped too, because the scheduler reads the
+record again once that round's record exists.
+
 The web process can also request a retry for agent work that status derives as
 in fault. It writes the retry request time through the assignment or
 conversation boundary, into that work's own record. The scheduler reads the

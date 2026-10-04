@@ -335,6 +335,7 @@ body::after {
 .status-waiting,
 .status-unknown,
 .status-complete,
+.status-cancelled,
 .status-idle,
 .issue-blocked {
   color: var(--dim);
@@ -425,17 +426,17 @@ body::after {
   font-weight: 700;
 }
 
-.complete-assignments summary,
+.ended-assignments summary,
 .empty {
   color: var(--dim);
 }
 
-.complete-assignments summary {
+.ended-assignments summary {
   padding: var(--space-4) 0;
   cursor: pointer;
 }
 
-.complete-assignment-cards {
+.ended-assignment-cards {
   display: grid;
   gap: var(--space-5);
 }
@@ -502,7 +503,8 @@ body::after {
   text-transform: uppercase;
 }
 
-.stop-control {
+.stop-control,
+.cancel-control {
   color: var(--amber);
 }
 

@@ -13,6 +13,7 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from typing import cast
 
 from pydantic import AwareDatetime
 
@@ -27,11 +28,14 @@ from dreamcatcher.agent_rounds import (
     AssignmentRoundPurpose,
     ErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
+    SuccessfulAgentRoundEnding,
     read_agent_round_records,
+    request_agent_round_stop,
 )
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import AgentHarness, AssignmentRoute
 from dreamcatcher.documents import (
+    DocumentCache,
     DreamcatcherDocument,
     read_json,
     write_json,
@@ -99,9 +103,9 @@ class AssignmentRecord(DreamcatcherDocument):
 
     The assignment dispatch settles the recipe and identities. The first round
     adds the harness session identifier when the harness reports it, and a retry
-    request records its time. Every round reads this record, so later config
-    edits do not change an assignment in progress. The latest pull request
-    observation supports reporting; scheduling still reads GitHub.
+    request or a cancel records its time. Every round reads this record, so
+    later config edits do not change an assignment in progress. The latest pull
+    request observation supports reporting; scheduling still reads GitHub.
     """
 
     issue: int
@@ -114,6 +118,7 @@ class AssignmentRecord(DreamcatcherDocument):
     harness: AgentHarness
     harness_session_identifier: HarnessSessionIdentifier | None = None
     retry_requested_at: AwareDatetime | None = None
+    cancelled_at: AwareDatetime | None = None
     model: str
     effort: str
     prompt: str
@@ -156,6 +161,20 @@ class Assignment:
             round.purpose is AssignmentRoundPurpose.WRAP_UP
             and round.outcome is AgentRoundOutcome.SUCCESSFUL
         )
+
+    @property
+    def ended_at(self) -> datetime | None:
+        """When the assignment was cancelled or completed, if it has ended."""
+        if self.record.cancelled_at is not None:
+            return self.record.cancelled_at
+        if not self.is_complete:
+            return None
+        return cast("SuccessfulAgentRoundEnding", self.rounds[-1].ending).at
+
+    @property
+    def is_open(self) -> bool:
+        """Whether the assignment has neither completed nor been cancelled."""
+        return self.ended_at is None
 
     def describe_unfinished_round(self) -> str | None:
         """Describe an interrupted or errored final round, if one exists.
@@ -269,7 +288,7 @@ def find_open_assignments_by_issue(
     return {
         assignment.record.issue: assignment
         for assignment in assignments
-        if not assignment.is_complete
+        if assignment.is_open
     }
 
 
@@ -281,6 +300,43 @@ def request_assignment_retry(*, assignment: Assignment, at: datetime) -> None:
         document=record.model_copy(update={"retry_requested_at": at}),
         path=path,
     )
+
+
+def cancel_assignment(*, assignment: Assignment, at: datetime) -> None:
+    """Record that the user has taken an open assignment over.
+
+    A round with no ending is asked to stop, so it does not go on pushing to the
+    branch. The record is written before the rounds are read again, so a round
+    that starts at the same moment is either asked to stop here or finds the
+    cancel through stop_round_if_cancelled. An assignment that has already
+    ended raises ReportableError.
+    """
+    if not assignment.is_open:
+        raise ReportableError(f"{assignment.identifier} has already ended.")
+    path = assignment.directory / _ASSIGNMENT_RECORD_NAME
+    record = read_json(model=AssignmentRecord, path=path)
+    write_json(document=record.model_copy(update={"cancelled_at": at}), path=path)
+    rounds = read_agent_round_records(
+        cache=DocumentCache(),
+        directory=assignment.directory / _AGENT_ROUNDS_DIRECTORY_NAME,
+    )
+    if rounds and rounds[-1].ending is None:
+        request_agent_round_stop(
+            paths=assignment.compose_round_paths(number=rounds[-1].number)
+        )
+
+
+def stop_round_if_cancelled(*, assignment: Assignment, paths: AgentRoundPaths) -> None:
+    """Ask a round that has just started to stop if the user cancelled its work.
+
+    Call this once the round's record exists, so that a cancel either lands
+    before this read or finds the round itself.
+    """
+    record = read_json(
+        model=AssignmentRecord, path=assignment.directory / _ASSIGNMENT_RECORD_NAME
+    )
+    if record.cancelled_at is not None:
+        request_agent_round_stop(paths=paths)
 
 
 def inspect_incomplete_assignment_setups(
