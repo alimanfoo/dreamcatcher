@@ -489,8 +489,10 @@ run of errors.
 ### Scheduling work
 
 The scheduler creates agent assignments and starts agent rounds. A failed issue
-read prevents launches for the kind of agent work that depends on those facts
-without preventing the other kind of agent work.
+listing prevents only the launches that depend on what it would have listed:
+creating an assignment, and starting a conversation round for fresh comments.
+Rounds that existing assignments require still start, and so do recoveries for
+conversations whose issues are known to be eligible.
 
 Existing assignments take precedence over new ones, ranked in this order:
 
