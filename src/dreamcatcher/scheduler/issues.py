@@ -34,10 +34,10 @@ class _ListedIssueFacts:
 
 @dataclass(frozen=True, kw_only=True)
 class IssueObservationResult:
-    """Group issue observations with any failed listing behind them."""
+    """Group issue observations with any failed listings behind them."""
 
     observations: list[IssueObservation]
-    failure: str | None = None
+    failures: list[str]
 
 
 def observe_issues(
@@ -76,7 +76,7 @@ def observe_issues(
                 observation.issue,
             ),
         ),
-        failure=listing.failure,
+        failures=listing.failures,
     )
 
 

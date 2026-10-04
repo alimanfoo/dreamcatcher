@@ -90,7 +90,7 @@ def observe(
         assignments=list(assignments),
         incomplete_setups=({} if incomplete_setups is None else incomplete_setups),
     )
-    assert found.failure is None
+    assert found.failures == []
     return found.observations
 
 
@@ -204,8 +204,8 @@ def test_a_listing_failure_makes_the_whole_observation_unknown(gh):
     )
 
     assert found.observations == []
-    assert found.failure is not None
-    assert "could not connect" in found.failure
+    assert len(found.failures) == 1
+    assert "could not connect" in found.failures[0]
 
 
 def test_a_later_route_failure_preserves_earlier_issue_observations(gh):
@@ -231,8 +231,8 @@ def test_a_later_route_failure_preserves_earlier_issue_observations(gh):
         incomplete_setups={},
     )
 
-    assert found.failure is not None
-    assert "could not connect" in found.failure
+    assert len(found.failures) == 1
+    assert "could not connect" in found.failures[0]
     assert [observation.issue for observation in found.observations] == [8]
     assert found.observations[0].is_open.value is IssueFactValue.TRUE
 
@@ -481,8 +481,8 @@ def test_a_local_assignment_remains_observed_when_the_listing_and_issue_read_fai
         incomplete_setups={},
     )
 
-    assert found.failure is not None
-    assert "could not connect" in found.failure
+    assert len(found.failures) == 1
+    assert "could not connect" in found.failures[0]
     assert [observation.issue for observation in found.observations] == [13]
     observation = found.observations[0]
     assert observation.is_open.value is IssueFactValue.UNKNOWN

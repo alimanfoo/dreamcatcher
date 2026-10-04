@@ -10,11 +10,7 @@ from dreamcatcher.config import AgentHarness, DispatchRoute, DreamcatcherConfig
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import Issue, UnknownGitHubResponse, list_issues
 from dreamcatcher.harness_adapters import HarnessSessionIdentifier
-from dreamcatcher.scheduler.models import (
-    AgentWorkInspection,
-    SchedulerRecord,
-    combine_scheduler_failures,
-)
+from dreamcatcher.scheduler.models import AgentWorkInspection, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 
 
@@ -23,7 +19,7 @@ class RouteIssueListing:
     """Collect the issues found through routes and any listing failures."""
 
     issues: list[Issue]
-    failure: str | None
+    failures: list[str]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -92,7 +88,7 @@ class AgentWorkScheduler[CandidateT, ObservationT, RankT](ABC):
     ) -> RouteIssueListing:
         """List and merge the issues found through configured routes."""
         issues_by_number: dict[int, Issue] = {}
-        failures: list[str | None] = []
+        failures: list[str] = []
         for route in routes:
             issue_response = list_issues(
                 repository=self.repository,
@@ -112,5 +108,5 @@ class AgentWorkScheduler[CandidateT, ObservationT, RankT](ABC):
                 issues_by_number.values(),
                 key=lambda issue: (issue.created_at, issue.number),
             ),
-            failure=combine_scheduler_failures(failures=failures),
+            failures=failures,
         )

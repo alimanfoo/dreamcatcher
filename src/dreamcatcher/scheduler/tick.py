@@ -23,10 +23,13 @@ from dreamcatcher.scheduler.faults import (
 from dreamcatcher.scheduler.models import (
     DEFAULT_MAX_AGENTS,
     SchedulerRecord,
-    combine_scheduler_failures,
     mark_round_started,
 )
 from dreamcatcher.state import StateDirectory
+
+
+def _join_failures(*, failures: list[str]) -> str | None:
+    return "; ".join(failures) or None
 
 
 @dataclass(kw_only=True)
@@ -109,10 +112,10 @@ class Scheduler:
             ),
             at=at,
         )
-        scheduler_failure = combine_scheduler_failures(
+        scheduler_failure = _join_failures(
             failures=[
-                assignment_inspection.failure,
-                conversation_inspection.failure,
+                *assignment_inspection.failures,
+                *conversation_inspection.failures,
             ]
         )
         record = SchedulerRecord(
@@ -129,8 +132,8 @@ class Scheduler:
             conversation_observations=conversation_inspection.observations,
         )
         if cooldown is not None:
-            hold = combine_scheduler_failures(
-                failures=["global cooldown", scheduler_failure]
+            hold = _join_failures(
+                failures=["global cooldown", *filter(None, [scheduler_failure])]
             )
             return record.model_copy(update={"hold": hold})
         return self._launch_ready_candidates(
@@ -272,7 +275,9 @@ class Scheduler:
     ) -> SchedulerRecord:
         return record.model_copy(
             update={
-                "hold": combine_scheduler_failures(failures=[record.hold, str(failure)])
+                "hold": _join_failures(
+                    failures=[*filter(None, [record.hold]), str(failure)]
+                )
             }
         )
 
@@ -290,8 +295,8 @@ class Scheduler:
             return record
         return record.model_copy(
             update={
-                "hold": combine_scheduler_failures(
-                    failures=[self._describe_capacity(), record.hold]
+                "hold": _join_failures(
+                    failures=[self._describe_capacity(), *filter(None, [record.hold])]
                 )
             }
         )
