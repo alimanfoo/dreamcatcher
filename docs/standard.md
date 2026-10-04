@@ -253,6 +253,3 @@ the consistency review, triages the open issues and measures every criterion,
 reading the three enduring documents against the code.
 [The measurement](measurement.md) holds the latest results, and a phase plans
 its work from them. Each shortfall is an issue, and none holds a release back.
-
-The first measurement is the
-[baseline of 2026-09-30](../specs/2026-09-30-engineering-standard/roadmap.md).

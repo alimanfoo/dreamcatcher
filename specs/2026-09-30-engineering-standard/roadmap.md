@@ -553,7 +553,7 @@ criterion.
 
 ## Completion
 
-This phase is complete when every row of the baseline table reads "Met", the
-measurement has been repeated and recorded on
-[the measurement page](../../docs/measurement.md), and the next phase's spec can
-begin from a standard that holds.
+This phase is complete when its six stages are done and the measurement has been
+repeated and recorded on [the measurement page](../../docs/measurement.md). A
+criterion that still falls short is an issue, as it is at a release, and the
+next phase plans its work from those issues.
