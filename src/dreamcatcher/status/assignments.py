@@ -115,6 +115,13 @@ class AssignmentStatus:
             harness_session_identifier=self.harness_session_identifier,
         )
 
+    @property
+    def faulted_round_number(self) -> int | None:
+        """The latest round while the assignment is in fault, else None."""
+        if self.value is not AssignmentStatusValue.FAULT:
+            return None
+        return self.assignment.rounds[-1].number
+
     @cached_property
     def stoppable_round_paths(self) -> AgentRoundPaths | None:
         """The live round that can accept a stop request, when one exists."""

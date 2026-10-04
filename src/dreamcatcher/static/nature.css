@@ -419,6 +419,18 @@ body::after {
   background: rgba(140, 63, 43, 0.15);
 }
 
+.retry-control {
+  color: #56704b;
+  background: rgba(86, 112, 75, 0.1);
+  box-shadow: 0 0 14px 2px rgba(86, 112, 75, 0.1);
+}
+
+.retry-control:hover,
+.retry-control:focus-visible {
+  color: #3f5536;
+  background: rgba(86, 112, 75, 0.18);
+}
+
 .pr-chip,
 .assignment-open {
   color: #56704b;

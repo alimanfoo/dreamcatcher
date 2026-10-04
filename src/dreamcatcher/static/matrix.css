@@ -506,6 +506,10 @@ body::after {
   color: var(--amber);
 }
 
+.retry-control {
+  color: var(--phosphor);
+}
+
 .agent-work-control:hover,
 .agent-work-control:focus-visible {
   color: var(--bright);

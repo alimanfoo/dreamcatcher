@@ -108,7 +108,7 @@ class WebFeedCursor:
 class WebAgentWorkControl:
     """Represent the one form that acts on the agent work a page shows."""
 
-    action: Literal["stop"]
+    action: Literal["stop", "retry"]
     url: str
 
 

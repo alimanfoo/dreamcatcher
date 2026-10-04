@@ -5,14 +5,17 @@ from collections.abc import Callable
 from contextlib import suppress
 from datetime import datetime, tzinfo
 from functools import partial
+from typing import cast
 from webbrowser import open as open_browser
 
 from flask import Flask, Response, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 
+from dreamcatcher.agent_assignments import request_assignment_retry
 from dreamcatcher.agent_rounds import request_agent_round_stop
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.errors import ReportableError
+from dreamcatcher.issue_conversations import Conversation, request_conversation_retry
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AssignmentStatus,
@@ -48,8 +51,8 @@ _HTMX_STOP_POLLING_STATUS = 286
 _DEFAULT_WEB_THEME = "matrix"
 _WEB_THEME_MARKS = {_DEFAULT_WEB_THEME: "phosphor", "nature": "ink"}
 _WEB_THEMES = tuple(_WEB_THEME_MARKS)
-_CROSS_ORIGIN_STOP_RESPONSE = (
-    "Stop requests must come from this Dreamcatcher page.",
+_CROSS_ORIGIN_REQUEST_RESPONSE = (
+    "Stop and retry requests must come from this Dreamcatcher page.",
     403,
 )
 
@@ -63,7 +66,8 @@ def _create_app(
     """Create the web application for one local state directory.
 
     Pages read persisted status and feeds. A same-origin stop request can write
-    into the running round's directory. Page times use the machine's local zone
+    into the running round's directory, and a same-origin retry request into
+    the faulted work's record. Page times use the machine's local zone
     when zone is None.
     """
     app = Flask(__name__, static_folder="../static", template_folder="../templates")
@@ -103,6 +107,12 @@ def _register_assignment_routes(
         view_func=partial(_request_assignment_stop, state=state, clock=clock),
         methods=["POST"],
     )
+    app.add_url_rule(
+        "/assignments/<identifier>/retry/<int:number>",
+        endpoint="request_assignment_retry",
+        view_func=partial(_request_assignment_retry, state=state, clock=clock),
+        methods=["POST"],
+    )
 
 
 def _register_conversation_routes(
@@ -126,6 +136,12 @@ def _register_conversation_routes(
         "/conversations/<int:issue>/stop/<int:number>",
         endpoint="request_conversation_stop",
         view_func=partial(_request_conversation_stop, state=state, clock=clock),
+        methods=["POST"],
+    )
+    app.add_url_rule(
+        "/conversations/<int:issue>/retry/<int:number>",
+        endpoint="request_conversation_retry",
+        view_func=partial(_request_conversation_retry, state=state, clock=clock),
         methods=["POST"],
     )
 
@@ -169,17 +185,24 @@ def _show_assignment(
 def _compose_assignment_control(
     *, status: AssignmentStatus
 ) -> WebAgentWorkControl | None:
+    identifier = status.assignment.identifier
     paths = status.stoppable_round_paths
-    if paths is None:
-        return None
-    return WebAgentWorkControl(
-        action="stop",
-        url=url_for(
-            "request_assignment_stop",
-            identifier=status.assignment.identifier,
-            number=paths.number,
-        ),
-    )
+    if paths is not None:
+        return WebAgentWorkControl(
+            action="stop",
+            url=url_for(
+                "request_assignment_stop", identifier=identifier, number=paths.number
+            ),
+        )
+    number = status.faulted_round_number
+    if number is not None:
+        return WebAgentWorkControl(
+            action="retry",
+            url=url_for(
+                "request_assignment_retry", identifier=identifier, number=number
+            ),
+        )
+    return None
 
 
 def _show_assignment_tail(
@@ -240,16 +263,22 @@ def _compose_conversation_control(
     *, status: ConversationStatus
 ) -> WebAgentWorkControl | None:
     paths = status.stoppable_round_paths
-    if paths is None:
-        return None
-    return WebAgentWorkControl(
-        action="stop",
-        url=url_for(
-            "request_conversation_stop",
-            issue=status.issue,
-            number=paths.number,
-        ),
-    )
+    if paths is not None:
+        return WebAgentWorkControl(
+            action="stop",
+            url=url_for(
+                "request_conversation_stop", issue=status.issue, number=paths.number
+            ),
+        )
+    number = status.faulted_round_number
+    if number is not None:
+        return WebAgentWorkControl(
+            action="retry",
+            url=url_for(
+                "request_conversation_retry", issue=status.issue, number=number
+            ),
+        )
+    return None
 
 
 def _show_conversation_tail(
@@ -290,7 +319,7 @@ def _request_assignment_stop(
 ) -> ResponseReturnValue:
     """Request a stop for one assignment's live round."""
     if not _is_same_origin_request():
-        return _CROSS_ORIGIN_STOP_RESPONSE
+        return _CROSS_ORIGIN_REQUEST_RESPONSE
     status = read_assignment_status(state=state, identifier=identifier, clock=clock)
     if status is None:
         return _missing_assignment_response(identifier=identifier)
@@ -309,13 +338,51 @@ def _request_conversation_stop(
 ) -> ResponseReturnValue:
     """Request a stop for one issue conversation's live round."""
     if not _is_same_origin_request():
-        return _CROSS_ORIGIN_STOP_RESPONSE
+        return _CROSS_ORIGIN_REQUEST_RESPONSE
     status = read_conversation_status(state=state, issue=issue, clock=clock)
     if status is None:
         return _missing_conversation_response(issue=issue)
     paths = status.stoppable_round_paths
     if paths is not None and paths.number == number:
         request_agent_round_stop(paths=paths)
+    return redirect(url_for("show_conversation", issue=issue), code=303)
+
+
+def _request_assignment_retry(
+    *,
+    state: StateDirectory,
+    clock: Callable[[], datetime],
+    identifier: str,
+    number: int,
+) -> ResponseReturnValue:
+    """Request recovery for one assignment that is still in fault at a round."""
+    if not _is_same_origin_request():
+        return _CROSS_ORIGIN_REQUEST_RESPONSE
+    status = read_assignment_status(state=state, identifier=identifier, clock=clock)
+    if status is None:
+        return _missing_assignment_response(identifier=identifier)
+    if status.faulted_round_number == number:
+        request_assignment_retry(assignment=status.assignment, at=clock())
+    return redirect(url_for("show_assignment", identifier=identifier), code=303)
+
+
+def _request_conversation_retry(
+    *,
+    state: StateDirectory,
+    clock: Callable[[], datetime],
+    issue: int,
+    number: int,
+) -> ResponseReturnValue:
+    """Request recovery for one issue conversation still in fault at a round."""
+    if not _is_same_origin_request():
+        return _CROSS_ORIGIN_REQUEST_RESPONSE
+    status = read_conversation_status(state=state, issue=issue, clock=clock)
+    if status is None:
+        return _missing_conversation_response(issue=issue)
+    if status.faulted_round_number == number:
+        request_conversation_retry(
+            conversation=cast("Conversation", status.conversation), at=clock()
+        )
     return redirect(url_for("show_conversation", issue=issue), code=303)
 
 
