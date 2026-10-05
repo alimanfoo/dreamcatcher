@@ -253,6 +253,9 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
         )
         if status is not None:
             return status
+        status = self._derive_fault(issue=issue, title=title, conversation=conversation)
+        if status is not None:
+            return status
         status = self._derive_unfinished(
             issue=issue, title=title, conversation=conversation
         )
@@ -328,7 +331,7 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
             return ConversationStatusValue.UNKNOWN, requires_round.evidence
         return None
 
-    def _derive_unfinished(
+    def _derive_fault(
         self,
         *,
         issue: int,
@@ -352,6 +355,15 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
                 detail=detail,
                 latest_output=latest_output,
             )
+        return None
+
+    def _derive_unfinished(
+        self,
+        *,
+        issue: int,
+        title: str,
+        conversation: Conversation | None,
+    ) -> ConversationStatus | None:
         if conversation is not None and not is_conversation_ready_for_input(
             conversation=conversation
         ):
