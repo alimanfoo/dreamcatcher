@@ -7,8 +7,8 @@ import pytest
 from clocks import PINNED
 from observations import observed_conversation
 from records import (
+    hold_daemon_lock_for_test,
     write_conversation,
-    write_daemon_lock,
     write_daemon_run,
     write_feed,
     write_final_output,
@@ -324,7 +324,7 @@ def test_an_unrecorded_round_input_shows_what_the_scheduler_reported(
 def test_a_live_round_keeps_an_ineligible_conversation_on_the_report(
     conversation_state,
 ):
-    write_daemon_lock(path=conversation_state.lock)
+    hold_daemon_lock_for_test(path=conversation_state.lock)
     conversation_round(state=conversation_state, status=None)
     write_feed(
         directory=conversation_state.conversations / "GH8",
@@ -357,7 +357,7 @@ def test_a_live_round_keeps_an_ineligible_conversation_on_the_report(
 def test_a_live_conversation_that_has_said_nothing_reports_that(
     conversation_state,
 ):
-    write_daemon_lock(path=conversation_state.lock)
+    hold_daemon_lock_for_test(path=conversation_state.lock)
     conversation_round(state=conversation_state, status=None)
 
     found = status(state=conversation_state)

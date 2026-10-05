@@ -7,9 +7,10 @@ from clocks import PINNED
 from conftest import ASSIGNMENT_LABEL, DAEMON_PID, REPOSITORY, configure
 from observations import observed_conversation, observed_issue
 from records import (
+    hold_daemon_lock_for_test,
+    release_daemon_lock,
     write_assignment,
     write_conversation,
-    write_daemon_lock,
     write_daemon_run,
     write_feed,
     write_final_output,
@@ -207,11 +208,11 @@ def running(
 
 
 def holding(*, state):
-    """Configure the instance and write the lock that its daemon holds."""
+    """Configure the instance and hold the lock as its running daemon."""
     configure(root=state.root)
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
     write_daemon_run(state=state, pid=DAEMON_PID)
-    write_daemon_lock(path=state.lock, pid=DAEMON_PID, process_started_at=PINNED)
+    hold_daemon_lock_for_test(path=state.lock)
 
 
 def fabricate_nothing(*, state):
@@ -397,7 +398,7 @@ def fabricate_a_failed_setup(*, state):
 def fabricate_a_dead_daemon(*, state):
     """Write the same assignments with their former daemon gone."""
     fabricate_everything(state=state)
-    state.lock.unlink()
+    release_daemon_lock(path=state.lock)
 
 
 def fabricate_the_cap(*, state):

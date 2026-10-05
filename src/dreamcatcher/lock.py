@@ -1,78 +1,85 @@
-"""Enforce one running daemon per repository with a process identity file."""
+"""Enforce one running daemon per repository with an operating-system file lock.
 
-import os
+The kernel releases the lock when the daemon's process ends, however it ends, so
+a held lock always means a live daemon.
+"""
+
 from collections.abc import Iterator
 from contextlib import contextmanager, suppress
-from datetime import UTC, datetime
 from pathlib import Path
 
-import psutil
-from pydantic import AwareDatetime, PositiveInt
+from filelock import BaseFileLock, FileLock, Timeout
 
-from dreamcatcher.documents import (
-    DreamcatcherDocument,
-    read_json_if_exists,
-    write_json,
-)
 from dreamcatcher.errors import ReportableError
 
+# A reader probes by taking the lock for an instant. A daemon that starts during
+# a probe waits this long for the lock rather than refusing.
+_DAEMON_ACQUIRE_TIMEOUT_SECONDS = 1.0
 
-class DaemonLockRecord(DreamcatcherDocument):
-    """The process identity that holds the daemon lock."""
+# Two readers that probe at once can each find the lock held. A probe holds the
+# lock for well under a millisecond, so a probe that keeps trying this long only
+# rarely mistakes another probe for a daemon.
+_PROBE_TIMEOUT_SECONDS = 0.02
 
-    pid: PositiveInt
-    process_started_at: AwareDatetime
+_POLL_INTERVAL_SECONDS = 0.005
 
 
 @contextmanager
-def hold_daemon_lock(*, path: Path) -> Iterator[int]:
+def hold_daemon_lock(*, path: Path) -> Iterator[None]:
     """Hold the daemon lock and release it when the caller exits.
 
-    Raise ReportableError when a live daemon holds it.
-
-    Reclaim a stale lock, one no live daemon holds.
+    Raise ReportableError when another daemon holds it, or when the filesystem
+    cannot lock the file.
     """
-    daemon_pid = read_daemon_pid(path=path)
-    if daemon_pid is not None:
-        raise ReportableError(f"dreamcatcher is already running as pid {daemon_pid}.")
-    pid = os.getpid()
-    write_json(
-        document=DaemonLockRecord(
-            pid=pid,
-            process_started_at=_read_process_start_time(pid=pid),
-        ),
+    lock = _create_daemon_lock(
         path=path,
+        timeout=_DAEMON_ACQUIRE_TIMEOUT_SECONDS,
     )
     try:
-        yield pid
-    finally:
-        # A release that cannot happen costs nothing, because the next run
-        # reclaims a lock naming a dead pid. Letting the failure out would
-        # replace whatever ended the run, and the user would read the wrong one.
-        with suppress(OSError):
-            path.unlink()
-
-
-def read_daemon_pid(*, path: Path) -> int | None:
-    """Return the PID when the lock names the same live process, otherwise None.
-
-    A missing file, a PID with no process, and a PID that the system reused for
-    another process are stale. Raise ReportableError when the document is
-    invalid or the process identity cannot be inspected.
-    """
-    record = read_json_if_exists(model=DaemonLockRecord, path=path)
-    if record is None:
-        return None
-    try:
-        process_started_at = _read_process_start_time(pid=record.pid)
-    except (psutil.NoSuchProcess, psutil.ZombieProcess):
-        return None
-    except (OSError, OverflowError, psutil.Error) as error:
+        lock.acquire()
+    except Timeout as error:
         raise ReportableError(
-            f"cannot inspect process {record.pid}: {error}"
+            "dreamcatcher is already running in this checkout."
         ) from error
-    return record.pid if record.process_started_at == process_started_at else None
+    except OSError as error:
+        raise ReportableError(f"cannot lock {path}: {error}") from error
+    try:
+        yield
+    finally:
+        # The kernel releases the lock when the process ends, so a release that
+        # fails costs nothing. Letting the failure out would replace whatever
+        # ended the run, and the user would read the wrong one.
+        with suppress(OSError):
+            lock.release()
 
 
-def _read_process_start_time(*, pid: int) -> datetime:
-    return datetime.fromtimestamp(psutil.Process(pid).create_time(), tz=UTC)
+def is_daemon_lock_held(*, path: Path) -> bool:
+    """Return whether a daemon holds the lock.
+
+    A missing file means that no daemon is running, so a reader never creates
+    one. Raise ReportableError when the lock cannot be probed.
+    """
+    probe = _create_daemon_lock(
+        path=path,
+        timeout=_PROBE_TIMEOUT_SECONDS,
+    )
+    try:
+        if not path.exists():
+            return False
+        with probe:
+            return False
+    except Timeout:
+        return True
+    except OSError as error:
+        raise ReportableError(f"cannot probe the lock {path}: {error}") from error
+
+
+def _create_daemon_lock(*, path: Path, timeout: float) -> BaseFileLock:
+    # A soft lock outlives a daemon that dies, which is the false answer that
+    # this lock exists to prevent, so a filesystem that cannot lock files fails.
+    return FileLock(
+        path,
+        timeout=timeout,
+        poll_interval=_POLL_INTERVAL_SECONDS,
+        fallback_to_soft=False,
+    )

@@ -6,7 +6,8 @@ from clocks import DISPLAY_TIME_ZONE, PINNED
 from conftest import REPOSITORY
 from observations import observed_conversation
 from records import (
-    write_daemon_lock,
+    hold_daemon_lock_for_test,
+    release_daemon_lock,
     write_feed,
     write_round,
     write_running_conversation,
@@ -19,7 +20,7 @@ from dreamcatcher.agent_rounds import (
     ConversationRoundPurpose,
     _compose_agent_round_ending,
 )
-from dreamcatcher.documents import append_text, remove_file, write_json, write_text
+from dreamcatcher.documents import append_text, write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.issue_conversations import (
     ConversationInput,
@@ -135,7 +136,7 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
     assert "claude --resume recovered-session" in page
 
 
-def test_conversation_page_requests_a_stop_for_its_running_round(tmp_path, daemon):
+def test_conversation_page_requests_a_stop_for_its_running_round(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     write_running_conversation(state=state, issue=8, started=PINNED)
@@ -159,9 +160,7 @@ def test_conversation_page_requests_a_stop_for_its_running_round(tmp_path, daemo
     assert paths.stop_request.read_text(encoding="utf-8") == ""
 
 
-def test_conversation_tail_offers_a_hand_resume_only_while_no_round_runs(
-    tmp_path, daemon
-):
+def test_conversation_tail_offers_a_hand_resume_only_while_no_round_runs(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     write_running_conversation(state=state, issue=8, started=PINNED)
@@ -169,7 +168,7 @@ def test_conversation_tail_offers_a_hand_resume_only_while_no_round_runs(
     query = {"cursor": "0:0"}
 
     working = client.get("/conversations/8/tail", query_string=query)
-    remove_file(path=state.lock)
+    release_daemon_lock(path=state.lock)
     without_daemon = client.get("/conversations/8/tail", query_string=query)
 
     assert (
@@ -180,9 +179,7 @@ def test_conversation_tail_offers_a_hand_resume_only_while_no_round_runs(
     assert "claude --resume conversation-session" in without_daemon.text
 
 
-def test_an_old_conversation_stop_submission_cannot_stop_the_next_round(
-    tmp_path, daemon
-):
+def test_an_old_conversation_stop_submission_cannot_stop_the_next_round(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
     write_round(
@@ -207,7 +204,7 @@ def test_an_old_conversation_stop_submission_cannot_stop_the_next_round(
     assert not conversation.compose_round_paths(number=2).stop_request.exists()
 
 
-def test_unsaved_conversation_has_no_stop_control(tmp_path, daemon):
+def test_unsaved_conversation_has_no_stop_control(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     fabricate_unsaved_conversation(state=state)
@@ -219,7 +216,7 @@ def test_unsaved_conversation_has_no_stop_control(tmp_path, daemon):
     assert "<summary>resume by hand</summary>" not in response.text
 
 
-def test_a_stale_conversation_stop_request_is_already_done(tmp_path, daemon):
+def test_a_stale_conversation_stop_request_is_already_done(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
     client = application(state=state).test_client()
@@ -605,7 +602,7 @@ def test_home_lists_conversations_in_attention_order(tmp_path):
         number=1,
         lines=[FeedLine(at=PINNED, text="Still working.")],
     )
-    write_daemon_lock(path=state.lock)
+    hold_daemon_lock_for_test(path=state.lock)
     write_tick(
         state=state,
         tick=SchedulerRecord(

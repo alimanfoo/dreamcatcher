@@ -7,8 +7,8 @@ from clocks import PINNED
 from conftest import REPOSITORY, configure
 from observations import observed_issue
 from records import (
+    hold_daemon_lock_for_test,
     write_assignment,
-    write_daemon_lock,
     write_daemon_run,
     write_feed,
     write_round,
@@ -63,7 +63,7 @@ def state(tmp_path):
 @pytest.fixture
 def running(state):
     """That state directory held by a daemon with this process identifier."""
-    write_daemon_lock(path=state.lock)
+    hold_daemon_lock_for_test(path=state.lock)
     return state
 
 
@@ -170,22 +170,18 @@ def test_the_instance_records_name_the_harness_and_version(state):
 
     assert found.daemon.agent_harness is AgentHarness.CODEX
     assert found.daemon.dreamcatcher_version == "3.0.0.beta1"
+    assert not found.daemon.is_running
+    assert found.daemon.pid is None
 
 
-def test_a_live_daemon_does_not_mix_in_another_runs_facts(state):
-    write_daemon_run(
-        state=state,
-        pid=os.getpid() + 1,
-        harness=AgentHarness.CODEX,
-        max_agents=4,
-    )
-    write_daemon_lock(path=state.lock)
+def test_a_live_daemon_that_has_not_named_its_run_has_no_pid(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    hold_daemon_lock_for_test(path=state.lock)
 
     found = report(state=state)
 
-    assert found.daemon.agent_harness is None
-    assert found.daemon.dreamcatcher_version is None
-    assert found.daemon.max_agents is None
+    assert found.daemon.is_running
+    assert found.daemon.pid is None
 
 
 def test_a_live_round_reports_work_and_its_latest_output(running):
@@ -248,7 +244,7 @@ def test_an_unended_round_status_follows_the_daemon(
     state, is_running, outcome_description
 ):
     if is_running:
-        write_daemon_lock(path=state.lock)
+        hold_daemon_lock_for_test(path=state.lock)
     ran(state=state, number=1, status=None)
 
     round_status = only_assignment(state=state).round_statuses[0]

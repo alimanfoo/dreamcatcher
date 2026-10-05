@@ -14,6 +14,7 @@ from dreamcatcher.status import (
     AgentRoundStatus,
     AssignmentStatus,
     ConversationStatus,
+    DreamcatcherDaemonStatus,
     DreamcatcherStatusReport,
     IssueFactValue,
     IssueObservation,
@@ -77,11 +78,8 @@ def compose_home_view(
         github_repository_url=_compose_github_repository_url(
             repository=report.repository
         ),
-        daemon_state="stopped" if daemon.pid is None else "running",
-        daemon_summary=_describe_daemon(
-            daemon_pid=daemon.pid,
-            dreamcatcher_version=daemon.dreamcatcher_version,
-        ),
+        daemon_state="running" if daemon.is_running else "stopped",
+        daemon_summary=_describe_daemon(daemon=daemon),
         instance_facts=_compose_instance_facts(report=report),
         cooldown_message=(
             None if cooldown_end is None else f"Global cooldown ends {cooldown_end}"
@@ -216,11 +214,8 @@ def compose_assignment_view(
     return WebAssignmentView(
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
-        daemon_state="stopped" if daemon.pid is None else "running",
-        daemon_summary=_describe_daemon(
-            daemon_pid=daemon.pid,
-            dreamcatcher_version=daemon.dreamcatcher_version,
-        ),
+        daemon_state="running" if daemon.is_running else "stopped",
+        daemon_summary=_describe_daemon(daemon=daemon),
         identifier=assignment.identifier,
         issue=record.issue,
         title=record.title,
@@ -251,11 +246,8 @@ def compose_conversation_view(
     return WebConversationView(
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
-        daemon_state="stopped" if daemon.pid is None else "running",
-        daemon_summary=_describe_daemon(
-            daemon_pid=daemon.pid,
-            dreamcatcher_version=daemon.dreamcatcher_version,
-        ),
+        daemon_state="running" if daemon.is_running else "stopped",
+        daemon_summary=_describe_daemon(daemon=daemon),
         issue=status.issue,
         title=status.title,
         facts=(
@@ -369,17 +361,16 @@ def _compose_issue_references(*, evidence: str) -> tuple[str | int, ...]:
     )
 
 
-def _describe_daemon(
-    *, daemon_pid: int | None, dreamcatcher_version: str | None
-) -> str:
-    if daemon_pid is None:
+def _describe_daemon(*, daemon: DreamcatcherDaemonStatus) -> str:
+    if not daemon.is_running:
         return "daemon stopped"
     version = (
-        ""
-        if dreamcatcher_version is None
-        else f"dreamcatcher v{dreamcatcher_version} · "
+        None
+        if daemon.dreamcatcher_version is None
+        else f"dreamcatcher v{daemon.dreamcatcher_version}"
     )
-    return f"daemon running · {version}pid {daemon_pid}"
+    pid = None if daemon.pid is None else f"pid {daemon.pid}"
+    return " · ".join(filter(None, ("daemon running", version, pid)))
 
 
 def _compose_instance_facts(*, report: DreamcatcherStatusReport) -> tuple[WebFact, ...]:
@@ -394,7 +385,7 @@ def _compose_instance_facts(*, report: DreamcatcherStatusReport) -> tuple[WebFac
             "next update in",
             (
                 None
-                if daemon.pid is None
+                if not daemon.is_running
                 else describe_countdown(
                     at=report.at,
                     since=report.latest_scheduler_tick,

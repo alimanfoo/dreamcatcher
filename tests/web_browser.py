@@ -5,9 +5,8 @@ from contextlib import contextmanager
 from datetime import timedelta
 from pathlib import Path
 from threading import Thread
-from unittest.mock import patch
 
-from clocks import DISPLAY_TIME_ZONE, PINNED
+from clocks import DISPLAY_TIME_ZONE
 from observations import observed_conversation
 from status_fabrications import (
     ASSIGNMENT_TIMESTAMP,
@@ -62,13 +61,11 @@ def serve_fabricated_web(*, root: Path) -> Iterator[str]:
     )
     server = make_server(WEB_HOST, 0, application)
     thread = Thread(target=server.serve_forever, name="fabricated-web-server")
-    with patch("psutil.Process") as process:
-        process.return_value.create_time.return_value = PINNED.timestamp()
-        try:
-            thread.start()
-            yield f"http://{WEB_HOST}:{server.server_port}"
-        finally:
-            if thread.is_alive():
-                server.shutdown()
-                thread.join()
-            server.server_close()
+    try:
+        thread.start()
+        yield f"http://{WEB_HOST}:{server.server_port}"
+    finally:
+        if thread.is_alive():
+            server.shutdown()
+            thread.join()
+        server.server_close()

@@ -21,7 +21,6 @@ from fakes import Line
 from records import (
     write_assignment,
     write_conversation,
-    write_daemon_lock,
     write_daemon_run,
     write_round,
 )
@@ -40,6 +39,7 @@ from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import read_json, write_json, write_text
 from dreamcatcher.errors import ReportableError
+from dreamcatcher.lock import hold_daemon_lock, is_daemon_lock_held
 from dreamcatcher.scheduler import AssignmentScheduler, ConversationScheduler, Scheduler
 from dreamcatcher.scheduler.models import (
     AgentWorkObservation,
@@ -357,7 +357,7 @@ def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(
         max_agents=1,
         interval_seconds=300,
     )
-    assert not daemon.state.lock.exists()
+    assert not is_daemon_lock_held(path=daemon.state.lock)
 
 
 def test_a_second_daemon_refuses_while_the_first_holds_the_repo(
@@ -367,9 +367,11 @@ def test_a_second_daemon_refuses_while_the_first_holds_the_repo(
     daemon.state.bootstrap()
     write_daemon_run(state=daemon.state, pid=os.getpid(), max_agents=2)
     (daemon.state.path.parent / "repository").write_bytes(b"legacy\n")
-    write_daemon_lock(path=daemon.state.lock)
 
-    with pytest.raises(ReportableError, match=f"pid {os.getpid()}"):
+    with (
+        hold_daemon_lock(path=daemon.state.lock),
+        pytest.raises(ReportableError, match="already running"),
+    ):
         daemon.run()
 
     assert (
@@ -605,6 +607,13 @@ def test_a_run_that_cannot_be_told_which_repository_this_is_refuses(
     with pytest.raises(ReportableError, match="cannot tell which repository"):
         daemon.run()
 
+    # The run names itself before it asks gh anything, so a reader that finds
+    # the lock held reads this run's pid.
+    assert (
+        read_json(model=DaemonRunRecord, path=daemon.state.daemon_run_record).pid
+        == os.getpid()
+    )
+
 
 def test_the_daemon_ends_the_rounds_it_holds_as_it_goes_down(ready_repo, harnesses):
     harnesses["claude"].streams(
@@ -621,28 +630,12 @@ def test_the_daemon_ends_the_rounds_it_holds_as_it_goes_down(ready_repo, harness
 
 def test_a_run_that_cannot_read_an_assignment_refuses_to_start(ready_repo):
     state = StateDirectory(root=ready_repo)
-    previous_run = DaemonRunRecord(
-        pid=os.getpid(),
-        harness=AgentHarness.CODEX,
-        version="2.9.0",
-        max_agents=2,
-        interval_seconds=300,
-    )
-    write_json(document=previous_run, path=state.daemon_run_record)
     directory = write_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13)
     (directory / "assignment.json").write_text("{}", encoding="utf-8")
     daemon, _, _ = idling(root=ready_repo, ticks=1)
 
     with pytest.raises(ReportableError, match=r"assignment\.json is not valid"):
         daemon.run()
-
-    assert (
-        read_json(
-            model=DaemonRunRecord,
-            path=state.daemon_run_record,
-        )
-        == previous_run
-    )
 
 
 def test_a_failed_tick_preserves_the_last_scheduler_record(ready_repo, capsys):

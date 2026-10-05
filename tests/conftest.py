@@ -8,12 +8,11 @@ from collections.abc import Sequence
 from contextlib import suppress
 from functools import partial
 from pathlib import Path
-from types import SimpleNamespace
 
 import fakes
 import psutil
 import pytest
-from clocks import PINNED
+from records import release_daemon_locks
 
 from dreamcatcher.commands import run_command, spawn_command
 from dreamcatcher.config import _DREAMCATCHER_CONFIG_NAME
@@ -79,16 +78,11 @@ effort = "xhigh"
 CONFIG = SMITH_CLAUDE + SMITH_CODEX
 
 
-@pytest.fixture
-def daemon(monkeypatch):
-    """Answer that the fabricated daemon, and nothing else, is still running."""
-
-    def fabricated_process(pid, /):
-        if pid != DAEMON_PID:
-            raise psutil.NoSuchProcess(pid)
-        return SimpleNamespace(create_time=lambda: PINNED.timestamp())
-
-    monkeypatch.setattr(psutil, "Process", fabricated_process)
+@pytest.fixture(autouse=True)
+def _release_daemon_locks():
+    """Release, as each test ends, the daemon locks that it took."""
+    yield
+    release_daemon_locks()
 
 
 def pytest_addoption(parser: pytest.Parser, /) -> None:

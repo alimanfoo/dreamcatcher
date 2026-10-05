@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from contextlib import suppress
 from time import sleep
@@ -113,8 +114,18 @@ class DreamcatcherDaemon:
         posts.
         """
         self._locate_harnesses()
-        with hold_daemon_lock(path=self.state.lock) as pid:
+        with hold_daemon_lock(path=self.state.lock):
             self.state.bootstrap()
+            write_json(
+                document=DaemonRunRecord(
+                    pid=os.getpid(),
+                    harness=self.harness,
+                    version=DREAMCATCHER_VERSION,
+                    max_agents=self.max_agents,
+                    interval_seconds=self.interval,
+                ),
+                path=self.state.daemon_run_record,
+            )
             repository = _require_known_github_value(
                 value=identify_github_repository(root=self.state.root),
                 question="which repository this is",
@@ -148,16 +159,6 @@ class DreamcatcherDaemon:
                 max_agents=self.max_agents,
             )
             self._sweep_orphans()
-            write_json(
-                document=DaemonRunRecord(
-                    pid=pid,
-                    harness=self.harness,
-                    version=DREAMCATCHER_VERSION,
-                    max_agents=self.max_agents,
-                    interval_seconds=self.interval,
-                ),
-                path=self.state.daemon_run_record,
-            )
             at = self.clock()
             _write_output(
                 line=f"{describe_time(at=at, zone=self.zone)}  dreamcatcher is running"

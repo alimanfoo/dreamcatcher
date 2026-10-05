@@ -15,6 +15,7 @@ from dreamcatcher.status import (
     CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER,
     AssignmentStatus,
     ConversationStatus,
+    DreamcatcherDaemonStatus,
     DreamcatcherStatusReport,
     IssueFactValue,
     IssueObservation,
@@ -105,7 +106,7 @@ def _compose_instance_rows(
     daemon_status = report.daemon
     tick = (
         None
-        if daemon_status.pid is None
+        if not daemon_status.is_running
         else describe_countdown(
             at=report.at,
             since=report.latest_scheduler_tick,
@@ -120,10 +121,7 @@ def _compose_instance_rows(
     return (
         (
             "daemon",
-            _describe_daemon(
-                daemon_pid=daemon_status.pid,
-                dreamcatcher_version=daemon_status.dreamcatcher_version,
-            ),
+            _describe_daemon(daemon=daemon_status),
         ),
         ("harness", daemon_status.agent_harness),
         ("next update in", tick),
@@ -140,17 +138,16 @@ def _compose_instance_rows(
     )
 
 
-def _describe_daemon(
-    *, daemon_pid: int | None, dreamcatcher_version: str | None
-) -> str:
-    if daemon_pid is None:
+def _describe_daemon(*, daemon: DreamcatcherDaemonStatus) -> str:
+    if not daemon.is_running:
         return "not running"
     version = (
         None
-        if dreamcatcher_version is None
-        else f"dreamcatcher v{dreamcatcher_version}"
+        if daemon.dreamcatcher_version is None
+        else f"dreamcatcher v{daemon.dreamcatcher_version}"
     )
-    return " ".join(filter(None, ("running", version, f"as pid {daemon_pid}")))
+    pid = None if daemon.pid is None else f"as pid {daemon.pid}"
+    return " ".join(filter(None, ("running", version, pid)))
 
 
 def _render_assignments(

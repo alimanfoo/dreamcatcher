@@ -37,8 +37,8 @@ class StateDirectory:
 
     @property
     def lock(self) -> Path:
-        """The document that identifies the process holding the daemon lock."""
-        return self.path.parent / "daemon.pid"
+        """The file that the running daemon holds locked."""
+        return self.path.parent / "daemon.lock"
 
     @property
     def repository(self) -> Path:

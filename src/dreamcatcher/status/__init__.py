@@ -12,6 +12,7 @@ from dreamcatcher.status.conversations import (
     ConversationStatus,
 )
 from dreamcatcher.status.report import (
+    DreamcatcherDaemonStatus,
     DreamcatcherStatusReport,
     read_assignment_status,
     read_assignment_statuses_for_issue,
@@ -29,6 +30,7 @@ __all__ = [
     "AgentRoundStatus",
     "AssignmentStatus",
     "ConversationStatus",
+    "DreamcatcherDaemonStatus",
     "DreamcatcherStatusReport",
     "IssueFactValue",
     "IssueObservation",

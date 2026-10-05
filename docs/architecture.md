@@ -30,7 +30,8 @@ domain phrase into a class. In particular, it should:
 `daemon.py` owns the lifetime of the daemon that runs a Dreamcatcher instance:
 
 - acquire and release the repository lock;
-- record the daemon process identifier;
+- record the daemon process identifier in the run record as soon as it holds the
+  lock;
 - reconcile round records that an earlier daemon left without an ending by
   ending their recorded process trees at startup, then asking the round boundary
   to record them as stopped when the user asked to stop them, and otherwise as
@@ -440,13 +441,16 @@ required to bootstrap that directory. The modules that own assignments,
 conversations and rounds name the files within their own directories. A
 state-format constant selects the versioned root, currently `.dreamcatcher/v5/`,
 so one format never reads another format's files. The shared
-`.dreamcatcher/daemon.pid` lock stays outside that root, so daemons using
-different formats still cannot run against one checkout together. It is a strict
-document containing the daemon's PID and process start time. A reader accepts it
-only while both values still identify the same live process, so a PID that the
-operating system has reused does not make a dead daemon look live. The module
-should remain deliberately small. It must not contain collections of issues or
-assignments selected for work, scheduling decisions, or status projections.
+`.dreamcatcher/daemon.lock` stays outside that root, so daemons using different
+formats from v5 on cannot run against one checkout together. The daemon holds an
+operating-system lock on that empty file for as long as it runs, and a reader
+asks whether the lock is held. The kernel releases the lock when the daemon's
+process ends, so neither a reused PID nor a clock change can make a dead daemon
+look live or a live one look dead. A v4 daemon takes no such lock. It writes its
+PID to `.dreamcatcher/daemon.pid` and treats that file as a mutex, so it does
+not see this lock. The module should remain deliberately small. It must not
+contain collections of issues or assignments selected for work, scheduling
+decisions, or status projections.
 
 The on-disk layout follows ownership:
 
