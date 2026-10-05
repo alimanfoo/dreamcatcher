@@ -461,26 +461,46 @@ def test_an_assignment_view_shows_the_round_that_starts_while_it_is_open(tmp_pat
     assert "address feedback" in written_to.getvalue()
 
 
-@pytest.mark.parametrize("issue", [12, 9])
-def test_an_assignment_view_of_an_assignment_that_is_over_never_waits(issue, tmp_path):
-    """GH12 completed its wrap-up, and GH9 is in fault, so neither has one coming."""
+def test_an_assignment_view_of_an_ended_assignment_never_waits(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     written_to = StringIO()
 
     show_assignment_view(
         state=state,
-        issue=issue,
+        issue=12,
         console=pinned(written_to=written_to, is_terminal=True),
         clock=lambda: LOOKED_AT,
         wait=refusing,
         zone=DISPLAY_TIME_ZONE,
     )
 
-    assert f"GH{issue}-{ASSIGNMENT_TIMESTAMP}" in written_to.getvalue()
+    assert f"GH12-{ASSIGNMENT_TIMESTAMP}" in written_to.getvalue()
 
 
-def test_an_assignment_view_of_an_assignment_that_is_over_keeps_its_last_picture(
+def test_an_assignment_view_in_fault_keeps_watching(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    written_to = StringIO()
+    waits = []
+
+    def interrupting(seconds, /):
+        waits.append(seconds)
+        raise KeyboardInterrupt
+
+    show_assignment_view(
+        state=state,
+        issue=9,
+        console=pinned(written_to=written_to, is_terminal=True),
+        clock=lambda: LOOKED_AT,
+        wait=interrupting,
+        zone=DISPLAY_TIME_ZONE,
+    )
+
+    assert waits
+
+
+def test_an_assignment_view_of_an_ended_assignment_keeps_its_last_picture(
     tmp_path,
 ):
     """GH12 completed its wrap-up, so the view ends and its picture stays."""
@@ -651,7 +671,7 @@ def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path):
     assert feed.count("round 1: implement") == 1
 
 
-def test_a_view_of_an_assignment_that_is_over_never_waits(tmp_path):
+def test_a_view_of_an_ended_assignment_never_waits(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -675,11 +695,17 @@ def test_a_following_view_waits_for_the_next_daemon(tmp_path):
     assert waits == [_VIEW_REFRESH_INTERVAL]
 
 
-def test_a_view_of_a_faulted_assignment_never_waits(tmp_path):
+def test_a_view_of_a_faulted_assignment_keeps_watching(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
+    waits = []
 
-    assert "round 2: implement" in followed(state=state, issue=9)
+    def interrupting(seconds, /):
+        waits.append(seconds)
+        raise KeyboardInterrupt
+
+    assert "round 2: implement" in followed(state=state, issue=9, wait=interrupting)
+    assert waits
 
 
 def test_a_following_view_reads_a_round_on_from_where_it_stopped(tmp_path):

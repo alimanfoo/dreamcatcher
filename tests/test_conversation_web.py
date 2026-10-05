@@ -467,6 +467,52 @@ def test_a_waiting_conversation_keeps_empty_tail_polling(tmp_path):
     assert response.status_code == 200
 
 
+def test_a_faulted_conversation_keeps_empty_tail_polling(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    _fabricate_faulted_conversation(state=state)
+    conversation = read_conversation(state=state, issue=8)
+    assert conversation is not None
+
+    response = (
+        application(state=state)
+        .test_client()
+        .get(
+            "/conversations/8/tail",
+            query_string={"cursor": "2:0"},
+        )
+    )
+
+    assert response.status_code == 200
+
+
+def test_a_routing_conflict_keeps_empty_conversation_tail_polling(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state, is_eligible=True)
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            conversation_observations=[
+                observed_conversation(routing_conflict=Truth.TRUE)
+            ],
+        ),
+    )
+    conversation = read_conversation(state=state, issue=8)
+    assert conversation is not None
+    feed = conversation.compose_round_paths(number=1).feed
+
+    response = (
+        application(state=state)
+        .test_client()
+        .get(
+            "/conversations/8/tail",
+            query_string={"cursor": f"1:{feed.stat().st_size}"},
+        )
+    )
+
+    assert response.status_code == 200
+
+
 def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state, is_eligible=True)

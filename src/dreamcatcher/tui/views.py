@@ -58,7 +58,7 @@ def show_assignment_view(
     wait: WaitForSeconds = sleep,
     zone: tzinfo | None = None,
 ) -> None:
-    """Show the issue's newest assignment until it ends or enters fault.
+    """Show the issue's newest assignment until it ends.
 
     The view remains open between rounds. A non-terminal or dumb terminal
     renders one snapshot and returns.
@@ -82,10 +82,8 @@ def show_conversation_view(
     wait: WaitForSeconds = sleep,
     zone: tzinfo | None = None,
 ) -> None:
-    """Show one issue conversation until nothing more can happen without the user.
+    """Show one issue conversation while the status report lists it.
 
-    That is once it enters fault, has a routing conflict, or the status report
-    no longer lists it.
     A non-terminal or dumb terminal renders one snapshot and returns.
     """
     refresh_live_view(
@@ -104,11 +102,11 @@ def _read_conversation_snapshot(
     clock: Callable[[], datetime],
     zone: tzinfo | None,
 ) -> ViewSnapshot:
-    """Return one conversation snapshot and whether its live view is over."""
+    """Return one conversation snapshot and whether to stop refreshing it."""
     status = _find_conversation_status_for_issue(state=state, issue=issue, clock=clock)
     return ViewSnapshot(
         renderable=_render_conversation(state=state, status=status, zone=zone),
-        is_over=status.is_over,
+        should_stop_refreshing=not status.is_listed,
     )
 
 
@@ -186,7 +184,7 @@ def _read_assignment_snapshot(
     clock: Callable[[], datetime],
     zone: tzinfo | None,
 ) -> ViewSnapshot:
-    """Return the newest assignment and whether its view is over.
+    """Return the newest assignment and whether to stop refreshing its view.
 
     Each refresh reads the issue's statuses once and derives both the rendered
     view and whether the assignment is terminal from that snapshot.
@@ -200,7 +198,7 @@ def _read_assignment_snapshot(
         renderable=_render_assignment(
             state=state, assignment_statuses=assignment_statuses, zone=zone
         ),
-        is_over=assignment_statuses[0].is_over,
+        should_stop_refreshing=assignment_statuses[0].has_ended,
     )
 
 
@@ -363,14 +361,14 @@ def show_feed_view(
     view = _FeedView(console=console, zone=zone)
 
     def refresh_feed() -> bool:
-        """Show output since the previous refresh and return whether it is over."""
+        """Show new output and return whether refreshing should stop."""
         snapshot = _find_feed_owner(state=state, issue=issue, work_kind=work_kind)
         view.show_new_output(
             owner=snapshot.owner,
             records=snapshot.owner.rounds,
             round_details=snapshot.round_details,
         )
-        return snapshot.is_over
+        return snapshot.should_stop_refreshing
 
     refresh_until_view_ends(console=console, refresh_view=refresh_feed, wait=wait)
 
@@ -452,14 +450,14 @@ class _FeedOwnerSnapshot:
     """Hold one feed owner and the status-derived context for its headings."""
 
     owner: Assignment | Conversation
-    is_over: bool
+    should_stop_refreshing: bool
     round_details: dict[int, str]
 
 
 def _find_feed_owner(
     *, state: StateDirectory, issue: int, work_kind: AgentWorkKind
 ) -> _FeedOwnerSnapshot:
-    """Return the selected feed owner and whether more output can reach it."""
+    """Return the selected feed owner and whether to stop refreshing its feed."""
     if work_kind is AgentWorkKind.CONVERSATION:
         status = _find_conversation_status_for_issue(state=state, issue=issue)
         if status.conversation is None:
@@ -468,7 +466,7 @@ def _find_feed_owner(
             )
         return _FeedOwnerSnapshot(
             owner=status.conversation,
-            is_over=status.is_over,
+            should_stop_refreshing=not status.is_listed,
             round_details={
                 round_status.record.number: round_status.revision.description
                 for round_status in status.round_statuses
@@ -478,7 +476,7 @@ def _find_feed_owner(
     status = _find_assignment_statuses_for_issue(state=state, issue=issue)[0]
     return _FeedOwnerSnapshot(
         owner=status.assignment,
-        is_over=status.is_over,
+        should_stop_refreshing=status.has_ended,
         round_details={},
     )
 

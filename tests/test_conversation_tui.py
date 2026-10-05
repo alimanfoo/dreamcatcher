@@ -525,13 +525,53 @@ def test_a_conversation_view_off_the_report_never_waits(tmp_path, status):
 
 def test_a_conversation_view_of_an_idle_conversation_keeps_watching(tmp_path):
     state = conversation_state(root=tmp_path, is_eligible=True)
-    console, _ = watched_console()
+    assert_conversation_views_keep_watching(state=state)
+
+
+def test_a_conversation_view_in_fault_keeps_watching(tmp_path):
+    state = conversation_state(root=tmp_path, status=2, is_eligible=True)
+    write_round(
+        directory=state.conversations / "GH8",
+        number=2,
+        record=AgentRoundRecord(
+            number=2,
+            purpose=ConversationRoundPurpose.DISCUSS,
+            is_recovery=True,
+            started=PINNED + timedelta(minutes=5),
+            pid=2,
+            ending=_compose_agent_round_ending(
+                at=PINNED + timedelta(minutes=8), status=2
+            ),
+        ),
+    )
+
+    assert_conversation_views_keep_watching(state=state)
+
+
+def test_a_conversation_view_with_a_routing_conflict_keeps_watching(tmp_path):
+    state = conversation_state(root=tmp_path, is_eligible=True)
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            conversation_observations=[
+                observed_conversation(routing_conflict=Truth.TRUE)
+            ],
+        ),
+    )
+
+    assert_conversation_views_keep_watching(state=state)
+
+
+def assert_conversation_views_keep_watching(*, state: StateDirectory) -> None:
+    """Assert that the conversation detail and feed views both keep watching."""
     waits = []
 
     def interrupting(seconds, /):
         waits.append(seconds)
         raise KeyboardInterrupt
 
+    console, _ = watched_console()
     show_conversation_view(
         state=state,
         issue=8,
@@ -539,5 +579,13 @@ def test_a_conversation_view_of_an_idle_conversation_keeps_watching(tmp_path):
         clock=lambda: PINNED,
         wait=interrupting,
     )
+    console, _ = watched_console()
+    show_feed_view(
+        state=state,
+        issue=8,
+        work_kind=AgentWorkKind.CONVERSATION,
+        console=console,
+        wait=interrupting,
+    )
 
-    assert waits
+    assert len(waits) == 2

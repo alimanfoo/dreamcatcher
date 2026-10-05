@@ -67,7 +67,7 @@ def _read_status_snapshot(
         renderable=_render_status(
             report=read_status_report(state=state, clock=clock), zone=zone
         ),
-        is_over=False,
+        should_stop_refreshing=False,
     )
 
 

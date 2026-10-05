@@ -186,12 +186,12 @@ def _build_cli_parser() -> argparse.ArgumentParser:
             "Show an overview of the newest assignment at the issue: what "
             "its assignment dispatch settled, the rounds it has run, the command that "
             "resumes the harness session by hand, and the older assignments "
-            "at the same issue. It keeps up for as long as the assignment has "
-            "another round coming. "
+            "at the same issue. It keeps up until the assignment ends after a "
+            "successful wrap-up or a cancel. "
             + _HELP_WHEN_A_VIEW_ENDS
             + " "
             + _HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
-            + " An assignment that is over stays on the screen for you to read. "
+            + " An ended assignment stays on the screen for you to read. "
             "Interrupt one that is still going and nothing is left behind. "
             + _HELP_WHEN_NOTHING_WATCHES
         ),
@@ -203,8 +203,8 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         help="show one issue conversation, in detail",
         description=(
             "Show an issue conversation's chosen settings, session, worktree, "
-            "code revision, and rounds. It keeps up until the conversation "
-            "enters fault, has a routing conflict or leaves the status report. "
+            "code revision, and rounds. It keeps up while the status report "
+            "lists the conversation. "
             + _HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
             + " "
             + _HELP_WHEN_NOTHING_WATCHES
@@ -218,9 +218,8 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         description=(
             "Show the agent's actions and outputs from every round of "
             "the selected assignment or conversation, and keep showing what "
-            "arrives until that work completes, is cancelled, enters fault or "
-            "leaves the status report. A conversation's routing conflict also "
-            "ends its feed view. " + _HELP_WHEN_NOTHING_WATCHES
+            "arrives until an assignment ends or the status report stops listing "
+            "a conversation. " + _HELP_WHEN_NOTHING_WATCHES
         ),
     )
     _add_issue_argument(parser=feed_parser)

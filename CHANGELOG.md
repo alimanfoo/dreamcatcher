@@ -11,6 +11,11 @@ tagged. From v5.0.0 on, each entry links the pull request that made the change.
 
 ## Unreleased (v5.0.0)
 
+- Terminal and web live views now keep following faulted assignments and
+  conversations in fault or with a routing conflict, so recovery appears without
+  reopening the view. They stop only when an assignment ends or a conversation
+  leaves the status report.
+  ([#415](https://github.com/alimanfoo/dreamcatcher/pull/415))
 - Brought the words in the status views, CLI help and messages, and guides into
   line with each other. An assignment that needs your feedback shows how long
   since its last output rather than "idle". The terminal and web views share

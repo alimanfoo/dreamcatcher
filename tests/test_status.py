@@ -375,7 +375,7 @@ def test_a_successful_wrap_up_is_complete(state):
 
     assert status.value is AssignmentStatusValue.COMPLETE
     assert status.detail == "2 rounds"
-    assert status.is_over
+    assert status.has_ended
 
 
 def cancel(*, state: StateDirectory) -> None:
@@ -392,7 +392,6 @@ def test_a_cancelled_assignment_has_ended(state):
     assert status.value is AssignmentStatusValue.CANCELLED
     assert status.detail == "1 round"
     assert status.has_ended
-    assert status.is_over
 
 
 def test_a_round_still_running_after_a_cancel_is_working(running):
@@ -436,7 +435,7 @@ def test_an_assignment_that_has_run_no_round_waits_for_its_first(state):
 
     assert status.value is AssignmentStatusValue.WAITING
     assert status.detail == "next round, implement"
-    assert not status.is_over
+    assert not status.has_ended
 
 
 def test_a_required_round_reports_the_scheduler_reason(state):
@@ -630,7 +629,7 @@ def test_two_current_errors_put_an_assignment_in_fault(state):
     assert status.value is AssignmentStatusValue.FAULT
     assert status.detail == "round 2 errored (exit 2)"
     assert status.latest_output == "[failed] You hit your spend cap."
-    assert status.is_over
+    assert not status.has_ended
 
 
 def test_a_fault_with_no_output_names_the_latest_round_ending(state):

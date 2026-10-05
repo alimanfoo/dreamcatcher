@@ -73,11 +73,6 @@ class AssignmentStatus:
         }
 
     @property
-    def is_over(self) -> bool:
-        """Whether the work has ended or is stuck, so a live view stops following it."""
-        return self.has_ended or self.value is AssignmentStatusValue.FAULT
-
-    @property
     def pull_request_state(self) -> str | None:
         """The latest observed pull-request state in status-report words.
 

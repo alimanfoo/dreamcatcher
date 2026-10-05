@@ -185,7 +185,6 @@ def test_a_conversation_nobody_has_commented_on_is_idle(conversation_state):
     assert found.value is ConversationStatusValue.IDLE
     assert found.detail == "no comments yet"
     assert found.is_listed
-    assert not found.is_over
     assert found.round_statuses == []
     assert found.harness_session_identifier == "conversation-session"
     assert found.hand_resume_command == [
@@ -298,7 +297,6 @@ def test_an_ineligible_conversation_is_idle_and_leaves_the_report(
     assert found.value is ConversationStatusValue.IDLE
     assert found.detail == "issue is not eligible for conversation"
     assert not found.is_listed
-    assert found.is_over
     assert report.conversation_statuses == []
 
 
@@ -365,7 +363,7 @@ def test_a_live_round_keeps_an_ineligible_conversation_on_the_report(
     assert found.value is ConversationStatusValue.WORKING
     assert found.detail == ("round 1, discuss, running 2h 0m, last output 1h 59m ago")
     assert found.latest_output == "I am reading the scheduler."
-    assert not found.is_over
+    assert found.is_listed
     assert found.round_statuses[0].outcome_description == "running"
     assert found.round_statuses[0].revision is not None
     assert found.round_statuses[0].revision.value == "abc123"
@@ -403,7 +401,6 @@ def test_an_errored_round_waits_to_be_recovered(conversation_state):
 
     assert found.value is ConversationStatusValue.WAITING
     assert found.detail == "round 1 errored (exit 2)"
-    assert not found.is_over
 
 
 def test_two_current_errors_put_a_conversation_in_fault(conversation_state):
@@ -425,7 +422,7 @@ def test_two_current_errors_put_a_conversation_in_fault(conversation_state):
     assert found.value is ConversationStatusValue.FAULT
     assert found.detail == "round 2 errored (exit 2)"
     assert found.latest_output == "[failed] You hit your spend cap."
-    assert found.is_over
+    assert found.is_listed
 
 
 @pytest.mark.parametrize(
@@ -596,7 +593,7 @@ def test_a_posted_answer_leaves_the_conversation_idle(conversation_state):
 
     assert found.value is ConversationStatusValue.IDLE
     assert found.detail == "round 1, answered, ran 4m"
-    assert not found.is_over
+    assert found.is_listed
     assert found.round_statuses[0].duration_description == "ran 4m"
 
 
@@ -683,7 +680,7 @@ def test_an_unsaved_conversation_with_two_routes_reports_its_conflict(tmp_path):
     assert found is not None
     assert found.value is ConversationStatusValue.ROUTING_CONFLICT
     assert found.detail == conflict
-    assert found.is_over
+    assert found.is_listed
 
 
 def test_a_saved_conversation_with_two_routes_reports_its_conflict(
