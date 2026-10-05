@@ -11,7 +11,13 @@ import pytest
 from clocks import DISPLAY_TIME_ZONE, PINNED
 from conftest import FIXTURES, REPOSITORY, assert_matches_view_golden
 from observations import observed_issue
-from records import write_assignment, write_feed, write_round, write_tick
+from records import (
+    release_daemon_lock,
+    write_assignment,
+    write_feed,
+    write_round,
+    write_tick,
+)
 from status_fabrications import (
     LOOKED_AT,
     STATUS_REPORTS,
@@ -35,7 +41,7 @@ from dreamcatcher.agent_rounds import (
     AssignmentRoundPurpose,
     StoppedAgentRoundEnding,
 )
-from dreamcatcher.documents import append_text, remove_file, write_text
+from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.scheduler.models import (
@@ -228,7 +234,7 @@ def test_assignment_stop_control_needs_a_daemon_and_harness_session(tmp_path):
 
     assert f'action="/assignments/{identifier}/stop/1"' not in without_session
 
-    remove_file(path=state.lock)
+    release_daemon_lock(path=state.lock)
     without_daemon = render_assignment(state=state, identifier="GH13-20260819-184158")
 
     assert 'action="/assignments/GH13-20260819-184158/stop/2"' not in without_daemon
@@ -261,7 +267,7 @@ def test_assignment_tail_offers_a_hand_resume_only_while_no_round_runs(tmp_path)
     query = {"cursor": _read_cursor(response=page)}
 
     working = client.get(f"/assignments/{identifier}/tail", query_string=query)
-    remove_file(path=state.lock)
+    release_daemon_lock(path=state.lock)
     without_daemon = client.get(f"/assignments/{identifier}/tail", query_string=query)
 
     assert (

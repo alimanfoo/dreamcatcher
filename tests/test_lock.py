@@ -1,6 +1,7 @@
 import subprocess
 import sys
 import time
+from threading import Event, Thread
 
 import pytest
 
@@ -22,7 +23,7 @@ with hold_daemon_lock(path=Path(sys.argv[1])):
 _RELEASE_DEADLINE_SECONDS = 5
 
 
-def test_the_lock_is_held_until_the_daemon_exits(tmp_path):
+def test_the_lock_is_held_until_the_daemon_releases_it(tmp_path):
     lock = tmp_path / "daemon.lock"
 
     with hold_daemon_lock(path=lock):
@@ -56,17 +57,36 @@ def test_a_daemon_that_is_killed_leaves_the_lock_free(tmp_path):
         stdout=subprocess.PIPE,
         encoding="utf-8",
     ) as holder:
-        assert holder.stdout is not None
-        assert holder.stdout.readline() == "held\n"
-        assert is_daemon_lock_held(path=lock)
-
-        holder.kill()
-        holder.wait()
+        try:
+            assert holder.stdout is not None
+            assert holder.stdout.readline() == "held\n"
+            assert is_daemon_lock_held(path=lock)
+        finally:
+            holder.kill()
+            holder.wait()
 
     deadline = time.monotonic() + _RELEASE_DEADLINE_SECONDS
     while is_daemon_lock_held(path=lock) and time.monotonic() < deadline:
         time.sleep(0.05)
     assert not is_daemon_lock_held(path=lock)
+
+
+def test_a_daemon_that_starts_while_the_lock_is_briefly_held_waits_for_it(tmp_path):
+    lock = tmp_path / "daemon.lock"
+    is_held = Event()
+
+    def hold_briefly():
+        with hold_daemon_lock(path=lock):
+            is_held.set()
+            time.sleep(0.1)
+
+    holder = Thread(target=hold_briefly)
+    holder.start()
+    is_held.wait()
+
+    with hold_daemon_lock(path=lock):
+        assert is_daemon_lock_held(path=lock)
+    holder.join()
 
 
 def test_the_lock_is_released_when_the_daemon_fails(tmp_path):

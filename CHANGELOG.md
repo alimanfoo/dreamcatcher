@@ -15,8 +15,8 @@ tagged. From v5.0.0 on, each entry links the pull request that made the change.
   as stopped, or its running rounds as interrupted, after the system clock is
   corrected. The daemon now holds an operating-system lock on
   `.dreamcatcher/daemon.lock` for as long as it runs, in place of
-  `.dreamcatcher/daemon.pid`.
-  ([#405](https://github.com/alimanfoo/dreamcatcher/pull/405))
+  `.dreamcatcher/daemon.pid`, so stop a v4.0.0 daemon before you start this
+  release. ([#405](https://github.com/alimanfoo/dreamcatcher/pull/405))
 - Added a `config` table to a Codex recipe in `dreamcatcher.toml`. Dreamcatcher
   passes each entry to every Codex round as `-c key=value`, so that a label can
   run Codex with settings such as a larger context window.

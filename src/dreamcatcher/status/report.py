@@ -50,7 +50,11 @@ class DreamcatcherDaemonStatus:
 
     @property
     def pid(self) -> int | None:
-        """The running daemon's process ID, once its run record names it."""
+        """The running daemon's process ID, from the latest run record.
+
+        A daemon writes its run record just after it takes the lock, so for that
+        moment a starting daemon reports the previous run's record.
+        """
         return None if not self.is_running or self.run is None else self.run.pid
 
     @property

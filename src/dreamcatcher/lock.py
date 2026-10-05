@@ -16,9 +16,9 @@ from dreamcatcher.errors import ReportableError
 # a probe waits this long for the lock rather than refusing.
 _DAEMON_ACQUIRE_TIMEOUT_SECONDS = 1.0
 
-# Two readers that probe at once can each find the lock held. A probe keeps
-# trying for longer than another probe holds the lock, and far less long than a
-# page takes to load.
+# Two readers that probe at once can each find the lock held. A probe holds the
+# lock for well under a millisecond, so a probe that keeps trying this long only
+# rarely mistakes another probe for a daemon.
 _PROBE_TIMEOUT_SECONDS = 0.02
 
 _POLL_INTERVAL_SECONDS = 0.005
@@ -59,13 +59,13 @@ def is_daemon_lock_held(*, path: Path) -> bool:
     A missing file means that no daemon is running, so a reader never creates
     one. Raise ReportableError when the lock cannot be probed.
     """
-    if not path.exists():
-        return False
     probe = _create_daemon_lock(
         path=path,
         timeout=_PROBE_TIMEOUT_SECONDS,
     )
     try:
+        if not path.exists():
+            return False
         with probe:
             return False
     except Timeout:

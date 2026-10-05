@@ -7,6 +7,7 @@ from conftest import REPOSITORY
 from observations import observed_conversation
 from records import (
     hold_daemon_lock_for_test,
+    release_daemon_lock,
     write_feed,
     write_round,
     write_running_conversation,
@@ -19,7 +20,7 @@ from dreamcatcher.agent_rounds import (
     ConversationRoundPurpose,
     _compose_agent_round_ending,
 )
-from dreamcatcher.documents import append_text, remove_file, write_json, write_text
+from dreamcatcher.documents import append_text, write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.issue_conversations import (
     ConversationInput,
@@ -167,7 +168,7 @@ def test_conversation_tail_offers_a_hand_resume_only_while_no_round_runs(tmp_pat
     query = {"cursor": "0:0"}
 
     working = client.get("/conversations/8/tail", query_string=query)
-    remove_file(path=state.lock)
+    release_daemon_lock(path=state.lock)
     without_daemon = client.get("/conversations/8/tail", query_string=query)
 
     assert (
